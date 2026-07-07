@@ -25,6 +25,7 @@ type Record struct {
 	LastRefreshErrorMessage    string
 	LastRefreshConfigHash      string
 	LastObservedConfigHash     string
+	WorkspaceAnnotationsJSON   []byte
 	LastDriftCheckedAt         *time.Time
 	DriftStatus                string
 	CreatedBy                  *uint64

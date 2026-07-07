@@ -1,4 +1,6 @@
 type WorkspaceCopy = {
+  annotationAction: string;
+  annotationSaveFailed: string;
   cancelAction: string;
   continueWithDiskAction: string;
   deployAction: string;
@@ -19,12 +21,24 @@ type WorkspaceCopy = {
   fileTreeHint: string;
   fileTreeTitle: string;
   filesEmpty: string;
+  exitFullscreenAction: string;
+  fullscreenAction: string;
+  hiddenBadge: string;
+  hiddenItemsHint: string;
   hideHiddenAction: string;
+  kindBinary: string;
+  kindCompose: string;
+  kindConfig: string;
+  kindDirectory: string;
+  kindEnv: string;
+  kindText: string;
+  kindUnsupported: string;
   loadingFile: string;
   readonlyHint: string;
   reloadAction: string;
   reloadConfirmBody: string;
   reloadConfirmTitle: string;
+  resizeFileTreeAriaLabel: string;
   saveAction: string;
   saveAndContinueAction: string;
   saveFailed: string;
@@ -38,17 +52,22 @@ type WorkspaceCopy = {
   snapshotDrawerTitle: string;
   snapshotViewerAriaLabel: string;
   summaryDescription: string;
+  summaryCurrentPathLabel: string;
   summaryOpenTabsLabel: string;
   summaryTitle: string;
   summaryWorkingDirectoryLabel: string;
   tabsEmpty: string;
+  upAction: string;
   validateAction: string;
+  workspaceRootLabel: string;
 };
 
 type WorkspaceCopyKey = keyof WorkspaceCopy;
 type WorkspaceCopyTranslate = (key: string) => string;
 
 const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
+  annotationAction: 'project.configurationWorkspace.copy.annotationAction',
+  annotationSaveFailed: 'project.configurationWorkspace.copy.annotationSaveFailed',
   cancelAction: 'project.configurationWorkspace.copy.cancelAction',
   continueWithDiskAction: 'project.configurationWorkspace.copy.continueWithDiskAction',
   deployAction: 'project.configurationWorkspace.copy.deployAction',
@@ -69,12 +88,24 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   fileTreeHint: 'project.configurationWorkspace.copy.fileTreeHint',
   fileTreeTitle: 'project.configurationWorkspace.copy.fileTreeTitle',
   filesEmpty: 'project.configurationWorkspace.copy.filesEmpty',
+  exitFullscreenAction: 'project.configurationWorkspace.copy.exitFullscreenAction',
+  fullscreenAction: 'project.configurationWorkspace.copy.fullscreenAction',
+  hiddenBadge: 'project.configurationWorkspace.copy.hiddenBadge',
+  hiddenItemsHint: 'project.configurationWorkspace.copy.hiddenItemsHint',
   hideHiddenAction: 'project.configurationWorkspace.copy.hideHiddenAction',
+  kindBinary: 'project.configurationWorkspace.copy.kindBinary',
+  kindCompose: 'project.configurationWorkspace.copy.kindCompose',
+  kindConfig: 'project.configurationWorkspace.copy.kindConfig',
+  kindDirectory: 'project.configurationWorkspace.copy.kindDirectory',
+  kindEnv: 'project.configurationWorkspace.copy.kindEnv',
+  kindText: 'project.configurationWorkspace.copy.kindText',
+  kindUnsupported: 'project.configurationWorkspace.copy.kindUnsupported',
   loadingFile: 'project.configurationWorkspace.copy.loadingFile',
   readonlyHint: 'project.configurationWorkspace.copy.readonlyHint',
   reloadAction: 'project.configurationWorkspace.copy.reloadAction',
   reloadConfirmBody: 'project.configurationWorkspace.copy.reloadConfirmBody',
   reloadConfirmTitle: 'project.configurationWorkspace.copy.reloadConfirmTitle',
+  resizeFileTreeAriaLabel: 'project.configurationWorkspace.copy.resizeFileTreeAriaLabel',
   saveAction: 'project.configurationWorkspace.copy.saveAction',
   saveAndContinueAction: 'project.configurationWorkspace.copy.saveAndContinueAction',
   saveFailed: 'project.configurationWorkspace.copy.saveFailed',
@@ -88,11 +119,14 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   snapshotDrawerTitle: 'project.configurationWorkspace.copy.snapshotDrawerTitle',
   snapshotViewerAriaLabel: 'project.configurationWorkspace.copy.snapshotViewerAriaLabel',
   summaryDescription: 'project.configurationWorkspace.copy.summaryDescription',
+  summaryCurrentPathLabel: 'project.configurationWorkspace.copy.summaryCurrentPathLabel',
   summaryOpenTabsLabel: 'project.configurationWorkspace.copy.summaryOpenTabsLabel',
   summaryTitle: 'project.configurationWorkspace.copy.summaryTitle',
   summaryWorkingDirectoryLabel: 'project.configurationWorkspace.copy.summaryWorkingDirectoryLabel',
   tabsEmpty: 'project.configurationWorkspace.copy.tabsEmpty',
+  upAction: 'project.configurationWorkspace.copy.upAction',
   validateAction: 'project.configurationWorkspace.copy.validateAction',
+  workspaceRootLabel: 'project.configurationWorkspace.copy.workspaceRootLabel',
 };
 
 export function resolveConfigurationWorkspaceCopy(translate: WorkspaceCopyTranslate): WorkspaceCopy {

@@ -266,6 +266,8 @@ paths:
     $ref: ./paths/ops-projects.files.yaml
   /api/ops/projects/{id}/files/content:
     $ref: ./paths/ops-projects.file-content.yaml
+  /api/ops/projects/{id}/files/annotation:
+    $ref: ./paths/ops-projects.file-annotation.yaml
   /api/ops/projects/{id}/configuration/diff:
     $ref: ./paths/ops-projects.configuration-diff.yaml
   /api/ops/projects/{id}/configuration/validate:
@@ -838,6 +840,8 @@ components:
       $ref: ./components/schemas/project-workspace-file-kind.yaml
     ProjectFileTreeItem:
       $ref: ./components/schemas/project-file-tree-item.yaml
+    ProjectFileAnnotationRequest:
+      $ref: ./components/schemas/project-file-annotation-request.yaml
     ProjectFilesResponse:
       $ref: ./components/schemas/project-files-response.yaml
     ProjectFileContentResponse:
@@ -878,6 +882,8 @@ components:
       $ref: ./components/schemas/enveloped-project-files-response.yaml
     EnvelopedProjectFileContentResponse:
       $ref: ./components/schemas/enveloped-project-file-content-response.yaml
+    EnvelopedProjectFileTreeItemResponse:
+      $ref: ./components/schemas/enveloped-project-file-tree-item-response.yaml
     EnvelopedProjectFileSaveResponse:
       $ref: ./components/schemas/enveloped-project-file-save-response.yaml
     EnvelopedProjectImportValidateResponse:

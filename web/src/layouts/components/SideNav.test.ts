@@ -50,6 +50,38 @@ vi.mock('@/locales', () => ({
   t: (key: string) => key,
 }));
 
+vi.mock('@/shared/components/brand', () => ({
+  BrandIdentity: defineComponent({
+    name: 'BrandIdentityStub',
+    props: {
+      compact: {
+        type: Boolean,
+        default: false,
+      },
+      labelHidden: {
+        type: Boolean,
+        default: false,
+      },
+      label: {
+        type: String,
+        required: true,
+      },
+    },
+    setup(props) {
+      return () =>
+        h(
+          'div',
+          {
+            'data-brand-compact': String(props.compact),
+            'data-brand-label': props.label,
+            'data-brand-label-hidden': String(props.labelHidden),
+          },
+          props.compact ? '' : props.label,
+        );
+    },
+  }),
+}));
+
 vi.mock('./MenuContent.vue', () => ({
   default: defineComponent({
     name: 'MenuContentStub',
@@ -147,9 +179,19 @@ describe('SideNav', () => {
     const wrapper = mountSideNav();
 
     expect(wrapper.get('[data-menu-width]').attributes('data-menu-width')).toBe(
-      '["var(--graft-shell-sidebar-current-width)","var(--graft-shell-sidebar-current-width)"]',
+      '["var(--graft-shell-sidebar-surface-width)","var(--graft-shell-sidebar-surface-width)"]',
     );
     expect(wrapper.get('[data-menu-collapsed]').attributes('data-menu-collapsed')).toBe('false');
+    expect(wrapper.get('[data-brand-label]').attributes('data-brand-label')).toBe('common.appName');
+    expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('false');
+    expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('false');
+    expect(wrapper.text()).not.toContain('1.0.0');
+
+    await wrapper.setProps({
+      motionPhase: 'collapsing-width',
+    });
+    expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('false');
+    expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('true');
 
     await wrapper.setProps({
       isCompact: true,
@@ -158,6 +200,8 @@ describe('SideNav', () => {
     });
 
     expect(wrapper.get('[data-menu-collapsed]').attributes('data-menu-collapsed')).toBe('true');
+    expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('true');
+    expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('true');
   });
 
   it('collapses expanded groups during text fade and restores them on expand', async () => {

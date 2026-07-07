@@ -21,6 +21,8 @@ const (
 	ProjectWorkspaceFilesRoute = "/:id/files"
 	// ProjectWorkspaceFileContentRoute identifies the path-based project file read/write route fragment.
 	ProjectWorkspaceFileContentRoute = "/:id/files/content"
+	// ProjectWorkspaceFileAnnotationRoute identifies the path-based workspace annotation write route fragment.
+	ProjectWorkspaceFileAnnotationRoute = "/:id/files/annotation"
 	// ProjectConfigurationDiffRoute identifies the managed configuration draft diff route fragment.
 	ProjectConfigurationDiffRoute = "/:id/configuration/diff"
 	// ProjectConfigurationValidateRoute identifies the managed configuration draft validate route fragment.

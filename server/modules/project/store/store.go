@@ -37,6 +37,7 @@ type Project struct {
 	LastRefreshErrorMessage    string
 	LastRefreshConfigHash      string
 	LastObservedConfigHash     string
+	WorkspaceAnnotations       map[string]string
 	LastDriftCheckedAt         *time.Time
 	DriftStatus                string
 	CreatedBy                  *uint64
@@ -155,6 +156,14 @@ type UpdateLifecycleConfigInput struct {
 	ActorID               *uint64
 }
 
+// UpdateWorkspaceAnnotationInput updates or removes one project workspace annotation.
+type UpdateWorkspaceAnnotationInput struct {
+	ProjectID     uint64
+	RelativePath  string
+	Annotation    *string
+	ActorID       *uint64
+}
+
 // UnregisterProjectInput soft-deletes one existing project registry row without touching host files.
 type UnregisterProjectInput struct {
 	ProjectID uint64
@@ -169,5 +178,6 @@ type Repository interface {
 	ImportProject(ctx context.Context, input ImportProjectInput) (ProjectAggregate, error)
 	RefreshProject(ctx context.Context, input RefreshProjectInput) (ProjectAggregate, error)
 	UpdateLifecycleConfig(ctx context.Context, input UpdateLifecycleConfigInput) (ProjectAggregate, error)
+	UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ProjectAggregate, error)
 	UnregisterProject(ctx context.Context, input UnregisterProjectInput) error
 }

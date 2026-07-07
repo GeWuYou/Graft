@@ -51,6 +51,9 @@
                 <t-descriptions-item :label="t('project.detail.configuration.refreshStatus')">
                   {{ refreshLabel }}
                 </t-descriptions-item>
+                <t-descriptions-item :label="workspaceCopy.summaryCurrentPathLabel">
+                  <code>{{ currentWorkspacePathLabel }}</code>
+                </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryOpenTabsLabel">
                   {{ openTabs.length }}
                 </t-descriptions-item>
@@ -58,99 +61,166 @@
             </t-card>
           </section>
 
-          <section class="project-configuration-workspace__main-grid">
-            <t-card class="project-configuration-workspace__tree-card" bordered>
-              <template #header>
-                <div class="project-configuration-workspace__section-head">
-                  <div>
+          <section ref="workspaceShellRef" class="project-configuration-workspace__main-grid">
+            <aside class="project-configuration-workspace__sidebar" :style="sidebarPaneStyle">
+              <t-card class="project-configuration-workspace__browser-card" bordered>
+                <template #header>
+                  <div class="project-configuration-workspace__section-head">
                     <h2>{{ workspaceCopy.fileTreeTitle }}</h2>
-                    <p>{{ workspaceCopy.fileTreeHint }}</p>
-                  </div>
-                  <t-button theme="default" variant="outline" size="small" @click="showHiddenFiles = !showHiddenFiles">
-                    {{ showHiddenFiles ? workspaceCopy.hideHiddenAction : workspaceCopy.showHiddenAction }}
-                  </t-button>
-                </div>
-              </template>
-
-              <t-alert
-                v-if="treeError"
-                class="project-configuration-workspace__tree-alert"
-                theme="error"
-                :message="treeError"
-              />
-
-              <t-loading :loading="treeLoading" size="small">
-                <t-tree
-                  v-if="treeData.length"
-                  :data="treeData"
-                  :actived="activeTreeValues"
-                  :expanded="expandedTreeKeys"
-                  :empty="workspaceCopy.filesEmpty"
-                  activable
-                  hover
-                  lazy
-                  line
-                  expand-on-click-node
-                  :load="treeLoadHandler"
-                  @active="treeActiveHandler"
-                  @expand="handleTreeExpand"
-                >
-                  <template #label="{ node }">
-                    <div
-                      class="project-configuration-workspace__tree-node"
-                      :class="{
-                        'project-configuration-workspace__tree-node--readonly':
-                          !node.data.editable && node.data.node_type === 'file',
-                      }"
+                    <t-tooltip
+                      :content="showHiddenFiles ? workspaceCopy.hideHiddenAction : workspaceCopy.showHiddenAction"
+                      placement="bottom"
+                      theme="light"
                     >
-                      <span class="project-configuration-workspace__tree-node-icon" aria-hidden="true">
-                        <folder-icon v-if="node.data.node_type === 'directory'" />
-                        <span
-                          v-else-if="node.data.file_kind === 'compose'"
-                          class="project-configuration-workspace__docker-icon"
-                        >
-                          <svg viewBox="0 0 24 24" role="presentation">
-                            <path
-                              d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                        </span>
-                        <command-icon v-else-if="node.data.file_kind === 'env'" />
-                        <file-code-icon
-                          v-else-if="node.data.file_kind === 'config' || node.data.file_kind === 'text'"
-                        />
-                        <file-icon v-else />
-                      </span>
-                      <span class="project-configuration-workspace__tree-node-main">
-                        <span class="project-configuration-workspace__tree-node-title">{{ node.data.name }}</span>
-                        <small>{{ node.data.relative_path || '.' }}</small>
-                      </span>
-                    </div>
-                  </template>
-                </t-tree>
-                <t-empty v-else :description="workspaceCopy.filesEmpty" />
-              </t-loading>
-            </t-card>
+                      <t-button
+                        class="project-configuration-workspace__tree-toolbar-button"
+                        theme="default"
+                        variant="text"
+                        shape="square"
+                        size="small"
+                        :data-testid="showHiddenFiles ? 'workspace-hide-hidden-toggle' : 'workspace-show-hidden-toggle'"
+                        @click="showHiddenFiles = !showHiddenFiles"
+                      >
+                        <template #icon>
+                          <browse-off-icon v-if="showHiddenFiles" />
+                          <browse-icon v-else />
+                        </template>
+                      </t-button>
+                    </t-tooltip>
+                  </div>
+                </template>
 
-            <div class="project-configuration-workspace__editor-column">
+                <t-alert
+                  v-if="browserError"
+                  class="project-configuration-workspace__browser-alert"
+                  theme="error"
+                  :message="browserError"
+                />
+
+                <t-loading :loading="browserLoading" size="small">
+                  <div v-if="workspaceFlatRows.length" class="project-configuration-workspace__tree graft-scrollbar">
+                    <template v-for="row in workspaceFlatRows" :key="row.item.relative_path || row.item.name">
+                      <div
+                        class="project-configuration-workspace__tree-row"
+                        :class="{
+                          'project-configuration-workspace__tree-row--active': isWorkspaceItemActive(row.item),
+                          'project-configuration-workspace__tree-row--readonly':
+                            row.item.node_type === 'file' && !row.item.editable,
+                        }"
+                        :style="{ '--workspace-tree-depth': String(row.depth) }"
+                      >
+                        <button
+                          v-if="row.item.node_type === 'directory'"
+                          class="project-configuration-workspace__tree-expander"
+                          type="button"
+                          :aria-expanded="row.expanded"
+                          @click.stop="toggleWorkspaceDirectory(row.item)"
+                        >
+                          <span class="project-configuration-workspace__tree-expander-icon">
+                            {{ row.expanded ? '▾' : '▸' }}
+                          </span>
+                        </button>
+                        <span v-else class="project-configuration-workspace__tree-expander-placeholder" />
+
+                        <button
+                          class="project-configuration-workspace__tree-entry"
+                          :data-testid="workspaceEntryTestId(row.item)"
+                          type="button"
+                          @click="handleWorkspaceEntry(row.item)"
+                        >
+                          <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
+                            <folder-icon v-if="row.item.node_type === 'directory'" />
+                            <span
+                              v-else-if="row.item.file_kind === 'compose'"
+                              class="project-configuration-workspace__docker-icon"
+                            >
+                              <svg viewBox="0 0 24 24" role="presentation">
+                                <path
+                                  d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
+                                  fill="currentColor"
+                                />
+                              </svg>
+                            </span>
+                            <command-icon v-else-if="row.item.file_kind === 'env'" />
+                            <file-code-icon
+                              v-else-if="row.item.file_kind === 'config' || row.item.file_kind === 'text'"
+                            />
+                            <file-icon v-else />
+                          </span>
+                          <t-tooltip
+                            v-if="workspaceItemTooltip(row.item)"
+                            :content="workspaceItemTooltip(row.item)"
+                            placement="top-left"
+                            theme="light"
+                          >
+                            <span class="project-configuration-workspace__browser-main">
+                              <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
+                            </span>
+                          </t-tooltip>
+                          <span v-else class="project-configuration-workspace__browser-main">
+                            <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
+                          </span>
+                        </button>
+
+                        <div
+                          class="project-configuration-workspace__tree-actions"
+                          :class="{
+                            'project-configuration-workspace__tree-actions--visible': Boolean(row.item.project_note),
+                          }"
+                        >
+                          <t-tooltip :content="workspaceCopy.annotationAction" theme="light">
+                            <t-button
+                              class="project-configuration-workspace__annotation-button"
+                              theme="default"
+                              variant="text"
+                              shape="square"
+                              size="small"
+                              tag="div"
+                              :data-testid="workspaceAnnotationTestId(row.item)"
+                              @click.stop="handleWorkspaceAnnotation(row.item)"
+                            >
+                              <template #icon>
+                                <edit-1-icon />
+                              </template>
+                            </t-button>
+                          </t-tooltip>
+                        </div>
+                      </div>
+                      <p
+                        v-if="row.error && row.expanded"
+                        class="project-configuration-workspace__tree-error"
+                        :style="{ '--workspace-tree-depth': String(row.depth + 1) }"
+                      >
+                        {{ row.error }}
+                      </p>
+                    </template>
+                  </div>
+                  <t-empty v-else :description="workspaceCopy.filesEmpty" />
+                </t-loading>
+              </t-card>
+            </aside>
+
+            <div
+              v-if="isSidebarResizable"
+              class="project-configuration-workspace__splitter"
+              role="separator"
+              :aria-label="workspaceCopy.resizeFileTreeAriaLabel"
+              aria-orientation="vertical"
+              tabindex="0"
+              @pointerdown.prevent="startSidebarResize"
+            >
+              <span class="project-configuration-workspace__splitter-grip" />
+            </div>
+
+            <div class="project-configuration-workspace__editor-stack">
               <content-viewer-frame
-                exit-fullscreen-label="Exit Fullscreen"
-                fullscreen-label="Fullscreen"
+                :exit-fullscreen-label="workspaceCopy.exitFullscreenAction"
+                :fullscreen-label="workspaceCopy.fullscreenAction"
                 fullscreen-surface-padding="none"
                 resize-handle-label="Resize Editor Height"
                 storage-key="graft.project.configuration-workspace.editor.height"
                 surface-padding="none"
               >
-                <template #header>
-                  <div class="project-configuration-workspace__editor-head">
-                    <div>
-                      <strong>{{ activeBuffer?.name || workspaceCopy.fileTreeTitle }}</strong>
-                      <p>{{ activeBuffer?.path || workspaceCopy.selectFileToStart }}</p>
-                    </div>
-                  </div>
-                </template>
-
                 <template #header-actions>
                   <t-space size="small" break-line>
                     <t-button theme="default" variant="outline" :disabled="!activeBuffer" @click="reloadActiveFile">
@@ -219,24 +289,25 @@
                     :message="activeBuffer.error"
                   />
 
-                  <t-loading
-                    v-if="activeBuffer"
-                    class="project-configuration-workspace__editor-loading"
-                    :loading="activeBuffer.loading"
-                    size="small"
-                  >
-                    <project-monaco-surface
-                      v-if="!activeBuffer.error"
-                      v-model="activeBuffer.content"
-                      class="project-configuration-workspace__monaco-editor"
-                      :editor-aria-label="workspaceCopy.editorAriaLabel"
-                      :language="activeBuffer.language"
-                      :model-key="activeBuffer.path"
-                      :options="editorOptions"
-                      :read-only="!activeBuffer.editable"
-                      test-id="workspace-monaco-editor"
-                    />
-                  </t-loading>
+                  <div v-if="activeBuffer" class="project-configuration-workspace__editor-stage">
+                    <t-loading
+                      class="project-configuration-workspace__editor-loading"
+                      :loading="activeBuffer.loading"
+                      size="small"
+                    >
+                      <project-monaco-surface
+                        v-if="!activeBuffer.error"
+                        v-model="activeBuffer.content"
+                        class="project-configuration-workspace__monaco-editor"
+                        :editor-aria-label="workspaceCopy.editorAriaLabel"
+                        :language="activeBuffer.language"
+                        :model-key="activeBuffer.path"
+                        :options="editorOptions"
+                        :read-only="!activeBuffer.editable"
+                        test-id="workspace-monaco-editor"
+                      />
+                    </t-loading>
+                  </div>
                   <t-empty v-else :description="workspaceCopy.tabsEmpty" />
                 </div>
               </content-viewer-frame>
@@ -252,7 +323,11 @@
                 </template>
 
                 <template v-if="hasFeedback">
-                  <t-tabs v-model:value="feedbackTab" theme="card">
+                  <t-tabs
+                    v-model:value="feedbackTab"
+                    class="project-configuration-workspace__feedback-tabs"
+                    theme="card"
+                  >
                     <t-tab-panel value="diff" :label="t('project.detail.configuration.diffTitle')">
                       <div v-if="diffResult" class="project-configuration-workspace__feedback-panel">
                         <t-alert
@@ -264,12 +339,18 @@
                           "
                         />
                         <t-space size="small" break-line>
-                          <t-tag theme="default" variant="light-outline">
-                            {{ t('project.detail.configuration.currentHash') }}: {{ diffResult.current_config_hash }}
-                          </t-tag>
-                          <t-tag theme="primary" variant="light-outline">
-                            {{ t('project.detail.configuration.proposedHash') }}: {{ diffResult.proposed_config_hash }}
-                          </t-tag>
+                          <t-tooltip :content="diffResult.current_config_hash" placement="top-left" theme="light">
+                            <t-tag theme="default" variant="light-outline">
+                              {{ t('project.detail.configuration.currentHash') }}:
+                              {{ formatWorkspaceHash(diffResult.current_config_hash) }}
+                            </t-tag>
+                          </t-tooltip>
+                          <t-tooltip :content="diffResult.proposed_config_hash" placement="top-left" theme="light">
+                            <t-tag theme="primary" variant="light-outline">
+                              {{ t('project.detail.configuration.proposedHash') }}:
+                              {{ formatWorkspaceHash(diffResult.proposed_config_hash) }}
+                            </t-tag>
+                          </t-tooltip>
                         </t-space>
                         <div v-if="diffResult.warnings?.length" class="project-configuration-workspace__warning-list">
                           <t-alert
@@ -304,13 +385,18 @@
                           </div>
                           <div class="project-configuration-workspace__diff-viewer">
                             <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-meta">
-                              <span>
-                                {{ t('project.detail.configuration.currentHash') }}: {{ selectedDiffFile.current_hash }}
-                              </span>
-                              <span>
-                                {{ t('project.detail.configuration.proposedHash') }}:
-                                {{ selectedDiffFile.proposed_hash }}
-                              </span>
+                              <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
+                                <span>
+                                  {{ t('project.detail.configuration.currentHash') }}:
+                                  {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
+                                </span>
+                              </t-tooltip>
+                              <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
+                                <span>
+                                  {{ t('project.detail.configuration.proposedHash') }}:
+                                  {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
+                                </span>
+                              </t-tooltip>
                             </div>
                             <project-monaco-diff-surface
                               v-if="selectedDiffFile"
@@ -331,10 +417,12 @@
                     <t-tab-panel value="validation" :label="t('project.detail.configuration.validationTitle')">
                       <div v-if="validateResult" class="project-configuration-workspace__feedback-panel">
                         <t-space size="small" break-line>
-                          <t-tag theme="primary" variant="light-outline">
-                            {{ t('project.detail.configuration.proposedHash') }}:
-                            {{ validateResult.proposed_config_hash }}
-                          </t-tag>
+                          <t-tooltip :content="validateResult.proposed_config_hash" placement="top-left" theme="light">
+                            <t-tag theme="primary" variant="light-outline">
+                              {{ t('project.detail.configuration.proposedHash') }}:
+                              {{ formatWorkspaceHash(validateResult.proposed_config_hash) }}
+                            </t-tag>
+                          </t-tooltip>
                           <t-tag theme="default" variant="light-outline">
                             {{ t('project.detail.configuration.declaredServices') }}:
                             {{ validateResult.declared_service_names.join(', ') || '-' }}
@@ -382,7 +470,11 @@
         <template v-if="snapshotPreview">
           <t-descriptions bordered size="small" :column="1">
             <t-descriptions-item :label="t('project.detail.configuration.previewHash')">
-              {{ snapshotPreview.config_hash }}
+              <t-tooltip :content="snapshotPreview.config_hash" placement="top-left" theme="light">
+                <code class="project-configuration-workspace__hash-text">
+                  {{ formatWorkspaceHash(snapshotPreview.config_hash) }}
+                </code>
+              </t-tooltip>
             </t-descriptions-item>
             <t-descriptions-item :label="t('project.detail.configuration.previewUpdatedAt')">
               {{ formatProjectTime(locale, snapshotPreview.refreshed_at) }}
@@ -427,11 +519,34 @@
         </t-space>
       </template>
     </t-dialog>
+
+    <t-dialog
+      v-model:visible="annotationDialogState.visible"
+      :header="workspaceCopy.annotationAction"
+      :close-on-overlay-click="false"
+      :confirm-btn="{ content: workspaceCopy.saveAction, loading: annotationDialogState.saving }"
+      :cancel-btn="{ content: workspaceCopy.cancelAction }"
+      @confirm="saveWorkspaceAnnotation"
+      @close="closeWorkspaceAnnotationDialog"
+    >
+      <t-textarea
+        v-model="annotationDialogState.value"
+        :autosize="{ minRows: 4, maxRows: 8 }"
+        :placeholder="workspaceItemTooltip(annotationDialogState.target)"
+      />
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
-import { CommandIcon, FileCodeIcon, FileIcon, FolderIcon } from 'tdesign-icons-vue-next';
-import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
+import {
+  BrowseIcon,
+  BrowseOffIcon,
+  CommandIcon,
+  Edit1Icon,
+  FileCodeIcon,
+  FileIcon,
+  FolderIcon,
+} from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -450,12 +565,12 @@ import {
   postProjectConfigurationDiff,
   postProjectConfigurationValidate,
   postProjectDeploy,
+  putProjectFileAnnotation,
   putProjectFileContent,
 } from '../../api/project';
 import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.vue';
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
 import {
-  canOpenWorkspaceFile,
   hasWorkspaceUnsavedChanges,
   normalizeWorkspaceContent,
   type ProjectWorkspaceMonacoLanguage,
@@ -495,9 +610,12 @@ type WorkspaceDialogButton = {
   theme: 'default' | 'primary';
   variant: 'base' | 'outline';
 };
-type WorkspaceTreeNode = ProjectWorkspaceTreeItem & {
-  children?: WorkspaceTreeNode[] | boolean;
-  value: string;
+type WorkspaceListItem = ProjectWorkspaceTreeItem;
+type WorkspaceFlatRow = {
+  depth: number;
+  error: string;
+  expanded: boolean;
+  item: WorkspaceListItem;
 };
 type WorkspaceOpenFile = {
   content: string;
@@ -514,20 +632,29 @@ type WorkspaceOpenFile = {
   sizeBytes?: number | null;
 };
 
+const EDITOR_WIDTH_STORAGE_KEY = 'graft.project.configuration-workspace.sidebar.width';
+const SIDEBAR_MAX_WIDTH = 360;
+const SIDEBAR_MIN_WIDTH = 208;
+const SIDEBAR_DEFAULT_WIDTH = 256;
+const SIDEBAR_COLLAPSE_BREAKPOINT = 1024;
+
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
 const { locale, t } = useProjectPageContext();
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
+const workspaceShellRef = ref<HTMLElement | null>(null);
 const workspaceLoading = ref(false);
 const workspaceError = ref('');
 const workspaceReady = computed(() => Boolean(detailRecord.value && metadata.value && !workspaceError.value));
-const treeLoading = ref(false);
-const treeError = ref('');
+const browserLoading = ref(false);
+const browserError = ref('');
 const showHiddenFiles = ref(false);
-const treeData = ref<WorkspaceTreeNode[]>([]);
-const expandedTreeKeys = ref<TreeNodeValue[]>([]);
-const activeTreeValues = ref<TreeNodeValue[]>([]);
+const rootWorkspaceItems = ref<WorkspaceListItem[]>([]);
+const currentWorkspacePath = ref('');
+const selectedWorkspacePath = ref('');
+const sidebarWidth = ref(resolveStoredSidebarWidth());
+const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
 const snapshotPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
@@ -543,6 +670,11 @@ const selectedDiffFilePath = ref('');
 const openTabs = ref<string[]>([]);
 const activeTabPath = ref('');
 const openFileMap = reactive(new Map<string, WorkspaceOpenFile>());
+const directoryChildrenMap = reactive(new Map<string, WorkspaceListItem[]>());
+const directoryBrowseStateMap = reactive(new Map<string, { hasMoreHidden: boolean; parentPath: string | null }>());
+const directoryErrorMap = reactive(new Map<string, string>());
+const directoryLoadingMap = reactive(new Map<string, boolean>());
+const expandedDirectoryPaths = ref<string[]>([]);
 const dialogState = reactive<{
   body: string;
   buttons: WorkspaceDialogButton[];
@@ -556,6 +688,18 @@ const dialogState = reactive<{
   title: '',
   visible: false,
 });
+const annotationDialogState = reactive<{
+  saving: boolean;
+  target: WorkspaceListItem | null;
+  value: string;
+  visible: boolean;
+}>({
+  saving: false,
+  target: null,
+  value: '',
+  visible: false,
+});
+let removeSidebarResizeListeners: (() => void) | null = null;
 
 const editorOptions = {
   fontSize: 13,
@@ -600,6 +744,10 @@ const openTabBuffers = computed(
 );
 const activeBuffer = computed(() => (activeTabPath.value ? (openFileMap.get(activeTabPath.value) ?? null) : null));
 const canSaveActiveBuffer = computed(() => Boolean(activeBuffer.value?.editable && !activeBuffer.value.saving));
+const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE_BREAKPOINT);
+const sidebarPaneStyle = computed(() =>
+  isSidebarResizable.value ? { width: `${clampSidebarWidth(sidebarWidth.value)}px` } : undefined,
+);
 const hasDirtyFiles = computed(() =>
   openTabBuffers.value.some((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
@@ -610,23 +758,62 @@ const selectedDiffFile = computed(
     diffResult.value?.files[0] ??
     null,
 );
-const treeActiveHandler: NonNullable<TreeProps['onActive']> = (value, context) => {
-  handleTreeActive(value, context as unknown as { node: { data: WorkspaceTreeNode } });
-};
-const treeLoadHandler: NonNullable<TreeProps['load']> = (node) =>
-  loadWorkspaceTreeChildren(node as unknown as { data: WorkspaceTreeNode });
+const workspaceItemMap = computed(() => {
+  const itemMap = new Map<string, WorkspaceListItem>();
+  const appendEntries = (items: WorkspaceListItem[]) => {
+    for (const item of items) {
+      itemMap.set(item.relative_path, item);
+    }
+  };
+
+  appendEntries(rootWorkspaceItems.value);
+  for (const items of directoryChildrenMap.values()) {
+    appendEntries(items);
+  }
+
+  return itemMap;
+});
+const currentWorkspaceDirectoryPath = computed(() => {
+  if (selectedWorkspacePath.value) {
+    const selectedItem = workspaceItemMap.value.get(selectedWorkspacePath.value);
+    if (selectedItem?.node_type === 'directory') {
+      return selectedItem.relative_path;
+    }
+  }
+
+  if (activeBuffer.value?.path) {
+    return resolveWorkspaceParentPath(activeBuffer.value.path);
+  }
+
+  return currentWorkspacePath.value;
+});
+const currentWorkspacePathLabel = computed(
+  () => currentWorkspaceDirectoryPath.value || workspaceCopy.value.workspaceRootLabel,
+);
+const workspaceFlatRows = computed(() => flattenWorkspaceRows(rootWorkspaceItems.value, 0));
 
 onMounted(() => {
   window.addEventListener('keydown', handleWorkspaceKeydown);
+  window.addEventListener('resize', syncWorkspaceViewport);
   void loadWorkspace();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleWorkspaceKeydown);
+  window.removeEventListener('resize', syncWorkspaceViewport);
+  stopSidebarResize();
 });
 
 watch(showHiddenFiles, () => {
-  void loadWorkspaceTreeRoot();
+  rootWorkspaceItems.value = [];
+  currentWorkspacePath.value = '';
+  selectedWorkspacePath.value = '';
+  expandedDirectoryPaths.value = [];
+  directoryChildrenMap.clear();
+  directoryBrowseStateMap.clear();
+  directoryErrorMap.clear();
+  directoryLoadingMap.clear();
+  void loadWorkspaceDirectory('', { root: true });
 });
 
 watch(
@@ -658,7 +845,8 @@ async function loadWorkspace() {
     ]);
     detailRecord.value = detail;
     metadata.value = configurationMetadata;
-    await loadWorkspaceTreeRoot();
+    syncWorkspaceViewport();
+    await loadWorkspaceDirectory('', { root: true });
   } catch (error) {
     logger.error('failed to load project configuration workspace', error);
     workspaceError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
@@ -668,88 +856,205 @@ async function loadWorkspace() {
   }
 }
 
-async function loadWorkspaceTreeRoot() {
-  treeLoading.value = true;
-  treeError.value = '';
+async function loadWorkspaceDirectory(path: string, options?: { root?: boolean }) {
+  const normalizedPath = normalizeWorkspacePath(path);
+  if (options?.root) {
+    browserLoading.value = true;
+    browserError.value = '';
+  } else {
+    directoryLoadingMap.set(normalizedPath, true);
+    directoryErrorMap.delete(normalizedPath);
+  }
+
   try {
     const response = await getProjectFiles(projectId.value, {
+      path: normalizedPath || undefined,
       show_hidden: showHiddenFiles.value,
     });
-    treeData.value = normalizeTreeItems(response.items);
-    expandedTreeKeys.value = [];
-    activeTreeValues.value = [];
-    if (!activeTabPath.value) {
-      const firstFile = findFirstFilePath(treeData.value);
+
+    const items = sortWorkspaceItems(response.items ?? []);
+    directoryBrowseStateMap.set(normalizedPath, {
+      hasMoreHidden: Boolean(response.has_more_hidden),
+      parentPath: response.parent_path ?? null,
+    });
+
+    if (options?.root) {
+      rootWorkspaceItems.value = items;
+      currentWorkspacePath.value = response.current_path || '';
+    } else {
+      directoryChildrenMap.set(normalizedPath, items);
+      currentWorkspacePath.value = normalizedPath;
+    }
+
+    if (!activeTabPath.value && options?.root) {
+      const firstFile = rootWorkspaceItems.value.find((item) => item.node_type === 'file')?.relative_path;
       if (firstFile) {
         await openWorkspaceFile(firstFile);
       }
     }
   } catch (error) {
-    treeError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
-    MessagePlugin.error(treeError.value);
+    const resolvedMessage = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+    if (options?.root) {
+      browserError.value = resolvedMessage;
+      MessagePlugin.error(browserError.value);
+    } else {
+      directoryErrorMap.set(normalizedPath, resolvedMessage);
+      MessagePlugin.error(resolvedMessage);
+    }
   } finally {
-    treeLoading.value = false;
-  }
-}
-
-function normalizeTreeItems(items: ProjectWorkspaceTreeItem[]) {
-  return items.map<WorkspaceTreeNode>((item) => ({
-    ...item,
-    children: item.node_type === 'directory' ? (item.has_children ? true : []) : undefined,
-    value: item.relative_path,
-  }));
-}
-
-function findFirstFilePath(nodes: WorkspaceTreeNode[]): string {
-  for (const node of nodes) {
-    if (node.node_type === 'file') {
-      return node.relative_path;
+    if (options?.root) {
+      browserLoading.value = false;
+    } else {
+      directoryLoadingMap.set(normalizedPath, false);
     }
   }
-  return '';
 }
 
-async function loadWorkspaceTreeChildren(node: { data: WorkspaceTreeNode }) {
-  const currentNode = node.data;
-  const response = await getProjectFiles(projectId.value, {
-    path: currentNode.relative_path,
-    show_hidden: showHiddenFiles.value,
-  });
-  const children = normalizeTreeItems(response.items);
-  treeData.value = replaceTreeChildren(treeData.value, currentNode.relative_path, children);
-  return children;
-}
-
-function replaceTreeChildren(
-  nodes: WorkspaceTreeNode[],
-  path: string,
-  children: WorkspaceTreeNode[],
-): WorkspaceTreeNode[] {
-  return nodes.map((node) => {
-    if (node.relative_path === path) {
-      return { ...node, children };
+function sortWorkspaceItems(items: ProjectWorkspaceTreeItem[]) {
+  return [...items].sort((left, right) => {
+    if (left.node_type !== right.node_type) {
+      return left.node_type === 'directory' ? -1 : 1;
     }
-    if (Array.isArray(node.children)) {
-      return { ...node, children: replaceTreeChildren(node.children, path, children) };
-    }
-    return node;
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   });
 }
 
-function handleTreeActive(value: TreeNodeValue[], context: { node: { data: WorkspaceTreeNode } }) {
-  activeTreeValues.value = value;
-  const target = context.node.data;
-  if (!canOpenWorkspaceFile(target)) {
+function handleWorkspaceEntry(item: WorkspaceListItem) {
+  selectedWorkspacePath.value = item.relative_path;
+  if (item.node_type === 'directory') {
+    void toggleWorkspaceDirectory(item);
     return;
   }
-  void openWorkspaceFile(target.relative_path, target);
+  void openWorkspaceFile(item.relative_path, item);
 }
 
-function handleTreeExpand(value: TreeNodeValue[]) {
-  expandedTreeKeys.value = value;
+function workspaceEntryTestId(item: WorkspaceListItem) {
+  const raw = item.relative_path || item.name || 'root';
+  return `workspace-entry-${
+    raw
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'root'
+  }`;
 }
 
-async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
+function workspaceAnnotationTestId(item: WorkspaceListItem) {
+  return `${workspaceEntryTestId(item)}-annotation`;
+}
+
+async function toggleWorkspaceDirectory(item: WorkspaceListItem) {
+  if (item.node_type !== 'directory') {
+    return;
+  }
+
+  const path = item.relative_path;
+  currentWorkspacePath.value = path;
+  selectedWorkspacePath.value = path;
+  if (expandedDirectoryPaths.value.includes(path)) {
+    expandedDirectoryPaths.value = expandedDirectoryPaths.value.filter((value) => value !== path);
+    return;
+  }
+
+  expandedDirectoryPaths.value = [...expandedDirectoryPaths.value, path];
+  if (!directoryChildrenMap.has(path) && item.has_children) {
+    await loadWorkspaceDirectory(path);
+  }
+}
+
+function flattenWorkspaceRows(items: WorkspaceListItem[], depth: number) {
+  const rows: WorkspaceFlatRow[] = [];
+
+  for (const item of items) {
+    const path = item.relative_path;
+    const expanded = item.node_type === 'directory' && expandedDirectoryPaths.value.includes(path);
+    rows.push({
+      depth,
+      error: directoryErrorMap.get(path) ?? '',
+      expanded,
+      item,
+    });
+
+    if (expanded) {
+      rows.push(...flattenWorkspaceRows(directoryChildrenMap.get(path) ?? [], depth + 1));
+    }
+  }
+
+  return rows;
+}
+
+function workspaceItemTooltip(item?: WorkspaceListItem | null) {
+  if (!item) {
+    return '';
+  }
+  const projectNote = String(item.project_note ?? '').trim();
+  if (projectNote) {
+    return projectNote;
+  }
+
+  const tooltip = String(item.tooltip ?? '').trim();
+  return tooltip || '';
+}
+
+function isWorkspaceItemActive(item: WorkspaceListItem) {
+  return (
+    (activeTabPath.value && activeTabPath.value === item.relative_path) ||
+    selectedWorkspacePath.value === item.relative_path
+  );
+}
+
+function handleWorkspaceAnnotation(item: WorkspaceListItem) {
+  annotationDialogState.target = item;
+  annotationDialogState.value = String(item.project_note ?? '').trim();
+  annotationDialogState.visible = true;
+}
+
+function closeWorkspaceAnnotationDialog() {
+  annotationDialogState.visible = false;
+  annotationDialogState.saving = false;
+  annotationDialogState.target = null;
+  annotationDialogState.value = '';
+}
+
+async function saveWorkspaceAnnotation() {
+  const target = annotationDialogState.target;
+  if (!target) {
+    closeWorkspaceAnnotationDialog();
+    return;
+  }
+
+  annotationDialogState.saving = true;
+  try {
+    const annotation = annotationDialogState.value.trim();
+    const updatedItem = await putProjectFileAnnotation(
+      projectId.value,
+      { path: target.relative_path },
+      { annotation: annotation || null },
+    );
+    patchWorkspaceItem(updatedItem);
+    closeWorkspaceAnnotationDialog();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, workspaceCopy.value.annotationSaveFailed));
+  } finally {
+    annotationDialogState.saving = false;
+  }
+}
+
+function patchWorkspaceItem(nextItem: WorkspaceListItem) {
+  if (!nextItem?.relative_path) {
+    return;
+  }
+
+  rootWorkspaceItems.value = replaceWorkspaceItem(rootWorkspaceItems.value, nextItem);
+  for (const [path, items] of directoryChildrenMap.entries()) {
+    directoryChildrenMap.set(path, replaceWorkspaceItem(items, nextItem));
+  }
+}
+
+function replaceWorkspaceItem(items: WorkspaceListItem[], nextItem: WorkspaceListItem) {
+  return items.map((item) => (item.relative_path === nextItem.relative_path ? nextItem : item));
+}
+
+async function openWorkspaceFile(path: string, source?: WorkspaceListItem) {
   if (!path) {
     return;
   }
@@ -777,11 +1082,10 @@ async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
   }
 
   activeTabPath.value = path;
-  activeTreeValues.value = [path];
   await ensureWorkspaceFileLoaded(path, source);
 }
 
-async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceTreeNode) {
+async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceListItem) {
   const current = openFileMap.get(path);
   if (!current || current.loading || current.loaded) {
     return;
@@ -802,7 +1106,7 @@ async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceTreeNod
 function hydrateOpenFileFromResponse(
   requestedPath: string,
   response: ProjectWorkspaceFileContentResponse,
-  source?: WorkspaceTreeNode,
+  source?: WorkspaceListItem,
 ) {
   const path = response.relative_path || requestedPath;
   const current =
@@ -1017,7 +1321,7 @@ async function runProjectDeploy() {
     diffResult.value = null;
     validateResult.value = null;
     snapshotPreview.value = null;
-    await loadWorkspaceTreeRoot();
+    await loadWorkspaceDirectory('', { root: true });
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
   } finally {
@@ -1098,6 +1402,17 @@ function resolveDiffFileLanguage(kind: string | undefined, path: string) {
   });
 }
 
+function formatWorkspaceHash(value?: string | null) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) {
+    return '-';
+  }
+  if (normalized.length <= 14) {
+    return normalized;
+  }
+  return `${normalized.slice(0, 6)}...${normalized.slice(-6)}`;
+}
+
 function openDialog(config: { body: string; buttons: WorkspaceDialogButton[]; title: string }) {
   if (dialogState.resolver) {
     dialogState.resolver('cancel');
@@ -1143,10 +1458,148 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
     void saveActiveFile();
   }
 }
+
+function normalizeWorkspacePath(path: string) {
+  return String(path || '')
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '');
+}
+
+function resolveWorkspaceParentPath(path: string) {
+  const normalizedPath = normalizeWorkspacePath(path);
+  if (!normalizedPath.includes('/')) {
+    return '';
+  }
+
+  return normalizedPath.split('/').slice(0, -1).join('/');
+}
+
+function resolveStoredSidebarWidth() {
+  if (typeof window === 'undefined') {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(EDITOR_WIDTH_STORAGE_KEY);
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : SIDEBAR_DEFAULT_WIDTH;
+  } catch {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+}
+
+function clampSidebarWidth(value: number) {
+  const shellWidth = workspaceShellRef.value?.clientWidth || 1280;
+  const maxWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, shellWidth - 420));
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(maxWidth, Math.round(value)));
+}
+
+function writeStoredSidebarWidth(value: number) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(EDITOR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(value)));
+  } catch {
+    return;
+  }
+}
+
+function syncWorkspaceViewport() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  viewportWidth.value = window.innerWidth;
+  sidebarWidth.value = clampSidebarWidth(sidebarWidth.value);
+}
+
+function startSidebarResize(event: PointerEvent) {
+  if (!isSidebarResizable.value || typeof window === 'undefined') {
+    return;
+  }
+
+  stopSidebarResize();
+
+  const shellBounds = workspaceShellRef.value?.getBoundingClientRect();
+  if (!shellBounds) {
+    return;
+  }
+
+  const handlePointerMove = (moveEvent: PointerEvent) => {
+    sidebarWidth.value = clampSidebarWidth(moveEvent.clientX - shellBounds.left);
+  };
+
+  const handlePointerUp = () => {
+    writeStoredSidebarWidth(sidebarWidth.value);
+    stopSidebarResize();
+  };
+
+  document.body.classList.add('graft-resizing');
+  window.addEventListener('pointermove', handlePointerMove);
+  window.addEventListener('pointerup', handlePointerUp, { once: true });
+  removeSidebarResizeListeners = () => {
+    document.body.classList.remove('graft-resizing');
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+  };
+  handlePointerMove(event);
+}
+
+function stopSidebarResize() {
+  removeSidebarResizeListeners?.();
+  removeSidebarResizeListeners = null;
+}
 </script>
 <style scoped lang="less">
 .project-configuration-workspace {
   min-width: 0;
+
+  --graft-workspace-editor-surface: color-mix(
+    in srgb,
+    var(--td-bg-color-container) 84%,
+    var(--graft-shell-content-bg, var(--td-bg-color-page)) 16%
+  );
+  --graft-workspace-editor-surface-raised: color-mix(
+    in srgb,
+    var(--graft-workspace-editor-surface) 82%,
+    var(--td-bg-color-container-hover) 18%
+  );
+  --graft-workspace-editor-surface-muted: color-mix(
+    in srgb,
+    var(--graft-workspace-editor-surface) 78%,
+    var(--graft-shell-content-bg, var(--td-bg-color-page)) 22%
+  );
+  --graft-workspace-editor-border: color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  --graft-workspace-editor-foreground: var(--td-text-color-primary);
+  --graft-workspace-editor-foreground-muted: color-mix(
+    in srgb,
+    var(--td-text-color-secondary) 92%,
+    var(--td-text-color-primary)
+  );
+  --graft-workspace-editor-foreground-subtle: color-mix(in srgb, var(--td-text-color-placeholder) 78%, transparent);
+  --graft-workspace-editor-accent: var(--td-brand-color-6);
+  --graft-workspace-editor-line-highlight: color-mix(in srgb, var(--td-brand-color-6) 13%, transparent);
+  --graft-workspace-editor-selection: color-mix(in srgb, var(--td-brand-color-6) 28%, transparent);
+  --graft-workspace-editor-selection-inactive: color-mix(in srgb, var(--td-brand-color-6) 18%, transparent);
+  --graft-workspace-editor-indent-guide: color-mix(in srgb, var(--td-text-color-placeholder) 24%, transparent);
+  --graft-workspace-editor-indent-guide-active: color-mix(
+    in srgb,
+    var(--td-brand-color-6) 30%,
+    var(--td-component-stroke)
+  );
+  --graft-workspace-editor-find-match: color-mix(in srgb, var(--td-brand-color-6) 24%, var(--td-warning-color-1));
+  --graft-workspace-editor-find-match-border: color-mix(
+    in srgb,
+    var(--td-brand-color-6) 52%,
+    var(--td-component-stroke)
+  );
+  --graft-workspace-editor-diff-added: color-mix(in srgb, var(--td-success-color-5) 18%, transparent);
+  --graft-workspace-editor-diff-removed: color-mix(in srgb, var(--td-error-color-5) 18%, transparent);
+  --graft-workspace-tab-indicator: var(--td-brand-color-6);
+  --graft-workspace-tab-hover: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
+  --graft-workspace-feedback-separator: color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
 }
 
 .project-configuration-workspace__summary-strip,
@@ -1167,7 +1620,8 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   margin: 0;
 }
 
-.project-configuration-workspace__section-head p {
+.project-configuration-workspace__summary-strip .project-configuration-workspace__section-head p,
+.project-configuration-workspace__feedback .project-configuration-workspace__section-head p {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: var(--graft-density-gap-4) 0 0;
@@ -1175,12 +1629,14 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 
 .project-configuration-workspace__main-grid {
   display: grid;
-  gap: var(--graft-density-gap-16);
-  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  gap: var(--graft-density-gap-4);
+  grid-template-columns: minmax(0, auto) auto minmax(0, 1fr);
+  min-height: 0;
 }
 
-.project-configuration-workspace__tree-card,
-.project-configuration-workspace__editor-column,
+.project-configuration-workspace__sidebar,
+.project-configuration-workspace__browser-card,
+.project-configuration-workspace__editor-stack,
 .project-configuration-workspace__feedback-panel,
 .project-configuration-workspace__diff-layout,
 .project-configuration-workspace__diff-viewer,
@@ -1190,23 +1646,116 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   min-width: 0;
 }
 
-.project-configuration-workspace__tree-alert,
+.project-configuration-workspace__browser-alert,
 .project-configuration-workspace__editor-alert {
   margin-bottom: var(--graft-density-gap-12);
 }
 
-.project-configuration-workspace__tree-node {
+.project-configuration-workspace__browser-card {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--td-brand-color-6) 7%, transparent), transparent 38%),
+    var(--graft-workspace-editor-surface-muted);
+  border-color: var(--graft-workspace-editor-border);
+  box-shadow: none;
+  height: 100%;
+}
+
+.project-configuration-workspace__browser-card :deep(.t-card__header) {
+  padding-bottom: var(--graft-density-gap-8);
+}
+
+.project-configuration-workspace__browser-card :deep(.t-card__body) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: var(--graft-density-gap-8);
+}
+
+.project-configuration-workspace__tree-toolbar-button {
+  color: var(--td-text-color-secondary);
+}
+
+.project-configuration-workspace__tree-toolbar-button:hover {
+  color: var(--td-brand-color-6);
+}
+
+.project-configuration-workspace__tree {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--graft-density-gap-2);
+  min-height: 0;
+  overflow: auto;
+}
+
+.project-configuration-workspace__tree-row {
   align-items: center;
+  border-radius: var(--td-radius-default);
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  min-width: 0;
+  padding-left: calc(var(--workspace-tree-depth, 0) * var(--graft-density-gap-14));
+  transition: background-color 0.2s ease;
+}
+
+.project-configuration-workspace__tree-row--active {
+  background: color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
+}
+
+.project-configuration-workspace__tree-row--readonly {
+  opacity: 0.68;
+}
+
+.project-configuration-workspace__tree-expander,
+.project-configuration-workspace__tree-expander-placeholder {
+  align-items: center;
+  color: var(--td-text-color-placeholder);
+  display: inline-flex;
+  height: 24px;
+  justify-content: center;
+  width: 18px;
+}
+
+.project-configuration-workspace__tree-expander {
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  cursor: pointer;
+  padding: 0;
+}
+
+.project-configuration-workspace__tree-expander:hover {
+  background: color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
+  color: var(--td-text-color-primary);
+}
+
+.project-configuration-workspace__tree-expander-icon {
+  font-size: var(--td-font-size-body-small);
+  line-height: 1;
+}
+
+.project-configuration-workspace__tree-entry {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  color: inherit;
+  cursor: pointer;
   display: flex;
   gap: var(--graft-density-gap-8);
+  min-height: 30px;
   min-width: 0;
+  padding: 0 var(--graft-density-gap-8) 0 0;
+  text-align: left;
+  width: 100%;
 }
 
-.project-configuration-workspace__tree-node--readonly {
-  opacity: 0.6;
+.project-configuration-workspace__tree-entry:hover {
+  color: var(--td-text-color-primary);
 }
 
-.project-configuration-workspace__tree-node-icon {
+.project-configuration-workspace__browser-icon {
   align-items: center;
   color: var(--td-text-color-secondary);
   display: inline-flex;
@@ -1227,53 +1776,179 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   width: 100%;
 }
 
-.project-configuration-workspace__tree-node-main {
+.project-configuration-workspace__browser-main {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  gap: var(--graft-density-gap-2);
   min-width: 0;
 }
 
-.project-configuration-workspace__tree-node-title {
+.project-configuration-workspace__browser-title {
   color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-configuration-workspace__tree-node-main small {
-  color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-configuration-workspace__editor-column {
-  display: grid;
-  gap: var(--graft-density-gap-16);
-}
-
-.project-configuration-workspace__editor-head strong {
-  color: var(--td-text-color-primary);
-  display: block;
-  font: var(--td-font-title-small);
-}
-
-.project-configuration-workspace__editor-head p {
-  color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
-  margin: var(--graft-density-gap-4) 0 0;
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-configuration-workspace__browser-meta {
+  color: var(--td-text-color-placeholder);
+  display: flex;
+  flex-wrap: wrap;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-6);
+}
+
+.project-configuration-workspace__tree-actions {
+  align-items: center;
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.project-configuration-workspace__tree-row:hover .project-configuration-workspace__tree-actions,
+.project-configuration-workspace__tree-actions--visible {
+  opacity: 1;
+}
+
+.project-configuration-workspace__annotation-button {
+  color: var(--td-text-color-placeholder);
+}
+
+.project-configuration-workspace__annotation-button:hover {
+  color: var(--td-brand-color-6);
+}
+
+.project-configuration-workspace__tree-error {
+  color: var(--td-error-color-6);
+  font: var(--td-font-body-small);
+  margin: 0;
+  padding-left: calc(
+    (var(--workspace-tree-depth, 0) * var(--graft-density-gap-14)) + var(--graft-density-gap-24) +
+      var(--graft-density-gap-2)
+  );
+}
+
+.project-configuration-workspace__splitter {
+  align-items: center;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  width: 2px;
+}
+
+.project-configuration-workspace__splitter-grip {
+  background: color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
+  border-radius: 999px;
+  height: 40px;
+  transition: background-color 0.2s ease;
+  width: 1px;
+}
+
+.project-configuration-workspace__splitter:hover .project-configuration-workspace__splitter-grip {
+  background: color-mix(in srgb, var(--td-brand-color-6) 55%, var(--td-component-stroke));
+}
+
+.project-configuration-workspace__editor-stack {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.project-configuration-workspace__editor-stack :deep(.content-viewer-frame__panel) {
+  background: var(--graft-workspace-editor-surface);
+  border-bottom: 0;
+  border-color: var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-large) var(--td-radius-large) 0 0;
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--td-brand-color-6) 5%, transparent);
+  display: flex;
+  flex-direction: column;
+}
+
+.project-configuration-workspace__editor-stack :deep(.content-viewer-frame__header) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 6%, transparent), transparent 72%);
+  border-bottom-color: var(--graft-workspace-editor-border);
+}
+
+.project-configuration-workspace__editor-stack :deep(.content-viewer-frame__surface) {
+  background: var(--graft-workspace-editor-surface);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.project-configuration-workspace__editor-stack :deep(.content-viewer-frame__resize-grip) {
+  background: color-mix(in srgb, var(--td-text-color-placeholder) 42%, transparent);
 }
 
 .project-configuration-workspace__editor-surface {
+  background: var(--graft-workspace-editor-surface);
   block-size: 100%;
-  min-block-size: 560px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
   min-inline-size: 0;
 }
 
-.project-configuration-workspace__tabs {
-  margin-bottom: var(--graft-density-gap-12);
+.project-configuration-workspace__tabs,
+.project-configuration-workspace__feedback-tabs {
+  margin-bottom: 0;
+
+  :deep(.t-tabs__header) {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 4%, transparent), transparent);
+    border-bottom: 1px solid var(--graft-workspace-editor-border);
+    margin: 0;
+    padding: 0 var(--graft-density-gap-8);
+  }
+
+  :deep(.t-tabs__nav) {
+    align-items: stretch;
+  }
+
+  :deep(.t-tabs__bar) {
+    display: none;
+  }
+
+  :deep(.t-tabs__nav-item) {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    border-top: 2px solid transparent;
+    color: var(--td-text-color-secondary);
+    margin: 0;
+    min-height: 42px;
+    padding: 0 var(--graft-density-gap-12);
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  :deep(.t-tabs__nav-item:hover) {
+    background: var(--graft-workspace-tab-hover);
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.t-tabs__nav-item.t-is-active) {
+    background: color-mix(in srgb, var(--td-brand-color-6) 6%, transparent);
+    border-top-color: var(--graft-workspace-tab-indicator);
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.t-tabs__nav-item + .t-tabs__nav-item) {
+    box-shadow: inset 1px 0 0 color-mix(in srgb, var(--graft-workspace-editor-border) 72%, transparent);
+  }
+}
+
+.project-configuration-workspace__feedback-tabs {
+  :deep(.t-tabs__content) {
+    padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
+  }
 }
 
 .project-configuration-workspace__tab-label {
@@ -1291,10 +1966,46 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 .project-configuration-workspace__editor-loading,
 .project-configuration-workspace__monaco-editor,
 .project-configuration-workspace__monaco-viewer {
+  background: var(--graft-workspace-editor-surface);
   block-size: 100%;
   display: block;
   min-block-size: 0;
   min-inline-size: 0;
+}
+
+.project-configuration-workspace__editor-loading {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: 0 var(--graft-density-gap-8) var(--graft-density-gap-8);
+}
+
+.project-configuration-workspace__editor-stage {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.project-configuration-workspace__editor-loading :deep(.t-loading__parent),
+.project-configuration-workspace__editor-loading :deep(.t-loading__content),
+.project-configuration-workspace__editor-loading :deep(.t-loading__wrap) {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.project-configuration-workspace__monaco-editor,
+.project-configuration-workspace__monaco-viewer {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.project-configuration-workspace__monaco-editor :deep(.monaco-editor),
+.project-configuration-workspace__monaco-editor :deep(.monaco-diff-editor),
+.project-configuration-workspace__monaco-viewer :deep(.monaco-editor),
+.project-configuration-workspace__monaco-viewer :deep(.monaco-diff-editor) {
+  background: var(--graft-workspace-editor-surface);
 }
 
 .project-configuration-workspace__warning-list,
@@ -1320,8 +2031,8 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 
 .project-configuration-workspace__diff-file {
   align-items: center;
-  background: var(--td-bg-color-container);
-  border: 1px solid transparent;
+  background: var(--graft-workspace-editor-surface-muted);
+  border: 1px solid var(--graft-workspace-editor-border);
   border-radius: var(--td-radius-default);
   color: inherit;
   cursor: pointer;
@@ -1336,12 +2047,12 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 }
 
 .project-configuration-workspace__diff-file:hover {
-  border-color: var(--td-brand-color-5);
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 38%, var(--graft-workspace-editor-border));
 }
 
 .project-configuration-workspace__diff-file--active {
-  background: var(--td-brand-color-1);
-  border-color: var(--td-brand-color-6);
+  background: color-mix(in srgb, var(--td-brand-color-6) 10%, var(--graft-workspace-editor-surface-muted));
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 48%, var(--graft-workspace-editor-border));
 }
 
 .project-configuration-workspace__diff-viewer {
@@ -1358,10 +2069,47 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   gap: var(--graft-density-gap-12);
 }
 
+.project-configuration-workspace__hash-text {
+  color: var(--td-text-color-primary);
+  display: inline-block;
+  font-family: var(--td-font-family-mono, monospace);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
 .project-configuration-workspace__readonly-viewer,
 .project-configuration-workspace__drawer-viewer {
+  background: var(--graft-workspace-editor-surface-muted);
   block-size: 480px;
+  border: 1px solid var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-large);
   margin-top: var(--graft-density-gap-12);
+  overflow: hidden;
+}
+
+.project-configuration-workspace__feedback {
+  background: var(--graft-workspace-editor-surface);
+  border: 0;
+  border-radius: 0 0 var(--td-radius-large) var(--td-radius-large);
+  border-top: 1px solid var(--graft-workspace-feedback-separator);
+  box-shadow: none;
+}
+
+.project-configuration-workspace__feedback :deep(.t-card__header) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 4%, transparent), transparent);
+  border-bottom: 1px solid var(--graft-workspace-editor-border);
+}
+
+.project-configuration-workspace__feedback :deep(.t-card__body) {
+  background: var(--graft-workspace-editor-surface);
+}
+
+.project-configuration-workspace__feedback :deep(.t-empty) {
+  min-block-size: 220px;
 }
 
 .project-configuration-workspace__dialog-body {
@@ -1372,6 +2120,10 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   .project-configuration-workspace__main-grid,
   .project-configuration-workspace__diff-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-configuration-workspace__splitter {
+    display: none;
   }
 }
 </style>

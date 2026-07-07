@@ -3,12 +3,14 @@
 </template>
 <script setup lang="ts">
 import type * as Monaco from 'monaco-editor';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import {
   buildProjectMonacoModelUri,
   createProjectMonacoModelUriSuffix,
   ensureProjectMonacoConfigured,
+  scheduleProjectMonacoLayout,
+  useProjectMonacoLifecycle,
 } from '../shared/project-monaco';
 
 type MonacoEditorSurfaceOptions = Monaco.editor.IStandaloneEditorConstructionOptions;
@@ -42,16 +44,16 @@ let model: Monaco.editor.ITextModel | null = null;
 let syncingFromEditor = false;
 let syncingFromProps = false;
 
-onMounted(() => {
-  monaco = ensureProjectMonacoConfigured();
-  void createEditor();
-});
-
-onBeforeUnmount(() => {
-  editor?.dispose();
-  editor = null;
-  model?.dispose();
-  model = null;
+const { applyTheme } = useProjectMonacoLifecycle({
+  createEditor,
+  disposeEditor() {
+    editor?.dispose();
+    editor = null;
+    model?.dispose();
+    model = null;
+  },
+  getMonaco: () => monaco,
+  getThemeHost: () => containerRef.value,
 });
 
 watch(
@@ -102,17 +104,22 @@ watch(
 );
 
 async function createEditor() {
-  if (!monaco || !containerRef.value) {
+  monaco = ensureProjectMonacoConfigured();
+  const host = containerRef.value;
+
+  if (!host) {
     return;
   }
 
+  applyTheme();
   model = createModel(monaco);
-  editor = monaco.editor.create(containerRef.value, {
+  editor = monaco.editor.create(host, {
     ariaLabel: props.editorAriaLabel,
     automaticLayout: true,
     glyphMargin: false,
     insertSpaces: true,
     language: props.language,
+    lineNumbers: 'on',
     lineNumbersMinChars: 3,
     minimap: { enabled: false },
     padding: { top: 14, bottom: 14 },
@@ -139,8 +146,7 @@ async function createEditor() {
     syncingFromEditor = false;
   });
 
-  await nextTick();
-  requestAnimationFrame(() => {
+  await scheduleProjectMonacoLayout(() => {
     editor?.layout();
   });
 }

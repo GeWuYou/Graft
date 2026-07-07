@@ -6668,6 +6668,11 @@ type EnvelopedProjectFileSaveResponse struct {
 	Data ProjectFileSaveResponse `json:"data"`
 }
 
+// EnvelopedProjectFileTreeItemResponse defines model for enveloped-project-file-tree-item-response.
+type EnvelopedProjectFileTreeItemResponse struct {
+	Data ProjectFileTreeItem `json:"data"`
+}
+
 // EnvelopedProjectFilesResponse defines model for enveloped-project-files-response.
 type EnvelopedProjectFilesResponse struct {
 	Data ProjectFilesResponse `json:"data"`
@@ -7961,6 +7966,11 @@ type ProjectDiscoveryCandidatesResponse struct {
 // ProjectDriftStatus defines model for project-drift-status.
 type ProjectDriftStatus string
 
+// ProjectFileAnnotationRequest defines model for project-file-annotation-request.
+type ProjectFileAnnotationRequest struct {
+	Annotation *string `json:"annotation,omitempty"`
+}
+
 // ProjectFileContentResponse defines model for project-file-content-response.
 type ProjectFileContentResponse struct {
 	Content      string                             `json:"content"`
@@ -8019,8 +8029,11 @@ type ProjectFileTreeItem struct {
 	LanguageHint    string                   `json:"language_hint"`
 	Name            string                   `json:"name"`
 	NodeType        ProjectFileTreeNodeType  `json:"node_type"`
+	ProjectNote     *string                  `json:"project_note,omitempty"`
 	RelativePath    string                   `json:"relative_path"`
 	SizeBytes       int64                    `json:"size_bytes"`
+	Tooltip         *string                  `json:"tooltip,omitempty"`
+	TooltipSource   *string                  `json:"tooltip_source,omitempty"`
 }
 
 // ProjectFileTreeNodeType defines model for project-file-tree-node-type.
@@ -10581,6 +10594,19 @@ type GetProjectFilesParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PutProjectFileAnnotationParams defines parameters for PutProjectFileAnnotation.
+type PutProjectFileAnnotationParams struct {
+	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
+	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetProjectFileContentParams defines parameters for GetProjectFileContent.
 type GetProjectFileContentParams struct {
 	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
@@ -11288,6 +11314,9 @@ type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
 
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest
+
+// PutProjectFileAnnotationJSONRequestBody defines body for PutProjectFileAnnotation for application/json ContentType.
+type PutProjectFileAnnotationJSONRequestBody = ProjectFileAnnotationRequest
 
 // PutProjectFileContentJSONRequestBody defines body for PutProjectFileContent for application/json ContentType.
 type PutProjectFileContentJSONRequestBody = ProjectFileSaveRequest

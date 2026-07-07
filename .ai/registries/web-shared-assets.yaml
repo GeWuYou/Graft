@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: "2026-06-11"
+updated_at: "2026-07-07"
 assets:
   - name: "management-components"
     type: "frontend-component-suite"
@@ -217,6 +217,38 @@ assets:
     related_assets:
       - "openapi-contracts"
       - "request-correlation-contract"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "shared-css-color-parser"
+    type: "frontend-utility"
+    path: "web/src/shared/theme/css-color.ts"
+    owner: "web/shared"
+    purpose: "Reusable CSS color normalization and parsing for browser-resolved theme tokens, previews, and runtime consumers that need stable hex plus alpha channels."
+    use_when:
+      - "Converting browser-supported CSS colors or computed theme tokens into structured RGB/alpha data."
+      - "Bridging modern CSS color syntax such as color() or slash-alpha rgb into consumers that require canonical hex output."
+    do_not_use_when:
+      - "The logic is module-private business presentation unrelated to shared theme or token color handling."
+    examples:
+      - "web/src/layouts/components/theme-workbench/theme-token-color.ts"
+      - "web/src/modules/project/shared/project-monaco.ts"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "brand-identity"
+    type: "frontend-component"
+    path: "web/src/shared/components/brand"
+    owner: "web/shared"
+    purpose: "Reusable brand mark and shell identity component for sidebar, header, and auth surfaces with token-driven currentColor theming."
+    use_when:
+      - "Rendering the shared Graft brand identity in shell-owned or auth-owned UI surfaces."
+    do_not_use_when:
+      - "The surface needs module-private business imagery or a non-brand status icon."
+    examples:
+      - "web/src/layouts/components/SideNav.vue"
+      - "web/src/layouts/components/Header.vue"
+      - "web/src/modules/auth/pages/components/Header.vue"
     validation_commands:
       - "cd web && bun run check"
 

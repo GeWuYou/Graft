@@ -15,6 +15,7 @@ export type ConfigSchemaProperty = {
   description?: string;
   placeholder?: string;
   xI18n?: ConfigSchemaI18n;
+  xGraft?: ConfigSchemaGraft;
   'x-title-key'?: string;
   'x-description-key'?: string;
 };
@@ -24,6 +25,10 @@ export type ConfigSchemaI18n = {
   descriptionKey?: string;
   placeholderKey?: string;
   unitKey?: string;
+};
+
+export type ConfigSchemaGraft = {
+  editor?: 'string-array-json-list' | 'workspace-tooltip-rule-list';
 };
 
 export type ConfigValidationReasonCode =
@@ -340,6 +345,7 @@ function parseProperty(raw: JsonRecord): ConfigSchemaProperty {
   assignString(raw, property, 'x-title-key');
   assignString(raw, property, 'x-description-key');
   property.xI18n = parseI18n(raw);
+  property.xGraft = parseGraft(raw);
   if ('default' in raw) {
     property.default = raw.default;
   }
@@ -394,6 +400,15 @@ function parseEnumLabels(raw: JsonRecord): Record<string, ConfigSchemaOptionLabe
     }
   }
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function parseGraft(raw: JsonRecord): ConfigSchemaGraft | undefined {
+  const extension = isJsonRecord(raw['x-graft']) ? raw['x-graft'] : {};
+  const parsed: ConfigSchemaGraft = {};
+  if (extension.editor === 'string-array-json-list' || extension.editor === 'workspace-tooltip-rule-list') {
+    parsed.editor = extension.editor;
+  }
+  return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
 function parseFieldType(value: unknown): ConfigFieldType | undefined {

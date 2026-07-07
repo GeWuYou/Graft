@@ -1,6 +1,13 @@
 import type { ConfigFieldType, ConfigSchema, ConfigSchemaField, ConfigSchemaProperty } from './config-schema';
 
-export type ConfigFieldRendererKind = 'select' | 'switch' | 'input-number' | 'json-textarea' | 'input';
+export type ConfigFieldRendererKind =
+  | 'select'
+  | 'switch'
+  | 'input-number'
+  | 'json-textarea'
+  | 'string-array-list'
+  | 'workspace-tooltip-rule-list'
+  | 'input';
 
 export type ConfigEditorContainer = 'dialog' | 'drawer';
 
@@ -8,6 +15,13 @@ export function configFieldRenderer(
   schema: ConfigSchemaProperty,
   fallbackType?: ConfigFieldType | null,
 ): ConfigFieldRendererKind {
+  if (schema.xGraft?.editor === 'string-array-json-list') {
+    return 'string-array-list';
+  }
+  if (schema.xGraft?.editor === 'workspace-tooltip-rule-list') {
+    return 'workspace-tooltip-rule-list';
+  }
+
   if (schema.enum?.length) {
     return 'select';
   }

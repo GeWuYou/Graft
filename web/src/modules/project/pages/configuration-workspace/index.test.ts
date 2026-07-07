@@ -11,9 +11,11 @@ const mocks = vi.hoisted(() => ({
   getProjectConfigurationPreview: vi.fn(),
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
+  info: vi.fn(),
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
+  putProjectFileAnnotation: vi.fn(),
   putProjectFileContent: vi.fn(),
   success: vi.fn(),
   t: vi.fn((key: string) => key),
@@ -31,11 +33,15 @@ const pageContextState = reactive({
 
 const workspaceCopyMessages = {
   'en-US': {
+    'project.configurationWorkspace.copy.annotationAction': 'Edit Annotation',
+    'project.configurationWorkspace.copy.annotationSaveFailed': 'Failed to save the annotation.',
     'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
     'project.configurationWorkspace.copy.saveAction': 'Save',
     'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
   },
   'zh-CN': {
+    'project.configurationWorkspace.copy.annotationAction': '编辑注释',
+    'project.configurationWorkspace.copy.annotationSaveFailed': '注释保存失败。',
     'project.configurationWorkspace.copy.deployAction': '部署项目',
     'project.configurationWorkspace.copy.deployDirtyBody': '检测到未保存的修改，是否先保存？',
     'project.configurationWorkspace.copy.saveAction': '保存',
@@ -52,6 +58,7 @@ vi.mock('../../api/project', () => ({
   postProjectConfigurationDiff: mocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
   postProjectDeploy: mocks.postProjectDeploy,
+  putProjectFileAnnotation: mocks.putProjectFileAnnotation,
   putProjectFileContent: mocks.putProjectFileContent,
 }));
 
@@ -80,6 +87,7 @@ vi.mock('vue-router', async () => {
 vi.mock('tdesign-vue-next/es/message', () => ({
   MessagePlugin: {
     error: (...args: unknown[]) => mocks.error(...args),
+    info: (...args: unknown[]) => mocks.info(...args),
     success: (...args: unknown[]) => mocks.success(...args),
     warning: (...args: unknown[]) => mocks.warning(...args),
   },
@@ -196,16 +204,27 @@ const TButtonStub = defineComponent({
     disabled: { type: Boolean, default: false },
   },
   emits: ['click'],
-  setup(props, { emit, slots }) {
+  setup(props, { attrs, emit, slots }) {
     return () =>
       h(
         'button',
         {
+          ...attrs,
           disabled: props.disabled,
-          onClick: () => !props.disabled && emit('click'),
+          onClick: (event: MouseEvent) => !props.disabled && emit('click', event),
         },
-        slots.default?.(),
+        [slots.icon?.(), slots.default?.()],
       );
+  },
+});
+
+const TTooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  props: {
+    content: { type: String, default: '' },
+  },
+  setup(props, { slots }) {
+    return () => h('span', { 'data-tooltip-content': props.content }, slots.default?.());
   },
 });
 
@@ -216,6 +235,56 @@ const TTabsStub = defineComponent({
   },
   setup(_props, { slots }) {
     return () => h('div', { class: 't-tabs-stub' }, slots.default?.());
+  },
+});
+
+const TDialogStub = defineComponent({
+  name: 'TDialogStub',
+  props: {
+    cancelBtn: { type: [Boolean, Object], default: false },
+    confirmBtn: { type: [Boolean, Object], default: false },
+    header: { type: String, default: '' },
+    visible: { type: Boolean, default: false },
+  },
+  emits: ['close', 'confirm', 'update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          'data-stub': 'TDialog',
+          'data-title': props.header,
+          'data-visible': String(props.visible),
+        },
+        [
+          props.visible ? h('div', slots.default?.()) : null,
+          props.visible ? h('div', slots.footer?.()) : null,
+          props.visible && props.confirmBtn
+            ? h(
+                'button',
+                {
+                  'data-testid': 't-dialog-confirm',
+                  onClick: () => emit('confirm'),
+                },
+                typeof props.confirmBtn === 'object' && props.confirmBtn && 'content' in props.confirmBtn
+                  ? String(props.confirmBtn.content)
+                  : 'Confirm',
+              )
+            : null,
+          props.visible && props.cancelBtn
+            ? h(
+                'button',
+                {
+                  'data-testid': 't-dialog-cancel',
+                  onClick: () => emit('close'),
+                },
+                typeof props.cancelBtn === 'object' && props.cancelBtn && 'content' in props.cancelBtn
+                  ? String(props.cancelBtn.content)
+                  : 'Cancel',
+              )
+            : null,
+        ],
+      );
   },
 });
 
@@ -242,46 +311,6 @@ const TTabPanelStub = defineComponent({
   },
 });
 
-const TTreeStub = defineComponent({
-  name: 'TTree',
-  props: {
-    data: { type: Array, default: () => [] },
-    load: { type: Function, default: undefined },
-  },
-  emits: ['active', 'expand'],
-  setup(props, { emit, slots }) {
-    const renderNode = (node: any) => {
-      const id = node.value.replace(/[^a-z0-9]+/gi, '-');
-      return h('div', { class: 'tree-node', key: node.value }, [
-        h(
-          'button',
-          {
-            'data-testid': `tree-node-${id}`,
-            onClick: () => emit('active', [node.value], { node: { data: node } }),
-          },
-          slots.label ? slots.label({ node: { data: node } }) : node.name,
-        ),
-        node.node_type === 'directory' && node.children === true
-          ? h(
-              'button',
-              {
-                'data-testid': `tree-expand-${id}`,
-                onClick: async () => {
-                  await props.load?.({ data: node });
-                  emit('expand', [node.value], { node: { data: node } });
-                },
-              },
-              'expand',
-            )
-          : null,
-        Array.isArray(node.children) ? h('div', { class: 'tree-children' }, node.children.map(renderNode)) : null,
-      ]);
-    };
-
-    return () => h('div', { class: 't-tree-stub' }, (props.data as any[]).map(renderNode));
-  },
-});
-
 describe('ProjectConfigurationWorkspaceIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -302,7 +331,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     });
     mocks.getProjectConfigurationPreview.mockResolvedValue({
       canonical_project_name: 'sub2api',
-      config_hash: 'preview-hash',
+      config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
       normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
       project_id: 1,
       refreshed_at: '2026-07-03T13:12:38Z',
@@ -366,24 +395,38 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       saved_at: '2026-07-06T10:00:00Z',
       size_bytes: 40,
     });
+    mocks.putProjectFileAnnotation.mockResolvedValue({
+      editable: true,
+      file_kind: 'compose',
+      has_children: false,
+      hidden_by_default: false,
+      language_hint: 'yaml',
+      name: 'docker-compose.yml',
+      node_type: 'file',
+      project_note: 'Existing note',
+      relative_path: 'docker-compose.yml',
+      size_bytes: 32,
+      tooltip: 'Existing note',
+      tooltip_source: 'project-note',
+    });
     mocks.postProjectConfigurationDiff.mockResolvedValue({
       canonical_project_name: 'sub2api',
-      current_config_hash: 'current-hash',
+      current_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
       files: [
         {
           changed: true,
           current_content: 'services:\n  api:\n    image: old\n',
-          current_hash: 'old-hash',
+          current_hash: 'c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef',
           kind: 'compose',
           path: 'docker-compose.yml',
           proposed_content: 'services:\n  api:\n    image: app\n',
-          proposed_hash: 'new-hash',
+          proposed_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
         },
       ],
       has_changes: true,
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
-      proposed_config_hash: 'proposed-hash',
+      proposed_config_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
       warnings: [],
     });
     mocks.postProjectConfigurationValidate.mockResolvedValue({
@@ -392,7 +435,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
-      proposed_config_hash: 'validated-hash',
+      proposed_config_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
       warnings: [],
     });
     mocks.postProjectDeploy.mockResolvedValue({
@@ -400,7 +443,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     });
   });
 
-  it('loads the root file tree and opens the first file buffer', async () => {
+  it('loads the root file list and opens the first file buffer', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -411,15 +454,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
-  it('lazy loads nested directories and opens empty file content without a blank editor failure', async () => {
+  it('navigates into nested directories and opens empty file content without a blank editor failure', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="tree-expand-config"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
     await flushPromises();
     expect(mocks.getProjectFiles).toHaveBeenCalledWith(1, { path: 'config', show_hidden: false });
 
-    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
     expect(mocks.getProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' });
@@ -427,13 +470,24 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
   });
 
+  it('keeps .env visible during directory browsing without enabling show_hidden', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="workspace-entry-config-env"]').exists()).toBe(true);
+    expect(mocks.getProjectFiles).toHaveBeenNthCalledWith(2, 1, { path: 'config', show_hidden: false });
+  });
+
   it('does not refetch a loaded empty file when reopening the tab with unsaved edits', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="tree-expand-config"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
     const initialCalls = mocks.getProjectFileContent.mock.calls.filter(
@@ -442,7 +496,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(initialCalls).toBe(1);
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('EDITOR_ONLY=true\n');
-    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
     const nextCalls = mocks.getProjectFileContent.mock.calls.filter(([, query]) => query.path === 'config/.env').length;
@@ -450,6 +504,123 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'EDITOR_ONLY=true\n',
     );
+  });
+
+  it('renders compact tree row actions and removes the duplicate editor title header', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__editor-head').exists()).toBe(false);
+    expect(wrapper.find('.project-configuration-workspace__browser-toolbar').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('current directory still contains default-hidden directories');
+  });
+
+  it('shows compact tree toolbar actions and opens the annotation editor', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect(wrapper.find('.project-configuration-workspace__tree.graft-scrollbar').exists()).toBe(true);
+    const hiddenToggle = wrapper.get('[data-testid="workspace-show-hidden-toggle"]');
+    expect(hiddenToggle.element.parentElement?.getAttribute('data-tooltip-content')).toBe(
+      'project.configurationWorkspace.copy.showHiddenAction',
+    );
+    expect(hiddenToggle.text()).toBe('');
+
+    const annotationButton = wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]');
+    expect(annotationButton.element.parentElement?.getAttribute('data-tooltip-content')).toBe('Edit Annotation');
+
+    await annotationButton.trigger('click');
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('true');
+  });
+
+  it('saves workspace annotations through the dialog flow', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
+    await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
+    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileAnnotation).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { annotation: 'Updated note' },
+    );
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('false');
+    expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it('shows a localized annotation save failure instead of the retired unavailable fallback copy', async () => {
+    const wrapper = mountWorkspace();
+    mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
+    await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
+    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.error).toHaveBeenCalledWith('Failed to save the annotation.');
+  });
+
+  it('shows the zh-CN annotation save failure copy when the request fails', async () => {
+    pageContextState.locale = 'zh-CN';
+    const wrapper = mountWorkspace();
+    mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
+    await wrapper.findAll('textarea').at(-1)!.setValue('更新备注');
+    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.error).toHaveBeenCalledWith('注释保存失败。');
+  });
+
+  it('hides a directory error after the directory is collapsed', async () => {
+    mocks.getProjectFiles.mockImplementationOnce(async () => ({
+      current_path: '',
+      items: [
+        {
+          editable: false,
+          file_kind: 'directory',
+          has_children: true,
+          name: 'config',
+          node_type: 'directory',
+          relative_path: 'config',
+        },
+      ],
+      root_path: '/srv/sub2api',
+    }));
+    mocks.getProjectFiles.mockRejectedValueOnce(new Error('Directory load failed'));
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('project.list.retry');
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('project.list.retry');
+  });
+
+  it('truncates configuration hashes while keeping the full value in tooltips', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('40ddc4...b6182c');
+    expect(wrapper.text()).toContain('0dd31a...27ca10');
+    expect(wrapper.html()).toContain('data-tooltip-content="40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c"');
+    expect(wrapper.html()).toContain('data-tooltip-content="0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10"');
   });
 
   it('saves the active file buffer without deploying the project', async () => {
@@ -510,7 +681,7 @@ function mountWorkspace() {
         TCard: createTStub('TCard'),
         TDescriptions: createTStub('TDescriptions'),
         TDescriptionsItem: createTStub('TDescriptionsItem'),
-        TDialog: createTStub('TDialog'),
+        TDialog: TDialogStub,
         TDrawer: createTStub('TDrawer'),
         TEmpty: createTStub('TEmpty'),
         TLoading: createTStub('TLoading'),
@@ -518,7 +689,21 @@ function mountWorkspace() {
         TTabPanel: TTabPanelStub,
         TTabs: TTabsStub,
         TTag: createTStub('TTag'),
-        TTree: TTreeStub,
+        TTextarea: defineComponent({
+          name: 'TTextareaStub',
+          props: {
+            modelValue: { type: String, default: '' },
+          },
+          emits: ['update:modelValue'],
+          setup(props, { emit }) {
+            return () =>
+              h('textarea', {
+                value: props.modelValue,
+                onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLTextAreaElement).value),
+              });
+          },
+        }),
+        TTooltip: TTooltipStub,
       },
     },
   });

@@ -45,6 +45,7 @@ const (
 	maxProjectListLimit      = 100
 	projectConflictScanSize  = 100
 	projectDiscoveryScanSize = 8
+	maxWorkspaceAnnotationLength = projectcontract.ProjectWorkspaceAnnotationMaxLength
 	minLifecycleArgCount     = 2
 	maxCommandOutputSummary  = 120
 	managedCreateWarningsCap = 2
@@ -204,6 +205,9 @@ type workspaceFileItem struct {
 	SizeBytes       int64
 	HiddenByDefault bool
 	HasChildren     bool
+	Tooltip         string
+	TooltipSource   string
+	ProjectNote     string
 }
 
 // workspaceFilesResult returns one bounded project-root directory page.

@@ -178,6 +178,9 @@ export type ProjectWorkspaceTreeItem = {
   size_bytes?: number | null;
   hidden_by_default?: boolean;
   has_children?: boolean;
+  tooltip?: string | null;
+  tooltip_source?: string | null;
+  project_note?: string | null;
 };
 
 export type ProjectWorkspaceFilesResponse = {
@@ -217,3 +220,15 @@ export type ProjectWorkspaceFileSaveResponse = {
   content_hash?: string | null;
   size_bytes?: number | null;
 };
+
+type ProjectWorkspaceFileAnnotationPath = (typeof PROJECT_API_PATH)['FILES_ANNOTATION'];
+type PutProjectWorkspaceFileAnnotationOperation = paths[ProjectWorkspaceFileAnnotationPath]['put'];
+
+export type ProjectWorkspaceFileAnnotationRequest =
+  PutProjectWorkspaceFileAnnotationOperation['requestBody']['content']['application/json'];
+export type ProjectWorkspaceFileAnnotationResponse =
+  PutProjectWorkspaceFileAnnotationOperation['responses'][200]['content']['application/json'] extends {
+    data: infer T;
+  }
+    ? T
+    : ProjectWorkspaceTreeItem;

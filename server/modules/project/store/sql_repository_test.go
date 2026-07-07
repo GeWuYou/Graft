@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,12 +23,12 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-		last_refresh_status, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		last_refresh_status, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "demo", "demo", projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(),
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
-		projectcontract.RefreshStatusSuccess.String(), projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
+		projectcontract.RefreshStatusSuccess.String(), `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
 	mustExec(t, db, `INSERT INTO compose_project_files (
 		id, project_id, kind, role, absolute_path, display_path, order_index, exists_on_last_refresh, last_observed_hash, created_at, updated_at
@@ -113,6 +114,65 @@ func TestValidateImportInputRejectsInvalidTypedContract(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryUpdateWorkspaceAnnotationRejectsOversizedAnnotation(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newTestSQLRepository(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	insertProjectRow(t, db, 1, "demo", now, 0)
+
+	annotation := strings.Repeat("a", projectcontract.ProjectWorkspaceAnnotationMaxLength+1)
+	_, err := repo.UpdateWorkspaceAnnotation(ctx, UpdateWorkspaceAnnotationInput{
+		ProjectID:    1,
+		RelativePath: "compose.yml",
+		Annotation:   &annotation,
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestSQLRepositoryUpdateWorkspaceAnnotationPreservesConcurrentChanges(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newTestSQLRepository(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	insertProjectRow(t, db, 1, "demo", now, 0)
+
+	note := "compose note"
+	aggregate, err := repo.UpdateWorkspaceAnnotation(ctx, UpdateWorkspaceAnnotationInput{
+		ProjectID:    1,
+		RelativePath: "compose.yml",
+		Annotation:   &note,
+	})
+	if err != nil {
+		t.Fatalf("first annotation update: %v", err)
+	}
+	if aggregate.Project.WorkspaceAnnotations["compose.yml"] != note {
+		t.Fatalf("expected compose annotation, got %#v", aggregate.Project.WorkspaceAnnotations)
+	}
+
+	mustExec(t, db, `UPDATE compose_projects SET workspace_annotations_json = ? WHERE id = ?`, `{"README.md":"doc note"}`, 1)
+
+	envNote := "env note"
+	aggregate, err = repo.UpdateWorkspaceAnnotation(ctx, UpdateWorkspaceAnnotationInput{
+		ProjectID:    1,
+		RelativePath: ".env",
+		Annotation:   &envNote,
+	})
+	if err != nil {
+		t.Fatalf("second annotation update: %v", err)
+	}
+	if aggregate.Project.WorkspaceAnnotations["README.md"] != "doc note" {
+		t.Fatalf("expected concurrent README annotation to be preserved, got %#v", aggregate.Project.WorkspaceAnnotations)
+	}
+	if aggregate.Project.WorkspaceAnnotations[".env"] != envNote {
+		t.Fatalf("expected env annotation to be added, got %#v", aggregate.Project.WorkspaceAnnotations)
+	}
+}
+
 func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	t.Helper()
 
@@ -157,6 +217,7 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		last_refresh_error_message TEXT NOT NULL DEFAULT '',
 		last_refresh_config_hash TEXT NOT NULL DEFAULT '',
 		last_observed_config_hash TEXT NOT NULL DEFAULT '',
+		workspace_annotations_json TEXT NOT NULL DEFAULT '{}',
 		last_drift_checked_at TIMESTAMP NULL,
 		drift_status TEXT NOT NULL,
 		created_by INTEGER NULL,
@@ -194,12 +255,12 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-		last_refresh_status, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		last_refresh_status, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, name, name, projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(),
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
-		projectcontract.RefreshStatusSuccess.String(), projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
+		projectcontract.RefreshStatusSuccess.String(), `{}`, projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
 	)
 }
 

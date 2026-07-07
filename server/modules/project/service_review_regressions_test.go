@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -162,6 +163,33 @@ func TestListRuntimeImportCandidatesMarksAlreadyImportedBeyondFirstPage(t *testi
 	if result.Items[0].Status != importRuntimeCandidateStatusAlreadyImported {
 		t.Fatalf("expected paged conflict to mark candidate imported, got %#v", result.Items[0])
 	}
+}
+
+func TestResolveWorkspaceTooltipDisabledRuleDoesNotClearEarlierEnabledMatch(t *testing.T) {
+	t.Parallel()
+
+	tooltip, source := resolveWorkspaceTooltip(
+		".env.local",
+		false,
+		"",
+		[]workspaceTooltipRule{
+			{Enabled: true, regex: mustWorkspaceTooltipRegex(t, `^\.env(?:\..+)?$`), Tooltip: "env"},
+			{Enabled: false, regex: mustWorkspaceTooltipRegex(t, `^\.env\.local$`)},
+		},
+		nil,
+	)
+	if tooltip != "env" || source != "default-rule" {
+		t.Fatalf("expected earlier enabled tooltip to survive disabled match, got tooltip=%q source=%q", tooltip, source)
+	}
+}
+
+func mustWorkspaceTooltipRegex(t *testing.T, pattern string) *regexp.Regexp {
+	t.Helper()
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		t.Fatalf("compile regex: %v", err)
+	}
+	return regex
 }
 
 type countingTopicMonitorHub struct {
@@ -375,6 +403,10 @@ func (r *pagedConflictRepository) RefreshProject(context.Context, projectstore.R
 }
 
 func (r *pagedConflictRepository) UpdateLifecycleConfig(context.Context, projectstore.UpdateLifecycleConfigInput) (projectstore.ProjectAggregate, error) {
+	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
+}
+
+func (r *pagedConflictRepository) UpdateWorkspaceAnnotation(context.Context, projectstore.UpdateWorkspaceAnnotationInput) (projectstore.ProjectAggregate, error) {
 	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
 }
 

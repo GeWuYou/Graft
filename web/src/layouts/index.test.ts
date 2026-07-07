@@ -202,10 +202,12 @@ describe('App layout route effects', () => {
 
   it('exposes the sidebar compact state on the shell surface', async () => {
     settingStoreProxy.value!.isSidebarCompact = false;
+    routeProxy.value!.path = '/ops/containers';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('true');
 
     settingStoreProxy.value!.isSidebarCompact = true;
     await wrapper.vm.$nextTick();
@@ -228,16 +230,30 @@ describe('App layout route effects', () => {
     expect(storeState.realtimeSchedulerStore.freeze).toHaveBeenCalledWith('shell-sidebar-motion');
   });
 
+  it('keeps overlay mode disabled outside the container list route', () => {
+    routeProxy.value!.path = '/server/runtime';
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('false');
+  });
+
   it('runs the reverse sidebar motion when expanding back out', async () => {
     settingStoreProxy.value!.isSidebarCompact = true;
+    routeProxy.value!.path = '/ops/containers';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
 
     settingStoreProxy.value!.isSidebarCompact = false;
     await wrapper.vm.$nextTick();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-width');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
+
+    vi.advanceTimersToNextFrame();
+    vi.advanceTimersToNextFrame();
+    await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
 
     vi.advanceTimersByTime(128);

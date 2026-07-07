@@ -9,6 +9,7 @@ import {
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
+  buildProjectFilesAnnotationApiPath,
   buildProjectFilesApiPath,
   buildProjectFilesContentApiPath,
   buildProjectLifecycleConfigurationApiPath,
@@ -48,6 +49,8 @@ import type {
   ProjectOverviewResponse,
   ProjectServicesResponse,
   ProjectSourceCatalogResponse,
+  ProjectWorkspaceFileAnnotationRequest,
+  ProjectWorkspaceFileAnnotationResponse,
   ProjectWorkspaceFileContentQuery,
   ProjectWorkspaceFileContentResponse,
   ProjectWorkspaceFileSaveRequest,
@@ -301,6 +304,18 @@ export function putProjectFileContent(
     params: query,
     data: payload,
   }) as Promise<ProjectWorkspaceFileSaveResponse>;
+}
+
+export function putProjectFileAnnotation(
+  id: number,
+  query: ProjectWorkspaceFileContentQuery,
+  payload: ProjectWorkspaceFileAnnotationRequest,
+) {
+  return request.put<ProjectWorkspaceFileAnnotationResponse>({
+    url: buildProjectFilesAnnotationApiPath(id),
+    params: query,
+    data: payload,
+  }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
 }
 
 /**

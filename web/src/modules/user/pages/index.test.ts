@@ -581,7 +581,7 @@ function createProtectedUserListResponse() {
       {
         id: 1,
         username: 'graft',
-        display: 'Graft Admin',
+        display: 'Graft',
         protected_default_admin: true,
         status: 'enabled',
         roles: [
@@ -704,9 +704,8 @@ function updateRoleSelection(wrapper: ReturnType<typeof mountUserPage>, ids: num
 }
 
 function setRoleMutationMode(wrapper: ReturnType<typeof mountUserPage>, mode: 'replace' | 'add' | 'remove') {
-  const selects = wrapper.findAll('select');
-  const mutationSelect = selects.at(-1);
-  if (!mutationSelect) {
+  const mutationSelect = wrapper.find('select.assignment-toolbar__select');
+  if (!mutationSelect.exists()) {
     throw new Error('role mutation select not found');
   }
 

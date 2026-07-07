@@ -38,5 +38,16 @@ ops.project.source.remoteHost.description: Remote host project creation is not a
 ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
 systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
 systemConfig.project.ops.project.managed.root_directory.description: Root directory used for managed Compose project creation. Leave empty to keep managed creation unavailable.
+systemConfig.groups.ops.project.create: Project Create
+systemConfig.groups.ops.project.create.description: Managed project create authority and root workflow.
 systemConfig.project.ops.project.workspace.hidden_directories.title: Workspace Hidden Directories
 systemConfig.project.ops.project.workspace.hidden_directories.description: JSON array string of directory basenames hidden by default in the project configuration workspace tree.
+systemConfig.project.ops.project.workspace.hidden_directories.placeholder: Press Enter after each directory name, for example node_modules or .git
+systemConfig.project.ops.project.workspace.file_tooltip_rules.title: Workspace File Tooltip Rules
+systemConfig.project.ops.project.workspace.file_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against file basenames. Later enabled matches override earlier matches.
+systemConfig.project.ops.project.workspace.directory_tooltip_rules.title: Workspace Directory Tooltip Rules
+systemConfig.project.ops.project.workspace.directory_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against directory basenames. Later enabled matches override earlier matches.
+systemConfig.groups.ops.project.import: Project Import
+systemConfig.groups.ops.project.import.description: Import authority roots and bounded directory browsing.
+systemConfig.groups.ops.project.workspace: Project Workspace
+systemConfig.groups.ops.project.workspace.description: Configuration workspace file-list defaults and editor browse behavior.

@@ -28,6 +28,7 @@ repeatable local repro extraction.
 Fail-closed rule for this skill:
 
 - inventory-first is mandatory: do not start edits, partial fixes, commit/push steps, or PR-thread replies that imply resolution until the latest PR state has been turned into one exhaustive finding inventory
+- folded latest-review sections are mandatory inventory, not optional appendix material; declared counts such as `Nitpick comments (13)` must be reconciled before implementation begins
 - do not reinterpret this skill as a “review-driven repair workflow” where a few obvious findings are fixed first and the rest are deferred informally
 - after the inventory exists, the run may fix findings incrementally, but it must not close out until every finding from that inventory ends in exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`
 - if verified findings remain and no full disposition closure has been reached yet, the run is still incomplete even when some fixes were committed, pushed, or replied on the PR
@@ -52,11 +53,15 @@ Fail-closed rule for this skill:
    - capture unresolved latest-head review threads for supported AI reviewers and `github-advanced-security[bot]`
    - surface GitHub Advanced Security review suggestions, code-scanning check-runs, and CodeQL failure annotations when present
    - surface failed checks, MegaLinter findings, and failed-test signals when present
+   - compare each folded-section declared count against the parsed item count; if `Nitpick comments (N)` or another folded section under-parses, keep drilling with `--section`, saved JSON, or raw review-body inspection until the missing findings are enumerated or an exact extraction blocker is recorded
    - prefer writing the full JSON payload to a file and then narrowing with `jq`
 5. Build one exhaustive finding inventory before making any fix decision:
    - include unresolved latest-head review threads
    - include folded CodeRabbit sections from the latest review body, especially `Duplicate comments`, `Major comments`,
      `Minor comments`, `Outside diff range comments`, and `Nitpick comments`
+   - reconcile declared folded-section counts against the concrete inventory rows you extracted; do not treat a parser result like
+     `Nitpick comments: 13 declared, 11 parsed` as good enough for implementation
+   - if any folded-section item is still missing, the inventory is incomplete even when `open_threads` and high-priority sections already look actionable
    - include GitHub Advanced Security suggestions from review threads and the helper's `github_advanced_security`
      section
    - include actionable warning comments from GitHub Actions or MegaLinter when present
@@ -83,6 +88,7 @@ Fail-closed rule for this skill:
    `blocked`, `stale`, or `noise`.
    - a commit, push, or partial batch of PR replies does not satisfy this rule by itself
    - if a previous run landed partial fixes but did not finish full disposition closure, the resumed run must rebuild the inventory from the latest head and continue until all remaining findings are classified
+   - “all open threads were handled” is still an invalid final state when any folded nitpick, outside-diff, duplicate, major, or minor comment remains unreconciled
 10. Only mark a finding non-actionable when it is `stale` or `noise`. A finding is not `noise` merely because the fix is large, risky, or needs a new slice.
 11. Do not downgrade `Nitpick comments`, `Outside diff range comments`, or folded latest-review sections to optional by default.
     If a verified suggestion still points to drift risk, duplicated test infrastructure, contract mismatch, missing
@@ -177,6 +183,7 @@ The script should produce:
 - Folded latest-review sections such as `Duplicate comments (N)`, `Major comments (N)`, `Minor comments (N)`,
   `Outside diff range comments (N)`, and `Nitpick comments (N)` when CodeRabbit puts them in the review body instead
   of issue comments
+- For each folded latest-review section, both the declared count and the extracted inventory count, with an explicit mismatch signal when they differ
 - Parsed latest head-review threads, with unresolved threads clearly separated
 - Latest head commit review metadata and review threads
 - GitHub Advanced Security status, including `github-advanced-security[bot]` review threads, code-scanning or CodeQL
@@ -204,6 +211,7 @@ The script should produce:
 - If the summary block and the latest head review threads disagree, trust the latest unresolved head-review threads and treat older summary findings as stale until re-verified locally.
 - If the latest review body contains folded sections, those sections are still in scope even when `open_threads` looks short;
   do not treat missing urgency labels as permission to skip them.
+- If a folded-section parser reports a mismatch such as `Nitpick comments: 13 declared, 11 parsed`, treat that as an incomplete inventory state; continue with raw review-body inspection, `--section` narrowing, or another deterministic extraction path until the missing findings are enumerated or an exact blocker is recorded in closeout.
 - Do not assume every AI reviewer behaves like CodeRabbit. `greptile-apps[bot]` and `gemini-code-assist[bot]` findings may exist only as latest-head review threads.
 - Do not assume GitHub Advanced Security behaves like CodeRabbit. `github-advanced-security[bot]` findings may exist as
   review threads, while related code-scanning or CodeQL problems may exist only as check-runs or annotations.
@@ -213,7 +221,7 @@ The script should produce:
   `$graft-multi-agent-batch`, `$graft-multi-agent-loop`, or an explicit `blocked` state with a next safe startup prompt.
 - The only acceptable reasons to leave a verified finding unfixed in the final report are `stale`, `noise`, or a
   clearly stated execution blocker with a next safe step.
-- “Only high-priority findings were handled”, “open threads were handled”, or “nitpicks were skipped” are invalid final
+- “Only high-priority findings were handled”, “open threads were handled”, “nitpicks were skipped”, or “parser only found most nitpicks” are invalid final
   states for this skill.
 - When a finding is left as `noise` or AI misjudgment, the closeout must name the exact suggestion and give a concrete
   non-adoption reason that the user can reuse in the PR reply.

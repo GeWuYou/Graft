@@ -1,0 +1,6 @@
+type: object
+properties:
+  annotation:
+    type: string
+    maxLength: 500
+    nullable: true

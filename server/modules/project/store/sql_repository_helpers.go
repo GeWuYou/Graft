@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -181,6 +182,29 @@ func validateUpdateLifecycleConfigInput(input UpdateLifecycleConfigInput) (Updat
 		return UpdateLifecycleConfigInput{}, ErrInvalidInput
 	}
 	input.LifecycleConfig = config
+	return input, nil
+}
+
+func validateUpdateWorkspaceAnnotationInput(input UpdateWorkspaceAnnotationInput) (UpdateWorkspaceAnnotationInput, error) {
+	if input.ProjectID == 0 {
+		return UpdateWorkspaceAnnotationInput{}, ErrInvalidInput
+	}
+	input.RelativePath = normalizeWorkspaceAnnotationPath(input.RelativePath)
+	if input.RelativePath == "" {
+		return UpdateWorkspaceAnnotationInput{}, ErrInvalidInput
+	}
+	if input.Annotation == nil {
+		return input, nil
+	}
+	annotation := strings.TrimSpace(*input.Annotation)
+	if annotation == "" {
+		input.Annotation = nil
+		return input, nil
+	}
+	if len(annotation) > projectcontract.ProjectWorkspaceAnnotationMaxLength {
+		return UpdateWorkspaceAnnotationInput{}, ErrInvalidInput
+	}
+	input.Annotation = &annotation
 	return input, nil
 }
 
@@ -480,6 +504,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
 	var lifecycleConfigJSON []byte
+	var workspaceAnnotationsJSON []byte
 	if err := scanner.Scan(
 		&item.ID,
 		&item.DisplayName,
@@ -498,6 +523,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		&item.LastRefreshErrorMessage,
 		&item.LastRefreshConfigHash,
 		&item.LastObservedConfigHash,
+		&workspaceAnnotationsJSON,
 		&lastDriftCheckedAt,
 		&item.DriftStatus,
 		&createdBy,
@@ -514,6 +540,11 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)
 	item.DeletedBy = nullableUint64(deletedBy)
+	annotations, err := decodeWorkspaceAnnotationsJSON(workspaceAnnotationsJSON)
+	if err != nil {
+		return Project{}, err
+	}
+	item.WorkspaceAnnotations = annotations
 	config, err := decodeLifecycleConfigJSON(lifecycleConfigJSON)
 	if err != nil {
 		return Project{}, err
@@ -610,6 +641,61 @@ func decodeLifecycleConfigJSON(raw []byte) (LifecycleConfig, error) {
 	return normalizeLifecycleConfig(config)
 }
 
+func encodeWorkspaceAnnotationsJSON(annotations map[string]string) ([]byte, error) {
+	normalized, err := normalizeWorkspaceAnnotations(annotations)
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return nil, ErrInvalidInput
+	}
+	return encoded, nil
+}
+
+func decodeWorkspaceAnnotationsJSON(raw []byte) (map[string]string, error) {
+	if len(raw) == 0 {
+		return map[string]string{}, nil
+	}
+	var annotations map[string]string
+	if err := json.Unmarshal(raw, &annotations); err != nil {
+		return nil, ErrInvalidInput
+	}
+	return normalizeWorkspaceAnnotations(annotations)
+}
+
+func normalizeWorkspaceAnnotations(annotations map[string]string) (map[string]string, error) {
+	if len(annotations) == 0 {
+		return map[string]string{}, nil
+	}
+	normalized := make(map[string]string, len(annotations))
+	for key, value := range annotations {
+		path := normalizeWorkspaceAnnotationPath(key)
+		if path == "" {
+			return nil, ErrInvalidInput
+		}
+		note := strings.TrimSpace(value)
+		if note == "" {
+			continue
+		}
+		normalized[path] = note
+	}
+	return normalized, nil
+}
+
+func normalizeWorkspaceAnnotationPath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	normalized := filepath.ToSlash(filepath.Clean(trimmed))
+	normalized = strings.TrimPrefix(normalized, "./")
+	if normalized == "" || normalized == "." || strings.HasPrefix(normalized, "../") || filepath.IsAbs(normalized) {
+		return ""
+	}
+	return normalized
+}
+
 type placeholderStyle int
 
 const (
@@ -653,6 +739,13 @@ func (s placeholderStyle) rebind(query string) string {
 		builder.WriteRune(r)
 	}
 	return builder.String()
+}
+
+func (s placeholderStyle) jsonParamExpr() string {
+	if s == placeholderDollar {
+		return "?::jsonb"
+	}
+	return "?"
 }
 
 // toDBID 将 uint64 主键值转换为数据库可用的 int64。
