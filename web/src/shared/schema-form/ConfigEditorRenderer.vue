@@ -58,69 +58,14 @@
         excess-tags-display-type="break-line"
         @change="(value) => updateObjectField(field.key, serializeStringList(value))"
       />
-      <div v-else-if="rendererKind(field) === 'workspace-tooltip-rule-list'" class="config-editor-renderer__rule-list">
-        <div
-          v-for="(rule, index) in workspaceTooltipRuleListValue(objectValue[field.key])"
-          :key="`${field.key}-${index}`"
-          class="config-editor-renderer__rule-card"
-        >
-          <div class="config-editor-renderer__rule-card-head">
-            <strong>{{ `#${index + 1}` }}</strong>
-            <t-space size="small">
-              <t-button
-                size="small"
-                variant="text"
-                :disabled="disabled || index === 0"
-                @click="moveRule(field.key, index, -1)"
-              >
-                {{ labels.ruleUpAction }}
-              </t-button>
-              <t-button
-                size="small"
-                variant="text"
-                :disabled="disabled || index === workspaceTooltipRuleListValue(objectValue[field.key]).length - 1"
-                @click="moveRule(field.key, index, 1)"
-              >
-                {{ labels.ruleDownAction }}
-              </t-button>
-              <t-button
-                size="small"
-                theme="danger"
-                variant="text"
-                :disabled="disabled"
-                @click="removeRule(field.key, index)"
-              >
-                {{ labels.ruleRemoveAction }}
-              </t-button>
-            </t-space>
-          </div>
-          <t-input
-            :model-value="rule.pattern"
-            :placeholder="fieldPlaceholder(field, labels.rulePatternPlaceholder)"
-            :disabled="disabled"
-            clearable
-            @change="(value) => updateRuleField(field.key, index, 'pattern', String(value ?? ''))"
-          />
-          <t-input
-            :model-value="rule.tooltip"
-            :placeholder="labels.ruleTooltipPlaceholder"
-            :disabled="disabled"
-            clearable
-            @change="(value) => updateRuleField(field.key, index, 'tooltip', String(value ?? ''))"
-          />
-          <div class="config-editor-renderer__rule-enabled">
-            <span>{{ labels.ruleEnabledLabel }}</span>
-            <t-switch
-              :model-value="rule.enabled"
-              :disabled="disabled"
-              @change="(value) => updateRuleField(field.key, index, 'enabled', Boolean(value))"
-            />
-          </div>
-        </div>
-        <t-button size="small" variant="outline" :disabled="disabled" @click="appendRule(field.key)">
-          {{ labels.ruleAddAction }}
-        </t-button>
-      </div>
+      <workspace-tooltip-rule-collection
+        v-else-if="rendererKind(field) === 'workspace-tooltip-rule-list'"
+        :model-value="objectValue[field.key]"
+        :disabled="disabled"
+        :editable="true"
+        :labels="ruleCollectionLabels(field)"
+        @update:model-value="(value) => updateObjectField(field.key, value)"
+      />
       <t-textarea
         v-else-if="rendererKind(field) === 'json-textarea'"
         :model-value="formatJsonValue(objectValue[field.key])"
@@ -199,58 +144,14 @@
       excess-tags-display-type="break-line"
       @change="(value) => emit('update:modelValue', serializeStringList(value))"
     />
-    <div v-else-if="rootRendererKind === 'workspace-tooltip-rule-list'" class="config-editor-renderer__rule-list">
-      <div
-        v-for="(rule, index) in workspaceTooltipRuleListValue(modelValue)"
-        :key="`root-${index}`"
-        class="config-editor-renderer__rule-card"
-      >
-        <div class="config-editor-renderer__rule-card-head">
-          <strong>{{ `#${index + 1}` }}</strong>
-          <t-space size="small">
-            <t-button size="small" variant="text" :disabled="disabled || index === 0" @click="moveRootRule(index, -1)">
-              {{ labels.ruleUpAction }}
-            </t-button>
-            <t-button
-              size="small"
-              variant="text"
-              :disabled="disabled || index === workspaceTooltipRuleListValue(modelValue).length - 1"
-              @click="moveRootRule(index, 1)"
-            >
-              {{ labels.ruleDownAction }}
-            </t-button>
-            <t-button size="small" theme="danger" variant="text" :disabled="disabled" @click="removeRootRule(index)">{{
-              labels.ruleRemoveAction
-            }}</t-button>
-          </t-space>
-        </div>
-        <t-input
-          :model-value="rule.pattern"
-          :placeholder="rootPlaceholder(labels.rulePatternPlaceholder)"
-          :disabled="disabled"
-          clearable
-          @change="(value) => updateRootRuleField(index, 'pattern', String(value ?? ''))"
-        />
-        <t-input
-          :model-value="rule.tooltip"
-          :placeholder="labels.ruleTooltipPlaceholder"
-          :disabled="disabled"
-          clearable
-          @change="(value) => updateRootRuleField(index, 'tooltip', String(value ?? ''))"
-        />
-        <div class="config-editor-renderer__rule-enabled">
-          <span>{{ labels.ruleEnabledLabel }}</span>
-          <t-switch
-            :model-value="rule.enabled"
-            :disabled="disabled"
-            @change="(value) => updateRootRuleField(index, 'enabled', Boolean(value))"
-          />
-        </div>
-      </div>
-      <t-button size="small" variant="outline" :disabled="disabled" @click="appendRootRule">
-        {{ labels.ruleAddAction }}
-      </t-button>
-    </div>
+    <workspace-tooltip-rule-collection
+      v-else-if="rootRendererKind === 'workspace-tooltip-rule-list'"
+      :model-value="modelValue"
+      :disabled="disabled"
+      :editable="true"
+      :labels="ruleCollectionLabels(rootField)"
+      @update:model-value="(value) => emit('update:modelValue', value)"
+    />
     <t-textarea
       v-else-if="rootRendererKind === 'json-textarea'"
       :model-value="formatJsonValue(modelValue)"
@@ -279,6 +180,8 @@ import type { ConfigFieldType, ConfigSchema, ConfigSchemaField } from './config-
 import { getConfigSchemaFields } from './config-schema';
 import { configFieldRenderer } from './field-renderer';
 import { formatJsonValue, isJsonRecord, type JsonRecord, parseJsonValue } from './json';
+import type { WorkspaceTooltipRuleCollectionLabels } from './workspace-tooltip-rules';
+import WorkspaceTooltipRuleCollection from './WorkspaceTooltipRuleCollection.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -289,17 +192,10 @@ const props = withDefaults(
       invalidJson: string;
       jsonPlaceholder: string;
       numberPlaceholder: string;
-      ruleAddAction: string;
-      ruleDownAction: string;
-      ruleEnabledLabel: string;
-      rulePatternPlaceholder: string;
-      ruleRemoveAction: string;
-      ruleTooltipPlaceholder: string;
-      ruleUpAction: string;
       selectPlaceholder: string;
       stringPlaceholder: string;
       value: string;
-    };
+    } & WorkspaceTooltipRuleCollectionLabels;
     modelValue: unknown;
     rootSchema: ConfigSchema;
     titleResolver?: (field: ConfigSchemaField) => string;
@@ -341,12 +237,6 @@ const rootLabel = computed(
 );
 const rootHelp = computed(() => fieldDescription(rootField.value));
 const rootUnit = computed(() => fieldUnit(rootField.value));
-
-type WorkspaceTooltipRule = {
-  enabled: boolean;
-  pattern: string;
-  tooltip: string;
-};
 
 function rendererKind(field: ConfigSchemaField) {
   return configFieldRenderer(field.schema);
@@ -422,135 +312,6 @@ function serializeStringList(value: unknown) {
   return JSON.stringify(value.map((item) => String(item).trim()).filter((item) => item.length > 0));
 }
 
-function workspaceTooltipRuleListValue(value: unknown) {
-  const parsed = typeof value === 'string' ? parseJsonValue(value) : value;
-  if (!Array.isArray(parsed)) {
-    return [] as WorkspaceTooltipRule[];
-  }
-  return parsed
-    .filter((item): item is JsonRecord => isJsonRecord(item))
-    .map((item) => ({
-      enabled: item.enabled !== false,
-      pattern: typeof item.pattern === 'string' ? item.pattern : '',
-      tooltip: typeof item.tooltip === 'string' ? item.tooltip : '',
-    }));
-}
-
-function serializeWorkspaceTooltipRules(value: WorkspaceTooltipRule[]) {
-  return JSON.stringify(
-    value.map((item) => ({
-      enabled: item.enabled !== false,
-      pattern: item.pattern.trim(),
-      tooltip: item.tooltip.trim(),
-    })),
-  );
-}
-
-function nextWorkspaceTooltipRules(value: unknown, mutate: (items: WorkspaceTooltipRule[]) => WorkspaceTooltipRule[]) {
-  return serializeWorkspaceTooltipRules(mutate([...workspaceTooltipRuleListValue(value)]));
-}
-
-function emptyWorkspaceTooltipRule(): WorkspaceTooltipRule {
-  return { enabled: true, pattern: '', tooltip: '' };
-}
-
-function commitWorkspaceTooltipRules(
-  value: unknown,
-  commit: (nextValue: string) => void,
-  mutate: (items: WorkspaceTooltipRule[]) => WorkspaceTooltipRule[],
-) {
-  commit(nextWorkspaceTooltipRules(value, mutate));
-}
-
-function appendWorkspaceTooltipRule(value: unknown, commit: (nextValue: string) => void) {
-  commitWorkspaceTooltipRules(value, commit, (items) => [...items, emptyWorkspaceTooltipRule()]);
-}
-
-function removeWorkspaceTooltipRule(value: unknown, commit: (nextValue: string) => void, index: number) {
-  commitWorkspaceTooltipRules(value, commit, (items) => items.filter((_, itemIndex) => itemIndex !== index));
-}
-
-function moveWorkspaceTooltipRuleValue(
-  value: unknown,
-  commit: (nextValue: string) => void,
-  index: number,
-  offset: -1 | 1,
-) {
-  commitWorkspaceTooltipRules(value, commit, (items) => moveWorkspaceTooltipRule(items, index, offset));
-}
-
-function updateWorkspaceTooltipRuleFieldValue(
-  value: unknown,
-  commit: (nextValue: string) => void,
-  index: number,
-  field: keyof WorkspaceTooltipRule,
-  fieldValue: string | boolean,
-) {
-  commitWorkspaceTooltipRules(value, commit, (items) =>
-    items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: fieldValue } : item)),
-  );
-}
-
-function appendRule(key: string) {
-  appendWorkspaceTooltipRule(objectValue.value[key], (nextValue) => updateObjectField(key, nextValue));
-}
-
-function removeRule(key: string, index: number) {
-  removeWorkspaceTooltipRule(objectValue.value[key], (nextValue) => updateObjectField(key, nextValue), index);
-}
-
-function moveRule(key: string, index: number, offset: -1 | 1) {
-  moveWorkspaceTooltipRuleValue(
-    objectValue.value[key],
-    (nextValue) => updateObjectField(key, nextValue),
-    index,
-    offset,
-  );
-}
-
-function updateRuleField(key: string, index: number, field: keyof WorkspaceTooltipRule, value: string | boolean) {
-  updateWorkspaceTooltipRuleFieldValue(
-    objectValue.value[key],
-    (nextValue) => updateObjectField(key, nextValue),
-    index,
-    field,
-    value,
-  );
-}
-
-function appendRootRule() {
-  appendWorkspaceTooltipRule(props.modelValue, (nextValue) => emit('update:modelValue', nextValue));
-}
-
-function removeRootRule(index: number) {
-  removeWorkspaceTooltipRule(props.modelValue, (nextValue) => emit('update:modelValue', nextValue), index);
-}
-
-function moveRootRule(index: number, offset: -1 | 1) {
-  moveWorkspaceTooltipRuleValue(props.modelValue, (nextValue) => emit('update:modelValue', nextValue), index, offset);
-}
-
-function updateRootRuleField(index: number, field: keyof WorkspaceTooltipRule, value: string | boolean) {
-  updateWorkspaceTooltipRuleFieldValue(
-    props.modelValue,
-    (nextValue) => emit('update:modelValue', nextValue),
-    index,
-    field,
-    value,
-  );
-}
-
-function moveWorkspaceTooltipRule(items: WorkspaceTooltipRule[], index: number, offset: -1 | 1) {
-  const targetIndex = index + offset;
-  if (index < 0 || targetIndex < 0 || index >= items.length || targetIndex >= items.length) {
-    return items;
-  }
-  const nextItems = [...items];
-  const [current] = nextItems.splice(index, 1);
-  nextItems.splice(targetIndex, 0, current);
-  return nextItems;
-}
-
 function handleJsonChange(value: string | number) {
   const text = String(value ?? '');
   const parsed = parseJsonValue(text);
@@ -574,39 +335,47 @@ function handleObjectJsonChange(key: string, value: string | number) {
   jsonFieldErrors[key] = '';
   updateObjectField(key, parsed);
 }
+
+function ruleCollectionLabels(field: ConfigSchemaField): WorkspaceTooltipRuleCollectionLabels {
+  return {
+    collectionEnabledCount: props.labels.collectionEnabledCount,
+    collectionRuleCount: props.labels.collectionRuleCount,
+    collectionTitle: fieldTitle(field),
+    detailDescription: props.labels.detailDescription,
+    detailTitle: props.labels.detailTitle,
+    emptyDescription: fieldDescription(field) || props.labels.detailDescription,
+    emptyTitle: props.labels.detailTitle,
+    invalidPatternLabel: props.labels.invalidPatternLabel,
+    noPatternSummary: props.labels.rulePatternDescription,
+    ruleAddAction: props.labels.ruleAddAction,
+    ruleDisabledState: props.labels.ruleDisabledState,
+    ruleDownAction: props.labels.ruleDownAction,
+    ruleDragHint: props.labels.ruleDragHint,
+    ruleEnabledDescription: props.labels.ruleEnabledDescription,
+    ruleEnabledLabel: props.labels.ruleEnabledLabel,
+    ruleEnabledState: props.labels.ruleEnabledState,
+    ruleFallbackTitle: props.labels.ruleFallbackTitle,
+    ruleMatchedDescription: props.labels.ruleMatchedDescription,
+    ruleMatchedLabel: props.labels.ruleMatchedLabel,
+    rulePatternDescription: props.labels.rulePatternDescription,
+    rulePatternLabel: props.labels.rulePatternLabel,
+    rulePatternPlaceholder: fieldPlaceholder(field, props.labels.rulePatternPlaceholder),
+    ruleRemoveAction: props.labels.ruleRemoveAction,
+    ruleTestEmptyDescription: props.labels.ruleTestEmptyDescription,
+    ruleTestEmptyLabel: props.labels.ruleTestEmptyLabel,
+    ruleTestLabel: props.labels.ruleTestLabel,
+    ruleTestPlaceholder: props.labels.ruleTestPlaceholder,
+    ruleTooltipLabel: props.labels.ruleTooltipLabel,
+    ruleTooltipPlaceholder: props.labels.ruleTooltipPlaceholder,
+    ruleUnmatchedDescription: props.labels.ruleUnmatchedDescription,
+    ruleUnmatchedLabel: props.labels.ruleUnmatchedLabel,
+    ruleUpAction: props.labels.ruleUpAction,
+  };
+}
 </script>
 <style scoped>
 .config-editor-renderer__textarea {
   width: 100%;
-}
-
-.config-editor-renderer__rule-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-12);
-}
-
-.config-editor-renderer__rule-card {
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-medium);
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-12);
-  padding: var(--graft-density-gap-12);
-}
-
-.config-editor-renderer__rule-card-head,
-.config-editor-renderer__rule-enabled {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-  justify-content: space-between;
-}
-
-.config-editor-renderer__rule-enabled > span,
-.config-editor-renderer__rule-card-head > strong {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
 }
 
 .config-editor-renderer__number-row {

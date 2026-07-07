@@ -5,3 +5,5 @@ export * from './field-renderer';
 export * from './json';
 export * from './renderer-validation';
 export * from './value-renderer';
+export * from './workspace-tooltip-rules';
+export { default as WorkspaceTooltipRuleCollection } from './WorkspaceTooltipRuleCollection.vue';
