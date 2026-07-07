@@ -275,10 +275,62 @@
                       @remove="handleCloseTab(tab.path)"
                     >
                       <template #label>
-                        <span class="project-configuration-workspace__tab-label">
-                          <span v-if="isFileDirty(tab.path)" class="project-configuration-workspace__tab-dirty">●</span>
-                          <span>{{ tab.name }}</span>
-                        </span>
+                        <t-dropdown
+                          trigger="context-menu"
+                          :hide-after-item-click="true"
+                          :min-column-width="128"
+                          :popup-props="{
+                            onVisibleChange: (visible: boolean, ctx: PopupVisibleChangeContext) =>
+                              handleFileTabMenuClick(visible, ctx, tab.path),
+                            visible: activeFileTabPathForMenu === tab.path,
+                          }"
+                          :data-testid="workspaceFileTabMenuTestId(tab.path)"
+                        >
+                          <span class="project-configuration-workspace__tab-label">
+                            <span v-if="isFileDirty(tab.path)" class="project-configuration-workspace__tab-dirty"
+                              >●</span
+                            >
+                            <span>{{ tab.name }}</span>
+                          </span>
+                          <template #dropdown>
+                            <t-dropdown-menu>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'refresh')"
+                                @click="() => handleRefreshFileTab(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.refresh') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-left')"
+                                :disabled="!hasClosableFileTabsAhead(tab.path)"
+                                @click="() => handleCloseFileTabsAhead(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.closeLeft') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-right')"
+                                :disabled="!hasClosableFileTabsBehind(tab.path)"
+                                @click="() => handleCloseFileTabsBehind(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.closeRight') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-other')"
+                                :disabled="!hasClosableOtherFileTabs(tab.path)"
+                                @click="() => handleCloseOtherFileTabs(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.closeOther') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-all')"
+                                :disabled="!hasClosableFileTabs"
+                                @click="handleCloseAllFileTabs"
+                              >
+                                {{ t('layout.tagTabs.closeAll') }}
+                              </t-dropdown-item>
+                            </t-dropdown-menu>
+                          </template>
+                        </t-dropdown>
                       </template>
                     </t-tab-panel>
                   </t-tabs>
@@ -568,6 +620,7 @@ import {
   FileIcon,
   FolderIcon,
 } from 'tdesign-icons-vue-next';
+import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -688,6 +741,7 @@ const workspaceFullscreen = ref(false);
 const resultDialogVisible = ref(false);
 const resultDialogTab = ref<FeedbackTab>('diff');
 const resultDialogFullscreen = ref(false);
+const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<ProjectConfigurationDiffResponse | null>(null);
 const validateResult = ref<ProjectConfigurationValidateResponse | null>(null);
 const diffLoading = ref(false);
@@ -1003,6 +1057,14 @@ function workspaceAnnotationTestId(item: WorkspaceListItem) {
   return `${workspaceEntryTestId(item)}-annotation`;
 }
 
+function workspaceFileTabMenuTestId(path: string) {
+  return `workspace-file-tab-menu-${workspaceEntryTestId({ relative_path: path, name: path } as WorkspaceListItem)}`;
+}
+
+function workspaceFileTabMenuItemTestId(path: string, action: string) {
+  return `${workspaceFileTabMenuTestId(path)}-${action}`;
+}
+
 async function toggleWorkspaceDirectory(item: WorkspaceListItem) {
   if (item.node_type !== 'directory') {
     return;
@@ -1275,8 +1337,16 @@ async function reloadActiveFile() {
     return;
   }
 
-  const buffer = activeBuffer.value;
-  if (isFileDirty(buffer.path)) {
+  await reloadWorkspaceFile(activeBuffer.value.path);
+}
+
+async function reloadWorkspaceFile(path: string) {
+  const buffer = openFileMap.get(path);
+  if (!buffer) {
+    return;
+  }
+
+  if (isFileDirty(path)) {
     const action = await openDialog({
       body: workspaceCopy.value.reloadConfirmBody,
       buttons: [
@@ -1303,9 +1373,81 @@ async function reloadActiveFile() {
 }
 
 async function handleCloseTab(path: string) {
+  const closed = await closeWorkspaceTabs([path], { skipBatchDirtyPrompt: true });
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function closeWorkspaceTabs(paths: string[], options?: { skipBatchDirtyPrompt?: boolean }) {
+  const uniquePaths = [...new Set(paths)].filter((path) => openFileMap.has(path));
+  if (!uniquePaths.length) {
+    return false;
+  }
+
+  if (!options?.skipBatchDirtyPrompt) {
+    const dirtyPaths = uniquePaths.filter((path) => isFileDirty(path));
+    if (dirtyPaths.length) {
+      const action = await openDialog({
+        body: workspaceCopy.value.dirtyProjectActionBody,
+        buttons: [
+          { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
+          { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
+          { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+        ],
+        title: workspaceCopy.value.dirtyProjectActionTitle,
+      });
+      if (action === 'cancel') {
+        return false;
+      }
+      if (action === 'save') {
+        const saved = await saveTabsByPaths(dirtyPaths);
+        if (!saved) {
+          return false;
+        }
+      }
+    }
+  }
+
+  if (uniquePaths.length === 1) {
+    return closeSingleWorkspaceTab(uniquePaths[0]);
+  }
+
+  const closedPathSet = new Set(uniquePaths);
+  const currentTabs = [...openTabs.value];
+  const currentActivePath = activeTabPath.value;
+  const activeIndex = currentTabs.findIndex((item) => item === currentActivePath);
+  const nextTabs = currentTabs.filter((path) => !closedPathSet.has(path));
+
+  uniquePaths.forEach((path) => {
+    openFileMap.delete(path);
+  });
+
+  openTabs.value = nextTabs;
+  if (!currentActivePath || !closedPathSet.has(currentActivePath)) {
+    return true;
+  }
+
+  activeTabPath.value = resolveNextWorkspaceTabAfterClose(currentTabs, closedPathSet, activeIndex);
+  return true;
+}
+
+function resolveNextWorkspaceTabAfterClose(currentTabs: string[], closedPathSet: Set<string>, activeIndex: number) {
+  const nextRight = currentTabs.slice(activeIndex + 1).find((path) => !closedPathSet.has(path));
+  if (nextRight) {
+    return nextRight;
+  }
+
+  const nextLeft = [...currentTabs.slice(0, Math.max(activeIndex, 0))]
+    .reverse()
+    .find((path) => !closedPathSet.has(path));
+  return nextLeft || '';
+}
+
+async function closeSingleWorkspaceTab(path: string) {
   const current = openFileMap.get(path);
   if (!current) {
-    return;
+    return false;
   }
 
   if (isFileDirty(path)) {
@@ -1319,18 +1461,108 @@ async function handleCloseTab(path: string) {
       title: workspaceCopy.value.dirtyCloseTitle,
     });
     if (action === 'cancel') {
-      return;
+      return false;
     }
     if (action === 'save') {
       const saved = await saveWorkspaceFile(path);
       if (!saved) {
-        return;
+        return false;
       }
     }
   }
 
   openFileMap.delete(path);
   openTabs.value = openTabs.value.filter((item) => item !== path);
+  return true;
+}
+
+async function saveTabsByPaths(paths: string[]) {
+  const uniquePaths = [...new Set(paths)].filter((path) => isFileDirty(path));
+  if (!uniquePaths.length) {
+    return true;
+  }
+
+  for (const path of uniquePaths) {
+    const saved = await saveWorkspaceFile(path, { silent: true });
+    if (!saved) {
+      return false;
+    }
+  }
+
+  MessagePlugin.success(workspaceCopy.value.saveSuccess);
+  return true;
+}
+
+function hasClosableFileTabsAhead(path: string) {
+  const index = openTabs.value.indexOf(path);
+  return index > 0;
+}
+
+function hasClosableFileTabsBehind(path: string) {
+  const index = openTabs.value.indexOf(path);
+  return index !== -1 && index < openTabs.value.length - 1;
+}
+
+function hasClosableOtherFileTabs(path: string) {
+  return openTabs.value.length > 1 && openTabs.value.some((item) => item !== path);
+}
+
+const hasClosableFileTabs = computed(() => openTabs.value.length > 0);
+
+async function handleRefreshFileTab(path: string) {
+  await reloadWorkspaceFile(path);
+  activeFileTabPathForMenu.value = null;
+}
+
+async function handleCloseFileTabsAhead(path: string) {
+  const targetIndex = openTabs.value.indexOf(path);
+  if (targetIndex <= 0) {
+    activeFileTabPathForMenu.value = null;
+    return;
+  }
+
+  const closed = await closeWorkspaceTabs(openTabs.value.slice(0, targetIndex));
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function handleCloseFileTabsBehind(path: string) {
+  const targetIndex = openTabs.value.indexOf(path);
+  if (targetIndex === -1 || targetIndex >= openTabs.value.length - 1) {
+    activeFileTabPathForMenu.value = null;
+    return;
+  }
+
+  const closed = await closeWorkspaceTabs(openTabs.value.slice(targetIndex + 1));
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function handleCloseOtherFileTabs(path: string) {
+  const closed = await closeWorkspaceTabs(openTabs.value.filter((item) => item !== path));
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function handleCloseAllFileTabs() {
+  const closed = await closeWorkspaceTabs([...openTabs.value]);
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+function handleFileTabMenuClick(visible: boolean, ctx: PopupVisibleChangeContext, path: string) {
+  if (visible) {
+    activeFileTabPathForMenu.value = path;
+    return;
+  }
+
+  if (activeFileTabPathForMenu.value === path || ctx.trigger === 'document') {
+    activeFileTabPathForMenu.value = null;
+  }
 }
 
 async function runProjectDiff() {

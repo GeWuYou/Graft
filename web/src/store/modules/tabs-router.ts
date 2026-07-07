@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import {
   type RouteLocationNormalizedLoaded,
   type RouteLocationRaw,
+  type RouteLocationResolved,
   type Router,
   type RouteRecordName,
 } from 'vue-router';
@@ -9,6 +10,7 @@ import {
 import { LOCALE } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
 import { createLogger } from '@/utils/logger';
+import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
@@ -16,6 +18,7 @@ const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
 const MAX_CLOSED_TABS = 20;
 const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
 const logger = createLogger('store.tabsRouter');
+const tabsDebugEnabled = import.meta.env.VITE_TABS_DEBUG === 'true';
 
 const homeRoute: Array<TRouterInfo> = [
   {
@@ -116,6 +119,33 @@ function clonePageSnapshot(snapshot: TabPageSnapshot | undefined): TabPageSnapsh
   return JSON.parse(JSON.stringify(snapshot)) as TabPageSnapshot;
 }
 
+function formatTabTitle(route: TRouterInfo) {
+  return route.title?.[LOCALE.ZH_CN] || route.title?.[LOCALE.EN_US] || '';
+}
+
+function formatTabsSummary(routes: TRouterInfo[]) {
+  if (!routes.length) {
+    return 'count=0';
+  }
+
+  return `count=${routes.length} ${routes
+    .map(
+      (route, index) =>
+        `[#${index} key=${getTabKey(route)} path=${route.path} fullPath=${route.fullPath || ''} name=${String(
+          route.name || '',
+        )} title=${formatTabTitle(route)}]`,
+    )
+    .join(' ')}`;
+}
+
+function logTabsDebug(message: string) {
+  if (!tabsDebugEnabled) {
+    return;
+  }
+
+  logger.warn(message);
+}
+
 /**
  * Normalizes route state with computed tab properties.
  *
@@ -185,14 +215,11 @@ function ensureNonEmptyTabs(routes: TRouterInfo[], pinnedKeys = readPinnedTabKey
 
 function createRouteRecordMatcher(router: Router) {
   const availableNames = new Set<RouteRecordName>();
-  const availablePaths = new Set<string>();
 
   router.getRoutes().forEach((route) => {
     if (route.name) {
       availableNames.add(route.name);
     }
-
-    availablePaths.add(route.path);
   });
 
   return (route: TRouterInfo) => {
@@ -204,8 +231,39 @@ function createRouteRecordMatcher(router: Router) {
       return true;
     }
 
-    return availablePaths.has(route.path);
+    const resolved = resolvePersistedRoute(router, route);
+    return isResolvedTabRouteValid(resolved, route);
   };
+}
+
+function resolvePersistedRoute(router: Router, route: TRouterInfo) {
+  const target = toRouteLocation(route);
+  if (!target) {
+    return null;
+  }
+
+  try {
+    return router.resolve(target);
+  } catch {
+    return null;
+  }
+}
+
+function isResolvedTabRouteValid(resolved: RouteLocationResolved | null, route: TRouterInfo) {
+  if (!resolved || resolved.name === PAGE_NOT_FOUND_ROUTE.name) {
+    return false;
+  }
+
+  const matchesCurrentPath = resolved.path === route.path;
+  if (!matchesCurrentPath) {
+    return false;
+  }
+
+  if (!route.name) {
+    return resolved.matched.length > 0;
+  }
+
+  return resolved.matched.some((record) => record.name === route.name);
 }
 
 function toRouteLocation(route?: TRouterInfo): RouteLocationRaw | null {
@@ -262,6 +320,9 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       }
     },
     healPersistedState() {
+      logTabsDebug(
+        `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+      );
       this.refreshingTabKey = undefined;
       this.tabRouterList = ensureNonEmptyTabs(this.tabRouters);
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
@@ -270,6 +331,9 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearSnapshotsForMissingTabs();
       this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
+      logTabsDebug(
+        `tabs debug: healPersistedState after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+      );
     },
     healPersistedRoutes(router: Router) {
       const canKeepRoute = createRouteRecordMatcher(router);
@@ -287,6 +351,13 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     // 处理新增
     appendTabRouterList(newRoute: TRouterInfo) {
+      logTabsDebug(
+        `tabs debug: appendTabRouterList input active=${this.activeTabKey} incoming=[key=${getTabKey(
+          newRoute,
+        )} path=${newRoute.path} fullPath=${newRoute.fullPath || ''} name=${String(newRoute.name || '')} title=${
+          newRoute.title?.[LOCALE.ZH_CN] || newRoute.title?.[LOCALE.EN_US] || ''
+        }] ${formatTabsSummary(this.tabRouters)}`,
+      );
       // 不要将判断条件newRoute.meta.keepAlive !== false修改为newRoute.meta.keepAlive，starter默认开启保活，所以meta.keepAlive未定义时也需要进行保活，只有显式说明false才禁用保活。
       const normalized = normalizeRouteState(newRoute);
       if (!this.tabRouters.find((route: TRouterInfo) => getTabKey(route) === getTabKey(normalized))) {
@@ -309,6 +380,9 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
           ),
         );
       }
+      logTabsDebug(
+        `tabs debug: appendTabRouterList after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+      );
     },
     // 处理关闭当前
     subtractCurrentTabRouter(newRoute: TRouterInfo) {
@@ -436,8 +510,18 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.activeTabKey = getTabKey(homeTab);
     },
     setActiveRoute(route: RouteLocationNormalizedLoaded) {
+      logTabsDebug(
+        `tabs debug: setActiveRoute input active=${this.activeTabKey} route=[path=${route.path} fullPath=${
+          route.fullPath
+        } name=${String(route.name || '')}] ${formatTabsSummary(this.tabRouters)}`,
+      );
       const currentActiveTab = this.tabRouterList.find((tab) => getTabKey(tab) === this.activeTabKey);
       if (currentActiveTab && currentActiveTab.fullPath === route.fullPath) {
+        logTabsDebug(
+          `tabs debug: setActiveRoute skipped same fullPath active=${this.activeTabKey} ${formatTabsSummary(
+            this.tabRouters,
+          )}`,
+        );
         return;
       }
 
@@ -447,6 +531,15 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         this.tabRouterList.find((tab) => !tab.isDuplicate && tab.path === route.path) ??
         this.tabRouterList.find((tab) => tab.path === route.path);
       this.activeTabKey = activeTab ? getTabKey(activeTab) : route.path;
+      logTabsDebug(
+        `tabs debug: setActiveRoute after active=${this.activeTabKey} resolved=${
+          activeTab
+            ? `[key=${getTabKey(activeTab)} path=${activeTab.path} fullPath=${activeTab.fullPath || ''} name=${String(
+                activeTab.name || '',
+              )} title=${formatTabTitle(activeTab)}]`
+            : 'null'
+        } ${formatTabsSummary(this.tabRouters)}`,
+      );
     },
     setActiveTabKey(tabKey: string) {
       this.activeTabKey = tabKey;
@@ -564,6 +657,13 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
   },
   persist: {
+    afterHydrate: ({ store }) => {
+      logTabsDebug(
+        `tabs debug: persist afterHydrate active=${store.activeTabKey} tabs=${formatTabsSummary(
+          store.tabRouterList,
+        )} closed=${formatTabsSummary(store.closedTabStack)}`,
+      );
+    },
     pick: ['tabRouterList', 'closedTabStack', 'activeTabKey'],
   },
 });

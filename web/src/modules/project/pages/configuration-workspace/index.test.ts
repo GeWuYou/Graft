@@ -238,6 +238,51 @@ const TTabsStub = defineComponent({
   },
 });
 
+const TDropdownStub = defineComponent({
+  name: 'TDropdownStub',
+  props: {
+    popupProps: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  setup(props, { attrs, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          ...attrs,
+          'data-popup-visible':
+            props.popupProps && typeof props.popupProps === 'object' && 'visible' in props.popupProps
+              ? String((props.popupProps as { visible?: boolean }).visible)
+              : 'false',
+        },
+        [h('div', { class: 't-dropdown-trigger-stub' }, slots.default?.()), h('div', slots.dropdown?.())],
+      );
+  },
+});
+
+const TDropdownItemStub = defineComponent({
+  name: 'TDropdownItemStub',
+  props: {
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['click'],
+  setup(props, { attrs, emit, slots }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          disabled: props.disabled,
+          type: 'button',
+          onClick: () => !props.disabled && emit('click'),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
 const TDialogStub = defineComponent({
   name: 'TDialogStub',
   props: {
@@ -510,6 +555,67 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
+  it('renders the file tab context menu actions for each open editor tab', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-docker-compose-yml"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-config-env"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('layout.tagTabs.refresh');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeLeft');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeRight');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeOther');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeAll');
+  });
+
+  it('closes file tabs to the right from the context menu actions', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.findAll('.t-tab-panel-stub')).toHaveLength(2);
+
+    await wrapper
+      .get('[data-testid="workspace-file-tab-menu-workspace-entry-docker-compose-yml-close-right"]')
+      .trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('.t-tab-panel-stub')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-config-env"]').exists()).toBe(false);
+  });
+
+  it('refreshes a non-active file tab from the context menu action', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+
+    const configEnvCallsBefore = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'config/.env',
+    ).length;
+
+    await wrapper.get('[data-testid="workspace-file-tab-menu-workspace-entry-config-env-refresh"]').trigger('click');
+    await flushPromises();
+
+    const configEnvCallsAfter = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'config/.env',
+    ).length;
+    expect(configEnvCallsAfter).toBe(configEnvCallsBefore + 1);
+  });
+
   it('renders compact tree row actions and removes the duplicate editor title header', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -724,6 +830,9 @@ function mountWorkspace() {
         TDescriptions: createTStub('TDescriptions'),
         TDescriptionsItem: createTStub('TDescriptionsItem'),
         TDialog: TDialogStub,
+        TDropdown: TDropdownStub,
+        TDropdownItem: TDropdownItemStub,
+        TDropdownMenu: createTStub('TDropdownMenu'),
         TDrawer: createTStub('TDrawer'),
         TEmpty: createTStub('TEmpty'),
         TLoading: createTStub('TLoading'),

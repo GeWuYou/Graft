@@ -52,7 +52,7 @@ const storeState = vi.hoisted(() => ({
   },
   tabsRouterStore: {
     appendTabRouterList: vi.fn(),
-    healPersistedRoutes: vi.fn(),
+    healPersistedState: vi.fn(),
     setActiveRoute: vi.fn(),
   },
 }));
@@ -106,6 +106,7 @@ vi.mock('@/store', () => ({
 vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
     debug: vi.fn(),
+    warn: vi.fn(),
   }),
 }));
 
@@ -154,7 +155,7 @@ describe('App layout route effects', () => {
     routeProxy.value!.params = { id: 'container-1' };
     routeProxy.value!.query = { tab: 'overview' };
     storeState.tabsRouterStore.appendTabRouterList.mockClear();
-    storeState.tabsRouterStore.healPersistedRoutes.mockClear();
+    storeState.tabsRouterStore.healPersistedState.mockClear();
     storeState.tabsRouterStore.setActiveRoute.mockClear();
     storeState.realtimeSchedulerStore.freeze.mockClear();
     storeState.realtimeSchedulerStore.release.mockClear();
@@ -185,6 +186,12 @@ describe('App layout route effects', () => {
       }),
     );
     expect(scrollToMock).not.toHaveBeenCalled();
+  });
+
+  it('heals persisted tab state without trimming other restored tabs on mount', () => {
+    mountAppLayout();
+
+    expect(storeState.tabsRouterStore.healPersistedState).toHaveBeenCalledTimes(1);
   });
 
   it('scrolls to top when the route path changes', async () => {
