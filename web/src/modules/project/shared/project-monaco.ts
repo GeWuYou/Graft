@@ -1,6 +1,7 @@
 import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution';
 import 'monaco-editor/esm/vs/basic-languages/ini/ini.contribution';
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
+import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
 import { createWebWorker as createMonacoLabelAwareWebWorker } from 'monaco-editor/esm/vs/common/workers.js';

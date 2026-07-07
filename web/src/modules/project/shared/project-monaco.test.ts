@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { toMonacoColor } from './project-monaco-color';
@@ -49,6 +51,14 @@ describe('project-monaco worker routing', () => {
     });
 
     expect(worker).toBe(editorWorker);
+  });
+});
+
+describe('project-monaco language registration', () => {
+  it('keeps yaml contribution import wired into the shared monaco setup', () => {
+    const source = readFileSync('src/modules/project/shared/project-monaco.ts', 'utf8');
+
+    expect(source).toContain('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution');
   });
 });
 
