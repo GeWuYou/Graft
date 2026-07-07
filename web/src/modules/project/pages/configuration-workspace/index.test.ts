@@ -520,6 +520,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    expect(wrapper.find('.project-configuration-workspace__tree.graft-scrollbar').exists()).toBe(true);
     const hiddenToggle = wrapper.get('[data-testid="workspace-show-hidden-toggle"]');
     expect(hiddenToggle.element.parentElement?.getAttribute('data-tooltip-content')).toBe(
       'project.configurationWorkspace.copy.showHiddenAction',

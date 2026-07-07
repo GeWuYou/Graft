@@ -98,7 +98,7 @@
                 />
 
                 <t-loading :loading="browserLoading" size="small">
-                  <div v-if="workspaceFlatRows.length" class="project-configuration-workspace__tree">
+                  <div v-if="workspaceFlatRows.length" class="project-configuration-workspace__tree graft-scrollbar">
                     <template v-for="row in workspaceFlatRows" :key="row.item.relative_path || row.item.name">
                       <div
                         class="project-configuration-workspace__tree-row"
@@ -1665,6 +1665,9 @@ function stopSidebarResize() {
 }
 
 .project-configuration-workspace__browser-card :deep(.t-card__body) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding-top: var(--graft-density-gap-8);
 }
 
@@ -1678,8 +1681,11 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__tree {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--graft-density-gap-2);
+  min-height: 0;
+  overflow: auto;
 }
 
 .project-configuration-workspace__tree-row {

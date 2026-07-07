@@ -15,6 +15,7 @@ const (
 	projectConfigGroupImport     = "ops.project.import"
 	projectConfigGroupWorkspace  = "ops.project.workspace"
 	projectConfigOrderBase       = 7100
+	minWorkspaceJSONLength       = 2
 	maxManagedRootLength         = 1024
 	maxImportRootsLength         = 8192
 	maxWorkspaceHiddenDirsLength = 4096
@@ -189,18 +190,27 @@ func projectWorkspaceHiddenDirectoriesSchema() string {
 }
 
 func projectWorkspaceTooltipRulesSchema(descriptionKey string) string {
-	return fmt.Sprintf(
-		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string of ordered workspace tooltip rules. Each rule contains basename regex pattern, tooltip text, and enabled flag. Later enabled matches override earlier matches.","examples":[%s],"x-i18n":{"descriptionKey":"%s"},"x-graft":{"editor":"workspace-tooltip-rule-list"}}`,
-		maxWorkspaceTooltipRulesJSON,
-		mustJSONString([]workspaceTooltipRuleSchemaExample{
-			{
-				Pattern: `^docker-compose(?:\.[^.]+)?\.ya?ml$`,
-				Tooltip: "Compose 配置",
-				Enabled: true,
-			},
-		}),
-		descriptionKey,
-	)
+	exampleRules := []workspaceTooltipRuleSchemaExample{
+		{
+			Pattern: `^docker-compose(?:\.[^.]+)?\.ya?ml$`,
+			Tooltip: "Compose 配置",
+			Enabled: true,
+		},
+	}
+	schema := map[string]any{
+		"type":        "string",
+		"minLength":   minWorkspaceJSONLength,
+		"maxLength":   maxWorkspaceTooltipRulesJSON,
+		"description": "JSON array string of ordered workspace tooltip rules. Each rule contains basename regex pattern, tooltip text, and enabled flag. Later enabled matches override earlier matches.",
+		"examples":    []string{string(mustRawJSON(exampleRules))},
+		"x-i18n": map[string]string{
+			"descriptionKey": descriptionKey,
+		},
+		"x-graft": map[string]string{
+			"editor": "workspace-tooltip-rule-list",
+		},
+	}
+	return string(mustRawJSON(schema))
 }
 
 type workspaceTooltipRuleSchemaExample struct {
@@ -219,16 +229,4 @@ func mustRawJSON(value any) json.RawMessage {
 		panic(err)
 	}
 	return data
-}
-
-func mustJSONString(value any) string {
-	data, err := json.Marshal(value)
-	if err != nil {
-		panic(err)
-	}
-	encoded, err := json.Marshal(string(data))
-	if err != nil {
-		panic(err)
-	}
-	return string(encoded)
 }
