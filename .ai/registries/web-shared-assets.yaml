@@ -233,8 +233,6 @@ assets:
     examples:
       - "web/src/layouts/components/theme-workbench/theme-token-color.ts"
       - "web/src/modules/project/shared/project-monaco.ts"
-    related_assets:
-      - "request-client"
     validation_commands:
       - "cd web && bun run check"
 

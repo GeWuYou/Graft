@@ -1,4 +1,4 @@
-import { normalizeCssColorValue, parseResolvedCssColor } from '@/shared/theme/css-color';
+import { parseResolvedCssColor } from '@/shared/theme/css-color';
 
 export type ParsedThemeTokenColor = NonNullable<ReturnType<typeof parseResolvedCssColor>>;
 
@@ -35,13 +35,7 @@ export function parseThemeTokenColor(value: string) {
  * @returns A hex color string if opacity is 100%, or an rgba color string otherwise, or null if the hex input is invalid.
  */
 export function buildThemeTokenColorValue(hexValue: string, opacityValue: number) {
-  const normalizedHex = normalizeCssColorValue(hexValue);
-
-  if (!normalizedHex) {
-    return null;
-  }
-
-  const parsed = parseResolvedCssColor(normalizedHex);
+  const parsed = parseResolvedCssColor(hexValue);
 
   if (!parsed) {
     return null;

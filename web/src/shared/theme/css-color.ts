@@ -26,6 +26,8 @@ function normalizeHexInput(value: string) {
   }
 
   if (/^[0-9a-fA-F]{4}$/.test(compact)) {
+    // `#RGBA` carries inline alpha, but callers that request normalized hex expect
+    // an opaque `#RRGGBB` value and handle alpha through separate parsed metadata.
     const [red, green, blue] = compact
       .slice(0, 3)
       .split('')
@@ -38,6 +40,8 @@ function normalizeHexInput(value: string) {
   }
 
   if (/^[0-9a-fA-F]{8}$/.test(compact)) {
+    // Same as the shorthand branch above: normalize to the opaque RGB portion and
+    // let parsing APIs preserve alpha when the caller needs structured color data.
     return `#${compact.slice(0, 6)}`.toLowerCase();
   }
 

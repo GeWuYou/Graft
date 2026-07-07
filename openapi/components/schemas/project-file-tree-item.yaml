@@ -35,6 +35,9 @@ properties:
     nullable: true
   tooltip_source:
     type: string
+    enum:
+      - project-note
+      - default-rule
     nullable: true
   project_note:
     type: string

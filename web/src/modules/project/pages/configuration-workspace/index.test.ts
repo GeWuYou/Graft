@@ -34,15 +34,14 @@ const pageContextState = reactive({
 const workspaceCopyMessages = {
   'en-US': {
     'project.configurationWorkspace.copy.annotationAction': 'Edit Annotation',
-    'project.configurationWorkspace.copy.annotationUnavailableMessage':
-      'Annotation editing will be enabled after the workspace note API is wired.',
+    'project.configurationWorkspace.copy.annotationSaveFailed': 'Failed to save the annotation.',
     'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
     'project.configurationWorkspace.copy.saveAction': 'Save',
     'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
   },
   'zh-CN': {
     'project.configurationWorkspace.copy.annotationAction': '编辑注释',
-    'project.configurationWorkspace.copy.annotationUnavailableMessage': '工作台注释编辑会在后端注释接口接入后启用。',
+    'project.configurationWorkspace.copy.annotationSaveFailed': '注释保存失败。',
     'project.configurationWorkspace.copy.deployAction': '部署项目',
     'project.configurationWorkspace.copy.deployDirtyBody': '检测到未保存的修改，是否先保存？',
     'project.configurationWorkspace.copy.saveAction': '保存',
@@ -236,6 +235,56 @@ const TTabsStub = defineComponent({
   },
   setup(_props, { slots }) {
     return () => h('div', { class: 't-tabs-stub' }, slots.default?.());
+  },
+});
+
+const TDialogStub = defineComponent({
+  name: 'TDialogStub',
+  props: {
+    cancelBtn: { type: [Boolean, Object], default: false },
+    confirmBtn: { type: [Boolean, Object], default: false },
+    header: { type: String, default: '' },
+    visible: { type: Boolean, default: false },
+  },
+  emits: ['close', 'confirm', 'update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          'data-stub': 'TDialog',
+          'data-title': props.header,
+          'data-visible': String(props.visible),
+        },
+        [
+          props.visible ? h('div', slots.default?.()) : null,
+          props.visible ? h('div', slots.footer?.()) : null,
+          props.visible && props.confirmBtn
+            ? h(
+                'button',
+                {
+                  'data-testid': 't-dialog-confirm',
+                  onClick: () => emit('confirm'),
+                },
+                typeof props.confirmBtn === 'object' && props.confirmBtn && 'content' in props.confirmBtn
+                  ? String(props.confirmBtn.content)
+                  : 'Confirm',
+              )
+            : null,
+          props.visible && props.cancelBtn
+            ? h(
+                'button',
+                {
+                  'data-testid': 't-dialog-cancel',
+                  onClick: () => emit('close'),
+                },
+                typeof props.cancelBtn === 'object' && props.cancelBtn && 'content' in props.cancelBtn
+                  ? String(props.cancelBtn.content)
+                  : 'Cancel',
+              )
+            : null,
+        ],
+      );
   },
 });
 
@@ -484,6 +533,79 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('true');
   });
 
+  it('saves workspace annotations through the dialog flow', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
+    await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
+    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileAnnotation).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { annotation: 'Updated note' },
+    );
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('false');
+    expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it('shows a localized annotation save failure instead of the retired unavailable fallback copy', async () => {
+    const wrapper = mountWorkspace();
+    mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
+    await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
+    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.error).toHaveBeenCalledWith('Failed to save the annotation.');
+  });
+
+  it('shows the zh-CN annotation save failure copy when the request fails', async () => {
+    pageContextState.locale = 'zh-CN';
+    const wrapper = mountWorkspace();
+    mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
+    await wrapper.findAll('textarea').at(-1)!.setValue('更新备注');
+    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.error).toHaveBeenCalledWith('注释保存失败。');
+  });
+
+  it('hides a directory error after the directory is collapsed', async () => {
+    mocks.getProjectFiles.mockImplementationOnce(async () => ({
+      current_path: '',
+      items: [
+        {
+          editable: false,
+          file_kind: 'directory',
+          has_children: true,
+          name: 'config',
+          node_type: 'directory',
+          relative_path: 'config',
+        },
+      ],
+      root_path: '/srv/sub2api',
+    }));
+    mocks.getProjectFiles.mockRejectedValueOnce(new Error('Directory load failed'));
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('project.list.retry');
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('project.list.retry');
+  });
+
   it('truncates configuration hashes while keeping the full value in tooltips', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -558,7 +680,7 @@ function mountWorkspace() {
         TCard: createTStub('TCard'),
         TDescriptions: createTStub('TDescriptions'),
         TDescriptionsItem: createTStub('TDescriptionsItem'),
-        TDialog: createTStub('TDialog'),
+        TDialog: TDialogStub,
         TDrawer: createTStub('TDrawer'),
         TEmpty: createTStub('TEmpty'),
         TLoading: createTStub('TLoading'),

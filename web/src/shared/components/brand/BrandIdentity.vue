@@ -5,6 +5,7 @@
       'brand-identity--compact': compact,
       'brand-identity--label-hidden': labelHidden,
     }"
+    :title="label"
   >
     <span class="brand-identity__mark" :class="{ 'brand-identity__mark--compact': compact }">
       <brand-mark />

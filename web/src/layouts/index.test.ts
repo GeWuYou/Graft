@@ -251,7 +251,8 @@ describe('App layout route effects', () => {
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-width');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
 
-    vi.advanceTimersByTime(0);
+    vi.advanceTimersToNextFrame();
+    vi.advanceTimersToNextFrame();
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
 

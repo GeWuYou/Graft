@@ -582,7 +582,6 @@ func resolveWorkspaceTooltip(
 			continue
 		}
 		if !rule.Enabled {
-			matchedTooltip = ""
 			continue
 		}
 		matchedTooltip = rule.Tooltip

@@ -15,7 +15,10 @@ type SQLRepository struct {
 	placeholder placeholderStyle
 }
 
-const projectListWhereArgCapacity = 3
+const (
+	projectListWhereArgCapacity        = 3
+	workspaceAnnotationUpdateRetryLimit = 3
+)
 
 // NewSQLRepository 创建一个基于 SQL 的项目仓库。
 // 当 db 为空时返回错误；否则返回可用于访问项目数据的仓库实例，并根据数据库类型确定占位符样式。
@@ -323,45 +326,20 @@ func (r *SQLRepository) UpdateWorkspaceAnnotation(ctx context.Context, input Upd
 	if err != nil {
 		return ProjectAggregate{}, err
 	}
-	aggregate, err := r.Get(ctx, input.ProjectID)
-	if err != nil {
-		return ProjectAggregate{}, err
-	}
-	annotations := applyWorkspaceAnnotationUpdate(
-		aggregate.Project.WorkspaceAnnotations,
-		input.RelativePath,
-		input.Annotation,
-	)
-	encoded, err := encodeWorkspaceAnnotationsJSON(annotations)
-	if err != nil {
-		return ProjectAggregate{}, err
-	}
 	projectDBID, err := toDBID(input.ProjectID)
 	if err != nil {
 		return ProjectAggregate{}, err
 	}
-	result, err := r.db.ExecContext(
-		ctx,
-		r.placeholder.rebind(`UPDATE compose_projects
-		SET workspace_annotations_json = ?::jsonb,
-			updated_by = ?,
-			updated_at = NOW()
-		WHERE id = ? AND deleted_at = 0`),
-		string(encoded),
-		input.ActorID,
-		projectDBID,
-	)
-	if err != nil {
-		return ProjectAggregate{}, mapWriteErr("update workspace annotation", err)
+	for attempt := 0; attempt < workspaceAnnotationUpdateRetryLimit; attempt++ {
+		updated, err := r.tryUpdateWorkspaceAnnotation(ctx, projectDBID, input)
+		if err != nil {
+			return ProjectAggregate{}, err
+		}
+		if updated {
+			return r.Get(ctx, input.ProjectID)
+		}
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return ProjectAggregate{}, fmt.Errorf("read workspace annotation update rows: %w", err)
-	}
-	if rowsAffected == 0 {
-		return ProjectAggregate{}, ErrProjectNotFound
-	}
-	return r.Get(ctx, input.ProjectID)
+	return ProjectAggregate{}, ErrProjectConflict
 }
 
 func applyWorkspaceAnnotationUpdate(current map[string]string, relativePath string, annotation *string) map[string]string {
@@ -375,6 +353,67 @@ func applyWorkspaceAnnotationUpdate(current map[string]string, relativePath stri
 	}
 	next[relativePath] = *annotation
 	return next
+}
+
+func (r *SQLRepository) tryUpdateWorkspaceAnnotation(
+	ctx context.Context,
+	projectDBID int64,
+	input UpdateWorkspaceAnnotationInput,
+) (bool, error) {
+	currentEncoded, err := r.loadWorkspaceAnnotationsJSON(ctx, projectDBID)
+	if err != nil {
+		return false, err
+	}
+	annotations, err := decodeWorkspaceAnnotationsJSON([]byte(currentEncoded))
+	if err != nil {
+		return false, err
+	}
+	nextAnnotations := applyWorkspaceAnnotationUpdate(annotations, input.RelativePath, input.Annotation)
+	encoded, err := encodeWorkspaceAnnotationsJSON(nextAnnotations)
+	if err != nil {
+		return false, err
+	}
+	result, err := r.db.ExecContext(
+		ctx,
+		r.placeholder.rebind(`UPDATE compose_projects
+		SET workspace_annotations_json = `+r.placeholder.jsonParamExpr()+`,
+			updated_by = ?,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = ? AND deleted_at = 0 AND workspace_annotations_json = ?`),
+		string(encoded),
+		input.ActorID,
+		projectDBID,
+		currentEncoded,
+	)
+	if err != nil {
+		return false, mapWriteErr("update workspace annotation", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read workspace annotation update rows: %w", err)
+	}
+	return rowsAffected > 0, nil
+}
+
+func (r *SQLRepository) loadWorkspaceAnnotationsJSON(ctx context.Context, projectDBID int64) (string, error) {
+	var raw string
+	err := r.db.QueryRowContext(
+		ctx,
+		r.placeholder.rebind(`SELECT workspace_annotations_json
+		FROM compose_projects
+		WHERE id = ? AND deleted_at = 0`),
+		projectDBID,
+	).Scan(&raw)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrProjectNotFound
+		}
+		return "", fmt.Errorf("load workspace annotations: %w", err)
+	}
+	if strings.TrimSpace(raw) == "" {
+		return "{}", nil
+	}
+	return raw, nil
 }
 
 // UnregisterProject soft-deletes one live project registry row without deleting host files.

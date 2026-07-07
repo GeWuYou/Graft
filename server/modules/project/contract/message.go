@@ -36,6 +36,11 @@ func (c ConfigKey) String() string { return string(c) }
 func (c ConfigMessageKey) String() string { return string(c) }
 
 const (
+	// ProjectWorkspaceAnnotationMaxLength identifies the stable max length for one workspace annotation payload.
+	ProjectWorkspaceAnnotationMaxLength = 500
+)
+
+const (
 	// ProjectMenuTitle identifies the project-management menu title.
 	ProjectMenuTitle MessageKey = "menu.ops.project.title"
 	// ProjectSourceMenuTitle identifies the hidden source-selector route title.

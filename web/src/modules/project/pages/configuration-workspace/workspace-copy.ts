@@ -1,6 +1,6 @@
 type WorkspaceCopy = {
   annotationAction: string;
-  annotationUnavailableMessage: string;
+  annotationSaveFailed: string;
   cancelAction: string;
   continueWithDiskAction: string;
   deployAction: string;
@@ -67,7 +67,7 @@ type WorkspaceCopyTranslate = (key: string) => string;
 
 const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   annotationAction: 'project.configurationWorkspace.copy.annotationAction',
-  annotationUnavailableMessage: 'project.configurationWorkspace.copy.annotationUnavailableMessage',
+  annotationSaveFailed: 'project.configurationWorkspace.copy.annotationSaveFailed',
   cancelAction: 'project.configurationWorkspace.copy.cancelAction',
   continueWithDiskAction: 'project.configurationWorkspace.copy.continueWithDiskAction',
   deployAction: 'project.configurationWorkspace.copy.deployAction',

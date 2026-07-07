@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,6 +111,65 @@ func TestValidateImportInputRejectsInvalidTypedContract(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestSQLRepositoryUpdateWorkspaceAnnotationRejectsOversizedAnnotation(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newTestSQLRepository(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	insertProjectRow(t, db, 1, "demo", now, 0)
+
+	annotation := strings.Repeat("a", projectcontract.ProjectWorkspaceAnnotationMaxLength+1)
+	_, err := repo.UpdateWorkspaceAnnotation(ctx, UpdateWorkspaceAnnotationInput{
+		ProjectID:    1,
+		RelativePath: "compose.yml",
+		Annotation:   &annotation,
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestSQLRepositoryUpdateWorkspaceAnnotationPreservesConcurrentChanges(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newTestSQLRepository(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	insertProjectRow(t, db, 1, "demo", now, 0)
+
+	note := "compose note"
+	aggregate, err := repo.UpdateWorkspaceAnnotation(ctx, UpdateWorkspaceAnnotationInput{
+		ProjectID:    1,
+		RelativePath: "compose.yml",
+		Annotation:   &note,
+	})
+	if err != nil {
+		t.Fatalf("first annotation update: %v", err)
+	}
+	if aggregate.Project.WorkspaceAnnotations["compose.yml"] != note {
+		t.Fatalf("expected compose annotation, got %#v", aggregate.Project.WorkspaceAnnotations)
+	}
+
+	mustExec(t, db, `UPDATE compose_projects SET workspace_annotations_json = ? WHERE id = ?`, `{"README.md":"doc note"}`, 1)
+
+	envNote := "env note"
+	aggregate, err = repo.UpdateWorkspaceAnnotation(ctx, UpdateWorkspaceAnnotationInput{
+		ProjectID:    1,
+		RelativePath: ".env",
+		Annotation:   &envNote,
+	})
+	if err != nil {
+		t.Fatalf("second annotation update: %v", err)
+	}
+	if aggregate.Project.WorkspaceAnnotations["README.md"] != "doc note" {
+		t.Fatalf("expected concurrent README annotation to be preserved, got %#v", aggregate.Project.WorkspaceAnnotations)
+	}
+	if aggregate.Project.WorkspaceAnnotations[".env"] != envNote {
+		t.Fatalf("expected env annotation to be added, got %#v", aggregate.Project.WorkspaceAnnotations)
 	}
 }
 

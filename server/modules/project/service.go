@@ -45,6 +45,7 @@ const (
 	maxProjectListLimit      = 100
 	projectConflictScanSize  = 100
 	projectDiscoveryScanSize = 8
+	maxWorkspaceAnnotationLength = projectcontract.ProjectWorkspaceAnnotationMaxLength
 	minLifecycleArgCount     = 2
 	maxCommandOutputSummary  = 120
 	managedCreateWarningsCap = 2

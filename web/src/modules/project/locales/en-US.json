@@ -52,7 +52,7 @@
     "configurationWorkspace": {
       "copy": {
         "annotationAction": "Edit Annotation",
-        "annotationUnavailableMessage": "Annotation editing will be enabled after the workspace note API is wired.",
+        "annotationSaveFailed": "Failed to save the annotation.",
         "cancelAction": "Cancel",
         "continueWithDiskAction": "Continue with Disk Version",
         "deployAction": "Deploy Project",
@@ -1110,37 +1110,6 @@
         "confirmDestroy": "Confirm Canonical Project Name",
         "removeNamedVolumes": "Also Remove Named Volumes",
         "deleteWorkingDirectory": "Also Delete Working Directory"
-      }
-    }
-  },
-  "systemConfig": {
-    "groups": {
-      "ops": {
-        "project": {
-          "create": "Project Create",
-          "import": "Project Import",
-          "workspace": "Project Workspace"
-        }
-      }
-    },
-    "groupDescriptions": {
-      "ops": {
-        "project": {
-          "create": "Managed project create authority and root workflow.",
-          "import": "Import authority roots and bounded directory browsing.",
-          "workspace": "Configuration workspace file-list defaults and editor browse behavior."
-        }
-      }
-    },
-    "project": {
-      "ops": {
-        "project": {
-          "workspace": {
-            "hidden_directories": {
-              "placeholder": "Press Enter after each directory name, for example node_modules or .git"
-            }
-          }
-        }
       }
     }
   }

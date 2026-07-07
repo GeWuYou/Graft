@@ -190,10 +190,23 @@ func projectWorkspaceHiddenDirectoriesSchema() string {
 
 func projectWorkspaceTooltipRulesSchema(descriptionKey string) string {
 	return fmt.Sprintf(
-		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string of ordered workspace tooltip rules. Each rule contains basename regex pattern, tooltip text, and enabled flag. Later enabled matches override earlier matches.","examples":["[{\"pattern\":\"^docker-compose(?:\\\\.[^.]+)?\\\\.ya?ml$\",\"tooltip\":\"Compose 配置\",\"enabled\":true}]"],"x-i18n":{"descriptionKey":"%s"},"x-graft":{"editor":"workspace-tooltip-rule-list"}}`,
+		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string of ordered workspace tooltip rules. Each rule contains basename regex pattern, tooltip text, and enabled flag. Later enabled matches override earlier matches.","examples":[%s],"x-i18n":{"descriptionKey":"%s"},"x-graft":{"editor":"workspace-tooltip-rule-list"}}`,
 		maxWorkspaceTooltipRulesJSON,
+		mustJSONString([]workspaceTooltipRuleSchemaExample{
+			{
+				Pattern: `^docker-compose(?:\.[^.]+)?\.ya?ml$`,
+				Tooltip: "Compose 配置",
+				Enabled: true,
+			},
+		}),
 		descriptionKey,
 	)
+}
+
+type workspaceTooltipRuleSchemaExample struct {
+	Pattern string `json:"pattern"`
+	Tooltip string `json:"tooltip"`
+	Enabled bool   `json:"enabled"`
 }
 
 // mustRawJSON 将 value 编码为 JSON，并返回对应的 json.RawMessage。
@@ -206,4 +219,16 @@ func mustRawJSON(value any) json.RawMessage {
 		panic(err)
 	}
 	return data
+}
+
+func mustJSONString(value any) string {
+	data, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	encoded, err := json.Marshal(string(data))
+	if err != nil {
+		panic(err)
+	}
+	return string(encoded)
 }

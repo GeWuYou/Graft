@@ -450,66 +450,93 @@ function nextWorkspaceTooltipRules(value: unknown, mutate: (items: WorkspaceTool
   return serializeWorkspaceTooltipRules(mutate([...workspaceTooltipRuleListValue(value)]));
 }
 
-function appendRule(key: string) {
-  updateObjectField(
-    key,
-    nextWorkspaceTooltipRules(objectValue.value[key], (items) => [
-      ...items,
-      { enabled: true, pattern: '', tooltip: '' },
-    ]),
+function emptyWorkspaceTooltipRule(): WorkspaceTooltipRule {
+  return { enabled: true, pattern: '', tooltip: '' };
+}
+
+function commitWorkspaceTooltipRules(
+  value: unknown,
+  commit: (nextValue: string) => void,
+  mutate: (items: WorkspaceTooltipRule[]) => WorkspaceTooltipRule[],
+) {
+  commit(nextWorkspaceTooltipRules(value, mutate));
+}
+
+function appendWorkspaceTooltipRule(value: unknown, commit: (nextValue: string) => void) {
+  commitWorkspaceTooltipRules(value, commit, (items) => [...items, emptyWorkspaceTooltipRule()]);
+}
+
+function removeWorkspaceTooltipRule(value: unknown, commit: (nextValue: string) => void, index: number) {
+  commitWorkspaceTooltipRules(value, commit, (items) => items.filter((_, itemIndex) => itemIndex !== index));
+}
+
+function moveWorkspaceTooltipRuleValue(
+  value: unknown,
+  commit: (nextValue: string) => void,
+  index: number,
+  offset: -1 | 1,
+) {
+  commitWorkspaceTooltipRules(value, commit, (items) => moveWorkspaceTooltipRule(items, index, offset));
+}
+
+function updateWorkspaceTooltipRuleFieldValue(
+  value: unknown,
+  commit: (nextValue: string) => void,
+  index: number,
+  field: keyof WorkspaceTooltipRule,
+  fieldValue: string | boolean,
+) {
+  commitWorkspaceTooltipRules(value, commit, (items) =>
+    items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: fieldValue } : item)),
   );
+}
+
+function appendRule(key: string) {
+  appendWorkspaceTooltipRule(objectValue.value[key], (nextValue) => updateObjectField(key, nextValue));
 }
 
 function removeRule(key: string, index: number) {
-  updateObjectField(
-    key,
-    nextWorkspaceTooltipRules(objectValue.value[key], (items) => items.filter((_, itemIndex) => itemIndex !== index)),
-  );
+  removeWorkspaceTooltipRule(objectValue.value[key], (nextValue) => updateObjectField(key, nextValue), index);
 }
 
 function moveRule(key: string, index: number, offset: -1 | 1) {
-  updateObjectField(
-    key,
-    nextWorkspaceTooltipRules(objectValue.value[key], (items) => moveWorkspaceTooltipRule(items, index, offset)),
+  moveWorkspaceTooltipRuleValue(
+    objectValue.value[key],
+    (nextValue) => updateObjectField(key, nextValue),
+    index,
+    offset,
   );
 }
 
 function updateRuleField(key: string, index: number, field: keyof WorkspaceTooltipRule, value: string | boolean) {
-  updateObjectField(
-    key,
-    nextWorkspaceTooltipRules(objectValue.value[key], (items) =>
-      items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
-    ),
+  updateWorkspaceTooltipRuleFieldValue(
+    objectValue.value[key],
+    (nextValue) => updateObjectField(key, nextValue),
+    index,
+    field,
+    value,
   );
 }
 
 function appendRootRule() {
-  emit(
-    'update:modelValue',
-    nextWorkspaceTooltipRules(props.modelValue, (items) => [...items, { enabled: true, pattern: '', tooltip: '' }]),
-  );
+  appendWorkspaceTooltipRule(props.modelValue, (nextValue) => emit('update:modelValue', nextValue));
 }
 
 function removeRootRule(index: number) {
-  emit(
-    'update:modelValue',
-    nextWorkspaceTooltipRules(props.modelValue, (items) => items.filter((_, itemIndex) => itemIndex !== index)),
-  );
+  removeWorkspaceTooltipRule(props.modelValue, (nextValue) => emit('update:modelValue', nextValue), index);
 }
 
 function moveRootRule(index: number, offset: -1 | 1) {
-  emit(
-    'update:modelValue',
-    nextWorkspaceTooltipRules(props.modelValue, (items) => moveWorkspaceTooltipRule(items, index, offset)),
-  );
+  moveWorkspaceTooltipRuleValue(props.modelValue, (nextValue) => emit('update:modelValue', nextValue), index, offset);
 }
 
 function updateRootRuleField(index: number, field: keyof WorkspaceTooltipRule, value: string | boolean) {
-  emit(
-    'update:modelValue',
-    nextWorkspaceTooltipRules(props.modelValue, (items) =>
-      items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
-    ),
+  updateWorkspaceTooltipRuleFieldValue(
+    props.modelValue,
+    (nextValue) => emit('update:modelValue', nextValue),
+    index,
+    field,
+    value,
   );
 }
 

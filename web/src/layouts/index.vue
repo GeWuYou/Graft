@@ -74,6 +74,7 @@ const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
 const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
 const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
 const sidebarMotionTimers = new Set<number>();
+const sidebarMotionFrameIds = new Set<number>();
 let sidebarFreezeToken: number | null = null;
 let sidebarResumeFrameId: number | null = null;
 let sidebarResumeNestedFrameId: number | null = null;
@@ -101,6 +102,13 @@ const clearSidebarMotionTimers = () => {
     window.clearTimeout(timerId);
   });
   sidebarMotionTimers.clear();
+};
+
+const clearSidebarMotionFrames = () => {
+  sidebarMotionFrameIds.forEach((frameId) => {
+    window.cancelAnimationFrame(frameId);
+  });
+  sidebarMotionFrameIds.clear();
 };
 
 const clearSidebarResumeFrames = () => {
@@ -149,8 +157,26 @@ const scheduleSidebarMotion = (callback: () => void, delay: number) => {
   sidebarMotionTimers.add(timerId);
 };
 
+const scheduleSidebarNextPaint = (callback: () => void) => {
+  if (typeof document === 'undefined' || document.visibilityState !== 'visible') {
+    scheduleSidebarMotion(callback, 0);
+    return;
+  }
+
+  const firstFrameId = window.requestAnimationFrame(() => {
+    sidebarMotionFrameIds.delete(firstFrameId);
+    const secondFrameId = window.requestAnimationFrame(() => {
+      sidebarMotionFrameIds.delete(secondFrameId);
+      callback();
+    });
+    sidebarMotionFrameIds.add(secondFrameId);
+  });
+  sidebarMotionFrameIds.add(firstFrameId);
+};
+
 const startSidebarMotion = (targetCompact: boolean) => {
   clearSidebarMotionTimers();
+  clearSidebarMotionFrames();
   acquireSidebarFreeze();
 
   if (targetCompact) {
@@ -175,9 +201,9 @@ const startSidebarMotion = (targetCompact: boolean) => {
   sidebarRenderCompact.value = false;
   sidebarWidthCompact.value = true;
   sidebarMotionPhase.value = 'expanding-width';
-  scheduleSidebarMotion(() => {
+  scheduleSidebarNextPaint(() => {
     sidebarWidthCompact.value = false;
-  }, 0);
+  });
   scheduleSidebarMotion(() => {
     sidebarMotionPhase.value = 'expanding-topmenu';
   }, SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS);
@@ -235,6 +261,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearSidebarMotionTimers();
+  clearSidebarMotionFrames();
   clearSidebarResumeFrames();
   releaseSidebarFreeze();
 });

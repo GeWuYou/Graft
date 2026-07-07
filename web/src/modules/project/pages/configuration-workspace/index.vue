@@ -187,7 +187,7 @@
                         </div>
                       </div>
                       <p
-                        v-if="row.error"
+                        v-if="row.error && row.expanded"
                         class="project-configuration-workspace__tree-error"
                         :style="{ '--workspace-tree-depth': String(row.depth + 1) }"
                       >
@@ -1033,7 +1033,7 @@ async function saveWorkspaceAnnotation() {
     patchWorkspaceItem(updatedItem);
     closeWorkspaceAnnotationDialog();
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, workspaceCopy.value.annotationUnavailableMessage));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, workspaceCopy.value.annotationSaveFailed));
   } finally {
     annotationDialogState.saving = false;
   }
@@ -1519,6 +1519,8 @@ function startSidebarResize(event: PointerEvent) {
   if (!isSidebarResizable.value || typeof window === 'undefined') {
     return;
   }
+
+  stopSidebarResize();
 
   const shellBounds = workspaceShellRef.value?.getBoundingClientRect();
   if (!shellBounds) {

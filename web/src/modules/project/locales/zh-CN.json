@@ -52,7 +52,7 @@
     "configurationWorkspace": {
       "copy": {
         "annotationAction": "编辑注释",
-        "annotationUnavailableMessage": "工作台注释编辑会在后端注释接口接入后启用。",
+        "annotationSaveFailed": "注释保存失败。",
         "cancelAction": "取消",
         "continueWithDiskAction": "继续使用磁盘版本",
         "deployAction": "部署项目",
@@ -1110,37 +1110,6 @@
         "confirmDestroy": "确认 Canonical Project Name",
         "removeNamedVolumes": "同时移除命名卷",
         "deleteWorkingDirectory": "同时删除工作目录"
-      }
-    }
-  },
-  "systemConfig": {
-    "groups": {
-      "ops": {
-        "project": {
-          "create": "Project Create",
-          "import": "Project Import",
-          "workspace": "Project Workspace"
-        }
-      }
-    },
-    "groupDescriptions": {
-      "ops": {
-        "project": {
-          "create": "管理受管项目创建流程的 authority 和根目录入口。",
-          "import": "管理导入流程允许浏览的根目录与边界。",
-          "workspace": "管理配置工作台的目录过滤与文件浏览默认行为。"
-        }
-      }
-    },
-    "project": {
-      "ops": {
-        "project": {
-          "workspace": {
-            "hidden_directories": {
-              "placeholder": "输入目录名后回车，例如 node_modules、.git"
-            }
-          }
-        }
       }
     }
   }

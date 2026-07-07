@@ -201,6 +201,9 @@ func validateUpdateWorkspaceAnnotationInput(input UpdateWorkspaceAnnotationInput
 		input.Annotation = nil
 		return input, nil
 	}
+	if len(annotation) > projectcontract.ProjectWorkspaceAnnotationMaxLength {
+		return UpdateWorkspaceAnnotationInput{}, ErrInvalidInput
+	}
 	input.Annotation = &annotation
 	return input, nil
 }
@@ -736,6 +739,13 @@ func (s placeholderStyle) rebind(query string) string {
 		builder.WriteRune(r)
 	}
 	return builder.String()
+}
+
+func (s placeholderStyle) jsonParamExpr() string {
+	if s == placeholderDollar {
+		return "?::jsonb"
+	}
+	return "?"
 }
 
 // toDBID 将 uint64 主键值转换为数据库可用的 int64。
