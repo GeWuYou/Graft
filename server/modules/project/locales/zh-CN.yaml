@@ -40,6 +40,8 @@ systemConfig.project.ops.project.managed.root_directory.title: 受管项目根�
 systemConfig.project.ops.project.managed.root_directory.description: 受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。
 systemConfig.groups.ops.project.create: 项目创建
 systemConfig.groups.ops.project.create.description: 管理受管项目创建流程的 authority 和根目录入口。
+systemConfig.project.ops.project.import.allowed_roots.title: 导入允许根目录
+systemConfig.project.ops.project.import.allowed_roots.description: 配置项目导入流程允许浏览的根目录 JSON 数组字符串。
 systemConfig.project.ops.project.workspace.hidden_directories.title: 工作台默认隐藏目录
 systemConfig.project.ops.project.workspace.hidden_directories.description: 配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。
 systemConfig.project.ops.project.workspace.hidden_directories.placeholder: 输入目录名后回车，例如 node_modules、.git

@@ -510,18 +510,44 @@
       },
       "rbac": {
         "role": {
+          "create": "创建角色",
+          "update": "更新角色",
           "permissions": {
             "replace": "更新角色权限",
             "add": "添加角色权限",
             "remove": "移除角色权限"
           },
-          "delete": "删除角色",
-          "assign": "分配角色"
+          "status": {
+            "update": "更新角色状态"
+          },
+          "delete": "删除角色"
         }
       },
       "user": {
+        "create": "创建用户",
+        "update": "更新用户",
+        "status": {
+          "update": "更新用户状态"
+        },
+        "delete": "删除用户",
         "password": {
           "reset": "重置用户密码"
+        }
+      },
+      "ops": {
+        "container": {
+          "action": {
+            "start": "启动容器",
+            "stop": "停止容器",
+            "restart": "重启容器",
+            "remove": "删除容器",
+            "batch": {
+              "start": "批量启动容器",
+              "stop": "批量停止容器",
+              "restart": "批量重启容器",
+              "remove": "批量删除容器"
+            }
+          }
         }
       }
     }

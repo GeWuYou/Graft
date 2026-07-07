@@ -47,6 +47,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.groups.ops.project.import.description': '管理导入流程允许浏览的根目录与边界。',
   'systemConfig.groups.ops.project.workspace': '项目工作台',
   'systemConfig.groups.ops.project.workspace.description': '管理配置工作台的目录过滤与文件浏览默认行为。',
+  'systemConfig.project.ops.project.managed.root_directory.title': '受管项目根目录',
+  'systemConfig.project.ops.project.managed.root_directory.description':
+    '受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。',
+  'systemConfig.project.ops.project.import.allowed_roots.title': '导入允许根目录',
+  'systemConfig.project.ops.project.import.allowed_roots.description':
+    '配置项目导入流程允许浏览的根目录 JSON 数组字符串。',
   'systemConfig.items.appLogRetentionCleanup.description': '应用日志保留清理任务的默认配置。',
   'systemConfig.items.appLogRetentionCleanup.title': '应用日志保留清理',
   'systemConfig.items.accessLogRetentionCleanup.description': '访问日志保留清理任务的默认配置。',
@@ -187,6 +193,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
     '配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。',
   'systemConfig.project.ops.project.workspace.hidden_directories.placeholder':
     '输入目录名后回车，例如 node_modules、.git',
+  'systemConfig.project.ops.project.workspace.file_tooltip_rules.title': '工作台文件默认提示规则',
+  'systemConfig.project.ops.project.workspace.file_tooltip_rules.description':
+    '配置工作台文件名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。',
+  'systemConfig.project.ops.project.workspace.directory_tooltip_rules.title': '工作台目录默认提示规则',
+  'systemConfig.project.ops.project.workspace.directory_tooltip_rules.description':
+    '配置工作台目录名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。',
 }));
 
 vi.mock('../../api/system-config', () => ({
