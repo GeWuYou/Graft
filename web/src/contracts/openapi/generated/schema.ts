@@ -2385,6 +2385,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/{id}/files/annotation': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update one project workspace file or directory annotation */
+    put: operations['putProjectFileAnnotation'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}/configuration/diff': {
     parameters: {
       query?: never;
@@ -2877,6 +2894,7 @@ export interface components {
     ProjectFileTreeNodeType: components['schemas']['project-file-tree-node-type'];
     ProjectWorkspaceFileKind: components['schemas']['project-workspace-file-kind'];
     ProjectFileTreeItem: components['schemas']['project-file-tree-item'];
+    ProjectFileAnnotationRequest: components['schemas']['project-file-annotation-request'];
     ProjectFilesResponse: components['schemas']['project-files-response'];
     ProjectFileContentResponse: components['schemas']['project-file-content-response'];
     ProjectFileSaveRequest: components['schemas']['project-file-save-request'];
@@ -2897,6 +2915,7 @@ export interface components {
     EnvelopedProjectConfigurationPreviewResponse: components['schemas']['enveloped-project-configuration-preview-response'];
     EnvelopedProjectFilesResponse: components['schemas']['enveloped-project-files-response'];
     EnvelopedProjectFileContentResponse: components['schemas']['enveloped-project-file-content-response'];
+    EnvelopedProjectFileTreeItemResponse: components['schemas']['enveloped-project-file-tree-item-response'];
     EnvelopedProjectFileSaveResponse: components['schemas']['enveloped-project-file-save-response'];
     EnvelopedProjectImportValidateResponse: components['schemas']['enveloped-project-import-validate-response'];
     EnvelopedProjectImportResponse: components['schemas']['enveloped-project-import-response'];
@@ -6111,6 +6130,9 @@ export interface components {
       size_bytes: number;
       hidden_by_default: boolean;
       has_children: boolean;
+      tooltip?: string | null;
+      tooltip_source?: string | null;
+      project_note?: string | null;
     };
     'project-files-response': {
       /** Format: int64 */
@@ -6155,6 +6177,12 @@ export interface components {
     };
     'enveloped-project-file-save-response': {
       data: components['schemas']['project-file-save-response'];
+    };
+    'project-file-annotation-request': {
+      annotation?: string | null;
+    };
+    'enveloped-project-file-tree-item-response': {
+      data: components['schemas']['project-file-tree-item'];
     };
     'project-configuration-diff-file': {
       kind: components['schemas']['project-file-kind'];
@@ -13103,6 +13131,68 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Project record or target file not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putProjectFileAnnotation: {
+    parameters: {
+      query?: {
+        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['project-workspace-path-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-file-annotation-request'];
+      };
+    };
+    responses: {
+      /** @description Updated project workspace tree item with resolved tooltip and annotation state. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-file-tree-item-response'];
+        };
+      };
+      /** @description Invalid project id, path, or annotation payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record or target path not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

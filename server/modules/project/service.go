@@ -204,6 +204,9 @@ type workspaceFileItem struct {
 	SizeBytes       int64
 	HiddenByDefault bool
 	HasChildren     bool
+	Tooltip         string
+	TooltipSource   string
+	ProjectNote     string
 }
 
 // workspaceFilesResult returns one bounded project-root directory page.

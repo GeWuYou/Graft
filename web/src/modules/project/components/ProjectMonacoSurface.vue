@@ -105,18 +105,21 @@ watch(
 
 async function createEditor() {
   monaco = ensureProjectMonacoConfigured();
-  if (!containerRef.value) {
+  const host = containerRef.value;
+
+  if (!host) {
     return;
   }
 
   applyTheme();
   model = createModel(monaco);
-  editor = monaco.editor.create(containerRef.value, {
+  editor = monaco.editor.create(host, {
     ariaLabel: props.editorAriaLabel,
     automaticLayout: true,
     glyphMargin: false,
     insertSpaces: true,
     language: props.language,
+    lineNumbers: 'on',
     lineNumbersMinChars: 3,
     minimap: { enabled: false },
     padding: { top: 14, bottom: 14 },

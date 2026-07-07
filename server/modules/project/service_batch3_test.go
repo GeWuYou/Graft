@@ -118,6 +118,21 @@ func (s *stubProjectRepository) UpdateLifecycleConfig(
 	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
+func (s *stubProjectRepository) UpdateWorkspaceAnnotation(
+	_ context.Context,
+	input projectstore.UpdateWorkspaceAnnotationInput,
+) (projectstore.ProjectAggregate, error) {
+	if s.aggregate.Project.WorkspaceAnnotations == nil {
+		s.aggregate.Project.WorkspaceAnnotations = map[string]string{}
+	}
+	if input.Annotation == nil {
+		delete(s.aggregate.Project.WorkspaceAnnotations, input.RelativePath)
+	} else {
+		s.aggregate.Project.WorkspaceAnnotations[input.RelativePath] = *input.Annotation
+	}
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+}
+
 func (s *stubProjectRepository) UnregisterProject(_ context.Context, input projectstore.UnregisterProjectInput) error {
 	s.unregisterCalled = true
 	recorded := input

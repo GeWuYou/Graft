@@ -274,6 +274,9 @@ func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.Proj
 			SizeBytes:       item.SizeBytes,
 			HiddenByDefault: item.HiddenByDefault,
 			HasChildren:     item.HasChildren,
+			ProjectNote:     optionalString(item.ProjectNote),
+			Tooltip:         optionalString(item.Tooltip),
+			TooltipSource:   optionalString(item.TooltipSource),
 		})
 	}
 	response := generated.ProjectFilesResponse{

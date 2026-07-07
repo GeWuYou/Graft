@@ -28,7 +28,7 @@ export type ConfigSchemaI18n = {
 };
 
 export type ConfigSchemaGraft = {
-  editor?: 'string-array-json-list';
+  editor?: 'string-array-json-list' | 'workspace-tooltip-rule-list';
 };
 
 export type ConfigValidationReasonCode =
@@ -405,7 +405,7 @@ function parseEnumLabels(raw: JsonRecord): Record<string, ConfigSchemaOptionLabe
 function parseGraft(raw: JsonRecord): ConfigSchemaGraft | undefined {
   const extension = isJsonRecord(raw['x-graft']) ? raw['x-graft'] : {};
   const parsed: ConfigSchemaGraft = {};
-  if (extension.editor === 'string-array-json-list') {
+  if (extension.editor === 'string-array-json-list' || extension.editor === 'workspace-tooltip-rule-list') {
     parsed.editor = extension.editor;
   }
   return Object.keys(parsed).length > 0 ? parsed : undefined;

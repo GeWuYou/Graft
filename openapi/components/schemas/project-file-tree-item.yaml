@@ -30,4 +30,12 @@ properties:
     type: boolean
   has_children:
     type: boolean
-
+  tooltip:
+    type: string
+    nullable: true
+  tooltip_source:
+    type: string
+    nullable: true
+  project_note:
+    type: string
+    nullable: true

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -19,12 +20,27 @@ import (
 
 const projectWorkspaceEncodingUTF8 = "utf-8"
 
+type workspaceTooltipRule struct {
+	Enabled bool   `json:"enabled"`
+	Pattern string `json:"pattern"`
+	Tooltip string `json:"tooltip"`
+	regex   *regexp.Regexp
+}
+
 type trackedWorkspaceFile struct {
 	Kind             string
 	Path             string
 	LastObservedHash string
 	Content          string
 	BaselineContent  string
+}
+
+type workspaceTreeBuildContext struct {
+	TrackedKinds          map[string]string
+	HiddenDirectories     []string
+	FileTooltipRules      []workspaceTooltipRule
+	DirectoryTooltipRules []workspaceTooltipRule
+	Annotations           map[string]string
 }
 
 func (s *Service) browseProjectFiles(
@@ -52,8 +68,27 @@ func (s *Service) browseProjectFiles(
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	trackedKinds := trackedProjectFileKinds(rootDir, aggregate.Files)
-	items, hasMoreHidden, err := buildVisibleWorkspaceItems(entries, currentPath, trackedKinds, hiddenDirectories, query.ShowHidden)
+	fileTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceFileTooltipRulesConfig.String(), defaultWorkspaceFileTooltipRules)
+	if err != nil {
+		return workspaceFilesResult{}, err
+	}
+	directoryTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfig.String(), defaultWorkspaceDirectoryTooltipRules)
+	if err != nil {
+		return workspaceFilesResult{}, err
+	}
+	buildContext := workspaceTreeBuildContext{
+		TrackedKinds:          trackedProjectFileKinds(rootDir, aggregate.Files),
+		HiddenDirectories:     hiddenDirectories,
+		FileTooltipRules:      fileTooltipRules,
+		DirectoryTooltipRules: directoryTooltipRules,
+		Annotations:           aggregate.Project.WorkspaceAnnotations,
+	}
+	items, hasMoreHidden, err := buildVisibleWorkspaceItems(
+		entries,
+		currentPath,
+		buildContext,
+		query.ShowHidden,
+	)
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
@@ -155,6 +190,60 @@ func (s *Service) saveProjectFileContent(
 	}, nil
 }
 
+func (s *Service) updateProjectWorkspaceAnnotation(
+	ctx context.Context,
+	projectID uint64,
+	path string,
+	annotation *string,
+	actorID *uint64,
+) (workspaceFileItem, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return workspaceFileItem{}, err
+	}
+	rootDir, relativePath, err := resolveProjectWorkspaceDirectory(aggregate.Project.WorkingDirectory, path)
+	if err != nil {
+		return workspaceFileItem{}, err
+	}
+	if relativePath == "" {
+		return workspaceFileItem{}, errProjectInvalidArgument
+	}
+	absolutePath := filepath.Join(rootDir, relativePath)
+	info, err := os.Stat(absolutePath)
+	if err != nil {
+		return workspaceFileItem{}, mapWorkspacePathError(err)
+	}
+	updatedAggregate, err := s.repository.UpdateWorkspaceAnnotation(ctx, projectstore.UpdateWorkspaceAnnotationInput{
+		ProjectID:    projectID,
+		RelativePath: relativePath,
+		Annotation:   annotation,
+		ActorID:      actorID,
+	})
+	if err != nil {
+		return workspaceFileItem{}, mapStoreError(err)
+	}
+	entry := fs.FileInfoToDirEntry(info)
+	hiddenDirectories, err := s.workspaceHiddenDirectories(ctx)
+	if err != nil {
+		return workspaceFileItem{}, err
+	}
+	fileTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceFileTooltipRulesConfig.String(), defaultWorkspaceFileTooltipRules)
+	if err != nil {
+		return workspaceFileItem{}, err
+	}
+	directoryTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfig.String(), defaultWorkspaceDirectoryTooltipRules)
+	if err != nil {
+		return workspaceFileItem{}, err
+	}
+	return buildProjectWorkspaceFileItem(relativePath, entry, workspaceTreeBuildContext{
+		TrackedKinds:          trackedProjectFileKinds(rootDir, updatedAggregate.Files),
+		HiddenDirectories:     hiddenDirectories,
+		FileTooltipRules:      fileTooltipRules,
+		DirectoryTooltipRules: directoryTooltipRules,
+		Annotations:           updatedAggregate.Project.WorkspaceAnnotations,
+	})
+}
+
 func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]trackedWorkspaceFile, error) {
 	rootDir, _, err := resolveProjectWorkspaceDirectory(aggregate.Project.WorkingDirectory, "")
 	if err != nil {
@@ -189,8 +278,7 @@ func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]tracked
 func buildProjectWorkspaceFileItem(
 	relativePath string,
 	entry fs.DirEntry,
-	trackedKinds map[string]string,
-	hiddenDirectories []string,
+	buildContext workspaceTreeBuildContext,
 ) (workspaceFileItem, error) {
 	nodeType := "file"
 	if entry.IsDir() {
@@ -200,7 +288,15 @@ func buildProjectWorkspaceFileItem(
 	if err != nil {
 		return workspaceFileItem{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	fileKind, languageHint, editable := classifyWorkspaceFile(relativePath, trackedKinds)
+	fileKind, languageHint, editable := classifyWorkspaceFile(relativePath, buildContext.TrackedKinds)
+	projectNote := strings.TrimSpace(buildContext.Annotations[normalizeWorkspaceRelative(relativePath)])
+	tooltip, tooltipSource := resolveWorkspaceTooltip(
+		entry.Name(),
+		entry.IsDir(),
+		projectNote,
+		buildContext.FileTooltipRules,
+		buildContext.DirectoryTooltipRules,
+	)
 	return workspaceFileItem{
 		Name:            entry.Name(),
 		RelativePath:    relativePath,
@@ -209,8 +305,11 @@ func buildProjectWorkspaceFileItem(
 		Editable:        editable,
 		LanguageHint:    languageHint,
 		SizeBytes:       info.Size(),
-		HiddenByDefault: shouldHideWorkspaceEntry(entry.Name(), entry.IsDir(), hiddenDirectories),
+		HiddenByDefault: shouldHideWorkspaceEntry(entry.Name(), entry.IsDir(), buildContext.HiddenDirectories),
 		HasChildren:     nodeType == "directory",
+		Tooltip:         tooltip,
+		TooltipSource:   tooltipSource,
+		ProjectNote:     projectNote,
 	}, nil
 }
 
@@ -310,8 +409,7 @@ func normalizeWorkspaceRelative(path string) string {
 func buildVisibleWorkspaceItems(
 	entries []os.DirEntry,
 	currentPath string,
-	trackedKinds map[string]string,
-	hiddenDirectories []string,
+	buildContext workspaceTreeBuildContext,
 	showHidden bool,
 ) ([]workspaceFileItem, bool, error) {
 	items := make([]workspaceFileItem, 0, len(entries))
@@ -321,12 +419,12 @@ func buildVisibleWorkspaceItems(
 		if name == "" {
 			continue
 		}
-		if !showHidden && shouldHideWorkspaceEntry(name, entry.IsDir(), hiddenDirectories) {
+		if !showHidden && shouldHideWorkspaceEntry(name, entry.IsDir(), buildContext.HiddenDirectories) {
 			hasMoreHidden = true
 			continue
 		}
 		relativePath := normalizeWorkspaceRelative(filepath.Join(currentPath, name))
-		item, err := buildProjectWorkspaceFileItem(relativePath, entry, trackedKinds, hiddenDirectories)
+		item, err := buildProjectWorkspaceFileItem(relativePath, entry, buildContext)
 		if err != nil {
 			return nil, false, err
 		}
@@ -413,4 +511,84 @@ func decodeWorkspaceHiddenDirectories(raw string) ([]string, error) {
 		result = append(result, filepath.Base(trimmed))
 	}
 	return result, nil
+}
+
+func (s *Service) workspaceTooltipRules(
+	ctx context.Context,
+	configKey string,
+	fallback string,
+) ([]workspaceTooltipRule, error) {
+	if s == nil || s.configResolver == nil {
+		return decodeWorkspaceTooltipRules(fallback)
+	}
+	raw, err := s.configResolver.ResolveDefaultConfig(ctx, configKey)
+	if err != nil {
+		return decodeWorkspaceTooltipRules(fallback)
+	}
+	var encoded string
+	if unmarshalErr := json.Unmarshal([]byte(raw), &encoded); unmarshalErr != nil {
+		encoded = raw
+	}
+	rules, decodeErr := decodeWorkspaceTooltipRules(encoded)
+	if decodeErr == nil {
+		return rules, nil
+	}
+	return decodeWorkspaceTooltipRules(fallback)
+}
+
+func decodeWorkspaceTooltipRules(raw string) ([]workspaceTooltipRule, error) {
+	var rules []workspaceTooltipRule
+	if err := json.Unmarshal([]byte(raw), &rules); err != nil {
+		return nil, fmt.Errorf("%w: invalid workspace tooltip rule config", errProjectInvalidArgument)
+	}
+	normalized := make([]workspaceTooltipRule, 0, len(rules))
+	for _, rule := range rules {
+		pattern := strings.TrimSpace(rule.Pattern)
+		if pattern == "" {
+			continue
+		}
+		regex, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid workspace tooltip rule pattern", errProjectInvalidArgument)
+		}
+		normalized = append(normalized, workspaceTooltipRule{
+			Enabled: rule.Enabled,
+			Pattern: pattern,
+			Tooltip: strings.TrimSpace(rule.Tooltip),
+			regex:   regex,
+		})
+	}
+	return normalized, nil
+}
+
+func resolveWorkspaceTooltip(
+	name string,
+	isDirectory bool,
+	projectNote string,
+	fileTooltipRules []workspaceTooltipRule,
+	directoryTooltipRules []workspaceTooltipRule,
+) (string, string) {
+	if projectNote != "" {
+		return projectNote, "project-note"
+	}
+	rules := fileTooltipRules
+	if isDirectory {
+		rules = directoryTooltipRules
+	}
+	baseName := filepath.Base(strings.TrimSpace(name))
+	matchedTooltip := ""
+	for _, rule := range rules {
+		if rule.regex == nil || !rule.regex.MatchString(baseName) {
+			continue
+		}
+		if !rule.Enabled {
+			matchedTooltip = ""
+			continue
+		}
+		matchedTooltip = rule.Tooltip
+	}
+	if matchedTooltip == "" {
+		return "", ""
+	}
+	return matchedTooltip, "default-rule"
 }

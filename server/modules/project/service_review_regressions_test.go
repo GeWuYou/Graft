@@ -378,6 +378,10 @@ func (r *pagedConflictRepository) UpdateLifecycleConfig(context.Context, project
 	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
 }
 
+func (r *pagedConflictRepository) UpdateWorkspaceAnnotation(context.Context, projectstore.UpdateWorkspaceAnnotationInput) (projectstore.ProjectAggregate, error) {
+	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
+}
+
 func (r *pagedConflictRepository) UnregisterProject(context.Context, projectstore.UnregisterProjectInput) error {
 	return projectstore.ErrInvalidInput
 }

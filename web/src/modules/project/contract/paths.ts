@@ -37,6 +37,7 @@ export const PROJECT_API_PATH = {
   CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
   FILES: '/api/ops/projects/{id}/files',
   FILES_CONTENT: '/api/ops/projects/{id}/files/content',
+  FILES_ANNOTATION: '/api/ops/projects/{id}/files/annotation',
   LIFECYCLE_CONFIGURATION: '/api/ops/projects/{id}/lifecycle-configuration',
   REFRESH: '/api/ops/projects/{id}/refresh',
   DEPLOY: '/api/ops/projects/{id}/deploy',
@@ -132,6 +133,10 @@ export function buildProjectFilesApiPath(id: number) {
 
 export function buildProjectFilesContentApiPath(id: number) {
   return PROJECT_API_PATH.FILES_CONTENT.replace('{id}', encodeProjectPathParam(id));
+}
+
+export function buildProjectFilesAnnotationApiPath(id: number) {
+  return PROJECT_API_PATH.FILES_ANNOTATION.replace('{id}', encodeProjectPathParam(id));
 }
 
 export function buildProjectLifecycleConfigurationApiPath(id: number) {

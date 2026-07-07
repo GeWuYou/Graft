@@ -51,6 +51,8 @@
     },
     "configurationWorkspace": {
       "copy": {
+        "annotationAction": "Edit Annotation",
+        "annotationUnavailableMessage": "Annotation editing will be enabled after the workspace note API is wired.",
         "cancelAction": "Cancel",
         "continueWithDiskAction": "Continue with Disk Version",
         "deployAction": "Deploy Project",
@@ -68,7 +70,7 @@
         "envRedeployHint": "Environment variable changes usually require a project redeploy before they take effect.",
         "feedbackHint": "Validation and diff results stay here without disrupting the current file buffer.",
         "feedbackTitle": "Feedback Workspace",
-        "fileTreeHint": "Show the API-backed files and directories for the current path, while applying default-hide rules only to directories.",
+        "fileTreeHint": "Use the compact workspace tree to inspect files, expand directories, and keep editor space focused on the active buffer.",
         "fileTreeTitle": "Project Files",
         "filesEmpty": "No files are available in this directory.",
         "exitFullscreenAction": "Exit Fullscreen",
@@ -88,6 +90,7 @@
         "reloadAction": "Reload File",
         "reloadConfirmBody": "Reloading will discard the current unsaved edits for this file.",
         "reloadConfirmTitle": "Reload File",
+        "resizeFileTreeAriaLabel": "Resize File Tree",
         "saveAction": "Save",
         "saveAndContinueAction": "Save and Continue",
         "saveFailed": "Failed to save the file.",

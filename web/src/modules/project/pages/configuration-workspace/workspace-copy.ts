@@ -1,4 +1,6 @@
 type WorkspaceCopy = {
+  annotationAction: string;
+  annotationUnavailableMessage: string;
   cancelAction: string;
   continueWithDiskAction: string;
   deployAction: string;
@@ -36,6 +38,7 @@ type WorkspaceCopy = {
   reloadAction: string;
   reloadConfirmBody: string;
   reloadConfirmTitle: string;
+  resizeFileTreeAriaLabel: string;
   saveAction: string;
   saveAndContinueAction: string;
   saveFailed: string;
@@ -63,6 +66,8 @@ type WorkspaceCopyKey = keyof WorkspaceCopy;
 type WorkspaceCopyTranslate = (key: string) => string;
 
 const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
+  annotationAction: 'project.configurationWorkspace.copy.annotationAction',
+  annotationUnavailableMessage: 'project.configurationWorkspace.copy.annotationUnavailableMessage',
   cancelAction: 'project.configurationWorkspace.copy.cancelAction',
   continueWithDiskAction: 'project.configurationWorkspace.copy.continueWithDiskAction',
   deployAction: 'project.configurationWorkspace.copy.deployAction',
@@ -100,6 +105,7 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   reloadAction: 'project.configurationWorkspace.copy.reloadAction',
   reloadConfirmBody: 'project.configurationWorkspace.copy.reloadConfirmBody',
   reloadConfirmTitle: 'project.configurationWorkspace.copy.reloadConfirmTitle',
+  resizeFileTreeAriaLabel: 'project.configurationWorkspace.copy.resizeFileTreeAriaLabel',
   saveAction: 'project.configurationWorkspace.copy.saveAction',
   saveAndContinueAction: 'project.configurationWorkspace.copy.saveAndContinueAction',
   saveFailed: 'project.configurationWorkspace.copy.saveFailed',

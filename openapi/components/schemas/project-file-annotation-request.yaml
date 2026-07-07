@@ -1,0 +1,5 @@
+type: object
+properties:
+  annotation:
+    type: string
+    nullable: true

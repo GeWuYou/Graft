@@ -43,6 +43,10 @@ systemConfig.groups.ops.project.create.description: 管理受管项目创建流�
 systemConfig.project.ops.project.workspace.hidden_directories.title: 工作台默认隐藏目录
 systemConfig.project.ops.project.workspace.hidden_directories.description: 配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。
 systemConfig.project.ops.project.workspace.hidden_directories.placeholder: 输入目录名后回车，例如 node_modules、.git
+systemConfig.project.ops.project.workspace.file_tooltip_rules.title: 工作台文件默认提示规则
+systemConfig.project.ops.project.workspace.file_tooltip_rules.description: 配置工作台文件名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
+systemConfig.project.ops.project.workspace.directory_tooltip_rules.title: 工作台目录默认提示规则
+systemConfig.project.ops.project.workspace.directory_tooltip_rules.description: 配置工作台目录名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
 systemConfig.groups.ops.project.import: 项目导入
 systemConfig.groups.ops.project.import.description: 管理导入流程允许浏览的根目录与边界。
 systemConfig.groups.ops.project.workspace: 项目工作台

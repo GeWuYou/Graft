@@ -22,12 +22,12 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-		last_refresh_status, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		last_refresh_status, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "demo", "demo", projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(),
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
-		projectcontract.RefreshStatusSuccess.String(), projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
+		projectcontract.RefreshStatusSuccess.String(), `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
 	mustExec(t, db, `INSERT INTO compose_project_files (
 		id, project_id, kind, role, absolute_path, display_path, order_index, exists_on_last_refresh, last_observed_hash, created_at, updated_at
@@ -157,6 +157,7 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		last_refresh_error_message TEXT NOT NULL DEFAULT '',
 		last_refresh_config_hash TEXT NOT NULL DEFAULT '',
 		last_observed_config_hash TEXT NOT NULL DEFAULT '',
+		workspace_annotations_json TEXT NOT NULL DEFAULT '{}',
 		last_drift_checked_at TIMESTAMP NULL,
 		drift_status TEXT NOT NULL,
 		created_by INTEGER NULL,
@@ -194,12 +195,12 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-		last_refresh_status, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		last_refresh_status, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, name, name, projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(),
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
-		projectcontract.RefreshStatusSuccess.String(), projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
+		projectcontract.RefreshStatusSuccess.String(), `{}`, projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
 	)
 }
 

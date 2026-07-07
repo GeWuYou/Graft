@@ -72,6 +72,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectWorkspaceFilesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFiles)
 	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
+	group.PUT(projectcontract.ProjectWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
 	group.POST(projectcontract.ProjectConfigurationDiffRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationDiff)
 	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
@@ -431,6 +432,47 @@ func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context)
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectWorkspaceFileSaveResponse(result))
+}
+
+func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	path, ok := bindProjectWorkspaceFilePath(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	var request generated.PutProjectFileAnnotationJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PutProjectFileAnnotation(generatedID, bindPutProjectFileAnnotationParams(ginCtx, path), request)
+	result, err := r.service.updateProjectWorkspaceAnnotation(
+		ginCtx.Request.Context(),
+		projectID,
+		path,
+		request.Annotation,
+		currentUserIDPointer(ginCtx),
+	)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ProjectFileTreeItem{
+		Name:            result.Name,
+		RelativePath:    result.RelativePath,
+		NodeType:        generated.ProjectFileTreeNodeType(result.NodeType),
+		FileKind:        generated.ProjectWorkspaceFileKind(result.FileKind),
+		Editable:        result.Editable,
+		LanguageHint:    result.LanguageHint,
+		SizeBytes:       result.SizeBytes,
+		HiddenByDefault: result.HiddenByDefault,
+		HasChildren:     result.HasChildren,
+		ProjectNote:     optionalString(result.ProjectNote),
+		Tooltip:         optionalString(result.Tooltip),
+		TooltipSource:   optionalString(result.TooltipSource),
+	})
 }
 
 func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
@@ -799,6 +841,8 @@ func (projectGeneratedHandler) GetProjectFiles(int64, generated.GetProjectFilesP
 func (projectGeneratedHandler) GetProjectFileContent(int64, generated.GetProjectFileContentParams) {}
 func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProjectFileContentParams, generated.PutProjectFileContentJSONRequestBody) {
 }
+func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
+}
 func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams) {
 }
 func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
@@ -1110,6 +1154,12 @@ func bindPutProjectFileContentParams(ginCtx *gin.Context, path string) generated
 	locale, requestID := commonHeaders(ginCtx)
 	queryPath := generated.ProjectWorkspacePathQuery(path)
 	return generated.PutProjectFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
+}
+
+func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) generated.PutProjectFileAnnotationParams {
+	locale, requestID := commonHeaders(ginCtx)
+	queryPath := generated.ProjectWorkspacePathQuery(path)
+	return generated.PutProjectFileAnnotationParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
 }
 
 // bindPostProjectConfigurationDiffParams 组装项目配置 diff 请求的公共请求头参数。

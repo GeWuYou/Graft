@@ -149,6 +149,10 @@ const (
 	ProjectImportAllowedRootsConfig ConfigKey = "ops.project.import.allowed_roots"
 	// ProjectWorkspaceHiddenDirectoriesConfig stores default-hidden heavy directories for the configuration workspace tree.
 	ProjectWorkspaceHiddenDirectoriesConfig ConfigKey = "ops.project.workspace.hidden_directories"
+	// ProjectWorkspaceFileTooltipRulesConfig stores ordered default tooltip rules matched against file basenames.
+	ProjectWorkspaceFileTooltipRulesConfig ConfigKey = "ops.project.workspace.file_tooltip_rules"
+	// ProjectWorkspaceDirectoryTooltipRulesConfig stores ordered default tooltip rules matched against directory basenames.
+	ProjectWorkspaceDirectoryTooltipRulesConfig ConfigKey = "ops.project.workspace.directory_tooltip_rules"
 )
 
 const (
@@ -178,4 +182,12 @@ const (
 	ProjectWorkspaceConfigGroupDescription ConfigMessageKey = "systemConfig.groups.ops.project.workspace.description"
 	// ProjectWorkspaceHiddenDirectoriesPlaceholder identifies the workspace hidden-directory editor placeholder key.
 	ProjectWorkspaceHiddenDirectoriesPlaceholder ConfigMessageKey = "systemConfig.project.ops.project.workspace.hidden_directories.placeholder"
+	// ProjectWorkspaceFileTooltipRulesConfigTitle identifies the workspace file-tooltip rules config title localization key.
+	ProjectWorkspaceFileTooltipRulesConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.workspace.file_tooltip_rules.title"
+	// ProjectWorkspaceFileTooltipRulesConfigDescription identifies the workspace file-tooltip rules config description localization key.
+	ProjectWorkspaceFileTooltipRulesConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.workspace.file_tooltip_rules.description"
+	// ProjectWorkspaceDirectoryTooltipRulesConfigTitle identifies the workspace directory-tooltip rules config title localization key.
+	ProjectWorkspaceDirectoryTooltipRulesConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.workspace.directory_tooltip_rules.title"
+	// ProjectWorkspaceDirectoryTooltipRulesConfigDescription identifies the workspace directory-tooltip rules config description localization key.
+	ProjectWorkspaceDirectoryTooltipRulesConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.workspace.directory_tooltip_rules.description"
 )

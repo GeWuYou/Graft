@@ -11,9 +11,11 @@ const mocks = vi.hoisted(() => ({
   getProjectConfigurationPreview: vi.fn(),
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
+  info: vi.fn(),
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
+  putProjectFileAnnotation: vi.fn(),
   putProjectFileContent: vi.fn(),
   success: vi.fn(),
   t: vi.fn((key: string) => key),
@@ -31,11 +33,16 @@ const pageContextState = reactive({
 
 const workspaceCopyMessages = {
   'en-US': {
+    'project.configurationWorkspace.copy.annotationAction': 'Edit Annotation',
+    'project.configurationWorkspace.copy.annotationUnavailableMessage':
+      'Annotation editing will be enabled after the workspace note API is wired.',
     'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
     'project.configurationWorkspace.copy.saveAction': 'Save',
     'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
   },
   'zh-CN': {
+    'project.configurationWorkspace.copy.annotationAction': '编辑注释',
+    'project.configurationWorkspace.copy.annotationUnavailableMessage': '工作台注释编辑会在后端注释接口接入后启用。',
     'project.configurationWorkspace.copy.deployAction': '部署项目',
     'project.configurationWorkspace.copy.deployDirtyBody': '检测到未保存的修改，是否先保存？',
     'project.configurationWorkspace.copy.saveAction': '保存',
@@ -52,6 +59,7 @@ vi.mock('../../api/project', () => ({
   postProjectConfigurationDiff: mocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
   postProjectDeploy: mocks.postProjectDeploy,
+  putProjectFileAnnotation: mocks.putProjectFileAnnotation,
   putProjectFileContent: mocks.putProjectFileContent,
 }));
 
@@ -80,6 +88,7 @@ vi.mock('vue-router', async () => {
 vi.mock('tdesign-vue-next/es/message', () => ({
   MessagePlugin: {
     error: (...args: unknown[]) => mocks.error(...args),
+    info: (...args: unknown[]) => mocks.info(...args),
     success: (...args: unknown[]) => mocks.success(...args),
     warning: (...args: unknown[]) => mocks.warning(...args),
   },
@@ -196,16 +205,27 @@ const TButtonStub = defineComponent({
     disabled: { type: Boolean, default: false },
   },
   emits: ['click'],
-  setup(props, { emit, slots }) {
+  setup(props, { attrs, emit, slots }) {
     return () =>
       h(
         'button',
         {
+          ...attrs,
           disabled: props.disabled,
-          onClick: () => !props.disabled && emit('click'),
+          onClick: (event: MouseEvent) => !props.disabled && emit('click', event),
         },
-        slots.default?.(),
+        [slots.icon?.(), slots.default?.()],
       );
+  },
+});
+
+const TTooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  props: {
+    content: { type: String, default: '' },
+  },
+  setup(props, { slots }) {
+    return () => h('span', { 'data-tooltip-content': props.content }, slots.default?.());
   },
 });
 
@@ -262,7 +282,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     });
     mocks.getProjectConfigurationPreview.mockResolvedValue({
       canonical_project_name: 'sub2api',
-      config_hash: 'preview-hash',
+      config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
       normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
       project_id: 1,
       refreshed_at: '2026-07-03T13:12:38Z',
@@ -326,24 +346,38 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       saved_at: '2026-07-06T10:00:00Z',
       size_bytes: 40,
     });
+    mocks.putProjectFileAnnotation.mockResolvedValue({
+      editable: true,
+      file_kind: 'compose',
+      has_children: false,
+      hidden_by_default: false,
+      language_hint: 'yaml',
+      name: 'docker-compose.yml',
+      node_type: 'file',
+      project_note: 'Existing note',
+      relative_path: 'docker-compose.yml',
+      size_bytes: 32,
+      tooltip: 'Existing note',
+      tooltip_source: 'project-note',
+    });
     mocks.postProjectConfigurationDiff.mockResolvedValue({
       canonical_project_name: 'sub2api',
-      current_config_hash: 'current-hash',
+      current_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
       files: [
         {
           changed: true,
           current_content: 'services:\n  api:\n    image: old\n',
-          current_hash: 'old-hash',
+          current_hash: 'c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef',
           kind: 'compose',
           path: 'docker-compose.yml',
           proposed_content: 'services:\n  api:\n    image: app\n',
-          proposed_hash: 'new-hash',
+          proposed_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
         },
       ],
       has_changes: true,
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
-      proposed_config_hash: 'proposed-hash',
+      proposed_config_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
       warnings: [],
     });
     mocks.postProjectConfigurationValidate.mockResolvedValue({
@@ -352,7 +386,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
-      proposed_config_hash: 'validated-hash',
+      proposed_config_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
       warnings: [],
     });
     mocks.postProjectDeploy.mockResolvedValue({
@@ -423,6 +457,49 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
+  it('renders compact tree row actions and removes the duplicate editor title header', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__editor-head').exists()).toBe(false);
+    expect(wrapper.find('.project-configuration-workspace__browser-toolbar').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('current directory still contains default-hidden directories');
+  });
+
+  it('shows compact tree toolbar actions and opens the annotation editor', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    const hiddenToggle = wrapper.get('[data-testid="workspace-show-hidden-toggle"]');
+    expect(hiddenToggle.element.parentElement?.getAttribute('data-tooltip-content')).toBe(
+      'project.configurationWorkspace.copy.showHiddenAction',
+    );
+    expect(hiddenToggle.text()).toBe('');
+
+    const annotationButton = wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]');
+    expect(annotationButton.element.parentElement?.getAttribute('data-tooltip-content')).toBe('Edit Annotation');
+
+    await annotationButton.trigger('click');
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('true');
+  });
+
+  it('truncates configuration hashes while keeping the full value in tooltips', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('40ddc4...b6182c');
+    expect(wrapper.text()).toContain('0dd31a...27ca10');
+    expect(wrapper.html()).toContain('data-tooltip-content="40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c"');
+    expect(wrapper.html()).toContain('data-tooltip-content="0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10"');
+  });
+
   it('saves the active file buffer without deploying the project', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -489,6 +566,21 @@ function mountWorkspace() {
         TTabPanel: TTabPanelStub,
         TTabs: TTabsStub,
         TTag: createTStub('TTag'),
+        TTextarea: defineComponent({
+          name: 'TTextareaStub',
+          props: {
+            modelValue: { type: String, default: '' },
+          },
+          emits: ['update:modelValue'],
+          setup(props, { emit }) {
+            return () =>
+              h('textarea', {
+                value: props.modelValue,
+                onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLTextAreaElement).value),
+              });
+          },
+        }),
+        TTooltip: TTooltipStub,
       },
     },
   });

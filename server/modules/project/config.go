@@ -18,11 +18,14 @@ const (
 	maxManagedRootLength         = 1024
 	maxImportRootsLength         = 8192
 	maxWorkspaceHiddenDirsLength = 4096
+	maxWorkspaceTooltipRulesJSON = 16384
 )
 
 const defaultManagedRootDirectory = ""
 const defaultImportAllowedRoots = "[]"
 const defaultWorkspaceHiddenDirectories = `[".git",".github","node_modules","vendor","target","build","dist","coverage","data","logs","tmp","cache",".idea",".vscode"]`
+const defaultWorkspaceFileTooltipRules = `[{"pattern":"^docker-compose(?:\\.[^.]+)?\\.ya?ml$","tooltip":"Compose 配置","enabled":true},{"pattern":"^\\.env(?:\\..+)?$","tooltip":"环境变量文件","enabled":true}]`
+const defaultWorkspaceDirectoryTooltipRules = `[{"pattern":"^logs$","tooltip":"日志目录","enabled":true}]`
 const projectConfigDomainKey = "systemConfig.domains.ops"
 
 type projectConfigDefinitionSpec struct {
@@ -58,6 +61,8 @@ func configDefinitions() []configregistry.Definition {
 		projectManagedRootDefinition(),
 		projectImportAllowedRootsDefinition(),
 		projectWorkspaceHiddenDirectoriesDefinition(),
+		projectWorkspaceFileTooltipRulesDefinition(),
+		projectWorkspaceDirectoryTooltipRulesDefinition(),
 	}
 }
 
@@ -99,6 +104,34 @@ func projectWorkspaceHiddenDirectoriesDefinition() configregistry.Definition {
 		descriptionKey:      projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
 		schema:              projectWorkspaceHiddenDirectoriesSchema(),
 		defaultValue:        defaultWorkspaceHiddenDirectories,
+		permission:          projectcontract.ProjectViewPermission.String(),
+	})
+}
+
+func projectWorkspaceFileTooltipRulesDefinition() configregistry.Definition {
+	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
+		key:                 projectcontract.ProjectWorkspaceFileTooltipRulesConfig.String(),
+		group:               projectConfigGroupWorkspace,
+		groupKey:            projectcontract.ProjectWorkspaceConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ProjectWorkspaceConfigGroupDescription.String(),
+		titleKey:            projectcontract.ProjectWorkspaceFileTooltipRulesConfigTitle.String(),
+		descriptionKey:      projectcontract.ProjectWorkspaceFileTooltipRulesConfigDescription.String(),
+		schema:              projectWorkspaceTooltipRulesSchema(projectcontract.ProjectWorkspaceFileTooltipRulesConfigDescription.String()),
+		defaultValue:        defaultWorkspaceFileTooltipRules,
+		permission:          projectcontract.ProjectViewPermission.String(),
+	})
+}
+
+func projectWorkspaceDirectoryTooltipRulesDefinition() configregistry.Definition {
+	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
+		key:                 projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfig.String(),
+		group:               projectConfigGroupWorkspace,
+		groupKey:            projectcontract.ProjectWorkspaceConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ProjectWorkspaceConfigGroupDescription.String(),
+		titleKey:            projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfigTitle.String(),
+		descriptionKey:      projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfigDescription.String(),
+		schema:              projectWorkspaceTooltipRulesSchema(projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfigDescription.String()),
+		defaultValue:        defaultWorkspaceDirectoryTooltipRules,
 		permission:          projectcontract.ProjectViewPermission.String(),
 	})
 }
@@ -152,6 +185,14 @@ func projectWorkspaceHiddenDirectoriesSchema() string {
 		maxWorkspaceHiddenDirsLength,
 		projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
 		projectcontract.ProjectWorkspaceHiddenDirectoriesPlaceholder.String(),
+	)
+}
+
+func projectWorkspaceTooltipRulesSchema(descriptionKey string) string {
+	return fmt.Sprintf(
+		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string of ordered workspace tooltip rules. Each rule contains basename regex pattern, tooltip text, and enabled flag. Later enabled matches override earlier matches.","examples":["[{\"pattern\":\"^docker-compose(?:\\\\.[^.]+)?\\\\.ya?ml$\",\"tooltip\":\"Compose 配置\",\"enabled\":true}]"],"x-i18n":{"descriptionKey":"%s"},"x-graft":{"editor":"workspace-tooltip-rule-list"}}`,
+		maxWorkspaceTooltipRulesJSON,
+		descriptionKey,
 	)
 }
 

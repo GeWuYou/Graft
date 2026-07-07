@@ -12153,6 +12153,100 @@
         }
       }
     },
+    "/api/ops/projects/{id}/files/annotation": {
+      "put": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Update one project workspace file or directory annotation",
+        "operationId": "putProjectFileAnnotation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/project-workspace-path-query"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-file-annotation-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated project workspace tree item with resolved tooltip and annotation state.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-file-tree-item-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id, path, or annotation payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record or target path not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}/configuration/diff": {
       "post": {
         "tags": [
@@ -13985,6 +14079,9 @@
       "ProjectFileTreeItem": {
         "$ref": "#/components/schemas/project-file-tree-item"
       },
+      "ProjectFileAnnotationRequest": {
+        "$ref": "#/components/schemas/project-file-annotation-request"
+      },
       "ProjectFilesResponse": {
         "$ref": "#/components/schemas/project-files-response"
       },
@@ -14044,6 +14141,9 @@
       },
       "EnvelopedProjectFileContentResponse": {
         "$ref": "#/components/schemas/enveloped-project-file-content-response"
+      },
+      "EnvelopedProjectFileTreeItemResponse": {
+        "$ref": "#/components/schemas/enveloped-project-file-tree-item-response"
       },
       "EnvelopedProjectFileSaveResponse": {
         "$ref": "#/components/schemas/enveloped-project-file-save-response"
@@ -24941,6 +25041,18 @@
           },
           "has_children": {
             "type": "boolean"
+          },
+          "tooltip": {
+            "type": "string",
+            "nullable": true
+          },
+          "tooltip_source": {
+            "type": "string",
+            "nullable": true
+          },
+          "project_note": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -25102,6 +25214,26 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/project-file-save-response"
+          }
+        }
+      },
+      "project-file-annotation-request": {
+        "type": "object",
+        "properties": {
+          "annotation": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "enveloped-project-file-tree-item-response": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/project-file-tree-item"
           }
         }
       },

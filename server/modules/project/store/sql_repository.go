@@ -75,8 +75,8 @@ func (r *SQLRepository) listProjectsPage(
 			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_refresh_status, last_refresh_at, last_refresh_error_code,
-			last_refresh_error_message, last_refresh_config_hash, last_observed_config_hash, last_drift_checked_at,
-			drift_status, created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
+			last_refresh_error_message, last_refresh_config_hash, last_observed_config_hash, workspace_annotations_json,
+			last_drift_checked_at, drift_status, created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY updated_at DESC, id DESC
@@ -140,8 +140,8 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_refresh_status, last_refresh_at, last_refresh_error_code,
-			last_refresh_error_message, last_refresh_config_hash, last_observed_config_hash, last_drift_checked_at,
-			drift_status, created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
+			last_refresh_error_message, last_refresh_config_hash, last_observed_config_hash, workspace_annotations_json,
+			last_drift_checked_at, drift_status, created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
 		WHERE id = ? AND deleted_at = 0`),
 		projectDBID,
@@ -312,6 +312,69 @@ func (r *SQLRepository) UpdateLifecycleConfig(ctx context.Context, input UpdateL
 		return ProjectAggregate{}, ErrProjectNotFound
 	}
 	return r.Get(ctx, input.ProjectID)
+}
+
+// UpdateWorkspaceAnnotation updates or removes one workspace annotation on the owning project row.
+func (r *SQLRepository) UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ProjectAggregate, error) {
+	if err := r.ensureReady(); err != nil {
+		return ProjectAggregate{}, err
+	}
+	input, err := validateUpdateWorkspaceAnnotationInput(input)
+	if err != nil {
+		return ProjectAggregate{}, err
+	}
+	aggregate, err := r.Get(ctx, input.ProjectID)
+	if err != nil {
+		return ProjectAggregate{}, err
+	}
+	annotations := applyWorkspaceAnnotationUpdate(
+		aggregate.Project.WorkspaceAnnotations,
+		input.RelativePath,
+		input.Annotation,
+	)
+	encoded, err := encodeWorkspaceAnnotationsJSON(annotations)
+	if err != nil {
+		return ProjectAggregate{}, err
+	}
+	projectDBID, err := toDBID(input.ProjectID)
+	if err != nil {
+		return ProjectAggregate{}, err
+	}
+	result, err := r.db.ExecContext(
+		ctx,
+		r.placeholder.rebind(`UPDATE compose_projects
+		SET workspace_annotations_json = ?::jsonb,
+			updated_by = ?,
+			updated_at = NOW()
+		WHERE id = ? AND deleted_at = 0`),
+		string(encoded),
+		input.ActorID,
+		projectDBID,
+	)
+	if err != nil {
+		return ProjectAggregate{}, mapWriteErr("update workspace annotation", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return ProjectAggregate{}, fmt.Errorf("read workspace annotation update rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ProjectAggregate{}, ErrProjectNotFound
+	}
+	return r.Get(ctx, input.ProjectID)
+}
+
+func applyWorkspaceAnnotationUpdate(current map[string]string, relativePath string, annotation *string) map[string]string {
+	next := make(map[string]string, len(current))
+	for key, value := range current {
+		next[key] = value
+	}
+	if annotation == nil {
+		delete(next, relativePath)
+		return next
+	}
+	next[relativePath] = *annotation
+	return next
 }
 
 // UnregisterProject soft-deletes one live project registry row without deleting host files.
@@ -589,6 +652,7 @@ func (r *SQLRepository) upsertProject(
 		input.LastRefreshErrorMessage,
 		input.LastRefreshConfigHash,
 		input.LastObservedConfigHash,
+		`{}`,
 		input.LastDriftCheckedAt,
 		input.DriftStatus,
 		input.ActorID,
@@ -607,10 +671,10 @@ func composeProjectsUpsertSQL() string {
 			display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_refresh_status, last_refresh_at, last_refresh_error_code, last_refresh_error_message,
-			last_refresh_config_hash, last_observed_config_hash, last_drift_checked_at, drift_status,
+			last_refresh_config_hash, last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (host_scope, canonical_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
