@@ -155,7 +155,7 @@ watch(
     if (userResized.value || isFullscreen.value) {
       return;
     }
-    panelHeight.value = clampHeight(panelHeight.value || resolvePreferredHeight());
+    panelHeight.value = clampHeight(props.defaultHeight > 0 ? props.defaultHeight : resolvePreferredHeight());
   },
 );
 

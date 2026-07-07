@@ -56,15 +56,30 @@ describe('ContentViewerFrame', () => {
       Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalHeight });
     }
   });
+
+  it('recomputes panel height from an updated defaultHeight prop before the user resizes', async () => {
+    const wrapper = mountFrame({
+      defaultHeight: 600,
+    });
+
+    expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height: 600px;');
+
+    await wrapper.setProps({
+      defaultHeight: 620,
+    });
+
+    expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height: 620px;');
+  });
 });
 
-function mountFrame() {
+function mountFrame(props: Record<string, unknown> = {}) {
   const wrapper = mount(ContentViewerFrame, {
     props: {
       storageKey: 'graft.test.viewer.height',
       fullscreenLabel: '全屏',
       exitFullscreenLabel: '退出全屏',
       resizeHandleLabel: '调整阅读器高度',
+      ...props,
     },
     slots: {
       header: () => h('div', 'Header'),
