@@ -68,8 +68,6 @@
         "discardAction": "放弃",
         "editorAriaLabel": "项目文件编辑器",
         "envRedeployHint": "修改环境变量后通常需要重新部署项目才能生效。",
-        "feedbackHint": "校验和差异结果会在这里保留，不会覆盖文件编辑上下文。",
-        "feedbackTitle": "反馈工作区",
         "fileTreeHint": "使用紧凑文件树浏览工作台文件，按需展开目录，把更多宽度留给右侧编辑区。",
         "fileTreeTitle": "项目文件",
         "filesEmpty": "当前目录没有可浏览的文件。",

@@ -243,7 +243,9 @@ const TDialogStub = defineComponent({
   props: {
     cancelBtn: { type: [Boolean, Object], default: false },
     confirmBtn: { type: [Boolean, Object], default: false },
+    dialogClassName: { type: String, default: '' },
     header: { type: String, default: '' },
+    mode: { type: String, default: 'modal' },
     visible: { type: Boolean, default: false },
   },
   emits: ['close', 'confirm', 'update:visible'],
@@ -252,6 +254,8 @@ const TDialogStub = defineComponent({
       h(
         'div',
         {
+          'data-class-name': props.dialogClassName,
+          'data-mode': props.mode,
           'data-stub': 'TDialog',
           'data-title': props.header,
           'data-visible': String(props.visible),
@@ -513,6 +517,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__editor-head').exists()).toBe(false);
     expect(wrapper.find('.project-configuration-workspace__browser-toolbar').exists()).toBe(false);
+    expect(wrapper.find('.project-configuration-workspace__feedback').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('current directory still contains default-hidden directories');
   });
 
@@ -621,6 +626,43 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.text()).toContain('0dd31a...27ca10');
     expect(wrapper.html()).toContain('data-tooltip-content="40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c"');
     expect(wrapper.html()).toContain('data-tooltip-content="0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10"');
+  });
+
+  it('opens the diff result in a modal dialog and toggles fullscreen on demand', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction')
+      ?.trigger('click');
+    await flushPromises();
+
+    const dialogs = wrapper.findAll('[data-stub="TDialog"]');
+    const resultDialog = dialogs.at(0);
+    expect(resultDialog?.attributes('data-visible')).toBe('true');
+    expect(resultDialog?.attributes('data-mode')).toBe('modal');
+    expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(0)?.attributes('data-mode')).toBe('full-screen');
+  });
+
+  it('opens validation in the same result dialog', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.validateAction')
+      ?.trigger('click');
+    await flushPromises();
+
+    const resultDialog = wrapper.findAll('[data-stub="TDialog"]').at(0);
+    expect(resultDialog?.attributes('data-visible')).toBe('true');
+    expect(wrapper.find('[data-testid="validation-monaco-viewer"]').exists()).toBe(true);
   });
 
   it('saves the active file buffer without deploying the project', async () => {

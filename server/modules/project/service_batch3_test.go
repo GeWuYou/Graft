@@ -1969,6 +1969,21 @@ func TestBuildConfigurationDiffFileKeepsProposedContentAsNormalizedText(t *testi
 	}
 }
 
+func TestNormalizeSnapshotComposeYAMLReturnsYAMLText(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte(`{"services":{"dockge":{"image":"ghcr.io/louislam/dockge:nightly","ports":["8320:5001"]}}}`)
+
+	got := normalizeSnapshotComposeYAML(raw)
+
+	if got == string(raw) {
+		t.Fatalf("expected YAML output instead of raw JSON, got %q", got)
+	}
+	if got != "services:\n    dockge:\n        image: ghcr.io/louislam/dockge:nightly\n        ports:\n            - 8320:5001\n" {
+		t.Fatalf("unexpected YAML output %q", got)
+	}
+}
+
 func TestConfigurationDiffWarningsDoNotDuplicateSnapshotFallback(t *testing.T) {
 	t.Parallel()
 

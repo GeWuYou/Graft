@@ -16,6 +16,7 @@ import (
 
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
+	"gopkg.in/yaml.v3"
 )
 
 const projectWorkspaceEncodingUTF8 = "utf-8"
@@ -262,7 +263,7 @@ func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]tracked
 		}
 		baselineContent := ""
 		if item.Kind == projectcontract.FileKindCompose.String() && aggregate.Snapshot != nil {
-			baselineContent = string(normalizeSnapshotJSON(aggregate.Snapshot.NormalizedComposeJSON))
+			baselineContent = normalizeSnapshotComposeYAML(aggregate.Snapshot.NormalizedComposeJSON)
 		}
 		result = append(result, trackedWorkspaceFile{
 			Kind:             item.Kind,
@@ -273,6 +274,24 @@ func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]tracked
 		})
 	}
 	return result, nil
+}
+
+func normalizeSnapshotComposeYAML(raw []byte) string {
+	if len(raw) == 0 {
+		return ""
+	}
+
+	var generic any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		return normalizeTextBlock(string(raw))
+	}
+
+	encoded, err := yaml.Marshal(generic)
+	if err != nil {
+		return normalizeTextBlock(string(raw))
+	}
+
+	return normalizeTextBlock(string(encoded))
 }
 
 func buildProjectWorkspaceFileItem(
