@@ -3,13 +3,15 @@ import 'monaco-editor/esm/vs/basic-languages/ini/ini.contribution';
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
+import { createWebWorker as createMonacoLabelAwareWebWorker } from 'monaco-editor/esm/vs/common/workers.js';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { nextTick, onBeforeUnmount, onMounted } from 'vue';
 
+import { createLogger } from '@/utils/logger';
+
 import { toMonacoColor } from './project-monaco-color';
-import yamlWorker from './project-yaml.worker?worker';
+import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 export type MonacoEditorModule = typeof monaco;
 
@@ -22,42 +24,129 @@ declare global {
 }
 
 let monacoConfigured = false;
+let monacoYamlConfigured = false;
+let monacoYamlConfigurationFailed = false;
 let modelUriSuffixSeed = 0;
+const PROJECT_MONACO_DEBUG_KEY = '__GRAFT_MONACO_DEBUG__';
+let monacoCreateWebWorkerPatched = false;
+const logger = createLogger('project.monaco');
 
 const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
 const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
 export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
 
-function buildWorker(label: string) {
-  switch (label) {
-    case 'yaml':
-      return new yamlWorker();
-    default:
-      return new editorWorker();
+function isProjectMonacoDebugEnabled() {
+  const debugFlag = (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DEBUG_KEY];
+
+  if (debugFlag === true) {
+    return true;
   }
+
+  if (typeof localStorage === 'undefined') {
+    return false;
+  }
+
+  try {
+    return localStorage.getItem(PROJECT_MONACO_DEBUG_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function logProjectMonacoDebug(event: string, detail: Record<string, unknown>) {
+  if (!isProjectMonacoDebugEnabled()) {
+    return;
+  }
+
+  logger.debug(`[ProjectMonaco] ${event}`, detail);
+}
+
+function installProjectMonacoCreateWebWorkerPatch() {
+  if (monacoCreateWebWorkerPatched) {
+    return;
+  }
+
+  const originalCreateWebWorker = monaco.editor.createWebWorker.bind(monaco.editor);
+
+  (
+    monaco.editor as typeof monaco.editor & {
+      createWebWorker: typeof monaco.editor.createWebWorker;
+    }
+  ).createWebWorker = ((options: unknown) => {
+    const workerOptions = options as {
+      createData?: unknown;
+      label?: string;
+      moduleId?: string;
+      worker?: unknown;
+    };
+
+    if (!('worker' in workerOptions) && typeof workerOptions.label === 'string') {
+      logProjectMonacoDebug('patch-create-web-worker', {
+        label: workerOptions.label,
+        moduleId: typeof workerOptions.moduleId === 'string' ? workerOptions.moduleId : 'unknown',
+      });
+
+      return createMonacoLabelAwareWebWorker(workerOptions as never);
+    }
+
+    return originalCreateWebWorker(options as never);
+  }) as typeof monaco.editor.createWebWorker;
+
+  monacoCreateWebWorkerPatched = true;
+  logProjectMonacoDebug('patch-create-web-worker-installed', {});
 }
 
 export function ensureProjectMonacoConfigured() {
   if (monacoConfigured) {
+    logProjectMonacoDebug('reuse-existing-config', {});
     return monaco;
   }
 
   globalThis.MonacoEnvironment = {
     getWorker(_moduleId: string, label: string) {
-      return buildWorker(label);
+      logProjectMonacoDebug('get-worker', {
+        label,
+      });
+
+      const worker = buildProjectMonacoWorker(label);
+
+      logProjectMonacoDebug('get-worker-resolved', {
+        constructorName: worker?.constructor?.name ?? 'unknown',
+        label,
+      });
+
+      return worker;
     },
   };
 
-  configureMonacoYaml(monaco, {
-    completion: true,
-    enableSchemaRequest: false,
-    hover: true,
-    schemas: [],
-    validate: true,
-  });
+  installProjectMonacoCreateWebWorkerPatch();
+
+  if (!monacoYamlConfigured && !monacoYamlConfigurationFailed) {
+    try {
+      logProjectMonacoDebug('configure-yaml-start', {});
+      configureMonacoYaml(monaco, {
+        completion: true,
+        enableSchemaRequest: false,
+        hover: true,
+        schemas: [],
+        validate: true,
+      });
+      monacoYamlConfigured = true;
+      logProjectMonacoDebug('configure-yaml-success', {});
+    } catch (error) {
+      monacoYamlConfigurationFailed = true;
+      logProjectMonacoDebug('configure-yaml-failed', {
+        error,
+      });
+      logger.error('Failed to configure project Monaco YAML worker integration.', {
+        error,
+      });
+    }
+  }
 
   monacoConfigured = true;
+  logProjectMonacoDebug('config-complete', {});
   return monaco;
 }
 
