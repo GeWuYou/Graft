@@ -48,10 +48,16 @@ Use this skill only when all of the following are true:
 3. Identify the immediate blocking step and keep it local to the current execution owner.
    - when this batch runs inside one `graft-multi-agent-loop` round, the current execution owner is the delegated
      worker subagent, not the outer loop orchestrator
+   - when the batch is spawned from `$graft-pr-review`, keep the exhaustive finding inventory local to the main agent
+     before delegation; `Outside diff range comments`, `Nitpick comments`, and other folded latest-review sections are
+     mandatory inventory scope and must not be dropped from the dispatch set
 4. Split only non-blocking work into disjoint slices.
    - when this batch runs inside one `graft-multi-agent-loop` round, default sidecars to read-only `explorer`
      subagents; add write-capable `worker` sidecars only when the round remains reviewable and the current worker still
      owns final integration, validation, and closeout
+   - in a PR-review remediation batch, dispatch owned fixes only after every finding has a concrete row in the
+     inventory; do not delegate only the “high priority” subset while leaving outside-diff or folded-section findings
+     implicit
 5. Use `explorer` subagents for read-only discovery or comparison.
 6. Use `worker` subagents only for bounded implementation slices with explicit ownership.
 7. For every subagent, specify:
@@ -157,3 +163,6 @@ For every delegated `worker`, require one of these response shapes:
 * do not let checkpoint interrupts turn the batch into real-time remote control of workers
 * do not let an active delegated slice silently downgrade into untracked main-agent execution
 * do not assume a subagent can inherit unstated governance; pass the inherited startup context explicitly
+* do not use batch delegation to bypass `$graft-pr-review` inventory closure; `Outside diff range comments`,
+  `Nitpick comments`, and other folded latest-review findings remain mandatory dispositions even when repairs are split
+  across workers

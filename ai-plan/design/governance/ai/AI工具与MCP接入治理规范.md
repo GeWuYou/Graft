@@ -112,6 +112,10 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
 
   - 采用条件：PR 审查或 CI 排障需要 GitHub 实时状态。
   - 约束：写操作必须通过 `graft-pr-review`、`graft-pr-create` 或后续专门 skill 的显式流程。
+  - 评审盘点约束：`graft-pr-review` 必须把 latest review body 的 folded sections 全量纳入清单，尤其
+    `Outside diff range comments (N)`、`Nitpick comments (N)`、`Duplicate comments (N)`、`Major comments (N)`、
+    `Minor comments (N)`；这些项不是可忽略附录，也不能因为后续使用 `graft-multi-agent-batch`、`graft-commit`
+    或 `graft-push` 就被隐式跳过。
 - `playwright`
   - 等级：`L1`
   - 用途：作为 `graft-web-browser-agent` 的探索层，快速识别页面结构、role、label、TDesign 弹窗/抽屉交互和稳定 selector。
@@ -174,6 +178,9 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
   contract-driven minimal bootstrap 和 dispatch，所有领域正文仍由对应专业 skill 负责。
 - `graft-ai-governance-audit` 保持 broader AI tooling / MCP / skill / inventory drift audit；当同一批次同时修改
   `.agents/skills/**`、`scripts/**` 或本规范时，可与 `graft-ai-plan-governance` 组合使用。
+- `graft-pr-review` 的完整盘点要求必须贯穿其后续 repair / commit / push 链路；如果一个批次来自 PR review，
+  则 `Outside diff range comments`、`Nitpick comments` 和其它 folded latest-review findings 仍然必须在 closeout
+  中逐项落到 `fixed`、`delegated`、`blocked`、`stale` 或 `noise`，不能因中间 commit、push 或并行修复而降级为可选。
 - `graft-table-design` 是数据库表设计、Ent schema、migration、审计字段、软删除、索引和数据库注释的治理
   skill；它必须回到 `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`，不得定义第二套 schema 或 migration 真相。
 - `graft-sql-migration` 是创建或修改 live Atlas/PostgreSQL migration SQL 的专用治理 skill；SQL 注释硬规则、
@@ -230,6 +237,8 @@ AI tooling evidence:
 - 是否与 `.ai/environment/tools.ai.yaml` 的工具事实冲突。
 - 是否能在 MCP 不可用时退回 `rg`、真实文件读取、官方文档或现有 CLI。
 - 是否有结构性验证覆盖新增文档或 skill。
+- 涉及 PR review 流程时，是否明确要求 `Outside diff range comments`、`Nitpick comments` 和其它 folded
+  latest-review sections 不得忽略，也不得在 commit / push / multi-agent repair 阶段被隐式跳过。
 
 评审 AI guardrail 治理变更时至少追加检查：
 
