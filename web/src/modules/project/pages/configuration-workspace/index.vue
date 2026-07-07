@@ -223,8 +223,6 @@
                 :exit-fullscreen-label="workspaceCopy.exitFullscreenAction"
                 :fullscreen-label="workspaceCopy.fullscreenAction"
                 fullscreen-surface-padding="none"
-                :min-height="editorFrameMinHeight"
-                :mobile-min-height="editorFrameMinHeight"
                 resize-handle-label="Resize Editor Height"
                 :resizable="!workspaceFullscreen"
                 :show-fullscreen-button="false"
@@ -840,7 +838,6 @@ const sidebarPaneStyle = computed(() =>
   isSidebarResizable.value ? { width: `${clampSidebarWidth(sidebarWidth.value)}px` } : undefined,
 );
 const editorFrameHeight = computed(() => Math.max(560, editorViewportHeight.value));
-const editorFrameMinHeight = computed(() => editorFrameHeight.value);
 const hasDirtyFiles = computed(() =>
   openTabBuffers.value.some((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
@@ -1767,6 +1764,11 @@ function resolveDialog(result: DialogResult) {
 }
 
 function handleWorkspaceKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && workspaceFullscreen.value) {
+    workspaceFullscreen.value = false;
+    return;
+  }
+
   const root = workspaceRootRef.value;
   if (!root || !activeBuffer.value || !canSaveActiveBuffer.value) {
     return;

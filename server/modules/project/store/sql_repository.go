@@ -595,7 +595,7 @@ func (r *SQLRepository) loadFilesByProjectIDs(
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, project_id, kind, role, absolute_path, display_path, order_index,
-			exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
+			exists_on_last_refresh, last_observed_hash, created_at, updated_at
 		FROM compose_project_files
 		WHERE project_id IN (`+placeholderList(len(args))+`)
 		ORDER BY project_id ASC, order_index ASC, id ASC`),
@@ -608,7 +608,7 @@ func (r *SQLRepository) loadFilesByProjectIDs(
 
 	fileMap := make(map[uint64][]ProjectFile, len(projectIDs))
 	for rows.Next() {
-		item, scanErr := scanProjectFile(rows)
+		item, scanErr := scanProjectFileSummary(rows)
 		if scanErr != nil {
 			return nil, fmt.Errorf("scan project file: %w", scanErr)
 		}

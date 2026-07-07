@@ -155,7 +155,7 @@ watch(
     if (userResized.value || isFullscreen.value) {
       return;
     }
-    panelHeight.value = clampHeight(resolvePreferredHeight());
+    panelHeight.value = clampHeight(panelHeight.value || resolvePreferredHeight());
   },
 );
 
@@ -240,11 +240,7 @@ function syncViewport() {
   }
   viewportWidth.value = window.innerWidth;
   viewportHeight.value = window.innerHeight;
-  if (userResized.value) {
-    panelHeight.value = clampHeight(panelHeight.value || resolvePreferredHeight());
-    return;
-  }
-  panelHeight.value = clampHeight(resolvePreferredHeight());
+  panelHeight.value = clampHeight(panelHeight.value || resolvePreferredHeight());
 }
 
 function handleWindowResize() {

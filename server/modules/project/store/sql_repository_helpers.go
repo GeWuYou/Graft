@@ -577,6 +577,26 @@ func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile,
 	return item, nil
 }
 
+func scanProjectFileSummary(scanner interface{ Scan(dest ...any) error }) (ProjectFile, error) {
+	var item ProjectFile
+	if err := scanner.Scan(
+		&item.ID,
+		&item.ProjectID,
+		&item.Kind,
+		&item.Role,
+		&item.AbsolutePath,
+		&item.DisplayPath,
+		&item.OrderIndex,
+		&item.ExistsOnLastRefresh,
+		&item.LastObservedHash,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return ProjectFile{}, err
+	}
+	return item, nil
+}
+
 // scanSnapshot 扫描并返回快照记录。
 //
 // 扫描项目 ID、规范化 Compose JSON、配置哈希、声明的服务数量、声明的服务摘要和刷新时间。

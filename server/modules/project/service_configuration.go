@@ -166,9 +166,11 @@ func buildConfigurationDiffFiles(aggregate projectstore.ProjectAggregate) ([]Con
 }
 
 func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDiffFile {
-	baselineHash := item.LastObservedHash
-	currentHash := hashString(item.Content)
-	changed := baselineHash != currentHash
+	baselineContent := normalizeTextBlock(item.BaselineContent)
+	currentContent := normalizeTextBlock(item.Content)
+	baselineHash := hashString(baselineContent)
+	currentHash := hashString(currentContent)
+	changed := baselineContent != currentContent
 	if baselineHash == "" && currentHash == "" {
 		changed = false
 	}
@@ -179,8 +181,8 @@ func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDi
 		Changed:         changed,
 		CurrentHash:     baselineHash,
 		ProposedHash:    currentHash,
-		CurrentContent:  item.BaselineContent,
-		ProposedContent: item.Content,
+		CurrentContent:  baselineContent,
+		ProposedContent: currentContent,
 	}
 }
 

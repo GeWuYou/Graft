@@ -1,6 +1,10 @@
 package project
 
-import "testing"
+import (
+	"testing"
+
+	projectcontract "graft/server/modules/project/contract"
+)
 
 func TestClassifyWorkspaceFile(t *testing.T) {
 	t.Parallel()
@@ -8,6 +12,7 @@ func TestClassifyWorkspaceFile(t *testing.T) {
 	testCases := []struct {
 		name         string
 		path         string
+		trackedKinds map[string]string
 		wantFileKind string
 		wantHint     string
 		wantEditable bool
@@ -29,6 +34,23 @@ func TestClassifyWorkspaceFile(t *testing.T) {
 		{name: "sql extension", path: "migrations/seed.sql", wantFileKind: "config", wantHint: "sql", wantEditable: true},
 		{name: "markdown extension", path: "docs/README.md", wantFileKind: "text", wantHint: "markdown", wantEditable: false},
 		{name: "dot env suffix", path: "config/.env.local", wantFileKind: "env", wantHint: "dotenv", wantEditable: true},
+		{name: "trailing env suffix", path: "config/production.env", wantFileKind: "env", wantHint: "dotenv", wantEditable: true},
+		{
+			name:         "tracked env kind overrides unknown suffix",
+			path:         "tracked/secrets.runtime",
+			trackedKinds: map[string]string{"tracked/secrets.runtime": projectcontract.FileKindEnv.String()},
+			wantFileKind: "env",
+			wantHint:     "dotenv",
+			wantEditable: true,
+		},
+		{
+			name:         "tracked compose kind overrides unknown suffix",
+			path:         "tracked/compose.runtime",
+			trackedKinds: map[string]string{"tracked/compose.runtime": projectcontract.FileKindCompose.String()},
+			wantFileKind: "compose",
+			wantHint:     "yaml",
+			wantEditable: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -36,7 +58,7 @@ func TestClassifyWorkspaceFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			fileKind, hint, editable := classifyWorkspaceFile(tc.path, nil)
+			fileKind, hint, editable := classifyWorkspaceFile(tc.path, tc.trackedKinds)
 			if fileKind != tc.wantFileKind || hint != tc.wantHint || editable != tc.wantEditable {
 				t.Fatalf(
 					"classifyWorkspaceFile(%q) = (%q, %q, %t), want (%q, %q, %t)",

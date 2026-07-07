@@ -138,12 +138,12 @@ function formatTabsSummary(routes: TRouterInfo[]) {
     .join(' ')}`;
 }
 
-function logTabsDebug(message: string) {
+function logTabsDebug(message: string | (() => string)) {
   if (!tabsDebugEnabled) {
     return;
   }
 
-  logger.warn(message);
+  logger.debug(typeof message === 'function' ? message() : message);
 }
 
 /**
@@ -321,7 +321,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     healPersistedState() {
       logTabsDebug(
-        `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+        () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
       this.tabRouterList = ensureNonEmptyTabs(this.tabRouters);
@@ -332,12 +332,16 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
       logTabsDebug(
-        `tabs debug: healPersistedState after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+        () => `tabs debug: healPersistedState after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
     healPersistedRoutes(router: Router) {
       const canKeepRoute = createRouteRecordMatcher(router);
       const pinnedKeys = readPinnedTabKeys();
+      logTabsDebug(
+        () =>
+          `tabs debug: healPersistedRoutes before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+      );
       const nextTabs = this.tabRouters.filter(canKeepRoute);
 
       this.tabRouterList = ensureNonEmptyTabs(nextTabs, pinnedKeys);
@@ -348,15 +352,19 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearSnapshotsForMissingTabs();
       this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
+      logTabsDebug(
+        () => `tabs debug: healPersistedRoutes after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+      );
     },
     // 处理新增
     appendTabRouterList(newRoute: TRouterInfo) {
       logTabsDebug(
-        `tabs debug: appendTabRouterList input active=${this.activeTabKey} incoming=[key=${getTabKey(
-          newRoute,
-        )} path=${newRoute.path} fullPath=${newRoute.fullPath || ''} name=${String(newRoute.name || '')} title=${
-          newRoute.title?.[LOCALE.ZH_CN] || newRoute.title?.[LOCALE.EN_US] || ''
-        }] ${formatTabsSummary(this.tabRouters)}`,
+        () =>
+          `tabs debug: appendTabRouterList input active=${this.activeTabKey} incoming=[key=${getTabKey(
+            newRoute,
+          )} path=${newRoute.path} fullPath=${newRoute.fullPath || ''} name=${String(newRoute.name || '')} title=${
+            newRoute.title?.[LOCALE.ZH_CN] || newRoute.title?.[LOCALE.EN_US] || ''
+          }] ${formatTabsSummary(this.tabRouters)}`,
       );
       // 不要将判断条件newRoute.meta.keepAlive !== false修改为newRoute.meta.keepAlive，starter默认开启保活，所以meta.keepAlive未定义时也需要进行保活，只有显式说明false才禁用保活。
       const normalized = normalizeRouteState(newRoute);
@@ -381,7 +389,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         );
       }
       logTabsDebug(
-        `tabs debug: appendTabRouterList after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+        () => `tabs debug: appendTabRouterList after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
     // 处理关闭当前
@@ -511,16 +519,18 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     setActiveRoute(route: RouteLocationNormalizedLoaded) {
       logTabsDebug(
-        `tabs debug: setActiveRoute input active=${this.activeTabKey} route=[path=${route.path} fullPath=${
-          route.fullPath
-        } name=${String(route.name || '')}] ${formatTabsSummary(this.tabRouters)}`,
+        () =>
+          `tabs debug: setActiveRoute input active=${this.activeTabKey} route=[path=${route.path} fullPath=${
+            route.fullPath
+          } name=${String(route.name || '')}] ${formatTabsSummary(this.tabRouters)}`,
       );
       const currentActiveTab = this.tabRouterList.find((tab) => getTabKey(tab) === this.activeTabKey);
       if (currentActiveTab && currentActiveTab.fullPath === route.fullPath) {
         logTabsDebug(
-          `tabs debug: setActiveRoute skipped same fullPath active=${this.activeTabKey} ${formatTabsSummary(
-            this.tabRouters,
-          )}`,
+          () =>
+            `tabs debug: setActiveRoute skipped same fullPath active=${this.activeTabKey} ${formatTabsSummary(
+              this.tabRouters,
+            )}`,
         );
         return;
       }
@@ -532,13 +542,14 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         this.tabRouterList.find((tab) => tab.path === route.path);
       this.activeTabKey = activeTab ? getTabKey(activeTab) : route.path;
       logTabsDebug(
-        `tabs debug: setActiveRoute after active=${this.activeTabKey} resolved=${
-          activeTab
-            ? `[key=${getTabKey(activeTab)} path=${activeTab.path} fullPath=${activeTab.fullPath || ''} name=${String(
-                activeTab.name || '',
-              )} title=${formatTabTitle(activeTab)}]`
-            : 'null'
-        } ${formatTabsSummary(this.tabRouters)}`,
+        () =>
+          `tabs debug: setActiveRoute after active=${this.activeTabKey} resolved=${
+            activeTab
+              ? `[key=${getTabKey(activeTab)} path=${activeTab.path} fullPath=${activeTab.fullPath || ''} name=${String(
+                  activeTab.name || '',
+                )} title=${formatTabTitle(activeTab)}]`
+              : 'null'
+          } ${formatTabsSummary(this.tabRouters)}`,
       );
     },
     setActiveTabKey(tabKey: string) {
@@ -659,9 +670,10 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
   persist: {
     afterHydrate: ({ store }) => {
       logTabsDebug(
-        `tabs debug: persist afterHydrate active=${store.activeTabKey} tabs=${formatTabsSummary(
-          store.tabRouterList,
-        )} closed=${formatTabsSummary(store.closedTabStack)}`,
+        () =>
+          `tabs debug: persist afterHydrate active=${store.activeTabKey} tabs=${formatTabsSummary(
+            store.tabRouterList,
+          )} closed=${formatTabsSummary(store.closedTabStack)}`,
       );
     },
     pick: ['tabRouterList', 'closedTabStack', 'activeTabKey'],

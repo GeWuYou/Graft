@@ -38,6 +38,24 @@ describe('ContentViewerFrame', () => {
     expect(localStorage.getItem('graft.test.viewer.height')).toBeTruthy();
     expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height:');
   });
+
+  it('preserves a stored height instead of replacing it with the preferred viewport height on mount', () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+    localStorage.setItem('graft.test.viewer.height', '640');
+
+    try {
+      const wrapper = mountFrame();
+
+      expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height: 640px;');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth });
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalHeight });
+    }
+  });
 });
 
 function mountFrame() {

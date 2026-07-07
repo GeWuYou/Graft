@@ -377,10 +377,14 @@ func classifyWorkspaceFile(relativePath string, trackedKinds map[string]string) 
 	if classification, ok := classifyWorkspaceBaseName(base); ok {
 		return classification.FileKind, classification.LanguageHint, classification.Editable
 	}
-	if base == ".env" || strings.HasPrefix(base, ".env.") {
+	if isWorkspaceEnvFileBaseName(base) {
 		return "env", "dotenv", true
 	}
 	return classifyWorkspaceExtension(strings.ToLower(filepath.Ext(base)))
+}
+
+func isWorkspaceEnvFileBaseName(base string) bool {
+	return base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env")
 }
 
 func classifyTrackedWorkspaceKind(kind string) (string, string, bool) {

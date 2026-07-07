@@ -121,13 +121,27 @@ vi.mock('@/shared/components/management', () => ({
 vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
   default: defineComponent({
     name: 'ContentViewerFrameStub',
-    setup(_props, { slots }) {
+    props: {
+      defaultHeight: { type: Number, default: 0 },
+      minHeight: { type: Number, default: undefined },
+      mobileMinHeight: { type: Number, default: undefined },
+    },
+    setup(props, { slots }) {
       return () =>
-        h('section', { class: 'content-viewer-frame-stub' }, [
-          h('div', { class: 'content-viewer-header' }, slots.header?.()),
-          h('div', { class: 'content-viewer-header-actions' }, slots['header-actions']?.()),
-          h('div', { class: 'content-viewer-body' }, slots.default?.()),
-        ]);
+        h(
+          'section',
+          {
+            class: 'content-viewer-frame-stub',
+            'data-default-height': String(props.defaultHeight),
+            'data-min-height': props.minHeight === undefined ? undefined : String(props.minHeight),
+            'data-mobile-min-height': props.mobileMinHeight === undefined ? undefined : String(props.mobileMinHeight),
+          },
+          [
+            h('div', { class: 'content-viewer-header' }, slots.header?.()),
+            h('div', { class: 'content-viewer-header-actions' }, slots['header-actions']?.()),
+            h('div', { class: 'content-viewer-body' }, slots.default?.()),
+          ],
+        );
     },
   }),
 }));
@@ -595,7 +609,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-config-env"]').exists()).toBe(false);
   });
 
-  it('refreshes a non-active file tab from the context menu action', async () => {
+  it('refreshes a non-active file tab from the context menu action without changing the active editor', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -604,17 +618,53 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
-    const configEnvCallsBefore = mocks.getProjectFileContent.mock.calls.filter(
-      ([, query]) => query.path === 'config/.env',
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
+
+    const composeCallsBefore = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'docker-compose.yml',
     ).length;
 
-    await wrapper.get('[data-testid="workspace-file-tab-menu-workspace-entry-config-env-refresh"]').trigger('click');
+    await wrapper
+      .get('[data-testid="workspace-file-tab-menu-workspace-entry-docker-compose-yml-refresh"]')
+      .trigger('click');
     await flushPromises();
 
-    const configEnvCallsAfter = mocks.getProjectFileContent.mock.calls.filter(
-      ([, query]) => query.path === 'config/.env',
+    const composeCallsAfter = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'docker-compose.yml',
     ).length;
-    expect(configEnvCallsAfter).toBe(configEnvCallsBefore + 1);
+    expect(composeCallsAfter).toBe(composeCallsBefore + 1);
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('lets the workspace page exit fullscreen on escape', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('.content-viewer-header-actions button:nth-of-type(2)').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('.project-configuration-workspace').classes()).toContain(
+      'project-configuration-workspace--fullscreen',
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.project-configuration-workspace').classes()).not.toContain(
+      'project-configuration-workspace--fullscreen',
+    );
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('passes only the editor default height to the shared viewer frame', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    const frame = wrapper.get('.content-viewer-frame-stub');
+    expect(Number(frame.attributes('data-default-height'))).toBeGreaterThanOrEqual(560);
+    expect(frame.attributes('data-min-height')).toBeUndefined();
+    expect(frame.attributes('data-mobile-min-height')).toBeUndefined();
   });
 
   it('renders compact tree row actions and removes the duplicate editor title header', async () => {

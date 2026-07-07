@@ -1991,8 +1991,33 @@ func TestToStoreFilesPersistsNormalizedBaselineContent(t *testing.T) {
 	if len(files) != 1 {
 		t.Fatalf("expected one file, got %d", len(files))
 	}
+	if files[0].LastObservedHash != hashString("services:\n  api:\n    image: nginx:latest\n") {
+		t.Fatalf("unexpected normalized baseline hash %q", files[0].LastObservedHash)
+	}
 	if files[0].LastObservedContent != "services:\n  api:\n    image: nginx:latest\n" {
 		t.Fatalf("unexpected baseline content %q", files[0].LastObservedContent)
+	}
+}
+
+func TestConfigurationDiffFileFromTrackedNormalizesStoredBaseline(t *testing.T) {
+	t.Parallel()
+
+	file := configurationDiffFileFromTracked(trackedWorkspaceFile{
+		Kind:             projectcontract.FileKindCompose.String(),
+		Path:             "/srv/orders/compose.yaml",
+		DisplayPath:      "compose.yaml",
+		LastObservedHash: "stale-raw-hash",
+		BaselineContent:  "services:\r\n  api:  \r\n    image: nginx:latest\r\n",
+		Content:          "services:\n  api:\n    image: nginx:latest\n",
+	})
+	if file.Changed {
+		t.Fatalf("expected normalized diff to be unchanged, got %#v", file)
+	}
+	if file.CurrentContent != "services:\n  api:\n    image: nginx:latest\n" {
+		t.Fatalf("unexpected current content %q", file.CurrentContent)
+	}
+	if file.ProposedContent != file.CurrentContent {
+		t.Fatalf("expected normalized proposed content to match current content, got %#v", file)
 	}
 }
 

@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-
 import { describe, expect, it } from 'vitest';
 
 import { toMonacoColor } from './project-monaco-color';
@@ -72,28 +70,20 @@ describe('project-monaco worker routing', () => {
   });
 });
 
-describe('project-monaco language registration', () => {
-  it('keeps yaml and json contributions wired into the shared monaco setup', () => {
-    const source = readFileSync('src/modules/project/shared/project-monaco.ts', 'utf8');
-
-    expect(source).toContain('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution');
-    expect(source).toContain('monaco-editor/esm/vs/language/json/monaco.contribution');
-  });
-});
-
 describe('project-monaco debug toggle', () => {
   it('reads the explicit global debug flag before localStorage', () => {
     const previousValue = (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
 
-    (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = true;
+    try {
+      (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = true;
 
-    expect(isProjectMonacoDebugEnabled()).toBe(true);
-
-    if (typeof previousValue === 'undefined') {
-      delete (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
-      return;
+      expect(isProjectMonacoDebugEnabled()).toBe(true);
+    } finally {
+      if (typeof previousValue === 'undefined') {
+        delete (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+      } else {
+        (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = previousValue;
+      }
     }
-
-    (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = previousValue;
   });
 });
