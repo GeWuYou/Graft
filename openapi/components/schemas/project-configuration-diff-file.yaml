@@ -2,6 +2,7 @@ type: object
 required:
   - kind
   - path
+  - display_path
   - changed
   - current_hash
   - proposed_hash
@@ -11,6 +12,8 @@ properties:
   kind:
     $ref: ./project-file-kind.yaml
   path:
+    type: string
+  display_path:
     type: string
   changed:
     type: boolean

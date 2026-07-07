@@ -25249,6 +25249,7 @@
         "required": [
           "kind",
           "path",
+          "display_path",
           "changed",
           "current_hash",
           "proposed_hash",
@@ -25260,6 +25261,9 @@
             "$ref": "#/components/schemas/project-file-kind"
           },
           "path": {
+            "type": "string"
+          },
+          "display_path": {
             "type": "string"
           },
           "changed": {

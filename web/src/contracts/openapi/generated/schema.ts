@@ -6190,6 +6190,7 @@ export interface components {
     'project-configuration-diff-file': {
       kind: components['schemas']['project-file-kind'];
       path: string;
+      display_path: string;
       changed: boolean;
       current_hash: string;
       proposed_hash: string;

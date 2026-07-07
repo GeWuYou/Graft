@@ -466,6 +466,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
           changed: true,
           current_content: 'services:\n  api:\n    image: old\n',
           current_hash: 'c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef',
+          display_path: 'docker-compose.yml',
           kind: 'compose',
           path: 'docker-compose.yml',
           proposed_content: 'services:\n  api:\n    image: app\n',
@@ -728,10 +729,11 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('40ddc4...b6182c');
-    expect(wrapper.text()).toContain('0dd31a...27ca10');
-    expect(wrapper.html()).toContain('data-tooltip-content="40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c"');
+    expect(wrapper.get('[data-testid="configuration-diff-current-hash"]').text()).toBe('c90a77...1e90ef');
+    expect(wrapper.get('[data-testid="configuration-diff-proposed-hash"]').text()).toBe('0dd31a...27ca10');
+    expect(wrapper.html()).toContain('data-tooltip-content="c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef"');
     expect(wrapper.html()).toContain('data-tooltip-content="0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10"');
+    expect(wrapper.text()).not.toContain('40ddc4...b6182c');
   });
 
   it('opens the diff result in a modal dialog and toggles fullscreen on demand', async () => {
@@ -749,6 +751,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(resultDialog?.attributes('data-visible')).toBe('true');
     expect(resultDialog?.attributes('data-mode')).toBe('modal');
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('docker-compose.yml');
 
     await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
     await flushPromises();

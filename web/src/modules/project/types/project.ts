@@ -129,6 +129,7 @@ export type ProjectConfigurationDiffResponse = {
     changed: boolean;
     current_content: string;
     current_hash: string;
+    display_path: string;
     kind: string;
     path: string;
     proposed_content: string;

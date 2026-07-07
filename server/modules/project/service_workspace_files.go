@@ -14,7 +14,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"gopkg.in/yaml.v3"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -75,6 +74,7 @@ type workspaceTooltipRule struct {
 type trackedWorkspaceFile struct {
 	Kind             string
 	Path             string
+	DisplayPath      string
 	LastObservedHash string
 	Content          string
 	BaselineContent  string
@@ -305,37 +305,16 @@ func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]tracked
 		if readErr != nil {
 			return nil, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
 		}
-		baselineContent := ""
-		if item.Kind == projectcontract.FileKindCompose.String() && aggregate.Snapshot != nil {
-			baselineContent = normalizeSnapshotComposeYAML(aggregate.Snapshot.NormalizedComposeJSON)
-		}
 		result = append(result, trackedWorkspaceFile{
 			Kind:             item.Kind,
 			Path:             item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
 			LastObservedHash: item.LastObservedHash,
 			Content:          string(content),
-			BaselineContent:  baselineContent,
+			BaselineContent:  item.LastObservedContent,
 		})
 	}
 	return result, nil
-}
-
-func normalizeSnapshotComposeYAML(raw []byte) string {
-	if len(raw) == 0 {
-		return ""
-	}
-
-	var generic any
-	if err := json.Unmarshal(raw, &generic); err != nil {
-		return normalizeTextBlock(string(raw))
-	}
-
-	encoded, err := yaml.Marshal(generic)
-	if err != nil {
-		return normalizeTextBlock(string(raw))
-	}
-
-	return normalizeTextBlock(string(encoded))
 }
 
 func buildProjectWorkspaceFileItem(

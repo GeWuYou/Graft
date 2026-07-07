@@ -175,6 +175,7 @@ func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDi
 	return ConfigurationDiffFile{
 		Kind:            item.Kind,
 		Path:            item.Path,
+		DisplayPath:     item.DisplayPath,
 		Changed:         changed,
 		CurrentHash:     baselineHash,
 		ProposedHash:    currentHash,
@@ -183,11 +184,8 @@ func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDi
 	}
 }
 
-func configurationDiffWarnings(aggregate projectstore.ProjectAggregate, fileCount int) []string {
+func configurationDiffWarnings(_ projectstore.ProjectAggregate, fileCount int) []string {
 	warnings := make([]string, 0, configurationDiffWarningsCapacity)
-	if aggregate.Snapshot == nil {
-		warnings = append(warnings, "No refreshed project snapshot is available yet; file-level diff falls back to last observed file hashes only.")
-	}
 	if fileCount == 0 {
 		warnings = append(warnings, "No tracked compose or env files are registered for the project.")
 	}

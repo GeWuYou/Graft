@@ -45,6 +45,7 @@ vi.mock('@/locales', () => ({
       'dashboard.containerResources.anomalies.kind.exited': 'Exited',
       'dashboard.containerResources.anomalies.kind.dead': 'Dead',
       'dashboard.containerResources.anomalies.kind.high_load': 'High Load',
+      'dashboard.containerResources.anomalies.reasonCode.state_exited': 'Container Exited',
       'dashboard.containerResources.anomalies.reasonCode.state_restarting': 'Restart Back-off',
       'dashboard.containerResources.anomalies.resourceSummary': `CPU ${params?.cpu ?? ''} / Memory ${params?.memory ?? ''}`,
       'dashboard.containerResources.anomalies.restartCount': `${params?.count ?? 0} restarts`,

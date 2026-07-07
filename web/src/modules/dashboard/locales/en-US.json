@@ -89,6 +89,7 @@
           "high_load": "High Load"
         },
         "reasonCode": {
+          "state_exited": "Container Exited",
           "state_restarting": "Restart Back-off"
         }
       },

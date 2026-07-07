@@ -471,7 +471,7 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 		HasChildren:     result.HasChildren,
 		ProjectNote:     optionalString(result.ProjectNote),
 		Tooltip:         optionalString(result.Tooltip),
-		TooltipSource:   optionalString(result.TooltipSource),
+		TooltipSource:   optionalTooltipSource(result.TooltipSource),
 	})
 }
 

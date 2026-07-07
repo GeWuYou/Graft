@@ -1969,27 +1969,39 @@ func TestBuildConfigurationDiffFileKeepsProposedContentAsNormalizedText(t *testi
 	}
 }
 
-func TestNormalizeSnapshotComposeYAMLReturnsYAMLText(t *testing.T) {
+func TestToStoreFilesPersistsNormalizedBaselineContent(t *testing.T) {
 	t.Parallel()
 
-	raw := []byte(`{"services":{"dockge":{"image":"ghcr.io/louislam/dockge:nightly","ports":["8320:5001"]}}}`)
+	files := toStoreFiles(
+		[]projectcompose.FileProjection{
+			{
+				AbsolutePath: "/srv/orders/compose.yaml",
+				DisplayPath:  "compose.yaml",
+				Kind:         projectcontract.FileKindCompose.String(),
+				Role:         projectcontract.FileRolePrimary.String(),
+				OrderIndex:   0,
+				Content:      []byte("services:\r\n  api:  \r\n    image: nginx:latest\r\n"),
+				Hash:         "hash-compose",
+				Exists:       true,
+			},
+		},
+		nil,
+	)
 
-	got := normalizeSnapshotComposeYAML(raw)
-
-	if got == string(raw) {
-		t.Fatalf("expected YAML output instead of raw JSON, got %q", got)
+	if len(files) != 1 {
+		t.Fatalf("expected one file, got %d", len(files))
 	}
-	if got != "services:\n    dockge:\n        image: ghcr.io/louislam/dockge:nightly\n        ports:\n            - 8320:5001\n" {
-		t.Fatalf("unexpected YAML output %q", got)
+	if files[0].LastObservedContent != "services:\n  api:\n    image: nginx:latest\n" {
+		t.Fatalf("unexpected baseline content %q", files[0].LastObservedContent)
 	}
 }
 
-func TestConfigurationDiffWarningsDoNotDuplicateSnapshotFallback(t *testing.T) {
+func TestConfigurationDiffWarningsOnlyReportMissingTrackedFiles(t *testing.T) {
 	t.Parallel()
 
-	warnings := configurationDiffWarnings(projectstore.ProjectAggregate{}, 1)
+	warnings := configurationDiffWarnings(projectstore.ProjectAggregate{}, 0)
 	if len(warnings) != 1 {
-		t.Fatalf("expected one snapshot fallback warning, got %#v", warnings)
+		t.Fatalf("expected one missing-file warning, got %#v", warnings)
 	}
 }
 

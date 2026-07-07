@@ -59,6 +59,7 @@ type ProjectFile struct {
 	OrderIndex          int
 	ExistsOnLastRefresh bool
 	LastObservedHash    string
+	LastObservedContent string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }
@@ -158,10 +159,10 @@ type UpdateLifecycleConfigInput struct {
 
 // UpdateWorkspaceAnnotationInput updates or removes one project workspace annotation.
 type UpdateWorkspaceAnnotationInput struct {
-	ProjectID     uint64
-	RelativePath  string
-	Annotation    *string
-	ActorID       *uint64
+	ProjectID    uint64
+	RelativePath string
+	Annotation   *string
+	ActorID      *uint64
 }
 
 // UnregisterProjectInput soft-deletes one existing project registry row without touching host files.

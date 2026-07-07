@@ -276,7 +276,7 @@ func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.Proj
 			HasChildren:     item.HasChildren,
 			ProjectNote:     optionalString(item.ProjectNote),
 			Tooltip:         optionalString(item.Tooltip),
-			TooltipSource:   optionalString(item.TooltipSource),
+			TooltipSource:   optionalTooltipSource(item.TooltipSource),
 		})
 	}
 	response := generated.ProjectFilesResponse{
@@ -323,6 +323,7 @@ func toConfigurationDiffResponse(result ConfigurationDiffResult) generated.Proje
 		files = append(files, generated.ProjectConfigurationDiffFile{
 			Kind:            generated.ProjectFileKind(item.Kind),
 			Path:            item.Path,
+			DisplayPath:     item.DisplayPath,
 			Changed:         item.Changed,
 			CurrentHash:     item.CurrentHash,
 			ProposedHash:    item.ProposedHash,
@@ -704,4 +705,13 @@ func optionalStringSlice(items []string) *[]string {
 	}
 	copyItems := append([]string(nil), items...)
 	return &copyItems
+}
+
+func optionalTooltipSource(value string) *generated.ProjectFileTreeItemTooltipSource {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	source := generated.ProjectFileTreeItemTooltipSource(trimmed)
+	return &source
 }

@@ -41,19 +41,19 @@ var (
 )
 
 const (
-	defaultProjectListLimit  = 20
-	maxProjectListLimit      = 100
-	projectConflictScanSize  = 100
-	projectDiscoveryScanSize = 8
+	defaultProjectListLimit      = 20
+	maxProjectListLimit          = 100
+	projectConflictScanSize      = 100
+	projectDiscoveryScanSize     = 8
 	maxWorkspaceAnnotationLength = projectcontract.ProjectWorkspaceAnnotationMaxLength
-	minLifecycleArgCount     = 2
-	maxCommandOutputSummary  = 120
-	managedCreateWarningsCap = 2
-	draftWarningsCap         = 2
-	managedCreateDirMode     = 0o750
-	managedCreateFileMode    = 0o600
-	projectComposeTimeout    = 5 * time.Minute
-	lifecycleRedeployStepCap = 4
+	minLifecycleArgCount         = 2
+	maxCommandOutputSummary      = 120
+	managedCreateWarningsCap     = 2
+	draftWarningsCap             = 2
+	managedCreateDirMode         = 0o750
+	managedCreateFileMode        = 0o600
+	projectComposeTimeout        = 5 * time.Minute
+	lifecycleRedeployStepCap     = 4
 
 	importRuntimeCandidateStatusReady           = "ready"
 	importRuntimeCandidateStatusAlreadyImported = "already_imported"
@@ -289,6 +289,7 @@ type LifecycleConfiguration struct {
 type ConfigurationDiffFile struct {
 	Kind            string
 	Path            string
+	DisplayPath     string
 	Changed         bool
 	CurrentHash     string
 	ProposedHash    string

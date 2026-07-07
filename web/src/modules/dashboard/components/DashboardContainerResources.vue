@@ -630,6 +630,9 @@ function anomalyLabel(item: {
 }
 
 function hasDistinctAnomalyStatus(item: ContainerDashboardAnomalyItem) {
+  if (anomalyReasonMatchesState(item)) {
+    return false;
+  }
   const primary = normalizeDisplayLabel(anomalyLabel(item));
   const status = normalizeDisplayLabel(containerStatusLabel(item.state, item.health));
   return Boolean(status && status !== primary);
@@ -637,6 +640,25 @@ function hasDistinctAnomalyStatus(item: ContainerDashboardAnomalyItem) {
 
 function sanitizeReasonCodeKey(reasonCode: string) {
   return reasonCode.replaceAll('.', '_').replaceAll('-', '_');
+}
+
+function anomalyReasonMatchesState(item: {
+  reasonCode?: string | null;
+  state?: string | null;
+  health?: string | null;
+}) {
+  const normalizedReasonCode = item.reasonCode?.trim().toLowerCase() || '';
+  const normalizedState = item.state?.trim().toLowerCase() || '';
+
+  if (normalizedReasonCode && normalizedState && normalizedReasonCode === `state.${normalizedState}`) {
+    return true;
+  }
+
+  if (normalizedReasonCode === 'health.unhealthy' && item.health?.trim().toLowerCase() === 'unhealthy') {
+    return true;
+  }
+
+  return false;
 }
 
 function normalizeDisplayLabel(value?: string | null) {

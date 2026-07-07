@@ -568,6 +568,7 @@ func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile,
 		&item.OrderIndex,
 		&item.ExistsOnLastRefresh,
 		&item.LastObservedHash,
+		&item.LastObservedContent,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {

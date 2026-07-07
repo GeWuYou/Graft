@@ -459,20 +459,6 @@
                     : t('project.detail.configuration.diffNoChanges')
                 "
               />
-              <t-space size="small" break-line>
-                <t-tooltip :content="diffResult.current_config_hash" placement="top-left" theme="light">
-                  <t-tag theme="default" variant="light-outline">
-                    {{ t('project.detail.configuration.currentHash') }}:
-                    {{ formatWorkspaceHash(diffResult.current_config_hash) }}
-                  </t-tag>
-                </t-tooltip>
-                <t-tooltip :content="diffResult.proposed_config_hash" placement="top-left" theme="light">
-                  <t-tag theme="primary" variant="light-outline">
-                    {{ t('project.detail.configuration.proposedHash') }}:
-                    {{ formatWorkspaceHash(diffResult.proposed_config_hash) }}
-                  </t-tag>
-                </t-tooltip>
-              </t-space>
               <div v-if="diffResult.warnings?.length" class="project-configuration-workspace__warning-list">
                 <t-alert v-for="warning in diffResult.warnings" :key="warning" theme="warning" :message="warning" />
               </div>
@@ -488,7 +474,17 @@
                     type="button"
                     @click="selectedDiffFilePath = file.path"
                   >
-                    <span>{{ file.path }}</span>
+                    <span class="project-configuration-workspace__diff-file-main">
+                      <span class="project-configuration-workspace__diff-file-name">
+                        {{ diffFileName(file.display_path || file.path) }}
+                      </span>
+                      <span
+                        v-if="diffFileDirectory(file.display_path || file.path)"
+                        class="project-configuration-workspace__diff-file-path"
+                      >
+                        {{ diffFileDirectory(file.display_path || file.path) }}
+                      </span>
+                    </span>
                     <t-tag :theme="file.changed ? 'warning' : 'success'" variant="light-outline">
                       {{
                         file.changed
@@ -499,19 +495,33 @@
                   </button>
                 </div>
                 <div class="project-configuration-workspace__diff-viewer">
-                  <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-meta">
-                    <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
-                      <span>
-                        {{ t('project.detail.configuration.currentHash') }}:
-                        {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
+                  <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-pane-heads">
+                    <div class="project-configuration-workspace__diff-pane-head">
+                      <span class="project-configuration-workspace__diff-pane-label">
+                        {{ t('project.detail.configuration.currentHash') }}
                       </span>
-                    </t-tooltip>
-                    <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
-                      <span>
-                        {{ t('project.detail.configuration.proposedHash') }}:
-                        {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
+                      <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
+                        <code
+                          class="project-configuration-workspace__hash-text"
+                          data-testid="configuration-diff-current-hash"
+                        >
+                          {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
+                        </code>
+                      </t-tooltip>
+                    </div>
+                    <div class="project-configuration-workspace__diff-pane-head">
+                      <span class="project-configuration-workspace__diff-pane-label">
+                        {{ t('project.detail.configuration.proposedHash') }}
                       </span>
-                    </t-tooltip>
+                      <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
+                        <code
+                          class="project-configuration-workspace__hash-text"
+                          data-testid="configuration-diff-proposed-hash"
+                        >
+                          {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
+                        </code>
+                      </t-tooltip>
+                    </div>
                   </div>
                   <div class="project-configuration-workspace__result-viewer">
                     <project-monaco-diff-surface
@@ -1712,6 +1722,21 @@ function formatWorkspaceHash(value?: string | null) {
   return `${normalized.slice(0, 6)}...${normalized.slice(-6)}`;
 }
 
+function diffFileDirectory(path: string) {
+  const normalized = String(path).trim().replaceAll('\\', '/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (segments.length <= 1) {
+    return '';
+  }
+  return segments.slice(0, -1).join('/');
+}
+
+function diffFileName(path: string) {
+  const normalized = String(path).trim().replaceAll('\\', '/');
+  const segments = normalized.split('/').filter(Boolean);
+  return segments[segments.length - 1] || normalized || '-';
+}
+
 function openDialog(config: { body: string; buttons: WorkspaceDialogButton[]; title: string }) {
   if (dialogState.resolver) {
     dialogState.resolver('cancel');
@@ -2298,8 +2323,28 @@ function stopSidebarResize() {
 }
 
 .project-configuration-workspace__result-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+
+  :deep(.t-tabs) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   :deep(.t-tabs__content) {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
+  }
+
+  :deep(.t-tab-panel) {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 }
 
@@ -2363,22 +2408,27 @@ function stopSidebarResize() {
 .project-configuration-workspace__warning-list,
 .project-configuration-workspace__feedback-panel {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+  min-height: 0;
 }
 
 .project-configuration-workspace__diff-layout {
   display: grid;
+  flex: 1 1 auto;
   gap: var(--graft-density-gap-12);
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
-  min-height: 420px;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  min-height: 0;
 }
 
 .project-configuration-workspace__diff-files {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-8);
+  min-height: 0;
   min-width: 0;
+  overflow: auto;
 }
 
 .project-configuration-workspace__diff-file {
@@ -2391,11 +2441,34 @@ function stopSidebarResize() {
   display: flex;
   gap: var(--graft-density-gap-8);
   justify-content: space-between;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
   text-align: left;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease;
+}
+
+.project-configuration-workspace__diff-file-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.project-configuration-workspace__diff-file-name {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-configuration-workspace__diff-file-path {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-configuration-workspace__diff-file:hover {
@@ -2409,21 +2482,39 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__diff-viewer {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+  min-height: 0;
 }
 
-.project-configuration-workspace__diff-meta {
-  color: var(--td-text-color-secondary);
-  display: flex;
-  flex-wrap: wrap;
-  font: var(--td-font-body-small);
+.project-configuration-workspace__diff-pane-heads {
+  display: grid;
   gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-configuration-workspace__diff-pane-head {
+  align-items: center;
+  background: var(--graft-workspace-editor-surface-muted);
+  border: 1px solid var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
+}
+
+.project-configuration-workspace__diff-pane-label {
+  color: var(--td-text-color-secondary);
+  flex: 0 0 auto;
+  font: var(--td-font-body-small);
 }
 
 .project-configuration-workspace__hash-text {
   color: var(--td-text-color-primary);
   display: inline-block;
+  flex: 1 1 auto;
   font-family: var(--td-font-family-mono, monospace);
   max-width: 100%;
   min-width: 0;
@@ -2435,28 +2526,37 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__result-dialog {
   background: var(--graft-workspace-editor-surface);
+  block-size: 100%;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
 }
 
 .project-configuration-workspace__result-dialog-header {
   border-bottom: 1px solid var(--graft-workspace-editor-border);
-  padding: var(--graft-density-gap-16) var(--graft-density-gap-16) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-10);
 }
 
 .project-configuration-workspace__result-viewer,
 .project-configuration-workspace__readonly-viewer,
 .project-configuration-workspace__drawer-viewer {
   background: var(--graft-workspace-editor-surface-muted);
-  block-size: 480px;
   border: 1px solid var(--graft-workspace-editor-border);
   border-radius: var(--td-radius-large);
-  margin-top: var(--graft-density-gap-12);
+  flex: 1 1 auto;
+  min-block-size: 360px;
   overflow: hidden;
 }
 
+.project-configuration-workspace__diff-viewer .project-configuration-workspace__result-viewer {
+  min-block-size: 0;
+}
+
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 0;
 }
 
@@ -2465,6 +2565,10 @@ function stopSidebarResize() {
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body-content) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
 }
 

@@ -16,7 +16,7 @@ type SQLRepository struct {
 }
 
 const (
-	projectListWhereArgCapacity        = 3
+	projectListWhereArgCapacity         = 3
 	workspaceAnnotationUpdateRetryLimit = 3
 )
 
@@ -191,7 +191,7 @@ func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID ui
 		ctx,
 		r.placeholder.rebind(`SELECT
 			f.id, f.project_id, f.kind, f.role, f.absolute_path, f.display_path, f.order_index,
-			f.exists_on_last_refresh, f.last_observed_hash, f.created_at, f.updated_at
+			f.exists_on_last_refresh, f.last_observed_hash, f.last_observed_content, f.created_at, f.updated_at
 		FROM compose_project_files f
 		INNER JOIN compose_projects p ON p.id = f.project_id
 		WHERE f.id = ? AND f.project_id = ? AND p.deleted_at = 0`),
@@ -512,7 +512,7 @@ func (r *SQLRepository) listFiles(ctx context.Context, projectID uint64) ([]Proj
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, project_id, kind, role, absolute_path, display_path, order_index,
-			exists_on_last_refresh, last_observed_hash, created_at, updated_at
+			exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
 		FROM compose_project_files
 		WHERE project_id = ?
 		ORDER BY order_index ASC, id ASC`),
@@ -595,7 +595,7 @@ func (r *SQLRepository) loadFilesByProjectIDs(
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, project_id, kind, role, absolute_path, display_path, order_index,
-			exists_on_last_refresh, last_observed_hash, created_at, updated_at
+			exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
 		FROM compose_project_files
 		WHERE project_id IN (`+placeholderList(len(args))+`)
 		ORDER BY project_id ASC, order_index ASC, id ASC`),
@@ -760,8 +760,8 @@ func (r *SQLRepository) replaceFiles(
 			ctx,
 			r.placeholder.rebind(`INSERT INTO compose_project_files (
 				project_id, kind, role, absolute_path, display_path, order_index,
-				exists_on_last_refresh, last_observed_hash, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+				exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 			projectDBID,
 			item.Kind,
 			item.Role,
@@ -770,6 +770,7 @@ func (r *SQLRepository) replaceFiles(
 			item.OrderIndex,
 			item.ExistsOnLastRefresh,
 			item.LastObservedHash,
+			item.LastObservedContent,
 			now,
 			now,
 		); err != nil {
