@@ -7,15 +7,19 @@ export type WorkspaceTooltipRule = {
 };
 
 export type WorkspaceTooltipRuleCollectionLabels = {
+  advancedTitle: string;
+  basicInfoTitle: string;
   collectionEnabledCount: string;
   collectionRuleCount: string;
   collectionTitle: string;
   detailDescription: string;
   detailTitle: string;
+  expandPatternEditorAction: string;
   emptyDescription: string;
   emptyTitle: string;
   invalidPatternLabel: string;
   noPatternSummary: string;
+  regexEditorLabel: string;
   ruleAddAction: string;
   ruleDisabledState: string;
   ruleDownAction: string;
@@ -26,10 +30,15 @@ export type WorkspaceTooltipRuleCollectionLabels = {
   ruleFallbackTitle: string;
   ruleMatchedDescription: string;
   ruleMatchedLabel: string;
+  ruleMatchedRuleLabel: string;
   rulePatternDescription: string;
   rulePatternLabel: string;
   rulePatternPlaceholder: string;
+  rulePreviewJsonTitle: string;
   ruleRemoveAction: string;
+  sectionDangerTitle: string;
+  sectionTestTitle: string;
+  sectionToggleTitle: string;
   ruleTestEmptyDescription: string;
   ruleTestEmptyLabel: string;
   ruleTestLabel: string;
