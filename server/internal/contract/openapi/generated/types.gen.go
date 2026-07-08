@@ -6475,26 +6475,6 @@ type EnvelopedProjectBatchActionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedProjectConfigurationDiffResponse defines model for enveloped-project-configuration-diff-response.
-type EnvelopedProjectConfigurationDiffResponse struct {
-	// Code Existing canonical response code.
-	Code string                           `json:"code"`
-	Data ProjectConfigurationDiffResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedProjectConfigurationMetadataResponse defines model for enveloped-project-configuration-metadata-response.
 type EnvelopedProjectConfigurationMetadataResponse struct {
 	// Code Existing canonical response code.
@@ -7707,44 +7687,6 @@ type ProjectBatchActionResponse struct {
 // ProjectCanonicalNameSource defines model for project-canonical-name-source.
 type ProjectCanonicalNameSource string
 
-// ProjectConfigurationDiffFile defines model for project-configuration-diff-file.
-type ProjectConfigurationDiffFile struct {
-	Changed         bool            `json:"changed"`
-	CurrentContent  string          `json:"current_content"`
-	CurrentHash     string          `json:"current_hash"`
-	DisplayPath     string          `json:"display_path"`
-	Kind            ProjectFileKind `json:"kind"`
-	Path            string          `json:"path"`
-	ProposedContent string          `json:"proposed_content"`
-	ProposedHash    string          `json:"proposed_hash"`
-}
-
-// ProjectConfigurationDiffRequest defines model for project-configuration-diff-request.
-type ProjectConfigurationDiffRequest struct {
-	Files *[]ProjectConfigurationDiffRequestFile `json:"files,omitempty"`
-}
-
-// ProjectConfigurationDiffRequestFile defines model for project-configuration-diff-request-file.
-type ProjectConfigurationDiffRequestFile struct {
-	// Content Draft file content that should be diffed before writing to disk.
-	Content string `json:"content"`
-
-	// Path Project-root-relative file path for the draft override.
-	Path string `json:"path"`
-}
-
-// ProjectConfigurationDiffResponse defines model for project-configuration-diff-response.
-type ProjectConfigurationDiffResponse struct {
-	CanonicalProjectName string                         `json:"canonical_project_name"`
-	CurrentConfigHash    string                         `json:"current_config_hash"`
-	Files                []ProjectConfigurationDiffFile `json:"files"`
-	HasChanges           bool                           `json:"has_changes"`
-	OwnershipMode        ProjectOwnershipMode           `json:"ownership_mode"`
-	ProjectId            int64                          `json:"project_id"`
-	ProposedConfigHash   string                         `json:"proposed_config_hash"`
-	Warnings             *[]string                      `json:"warnings,omitempty"`
-}
-
 // ProjectConfigurationMetadataResponse defines model for project-configuration-metadata-response.
 type ProjectConfigurationMetadataResponse struct {
 	ComposeFiles []ProjectFileItem `json:"compose_files"`
@@ -7982,6 +7924,7 @@ type ProjectFileContentResponse struct {
 	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
 	LanguageHint string `json:"language_hint"`
 	ProjectId    int64  `json:"project_id"`
+	Readable     bool   `json:"readable"`
 	RelativePath string `json:"relative_path"`
 	SizeBytes    int64  `json:"size_bytes"`
 }
@@ -8034,6 +7977,7 @@ type ProjectFileTreeItem struct {
 	Name          string                            `json:"name"`
 	NodeType      ProjectFileTreeNodeType           `json:"node_type"`
 	ProjectNote   *string                           `json:"project_note,omitempty"`
+	Readable      bool                              `json:"readable"`
 	RelativePath  string                            `json:"relative_path"`
 	SizeBytes     int64                             `json:"size_bytes"`
 	Tooltip       *string                           `json:"tooltip,omitempty"`
@@ -10523,16 +10467,6 @@ type GetProjectConfigurationParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostProjectConfigurationDiffParams defines parameters for PostProjectConfigurationDiff.
-type PostProjectConfigurationDiffParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // GetProjectConfigurationPreviewParams defines parameters for GetProjectConfigurationPreview.
 type GetProjectConfigurationPreviewParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -11306,9 +11240,6 @@ type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspec
 
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
-
-// PostProjectConfigurationDiffJSONRequestBody defines body for PostProjectConfigurationDiff for application/json ContentType.
-type PostProjectConfigurationDiffJSONRequestBody = ProjectConfigurationDiffRequest
 
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest

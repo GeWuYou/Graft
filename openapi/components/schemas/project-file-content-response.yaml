@@ -4,6 +4,7 @@ required:
   - relative_path
   - file_kind
   - language_hint
+  - readable
   - editable
   - encoding
   - content
@@ -22,6 +23,8 @@ properties:
     description: >
       Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml,
       properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
+  readable:
+    type: boolean
   editable:
     type: boolean
   encoding:

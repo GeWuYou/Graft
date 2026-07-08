@@ -197,6 +197,7 @@ type workspaceFileItem struct {
 	RelativePath    string
 	NodeType        string
 	FileKind        string
+	Readable        bool
 	Editable        bool
 	LanguageHint    string
 	SizeBytes       int64
@@ -223,6 +224,7 @@ type workspaceFileContentResult struct {
 	RelativePath string
 	FileKind     string
 	LanguageHint string
+	Readable     bool
 	Editable     bool
 	Encoding     string
 	Content      string
@@ -280,41 +282,6 @@ type LifecycleConfiguration struct {
 	ComposeFiles []string
 	ProjectName  string
 	Standard     LifecycleStandardConfig
-}
-
-// ConfigurationDiffFile describes one file-level diff projection.
-type ConfigurationDiffFile struct {
-	Kind            string
-	Path            string
-	DisplayPath     string
-	Changed         bool
-	CurrentHash     string
-	ProposedHash    string
-	CurrentContent  string
-	ProposedContent string
-}
-
-// ConfigurationDiffDraftFile describes one project-root-relative draft override used for preview-before-save diffing.
-type ConfigurationDiffDraftFile struct {
-	Path    string
-	Content string
-}
-
-// ConfigurationDiffRequest describes optional draft overrides for preview-before-save diffing.
-type ConfigurationDiffRequest struct {
-	Files []ConfigurationDiffDraftFile
-}
-
-// ConfigurationDiffResult returns bounded managed draft diff output.
-type ConfigurationDiffResult struct {
-	ProjectID            uint64
-	CanonicalProjectName string
-	OwnershipMode        string
-	CurrentConfigHash    string
-	ProposedConfigHash   string
-	HasChanges           bool
-	Files                []ConfigurationDiffFile
-	Warnings             []string
 }
 
 // ConfigurationValidateResult returns bounded managed draft validation output.

@@ -41,7 +41,6 @@ type FileRecord struct {
 	DisplayPath         string
 	OrderIndex          int
 	LastObservedHash    string
-	LastObservedContent string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }

@@ -33,7 +33,6 @@ export const PROJECT_API_PATH = {
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
   CONFIGURATION_PREVIEW: '/api/ops/projects/{id}/configuration/preview',
   CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
-  CONFIGURATION_DIFF: '/api/ops/projects/{id}/configuration/diff',
   CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
   FILES: '/api/ops/projects/{id}/files',
   FILES_CONTENT: '/api/ops/projects/{id}/files/content',
@@ -105,16 +104,6 @@ export function buildProjectConfigurationApiPath(id: number) {
  */
 export function buildProjectConfigurationPreviewApiPath(id: number) {
   return PROJECT_API_PATH.CONFIGURATION_PREVIEW.replace('{id}', encodeProjectPathParam(id));
-}
-
-/**
- * 构建项目配置差异接口路径。
- *
- * @param id - 项目 ID
- * @returns 替换 `id` 占位符后的配置差异接口路径
- */
-export function buildProjectConfigurationDiffApiPath(id: number) {
-  return PROJECT_API_PATH.CONFIGURATION_DIFF.replace('{id}', encodeProjectPathParam(id));
 }
 
 /**

@@ -1,10 +1,12 @@
 package project
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -19,49 +21,49 @@ import (
 )
 
 const projectWorkspaceEncodingUTF8 = "utf-8"
+const workspaceReadableSampleLimit = 8192
 
 type workspaceFileClassification struct {
-	Editable     bool
 	FileKind     string
 	LanguageHint string
 }
 
 var workspaceBaseNameClassifications = map[string]workspaceFileClassification{
-	".editorconfig":  {FileKind: "config", LanguageHint: "ini", Editable: true},
-	".gitattributes": {FileKind: "text", LanguageHint: "plaintext", Editable: false},
-	".gitconfig":     {FileKind: "config", LanguageHint: "ini", Editable: true},
-	".gitignore":     {FileKind: "text", LanguageHint: "plaintext", Editable: false},
-	"caddyfile":      {FileKind: "text", LanguageHint: "plaintext", Editable: false},
-	"dockerfile":     {FileKind: "config", LanguageHint: "dockerfile", Editable: true},
-	"makefile":       {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+	".editorconfig":  {FileKind: "config", LanguageHint: "ini"},
+	".gitattributes": {FileKind: "text", LanguageHint: "plaintext"},
+	".gitconfig":     {FileKind: "config", LanguageHint: "ini"},
+	".gitignore":     {FileKind: "text", LanguageHint: "plaintext"},
+	"caddyfile":      {FileKind: "text", LanguageHint: "plaintext"},
+	"dockerfile":     {FileKind: "config", LanguageHint: "dockerfile"},
+	"makefile":       {FileKind: "text", LanguageHint: "plaintext"},
 }
 
 var workspaceExtensionClassifications = map[string]workspaceFileClassification{
-	".bash":       {FileKind: "config", LanguageHint: "shell", Editable: true},
-	".cfg":        {FileKind: "config", LanguageHint: "ini", Editable: true},
-	".conf":       {FileKind: "config", LanguageHint: "ini", Editable: true},
-	".dockerfile": {FileKind: "config", LanguageHint: "dockerfile", Editable: true},
-	".hcl":        {FileKind: "config", LanguageHint: "hcl", Editable: true},
-	".ini":        {FileKind: "config", LanguageHint: "ini", Editable: true},
-	".json":       {FileKind: "config", LanguageHint: "json", Editable: true},
-	".jsonc":      {FileKind: "config", LanguageHint: "json", Editable: true},
-	".log":        {FileKind: "text", LanguageHint: "plaintext", Editable: false},
-	".markdown":   {FileKind: "text", LanguageHint: "markdown", Editable: false},
-	".md":         {FileKind: "text", LanguageHint: "markdown", Editable: false},
-	".properties": {FileKind: "config", LanguageHint: "properties", Editable: true},
-	".ps1":        {FileKind: "config", LanguageHint: "powershell", Editable: true},
-	".psd1":       {FileKind: "config", LanguageHint: "powershell", Editable: true},
-	".psm1":       {FileKind: "config", LanguageHint: "powershell", Editable: true},
-	".sh":         {FileKind: "config", LanguageHint: "shell", Editable: true},
-	".sql":        {FileKind: "config", LanguageHint: "sql", Editable: true},
-	".tf":         {FileKind: "config", LanguageHint: "hcl", Editable: true},
-	".tfvars":     {FileKind: "config", LanguageHint: "hcl", Editable: true},
-	".toml":       {FileKind: "config", LanguageHint: "toml", Editable: true},
-	".txt":        {FileKind: "text", LanguageHint: "plaintext", Editable: false},
-	".xml":        {FileKind: "config", LanguageHint: "xml", Editable: true},
-	".yaml":       {FileKind: "config", LanguageHint: "yaml", Editable: true},
-	".yml":        {FileKind: "config", LanguageHint: "yaml", Editable: true},
-	".zsh":        {FileKind: "config", LanguageHint: "shell", Editable: true},
+	".bash":       {FileKind: "config", LanguageHint: "shell"},
+	".cfg":        {FileKind: "config", LanguageHint: "ini"},
+	".conf":       {FileKind: "config", LanguageHint: "ini"},
+	".dockerfile": {FileKind: "config", LanguageHint: "dockerfile"},
+	".hcl":        {FileKind: "config", LanguageHint: "hcl"},
+	".ini":        {FileKind: "config", LanguageHint: "ini"},
+	".json":       {FileKind: "config", LanguageHint: "json"},
+	".jsonc":      {FileKind: "config", LanguageHint: "json"},
+	".log":        {FileKind: "text", LanguageHint: "plaintext"},
+	".markdown":   {FileKind: "text", LanguageHint: "markdown"},
+	".md":         {FileKind: "text", LanguageHint: "markdown"},
+	".properties": {FileKind: "config", LanguageHint: "properties"},
+	".ps1":        {FileKind: "config", LanguageHint: "powershell"},
+	".psd1":       {FileKind: "config", LanguageHint: "powershell"},
+	".psm1":       {FileKind: "config", LanguageHint: "powershell"},
+	".sh":         {FileKind: "config", LanguageHint: "shell"},
+	".sql":        {FileKind: "config", LanguageHint: "sql"},
+	".tf":         {FileKind: "config", LanguageHint: "hcl"},
+	".tfvars":     {FileKind: "config", LanguageHint: "hcl"},
+	".toml":       {FileKind: "config", LanguageHint: "toml"},
+	".txt":        {FileKind: "text", LanguageHint: "plaintext"},
+	".xml":        {FileKind: "config", LanguageHint: "xml"},
+	".yaml":       {FileKind: "config", LanguageHint: "yaml"},
+	".yml":        {FileKind: "config", LanguageHint: "yaml"},
+	".zsh":        {FileKind: "config", LanguageHint: "shell"},
 }
 
 type workspaceTooltipRule struct {
@@ -71,16 +73,15 @@ type workspaceTooltipRule struct {
 	regex   *regexp.Regexp
 }
 
-type trackedWorkspaceFile struct {
-	Kind             string
-	Path             string
-	DisplayPath      string
-	LastObservedHash string
-	Content          string
-	BaselineContent  string
+type workspaceFileState struct {
+	FileKind     string
+	LanguageHint string
+	Readable     bool
+	Editable     bool
 }
 
 type workspaceTreeBuildContext struct {
+	RootPath               string
 	TrackedKinds          map[string]string
 	HiddenDirectories     []string
 	FileTooltipRules      []workspaceTooltipRule
@@ -122,6 +123,7 @@ func (s *Service) browseProjectFiles(
 		return workspaceFilesResult{}, err
 	}
 	buildContext := workspaceTreeBuildContext{
+		RootPath:              rootDir,
 		TrackedKinds:          trackedProjectFileKinds(rootDir, aggregate.Files),
 		HiddenDirectories:     hiddenDirectories,
 		FileTooltipRules:      fileTooltipRules,
@@ -172,21 +174,22 @@ func (s *Service) projectFileContent(
 	if info.IsDir() {
 		return workspaceFileContentResult{}, errProjectInvalidArgument
 	}
-	fileKind, languageHint, editable := classifyWorkspaceFile(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files))
 	// #nosec G304 -- absolutePath is validated to stay under the project's working_directory before reading.
 	content, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return workspaceFileContentResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	if !utf8.Valid(content) {
+	state := resolveWorkspaceFileState(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files), content)
+	if !state.Readable {
 		return workspaceFileContentResult{}, errProjectInvalidArgument
 	}
 	return workspaceFileContentResult{
 		ProjectID:    projectID,
 		RelativePath: relativePath,
-		FileKind:     fileKind,
-		LanguageHint: languageHint,
-		Editable:     editable,
+		FileKind:     state.FileKind,
+		LanguageHint: state.LanguageHint,
+		Readable:     state.Readable,
+		Editable:     state.Editable,
 		Encoding:     projectWorkspaceEncodingUTF8,
 		Content:      string(content),
 		SizeBytes:    info.Size(),
@@ -207,13 +210,18 @@ func (s *Service) saveProjectFileContent(
 	if err != nil {
 		return workspaceFileSaveResult{}, err
 	}
-	fileKind, _, editable := classifyWorkspaceFile(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files))
-	if !editable || fileKind == "unsupported" {
-		return workspaceFileSaveResult{}, errProjectInvalidArgument
-	}
 	absolutePath := filepath.Join(rootDir, relativePath)
 	if err := ensureWorkspaceSaveTarget(absolutePath); err != nil {
 		return workspaceFileSaveResult{}, err
+	}
+	// #nosec G304 -- absolutePath is validated to stay under the project's working_directory before reading.
+	existingContent, err := os.ReadFile(absolutePath)
+	if err != nil {
+		return workspaceFileSaveResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	state := resolveWorkspaceFileState(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files), existingContent)
+	if !state.Editable {
+		return workspaceFileSaveResult{}, errProjectInvalidArgument
 	}
 	fsRoot, err := openManagedRootFS(rootDir)
 	if err != nil {
@@ -289,43 +297,6 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 	})
 }
 
-func loadTrackedFileContents(
-	aggregate projectstore.ProjectAggregate,
-	overrides map[string]string,
-) ([]trackedWorkspaceFile, error) {
-	rootDir, _, err := resolveProjectWorkspaceDirectory(aggregate.Project.WorkingDirectory, "")
-	if err != nil {
-		return nil, err
-	}
-	result := make([]trackedWorkspaceFile, 0, len(aggregate.Files))
-	for _, item := range aggregate.Files {
-		relativePath, relErr := relativePathWithinRoot(rootDir, item.AbsolutePath)
-		if relErr != nil {
-			return nil, fmt.Errorf("%w: %v", errProjectInvalidArgument, relErr)
-		}
-		content := []byte(nil)
-		if override, ok := overrides[normalizeWorkspaceRelative(relativePath)]; ok {
-			content = []byte(override)
-		} else {
-			// #nosec G304 -- rootDir and relativePath are normalized within the validated project root.
-			readContent, readErr := os.ReadFile(filepath.Join(rootDir, relativePath))
-			if readErr != nil {
-				return nil, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
-			}
-			content = readContent
-		}
-		result = append(result, trackedWorkspaceFile{
-			Kind:             item.Kind,
-			Path:             normalizeWorkspaceRelative(relativePath),
-			DisplayPath:      normalizeWorkspaceRelative(nonEmptyString(item.DisplayPath, relativePath)),
-			LastObservedHash: item.LastObservedHash,
-			Content:          string(content),
-			BaselineContent:  item.LastObservedContent,
-		})
-	}
-	return result, nil
-}
-
 func buildProjectWorkspaceFileItem(
 	relativePath string,
 	entry fs.DirEntry,
@@ -339,7 +310,10 @@ func buildProjectWorkspaceFileItem(
 	if err != nil {
 		return workspaceFileItem{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	fileKind, languageHint, editable := classifyWorkspaceFile(relativePath, buildContext.TrackedKinds)
+	state, err := resolveWorkspaceTreeItemState(buildContext.RootPath, relativePath, entry, buildContext.TrackedKinds)
+	if err != nil {
+		return workspaceFileItem{}, err
+	}
 	projectNote := strings.TrimSpace(buildContext.Annotations[normalizeWorkspaceRelative(relativePath)])
 	tooltip, tooltipSource := resolveWorkspaceTooltip(
 		entry.Name(),
@@ -352,9 +326,10 @@ func buildProjectWorkspaceFileItem(
 		Name:            entry.Name(),
 		RelativePath:    relativePath,
 		NodeType:        nodeType,
-		FileKind:        fileKind,
-		Editable:        editable,
-		LanguageHint:    languageHint,
+		FileKind:        state.FileKind,
+		Readable:        state.Readable,
+		Editable:        state.Editable,
+		LanguageHint:    state.LanguageHint,
 		SizeBytes:       info.Size(),
 		HiddenByDefault: shouldHideWorkspaceEntry(entry.Name(), entry.IsDir(), buildContext.HiddenDirectories),
 		HasChildren:     nodeType == "directory",
@@ -377,17 +352,17 @@ func trackedProjectFileKinds(rootDir string, files []projectstore.ProjectFile) m
 	return result
 }
 
-func classifyWorkspaceFile(relativePath string, trackedKinds map[string]string) (string, string, bool) {
+func classifyWorkspaceFile(relativePath string, trackedKinds map[string]string) (string, string) {
 	normalized := normalizeWorkspaceRelative(relativePath)
 	base := strings.ToLower(filepath.Base(normalized))
 	if kind, ok := trackedKinds[normalized]; ok {
 		return classifyTrackedWorkspaceKind(kind)
 	}
 	if classification, ok := classifyWorkspaceBaseName(base); ok {
-		return classification.FileKind, classification.LanguageHint, classification.Editable
+		return classification.FileKind, classification.LanguageHint
 	}
 	if isWorkspaceEnvFileBaseName(base) {
-		return "env", "dotenv", true
+		return "env", "dotenv"
 	}
 	return classifyWorkspaceExtension(strings.ToLower(filepath.Ext(base)))
 }
@@ -396,25 +371,25 @@ func isWorkspaceEnvFileBaseName(base string) bool {
 	return base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env")
 }
 
-func classifyTrackedWorkspaceKind(kind string) (string, string, bool) {
+func classifyTrackedWorkspaceKind(kind string) (string, string) {
 	switch kind {
 	case projectcontract.FileKindCompose.String():
-		return "compose", "yaml", true
+		return "compose", "yaml"
 	case projectcontract.FileKindEnv.String():
-		return "env", "dotenv", true
+		return "env", "dotenv"
 	default:
-		return "config", "plaintext", false
+		return "text", "plaintext"
 	}
 }
 
-func classifyWorkspaceExtension(ext string) (string, string, bool) {
+func classifyWorkspaceExtension(ext string) (string, string) {
 	if ext == "" {
-		return "unsupported", "plaintext", false
+		return "text", "plaintext"
 	}
 	if classification, ok := workspaceExtensionClassifications[ext]; ok {
-		return classification.FileKind, classification.LanguageHint, classification.Editable
+		return classification.FileKind, classification.LanguageHint
 	}
-	return "unsupported", "plaintext", false
+	return "text", "plaintext"
 }
 
 func classifyWorkspaceBaseName(base string) (workspaceFileClassification, bool) {
@@ -498,11 +473,11 @@ func ensureWorkspaceBrowsePath(path string) error {
 
 func ensureWorkspaceSaveTarget(path string) error {
 	info, err := os.Stat(path)
-	if err == nil && info.IsDir() {
-		return errProjectInvalidArgument
-	}
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err != nil {
 		return mapWorkspacePathError(err)
+	}
+	if info.IsDir() {
+		return errProjectInvalidArgument
 	}
 	return nil
 }
@@ -642,4 +617,84 @@ func resolveWorkspaceTooltip(
 		return "", ""
 	}
 	return matchedTooltip, "default-rule"
+}
+
+func resolveWorkspaceTreeItemState(
+	rootDir string,
+	relativePath string,
+	entry fs.DirEntry,
+	trackedKinds map[string]string,
+) (workspaceFileState, error) {
+	if entry.IsDir() {
+		return workspaceFileState{
+			FileKind:     "directory",
+			LanguageHint: "plaintext",
+			Readable:     true,
+			Editable:     false,
+		}, nil
+	}
+	return resolveWorkspaceFileStateFromPath(filepath.Join(rootDir, relativePath), relativePath, trackedKinds)
+}
+
+func resolveWorkspaceFileStateFromPath(
+	absolutePath string,
+	relativePath string,
+	trackedKinds map[string]string,
+) (workspaceFileState, error) {
+	// #nosec G304 -- absolutePath is already constrained to the validated project root before probing file content.
+	sample, err := readWorkspaceFileSample(absolutePath)
+	if err != nil {
+		return workspaceFileState{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	return resolveWorkspaceFileState(relativePath, trackedKinds, sample), nil
+}
+
+func resolveWorkspaceFileState(
+	relativePath string,
+	trackedKinds map[string]string,
+	content []byte,
+) workspaceFileState {
+	fileKind, languageHint := classifyWorkspaceFile(relativePath, trackedKinds)
+	if !isWorkspaceReadableText(content) {
+		return workspaceFileState{
+			FileKind:     "binary",
+			LanguageHint: "plaintext",
+			Readable:     false,
+			Editable:     false,
+		}
+	}
+	return workspaceFileState{
+		FileKind:     fileKind,
+		LanguageHint: languageHint,
+		Readable:     true,
+		Editable:     true,
+	}
+}
+
+func readWorkspaceFileSample(path string) ([]byte, error) {
+	// #nosec G304 -- path is already constrained to a validated file path under the project working directory.
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+	buffer := make([]byte, workspaceReadableSampleLimit)
+	count, err := file.Read(buffer)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	return append([]byte(nil), buffer[:count]...), nil
+}
+
+func isWorkspaceReadableText(content []byte) bool {
+	if bytes.IndexByte(content, 0) >= 0 {
+		return false
+	}
+	trimmed := append([]byte(nil), content...)
+	for len(trimmed) > 0 && !utf8.Valid(trimmed) {
+		trimmed = trimmed[:len(trimmed)-1]
+	}
+	return utf8.Valid(trimmed)
 }

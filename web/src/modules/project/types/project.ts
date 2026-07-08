@@ -115,35 +115,6 @@ export type ProjectConfigurationFileResponse = {
   read_only?: boolean;
 };
 
-export type ProjectConfigurationDraftFile = {
-  content: string;
-  path: string;
-};
-
-export type ProjectConfigurationDiffRequest = {
-  files?: ProjectConfigurationDraftFile[];
-};
-
-export type ProjectConfigurationDiffResponse = {
-  canonical_project_name: string;
-  current_config_hash: string;
-  files: Array<{
-    changed: boolean;
-    current_content: string;
-    current_hash: string;
-    display_path: string;
-    kind: string;
-    path: string;
-    proposed_content: string;
-    proposed_hash: string;
-  }>;
-  has_changes: boolean;
-  ownership_mode: ProjectOwnershipMode | string;
-  project_id: number;
-  proposed_config_hash: string;
-  warnings: string[];
-};
-
 export type ProjectConfigurationValidateRequest = {
   compose_file_content?: string;
   env_file_content?: string;
@@ -190,6 +161,7 @@ export type ProjectWorkspaceTreeItem = {
   relative_path: string;
   node_type: ProjectWorkspaceNodeType;
   file_kind: ProjectWorkspaceFileKind;
+  readable: boolean;
   editable: boolean;
   language_hint?: ProjectWorkspaceLanguageHint | null;
   size_bytes?: number | null;
@@ -217,6 +189,7 @@ export type ProjectWorkspaceFileContentResponse = {
   relative_path: string;
   file_kind: ProjectWorkspaceFileKind;
   language_hint?: ProjectWorkspaceLanguageHint | null;
+  readable: boolean;
   editable: boolean;
   encoding?: string | null;
   content: string;

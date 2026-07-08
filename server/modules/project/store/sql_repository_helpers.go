@@ -534,7 +534,6 @@ func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile,
 		&item.DisplayPath,
 		&item.OrderIndex,
 		&item.LastObservedHash,
-		&item.LastObservedContent,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {

@@ -3,7 +3,6 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
-  buildProjectConfigurationDiffApiPath,
   buildProjectConfigurationPreviewApiPath,
   buildProjectConfigurationValidateApiPath,
   buildProjectDeployApiPath,
@@ -27,8 +26,6 @@ import type {
   ProjectActionResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
-  ProjectConfigurationDiffRequest,
-  ProjectConfigurationDiffResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
   ProjectConfigurationValidateResponse,
@@ -103,13 +100,6 @@ type GetProjectConfigurationPreviewEnvelope =
   GetProjectConfigurationPreviewOperation['responses'][200]['content']['application/json'];
 type GetProjectConfigurationPreviewData = NonNullable<GetProjectConfigurationPreviewEnvelope['data']>;
 type GetProjectConfigurationPreviewPathParams = GetProjectConfigurationPreviewOperation['parameters']['path'];
-
-type ProjectConfigurationDiffPath = (typeof PROJECT_API_PATH)['CONFIGURATION_DIFF'];
-type ProjectConfigurationDiffOperation = paths[ProjectConfigurationDiffPath]['post'];
-type ProjectConfigurationDiffEnvelope =
-  ProjectConfigurationDiffOperation['responses'][200]['content']['application/json'];
-type ProjectConfigurationDiffData = NonNullable<ProjectConfigurationDiffEnvelope['data']>;
-type ProjectConfigurationDiffPathParams = ProjectConfigurationDiffOperation['parameters']['path'];
 
 type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
 type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidatePath]['post'];
@@ -311,16 +301,6 @@ export function putProjectFileAnnotation(
     params: query,
     data: payload,
   }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
-}
-
-export function postProjectConfigurationDiffWithDraft(
-  id: ProjectConfigurationDiffPathParams['id'],
-  payload?: ProjectConfigurationDiffRequest,
-) {
-  return postProjectAction<ProjectConfigurationDiffData>(
-    buildProjectConfigurationDiffApiPath(id),
-    payload,
-  ) as Promise<ProjectConfigurationDiffResponse>;
 }
 
 /**

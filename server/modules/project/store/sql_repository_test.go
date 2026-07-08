@@ -31,9 +31,9 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 		"hash-demo", `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
 	mustExec(t, db, `INSERT INTO compose_project_files (
-		id, project_id, kind, role, absolute_path, display_path, order_index, last_observed_hash, last_observed_content, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		10, 1, projectcontract.FileKindCompose.String(), projectcontract.FileRolePrimary.String(), "/srv/demo/compose.yml", "compose.yml", 0, "hash", "services:\n  api:\n    image: demo\n", time.Now().UTC(), time.Now().UTC(),
+		id, project_id, kind, role, absolute_path, display_path, order_index, last_observed_hash, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		10, 1, projectcontract.FileKindCompose.String(), projectcontract.FileRolePrimary.String(), "/srv/demo/compose.yml", "compose.yml", 0, "hash", time.Now().UTC(), time.Now().UTC(),
 	)
 
 	_, err := repo.GetFile(ctx, 1, 10)
@@ -230,7 +230,6 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		display_path TEXT NOT NULL,
 		order_index INTEGER NOT NULL,
 		last_observed_hash TEXT NOT NULL DEFAULT '',
-		last_observed_content TEXT NOT NULL DEFAULT '',
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	)`)
@@ -261,10 +260,10 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 func insertProjectFileRow(t *testing.T, db *sql.DB, id int, projectID int, displayPath string, orderIndex int) {
 	t.Helper()
 	mustExec(t, db, `INSERT INTO compose_project_files (
-		id, project_id, kind, role, absolute_path, display_path, order_index, last_observed_hash, last_observed_content, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, project_id, kind, role, absolute_path, display_path, order_index, last_observed_hash, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, projectID, projectcontract.FileKindCompose.String(), projectcontract.FileRolePrimary.String(),
-		"/srv/project/"+displayPath, displayPath, orderIndex, "hash-"+displayPath, "services:\n  api:\n    image: app\n", time.Now().UTC(), time.Now().UTC(),
+		"/srv/project/"+displayPath, displayPath, orderIndex, "hash-"+displayPath, time.Now().UTC(), time.Now().UTC(),
 	)
 }
 

@@ -279,13 +279,12 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 	items := make([]projectstore.ProjectFile, 0, len(composeFiles)+len(envFiles))
 	for _, item := range append(append([]projectcompose.FileProjection(nil), composeFiles...), envFiles...) {
 		items = append(items, projectstore.ProjectFile{
-			Kind:                item.Kind,
-			Role:                item.Role,
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			OrderIndex:          item.OrderIndex,
-			LastObservedHash:    hashString(string(item.Content)),
-			LastObservedContent: normalizeTextBlock(string(item.Content)),
+			Kind:             item.Kind,
+			Role:             item.Role,
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			OrderIndex:       item.OrderIndex,
+			LastObservedHash: hashString(string(item.Content)),
 		})
 	}
 	return items
@@ -415,21 +414,6 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 func hashString(value string) string {
 	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
 	return hex.EncodeToString(sum[:])
-}
-
-// buildConfigurationDiffFile 构建规范化后的配置文件差异结果。
-//
-//nolint:unused // Retained for direct test coverage of diff normalization semantics.
-func buildConfigurationDiffFile(kind string, path string, current string, proposed string) ConfigurationDiffFile {
-	return ConfigurationDiffFile{
-		Kind:            kind,
-		Path:            path,
-		Changed:         normalizeTextBlock(current) != normalizeTextBlock(proposed),
-		CurrentHash:     hashString(current),
-		ProposedHash:    hashString(proposed),
-		CurrentContent:  normalizeTextBlock(current),
-		ProposedContent: normalizeTextBlock(proposed),
-	}
 }
 
 // normalizeTextBlock 规范化文本块的换行、行尾空白和整体边界，并在非空时补充结尾换行符。

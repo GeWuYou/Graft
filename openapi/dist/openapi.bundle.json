@@ -12244,98 +12244,6 @@
         }
       }
     },
-    "/api/ops/projects/{id}/configuration/diff": {
-      "post": {
-        "tags": [
-          "project"
-        ],
-        "summary": "Diff current saved project configuration state",
-        "operationId": "postProjectConfigurationDiff",
-        "description": "Compares the current saved working_directory state with the latest refreshed project snapshot baseline without mutating files or changing runtime state.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "$ref": "#/components/parameters/project-id-path"
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-configuration-diff-request"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Project configuration diff generated from saved disk state.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-configuration-diff-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid project id.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "Project record not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
     "/api/ops/projects/{id}/configuration/validate": {
       "post": {
         "tags": [
@@ -24960,6 +24868,7 @@
           "relative_path",
           "node_type",
           "file_kind",
+          "readable",
           "editable",
           "language_hint",
           "size_bytes",
@@ -24978,6 +24887,9 @@
           },
           "file_kind": {
             "$ref": "#/components/schemas/project-workspace-file-kind"
+          },
+          "readable": {
+            "type": "boolean"
           },
           "editable": {
             "type": "boolean"
@@ -25069,6 +24981,7 @@
           "relative_path",
           "file_kind",
           "language_hint",
+          "readable",
           "editable",
           "encoding",
           "content",
@@ -25089,6 +25002,9 @@
           "language_hint": {
             "type": "string",
             "description": "Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.\n"
+          },
+          "readable": {
+            "type": "boolean"
           },
           "editable": {
             "type": "boolean"
@@ -25197,138 +25113,6 @@
             "$ref": "#/components/schemas/project-file-tree-item"
           }
         }
-      },
-      "project-configuration-diff-request-file": {
-        "type": "object",
-        "required": [
-          "path",
-          "content"
-        ],
-        "properties": {
-          "path": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Project-root-relative file path for the draft override."
-          },
-          "content": {
-            "type": "string",
-            "description": "Draft file content that should be diffed before writing to disk."
-          }
-        }
-      },
-      "project-configuration-diff-request": {
-        "type": "object",
-        "properties": {
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/project-configuration-diff-request-file"
-            }
-          }
-        }
-      },
-      "project-configuration-diff-file": {
-        "type": "object",
-        "required": [
-          "kind",
-          "path",
-          "display_path",
-          "changed",
-          "current_hash",
-          "proposed_hash",
-          "current_content",
-          "proposed_content"
-        ],
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/project-file-kind"
-          },
-          "path": {
-            "type": "string"
-          },
-          "display_path": {
-            "type": "string"
-          },
-          "changed": {
-            "type": "boolean"
-          },
-          "current_hash": {
-            "type": "string"
-          },
-          "proposed_hash": {
-            "type": "string"
-          },
-          "current_content": {
-            "type": "string"
-          },
-          "proposed_content": {
-            "type": "string"
-          }
-        }
-      },
-      "project-configuration-diff-response": {
-        "type": "object",
-        "required": [
-          "project_id",
-          "canonical_project_name",
-          "ownership_mode",
-          "current_config_hash",
-          "proposed_config_hash",
-          "has_changes",
-          "files"
-        ],
-        "properties": {
-          "project_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "canonical_project_name": {
-            "type": "string"
-          },
-          "ownership_mode": {
-            "$ref": "#/components/schemas/project-ownership-mode"
-          },
-          "current_config_hash": {
-            "type": "string"
-          },
-          "proposed_config_hash": {
-            "type": "string"
-          },
-          "has_changes": {
-            "type": "boolean"
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/project-configuration-diff-file"
-            }
-          },
-          "warnings": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "enveloped-project-configuration-diff-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/project-configuration-diff-response"
-              }
-            }
-          }
-        ]
       },
       "project-configuration-validate-response": {
         "type": "object",

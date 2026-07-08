@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
   info: vi.fn(),
-  postProjectConfigurationDiffWithDraft: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
   putProjectFileAnnotation: vi.fn(),
@@ -65,7 +64,6 @@ vi.mock('../../api/project', () => ({
   getProjectConfigurationPreview: mocks.getProjectConfigurationPreview,
   getProjectFileContent: mocks.getProjectFileContent,
   getProjectFiles: mocks.getProjectFiles,
-  postProjectConfigurationDiffWithDraft: mocks.postProjectConfigurationDiffWithDraft,
   postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
   postProjectDeploy: mocks.postProjectDeploy,
   putProjectFileAnnotation: mocks.putProjectFileAnnotation,
@@ -422,6 +420,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
               language_hint: 'dotenv',
               name: '.env',
               node_type: 'file',
+              readable: true,
               relative_path: 'config/.env',
               size_bytes: 0,
             },
@@ -439,6 +438,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
             language_hint: 'yaml',
             name: 'docker-compose.yml',
             node_type: 'file',
+            readable: true,
             relative_path: 'docker-compose.yml',
             size_bytes: 32,
           },
@@ -448,6 +448,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
             has_children: true,
             name: 'config',
             node_type: 'directory',
+            readable: true,
             relative_path: 'config',
           },
         ],
@@ -460,6 +461,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       encoding: 'utf-8',
       file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'env',
       language_hint: query.path === 'docker-compose.yml' ? 'yaml' : 'dotenv',
+      readable: true,
       relative_path: query.path,
       size_bytes: query.path === 'docker-compose.yml' ? 32 : 0,
     }));
@@ -478,31 +480,11 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       name: 'docker-compose.yml',
       node_type: 'file',
       project_note: 'Existing note',
+      readable: true,
       relative_path: 'docker-compose.yml',
       size_bytes: 32,
       tooltip: 'Existing note',
       tooltip_source: 'project-note',
-    });
-    mocks.postProjectConfigurationDiffWithDraft.mockResolvedValue({
-      canonical_project_name: 'sub2api',
-      current_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
-      files: [
-        {
-          changed: true,
-          current_content: 'services:\n  api:\n    image: old\n',
-          current_hash: 'c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef',
-          display_path: 'docker-compose.yml',
-          kind: 'compose',
-          path: 'docker-compose.yml',
-          proposed_content: 'services:\n  api:\n    image: app\n',
-          proposed_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
-        },
-      ],
-      has_changes: true,
-      ownership_mode: 'managed-root-dedicated',
-      project_id: 1,
-      proposed_config_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
-      warnings: [],
     });
     mocks.postProjectConfigurationValidate.mockResolvedValue({
       canonical_project_name: 'sub2api',
@@ -766,6 +748,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
           has_children: true,
           name: 'config',
           node_type: 'directory',
+          readable: true,
           relative_path: 'config',
         },
       ],
@@ -795,11 +778,13 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(wrapper.get('[data-testid="configuration-diff-current-hash"]').text()).toBe('c90a77...1e90ef');
-    expect(wrapper.get('[data-testid="configuration-diff-proposed-hash"]').text()).toBe('0dd31a...27ca10');
-    expect(wrapper.html()).toContain('data-tooltip-content="c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef"');
-    expect(wrapper.html()).toContain('data-tooltip-content="0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10"');
-    expect(wrapper.text()).not.toContain('40ddc4...b6182c');
+    const currentHash = wrapper.get('[data-testid="configuration-diff-current-hash"]').text();
+    const proposedHash = wrapper.get('[data-testid="configuration-diff-proposed-hash"]').text();
+    expect(currentHash).toMatch(/^ws-[0-9a-f]+(?:\.\.\.[0-9a-f]+)?$/);
+    expect(proposedHash).toMatch(/^ws-[0-9a-f]+(?:\.\.\.[0-9a-f]+)?$/);
+    expect(wrapper.html()).toContain(`data-tooltip-content="${currentHash}"`);
+    expect(wrapper.html()).toContain(`data-tooltip-content="${proposedHash}"`);
+    expect(currentHash).not.toBe(proposedHash);
   });
 
   it('opens the diff result in a modal dialog after save', async () => {
@@ -851,9 +836,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
-    expect(mocks.postProjectConfigurationDiffWithDraft).toHaveBeenCalledWith(1, {
-      files: [{ content: 'services:\n  api:\n    image: newer\n', path: 'docker-compose.yml' }],
-    });
     expect(wrapper.find('[data-testid="validation-monaco-viewer"]').exists()).toBe(true);
   });
 
@@ -887,9 +869,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
-    expect(mocks.postProjectConfigurationDiffWithDraft).toHaveBeenCalledWith(1, {
-      files: [{ content: 'services:\n  api:\n    image: newer\n', path: 'docker-compose.yml' }],
-    });
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
     expect(mocks.postProjectDeploy).not.toHaveBeenCalled();
   });
@@ -917,9 +896,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
-    expect(mocks.postProjectConfigurationDiffWithDraft).toHaveBeenCalledWith(1, {
-      files: [{ content: 'services:\n  api:\n    image: newer\n', path: 'docker-compose.yml' }],
-    });
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect(mocks.postProjectDeploy).toHaveBeenCalledWith(1);
   });
@@ -945,21 +921,13 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
-  it('saves directly without opening preview when the diff preview reports no changes', async () => {
-    mocks.postProjectConfigurationDiffWithDraft.mockResolvedValueOnce({
-      canonical_project_name: 'sub2api',
-      current_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
-      files: [],
-      has_changes: false,
-      ownership_mode: 'managed-root-dedicated',
-      project_id: 1,
-      proposed_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
-      warnings: [],
-    });
+  it('saves directly without opening preview when normalization removes the dirty diff', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .get('[data-testid="workspace-monaco-editor"]')
+      .setValue('services:\r\n  api:  \r\n    image: app\r\n');
     await wrapper
       .findAll('button')
       .find((button) => button.text().trim() === 'Save')
@@ -969,7 +937,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
       1,
       { path: 'docker-compose.yml' },
-      { content: 'services:\n  api:\n    image: newer\n' },
+      { content: 'services:\n  api:\n    image: app\n' },
     );
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect(mocks.info).toHaveBeenCalledWith('No file diff was detected. Draft files will be saved directly.');

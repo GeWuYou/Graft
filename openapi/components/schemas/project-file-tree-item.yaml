@@ -4,6 +4,7 @@ required:
   - relative_path
   - node_type
   - file_kind
+  - readable
   - editable
   - language_hint
   - size_bytes
@@ -18,6 +19,8 @@ properties:
     $ref: ./project-file-tree-node-type.yaml
   file_kind:
     $ref: ./project-workspace-file-kind.yaml
+  readable:
+    type: boolean
   editable:
     type: boolean
   language_hint:

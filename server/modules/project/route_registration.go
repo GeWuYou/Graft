@@ -1,11 +1,8 @@
 package project
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -76,7 +73,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
-	group.POST(projectcontract.ProjectConfigurationDiffRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationDiff)
 	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
 	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
@@ -479,24 +475,6 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 	})
 }
 
-func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
-	if !ok {
-		return
-	}
-	var request generated.PostProjectConfigurationDiffJSONRequestBody
-	if !bindOptionalJSON(ginCtx, r.ctx, &request) {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectConfigurationDiff(generatedID, bindPostProjectConfigurationDiffParams(ginCtx), request)
-	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), projectID, toConfigurationDiffRequest(request))
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationDiffResponse(result))
-}
-
 func (r routeRuntime) handleConfigurationValidate(ginCtx *gin.Context) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
@@ -851,8 +829,6 @@ func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProject
 }
 func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams, generated.PostProjectConfigurationDiffJSONRequestBody) {
-}
 func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
 }
 func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams)   {}
@@ -963,26 +939,6 @@ func bindPostProjectImportRuntimeInspectParams(ginCtx *gin.Context) generated.Po
 // 绑定失败时，会中止当前请求并返回 400 Bad Request 的本地化参数错误，错误字段为 `body`。
 func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	if err := ginCtx.ShouldBindJSON(target); err != nil {
-		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
-		return false
-	}
-	return true
-}
-
-func bindOptionalJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
-	if ginCtx.Request == nil || ginCtx.Request.Body == nil {
-		return true
-	}
-	payload, err := io.ReadAll(ginCtx.Request.Body)
-	if err != nil {
-		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
-		return false
-	}
-	ginCtx.Request.Body = io.NopCloser(bytes.NewReader(payload))
-	if len(bytes.TrimSpace(payload)) == 0 {
-		return true
-	}
-	if err := json.Unmarshal(payload, target); err != nil {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
 		return false
 	}
@@ -1182,12 +1138,6 @@ func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) genera
 	locale, requestID := commonHeaders(ginCtx)
 	queryPath := generated.ProjectWorkspacePathQuery(path)
 	return generated.PutProjectFileAnnotationParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
-}
-
-// bindPostProjectConfigurationDiffParams 组装项目配置 diff 请求的公共请求头参数。
-func bindPostProjectConfigurationDiffParams(ginCtx *gin.Context) generated.PostProjectConfigurationDiffParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectConfigurationDiffParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostProjectConfigurationValidateParams 构造配置校验接口的公共请求参数。

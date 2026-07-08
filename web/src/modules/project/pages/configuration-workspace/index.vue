@@ -104,7 +104,7 @@
                         :class="{
                           'project-configuration-workspace__tree-row--active': isWorkspaceItemActive(row.item),
                           'project-configuration-workspace__tree-row--readonly':
-                            row.item.node_type === 'file' && !row.item.editable,
+                            row.item.node_type === 'file' && (!row.item.readable || !row.item.editable),
                         }"
                         :style="{ '--workspace-tree-depth': String(row.depth) }"
                       >
@@ -663,7 +663,6 @@ import {
   getProjectConfigurationPreview,
   getProjectFileContent,
   getProjectFiles,
-  postProjectConfigurationDiffWithDraft,
   postProjectConfigurationValidate,
   postProjectDeploy,
   putProjectFileAnnotation,
@@ -673,6 +672,7 @@ import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
 import {
   hasWorkspaceUnsavedChanges,
+  normalizeTextBlock,
   normalizeWorkspaceContent,
   type ProjectWorkspaceMonacoLanguage,
   resolveWorkspaceFileName,
@@ -687,8 +687,6 @@ import {
 } from '../../shared/display';
 import { useProjectPageContext } from '../../shared/page-context';
 import type {
-  ProjectConfigurationDiffRequest,
-  ProjectConfigurationDiffResponse,
   ProjectConfigurationPreviewResponse,
   ProjectConfigurationValidateResponse,
   ProjectDetailResponseWithLifecycle,
@@ -720,13 +718,29 @@ type WorkspaceFlatRow = {
 };
 type DiffTreeRow = {
   depth: number;
-  file: ProjectConfigurationDiffResponse['files'][number] | null;
+  file: WorkspacePreviewDiffFile | null;
   name: string;
   path: string;
   type: 'directory' | 'file';
 };
+type WorkspacePreviewDiffFile = {
+  changed: boolean;
+  current_content: string;
+  current_hash: string;
+  display_path: string;
+  kind: ProjectWorkspaceFileKind;
+  path: string;
+  proposed_content: string;
+  proposed_hash: string;
+};
+type WorkspacePreviewDiffResult = {
+  files: WorkspacePreviewDiffFile[];
+  has_changes: boolean;
+  warnings: string[];
+};
 type WorkspaceOpenFile = {
   content: string;
+  readable: boolean;
   editable: boolean;
   error: string;
   fileKind: ProjectWorkspaceFileKind;
@@ -776,7 +790,7 @@ const resultDialogVisible = ref(false);
 const resultDialogMode = ref<ResultDialogMode>('diff');
 const resultDialogFullscreen = ref(false);
 const activeFileTabPathForMenu = ref<string | null>(null);
-const diffResult = ref<ProjectConfigurationDiffResponse | null>(null);
+const diffResult = ref<WorkspacePreviewDiffResult | null>(null);
 const validateResult = ref<ProjectConfigurationValidateResponse | null>(null);
 const diffLoading = ref(false);
 const validateLoading = ref(false);
@@ -1075,6 +1089,9 @@ function handleWorkspaceEntry(item: WorkspaceListItem) {
     void toggleWorkspaceDirectory(item);
     return;
   }
+  if (!item.readable) {
+    return;
+  }
   void openWorkspaceFile(item.relative_path, item);
 }
 
@@ -1224,6 +1241,7 @@ async function openWorkspaceFile(path: string, source?: WorkspaceListItem) {
   if (!openFileMap.has(path)) {
     openFileMap.set(path, {
       content: '',
+      readable: Boolean(source?.readable ?? true),
       editable: Boolean(source?.editable),
       error: '',
       fileKind: source?.file_kind || 'text',
@@ -1275,6 +1293,7 @@ function hydrateOpenFileFromResponse(
     openFileMap.get(requestedPath) ??
     ({
       content: '',
+      readable: response.readable,
       editable: response.editable,
       error: '',
       fileKind: response.file_kind,
@@ -1292,6 +1311,7 @@ function hydrateOpenFileFromResponse(
     } satisfies WorkspaceOpenFile);
 
   current.content = normalizeWorkspaceContent(response.content);
+  current.readable = response.readable;
   current.editable = response.editable;
   current.error = '';
   current.fileKind = response.file_kind || source?.file_kind || 'text';
@@ -1337,7 +1357,7 @@ async function saveWorkspaceFile(path: string, options?: { silent?: boolean }) {
 
   current.saving = true;
   try {
-    const normalizedContent = normalizeWorkspaceContent(current.content);
+    const normalizedContent = normalizeTextBlock(current.content);
     await putProjectFileContent(projectId.value, { path }, { content: normalizedContent });
     current.content = normalizedContent;
     current.savedContent = normalizedContent;
@@ -1655,52 +1675,55 @@ async function executeProjectDeploy() {
   }
 }
 
-function buildDirtyDraftFiles(paths?: string[]): ProjectConfigurationDiffRequest['files'] {
+function buildDirtyDiffFiles(paths?: string[]): WorkspacePreviewDiffFile[] {
   const targetPathSet = paths?.length ? new Set(paths) : null;
-  const draftFiles = dirtyEditableBuffers.value
+  return dirtyEditableBuffers.value
     .filter((tab) => !targetPathSet || targetPathSet.has(tab.path))
-    .map((tab) => ({
-      content: normalizeWorkspaceContent(tab.content),
-      path: normalizeWorkspacePath(tab.path),
-    }));
-  return draftFiles.length ? draftFiles : undefined;
+    .map((tab) => {
+      const currentContent = normalizeTextBlock(tab.savedContent);
+      const proposedContent = normalizeTextBlock(tab.content);
+      const path = normalizeWorkspacePath(tab.path);
+      return {
+        changed: currentContent !== proposedContent,
+        current_content: currentContent,
+        current_hash: hashWorkspaceContent(currentContent),
+        display_path: path,
+        kind: tab.fileKind,
+        path,
+        proposed_content: proposedContent,
+        proposed_hash: hashWorkspaceContent(proposedContent),
+      } satisfies WorkspacePreviewDiffFile;
+    })
+    .filter((file) => file.changed);
 }
 
 async function previewBeforeSave(action: PendingWorkspaceAction) {
-  const files = buildDirtyDraftFiles();
-  if (!files?.length) {
-    return action === 'save' ? false : true;
-  }
-
-  diffLoading.value = true;
-  try {
-    diffResult.value = await postProjectConfigurationDiffWithDraft(projectId.value, { files });
-    selectedDiffFilePath.value = diffResult.value.files[0]?.path || '';
-    if (!diffResult.value.has_changes || !diffResult.value.files.length) {
-      MessagePlugin.info(workspaceCopy.value.diffEmptyDirectSaveHint);
-      const saved = await saveDirtyFiles();
-      if (!saved) {
-        return false;
-      }
-      if (action === 'validate') {
-        await executeProjectValidate();
-      } else if (action === 'deploy') {
-        await executeProjectDeploy();
-      }
-      return true;
+  const files = buildDirtyDiffFiles();
+  if (!files.length) {
+    MessagePlugin.info(workspaceCopy.value.diffEmptyDirectSaveHint);
+    const saved = await saveDirtyFiles();
+    if (!saved) {
+      return false;
     }
-
-    validateResult.value = null;
-    pendingWorkspaceAction.value = action;
-    resultDialogMode.value = 'diff';
-    resultDialogVisible.value = true;
-    return false;
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.diffFailed')));
-    return false;
-  } finally {
-    diffLoading.value = false;
+    if (action === 'validate') {
+      await executeProjectValidate();
+    } else if (action === 'deploy') {
+      await executeProjectDeploy();
+    }
+    return true;
   }
+
+  diffResult.value = {
+    files,
+    has_changes: files.length > 0,
+    warnings: [],
+  };
+  selectedDiffFilePath.value = files[0]?.path || '';
+  validateResult.value = null;
+  pendingWorkspaceAction.value = action;
+  resultDialogMode.value = 'diff';
+  resultDialogVisible.value = true;
+  return false;
 }
 
 function cancelDiffPreview() {
@@ -1774,9 +1797,18 @@ function diffFileName(path: string) {
   return segments[segments.length - 1] || normalized || '-';
 }
 
-function buildDiffTreeRows(files: ProjectConfigurationDiffResponse['files']) {
+function hashWorkspaceContent(value: string) {
+  let hash = 2166136261;
+  for (const char of value) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `ws-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+function buildDiffTreeRows(files: WorkspacePreviewDiffFile[]) {
   const directoryPaths = new Set<string>();
-  const fileMap = new Map<string, ProjectConfigurationDiffResponse['files'][number]>();
+  const fileMap = new Map<string, WorkspacePreviewDiffFile>();
 
   for (const file of files) {
     const normalizedPath = normalizeWorkspacePath(file.path);
