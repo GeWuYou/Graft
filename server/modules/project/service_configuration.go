@@ -24,8 +24,6 @@ func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (
 		EnvFiles:           toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
 		OwnershipMode:      aggregate.Project.OwnershipMode,
 		DriftStatus:        aggregate.Project.DriftStatus,
-		LastRefreshStatus:  aggregate.Project.LastRefreshStatus,
-		LastRefreshAt:      aggregate.Project.LastRefreshAt,
 		DiagnosticsSummary: nil,
 	}, nil
 }
@@ -45,7 +43,7 @@ func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (C
 		CanonicalProjectName:  aggregate.Project.CanonicalProjectName,
 		ConfigHash:            parseResult.ConfigHash,
 		NormalizedComposeYAML: parseResult.NormalizedComposeYAML,
-		RefreshedAt:           aggregate.Project.LastRefreshAt,
+		RefreshedAt:           snapshotRefreshedAt(aggregate.Snapshot),
 	}, nil
 }
 
@@ -68,9 +66,9 @@ func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64) (Conf
 		ProjectID:            projectID,
 		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
 		OwnershipMode:        aggregate.Project.OwnershipMode,
-		CurrentConfigHash:    aggregate.Project.LastRefreshConfigHash,
+		CurrentConfigHash:    snapshotConfigHash(aggregate.Snapshot),
 		ProposedConfigHash:   parseResult.ConfigHash,
-		HasChanges:           hasFileChanges || aggregate.Project.LastRefreshConfigHash != parseResult.ConfigHash,
+		HasChanges:           hasFileChanges || snapshotConfigHash(aggregate.Snapshot) != parseResult.ConfigHash,
 		Files:                files,
 		Warnings:             warnings,
 	}, nil
@@ -192,4 +190,19 @@ func configurationDiffWarnings(fileCount int) []string {
 		warnings = append(warnings, "No tracked compose or env files are registered for the project.")
 	}
 	return warnings
+}
+
+func snapshotConfigHash(snapshot *projectstore.Snapshot) string {
+	if snapshot == nil {
+		return ""
+	}
+	return snapshot.ConfigHash
+}
+
+func snapshotRefreshedAt(snapshot *projectstore.Snapshot) *time.Time {
+	if snapshot == nil {
+		return nil
+	}
+	refreshedAt := snapshot.RefreshedAt
+	return &refreshedAt
 }

@@ -84,7 +84,6 @@ describe('project import normalization helpers', () => {
           absolute_path: '/srv/files/compose.yaml',
           display_path: 'compose.yaml',
           order_index: 0,
-          exists_on_last_refresh: true,
         },
         {
           display_path: 'broken.yaml',
@@ -97,7 +96,6 @@ describe('project import normalization helpers', () => {
           absolute_path: '/srv/files/.env',
           display_path: '.env',
           order_index: 0,
-          exists_on_last_refresh: true,
           last_observed_hash: 'hash-env',
         },
         {
@@ -121,7 +119,6 @@ describe('project import normalization helpers', () => {
         absolute_path: '/srv/files/compose.yaml',
         display_path: 'compose.yaml',
         order_index: 0,
-        exists_on_last_refresh: true,
       },
     ]);
     expect(result?.env_files).toEqual([
@@ -131,7 +128,6 @@ describe('project import normalization helpers', () => {
         absolute_path: '/srv/files/.env',
         display_path: '.env',
         order_index: 0,
-        exists_on_last_refresh: true,
         last_observed_hash: 'hash-env',
       },
     ]);

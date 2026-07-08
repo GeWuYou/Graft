@@ -70,7 +70,6 @@ type ListQuery struct {
 	Offset            int
 	SourceKind        string
 	DriftStatus       string
-	LastRefreshStatus string
 }
 
 // ImportRequest describes batch-2 import validate and import payloads.
@@ -165,8 +164,6 @@ type ConfigurationMetadataResult struct {
 	EnvFiles           []generated.ProjectFileItem
 	OwnershipMode      string
 	DriftStatus        string
-	LastRefreshStatus  string
-	LastRefreshAt      *time.Time
 	DiagnosticsSummary []string
 }
 

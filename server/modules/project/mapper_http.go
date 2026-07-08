@@ -216,13 +216,12 @@ func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectF
 	files := make([]generated.ProjectImportInspectFileItem, 0, len(items))
 	for _, item := range items {
 		files = append(files, generated.ProjectImportInspectFileItem{
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			ExistsOnLastRefresh: item.ExistsOnLastRefresh,
-			Kind:                generated.ProjectFileKind(item.Kind),
-			LastObservedHash:    item.LastObservedHash,
-			OrderIndex:          item.OrderIndex,
-			Role:                generated.ProjectFileRole(item.Role),
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			Kind:             generated.ProjectFileKind(item.Kind),
+			LastObservedHash: item.LastObservedHash,
+			OrderIndex:       item.OrderIndex,
+			Role:             generated.ProjectFileRole(item.Role),
 		})
 	}
 	return files
@@ -232,13 +231,11 @@ func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectF
 // 当诊断摘要非空时，会复制后作为可选字段返回。
 func toConfigurationMetadataResponse(result ConfigurationMetadataResult) generated.ProjectConfigurationMetadataResponse {
 	response := generated.ProjectConfigurationMetadataResponse{
-		ProjectId:         mustGeneratedID(result.ProjectID),
-		ComposeFiles:      result.ComposeFiles,
-		EnvFiles:          result.EnvFiles,
-		OwnershipMode:     generated.ProjectOwnershipMode(result.OwnershipMode),
-		DriftStatus:       generated.ProjectDriftStatus(result.DriftStatus),
-		LastRefreshStatus: generated.ProjectRefreshStatus(result.LastRefreshStatus),
-		LastRefreshAt:     result.LastRefreshAt,
+		ProjectId:     mustGeneratedID(result.ProjectID),
+		ComposeFiles:  result.ComposeFiles,
+		EnvFiles:      result.EnvFiles,
+		OwnershipMode: generated.ProjectOwnershipMode(result.OwnershipMode),
+		DriftStatus:   generated.ProjectDriftStatus(result.DriftStatus),
 	}
 	if len(result.DiagnosticsSummary) > 0 {
 		summary := append([]string(nil), result.DiagnosticsSummary...)

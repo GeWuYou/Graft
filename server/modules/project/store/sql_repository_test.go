@@ -23,17 +23,17 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-		last_refresh_status, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
+		last_observed_config_hash, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "demo", "demo", projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(),
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
-		projectcontract.RefreshStatusSuccess.String(), `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
+		"hash-demo", `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
 	mustExec(t, db, `INSERT INTO compose_project_files (
-		id, project_id, kind, role, absolute_path, display_path, order_index, exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		10, 1, projectcontract.FileKindCompose.String(), projectcontract.FileRolePrimary.String(), "/srv/demo/compose.yml", "compose.yml", 0, 1, "hash", "services:\n  api:\n    image: demo\n", time.Now().UTC(), time.Now().UTC(),
+		id, project_id, kind, role, absolute_path, display_path, order_index, last_observed_hash, last_observed_content, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		10, 1, projectcontract.FileKindCompose.String(), projectcontract.FileRolePrimary.String(), "/srv/demo/compose.yml", "compose.yml", 0, "hash", "services:\n  api:\n    image: demo\n", time.Now().UTC(), time.Now().UTC(),
 	)
 
 	_, err := repo.GetFile(ctx, 1, 10)
@@ -98,7 +98,6 @@ func TestValidateImportInputRejectsInvalidTypedContract(t *testing.T) {
 		HostScope:                  projectcontract.HostScopeLocal.String(),
 		WorkingDirectory:           "/srv/demo",
 		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
-		LastRefreshStatus:          projectcontract.RefreshStatusSuccess.String(),
 		DriftStatus:                projectcontract.DriftStatusClean.String(),
 		Files: []ProjectFile{
 			{
@@ -211,11 +210,6 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		lifecycle_strategy_kind TEXT NOT NULL,
 		lifecycle_review_status TEXT NOT NULL,
 		lifecycle_config_json TEXT NOT NULL DEFAULT '{}',
-		last_refresh_status TEXT NOT NULL,
-		last_refresh_at TIMESTAMP NULL,
-		last_refresh_error_code TEXT NOT NULL DEFAULT '',
-		last_refresh_error_message TEXT NOT NULL DEFAULT '',
-		last_refresh_config_hash TEXT NOT NULL DEFAULT '',
 		last_observed_config_hash TEXT NOT NULL DEFAULT '',
 		workspace_annotations_json TEXT NOT NULL DEFAULT '{}',
 		last_drift_checked_at TIMESTAMP NULL,
@@ -235,7 +229,6 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		absolute_path TEXT NOT NULL,
 		display_path TEXT NOT NULL,
 		order_index INTEGER NOT NULL,
-		exists_on_last_refresh BOOLEAN NOT NULL,
 		last_observed_hash TEXT NOT NULL DEFAULT '',
 		last_observed_content TEXT NOT NULL DEFAULT '',
 		created_at TIMESTAMP NOT NULL,
@@ -256,22 +249,22 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-		last_refresh_status, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
+		last_observed_config_hash, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, name, name, projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(),
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
-		projectcontract.RefreshStatusSuccess.String(), `{}`, projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
+		"hash-"+name, `{}`, projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
 	)
 }
 
 func insertProjectFileRow(t *testing.T, db *sql.DB, id int, projectID int, displayPath string, orderIndex int) {
 	t.Helper()
 	mustExec(t, db, `INSERT INTO compose_project_files (
-		id, project_id, kind, role, absolute_path, display_path, order_index, exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, project_id, kind, role, absolute_path, display_path, order_index, last_observed_hash, last_observed_content, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, projectID, projectcontract.FileKindCompose.String(), projectcontract.FileRolePrimary.String(),
-		"/srv/project/"+displayPath, displayPath, orderIndex, 1, "hash-"+displayPath, "services:\n  api:\n    image: app\n", time.Now().UTC(), time.Now().UTC(),
+		"/srv/project/"+displayPath, displayPath, orderIndex, "hash-"+displayPath, "services:\n  api:\n    image: app\n", time.Now().UTC(), time.Now().UTC(),
 	)
 }
 

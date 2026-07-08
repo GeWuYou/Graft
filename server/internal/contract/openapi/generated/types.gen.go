@@ -2850,27 +2850,6 @@ func (e ProjectOwnershipMode) Valid() bool {
 	}
 }
 
-// Defines values for ProjectRefreshStatus.
-const (
-	ProjectRefreshStatusFailed  ProjectRefreshStatus = "failed"
-	ProjectRefreshStatusNever   ProjectRefreshStatus = "never"
-	ProjectRefreshStatusSuccess ProjectRefreshStatus = "success"
-)
-
-// Valid indicates whether the value is a known member of the ProjectRefreshStatus enum.
-func (e ProjectRefreshStatus) Valid() bool {
-	switch e {
-	case ProjectRefreshStatusFailed:
-		return true
-	case ProjectRefreshStatusNever:
-		return true
-	case ProjectRefreshStatusSuccess:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ProjectRuntimeStatus.
 const (
 	ProjectRuntimeStatusDegraded      ProjectRuntimeStatus = "degraded"
@@ -7760,8 +7739,6 @@ type ProjectConfigurationMetadataResponse struct {
 	DiagnosticsSummary *[]string            `json:"diagnostics_summary,omitempty"`
 	DriftStatus        ProjectDriftStatus   `json:"drift_status"`
 	EnvFiles           []ProjectFileItem    `json:"env_files"`
-	LastRefreshAt      *time.Time           `json:"last_refresh_at,omitempty"`
-	LastRefreshStatus  ProjectRefreshStatus `json:"last_refresh_status"`
 	OwnershipMode      ProjectOwnershipMode `json:"ownership_mode"`
 	ProjectId          int64                `json:"project_id"`
 }
@@ -7903,28 +7880,19 @@ type ProjectDestroyRequest struct {
 
 // ProjectDetailResponse defines model for project-detail-response.
 type ProjectDetailResponse struct {
-	ActivityAuthority          ProjectActivityAuthority   `json:"activity_authority"`
-	CanonicalProjectName       string                     `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectFileItem          `json:"compose_files"`
-	ContainerCounts            ProjectContainerCounts     `json:"container_counts"`
-	DisplayName                string                     `json:"display_name"`
-	DriftStatus                ProjectDriftStatus         `json:"drift_status"`
-	EnvFiles                   []ProjectFileItem          `json:"env_files"`
-	HostScope                  ProjectHostScope           `json:"host_scope"`
-	Id                         int64                      `json:"id"`
-	LastDriftCheckedAt         *time.Time                 `json:"last_drift_checked_at,omitempty"`
-	LastObservedConfigHash     *string                    `json:"last_observed_config_hash,omitempty"`
-	LastRefreshAt              *time.Time                 `json:"last_refresh_at,omitempty"`
-	LastRefreshConfigHash      *string                    `json:"last_refresh_config_hash,omitempty"`
-
-	// LastRefreshErrorCode Stable error code from the latest failed refresh. Empty string means no recorded failure.
-	LastRefreshErrorCode *string `json:"last_refresh_error_code,omitempty"`
-
-	// LastRefreshErrorMessage Fallback error message from the latest failed refresh.
-	LastRefreshErrorMessage *string                       `json:"last_refresh_error_message,omitempty"`
-	LastRefreshStatus       ProjectRefreshStatus          `json:"last_refresh_status"`
-	LifecycleConfiguration  ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
+	ActivityAuthority          ProjectActivityAuthority      `json:"activity_authority"`
+	CanonicalProjectName       string                        `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource    `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectFileItem             `json:"compose_files"`
+	ContainerCounts            ProjectContainerCounts        `json:"container_counts"`
+	DisplayName                string                        `json:"display_name"`
+	DriftStatus                ProjectDriftStatus            `json:"drift_status"`
+	EnvFiles                   []ProjectFileItem             `json:"env_files"`
+	HostScope                  ProjectHostScope              `json:"host_scope"`
+	Id                         int64                         `json:"id"`
+	LastDriftCheckedAt         *time.Time                    `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash     *string                       `json:"last_observed_config_hash,omitempty"`
+	LifecycleConfiguration     ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
@@ -8009,11 +7977,10 @@ type ProjectFileContentResponseEncoding string
 
 // ProjectFileItem defines model for project-file-item.
 type ProjectFileItem struct {
-	AbsolutePath        string          `json:"absolute_path"`
-	DisplayPath         string          `json:"display_path"`
-	ExistsOnLastRefresh bool            `json:"exists_on_last_refresh"`
-	Id                  int64           `json:"id"`
-	Kind                ProjectFileKind `json:"kind"`
+	AbsolutePath string          `json:"absolute_path"`
+	DisplayPath  string          `json:"display_path"`
+	Id           int64           `json:"id"`
+	Kind         ProjectFileKind `json:"kind"`
 
 	// LastObservedHash Most recently observed file hash. Empty string means the system has not observed one yet.
 	LastObservedHash *string         `json:"last_observed_hash,omitempty"`
@@ -8137,13 +8104,12 @@ type ProjectImportDirectorySourcesResponse struct {
 
 // ProjectImportInspectFileItem defines model for project-import-inspect-file-item.
 type ProjectImportInspectFileItem struct {
-	AbsolutePath        string          `json:"absolute_path"`
-	DisplayPath         string          `json:"display_path"`
-	ExistsOnLastRefresh bool            `json:"exists_on_last_refresh"`
-	Kind                ProjectFileKind `json:"kind"`
-	LastObservedHash    *string         `json:"last_observed_hash,omitempty"`
-	OrderIndex          int             `json:"order_index"`
-	Role                ProjectFileRole `json:"role"`
+	AbsolutePath     string          `json:"absolute_path"`
+	DisplayPath      string          `json:"display_path"`
+	Kind             ProjectFileKind `json:"kind"`
+	LastObservedHash *string         `json:"last_observed_hash,omitempty"`
+	OrderIndex       int             `json:"order_index"`
+	Role             ProjectFileRole `json:"role"`
 }
 
 // ProjectImportInspectRequest defines model for project-import-inspect-request.
@@ -8416,8 +8382,6 @@ type ProjectListItem struct {
 	DriftStatus                ProjectDriftStatus         `json:"drift_status"`
 	HostScope                  ProjectHostScope           `json:"host_scope"`
 	Id                         int64                      `json:"id"`
-	LastRefreshAt              *time.Time                 `json:"last_refresh_at,omitempty"`
-	LastRefreshStatus          ProjectRefreshStatus       `json:"last_refresh_status"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
@@ -8554,9 +8518,6 @@ type ProjectOverviewServiceItemStatus string
 
 // ProjectOwnershipMode defines model for project-ownership-mode.
 type ProjectOwnershipMode string
-
-// ProjectRefreshStatus defines model for project-refresh-status.
-type ProjectRefreshStatus string
 
 // ProjectRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 type ProjectRuntimeStatus string
@@ -9465,9 +9426,6 @@ type ProjectListLimit = int
 // ProjectListOffset defines model for project-list-offset.
 type ProjectListOffset = int
 
-// ProjectListRefreshStatus defines model for project-list-refresh-status.
-type ProjectListRefreshStatus = ProjectRefreshStatus
-
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
 
@@ -10363,9 +10321,6 @@ type GetProjectsParams struct {
 
 	// DriftStatus Optional project drift-status filter.
 	DriftStatus *ProjectListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
-
-	// LastRefreshStatus Optional latest-refresh-status filter.
-	LastRefreshStatus *ProjectListRefreshStatus `form:"last_refresh_status,omitempty" json:"last_refresh_status,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`

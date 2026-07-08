@@ -19,11 +19,6 @@ type Record struct {
 	LifecycleStrategyKind      string
 	LifecycleReviewStatus      string
 	LifecycleConfigJSON        []byte
-	LastRefreshStatus          string
-	LastRefreshAt              *time.Time
-	LastRefreshErrorCode       string
-	LastRefreshErrorMessage    string
-	LastRefreshConfigHash      string
 	LastObservedConfigHash     string
 	WorkspaceAnnotationsJSON   []byte
 	LastDriftCheckedAt         *time.Time
@@ -45,7 +40,6 @@ type FileRecord struct {
 	AbsolutePath        string
 	DisplayPath         string
 	OrderIndex          int
-	ExistsOnLastRefresh bool
 	LastObservedHash    string
 	LastObservedContent string
 	CreatedAt           time.Time

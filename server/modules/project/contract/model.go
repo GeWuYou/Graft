@@ -11,9 +11,6 @@ type HostScope string
 // OwnershipMode identifies the stable ownership contract for project lifecycle guards.
 type OwnershipMode string
 
-// RefreshStatus identifies the stable refresh-result contract for project snapshots.
-type RefreshStatus string
-
 // ManagedRootStatus identifies the stable managed-root readiness contract for managed create.
 type ManagedRootStatus string
 
@@ -64,13 +61,6 @@ const (
 	// ManagedRootStatusInvalid marks a managed-root configuration that failed bounded authority checks.
 	ManagedRootStatusInvalid ManagedRootStatus = "invalid"
 
-	// RefreshStatusNever marks a project that has not completed one successful or failed refresh yet.
-	RefreshStatusNever RefreshStatus = "never"
-	// RefreshStatusSuccess marks a project whose latest refresh completed successfully.
-	RefreshStatusSuccess RefreshStatus = "success"
-	// RefreshStatusFailed marks a project whose latest refresh failed.
-	RefreshStatusFailed RefreshStatus = "failed"
-
 	// DriftStatusUnknown marks a project whose drift state is not yet known.
 	DriftStatusUnknown DriftStatus = "unknown"
 	// DriftStatusClean marks a project whose current observed files match the last successful snapshot.
@@ -117,9 +107,6 @@ func (v OwnershipMode) String() string { return string(v) }
 
 // String returns the wire-format value.
 func (v ManagedRootStatus) String() string { return string(v) }
-
-// String returns the wire-format value.
-func (v RefreshStatus) String() string { return string(v) }
 
 // String returns the wire-format value.
 func (v DriftStatus) String() string { return string(v) }

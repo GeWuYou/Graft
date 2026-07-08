@@ -10,14 +10,6 @@ allOf:
         $ref: ./project-source-metadata.yaml
       lifecycle_configuration:
         $ref: ./project-lifecycle-configuration.yaml
-      last_refresh_error_code:
-        type: string
-        description: Stable error code from the latest failed refresh. Empty string means no recorded failure.
-      last_refresh_error_message:
-        type: string
-        description: Fallback error message from the latest failed refresh.
-      last_refresh_config_hash:
-        type: string
       last_observed_config_hash:
         type: string
       last_drift_checked_at:

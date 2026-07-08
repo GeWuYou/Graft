@@ -77,9 +77,8 @@ func (r *SQLRepository) listProjectsPage(
 		r.placeholder.rebind(`SELECT
 			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-			last_refresh_status, last_refresh_at, last_refresh_error_code,
-			last_refresh_error_message, last_refresh_config_hash, last_observed_config_hash, workspace_annotations_json,
-			last_drift_checked_at, drift_status, created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
+			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
+			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY updated_at DESC, id DESC
@@ -142,9 +141,8 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 		r.placeholder.rebind(`SELECT
 			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-			last_refresh_status, last_refresh_at, last_refresh_error_code,
-			last_refresh_error_message, last_refresh_config_hash, last_observed_config_hash, workspace_annotations_json,
-			last_drift_checked_at, drift_status, created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
+			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
+			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
 		WHERE id = ? AND deleted_at = 0`),
 		projectDBID,
@@ -191,7 +189,7 @@ func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID ui
 		ctx,
 		r.placeholder.rebind(`SELECT
 			f.id, f.project_id, f.kind, f.role, f.absolute_path, f.display_path, f.order_index,
-			f.exists_on_last_refresh, f.last_observed_hash, f.last_observed_content, f.created_at, f.updated_at
+			f.last_observed_hash, f.last_observed_content, f.created_at, f.updated_at
 		FROM compose_project_files f
 		INNER JOIN compose_projects p ON p.id = f.project_id
 		WHERE f.id = ? AND f.project_id = ? AND p.deleted_at = 0`),
@@ -478,10 +476,6 @@ func buildListWhere(query ListQuery) ([]string, []any) {
 		where = append(where, "drift_status = ?")
 		args = append(args, query.DriftStatus)
 	}
-	if query.LastRefreshStatus != "" {
-		where = append(where, "last_refresh_status = ?")
-		args = append(args, query.LastRefreshStatus)
-	}
 	return where, args
 }
 
@@ -512,7 +506,7 @@ func (r *SQLRepository) listFiles(ctx context.Context, projectID uint64) ([]Proj
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, project_id, kind, role, absolute_path, display_path, order_index,
-			exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
+			last_observed_hash, last_observed_content, created_at, updated_at
 		FROM compose_project_files
 		WHERE project_id = ?
 		ORDER BY order_index ASC, id ASC`),
@@ -595,7 +589,7 @@ func (r *SQLRepository) loadFilesByProjectIDs(
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, project_id, kind, role, absolute_path, display_path, order_index,
-			exists_on_last_refresh, last_observed_hash, created_at, updated_at
+			last_observed_hash, created_at, updated_at
 		FROM compose_project_files
 		WHERE project_id IN (`+placeholderList(len(args))+`)
 		ORDER BY project_id ASC, order_index ASC, id ASC`),
@@ -685,11 +679,6 @@ func (r *SQLRepository) upsertProject(
 		input.LifecycleStrategyKind,
 		input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON),
-		input.LastRefreshStatus,
-		input.LastRefreshAt,
-		input.LastRefreshErrorCode,
-		input.LastRefreshErrorMessage,
-		input.LastRefreshConfigHash,
 		input.LastObservedConfigHash,
 		`{}`,
 		input.LastDriftCheckedAt,
@@ -709,11 +698,10 @@ func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
 			display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
-			last_refresh_status, last_refresh_at, last_refresh_error_code, last_refresh_error_message,
-			last_refresh_config_hash, last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
+			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (host_scope, canonical_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
@@ -724,11 +712,6 @@ func composeProjectsUpsertSQL() string {
 			lifecycle_strategy_kind = excluded.lifecycle_strategy_kind,
 			lifecycle_review_status = excluded.lifecycle_review_status,
 			lifecycle_config_json = excluded.lifecycle_config_json,
-			last_refresh_status = excluded.last_refresh_status,
-			last_refresh_at = excluded.last_refresh_at,
-			last_refresh_error_code = excluded.last_refresh_error_code,
-			last_refresh_error_message = excluded.last_refresh_error_message,
-			last_refresh_config_hash = excluded.last_refresh_config_hash,
 			last_observed_config_hash = excluded.last_observed_config_hash,
 			last_drift_checked_at = excluded.last_drift_checked_at,
 			drift_status = excluded.drift_status,
@@ -760,15 +743,14 @@ func (r *SQLRepository) replaceFiles(
 			ctx,
 			r.placeholder.rebind(`INSERT INTO compose_project_files (
 				project_id, kind, role, absolute_path, display_path, order_index,
-				exists_on_last_refresh, last_observed_hash, last_observed_content, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+				last_observed_hash, last_observed_content, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 			projectDBID,
 			item.Kind,
 			item.Role,
 			item.AbsolutePath,
 			item.DisplayPath,
 			item.OrderIndex,
-			item.ExistsOnLastRefresh,
 			item.LastObservedHash,
 			item.LastObservedContent,
 			now,
@@ -847,22 +829,12 @@ func (r *SQLRepository) updateRefreshState(ctx context.Context, tx *sql.Tx, inpu
 	_, err = tx.ExecContext(
 		ctx,
 		r.placeholder.rebind(`UPDATE compose_projects
-		SET last_refresh_status = ?,
-			last_refresh_at = ?,
-			last_refresh_error_code = ?,
-			last_refresh_error_message = ?,
-			last_refresh_config_hash = ?,
-			last_observed_config_hash = ?,
+		SET last_observed_config_hash = ?,
 			last_drift_checked_at = ?,
 			drift_status = ?,
 			updated_by = ?,
 			updated_at = NOW()
 		WHERE id = ? AND deleted_at = 0`),
-		input.LastRefreshStatus,
-		input.LastRefreshAt,
-		input.LastRefreshErrorCode,
-		input.LastRefreshErrorMessage,
-		input.LastRefreshConfigHash,
 		input.LastObservedConfigHash,
 		input.LastDriftCheckedAt,
 		input.DriftStatus,

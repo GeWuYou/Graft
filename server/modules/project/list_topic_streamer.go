@@ -57,6 +57,7 @@ func omitProjectListTopicStream(
 	return next
 }
 
+//nolint:dupl // Project list and log topic streamers intentionally share the same bounded realtime lifecycle skeleton.
 func newProjectListTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectListTopicStreamer, error) {
 	if hub == nil {
 		return nil, errors.New("realtime hub is unavailable")
@@ -119,6 +120,7 @@ func (s *projectListTopicStreamer) EnsureTopic(topic string) error {
 	return nil
 }
 
+//nolint:dupl // Project list and log topic streamers intentionally share the same bounded realtime lifecycle skeleton.
 func (s *projectListTopicStreamer) Close(ctx context.Context) error {
 	if s == nil {
 		return nil
@@ -190,6 +192,7 @@ func (s *projectListTopicStreamer) publish(topic string) {
 	s.hub.Publish(topic, payload)
 }
 
+//nolint:dupl // Project list and log topic streamers intentionally share the same bounded realtime lifecycle skeleton.
 func (s *projectListTopicStreamer) stop(ctx context.Context, topic string) error {
 	s.mu.Lock()
 	stream := s.streams[topic]
@@ -253,4 +256,3 @@ func (s *Service) projectListTopicStreamer() (*projectListTopicStreamer, error) 
 	}
 	return s.listTopicStreamer, nil
 }
-

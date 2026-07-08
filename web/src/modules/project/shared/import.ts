@@ -128,7 +128,6 @@ function isProjectImportDirectoryInspectFileEntry(value: unknown): value is Proj
     typeof entry.absolute_path === 'string' &&
     typeof entry.display_path === 'string' &&
     typeof entry.order_index === 'number' &&
-    typeof entry.exists_on_last_refresh === 'boolean' &&
     (typeof entry.last_observed_hash === 'string' ||
       entry.last_observed_hash === null ||
       typeof entry.last_observed_hash === 'undefined')

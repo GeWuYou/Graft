@@ -748,8 +748,6 @@ components:
       $ref: ./components/schemas/project-host-scope.yaml
     ProjectOwnershipMode:
       $ref: ./components/schemas/project-ownership-mode.yaml
-    ProjectRefreshStatus:
-      $ref: ./components/schemas/project-refresh-status.yaml
     ProjectDriftStatus:
       $ref: ./components/schemas/project-drift-status.yaml
     ProjectCanonicalNameSource:
@@ -960,8 +958,6 @@ components:
       $ref: ./components/parameters/project-list-source-kind.yaml
     project-list-drift-status:
       $ref: ./components/parameters/project-list-drift-status.yaml
-    project-list-refresh-status:
-      $ref: ./components/parameters/project-list-refresh-status.yaml
     project-id-path:
       $ref: ./components/parameters/project-id-path.yaml
     project-workspace-path-query:

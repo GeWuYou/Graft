@@ -2848,7 +2848,6 @@ export interface components {
     ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
-    ProjectRefreshStatus: components['schemas']['project-refresh-status'];
     ProjectDriftStatus: components['schemas']['project-drift-status'];
     ProjectCanonicalNameSource: components['schemas']['project-canonical-name-source'];
     ProjectFileKind: components['schemas']['project-file-kind'];
@@ -5424,8 +5423,6 @@ export interface components {
     /** @enum {string} */
     'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
     /** @enum {string} */
-    'project-refresh-status': 'never' | 'success' | 'failed';
-    /** @enum {string} */
     'project-canonical-name-source': 'computed' | 'override';
     /**
      * @description Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
@@ -5497,9 +5494,6 @@ export interface components {
       runtime_status?: components['schemas']['project-runtime-status'];
       service_count: number;
       container_counts: components['schemas']['project-container-counts'];
-      last_refresh_status: components['schemas']['project-refresh-status'];
-      /** Format: date-time */
-      last_refresh_at?: string | null;
       drift_status: components['schemas']['project-drift-status'];
     };
     'project-list-response': {
@@ -5531,7 +5525,6 @@ export interface components {
       absolute_path: string;
       display_path: string;
       order_index: number;
-      exists_on_last_refresh: boolean;
       /** @description Most recently observed file hash. Empty string means the system has not observed one yet. */
       last_observed_hash?: string;
     };
@@ -5602,7 +5595,6 @@ export interface components {
       absolute_path: string;
       display_path: string;
       order_index: number;
-      exists_on_last_refresh: boolean;
       last_observed_hash?: string | null;
     };
     'project-import-runtime-network-resource': {
@@ -5726,11 +5718,6 @@ export interface components {
     'project-detail-response': components['schemas']['project-list-item'] & {
       source_metadata?: components['schemas']['project-source-metadata'];
       lifecycle_configuration: components['schemas']['project-lifecycle-configuration'];
-      /** @description Stable error code from the latest failed refresh. Empty string means no recorded failure. */
-      last_refresh_error_code?: string;
-      /** @description Fallback error message from the latest failed refresh. */
-      last_refresh_error_message?: string;
-      last_refresh_config_hash?: string;
       last_observed_config_hash?: string;
       /** Format: date-time */
       last_drift_checked_at?: string | null;
@@ -6094,9 +6081,6 @@ export interface components {
       env_files: components['schemas']['project-file-item'][];
       ownership_mode: components['schemas']['project-ownership-mode'];
       drift_status: components['schemas']['project-drift-status'];
-      last_refresh_status: components['schemas']['project-refresh-status'];
-      /** Format: date-time */
-      last_refresh_at?: string | null;
       /** @description Bounded configuration diagnostics summary for readonly UI display. */
       diagnostics_summary?: string[];
     };
@@ -6498,8 +6482,6 @@ export interface components {
     'project-list-source-kind': components['schemas']['project-source-kind'];
     /** @description Optional project drift-status filter. */
     'project-list-drift-status': components['schemas']['project-drift-status'];
-    /** @description Optional latest-refresh-status filter. */
-    'project-list-refresh-status': components['schemas']['project-refresh-status'];
     /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
     'project-id-path': number;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
@@ -11988,8 +11970,6 @@ export interface operations {
         source_kind?: components['parameters']['project-list-source-kind'];
         /** @description Optional project drift-status filter. */
         drift_status?: components['parameters']['project-list-drift-status'];
-        /** @description Optional latest-refresh-status filter. */
-        last_refresh_status?: components['parameters']['project-list-refresh-status'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

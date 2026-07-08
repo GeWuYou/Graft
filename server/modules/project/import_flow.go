@@ -254,13 +254,12 @@ type ImportExecuteRequest struct {
 
 // FileView exposes one discovered compose/env file in inspect responses.
 type FileView struct {
-	Kind                string  `json:"kind"`
-	Role                string  `json:"role"`
-	AbsolutePath        string  `json:"absolute_path"`
-	DisplayPath         string  `json:"display_path"`
-	OrderIndex          int     `json:"order_index"`
-	ExistsOnLastRefresh bool    `json:"exists_on_last_refresh"`
-	LastObservedHash    *string `json:"last_observed_hash,omitempty"`
+	Kind             string  `json:"kind"`
+	Role             string  `json:"role"`
+	AbsolutePath     string  `json:"absolute_path"`
+	DisplayPath      string  `json:"display_path"`
+	OrderIndex       int     `json:"order_index"`
+	LastObservedHash *string `json:"last_observed_hash,omitempty"`
 }
 
 type runtimeImportNetworkAggregation struct {
@@ -779,13 +778,12 @@ func toFileViews(files []projectcompose.FileProjection) []FileView {
 	for _, item := range files {
 		hash := item.Hash
 		result = append(result, FileView{
-			Kind:                item.Kind,
-			Role:                item.Role,
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			OrderIndex:          item.OrderIndex,
-			ExistsOnLastRefresh: item.Exists,
-			LastObservedHash:    optionalString(hash),
+			Kind:             item.Kind,
+			Role:             item.Role,
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			OrderIndex:       item.OrderIndex,
+			LastObservedHash: optionalString(hash),
 		})
 	}
 	return result

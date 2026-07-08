@@ -41,10 +41,6 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	if err != nil {
 		return ListQuery{}, err
 	}
-	query.LastRefreshStatus, err = normalizeOptionalContractValue(query.LastRefreshStatus, isValidRefreshStatus)
-	if err != nil {
-		return ListQuery{}, err
-	}
 	if query.Limit <= 0 {
 		query.Limit = defaultListLimit
 	}
@@ -77,7 +73,7 @@ func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 		return ImportProjectInput{}, err
 	}
 	input.Snapshot = snapshot
-	normalizeTemporalPointers(&input.LastRefreshAt, &input.LastDriftCheckedAt)
+	normalizeTemporalPointers(&input.LastDriftCheckedAt)
 	return input, nil
 }
 
@@ -92,10 +88,6 @@ func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	input.OwnershipMode = strings.TrimSpace(input.OwnershipMode)
 	input.LifecycleStrategyKind = strings.TrimSpace(input.LifecycleStrategyKind)
 	input.LifecycleReviewStatus = strings.TrimSpace(input.LifecycleReviewStatus)
-	input.LastRefreshStatus = strings.TrimSpace(input.LastRefreshStatus)
-	input.LastRefreshErrorCode = strings.TrimSpace(input.LastRefreshErrorCode)
-	input.LastRefreshErrorMessage = strings.TrimSpace(input.LastRefreshErrorMessage)
-	input.LastRefreshConfigHash = strings.TrimSpace(input.LastRefreshConfigHash)
 	input.LastObservedConfigHash = strings.TrimSpace(input.LastObservedConfigHash)
 	input.DriftStatus = strings.TrimSpace(input.DriftStatus)
 	return input
@@ -114,7 +106,6 @@ func validateRequiredImportFields(input ImportProjectInput) error {
 		input.OwnershipMode,
 		input.LifecycleStrategyKind,
 		input.LifecycleReviewStatus,
-		input.LastRefreshStatus,
 		input.DriftStatus,
 	}
 	for _, value := range required {
@@ -126,20 +117,16 @@ func validateRequiredImportFields(input ImportProjectInput) error {
 }
 
 // validateRefreshInput 规范化并校验项目刷新输入。
-// 它会校验项目 ID，清理刷新状态与漂移状态字段，规范化文件和快照信息，并将时间字段转换为 UTC。
+// 它会校验项目 ID，清理漂移状态字段，规范化文件和快照信息，并将时间字段转换为 UTC。
 // @param input 待校验的刷新输入。
 // @returns 规范化后的刷新输入，或在输入无效时返回 ErrInvalidInput。
 func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error) {
 	if input.ProjectID == 0 {
 		return RefreshProjectInput{}, ErrInvalidInput
 	}
-	input.LastRefreshStatus = strings.TrimSpace(input.LastRefreshStatus)
-	input.LastRefreshErrorCode = strings.TrimSpace(input.LastRefreshErrorCode)
-	input.LastRefreshErrorMessage = strings.TrimSpace(input.LastRefreshErrorMessage)
-	input.LastRefreshConfigHash = strings.TrimSpace(input.LastRefreshConfigHash)
 	input.LastObservedConfigHash = strings.TrimSpace(input.LastObservedConfigHash)
 	input.DriftStatus = strings.TrimSpace(input.DriftStatus)
-	if input.LastRefreshStatus == "" || input.DriftStatus == "" {
+	if input.DriftStatus == "" {
 		return RefreshProjectInput{}, ErrInvalidInput
 	}
 	if err := validateRefreshContracts(input); err != nil {
@@ -155,7 +142,7 @@ func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error
 		return RefreshProjectInput{}, err
 	}
 	input.Snapshot = snapshot
-	normalizeTemporalPointers(&input.LastRefreshAt, &input.LastDriftCheckedAt)
+	normalizeTemporalPointers(&input.LastDriftCheckedAt)
 	return input, nil
 }
 
@@ -318,8 +305,6 @@ func validateImportContracts(input ImportProjectInput) error {
 		return ErrInvalidInput
 	case !isValidLifecycleReviewStatus(input.LifecycleReviewStatus):
 		return ErrInvalidInput
-	case !isValidRefreshStatus(input.LastRefreshStatus):
-		return ErrInvalidInput
 	case !isValidDriftStatus(input.DriftStatus):
 		return ErrInvalidInput
 	default:
@@ -328,7 +313,7 @@ func validateImportContracts(input ImportProjectInput) error {
 }
 
 func validateRefreshContracts(input RefreshProjectInput) error {
-	if !isValidRefreshStatus(input.LastRefreshStatus) || !isValidDriftStatus(input.DriftStatus) {
+	if !isValidDriftStatus(input.DriftStatus) {
 		return ErrInvalidInput
 	}
 	return nil
@@ -366,17 +351,6 @@ func isValidOwnershipMode(value string) bool {
 	switch value {
 	case projectcontract.OwnershipModeExternal.String(),
 		projectcontract.OwnershipModeManagedRootDedicated.String():
-		return true
-	default:
-		return false
-	}
-}
-
-func isValidRefreshStatus(value string) bool {
-	switch value {
-	case projectcontract.RefreshStatusNever.String(),
-		projectcontract.RefreshStatusSuccess.String(),
-		projectcontract.RefreshStatusFailed.String():
 		return true
 	default:
 		return false
@@ -498,7 +472,6 @@ func rollbackTx(tx *sql.Tx) {
 // @returns 组装后的项目记录；扫描失败时返回错误。
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
-	var lastRefreshAt sql.NullTime
 	var lastDriftCheckedAt sql.NullTime
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
@@ -517,11 +490,6 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		&item.LifecycleStrategyKind,
 		&item.LifecycleReviewStatus,
 		&lifecycleConfigJSON,
-		&item.LastRefreshStatus,
-		&lastRefreshAt,
-		&item.LastRefreshErrorCode,
-		&item.LastRefreshErrorMessage,
-		&item.LastRefreshConfigHash,
 		&item.LastObservedConfigHash,
 		&workspaceAnnotationsJSON,
 		&lastDriftCheckedAt,
@@ -535,7 +503,6 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	); err != nil {
 		return Project{}, err
 	}
-	item.LastRefreshAt = nullableTime(lastRefreshAt)
 	item.LastDriftCheckedAt = nullableTime(lastDriftCheckedAt)
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)
@@ -566,7 +533,6 @@ func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile,
 		&item.AbsolutePath,
 		&item.DisplayPath,
 		&item.OrderIndex,
-		&item.ExistsOnLastRefresh,
 		&item.LastObservedHash,
 		&item.LastObservedContent,
 		&item.CreatedAt,
@@ -587,7 +553,6 @@ func scanProjectFileSummary(scanner interface{ Scan(dest ...any) error }) (Proje
 		&item.AbsolutePath,
 		&item.DisplayPath,
 		&item.OrderIndex,
-		&item.ExistsOnLastRefresh,
 		&item.LastObservedHash,
 		&item.CreatedAt,
 		&item.UpdatedAt,

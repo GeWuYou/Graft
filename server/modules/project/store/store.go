@@ -31,11 +31,6 @@ type Project struct {
 	LifecycleStrategyKind      string
 	LifecycleReviewStatus      string
 	LifecycleConfig            LifecycleConfig
-	LastRefreshStatus          string
-	LastRefreshAt              *time.Time
-	LastRefreshErrorCode       string
-	LastRefreshErrorMessage    string
-	LastRefreshConfigHash      string
 	LastObservedConfigHash     string
 	WorkspaceAnnotations       map[string]string
 	LastDriftCheckedAt         *time.Time
@@ -57,7 +52,6 @@ type ProjectFile struct {
 	AbsolutePath        string
 	DisplayPath         string
 	OrderIndex          int
-	ExistsOnLastRefresh bool
 	LastObservedHash    string
 	LastObservedContent string
 	CreatedAt           time.Time
@@ -98,7 +92,6 @@ type ListQuery struct {
 	Offset            int
 	SourceKind        string
 	DriftStatus       string
-	LastRefreshStatus string
 }
 
 // ListResult returns a paginated project page.
@@ -119,11 +112,6 @@ type ImportProjectInput struct {
 	LifecycleStrategyKind      string
 	LifecycleReviewStatus      string
 	LifecycleConfig            LifecycleConfig
-	LastRefreshStatus          string
-	LastRefreshAt              *time.Time
-	LastRefreshErrorCode       string
-	LastRefreshErrorMessage    string
-	LastRefreshConfigHash      string
 	LastObservedConfigHash     string
 	LastDriftCheckedAt         *time.Time
 	DriftStatus                string
@@ -134,18 +122,13 @@ type ImportProjectInput struct {
 
 // RefreshProjectInput updates one existing project refresh state.
 type RefreshProjectInput struct {
-	ProjectID               uint64
-	LastRefreshStatus       string
-	LastRefreshAt           *time.Time
-	LastRefreshErrorCode    string
-	LastRefreshErrorMessage string
-	LastRefreshConfigHash   string
-	LastObservedConfigHash  string
-	LastDriftCheckedAt      *time.Time
-	DriftStatus             string
-	Files                   []ProjectFile
-	Snapshot                *Snapshot
-	ActorID                 *uint64
+	ProjectID              uint64
+	LastObservedConfigHash string
+	LastDriftCheckedAt     *time.Time
+	DriftStatus            string
+	Files                  []ProjectFile
+	Snapshot               *Snapshot
+	ActorID                *uint64
 }
 
 // UpdateLifecycleConfigInput updates the saved lifecycle execution semantics for one project.

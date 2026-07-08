@@ -88,6 +88,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	return nil
 }
 
+//nolint:dupl // Project list and runtime-candidate handlers intentionally share the generated-bind/query/write skeleton.
 func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	params, ok := bindListParams(ginCtx, r.ctx)
 	if !ok {
@@ -95,11 +96,10 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	}
 	projectGeneratedHandler{}.GetProjects(params)
 	result, err := r.service.List(ginCtx.Request.Context(), ListQuery{
-		Limit:             intPtrValue(params.Limit),
-		Offset:            intPtrValue(params.Offset),
-		SourceKind:        stringPtrValue(params.SourceKind),
-		DriftStatus:       stringPtrValue(params.DriftStatus),
-		LastRefreshStatus: stringPtrValue(params.LastRefreshStatus),
+		Limit:       intPtrValue(params.Limit),
+		Offset:      intPtrValue(params.Offset),
+		SourceKind:  stringPtrValue(params.SourceKind),
+		DriftStatus: stringPtrValue(params.DriftStatus),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -122,6 +122,7 @@ func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toImportValidateResponse(result))
 }
 
+//nolint:dupl // Project list and runtime-candidate handlers intentionally share the generated-bind/query/write skeleton.
 func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
 	params, ok := bindGetProjectImportRuntimeCandidatesParams(ginCtx, r.ctx)
 	if !ok {

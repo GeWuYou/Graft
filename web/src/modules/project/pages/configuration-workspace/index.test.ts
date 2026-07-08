@@ -388,7 +388,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     });
     mocks.getProjectConfiguration.mockResolvedValue({
       drift_status: 'clean',
-      last_refresh_status: 'success',
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
     });

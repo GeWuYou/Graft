@@ -298,7 +298,7 @@ func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error 
 	if strings.TrimSpace(aggregate.Project.HostScope) != projectcontract.HostScopeLocal.String() {
 		return errProjectUnsupportedLifecycle
 	}
-	if aggregate.Project.LastRefreshStatus != projectcontract.RefreshStatusSuccess.String() {
+	if aggregate.Snapshot == nil {
 		return errProjectUnsupportedLifecycle
 	}
 	if err := lifecycleReviewGuard(aggregate); err != nil {

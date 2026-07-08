@@ -68,9 +68,6 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
 	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
 	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
-	s.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
-	s.aggregate.Project.LastRefreshAt = input.LastRefreshAt
-	s.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
 	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
 	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
 	s.aggregate.Project.DriftStatus = input.DriftStatus
@@ -95,11 +92,6 @@ func (s *stubProjectRepository) RefreshProject(_ context.Context, input projects
 	if s.refreshErr != nil {
 		return projectstore.ProjectAggregate{}, s.refreshErr
 	}
-	s.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
-	s.aggregate.Project.LastRefreshAt = input.LastRefreshAt
-	s.aggregate.Project.LastRefreshErrorCode = input.LastRefreshErrorCode
-	s.aggregate.Project.LastRefreshErrorMessage = input.LastRefreshErrorMessage
-	s.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
 	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
 	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
 	s.aggregate.Project.DriftStatus = input.DriftStatus
@@ -157,7 +149,6 @@ func ensureStubProjectAggregateDefaults(aggregate projectstore.ProjectAggregate)
 				AbsolutePath:        filepath.Join(aggregate.Project.WorkingDirectory, "compose.yaml"),
 				DisplayPath:         "compose.yaml",
 				OrderIndex:          0,
-				ExistsOnLastRefresh: true,
 			},
 		}
 	}
@@ -323,8 +314,6 @@ func TestServicesMergesRuntimeMembers(t *testing.T) {
 				HostScope:            "local",
 				WorkingDirectory:     tempDir,
 				OwnershipMode:        "external",
-				LastRefreshStatus:    "success",
-				LastRefreshAt:        &now,
 				DriftStatus:          "clean",
 			},
 			Files: []projectstore.ProjectFile{
@@ -393,11 +382,11 @@ func TestOverviewAggregatesRuntimeResources(t *testing.T) {
 				CanonicalProjectName: "demo",
 				WorkingDirectory:     tempDir,
 				HostScope:            "local",
-				LastRefreshAt:        &now,
 			},
 			Files: []projectstore.ProjectFile{
 				{Kind: "compose", Role: "primary", AbsolutePath: composePath, DisplayPath: "compose.yaml", OrderIndex: 1},
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 9, ConfigHash: "cfg-demo", RefreshedAt: now},
 		},
 	}
 	service, err := NewService(
@@ -485,8 +474,8 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 				HostScope:            "local",
 				WorkingDirectory:     tempDir,
 				OwnershipMode:        "external",
-				LastRefreshStatus:    "success",
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -518,8 +507,8 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     t.TempDir(),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -561,8 +550,8 @@ func TestUnregisterFailsClosedWithoutRequestActor(t *testing.T) {
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     t.TempDir(),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -626,8 +615,8 @@ func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -663,8 +652,8 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     t.TempDir(),
 				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -724,8 +713,8 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
 				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -775,8 +764,8 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     workingDirectory,
 				OwnershipMode:        projectcontract.OwnershipModeManagedRootDedicated.String(),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -835,8 +824,8 @@ func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     workingDirectory,
 				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 		unregisterErr: projectstore.ErrProjectConflict,
 	}
@@ -886,8 +875,8 @@ func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -920,8 +909,8 @@ func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
-				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -1630,7 +1619,6 @@ func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing
 			HostScope:                  "local",
 			OwnershipMode:              "managed-root-dedicated",
 			WorkingDirectory:           "/tmp/orders",
-			LastRefreshStatus:          "success",
 			DriftStatus:                "clean",
 		},
 	}, "", nil, nil)
@@ -1652,7 +1640,6 @@ func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testi
 			HostScope:                  "remote",
 			OwnershipMode:              "external",
 			WorkingDirectory:           "/remote/orders",
-			LastRefreshStatus:          "never",
 			DriftStatus:                "unknown",
 		},
 	}, nil, nil)
@@ -1824,7 +1811,6 @@ func TestToProjectDetailResponsePreservesNestedManagedRelativeDirectory(t *testi
 			HostScope:                  projectcontract.HostScopeLocal.String(),
 			OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
 			WorkingDirectory:           filepath.Join(managedRoot, "team-a", "orders"),
-			LastRefreshStatus:          "success",
 			DriftStatus:                "clean",
 		},
 	}
@@ -2058,7 +2044,6 @@ func TestDeployConfigurationRefreshesBeforeComposeUp(t *testing.T) {
 				HostScope:             projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:      workingDirectory,
 				OwnershipMode:         projectcontract.OwnershipModeExternal.String(),
-				LastRefreshStatus:     projectcontract.RefreshStatusSuccess.String(),
 				LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
 			},
 			Files: []projectstore.ProjectFile{
@@ -2070,18 +2055,15 @@ func TestDeployConfigurationRefreshesBeforeComposeUp(t *testing.T) {
 					AbsolutePath:        composePath,
 					DisplayPath:         "compose.yaml",
 					OrderIndex:          0,
-					ExistsOnLastRefresh: true,
 				},
 			},
+			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	repo.refreshFn = func(input projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
 		if err := os.WriteFile(markerPath, []byte("ready"), 0o600); err != nil {
 			return projectstore.ProjectAggregate{}, err
 		}
-		repo.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
-		repo.aggregate.Project.LastRefreshAt = input.LastRefreshAt
-		repo.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
 		repo.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
 		repo.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
 		repo.aggregate.Project.DriftStatus = input.DriftStatus

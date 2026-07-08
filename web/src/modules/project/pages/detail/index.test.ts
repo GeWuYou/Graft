@@ -308,9 +308,6 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
     host_scope: 'local',
     id: 7,
     last_observed_config_hash: null,
-    last_refresh_at: '2026-07-03T10:00:00Z',
-    last_refresh_config_hash: null,
-    last_refresh_status: 'success',
     ownership_mode: 'external',
     runtime_status: runtimeStatus,
     service_count: 2,
@@ -622,7 +619,6 @@ describe('Project detail service tab', () => {
       diagnostics_summary: [],
       drift_status: 'clean',
       env_files: [],
-      last_refresh_status: 'success',
       ownership_mode: 'external',
     });
     projectApiMocks.getProjectLogs.mockResolvedValue({ entries: [] });

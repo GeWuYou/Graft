@@ -345,12 +345,6 @@ web Project Activity tab
 - `working_directory`
 - `ownership_mode`
   - `external | managed-root-dedicated`
-- `last_refresh_status`
-  - `never | success | failed`
-- `last_refresh_at`
-- `last_refresh_error_code`
-- `last_refresh_error_message`
-- `last_refresh_config_hash`
 - `last_observed_config_hash`
 - `last_drift_checked_at`
 - `drift_status`
@@ -379,7 +373,6 @@ web Project Activity tab
 - `absolute_path`
 - `display_path`
 - `order_index`
-- `exists_on_last_refresh`
 - `last_observed_hash`
 
 ### ProjectSnapshot
@@ -509,8 +502,8 @@ Phase 1 推荐三张模块自有表：
 刷新失败时：
 
 - 保留上一份成功 snapshot
-- 记录 `last_refresh_status=failed`
-- 在 Overview / Configuration 显示错误与“快照已过期”
+- 不额外持久化 refresh failure 字段
+- 在当前调用结果中直接返回错误，并保持 Overview / Configuration 继续基于上一份成功 snapshot 工作
 
 ## 8.4 Lifecycle Configuration / Up / Stop / Restart / Redeploy
 
@@ -815,8 +808,6 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 - `runtime_status`
 - `service_count`
 - `container_counts`
-- `last_refresh_at`
-- `last_refresh_status`
 - `drift_status`
 
 其中：
@@ -1317,7 +1308,7 @@ Project Drift 是该能力的重要价值之一。
 
 Phase 1 至少记录：
 
-- `last_refresh_config_hash`
+- `compose_project_snapshots.config_hash`
 - `last_observed_config_hash`
 - `drift_status`
 - `last_drift_checked_at`
