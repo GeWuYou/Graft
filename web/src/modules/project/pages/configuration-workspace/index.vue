@@ -215,6 +215,7 @@
               <content-viewer-frame
                 :default-height="editorFrameHeight"
                 :exit-fullscreen-label="workspaceCopy.exitFullscreenAction"
+                :fill-height="workspaceFullscreen"
                 :fullscreen-label="workspaceCopy.fullscreenAction"
                 fullscreen-surface-padding="none"
                 resize-handle-label="Resize Editor Height"
@@ -1967,6 +1968,7 @@ function stopSidebarResize() {
 
 .project-configuration-workspace--fullscreen .project-configuration-workspace__main-grid {
   background: var(--graft-shell-content-bg, var(--td-bg-color-page));
+  height: calc(100vh - 32px);
   inset: var(--graft-density-gap-16);
   margin-top: 0;
   min-height: calc(100vh - 32px);

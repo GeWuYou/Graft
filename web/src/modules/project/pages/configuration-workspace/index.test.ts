@@ -123,6 +123,7 @@ vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
     name: 'ContentViewerFrameStub',
     props: {
       defaultHeight: { type: Number, default: 0 },
+      fillHeight: { type: Boolean, default: false },
       minHeight: { type: Number, default: undefined },
       mobileMinHeight: { type: Number, default: undefined },
     },
@@ -133,6 +134,7 @@ vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
           {
             class: 'content-viewer-frame-stub',
             'data-default-height': String(props.defaultHeight),
+            'data-fill-height': String(props.fillHeight),
             'data-min-height': props.minHeight === undefined ? undefined : String(props.minHeight),
             'data-mobile-min-height': props.mobileMinHeight === undefined ? undefined : String(props.mobileMinHeight),
           },
@@ -639,12 +641,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    expect(wrapper.get('.content-viewer-frame-stub').attributes('data-fill-height')).toBe('false');
+
     await wrapper.get('.content-viewer-header-actions button:nth-of-type(2)').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('.project-configuration-workspace').classes()).toContain(
       'project-configuration-workspace--fullscreen',
     );
+    expect(wrapper.get('.content-viewer-frame-stub').attributes('data-fill-height')).toBe('true');
     expect(document.body.style.overflow).toBe('hidden');
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -653,6 +658,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.get('.project-configuration-workspace').classes()).not.toContain(
       'project-configuration-workspace--fullscreen',
     );
+    expect(wrapper.get('.content-viewer-frame-stub').attributes('data-fill-height')).toBe('false');
     expect(document.body.style.overflow).toBe('');
   });
 
