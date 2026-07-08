@@ -7719,6 +7719,20 @@ type ProjectConfigurationDiffFile struct {
 	ProposedHash    string          `json:"proposed_hash"`
 }
 
+// ProjectConfigurationDiffRequest defines model for project-configuration-diff-request.
+type ProjectConfigurationDiffRequest struct {
+	Files *[]ProjectConfigurationDiffRequestFile `json:"files,omitempty"`
+}
+
+// ProjectConfigurationDiffRequestFile defines model for project-configuration-diff-request-file.
+type ProjectConfigurationDiffRequestFile struct {
+	// Content Draft file content that should be diffed before writing to disk.
+	Content string `json:"content"`
+
+	// Path Project-root-relative file path for the draft override.
+	Path string `json:"path"`
+}
+
 // ProjectConfigurationDiffResponse defines model for project-configuration-diff-response.
 type ProjectConfigurationDiffResponse struct {
 	CanonicalProjectName string                         `json:"canonical_project_name"`
@@ -11292,6 +11306,9 @@ type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspec
 
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
+
+// PostProjectConfigurationDiffJSONRequestBody defines body for PostProjectConfigurationDiff for application/json ContentType.
+type PostProjectConfigurationDiffJSONRequestBody = ProjectConfigurationDiffRequest
 
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest

@@ -9,6 +9,12 @@ post:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/project-configuration-diff-request.yaml
   security:
     - bearerAuth: []
   responses:

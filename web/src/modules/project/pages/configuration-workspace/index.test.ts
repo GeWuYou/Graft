@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
   info: vi.fn(),
-  postProjectConfigurationDiff: vi.fn(),
+  postProjectConfigurationDiffWithDraft: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
   putProjectFileAnnotation: vi.fn(),
@@ -36,14 +36,24 @@ const workspaceCopyMessages = {
     'project.configurationWorkspace.copy.annotationAction': 'Edit Annotation',
     'project.configurationWorkspace.copy.annotationSaveFailed': 'Failed to save the annotation.',
     'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
+    'project.configurationWorkspace.copy.confirmSaveAction': 'Confirm Save',
+    'project.configurationWorkspace.copy.diffConfirmBody':
+      'Review the changed files below. Changes will be written to the working directory only after you confirm.',
+    'project.configurationWorkspace.copy.diffEmptyDirectSaveHint':
+      'No file diff was detected. Draft files will be saved directly.',
+    'project.configurationWorkspace.copy.diffTreeTitle': 'Changed Files',
     'project.configurationWorkspace.copy.saveAction': 'Save',
     'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
   },
   'zh-CN': {
     'project.configurationWorkspace.copy.annotationAction': '编辑注释',
     'project.configurationWorkspace.copy.annotationSaveFailed': '注释保存失败。',
+    'project.configurationWorkspace.copy.confirmSaveAction': '确认保存',
     'project.configurationWorkspace.copy.deployAction': '部署项目',
-    'project.configurationWorkspace.copy.deployDirtyBody': '检测到未保存的修改，是否先保存？',
+    'project.configurationWorkspace.copy.diffConfirmBody':
+      '请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。',
+    'project.configurationWorkspace.copy.diffEmptyDirectSaveHint': '未检测到文件差异，将直接保存草稿文件。',
+    'project.configurationWorkspace.copy.diffTreeTitle': '变更文件',
     'project.configurationWorkspace.copy.saveAction': '保存',
     'project.configurationWorkspace.copy.saveThenContinueAction': '保存',
   },
@@ -55,7 +65,7 @@ vi.mock('../../api/project', () => ({
   getProjectConfigurationPreview: mocks.getProjectConfigurationPreview,
   getProjectFileContent: mocks.getProjectFileContent,
   getProjectFiles: mocks.getProjectFiles,
-  postProjectConfigurationDiff: mocks.postProjectConfigurationDiff,
+  postProjectConfigurationDiffWithDraft: mocks.postProjectConfigurationDiffWithDraft,
   postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
   postProjectDeploy: mocks.postProjectDeploy,
   putProjectFileAnnotation: mocks.putProjectFileAnnotation,
@@ -473,7 +483,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       tooltip: 'Existing note',
       tooltip_source: 'project-note',
     });
-    mocks.postProjectConfigurationDiff.mockResolvedValue({
+    mocks.postProjectConfigurationDiffWithDraft.mockResolvedValue({
       canonical_project_name: 'sub2api',
       current_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
       files: [
@@ -814,10 +824,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('[data-testid="configuration-diff-file-workspace-entry-docker-compose-yml"]').exists()).toBe(
       true,
     );
-    expect(wrapper.findAll('[data-stub="TDialog"]').at(0)?.attributes('data-visible')).toBe('true');
+    expect(wrapper.find('[data-testid="configuration-diff-confirm-save"]').exists()).toBe(true);
   });
 
-  it('opens validation in the dialog after auto diff completes', async () => {
+  it('opens validation only after preview confirm saves dirty drafts', async () => {
     pageContextState.locale = 'zh-CN';
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -829,9 +839,11 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('project.configurationWorkspace.copy.dirtyProjectActionBody');
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。');
 
-    await wrapper.findAll('[data-stub="TDialog"][data-visible="true"] button').at(0)?.trigger('click');
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
     expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
@@ -839,8 +851,9 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
-    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalled();
-    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+    expect(mocks.postProjectConfigurationDiffWithDraft).toHaveBeenCalledWith(1, {
+      files: [{ content: 'services:\n  api:\n    image: newer\n', path: 'docker-compose.yml' }],
+    });
     expect(wrapper.find('[data-testid="validation-monaco-viewer"]').exists()).toBe(true);
   });
 
@@ -862,7 +875,87 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('.project-configuration-workspace__diff-file').exists()).toBe(false);
   });
 
-  it('saves the active file buffer, refreshes diff mode, and does not deploy the project', async () => {
+  it('previews the active dirty buffers before saving them to disk', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.postProjectConfigurationDiffWithDraft).toHaveBeenCalledWith(1, {
+      files: [{ content: 'services:\n  api:\n    image: newer\n', path: 'docker-compose.yml' }],
+    });
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
+    expect(mocks.postProjectDeploy).not.toHaveBeenCalled();
+  });
+
+  it('deploys only after preview confirm saves the dirty draft', async () => {
+    pageContextState.locale = 'zh-CN';
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === '部署项目')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: newer\n' },
+    );
+    expect(mocks.postProjectConfigurationDiffWithDraft).toHaveBeenCalledWith(1, {
+      files: [{ content: 'services:\n  api:\n    image: newer\n', path: 'docker-compose.yml' }],
+    });
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+    expect(mocks.postProjectDeploy).toHaveBeenCalledWith(1);
+  });
+
+  it('cancels the preview without saving dirty files', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save')
+      ?.trigger('click');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="configuration-diff-cancel"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
+      'services:\n  api:\n    image: newer\n',
+    );
+  });
+
+  it('saves directly without opening preview when the diff preview reports no changes', async () => {
+    mocks.postProjectConfigurationDiffWithDraft.mockResolvedValueOnce({
+      canonical_project_name: 'sub2api',
+      current_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
+      files: [],
+      has_changes: false,
+      ownership_mode: 'managed-root-dedicated',
+      project_id: 1,
+      proposed_config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
+      warnings: [],
+    });
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -878,36 +971,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
-    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalledWith(1);
-    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
-    expect(mocks.postProjectDeploy).not.toHaveBeenCalled();
-  });
-
-  it('shows the deploy dirty prompt and saves before deploying when requested', async () => {
-    pageContextState.locale = 'zh-CN';
-    const wrapper = mountWorkspace();
-    await flushPromises();
-
-    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === '部署项目')
-      ?.trigger('click');
-    await flushPromises();
-
-    expect(wrapper.text()).toContain('检测到未保存的修改，是否先保存？');
-
-    await wrapper.findAll('[data-stub="TDialog"][data-visible="true"] button').at(0)?.trigger('click');
-    await flushPromises();
-
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      1,
-      { path: 'docker-compose.yml' },
-      { content: 'services:\n  api:\n    image: newer\n' },
-    );
-    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalledWith(1);
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
-    expect(mocks.postProjectDeploy).toHaveBeenCalledWith(1);
+    expect(mocks.info).toHaveBeenCalledWith('No file diff was detected. Draft files will be saved directly.');
   });
 });
 

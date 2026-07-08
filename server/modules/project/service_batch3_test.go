@@ -142,13 +142,13 @@ func ensureStubProjectAggregateDefaults(aggregate projectstore.ProjectAggregate)
 	if len(aggregate.Files) == 0 && aggregate.Project.WorkingDirectory != "" {
 		aggregate.Files = []projectstore.ProjectFile{
 			{
-				ID:                  1,
-				ProjectID:           aggregate.Project.ID,
-				Kind:                projectcontract.FileKindCompose.String(),
-				Role:                projectcontract.FileRolePrimary.String(),
-				AbsolutePath:        filepath.Join(aggregate.Project.WorkingDirectory, "compose.yaml"),
-				DisplayPath:         "compose.yaml",
-				OrderIndex:          0,
+				ID:           1,
+				ProjectID:    aggregate.Project.ID,
+				Kind:         projectcontract.FileKindCompose.String(),
+				Role:         projectcontract.FileRolePrimary.String(),
+				AbsolutePath: filepath.Join(aggregate.Project.WorkingDirectory, "compose.yaml"),
+				DisplayPath:  "compose.yaml",
+				OrderIndex:   0,
 			},
 		}
 	}
@@ -1990,7 +1990,7 @@ func TestConfigurationDiffFileFromTrackedNormalizesStoredBaseline(t *testing.T) 
 
 	file := configurationDiffFileFromTracked(trackedWorkspaceFile{
 		Kind:             projectcontract.FileKindCompose.String(),
-		Path:             "/srv/orders/compose.yaml",
+		Path:             "compose.yaml",
 		DisplayPath:      "compose.yaml",
 		LastObservedHash: "stale-raw-hash",
 		BaselineContent:  "services:\r\n  api:  \r\n    image: nginx:latest\r\n",
@@ -2004,6 +2004,155 @@ func TestConfigurationDiffFileFromTrackedNormalizesStoredBaseline(t *testing.T) 
 	}
 	if file.ProposedContent != file.CurrentContent {
 		t.Fatalf("expected normalized proposed content to match current content, got %#v", file)
+	}
+}
+
+func buildConfigurationDiffTestRepository(t *testing.T, workingDirectory string) *stubProjectRepository {
+	t.Helper()
+
+	composePath := filepath.Join(workingDirectory, "docker-compose.yml")
+	return &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				WorkingDirectory:     workingDirectory,
+				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+			},
+			Files: []projectstore.ProjectFile{
+				{
+					ID:                  1,
+					ProjectID:           1,
+					Kind:                projectcontract.FileKindCompose.String(),
+					Role:                projectcontract.FileRolePrimary.String(),
+					AbsolutePath:        composePath,
+					DisplayPath:         "docker-compose.yml",
+					LastObservedHash:    hashString("services:\n  api:\n    image: nginx:latest\n"),
+					LastObservedContent: "services:\n  api:\n    image: nginx:latest\n",
+				},
+			},
+			Snapshot: &projectstore.Snapshot{
+				ProjectID:   1,
+				ConfigHash:  hashString("services:\n  api:\n    image: nginx:latest\n"),
+				RefreshedAt: time.Now().UTC(),
+			},
+		},
+	}
+}
+
+func TestDiffConfigurationUsesDraftOverridesBeforeDiskWrite(t *testing.T) {
+	t.Parallel()
+
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "docker-compose.yml")
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := buildConfigurationDiffTestRepository(t, workingDirectory)
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DiffConfiguration(context.Background(), 1, ConfigurationDiffRequest{
+		Files: []ConfigurationDiffDraftFile{{
+			Path:    "docker-compose.yml",
+			Content: "services:\n  api:\n    image: caddy:latest\n",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("diff configuration: %v", err)
+	}
+	if !result.HasChanges {
+		t.Fatalf("expected changes, got %#v", result)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("expected one changed file, got %#v", result.Files)
+	}
+	if result.Files[0].Path != "docker-compose.yml" {
+		t.Fatalf("expected relative path, got %#v", result.Files[0])
+	}
+	if result.Files[0].ProposedContent != "services:\n  api:\n    image: caddy:latest\n" {
+		t.Fatalf("unexpected proposed content %#v", result.Files[0])
+	}
+	if result.ProposedConfigHash == result.CurrentConfigHash {
+		t.Fatalf("expected proposed config hash to reflect draft override, got %#v", result)
+	}
+}
+
+func TestDiffConfigurationOmitsUnchangedFilesAndReportsNoChanges(t *testing.T) {
+	t.Parallel()
+
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "docker-compose.yml")
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := buildConfigurationDiffTestRepository(t, workingDirectory)
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DiffConfiguration(context.Background(), 1, ConfigurationDiffRequest{})
+	if err != nil {
+		t.Fatalf("diff configuration: %v", err)
+	}
+	if result.HasChanges {
+		t.Fatalf("expected no changes, got %#v", result)
+	}
+	if len(result.Files) != 0 {
+		t.Fatalf("expected no changed files, got %#v", result.Files)
+	}
+}
+
+func TestDiffConfigurationIncludesEditableWorkspaceConfigFiles(t *testing.T) {
+	t.Parallel()
+
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "docker-compose.yml")
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+	configPath := filepath.Join(workingDirectory, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("debug: false\n"), 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	repo := buildConfigurationDiffTestRepository(t, workingDirectory)
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DiffConfiguration(context.Background(), 1, ConfigurationDiffRequest{
+		Files: []ConfigurationDiffDraftFile{{
+			Path:    "config.yaml",
+			Content: "debug: true\n",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("diff configuration: %v", err)
+	}
+	if !result.HasChanges {
+		t.Fatalf("expected config file change to be reported, got %#v", result)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("expected one changed config file, got %#v", result.Files)
+	}
+	if result.Files[0].Path != "config.yaml" {
+		t.Fatalf("expected config.yaml path, got %#v", result.Files[0])
+	}
+	if result.Files[0].Kind != "config" {
+		t.Fatalf("expected config file kind, got %#v", result.Files[0])
+	}
+	if result.Files[0].CurrentContent != "debug: false\n" {
+		t.Fatalf("unexpected current content %#v", result.Files[0])
+	}
+	if result.Files[0].ProposedContent != "debug: true\n" {
+		t.Fatalf("unexpected proposed content %#v", result.Files[0])
 	}
 }
 
@@ -2048,13 +2197,13 @@ func TestDeployConfigurationRefreshesBeforeComposeUp(t *testing.T) {
 			},
 			Files: []projectstore.ProjectFile{
 				{
-					ID:                  1,
-					ProjectID:           1,
-					Kind:                projectcontract.FileKindCompose.String(),
-					Role:                projectcontract.FileRolePrimary.String(),
-					AbsolutePath:        composePath,
-					DisplayPath:         "compose.yaml",
-					OrderIndex:          0,
+					ID:           1,
+					ProjectID:    1,
+					Kind:         projectcontract.FileKindCompose.String(),
+					Role:         projectcontract.FileRolePrimary.String(),
+					AbsolutePath: composePath,
+					DisplayPath:  "compose.yaml",
+					OrderIndex:   0,
 				},
 			},
 			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},

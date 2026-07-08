@@ -66,10 +66,10 @@ const (
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit             int
-	Offset            int
-	SourceKind        string
-	DriftStatus       string
+	Limit       int
+	Offset      int
+	SourceKind  string
+	DriftStatus string
 }
 
 // ImportRequest describes batch-2 import validate and import payloads.
@@ -292,6 +292,17 @@ type ConfigurationDiffFile struct {
 	ProposedHash    string
 	CurrentContent  string
 	ProposedContent string
+}
+
+// ConfigurationDiffDraftFile describes one project-root-relative draft override used for preview-before-save diffing.
+type ConfigurationDiffDraftFile struct {
+	Path    string
+	Content string
+}
+
+// ConfigurationDiffRequest describes optional draft overrides for preview-before-save diffing.
+type ConfigurationDiffRequest struct {
+	Files []ConfigurationDiffDraftFile
 }
 
 // ConfigurationDiffResult returns bounded managed draft diff output.

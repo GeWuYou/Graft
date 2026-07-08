@@ -1,8 +1,11 @@
 package project
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -481,8 +484,12 @@ func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	projectGeneratedHandler{}.PostProjectConfigurationDiff(generatedID, bindPostProjectConfigurationDiffParams(ginCtx))
-	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), projectID)
+	var request generated.PostProjectConfigurationDiffJSONRequestBody
+	if !bindOptionalJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectConfigurationDiff(generatedID, bindPostProjectConfigurationDiffParams(ginCtx), request)
+	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), projectID, toConfigurationDiffRequest(request))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -844,7 +851,7 @@ func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProject
 }
 func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams) {
+func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams, generated.PostProjectConfigurationDiffJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
 }
@@ -956,6 +963,26 @@ func bindPostProjectImportRuntimeInspectParams(ginCtx *gin.Context) generated.Po
 // 绑定失败时，会中止当前请求并返回 400 Bad Request 的本地化参数错误，错误字段为 `body`。
 func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	if err := ginCtx.ShouldBindJSON(target); err != nil {
+		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
+		return false
+	}
+	return true
+}
+
+func bindOptionalJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
+	if ginCtx.Request == nil || ginCtx.Request.Body == nil {
+		return true
+	}
+	payload, err := io.ReadAll(ginCtx.Request.Body)
+	if err != nil {
+		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
+		return false
+	}
+	ginCtx.Request.Body = io.NopCloser(bytes.NewReader(payload))
+	if len(bytes.TrimSpace(payload)) == 0 {
+		return true
+	}
+	if err := json.Unmarshal(payload, target); err != nil {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
 		return false
 	}

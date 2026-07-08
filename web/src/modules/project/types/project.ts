@@ -115,9 +115,13 @@ export type ProjectConfigurationFileResponse = {
   read_only?: boolean;
 };
 
+export type ProjectConfigurationDraftFile = {
+  content: string;
+  path: string;
+};
+
 export type ProjectConfigurationDiffRequest = {
-  compose_file_content?: string;
-  env_file_content?: string;
+  files?: ProjectConfigurationDraftFile[];
 };
 
 export type ProjectConfigurationDiffResponse = {

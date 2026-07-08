@@ -344,6 +344,20 @@ func toConfigurationDiffResponse(result ConfigurationDiffResult) generated.Proje
 	return response
 }
 
+func toConfigurationDiffRequest(request generated.ProjectConfigurationDiffRequest) ConfigurationDiffRequest {
+	if request.Files == nil {
+		return ConfigurationDiffRequest{}
+	}
+	files := make([]ConfigurationDiffDraftFile, 0, len(*request.Files))
+	for _, item := range *request.Files {
+		files = append(files, ConfigurationDiffDraftFile{
+			Path:    item.Path,
+			Content: item.Content,
+		})
+	}
+	return ConfigurationDiffRequest{Files: files}
+}
+
 // toConfigurationValidateResponse 将配置校验结果转换为项目配置校验响应。
 // 返回包含项目 ID、规范化项目名、所有权模式、建议配置哈希、规范化 Compose YAML 和声明的服务名称的响应；当存在警告时，还会附加警告列表。
 func toConfigurationValidateResponse(result ConfigurationValidateResult) generated.ProjectConfigurationValidateResponse {

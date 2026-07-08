@@ -12263,6 +12263,16 @@
             "$ref": "#/components/parameters/project-id-path"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-configuration-diff-request"
+              }
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -25185,6 +25195,35 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/project-file-tree-item"
+          }
+        }
+      },
+      "project-configuration-diff-request-file": {
+        "type": "object",
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Project-root-relative file path for the draft override."
+          },
+          "content": {
+            "type": "string",
+            "description": "Draft file content that should be diffed before writing to disk."
+          }
+        }
+      },
+      "project-configuration-diff-request": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-configuration-diff-request-file"
+            }
           }
         }
       },

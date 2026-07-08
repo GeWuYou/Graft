@@ -27,6 +27,7 @@ import type {
   ProjectActionResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
+  ProjectConfigurationDiffRequest,
   ProjectConfigurationDiffResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
@@ -312,15 +313,13 @@ export function putProjectFileAnnotation(
   }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
 }
 
-/**
- * 提交项目配置差异计算请求。
- *
- * @param id - 项目 ID
- * @returns 配置差异结果
- */
-export function postProjectConfigurationDiff(id: ProjectConfigurationDiffPathParams['id']) {
+export function postProjectConfigurationDiffWithDraft(
+  id: ProjectConfigurationDiffPathParams['id'],
+  payload?: ProjectConfigurationDiffRequest,
+) {
   return postProjectAction<ProjectConfigurationDiffData>(
     buildProjectConfigurationDiffApiPath(id),
+    payload,
   ) as Promise<ProjectConfigurationDiffResponse>;
 }
 

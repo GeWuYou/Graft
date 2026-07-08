@@ -289,7 +289,10 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 	})
 }
 
-func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]trackedWorkspaceFile, error) {
+func loadTrackedFileContents(
+	aggregate projectstore.ProjectAggregate,
+	overrides map[string]string,
+) ([]trackedWorkspaceFile, error) {
 	rootDir, _, err := resolveProjectWorkspaceDirectory(aggregate.Project.WorkingDirectory, "")
 	if err != nil {
 		return nil, err
@@ -300,15 +303,21 @@ func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]tracked
 		if relErr != nil {
 			return nil, fmt.Errorf("%w: %v", errProjectInvalidArgument, relErr)
 		}
-		// #nosec G304 -- rootDir and relativePath are normalized within the validated project root.
-		content, readErr := os.ReadFile(filepath.Join(rootDir, relativePath))
-		if readErr != nil {
-			return nil, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
+		content := []byte(nil)
+		if override, ok := overrides[normalizeWorkspaceRelative(relativePath)]; ok {
+			content = []byte(override)
+		} else {
+			// #nosec G304 -- rootDir and relativePath are normalized within the validated project root.
+			readContent, readErr := os.ReadFile(filepath.Join(rootDir, relativePath))
+			if readErr != nil {
+				return nil, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
+			}
+			content = readContent
 		}
 		result = append(result, trackedWorkspaceFile{
 			Kind:             item.Kind,
-			Path:             item.AbsolutePath,
-			DisplayPath:      item.DisplayPath,
+			Path:             normalizeWorkspaceRelative(relativePath),
+			DisplayPath:      normalizeWorkspaceRelative(nonEmptyString(item.DisplayPath, relativePath)),
 			LastObservedHash: item.LastObservedHash,
 			Content:          string(content),
 			BaselineContent:  item.LastObservedContent,
