@@ -313,9 +313,12 @@ const TDialogStub = defineComponent({
     cancelBtn: { type: [Boolean, Object], default: false },
     confirmBtn: { type: [Boolean, Object], default: false },
     dialogClassName: { type: String, default: '' },
+    dialogStyle: { type: Object, default: undefined },
     header: { type: String, default: '' },
     mode: { type: String, default: 'modal' },
+    top: { type: [Number, String], default: undefined },
     visible: { type: Boolean, default: false },
+    width: { type: [Number, String], default: undefined },
   },
   emits: ['close', 'confirm', 'update:visible'],
   setup(props, { emit, slots }) {
@@ -324,10 +327,13 @@ const TDialogStub = defineComponent({
         'div',
         {
           'data-class-name': props.dialogClassName,
+          'data-dialog-style': props.dialogStyle ? JSON.stringify(props.dialogStyle) : undefined,
           'data-mode': props.mode,
           'data-stub': 'TDialog',
           'data-title': props.header,
+          'data-top': props.top === undefined ? undefined : String(props.top),
           'data-visible': String(props.visible),
+          'data-width': props.width === undefined ? undefined : String(props.width),
         },
         [
           props.visible ? h('div', slots.default?.()) : null,
@@ -810,6 +816,38 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       true,
     );
     expect(wrapper.find('[data-testid="configuration-diff-confirm-save"]').exists()).toBe(true);
+    const resultDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
+    expect(resultDialog?.attributes('data-mode')).toBe('modal');
+    expect(resultDialog?.attributes('data-top')).toBe('24');
+    expect(resultDialog?.attributes('data-width')).toBe('min(96vw, 1560px)');
+    expect(resultDialog?.attributes('data-dialog-style')).toContain('"height":"76vh"');
+    expect(resultDialog?.attributes('data-dialog-style')).toContain('"maxHeight":"calc(100vh - 48px)"');
+  });
+
+  it('expands the diff result dialog to edge-to-edge fullscreen sizing', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save')
+      ?.trigger('click');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
+    await flushPromises();
+
+    const resultDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
+    expect(resultDialog?.attributes('data-mode')).toBe('full-screen');
+    expect(resultDialog?.attributes('data-top')).toBe('0');
+    expect(resultDialog?.attributes('data-width')).toBeUndefined();
+    expect(resultDialog?.attributes('data-class-name')).toContain(
+      'project-configuration-workspace__result-dialog-shell--fullscreen',
+    );
+    expect(resultDialog?.attributes('data-dialog-style')).toContain('"height":"100vh"');
+    expect(resultDialog?.attributes('data-dialog-style')).toContain('"maxHeight":"100vh"');
+    expect(resultDialog?.attributes('data-dialog-style')).toContain('"width":"100vw"');
   });
 
   it('opens validation only after preview confirm saves dirty drafts', async () => {

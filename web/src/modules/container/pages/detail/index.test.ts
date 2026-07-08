@@ -2315,7 +2315,9 @@ describe('container detail page', () => {
     await wrapper.get('[data-testid="port-mapping-copy-0"]').trigger('click');
     await flushPromises();
 
-    expect(copyText).toHaveBeenCalledWith('0.0.0.0:3552->3552/tcp\n:::3552->3552/tcp');
+    await vi.waitFor(() => {
+      expect(copyText).toHaveBeenCalledWith('0.0.0.0:3552->3552/tcp\n:::3552->3552/tcp');
+    });
   });
 
   it('renders a single IPv4 host binding as one semantic mapping', async () => {

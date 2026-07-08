@@ -9,6 +9,7 @@ import {
   buildProjectMonacoModelUri,
   createProjectMonacoModelUriSuffix,
   ensureProjectMonacoConfigured,
+  observeProjectMonacoResize,
   scheduleProjectMonacoLayout,
   useProjectMonacoLifecycle,
 } from '../shared/project-monaco';
@@ -34,10 +35,13 @@ let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
 let modifiedModel: Monaco.editor.ITextModel | null = null;
+let resizeObserver: ResizeObserver | null = null;
 
 const { applyTheme } = useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
+    resizeObserver?.disconnect();
+    resizeObserver = null;
     editor?.dispose();
     editor = null;
     originalModel?.dispose();
@@ -102,7 +106,18 @@ async function createEditor() {
   });
 
   bindModels(monaco, false);
+  observeContainerResize();
   await scheduleProjectMonacoLayout(() => {
+    editor?.layout();
+  });
+}
+
+function observeContainerResize() {
+  if (!editor) {
+    return;
+  }
+
+  resizeObserver = observeProjectMonacoResize(containerRef.value, resizeObserver, () => {
     editor?.layout();
   });
 }

@@ -3,6 +3,10 @@ import { createLogger } from '@/utils/logger';
 const PROJECT_MONACO_DEBUG_KEY = '__GRAFT_MONACO_DEBUG__';
 
 export function isProjectMonacoDebugEnabled() {
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
   const debugFlag = (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DEBUG_KEY];
 
   if (debugFlag === true) {

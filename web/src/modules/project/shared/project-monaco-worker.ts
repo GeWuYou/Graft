@@ -1,8 +1,10 @@
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 
+import { createLogger } from '@/utils/logger';
+
 import { createProjectMonacoDebugLogger } from './project-monaco-debug';
-import YamlWorker from './project-yaml.worker?worker';
+import YamlWorker from './project-yaml.worker.js?worker';
 
 type MonacoWorkerFactory = () => Worker;
 
@@ -13,6 +15,7 @@ type ProjectMonacoWorkerFactories = {
 };
 
 const logProjectMonacoWorkerDebug = createProjectMonacoDebugLogger('project.monaco.worker');
+const logger = createLogger('project.monaco.worker');
 
 function createEditorWorker() {
   return new EditorWorker({
@@ -62,7 +65,20 @@ function attachProjectMonacoWorkerDebug(worker: Worker, label: string, kind: str
   return worker;
 }
 
+function resolveWorkerKind(moduleId: string, label: string) {
+  if (label === 'yaml' || moduleId.includes('yaml.worker')) {
+    return 'yaml';
+  }
+
+  if (label === 'json' || moduleId.includes('json.worker')) {
+    return 'json';
+  }
+
+  return 'editor';
+}
+
 export function buildProjectMonacoWorker(
+  moduleId: string,
   label: string,
   factories: ProjectMonacoWorkerFactories = {
     createEditorWorker,
@@ -70,17 +86,29 @@ export function buildProjectMonacoWorker(
     createYamlWorker,
   },
 ) {
+  const workerKind = resolveWorkerKind(moduleId, label);
+
   logProjectMonacoWorkerDebug('route-worker', {
+    moduleId,
     label,
+    workerKind,
   });
 
-  switch (label) {
-    case 'json':
-      return attachProjectMonacoWorkerDebug(factories.createJsonWorker(), label, 'json');
-    case 'yaml':
-      return attachProjectMonacoWorkerDebug(factories.createYamlWorker(), label, 'yaml');
-    case 'editorWorkerService':
-    default:
-      return attachProjectMonacoWorkerDebug(factories.createEditorWorker(), label, 'editor');
+  try {
+    switch (workerKind) {
+      case 'json':
+        return attachProjectMonacoWorkerDebug(factories.createJsonWorker(), label, 'json');
+      case 'yaml':
+        return attachProjectMonacoWorkerDebug(factories.createYamlWorker(), label, 'yaml');
+      default:
+        return attachProjectMonacoWorkerDebug(factories.createEditorWorker(), label, 'editor');
+    }
+  } catch (error) {
+    logger.error(error instanceof Error ? error : new Error(String(error)), {
+      label,
+      moduleId,
+      workerKind,
+    });
+    throw error;
   }
 }

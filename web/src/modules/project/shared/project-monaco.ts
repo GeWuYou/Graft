@@ -21,6 +21,16 @@ import { createProjectMonacoDebugLogger } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 export type MonacoEditorModule = typeof monaco;
+type MonacoCreateWebWorker = typeof monaco.editor.createWebWorker;
+
+type LegacyMonacoWebWorkerOptions = {
+  createData?: unknown;
+  createWorker?: () => Worker;
+  host?: Record<string, (...args: unknown[]) => unknown>;
+  keepIdleModels?: boolean;
+  label?: string;
+  moduleId: string;
+};
 
 declare global {
   interface Window {
@@ -33,6 +43,7 @@ declare global {
 let monacoConfigured = false;
 let monacoYamlConfigured = false;
 let monacoYamlConfigurationFailed = false;
+let monacoLegacyWorkerCompatInstalled = false;
 let modelUriSuffixSeed = 0;
 const logger = createLogger('project.monaco');
 const logProjectMonacoDebug = createProjectMonacoDebugLogger('project.monaco');
@@ -49,21 +60,25 @@ export function ensureProjectMonacoConfigured() {
   }
 
   globalThis.MonacoEnvironment = {
-    getWorker(_moduleId: string, label: string) {
+    getWorker(moduleId: string, label: string) {
       logProjectMonacoDebug('get-worker', {
+        moduleId,
         label,
       });
 
-      const worker = buildProjectMonacoWorker(label);
+      const worker = buildProjectMonacoWorker(moduleId, label);
 
       logProjectMonacoDebug('get-worker-resolved', {
         constructorName: worker?.constructor?.name ?? 'unknown',
+        moduleId,
         label,
       });
 
       return worker;
     },
   };
+
+  ensureProjectMonacoLegacyWorkerCompat(monaco);
 
   if (!monacoYamlConfigured && !monacoYamlConfigurationFailed) {
     try {
@@ -93,6 +108,65 @@ export function ensureProjectMonacoConfigured() {
   return monaco;
 }
 
+function ensureProjectMonacoLegacyWorkerCompat(monacoInstance: MonacoEditorModule) {
+  if (monacoLegacyWorkerCompatInstalled) {
+    return;
+  }
+
+  const editorApi = monacoInstance.editor as typeof monaco.editor & {
+    createWebWorker: MonacoCreateWebWorker;
+  };
+  const originalCreateWebWorker = editorApi.createWebWorker.bind(editorApi);
+
+  editorApi.createWebWorker = ((options: Parameters<MonacoCreateWebWorker>[0]) => {
+    const legacyOptions = asLegacyMonacoWebWorkerOptions(options);
+
+    if (!legacyOptions) {
+      return originalCreateWebWorker(options);
+    }
+
+    const label = legacyOptions.label ?? 'monaco-editor-worker';
+    const worker = Promise.resolve(resolveProjectMonacoWorkerFromLegacyOptions(label, legacyOptions.createWorker)).then(
+      (resolvedWorker) => {
+        resolvedWorker.postMessage('ignore');
+        resolvedWorker.postMessage(legacyOptions.createData);
+        return resolvedWorker;
+      },
+    );
+
+    logProjectMonacoDebug('create-web-worker-compat', {
+      label,
+      moduleId: legacyOptions.moduleId,
+    });
+
+    return originalCreateWebWorker({
+      host: legacyOptions.host,
+      keepIdleModels: legacyOptions.keepIdleModels,
+      worker,
+    });
+  }) as MonacoCreateWebWorker;
+
+  monacoLegacyWorkerCompatInstalled = true;
+}
+
+function asLegacyMonacoWebWorkerOptions(
+  options: Parameters<MonacoCreateWebWorker>[0],
+): LegacyMonacoWebWorkerOptions | null {
+  if (!options || typeof options !== 'object' || 'worker' in options || !('moduleId' in options)) {
+    return null;
+  }
+
+  return options as unknown as LegacyMonacoWebWorkerOptions;
+}
+
+function resolveProjectMonacoWorkerFromLegacyOptions(label: string, createWorker?: () => Worker) {
+  if (typeof createWorker === 'function') {
+    return createWorker();
+  }
+
+  return buildProjectMonacoWorker('workerMain.js', label);
+}
+
 function resolveProjectMonacoTheme(): ProjectMonacoTheme {
   return document.documentElement.getAttribute('theme-mode') === 'dark'
     ? PROJECT_MONACO_THEME_DARK
@@ -109,6 +183,23 @@ export function scheduleProjectMonacoLayout(layout: () => void) {
   return nextTick().then(() => {
     requestAnimationFrame(layout);
   });
+}
+
+export function observeProjectMonacoResize(
+  container: HTMLElement | null,
+  observer: ResizeObserver | null,
+  layout: () => void,
+) {
+  if (typeof ResizeObserver === 'undefined' || !container) {
+    return observer;
+  }
+
+  observer?.disconnect();
+  const nextObserver = new ResizeObserver(() => {
+    void scheduleProjectMonacoLayout(layout);
+  });
+  nextObserver.observe(container);
+  return nextObserver;
 }
 
 export function useProjectMonacoLifecycle(options: {

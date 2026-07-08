@@ -409,6 +409,7 @@
     <t-dialog
       v-model:visible="resultDialogVisible"
       :dialog-class-name="resultDialogClassName"
+      :dialog-style="resultDialogStyle"
       :footer="false"
       :header="false"
       :mode="resultDialogFullscreen ? 'full-screen' : 'modal'"
@@ -416,7 +417,8 @@
       :close-on-overlay-click="false"
       :close-on-esc-keydown="true"
       destroy-on-close
-      :width="resultDialogFullscreen ? undefined : '92vw'"
+      :top="resultDialogTop"
+      :width="resultDialogWidth"
     >
       <div class="project-configuration-workspace__result-dialog">
         <div class="project-configuration-workspace__result-dialog-header">
@@ -894,6 +896,21 @@ const resultDialogClassName = computed(() =>
   resultDialogFullscreen.value
     ? 'project-configuration-workspace__result-dialog-shell project-configuration-workspace__result-dialog-shell--fullscreen'
     : 'project-configuration-workspace__result-dialog-shell',
+);
+const resultDialogWidth = computed(() => (resultDialogFullscreen.value ? undefined : 'min(96vw, 1560px)'));
+const resultDialogTop = computed(() => (resultDialogFullscreen.value ? 0 : 24));
+const resultDialogStyle = computed(() =>
+  resultDialogFullscreen.value
+    ? {
+        height: '100vh',
+        maxHeight: '100vh',
+        width: '100vw',
+      }
+    : {
+        height: '76vh',
+        maxHeight: 'calc(100vh - 48px)',
+        width: 'auto',
+      },
 );
 const workspaceItemMap = computed(() => {
   const itemMap = new Map<string, WorkspaceListItem>();
@@ -2528,10 +2545,10 @@ function stopSidebarResize() {
 .project-configuration-workspace__diff-surface {
   display: grid;
   flex: 1 1 auto;
-  gap: var(--graft-density-gap-12);
+  gap: var(--graft-density-gap-10);
   grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   min-height: 0;
-  padding: var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12) var(--graft-density-gap-12);
 }
 
 .project-configuration-workspace__diff-sidebar {
@@ -2574,7 +2591,7 @@ function stopSidebarResize() {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--graft-density-gap-8);
+  gap: var(--graft-density-gap-6);
   min-height: 0;
 }
 
@@ -2625,18 +2642,18 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__result-dialog-header {
   border-bottom: 1px solid var(--graft-workspace-editor-border);
-  padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-10);
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12) var(--graft-density-gap-8);
 }
 
 .project-configuration-workspace__result-dialog > .project-configuration-workspace__feedback-panel {
-  padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12) var(--graft-density-gap-12);
 }
 
 .project-configuration-workspace__result-dialog-footer {
   border-top: 1px solid var(--graft-workspace-editor-border);
   display: flex;
   justify-content: flex-end;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-16) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-12) var(--graft-density-gap-10);
 }
 
 .project-configuration-workspace__result-viewer,
@@ -2645,13 +2662,35 @@ function stopSidebarResize() {
   background: var(--graft-workspace-editor-surface-muted);
   border: 1px solid var(--graft-workspace-editor-border);
   border-radius: var(--td-radius-large);
+  display: flex;
   flex: 1 1 auto;
   min-block-size: 360px;
+  min-inline-size: 0;
   overflow: hidden;
 }
 
 .project-configuration-workspace__diff-stage .project-configuration-workspace__result-viewer {
   min-block-size: 0;
+}
+
+.project-configuration-workspace__result-viewer :deep(.project-monaco-diff-surface),
+.project-configuration-workspace__result-viewer :deep(.project-monaco-surface),
+.project-configuration-workspace__readonly-viewer :deep(.project-monaco-surface),
+.project-configuration-workspace__drawer-viewer :deep(.project-monaco-surface) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.project-configuration-workspace__result-viewer :deep(.monaco-diff-editor),
+.project-configuration-workspace__result-viewer :deep(.monaco-editor),
+.project-configuration-workspace__result-viewer :deep(.overflow-guard),
+.project-configuration-workspace__readonly-viewer :deep(.monaco-editor),
+.project-configuration-workspace__readonly-viewer :deep(.overflow-guard),
+.project-configuration-workspace__drawer-viewer :deep(.monaco-editor),
+.project-configuration-workspace__drawer-viewer :deep(.overflow-guard) {
+  height: 100% !important;
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body) {
@@ -2674,18 +2713,28 @@ function stopSidebarResize() {
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog) {
-  max-width: 1440px;
+  display: flex;
+  flex-direction: column;
+  height: 76vh;
+  max-height: calc(100vh - 48px);
+  max-width: min(96vw, 1560px);
+  width: min(96vw, 1560px);
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog) {
   border-radius: 0;
   height: 100vh;
+  max-height: 100vh;
   max-width: none;
   width: 100vw;
 }
 
+:deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog__body) {
+  height: 100%;
+}
+
 :deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog__body-content) {
-  height: 100vh;
+  height: 100%;
 }
 
 .project-configuration-workspace__dialog-body {

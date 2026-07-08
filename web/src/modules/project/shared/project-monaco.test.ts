@@ -32,7 +32,7 @@ describe('project-monaco worker routing', () => {
     const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
-    const worker = buildProjectMonacoWorker('json', {
+    const worker = buildProjectMonacoWorker('monaco-editor/esm/vs/language/json/json.worker', 'json', {
       createEditorWorker: () => editorWorker,
       createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
@@ -46,7 +46,7 @@ describe('project-monaco worker routing', () => {
     const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
-    const worker = buildProjectMonacoWorker('yaml', {
+    const worker = buildProjectMonacoWorker('monaco-yaml/yaml.worker', 'yaml', {
       createEditorWorker: () => editorWorker,
       createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
@@ -60,13 +60,27 @@ describe('project-monaco worker routing', () => {
     const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
-    const worker = buildProjectMonacoWorker('editorWorkerService', {
+    const worker = buildProjectMonacoWorker('monaco-editor/esm/vs/editor/editor.worker', 'editorWorkerService', {
       createEditorWorker: () => editorWorker,
       createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
     });
 
     expect(worker).toBe(editorWorker);
+  });
+
+  it('routes yaml workers by moduleId even when the label is missing', () => {
+    const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
+    const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
+
+    const worker = buildProjectMonacoWorker('monaco-yaml/yaml.worker', '', {
+      createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
+      createYamlWorker: () => yamlWorker,
+    });
+
+    expect(worker).toBe(yamlWorker);
   });
 });
 
