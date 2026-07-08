@@ -55,6 +55,21 @@ const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
   getThemeHost: () => containerRef.value,
 });
 
+function readNestedEditorSize(getEditor: (() => Monaco.editor.IStandaloneCodeEditor) | undefined) {
+  try {
+    const container = getEditor?.()?.getContainerDomNode();
+    return {
+      height: container?.clientHeight ?? 0,
+      width: container?.clientWidth ?? 0,
+    };
+  } catch {
+    return {
+      height: 0,
+      width: 0,
+    };
+  }
+}
+
 watch(
   () => [props.originalKey, props.modifiedKey, props.language] as const,
   async () => {
@@ -208,9 +223,17 @@ function bindModels(monacoInstance: typeof Monaco) {
   modifiedModel = nextModified;
 
   const boundModel = editor.getModel();
+  const modifiedEditorSize = readNestedEditorSize(editor.getModifiedEditor?.bind(editor));
+  const originalEditorSize = readNestedEditorSize(editor.getOriginalEditor?.bind(editor));
   logDiffDebug('set-model-complete', {
+    containerHeight: containerRef.value?.clientHeight ?? 0,
+    containerWidth: containerRef.value?.clientWidth ?? 0,
     editorHasModel: Boolean(boundModel),
+    modifiedEditorHeight: modifiedEditorSize.height,
+    modifiedEditorWidth: modifiedEditorSize.width,
     modelCount: monacoInstance.editor.getModels().length,
+    originalEditorHeight: originalEditorSize.height,
+    originalEditorWidth: originalEditorSize.width,
     sameModifiedModel: boundModel?.modified === nextModified,
     sameOriginalModel: boundModel?.original === nextOriginal,
   });
@@ -239,7 +262,7 @@ function logDiffDebug(event: string, detail: Record<string, unknown>) {
     return;
   }
 
-  logger.debug(
+  logger.warn(
     `[ProjectMonacoDiffSurface] ${projectMonacoDebug.formatProjectMonacoDebugMessage(event, detail)}`,
     detail,
   );
@@ -252,8 +275,11 @@ defineExpose({
 <style scoped lang="less">
 .project-monaco-diff-surface {
   block-size: 100%;
+  display: flex;
+  flex: 1 1 auto;
   inline-size: 100%;
   min-block-size: 0;
   min-inline-size: 0;
+  overflow: hidden;
 }
 </style>

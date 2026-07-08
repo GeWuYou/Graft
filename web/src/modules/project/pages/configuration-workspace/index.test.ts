@@ -888,6 +888,9 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+    const diffViewer = wrapper.get('[data-testid="configuration-diff-viewer"]');
+    expect(diffViewer.find('pre.original').text()).toBe('services:\n  api:\n    image: app');
+    expect(diffViewer.find('pre.modified').text()).toBe('services:\n  api:\n    image: newer');
     expect(wrapper.find('[data-testid="configuration-diff-file-workspace-entry-docker-compose-yml"]').exists()).toBe(
       true,
     );

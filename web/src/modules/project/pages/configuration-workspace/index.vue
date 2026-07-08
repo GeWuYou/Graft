@@ -536,6 +536,7 @@
               <project-monaco-diff-surface
                 v-if="selectedDiffFile && diffViewerReady"
                 ref="diffViewerRef"
+                class="project-configuration-workspace__monaco-viewer"
                 :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
                 :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
                 :modified-key="`diff-modified-${selectedDiffFile.path}`"
@@ -692,6 +693,7 @@ import {
   projectRuntimeStatusTheme,
 } from '../../shared/display';
 import { useProjectPageContext } from '../../shared/page-context';
+import { formatProjectMonacoDebugMessage, isProjectMonacoDebugEnabled } from '../../shared/project-monaco-debug';
 import type {
   ProjectConfigurationPreviewResponse,
   ProjectConfigurationValidateResponse,
@@ -1696,6 +1698,11 @@ function toggleResultDialogFullscreen() {
 
 function handleResultDialogOpened() {
   if (resultDialogMode.value === 'diff') {
+    logWorkspaceDiffDebug('dialog-opened', {
+      diffViewerReady: diffViewerReady.value,
+      fileCount: diffFiles.value.length,
+      selectedPath: selectedDiffFile.value?.path ?? '',
+    });
     diffViewerReady.value = true;
   }
   queueResultViewerLayout();
@@ -1712,6 +1719,14 @@ function queueResultViewerLayout() {
     }
     await Promise.allSettled(layoutTasks);
   });
+}
+
+function logWorkspaceDiffDebug(event: string, detail: Record<string, unknown>) {
+  if (!isProjectMonacoDebugEnabled()) {
+    return;
+  }
+
+  logger.warn(`[ConfigurationWorkspaceDiff] ${formatProjectMonacoDebugMessage(event, detail)}`, detail);
 }
 
 async function runProjectDeploy() {
@@ -1764,6 +1779,11 @@ function buildDirtyDiffFiles(paths?: string[]): WorkspacePreviewDiffFile[] {
 
 async function previewBeforeSave(action: PendingWorkspaceAction) {
   const files = buildDirtyDiffFiles();
+  logWorkspaceDiffDebug('preview-before-save', {
+    action,
+    diffFileCount: files.length,
+    dirtyBufferCount: dirtyEditableBuffers.value.length,
+  });
   if (!files.length) {
     MessagePlugin.info(workspaceCopy.value.diffEmptyDirectSaveHint);
     const saved = await saveDirtyFiles();
@@ -1784,6 +1804,14 @@ async function previewBeforeSave(action: PendingWorkspaceAction) {
     warnings: [],
   };
   selectedDiffFilePath.value = files[0]?.path || '';
+  logWorkspaceDiffDebug('preview-diff-selected', {
+    currentHash: files[0]?.current_hash ?? '',
+    currentLength: files[0]?.current_content.length ?? 0,
+    diffViewerReady: diffViewerReady.value,
+    path: files[0]?.path ?? '',
+    proposedHash: files[0]?.proposed_hash ?? '',
+    proposedLength: files[0]?.proposed_content.length ?? 0,
+  });
   validateResult.value = null;
   pendingWorkspaceAction.value = action;
   resultDialogMode.value = 'diff';
@@ -2727,10 +2755,14 @@ function stopSidebarResize() {
 .project-configuration-workspace__drawer-viewer :deep(.project-monaco-surface) {
   display: flex;
   flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   min-width: 0;
+  width: 100%;
 }
 
+.project-configuration-workspace__result-viewer :deep(.project-monaco-diff-surface .monaco-diff-editor),
+.project-configuration-workspace__result-viewer :deep(.project-monaco-diff-surface .editor),
 .project-configuration-workspace__result-viewer :deep(.monaco-diff-editor),
 .project-configuration-workspace__result-viewer :deep(.monaco-editor),
 .project-configuration-workspace__result-viewer :deep(.overflow-guard),
@@ -2739,6 +2771,9 @@ function stopSidebarResize() {
 .project-configuration-workspace__drawer-viewer :deep(.monaco-editor),
 .project-configuration-workspace__drawer-viewer :deep(.overflow-guard) {
   height: 100% !important;
+  min-height: 0;
+  min-width: 0;
+  width: 100% !important;
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body) {

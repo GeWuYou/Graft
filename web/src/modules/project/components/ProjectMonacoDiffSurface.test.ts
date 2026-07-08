@@ -110,6 +110,7 @@ vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
     debug: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
   }),
 }));
 
