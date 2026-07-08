@@ -7,7 +7,6 @@ type WorkspaceCopy = {
   deployContinueWithDiskAction: string;
   deployDirtyBody: string;
   deployDirtyTitle: string;
-  diffAction: string;
   diffViewerAriaLabel: string;
   dirtyCloseBody: string;
   dirtyCloseTitle: string;
@@ -72,7 +71,6 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   deployContinueWithDiskAction: 'project.configurationWorkspace.copy.deployContinueWithDiskAction',
   deployDirtyBody: 'project.configurationWorkspace.copy.deployDirtyBody',
   deployDirtyTitle: 'project.configurationWorkspace.copy.deployDirtyTitle',
-  diffAction: 'project.configurationWorkspace.copy.diffAction',
   diffViewerAriaLabel: 'project.configurationWorkspace.copy.diffViewerAriaLabel',
   dirtyCloseBody: 'project.configurationWorkspace.copy.dirtyCloseBody',
   dirtyCloseTitle: 'project.configurationWorkspace.copy.dirtyCloseTitle',

@@ -235,14 +235,11 @@
                     <t-button
                       theme="default"
                       variant="outline"
-                      :loading="activeBuffer?.saving"
+                      :loading="Boolean(activeBuffer?.saving) || diffLoading"
                       :disabled="!canSaveActiveBuffer"
                       @click="saveActiveFile"
                     >
                       {{ workspaceCopy.saveAction }}
-                    </t-button>
-                    <t-button theme="default" variant="outline" :loading="diffLoading" @click="runProjectDiff">
-                      {{ workspaceCopy.diffAction }}
                     </t-button>
                     <t-button theme="default" variant="outline" :loading="validateLoading" @click="runProjectValidate">
                       {{ workspaceCopy.validateAction }}
@@ -425,7 +422,13 @@
         <div class="project-configuration-workspace__result-dialog-header">
           <div class="project-configuration-workspace__section-head">
             <div>
-              <h2>{{ resultDialogTitle }}</h2>
+              <h2>
+                {{
+                  resultDialogMode === 'diff'
+                    ? t('project.detail.configuration.diffTitle')
+                    : t('project.detail.configuration.validationTitle')
+                }}
+              </h2>
             </div>
             <t-space size="small">
               <t-button
@@ -441,135 +444,147 @@
           </div>
         </div>
 
-        <t-tabs v-model:value="resultDialogTab" class="project-configuration-workspace__result-tabs" theme="card">
-          <t-tab-panel v-if="diffResult" value="diff" :label="t('project.detail.configuration.diffTitle')">
-            <div class="project-configuration-workspace__feedback-panel">
-              <t-alert
-                :theme="diffResult.has_changes ? 'warning' : 'success'"
-                :message="
-                  diffResult.has_changes
-                    ? t('project.detail.configuration.diffHasChanges')
-                    : t('project.detail.configuration.diffNoChanges')
-                "
-              />
-              <div v-if="diffResult.warnings?.length" class="project-configuration-workspace__warning-list">
-                <t-alert v-for="warning in diffResult.warnings" :key="warning" theme="warning" :message="warning" />
-              </div>
-              <div class="project-configuration-workspace__diff-layout">
-                <div class="project-configuration-workspace__diff-files">
-                  <button
-                    v-for="file in diffResult.files"
-                    :key="`${file.kind}-${file.path}`"
-                    class="project-configuration-workspace__diff-file"
-                    :class="{
-                      'project-configuration-workspace__diff-file--active': selectedDiffFile?.path === file.path,
-                    }"
-                    type="button"
-                    @click="selectedDiffFilePath = file.path"
-                  >
-                    <span class="project-configuration-workspace__diff-file-main">
-                      <span class="project-configuration-workspace__diff-file-name">
-                        {{ diffFileName(file.display_path || file.path) }}
-                      </span>
-                      <span
-                        v-if="diffFileDirectory(file.display_path || file.path)"
-                        class="project-configuration-workspace__diff-file-path"
-                      >
-                        {{ diffFileDirectory(file.display_path || file.path) }}
-                      </span>
-                    </span>
-                    <t-tag :theme="file.changed ? 'warning' : 'success'" variant="light-outline">
-                      {{
-                        file.changed
-                          ? t('project.detail.configuration.diffFileChanged')
-                          : t('project.detail.configuration.diffFileUnchanged')
-                      }}
-                    </t-tag>
-                  </button>
-                </div>
-                <div class="project-configuration-workspace__diff-viewer">
-                  <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-pane-heads">
-                    <div class="project-configuration-workspace__diff-pane-head">
-                      <span class="project-configuration-workspace__diff-pane-label">
-                        {{ t('project.detail.configuration.currentHash') }}
-                      </span>
-                      <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
-                        <code
-                          class="project-configuration-workspace__hash-text"
-                          data-testid="configuration-diff-current-hash"
-                        >
-                          {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
-                        </code>
-                      </t-tooltip>
-                    </div>
-                    <div class="project-configuration-workspace__diff-pane-head">
-                      <span class="project-configuration-workspace__diff-pane-label">
-                        {{ t('project.detail.configuration.proposedHash') }}
-                      </span>
-                      <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
-                        <code
-                          class="project-configuration-workspace__hash-text"
-                          data-testid="configuration-diff-proposed-hash"
-                        >
-                          {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
-                        </code>
-                      </t-tooltip>
-                    </div>
-                  </div>
-                  <div class="project-configuration-workspace__result-viewer">
-                    <project-monaco-diff-surface
-                      v-if="selectedDiffFile"
-                      :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
-                      :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
-                      :modified-key="`diff-modified-${selectedDiffFile.path}`"
-                      :modified-value="selectedDiffFile.proposed_content"
-                      :original-key="`diff-original-${selectedDiffFile.path}`"
-                      :original-value="selectedDiffFile.current_content"
-                      test-id="configuration-diff-viewer"
-                    />
-                    <t-empty v-else :description="workspaceCopy.selectDiffFile" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </t-tab-panel>
-
-          <t-tab-panel
-            v-if="validateResult"
-            value="validation"
-            :label="t('project.detail.configuration.validationTitle')"
-          >
-            <div class="project-configuration-workspace__feedback-panel">
-              <t-space size="small" break-line>
-                <t-tooltip :content="validateResult.proposed_config_hash" placement="top-left" theme="light">
-                  <t-tag theme="primary" variant="light-outline">
-                    {{ t('project.detail.configuration.proposedHash') }}:
-                    {{ formatWorkspaceHash(validateResult.proposed_config_hash) }}
-                  </t-tag>
-                </t-tooltip>
-                <t-tag theme="default" variant="light-outline">
-                  {{ t('project.detail.configuration.declaredServices') }}:
-                  {{ validateResult.declared_service_names.join(', ') || '-' }}
+        <div
+          v-if="resultDialogMode === 'diff'"
+          class="project-configuration-workspace__diff-surface"
+          data-testid="configuration-diff-modal"
+        >
+          <div class="project-configuration-workspace__diff-sidebar graft-scrollbar">
+            <div
+              v-for="row in diffTreeRows"
+              :key="row.path"
+              class="project-configuration-workspace__tree-row project-configuration-workspace__tree-row--diff"
+              :class="{
+                'project-configuration-workspace__tree-row--active':
+                  row.type === 'file' && selectedDiffFile?.path === row.path,
+              }"
+              :style="{ '--workspace-tree-depth': String(row.depth) }"
+            >
+              <span class="project-configuration-workspace__tree-expander-placeholder" />
+              <button
+                class="project-configuration-workspace__tree-entry"
+                :data-testid="diffFileTestId(row.path)"
+                type="button"
+                :disabled="row.type !== 'file'"
+                @click="row.type === 'file' && (selectedDiffFilePath = row.path)"
+              >
+                <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
+                  <folder-icon v-if="row.type === 'directory'" />
+                  <span v-else-if="row.file?.kind === 'compose'" class="project-configuration-workspace__docker-icon">
+                    <svg viewBox="0 0 24 24" role="presentation">
+                      <path
+                        d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                  <command-icon v-else-if="row.file?.kind === 'env'" />
+                  <file-code-icon v-else />
+                </span>
+                <span class="project-configuration-workspace__browser-main">
+                  <span class="project-configuration-workspace__browser-title">{{ row.name }}</span>
+                </span>
+              </button>
+              <div
+                v-if="row.type === 'file'"
+                class="project-configuration-workspace__tree-actions project-configuration-workspace__tree-actions--visible"
+              >
+                <t-tag :theme="row.file?.changed ? 'warning' : 'success'" variant="light-outline">
+                  {{
+                    row.file?.changed
+                      ? t('project.detail.configuration.diffFileChanged')
+                      : t('project.detail.configuration.diffFileUnchanged')
+                  }}
                 </t-tag>
-              </t-space>
-              <div v-if="validateResult.warnings?.length" class="project-configuration-workspace__warning-list">
-                <t-alert v-for="warning in validateResult.warnings" :key="warning" theme="warning" :message="warning" />
-              </div>
-              <div class="project-configuration-workspace__result-viewer">
-                <project-monaco-surface
-                  class="project-configuration-workspace__monaco-viewer"
-                  :model-value="validateResult.normalized_compose_yaml"
-                  :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
-                  language="yaml"
-                  model-key="validation-normalized-yaml"
-                  :options="readonlyOptions"
-                  read-only
-                  test-id="validation-monaco-viewer"
-                />
               </div>
             </div>
-          </t-tab-panel>
-        </t-tabs>
+          </div>
+
+          <div class="project-configuration-workspace__diff-stage">
+            <t-alert
+              :theme="diffResult?.has_changes ? 'warning' : 'success'"
+              :message="
+                diffResult?.has_changes
+                  ? t('project.detail.configuration.diffHasChanges')
+                  : t('project.detail.configuration.diffNoChanges')
+              "
+            />
+            <div v-if="diffResult?.warnings?.length" class="project-configuration-workspace__warning-list">
+              <t-alert v-for="warning in diffResult.warnings" :key="warning" theme="warning" :message="warning" />
+            </div>
+            <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-pane-heads">
+              <div class="project-configuration-workspace__diff-pane-head">
+                <span class="project-configuration-workspace__diff-pane-label">
+                  {{ t('project.detail.configuration.currentHash') }}
+                </span>
+                <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
+                  <code
+                    class="project-configuration-workspace__hash-text"
+                    data-testid="configuration-diff-current-hash"
+                  >
+                    {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
+                  </code>
+                </t-tooltip>
+              </div>
+              <div class="project-configuration-workspace__diff-pane-head">
+                <span class="project-configuration-workspace__diff-pane-label">
+                  {{ t('project.detail.configuration.proposedHash') }}
+                </span>
+                <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
+                  <code
+                    class="project-configuration-workspace__hash-text"
+                    data-testid="configuration-diff-proposed-hash"
+                  >
+                    {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
+                  </code>
+                </t-tooltip>
+              </div>
+            </div>
+            <div class="project-configuration-workspace__result-viewer">
+              <project-monaco-diff-surface
+                v-if="selectedDiffFile"
+                :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
+                :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
+                :modified-key="`diff-modified-${selectedDiffFile.path}`"
+                :modified-value="selectedDiffFile.proposed_content"
+                :original-key="`diff-original-${selectedDiffFile.path}`"
+                :original-value="selectedDiffFile.current_content"
+                test-id="configuration-diff-viewer"
+              />
+              <t-empty v-else :description="workspaceCopy.selectDiffFile" />
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="validateResult" class="project-configuration-workspace__feedback-panel">
+          <t-space size="small" break-line>
+            <t-tooltip :content="validateResult.proposed_config_hash" placement="top-left" theme="light">
+              <t-tag theme="primary" variant="light-outline">
+                {{ t('project.detail.configuration.proposedHash') }}:
+                {{ formatWorkspaceHash(validateResult.proposed_config_hash) }}
+              </t-tag>
+            </t-tooltip>
+            <t-tag theme="default" variant="light-outline">
+              {{ t('project.detail.configuration.declaredServices') }}:
+              {{ validateResult.declared_service_names.join(', ') || '-' }}
+            </t-tag>
+          </t-space>
+          <div v-if="validateResult.warnings?.length" class="project-configuration-workspace__warning-list">
+            <t-alert v-for="warning in validateResult.warnings" :key="warning" theme="warning" :message="warning" />
+          </div>
+          <div class="project-configuration-workspace__result-viewer">
+            <project-monaco-surface
+              class="project-configuration-workspace__monaco-viewer"
+              :model-value="validateResult.normalized_compose_yaml"
+              :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
+              language="yaml"
+              model-key="validation-normalized-yaml"
+              :options="readonlyOptions"
+              read-only
+              test-id="validation-monaco-viewer"
+            />
+          </div>
+        </div>
       </div>
     </t-dialog>
 
@@ -677,7 +692,7 @@ defineOptions({
   name: 'ProjectConfigurationWorkspaceIndex',
 });
 
-type FeedbackTab = 'diff' | 'validation';
+type ResultDialogMode = 'diff' | 'validation';
 type DialogResult = 'cancel' | 'continue-disk' | 'discard' | 'save' | 'save-and-continue';
 type WorkspaceDialogButton = {
   label: string;
@@ -691,6 +706,13 @@ type WorkspaceFlatRow = {
   error: string;
   expanded: boolean;
   item: WorkspaceListItem;
+};
+type DiffTreeRow = {
+  depth: number;
+  file: ProjectConfigurationDiffResponse['files'][number] | null;
+  name: string;
+  path: string;
+  type: 'directory' | 'file';
 };
 type WorkspaceOpenFile = {
   content: string;
@@ -740,7 +762,7 @@ const snapshotLoading = ref(false);
 const snapshotDrawerVisible = ref(false);
 const workspaceFullscreen = ref(false);
 const resultDialogVisible = ref(false);
-const resultDialogTab = ref<FeedbackTab>('diff');
+const resultDialogMode = ref<ResultDialogMode>('diff');
 const resultDialogFullscreen = ref(false);
 const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<ProjectConfigurationDiffResponse | null>(null);
@@ -836,15 +858,12 @@ const selectedDiffFile = computed(
     diffResult.value?.files[0] ??
     null,
 );
+const diffFiles = computed(() => diffResult.value?.files ?? []);
+const diffTreeRows = computed(() => buildDiffTreeRows(diffFiles.value));
 const resultDialogClassName = computed(() =>
   resultDialogFullscreen.value
     ? 'project-configuration-workspace__result-dialog-shell project-configuration-workspace__result-dialog-shell--fullscreen'
     : 'project-configuration-workspace__result-dialog-shell',
-);
-const resultDialogTitle = computed(() =>
-  resultDialogTab.value === 'validation'
-    ? String(t('project.detail.configuration.validationTitle'))
-    : String(t('project.detail.configuration.diffTitle')),
 );
 const workspaceItemMap = computed(() => {
   const itemMap = new Map<string, WorkspaceListItem>();
@@ -1059,6 +1078,10 @@ function workspaceFileTabMenuTestId(path: string) {
 
 function workspaceFileTabMenuItemTestId(path: string, action: string) {
   return `${workspaceFileTabMenuTestId(path)}-${action}`;
+}
+
+function diffFileTestId(path: string) {
+  return `configuration-diff-file-${workspaceEntryTestId({ relative_path: path, name: path } as WorkspaceListItem)}`;
 }
 
 async function toggleWorkspaceDirectory(item: WorkspaceListItem) {
@@ -1283,7 +1306,12 @@ async function saveActiveFile() {
   if (!activeBuffer.value) {
     return;
   }
-  await saveWorkspaceFile(activeBuffer.value.path);
+  const saved = await saveWorkspaceFile(activeBuffer.value.path);
+  if (!saved) {
+    return;
+  }
+
+  await refreshProjectDiff({ showDialog: true });
 }
 
 async function saveWorkspaceFile(path: string, options?: { silent?: boolean }) {
@@ -1325,7 +1353,7 @@ async function saveDirtyFiles() {
     }
   }
   MessagePlugin.success(workspaceCopy.value.saveSuccess);
-  return true;
+  return refreshProjectDiff();
 }
 
 async function reloadActiveFile() {
@@ -1486,7 +1514,7 @@ async function saveTabsByPaths(paths: string[]) {
   }
 
   MessagePlugin.success(workspaceCopy.value.saveSuccess);
-  return true;
+  return refreshProjectDiff();
 }
 
 function hasClosableFileTabsAhead(path: string) {
@@ -1561,25 +1589,6 @@ function handleFileTabMenuClick(visible: boolean, ctx: PopupVisibleChangeContext
   }
 }
 
-async function runProjectDiff() {
-  const proceed = await resolveProjectActionDirtyState('diff');
-  if (!proceed) {
-    return;
-  }
-
-  diffLoading.value = true;
-  try {
-    diffResult.value = await postProjectConfigurationDiff(projectId.value);
-    selectedDiffFilePath.value = diffResult.value.files[0]?.path || '';
-    resultDialogTab.value = 'diff';
-    resultDialogVisible.value = true;
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.diffFailed')));
-  } finally {
-    diffLoading.value = false;
-  }
-}
-
 async function runProjectValidate() {
   const proceed = await resolveProjectActionDirtyState('validate');
   if (!proceed) {
@@ -1589,7 +1598,7 @@ async function runProjectValidate() {
   validateLoading.value = true;
   try {
     validateResult.value = await postProjectConfigurationValidate(projectId.value);
-    resultDialogTab.value = 'validation';
+    resultDialogMode.value = 'validation';
     resultDialogVisible.value = true;
     MessagePlugin.success(t('project.detail.configuration.validateSuccess'));
   } catch (error) {
@@ -1614,6 +1623,7 @@ async function runProjectDeploy() {
     const response = await postProjectDeploy(projectId.value);
     MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
     diffResult.value = null;
+    resultDialogVisible.value = false;
     validateResult.value = null;
     snapshotPreview.value = null;
     await loadWorkspaceDirectory('', { root: true });
@@ -1624,7 +1634,7 @@ async function runProjectDeploy() {
   }
 }
 
-async function resolveProjectActionDirtyState(action: 'deploy' | 'diff' | 'validate') {
+async function resolveProjectActionDirtyState(action: 'deploy' | 'validate') {
   if (!hasDirtyFiles.value) {
     return true;
   }
@@ -1675,6 +1685,24 @@ async function resolveProjectActionDirtyState(action: 'deploy' | 'diff' | 'valid
   return saveDirtyFiles();
 }
 
+async function refreshProjectDiff(options?: { showDialog?: boolean }) {
+  diffLoading.value = true;
+  try {
+    diffResult.value = await postProjectConfigurationDiff(projectId.value);
+    selectedDiffFilePath.value = diffResult.value.files[0]?.path || '';
+    if (options?.showDialog) {
+      resultDialogMode.value = 'diff';
+      resultDialogVisible.value = true;
+    }
+    return true;
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.diffFailed')));
+    return false;
+  } finally {
+    diffLoading.value = false;
+  }
+}
+
 async function openSnapshotDrawer() {
   snapshotDrawerVisible.value = true;
   if (snapshotPreview.value || !Number.isFinite(projectId.value)) {
@@ -1708,19 +1736,62 @@ function formatWorkspaceHash(value?: string | null) {
   return `${normalized.slice(0, 6)}...${normalized.slice(-6)}`;
 }
 
-function diffFileDirectory(path: string) {
-  const normalized = String(path).trim().replaceAll('\\', '/');
-  const segments = normalized.split('/').filter(Boolean);
-  if (segments.length <= 1) {
-    return '';
-  }
-  return segments.slice(0, -1).join('/');
-}
-
 function diffFileName(path: string) {
   const normalized = String(path).trim().replaceAll('\\', '/');
   const segments = normalized.split('/').filter(Boolean);
   return segments[segments.length - 1] || normalized || '-';
+}
+
+function buildDiffTreeRows(files: ProjectConfigurationDiffResponse['files']) {
+  const directoryPaths = new Set<string>();
+  const fileMap = new Map<string, ProjectConfigurationDiffResponse['files'][number]>();
+
+  for (const file of files) {
+    const normalizedPath = normalizeWorkspacePath(file.path);
+    fileMap.set(normalizedPath, file);
+
+    const segments = normalizedPath.split('/').filter(Boolean);
+    let currentPath = '';
+    for (const segment of segments.slice(0, -1)) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      directoryPaths.add(currentPath);
+    }
+  }
+
+  const appendRows = (basePath: string, depth: number): DiffTreeRow[] => {
+    const childDirectories = [...directoryPaths]
+      .filter((path) => resolveWorkspaceParentPath(path) === basePath)
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+    const childFiles = [...fileMap.entries()]
+      .filter(([path]) => resolveWorkspaceParentPath(path) === basePath)
+      .sort(([left], [right]) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+
+    const rows: DiffTreeRow[] = [];
+    for (const directoryPath of childDirectories) {
+      rows.push({
+        depth,
+        file: null,
+        name: diffFileName(directoryPath),
+        path: directoryPath,
+        type: 'directory',
+      });
+      rows.push(...appendRows(directoryPath, depth + 1));
+    }
+
+    for (const [path, file] of childFiles) {
+      rows.push({
+        depth,
+        file,
+        name: diffFileName(file.display_path || path),
+        path,
+        type: 'file',
+      });
+    }
+
+    return rows;
+  };
+
+  return appendRows('', 0);
 }
 
 function openDialog(config: { body: string; buttons: WorkspaceDialogButton[]; title: string }) {
@@ -2003,10 +2074,11 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__sidebar,
 .project-configuration-workspace__browser-card,
+.project-configuration-workspace__diff-sidebar,
+.project-configuration-workspace__diff-stage,
+.project-configuration-workspace__diff-surface,
 .project-configuration-workspace__editor-stack,
 .project-configuration-workspace__feedback-panel,
-.project-configuration-workspace__diff-layout,
-.project-configuration-workspace__diff-viewer,
 .project-configuration-workspace__result-dialog,
 .project-configuration-workspace__result-viewer,
 .project-configuration-workspace__readonly-viewer,
@@ -2129,7 +2201,15 @@ function stopSidebarResize() {
   color: var(--td-text-color-secondary);
   display: inline-flex;
   flex: 0 0 auto;
+  height: 16px;
   justify-content: center;
+  line-height: 0;
+  width: 16px;
+}
+
+.project-configuration-workspace__browser-icon :deep(svg) {
+  height: 16px;
+  width: 16px;
 }
 
 .project-configuration-workspace__docker-icon {
@@ -2167,11 +2247,13 @@ function stopSidebarResize() {
   flex-wrap: wrap;
   font: var(--td-font-body-small);
   gap: var(--graft-density-gap-6);
+  min-width: 0;
 }
 
 .project-configuration-workspace__tree-actions {
   align-items: center;
   display: inline-flex;
+  gap: var(--graft-density-gap-8);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -2264,8 +2346,7 @@ function stopSidebarResize() {
   min-inline-size: 0;
 }
 
-.project-configuration-workspace__tabs,
-.project-configuration-workspace__result-tabs {
+.project-configuration-workspace__tabs {
   margin-bottom: 0;
 
   :deep(.t-tabs__header) {
@@ -2311,32 +2392,6 @@ function stopSidebarResize() {
 
   :deep(.t-tabs__nav-item + .t-tabs__nav-item) {
     box-shadow: inset 1px 0 0 color-mix(in srgb, var(--graft-workspace-editor-border) 72%, transparent);
-  }
-}
-
-.project-configuration-workspace__result-tabs {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-
-  :deep(.t-tabs) {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  :deep(.t-tabs__content) {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 0;
-    padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
-  }
-
-  :deep(.t-tab-panel) {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 0;
   }
 }
 
@@ -2406,77 +2461,37 @@ function stopSidebarResize() {
   min-height: 0;
 }
 
-.project-configuration-workspace__diff-layout {
+.project-configuration-workspace__diff-surface {
   display: grid;
   flex: 1 1 auto;
   gap: var(--graft-density-gap-12);
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   min-height: 0;
+  padding: var(--graft-density-gap-12);
 }
 
-.project-configuration-workspace__diff-files {
+.project-configuration-workspace__diff-sidebar {
+  background: var(--graft-workspace-editor-surface-muted);
+  border: 1px solid var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-large);
   display: flex;
   flex-direction: column;
-  gap: var(--graft-density-gap-8);
+  gap: var(--graft-density-gap-2);
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  padding: var(--graft-density-gap-8);
 }
 
-.project-configuration-workspace__diff-file {
-  align-items: center;
-  background: var(--graft-workspace-editor-surface-muted);
-  border: 1px solid var(--graft-workspace-editor-border);
-  border-radius: var(--td-radius-default);
-  color: inherit;
-  cursor: pointer;
+.project-configuration-workspace__tree-row--diff {
+  padding-right: var(--graft-density-gap-4);
+}
+
+.project-configuration-workspace__diff-stage {
   display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   gap: var(--graft-density-gap-8);
-  justify-content: space-between;
-  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
-  text-align: left;
-  transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.project-configuration-workspace__diff-file-main {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.project-configuration-workspace__diff-file-name {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-configuration-workspace__diff-file-path {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-configuration-workspace__diff-file:hover {
-  border-color: color-mix(in srgb, var(--td-brand-color-6) 38%, var(--graft-workspace-editor-border));
-}
-
-.project-configuration-workspace__diff-file--active {
-  background: color-mix(in srgb, var(--td-brand-color-6) 10%, var(--graft-workspace-editor-surface-muted));
-  border-color: color-mix(in srgb, var(--td-brand-color-6) 48%, var(--graft-workspace-editor-border));
-}
-
-.project-configuration-workspace__diff-viewer {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--graft-density-gap-12);
   min-height: 0;
 }
 
@@ -2530,6 +2545,10 @@ function stopSidebarResize() {
   padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-10);
 }
 
+.project-configuration-workspace__result-dialog > .project-configuration-workspace__feedback-panel {
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
 .project-configuration-workspace__result-viewer,
 .project-configuration-workspace__readonly-viewer,
 .project-configuration-workspace__drawer-viewer {
@@ -2541,7 +2560,7 @@ function stopSidebarResize() {
   overflow: hidden;
 }
 
-.project-configuration-workspace__diff-viewer .project-configuration-workspace__result-viewer {
+.project-configuration-workspace__diff-stage .project-configuration-workspace__result-viewer {
   min-block-size: 0;
 }
 
@@ -2578,7 +2597,7 @@ function stopSidebarResize() {
 
 @media (width <= 1024px) {
   .project-configuration-workspace__main-grid,
-  .project-configuration-workspace__diff-layout {
+  .project-configuration-workspace__diff-surface {
     grid-template-columns: minmax(0, 1fr);
   }
 

@@ -89,12 +89,16 @@ async function createEditor() {
   editor = monaco.editor.createDiffEditor(containerRef.value, {
     ariaLabel: props.editorAriaLabel,
     automaticLayout: true,
+    enableSplitViewResizing: false,
     glyphMargin: false,
     minimap: { enabled: false },
     originalEditable: false,
     readOnly: true,
+    renderIndicators: false,
+    renderOverviewRuler: false,
     renderSideBySide: true,
     scrollBeyondLastLine: false,
+    overviewRulerLanes: 0,
   });
 
   bindModels(monaco, false);

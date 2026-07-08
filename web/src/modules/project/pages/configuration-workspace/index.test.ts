@@ -778,9 +778,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper
       .findAll('button')
-      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction')
+      .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
     await flushPromises();
 
@@ -791,45 +792,77 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.text()).not.toContain('40ddc4...b6182c');
   });
 
-  it('opens the diff result in a modal dialog and toggles fullscreen on demand', async () => {
+  it('opens the diff result in a modal dialog after save', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    expect(
+      wrapper
+        .findAll('button')
+        .some((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction'),
+    ).toBe(false);
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper
       .findAll('button')
-      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction')
+      .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
     await flushPromises();
 
-    const dialogs = wrapper.findAll('[data-stub="TDialog"]');
-    const resultDialog = dialogs.at(0);
-    expect(resultDialog?.attributes('data-visible')).toBe('true');
-    expect(resultDialog?.attributes('data-mode')).toBe('modal');
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('docker-compose.yml');
-
-    await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
-    await flushPromises();
-
-    expect(wrapper.findAll('[data-stub="TDialog"]').at(0)?.attributes('data-mode')).toBe('full-screen');
+    expect(wrapper.find('[data-testid="configuration-diff-file-workspace-entry-docker-compose-yml"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(0)?.attributes('data-visible')).toBe('true');
   });
 
-  it('opens validation in the same result dialog', async () => {
+  it('opens validation in the dialog after auto diff completes', async () => {
+    pageContextState.locale = 'zh-CN';
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper
       .findAll('button')
       .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.validateAction')
       ?.trigger('click');
     await flushPromises();
 
-    const resultDialog = wrapper.findAll('[data-stub="TDialog"]').at(0);
-    expect(resultDialog?.attributes('data-visible')).toBe('true');
+    expect(wrapper.text()).toContain('project.configurationWorkspace.copy.dirtyProjectActionBody');
+
+    await wrapper.findAll('[data-stub="TDialog"][data-visible="true"] button').at(0)?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: newer\n' },
+    );
+    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="validation-monaco-viewer"]').exists()).toBe(true);
   });
 
-  it('saves the active file buffer without deploying the project', async () => {
+  it('keeps the diff file list in workspace tree form instead of compare cards', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('docker-compose.yml');
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-file').exists()).toBe(false);
+  });
+
+  it('saves the active file buffer, refreshes diff mode, and does not deploy the project', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -845,6 +878,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
+    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalledWith(1);
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
     expect(mocks.postProjectDeploy).not.toHaveBeenCalled();
   });
 
@@ -862,11 +897,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(wrapper.text()).toContain('检测到未保存的修改，是否先保存？');
 
-    await wrapper
-      .findAll('button')
-      .filter((button) => button.text().trim() === '保存')
-      .at(-1)
-      ?.trigger('click');
+    await wrapper.findAll('[data-stub="TDialog"][data-visible="true"] button').at(0)?.trigger('click');
     await flushPromises();
 
     expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
@@ -874,6 +905,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
+    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalledWith(1);
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect(mocks.postProjectDeploy).toHaveBeenCalledWith(1);
   });
 });
