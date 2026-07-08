@@ -1,8 +1,63 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseProjectDetailRealtimePayload, parseProjectLogsRealtimePayload } from './realtime';
+import {
+  parseProjectDetailRealtimePayload,
+  parseProjectListSummaryRealtimePayload,
+  parseProjectLogsRealtimePayload,
+} from './realtime';
 
 describe('project realtime payload parsers', () => {
+  it('parses valid project list summary payloads', () => {
+    const payload = parseProjectListSummaryRealtimePayload(
+      JSON.stringify({
+        data: {
+          topic: 'project.list.summary',
+          published_at: '2026-07-06T00:00:00Z',
+          items: [
+            {
+              project_id: 7,
+              runtime_status: 'running',
+              service_count: 3,
+              container_counts: {
+                issue: 0,
+                running: 3,
+                stopped: 0,
+                total: 3,
+                transitioning: 0,
+              },
+              drift_status: 'clean',
+              last_refresh_status: 'success',
+              last_refresh_at: '2026-07-06T00:00:00Z',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      topic: 'project.list.summary',
+      published_at: '2026-07-06T00:00:00Z',
+      items: [{ project_id: 7, runtime_status: 'running' }],
+    });
+  });
+
+  it('rejects invalid project list summary payloads', () => {
+    expect(
+      parseProjectListSummaryRealtimePayload(JSON.stringify({ data: { topic: 'project.list.summary', items: [] } })),
+    ).toBeNull();
+    expect(
+      parseProjectListSummaryRealtimePayload(
+        JSON.stringify({
+          data: {
+            topic: 'project.list.summary',
+            published_at: '2026-07-06T00:00:00Z',
+            items: [{ project_id: '7' }],
+          },
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it('parses valid project detail payloads', () => {
     const payload = parseProjectDetailRealtimePayload(
       JSON.stringify({

@@ -16,7 +16,6 @@ import {
   buildProjectLogsApiPath,
   buildProjectOverviewApiPath,
   buildProjectRedeployApiPath,
-  buildProjectRefreshApiPath,
   buildProjectRestartApiPath,
   buildProjectServicesApiPath,
   buildProjectStopApiPath,
@@ -145,11 +144,6 @@ type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
 type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
 type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
 type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
-
-type ProjectRefreshOperation = paths[(typeof PROJECT_API_PATH)['REFRESH']]['post'];
-type ProjectRefreshEnvelope = ProjectRefreshOperation['responses'][200]['content']['application/json'];
-type ProjectRefreshData = NonNullable<ProjectRefreshEnvelope['data']>;
-type ProjectRefreshPathParams = ProjectRefreshOperation['parameters']['path'];
 
 type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
 type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
@@ -413,16 +407,6 @@ function postProjectAction<T>(url: string, data?: unknown) {
     url,
     data,
   });
-}
-
-/**
- * 刷新指定项目。
- *
- * @param id - 项目 ID
- * @returns 刷新操作的结果
- */
-export function postProjectRefresh(id: ProjectRefreshPathParams['id']) {
-  return postProjectAction<ProjectRefreshData>(buildProjectRefreshApiPath(id)) as Promise<ProjectActionResponse>;
 }
 
 /**

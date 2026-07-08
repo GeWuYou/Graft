@@ -450,6 +450,7 @@ type Service struct {
 	realtimeHub         realtime.Hub
 	topicIssuers        realtime.TopicIssuerRegistry
 	streamersMu         sync.Mutex
+	listTopicStreamer   *projectListTopicStreamer
 	detailTopicStreamer *projectDetailTopicStreamer
 	logTopicStreamer    *projectLogTopicStreamer
 	inspectCache        *importInspectionCache

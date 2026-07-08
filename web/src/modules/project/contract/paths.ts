@@ -144,16 +144,6 @@ export function buildProjectLifecycleConfigurationApiPath(id: number) {
 }
 
 /**
- * 构建项目刷新接口路径。
- *
- * @param id - 项目 ID
- * @returns 替换 `{id}` 后的刷新接口路径
- */
-export function buildProjectRefreshApiPath(id: number) {
-  return PROJECT_API_PATH.REFRESH.replace('{id}', encodeProjectPathParam(id));
-}
-
-/**
  * 构建项目部署接口路径。
  *
  * @param id - 项目 ID

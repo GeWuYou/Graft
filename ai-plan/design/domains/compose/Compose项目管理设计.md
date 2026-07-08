@@ -1337,7 +1337,7 @@ Phase 1 不要求后台 watcher。
 可接受的触发路径：
 
 - 列表 / 详情请求时做轻量 hash 检查
-- 手动 `Refresh`
+- 项目列表不提供手动刷新入口；列表新鲜度由 HTTP seed + list realtime 保持
 - 导入校验
 
 ## 14. 安全、所有权与风险
@@ -1584,7 +1584,7 @@ Configuration：
     - `activity_rollup_scope`
 - Project module owner：`server/modules/project/**`
   - `remote-host` 只作为 source selector / route / permission / metadata owner 进入 source catalog
-  - 不新增 remote host credential persistence、remote command execution、backend project logs/events aggregation、project realtime topic 或 project-level runtime cache
+  - 不新增 remote host credential persistence、remote command execution、backend project logs/events aggregation 端点或 project-level runtime cache
   - 当前本机 `local` project 的 `activity_authority` 仍固定为 `frontend-fanout`
   - future `remote` project 或 backend aggregation 只保留 `backend-planned` authority 标识，不视为 implementation-ready
 - Web module owner：`web/src/modules/project/**`
@@ -1597,7 +1597,7 @@ Configuration：
 - 不新增 remote host 持久化或连接测试
 - 不执行 remote `docker compose`
 - 不新增 backend project logs/events aggregation endpoint
-- 不新增 project realtime topic
+- 允许新增 project list summary realtime topic，用于项目列表摘要自动更新；不在本批扩展 remote host 或后端 activity aggregation realtime
 - 不把 discovery candidate 扩大成 auto-registration 或 unmanaged runtime ownership
 
 ## 16.4B Phase 3 Batch 1 authority 落地说明

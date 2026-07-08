@@ -32,10 +32,6 @@
               @create="navigateToSourceChooser"
               @reset="resetFilters"
             />
-            <t-button theme="primary" :loading="refreshLoading" @click="handleManualRefresh">
-              <template #icon><refresh-icon /></template>
-              {{ t('project.list.refresh') }}
-            </t-button>
           </t-space>
         </template>
       </management-page-header>
@@ -126,10 +122,7 @@
         <template #toolbar>
           <table-view-toolbar
             :column-settings-label="t('project.list.columnSettings')"
-            :refresh-label="t('project.list.refresh')"
-            :refresh-loading="refreshLoading"
             @column-settings="columnDrawerVisible = true"
-            @refresh="handleManualRefresh"
           />
         </template>
         <template v-if="selectedRows.length > 0" #batch>
@@ -234,13 +227,7 @@
             tone="error"
             :title="t('project.list.title')"
             :description="errorMessage"
-          >
-            <template #actions>
-              <t-button theme="primary" variant="outline" @click="handleManualRefresh">
-                {{ t('project.list.retry') }}
-              </t-button>
-            </template>
-          </management-empty-state>
+          />
         </template>
         <template #name="{ row }">
           <div class="project-identity">
@@ -400,7 +387,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { RefreshIcon } from 'tdesign-icons-vue-next';
 import type { DialogInstance, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -428,7 +414,6 @@ import {
   postProjectBatchActions,
   postProjectDestroy,
   postProjectRedeploy,
-  postProjectRefresh,
   postProjectRestart,
   postProjectStop,
   postProjectUnregister,
@@ -450,6 +435,7 @@ import {
   projectLifecycleReviewStatusTheme,
   projectRequiresLifecycleReview,
 } from '../../shared/lifecycle';
+import { acquireProjectListRealtime, releaseProjectListRealtime } from '../../shared/list-realtime';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
   ProjectBatchAction,
@@ -494,8 +480,6 @@ type ProjectResourceBadge = {
   label: string;
   icon: string;
 };
-
-const PROJECT_LIST_POLL_INTERVAL_MS = 5000;
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -549,7 +533,6 @@ const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
 const confirmDialogOpen = ref(false);
-const refreshLoading = computed(() => tableLoading.value || refreshing.value);
 const realtimeActive = ref(false);
 const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
 const selectedRowKeys = ref<number[]>([]);
@@ -611,37 +594,31 @@ const selectedRows = computed(() => {
 
 onMounted(() => {
   realtimeActive.value = true;
-  startPolling();
+  syncProjectListRealtimeSubscription();
   void fetchProjects();
 });
 
 onUnmounted(() => {
   realtimeActive.value = false;
-  stopPolling();
+  syncProjectListRealtimeSubscription();
   clearPendingRowActionTimeouts();
 });
 
 onActivated(() => {
   realtimeActive.value = true;
-  startPolling();
+  syncProjectListRealtimeSubscription();
   void fetchProjects();
 });
 
 onDeactivated(() => {
   realtimeActive.value = false;
-  stopPolling();
+  syncProjectListRealtimeSubscription();
 });
 
 watch(
   () => realtimeSchedulerStore.allowPolling,
-  (allowPolling) => {
-    if (!allowPolling) {
-      stopPolling();
-      return;
-    }
-    if (realtimeActive.value) {
-      startPolling();
-    }
+  () => {
+    syncProjectListRealtimeSubscription();
   },
 );
 
@@ -782,28 +759,14 @@ function projectSecondaryName(row: ProjectListItemWithLifecycle) {
 }
 
 let refreshRequestSeq = 0;
-let pollTimer: number | undefined;
 const pendingRowTimeouts = new Map<number, number>();
 
-function startPolling() {
-  stopPolling();
-  if (!realtimeActive.value || typeof window === 'undefined' || !realtimeSchedulerStore.allowPolling) {
+function syncProjectListRealtimeSubscription() {
+  if (realtimeActive.value && realtimeSchedulerStore.allowPolling) {
+    acquireProjectListRealtime(handleProjectListRealtimeItems);
     return;
   }
-  pollTimer = window.setInterval(() => {
-    if (tableLoading.value || refreshing.value) {
-      return;
-    }
-    void fetchProjects();
-  }, PROJECT_LIST_POLL_INTERVAL_MS);
-}
-
-function stopPolling() {
-  if (pollTimer === undefined || typeof window === 'undefined') {
-    return;
-  }
-  window.clearInterval(pollTimer);
-  pollTimer = undefined;
+  releaseProjectListRealtime(handleProjectListRealtimeItems);
 }
 
 async function fetchProjects() {
@@ -854,12 +817,54 @@ async function fetchProjects() {
   }
 }
 
-async function handleManualRefresh() {
-  if (refreshLoading.value) {
+function handleProjectListRealtimeItems(
+  items: Array<{
+    project_id: number;
+    runtime_status: ProjectRuntimeStatus;
+    service_count: number;
+    container_counts: ProjectListItemWithLifecycle['container_counts'];
+    drift_status: ProjectDriftStatus;
+    last_refresh_status: ProjectRefreshStatus;
+    last_refresh_at?: string | null;
+  }>,
+) {
+  if (!realtimeActive.value || !realtimeSchedulerStore.allowPolling || rows.value.length === 0) {
     return;
   }
-
-  await fetchProjects();
+  const patchById = new Map(items.map((item) => [item.project_id, item]));
+  let changed = false;
+  const nextRows = rows.value.map((row) => {
+    const patch = patchById.get(row.id);
+    if (!patch) {
+      return row;
+    }
+    const nextRow: ProjectListItemWithLifecycle = {
+      ...row,
+      runtime_status: patch.runtime_status,
+      service_count: patch.service_count,
+      container_counts: patch.container_counts,
+      drift_status: patch.drift_status,
+      last_refresh_status: patch.last_refresh_status,
+      last_refresh_at: patch.last_refresh_at ?? null,
+    };
+    if (
+      nextRow.runtime_status !== row.runtime_status ||
+      nextRow.service_count !== row.service_count ||
+      nextRow.drift_status !== row.drift_status ||
+      nextRow.last_refresh_status !== row.last_refresh_status ||
+      nextRow.last_refresh_at !== row.last_refresh_at ||
+      JSON.stringify(nextRow.container_counts) !== JSON.stringify(row.container_counts)
+    ) {
+      changed = true;
+      return nextRow;
+    }
+    return row;
+  });
+  if (!changed) {
+    return;
+  }
+  rows.value = nextRows;
+  reconcilePendingRowActions(nextRows);
 }
 
 function syncPaginationFromResponse(response: { total?: number; limit?: number; offset?: number }) {
@@ -1147,7 +1152,6 @@ function buildRowActions(row: ProjectListItemWithLifecycle) {
 
   return [
     { value: 'detail', label: t('project.list.actions.detail') },
-    { value: 'refresh', label: t('project.list.actions.refresh') },
     ...(!lifecycleBlocked && visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
     ...(!lifecycleBlocked && visibility.stop ? [{ value: 'stop', label: t('project.list.actions.stop') }] : []),
     ...(!lifecycleBlocked && visibility.restart
@@ -1519,10 +1523,6 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
 async function handleRowAction(action: string, row: ProjectListItemWithLifecycle) {
   if (action === 'detail') {
     await navigateToDetail(row);
-    return;
-  }
-  if (action === 'refresh') {
-    await runAction(postProjectRefresh, row, t('project.list.actions.refreshSuccess'));
     return;
   }
   if (action === 'up') {

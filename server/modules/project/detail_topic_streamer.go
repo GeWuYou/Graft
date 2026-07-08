@@ -10,6 +10,7 @@ import (
 
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
+	generated "graft/server/internal/contract/openapi/generated"
 )
 
 type projectDetailTopicStreamer struct {
@@ -281,5 +282,47 @@ func (s *Service) buildProjectDetailRealtimePayload(
 		Detail:      detail,
 		Overview:    overview,
 		Services:    services,
+	}, nil
+}
+
+func (s *Service) buildProjectListSummaryRealtimePayload(
+	ctx context.Context,
+	topic string,
+) (projectListSummaryRealtimePayload, error) {
+	items := make([]projectListSummaryRealtimeItem, 0)
+	offset := 0
+	for {
+		result, err := s.List(ctx, ListQuery{
+			Limit:  maxProjectListLimit,
+			Offset: offset,
+		})
+		if err != nil {
+			return projectListSummaryRealtimePayload{}, err
+		}
+		for _, item := range result.Items {
+			runtimeStatus := generated.ProjectRuntimeStatusUnknown
+			if item.RuntimeStatus != nil {
+				runtimeStatus = *item.RuntimeStatus
+			}
+			items = append(items, projectListSummaryRealtimeItem{
+				ProjectID:         item.Id,
+				RuntimeStatus:     runtimeStatus,
+				ServiceCount:      item.ServiceCount,
+				ContainerCounts:   item.ContainerCounts,
+				DriftStatus:       item.DriftStatus,
+				LastRefreshStatus: item.LastRefreshStatus,
+				LastRefreshAt:     item.LastRefreshAt,
+			})
+		}
+		offset += len(result.Items)
+		if len(result.Items) == 0 || offset >= result.Total {
+			break
+		}
+	}
+
+	return projectListSummaryRealtimePayload{
+		Topic:       topic,
+		PublishedAt: time.Now().UTC(),
+		Items:       items,
 	}, nil
 }

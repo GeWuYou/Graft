@@ -11,11 +11,15 @@ const projectApiMocks = vi.hoisted(() => ({
   postProjectDestroy: vi.fn(),
   postProjectStop: vi.fn(),
   postProjectRedeploy: vi.fn(),
-  postProjectRefresh: vi.fn(),
   postProjectRestart: vi.fn(),
   postProjectUpdateDeploy: vi.fn(),
   postProjectUnregister: vi.fn(),
   postProjectUp: vi.fn(),
+}));
+
+const projectRealtimeMocks = vi.hoisted(() => ({
+  acquireProjectListRealtime: vi.fn(),
+  releaseProjectListRealtime: vi.fn(),
 }));
 
 const routerMocks = vi.hoisted(() => ({
@@ -91,7 +95,6 @@ const listMessages = {
   'project.list.columns.resources': 'Resources',
   'project.list.columns.runtime': 'Status',
   'project.list.columns.source': 'Source',
-  'project.list.refresh': 'Refresh',
   'project.list.projectCount': 'Total {count}',
   'project.list.resources.container': 'Containers',
   'project.list.resources.issue': 'Issue',
@@ -255,11 +258,15 @@ vi.mock('../../api/project', () => ({
   postProjectDestroy: projectApiMocks.postProjectDestroy,
   postProjectStop: projectApiMocks.postProjectStop,
   postProjectRedeploy: projectApiMocks.postProjectRedeploy,
-  postProjectRefresh: projectApiMocks.postProjectRefresh,
   postProjectRestart: projectApiMocks.postProjectRestart,
   postProjectUpdateDeploy: projectApiMocks.postProjectUpdateDeploy,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
   postProjectUp: projectApiMocks.postProjectUp,
+}));
+
+vi.mock('../../shared/list-realtime', () => ({
+  acquireProjectListRealtime: projectRealtimeMocks.acquireProjectListRealtime,
+  releaseProjectListRealtime: projectRealtimeMocks.releaseProjectListRealtime,
 }));
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -399,7 +406,6 @@ function mountPage() {
       renderStubDefaultSlot: true,
       stubs: {
         'project-list-entry-actions': slotStub('ProjectListEntryActions'),
-        'refresh-icon': true,
         't-button': TButtonStub,
         't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
@@ -432,7 +438,6 @@ function mountKeepAlivePage() {
         renderStubDefaultSlot: true,
         stubs: {
           'project-list-entry-actions': slotStub('ProjectListEntryActions'),
-          'refresh-icon': true,
           't-button': TButtonStub,
           't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
@@ -468,6 +473,8 @@ describe('Project list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    projectRealtimeMocks.acquireProjectListRealtime.mockImplementation(() => undefined);
+    projectRealtimeMocks.releaseProjectListRealtime.mockImplementation(() => undefined);
 
     projectApiMocks.getProjects.mockResolvedValue({
       items: [
@@ -622,17 +629,17 @@ describe('Project list page', () => {
     expect(badge.attributes('title')).toBe('Running 0');
   });
 
-  it('polls the current page so refreshed timestamps can advance without manual input', async () => {
+  it('does not keep polling after the initial HTTP seed', async () => {
     vi.useFakeTimers();
     const wrapper = mountPage();
     await flushPromises();
 
     expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(15_000);
     await flushPromises();
 
-    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
 
@@ -649,6 +656,35 @@ describe('Project list page', () => {
 
     expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(initialCallCount + 1);
     page.wrapper.unmount();
+  });
+
+  it('subscribes to project list realtime and applies pushed row updates', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(projectRealtimeMocks.acquireProjectListRealtime).toHaveBeenCalledTimes(1);
+    const listener = projectRealtimeMocks.acquireProjectListRealtime.mock.calls[0]?.[0] as
+      ((items: Array<Record<string, unknown>>) => void) | undefined;
+    expect(typeof listener).toBe('function');
+
+    listener?.([
+      {
+        container_counts: { issue: 0, running: 0, stopped: 3, total: 3, transitioning: 0 },
+        drift_status: 'changed',
+        last_refresh_at: '2026-07-03T11:00:00Z',
+        last_refresh_status: 'failed',
+        project_id: 1,
+        runtime_status: 'stopped',
+        service_count: 4,
+      },
+    ]);
+    await nextTick();
+
+    const row = wrapper.get('tr[data-row-id="1"]');
+    expect(row.get('[data-testid="project-runtime-status-1"]').text()).toBe('Stopped');
+    expect(row.text()).toContain('Stopped');
+    expect(row.find('[data-testid="project-resource-badge-stopped-1"]').exists()).toBe(true);
+    wrapper.unmount();
   });
 
   it('shows a runtime loading spinner after restart until refreshed status data changes', async () => {
@@ -755,6 +791,7 @@ describe('Project list page', () => {
     expect(columnHeaders).toContain('Last Project Refresh');
 
     const runningRow = wrapper.get('tr[data-row-id="1"]');
+    expect(runningRow.find('[data-testid="row-action-refresh"]').exists()).toBe(false);
     expect(runningRow.find('[data-testid="row-action-up"]').exists()).toBe(false);
     expect(runningRow.find('[data-testid="row-action-stop"]').exists()).toBe(true);
     expect(runningRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
