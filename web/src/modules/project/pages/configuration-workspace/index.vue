@@ -32,11 +32,6 @@
                     <h2>{{ workspaceCopy.summaryTitle }}</h2>
                     <p>{{ t('project.detail.configuration.title') }}</p>
                   </div>
-                  <t-space size="small" break-line>
-                    <t-button theme="default" variant="outline" @click="openSnapshotDrawer">
-                      {{ workspaceCopy.snapshotAction }}
-                    </t-button>
-                  </t-space>
                 </div>
               </template>
 
@@ -374,38 +369,6 @@
       </t-loading>
     </management-page-content>
 
-    <t-drawer v-model:visible="snapshotDrawerVisible" :header="workspaceCopy.snapshotDrawerTitle" size="720px">
-      <t-loading :loading="snapshotLoading" size="small">
-        <template v-if="snapshotPreview">
-          <t-descriptions bordered size="small" :column="1">
-            <t-descriptions-item :label="t('project.detail.configuration.previewHash')">
-              <t-tooltip :content="snapshotPreview.config_hash" placement="top-left" theme="light">
-                <code class="project-configuration-workspace__hash-text">
-                  {{ formatWorkspaceHash(snapshotPreview.config_hash) }}
-                </code>
-              </t-tooltip>
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('project.detail.configuration.previewUpdatedAt')">
-              {{ formatProjectTime(locale, snapshotPreview.refreshed_at) }}
-            </t-descriptions-item>
-          </t-descriptions>
-          <div class="project-configuration-workspace__drawer-viewer">
-            <project-monaco-surface
-              class="project-configuration-workspace__monaco-viewer"
-              :model-value="snapshotPreview.normalized_compose_yaml"
-              :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
-              language="yaml"
-              model-key="snapshot-preview"
-              :options="readonlyOptions"
-              read-only
-              test-id="snapshot-monaco-viewer"
-            />
-          </div>
-        </template>
-        <t-empty v-else :description="t('project.detail.configuration.previewEmpty')" />
-      </t-loading>
-    </t-drawer>
-
     <t-dialog
       v-model:visible="resultDialogVisible"
       :dialog-class-name="resultDialogClassName"
@@ -571,7 +534,7 @@
               ref="validationViewerRef"
               class="project-configuration-workspace__monaco-viewer"
               :model-value="validateResult.normalized_compose_yaml"
-              :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
+              :editor-aria-label="workspaceCopy.editorAriaLabel"
               language="yaml"
               model-key="validation-normalized-yaml"
               :options="readonlyOptions"
@@ -667,7 +630,6 @@ import { createLogger } from '@/utils/logger';
 import {
   getProject,
   getProjectConfiguration,
-  getProjectConfigurationPreview,
   getProjectFileContent,
   getProjectFiles,
   postProjectConfigurationValidate,
@@ -686,7 +648,6 @@ import {
   resolveWorkspaceMonacoLanguage,
 } from '../../shared/configuration-workspace';
 import {
-  formatProjectTime,
   projectDriftStatusLabel,
   projectDriftStatusTheme,
   projectRuntimeStatusLabel,
@@ -695,7 +656,6 @@ import {
 import { useProjectPageContext } from '../../shared/page-context';
 import { formatProjectMonacoDebugMessage, isProjectMonacoDebugEnabled } from '../../shared/project-monaco-debug';
 import type {
-  ProjectConfigurationPreviewResponse,
   ProjectConfigurationValidateResponse,
   ProjectDetailResponseWithLifecycle,
   ProjectWorkspaceFileContentResponse,
@@ -774,7 +734,7 @@ const SIDEBAR_COLLAPSE_BREAKPOINT = 1024;
 
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
-const { locale, t } = useProjectPageContext();
+const { t } = useProjectPageContext();
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
 const workspaceShellRef = ref<HTMLElement | null>(null);
@@ -793,9 +753,6 @@ const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 14
 const editorViewportHeight = ref(720);
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
-const snapshotPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
-const snapshotLoading = ref(false);
-const snapshotDrawerVisible = ref(false);
 const workspaceFullscreen = ref(false);
 const resultDialogVisible = ref(false);
 const resultDialogMode = ref<ResultDialogMode>('diff');
@@ -1696,15 +1653,35 @@ function toggleResultDialogFullscreen() {
   queueResultViewerLayout();
 }
 
-function handleResultDialogOpened() {
+function waitForAnimationFrame() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      resolve();
+    });
+  });
+}
+
+async function handleResultDialogOpened() {
   if (resultDialogMode.value === 'diff') {
     logWorkspaceDiffDebug('dialog-opened', {
       diffViewerReady: diffViewerReady.value,
       fileCount: diffFiles.value.length,
       selectedPath: selectedDiffFile.value?.path ?? '',
     });
+
+    diffViewerReady.value = false;
+    await nextTick();
+    await waitForAnimationFrame();
+    await waitForAnimationFrame();
+
     diffViewerReady.value = true;
+    logWorkspaceDiffDebug('dialog-diff-activated', {
+      containerHeight: diffViewerRef.value ? 'mounted' : 'pending',
+      fileCount: diffFiles.value.length,
+      selectedPath: selectedDiffFile.value?.path ?? '',
+    });
   }
+
   queueResultViewerLayout();
 }
 
@@ -1746,7 +1723,6 @@ async function executeProjectDeploy() {
     diffResult.value = null;
     resultDialogVisible.value = false;
     validateResult.value = null;
-    snapshotPreview.value = null;
     await loadWorkspaceDirectory('', { root: true });
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
@@ -1848,21 +1824,6 @@ async function confirmDiffPreview() {
     }
   } finally {
     saveConfirmLoading.value = false;
-  }
-}
-
-async function openSnapshotDrawer() {
-  snapshotDrawerVisible.value = true;
-  if (snapshotPreview.value || !Number.isFinite(projectId.value)) {
-    return;
-  }
-  snapshotLoading.value = true;
-  try {
-    snapshotPreview.value = await getProjectConfigurationPreview(projectId.value);
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
-  } finally {
-    snapshotLoading.value = false;
   }
 }
 
@@ -2238,8 +2199,7 @@ function stopSidebarResize() {
 .project-configuration-workspace__feedback-panel,
 .project-configuration-workspace__result-dialog,
 .project-configuration-workspace__result-viewer,
-.project-configuration-workspace__readonly-viewer,
-.project-configuration-workspace__drawer-viewer {
+.project-configuration-workspace__readonly-viewer {
   min-height: 0;
   min-width: 0;
 }
@@ -2623,6 +2583,7 @@ function stopSidebarResize() {
   flex: 1 1 auto;
   gap: var(--graft-density-gap-10);
   grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   padding: var(--graft-density-gap-10) var(--graft-density-gap-12) var(--graft-density-gap-12);
 }
@@ -2668,6 +2629,7 @@ function stopSidebarResize() {
   flex: 1 1 auto;
   flex-direction: column;
   gap: var(--graft-density-gap-6);
+  height: 100%;
   min-height: 0;
 }
 
@@ -2733,8 +2695,7 @@ function stopSidebarResize() {
 }
 
 .project-configuration-workspace__result-viewer,
-.project-configuration-workspace__readonly-viewer,
-.project-configuration-workspace__drawer-viewer {
+.project-configuration-workspace__readonly-viewer {
   background: var(--graft-workspace-editor-surface-muted);
   border: 1px solid var(--graft-workspace-editor-border);
   border-radius: var(--td-radius-large);
@@ -2751,8 +2712,7 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__result-viewer :deep(.project-monaco-diff-surface),
 .project-configuration-workspace__result-viewer :deep(.project-monaco-surface),
-.project-configuration-workspace__readonly-viewer :deep(.project-monaco-surface),
-.project-configuration-workspace__drawer-viewer :deep(.project-monaco-surface) {
+.project-configuration-workspace__readonly-viewer :deep(.project-monaco-surface) {
   display: flex;
   flex: 1 1 auto;
   height: 100%;
@@ -2767,9 +2727,7 @@ function stopSidebarResize() {
 .project-configuration-workspace__result-viewer :deep(.monaco-editor),
 .project-configuration-workspace__result-viewer :deep(.overflow-guard),
 .project-configuration-workspace__readonly-viewer :deep(.monaco-editor),
-.project-configuration-workspace__readonly-viewer :deep(.overflow-guard),
-.project-configuration-workspace__drawer-viewer :deep(.monaco-editor),
-.project-configuration-workspace__drawer-viewer :deep(.overflow-guard) {
+.project-configuration-workspace__readonly-viewer :deep(.overflow-guard) {
   height: 100% !important;
   min-height: 0;
   min-width: 0;
@@ -2779,7 +2737,9 @@ function stopSidebarResize() {
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body) {
   display: flex;
   flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -2793,6 +2753,7 @@ function stopSidebarResize() {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog) {

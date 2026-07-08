@@ -46,9 +46,6 @@ type WorkspaceCopy = {
   selectDiffFile: string;
   selectFileToStart: string;
   showHiddenAction: string;
-  snapshotAction: string;
-  snapshotDrawerTitle: string;
-  snapshotViewerAriaLabel: string;
   summaryDescription: string;
   summaryCurrentPathLabel: string;
   summaryOpenTabsLabel: string;
@@ -111,9 +108,6 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   selectDiffFile: 'project.configurationWorkspace.copy.selectDiffFile',
   selectFileToStart: 'project.configurationWorkspace.copy.selectFileToStart',
   showHiddenAction: 'project.configurationWorkspace.copy.showHiddenAction',
-  snapshotAction: 'project.configurationWorkspace.copy.snapshotAction',
-  snapshotDrawerTitle: 'project.configurationWorkspace.copy.snapshotDrawerTitle',
-  snapshotViewerAriaLabel: 'project.configurationWorkspace.copy.snapshotViewerAriaLabel',
   summaryDescription: 'project.configurationWorkspace.copy.summaryDescription',
   summaryCurrentPathLabel: 'project.configurationWorkspace.copy.summaryCurrentPathLabel',
   summaryOpenTabsLabel: 'project.configurationWorkspace.copy.summaryOpenTabsLabel',

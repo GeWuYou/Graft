@@ -97,16 +97,6 @@ export function buildProjectConfigurationApiPath(id: number) {
 }
 
 /**
- * 构建项目配置预览的 API 路径。
- *
- * @param id - 项目 ID
- * @returns 项目配置预览接口路径
- */
-export function buildProjectConfigurationPreviewApiPath(id: number) {
-  return PROJECT_API_PATH.CONFIGURATION_PREVIEW.replace('{id}', encodeProjectPathParam(id));
-}
-
-/**
  * 构建项目配置校验接口路径。
  *
  * @param id - 项目 ID

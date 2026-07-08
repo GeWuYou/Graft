@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
   getProject: vi.fn(),
   getProjectConfiguration: vi.fn(),
-  getProjectConfigurationPreview: vi.fn(),
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
   info: vi.fn(),
@@ -62,7 +61,6 @@ const workspaceCopyMessages = {
 vi.mock('../../api/project', () => ({
   getProject: mocks.getProject,
   getProjectConfiguration: mocks.getProjectConfiguration,
-  getProjectConfigurationPreview: mocks.getProjectConfigurationPreview,
   getProjectFileContent: mocks.getProjectFileContent,
   getProjectFiles: mocks.getProjectFiles,
   postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
@@ -229,6 +227,31 @@ function createTStub(name: string) {
         );
     },
   });
+}
+
+async function flushDiffViewerFrames() {
+  await flushPromises();
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  });
+  await flushPromises();
+}
+
+async function waitForDiffViewer(
+  wrapper: ReturnType<typeof mount>,
+  selector = '[data-testid="configuration-diff-viewer"]',
+  attempts = 6,
+) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await flushDiffViewerFrames();
+    if (wrapper.find(selector).exists()) {
+      return;
+    }
+  }
 }
 
 const TButtonStub = defineComponent({
@@ -429,13 +452,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       drift_status: 'clean',
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
-    });
-    mocks.getProjectConfigurationPreview.mockResolvedValue({
-      canonical_project_name: 'sub2api',
-      config_hash: '40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c',
-      normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
-      project_id: 1,
-      refreshed_at: '2026-07-03T13:12:38Z',
     });
     mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
       if (query?.path === 'config') {
@@ -858,7 +874,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
-    await flushPromises();
+    await waitForDiffViewer(wrapper);
 
     const currentHash = wrapper.get('[data-testid="configuration-diff-current-hash"]').text();
     const proposedHash = wrapper.get('[data-testid="configuration-diff-proposed-hash"]').text();
@@ -884,7 +900,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
-    await flushPromises();
+    await waitForDiffViewer(wrapper);
 
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
@@ -913,10 +929,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
-    await flushPromises();
+    await waitForDiffViewer(wrapper);
 
     await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
-    await flushPromises();
+    await waitForDiffViewer(wrapper);
 
     const resultDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
     expect(resultDialog?.attributes('data-mode')).toBe('full-screen');
@@ -931,7 +947,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
 
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
     const restoredDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
@@ -974,7 +990,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
 
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('docker-compose.yml');

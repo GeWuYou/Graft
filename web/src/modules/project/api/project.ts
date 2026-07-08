@@ -3,7 +3,6 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
-  buildProjectConfigurationPreviewApiPath,
   buildProjectConfigurationValidateApiPath,
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
@@ -27,7 +26,6 @@ import type {
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
   ProjectConfigurationMetadataResponse,
-  ProjectConfigurationPreviewResponse,
   ProjectConfigurationValidateResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
@@ -93,13 +91,6 @@ type GetProjectConfigurationEnvelope =
   GetProjectConfigurationOperation['responses'][200]['content']['application/json'];
 type GetProjectConfigurationData = NonNullable<GetProjectConfigurationEnvelope['data']>;
 type GetProjectConfigurationPathParams = GetProjectConfigurationOperation['parameters']['path'];
-
-type ProjectConfigurationPreviewPath = (typeof PROJECT_API_PATH)['CONFIGURATION_PREVIEW'];
-type GetProjectConfigurationPreviewOperation = paths[ProjectConfigurationPreviewPath]['get'];
-type GetProjectConfigurationPreviewEnvelope =
-  GetProjectConfigurationPreviewOperation['responses'][200]['content']['application/json'];
-type GetProjectConfigurationPreviewData = NonNullable<GetProjectConfigurationPreviewEnvelope['data']>;
-type GetProjectConfigurationPreviewPathParams = GetProjectConfigurationPreviewOperation['parameters']['path'];
 
 type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
 type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidatePath]['post'];
@@ -251,18 +242,6 @@ export function getProjectConfiguration(id: GetProjectConfigurationPathParams['i
   return request.get<GetProjectConfigurationData>({
     url: buildProjectConfigurationApiPath(id),
   }) as Promise<ProjectConfigurationMetadataResponse>;
-}
-
-/**
- * 获取项目配置预览。
- *
- * @param id - 项目 ID
- * @returns 项目配置预览结果
- */
-export function getProjectConfigurationPreview(id: GetProjectConfigurationPreviewPathParams['id']) {
-  return request.get<GetProjectConfigurationPreviewData>({
-    url: buildProjectConfigurationPreviewApiPath(id),
-  }) as Promise<ProjectConfigurationPreviewResponse>;
 }
 
 export function getProjectFiles(id: number, query?: ProjectWorkspaceFilesQuery) {
