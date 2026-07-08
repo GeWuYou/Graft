@@ -98,6 +98,8 @@ AI closeout:
 - 发现 authority 越界时立即上报
 - 不假设其他 agent 已经处理测试、迁移、注释或回滚
 - 输出可供主 agent 复核的差异、风险与验证
+- 如果任务来自 PR review finding repair，不得把 `Outside diff range comments`、`Nitpick comments` 或其它
+  folded latest-review findings 视为可忽略项；主 agent 建立的完整 finding inventory 仍然是子切片边界前提
 
 ## 8. Review 清单
 
@@ -108,6 +110,8 @@ AI closeout:
 - 是否存在机会主义修复
 - 是否新增 TODO 泄漏、伪实现或静默 fallback
 - closeout 是否给出 summary / risk / validation / rollback
+- 如果任务来自 PR review，是否明确覆盖 `Outside diff range comments`、`Nitpick comments` 和其它 folded
+  latest-review findings，而不是只处理 open threads 或高优先级子集
 
 ### 8.2 多 Agent Review
 
@@ -116,6 +120,8 @@ AI closeout:
 - 汇总结果是否遗漏冲突、风险或未验证项
 - 主 agent 是否明确列出每个子切片的验证状态
 - 是否把“另一位 agent 会处理”当成未完成工作的借口
+- 如果协作来自 PR review finding repair，是否把 `Outside diff range comments`、`Nitpick comments` 和其它
+  folded latest-review findings 继续保留在统一 disposition 清单内，而不是在拆批后丢失
 
 ## 9. 证据要求
 

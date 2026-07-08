@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { toMonacoColor } from './project-monaco-color';
+import { isProjectMonacoDebugEnabled } from './project-monaco-debug';
+import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 describe('project-monaco color normalization', () => {
   it('converts srgb browser output into Monaco-safe hex', () => {
@@ -21,5 +23,67 @@ describe('project-monaco color normalization', () => {
     expect(normalized.startsWith('#')).toBe(true);
     expect(normalized.includes('color(')).toBe(false);
     expect(normalized.includes('#0.')).toBe(false);
+  });
+});
+
+describe('project-monaco worker routing', () => {
+  it('routes json models to the json worker factory', () => {
+    const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
+    const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
+
+    const worker = buildProjectMonacoWorker('json', {
+      createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
+      createYamlWorker: () => yamlWorker,
+    });
+
+    expect(worker).toBe(jsonWorker);
+  });
+
+  it('routes yaml models to the yaml worker factory', () => {
+    const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
+    const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
+
+    const worker = buildProjectMonacoWorker('yaml', {
+      createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
+      createYamlWorker: () => yamlWorker,
+    });
+
+    expect(worker).toBe(yamlWorker);
+  });
+
+  it('routes non-yaml models to the editor worker factory', () => {
+    const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
+    const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
+
+    const worker = buildProjectMonacoWorker('editorWorkerService', {
+      createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
+      createYamlWorker: () => yamlWorker,
+    });
+
+    expect(worker).toBe(editorWorker);
+  });
+});
+
+describe('project-monaco debug toggle', () => {
+  it('reads the explicit global debug flag before localStorage', () => {
+    const previousValue = (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+
+    try {
+      (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = true;
+
+      expect(isProjectMonacoDebugEnabled()).toBe(true);
+    } finally {
+      if (typeof previousValue === 'undefined') {
+        delete (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+      } else {
+        (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = previousValue;
+      }
+    }
   });
 });

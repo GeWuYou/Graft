@@ -40,6 +40,8 @@ systemConfig.project.ops.project.managed.root_directory.title: Managed Project R
 systemConfig.project.ops.project.managed.root_directory.description: Root directory used for managed Compose project creation. Leave empty to keep managed creation unavailable.
 systemConfig.groups.ops.project.create: Project Create
 systemConfig.groups.ops.project.create.description: Managed project create authority and root workflow.
+systemConfig.project.ops.project.import.allowed_roots.title: Import Allowed Roots
+systemConfig.project.ops.project.import.allowed_roots.description: Configure the JSON array string of root directories that import flows are allowed to browse.
 systemConfig.project.ops.project.workspace.hidden_directories.title: Workspace Hidden Directories
 systemConfig.project.ops.project.workspace.hidden_directories.description: JSON array string of directory basenames hidden by default in the project configuration workspace tree.
 systemConfig.project.ops.project.workspace.hidden_directories.placeholder: Press Enter after each directory name, for example node_modules or .git

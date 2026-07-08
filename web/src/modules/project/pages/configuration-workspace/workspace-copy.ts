@@ -16,8 +16,6 @@ type WorkspaceCopy = {
   discardAction: string;
   editorAriaLabel: string;
   envRedeployHint: string;
-  feedbackHint: string;
-  feedbackTitle: string;
   fileTreeHint: string;
   fileTreeTitle: string;
   filesEmpty: string;
@@ -83,8 +81,6 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   discardAction: 'project.configurationWorkspace.copy.discardAction',
   editorAriaLabel: 'project.configurationWorkspace.copy.editorAriaLabel',
   envRedeployHint: 'project.configurationWorkspace.copy.envRedeployHint',
-  feedbackHint: 'project.configurationWorkspace.copy.feedbackHint',
-  feedbackTitle: 'project.configurationWorkspace.copy.feedbackTitle',
   fileTreeHint: 'project.configurationWorkspace.copy.fileTreeHint',
   fileTreeTitle: 'project.configurationWorkspace.copy.fileTreeTitle',
   filesEmpty: 'project.configurationWorkspace.copy.filesEmpty',

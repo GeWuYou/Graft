@@ -45,6 +45,7 @@ vi.mock('@/locales', () => ({
       'dashboard.containerResources.anomalies.kind.exited': 'Exited',
       'dashboard.containerResources.anomalies.kind.dead': 'Dead',
       'dashboard.containerResources.anomalies.kind.high_load': 'High Load',
+      'dashboard.containerResources.anomalies.reasonCode.state_exited': 'Container Exited',
       'dashboard.containerResources.anomalies.reasonCode.state_restarting': 'Restart Back-off',
       'dashboard.containerResources.anomalies.resourceSummary': `CPU ${params?.cpu ?? ''} / Memory ${params?.memory ?? ''}`,
       'dashboard.containerResources.anomalies.restartCount': `${params?.count ?? 0} restarts`,
@@ -337,6 +338,65 @@ describe('DashboardContainerResources', () => {
     expect(wrapper.text()).toContain('Exited');
     expect(wrapper.findAll('[data-testid="dashboard-anomaly-primary-tag"]')).toHaveLength(1);
     expect(wrapper.findAll('[data-testid="dashboard-anomaly-status-tag"]')).toHaveLength(0);
+  });
+
+  it('does not render a duplicated status tag when the anomaly cause already matches unhealthy health state', () => {
+    const wrapper = mountComponent(
+      createSummary({
+        anomalies: [
+          {
+            id: 'anomaly-3',
+            name: 'api',
+            image: 'graft/api:latest',
+            shortId: 'api',
+            restartCount: null,
+            state: 'running',
+            health: 'unhealthy',
+            status: 'Unhealthy',
+            reasonCode: 'health.unhealthy',
+            reasonLabel: null,
+            collectedAt: '2026-06-25T10:42:58Z',
+            cpuPercent: 20,
+            memoryPercent: 30,
+            memoryUsageBytes: 256,
+            memoryLimitBytes: 512,
+          },
+        ],
+      }),
+    );
+
+    expect(wrapper.findAll('[data-testid="dashboard-anomaly-primary-tag"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid="dashboard-anomaly-status-tag"]')).toHaveLength(0);
+  });
+
+  it('renders a distinct status tag when anomaly reason does not match the runtime state', () => {
+    const wrapper = mountComponent(
+      createSummary({
+        anomalies: [
+          {
+            id: 'anomaly-4',
+            name: 'worker',
+            image: 'graft/worker:latest',
+            shortId: 'worker',
+            restartCount: 2,
+            state: 'paused',
+            health: null,
+            status: 'Paused',
+            reasonCode: 'state.restarting',
+            reasonLabel: null,
+            collectedAt: '2026-06-25T10:42:58Z',
+            cpuPercent: 10,
+            memoryPercent: 15,
+            memoryUsageBytes: 128,
+            memoryLimitBytes: 256,
+          },
+        ],
+      }),
+    );
+
+    expect(wrapper.findAll('[data-testid="dashboard-anomaly-primary-tag"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid="dashboard-anomaly-status-tag"]')).toHaveLength(1);
+    expect(wrapper.text()).toContain('Paused');
   });
 
   it('shows skeleton surfaces during first load instead of empty metrics', () => {

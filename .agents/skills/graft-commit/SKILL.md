@@ -20,6 +20,12 @@ validation rules.
    - either the user explicitly requested a commit
    - or `graft-task-closeout` decided the validated owned scope should be committed
 4. If the correct validation scope is unclear, use `graft-validation-runner` before committing.
+5. If the commit is part of an active `$graft-pr-review` run, confirm that the latest PR finding inventory is already
+   exhaustive before staging:
+   - `Outside diff range comments (N)`, `Nitpick comments (N)`, and other folded latest-review sections are still
+     mandatory review scope, not optional follow-up
+   - do not use an intermediate commit to imply PR-review closure while any verified finding from that inventory is
+     still unclassified, including outside-diff findings
 
 ## Workflow
 
@@ -46,6 +52,8 @@ validation rules.
    - `web`: prefer `cd web && bun run check` for completion-state work
    - `cross-boundary`: validate both affected sides
    - `docs/automation`: run the strongest honest structural checks available
+   - if the commit belongs to a `$graft-pr-review` remediation batch, validation alone is not enough; the review run
+     must still preserve exhaustive finding disposition coverage, including `Outside diff range comments`
 4. Stage only the confirmed owned scope:
    - do not use `git add .`, `git add -A`, or `git commit -am` unless the user explicitly asks to commit everything
    - when one file contains mixed ownership, stage only the owned hunks if they can be reliably separated
@@ -80,6 +88,8 @@ Do not commit when any of these are true:
 * the commit trigger is valid but the task still lacks the required validation and that validation is still feasible
 * the working tree contains unrelated changes that would be staged only by using broad git add patterns
 * the proposed commit message would violate the repository Conventional Commit rules
+* the commit is being used to close or imply closure for a `$graft-pr-review` run whose latest inventory still leaves
+  `Outside diff range comments`, `Nitpick comments`, or other folded latest-review findings unclassified
 
 In these cases, explain the blocker and stop at the smallest safe next step.
 

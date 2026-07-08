@@ -63,7 +63,7 @@ func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64) (Conf
 	if err != nil {
 		return ConfigurationDiffResult{}, err
 	}
-	warnings := configurationDiffWarnings(aggregate, len(files))
+	warnings := configurationDiffWarnings(len(files))
 	return ConfigurationDiffResult{
 		ProjectID:            projectID,
 		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
@@ -166,28 +166,28 @@ func buildConfigurationDiffFiles(aggregate projectstore.ProjectAggregate) ([]Con
 }
 
 func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDiffFile {
-	baselineHash := item.LastObservedHash
-	currentHash := hashString(item.Content)
-	changed := baselineHash != currentHash
+	baselineContent := normalizeTextBlock(item.BaselineContent)
+	currentContent := normalizeTextBlock(item.Content)
+	baselineHash := hashString(baselineContent)
+	currentHash := hashString(currentContent)
+	changed := baselineContent != currentContent
 	if baselineHash == "" && currentHash == "" {
 		changed = false
 	}
 	return ConfigurationDiffFile{
 		Kind:            item.Kind,
 		Path:            item.Path,
+		DisplayPath:     item.DisplayPath,
 		Changed:         changed,
 		CurrentHash:     baselineHash,
 		ProposedHash:    currentHash,
-		CurrentContent:  item.BaselineContent,
-		ProposedContent: item.Content,
+		CurrentContent:  baselineContent,
+		ProposedContent: currentContent,
 	}
 }
 
-func configurationDiffWarnings(aggregate projectstore.ProjectAggregate, fileCount int) []string {
+func configurationDiffWarnings(fileCount int) []string {
 	warnings := make([]string, 0, configurationDiffWarningsCapacity)
-	if aggregate.Snapshot == nil {
-		warnings = append(warnings, "No refreshed project snapshot is available yet; file-level diff falls back to last observed file hashes only.")
-	}
 	if fileCount == 0 {
 		warnings = append(warnings, "No tracked compose or env files are registered for the project.")
 	}

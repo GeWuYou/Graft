@@ -1,15 +1,24 @@
 import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution';
+import 'monaco-editor/esm/vs/basic-languages/hcl/hcl.contribution';
 import 'monaco-editor/esm/vs/basic-languages/ini/ini.contribution';
+import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution';
+import 'monaco-editor/esm/vs/basic-languages/powershell/powershell.contribution';
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
+import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution';
+import 'monaco-editor/esm/vs/basic-languages/xml/xml.contribution';
+import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
+import 'monaco-editor/esm/vs/language/json/monaco.contribution';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { nextTick, onBeforeUnmount, onMounted } from 'vue';
 
+import { createLogger } from '@/utils/logger';
+
 import { toMonacoColor } from './project-monaco-color';
-import yamlWorker from './project-yaml.worker?worker';
+import { createProjectMonacoDebugLogger } from './project-monaco-debug';
+import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 export type MonacoEditorModule = typeof monaco;
 
@@ -22,42 +31,65 @@ declare global {
 }
 
 let monacoConfigured = false;
+let monacoYamlConfigured = false;
+let monacoYamlConfigurationFailed = false;
 let modelUriSuffixSeed = 0;
+const logger = createLogger('project.monaco');
+const logProjectMonacoDebug = createProjectMonacoDebugLogger('project.monaco');
 
 const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
 const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
 export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
 
-function buildWorker(label: string) {
-  switch (label) {
-    case 'yaml':
-      return new yamlWorker();
-    default:
-      return new editorWorker();
-  }
-}
-
 export function ensureProjectMonacoConfigured() {
   if (monacoConfigured) {
+    logProjectMonacoDebug('reuse-existing-config', {});
     return monaco;
   }
 
   globalThis.MonacoEnvironment = {
     getWorker(_moduleId: string, label: string) {
-      return buildWorker(label);
+      logProjectMonacoDebug('get-worker', {
+        label,
+      });
+
+      const worker = buildProjectMonacoWorker(label);
+
+      logProjectMonacoDebug('get-worker-resolved', {
+        constructorName: worker?.constructor?.name ?? 'unknown',
+        label,
+      });
+
+      return worker;
     },
   };
 
-  configureMonacoYaml(monaco, {
-    completion: true,
-    enableSchemaRequest: false,
-    hover: true,
-    schemas: [],
-    validate: true,
-  });
+  if (!monacoYamlConfigured && !monacoYamlConfigurationFailed) {
+    try {
+      logProjectMonacoDebug('configure-yaml-start', {});
+      configureMonacoYaml(monaco, {
+        completion: true,
+        enableSchemaRequest: false,
+        hover: true,
+        schemas: [],
+        validate: true,
+      });
+      monacoYamlConfigured = true;
+      logProjectMonacoDebug('configure-yaml-success', {});
+    } catch (error) {
+      monacoYamlConfigurationFailed = true;
+      logProjectMonacoDebug('configure-yaml-failed', {
+        error,
+      });
+      logger.error('Failed to configure project Monaco YAML worker integration.', {
+        error,
+      });
+    }
+  }
 
   monacoConfigured = true;
+  logProjectMonacoDebug('config-complete', {});
   return monaco;
 }
 

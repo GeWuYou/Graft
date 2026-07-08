@@ -89,6 +89,7 @@
           "high_load": "高负载"
         },
         "reasonCode": {
+          "state_exited": "容器已退出",
           "state_restarting": "重启退避"
         }
       },

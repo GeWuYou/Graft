@@ -6125,13 +6125,15 @@ export interface components {
       node_type: components['schemas']['project-file-tree-node-type'];
       file_kind: components['schemas']['project-workspace-file-kind'];
       editable: boolean;
+      /** @description Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext. */
       language_hint: string;
       /** Format: int64 */
       size_bytes: number;
       hidden_by_default: boolean;
       has_children: boolean;
       tooltip?: string | null;
-      tooltip_source?: string | null;
+      /** @enum {string|null} */
+      tooltip_source?: 'project-note' | 'default-rule' | null;
       project_note?: string | null;
     };
     'project-files-response': {
@@ -6151,6 +6153,7 @@ export interface components {
       project_id: number;
       relative_path: string;
       file_kind: components['schemas']['project-workspace-file-kind'];
+      /** @description Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext. */
       language_hint: string;
       editable: boolean;
       /** @enum {string} */
@@ -6187,6 +6190,7 @@ export interface components {
     'project-configuration-diff-file': {
       kind: components['schemas']['project-file-kind'];
       path: string;
+      display_path: string;
       changed: boolean;
       current_hash: string;
       proposed_hash: string;

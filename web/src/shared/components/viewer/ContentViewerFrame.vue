@@ -8,7 +8,11 @@
         </div>
         <div class="content-viewer-frame__header-actions">
           <slot name="header-actions" :fullscreen="isFullscreen" :toggle-fullscreen="toggleFullscreen" />
-          <t-tooltip :content="isFullscreen ? exitFullscreenLabel : fullscreenLabel" theme="light">
+          <t-tooltip
+            v-if="showFullscreenButton"
+            :content="isFullscreen ? exitFullscreenLabel : fullscreenLabel"
+            theme="light"
+          >
             <t-button
               class="content-viewer-frame__fullscreen-button"
               theme="default"
@@ -43,9 +47,9 @@
         :aria-label="resizeHandleLabel"
         aria-orientation="horizontal"
         tabindex="0"
-        @keydown.down.prevent="nudgeHeight(-24)"
+        @keydown.down.prevent="nudgeHeight(24)"
         @keydown.left.prevent="nudgeHeight(-24)"
-        @keydown.up.prevent="nudgeHeight(24)"
+        @keydown.up.prevent="nudgeHeight(-24)"
         @keydown.right.prevent="nudgeHeight(24)"
         @pointerdown.prevent="startResize"
       >
@@ -72,6 +76,7 @@ const props = withDefaults(
     mobileMinHeight?: number;
     resizeHandleLabel: string;
     resizable?: boolean;
+    showFullscreenButton?: boolean;
     storageKey: string;
     surfacePadding?: SurfacePadding;
   }>(),
@@ -84,6 +89,7 @@ const props = withDefaults(
     mobileBreakpoint: 768,
     mobileMinHeight: 420,
     resizable: true,
+    showFullscreenButton: true,
     surfacePadding: 'normal',
   },
 );
@@ -91,6 +97,7 @@ const props = withDefaults(
 const slots = useSlots();
 const isFullscreen = ref(false);
 const panelHeight = ref(resolveInitialHeight());
+const userResized = ref(false);
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
 const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 1080);
 const dragStartY = ref(0);
@@ -135,6 +142,22 @@ watch(isFullscreen, (fullscreen) => {
 
   restoreDocumentOverflow();
 });
+
+watch(
+  () => [
+    props.defaultHeight,
+    props.minHeight,
+    props.mobileMinHeight,
+    props.defaultDesktopOffset,
+    props.defaultMobileOffset,
+  ],
+  () => {
+    if (userResized.value || isFullscreen.value) {
+      return;
+    }
+    panelHeight.value = clampHeight(props.defaultHeight > 0 ? props.defaultHeight : resolvePreferredHeight());
+  },
+);
 
 onMounted(() => {
   if (typeof window === 'undefined') {
@@ -239,6 +262,7 @@ function nudgeHeight(delta: number) {
   if (isFullscreen.value) {
     return;
   }
+  userResized.value = true;
   panelHeight.value = clampHeight(panelHeight.value + delta);
   writeStoredHeight(panelHeight.value);
 }
@@ -248,11 +272,12 @@ function startResize(event: PointerEvent) {
     return;
   }
 
+  userResized.value = true;
   dragStartY.value = event.clientY;
   dragStartHeight.value = panelHeight.value;
 
   const handlePointerMove = (moveEvent: PointerEvent) => {
-    const delta = dragStartY.value - moveEvent.clientY;
+    const delta = moveEvent.clientY - dragStartY.value;
     panelHeight.value = clampHeight(dragStartHeight.value + delta);
   };
   const handlePointerUp = () => {

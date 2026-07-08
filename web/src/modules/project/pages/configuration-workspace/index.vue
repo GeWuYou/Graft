@@ -1,5 +1,10 @@
 <template>
-  <div ref="workspaceRootRef" class="project-configuration-workspace" data-page-type="editor">
+  <div
+    ref="workspaceRootRef"
+    class="project-configuration-workspace"
+    :class="{ 'project-configuration-workspace--fullscreen': workspaceFullscreen }"
+    data-page-type="editor"
+  >
     <management-page-content>
       <management-page-header compact :title="pageHeaderTitle" :description="workspaceCopy.summaryDescription">
         <template #meta>
@@ -212,19 +217,25 @@
               <span class="project-configuration-workspace__splitter-grip" />
             </div>
 
-            <div class="project-configuration-workspace__editor-stack">
+            <div ref="editorStackHostRef" class="project-configuration-workspace__editor-stack">
               <content-viewer-frame
+                :default-height="editorFrameHeight"
                 :exit-fullscreen-label="workspaceCopy.exitFullscreenAction"
                 :fullscreen-label="workspaceCopy.fullscreenAction"
                 fullscreen-surface-padding="none"
                 resize-handle-label="Resize Editor Height"
-                storage-key="graft.project.configuration-workspace.editor.height"
+                :resizable="!workspaceFullscreen"
+                :show-fullscreen-button="false"
+                :storage-key="EDITOR_HEIGHT_STORAGE_KEY"
                 surface-padding="none"
               >
                 <template #header-actions>
                   <t-space size="small" break-line>
                     <t-button theme="default" variant="outline" :disabled="!activeBuffer" @click="reloadActiveFile">
                       {{ workspaceCopy.reloadAction }}
+                    </t-button>
+                    <t-button theme="default" variant="outline" @click="workspaceFullscreen = !workspaceFullscreen">
+                      {{ workspaceFullscreen ? workspaceCopy.exitFullscreenAction : workspaceCopy.fullscreenAction }}
                     </t-button>
                     <t-button
                       theme="default"
@@ -262,10 +273,62 @@
                       @remove="handleCloseTab(tab.path)"
                     >
                       <template #label>
-                        <span class="project-configuration-workspace__tab-label">
-                          <span v-if="isFileDirty(tab.path)" class="project-configuration-workspace__tab-dirty">●</span>
-                          <span>{{ tab.name }}</span>
-                        </span>
+                        <t-dropdown
+                          trigger="context-menu"
+                          :hide-after-item-click="true"
+                          :min-column-width="128"
+                          :popup-props="{
+                            onVisibleChange: (visible: boolean, ctx: PopupVisibleChangeContext) =>
+                              handleFileTabMenuClick(visible, ctx, tab.path),
+                            visible: activeFileTabPathForMenu === tab.path,
+                          }"
+                          :data-testid="workspaceFileTabMenuTestId(tab.path)"
+                        >
+                          <span class="project-configuration-workspace__tab-label">
+                            <span v-if="isFileDirty(tab.path)" class="project-configuration-workspace__tab-dirty"
+                              >●</span
+                            >
+                            <span>{{ tab.name }}</span>
+                          </span>
+                          <template #dropdown>
+                            <t-dropdown-menu>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'refresh')"
+                                @click="() => handleRefreshFileTab(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.refresh') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-left')"
+                                :disabled="!hasClosableFileTabsAhead(tab.path)"
+                                @click="() => handleCloseFileTabsAhead(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.closeLeft') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-right')"
+                                :disabled="!hasClosableFileTabsBehind(tab.path)"
+                                @click="() => handleCloseFileTabsBehind(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.closeRight') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-other')"
+                                :disabled="!hasClosableOtherFileTabs(tab.path)"
+                                @click="() => handleCloseOtherFileTabs(tab.path)"
+                              >
+                                {{ t('layout.tagTabs.closeOther') }}
+                              </t-dropdown-item>
+                              <t-dropdown-item
+                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-all')"
+                                :disabled="!hasClosableFileTabs"
+                                @click="handleCloseAllFileTabs"
+                              >
+                                {{ t('layout.tagTabs.closeAll') }}
+                              </t-dropdown-item>
+                            </t-dropdown-menu>
+                          </template>
+                        </t-dropdown>
                       </template>
                     </t-tab-panel>
                   </t-tabs>
@@ -311,152 +374,6 @@
                   <t-empty v-else :description="workspaceCopy.tabsEmpty" />
                 </div>
               </content-viewer-frame>
-
-              <t-card class="project-configuration-workspace__feedback" bordered>
-                <template #header>
-                  <div class="project-configuration-workspace__section-head">
-                    <div>
-                      <h2>{{ workspaceCopy.feedbackTitle }}</h2>
-                      <p>{{ workspaceCopy.feedbackHint }}</p>
-                    </div>
-                  </div>
-                </template>
-
-                <template v-if="hasFeedback">
-                  <t-tabs
-                    v-model:value="feedbackTab"
-                    class="project-configuration-workspace__feedback-tabs"
-                    theme="card"
-                  >
-                    <t-tab-panel value="diff" :label="t('project.detail.configuration.diffTitle')">
-                      <div v-if="diffResult" class="project-configuration-workspace__feedback-panel">
-                        <t-alert
-                          :theme="diffResult.has_changes ? 'warning' : 'success'"
-                          :message="
-                            diffResult.has_changes
-                              ? t('project.detail.configuration.diffHasChanges')
-                              : t('project.detail.configuration.diffNoChanges')
-                          "
-                        />
-                        <t-space size="small" break-line>
-                          <t-tooltip :content="diffResult.current_config_hash" placement="top-left" theme="light">
-                            <t-tag theme="default" variant="light-outline">
-                              {{ t('project.detail.configuration.currentHash') }}:
-                              {{ formatWorkspaceHash(diffResult.current_config_hash) }}
-                            </t-tag>
-                          </t-tooltip>
-                          <t-tooltip :content="diffResult.proposed_config_hash" placement="top-left" theme="light">
-                            <t-tag theme="primary" variant="light-outline">
-                              {{ t('project.detail.configuration.proposedHash') }}:
-                              {{ formatWorkspaceHash(diffResult.proposed_config_hash) }}
-                            </t-tag>
-                          </t-tooltip>
-                        </t-space>
-                        <div v-if="diffResult.warnings?.length" class="project-configuration-workspace__warning-list">
-                          <t-alert
-                            v-for="warning in diffResult.warnings"
-                            :key="warning"
-                            theme="warning"
-                            :message="warning"
-                          />
-                        </div>
-                        <div class="project-configuration-workspace__diff-layout">
-                          <div class="project-configuration-workspace__diff-files">
-                            <button
-                              v-for="file in diffResult.files"
-                              :key="`${file.kind}-${file.path}`"
-                              class="project-configuration-workspace__diff-file"
-                              :class="{
-                                'project-configuration-workspace__diff-file--active':
-                                  selectedDiffFile?.path === file.path,
-                              }"
-                              type="button"
-                              @click="selectedDiffFilePath = file.path"
-                            >
-                              <span>{{ file.path }}</span>
-                              <t-tag :theme="file.changed ? 'warning' : 'success'" variant="light-outline">
-                                {{
-                                  file.changed
-                                    ? t('project.detail.configuration.diffFileChanged')
-                                    : t('project.detail.configuration.diffFileUnchanged')
-                                }}
-                              </t-tag>
-                            </button>
-                          </div>
-                          <div class="project-configuration-workspace__diff-viewer">
-                            <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-meta">
-                              <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
-                                <span>
-                                  {{ t('project.detail.configuration.currentHash') }}:
-                                  {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
-                                </span>
-                              </t-tooltip>
-                              <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
-                                <span>
-                                  {{ t('project.detail.configuration.proposedHash') }}:
-                                  {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
-                                </span>
-                              </t-tooltip>
-                            </div>
-                            <project-monaco-diff-surface
-                              v-if="selectedDiffFile"
-                              :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
-                              :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
-                              :modified-key="`diff-modified-${selectedDiffFile.path}`"
-                              :modified-value="selectedDiffFile.proposed_content"
-                              :original-key="`diff-original-${selectedDiffFile.path}`"
-                              :original-value="selectedDiffFile.current_content"
-                              test-id="configuration-diff-viewer"
-                            />
-                            <t-empty v-else :description="workspaceCopy.selectDiffFile" />
-                          </div>
-                        </div>
-                      </div>
-                    </t-tab-panel>
-
-                    <t-tab-panel value="validation" :label="t('project.detail.configuration.validationTitle')">
-                      <div v-if="validateResult" class="project-configuration-workspace__feedback-panel">
-                        <t-space size="small" break-line>
-                          <t-tooltip :content="validateResult.proposed_config_hash" placement="top-left" theme="light">
-                            <t-tag theme="primary" variant="light-outline">
-                              {{ t('project.detail.configuration.proposedHash') }}:
-                              {{ formatWorkspaceHash(validateResult.proposed_config_hash) }}
-                            </t-tag>
-                          </t-tooltip>
-                          <t-tag theme="default" variant="light-outline">
-                            {{ t('project.detail.configuration.declaredServices') }}:
-                            {{ validateResult.declared_service_names.join(', ') || '-' }}
-                          </t-tag>
-                        </t-space>
-                        <div
-                          v-if="validateResult.warnings?.length"
-                          class="project-configuration-workspace__warning-list"
-                        >
-                          <t-alert
-                            v-for="warning in validateResult.warnings"
-                            :key="warning"
-                            theme="warning"
-                            :message="warning"
-                          />
-                        </div>
-                        <div class="project-configuration-workspace__readonly-viewer">
-                          <project-monaco-surface
-                            class="project-configuration-workspace__monaco-viewer"
-                            :model-value="validateResult.normalized_compose_yaml"
-                            :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
-                            language="yaml"
-                            model-key="validation-normalized-yaml"
-                            :options="readonlyOptions"
-                            read-only
-                            test-id="validation-monaco-viewer"
-                          />
-                        </div>
-                      </div>
-                    </t-tab-panel>
-                  </t-tabs>
-                </template>
-                <t-empty v-else :description="workspaceCopy.feedbackHint" />
-              </t-card>
             </div>
           </section>
         </template>
@@ -496,6 +413,170 @@
         <t-empty v-else :description="t('project.detail.configuration.previewEmpty')" />
       </t-loading>
     </t-drawer>
+
+    <t-dialog
+      v-model:visible="resultDialogVisible"
+      :dialog-class-name="resultDialogClassName"
+      :footer="false"
+      :header="false"
+      :mode="resultDialogFullscreen ? 'full-screen' : 'modal'"
+      placement="center"
+      :close-on-overlay-click="false"
+      :close-on-esc-keydown="true"
+      destroy-on-close
+      :width="resultDialogFullscreen ? undefined : '92vw'"
+    >
+      <div class="project-configuration-workspace__result-dialog">
+        <div class="project-configuration-workspace__result-dialog-header">
+          <div class="project-configuration-workspace__section-head">
+            <div>
+              <h2>{{ resultDialogTitle }}</h2>
+            </div>
+            <t-space size="small">
+              <t-button
+                theme="default"
+                variant="outline"
+                size="small"
+                data-testid="configuration-result-fullscreen-toggle"
+                @click="toggleResultDialogFullscreen"
+              >
+                {{ resultDialogFullscreen ? workspaceCopy.exitFullscreenAction : workspaceCopy.fullscreenAction }}
+              </t-button>
+            </t-space>
+          </div>
+        </div>
+
+        <t-tabs v-model:value="resultDialogTab" class="project-configuration-workspace__result-tabs" theme="card">
+          <t-tab-panel v-if="diffResult" value="diff" :label="t('project.detail.configuration.diffTitle')">
+            <div class="project-configuration-workspace__feedback-panel">
+              <t-alert
+                :theme="diffResult.has_changes ? 'warning' : 'success'"
+                :message="
+                  diffResult.has_changes
+                    ? t('project.detail.configuration.diffHasChanges')
+                    : t('project.detail.configuration.diffNoChanges')
+                "
+              />
+              <div v-if="diffResult.warnings?.length" class="project-configuration-workspace__warning-list">
+                <t-alert v-for="warning in diffResult.warnings" :key="warning" theme="warning" :message="warning" />
+              </div>
+              <div class="project-configuration-workspace__diff-layout">
+                <div class="project-configuration-workspace__diff-files">
+                  <button
+                    v-for="file in diffResult.files"
+                    :key="`${file.kind}-${file.path}`"
+                    class="project-configuration-workspace__diff-file"
+                    :class="{
+                      'project-configuration-workspace__diff-file--active': selectedDiffFile?.path === file.path,
+                    }"
+                    type="button"
+                    @click="selectedDiffFilePath = file.path"
+                  >
+                    <span class="project-configuration-workspace__diff-file-main">
+                      <span class="project-configuration-workspace__diff-file-name">
+                        {{ diffFileName(file.display_path || file.path) }}
+                      </span>
+                      <span
+                        v-if="diffFileDirectory(file.display_path || file.path)"
+                        class="project-configuration-workspace__diff-file-path"
+                      >
+                        {{ diffFileDirectory(file.display_path || file.path) }}
+                      </span>
+                    </span>
+                    <t-tag :theme="file.changed ? 'warning' : 'success'" variant="light-outline">
+                      {{
+                        file.changed
+                          ? t('project.detail.configuration.diffFileChanged')
+                          : t('project.detail.configuration.diffFileUnchanged')
+                      }}
+                    </t-tag>
+                  </button>
+                </div>
+                <div class="project-configuration-workspace__diff-viewer">
+                  <div v-if="selectedDiffFile" class="project-configuration-workspace__diff-pane-heads">
+                    <div class="project-configuration-workspace__diff-pane-head">
+                      <span class="project-configuration-workspace__diff-pane-label">
+                        {{ t('project.detail.configuration.currentHash') }}
+                      </span>
+                      <t-tooltip :content="selectedDiffFile.current_hash" placement="top-left" theme="light">
+                        <code
+                          class="project-configuration-workspace__hash-text"
+                          data-testid="configuration-diff-current-hash"
+                        >
+                          {{ formatWorkspaceHash(selectedDiffFile.current_hash) }}
+                        </code>
+                      </t-tooltip>
+                    </div>
+                    <div class="project-configuration-workspace__diff-pane-head">
+                      <span class="project-configuration-workspace__diff-pane-label">
+                        {{ t('project.detail.configuration.proposedHash') }}
+                      </span>
+                      <t-tooltip :content="selectedDiffFile.proposed_hash" placement="top-left" theme="light">
+                        <code
+                          class="project-configuration-workspace__hash-text"
+                          data-testid="configuration-diff-proposed-hash"
+                        >
+                          {{ formatWorkspaceHash(selectedDiffFile.proposed_hash) }}
+                        </code>
+                      </t-tooltip>
+                    </div>
+                  </div>
+                  <div class="project-configuration-workspace__result-viewer">
+                    <project-monaco-diff-surface
+                      v-if="selectedDiffFile"
+                      :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
+                      :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
+                      :modified-key="`diff-modified-${selectedDiffFile.path}`"
+                      :modified-value="selectedDiffFile.proposed_content"
+                      :original-key="`diff-original-${selectedDiffFile.path}`"
+                      :original-value="selectedDiffFile.current_content"
+                      test-id="configuration-diff-viewer"
+                    />
+                    <t-empty v-else :description="workspaceCopy.selectDiffFile" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </t-tab-panel>
+
+          <t-tab-panel
+            v-if="validateResult"
+            value="validation"
+            :label="t('project.detail.configuration.validationTitle')"
+          >
+            <div class="project-configuration-workspace__feedback-panel">
+              <t-space size="small" break-line>
+                <t-tooltip :content="validateResult.proposed_config_hash" placement="top-left" theme="light">
+                  <t-tag theme="primary" variant="light-outline">
+                    {{ t('project.detail.configuration.proposedHash') }}:
+                    {{ formatWorkspaceHash(validateResult.proposed_config_hash) }}
+                  </t-tag>
+                </t-tooltip>
+                <t-tag theme="default" variant="light-outline">
+                  {{ t('project.detail.configuration.declaredServices') }}:
+                  {{ validateResult.declared_service_names.join(', ') || '-' }}
+                </t-tag>
+              </t-space>
+              <div v-if="validateResult.warnings?.length" class="project-configuration-workspace__warning-list">
+                <t-alert v-for="warning in validateResult.warnings" :key="warning" theme="warning" :message="warning" />
+              </div>
+              <div class="project-configuration-workspace__result-viewer">
+                <project-monaco-surface
+                  class="project-configuration-workspace__monaco-viewer"
+                  :model-value="validateResult.normalized_compose_yaml"
+                  :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
+                  language="yaml"
+                  model-key="validation-normalized-yaml"
+                  :options="readonlyOptions"
+                  read-only
+                  test-id="validation-monaco-viewer"
+                />
+              </div>
+            </div>
+          </t-tab-panel>
+        </t-tabs>
+      </div>
+    </t-dialog>
 
     <t-dialog
       v-model:visible="dialogState.visible"
@@ -547,8 +628,9 @@ import {
   FileIcon,
   FolderIcon,
 } from 'tdesign-icons-vue-next';
+import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
@@ -633,6 +715,7 @@ type WorkspaceOpenFile = {
 };
 
 const EDITOR_WIDTH_STORAGE_KEY = 'graft.project.configuration-workspace.sidebar.width';
+const EDITOR_HEIGHT_STORAGE_KEY = 'graft.project.configuration-workspace.editor.height.v2';
 const SIDEBAR_MAX_WIDTH = 360;
 const SIDEBAR_MIN_WIDTH = 208;
 const SIDEBAR_DEFAULT_WIDTH = 256;
@@ -644,6 +727,7 @@ const { locale, t } = useProjectPageContext();
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
 const workspaceShellRef = ref<HTMLElement | null>(null);
+const editorStackHostRef = ref<HTMLElement | null>(null);
 const workspaceLoading = ref(false);
 const workspaceError = ref('');
 const workspaceReady = computed(() => Boolean(detailRecord.value && metadata.value && !workspaceError.value));
@@ -655,12 +739,17 @@ const currentWorkspacePath = ref('');
 const selectedWorkspacePath = ref('');
 const sidebarWidth = ref(resolveStoredSidebarWidth());
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
+const editorViewportHeight = ref(720);
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
 const snapshotPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
 const snapshotLoading = ref(false);
 const snapshotDrawerVisible = ref(false);
-const feedbackTab = ref<FeedbackTab>('diff');
+const workspaceFullscreen = ref(false);
+const resultDialogVisible = ref(false);
+const resultDialogTab = ref<FeedbackTab>('diff');
+const resultDialogFullscreen = ref(false);
+const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<ProjectConfigurationDiffResponse | null>(null);
 const validateResult = ref<ProjectConfigurationValidateResponse | null>(null);
 const diffLoading = ref(false);
@@ -748,15 +837,25 @@ const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE
 const sidebarPaneStyle = computed(() =>
   isSidebarResizable.value ? { width: `${clampSidebarWidth(sidebarWidth.value)}px` } : undefined,
 );
+const editorFrameHeight = computed(() => Math.max(560, editorViewportHeight.value));
 const hasDirtyFiles = computed(() =>
   openTabBuffers.value.some((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
-const hasFeedback = computed(() => Boolean(diffResult.value || validateResult.value));
 const selectedDiffFile = computed(
   () =>
     diffResult.value?.files.find((file) => file.path === selectedDiffFilePath.value) ??
     diffResult.value?.files[0] ??
     null,
+);
+const resultDialogClassName = computed(() =>
+  resultDialogFullscreen.value
+    ? 'project-configuration-workspace__result-dialog-shell project-configuration-workspace__result-dialog-shell--fullscreen'
+    : 'project-configuration-workspace__result-dialog-shell',
+);
+const resultDialogTitle = computed(() =>
+  resultDialogTab.value === 'validation'
+    ? String(t('project.detail.configuration.validationTitle'))
+    : String(t('project.detail.configuration.diffTitle')),
 );
 const workspaceItemMap = computed(() => {
   const itemMap = new Map<string, WorkspaceListItem>();
@@ -802,6 +901,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleWorkspaceKeydown);
   window.removeEventListener('resize', syncWorkspaceViewport);
   stopSidebarResize();
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+  }
 });
 
 watch(showHiddenFiles, () => {
@@ -814,6 +917,24 @@ watch(showHiddenFiles, () => {
   directoryErrorMap.clear();
   directoryLoadingMap.clear();
   void loadWorkspaceDirectory('', { root: true });
+});
+
+watch(resultDialogVisible, (visible) => {
+  if (!visible) {
+    resultDialogFullscreen.value = false;
+  }
+});
+
+watch(workspaceFullscreen, (fullscreen) => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.body.style.overflow = fullscreen ? 'hidden' : '';
+  document.documentElement.style.overflow = fullscreen ? 'hidden' : '';
+  void nextTick(() => {
+    syncWorkspaceViewport();
+  });
 });
 
 watch(
@@ -845,8 +966,9 @@ async function loadWorkspace() {
     ]);
     detailRecord.value = detail;
     metadata.value = configurationMetadata;
-    syncWorkspaceViewport();
     await loadWorkspaceDirectory('', { root: true });
+    await nextTick();
+    syncWorkspaceViewport();
   } catch (error) {
     logger.error('failed to load project configuration workspace', error);
     workspaceError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
@@ -940,6 +1062,14 @@ function workspaceEntryTestId(item: WorkspaceListItem) {
 
 function workspaceAnnotationTestId(item: WorkspaceListItem) {
   return `${workspaceEntryTestId(item)}-annotation`;
+}
+
+function workspaceFileTabMenuTestId(path: string) {
+  return `workspace-file-tab-menu-${workspaceEntryTestId({ relative_path: path, name: path } as WorkspaceListItem)}`;
+}
+
+function workspaceFileTabMenuItemTestId(path: string, action: string) {
+  return `${workspaceFileTabMenuTestId(path)}-${action}`;
 }
 
 async function toggleWorkspaceDirectory(item: WorkspaceListItem) {
@@ -1214,8 +1344,16 @@ async function reloadActiveFile() {
     return;
   }
 
-  const buffer = activeBuffer.value;
-  if (isFileDirty(buffer.path)) {
+  await reloadWorkspaceFile(activeBuffer.value.path);
+}
+
+async function reloadWorkspaceFile(path: string) {
+  const buffer = openFileMap.get(path);
+  if (!buffer) {
+    return;
+  }
+
+  if (isFileDirty(path)) {
     const action = await openDialog({
       body: workspaceCopy.value.reloadConfirmBody,
       buttons: [
@@ -1242,9 +1380,81 @@ async function reloadActiveFile() {
 }
 
 async function handleCloseTab(path: string) {
+  const closed = await closeWorkspaceTabs([path], { skipBatchDirtyPrompt: true });
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function closeWorkspaceTabs(paths: string[], options?: { skipBatchDirtyPrompt?: boolean }) {
+  const uniquePaths = [...new Set(paths)].filter((path) => openFileMap.has(path));
+  if (!uniquePaths.length) {
+    return false;
+  }
+
+  if (!options?.skipBatchDirtyPrompt) {
+    const dirtyPaths = uniquePaths.filter((path) => isFileDirty(path));
+    if (dirtyPaths.length) {
+      const action = await openDialog({
+        body: workspaceCopy.value.dirtyProjectActionBody,
+        buttons: [
+          { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
+          { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
+          { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+        ],
+        title: workspaceCopy.value.dirtyProjectActionTitle,
+      });
+      if (action === 'cancel') {
+        return false;
+      }
+      if (action === 'save') {
+        const saved = await saveTabsByPaths(dirtyPaths);
+        if (!saved) {
+          return false;
+        }
+      }
+    }
+  }
+
+  if (uniquePaths.length === 1) {
+    return closeSingleWorkspaceTab(uniquePaths[0]);
+  }
+
+  const closedPathSet = new Set(uniquePaths);
+  const currentTabs = [...openTabs.value];
+  const currentActivePath = activeTabPath.value;
+  const activeIndex = currentTabs.findIndex((item) => item === currentActivePath);
+  const nextTabs = currentTabs.filter((path) => !closedPathSet.has(path));
+
+  uniquePaths.forEach((path) => {
+    openFileMap.delete(path);
+  });
+
+  openTabs.value = nextTabs;
+  if (!currentActivePath || !closedPathSet.has(currentActivePath)) {
+    return true;
+  }
+
+  activeTabPath.value = resolveNextWorkspaceTabAfterClose(currentTabs, closedPathSet, activeIndex);
+  return true;
+}
+
+function resolveNextWorkspaceTabAfterClose(currentTabs: string[], closedPathSet: Set<string>, activeIndex: number) {
+  const nextRight = currentTabs.slice(activeIndex + 1).find((path) => !closedPathSet.has(path));
+  if (nextRight) {
+    return nextRight;
+  }
+
+  const nextLeft = [...currentTabs.slice(0, Math.max(activeIndex, 0))]
+    .reverse()
+    .find((path) => !closedPathSet.has(path));
+  return nextLeft || '';
+}
+
+async function closeSingleWorkspaceTab(path: string) {
   const current = openFileMap.get(path);
   if (!current) {
-    return;
+    return false;
   }
 
   if (isFileDirty(path)) {
@@ -1258,18 +1468,108 @@ async function handleCloseTab(path: string) {
       title: workspaceCopy.value.dirtyCloseTitle,
     });
     if (action === 'cancel') {
-      return;
+      return false;
     }
     if (action === 'save') {
       const saved = await saveWorkspaceFile(path);
       if (!saved) {
-        return;
+        return false;
       }
     }
   }
 
   openFileMap.delete(path);
   openTabs.value = openTabs.value.filter((item) => item !== path);
+  return true;
+}
+
+async function saveTabsByPaths(paths: string[]) {
+  const uniquePaths = [...new Set(paths)].filter((path) => isFileDirty(path));
+  if (!uniquePaths.length) {
+    return true;
+  }
+
+  for (const path of uniquePaths) {
+    const saved = await saveWorkspaceFile(path, { silent: true });
+    if (!saved) {
+      return false;
+    }
+  }
+
+  MessagePlugin.success(workspaceCopy.value.saveSuccess);
+  return true;
+}
+
+function hasClosableFileTabsAhead(path: string) {
+  const index = openTabs.value.indexOf(path);
+  return index > 0;
+}
+
+function hasClosableFileTabsBehind(path: string) {
+  const index = openTabs.value.indexOf(path);
+  return index !== -1 && index < openTabs.value.length - 1;
+}
+
+function hasClosableOtherFileTabs(path: string) {
+  return openTabs.value.length > 1 && openTabs.value.some((item) => item !== path);
+}
+
+const hasClosableFileTabs = computed(() => openTabs.value.length > 0);
+
+async function handleRefreshFileTab(path: string) {
+  await reloadWorkspaceFile(path);
+  activeFileTabPathForMenu.value = null;
+}
+
+async function handleCloseFileTabsAhead(path: string) {
+  const targetIndex = openTabs.value.indexOf(path);
+  if (targetIndex <= 0) {
+    activeFileTabPathForMenu.value = null;
+    return;
+  }
+
+  const closed = await closeWorkspaceTabs(openTabs.value.slice(0, targetIndex));
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function handleCloseFileTabsBehind(path: string) {
+  const targetIndex = openTabs.value.indexOf(path);
+  if (targetIndex === -1 || targetIndex >= openTabs.value.length - 1) {
+    activeFileTabPathForMenu.value = null;
+    return;
+  }
+
+  const closed = await closeWorkspaceTabs(openTabs.value.slice(targetIndex + 1));
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function handleCloseOtherFileTabs(path: string) {
+  const closed = await closeWorkspaceTabs(openTabs.value.filter((item) => item !== path));
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function handleCloseAllFileTabs() {
+  const closed = await closeWorkspaceTabs([...openTabs.value]);
+  if (closed) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+function handleFileTabMenuClick(visible: boolean, ctx: PopupVisibleChangeContext, path: string) {
+  if (visible) {
+    activeFileTabPathForMenu.value = path;
+    return;
+  }
+
+  if (activeFileTabPathForMenu.value === path || ctx.trigger === 'document') {
+    activeFileTabPathForMenu.value = null;
+  }
 }
 
 async function runProjectDiff() {
@@ -1282,7 +1582,8 @@ async function runProjectDiff() {
   try {
     diffResult.value = await postProjectConfigurationDiff(projectId.value);
     selectedDiffFilePath.value = diffResult.value.files[0]?.path || '';
-    feedbackTab.value = 'diff';
+    resultDialogTab.value = 'diff';
+    resultDialogVisible.value = true;
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.diffFailed')));
   } finally {
@@ -1299,13 +1600,18 @@ async function runProjectValidate() {
   validateLoading.value = true;
   try {
     validateResult.value = await postProjectConfigurationValidate(projectId.value);
-    feedbackTab.value = 'validation';
+    resultDialogTab.value = 'validation';
+    resultDialogVisible.value = true;
     MessagePlugin.success(t('project.detail.configuration.validateSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.validateFailed')));
   } finally {
     validateLoading.value = false;
   }
+}
+
+function toggleResultDialogFullscreen() {
+  resultDialogFullscreen.value = !resultDialogFullscreen.value;
 }
 
 async function runProjectDeploy() {
@@ -1413,6 +1719,21 @@ function formatWorkspaceHash(value?: string | null) {
   return `${normalized.slice(0, 6)}...${normalized.slice(-6)}`;
 }
 
+function diffFileDirectory(path: string) {
+  const normalized = String(path).trim().replaceAll('\\', '/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (segments.length <= 1) {
+    return '';
+  }
+  return segments.slice(0, -1).join('/');
+}
+
+function diffFileName(path: string) {
+  const normalized = String(path).trim().replaceAll('\\', '/');
+  const segments = normalized.split('/').filter(Boolean);
+  return segments[segments.length - 1] || normalized || '-';
+}
+
 function openDialog(config: { body: string; buttons: WorkspaceDialogButton[]; title: string }) {
   if (dialogState.resolver) {
     dialogState.resolver('cancel');
@@ -1443,6 +1764,11 @@ function resolveDialog(result: DialogResult) {
 }
 
 function handleWorkspaceKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && workspaceFullscreen.value) {
+    workspaceFullscreen.value = false;
+    return;
+  }
+
   const root = workspaceRootRef.value;
   if (!root || !activeBuffer.value || !canSaveActiveBuffer.value) {
     return;
@@ -1513,6 +1839,16 @@ function syncWorkspaceViewport() {
 
   viewportWidth.value = window.innerWidth;
   sidebarWidth.value = clampSidebarWidth(sidebarWidth.value);
+  syncEditorViewportHeight();
+}
+
+function syncEditorViewportHeight() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const editorTop = editorStackHostRef.value?.getBoundingClientRect().top ?? 320;
+  editorViewportHeight.value = Math.max(560, Math.floor(window.innerHeight - editorTop - 40));
 }
 
 function startSidebarResize(event: PointerEvent) {
@@ -1599,7 +1935,10 @@ function stopSidebarResize() {
   --graft-workspace-editor-diff-removed: color-mix(in srgb, var(--td-error-color-5) 18%, transparent);
   --graft-workspace-tab-indicator: var(--td-brand-color-6);
   --graft-workspace-tab-hover: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
-  --graft-workspace-feedback-separator: color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
+}
+
+.project-configuration-workspace--fullscreen {
+  min-width: 0;
 }
 
 .project-configuration-workspace__summary-strip,
@@ -1621,7 +1960,7 @@ function stopSidebarResize() {
 }
 
 .project-configuration-workspace__summary-strip .project-configuration-workspace__section-head p,
-.project-configuration-workspace__feedback .project-configuration-workspace__section-head p {
+.project-configuration-workspace__result-dialog-header .project-configuration-workspace__section-head p {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: var(--graft-density-gap-4) 0 0;
@@ -1634,12 +1973,52 @@ function stopSidebarResize() {
   min-height: 0;
 }
 
+.project-configuration-workspace--fullscreen .project-configuration-workspace__summary-strip {
+  display: none;
+}
+
+.project-configuration-workspace--fullscreen .project-configuration-workspace__main-grid {
+  background: var(--graft-shell-content-bg, var(--td-bg-color-page));
+  inset: var(--graft-density-gap-16);
+  margin-top: 0;
+  min-height: calc(100vh - 32px);
+  padding: 0;
+  position: fixed;
+  z-index: 4400;
+}
+
+.project-configuration-workspace--fullscreen .project-configuration-workspace__sidebar,
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-stack,
+.project-configuration-workspace--fullscreen .project-configuration-workspace__browser-card,
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-surface,
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-stage,
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-loading {
+  height: 100%;
+}
+
+.project-configuration-workspace--fullscreen
+  .project-configuration-workspace__editor-stack
+  :deep(.content-viewer-frame),
+.project-configuration-workspace--fullscreen
+  .project-configuration-workspace__editor-stack
+  :deep(.content-viewer-frame__panel),
+.project-configuration-workspace--fullscreen
+  .project-configuration-workspace__editor-stack
+  :deep(.content-viewer-frame__surface),
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-stack :deep(.t-loading__parent),
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-stack :deep(.t-loading__content),
+.project-configuration-workspace--fullscreen .project-configuration-workspace__editor-stack :deep(.t-loading__wrap) {
+  height: 100%;
+}
+
 .project-configuration-workspace__sidebar,
 .project-configuration-workspace__browser-card,
 .project-configuration-workspace__editor-stack,
 .project-configuration-workspace__feedback-panel,
 .project-configuration-workspace__diff-layout,
 .project-configuration-workspace__diff-viewer,
+.project-configuration-workspace__result-dialog,
+.project-configuration-workspace__result-viewer,
 .project-configuration-workspace__readonly-viewer,
 .project-configuration-workspace__drawer-viewer {
   min-height: 0;
@@ -1896,7 +2275,7 @@ function stopSidebarResize() {
 }
 
 .project-configuration-workspace__tabs,
-.project-configuration-workspace__feedback-tabs {
+.project-configuration-workspace__result-tabs {
   margin-bottom: 0;
 
   :deep(.t-tabs__header) {
@@ -1945,9 +2324,29 @@ function stopSidebarResize() {
   }
 }
 
-.project-configuration-workspace__feedback-tabs {
+.project-configuration-workspace__result-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+
+  :deep(.t-tabs) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   :deep(.t-tabs__content) {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
+  }
+
+  :deep(.t-tab-panel) {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 }
 
@@ -2011,22 +2410,27 @@ function stopSidebarResize() {
 .project-configuration-workspace__warning-list,
 .project-configuration-workspace__feedback-panel {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+  min-height: 0;
 }
 
 .project-configuration-workspace__diff-layout {
   display: grid;
+  flex: 1 1 auto;
   gap: var(--graft-density-gap-12);
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
-  min-height: 420px;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  min-height: 0;
 }
 
 .project-configuration-workspace__diff-files {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-8);
+  min-height: 0;
   min-width: 0;
+  overflow: auto;
 }
 
 .project-configuration-workspace__diff-file {
@@ -2039,11 +2443,34 @@ function stopSidebarResize() {
   display: flex;
   gap: var(--graft-density-gap-8);
   justify-content: space-between;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
   text-align: left;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease;
+}
+
+.project-configuration-workspace__diff-file-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.project-configuration-workspace__diff-file-name {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-configuration-workspace__diff-file-path {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-configuration-workspace__diff-file:hover {
@@ -2057,21 +2484,39 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__diff-viewer {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+  min-height: 0;
 }
 
-.project-configuration-workspace__diff-meta {
-  color: var(--td-text-color-secondary);
-  display: flex;
-  flex-wrap: wrap;
-  font: var(--td-font-body-small);
+.project-configuration-workspace__diff-pane-heads {
+  display: grid;
   gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-configuration-workspace__diff-pane-head {
+  align-items: center;
+  background: var(--graft-workspace-editor-surface-muted);
+  border: 1px solid var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
+}
+
+.project-configuration-workspace__diff-pane-label {
+  color: var(--td-text-color-secondary);
+  flex: 0 0 auto;
+  font: var(--td-font-body-small);
 }
 
 .project-configuration-workspace__hash-text {
   color: var(--td-text-color-primary);
   display: inline-block;
+  flex: 1 1 auto;
   font-family: var(--td-font-family-mono, monospace);
   max-width: 100%;
   min-width: 0;
@@ -2081,35 +2526,60 @@ function stopSidebarResize() {
   white-space: nowrap;
 }
 
+.project-configuration-workspace__result-dialog {
+  background: var(--graft-workspace-editor-surface);
+  block-size: 100%;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.project-configuration-workspace__result-dialog-header {
+  border-bottom: 1px solid var(--graft-workspace-editor-border);
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-10);
+}
+
+.project-configuration-workspace__result-viewer,
 .project-configuration-workspace__readonly-viewer,
 .project-configuration-workspace__drawer-viewer {
   background: var(--graft-workspace-editor-surface-muted);
-  block-size: 480px;
   border: 1px solid var(--graft-workspace-editor-border);
   border-radius: var(--td-radius-large);
-  margin-top: var(--graft-density-gap-12);
+  flex: 1 1 auto;
+  min-block-size: 360px;
   overflow: hidden;
 }
 
-.project-configuration-workspace__feedback {
-  background: var(--graft-workspace-editor-surface);
-  border: 0;
-  border-radius: 0 0 var(--td-radius-large) var(--td-radius-large);
-  border-top: 1px solid var(--graft-workspace-feedback-separator);
-  box-shadow: none;
+.project-configuration-workspace__diff-viewer .project-configuration-workspace__result-viewer {
+  min-block-size: 0;
 }
 
-.project-configuration-workspace__feedback :deep(.t-card__header) {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 4%, transparent), transparent);
-  border-bottom: 1px solid var(--graft-workspace-editor-border);
+:deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
 }
 
-.project-configuration-workspace__feedback :deep(.t-card__body) {
-  background: var(--graft-workspace-editor-surface);
+:deep(.project-configuration-workspace__result-dialog-shell .t-dialog__header) {
+  padding: 0;
 }
 
-.project-configuration-workspace__feedback :deep(.t-empty) {
-  min-block-size: 220px;
+:deep(.project-configuration-workspace__result-dialog-shell .t-dialog__body-content) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+:deep(.project-configuration-workspace__result-dialog-shell .t-dialog) {
+  max-width: 1440px;
+}
+
+:deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog) {
+  max-width: none;
 }
 
 .project-configuration-workspace__dialog-body {

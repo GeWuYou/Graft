@@ -47,6 +47,7 @@ type FileRecord struct {
 	OrderIndex          int
 	ExistsOnLastRefresh bool
 	LastObservedHash    string
+	LastObservedContent string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }

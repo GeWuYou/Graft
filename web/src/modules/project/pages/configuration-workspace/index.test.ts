@@ -121,13 +121,27 @@ vi.mock('@/shared/components/management', () => ({
 vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
   default: defineComponent({
     name: 'ContentViewerFrameStub',
-    setup(_props, { slots }) {
+    props: {
+      defaultHeight: { type: Number, default: 0 },
+      minHeight: { type: Number, default: undefined },
+      mobileMinHeight: { type: Number, default: undefined },
+    },
+    setup(props, { slots }) {
       return () =>
-        h('section', { class: 'content-viewer-frame-stub' }, [
-          h('div', { class: 'content-viewer-header' }, slots.header?.()),
-          h('div', { class: 'content-viewer-header-actions' }, slots['header-actions']?.()),
-          h('div', { class: 'content-viewer-body' }, slots.default?.()),
-        ]);
+        h(
+          'section',
+          {
+            class: 'content-viewer-frame-stub',
+            'data-default-height': String(props.defaultHeight),
+            'data-min-height': props.minHeight === undefined ? undefined : String(props.minHeight),
+            'data-mobile-min-height': props.mobileMinHeight === undefined ? undefined : String(props.mobileMinHeight),
+          },
+          [
+            h('div', { class: 'content-viewer-header' }, slots.header?.()),
+            h('div', { class: 'content-viewer-header-actions' }, slots['header-actions']?.()),
+            h('div', { class: 'content-viewer-body' }, slots.default?.()),
+          ],
+        );
     },
   }),
 }));
@@ -238,12 +252,59 @@ const TTabsStub = defineComponent({
   },
 });
 
+const TDropdownStub = defineComponent({
+  name: 'TDropdownStub',
+  props: {
+    popupProps: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  setup(props, { attrs, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          ...attrs,
+          'data-popup-visible':
+            props.popupProps && typeof props.popupProps === 'object' && 'visible' in props.popupProps
+              ? String((props.popupProps as { visible?: boolean }).visible)
+              : 'false',
+        },
+        [h('div', { class: 't-dropdown-trigger-stub' }, slots.default?.()), h('div', slots.dropdown?.())],
+      );
+  },
+});
+
+const TDropdownItemStub = defineComponent({
+  name: 'TDropdownItemStub',
+  props: {
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['click'],
+  setup(props, { attrs, emit, slots }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          disabled: props.disabled,
+          type: 'button',
+          onClick: () => !props.disabled && emit('click'),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
 const TDialogStub = defineComponent({
   name: 'TDialogStub',
   props: {
     cancelBtn: { type: [Boolean, Object], default: false },
     confirmBtn: { type: [Boolean, Object], default: false },
+    dialogClassName: { type: String, default: '' },
     header: { type: String, default: '' },
+    mode: { type: String, default: 'modal' },
     visible: { type: Boolean, default: false },
   },
   emits: ['close', 'confirm', 'update:visible'],
@@ -252,6 +313,8 @@ const TDialogStub = defineComponent({
       h(
         'div',
         {
+          'data-class-name': props.dialogClassName,
+          'data-mode': props.mode,
           'data-stub': 'TDialog',
           'data-title': props.header,
           'data-visible': String(props.visible),
@@ -417,6 +480,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
           changed: true,
           current_content: 'services:\n  api:\n    image: old\n',
           current_hash: 'c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef',
+          display_path: 'docker-compose.yml',
           kind: 'compose',
           path: 'docker-compose.yml',
           proposed_content: 'services:\n  api:\n    image: app\n',
@@ -506,6 +570,103 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
+  it('renders the file tab context menu actions for each open editor tab', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-docker-compose-yml"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-config-env"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('layout.tagTabs.refresh');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeLeft');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeRight');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeOther');
+    expect(wrapper.text()).toContain('layout.tagTabs.closeAll');
+  });
+
+  it('closes file tabs to the right from the context menu actions', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.findAll('.t-tab-panel-stub')).toHaveLength(2);
+
+    await wrapper
+      .get('[data-testid="workspace-file-tab-menu-workspace-entry-docker-compose-yml-close-right"]')
+      .trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('.t-tab-panel-stub')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="workspace-file-tab-menu-workspace-entry-config-env"]').exists()).toBe(false);
+  });
+
+  it('refreshes a non-active file tab from the context menu action without changing the active editor', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
+
+    const composeCallsBefore = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'docker-compose.yml',
+    ).length;
+
+    await wrapper
+      .get('[data-testid="workspace-file-tab-menu-workspace-entry-docker-compose-yml-refresh"]')
+      .trigger('click');
+    await flushPromises();
+
+    const composeCallsAfter = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'docker-compose.yml',
+    ).length;
+    expect(composeCallsAfter).toBe(composeCallsBefore + 1);
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('lets the workspace page exit fullscreen on escape', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('.content-viewer-header-actions button:nth-of-type(2)').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('.project-configuration-workspace').classes()).toContain(
+      'project-configuration-workspace--fullscreen',
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.project-configuration-workspace').classes()).not.toContain(
+      'project-configuration-workspace--fullscreen',
+    );
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('passes only the editor default height to the shared viewer frame', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    const frame = wrapper.get('.content-viewer-frame-stub');
+    expect(Number(frame.attributes('data-default-height'))).toBeGreaterThanOrEqual(560);
+    expect(frame.attributes('data-min-height')).toBeUndefined();
+    expect(frame.attributes('data-mobile-min-height')).toBeUndefined();
+  });
+
   it('renders compact tree row actions and removes the duplicate editor title header', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -513,6 +674,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__editor-head').exists()).toBe(false);
     expect(wrapper.find('.project-configuration-workspace__browser-toolbar').exists()).toBe(false);
+    expect(wrapper.find('.project-configuration-workspace__feedback').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('current directory still contains default-hidden directories');
   });
 
@@ -617,10 +779,49 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('40ddc4...b6182c');
-    expect(wrapper.text()).toContain('0dd31a...27ca10');
-    expect(wrapper.html()).toContain('data-tooltip-content="40ddc4d9bc754dc141bd5f7d57842f693b4c19fb6182c"');
+    expect(wrapper.get('[data-testid="configuration-diff-current-hash"]').text()).toBe('c90a77...1e90ef');
+    expect(wrapper.get('[data-testid="configuration-diff-proposed-hash"]').text()).toBe('0dd31a...27ca10');
+    expect(wrapper.html()).toContain('data-tooltip-content="c90a77d4f1e9515ab3e7a02017df9f5c725ab11e90ef"');
     expect(wrapper.html()).toContain('data-tooltip-content="0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10"');
+    expect(wrapper.text()).not.toContain('40ddc4...b6182c');
+  });
+
+  it('opens the diff result in a modal dialog and toggles fullscreen on demand', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.diffAction')
+      ?.trigger('click');
+    await flushPromises();
+
+    const dialogs = wrapper.findAll('[data-stub="TDialog"]');
+    const resultDialog = dialogs.at(0);
+    expect(resultDialog?.attributes('data-visible')).toBe('true');
+    expect(resultDialog?.attributes('data-mode')).toBe('modal');
+    expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('docker-compose.yml');
+
+    await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-stub="TDialog"]').at(0)?.attributes('data-mode')).toBe('full-screen');
+  });
+
+  it('opens validation in the same result dialog', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.validateAction')
+      ?.trigger('click');
+    await flushPromises();
+
+    const resultDialog = wrapper.findAll('[data-stub="TDialog"]').at(0);
+    expect(resultDialog?.attributes('data-visible')).toBe('true');
+    expect(wrapper.find('[data-testid="validation-monaco-viewer"]').exists()).toBe(true);
   });
 
   it('saves the active file buffer without deploying the project', async () => {
@@ -682,6 +883,9 @@ function mountWorkspace() {
         TDescriptions: createTStub('TDescriptions'),
         TDescriptionsItem: createTStub('TDescriptionsItem'),
         TDialog: TDialogStub,
+        TDropdown: TDropdownStub,
+        TDropdownItem: TDropdownItemStub,
+        TDropdownMenu: createTStub('TDropdownMenu'),
         TDrawer: createTStub('TDrawer'),
         TEmpty: createTStub('TEmpty'),
         TLoading: createTStub('TLoading'),

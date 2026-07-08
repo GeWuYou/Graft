@@ -126,7 +126,7 @@
                             </div>
                           </template>
                           <config-value-renderer
-                            v-else
+                            v-else-if="!isWorkspaceTooltipRuleRow(row)"
                             :value="row.rawValue"
                             :schema="row.schema"
                             :unit="row.unit"
@@ -153,6 +153,11 @@
                               </t-tooltip>
                             </template>
                           </config-value-renderer>
+                          <workspace-tooltip-rule-collection
+                            v-else
+                            :model-value="row.rawValue"
+                            :labels="ruleCollectionPreviewLabels()"
+                          />
                         </dd>
                       </template>
                     </dl>
@@ -183,7 +188,7 @@
                                 </div>
                               </template>
                               <config-value-renderer
-                                v-else
+                                v-else-if="!isWorkspaceTooltipRuleRow(row)"
                                 :value="row.rawValue"
                                 :schema="row.schema"
                                 :unit="row.unit"
@@ -210,6 +215,11 @@
                                   </t-tooltip>
                                 </template>
                               </config-value-renderer>
+                              <workspace-tooltip-rule-collection
+                                v-else
+                                :model-value="row.rawValue"
+                                :labels="ruleCollectionPreviewLabels()"
+                              />
                             </dd>
                           </template>
                         </dl>
@@ -392,6 +402,7 @@ import { copyText } from '@/shared/observability';
 import {
   configEditorContainer,
   ConfigEditorRenderer,
+  configFieldRenderer,
   type ConfigSchema,
   type ConfigSchemaField,
   type ConfigSchemaProperty,
@@ -399,6 +410,7 @@ import {
   getConfigSchemaFields,
   parseConfigSchema,
   validateConfigEditorValue,
+  WorkspaceTooltipRuleCollection,
 } from '@/shared/schema-form';
 import { formatJsonValue, isJsonRecord, parseJsonValue } from '@/shared/schema-form/json';
 import type { ApiRequestError } from '@/types/axios';
@@ -486,16 +498,50 @@ const editingItem = ref<SystemConfigItem | null>(null);
 const editorForm = reactive<{ value: unknown }>({ value: undefined });
 
 const schemaLabels = computed(() => ({
+  advancedTitle: t('systemConfig.list.schema.advancedTitle'),
+  basicInfoTitle: t('systemConfig.list.schema.basicInfoTitle'),
   invalidJson: t('systemConfig.list.schema.invalidJson'),
   invalidValue: t('systemConfig.list.schema.invalidValue'),
   jsonPlaceholder: t('systemConfig.list.schema.jsonPlaceholder'),
   numberPlaceholder: t('systemConfig.list.schema.numberPlaceholder'),
+  collectionEnabledCount: t('systemConfig.list.schema.ruleCollectionEnabledCount'),
+  collectionRuleCount: t('systemConfig.list.schema.ruleCollectionRuleCount'),
+  collectionTitle: '',
+  detailDescription: t('systemConfig.list.schema.ruleDetailDescription'),
+  detailTitle: t('systemConfig.list.schema.ruleDetailTitle'),
+  expandPatternEditorAction: t('systemConfig.list.schema.rulePatternExpandAction'),
+  emptyDescription: t('systemConfig.list.schema.rulePreviewEmptyDescription'),
+  emptyTitle: t('systemConfig.list.schema.rulePreviewEmptyTitle'),
   ruleAddAction: t('systemConfig.list.schema.ruleAddAction'),
+  ruleDisabledState: t('systemConfig.list.schema.ruleDisabledState'),
   ruleDownAction: t('systemConfig.list.schema.ruleDownAction'),
+  ruleDragHint: t('systemConfig.list.schema.ruleDragHint'),
+  ruleEnabledDescription: t('systemConfig.list.schema.ruleEnabledDescription'),
   ruleEnabledLabel: t('systemConfig.list.schema.ruleEnabledLabel'),
+  ruleEnabledState: t('systemConfig.list.schema.ruleEnabledState'),
+  ruleFallbackTitle: t('systemConfig.list.schema.ruleFallbackTitle'),
+  invalidPatternLabel: t('systemConfig.list.schema.ruleInvalidPatternLabel'),
+  ruleMatchedDescription: t('systemConfig.list.schema.ruleMatchedDescription'),
+  ruleMatchedLabel: t('systemConfig.list.schema.ruleMatchedLabel'),
+  ruleMatchedRuleLabel: t('systemConfig.list.schema.ruleMatchedRuleLabel'),
+  noPatternSummary: t('systemConfig.list.schema.ruleNoPatternSummary'),
+  regexEditorLabel: t('systemConfig.list.schema.regexEditorLabel'),
+  rulePatternDescription: t('systemConfig.list.schema.rulePatternDescription'),
+  rulePatternLabel: t('systemConfig.list.schema.rulePatternLabel'),
   rulePatternPlaceholder: t('systemConfig.list.schema.rulePatternPlaceholder'),
+  rulePreviewJsonTitle: t('systemConfig.list.previewTitle'),
   ruleRemoveAction: t('systemConfig.list.schema.ruleRemoveAction'),
+  sectionDangerTitle: t('systemConfig.list.schema.sectionDangerTitle'),
+  sectionTestTitle: t('systemConfig.list.schema.sectionTestTitle'),
+  sectionToggleTitle: t('systemConfig.list.schema.sectionToggleTitle'),
+  ruleTestEmptyDescription: t('systemConfig.list.schema.ruleTestEmptyDescription'),
+  ruleTestEmptyLabel: t('systemConfig.list.schema.ruleTestEmptyLabel'),
+  ruleTestLabel: t('systemConfig.list.schema.ruleTestLabel'),
+  ruleTestPlaceholder: t('systemConfig.list.schema.ruleTestPlaceholder'),
+  ruleTooltipLabel: t('systemConfig.list.schema.ruleTooltipLabel'),
   ruleTooltipPlaceholder: t('systemConfig.list.schema.ruleTooltipPlaceholder'),
+  ruleUnmatchedDescription: t('systemConfig.list.schema.ruleUnmatchedDescription'),
+  ruleUnmatchedLabel: t('systemConfig.list.schema.ruleUnmatchedLabel'),
   ruleUpAction: t('systemConfig.list.schema.ruleUpAction'),
   selectPlaceholder: t('systemConfig.list.schema.selectPlaceholder'),
   stringPlaceholder: t('systemConfig.list.schema.stringPlaceholder'),
@@ -915,6 +961,56 @@ function structuredValueRows(value: Record<string, unknown>, fields: ConfigSchem
       unit: schemaFieldUnit(field),
     };
   });
+}
+
+function isWorkspaceTooltipRuleRow(row: ConfigValueRow) {
+  return row.schema ? configFieldRenderer(row.schema) === 'workspace-tooltip-rule-list' : false;
+}
+
+function ruleCollectionPreviewLabels() {
+  return {
+    advancedTitle: t('systemConfig.list.schema.advancedTitle'),
+    basicInfoTitle: t('systemConfig.list.schema.basicInfoTitle'),
+    collectionEnabledCount: t('systemConfig.list.schema.ruleCollectionEnabledCount'),
+    collectionRuleCount: t('systemConfig.list.schema.ruleCollectionRuleCount'),
+    collectionTitle: '',
+    detailDescription: '',
+    detailTitle: '',
+    expandPatternEditorAction: t('systemConfig.list.schema.rulePatternExpandAction'),
+    emptyDescription: t('systemConfig.list.schema.rulePreviewEmptyDescription'),
+    emptyTitle: t('systemConfig.list.schema.rulePreviewEmptyTitle'),
+    noPatternSummary: t('systemConfig.list.schema.ruleNoPatternSummary'),
+    invalidPatternLabel: t('systemConfig.list.schema.ruleInvalidPatternLabel'),
+    regexEditorLabel: t('systemConfig.list.schema.regexEditorLabel'),
+    ruleAddAction: t('systemConfig.list.schema.ruleAddAction'),
+    ruleDisabledState: t('systemConfig.list.schema.ruleDisabledState'),
+    ruleDownAction: t('systemConfig.list.schema.ruleDownAction'),
+    ruleDragHint: t('systemConfig.list.schema.ruleDragHint'),
+    ruleEnabledDescription: t('systemConfig.list.schema.ruleEnabledDescription'),
+    ruleEnabledLabel: t('systemConfig.list.schema.ruleEnabledLabel'),
+    ruleEnabledState: t('systemConfig.list.schema.ruleEnabledState'),
+    ruleFallbackTitle: t('systemConfig.list.schema.ruleFallbackTitle'),
+    ruleMatchedDescription: t('systemConfig.list.schema.ruleMatchedDescription'),
+    ruleMatchedLabel: t('systemConfig.list.schema.ruleMatchedLabel'),
+    ruleMatchedRuleLabel: t('systemConfig.list.schema.ruleMatchedRuleLabel'),
+    rulePatternDescription: t('systemConfig.list.schema.rulePatternDescription'),
+    rulePatternLabel: t('systemConfig.list.schema.rulePatternLabel'),
+    rulePatternPlaceholder: t('systemConfig.list.schema.rulePatternPlaceholder'),
+    rulePreviewJsonTitle: t('systemConfig.list.previewTitle'),
+    ruleRemoveAction: t('systemConfig.list.schema.ruleRemoveAction'),
+    sectionDangerTitle: t('systemConfig.list.schema.sectionDangerTitle'),
+    sectionTestTitle: t('systemConfig.list.schema.sectionTestTitle'),
+    sectionToggleTitle: t('systemConfig.list.schema.sectionToggleTitle'),
+    ruleTestEmptyDescription: t('systemConfig.list.schema.ruleTestEmptyDescription'),
+    ruleTestEmptyLabel: t('systemConfig.list.schema.ruleTestEmptyLabel'),
+    ruleTestLabel: t('systemConfig.list.schema.ruleTestLabel'),
+    ruleTestPlaceholder: t('systemConfig.list.schema.ruleTestPlaceholder'),
+    ruleTooltipLabel: t('systemConfig.list.schema.ruleTooltipLabel'),
+    ruleTooltipPlaceholder: t('systemConfig.list.schema.ruleTooltipPlaceholder'),
+    ruleUnmatchedDescription: t('systemConfig.list.schema.ruleUnmatchedDescription'),
+    ruleUnmatchedLabel: t('systemConfig.list.schema.ruleUnmatchedLabel'),
+    ruleUpAction: t('systemConfig.list.schema.ruleUpAction'),
+  };
 }
 
 function booleanStateLabel(value: boolean) {

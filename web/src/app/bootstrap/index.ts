@@ -27,12 +27,12 @@ export function bootstrapApp() {
   });
 
   const app = createApp(App);
+  app.use(store);
   const tabsRouterStore = useTabsRouterStore(store);
 
-  // 自愈上一次异常中断时遗留的 tabs 刷新态，避免内容区被全局 loading 永久覆盖。
+  // 必须在 app.use(store) 之后再创建带 persist 的 store，避免启动阶段拿到未 hydrate 的初始 tabs 状态。
   tabsRouterStore.healPersistedState();
 
-  app.use(store);
   app.use(router);
   app.use(i18n);
   // 权限指令只消费 bootstrap 权限快照，不引入第二套前端鉴权真值。

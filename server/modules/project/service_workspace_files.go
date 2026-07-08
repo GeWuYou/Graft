@@ -20,6 +20,50 @@ import (
 
 const projectWorkspaceEncodingUTF8 = "utf-8"
 
+type workspaceFileClassification struct {
+	Editable     bool
+	FileKind     string
+	LanguageHint string
+}
+
+var workspaceBaseNameClassifications = map[string]workspaceFileClassification{
+	".editorconfig":  {FileKind: "config", LanguageHint: "ini", Editable: true},
+	".gitattributes": {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+	".gitconfig":     {FileKind: "config", LanguageHint: "ini", Editable: true},
+	".gitignore":     {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+	"caddyfile":      {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+	"dockerfile":     {FileKind: "config", LanguageHint: "dockerfile", Editable: true},
+	"makefile":       {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+}
+
+var workspaceExtensionClassifications = map[string]workspaceFileClassification{
+	".bash":       {FileKind: "config", LanguageHint: "shell", Editable: true},
+	".cfg":        {FileKind: "config", LanguageHint: "ini", Editable: true},
+	".conf":       {FileKind: "config", LanguageHint: "ini", Editable: true},
+	".dockerfile": {FileKind: "config", LanguageHint: "dockerfile", Editable: true},
+	".hcl":        {FileKind: "config", LanguageHint: "hcl", Editable: true},
+	".ini":        {FileKind: "config", LanguageHint: "ini", Editable: true},
+	".json":       {FileKind: "config", LanguageHint: "json", Editable: true},
+	".jsonc":      {FileKind: "config", LanguageHint: "json", Editable: true},
+	".log":        {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+	".markdown":   {FileKind: "text", LanguageHint: "markdown", Editable: false},
+	".md":         {FileKind: "text", LanguageHint: "markdown", Editable: false},
+	".properties": {FileKind: "config", LanguageHint: "properties", Editable: true},
+	".ps1":        {FileKind: "config", LanguageHint: "powershell", Editable: true},
+	".psd1":       {FileKind: "config", LanguageHint: "powershell", Editable: true},
+	".psm1":       {FileKind: "config", LanguageHint: "powershell", Editable: true},
+	".sh":         {FileKind: "config", LanguageHint: "shell", Editable: true},
+	".sql":        {FileKind: "config", LanguageHint: "sql", Editable: true},
+	".tf":         {FileKind: "config", LanguageHint: "hcl", Editable: true},
+	".tfvars":     {FileKind: "config", LanguageHint: "hcl", Editable: true},
+	".toml":       {FileKind: "config", LanguageHint: "toml", Editable: true},
+	".txt":        {FileKind: "text", LanguageHint: "plaintext", Editable: false},
+	".xml":        {FileKind: "config", LanguageHint: "xml", Editable: true},
+	".yaml":       {FileKind: "config", LanguageHint: "yaml", Editable: true},
+	".yml":        {FileKind: "config", LanguageHint: "yaml", Editable: true},
+	".zsh":        {FileKind: "config", LanguageHint: "shell", Editable: true},
+}
+
 type workspaceTooltipRule struct {
 	Enabled bool   `json:"enabled"`
 	Pattern string `json:"pattern"`
@@ -30,6 +74,7 @@ type workspaceTooltipRule struct {
 type trackedWorkspaceFile struct {
 	Kind             string
 	Path             string
+	DisplayPath      string
 	LastObservedHash string
 	Content          string
 	BaselineContent  string
@@ -260,16 +305,13 @@ func loadTrackedFileContents(aggregate projectstore.ProjectAggregate) ([]tracked
 		if readErr != nil {
 			return nil, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
 		}
-		baselineContent := ""
-		if item.Kind == projectcontract.FileKindCompose.String() && aggregate.Snapshot != nil {
-			baselineContent = string(normalizeSnapshotJSON(aggregate.Snapshot.NormalizedComposeJSON))
-		}
 		result = append(result, trackedWorkspaceFile{
 			Kind:             item.Kind,
 			Path:             item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
 			LastObservedHash: item.LastObservedHash,
 			Content:          string(content),
-			BaselineContent:  baselineContent,
+			BaselineContent:  item.LastObservedContent,
 		})
 	}
 	return result, nil
@@ -332,10 +374,17 @@ func classifyWorkspaceFile(relativePath string, trackedKinds map[string]string) 
 	if kind, ok := trackedKinds[normalized]; ok {
 		return classifyTrackedWorkspaceKind(kind)
 	}
-	if base == ".env" || strings.HasSuffix(base, ".env") {
+	if classification, ok := classifyWorkspaceBaseName(base); ok {
+		return classification.FileKind, classification.LanguageHint, classification.Editable
+	}
+	if isWorkspaceEnvFileBaseName(base) {
 		return "env", "dotenv", true
 	}
 	return classifyWorkspaceExtension(strings.ToLower(filepath.Ext(base)))
+}
+
+func isWorkspaceEnvFileBaseName(base string) bool {
+	return base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env")
 }
 
 func classifyTrackedWorkspaceKind(kind string) (string, string, bool) {
@@ -350,24 +399,18 @@ func classifyTrackedWorkspaceKind(kind string) (string, string, bool) {
 }
 
 func classifyWorkspaceExtension(ext string) (string, string, bool) {
-	switch ext {
-	case ".yaml", ".yml":
-		return "config", "yaml", true
-	case ".json":
-		return "config", "json", true
-	case ".toml":
-		return "config", "toml", true
-	case ".ini", ".conf", ".cfg":
-		return "config", "ini", true
-	case ".properties":
-		return "config", "properties", true
-	case ".txt", ".md", ".log":
-		return "text", "plaintext", false
-	case "":
-		return "unsupported", "plaintext", false
-	default:
+	if ext == "" {
 		return "unsupported", "plaintext", false
 	}
+	if classification, ok := workspaceExtensionClassifications[ext]; ok {
+		return classification.FileKind, classification.LanguageHint, classification.Editable
+	}
+	return "unsupported", "plaintext", false
+}
+
+func classifyWorkspaceBaseName(base string) (workspaceFileClassification, bool) {
+	classification, ok := workspaceBaseNameClassifications[base]
+	return classification, ok
 }
 
 func resolveProjectWorkspaceDirectory(workingDirectory string, requestedPath string) (string, string, error) {

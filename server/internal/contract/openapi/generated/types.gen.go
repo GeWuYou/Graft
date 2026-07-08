@@ -2508,6 +2508,24 @@ func (e ProjectFileRole) Valid() bool {
 	}
 }
 
+// Defines values for ProjectFileTreeItemTooltipSource.
+const (
+	DefaultRule ProjectFileTreeItemTooltipSource = "default-rule"
+	ProjectNote ProjectFileTreeItemTooltipSource = "project-note"
+)
+
+// Valid indicates whether the value is a known member of the ProjectFileTreeItemTooltipSource enum.
+func (e ProjectFileTreeItemTooltipSource) Valid() bool {
+	switch e {
+	case DefaultRule:
+		return true
+	case ProjectNote:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectFileTreeNodeType.
 const (
 	ProjectFileTreeNodeTypeDirectory ProjectFileTreeNodeType = "directory"
@@ -7715,6 +7733,7 @@ type ProjectConfigurationDiffFile struct {
 	Changed         bool            `json:"changed"`
 	CurrentContent  string          `json:"current_content"`
 	CurrentHash     string          `json:"current_hash"`
+	DisplayPath     string          `json:"display_path"`
 	Kind            ProjectFileKind `json:"kind"`
 	Path            string          `json:"path"`
 	ProposedContent string          `json:"proposed_content"`
@@ -7973,14 +7992,16 @@ type ProjectFileAnnotationRequest struct {
 
 // ProjectFileContentResponse defines model for project-file-content-response.
 type ProjectFileContentResponse struct {
-	Content      string                             `json:"content"`
-	Editable     bool                               `json:"editable"`
-	Encoding     ProjectFileContentResponseEncoding `json:"encoding"`
-	FileKind     ProjectWorkspaceFileKind           `json:"file_kind"`
-	LanguageHint string                             `json:"language_hint"`
-	ProjectId    int64                              `json:"project_id"`
-	RelativePath string                             `json:"relative_path"`
-	SizeBytes    int64                              `json:"size_bytes"`
+	Content  string                             `json:"content"`
+	Editable bool                               `json:"editable"`
+	Encoding ProjectFileContentResponseEncoding `json:"encoding"`
+	FileKind ProjectWorkspaceFileKind           `json:"file_kind"`
+
+	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
+	LanguageHint string `json:"language_hint"`
+	ProjectId    int64  `json:"project_id"`
+	RelativePath string `json:"relative_path"`
+	SizeBytes    int64  `json:"size_bytes"`
 }
 
 // ProjectFileContentResponseEncoding defines model for ProjectFileContentResponse.Encoding.
@@ -8026,15 +8047,20 @@ type ProjectFileTreeItem struct {
 	FileKind        ProjectWorkspaceFileKind `json:"file_kind"`
 	HasChildren     bool                     `json:"has_children"`
 	HiddenByDefault bool                     `json:"hidden_by_default"`
-	LanguageHint    string                   `json:"language_hint"`
-	Name            string                   `json:"name"`
-	NodeType        ProjectFileTreeNodeType  `json:"node_type"`
-	ProjectNote     *string                  `json:"project_note,omitempty"`
-	RelativePath    string                   `json:"relative_path"`
-	SizeBytes       int64                    `json:"size_bytes"`
-	Tooltip         *string                  `json:"tooltip,omitempty"`
-	TooltipSource   *string                  `json:"tooltip_source,omitempty"`
+
+	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
+	LanguageHint  string                            `json:"language_hint"`
+	Name          string                            `json:"name"`
+	NodeType      ProjectFileTreeNodeType           `json:"node_type"`
+	ProjectNote   *string                           `json:"project_note,omitempty"`
+	RelativePath  string                            `json:"relative_path"`
+	SizeBytes     int64                             `json:"size_bytes"`
+	Tooltip       *string                           `json:"tooltip,omitempty"`
+	TooltipSource *ProjectFileTreeItemTooltipSource `json:"tooltip_source,omitempty"`
 }
+
+// ProjectFileTreeItemTooltipSource defines model for ProjectFileTreeItem.TooltipSource.
+type ProjectFileTreeItemTooltipSource string
 
 // ProjectFileTreeNodeType defines model for project-file-tree-node-type.
 type ProjectFileTreeNodeType string

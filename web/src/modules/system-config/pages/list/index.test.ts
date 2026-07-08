@@ -47,6 +47,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.groups.ops.project.import.description': '管理导入流程允许浏览的根目录与边界。',
   'systemConfig.groups.ops.project.workspace': '项目工作台',
   'systemConfig.groups.ops.project.workspace.description': '管理配置工作台的目录过滤与文件浏览默认行为。',
+  'systemConfig.project.ops.project.managed.root_directory.title': '受管项目根目录',
+  'systemConfig.project.ops.project.managed.root_directory.description':
+    '受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。',
+  'systemConfig.project.ops.project.import.allowed_roots.title': '导入允许根目录',
+  'systemConfig.project.ops.project.import.allowed_roots.description':
+    '配置项目导入流程允许浏览的根目录 JSON 数组字符串。',
   'systemConfig.items.appLogRetentionCleanup.description': '应用日志保留清理任务的默认配置。',
   'systemConfig.items.appLogRetentionCleanup.title': '应用日志保留清理',
   'systemConfig.items.accessLogRetentionCleanup.description': '访问日志保留清理任务的默认配置。',
@@ -123,15 +129,47 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.list.saveSuccess': '系统配置已保存。',
   'systemConfig.list.searchEmpty': '未找到匹配的配置组',
   'systemConfig.list.searchPlaceholder': '搜索配置组、配置项或技术标识',
+  'systemConfig.list.schema.advancedTitle': '高级',
+  'systemConfig.list.schema.basicInfoTitle': '基本信息',
   'systemConfig.list.schema.invalidJson': 'JSON 格式不正确',
   'systemConfig.list.schema.jsonPlaceholder': '请输入 JSON',
   'systemConfig.list.schema.numberPlaceholder': '请输入数字',
-  'systemConfig.list.schema.ruleAddAction': '新增规则',
+  'systemConfig.list.schema.ruleCollectionEnabledCount': '{count} 条已启用',
+  'systemConfig.list.schema.ruleCollectionRuleCount': '{count} 条规则',
+  'systemConfig.list.schema.ruleAddAction': '新建规则',
+  'systemConfig.list.schema.ruleDetailDescription': '按顺序匹配文件名，后面的启用规则会覆盖前面的结果。',
+  'systemConfig.list.schema.ruleDetailTitle': '规则详情',
+  'systemConfig.list.schema.ruleDisabledState': '已禁用',
   'systemConfig.list.schema.ruleDownAction': '下移',
+  'systemConfig.list.schema.ruleDragHint': '拖拽排序',
+  'systemConfig.list.schema.ruleEnabledDescription': '关闭后会保留规则，但不会参与匹配。',
   'systemConfig.list.schema.ruleEnabledLabel': '启用',
+  'systemConfig.list.schema.ruleEnabledState': '已启用',
+  'systemConfig.list.schema.ruleFallbackTitle': '规则 {index}',
+  'systemConfig.list.schema.ruleInvalidPatternLabel': '正则无效',
+  'systemConfig.list.schema.ruleMatchedDescription': '当前测试文件名会命中这条规则。',
+  'systemConfig.list.schema.ruleMatchedLabel': '匹配',
+  'systemConfig.list.schema.ruleMatchedRuleLabel': '命中当前规则',
+  'systemConfig.list.schema.ruleNoPatternSummary': '未设置匹配规则',
+  'systemConfig.list.schema.rulePatternDescription': '支持正则表达式，建议按 basename 编写匹配规则。',
+  'systemConfig.list.schema.rulePatternExpandAction': '展开编辑',
+  'systemConfig.list.schema.rulePatternLabel': '文件名匹配规则',
   'systemConfig.list.schema.rulePatternPlaceholder': '请输入匹配模式',
+  'systemConfig.list.schema.rulePreviewEmptyDescription': '尚未配置默认提示规则。',
+  'systemConfig.list.schema.rulePreviewEmptyTitle': '暂无规则',
+  'systemConfig.list.schema.regexEditorLabel': '正则表达式',
   'systemConfig.list.schema.ruleRemoveAction': '删除',
+  'systemConfig.list.schema.sectionDangerTitle': '危险操作',
+  'systemConfig.list.schema.sectionTestTitle': '测试',
+  'systemConfig.list.schema.sectionToggleTitle': '行为',
+  'systemConfig.list.schema.ruleTestEmptyDescription': '输入文件名后可立即验证当前规则是否命中。',
+  'systemConfig.list.schema.ruleTestEmptyLabel': '待测试',
+  'systemConfig.list.schema.ruleTestLabel': '测试文件名',
+  'systemConfig.list.schema.ruleTestPlaceholder': '例如 docker-compose.yml',
+  'systemConfig.list.schema.ruleTooltipLabel': '提示内容',
   'systemConfig.list.schema.ruleTooltipPlaceholder': '请输入提示内容',
+  'systemConfig.list.schema.ruleUnmatchedDescription': '当前测试文件名不会命中这条规则。',
+  'systemConfig.list.schema.ruleUnmatchedLabel': '不匹配',
   'systemConfig.list.schema.ruleUpAction': '上移',
   'systemConfig.list.schema.selectPlaceholder': '请选择',
   'systemConfig.list.schema.stringPlaceholder': '请输入配置值',
@@ -187,6 +225,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
     '配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。',
   'systemConfig.project.ops.project.workspace.hidden_directories.placeholder':
     '输入目录名后回车，例如 node_modules、.git',
+  'systemConfig.project.ops.project.workspace.file_tooltip_rules.title': '工作台文件默认提示规则',
+  'systemConfig.project.ops.project.workspace.file_tooltip_rules.description':
+    '管理工作台文件名的默认提示规则；按顺序匹配 basename，后面的启用规则会覆盖前面的结果。',
+  'systemConfig.project.ops.project.workspace.directory_tooltip_rules.title': '工作台目录默认提示规则',
+  'systemConfig.project.ops.project.workspace.directory_tooltip_rules.description':
+    '管理工作台目录名的默认提示规则；按顺序匹配 basename，后面的启用规则会覆盖前面的结果。',
 }));
 
 vi.mock('../../api/system-config', () => ({
@@ -218,8 +262,13 @@ vi.mock('@/shared/observability', async () => {
 });
 
 vi.mock('tdesign-icons-vue-next', () => ({
+  AddIcon: defineComponent({ name: 'AddIcon', setup: () => () => h('span') }),
+  CheckCircleFilledIcon: defineComponent({ name: 'CheckCircleFilledIcon', setup: () => () => h('span') }),
   CopyIcon: defineComponent({ name: 'CopyIcon', setup: () => () => h('span') }),
+  DragMoveIcon: defineComponent({ name: 'DragMoveIcon', setup: () => () => h('span') }),
   EditIcon: defineComponent({ name: 'EditIcon', setup: () => () => h('span') }),
+  ErrorCircleFilledIcon: defineComponent({ name: 'ErrorCircleFilledIcon', setup: () => () => h('span') }),
+  FileIcon: defineComponent({ name: 'FileIcon', setup: () => () => h('span') }),
   InfoCircleIcon: defineComponent({ name: 'InfoCircleIcon', setup: () => () => h('span', 'i') }),
   RefreshIcon: defineComponent({ name: 'RefreshIcon', setup: () => () => h('span') }),
   RollbackIcon: defineComponent({ name: 'RollbackIcon', setup: () => () => h('span') }),
@@ -818,6 +867,75 @@ describe('system config list page', () => {
     expect(wrapper.find('[data-test-id="schema-tag-input"]').attributes('data-placeholder')).toBe(
       '输入目录名后回车，例如 node_modules、.git',
     );
+  });
+
+  it('renders workspace tooltip rules as a rule collection instead of a raw JSON string', async () => {
+    const effectiveRules = JSON.stringify([
+      {
+        pattern: '^docker-compose(?:\\.[^.]+)?\\.ya?ml$',
+        tooltip: 'Compose 配置',
+        enabled: true,
+      },
+      {
+        pattern: '^\\.env(?:\\..+)?$',
+        tooltip: '环境变量文件',
+        enabled: true,
+      },
+    ]);
+    const defaultRules = JSON.stringify([
+      {
+        pattern: '^docker-compose(?:\\.[^.]+)?\\.ya?ml$',
+        tooltip: 'Compose 配置',
+        enabled: true,
+      },
+    ]);
+
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        projectConfigItem({
+          key: 'ops.project.workspace.file_tooltip_rules',
+          group: 'ops.project.workspace',
+          groupKey: 'systemConfig.groups.ops.project.workspace',
+          groupLabel: 'Project Workspace',
+          groupDescriptionKey: 'systemConfig.groups.ops.project.workspace.description',
+          groupDescription: 'Configuration workspace file-list defaults and editor browse behavior.',
+          titleKey: 'systemConfig.project.ops.project.workspace.file_tooltip_rules.title',
+          title: 'Workspace File Tooltip Rules',
+          descriptionKey: 'systemConfig.project.ops.project.workspace.file_tooltip_rules.description',
+          description:
+            'Configure the JSON array string of default tooltip rules matched in order against file basenames.',
+          configSchema: {
+            type: 'string',
+            'x-graft': {
+              editor: 'workspace-tooltip-rule-list',
+            },
+          },
+          effectiveValue: effectiveRules,
+          defaultValue: defaultRules,
+          order: 7102,
+        }),
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('工作台文件默认提示规则');
+    expect(wrapper.text()).toContain('Compose 配置');
+    expect(wrapper.text()).toContain('环境变量文件');
+    expect(wrapper.text()).toContain('docker-compose');
+    expect(wrapper.text()).toContain('.env');
+    expect(wrapper.text()).not.toContain('JSON 数组字符串');
+    expect(wrapper.text()).not.toContain('[{"pattern"');
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('规则详情');
+    expect(wrapper.text()).toContain('测试文件名');
+    expect(wrapper.text()).toContain('提示内容');
+    expect(wrapper.text()).toContain('文件名匹配规则');
   });
 
   it('localizes root scalar schema labels before falling back to backend schema copy', async () => {

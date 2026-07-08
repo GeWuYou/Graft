@@ -49,6 +49,7 @@ import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
+import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 import type { AppRouteMeta } from '@/utils/types';
 
 import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vue';
@@ -157,6 +158,14 @@ const scheduleSidebarMotion = (callback: () => void, delay: number) => {
   sidebarMotionTimers.add(timerId);
 };
 
+const formatLayoutTabsSummary = () =>
+  formatTabsDebugSummary(tabsRouterStore.tabRouters ?? tabsRouterStore.tabRouterList ?? []);
+
+const formatCurrentRouteSummary = () =>
+  `path=${route.path} fullPath=${route.fullPath} name=${String(route.name || '')} queryName=${String(
+    route.query?.name || '',
+  )}`;
+
 const scheduleSidebarNextPaint = (callback: () => void) => {
   if (typeof document === 'undefined' || document.visibilityState !== 'visible') {
     scheduleSidebarMotion(callback, 0);
@@ -235,6 +244,13 @@ const appendNewRoute = () => {
       [LOCALE.ZH_CN]: '',
       [LOCALE.EN_US]: '',
     };
+  logTabsDebug(
+    logger,
+    () =>
+      `tabs debug: layout appendNewRoute before active=${tabsRouterStore.activeTabKey} route=[path=${path} fullPath=${fullPath} name=${String(
+        name || '',
+      )} queryName=${String(query?.name || '')} title=${formatTabDebugTitle(titleObj)}] ${formatLayoutTabsSummary()}`,
+  );
   logger.debug('append route into tabs router', {
     path,
     name,
@@ -252,11 +268,37 @@ const appendNewRoute = () => {
     meta: route.meta as AppRouteMeta,
   });
   tabsRouterStore.setActiveRoute(route);
+  logTabsDebug(
+    logger,
+    () => `tabs debug: layout appendNewRoute after active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
+  );
 };
 
 onMounted(() => {
+  logTabsDebug(
+    logger,
+    () =>
+      `tabs debug: layout onMounted before heal active=${tabsRouterStore.activeTabKey} route=[${formatCurrentRouteSummary()}] ${formatLayoutTabsSummary()}`,
+  );
+  tabsRouterStore.healPersistedState();
+  logTabsDebug(
+    logger,
+    () =>
+      `tabs debug: layout onMounted after state heal active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
+  );
   tabsRouterStore.healPersistedRoutes(router);
+  logTabsDebug(
+    logger,
+    () =>
+      `tabs debug: layout onMounted after route heal active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
+  );
   appendNewRoute();
+  tabsRouterStore.setActiveRoute(route);
+  logTabsDebug(
+    logger,
+    () =>
+      `tabs debug: layout onMounted after active sync active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
+  );
 });
 
 onBeforeUnmount(() => {

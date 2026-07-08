@@ -21,6 +21,9 @@ validation rules.
    - or the current task is blocked on a local push failure that the user asked to diagnose
 4. If the current slice is not yet safely committed, route through `graft-commit` first instead of pushing mixed or
    uncommitted work.
+5. If the push follows an active `$graft-pr-review` remediation run, confirm the latest PR finding inventory was built
+   exhaustively and still includes `Outside diff range comments (N)`, `Nitpick comments (N)`, and other folded
+   latest-review sections in scope; do not treat push as permission to leave those findings informal or unclassified.
 
 ## Workflow
 
@@ -54,6 +57,9 @@ validation rules.
    - if a commit is missing, use `graft-commit`
    - if local validation is the real blocker, use `graft-validation-runner`
    - if the failure is a local hook, reproduce the exact hook and fix that path first
+   - if the branch contains `$graft-pr-review` fixes, preserve the review run's exhaustive finding-disposition
+     requirement; a successful push does not downgrade `Outside diff range comments` or other folded review findings to
+     optional
 6. Push safely:
    - prefer the existing upstream when configured
    - if the branch was renamed for push hygiene, use the renamed branch for the upstream mapping
@@ -75,6 +81,8 @@ Do not push when any of these are true:
 * ownership is mixed and the push would depend on an unsafe commit
 * the branch rename target or destination ref is ambiguous
 * the only available path would require force push without explicit user approval
+* the push would be used to imply closure of a `$graft-pr-review` run whose latest finding inventory still leaves
+  `Outside diff range comments`, `Nitpick comments`, or other folded latest-review findings unclassified
 
 In these cases, explain the blocker and stop at the smallest safe next step.
 

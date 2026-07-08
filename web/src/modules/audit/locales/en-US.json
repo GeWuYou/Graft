@@ -510,18 +510,44 @@
       },
       "rbac": {
         "role": {
+          "create": "Create Role",
+          "update": "Update Role",
           "permissions": {
             "replace": "Update Role Permissions",
             "add": "Add Role Permissions",
             "remove": "Remove Role Permissions"
           },
-          "delete": "Delete Role",
-          "assign": "Assign Role"
+          "status": {
+            "update": "Update Role Status"
+          },
+          "delete": "Delete Role"
         }
       },
       "user": {
+        "create": "Create User",
+        "update": "Update User",
+        "status": {
+          "update": "Update User Status"
+        },
+        "delete": "Delete User",
         "password": {
           "reset": "Reset User Password"
+        }
+      },
+      "ops": {
+        "container": {
+          "action": {
+            "start": "Start Container",
+            "stop": "Stop Container",
+            "restart": "Restart Container",
+            "remove": "Remove Container",
+            "batch": {
+              "start": "Batch Start Containers",
+              "stop": "Batch Stop Containers",
+              "restart": "Batch Restart Containers",
+              "remove": "Batch Remove Containers"
+            }
+          }
         }
       }
     }

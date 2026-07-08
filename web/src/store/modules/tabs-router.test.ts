@@ -114,6 +114,15 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
     const router = {
       getRoutes: () => [{ name: 'RootEntry', path: '/' }],
+      resolve: () => ({
+        matched: [
+          {
+            name: '404Page',
+          },
+        ],
+        name: '404Page',
+        path: '/removed',
+      }),
     };
 
     tabsRouterStore.appendTabRouterList({
@@ -126,6 +135,43 @@ describe('useTabsRouterStore', () => {
 
     expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/']);
     expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
+  it('keeps persisted parameterized global routes when the current router can still resolve them', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const router = {
+      getRoutes: () => [
+        { name: 'RootEntry', path: '/' },
+        { name: 'ProjectConfigurationWorkspace', path: '/ops/projects/:id/configuration' },
+      ],
+      resolve: ({ name: _name, params }: { name?: string; params?: { id?: string } }) => ({
+        matched: [
+          {
+            name: 'ProjectConfigurationWorkspace',
+          },
+          {
+            name: 'ProjectConfigurationWorkspaceIndex',
+          },
+        ],
+        name: 'ProjectConfigurationWorkspaceIndex',
+        path: `/ops/projects/${params?.id || '1'}/configuration`,
+      }),
+    };
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/ops/projects/1/configuration',
+      path: '/ops/projects/1/configuration',
+      fullPath: '/ops/projects/1/configuration?name=sub2api',
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '1' },
+      query: { name: 'sub2api' },
+    });
+    tabsRouterStore.setActiveTabKey('/ops/projects/1/configuration');
+
+    tabsRouterStore.healPersistedRoutes(router as never);
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/ops/projects/1/configuration']);
+    expect(tabsRouterStore.activeTabKey).toBe('/ops/projects/1/configuration');
   });
 
   it('activates the preserved home tab from another active tab', () => {

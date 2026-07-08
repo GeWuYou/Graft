@@ -62,6 +62,21 @@ After modifying migration SQL, run:
 python3 scripts/validate_sql_migrations.py
 ```
 
+If the migration directory contents changed, also recompute the touched directory checksum immediately:
+
+```bash
+cd server/modules/<module>/migrations && atlas migrate hash --dir file://.
+```
+
+If that migration directory is embedded through `server/internal/moduleregistry/generated.go`, regenerate it in the
+same slice:
+
+```bash
+cd server && go generate ./internal/moduleregistry
+```
+
+Treat `validate migration dir ...: checksum mismatch` as a task failure, not as a deferred follow-up.
+
 Also run the appropriate direct validation for the changed slice, such as:
 
 ```bash

@@ -300,7 +300,8 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 			DisplayPath:         item.DisplayPath,
 			OrderIndex:          item.OrderIndex,
 			ExistsOnLastRefresh: item.Exists,
-			LastObservedHash:    item.Hash,
+			LastObservedHash:    hashString(string(item.Content)),
+			LastObservedContent: normalizeTextBlock(string(item.Content)),
 		})
 	}
 	return items

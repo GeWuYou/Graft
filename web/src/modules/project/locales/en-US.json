@@ -68,8 +68,6 @@
         "discardAction": "Discard",
         "editorAriaLabel": "Project File Editor",
         "envRedeployHint": "Environment variable changes usually require a project redeploy before they take effect.",
-        "feedbackHint": "Validation and diff results stay here without disrupting the current file buffer.",
-        "feedbackTitle": "Feedback Workspace",
         "fileTreeHint": "Use the compact workspace tree to inspect files, expand directories, and keep editor space focused on the active buffer.",
         "fileTreeTitle": "Project Files",
         "filesEmpty": "No files are available in this directory.",
