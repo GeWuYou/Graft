@@ -81,7 +81,7 @@ type workspaceFileState struct {
 }
 
 type workspaceTreeBuildContext struct {
-	RootPath               string
+	RootPath              string
 	TrackedKinds          map[string]string
 	HiddenDirectories     []string
 	FileTooltipRules      []workspaceTooltipRule
@@ -644,7 +644,7 @@ func resolveWorkspaceFileStateFromPath(
 	// #nosec G304 -- absolutePath is already constrained to the validated project root before probing file content.
 	sample, err := readWorkspaceFileSample(absolutePath)
 	if err != nil {
-		return workspaceFileState{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return unreadableWorkspaceFileState(relativePath, trackedKinds), nil
 	}
 	return resolveWorkspaceFileState(relativePath, trackedKinds, sample), nil
 }
@@ -671,6 +671,16 @@ func resolveWorkspaceFileState(
 	}
 }
 
+func unreadableWorkspaceFileState(relativePath string, trackedKinds map[string]string) workspaceFileState {
+	fileKind, languageHint := classifyWorkspaceFile(relativePath, trackedKinds)
+	return workspaceFileState{
+		FileKind:     fileKind,
+		LanguageHint: languageHint,
+		Readable:     false,
+		Editable:     false,
+	}
+}
+
 func readWorkspaceFileSample(path string) ([]byte, error) {
 	// #nosec G304 -- path is already constrained to a validated file path under the project working directory.
 	file, err := os.Open(path)
@@ -689,6 +699,9 @@ func readWorkspaceFileSample(path string) ([]byte, error) {
 }
 
 func isWorkspaceReadableText(content []byte) bool {
+	if len(content) == 0 {
+		return true
+	}
 	if bytes.IndexByte(content, 0) >= 0 {
 		return false
 	}
@@ -696,5 +709,5 @@ func isWorkspaceReadableText(content []byte) bool {
 	for len(trimmed) > 0 && !utf8.Valid(trimmed) {
 		trimmed = trimmed[:len(trimmed)-1]
 	}
-	return utf8.Valid(trimmed)
+	return len(trimmed) > 0 && utf8.Valid(trimmed)
 }
