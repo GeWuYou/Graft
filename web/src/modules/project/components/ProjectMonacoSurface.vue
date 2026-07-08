@@ -7,21 +7,8 @@ import { ref, watch } from 'vue';
 
 import { createLogger } from '@/utils/logger';
 
-import {
-  buildProjectMonacoModelUri,
-  createProjectMonacoModelUriSuffix,
-  ensureProjectMonacoConfigured,
-  observeProjectMonacoResize,
-  scheduleProjectMonacoLayout,
-  useProjectMonacoLifecycle,
-} from '../shared/project-monaco';
-import {
-  createProjectMonacoDebugLogger,
-  describeProjectMonacoElement,
-  disposeProjectMonacoModelDeferred,
-  formatProjectMonacoDebugMessage,
-  isProjectMonacoDebugEnabled,
-} from '../shared/project-monaco-debug';
+import * as projectMonaco from '../shared/project-monaco';
+import * as projectMonacoDebug from '../shared/project-monaco-debug';
 
 type MonacoEditorSurfaceOptions = Monaco.editor.IStandaloneEditorConstructionOptions;
 
@@ -47,17 +34,18 @@ const emit = defineEmits<{
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
-const modelUriSuffix = createProjectMonacoModelUriSuffix();
+const modelUriSuffix = projectMonaco.createProjectMonacoModelUriSuffix();
 const logger = createLogger('project.monaco.surface');
-const logProjectMonacoSurfaceDebug = createProjectMonacoDebugLogger('project.monaco.surface');
+const logProjectMonacoSurfaceDebug = projectMonacoDebug.createProjectMonacoDebugLogger('project.monaco.surface');
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
 let model: Monaco.editor.ITextModel | null = null;
 let syncingFromEditor = false;
 let syncingFromProps = false;
-let resizeObserver: ResizeObserver | null = null;
+let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
+const modelCache = new Map<string, Monaco.editor.ITextModel>();
 
-const { applyTheme } = useProjectMonacoLifecycle({
+const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
     logSurfaceDebug('dispose-start', {
@@ -65,17 +53,16 @@ const { applyTheme } = useProjectMonacoLifecycle({
       hasModel: Boolean(model),
       modelCount: monaco?.editor.getModels().length ?? 0,
     });
-    resizeObserver?.disconnect();
-    resizeObserver = null;
+    relayoutBridge?.disconnect();
+    relayoutBridge = null;
     const currentEditor = editor;
-    const currentModel = model;
     editor = null;
     model = null;
     currentEditor?.dispose();
-    disposeSurfaceModel(currentModel, 'dispose-editor-model');
+    projectMonaco.disposeProjectMonacoModelCache(modelCache, 'dispose-editor-model', disposeSurfaceModel);
     logSurfaceDebug('dispose-complete', {
       hasEditor: Boolean(currentEditor),
-      hasModel: Boolean(currentModel),
+      hasModel: modelCache.size > 0,
     });
   },
   getMonaco: () => monaco,
@@ -114,7 +101,13 @@ watch(
     }
 
     const previousModel = model;
-    const nextModel = createModel(monaco);
+    const nextModel = projectMonaco.getOrCreateProjectMonacoModel(monaco, {
+      cache: modelCache,
+      key: props.modelKey,
+      language: props.language,
+      suffix: modelUriSuffix,
+      value: String(props.modelValue ?? ''),
+    });
     logSurfaceDebug('model-rebind-start', {
       containerHeight: containerRef.value?.clientHeight ?? 0,
       containerWidth: containerRef.value?.clientWidth ?? 0,
@@ -123,12 +116,15 @@ watch(
       nextModelLength: nextModel.getValue().length,
       previousModelLength: previousModel?.getValue().length ?? 0,
     });
+    if (previousModel === nextModel) {
+      return;
+    }
     editor.setModel(nextModel);
     model = nextModel;
-    disposeSurfaceModel(previousModel, 'replace-model');
     await relayout('rebind-model');
     logSurfaceDebug('model-rebind-complete', {
       currentModelLength: model.getValue().length,
+      modelCacheSize: modelCache.size,
       modelCount: monaco.editor.getModels().length,
     });
   },
@@ -151,7 +147,7 @@ watch(
 );
 
 async function createEditor() {
-  monaco = ensureProjectMonacoConfigured();
+  monaco = projectMonaco.ensureProjectMonacoConfigured();
   const host = containerRef.value;
 
   if (!host) {
@@ -160,7 +156,7 @@ async function createEditor() {
 
   logSurfaceDebug('create-start', {
     containerHeight: host.clientHeight,
-    containerParent: describeProjectMonacoElement(host.parentElement),
+    containerParent: projectMonacoDebug.describeProjectMonacoElement(host.parentElement),
     containerWidth: host.clientWidth,
     language: props.language,
     modelKey: props.modelKey,
@@ -168,10 +164,16 @@ async function createEditor() {
   });
 
   applyTheme();
-  model = createModel(monaco);
+  model = projectMonaco.getOrCreateProjectMonacoModel(monaco, {
+    cache: modelCache,
+    key: props.modelKey,
+    language: props.language,
+    suffix: modelUriSuffix,
+    value: String(props.modelValue ?? ''),
+  });
   editor = monaco.editor.create(host, {
     ariaLabel: props.editorAriaLabel,
-    automaticLayout: true,
+    automaticLayout: false,
     glyphMargin: false,
     insertSpaces: true,
     language: props.language,
@@ -218,47 +220,25 @@ async function createEditor() {
   await relayout('initial-create');
 }
 
-function createModel(monacoInstance: typeof Monaco) {
-  return monacoInstance.editor.createModel(
-    String(props.modelValue ?? ''),
-    props.language,
-    buildProjectMonacoModelUri(props.modelKey, props.language, modelUriSuffix),
-  );
-}
-
 function observeContainerResize() {
   if (!editor) {
     return;
   }
 
-  resizeObserver = observeProjectMonacoResize(containerRef.value, resizeObserver, () => {
-    logSurfaceDebug('resize-observer-fired', {
-      containerHeight: containerRef.value?.clientHeight ?? 0,
-      containerWidth: containerRef.value?.clientWidth ?? 0,
-    });
-    editor?.layout();
+  relayoutBridge = projectMonaco.createProjectMonacoRelayoutBridge({
+    getContainer: () => containerRef.value,
+    layout: () => editor?.layout(),
+    log: logSurfaceDebug,
   });
+  relayoutBridge.observe();
 }
 
 async function relayout(reason = 'manual') {
-  logSurfaceDebug('layout-scheduled', {
-    containerHeight: containerRef.value?.clientHeight ?? 0,
-    containerWidth: containerRef.value?.clientWidth ?? 0,
-    reason,
-  });
-
-  await scheduleProjectMonacoLayout(() => {
-    logSurfaceDebug('layout-run', {
-      containerHeight: containerRef.value?.clientHeight ?? 0,
-      containerWidth: containerRef.value?.clientWidth ?? 0,
-      reason,
-    });
-    editor?.layout();
-  });
+  await relayoutBridge?.relayout(reason);
 }
 
 function disposeSurfaceModel(targetModel: Monaco.editor.ITextModel | null, reason: string) {
-  disposeProjectMonacoModelDeferred(targetModel, reason, {
+  projectMonacoDebug.disposeProjectMonacoModelDeferred(targetModel, reason, {
     onCancellation: (detail) => {
       logSurfaceDebug('model-dispose-canceled', detail);
     },
@@ -272,11 +252,11 @@ function disposeSurfaceModel(targetModel: Monaco.editor.ITextModel | null, reaso
 }
 
 function logSurfaceDebug(event: string, detail: Record<string, unknown>) {
-  if (!isProjectMonacoDebugEnabled()) {
+  if (!projectMonacoDebug.isProjectMonacoDebugEnabled()) {
     return;
   }
 
-  logProjectMonacoSurfaceDebug(formatProjectMonacoDebugMessage(event, detail), detail);
+  logProjectMonacoSurfaceDebug(projectMonacoDebug.formatProjectMonacoDebugMessage(event, detail), detail);
 }
 
 defineExpose({

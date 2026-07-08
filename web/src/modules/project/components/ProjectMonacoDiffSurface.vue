@@ -7,20 +7,8 @@ import { ref, watch } from 'vue';
 
 import { createLogger } from '@/utils/logger';
 
-import {
-  buildProjectMonacoModelUri,
-  createProjectMonacoModelUriSuffix,
-  ensureProjectMonacoConfigured,
-  observeProjectMonacoResize,
-  scheduleProjectMonacoLayout,
-  useProjectMonacoLifecycle,
-} from '../shared/project-monaco';
-import {
-  describeProjectMonacoElement,
-  disposeProjectMonacoModelDeferred,
-  formatProjectMonacoDebugMessage,
-  isProjectMonacoDebugEnabled,
-} from '../shared/project-monaco-debug';
+import * as projectMonaco from '../shared/project-monaco';
+import * as projectMonacoDebug from '../shared/project-monaco-debug';
 
 const props = withDefaults(
   defineProps<{
@@ -38,32 +26,30 @@ const props = withDefaults(
 );
 
 const containerRef = ref<HTMLElement | null>(null);
-const modelUriSuffix = createProjectMonacoModelUriSuffix();
+const modelUriSuffix = projectMonaco.createProjectMonacoModelUriSuffix();
 const logger = createLogger('project.monaco.diffSurface');
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
 let modifiedModel: Monaco.editor.ITextModel | null = null;
-let resizeObserver: ResizeObserver | null = null;
+let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
+const modelCache = new Map<string, Monaco.editor.ITextModel>();
 
-const { applyTheme } = useProjectMonacoLifecycle({
+const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
     logDiffDebug('dispose', {
       hasEditor: Boolean(editor),
       modelCount: monaco?.editor.getModels().length ?? 0,
     });
-    resizeObserver?.disconnect();
-    resizeObserver = null;
+    relayoutBridge?.disconnect();
+    relayoutBridge = null;
     const currentEditor = editor;
-    const currentOriginalModel = originalModel;
-    const currentModifiedModel = modifiedModel;
     editor = null;
     originalModel = null;
     modifiedModel = null;
     currentEditor?.dispose();
-    disposeDiffModel(currentOriginalModel, 'dispose-original');
-    disposeDiffModel(currentModifiedModel, 'dispose-modified');
+    projectMonaco.disposeProjectMonacoModelCache(modelCache, 'dispose-model', disposeDiffModel);
   },
   getMonaco: () => monaco,
   getThemeHost: () => containerRef.value,
@@ -84,7 +70,7 @@ watch(
       originalTextLength: props.originalValue.length,
     });
 
-    bindModels(monaco, true);
+    bindModels(monaco);
     await relayout('rebind-models');
   },
   { flush: 'post' },
@@ -123,7 +109,7 @@ watch(
 );
 
 async function createEditor() {
-  monaco = ensureProjectMonacoConfigured();
+  monaco = projectMonaco.ensureProjectMonacoConfigured();
   const host = containerRef.value;
 
   if (!host) {
@@ -132,7 +118,7 @@ async function createEditor() {
 
   logDiffDebug('create-start', {
     containerHeight: host.clientHeight,
-    containerParent: describeProjectMonacoElement(host.parentElement),
+    containerParent: projectMonacoDebug.describeProjectMonacoElement(host.parentElement),
     containerWidth: host.clientWidth,
     language: props.language,
     modifiedKey: props.modifiedKey,
@@ -144,7 +130,7 @@ async function createEditor() {
   applyTheme();
   editor = monaco.editor.createDiffEditor(host, {
     ariaLabel: props.editorAriaLabel,
-    automaticLayout: true,
+    automaticLayout: false,
     enableSplitViewResizing: false,
     glyphMargin: false,
     minimap: { enabled: false },
@@ -162,13 +148,13 @@ async function createEditor() {
     containerHeight: host.clientHeight,
     containerMatchesEditor: editorContainer === host,
     containerWidth: host.clientWidth,
-    editorContainer: describeProjectMonacoElement(editorContainer),
+    editorContainer: projectMonacoDebug.describeProjectMonacoElement(editorContainer),
     modelCount: monaco.editor.getModels().length,
   });
 
   observeContainerResize();
   await relayout('initial-before-model');
-  bindModels(monaco, false);
+  bindModels(monaco);
   await relayout('initial-after-model');
 }
 
@@ -177,40 +163,33 @@ function observeContainerResize() {
     return;
   }
 
-  resizeObserver = observeProjectMonacoResize(containerRef.value, resizeObserver, () => {
-    const host = containerRef.value;
-    logDiffDebug('resize-observer-fired', {
-      containerHeight: host?.clientHeight ?? 0,
-      containerWidth: host?.clientWidth ?? 0,
-    });
-    editor?.layout();
+  relayoutBridge = projectMonaco.createProjectMonacoRelayoutBridge({
+    getContainer: () => containerRef.value,
+    layout: () => editor?.layout(),
+    log: logDiffDebug,
   });
+  relayoutBridge.observe();
 }
 
-function bindModels(monacoInstance: typeof Monaco, disposeExisting: boolean) {
+function bindModels(monacoInstance: typeof Monaco) {
   if (!editor) {
     return;
   }
 
-  if (disposeExisting) {
-    const previousOriginalModel = originalModel;
-    const previousModifiedModel = modifiedModel;
-    originalModel = null;
-    modifiedModel = null;
-    disposeDiffModel(previousOriginalModel, 'replace-original');
-    disposeDiffModel(previousModifiedModel, 'replace-modified');
-  }
-
-  const nextOriginal = monacoInstance.editor.createModel(
-    props.originalValue,
-    props.language,
-    buildProjectMonacoModelUri(props.originalKey, props.language, `${modelUriSuffix}-original`),
-  );
-  const nextModified = monacoInstance.editor.createModel(
-    props.modifiedValue,
-    props.language,
-    buildProjectMonacoModelUri(props.modifiedKey, props.language, `${modelUriSuffix}-modified`),
-  );
+  const nextOriginal = projectMonaco.getOrCreateProjectMonacoModel(monacoInstance, {
+    cache: modelCache,
+    key: props.originalKey,
+    language: props.language,
+    suffix: `${modelUriSuffix}-original`,
+    value: props.originalValue,
+  });
+  const nextModified = projectMonaco.getOrCreateProjectMonacoModel(monacoInstance, {
+    cache: modelCache,
+    key: props.modifiedKey,
+    language: props.language,
+    suffix: `${modelUriSuffix}-modified`,
+    value: props.modifiedValue,
+  });
 
   const nextModel = {
     modified: nextModified,
@@ -238,26 +217,11 @@ function bindModels(monacoInstance: typeof Monaco, disposeExisting: boolean) {
 }
 
 async function relayout(reason = 'manual') {
-  const host = containerRef.value;
-  logDiffDebug('layout-scheduled', {
-    containerHeight: host?.clientHeight ?? 0,
-    containerWidth: host?.clientWidth ?? 0,
-    reason,
-  });
-
-  await scheduleProjectMonacoLayout(() => {
-    const layoutHost = containerRef.value;
-    logDiffDebug('layout-run', {
-      containerHeight: layoutHost?.clientHeight ?? 0,
-      containerWidth: layoutHost?.clientWidth ?? 0,
-      reason,
-    });
-    editor?.layout();
-  });
+  await relayoutBridge?.relayout(reason);
 }
 
 function disposeDiffModel(targetModel: Monaco.editor.ITextModel | null, reason: string) {
-  disposeProjectMonacoModelDeferred(targetModel, reason, {
+  projectMonacoDebug.disposeProjectMonacoModelDeferred(targetModel, reason, {
     onCancellation: (detail) => {
       logDiffDebug('model-dispose-canceled', detail);
     },
@@ -271,11 +235,14 @@ function disposeDiffModel(targetModel: Monaco.editor.ITextModel | null, reason: 
 }
 
 function logDiffDebug(event: string, detail: Record<string, unknown>) {
-  if (!isProjectMonacoDebugEnabled()) {
+  if (!projectMonacoDebug.isProjectMonacoDebugEnabled()) {
     return;
   }
 
-  logger.debug(`[ProjectMonacoDiffSurface] ${formatProjectMonacoDebugMessage(event, detail)}`, detail);
+  logger.debug(
+    `[ProjectMonacoDiffSurface] ${projectMonacoDebug.formatProjectMonacoDebugMessage(event, detail)}`,
+    detail,
+  );
 }
 
 defineExpose({

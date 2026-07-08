@@ -1,9 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ProjectMonacoDiffSurface from './ProjectMonacoDiffSurface.vue';
+const PROJECT_MONACO_DIFF_SURFACE_TEST_STATE_KEY = '__PROJECT_MONACO_DIFF_SURFACE_TEST_STATE__';
 
-const mockState = vi.hoisted(() => {
+function createMockState() {
   const callOrder: string[] = [];
   const layoutReasons: string[] = [];
   const models: Array<{
@@ -54,9 +54,22 @@ const mockState = vi.hoisted(() => {
   });
 
   const disconnect = vi.fn();
+  let resizeCallback: (() => void) | null = null;
 
   return {
     callOrder,
+    createLayoutController: vi.fn((options: { layout: () => void }) => {
+      resizeCallback = options.layout;
+      return {
+        disconnect,
+        observe: vi.fn(),
+        schedule: vi.fn(() => {
+          mockState.layoutReasons.push('scheduled');
+          options.layout();
+          return Promise.resolve();
+        }),
+      };
+    }),
     createDiffEditor,
     createModel,
     currentModel: () => currentModel,
@@ -64,11 +77,16 @@ const mockState = vi.hoisted(() => {
     disconnect,
     layoutReasons,
     models,
+    triggerResize() {
+      resizeCallback?.();
+    },
     reset() {
       callOrder.length = 0;
       layoutReasons.length = 0;
       models.length = 0;
       currentModel = null;
+      resizeCallback = null;
+      this.createLayoutController.mockClear();
       createDiffEditor.mockClear();
       createModel.mockClear();
       diffEditor.dispose.mockClear();
@@ -79,7 +97,14 @@ const mockState = vi.hoisted(() => {
       disconnect.mockClear();
     },
   };
-});
+}
+
+const mockState = createMockState();
+(globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DIFF_SURFACE_TEST_STATE_KEY] = mockState;
+const getMockState = () =>
+  (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DIFF_SURFACE_TEST_STATE_KEY] as ReturnType<
+    typeof createMockState
+  >;
 
 vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
@@ -121,20 +146,51 @@ vi.mock('../shared/project-monaco', async () => {
     buildProjectMonacoModelUri: (key: string, language: string, suffix?: string) =>
       `inmemory://${language}/${key}/${suffix ?? 'default'}`,
     createProjectMonacoModelUriSuffix: () => 'test-suffix',
+    createProjectMonacoRelayoutBridge: (options: {
+      layout: () => void;
+      log: (event: string, detail: Record<string, unknown>) => void;
+    }) => ({
+      disconnect: getMockState().disconnect,
+      observe: vi.fn(),
+      relayout: vi.fn(async (reason = 'manual') => {
+        getMockState().layoutReasons.push('scheduled');
+        options.log('layout-scheduled', { reason });
+        options.layout();
+      }),
+    }),
+    disposeProjectMonacoModelCache: (
+      cache: Map<string, { dispose: () => void }>,
+      reason: string,
+      disposeModel: (targetModel: { dispose: () => void }, reason: string) => void,
+    ) => {
+      for (const model of cache.values()) {
+        disposeModel(model, reason);
+      }
+      cache.clear();
+    },
     ensureProjectMonacoConfigured: () => ({
       editor: {
-        createDiffEditor: mockState.createDiffEditor,
-        createModel: mockState.createModel,
-        getModels: () => mockState.models,
+        createDiffEditor: getMockState().createDiffEditor,
+        createModel: getMockState().createModel,
+        getModels: () => getMockState().models,
       },
     }),
-    observeProjectMonacoResize: () => ({
-      disconnect: mockState.disconnect,
-    }),
-    scheduleProjectMonacoLayout: (layout: () => void) => {
-      mockState.layoutReasons.push('scheduled');
-      layout();
-      return Promise.resolve();
+    getOrCreateProjectMonacoModel: (
+      monacoInstance: { editor: { createModel: (...args: any[]) => any } },
+      options: { cache: Map<string, any>; key: string; language: string; suffix: string; value: string },
+    ) => {
+      const uri = `inmemory://${options.language}/${options.key}/${options.suffix}`;
+      const existingModel = options.cache.get(uri);
+      if (existingModel) {
+        if (existingModel.getValue() !== options.value) {
+          existingModel.setValue(options.value);
+        }
+        return existingModel;
+      }
+
+      const nextModel = monacoInstance.editor.createModel(options.value, options.language, uri);
+      options.cache.set(uri, nextModel);
+      return nextModel;
     },
     useProjectMonacoLifecycle: (options: { createEditor: () => void | Promise<void>; disposeEditor: () => void }) => {
       onMounted(() => {
@@ -151,6 +207,12 @@ vi.mock('../shared/project-monaco', async () => {
 });
 
 describe('ProjectMonacoDiffSurface', () => {
+  let ProjectMonacoDiffSurface: any;
+
+  beforeAll(async () => {
+    ProjectMonacoDiffSurface = (await import('./ProjectMonacoDiffSurface.vue')).default;
+  });
+
   beforeEach(() => {
     mockState.reset();
   });
@@ -209,5 +271,42 @@ describe('ProjectMonacoDiffSurface', () => {
     const reboundModel = mockState.currentModel();
     expect(reboundModel?.original.getLanguageId()).toBe('json');
     expect(reboundModel?.modified.getLanguageId()).toBe('json');
+  });
+
+  it('reuses cached models when the same diff identity is revisited', async () => {
+    const wrapper = mount(ProjectMonacoDiffSurface, {
+      props: {
+        editorAriaLabel: 'Diff Viewer',
+        language: 'yaml',
+        modifiedKey: 'modified.yml',
+        modifiedValue: 'version: 2\n',
+        originalKey: 'original.yml',
+        originalValue: 'version: 1\n',
+      },
+    });
+
+    await flushPromises();
+    expect(mockState.createModel).toHaveBeenCalledTimes(2);
+
+    await wrapper.setProps({
+      language: 'json',
+      modifiedKey: 'modified.json',
+      modifiedValue: '{"version":2}\n',
+      originalKey: 'original.json',
+      originalValue: '{"version":1}\n',
+    });
+    await flushPromises();
+    expect(mockState.createModel).toHaveBeenCalledTimes(4);
+
+    await wrapper.setProps({
+      language: 'yaml',
+      modifiedKey: 'modified.yml',
+      modifiedValue: 'version: 2\n',
+      originalKey: 'original.yml',
+      originalValue: 'version: 1\n',
+    });
+    await flushPromises();
+
+    expect(mockState.createModel).toHaveBeenCalledTimes(4);
   });
 });

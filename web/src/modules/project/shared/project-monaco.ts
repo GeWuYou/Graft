@@ -22,6 +22,22 @@ import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 export type MonacoEditorModule = typeof monaco;
 type MonacoCreateWebWorker = typeof monaco.editor.createWebWorker;
+type ProjectMonacoLayoutControllerOptions = {
+  getContainer: () => HTMLElement | null;
+  layout: () => void;
+  onResizeObserved?: (size: { height: number; width: number }) => void;
+};
+type ProjectMonacoLayoutScheduleOptions = {
+  force?: boolean;
+};
+type ProjectMonacoModelCache = Map<string, monaco.editor.ITextModel>;
+type ProjectMonacoModelCacheOptions = {
+  cache: ProjectMonacoModelCache;
+  key: string;
+  language: string;
+  suffix: string;
+  value: string;
+};
 
 type LegacyMonacoWebWorkerOptions = {
   createData?: unknown;
@@ -52,6 +68,16 @@ const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
 const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
 export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
+export type ProjectMonacoLayoutController = {
+  disconnect: () => void;
+  observe: () => void;
+  schedule: (options?: ProjectMonacoLayoutScheduleOptions) => Promise<void>;
+};
+export type ProjectMonacoRelayoutBridge = {
+  disconnect: () => void;
+  observe: () => void;
+  relayout: (reason?: string) => Promise<void>;
+};
 
 export function ensureProjectMonacoConfigured() {
   if (monacoConfigured) {
@@ -167,6 +193,24 @@ function resolveProjectMonacoWorkerFromLegacyOptions(label: string, createWorker
   return buildProjectMonacoWorker('workerMain.js', label);
 }
 
+function areProjectMonacoSizesEqual(
+  left: { height: number; width: number } | null,
+  right: { height: number; width: number } | null,
+) {
+  return left?.height === right?.height && left?.width === right?.width;
+}
+
+function readProjectMonacoContainerSize(container: HTMLElement | null) {
+  if (!container) {
+    return null;
+  }
+
+  return {
+    height: container.clientHeight,
+    width: container.clientWidth,
+  };
+}
+
 function resolveProjectMonacoTheme(): ProjectMonacoTheme {
   return document.documentElement.getAttribute('theme-mode') === 'dark'
     ? PROJECT_MONACO_THEME_DARK
@@ -179,27 +223,160 @@ function applyProjectMonacoTheme(monacoInstance: MonacoEditorModule, hostElement
   monacoInstance.editor.setTheme(theme);
 }
 
-export function scheduleProjectMonacoLayout(layout: () => void) {
+function scheduleProjectMonacoLayout(layout: () => void) {
   return nextTick().then(() => {
     requestAnimationFrame(layout);
   });
 }
 
-export function observeProjectMonacoResize(
-  container: HTMLElement | null,
-  observer: ResizeObserver | null,
-  layout: () => void,
+function createProjectMonacoLayoutController(
+  options: ProjectMonacoLayoutControllerOptions,
+): ProjectMonacoLayoutController {
+  let disposed = false;
+  let layoutInFlight = false;
+  let resizeObserver: ResizeObserver | null = null;
+  let scheduledFrame: Promise<void> | null = null;
+  let lastObservedSize = readProjectMonacoContainerSize(options.getContainer());
+  let lastLaidOutSize = lastObservedSize;
+
+  const schedule = (scheduleOptions?: ProjectMonacoLayoutScheduleOptions) => {
+    if (disposed) {
+      return Promise.resolve();
+    }
+
+    const nextSize = readProjectMonacoContainerSize(options.getContainer());
+    const force = Boolean(scheduleOptions?.force);
+    if (!force && areProjectMonacoSizesEqual(nextSize, lastLaidOutSize)) {
+      return scheduledFrame ?? Promise.resolve();
+    }
+
+    if (scheduledFrame || layoutInFlight) {
+      return scheduledFrame ?? Promise.resolve();
+    }
+
+    scheduledFrame = scheduleProjectMonacoLayout(() => {
+      scheduledFrame = null;
+
+      if (disposed || layoutInFlight) {
+        return;
+      }
+
+      layoutInFlight = true;
+      try {
+        options.layout();
+        lastLaidOutSize = readProjectMonacoContainerSize(options.getContainer());
+      } finally {
+        layoutInFlight = false;
+      }
+    });
+
+    return scheduledFrame;
+  };
+
+  return {
+    disconnect() {
+      disposed = true;
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      scheduledFrame = null;
+    },
+    observe() {
+      const container = options.getContainer();
+      if (disposed || typeof ResizeObserver === 'undefined' || !container) {
+        return;
+      }
+
+      resizeObserver?.disconnect();
+      resizeObserver = new ResizeObserver(() => {
+        const nextSize = readProjectMonacoContainerSize(options.getContainer());
+        if (!nextSize || areProjectMonacoSizesEqual(nextSize, lastObservedSize)) {
+          return;
+        }
+
+        lastObservedSize = nextSize;
+        options.onResizeObserved?.(nextSize);
+        void schedule();
+      });
+      resizeObserver.observe(container);
+    },
+    schedule,
+  };
+}
+
+export function createProjectMonacoRelayoutBridge(options: {
+  getContainer: () => HTMLElement | null;
+  layout: () => void;
+  log: (event: string, detail: Record<string, unknown>) => void;
+}): ProjectMonacoRelayoutBridge {
+  let pendingLayoutReason = 'manual';
+  const layoutController = createProjectMonacoLayoutController({
+    getContainer: options.getContainer,
+    layout: () => {
+      options.log('layout-run', {
+        containerHeight: options.getContainer()?.clientHeight ?? 0,
+        containerWidth: options.getContainer()?.clientWidth ?? 0,
+        reason: pendingLayoutReason,
+      });
+      options.layout();
+    },
+    onResizeObserved: (size) => {
+      pendingLayoutReason = 'resize-observer';
+      options.log('resize-observer-fired', {
+        containerHeight: size.height,
+        containerWidth: size.width,
+      });
+    },
+  });
+
+  return {
+    disconnect() {
+      layoutController.disconnect();
+    },
+    observe() {
+      layoutController.observe();
+    },
+    async relayout(reason = 'manual') {
+      pendingLayoutReason = reason;
+      options.log('layout-scheduled', {
+        containerHeight: options.getContainer()?.clientHeight ?? 0,
+        containerWidth: options.getContainer()?.clientWidth ?? 0,
+        reason,
+      });
+      await layoutController.schedule({ force: true });
+    },
+  };
+}
+
+export function getOrCreateProjectMonacoModel(
+  monacoInstance: MonacoEditorModule,
+  options: ProjectMonacoModelCacheOptions,
 ) {
-  if (typeof ResizeObserver === 'undefined' || !container) {
-    return observer;
+  const uri = buildProjectMonacoModelUri(options.key, options.language, options.suffix);
+  const cacheKey = String(uri);
+  const existingModel = options.cache.get(cacheKey);
+
+  if (existingModel) {
+    if (existingModel.getValue() !== options.value) {
+      existingModel.setValue(options.value);
+    }
+    return existingModel;
   }
 
-  observer?.disconnect();
-  const nextObserver = new ResizeObserver(() => {
-    void scheduleProjectMonacoLayout(layout);
-  });
-  nextObserver.observe(container);
-  return nextObserver;
+  const nextModel = monacoInstance.editor.createModel(options.value, options.language, uri);
+  options.cache.set(cacheKey, nextModel);
+  return nextModel;
+}
+
+export function disposeProjectMonacoModelCache(
+  cache: ProjectMonacoModelCache,
+  reason: string,
+  disposeModel: (targetModel: monaco.editor.ITextModel, reason: string) => void,
+) {
+  const cachedModels = Array.from(new Set(cache.values()));
+  cache.clear();
+  for (const cachedModel of cachedModels) {
+    disposeModel(cachedModel, reason);
+  }
 }
 
 export function useProjectMonacoLifecycle(options: {
@@ -363,7 +540,7 @@ export function createProjectMonacoModelUriSuffix() {
   return `model-${modelUriSuffixSeed}`;
 }
 
-export function buildProjectMonacoModelUri(key: string, language: string, suffix?: string) {
+function buildProjectMonacoModelUri(key: string, language: string, suffix?: string) {
   const normalizedKey = key.replace(/[^a-z0-9/_.-]/giu, '-');
   const extension = resolveLanguageExtension(language);
   const normalizedSuffix = suffix ? `-${suffix.replace(/[^a-z0-9/_.-]/giu, '-')}` : '';
