@@ -24,6 +24,13 @@ validation rules.
 5. If the push follows an active `$graft-pr-review` remediation run, confirm the latest PR finding inventory was built
    exhaustively and still includes `Outside diff range comments (N)`, `Nitpick comments (N)`, and other folded
    latest-review sections in scope; do not treat push as permission to leave those findings informal or unclassified.
+6. When the user explicitly triggers `$graft-push`, treat it as permission to finish the local push path end to end:
+   - if the branch is blocked on a bounded local issue inside the current owned scope, such as missing commit,
+     generated-artifact drift, stale snapshots, local validation failure, or hook failure, repair that blocker first,
+     rerun the relevant validation or hook, and continue the push workflow without waiting for another user reminder
+   - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
+     confirmed scope, the branch / destination becomes ambiguous, or the necessary repair would widen into a new unsafe
+     slice
 
 ## Workflow
 
@@ -57,6 +64,8 @@ validation rules.
    - if a commit is missing, use `graft-commit`
    - if local validation is the real blocker, use `graft-validation-runner`
    - if the failure is a local hook, reproduce the exact hook and fix that path first
+   - if a bounded local blocker sits inside the current owned scope, repair it first and then resume the same
+     push workflow instead of stopping at diagnosis-only
    - if the branch contains `$graft-pr-review` fixes, preserve the review run's exhaustive finding-disposition
      requirement; a successful push does not downgrade `Outside diff range comments` or other folded review findings to
      optional

@@ -30,6 +30,9 @@ validation rules.
    end:
    - if required validation fails on a concrete issue inside the current owned scope and the fix is reasonably bounded,
      fix that issue first, rerun validation, and continue the commit workflow without waiting for another user reminder
+   - if the current slice is blocked by a local generated-artifact drift, stale snapshot, test expectation drift, or
+     similar commit-path issue that is clearly inside the owned scope and can be repaired safely in the same slice,
+     repair it first, rerun the required validation, and then continue to commit
    - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
      confirmed scope, or the necessary repair would widen into a new unsafe slice
 
