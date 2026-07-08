@@ -10,7 +10,6 @@ import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
 import 'monaco-editor/esm/vs/language/json/monaco.contribution';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
-import { createWebWorker as createMonacoLabelAwareWebWorker } from 'monaco-editor/esm/vs/common/workers.js';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { nextTick, onBeforeUnmount, onMounted } from 'vue';
@@ -35,7 +34,6 @@ let monacoConfigured = false;
 let monacoYamlConfigured = false;
 let monacoYamlConfigurationFailed = false;
 let modelUriSuffixSeed = 0;
-let monacoCreateWebWorkerPatched = false;
 const logger = createLogger('project.monaco');
 const logProjectMonacoDebug = createProjectMonacoDebugLogger('project.monaco');
 
@@ -43,41 +41,6 @@ const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
 const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
 export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
-
-function installProjectMonacoCreateWebWorkerPatch() {
-  if (monacoCreateWebWorkerPatched) {
-    return;
-  }
-
-  const originalCreateWebWorker = monaco.editor.createWebWorker.bind(monaco.editor);
-
-  (
-    monaco.editor as typeof monaco.editor & {
-      createWebWorker: typeof monaco.editor.createWebWorker;
-    }
-  ).createWebWorker = ((options: unknown) => {
-    const workerOptions = options as {
-      createData?: unknown;
-      label?: string;
-      moduleId?: string;
-      worker?: unknown;
-    };
-
-    if (!('worker' in workerOptions) && typeof workerOptions.label === 'string') {
-      logProjectMonacoDebug('patch-create-web-worker', {
-        label: workerOptions.label,
-        moduleId: typeof workerOptions.moduleId === 'string' ? workerOptions.moduleId : 'unknown',
-      });
-
-      return createMonacoLabelAwareWebWorker(workerOptions as never);
-    }
-
-    return originalCreateWebWorker(options as never);
-  }) as typeof monaco.editor.createWebWorker;
-
-  monacoCreateWebWorkerPatched = true;
-  logProjectMonacoDebug('patch-create-web-worker-installed', {});
-}
 
 export function ensureProjectMonacoConfigured() {
   if (monacoConfigured) {
@@ -101,8 +64,6 @@ export function ensureProjectMonacoConfigured() {
       return worker;
     },
   };
-
-  installProjectMonacoCreateWebWorkerPatch();
 
   if (!monacoYamlConfigured && !monacoYamlConfigurationFailed) {
     try {
