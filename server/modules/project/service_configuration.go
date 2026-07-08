@@ -63,7 +63,7 @@ func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64) (Conf
 	if err != nil {
 		return ConfigurationDiffResult{}, err
 	}
-	warnings := configurationDiffWarnings(aggregate, len(files))
+	warnings := configurationDiffWarnings(len(files))
 	return ConfigurationDiffResult{
 		ProjectID:            projectID,
 		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
@@ -186,7 +186,7 @@ func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDi
 	}
 }
 
-func configurationDiffWarnings(_ projectstore.ProjectAggregate, fileCount int) []string {
+func configurationDiffWarnings(fileCount int) []string {
 	warnings := make([]string, 0, configurationDiffWarningsCapacity)
 	if fileCount == 0 {
 		warnings = append(warnings, "No tracked compose or env files are registered for the project.")

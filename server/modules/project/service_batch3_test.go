@@ -2024,7 +2024,7 @@ func TestConfigurationDiffFileFromTrackedNormalizesStoredBaseline(t *testing.T) 
 func TestConfigurationDiffWarningsOnlyReportMissingTrackedFiles(t *testing.T) {
 	t.Parallel()
 
-	warnings := configurationDiffWarnings(projectstore.ProjectAggregate{}, 0)
+	warnings := configurationDiffWarnings(0)
 	if len(warnings) != 1 {
 		t.Fatalf("expected one missing-file warning, got %#v", warnings)
 	}

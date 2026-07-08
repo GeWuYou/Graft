@@ -49,6 +49,7 @@ import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
+import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 import type { AppRouteMeta } from '@/utils/types';
 
 import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vue';
@@ -73,7 +74,6 @@ const logger = createLogger('layout.tabs');
 const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
 const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
 const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
-const tabsDebugEnabled = import.meta.env.VITE_TABS_DEBUG === 'true';
 const sidebarMotionTimers = new Set<number>();
 const sidebarMotionFrameIds = new Set<number>();
 let sidebarFreezeToken: number | null = null;
@@ -158,36 +158,13 @@ const scheduleSidebarMotion = (callback: () => void, delay: number) => {
   sidebarMotionTimers.add(timerId);
 };
 
-const formatLayoutTitle = (title?: Record<string, string>) => title?.[LOCALE.ZH_CN] || title?.[LOCALE.EN_US] || '';
-
-const formatLayoutTabsSummary = () => {
-  const tabs = tabsRouterStore.tabRouters ?? tabsRouterStore.tabRouterList ?? [];
-  if (!tabs.length) {
-    return 'count=0';
-  }
-
-  return `count=${tabs.length} ${tabs
-    .map(
-      (tab, index) =>
-        `[#${index} key=${tab.tabKey || tab.path} path=${tab.path} fullPath=${tab.fullPath || ''} name=${String(
-          tab.name || '',
-        )} title=${formatLayoutTitle(tab.title)}]`,
-    )
-    .join(' ')}`;
-};
+const formatLayoutTabsSummary = () =>
+  formatTabsDebugSummary(tabsRouterStore.tabRouters ?? tabsRouterStore.tabRouterList ?? []);
 
 const formatCurrentRouteSummary = () =>
   `path=${route.path} fullPath=${route.fullPath} name=${String(route.name || '')} queryName=${String(
     route.query?.name || '',
   )}`;
-
-const logTabsDebug = (message: string | (() => string)) => {
-  if (!tabsDebugEnabled) {
-    return;
-  }
-
-  logger.debug(typeof message === 'function' ? message() : message);
-};
 
 const scheduleSidebarNextPaint = (callback: () => void) => {
   if (typeof document === 'undefined' || document.visibilityState !== 'visible') {
@@ -268,10 +245,11 @@ const appendNewRoute = () => {
       [LOCALE.EN_US]: '',
     };
   logTabsDebug(
+    logger,
     () =>
       `tabs debug: layout appendNewRoute before active=${tabsRouterStore.activeTabKey} route=[path=${path} fullPath=${fullPath} name=${String(
         name || '',
-      )} queryName=${String(query?.name || '')} title=${formatLayoutTitle(titleObj)}] ${formatLayoutTabsSummary()}`,
+      )} queryName=${String(query?.name || '')} title=${formatTabDebugTitle(titleObj)}] ${formatLayoutTabsSummary()}`,
   );
   logger.debug('append route into tabs router', {
     path,
@@ -291,28 +269,33 @@ const appendNewRoute = () => {
   });
   tabsRouterStore.setActiveRoute(route);
   logTabsDebug(
+    logger,
     () => `tabs debug: layout appendNewRoute after active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
 };
 
 onMounted(() => {
   logTabsDebug(
+    logger,
     () =>
       `tabs debug: layout onMounted before heal active=${tabsRouterStore.activeTabKey} route=[${formatCurrentRouteSummary()}] ${formatLayoutTabsSummary()}`,
   );
   tabsRouterStore.healPersistedState();
   logTabsDebug(
+    logger,
     () =>
       `tabs debug: layout onMounted after state heal active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
   tabsRouterStore.healPersistedRoutes(router);
   logTabsDebug(
+    logger,
     () =>
       `tabs debug: layout onMounted after route heal active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
   appendNewRoute();
   tabsRouterStore.setActiveRoute(route);
   logTabsDebug(
+    logger,
     () =>
       `tabs debug: layout onMounted after active sync active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
