@@ -410,6 +410,7 @@
       v-model:visible="resultDialogVisible"
       :dialog-class-name="resultDialogClassName"
       :dialog-style="resultDialogStyle"
+      :close-btn="!resultDialogFullscreen"
       :footer="false"
       :header="false"
       :mode="resultDialogFullscreen ? 'full-screen' : 'modal'"
@@ -417,6 +418,7 @@
       :close-on-overlay-click="false"
       :close-on-esc-keydown="true"
       destroy-on-close
+      :on-opened="handleResultDialogOpened"
       :top="resultDialogTop"
       :width="resultDialogWidth"
     >
@@ -532,7 +534,8 @@
             </div>
             <div class="project-configuration-workspace__result-viewer">
               <project-monaco-diff-surface
-                v-if="selectedDiffFile"
+                v-if="selectedDiffFile && diffViewerReady"
+                ref="diffViewerRef"
                 :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
                 :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
                 :modified-key="`diff-modified-${selectedDiffFile.path}`"
@@ -564,6 +567,7 @@
           </div>
           <div class="project-configuration-workspace__result-viewer">
             <project-monaco-surface
+              ref="validationViewerRef"
               class="project-configuration-workspace__monaco-viewer"
               :model-value="validateResult.normalized_compose_yaml"
               :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
@@ -740,6 +744,9 @@ type WorkspacePreviewDiffResult = {
   has_changes: boolean;
   warnings: string[];
 };
+type MonacoViewerHandle = {
+  relayout: () => Promise<void>;
+};
 type WorkspaceOpenFile = {
   content: string;
   readable: boolean;
@@ -791,6 +798,9 @@ const workspaceFullscreen = ref(false);
 const resultDialogVisible = ref(false);
 const resultDialogMode = ref<ResultDialogMode>('diff');
 const resultDialogFullscreen = ref(false);
+const diffViewerReady = ref(false);
+const diffViewerRef = ref<MonacoViewerHandle | null>(null);
+const validationViewerRef = ref<MonacoViewerHandle | null>(null);
 const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<WorkspacePreviewDiffResult | null>(null);
 const validateResult = ref<ProjectConfigurationValidateResponse | null>(null);
@@ -897,7 +907,7 @@ const resultDialogClassName = computed(() =>
     ? 'project-configuration-workspace__result-dialog-shell project-configuration-workspace__result-dialog-shell--fullscreen'
     : 'project-configuration-workspace__result-dialog-shell',
 );
-const resultDialogWidth = computed(() => (resultDialogFullscreen.value ? undefined : 'min(96vw, 1560px)'));
+const resultDialogWidth = computed(() => (resultDialogFullscreen.value ? undefined : 'min(80vw, 1600px)'));
 const resultDialogTop = computed(() => (resultDialogFullscreen.value ? 0 : 24));
 const resultDialogStyle = computed(() =>
   resultDialogFullscreen.value
@@ -907,9 +917,9 @@ const resultDialogStyle = computed(() =>
         width: '100vw',
       }
     : {
-        height: '76vh',
+        height: '80vh',
         maxHeight: 'calc(100vh - 48px)',
-        width: 'auto',
+        width: 'min(80vw, 1600px)',
       },
 );
 const workspaceItemMap = computed(() => {
@@ -975,7 +985,13 @@ watch(showHiddenFiles, () => {
 });
 
 watch(resultDialogVisible, (visible) => {
-  if (!visible) {
+  if (visible) {
+    if (resultDialogMode.value === 'diff') {
+      diffViewerReady.value = false;
+    }
+    queueResultViewerLayout();
+  } else {
+    diffViewerReady.value = false;
     resultDialogFullscreen.value = false;
     if (resultDialogMode.value === 'diff') {
       pendingWorkspaceAction.value = null;
@@ -1278,26 +1294,35 @@ async function openWorkspaceFile(path: string, source?: WorkspaceListItem) {
     openTabs.value = [...openTabs.value, path];
   }
 
-  activeTabPath.value = path;
-  await ensureWorkspaceFileLoaded(path, source);
+  const current = openFileMap.get(path);
+  const shouldDelayActivation = Boolean(current && !current.loaded && !current.loading);
+
+  if (!shouldDelayActivation) {
+    activeTabPath.value = path;
+  }
+
+  const resolvedPath = await ensureWorkspaceFileLoaded(path, source);
+  activeTabPath.value = resolvedPath ?? path;
 }
 
 async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceListItem) {
   const current = openFileMap.get(path);
   if (!current || current.loading || current.loaded) {
-    return;
+    return current?.path ?? path;
   }
 
   current.loading = true;
   current.error = '';
   try {
     const response = await getProjectFileContent(projectId.value, { path });
-    hydrateOpenFileFromResponse(path, response, source);
+    return hydrateOpenFileFromResponse(path, response, source);
   } catch (error) {
     current.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
   } finally {
     current.loading = false;
   }
+
+  return current.path ?? path;
 }
 
 function hydrateOpenFileFromResponse(
@@ -1352,6 +1377,8 @@ function hydrateOpenFileFromResponse(
       activeTabPath.value = path;
     }
   }
+
+  return path;
 }
 
 function isFileDirty(path: string) {
@@ -1664,6 +1691,27 @@ async function executeProjectValidate() {
 
 function toggleResultDialogFullscreen() {
   resultDialogFullscreen.value = !resultDialogFullscreen.value;
+  queueResultViewerLayout();
+}
+
+function handleResultDialogOpened() {
+  if (resultDialogMode.value === 'diff') {
+    diffViewerReady.value = true;
+  }
+  queueResultViewerLayout();
+}
+
+function queueResultViewerLayout() {
+  void nextTick(async () => {
+    const layoutTasks: Array<Promise<void>> = [];
+    if (diffViewerRef.value && typeof diffViewerRef.value.relayout === 'function') {
+      layoutTasks.push(diffViewerRef.value.relayout());
+    }
+    if (validationViewerRef.value && typeof validationViewerRef.value.relayout === 'function') {
+      layoutTasks.push(validationViewerRef.value.relayout());
+    }
+    await Promise.allSettled(layoutTasks);
+  });
 }
 
 async function runProjectDeploy() {
@@ -2715,10 +2763,22 @@ function stopSidebarResize() {
 :deep(.project-configuration-workspace__result-dialog-shell .t-dialog) {
   display: flex;
   flex-direction: column;
-  height: 76vh;
+  height: 80vh;
   max-height: calc(100vh - 48px);
-  max-width: min(96vw, 1560px);
-  width: min(96vw, 1560px);
+  max-width: min(80vw, 1600px);
+  width: min(80vw, 1600px);
+}
+
+:deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog__body),
+:deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog__body-content),
+:deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog__body--fullscreen),
+:deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog__body--fullscreen--without-footer) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
 }
 
 :deep(.project-configuration-workspace__result-dialog-shell--fullscreen .t-dialog) {

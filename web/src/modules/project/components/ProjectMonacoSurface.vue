@@ -5,6 +5,8 @@
 import type * as Monaco from 'monaco-editor';
 import { ref, watch } from 'vue';
 
+import { createLogger } from '@/utils/logger';
+
 import {
   buildProjectMonacoModelUri,
   createProjectMonacoModelUriSuffix,
@@ -13,6 +15,13 @@ import {
   scheduleProjectMonacoLayout,
   useProjectMonacoLifecycle,
 } from '../shared/project-monaco';
+import {
+  createProjectMonacoDebugLogger,
+  describeProjectMonacoElement,
+  disposeProjectMonacoModelDeferred,
+  formatProjectMonacoDebugMessage,
+  isProjectMonacoDebugEnabled,
+} from '../shared/project-monaco-debug';
 
 type MonacoEditorSurfaceOptions = Monaco.editor.IStandaloneEditorConstructionOptions;
 
@@ -39,6 +48,8 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLElement | null>(null);
 const modelUriSuffix = createProjectMonacoModelUriSuffix();
+const logger = createLogger('project.monaco.surface');
+const logProjectMonacoSurfaceDebug = createProjectMonacoDebugLogger('project.monaco.surface');
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
 let model: Monaco.editor.ITextModel | null = null;
@@ -49,12 +60,23 @@ let resizeObserver: ResizeObserver | null = null;
 const { applyTheme } = useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
+    logSurfaceDebug('dispose-start', {
+      hasEditor: Boolean(editor),
+      hasModel: Boolean(model),
+      modelCount: monaco?.editor.getModels().length ?? 0,
+    });
     resizeObserver?.disconnect();
     resizeObserver = null;
-    editor?.dispose();
+    const currentEditor = editor;
+    const currentModel = model;
     editor = null;
-    model?.dispose();
     model = null;
+    currentEditor?.dispose();
+    disposeSurfaceModel(currentModel, 'dispose-editor-model');
+    logSurfaceDebug('dispose-complete', {
+      hasEditor: Boolean(currentEditor),
+      hasModel: Boolean(currentModel),
+    });
   },
   getMonaco: () => monaco,
   getThemeHost: () => containerRef.value,
@@ -72,6 +94,12 @@ watch(
       return;
     }
 
+    logSurfaceDebug('model-value-update', {
+      modelKey: props.modelKey,
+      nextLength: normalizedValue.length,
+      previousLength: model.getValue().length,
+    });
+
     syncingFromProps = true;
     model.pushEditOperations([], [{ range: model.getFullModelRange(), text: normalizedValue }], () => null);
     syncingFromProps = false;
@@ -80,16 +108,31 @@ watch(
 
 watch(
   () => [props.modelKey, props.language] as const,
-  () => {
+  async () => {
     if (!monaco || !editor) {
       return;
     }
-    editor.setModel(null);
-    model?.dispose();
+
+    const previousModel = model;
     const nextModel = createModel(monaco);
+    logSurfaceDebug('model-rebind-start', {
+      containerHeight: containerRef.value?.clientHeight ?? 0,
+      containerWidth: containerRef.value?.clientWidth ?? 0,
+      language: props.language,
+      modelKey: props.modelKey,
+      nextModelLength: nextModel.getValue().length,
+      previousModelLength: previousModel?.getValue().length ?? 0,
+    });
     editor.setModel(nextModel);
     model = nextModel;
+    disposeSurfaceModel(previousModel, 'replace-model');
+    await relayout('rebind-model');
+    logSurfaceDebug('model-rebind-complete', {
+      currentModelLength: model.getValue().length,
+      modelCount: monaco.editor.getModels().length,
+    });
   },
+  { flush: 'post' },
 );
 
 watch(
@@ -115,6 +158,15 @@ async function createEditor() {
     return;
   }
 
+  logSurfaceDebug('create-start', {
+    containerHeight: host.clientHeight,
+    containerParent: describeProjectMonacoElement(host.parentElement),
+    containerWidth: host.clientWidth,
+    language: props.language,
+    modelKey: props.modelKey,
+    textLength: String(props.modelValue ?? '').length,
+  });
+
   applyTheme();
   model = createModel(monaco);
   editor = monaco.editor.create(host, {
@@ -137,6 +189,14 @@ async function createEditor() {
     model,
   });
 
+  logSurfaceDebug('create-complete', {
+    containerHeight: host.clientHeight,
+    containerMatchesEditor: editor.getContainerDomNode() === host,
+    containerWidth: host.clientWidth,
+    modelCount: monaco.editor.getModels().length,
+    textLength: model.getValue().length,
+  });
+
   editor.onDidChangeModelContent(() => {
     if (!editor || syncingFromProps) {
       return;
@@ -145,15 +205,17 @@ async function createEditor() {
     if (value === props.modelValue) {
       return;
     }
+    logSurfaceDebug('editor-content-change', {
+      modelKey: props.modelKey,
+      textLength: value.length,
+    });
     syncingFromEditor = true;
     emit('update:modelValue', value);
     syncingFromEditor = false;
   });
 
   observeContainerResize();
-  await scheduleProjectMonacoLayout(() => {
-    editor?.layout();
-  });
+  await relayout('initial-create');
 }
 
 function createModel(monacoInstance: typeof Monaco) {
@@ -170,9 +232,56 @@ function observeContainerResize() {
   }
 
   resizeObserver = observeProjectMonacoResize(containerRef.value, resizeObserver, () => {
+    logSurfaceDebug('resize-observer-fired', {
+      containerHeight: containerRef.value?.clientHeight ?? 0,
+      containerWidth: containerRef.value?.clientWidth ?? 0,
+    });
     editor?.layout();
   });
 }
+
+async function relayout(reason = 'manual') {
+  logSurfaceDebug('layout-scheduled', {
+    containerHeight: containerRef.value?.clientHeight ?? 0,
+    containerWidth: containerRef.value?.clientWidth ?? 0,
+    reason,
+  });
+
+  await scheduleProjectMonacoLayout(() => {
+    logSurfaceDebug('layout-run', {
+      containerHeight: containerRef.value?.clientHeight ?? 0,
+      containerWidth: containerRef.value?.clientWidth ?? 0,
+      reason,
+    });
+    editor?.layout();
+  });
+}
+
+function disposeSurfaceModel(targetModel: Monaco.editor.ITextModel | null, reason: string) {
+  disposeProjectMonacoModelDeferred(targetModel, reason, {
+    onCancellation: (detail) => {
+      logSurfaceDebug('model-dispose-canceled', detail);
+    },
+    onDispose: (detail) => {
+      logSurfaceDebug('model-dispose-complete', detail);
+    },
+    onError: (error, detail) => {
+      logger.error(error, detail);
+    },
+  });
+}
+
+function logSurfaceDebug(event: string, detail: Record<string, unknown>) {
+  if (!isProjectMonacoDebugEnabled()) {
+    return;
+  }
+
+  logProjectMonacoSurfaceDebug(formatProjectMonacoDebugMessage(event, detail), detail);
+}
+
+defineExpose({
+  relayout,
+});
 </script>
 <style scoped lang="less">
 .project-monaco-surface {

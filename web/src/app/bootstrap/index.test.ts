@@ -4,6 +4,8 @@ const healPersistedState = vi.fn();
 const afterEachMock = vi.fn();
 const registerRouteGuards = vi.fn();
 const registerPermissionDirective = vi.fn();
+const isHandledAuthRequestError = vi.fn();
+const isProjectMonacoBenignCancellationError = vi.fn();
 const loggerError = vi.fn();
 const patchGlobalLoggerContext = vi.fn();
 const useMock = vi.fn();
@@ -43,6 +45,14 @@ vi.mock('@/store', () => ({
   }),
 }));
 
+vi.mock('@/utils/auth-request-error', () => ({
+  isHandledAuthRequestError,
+}));
+
+vi.mock('@/modules/project/shared/project-monaco-debug', () => ({
+  isProjectMonacoBenignCancellationError,
+}));
+
 vi.mock('./route-guards', () => ({
   registerRouteGuards,
 }));
@@ -67,6 +77,10 @@ describe('bootstrapApp', () => {
     healPersistedState.mockReset();
     registerRouteGuards.mockReset();
     registerPermissionDirective.mockReset();
+    isHandledAuthRequestError.mockReset();
+    isHandledAuthRequestError.mockReturnValue(false);
+    isProjectMonacoBenignCancellationError.mockReset();
+    isProjectMonacoBenignCancellationError.mockReturnValue(false);
     loggerError.mockReset();
     patchGlobalLoggerContext.mockReset();
     useMock.mockReset();
@@ -89,5 +103,30 @@ describe('bootstrapApp', () => {
     expect(registerPermissionDirective).toHaveBeenCalledTimes(1);
     expect(mountMock).toHaveBeenCalledWith('#app');
     expect(healPersistedState.mock.invocationCallOrder[0]).toBeLessThan(mountMock.mock.invocationCallOrder[0]);
+  });
+
+  it('suppresses Monaco cancellation rejections from the global runtime error sink', async () => {
+    const { bootstrapApp } = await import('./index');
+    isProjectMonacoBenignCancellationError.mockReturnValue(true);
+
+    bootstrapApp();
+
+    const event = new Event('unhandledrejection', {
+      cancelable: true,
+    });
+    const reason = Object.assign(new Error('Canceled'), {
+      name: 'Canceled',
+      stack: 'Error: Canceled\n    at ProjectMonacoSurface.vue:124:1',
+    });
+    Object.defineProperty(event, 'reason', {
+      configurable: true,
+      value: reason,
+    });
+
+    window.dispatchEvent(event);
+
+    expect(isProjectMonacoBenignCancellationError).toHaveBeenCalledWith(reason);
+    expect(event.defaultPrevented).toBe(true);
+    expect(loggerError).not.toHaveBeenCalled();
   });
 });

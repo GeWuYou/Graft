@@ -85,6 +85,18 @@ describe('project-monaco worker routing', () => {
 });
 
 describe('project-monaco debug toggle', () => {
+  it('enables debug logging from the explicit env flag in production', () => {
+    const previousValue = import.meta.env.VITE_PROJECT_MONACO_DEBUG;
+
+    try {
+      import.meta.env.VITE_PROJECT_MONACO_DEBUG = 'true';
+
+      expect(isProjectMonacoDebugEnabled()).toBe(true);
+    } finally {
+      import.meta.env.VITE_PROJECT_MONACO_DEBUG = previousValue;
+    }
+  });
+
   it('reads the explicit global debug flag before localStorage', () => {
     const previousValue = (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
 

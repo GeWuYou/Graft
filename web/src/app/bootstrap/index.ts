@@ -3,6 +3,7 @@ import { createApp } from 'vue';
 
 import App from '@/App.vue';
 import { i18n } from '@/locales';
+import { isProjectMonacoBenignCancellationError } from '@/modules/project/shared/project-monaco-debug';
 import router from '@/router';
 import { store, useTabsRouterStore } from '@/store';
 import { isHandledAuthRequestError } from '@/utils/auth-request-error';
@@ -73,6 +74,11 @@ function registerGlobalLoggerSinks() {
 
   window.addEventListener('unhandledrejection', (event) => {
     if (isHandledAuthRequestError(event.reason)) {
+      event.preventDefault();
+      return;
+    }
+
+    if (isProjectMonacoBenignCancellationError(event.reason)) {
       event.preventDefault();
       return;
     }

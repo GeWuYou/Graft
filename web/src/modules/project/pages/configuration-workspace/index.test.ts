@@ -1,7 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, defineComponent, h, reactive } from 'vue';
+import { computed, defineComponent, h, nextTick, reactive, watch } from 'vue';
 
+import type { ProjectWorkspaceFileContentResponse } from '../../types/project';
 import ProjectConfigurationWorkspaceIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
@@ -165,7 +166,11 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
       readOnly: { type: Boolean, default: false },
     },
     emits: ['update:modelValue'],
-    setup(props, { emit }) {
+    setup(props, { emit, expose }) {
+      expose({
+        relayout: () => Promise.resolve(),
+      });
+
       return () =>
         h('textarea', {
           'data-testid': props.testId,
@@ -185,7 +190,11 @@ vi.mock('../../components/ProjectMonacoDiffSurface.vue', () => ({
       originalValue: { type: String, default: '' },
       testId: { type: String, default: 'diff-stub' },
     },
-    setup(props) {
+    setup(props, { expose }) {
+      expose({
+        relayout: () => Promise.resolve(),
+      });
+
       return () =>
         h('div', { 'data-testid': props.testId }, [
           h('pre', { class: 'original' }, props.originalValue),
@@ -316,12 +325,26 @@ const TDialogStub = defineComponent({
     dialogStyle: { type: Object, default: undefined },
     header: { type: String, default: '' },
     mode: { type: String, default: 'modal' },
+    onOpened: { type: Function, default: undefined },
     top: { type: [Number, String], default: undefined },
     visible: { type: Boolean, default: false },
     width: { type: [Number, String], default: undefined },
   },
   emits: ['close', 'confirm', 'update:visible'],
   setup(props, { emit, slots }) {
+    watch(
+      () => props.visible,
+      (visible) => {
+        if (!visible || typeof props.onOpened !== 'function') {
+          return;
+        }
+        void nextTick(() => {
+          (props.onOpened as () => void)();
+        });
+      },
+      { immediate: true },
+    );
+
     return () =>
       h(
         'div',
@@ -567,6 +590,59 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'EDITOR_ONLY=true\n',
     );
+  });
+
+  it('keeps the previous editor content visible while the next file is still loading', async () => {
+    let resolveEnvContent!: (value: ProjectWorkspaceFileContentResponse) => void;
+
+    mocks.getProjectFileContent.mockImplementation((_id: number, query: { path: string }) => {
+      if (query.path === 'config/.env') {
+        return new Promise((resolve) => {
+          resolveEnvContent = resolve as (value: ProjectWorkspaceFileContentResponse) => void;
+        });
+      }
+
+      return Promise.resolve({
+        content: 'services:\n  api:\n    image: app\n',
+        editable: true,
+        encoding: 'utf-8',
+        file_kind: 'compose',
+        language_hint: 'yaml',
+        readable: true,
+        relative_path: query.path,
+        size_bytes: 32,
+      });
+    });
+
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
+      'services:\n  api:\n    image: app\n',
+    );
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
+      'services:\n  api:\n    image: app\n',
+    );
+
+    resolveEnvContent({
+      content: '',
+      editable: true,
+      encoding: 'utf-8',
+      file_kind: 'env',
+      language_hint: 'dotenv',
+      readable: true,
+      relative_path: 'config/.env',
+      size_bytes: 0,
+    });
+    await flushPromises();
+
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
   });
 
   it('renders the file tab context menu actions for each open editor tab', async () => {
@@ -819,9 +895,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const resultDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
     expect(resultDialog?.attributes('data-mode')).toBe('modal');
     expect(resultDialog?.attributes('data-top')).toBe('24');
-    expect(resultDialog?.attributes('data-width')).toBe('min(96vw, 1560px)');
-    expect(resultDialog?.attributes('data-dialog-style')).toContain('"height":"76vh"');
+    expect(resultDialog?.attributes('data-width')).toBe('min(80vw, 1600px)');
+    expect(resultDialog?.attributes('data-dialog-style')).toContain('"height":"80vh"');
     expect(resultDialog?.attributes('data-dialog-style')).toContain('"maxHeight":"calc(100vh - 48px)"');
+    expect(resultDialog?.attributes('data-dialog-style')).not.toContain('"width":"auto"');
   });
 
   it('expands the diff result dialog to edge-to-edge fullscreen sizing', async () => {
@@ -848,6 +925,14 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(resultDialog?.attributes('data-dialog-style')).toContain('"height":"100vh"');
     expect(resultDialog?.attributes('data-dialog-style')).toContain('"maxHeight":"100vh"');
     expect(resultDialog?.attributes('data-dialog-style')).toContain('"width":"100vw"');
+    expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="configuration-result-fullscreen-toggle"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
+    const restoredDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
+    expect(restoredDialog?.attributes('data-mode')).toBe('modal');
   });
 
   it('opens validation only after preview confirm saves dirty drafts', async () => {
