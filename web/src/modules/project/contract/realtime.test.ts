@@ -26,8 +26,6 @@ describe('project realtime payload parsers', () => {
                 transitioning: 0,
               },
               drift_status: 'clean',
-              last_refresh_status: 'success',
-              last_refresh_at: '2026-07-06T00:00:00Z',
             },
           ],
         },

@@ -5,7 +5,6 @@ import type { PROJECT_API_PATH } from '../contract/paths';
 export type ProjectSourceKind = components['schemas']['ProjectSourceKind'];
 export type ProjectHostScope = components['schemas']['ProjectHostScope'];
 export type ProjectOwnershipMode = components['schemas']['ProjectOwnershipMode'];
-export type ProjectRefreshStatus = components['schemas']['ProjectRefreshStatus'];
 export type ProjectDriftStatus = components['schemas']['ProjectDriftStatus'];
 export type ProjectCanonicalNameSource = components['schemas']['ProjectCanonicalNameSource'];
 export type ProjectFileKind = components['schemas']['ProjectFileKind'];
@@ -98,7 +97,6 @@ export type ProjectFilters = {
   keyword: string;
   sourceKind: ProjectSourceKind | 'all';
   driftStatus: ProjectDriftStatus | 'all';
-  lastRefreshStatus: ProjectRefreshStatus | 'all';
 };
 
 export type ProjectActivityStream = 'events' | 'logs';

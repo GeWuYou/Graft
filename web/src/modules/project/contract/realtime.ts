@@ -25,7 +25,6 @@ type ProjectServicesResponse = components['schemas']['ProjectServicesResponse'];
 type ProjectLogEntry = components['schemas']['project-log-entry'];
 type ProjectContainerCounts = components['schemas']['ProjectContainerCounts'];
 type ProjectDriftStatus = components['schemas']['ProjectDriftStatus'];
-type ProjectRefreshStatus = components['schemas']['ProjectRefreshStatus'];
 type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
 
 export type ProjectListSummaryRealtimeItem = {
@@ -34,8 +33,6 @@ export type ProjectListSummaryRealtimeItem = {
   service_count: number;
   container_counts: ProjectContainerCounts;
   drift_status: ProjectDriftStatus;
-  last_refresh_status: ProjectRefreshStatus;
-  last_refresh_at?: string | null;
 };
 
 export type ProjectDetailRealtimePayload = {
@@ -74,8 +71,7 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
         typeof item.runtime_status === 'string' &&
         typeof item.service_count === 'number' &&
         isRealtimePayloadObject(item.container_counts) &&
-        typeof item.drift_status === 'string' &&
-        typeof item.last_refresh_status === 'string',
+        typeof item.drift_status === 'string',
     )
   ) {
     return null;

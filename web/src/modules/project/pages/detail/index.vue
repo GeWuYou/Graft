@@ -82,9 +82,6 @@
       </template>
       <template #meta>
         <t-space break-line size="small">
-          <t-tag :theme="refreshStatusTheme(detailRecord?.last_refresh_status)" variant="light-outline">
-            {{ detailRecord ? refreshStatusLabel(detailRecord.last_refresh_status) : '-' }}
-          </t-tag>
           <t-tag :theme="driftStatusTheme(detailRecord?.drift_status)" variant="light-outline">
             {{ detailRecord ? driftStatusLabel(detailRecord.drift_status) : '-' }}
           </t-tag>
@@ -486,14 +483,8 @@
                     <t-descriptions-item :label="t('project.detail.lifecycle.runtimeStatus')">
                       {{ runtimeStatusLabel(detailRecord.runtime_status) }}
                     </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.refreshStatus')">
-                      {{ refreshStatusLabel(detailRecord.last_refresh_status) }}
-                    </t-descriptions-item>
                     <t-descriptions-item :label="t('project.detail.lifecycle.driftStatus')">
                       {{ driftStatusLabel(detailRecord.drift_status) }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.lastRefreshAt')">
-                      {{ formatTime(detailRecord.last_refresh_at) }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.detail.lifecycle.reviewStatus')">
                       <t-tag :theme="projectLifecycleReviewStatusTheme(lifecycleReviewStatus)" variant="light-outline">
@@ -695,8 +686,6 @@ import {
   projectDriftStatusLabel,
   projectDriftStatusTheme,
   projectLifecycleActionVisibility,
-  projectRefreshStatusLabel,
-  projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
   projectRuntimeStatusTheme as runtimeStatusTheme,
 } from '../../shared/display';
@@ -1067,16 +1056,6 @@ const overviewDiagnostics = computed<OverviewDiagnostic[]>(() => {
             }),
       theme: detailRecord.value?.drift_status === 'clean' ? 'success' : 'info',
     },
-    {
-      key: 'refresh',
-      message:
-        detailRecord.value?.last_refresh_status === 'success'
-          ? t('project.detail.overview.diagnosticRefreshHealthy')
-          : t('project.detail.overview.diagnosticRefreshWarning', {
-              status: refreshStatusLabel(detailRecord.value?.last_refresh_status ?? 'never'),
-            }),
-      theme: detailRecord.value?.last_refresh_status === 'success' ? 'success' : 'warning',
-    },
   ];
 });
 const serviceColumns = computed<TableProps['columns']>(() => [
@@ -1202,14 +1181,6 @@ function driftStatusLabel(value: ProjectDetailResponseWithLifecycle['drift_statu
 
 function driftStatusTheme(value?: ProjectDetailResponseWithLifecycle['drift_status']) {
   return projectDriftStatusTheme(value);
-}
-
-function refreshStatusLabel(value: ProjectDetailResponseWithLifecycle['last_refresh_status']) {
-  return projectRefreshStatusLabel(t, value);
-}
-
-function refreshStatusTheme(value?: ProjectDetailResponseWithLifecycle['last_refresh_status']) {
-  return projectRefreshStatusTheme(value);
 }
 
 function runtimeStatusLabel(value?: ProjectDetailResponseWithLifecycle['runtime_status'] | null) {

@@ -604,11 +604,10 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		return ListResult{}, err
 	}
 	storeResult, err := repository.List(ctx, projectstore.ListQuery{
-		Limit:             query.Limit,
-		Offset:            query.Offset,
-		SourceKind:        strings.TrimSpace(query.SourceKind),
-		DriftStatus:       strings.TrimSpace(query.DriftStatus),
-		LastRefreshStatus: strings.TrimSpace(query.LastRefreshStatus),
+		Limit:       query.Limit,
+		Offset:      query.Offset,
+		SourceKind:  strings.TrimSpace(query.SourceKind),
+		DriftStatus: strings.TrimSpace(query.DriftStatus),
 	})
 	if err != nil {
 		return ListResult{}, mapStoreError(err)

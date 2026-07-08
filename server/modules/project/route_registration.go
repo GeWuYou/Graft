@@ -863,7 +863,7 @@ func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDe
 }
 
 // bindListParams 绑定项目列表查询参数和公共请求头。
-// 它解析 source_kind、drift_status、last_refresh_status、limit 和 offset，并在分页参数无效时中止请求。
+// 它解析 source_kind、drift_status、limit 和 offset，并在分页参数无效时中止请求。
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
@@ -881,14 +881,8 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetProjectsParams{}, false
 	}
-	lastRefreshStatus, ok := optionalValidatedEnumQuery(query.Get("last_refresh_status"), generated.ProjectRefreshStatus.Valid)
-	if !ok {
-		abortInvalidQuery(ginCtx, ctx)
-		return generated.GetProjectsParams{}, false
-	}
 	params.SourceKind = sourceKind
 	params.DriftStatus = driftStatus
-	params.LastRefreshStatus = lastRefreshStatus
 	if params.Limit, ok = optionalIntQuery[generated.ProjectListLimit](query.Get("limit"), minimumProjectListLimit, maxProjectListLimit); !ok {
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetProjectsParams{}, false

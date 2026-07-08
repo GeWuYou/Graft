@@ -91,7 +91,6 @@ const listMessages = {
   'project.list.columns.drift': 'Sync Status',
   'project.list.columns.name': 'Project',
   'project.list.columns.operation': 'Operation',
-  'project.list.columns.refresh': 'Last Project Refresh',
   'project.list.columns.resources': 'Resources',
   'project.list.columns.runtime': 'Status',
   'project.list.columns.source': 'Source',
@@ -388,8 +387,6 @@ function buildProjectRow(overrides: Record<string, unknown>) {
     display_name: 'Alpha',
     drift_status: 'clean',
     id: 1,
-    last_refresh_at: '2026-07-03T10:00:00Z',
-    last_refresh_status: 'success',
     lifecycle_review_status: 'confirmed',
     ownership_mode: 'external',
     runtime_status: 'running',
@@ -484,7 +481,6 @@ describe('Project list page', () => {
           container_counts: { issue: 0, running: 0, stopped: 2, total: 2, transitioning: 0 },
           display_name: 'Beta',
           id: 2,
-          last_refresh_at: '2026-07-03T10:05:00Z',
           runtime_status: 'degraded',
           service_count: 2,
           source_kind: 'managed',
@@ -495,8 +491,6 @@ describe('Project list page', () => {
           container_counts: { issue: 0, running: 0, stopped: 1, total: 2, transitioning: 1 },
           display_name: 'Gamma',
           id: 3,
-          last_refresh_at: '2026-07-03T10:10:00Z',
-          last_refresh_status: 'failed',
           runtime_status: 'transitioning',
           source_kind: 'git',
           working_directory: '/srv/gamma',
@@ -507,8 +501,6 @@ describe('Project list page', () => {
           display_name: 'Delta',
           drift_status: 'unknown',
           id: 4,
-          last_refresh_at: null,
-          last_refresh_status: 'never',
           runtime_status: 'unknown',
           service_count: 1,
           source_kind: 'template',
@@ -671,8 +663,6 @@ describe('Project list page', () => {
       {
         container_counts: { issue: 0, running: 0, stopped: 3, total: 3, transitioning: 0 },
         drift_status: 'changed',
-        last_refresh_at: '2026-07-03T11:00:00Z',
-        last_refresh_status: 'failed',
         project_id: 1,
         runtime_status: 'stopped',
         service_count: 4,
@@ -704,7 +694,7 @@ describe('Project list page', () => {
         total: 1,
       })
       .mockResolvedValueOnce({
-        items: [buildProjectRow({ last_refresh_at: '2026-07-03T10:05:00Z', runtime_status: 'transitioning' })],
+        items: [buildProjectRow({ runtime_status: 'transitioning' })],
         limit: 20,
         offset: 0,
         total: 1,
@@ -772,7 +762,7 @@ describe('Project list page', () => {
     wrapper.unmount();
   });
 
-  it('renames the refresh column and hides lifecycle actions by runtime status', async () => {
+  it('hides lifecycle actions by runtime status without a refresh column', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
       items: [
         buildProjectRow({ id: 1, runtime_status: 'running' }),
@@ -788,7 +778,7 @@ describe('Project list page', () => {
     await flushPromises();
 
     const columnHeaders = wrapper.findAll('th').map((cell) => cell.text());
-    expect(columnHeaders).toContain('Last Project Refresh');
+    expect(columnHeaders).not.toContain('Last Project Refresh');
 
     const runningRow = wrapper.get('tr[data-row-id="1"]');
     expect(runningRow.find('[data-testid="row-action-refresh"]').exists()).toBe(false);

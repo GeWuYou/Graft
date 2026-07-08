@@ -15,9 +15,6 @@
             <t-tag :theme="driftTheme" variant="light-outline">
               {{ driftLabel }}
             </t-tag>
-            <t-tag :theme="refreshTheme" variant="light-outline">
-              {{ refreshLabel }}
-            </t-tag>
             <t-tag theme="default" variant="light-outline">
               {{ detailRecord?.ownership_mode || '-' }}
             </t-tag>
@@ -52,9 +49,6 @@
                 </t-descriptions-item>
                 <t-descriptions-item :label="t('project.detail.configuration.driftStatus')">
                   {{ driftLabel }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.configuration.refreshStatus')">
-                  {{ refreshLabel }}
                 </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryCurrentPathLabel">
                   <code>{{ currentWorkspacePathLabel }}</code>
@@ -663,8 +657,6 @@ import {
   formatProjectTime,
   projectDriftStatusLabel,
   projectDriftStatusTheme,
-  projectRefreshStatusLabel,
-  projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
   projectRuntimeStatusTheme,
 } from '../../shared/display';
@@ -823,10 +815,6 @@ const runtimeLabel = computed(() => projectRuntimeStatusLabel(t, detailRecord.va
 const driftTheme = computed(() => projectDriftStatusTheme(metadata.value?.drift_status));
 const driftLabel = computed(() =>
   metadata.value?.drift_status ? projectDriftStatusLabel(t, metadata.value.drift_status) : '-',
-);
-const refreshTheme = computed(() => projectRefreshStatusTheme(metadata.value?.last_refresh_status));
-const refreshLabel = computed(() =>
-  metadata.value?.last_refresh_status ? projectRefreshStatusLabel(t, metadata.value.last_refresh_status) : '-',
 );
 const openTabBuffers = computed(
   () => openTabs.value.map((path) => openFileMap.get(path)).filter(Boolean) as WorkspaceOpenFile[],

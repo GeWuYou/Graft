@@ -305,13 +305,11 @@ func (s *Service) buildProjectListSummaryRealtimePayload(
 				runtimeStatus = *item.RuntimeStatus
 			}
 			items = append(items, projectListSummaryRealtimeItem{
-				ProjectID:         item.Id,
-				RuntimeStatus:     runtimeStatus,
-				ServiceCount:      item.ServiceCount,
-				ContainerCounts:   item.ContainerCounts,
-				DriftStatus:       item.DriftStatus,
-				LastRefreshStatus: item.LastRefreshStatus,
-				LastRefreshAt:     item.LastRefreshAt,
+				ProjectID:       item.Id,
+				RuntimeStatus:   runtimeStatus,
+				ServiceCount:    item.ServiceCount,
+				ContainerCounts: item.ContainerCounts,
+				DriftStatus:     item.DriftStatus,
 			})
 		}
 		offset += len(result.Items)

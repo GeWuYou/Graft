@@ -10,7 +10,6 @@ get:
     - $ref: ../components/parameters/project-list-offset.yaml
     - $ref: ../components/parameters/project-list-source-kind.yaml
     - $ref: ../components/parameters/project-list-drift-status.yaml
-    - $ref: ../components/parameters/project-list-refresh-status.yaml
   security:
     - bearerAuth: []
   responses:

@@ -71,19 +71,6 @@
               :label="driftStatusLabel(option)"
             />
           </t-select>
-          <t-select
-            v-model="filters.lastRefreshStatus"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.refreshStatus')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allRefreshStatuses')" />
-            <t-option
-              v-for="option in refreshStatusOptions"
-              :key="option"
-              :value="option"
-              :label="refreshStatusLabel(option)"
-            />
-          </t-select>
           <t-button theme="primary" @click="handleFilterQuery">{{ t('project.list.filters.query') }}</t-button>
           <t-button theme="default" variant="text" @click="resetFilters">{{
             t('project.list.filters.reset')
@@ -325,15 +312,6 @@
           </span>
         </template>
 
-        <template #refresh="{ row }">
-          <div class="project-refresh">
-            <t-tag :theme="refreshStatusTheme(projectRow(row).last_refresh_status)" variant="light-outline">
-              {{ refreshStatusLabel(projectRow(row).last_refresh_status) }}
-            </t-tag>
-            <span>{{ formatTime(projectRow(row).last_refresh_at) }}</span>
-          </div>
-        </template>
-
         <template #operation="{ row }">
           <table-action-menu
             :actions="buildRowActions(projectRow(row))"
@@ -422,11 +400,8 @@ import {
 import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
-  formatProjectTime,
   projectDriftStatusLabel,
   projectLifecycleActionVisibility,
-  projectRefreshStatusLabel,
-  projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
   projectSourceKindLabel,
 } from '../../shared/display';
@@ -446,7 +421,6 @@ import type {
   ProjectDriftStatus,
   ProjectFilters,
   ProjectListItemWithLifecycle,
-  ProjectRefreshStatus,
   ProjectRuntimeStatus,
   ProjectSourceKind,
 } from '../../types/project';
@@ -455,7 +429,7 @@ defineOptions({
   name: 'ProjectListIndex',
 });
 
-const { locale, t } = useI18n();
+const { t } = useI18n();
 const router = useRouter();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
@@ -470,8 +444,6 @@ type PendingProjectActionState = {
   action: PendingProjectAction;
   awaitingVisibleChange: boolean;
   deadlineAt: number | null;
-  lastRefreshAt: string | null;
-  lastRefreshStatus: ProjectRefreshStatus | null;
   runtimeStatus: ProjectRuntimeStatus | null;
 };
 type ProjectResourceBadge = {
@@ -494,13 +466,11 @@ const filters = ref<ProjectFilters>({
   keyword: '',
   sourceKind: 'all',
   driftStatus: 'all',
-  lastRefreshStatus: 'all',
 });
 const columnDrawerVisible = ref(false);
 
 const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'git', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
-const refreshStatusOptions: ProjectRefreshStatus[] = ['never', 'success', 'failed'];
 
 const configurableColumns = computed<TableProps['columns']>(() => [
   {
@@ -516,19 +486,9 @@ const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
   { colKey: 'resources', title: t('project.list.columns.resources'), width: 236, align: 'center' },
   { colKey: 'drift', title: t('project.list.columns.drift'), width: 124, align: 'center' },
-  { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
-const visibleColumnKeys = ref([
-  'row-select',
-  'name',
-  'source',
-  'runtime',
-  'resources',
-  'drift',
-  'refresh',
-  'operation',
-]);
+const visibleColumnKeys = ref(['row-select', 'name', 'source', 'runtime', 'resources', 'drift', 'operation']);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
@@ -572,10 +532,7 @@ const headerStatusSummaryItems = computed(() =>
 );
 const hasActiveFilters = computed(
   () =>
-    Boolean(filters.value.keyword.trim()) ||
-    filters.value.sourceKind !== 'all' ||
-    filters.value.driftStatus !== 'all' ||
-    filters.value.lastRefreshStatus !== 'all',
+    Boolean(filters.value.keyword.trim()) || filters.value.sourceKind !== 'all' || filters.value.driftStatus !== 'all',
 );
 const paginationSummary = computed(() => {
   if (!pagination.value.total || rows.value.length === 0) {
@@ -632,14 +589,6 @@ function sourceKindLabel(value: ProjectSourceKind) {
 
 function driftStatusLabel(value: ProjectDriftStatus) {
   return projectDriftStatusLabel(t, value);
-}
-
-function refreshStatusLabel(value: ProjectRefreshStatus) {
-  return projectRefreshStatusLabel(t, value);
-}
-
-function refreshStatusTheme(value: ProjectRefreshStatus) {
-  return projectRefreshStatusTheme(value);
 }
 
 function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
@@ -743,10 +692,6 @@ function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResou
   ];
 }
 
-function formatTime(value?: string | null) {
-  return formatProjectTime(locale.value, value);
-}
-
 function projectSecondaryName(row: ProjectListItemWithLifecycle) {
   const canonicalName = row.canonical_project_name?.trim() || '';
   const displayName = row.display_name?.trim() || '';
@@ -784,7 +729,6 @@ async function fetchProjects() {
       offset: (pagination.value.current - 1) * pagination.value.pageSize,
       ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
       ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
-      ...(filters.value.lastRefreshStatus !== 'all' ? { last_refresh_status: filters.value.lastRefreshStatus } : {}),
     });
     if (requestSeq !== refreshRequestSeq) {
       return;
@@ -824,8 +768,6 @@ function handleProjectListRealtimeItems(
     service_count: number;
     container_counts: ProjectListItemWithLifecycle['container_counts'];
     drift_status: ProjectDriftStatus;
-    last_refresh_status: ProjectRefreshStatus;
-    last_refresh_at?: string | null;
   }>,
 ) {
   if (!realtimeActive.value || !realtimeSchedulerStore.allowPolling || rows.value.length === 0) {
@@ -844,15 +786,11 @@ function handleProjectListRealtimeItems(
       service_count: patch.service_count,
       container_counts: patch.container_counts,
       drift_status: patch.drift_status,
-      last_refresh_status: patch.last_refresh_status,
-      last_refresh_at: patch.last_refresh_at ?? null,
     };
     if (
       nextRow.runtime_status !== row.runtime_status ||
       nextRow.service_count !== row.service_count ||
       nextRow.drift_status !== row.drift_status ||
-      nextRow.last_refresh_status !== row.last_refresh_status ||
-      nextRow.last_refresh_at !== row.last_refresh_at ||
       JSON.stringify(nextRow.container_counts) !== JSON.stringify(row.container_counts)
     ) {
       changed = true;
@@ -892,9 +830,7 @@ function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
     }
 
     const runtimeChanged = (row.runtime_status ?? null) !== pending.runtimeStatus;
-    const refreshChanged = (row.last_refresh_at ?? null) !== pending.lastRefreshAt;
-    const refreshStatusChanged = (row.last_refresh_status ?? null) !== pending.lastRefreshStatus;
-    if (pending.awaitingVisibleChange && (runtimeChanged || refreshChanged || refreshStatusChanged)) {
+    if (pending.awaitingVisibleChange && runtimeChanged) {
       clearPendingRowActionTimeout(id);
       delete nextPending[id];
     }
@@ -911,8 +847,6 @@ function markPendingRowAction(row: ProjectListItemWithLifecycle, action: Pending
       action,
       awaitingVisibleChange: false,
       deadlineAt: null,
-      lastRefreshAt: row.last_refresh_at ?? null,
-      lastRefreshStatus: row.last_refresh_status ?? null,
       runtimeStatus: row.runtime_status ?? null,
     },
   };
@@ -930,8 +864,6 @@ function markPendingRowActions(rowsToMark: ProjectListItemWithLifecycle[], actio
       action,
       awaitingVisibleChange: false,
       deadlineAt: null,
-      lastRefreshAt: row.last_refresh_at ?? null,
-      lastRefreshStatus: row.last_refresh_status ?? null,
       runtimeStatus: row.runtime_status ?? null,
     };
   }
@@ -1069,7 +1001,6 @@ function resetFilters() {
     keyword: '',
     sourceKind: 'all',
     driftStatus: 'all',
-    lastRefreshStatus: 'all',
   };
   pagination.value.current = 1;
   void fetchProjects();
