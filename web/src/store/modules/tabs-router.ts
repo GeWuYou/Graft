@@ -306,7 +306,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     healPersistedState() {
       logTabsDebug(
-        logger,
+        'tabs.store',
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
@@ -318,7 +318,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
       logTabsDebug(
-        logger,
+        'tabs.store',
         () => `tabs debug: healPersistedState after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
@@ -326,7 +326,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       const canKeepRoute = createRouteRecordMatcher(router);
       const pinnedKeys = readPinnedTabKeys();
       logTabsDebug(
-        logger,
+        'tabs.store',
         () =>
           `tabs debug: healPersistedRoutes before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
@@ -341,14 +341,14 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
       logTabsDebug(
-        logger,
+        'tabs.store',
         () => `tabs debug: healPersistedRoutes after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
     // 处理新增
     appendTabRouterList(newRoute: TRouterInfo) {
       logTabsDebug(
-        logger,
+        'tabs.store',
         () =>
           `tabs debug: appendTabRouterList input active=${this.activeTabKey} incoming=[key=${getTabKey(
             newRoute,
@@ -379,7 +379,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         );
       }
       logTabsDebug(
-        logger,
+        'tabs.store',
         () => `tabs debug: appendTabRouterList after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
@@ -510,7 +510,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     setActiveRoute(route: RouteLocationNormalizedLoaded) {
       logTabsDebug(
-        logger,
+        'tabs.store',
         () =>
           `tabs debug: setActiveRoute input active=${this.activeTabKey} route=[path=${route.path} fullPath=${
             route.fullPath
@@ -519,7 +519,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       const currentActiveTab = this.tabRouterList.find((tab) => getTabKey(tab) === this.activeTabKey);
       if (currentActiveTab && currentActiveTab.fullPath === route.fullPath) {
         logTabsDebug(
-          logger,
+          'tabs.store',
           () =>
             `tabs debug: setActiveRoute skipped same fullPath active=${this.activeTabKey} ${formatTabsSummary(
               this.tabRouters,
@@ -535,7 +535,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         this.tabRouterList.find((tab) => tab.path === route.path);
       this.activeTabKey = activeTab ? getTabKey(activeTab) : route.path;
       logTabsDebug(
-        logger,
+        'tabs.store',
         () =>
           `tabs debug: setActiveRoute after active=${this.activeTabKey} resolved=${
             activeTab
@@ -664,7 +664,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
   persist: {
     afterHydrate: ({ store }) => {
       logTabsDebug(
-        logger,
+        'tabs.store',
         () =>
           `tabs debug: persist afterHydrate active=${store.activeTabKey} tabs=${formatTabsSummary(
             store.tabRouterList,

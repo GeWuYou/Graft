@@ -262,10 +262,7 @@ function logDiffDebug(event: string, detail: Record<string, unknown>) {
     return;
   }
 
-  logger.warn(
-    `[ProjectMonacoDiffSurface] ${projectMonacoDebug.formatProjectMonacoDebugMessage(event, detail)}`,
-    detail,
-  );
+  projectMonacoDebug.createProjectMonacoDebugLogger('project.monaco.diffSurface')(event, detail);
 }
 
 defineExpose({

@@ -1,3 +1,4 @@
+export * from './modules/debug';
 export * from './modules/permission';
 export * from './modules/realtime-scheduler';
 export * from './modules/setting';

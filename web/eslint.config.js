@@ -131,5 +131,11 @@ export default tseslint.config(
       'no-restricted-imports': 'off',
     },
   },
+  {
+    files: ['src/shared/debug/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
   eslintConfigPrettier,
 );

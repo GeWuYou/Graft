@@ -1703,7 +1703,7 @@ function logWorkspaceDiffDebug(event: string, detail: Record<string, unknown>) {
     return;
   }
 
-  logger.warn(`[ConfigurationWorkspaceDiff] ${formatProjectMonacoDebugMessage(event, detail)}`, detail);
+  logger.debug(`[ConfigurationWorkspaceDiff] ${formatProjectMonacoDebugMessage(event, detail)}`, detail);
 }
 
 async function runProjectDeploy() {

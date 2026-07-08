@@ -256,7 +256,7 @@ function logSurfaceDebug(event: string, detail: Record<string, unknown>) {
     return;
   }
 
-  logProjectMonacoSurfaceDebug(projectMonacoDebug.formatProjectMonacoDebugMessage(event, detail), detail);
+  logProjectMonacoSurfaceDebug(event, detail);
 }
 
 defineExpose({

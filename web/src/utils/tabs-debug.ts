@@ -1,11 +1,8 @@
 import { LOCALE } from '@/contracts/i18n/locales';
-import { createLogger } from '@/utils/logger';
+import { emitDebugLog } from '@/shared/debug/runtime';
 import type { TRouterInfo } from '@/utils/types';
 
 type TabsDebugRoute = Pick<TRouterInfo, 'fullPath' | 'name' | 'path' | 'tabKey' | 'title'>;
-type TabsDebugLogger = Pick<ReturnType<typeof createLogger>, 'debug'>;
-
-const tabsDebugEnabled = import.meta.env.VITE_TABS_DEBUG === 'true';
 
 export function formatTabDebugTitle(title?: TRouterInfo['title']) {
   return title?.[LOCALE.ZH_CN] || title?.[LOCALE.EN_US] || '';
@@ -26,12 +23,10 @@ export function formatTabsDebugSummary(routes: TabsDebugRoute[]) {
     .join(' ')}`;
 }
 
-export function logTabsDebug(logger: TabsDebugLogger, message: string | (() => string)) {
-  if (!tabsDebugEnabled) {
-    return;
-  }
-
-  logger.debug(typeof message === 'function' ? message() : message);
+export function logTabsDebug(flagId: 'tabs.layout' | 'tabs.store', message: string | (() => string)) {
+  emitDebugLog(flagId, 'trace', {
+    message: typeof message === 'function' ? message() : message,
+  });
 }
 
 function normalizeTabKey(value?: string) {

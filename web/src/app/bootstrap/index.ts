@@ -4,6 +4,7 @@ import { createApp } from 'vue';
 import App from '@/App.vue';
 import { i18n } from '@/locales';
 import { isProjectMonacoBenignCancellationError } from '@/modules/project/shared/project-monaco-debug';
+import { initDebugRuntime } from '@/shared/debug/runtime';
 import router from '@/router';
 import { store, useTabsRouterStore } from '@/store';
 import { isHandledAuthRequestError } from '@/utils/auth-request-error';
@@ -29,6 +30,7 @@ export function bootstrapApp() {
 
   const app = createApp(App);
   app.use(store);
+  initDebugRuntime();
   const tabsRouterStore = useTabsRouterStore(store);
 
   // 必须在 app.use(store) 之后再创建带 persist 的 store，避免启动阶段拿到未 hydrate 的初始 tabs 状态。

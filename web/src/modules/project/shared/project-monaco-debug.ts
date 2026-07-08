@@ -1,38 +1,10 @@
 import type * as Monaco from 'monaco-editor';
 
+import { emitDebugLog, formatDebugLine, isDebugFlagEnabled } from '@/shared/debug/runtime';
 import { createLogger } from '@/utils/logger';
 
-const PROJECT_MONACO_DEBUG_KEY = '__GRAFT_MONACO_DEBUG__';
-const PROJECT_MONACO_DEBUG_ENV_KEY = 'VITE_PROJECT_MONACO_DEBUG';
-
-function isEnabledValue(value: unknown) {
-  return value === true || value === 'true' || value === '1' || value === 1;
-}
-
 export function isProjectMonacoDebugEnabled() {
-  if (isEnabledValue(import.meta.env[PROJECT_MONACO_DEBUG_ENV_KEY])) {
-    return true;
-  }
-
-  if (import.meta.env.DEV) {
-    return true;
-  }
-
-  const debugFlag = (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DEBUG_KEY];
-
-  if (isEnabledValue(debugFlag)) {
-    return true;
-  }
-
-  if (typeof localStorage === 'undefined') {
-    return false;
-  }
-
-  try {
-    return isEnabledValue(localStorage.getItem(PROJECT_MONACO_DEBUG_KEY));
-  } catch {
-    return false;
-  }
+  return isDebugFlagEnabled('project.monaco');
 }
 
 function isProjectMonacoCancellationError(error: unknown) {
@@ -57,10 +29,7 @@ export function isProjectMonacoBenignCancellationError(error: unknown) {
 }
 
 export function formatProjectMonacoDebugMessage(event: string, detail: Record<string, unknown>) {
-  const summary = Object.entries(detail)
-    .map(([key, value]) => `${key}=${String(value)}`)
-    .join(' ');
-  return summary ? `${event} ${summary}` : event;
+  return formatDebugLine('project.monaco', event, detail);
 }
 
 export function describeProjectMonacoElement(element: HTMLElement | null) {
@@ -116,6 +85,10 @@ export function createProjectMonacoDebugLogger(name: string) {
       return;
     }
 
-    logger.warn(`[ProjectMonaco] ${event}`, detail);
+    emitDebugLog('project.monaco', event, {
+      logger: name,
+      ...detail,
+    });
+    logger.debug(`[ProjectMonaco] ${event}`, detail);
   };
 }

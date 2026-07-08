@@ -1,8 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useDebugStore } from '@/store/modules/debug';
+import { store } from '@/store/pinia';
 
 import { toMonacoColor } from './project-monaco-color';
 import { isProjectMonacoDebugEnabled } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
+
+function resetProjectMonacoDebugState() {
+  const debugStore = useDebugStore(store);
+  debugStore.clearRuntimeFlag();
+  localStorage.clear();
+}
+
+beforeEach(() => {
+  vi.unstubAllEnvs();
+  resetProjectMonacoDebugState();
+});
 
 describe('project-monaco color normalization', () => {
   it('converts srgb browser output into Monaco-safe hex', () => {
@@ -85,31 +99,20 @@ describe('project-monaco worker routing', () => {
 });
 
 describe('project-monaco debug toggle', () => {
-  it('enables debug logging from the explicit env flag in production', () => {
-    const previousValue = import.meta.env.VITE_PROJECT_MONACO_DEBUG;
+  it('enables debug logging from the explicit namespaced env flag', async () => {
+    vi.stubEnv('VITE_DEBUG_PROJECT_MONACO', 'true');
 
-    try {
-      import.meta.env.VITE_PROJECT_MONACO_DEBUG = 'true';
+    const { useDebugStore: loadStore } = await import('@/store/modules/debug');
+    const debugStore = loadStore(store);
+    debugStore.recompute();
 
-      expect(isProjectMonacoDebugEnabled()).toBe(true);
-    } finally {
-      import.meta.env.VITE_PROJECT_MONACO_DEBUG = previousValue;
-    }
+    expect(isProjectMonacoDebugEnabled()).toBe(true);
   });
 
-  it('reads the explicit global debug flag before localStorage', () => {
-    const previousValue = (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+  it('reads the runtime debug store override', () => {
+    const debugStore = useDebugStore(store);
+    debugStore.setRuntimeFlag('project.monaco', true);
 
-    try {
-      (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = true;
-
-      expect(isProjectMonacoDebugEnabled()).toBe(true);
-    } finally {
-      if (typeof previousValue === 'undefined') {
-        delete (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
-      } else {
-        (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = previousValue;
-      }
-    }
+    expect(isProjectMonacoDebugEnabled()).toBe(true);
   });
 });
