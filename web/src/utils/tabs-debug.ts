@@ -5,7 +5,7 @@ import type { TRouterInfo } from '@/utils/types';
 type TabsDebugRoute = Pick<TRouterInfo, 'fullPath' | 'name' | 'path' | 'tabKey' | 'title'>;
 type TabsDebugLogger = Pick<ReturnType<typeof createLogger>, 'debug'>;
 
-export const tabsDebugEnabled = import.meta.env.VITE_TABS_DEBUG === 'true';
+const tabsDebugEnabled = import.meta.env.VITE_TABS_DEBUG === 'true';
 
 export function formatTabDebugTitle(title?: TRouterInfo['title']) {
   return title?.[LOCALE.ZH_CN] || title?.[LOCALE.EN_US] || '';
