@@ -106,9 +106,11 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}/web\" && bun run dev"
+                "sleep infinity"
             ],
-            "console": "integratedTerminal"
+            "preLaunchTask": "web: dev",
+            "console": "internalConsole",
+            "internalConsoleOptions": "neverOpen"
         },
         {
             "name": "quality: eff-u-code server",
