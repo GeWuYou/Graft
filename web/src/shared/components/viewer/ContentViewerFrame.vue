@@ -69,6 +69,7 @@ const props = withDefaults(
     defaultMobileOffset?: number;
     defaultHeight?: number;
     exitFullscreenLabel: string;
+    fillHeight?: boolean;
     fullscreenLabel: string;
     fullscreenSurfacePadding?: SurfacePadding;
     minHeight?: number;
@@ -84,6 +85,7 @@ const props = withDefaults(
     defaultDesktopOffset: 340,
     defaultMobileOffset: 260,
     defaultHeight: 0,
+    fillHeight: false,
     fullscreenSurfacePadding: 'normal',
     minHeight: 560,
     mobileBreakpoint: 768,
@@ -115,6 +117,12 @@ const panelStyle = computed(() => {
   if (isFullscreen.value) {
     return {
       height: 'calc(100vh - 32px)',
+    };
+  }
+
+  if (props.fillHeight) {
+    return {
+      height: '100%',
     };
   }
 

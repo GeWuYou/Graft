@@ -32,10 +32,6 @@
               @create="navigateToSourceChooser"
               @reset="resetFilters"
             />
-            <t-button theme="primary" :loading="refreshLoading" @click="handleManualRefresh">
-              <template #icon><refresh-icon /></template>
-              {{ t('project.list.refresh') }}
-            </t-button>
           </t-space>
         </template>
       </management-page-header>
@@ -73,19 +69,6 @@
               :key="option"
               :value="option"
               :label="driftStatusLabel(option)"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.lastRefreshStatus"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.refreshStatus')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allRefreshStatuses')" />
-            <t-option
-              v-for="option in refreshStatusOptions"
-              :key="option"
-              :value="option"
-              :label="refreshStatusLabel(option)"
             />
           </t-select>
           <t-button theme="primary" @click="handleFilterQuery">{{ t('project.list.filters.query') }}</t-button>
@@ -126,10 +109,7 @@
         <template #toolbar>
           <table-view-toolbar
             :column-settings-label="t('project.list.columnSettings')"
-            :refresh-label="t('project.list.refresh')"
-            :refresh-loading="refreshLoading"
             @column-settings="columnDrawerVisible = true"
-            @refresh="handleManualRefresh"
           />
         </template>
         <template v-if="selectedRows.length > 0" #batch>
@@ -234,13 +214,7 @@
             tone="error"
             :title="t('project.list.title')"
             :description="errorMessage"
-          >
-            <template #actions>
-              <t-button theme="primary" variant="outline" @click="handleManualRefresh">
-                {{ t('project.list.retry') }}
-              </t-button>
-            </template>
-          </management-empty-state>
+          />
         </template>
         <template #name="{ row }">
           <div class="project-identity">
@@ -338,15 +312,6 @@
           </span>
         </template>
 
-        <template #refresh="{ row }">
-          <div class="project-refresh">
-            <t-tag :theme="refreshStatusTheme(projectRow(row).last_refresh_status)" variant="light-outline">
-              {{ refreshStatusLabel(projectRow(row).last_refresh_status) }}
-            </t-tag>
-            <span>{{ formatTime(projectRow(row).last_refresh_at) }}</span>
-          </div>
-        </template>
-
         <template #operation="{ row }">
           <table-action-menu
             :actions="buildRowActions(projectRow(row))"
@@ -400,7 +365,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { RefreshIcon } from 'tdesign-icons-vue-next';
 import type { DialogInstance, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -428,7 +392,6 @@ import {
   postProjectBatchActions,
   postProjectDestroy,
   postProjectRedeploy,
-  postProjectRefresh,
   postProjectRestart,
   postProjectStop,
   postProjectUnregister,
@@ -437,11 +400,8 @@ import {
 import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
-  formatProjectTime,
   projectDriftStatusLabel,
   projectLifecycleActionVisibility,
-  projectRefreshStatusLabel,
-  projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
   projectSourceKindLabel,
 } from '../../shared/display';
@@ -450,6 +410,7 @@ import {
   projectLifecycleReviewStatusTheme,
   projectRequiresLifecycleReview,
 } from '../../shared/lifecycle';
+import { acquireProjectListRealtime, releaseProjectListRealtime } from '../../shared/list-realtime';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
   ProjectBatchAction,
@@ -460,7 +421,6 @@ import type {
   ProjectDriftStatus,
   ProjectFilters,
   ProjectListItemWithLifecycle,
-  ProjectRefreshStatus,
   ProjectRuntimeStatus,
   ProjectSourceKind,
 } from '../../types/project';
@@ -469,7 +429,7 @@ defineOptions({
   name: 'ProjectListIndex',
 });
 
-const { locale, t } = useI18n();
+const { t } = useI18n();
 const router = useRouter();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
@@ -484,8 +444,6 @@ type PendingProjectActionState = {
   action: PendingProjectAction;
   awaitingVisibleChange: boolean;
   deadlineAt: number | null;
-  lastRefreshAt: string | null;
-  lastRefreshStatus: ProjectRefreshStatus | null;
   runtimeStatus: ProjectRuntimeStatus | null;
 };
 type ProjectResourceBadge = {
@@ -494,8 +452,6 @@ type ProjectResourceBadge = {
   label: string;
   icon: string;
 };
-
-const PROJECT_LIST_POLL_INTERVAL_MS = 5000;
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -510,13 +466,11 @@ const filters = ref<ProjectFilters>({
   keyword: '',
   sourceKind: 'all',
   driftStatus: 'all',
-  lastRefreshStatus: 'all',
 });
 const columnDrawerVisible = ref(false);
 
 const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'git', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
-const refreshStatusOptions: ProjectRefreshStatus[] = ['never', 'success', 'failed'];
 
 const configurableColumns = computed<TableProps['columns']>(() => [
   {
@@ -532,24 +486,13 @@ const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
   { colKey: 'resources', title: t('project.list.columns.resources'), width: 236, align: 'center' },
   { colKey: 'drift', title: t('project.list.columns.drift'), width: 124, align: 'center' },
-  { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
-const visibleColumnKeys = ref([
-  'row-select',
-  'name',
-  'source',
-  'runtime',
-  'resources',
-  'drift',
-  'refresh',
-  'operation',
-]);
+const visibleColumnKeys = ref(['row-select', 'name', 'source', 'runtime', 'resources', 'drift', 'operation']);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
 const confirmDialogOpen = ref(false);
-const refreshLoading = computed(() => tableLoading.value || refreshing.value);
 const realtimeActive = ref(false);
 const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
 const selectedRowKeys = ref<number[]>([]);
@@ -589,10 +532,7 @@ const headerStatusSummaryItems = computed(() =>
 );
 const hasActiveFilters = computed(
   () =>
-    Boolean(filters.value.keyword.trim()) ||
-    filters.value.sourceKind !== 'all' ||
-    filters.value.driftStatus !== 'all' ||
-    filters.value.lastRefreshStatus !== 'all',
+    Boolean(filters.value.keyword.trim()) || filters.value.sourceKind !== 'all' || filters.value.driftStatus !== 'all',
 );
 const paginationSummary = computed(() => {
   if (!pagination.value.total || rows.value.length === 0) {
@@ -611,37 +551,31 @@ const selectedRows = computed(() => {
 
 onMounted(() => {
   realtimeActive.value = true;
-  startPolling();
+  syncProjectListRealtimeSubscription();
   void fetchProjects();
 });
 
 onUnmounted(() => {
   realtimeActive.value = false;
-  stopPolling();
+  syncProjectListRealtimeSubscription();
   clearPendingRowActionTimeouts();
 });
 
 onActivated(() => {
   realtimeActive.value = true;
-  startPolling();
+  syncProjectListRealtimeSubscription();
   void fetchProjects();
 });
 
 onDeactivated(() => {
   realtimeActive.value = false;
-  stopPolling();
+  syncProjectListRealtimeSubscription();
 });
 
 watch(
   () => realtimeSchedulerStore.allowPolling,
-  (allowPolling) => {
-    if (!allowPolling) {
-      stopPolling();
-      return;
-    }
-    if (realtimeActive.value) {
-      startPolling();
-    }
+  () => {
+    syncProjectListRealtimeSubscription();
   },
 );
 
@@ -655,14 +589,6 @@ function sourceKindLabel(value: ProjectSourceKind) {
 
 function driftStatusLabel(value: ProjectDriftStatus) {
   return projectDriftStatusLabel(t, value);
-}
-
-function refreshStatusLabel(value: ProjectRefreshStatus) {
-  return projectRefreshStatusLabel(t, value);
-}
-
-function refreshStatusTheme(value: ProjectRefreshStatus) {
-  return projectRefreshStatusTheme(value);
 }
 
 function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
@@ -766,10 +692,6 @@ function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResou
   ];
 }
 
-function formatTime(value?: string | null) {
-  return formatProjectTime(locale.value, value);
-}
-
 function projectSecondaryName(row: ProjectListItemWithLifecycle) {
   const canonicalName = row.canonical_project_name?.trim() || '';
   const displayName = row.display_name?.trim() || '';
@@ -782,28 +704,14 @@ function projectSecondaryName(row: ProjectListItemWithLifecycle) {
 }
 
 let refreshRequestSeq = 0;
-let pollTimer: number | undefined;
 const pendingRowTimeouts = new Map<number, number>();
 
-function startPolling() {
-  stopPolling();
-  if (!realtimeActive.value || typeof window === 'undefined' || !realtimeSchedulerStore.allowPolling) {
+function syncProjectListRealtimeSubscription() {
+  if (realtimeActive.value && realtimeSchedulerStore.allowPolling) {
+    acquireProjectListRealtime(handleProjectListRealtimeItems);
     return;
   }
-  pollTimer = window.setInterval(() => {
-    if (tableLoading.value || refreshing.value) {
-      return;
-    }
-    void fetchProjects();
-  }, PROJECT_LIST_POLL_INTERVAL_MS);
-}
-
-function stopPolling() {
-  if (pollTimer === undefined || typeof window === 'undefined') {
-    return;
-  }
-  window.clearInterval(pollTimer);
-  pollTimer = undefined;
+  releaseProjectListRealtime(handleProjectListRealtimeItems);
 }
 
 async function fetchProjects() {
@@ -821,7 +729,6 @@ async function fetchProjects() {
       offset: (pagination.value.current - 1) * pagination.value.pageSize,
       ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
       ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
-      ...(filters.value.lastRefreshStatus !== 'all' ? { last_refresh_status: filters.value.lastRefreshStatus } : {}),
     });
     if (requestSeq !== refreshRequestSeq) {
       return;
@@ -854,12 +761,48 @@ async function fetchProjects() {
   }
 }
 
-async function handleManualRefresh() {
-  if (refreshLoading.value) {
+function handleProjectListRealtimeItems(
+  items: Array<{
+    project_id: number;
+    runtime_status: ProjectRuntimeStatus;
+    service_count: number;
+    container_counts: ProjectListItemWithLifecycle['container_counts'];
+    drift_status: ProjectDriftStatus;
+  }>,
+) {
+  if (!realtimeActive.value || !realtimeSchedulerStore.allowPolling || rows.value.length === 0) {
     return;
   }
-
-  await fetchProjects();
+  const patchById = new Map(items.map((item) => [item.project_id, item]));
+  let changed = false;
+  const nextRows = rows.value.map((row) => {
+    const patch = patchById.get(row.id);
+    if (!patch) {
+      return row;
+    }
+    const nextRow: ProjectListItemWithLifecycle = {
+      ...row,
+      runtime_status: patch.runtime_status,
+      service_count: patch.service_count,
+      container_counts: patch.container_counts,
+      drift_status: patch.drift_status,
+    };
+    if (
+      nextRow.runtime_status !== row.runtime_status ||
+      nextRow.service_count !== row.service_count ||
+      nextRow.drift_status !== row.drift_status ||
+      JSON.stringify(nextRow.container_counts) !== JSON.stringify(row.container_counts)
+    ) {
+      changed = true;
+      return nextRow;
+    }
+    return row;
+  });
+  if (!changed) {
+    return;
+  }
+  rows.value = nextRows;
+  reconcilePendingRowActions(nextRows);
 }
 
 function syncPaginationFromResponse(response: { total?: number; limit?: number; offset?: number }) {
@@ -887,9 +830,7 @@ function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
     }
 
     const runtimeChanged = (row.runtime_status ?? null) !== pending.runtimeStatus;
-    const refreshChanged = (row.last_refresh_at ?? null) !== pending.lastRefreshAt;
-    const refreshStatusChanged = (row.last_refresh_status ?? null) !== pending.lastRefreshStatus;
-    if (pending.awaitingVisibleChange && (runtimeChanged || refreshChanged || refreshStatusChanged)) {
+    if (pending.awaitingVisibleChange && runtimeChanged) {
       clearPendingRowActionTimeout(id);
       delete nextPending[id];
     }
@@ -906,8 +847,6 @@ function markPendingRowAction(row: ProjectListItemWithLifecycle, action: Pending
       action,
       awaitingVisibleChange: false,
       deadlineAt: null,
-      lastRefreshAt: row.last_refresh_at ?? null,
-      lastRefreshStatus: row.last_refresh_status ?? null,
       runtimeStatus: row.runtime_status ?? null,
     },
   };
@@ -925,8 +864,6 @@ function markPendingRowActions(rowsToMark: ProjectListItemWithLifecycle[], actio
       action,
       awaitingVisibleChange: false,
       deadlineAt: null,
-      lastRefreshAt: row.last_refresh_at ?? null,
-      lastRefreshStatus: row.last_refresh_status ?? null,
       runtimeStatus: row.runtime_status ?? null,
     };
   }
@@ -1064,7 +1001,6 @@ function resetFilters() {
     keyword: '',
     sourceKind: 'all',
     driftStatus: 'all',
-    lastRefreshStatus: 'all',
   };
   pagination.value.current = 1;
   void fetchProjects();
@@ -1147,7 +1083,6 @@ function buildRowActions(row: ProjectListItemWithLifecycle) {
 
   return [
     { value: 'detail', label: t('project.list.actions.detail') },
-    { value: 'refresh', label: t('project.list.actions.refresh') },
     ...(!lifecycleBlocked && visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
     ...(!lifecycleBlocked && visibility.stop ? [{ value: 'stop', label: t('project.list.actions.stop') }] : []),
     ...(!lifecycleBlocked && visibility.restart
@@ -1519,10 +1454,6 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
 async function handleRowAction(action: string, row: ProjectListItemWithLifecycle) {
   if (action === 'detail') {
     await navigateToDetail(row);
-    return;
-  }
-  if (action === 'refresh') {
-    await runAction(postProjectRefresh, row, t('project.list.actions.refreshSuccess'));
     return;
   }
   if (action === 'up') {

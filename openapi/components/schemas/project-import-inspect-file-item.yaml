@@ -5,7 +5,6 @@ required:
   - absolute_path
   - display_path
   - order_index
-  - exists_on_last_refresh
 properties:
   kind:
     $ref: ./project-file-kind.yaml
@@ -18,8 +17,6 @@ properties:
   order_index:
     type: integer
     minimum: 0
-  exists_on_last_refresh:
-    type: boolean
   last_observed_hash:
     type: string
     nullable: true

@@ -52,8 +52,6 @@ func toProjectListItemWithManagedRoot(
 		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		ServiceCount:               serviceCount,
 		ContainerCounts:            counts,
-		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
-		LastRefreshAt:              aggregate.Project.LastRefreshAt,
 		DriftStatus:                generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
 	}
 }
@@ -90,23 +88,12 @@ func toProjectDetailResponseWithManagedRoot(
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		Id:                         mustGeneratedID(aggregate.Project.ID),
 		LastDriftCheckedAt:         aggregate.Project.LastDriftCheckedAt,
-		LastRefreshAt:              aggregate.Project.LastRefreshAt,
-		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
-	}
-	if aggregate.Project.LastRefreshErrorCode != "" {
-		item.LastRefreshErrorCode = stringPointer(aggregate.Project.LastRefreshErrorCode)
-	}
-	if aggregate.Project.LastRefreshErrorMessage != "" {
-		item.LastRefreshErrorMessage = stringPointer(aggregate.Project.LastRefreshErrorMessage)
-	}
-	if aggregate.Project.LastRefreshConfigHash != "" {
-		item.LastRefreshConfigHash = stringPointer(aggregate.Project.LastRefreshConfigHash)
 	}
 	if aggregate.Project.LastObservedConfigHash != "" {
 		item.LastObservedConfigHash = stringPointer(aggregate.Project.LastObservedConfigHash)
@@ -257,14 +244,13 @@ func toGeneratedFiles(files []projectstore.ProjectFile) []generated.ProjectFileI
 	items := make([]generated.ProjectFileItem, 0, len(files))
 	for _, item := range files {
 		items = append(items, generated.ProjectFileItem{
-			Id:                  mustGeneratedID(item.ID),
-			Kind:                generated.ProjectFileKind(item.Kind),
-			Role:                generated.ProjectFileRole(item.Role),
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			OrderIndex:          item.OrderIndex,
-			ExistsOnLastRefresh: item.ExistsOnLastRefresh,
-			LastObservedHash:    optionalString(item.LastObservedHash),
+			Id:               mustGeneratedID(item.ID),
+			Kind:             generated.ProjectFileKind(item.Kind),
+			Role:             generated.ProjectFileRole(item.Role),
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			OrderIndex:       item.OrderIndex,
+			LastObservedHash: optionalString(item.LastObservedHash),
 		})
 	}
 	return items
@@ -276,14 +262,13 @@ func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []genera
 	for index, item := range files {
 		hash := item.Hash
 		items = append(items, generated.ProjectFileItem{
-			Id:                  int64(index + 1),
-			Kind:                generated.ProjectFileKind(item.Kind),
-			Role:                generated.ProjectFileRole(item.Role),
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			OrderIndex:          item.OrderIndex,
-			ExistsOnLastRefresh: item.Exists,
-			LastObservedHash:    &hash,
+			Id:               int64(index + 1),
+			Kind:             generated.ProjectFileKind(item.Kind),
+			Role:             generated.ProjectFileRole(item.Role),
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			OrderIndex:       item.OrderIndex,
+			LastObservedHash: &hash,
 		})
 	}
 	return items
@@ -294,14 +279,12 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 	items := make([]projectstore.ProjectFile, 0, len(composeFiles)+len(envFiles))
 	for _, item := range append(append([]projectcompose.FileProjection(nil), composeFiles...), envFiles...) {
 		items = append(items, projectstore.ProjectFile{
-			Kind:                item.Kind,
-			Role:                item.Role,
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			OrderIndex:          item.OrderIndex,
-			ExistsOnLastRefresh: item.Exists,
-			LastObservedHash:    hashString(string(item.Content)),
-			LastObservedContent: normalizeTextBlock(string(item.Content)),
+			Kind:             item.Kind,
+			Role:             item.Role,
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			OrderIndex:       item.OrderIndex,
+			LastObservedHash: hashString(string(item.Content)),
 		})
 	}
 	return items
@@ -401,9 +384,6 @@ func buildRefreshProjectInput(
 ) projectstore.RefreshProjectInput {
 	return projectstore.RefreshProjectInput{
 		ProjectID:              projectID,
-		LastRefreshStatus:      projectcontract.RefreshStatusSuccess.String(),
-		LastRefreshAt:          &now,
-		LastRefreshConfigHash:  parseResult.ConfigHash,
 		LastObservedConfigHash: parseResult.ConfigHash,
 		LastDriftCheckedAt:     &now,
 		DriftStatus:            projectcontract.DriftStatusClean.String(),
@@ -434,21 +414,6 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 func hashString(value string) string {
 	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
 	return hex.EncodeToString(sum[:])
-}
-
-// buildConfigurationDiffFile 构建规范化后的配置文件差异结果。
-//
-//nolint:unused // Retained for direct test coverage of diff normalization semantics.
-func buildConfigurationDiffFile(kind string, path string, current string, proposed string) ConfigurationDiffFile {
-	return ConfigurationDiffFile{
-		Kind:            kind,
-		Path:            path,
-		Changed:         normalizeTextBlock(current) != normalizeTextBlock(proposed),
-		CurrentHash:     hashString(current),
-		ProposedHash:    hashString(proposed),
-		CurrentContent:  normalizeTextBlock(current),
-		ProposedContent: normalizeTextBlock(proposed),
-	}
 }
 
 // normalizeTextBlock 规范化文本块的换行、行尾空白和整体边界，并在非空时补充结尾换行符。

@@ -345,12 +345,6 @@ web Project Activity tab
 - `working_directory`
 - `ownership_mode`
   - `external | managed-root-dedicated`
-- `last_refresh_status`
-  - `never | success | failed`
-- `last_refresh_at`
-- `last_refresh_error_code`
-- `last_refresh_error_message`
-- `last_refresh_config_hash`
 - `last_observed_config_hash`
 - `last_drift_checked_at`
 - `drift_status`
@@ -379,7 +373,6 @@ web Project Activity tab
 - `absolute_path`
 - `display_path`
 - `order_index`
-- `exists_on_last_refresh`
 - `last_observed_hash`
 
 ### ProjectSnapshot
@@ -437,6 +430,8 @@ Phase 1 推荐三张模块自有表：
 
 - 它不是 Configuration 工作台左侧文件树的数据源。
 - Configuration 工作台必须来自 `working_directory` 的真实目录浏览接口，而不是从这里推断文件列表。
+- 它不再是 workspace state 的 source of truth。
+- 它只继续服务 compose parsing、preview、validation、lifecycle 与 deployment 所需的 compose/env 元数据覆盖层。
 
 ### `compose_project_snapshots`
 
@@ -509,8 +504,8 @@ Phase 1 推荐三张模块自有表：
 刷新失败时：
 
 - 保留上一份成功 snapshot
-- 记录 `last_refresh_status=failed`
-- 在 Overview / Configuration 显示错误与“快照已过期”
+- 不额外持久化 refresh failure 字段
+- 在当前调用结果中直接返回错误，并保持 Overview / Configuration 继续基于上一份成功 snapshot 工作
 
 ## 8.4 Lifecycle Configuration / Up / Stop / Restart / Redeploy
 
@@ -815,8 +810,6 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 - `runtime_status`
 - `service_count`
 - `container_counts`
-- `last_refresh_at`
-- `last_refresh_status`
 - `drift_status`
 
 其中：
@@ -981,9 +974,17 @@ Configuration workspace 的 authority 需要拆成两层：
 
 - Project registry authority
   - 继续保存 lifecycle 执行所需的 `compose_files`、`env_files`、`working_directory`、`canonical_project_name`
-- Workspace file-tree authority
+- Workspace authority
+  - File tree、editor open/read、dirty state、save 与 preview diff 全部围绕同一套 workspace file model 运作
   - 左侧文件树、编辑器文件打开、保存能力全部来自 `working_directory` 的真实目录浏览/读写接口
-  - 不允许从 `lifecycle_configuration`、`compose_files` 或固定文件名推断工作台文件列表
+  - `compose_project_files`、`lifecycle_configuration`、`compose_files` 与固定文件名都不能决定工作台文件成员资格
+  - Compose metadata 只允许 enrich workspace entry 的 `file_kind` / tooltip / lifecycle overlay，不拥有文件内容 authority
+
+补充原则：
+
+- Workspace manifest 是 runtime projection，不是新的持久化对象。
+- Backend 不维护 Preview Diff 算法或规范化 hash authority，只返回原始磁盘文件内容与文件可读/可编辑状态。
+- Frontend 自己维护 buffer、dirty state 与 Monaco Diff。
 
 建议 API 拆分：
 
@@ -1020,6 +1021,7 @@ Configuration workspace 的 authority 需要拆成两层：
   - `relative_path`
   - `node_type`
   - `file_kind`
+  - `readable`
   - `editable`
   - `language_hint`
   - `size_bytes`
@@ -1031,11 +1033,13 @@ Configuration workspace 的 authority 需要拆成两层：
 - 目录树必须支持懒加载与任意层级，不做一次性全量递归。
 - 默认隐藏重目录，隐藏策略来自 `ops.project.workspace.hidden_directories`；前端只消费接口返回与 `show hidden` 开关能力。
 - `compose_project_files` 继续服务 lifecycle authority，但不能再充当 workspace tree authority。
+- 任意可在 workspace 中打开并编辑的文本文件，都天然属于 Preview Diff 范围；不根据后缀额外维护 diff 白名单。
 
 `files/content` 返回建议包含：
 
 - `relative_path`
 - `file_kind`
+- `readable`
 - `editable`
 - `language_hint`
 - `encoding`
@@ -1056,7 +1060,6 @@ Configuration workspace 的 authority 需要拆成两层：
 | `POST` | `/api/ops/projects/{id}/up`         | 执行 compose up                                         |
 | `POST` | `/api/ops/projects/{id}/stop`       | 执行 compose stop，仅停止运行中的服务与容器             |
 | `POST` | `/api/ops/projects/{id}/restart`    | 执行 compose restart                                    |
-| `POST` | `/api/ops/projects/{id}/diff`       | 基于当前已保存磁盘状态执行项目级差异比较                |
 | `POST` | `/api/ops/projects/{id}/validate`   | 基于当前已保存磁盘状态执行项目级配置校验                |
 | `POST` | `/api/ops/projects/{id}/deploy`     | 基于当前已保存磁盘状态执行项目级部署                    |
 | `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录                                            |
@@ -1076,8 +1079,9 @@ Configuration workspace 的 authority 需要拆成两层：
 
 项目级操作语义固定为：
 
-- `diff`、`validate`、`deploy` 读取的都是当前已保存到磁盘的项目状态，而不是前端内存草稿
+- `validate`、`deploy` 读取的都是当前已保存到磁盘的项目状态，而不是前端内存草稿
 - 若前端存在未保存文件，必须先提示用户是否保存
+- Preview Diff 固定由 frontend buffer 对磁盘内容做本地 Monaco Diff，不提供后端 `diff` API
 - `deploy` 的未保存提示固定为“检测到未保存的修改，是否先保存？”，并提供 `保存`、`继续使用磁盘版本部署`、`取消`
 - 其中“保存”只把当前未保存内容写回 `working_directory`，不隐含立即生效
 - `deploy` 始终是独立的显式项目级动作，保存不会隐式触发部署
@@ -1317,7 +1321,7 @@ Project Drift 是该能力的重要价值之一。
 
 Phase 1 至少记录：
 
-- `last_refresh_config_hash`
+- `compose_project_snapshots.config_hash`
 - `last_observed_config_hash`
 - `drift_status`
 - `last_drift_checked_at`
@@ -1337,7 +1341,7 @@ Phase 1 不要求后台 watcher。
 可接受的触发路径：
 
 - 列表 / 详情请求时做轻量 hash 检查
-- 手动 `Refresh`
+- 项目列表不提供手动刷新入口；列表新鲜度由 HTTP seed + list realtime 保持
 - 导入校验
 
 ## 14. 安全、所有权与风险
@@ -1508,22 +1512,24 @@ Configuration：
   - 新增 `GET /api/ops/projects/{id}/files`
   - 新增 `GET /api/ops/projects/{id}/files/content`
   - 新增 `PUT /api/ops/projects/{id}/files/content`
-  - 新增 `POST /api/ops/projects/{id}/diff`
   - 新增 `POST /api/ops/projects/{id}/validate`
   - 新增 `POST /api/ops/projects/{id}/deploy`
   - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`
   - 移除 `POST /api/ops/projects/{id}/update-deploy` 作为一等 lifecycle action
 - Project module execution owner：`server/modules/project/**`
   - Configuration workspace 左侧文件树 authority 改为 `working_directory` 的真实目录扫描，不再从 tracked files 推断
+  - Workspace file membership / content authority 全部收口到 `working_directory` 的 runtime browse/read/write service
+  - `compose_project_files` 降级为 compose/env 元数据 overlay，不再承载 workspace state 或 Preview Diff authority
   - `files` / `files/content` 使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束
-  - diff 与 validate 只针对当前已保存磁盘状态做 bounded 对比与静态解析，不消费前端未保存草稿
+  - validate 只针对当前已保存磁盘状态做静态解析，不消费前端未保存草稿
   - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`，imported 默认 `review_required`
   - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 deploy
   - deploy 只读取当前已保存磁盘状态、刷新 project snapshot，并复用 project-owned lifecycle configuration 做 final compose `up`
   - redeploy 成为统一 runtime deploy-style lifecycle action；pull/down/prune 等语义都收口到 lifecycle configuration
   - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - Frontend module owner：`web/src/modules/project/**`
-  - `detail -> configuration` 承载基于真实目录树的文件工作台、多文件编辑、diff、validate 与 deploy 入口
+  - `detail -> configuration` 承载基于真实目录树的文件工作台、多文件编辑、Preview Diff、validate 与 deploy 入口
+  - Monaco Diff 直接消费 workspace current content 与 frontend buffer proposed content，不再调用 backend diff API
   - `detail -> lifecycle` 承载 lifecycle configuration 编辑、review 提示和 generated command preview
   - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
 
@@ -1531,8 +1537,8 @@ Configuration：
 
 `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync` 完成后，Phase 2 以同一 topic 内的 bounded batches 达到可审计验收状态：
 
-- managed root create、Compose/Env editor、diff、validate、deploy 路径均已落地并通过完整验证链
-- `Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 lifecycle/deploy orchestration
+- managed root create、Compose/Env editor、Preview Diff、validate、deploy 路径均已落地并通过完整验证链
+- `Project` 继续只拥有 project registry、workspace browse/read/save、validate 与 lifecycle/deploy orchestration
 - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - `Container` 继续保持 runtime authority
 - Topic 不进入 `archive-ready`，因为 Phase 3 仍需按更小的 bounded batches 继续推进
@@ -1584,7 +1590,7 @@ Configuration：
     - `activity_rollup_scope`
 - Project module owner：`server/modules/project/**`
   - `remote-host` 只作为 source selector / route / permission / metadata owner 进入 source catalog
-  - 不新增 remote host credential persistence、remote command execution、backend project logs/events aggregation、project realtime topic 或 project-level runtime cache
+  - 不新增 remote host credential persistence、remote command execution、backend project logs/events aggregation 端点或 project-level runtime cache
   - 当前本机 `local` project 的 `activity_authority` 仍固定为 `frontend-fanout`
   - future `remote` project 或 backend aggregation 只保留 `backend-planned` authority 标识，不视为 implementation-ready
 - Web module owner：`web/src/modules/project/**`
@@ -1597,7 +1603,7 @@ Configuration：
 - 不新增 remote host 持久化或连接测试
 - 不执行 remote `docker compose`
 - 不新增 backend project logs/events aggregation endpoint
-- 不新增 project realtime topic
+- 允许新增 project list summary realtime topic，用于项目列表摘要自动更新；不在本批扩展 remote host 或后端 activity aggregation realtime
 - 不把 discovery candidate 扩大成 auto-registration 或 unmanaged runtime ownership
 
 ## 16.4B Phase 3 Batch 1 authority 落地说明

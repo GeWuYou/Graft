@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
@@ -25,7 +26,6 @@ func TestConfigurationDeployAggregateUsesPreparedComposeFiles(t *testing.T) {
 			HostScope:             projectcontract.HostScopeLocal.String(),
 			WorkingDirectory:      "/srv/demo",
 			CanonicalProjectName:  "demo",
-			LastRefreshStatus:     projectcontract.RefreshStatusSuccess.String(),
 			LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
 		},
 		Files: []projectstore.ProjectFile{
@@ -36,6 +36,7 @@ func TestConfigurationDeployAggregateUsesPreparedComposeFiles(t *testing.T) {
 				DisplayPath:  "compose.old.yaml",
 			},
 		},
+		Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 	}
 	parseResult := projectcompose.Result{
 		ComposeFiles: []projectcompose.FileProjection{

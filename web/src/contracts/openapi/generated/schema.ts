@@ -2402,26 +2402,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/configuration/diff': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Diff current saved project configuration state
-     * @description Compares the current saved working_directory state with the latest refreshed project snapshot baseline without mutating files or changing runtime state.
-     */
-    post: operations['postProjectConfigurationDiff'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ops/projects/{id}/configuration/validate': {
     parameters: {
       query?: never;
@@ -2848,7 +2828,6 @@ export interface components {
     ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
-    ProjectRefreshStatus: components['schemas']['project-refresh-status'];
     ProjectDriftStatus: components['schemas']['project-drift-status'];
     ProjectCanonicalNameSource: components['schemas']['project-canonical-name-source'];
     ProjectFileKind: components['schemas']['project-file-kind'];
@@ -5424,8 +5403,6 @@ export interface components {
     /** @enum {string} */
     'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
     /** @enum {string} */
-    'project-refresh-status': 'never' | 'success' | 'failed';
-    /** @enum {string} */
     'project-canonical-name-source': 'computed' | 'override';
     /**
      * @description Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
@@ -5497,9 +5474,6 @@ export interface components {
       runtime_status?: components['schemas']['project-runtime-status'];
       service_count: number;
       container_counts: components['schemas']['project-container-counts'];
-      last_refresh_status: components['schemas']['project-refresh-status'];
-      /** Format: date-time */
-      last_refresh_at?: string | null;
       drift_status: components['schemas']['project-drift-status'];
     };
     'project-list-response': {
@@ -5531,7 +5505,6 @@ export interface components {
       absolute_path: string;
       display_path: string;
       order_index: number;
-      exists_on_last_refresh: boolean;
       /** @description Most recently observed file hash. Empty string means the system has not observed one yet. */
       last_observed_hash?: string;
     };
@@ -5602,7 +5575,6 @@ export interface components {
       absolute_path: string;
       display_path: string;
       order_index: number;
-      exists_on_last_refresh: boolean;
       last_observed_hash?: string | null;
     };
     'project-import-runtime-network-resource': {
@@ -5726,11 +5698,6 @@ export interface components {
     'project-detail-response': components['schemas']['project-list-item'] & {
       source_metadata?: components['schemas']['project-source-metadata'];
       lifecycle_configuration: components['schemas']['project-lifecycle-configuration'];
-      /** @description Stable error code from the latest failed refresh. Empty string means no recorded failure. */
-      last_refresh_error_code?: string;
-      /** @description Fallback error message from the latest failed refresh. */
-      last_refresh_error_message?: string;
-      last_refresh_config_hash?: string;
       last_observed_config_hash?: string;
       /** Format: date-time */
       last_drift_checked_at?: string | null;
@@ -6094,9 +6061,6 @@ export interface components {
       env_files: components['schemas']['project-file-item'][];
       ownership_mode: components['schemas']['project-ownership-mode'];
       drift_status: components['schemas']['project-drift-status'];
-      last_refresh_status: components['schemas']['project-refresh-status'];
-      /** Format: date-time */
-      last_refresh_at?: string | null;
       /** @description Bounded configuration diagnostics summary for readonly UI display. */
       diagnostics_summary?: string[];
     };
@@ -6124,6 +6088,7 @@ export interface components {
       relative_path: string;
       node_type: components['schemas']['project-file-tree-node-type'];
       file_kind: components['schemas']['project-workspace-file-kind'];
+      readable: boolean;
       editable: boolean;
       /** @description Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext. */
       language_hint: string;
@@ -6155,6 +6120,7 @@ export interface components {
       file_kind: components['schemas']['project-workspace-file-kind'];
       /** @description Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext. */
       language_hint: string;
+      readable: boolean;
       editable: boolean;
       /** @enum {string} */
       encoding: 'utf-8';
@@ -6186,30 +6152,6 @@ export interface components {
     };
     'enveloped-project-file-tree-item-response': {
       data: components['schemas']['project-file-tree-item'];
-    };
-    'project-configuration-diff-file': {
-      kind: components['schemas']['project-file-kind'];
-      path: string;
-      display_path: string;
-      changed: boolean;
-      current_hash: string;
-      proposed_hash: string;
-      current_content: string;
-      proposed_content: string;
-    };
-    'project-configuration-diff-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
-      ownership_mode: components['schemas']['project-ownership-mode'];
-      current_config_hash: string;
-      proposed_config_hash: string;
-      has_changes: boolean;
-      files: components['schemas']['project-configuration-diff-file'][];
-      warnings?: string[];
-    };
-    'enveloped-project-configuration-diff-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-configuration-diff-response'];
     };
     'project-configuration-validate-response': {
       /** Format: int64 */
@@ -6498,8 +6440,6 @@ export interface components {
     'project-list-source-kind': components['schemas']['project-source-kind'];
     /** @description Optional project drift-status filter. */
     'project-list-drift-status': components['schemas']['project-drift-status'];
-    /** @description Optional latest-refresh-status filter. */
-    'project-list-refresh-status': components['schemas']['project-refresh-status'];
     /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
     'project-id-path': number;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
@@ -11988,8 +11928,6 @@ export interface operations {
         source_kind?: components['parameters']['project-list-source-kind'];
         /** @description Optional project drift-status filter. */
         drift_status?: components['parameters']['project-list-drift-status'];
-        /** @description Optional latest-refresh-status filter. */
-        last_refresh_status?: components['parameters']['project-list-refresh-status'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -13197,61 +13135,6 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Project record or target path not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postProjectConfigurationDiff: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
-        id: components['parameters']['project-id-path'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Project configuration diff generated from saved disk state. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-project-configuration-diff-response'];
-        };
-      };
-      /** @description Invalid project id. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description Project record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

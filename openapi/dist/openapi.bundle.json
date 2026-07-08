@@ -10346,9 +10346,6 @@
           },
           {
             "$ref": "#/components/parameters/project-list-drift-status"
-          },
-          {
-            "$ref": "#/components/parameters/project-list-refresh-status"
           }
         ],
         "security": [
@@ -12247,88 +12244,6 @@
         }
       }
     },
-    "/api/ops/projects/{id}/configuration/diff": {
-      "post": {
-        "tags": [
-          "project"
-        ],
-        "summary": "Diff current saved project configuration state",
-        "operationId": "postProjectConfigurationDiff",
-        "description": "Compares the current saved working_directory state with the latest refreshed project snapshot baseline without mutating files or changing runtime state.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "$ref": "#/components/parameters/project-id-path"
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Project configuration diff generated from saved disk state.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-configuration-diff-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid project id.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "Project record not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
     "/api/ops/projects/{id}/configuration/validate": {
       "post": {
         "tags": [
@@ -13940,9 +13855,6 @@
       },
       "ProjectOwnershipMode": {
         "$ref": "#/components/schemas/project-ownership-mode"
-      },
-      "ProjectRefreshStatus": {
-        "$ref": "#/components/schemas/project-refresh-status"
       },
       "ProjectDriftStatus": {
         "$ref": "#/components/schemas/project-drift-status"
@@ -21986,19 +21898,6 @@
           "ProjectDriftStatusMissing"
         ]
       },
-      "project-refresh-status": {
-        "type": "string",
-        "enum": [
-          "never",
-          "success",
-          "failed"
-        ],
-        "x-enum-varnames": [
-          "ProjectRefreshStatusNever",
-          "ProjectRefreshStatusSuccess",
-          "ProjectRefreshStatusFailed"
-        ]
-      },
       "project-canonical-name-source": {
         "type": "string",
         "enum": [
@@ -22181,7 +22080,6 @@
           "host_scope",
           "ownership_mode",
           "working_directory",
-          "last_refresh_status",
           "drift_status",
           "service_count",
           "container_counts"
@@ -22233,14 +22131,6 @@
           },
           "container_counts": {
             "$ref": "#/components/schemas/project-container-counts"
-          },
-          "last_refresh_status": {
-            "$ref": "#/components/schemas/project-refresh-status"
-          },
-          "last_refresh_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
           },
           "drift_status": {
             "$ref": "#/components/schemas/project-drift-status"
@@ -22363,8 +22253,7 @@
           "role",
           "absolute_path",
           "display_path",
-          "order_index",
-          "exists_on_last_refresh"
+          "order_index"
         ],
         "properties": {
           "id": {
@@ -22387,9 +22276,6 @@
           "order_index": {
             "type": "integer",
             "minimum": 0
-          },
-          "exists_on_last_refresh": {
-            "type": "boolean"
           },
           "last_observed_hash": {
             "type": "string",
@@ -22701,8 +22587,7 @@
           "role",
           "absolute_path",
           "display_path",
-          "order_index",
-          "exists_on_last_refresh"
+          "order_index"
         ],
         "properties": {
           "kind": {
@@ -22720,9 +22605,6 @@
           "order_index": {
             "type": "integer",
             "minimum": 0
-          },
-          "exists_on_last_refresh": {
-            "type": "boolean"
           },
           "last_observed_hash": {
             "type": "string",
@@ -23313,17 +23195,6 @@
               },
               "lifecycle_configuration": {
                 "$ref": "#/components/schemas/project-lifecycle-configuration"
-              },
-              "last_refresh_error_code": {
-                "type": "string",
-                "description": "Stable error code from the latest failed refresh. Empty string means no recorded failure."
-              },
-              "last_refresh_error_message": {
-                "type": "string",
-                "description": "Fallback error message from the latest failed refresh."
-              },
-              "last_refresh_config_hash": {
-                "type": "string"
               },
               "last_observed_config_hash": {
                 "type": "string"
@@ -24857,8 +24728,7 @@
           "compose_files",
           "env_files",
           "ownership_mode",
-          "drift_status",
-          "last_refresh_status"
+          "drift_status"
         ],
         "properties": {
           "project_id": {
@@ -24883,14 +24753,6 @@
           },
           "drift_status": {
             "$ref": "#/components/schemas/project-drift-status"
-          },
-          "last_refresh_status": {
-            "$ref": "#/components/schemas/project-refresh-status"
-          },
-          "last_refresh_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
           },
           "diagnostics_summary": {
             "type": "array",
@@ -25006,6 +24868,7 @@
           "relative_path",
           "node_type",
           "file_kind",
+          "readable",
           "editable",
           "language_hint",
           "size_bytes",
@@ -25024,6 +24887,9 @@
           },
           "file_kind": {
             "$ref": "#/components/schemas/project-workspace-file-kind"
+          },
+          "readable": {
+            "type": "boolean"
           },
           "editable": {
             "type": "boolean"
@@ -25115,6 +24981,7 @@
           "relative_path",
           "file_kind",
           "language_hint",
+          "readable",
           "editable",
           "encoding",
           "content",
@@ -25135,6 +25002,9 @@
           "language_hint": {
             "type": "string",
             "description": "Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.\n"
+          },
+          "readable": {
+            "type": "boolean"
           },
           "editable": {
             "type": "boolean"
@@ -25243,109 +25113,6 @@
             "$ref": "#/components/schemas/project-file-tree-item"
           }
         }
-      },
-      "project-configuration-diff-file": {
-        "type": "object",
-        "required": [
-          "kind",
-          "path",
-          "display_path",
-          "changed",
-          "current_hash",
-          "proposed_hash",
-          "current_content",
-          "proposed_content"
-        ],
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/project-file-kind"
-          },
-          "path": {
-            "type": "string"
-          },
-          "display_path": {
-            "type": "string"
-          },
-          "changed": {
-            "type": "boolean"
-          },
-          "current_hash": {
-            "type": "string"
-          },
-          "proposed_hash": {
-            "type": "string"
-          },
-          "current_content": {
-            "type": "string"
-          },
-          "proposed_content": {
-            "type": "string"
-          }
-        }
-      },
-      "project-configuration-diff-response": {
-        "type": "object",
-        "required": [
-          "project_id",
-          "canonical_project_name",
-          "ownership_mode",
-          "current_config_hash",
-          "proposed_config_hash",
-          "has_changes",
-          "files"
-        ],
-        "properties": {
-          "project_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "canonical_project_name": {
-            "type": "string"
-          },
-          "ownership_mode": {
-            "$ref": "#/components/schemas/project-ownership-mode"
-          },
-          "current_config_hash": {
-            "type": "string"
-          },
-          "proposed_config_hash": {
-            "type": "string"
-          },
-          "has_changes": {
-            "type": "boolean"
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/project-configuration-diff-file"
-            }
-          },
-          "warnings": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "enveloped-project-configuration-diff-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/project-configuration-diff-response"
-              }
-            }
-          }
-        ]
       },
       "project-configuration-validate-response": {
         "type": "object",
@@ -26606,15 +26373,6 @@
         "description": "Optional project drift-status filter.",
         "schema": {
           "$ref": "#/components/schemas/project-drift-status"
-        }
-      },
-      "project-list-refresh-status": {
-        "name": "last_refresh_status",
-        "in": "query",
-        "required": false,
-        "description": "Optional latest-refresh-status filter.",
-        "schema": {
-          "$ref": "#/components/schemas/project-refresh-status"
         }
       },
       "project-id-path": {

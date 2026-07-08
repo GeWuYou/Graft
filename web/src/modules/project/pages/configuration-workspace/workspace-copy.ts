@@ -2,12 +2,12 @@ type WorkspaceCopy = {
   annotationAction: string;
   annotationSaveFailed: string;
   cancelAction: string;
+  confirmSaveAction: string;
   continueWithDiskAction: string;
   deployAction: string;
-  deployContinueWithDiskAction: string;
-  deployDirtyBody: string;
-  deployDirtyTitle: string;
-  diffAction: string;
+  diffConfirmBody: string;
+  diffEmptyDirectSaveHint: string;
+  diffTreeTitle: string;
   diffViewerAriaLabel: string;
   dirtyCloseBody: string;
   dirtyCloseTitle: string;
@@ -67,12 +67,12 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   annotationAction: 'project.configurationWorkspace.copy.annotationAction',
   annotationSaveFailed: 'project.configurationWorkspace.copy.annotationSaveFailed',
   cancelAction: 'project.configurationWorkspace.copy.cancelAction',
+  confirmSaveAction: 'project.configurationWorkspace.copy.confirmSaveAction',
   continueWithDiskAction: 'project.configurationWorkspace.copy.continueWithDiskAction',
   deployAction: 'project.configurationWorkspace.copy.deployAction',
-  deployContinueWithDiskAction: 'project.configurationWorkspace.copy.deployContinueWithDiskAction',
-  deployDirtyBody: 'project.configurationWorkspace.copy.deployDirtyBody',
-  deployDirtyTitle: 'project.configurationWorkspace.copy.deployDirtyTitle',
-  diffAction: 'project.configurationWorkspace.copy.diffAction',
+  diffConfirmBody: 'project.configurationWorkspace.copy.diffConfirmBody',
+  diffEmptyDirectSaveHint: 'project.configurationWorkspace.copy.diffEmptyDirectSaveHint',
+  diffTreeTitle: 'project.configurationWorkspace.copy.diffTreeTitle',
   diffViewerAriaLabel: 'project.configurationWorkspace.copy.diffViewerAriaLabel',
   dirtyCloseBody: 'project.configurationWorkspace.copy.dirtyCloseBody',
   dirtyCloseTitle: 'project.configurationWorkspace.copy.dirtyCloseTitle',

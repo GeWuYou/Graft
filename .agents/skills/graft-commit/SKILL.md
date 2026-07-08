@@ -26,6 +26,15 @@ validation rules.
      mandatory review scope, not optional follow-up
    - do not use an intermediate commit to imply PR-review closure while any verified finding from that inventory is
      still unclassified, including outside-diff findings
+6. When the user explicitly triggers `$graft-commit`, treat it as permission to finish the current owned slice end to
+   end:
+   - if required validation fails on a concrete issue inside the current owned scope and the fix is reasonably bounded,
+     fix that issue first, rerun validation, and continue the commit workflow without waiting for another user reminder
+   - if the current slice is blocked by a local generated-artifact drift, stale snapshot, test expectation drift, or
+     similar commit-path issue that is clearly inside the owned scope and can be repaired safely in the same slice,
+     repair it first, rerun the required validation, and then continue to commit
+   - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
+     confirmed scope, or the necessary repair would widen into a new unsafe slice
 
 ## Workflow
 
@@ -54,6 +63,8 @@ validation rules.
    - `docs/automation`: run the strongest honest structural checks available
    - if the commit belongs to a `$graft-pr-review` remediation batch, validation alone is not enough; the review run
      must still preserve exhaustive finding disposition coverage, including `Outside diff range comments`
+   - if validation fails on a bounded issue inside the current owned scope, repair that issue and rerun the required
+     validation before deciding whether to refuse the commit
 4. Stage only the confirmed owned scope:
    - do not use `git add .`, `git add -A`, or `git commit -am` unless the user explicitly asks to commit everything
    - when one file contains mixed ownership, stage only the owned hunks if they can be reliably separated

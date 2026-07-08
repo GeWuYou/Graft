@@ -1366,6 +1366,7 @@ describe('container list page', () => {
     });
 
     await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('draft-change');
+    await nextTick();
     await wrapper.get('[data-testid="table-refresh"]').trigger('click');
     await flushPromises();
 
@@ -1380,6 +1381,7 @@ describe('container list page', () => {
       state: undefined,
     });
 
+    await nextTick();
     await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
     await flushPromises();
 

@@ -73,7 +73,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
-	group.POST(projectcontract.ProjectConfigurationDiffRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationDiff)
 	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
 	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
@@ -88,6 +87,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	return nil
 }
 
+//nolint:dupl // Project list and runtime-candidate handlers intentionally share the generated-bind/query/write skeleton.
 func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	params, ok := bindListParams(ginCtx, r.ctx)
 	if !ok {
@@ -95,11 +95,10 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	}
 	projectGeneratedHandler{}.GetProjects(params)
 	result, err := r.service.List(ginCtx.Request.Context(), ListQuery{
-		Limit:             intPtrValue(params.Limit),
-		Offset:            intPtrValue(params.Offset),
-		SourceKind:        stringPtrValue(params.SourceKind),
-		DriftStatus:       stringPtrValue(params.DriftStatus),
-		LastRefreshStatus: stringPtrValue(params.LastRefreshStatus),
+		Limit:       intPtrValue(params.Limit),
+		Offset:      intPtrValue(params.Offset),
+		SourceKind:  stringPtrValue(params.SourceKind),
+		DriftStatus: stringPtrValue(params.DriftStatus),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -122,6 +121,7 @@ func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toImportValidateResponse(result))
 }
 
+//nolint:dupl // Project list and runtime-candidate handlers intentionally share the generated-bind/query/write skeleton.
 func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
 	params, ok := bindGetProjectImportRuntimeCandidatesParams(ginCtx, r.ctx)
 	if !ok {
@@ -473,20 +473,6 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 		Tooltip:         optionalString(result.Tooltip),
 		TooltipSource:   optionalTooltipSource(result.TooltipSource),
 	})
-}
-
-func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
-	if !ok {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectConfigurationDiff(generatedID, bindPostProjectConfigurationDiffParams(ginCtx))
-	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), projectID)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationDiffResponse(result))
 }
 
 func (r routeRuntime) handleConfigurationValidate(ginCtx *gin.Context) {
@@ -843,8 +829,6 @@ func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProject
 }
 func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams) {
-}
 func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
 }
 func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams)   {}
@@ -863,7 +847,7 @@ func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDe
 }
 
 // bindListParams 绑定项目列表查询参数和公共请求头。
-// 它解析 source_kind、drift_status、last_refresh_status、limit 和 offset，并在分页参数无效时中止请求。
+// 它解析 source_kind、drift_status、limit 和 offset，并在分页参数无效时中止请求。
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
@@ -881,14 +865,8 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetProjectsParams{}, false
 	}
-	lastRefreshStatus, ok := optionalValidatedEnumQuery(query.Get("last_refresh_status"), generated.ProjectRefreshStatus.Valid)
-	if !ok {
-		abortInvalidQuery(ginCtx, ctx)
-		return generated.GetProjectsParams{}, false
-	}
 	params.SourceKind = sourceKind
 	params.DriftStatus = driftStatus
-	params.LastRefreshStatus = lastRefreshStatus
 	if params.Limit, ok = optionalIntQuery[generated.ProjectListLimit](query.Get("limit"), minimumProjectListLimit, maxProjectListLimit); !ok {
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetProjectsParams{}, false
@@ -1160,12 +1138,6 @@ func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) genera
 	locale, requestID := commonHeaders(ginCtx)
 	queryPath := generated.ProjectWorkspacePathQuery(path)
 	return generated.PutProjectFileAnnotationParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
-}
-
-// bindPostProjectConfigurationDiffParams 组装项目配置 diff 请求的公共请求头参数。
-func bindPostProjectConfigurationDiffParams(ginCtx *gin.Context) generated.PostProjectConfigurationDiffParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectConfigurationDiffParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostProjectConfigurationValidateParams 构造配置校验接口的公共请求参数。

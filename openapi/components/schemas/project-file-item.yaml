@@ -6,7 +6,6 @@ required:
   - absolute_path
   - display_path
   - order_index
-  - exists_on_last_refresh
 properties:
   id:
     type: integer
@@ -23,8 +22,6 @@ properties:
   order_index:
     type: integer
     minimum: 0
-  exists_on_last_refresh:
-    type: boolean
   last_observed_hash:
     type: string
     description: Most recently observed file hash. Empty string means the system has not observed one yet.

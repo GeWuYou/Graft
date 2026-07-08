@@ -10,8 +10,6 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-const configurationDiffWarningsCapacity = 2
-
 // ConfigurationMetadata returns readonly configuration metadata.
 func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (ConfigurationMetadataResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
@@ -24,8 +22,6 @@ func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (
 		EnvFiles:           toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
 		OwnershipMode:      aggregate.Project.OwnershipMode,
 		DriftStatus:        aggregate.Project.DriftStatus,
-		LastRefreshStatus:  aggregate.Project.LastRefreshStatus,
-		LastRefreshAt:      aggregate.Project.LastRefreshAt,
 		DiagnosticsSummary: nil,
 	}, nil
 }
@@ -45,34 +41,7 @@ func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (C
 		CanonicalProjectName:  aggregate.Project.CanonicalProjectName,
 		ConfigHash:            parseResult.ConfigHash,
 		NormalizedComposeYAML: parseResult.NormalizedComposeYAML,
-		RefreshedAt:           aggregate.Project.LastRefreshAt,
-	}, nil
-}
-
-// DiffConfiguration compares the current saved project files with the latest refreshed snapshot baseline.
-func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64) (ConfigurationDiffResult, error) {
-	aggregate, err := s.getAggregate(ctx, projectID)
-	if err != nil {
-		return ConfigurationDiffResult{}, err
-	}
-	files, hasFileChanges, err := buildConfigurationDiffFiles(aggregate)
-	if err != nil {
-		return ConfigurationDiffResult{}, err
-	}
-	parseResult, err := s.loadFromAggregate(aggregate)
-	if err != nil {
-		return ConfigurationDiffResult{}, err
-	}
-	warnings := configurationDiffWarnings(len(files))
-	return ConfigurationDiffResult{
-		ProjectID:            projectID,
-		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
-		OwnershipMode:        aggregate.Project.OwnershipMode,
-		CurrentConfigHash:    aggregate.Project.LastRefreshConfigHash,
-		ProposedConfigHash:   parseResult.ConfigHash,
-		HasChanges:           hasFileChanges || aggregate.Project.LastRefreshConfigHash != parseResult.ConfigHash,
-		Files:                files,
-		Warnings:             warnings,
+		RefreshedAt:           snapshotRefreshedAt(aggregate.Snapshot),
 	}, nil
 }
 
@@ -148,48 +117,10 @@ func (s *Service) DeployConfiguration(
 	return result, nil
 }
 
-func buildConfigurationDiffFiles(aggregate projectstore.ProjectAggregate) ([]ConfigurationDiffFile, bool, error) {
-	currentFiles, err := loadTrackedFileContents(aggregate)
-	if err != nil {
-		return nil, false, err
+func snapshotRefreshedAt(snapshot *projectstore.Snapshot) *time.Time {
+	if snapshot == nil {
+		return nil
 	}
-	files := make([]ConfigurationDiffFile, 0, len(currentFiles))
-	hasChanges := false
-	for _, item := range currentFiles {
-		fileDiff := configurationDiffFileFromTracked(item)
-		if fileDiff.Changed {
-			hasChanges = true
-		}
-		files = append(files, fileDiff)
-	}
-	return files, hasChanges, nil
-}
-
-func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDiffFile {
-	baselineContent := normalizeTextBlock(item.BaselineContent)
-	currentContent := normalizeTextBlock(item.Content)
-	baselineHash := hashString(baselineContent)
-	currentHash := hashString(currentContent)
-	changed := baselineContent != currentContent
-	if baselineHash == "" && currentHash == "" {
-		changed = false
-	}
-	return ConfigurationDiffFile{
-		Kind:            item.Kind,
-		Path:            item.Path,
-		DisplayPath:     item.DisplayPath,
-		Changed:         changed,
-		CurrentHash:     baselineHash,
-		ProposedHash:    currentHash,
-		CurrentContent:  baselineContent,
-		ProposedContent: currentContent,
-	}
-}
-
-func configurationDiffWarnings(fileCount int) []string {
-	warnings := make([]string, 0, configurationDiffWarningsCapacity)
-	if fileCount == 0 {
-		warnings = append(warnings, "No tracked compose or env files are registered for the project.")
-	}
-	return warnings
+	refreshedAt := snapshot.RefreshedAt
+	return &refreshedAt
 }

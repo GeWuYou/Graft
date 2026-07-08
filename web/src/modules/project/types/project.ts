@@ -5,7 +5,6 @@ import type { PROJECT_API_PATH } from '../contract/paths';
 export type ProjectSourceKind = components['schemas']['ProjectSourceKind'];
 export type ProjectHostScope = components['schemas']['ProjectHostScope'];
 export type ProjectOwnershipMode = components['schemas']['ProjectOwnershipMode'];
-export type ProjectRefreshStatus = components['schemas']['ProjectRefreshStatus'];
 export type ProjectDriftStatus = components['schemas']['ProjectDriftStatus'];
 export type ProjectCanonicalNameSource = components['schemas']['ProjectCanonicalNameSource'];
 export type ProjectFileKind = components['schemas']['ProjectFileKind'];
@@ -98,7 +97,6 @@ export type ProjectFilters = {
   keyword: string;
   sourceKind: ProjectSourceKind | 'all';
   driftStatus: ProjectDriftStatus | 'all';
-  lastRefreshStatus: ProjectRefreshStatus | 'all';
 };
 
 export type ProjectActivityStream = 'events' | 'logs';
@@ -115,31 +113,6 @@ export type ProjectConfigurationFileResponse = {
   kind: ProjectFileKind;
   path: string;
   read_only?: boolean;
-};
-
-export type ProjectConfigurationDiffRequest = {
-  compose_file_content?: string;
-  env_file_content?: string;
-};
-
-export type ProjectConfigurationDiffResponse = {
-  canonical_project_name: string;
-  current_config_hash: string;
-  files: Array<{
-    changed: boolean;
-    current_content: string;
-    current_hash: string;
-    display_path: string;
-    kind: string;
-    path: string;
-    proposed_content: string;
-    proposed_hash: string;
-  }>;
-  has_changes: boolean;
-  ownership_mode: ProjectOwnershipMode | string;
-  project_id: number;
-  proposed_config_hash: string;
-  warnings: string[];
 };
 
 export type ProjectConfigurationValidateRequest = {
@@ -188,6 +161,7 @@ export type ProjectWorkspaceTreeItem = {
   relative_path: string;
   node_type: ProjectWorkspaceNodeType;
   file_kind: ProjectWorkspaceFileKind;
+  readable: boolean;
   editable: boolean;
   language_hint?: ProjectWorkspaceLanguageHint | null;
   size_bytes?: number | null;
@@ -215,6 +189,7 @@ export type ProjectWorkspaceFileContentResponse = {
   relative_path: string;
   file_kind: ProjectWorkspaceFileKind;
   language_hint?: ProjectWorkspaceLanguageHint | null;
+  readable: boolean;
   editable: boolean;
   encoding?: string | null;
   content: string;

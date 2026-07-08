@@ -14,6 +14,20 @@ import (
 
 const projectDetailTopicRefreshInterval = 5 * time.Second
 
+type projectListSummaryRealtimeItem struct {
+	ProjectID       int64                            `json:"project_id"`
+	RuntimeStatus   generated.ProjectRuntimeStatus  `json:"runtime_status"`
+	ServiceCount    int                              `json:"service_count"`
+	ContainerCounts generated.ProjectContainerCounts `json:"container_counts"`
+	DriftStatus     generated.ProjectDriftStatus    `json:"drift_status"`
+}
+
+type projectListSummaryRealtimePayload struct {
+	Topic       string                           `json:"topic"`
+	PublishedAt time.Time                        `json:"published_at"`
+	Items       []projectListSummaryRealtimeItem `json:"items"`
+}
+
 type projectDetailRealtimePayload struct {
 	Topic       string                            `json:"topic"`
 	ProjectID   int64                             `json:"project_id"`
@@ -41,6 +55,8 @@ func (s *Service) IssueSubscription(
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicRequired
 	}
 	switch {
+	case topic == projectcontract.ProjectListSummaryTopic:
+		return s.issueProjectListSummaryRealtimeSubscription(ctx, request, topic)
 	case strings.HasPrefix(topic, projectcontract.ProjectDetailTopicPrefix):
 		return s.issueProjectDetailRealtimeSubscription(ctx, request, topic)
 	case strings.HasPrefix(topic, projectcontract.ProjectLogsTopicPrefix):
@@ -57,6 +73,9 @@ func (s *Service) registerRealtimeTopics() error {
 	if s.topicIssuers == nil {
 		return errors.New("realtime topic issuer registry is unavailable")
 	}
+	if err := s.topicIssuers.Register(projectcontract.ProjectListSummaryTopic, s); err != nil {
+		return err
+	}
 	if err := s.topicIssuers.Register(projectcontract.ProjectDetailTopicPrefix, s); err != nil {
 		return err
 	}
@@ -69,10 +88,14 @@ func (s *Service) Close(ctx context.Context) error {
 		return nil
 	}
 	s.streamersMu.Lock()
+	listStreamer := s.listTopicStreamer
 	detailStreamer := s.detailTopicStreamer
 	logStreamer := s.logTopicStreamer
 	s.streamersMu.Unlock()
 	var closeErr error
+	if listStreamer != nil {
+		closeErr = errors.Join(closeErr, listStreamer.Close(ctx))
+	}
 	if detailStreamer != nil {
 		closeErr = errors.Join(closeErr, detailStreamer.Close(ctx))
 	}
@@ -80,6 +103,23 @@ func (s *Service) Close(ctx context.Context) error {
 		closeErr = errors.Join(closeErr, logStreamer.Close(ctx))
 	}
 	return closeErr
+}
+
+func (s *Service) issueProjectListSummaryRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	if topic != projectcontract.ProjectListSummaryTopic {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+	}
+	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ProjectViewPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, err
+	}
+	if err := s.ensureProjectListSummaryTopicStreaming(topic); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	return s.issueTopicTicket(ctx, request, topic)
 }
 
 func (s *Service) issueProjectDetailRealtimeSubscription(

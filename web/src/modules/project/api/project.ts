@@ -3,7 +3,6 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
-  buildProjectConfigurationDiffApiPath,
   buildProjectConfigurationPreviewApiPath,
   buildProjectConfigurationValidateApiPath,
   buildProjectDeployApiPath,
@@ -16,7 +15,6 @@ import {
   buildProjectLogsApiPath,
   buildProjectOverviewApiPath,
   buildProjectRedeployApiPath,
-  buildProjectRefreshApiPath,
   buildProjectRestartApiPath,
   buildProjectServicesApiPath,
   buildProjectStopApiPath,
@@ -28,7 +26,6 @@ import type {
   ProjectActionResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
-  ProjectConfigurationDiffResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
   ProjectConfigurationValidateResponse,
@@ -104,13 +101,6 @@ type GetProjectConfigurationPreviewEnvelope =
 type GetProjectConfigurationPreviewData = NonNullable<GetProjectConfigurationPreviewEnvelope['data']>;
 type GetProjectConfigurationPreviewPathParams = GetProjectConfigurationPreviewOperation['parameters']['path'];
 
-type ProjectConfigurationDiffPath = (typeof PROJECT_API_PATH)['CONFIGURATION_DIFF'];
-type ProjectConfigurationDiffOperation = paths[ProjectConfigurationDiffPath]['post'];
-type ProjectConfigurationDiffEnvelope =
-  ProjectConfigurationDiffOperation['responses'][200]['content']['application/json'];
-type ProjectConfigurationDiffData = NonNullable<ProjectConfigurationDiffEnvelope['data']>;
-type ProjectConfigurationDiffPathParams = ProjectConfigurationDiffOperation['parameters']['path'];
-
 type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
 type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidatePath]['post'];
 type ProjectConfigurationValidateEnvelope =
@@ -145,11 +135,6 @@ type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
 type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
 type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
 type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
-
-type ProjectRefreshOperation = paths[(typeof PROJECT_API_PATH)['REFRESH']]['post'];
-type ProjectRefreshEnvelope = ProjectRefreshOperation['responses'][200]['content']['application/json'];
-type ProjectRefreshData = NonNullable<ProjectRefreshEnvelope['data']>;
-type ProjectRefreshPathParams = ProjectRefreshOperation['parameters']['path'];
 
 type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
 type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
@@ -319,18 +304,6 @@ export function putProjectFileAnnotation(
 }
 
 /**
- * 提交项目配置差异计算请求。
- *
- * @param id - 项目 ID
- * @returns 配置差异结果
- */
-export function postProjectConfigurationDiff(id: ProjectConfigurationDiffPathParams['id']) {
-  return postProjectAction<ProjectConfigurationDiffData>(
-    buildProjectConfigurationDiffApiPath(id),
-  ) as Promise<ProjectConfigurationDiffResponse>;
-}
-
-/**
  * 校验指定项目的配置。
  *
  * @param id - 项目 ID
@@ -413,16 +386,6 @@ function postProjectAction<T>(url: string, data?: unknown) {
     url,
     data,
   });
-}
-
-/**
- * 刷新指定项目。
- *
- * @param id - 项目 ID
- * @returns 刷新操作的结果
- */
-export function postProjectRefresh(id: ProjectRefreshPathParams['id']) {
-  return postProjectAction<ProjectRefreshData>(buildProjectRefreshApiPath(id)) as Promise<ProjectActionResponse>;
 }
 
 /**

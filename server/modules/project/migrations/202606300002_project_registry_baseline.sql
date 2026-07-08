@@ -7,11 +7,6 @@ CREATE TABLE IF NOT EXISTS compose_projects (
   host_scope character varying NOT NULL,
   working_directory text NOT NULL,
   ownership_mode character varying NOT NULL,
-  last_refresh_status character varying NOT NULL DEFAULT 'never',
-  last_refresh_at timestamptz NULL,
-  last_refresh_error_code character varying NOT NULL DEFAULT '',
-  last_refresh_error_message text NOT NULL DEFAULT '',
-  last_refresh_config_hash character varying NOT NULL DEFAULT '',
   last_observed_config_hash character varying NOT NULL DEFAULT '',
   last_drift_checked_at timestamptz NULL,
   drift_status character varying NOT NULL DEFAULT 'unknown',
@@ -26,7 +21,6 @@ CREATE TABLE IF NOT EXISTS compose_projects (
   CONSTRAINT compose_projects_source_kind_check CHECK (source_kind IN ('imported', 'managed', 'git', 'template')),
   CONSTRAINT compose_projects_host_scope_check CHECK (host_scope IN ('local')),
   CONSTRAINT compose_projects_ownership_mode_check CHECK (ownership_mode IN ('external', 'managed-root-dedicated')),
-  CONSTRAINT compose_projects_last_refresh_status_check CHECK (last_refresh_status IN ('never', 'success', 'failed')),
   CONSTRAINT compose_projects_drift_status_check CHECK (drift_status IN ('unknown', 'clean', 'changed', 'missing'))
 );
 
@@ -36,8 +30,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS compose_projects_host_scope_canonical_project_
 CREATE UNIQUE INDEX IF NOT EXISTS compose_projects_working_directory_live
   ON compose_projects (working_directory)
   WHERE deleted_at = 0;
-CREATE INDEX IF NOT EXISTS compose_projects_refresh_status_updated
-  ON compose_projects (deleted_at, last_refresh_status, updated_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS compose_projects_drift_status_updated
   ON compose_projects (deleted_at, drift_status, updated_at DESC, id DESC);
 
@@ -49,7 +41,6 @@ CREATE TABLE IF NOT EXISTS compose_project_files (
   absolute_path text NOT NULL,
   display_path text NOT NULL,
   order_index integer NOT NULL,
-  exists_on_last_refresh boolean NOT NULL DEFAULT true,
   last_observed_hash character varying NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT NOW(),
   updated_at timestamptz NOT NULL DEFAULT NOW(),
@@ -88,11 +79,6 @@ COMMENT ON COLUMN compose_projects.source_kind IS '项目来源 typed contract�
 COMMENT ON COLUMN compose_projects.host_scope IS '项目宿主范围 typed contract，Phase 1 固定为 local';
 COMMENT ON COLUMN compose_projects.working_directory IS 'Compose 项目工作目录绝对路径';
 COMMENT ON COLUMN compose_projects.ownership_mode IS '项目所有权模式 typed contract，决定 unregister 与 destroy guard 语义';
-COMMENT ON COLUMN compose_projects.last_refresh_status IS '最近一次静态刷新状态 typed contract，取值为 never、success、failed';
-COMMENT ON COLUMN compose_projects.last_refresh_at IS '最近一次完成刷新时间';
-COMMENT ON COLUMN compose_projects.last_refresh_error_code IS '最近一次刷新失败的稳定错误码';
-COMMENT ON COLUMN compose_projects.last_refresh_error_message IS '最近一次刷新失败的回退错误说明';
-COMMENT ON COLUMN compose_projects.last_refresh_config_hash IS '最近一次成功刷新生成的配置哈希';
 COMMENT ON COLUMN compose_projects.last_observed_config_hash IS '最近一次观测到的文件配置哈希';
 COMMENT ON COLUMN compose_projects.last_drift_checked_at IS '最近一次执行 drift 检查的时间';
 COMMENT ON COLUMN compose_projects.drift_status IS '项目配置漂移状态 typed contract，取值为 unknown、clean、changed、missing';
@@ -113,7 +99,6 @@ COMMENT ON COLUMN compose_project_files.role IS '项目文件角色 typed contra
 COMMENT ON COLUMN compose_project_files.absolute_path IS '项目文件绝对路径';
 COMMENT ON COLUMN compose_project_files.display_path IS '供前端展示的项目文件路径';
 COMMENT ON COLUMN compose_project_files.order_index IS 'Compose 或 env 文件的有序合并顺序';
-COMMENT ON COLUMN compose_project_files.exists_on_last_refresh IS '最近一次刷新时该文件是否存在';
 COMMENT ON COLUMN compose_project_files.last_observed_hash IS '最近一次观测到的单文件内容哈希';
 COMMENT ON COLUMN compose_project_files.created_at IS '项目文件记录创建时间';
 COMMENT ON COLUMN compose_project_files.updated_at IS '项目文件记录最近更新时间';

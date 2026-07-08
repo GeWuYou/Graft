@@ -2,12 +2,7 @@ import type { ComposerTranslation } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 
-import type {
-  ProjectDriftStatus,
-  ProjectRefreshStatus,
-  ProjectRuntimeStatus,
-  ProjectSourceKind,
-} from '../types/project';
+import type { ProjectDriftStatus, ProjectRuntimeStatus, ProjectSourceKind } from '../types/project';
 
 type Translate = ComposerTranslation;
 
@@ -51,28 +46,6 @@ export function projectDriftStatusTheme(value?: ProjectDriftStatus) {
   if (value === 'clean') return 'success';
   if (value === 'unknown') return 'default';
   return 'warning';
-}
-
-/**
- * 获取项目刷新状态的显示文案。
- *
- * @param value - 刷新状态值
- * @returns 对应刷新状态的本地化文案
- */
-export function projectRefreshStatusLabel(t: Translate, value: ProjectRefreshStatus) {
-  return t(`project.list.refreshStatus.${value}`);
-}
-
-/**
- * 将刷新状态映射为主题语义。
- *
- * @param value - 刷新状态值
- * @returns 对应的主题值；`success` 对应 `success`，`failed` 对应 `danger`，其他值对应 `default`
- */
-export function projectRefreshStatusTheme(value?: ProjectRefreshStatus) {
-  if (value === 'success') return 'success';
-  if (value === 'failed') return 'danger';
-  return 'default';
 }
 
 /**

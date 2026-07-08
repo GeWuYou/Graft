@@ -70,6 +70,14 @@ describe('ContentViewerFrame', () => {
 
     expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height: 620px;');
   });
+
+  it('fills the parent height when fillHeight is enabled', () => {
+    const wrapper = mountFrame({
+      fillHeight: true,
+    });
+
+    expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height: 100%;');
+  });
 });
 
 function mountFrame(props: Record<string, unknown> = {}) {

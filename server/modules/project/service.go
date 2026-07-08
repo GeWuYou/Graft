@@ -66,11 +66,10 @@ const (
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit             int
-	Offset            int
-	SourceKind        string
-	DriftStatus       string
-	LastRefreshStatus string
+	Limit       int
+	Offset      int
+	SourceKind  string
+	DriftStatus string
 }
 
 // ImportRequest describes batch-2 import validate and import payloads.
@@ -165,8 +164,6 @@ type ConfigurationMetadataResult struct {
 	EnvFiles           []generated.ProjectFileItem
 	OwnershipMode      string
 	DriftStatus        string
-	LastRefreshStatus  string
-	LastRefreshAt      *time.Time
 	DiagnosticsSummary []string
 }
 
@@ -200,6 +197,7 @@ type workspaceFileItem struct {
 	RelativePath    string
 	NodeType        string
 	FileKind        string
+	Readable        bool
 	Editable        bool
 	LanguageHint    string
 	SizeBytes       int64
@@ -226,6 +224,7 @@ type workspaceFileContentResult struct {
 	RelativePath string
 	FileKind     string
 	LanguageHint string
+	Readable     bool
 	Editable     bool
 	Encoding     string
 	Content      string
@@ -283,30 +282,6 @@ type LifecycleConfiguration struct {
 	ComposeFiles []string
 	ProjectName  string
 	Standard     LifecycleStandardConfig
-}
-
-// ConfigurationDiffFile describes one file-level diff projection.
-type ConfigurationDiffFile struct {
-	Kind            string
-	Path            string
-	DisplayPath     string
-	Changed         bool
-	CurrentHash     string
-	ProposedHash    string
-	CurrentContent  string
-	ProposedContent string
-}
-
-// ConfigurationDiffResult returns bounded managed draft diff output.
-type ConfigurationDiffResult struct {
-	ProjectID            uint64
-	CanonicalProjectName string
-	OwnershipMode        string
-	CurrentConfigHash    string
-	ProposedConfigHash   string
-	HasChanges           bool
-	Files                []ConfigurationDiffFile
-	Warnings             []string
 }
 
 // ConfigurationValidateResult returns bounded managed draft validation output.
@@ -450,6 +425,7 @@ type Service struct {
 	realtimeHub         realtime.Hub
 	topicIssuers        realtime.TopicIssuerRegistry
 	streamersMu         sync.Mutex
+	listTopicStreamer   *projectListTopicStreamer
 	detailTopicStreamer *projectDetailTopicStreamer
 	logTopicStreamer    *projectLogTopicStreamer
 	inspectCache        *importInspectionCache
@@ -603,11 +579,10 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		return ListResult{}, err
 	}
 	storeResult, err := repository.List(ctx, projectstore.ListQuery{
-		Limit:             query.Limit,
-		Offset:            query.Offset,
-		SourceKind:        strings.TrimSpace(query.SourceKind),
-		DriftStatus:       strings.TrimSpace(query.DriftStatus),
-		LastRefreshStatus: strings.TrimSpace(query.LastRefreshStatus),
+		Limit:       query.Limit,
+		Offset:      query.Offset,
+		SourceKind:  strings.TrimSpace(query.SourceKind),
+		DriftStatus: strings.TrimSpace(query.DriftStatus),
 	})
 	if err != nil {
 		return ListResult{}, mapStoreError(err)

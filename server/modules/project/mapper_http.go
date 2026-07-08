@@ -216,13 +216,12 @@ func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectF
 	files := make([]generated.ProjectImportInspectFileItem, 0, len(items))
 	for _, item := range items {
 		files = append(files, generated.ProjectImportInspectFileItem{
-			AbsolutePath:        item.AbsolutePath,
-			DisplayPath:         item.DisplayPath,
-			ExistsOnLastRefresh: item.ExistsOnLastRefresh,
-			Kind:                generated.ProjectFileKind(item.Kind),
-			LastObservedHash:    item.LastObservedHash,
-			OrderIndex:          item.OrderIndex,
-			Role:                generated.ProjectFileRole(item.Role),
+			AbsolutePath:     item.AbsolutePath,
+			DisplayPath:      item.DisplayPath,
+			Kind:             generated.ProjectFileKind(item.Kind),
+			LastObservedHash: item.LastObservedHash,
+			OrderIndex:       item.OrderIndex,
+			Role:             generated.ProjectFileRole(item.Role),
 		})
 	}
 	return files
@@ -232,13 +231,11 @@ func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectF
 // 当诊断摘要非空时，会复制后作为可选字段返回。
 func toConfigurationMetadataResponse(result ConfigurationMetadataResult) generated.ProjectConfigurationMetadataResponse {
 	response := generated.ProjectConfigurationMetadataResponse{
-		ProjectId:         mustGeneratedID(result.ProjectID),
-		ComposeFiles:      result.ComposeFiles,
-		EnvFiles:          result.EnvFiles,
-		OwnershipMode:     generated.ProjectOwnershipMode(result.OwnershipMode),
-		DriftStatus:       generated.ProjectDriftStatus(result.DriftStatus),
-		LastRefreshStatus: generated.ProjectRefreshStatus(result.LastRefreshStatus),
-		LastRefreshAt:     result.LastRefreshAt,
+		ProjectId:     mustGeneratedID(result.ProjectID),
+		ComposeFiles:  result.ComposeFiles,
+		EnvFiles:      result.EnvFiles,
+		OwnershipMode: generated.ProjectOwnershipMode(result.OwnershipMode),
+		DriftStatus:   generated.ProjectDriftStatus(result.DriftStatus),
 	}
 	if len(result.DiagnosticsSummary) > 0 {
 		summary := append([]string(nil), result.DiagnosticsSummary...)
@@ -269,6 +266,7 @@ func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.Proj
 			RelativePath:    item.RelativePath,
 			NodeType:        generated.ProjectFileTreeNodeType(item.NodeType),
 			FileKind:        generated.ProjectWorkspaceFileKind(item.FileKind),
+			Readable:        item.Readable,
 			Editable:        item.Editable,
 			LanguageHint:    item.LanguageHint,
 			SizeBytes:       item.SizeBytes,
@@ -298,6 +296,7 @@ func toProjectWorkspaceFileContentResponse(result workspaceFileContentResult) ge
 		RelativePath: result.RelativePath,
 		FileKind:     generated.ProjectWorkspaceFileKind(result.FileKind),
 		LanguageHint: result.LanguageHint,
+		Readable:     result.Readable,
 		Editable:     result.Editable,
 		Encoding:     generated.ProjectFileContentResponseEncoding(result.Encoding),
 		Content:      result.Content,
@@ -313,38 +312,6 @@ func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generate
 		ContentHash:  result.ContentHash,
 		SizeBytes:    result.SizeBytes,
 	}
-}
-
-// toConfigurationDiffResponse 将配置差异结果转换为项目配置差异响应。
-// 返回的响应包含项目 ID、项目名、所有权模式、当前和 प्रस्ताव定配置哈希、变更标记以及差异文件列表；当存在警告时，会一并返回复制后的警告列表。
-func toConfigurationDiffResponse(result ConfigurationDiffResult) generated.ProjectConfigurationDiffResponse {
-	files := make([]generated.ProjectConfigurationDiffFile, 0, len(result.Files))
-	for _, item := range result.Files {
-		files = append(files, generated.ProjectConfigurationDiffFile{
-			Kind:            generated.ProjectFileKind(item.Kind),
-			Path:            item.Path,
-			DisplayPath:     item.DisplayPath,
-			Changed:         item.Changed,
-			CurrentHash:     item.CurrentHash,
-			ProposedHash:    item.ProposedHash,
-			CurrentContent:  item.CurrentContent,
-			ProposedContent: item.ProposedContent,
-		})
-	}
-	response := generated.ProjectConfigurationDiffResponse{
-		ProjectId:            mustGeneratedID(result.ProjectID),
-		CanonicalProjectName: result.CanonicalProjectName,
-		OwnershipMode:        generated.ProjectOwnershipMode(result.OwnershipMode),
-		CurrentConfigHash:    result.CurrentConfigHash,
-		ProposedConfigHash:   result.ProposedConfigHash,
-		HasChanges:           result.HasChanges,
-		Files:                files,
-	}
-	if len(result.Warnings) > 0 {
-		warnings := append([]string(nil), result.Warnings...)
-		response.Warnings = &warnings
-	}
-	return response
 }
 
 // toConfigurationValidateResponse 将配置校验结果转换为项目配置校验响应。
