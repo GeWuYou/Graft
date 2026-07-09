@@ -48,12 +48,15 @@ Fail-closed rule for this skill:
    - locate the PR for the current branch through the GitHub PR API
    - fetch PR metadata, issue comments, reviews, and review comments through the GitHub API
    - extract CodeRabbit summary blocks and actionable-comment rollups when present
-   - parse the latest CodeRabbit review body itself, including folded sections such as `Duplicate comments (N)`,
-     `Major comments (N)`, `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)`
+   - parse the latest CodeRabbit grouped review body across the PR, even when the newest head-commit CodeRabbit review is
+     an empty approval or prompt-only follow-up; folded sections such as `Duplicate comments (N)`, `Major comments (N)`,
+     `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)` must still be inventoried
    - capture unresolved latest-head review threads for supported AI reviewers and `github-advanced-security[bot]`
    - surface GitHub Advanced Security review suggestions, code-scanning check-runs, and CodeQL failure annotations when present
    - surface failed checks, MegaLinter findings, and failed-test signals when present
    - compare each folded-section declared count against the parsed item count; if `Nitpick comments (N)` or another folded section under-parses, keep drilling with `--section`, saved JSON, or raw review-body inspection until the missing findings are enumerated or an exact extraction blocker is recorded
+   - when the run produces a disposition report, append it to one managed PR issue comment ledger instead of scattering
+     ad-hoc tracking notes; the ledger comment is append-only and keyed by a fixed marker
    - prefer writing the full JSON payload to a file and then narrowing with `jq`
 5. Build one exhaustive finding inventory before making any fix decision:
    - include unresolved latest-head review threads
@@ -127,20 +130,33 @@ Fail-closed rule for this skill:
     - `blocked`
     - `stale`
     - `noise`
-19. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
-20. Do not ignore any verified suggestion. If the repair grows large:
+19. At task closeout, always include one reviewer-inventory summary block that is easy to compare across runs:
+    - `coderabbit_handled`
+      - how many CodeRabbit findings from the rebuilt inventory ended this run as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
+    - `coderabbit_outside_diff_range`
+      - declared count and handled count for `Outside diff range comments (N)`; if the section is absent, record `0`
+    - `coderabbit_nitpick`
+      - declared count and handled count for `Nitpick comments (N)`; if the section is absent, record `0`
+    - `open_suggestions`
+      - how many AI review findings remained open on the PR at the time the inventory was captured, plus how many still remain open after this run when rechecked
+    - `greptile_suggestions`
+      - total verified Greptile findings in scope for the run, with their final dispositions
+    - when another AI reviewer is present, keep it in the normal finding inventory, but the five fields above are still mandatory
+    - append that same summary block to the managed PR issue comment ledger so the next `$graft-pr-review` run can confirm deltas incrementally instead of re-auditing prior handled rows by memory
+20. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
+21. Do not ignore any verified suggestion. If the repair grows large:
    - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
    - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
    - if neither is justified yet, report the finding as `blocked` with the reason
    - never collapse a still-valid large suggestion into a stale/noise label just to end the thread quickly
-21. If any finding is reported as `noise` or AI misjudgment, explicitly record:
+22. If any finding is reported as `noise` or AI misjudgment, explicitly record:
     - which finding it was
     - the concrete local verification reason
     - why it was not adopted
     - wording suitable for replying on the PR
-22. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
+23. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
     `contested` and carry both sides' reasoning into the final summary for human judgment.
-23. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
+24. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
 
 ## Commands
 
@@ -161,10 +177,14 @@ Fail-closed rule for this skill:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --reply-comment-id 1234567890 --reply-body-file /tmp/reply.txt --reply-dry-run`
 - Reply after fixing a finding in a commit:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --reply-comment-id 1234567890 --reply-fixed-commit abc1234 --reply-fixed-path server/modules/auth/route_errors.go`
+- Append one run summary to the managed PR issue-comment ledger without posting:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --ledger-body-file /tmp/pr-review-ledger.md --ledger-dry-run`
+- Append one run summary to the managed PR issue-comment ledger:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --ledger-body-file /tmp/pr-review-ledger.md`
 - Inspect only a high-signal section:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads`
 - Inspect grouped CodeRabbit severity comments from the latest review body:
-  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section duplicate --section major --section minor`
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section duplicate --section major --section minor --section outside-diff --section nitpick`
 - Inspect GitHub Advanced Security suggestions and code-scanning signals:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section advanced-security`
 - Narrow text output to one path fragment:
@@ -181,8 +201,8 @@ The script should produce:
   `greptile-apps[bot]`, `gemini-code-assist[bot]`, and `github-advanced-security[bot]`
 - CodeRabbit summary block from issue comments when available
 - Folded latest-review sections such as `Duplicate comments (N)`, `Major comments (N)`, `Minor comments (N)`,
-  `Outside diff range comments (N)`, and `Nitpick comments (N)` when CodeRabbit puts them in the review body instead
-  of issue comments
+  `Outside diff range comments (N)`, and `Nitpick comments (N)` from the latest grouped CodeRabbit review across the PR
+  when CodeRabbit puts them in the review body instead of issue comments
 - For each folded latest-review section, both the declared count and the extracted inventory count, with an explicit mismatch signal when they differ
 - Parsed latest head-review threads, with unresolved threads clearly separated
 - Latest head commit review metadata and review threads
@@ -193,8 +213,10 @@ The script should produce:
 - Test summary, including failed-test signals when present
 - Detailed failed-test rows from GitHub Test Reporter or CTRF comments when available
 - CLI support for writing full JSON to a file and printing only narrowed text sections to stdout
+- Managed PR issue-comment ledger support keyed by one fixed marker, with append-only run blocks and dry-run preview
 - Human review closeout that records each verified finding as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
 - Exhaustive coverage confirmation that no latest-review finding section was left unclassified
+- Closeout counts for `coderabbit_handled`, `coderabbit_outside_diff_range`, `coderabbit_nitpick`, `open_suggestions`, and `greptile_suggestions`
 - Thread reply state for replied AI findings: `unreplied`, `pending_ai_followup`, `resolved_after_reply`, or `contested`
 - Guidance and CLI support for replying to fixed-but-still-open AI threads with the fixing commit SHA
 - Explicit closeout guidance that findings needing human review must not be auto-replied on the PR thread

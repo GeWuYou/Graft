@@ -3,8 +3,6 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
-  buildProjectConfigurationPreviewApiPath,
-  buildProjectConfigurationValidateApiPath,
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
@@ -27,8 +25,6 @@ import type {
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
   ProjectConfigurationMetadataResponse,
-  ProjectConfigurationPreviewResponse,
-  ProjectConfigurationValidateResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
@@ -93,20 +89,6 @@ type GetProjectConfigurationEnvelope =
   GetProjectConfigurationOperation['responses'][200]['content']['application/json'];
 type GetProjectConfigurationData = NonNullable<GetProjectConfigurationEnvelope['data']>;
 type GetProjectConfigurationPathParams = GetProjectConfigurationOperation['parameters']['path'];
-
-type ProjectConfigurationPreviewPath = (typeof PROJECT_API_PATH)['CONFIGURATION_PREVIEW'];
-type GetProjectConfigurationPreviewOperation = paths[ProjectConfigurationPreviewPath]['get'];
-type GetProjectConfigurationPreviewEnvelope =
-  GetProjectConfigurationPreviewOperation['responses'][200]['content']['application/json'];
-type GetProjectConfigurationPreviewData = NonNullable<GetProjectConfigurationPreviewEnvelope['data']>;
-type GetProjectConfigurationPreviewPathParams = GetProjectConfigurationPreviewOperation['parameters']['path'];
-
-type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
-type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidatePath]['post'];
-type ProjectConfigurationValidateEnvelope =
-  ProjectConfigurationValidateOperation['responses'][200]['content']['application/json'];
-type ProjectConfigurationValidateData = NonNullable<ProjectConfigurationValidateEnvelope['data']>;
-type ProjectConfigurationValidatePathParams = ProjectConfigurationValidateOperation['parameters']['path'];
 
 type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
 type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
@@ -254,17 +236,12 @@ export function getProjectConfiguration(id: GetProjectConfigurationPathParams['i
 }
 
 /**
- * 获取项目配置预览。
+ * 获取项目工作区文件列表。
  *
  * @param id - 项目 ID
- * @returns 项目配置预览结果
+ * @param query - 文件列表查询条件
+ * @returns 项目工作区文件列表响应
  */
-export function getProjectConfigurationPreview(id: GetProjectConfigurationPreviewPathParams['id']) {
-  return request.get<GetProjectConfigurationPreviewData>({
-    url: buildProjectConfigurationPreviewApiPath(id),
-  }) as Promise<ProjectConfigurationPreviewResponse>;
-}
-
 export function getProjectFiles(id: number, query?: ProjectWorkspaceFilesQuery) {
   return request.get<ProjectWorkspaceFilesResponse>({
     url: buildProjectFilesApiPath(id),
@@ -291,6 +268,14 @@ export function putProjectFileContent(
   }) as Promise<ProjectWorkspaceFileSaveResponse>;
 }
 
+/**
+ * 更新项目文件的注释信息。
+ *
+ * @param id - 项目 ID
+ * @param query - 文件定位查询条件
+ * @param payload - 注释内容
+ * @returns 保存后的文件注释信息
+ */
 export function putProjectFileAnnotation(
   id: number,
   query: ProjectWorkspaceFileContentQuery,
@@ -301,18 +286,6 @@ export function putProjectFileAnnotation(
     params: query,
     data: payload,
   }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
-}
-
-/**
- * 校验指定项目的配置。
- *
- * @param id - 项目 ID
- * @returns 配置校验结果
- */
-export function postProjectConfigurationValidate(id: ProjectConfigurationValidatePathParams['id']) {
-  return postProjectAction<ProjectConfigurationValidateData>(
-    buildProjectConfigurationValidateApiPath(id),
-  ) as Promise<ProjectConfigurationValidateResponse>;
 }
 
 /**

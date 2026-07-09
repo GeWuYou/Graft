@@ -268,8 +268,6 @@ paths:
     $ref: ./paths/ops-projects.file-content.yaml
   /api/ops/projects/{id}/files/annotation:
     $ref: ./paths/ops-projects.file-annotation.yaml
-  /api/ops/projects/{id}/configuration/validate:
-    $ref: ./paths/ops-projects.configuration-validate.yaml
   /api/ops/projects/{id}/deploy:
     $ref: ./paths/ops-projects.deploy.yaml
   /api/ops/projects/{id}/refresh:

@@ -5,13 +5,10 @@
 import type * as Monaco from 'monaco-editor';
 import { ref, watch } from 'vue';
 
-import {
-  buildProjectMonacoModelUri,
-  createProjectMonacoModelUriSuffix,
-  ensureProjectMonacoConfigured,
-  scheduleProjectMonacoLayout,
-  useProjectMonacoLifecycle,
-} from '../shared/project-monaco';
+import { createLogger } from '@/utils/logger';
+
+import * as projectMonaco from '../shared/project-monaco';
+import * as projectMonacoDebug from '../shared/project-monaco-debug';
 
 const props = withDefaults(
   defineProps<{
@@ -29,34 +26,72 @@ const props = withDefaults(
 );
 
 const containerRef = ref<HTMLElement | null>(null);
-const modelUriSuffix = createProjectMonacoModelUriSuffix();
+const modelUriSuffix = projectMonaco.createProjectMonacoModelUriSuffix();
+const logger = createLogger('project.monaco.diffSurface');
+const logProjectMonacoDiffDebug = projectMonacoDebug.createProjectMonacoDebugLogger('project.monaco.diffSurface');
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
 let modifiedModel: Monaco.editor.ITextModel | null = null;
+let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
+const modelCache = new Map<string, Monaco.editor.ITextModel>();
 
-const { applyTheme } = useProjectMonacoLifecycle({
+type ProjectMonacoLineChange = Monaco.editor.ILineChange;
+
+const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
-    editor?.dispose();
+    logDiffDebug('dispose', {
+      hasEditor: Boolean(editor),
+      modelCount: monaco?.editor.getModels().length ?? 0,
+    });
+    relayoutBridge?.disconnect();
+    relayoutBridge = null;
+    const currentEditor = editor;
     editor = null;
-    originalModel?.dispose();
-    modifiedModel?.dispose();
     originalModel = null;
     modifiedModel = null;
+    currentEditor?.dispose();
+    projectMonaco.disposeProjectMonacoModelCache(modelCache, 'dispose-model', disposeDiffModel);
   },
   getMonaco: () => monaco,
   getThemeHost: () => containerRef.value,
 });
 
+function readNestedEditorSize(getEditor: (() => Monaco.editor.IStandaloneCodeEditor) | undefined) {
+  try {
+    const container = getEditor?.()?.getContainerDomNode();
+    return {
+      height: container?.clientHeight ?? 0,
+      width: container?.clientWidth ?? 0,
+    };
+  } catch {
+    return {
+      height: 0,
+      width: 0,
+    };
+  }
+}
+
 watch(
   () => [props.originalKey, props.modifiedKey, props.language] as const,
-  () => {
+  async () => {
     if (!monaco || !editor) {
       return;
     }
-    bindModels(monaco, true);
+
+    logDiffDebug('rebind-models-start', {
+      language: props.language,
+      modifiedKey: props.modifiedKey,
+      modifiedTextLength: props.modifiedValue.length,
+      originalKey: props.originalKey,
+      originalTextLength: props.originalValue.length,
+    });
+
+    bindModels(monaco);
+    await relayout('rebind-models');
   },
+  { flush: 'post' },
 );
 
 watch(
@@ -65,6 +100,12 @@ watch(
     if (!originalModel || originalModel.getValue() === value) {
       return;
     }
+
+    logDiffDebug('original-model-set-value', {
+      nextLength: value.length,
+      previousLength: originalModel.getValue().length,
+    });
+
     originalModel.setValue(value);
   },
 );
@@ -75,20 +116,39 @@ watch(
     if (!modifiedModel || modifiedModel.getValue() === value) {
       return;
     }
+
+    logDiffDebug('modified-model-set-value', {
+      nextLength: value.length,
+      previousLength: modifiedModel.getValue().length,
+    });
+
     modifiedModel.setValue(value);
   },
 );
 
 async function createEditor() {
-  monaco = ensureProjectMonacoConfigured();
-  if (!containerRef.value) {
+  monaco = projectMonaco.ensureProjectMonacoConfigured();
+  const host = containerRef.value;
+
+  if (!host) {
     return;
   }
 
+  logDiffDebug('create-start', {
+    containerHeight: host.clientHeight,
+    containerParent: projectMonacoDebug.describeProjectMonacoElement(host.parentElement),
+    containerWidth: host.clientWidth,
+    language: props.language,
+    modifiedKey: props.modifiedKey,
+    modifiedTextLength: props.modifiedValue.length,
+    originalKey: props.originalKey,
+    originalTextLength: props.originalValue.length,
+  });
+
   applyTheme();
-  editor = monaco.editor.createDiffEditor(containerRef.value, {
+  editor = monaco.editor.createDiffEditor(host, {
     ariaLabel: props.editorAriaLabel,
-    automaticLayout: true,
+    automaticLayout: false,
     enableSplitViewResizing: false,
     glyphMargin: false,
     minimap: { enabled: false },
@@ -101,49 +161,191 @@ async function createEditor() {
     overviewRulerLanes: 0,
   });
 
-  bindModels(monaco, false);
-  await scheduleProjectMonacoLayout(() => {
-    editor?.layout();
+  const editorContainer = editor.getContainerDomNode();
+  logDiffDebug('create-complete', {
+    containerHeight: host.clientHeight,
+    containerMatchesEditor: editorContainer === host,
+    containerWidth: host.clientWidth,
+    editorContainer: projectMonacoDebug.describeProjectMonacoElement(editorContainer),
+    modelCount: monaco.editor.getModels().length,
   });
+
+  observeContainerResize();
+  await relayout('initial-before-model');
+  bindModels(monaco);
+  await relayout('initial-after-model');
 }
 
-function bindModels(monacoInstance: typeof Monaco, disposeExisting: boolean) {
+function observeContainerResize() {
   if (!editor) {
     return;
   }
 
-  if (disposeExisting) {
-    editor.setModel(null);
-    originalModel?.dispose();
-    modifiedModel?.dispose();
-    originalModel = null;
-    modifiedModel = null;
+  relayoutBridge = projectMonaco.createProjectMonacoRelayoutBridge({
+    getContainer: () => containerRef.value,
+    layout: () => editor?.layout(),
+    log: logDiffDebug,
+  });
+  relayoutBridge.observe();
+}
+
+function bindModels(monacoInstance: typeof Monaco) {
+  if (!editor) {
+    return;
   }
 
-  const nextOriginal = monacoInstance.editor.createModel(
-    props.originalValue,
-    props.language,
-    buildProjectMonacoModelUri(props.originalKey, props.language, `${modelUriSuffix}-original`),
-  );
-  const nextModified = monacoInstance.editor.createModel(
-    props.modifiedValue,
-    props.language,
-    buildProjectMonacoModelUri(props.modifiedKey, props.language, `${modelUriSuffix}-modified`),
-  );
+  const previousOriginal = originalModel;
+  const previousModified = modifiedModel;
+  const nextOriginal = projectMonaco.getOrCreateProjectMonacoModel(monacoInstance, {
+    cache: modelCache,
+    key: props.originalKey,
+    language: props.language,
+    suffix: `${modelUriSuffix}-original`,
+    value: props.originalValue,
+  });
+  const nextModified = projectMonaco.getOrCreateProjectMonacoModel(monacoInstance, {
+    cache: modelCache,
+    key: props.modifiedKey,
+    language: props.language,
+    suffix: `${modelUriSuffix}-modified`,
+    value: props.modifiedValue,
+  });
 
-  editor.setModel({
+  const nextModel = {
     modified: nextModified,
     original: nextOriginal,
+  };
+
+  logDiffDebug('set-model-start', {
+    modifiedLanguage: nextModified.getLanguageId(),
+    modifiedModelLength: nextModified.getValue().length,
+    originalLanguage: nextOriginal.getLanguageId(),
+    originalModelLength: nextOriginal.getValue().length,
   });
+
+  editor.setModel(nextModel);
   originalModel = nextOriginal;
   modifiedModel = nextModified;
+  if (previousOriginal && previousOriginal !== nextOriginal && previousOriginal !== nextModified) {
+    projectMonaco.evictProjectMonacoModelFromCache(
+      modelCache,
+      previousOriginal,
+      'rebind-diff-original-model',
+      disposeDiffModel,
+    );
+  }
+  if (previousModified && previousModified !== nextOriginal && previousModified !== nextModified) {
+    projectMonaco.evictProjectMonacoModelFromCache(
+      modelCache,
+      previousModified,
+      'rebind-diff-modified-model',
+      disposeDiffModel,
+    );
+  }
+
+  const boundModel = editor.getModel();
+  const modifiedEditorSize = readNestedEditorSize(editor.getModifiedEditor?.bind(editor));
+  const originalEditorSize = readNestedEditorSize(editor.getOriginalEditor?.bind(editor));
+  logDiffDebug('set-model-complete', {
+    containerHeight: containerRef.value?.clientHeight ?? 0,
+    containerWidth: containerRef.value?.clientWidth ?? 0,
+    editorHasModel: Boolean(boundModel),
+    modifiedEditorHeight: modifiedEditorSize.height,
+    modifiedEditorWidth: modifiedEditorSize.width,
+    modelCount: monacoInstance.editor.getModels().length,
+    originalEditorHeight: originalEditorSize.height,
+    originalEditorWidth: originalEditorSize.width,
+    sameModifiedModel: boundModel?.modified === nextModified,
+    sameOriginalModel: boundModel?.original === nextOriginal,
+  });
 }
+
+async function relayout(reason = 'manual') {
+  await relayoutBridge?.relayout(reason);
+}
+
+function getLineChanges() {
+  return editor?.getLineChanges()?.slice() ?? ([] as ProjectMonacoLineChange[]);
+}
+
+function revealFirstDiff() {
+  if (!editor) {
+    return false;
+  }
+
+  editor.revealFirstDiff();
+  return true;
+}
+
+function navigateDiff(direction: 'next' | 'previous') {
+  if (!editor) {
+    return false;
+  }
+
+  editor.goToDiff(direction);
+  return true;
+}
+
+function revealLineChange(change: ProjectMonacoLineChange | null | undefined) {
+  if (!editor || !change) {
+    return false;
+  }
+
+  const modifiedLineNumber = Math.max(0, change.modifiedStartLineNumber || change.modifiedEndLineNumber || 0);
+  if (modifiedLineNumber > 0) {
+    const modifiedEditor = editor.getModifiedEditor();
+    modifiedEditor.setPosition({ column: 1, lineNumber: modifiedLineNumber });
+    modifiedEditor.revealLineInCenter(modifiedLineNumber);
+    modifiedEditor.focus();
+    return true;
+  }
+
+  const originalLineNumber = Math.max(1, change.originalStartLineNumber || change.originalEndLineNumber || 1);
+  const originalEditor = editor.getOriginalEditor();
+  originalEditor.setPosition({ column: 1, lineNumber: originalLineNumber });
+  originalEditor.revealLineInCenter(originalLineNumber);
+  originalEditor.focus();
+  return true;
+}
+
+function disposeDiffModel(targetModel: Monaco.editor.ITextModel | null, reason: string) {
+  projectMonacoDebug.disposeProjectMonacoModelDeferred(targetModel, reason, {
+    onCancellation: (detail) => {
+      logDiffDebug('model-dispose-canceled', detail);
+    },
+    onDispose: (detail) => {
+      logDiffDebug('model-dispose-complete', detail);
+    },
+    onError: (error, detail) => {
+      logger.error(error, detail);
+    },
+  });
+}
+
+function logDiffDebug(event: string, detail: Record<string, unknown>) {
+  if (!projectMonacoDebug.isProjectMonacoDebugEnabled()) {
+    return;
+  }
+
+  logProjectMonacoDiffDebug(event, detail);
+}
+
+defineExpose({
+  getLineChanges,
+  navigateDiff,
+  relayout,
+  revealFirstDiff,
+  revealLineChange,
+});
 </script>
 <style scoped lang="less">
 .project-monaco-diff-surface {
   block-size: 100%;
+  display: flex;
+  flex: 1 1 auto;
   inline-size: 100%;
   min-block-size: 0;
   min-inline-size: 0;
+  overflow: hidden;
 }
 </style>

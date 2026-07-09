@@ -13,6 +13,7 @@
 | LESSON-WEB-UI-EMPTY-STATE-001          | 表格空状态不应做成小灰色卡片                   | web-ui     |    L3 | active | `ai-plan/lessons/web-ui.md`     | `web/AGENTS.md`, `ai-plan/design/graft-design-system/list-form-detail.md` |
 | LESSON-WEB-UI-LOCALE-TIME-001          | 可见时间不能依赖宿主默认语言环境               | web-ui     |    L3 | active | `ai-plan/lessons/web-ui.md`     | `web/AGENTS.md`, `ai-plan/design/architecture/前端架构设计.md`            |
 | LESSON-WEB-UI-LOG-AUDIT-001            | 高级查询列表页必须优先抽通用查询结构           | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
+| LESSON-WEB-UI-MONACO-WORKER-001        | Monaco YAML worker 故障要先区分两层兼容问题    | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-PAGE-CONTAINER-001       | 后台页面容器应统一复用共享容器与宽度变量策略   | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | `ai-plan/design/governance/frontend/前端视觉设计规范.md`                  |
 | LESSON-WEB-UI-PROTECTED-STATE-001      | 系统保护状态不应伪装成错误告警                 | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-ROUTE-LOADING-001        | 路由切换不能让主内容区短暂卸载为空             | web-ui     |    L1 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |

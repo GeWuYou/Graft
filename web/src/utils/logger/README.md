@@ -32,3 +32,5 @@ authLogger.error(error, {
 - `meta` / `context` 默认要求可 JSON 序列化
 - 禁止输出 `token`、`password`、`Authorization`、`cookie` 等敏感信息
 - `logger` 负责调试和排障，不替代 `MessagePlugin` 等用户提示机制
+- 长期保留的调试日志必须挂到 `web/src/shared/debug/**` 的 namespaced debug flag 下，不直接把 `logger.debug` 散落到页面或 store
+- `window.__GRAFT_DEBUG__` 只作为开发者控制台入口；真实调试状态由 shell-owned debug store 持有

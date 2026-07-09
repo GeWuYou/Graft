@@ -33,6 +33,7 @@ go.work.sum
 .idea
 .vscode/*
 !.vscode/launch.json
+!.vscode/tasks.json
 .run/
 .run
 # project

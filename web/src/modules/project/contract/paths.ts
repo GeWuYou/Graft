@@ -33,7 +33,6 @@ export const PROJECT_API_PATH = {
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
   CONFIGURATION_PREVIEW: '/api/ops/projects/{id}/configuration/preview',
   CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
-  CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
   FILES: '/api/ops/projects/{id}/files',
   FILES_CONTENT: '/api/ops/projects/{id}/files/content',
   FILES_ANNOTATION: '/api/ops/projects/{id}/files/annotation',
@@ -97,25 +96,11 @@ export function buildProjectConfigurationApiPath(id: number) {
 }
 
 /**
- * 构建项目配置预览的 API 路径。
+ * 生成项目文件接口路径。
  *
  * @param id - 项目 ID
- * @returns 项目配置预览接口路径
+ * @returns 替换了 `{id}` 占位符的文件接口路径
  */
-export function buildProjectConfigurationPreviewApiPath(id: number) {
-  return PROJECT_API_PATH.CONFIGURATION_PREVIEW.replace('{id}', encodeProjectPathParam(id));
-}
-
-/**
- * 构建项目配置校验接口路径。
- *
- * @param id - 项目 ID
- * @returns 替换了 `id` 占位符的配置校验接口路径
- */
-export function buildProjectConfigurationValidateApiPath(id: number) {
-  return PROJECT_API_PATH.CONFIGURATION_VALIDATE.replace('{id}', encodeProjectPathParam(id));
-}
-
 export function buildProjectFilesApiPath(id: number) {
   return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
 }

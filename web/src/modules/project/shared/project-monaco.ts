@@ -21,6 +21,32 @@ import { createProjectMonacoDebugLogger } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 export type MonacoEditorModule = typeof monaco;
+type MonacoCreateWebWorker = typeof monaco.editor.createWebWorker;
+type ProjectMonacoLayoutControllerOptions = {
+  getContainer: () => HTMLElement | null;
+  layout: () => void;
+  onResizeObserved?: (size: { height: number; width: number }) => void;
+};
+type ProjectMonacoLayoutScheduleOptions = {
+  force?: boolean;
+};
+type ProjectMonacoModelCache = Map<string, monaco.editor.ITextModel>;
+type ProjectMonacoModelCacheOptions = {
+  cache: ProjectMonacoModelCache;
+  key: string;
+  language: string;
+  suffix: string;
+  value: string;
+};
+
+type LegacyMonacoWebWorkerOptions = {
+  createData?: unknown;
+  createWorker?: () => Worker;
+  host?: Record<string, (...args: unknown[]) => unknown>;
+  keepIdleModels?: boolean;
+  label?: string;
+  moduleId: string;
+};
 
 declare global {
   interface Window {
@@ -33,6 +59,7 @@ declare global {
 let monacoConfigured = false;
 let monacoYamlConfigured = false;
 let monacoYamlConfigurationFailed = false;
+let monacoLegacyWorkerCompatInstalled = false;
 let modelUriSuffixSeed = 0;
 const logger = createLogger('project.monaco');
 const logProjectMonacoDebug = createProjectMonacoDebugLogger('project.monaco');
@@ -41,7 +68,22 @@ const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
 const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
 export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
+export type ProjectMonacoLayoutController = {
+  disconnect: () => void;
+  observe: () => void;
+  schedule: (options?: ProjectMonacoLayoutScheduleOptions) => Promise<void>;
+};
+export type ProjectMonacoRelayoutBridge = {
+  disconnect: () => void;
+  observe: () => void;
+  relayout: (reason?: string) => Promise<void>;
+};
 
+/**
+ * 配置项目 Monaco 的 worker 兼容性和 YAML 集成。
+ *
+ * @returns 已配置的 Monaco 实例
+ */
 export function ensureProjectMonacoConfigured() {
   if (monacoConfigured) {
     logProjectMonacoDebug('reuse-existing-config', {});
@@ -49,21 +91,25 @@ export function ensureProjectMonacoConfigured() {
   }
 
   globalThis.MonacoEnvironment = {
-    getWorker(_moduleId: string, label: string) {
+    getWorker(moduleId: string, label: string) {
       logProjectMonacoDebug('get-worker', {
+        moduleId,
         label,
       });
 
-      const worker = buildProjectMonacoWorker(label);
+      const worker = buildProjectMonacoWorker(moduleId, label);
 
       logProjectMonacoDebug('get-worker-resolved', {
         constructorName: worker?.constructor?.name ?? 'unknown',
+        moduleId,
         label,
       });
 
       return worker;
     },
   };
+
+  ensureProjectMonacoLegacyWorkerCompat(monaco);
 
   if (!monacoYamlConfigured && !monacoYamlConfigurationFailed) {
     try {
@@ -93,24 +139,372 @@ export function ensureProjectMonacoConfigured() {
   return monaco;
 }
 
+/**
+ * 为 Monaco 编辑器安装旧版 Web Worker 选项兼容层。
+ *
+ * @param monacoInstance - Monaco 编辑器模块实例
+ */
+function ensureProjectMonacoLegacyWorkerCompat(monacoInstance: MonacoEditorModule) {
+  if (monacoLegacyWorkerCompatInstalled) {
+    return;
+  }
+
+  const editorApi = monacoInstance.editor as typeof monaco.editor & {
+    createWebWorker: MonacoCreateWebWorker;
+  };
+  const originalCreateWebWorker = editorApi.createWebWorker.bind(editorApi);
+
+  editorApi.createWebWorker = ((options: Parameters<MonacoCreateWebWorker>[0]) => {
+    const legacyOptions = asLegacyMonacoWebWorkerOptions(options);
+
+    if (!legacyOptions) {
+      return originalCreateWebWorker(options);
+    }
+
+    const label = legacyOptions.label ?? 'monaco-editor-worker';
+    const worker = Promise.resolve(resolveProjectMonacoWorkerFromLegacyOptions(label, legacyOptions.createWorker)).then(
+      (resolvedWorker) => {
+        resolvedWorker.postMessage('ignore');
+        resolvedWorker.postMessage(legacyOptions.createData);
+        return resolvedWorker;
+      },
+    );
+
+    logProjectMonacoDebug('create-web-worker-compat', {
+      label,
+      moduleId: legacyOptions.moduleId,
+    });
+
+    return originalCreateWebWorker({
+      host: legacyOptions.host,
+      keepIdleModels: legacyOptions.keepIdleModels,
+      worker,
+    });
+  }) as MonacoCreateWebWorker;
+
+  monacoLegacyWorkerCompatInstalled = true;
+}
+
+/**
+ * 判断是否为旧版 Monaco Web Worker 配置。
+ *
+ * @param options - 待检查的创建参数
+ * @returns 符合旧版 worker 配置形状时返回对应配置，否则返回 `null`
+ */
+function asLegacyMonacoWebWorkerOptions(
+  options: Parameters<MonacoCreateWebWorker>[0],
+): LegacyMonacoWebWorkerOptions | null {
+  if (!options || typeof options !== 'object' || 'worker' in options || !('moduleId' in options)) {
+    return null;
+  }
+
+  return options as unknown as LegacyMonacoWebWorkerOptions;
+}
+
+/**
+ * 从旧版配置解析 Monaco Worker。
+ *
+ * @param label - Worker 标识
+ * @param createWorker - 可选的自定义 Worker 创建函数
+ * @returns 解析得到的 Worker 实例
+ */
+function resolveProjectMonacoWorkerFromLegacyOptions(label: string, createWorker?: () => Worker) {
+  if (typeof createWorker === 'function') {
+    return createWorker();
+  }
+
+  return buildProjectMonacoWorker('workerMain.js', label);
+}
+
+/**
+ * 比较两个 Monaco 容器尺寸是否相同。
+ *
+ * @param left - 左侧尺寸
+ * @param right - 右侧尺寸
+ * @returns `true` 如果两个尺寸的宽高都相同，`false` 其他情况下
+ */
+function areProjectMonacoSizesEqual(
+  left: { height: number; width: number } | null,
+  right: { height: number; width: number } | null,
+) {
+  return left?.height === right?.height && left?.width === right?.width;
+}
+
+/**
+ * 读取 Monaco 容器的当前尺寸。
+ *
+ * @param container - Monaco 编辑器所在容器
+ * @returns 容器尺寸；当容器为空时返回 `null`
+ */
+function readProjectMonacoContainerSize(container: HTMLElement | null) {
+  if (!container) {
+    return null;
+  }
+
+  return {
+    height: container.clientHeight,
+    width: container.clientWidth,
+  };
+}
+
+/**
+ * 解析当前应使用的 Monaco 主题。
+ *
+ * @returns `theme-mode` 为 `dark` 时返回深色主题，否则返回浅色主题。
+ */
 function resolveProjectMonacoTheme(): ProjectMonacoTheme {
   return document.documentElement.getAttribute('theme-mode') === 'dark'
     ? PROJECT_MONACO_THEME_DARK
     : PROJECT_MONACO_THEME_LIGHT;
 }
 
+/**
+ * 应用项目 Monaco 编辑器主题。
+ *
+ * @param monacoInstance - Monaco 编辑器模块
+ * @param hostElement - 用于读取主题颜色的宿主元素
+ */
 function applyProjectMonacoTheme(monacoInstance: MonacoEditorModule, hostElement?: HTMLElement | null) {
   const theme = resolveProjectMonacoTheme();
   defineProjectMonacoTheme(monacoInstance, theme, hostElement);
   monacoInstance.editor.setTheme(theme);
 }
 
-export function scheduleProjectMonacoLayout(layout: () => void) {
-  return nextTick().then(() => {
-    requestAnimationFrame(layout);
-  });
+/**
+ * 在 DOM 更新后安排一次布局执行。
+ *
+ * @param layout - 要在下一帧执行的布局回调
+ * @returns 一个在布局回调被安排后完成的 Promise
+ */
+function scheduleProjectMonacoLayout(layout: () => void) {
+  return nextTick().then(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        requestAnimationFrame(() => {
+          try {
+            layout();
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }),
+  );
 }
 
+/**
+ * 创建用于跟踪容器尺寸并调度 Monaco 布局的控制器。
+ *
+ * @param options - 布局、容器获取和尺寸变化回调配置
+ * @returns 提供 `observe`、`schedule` 和 `disconnect` 的布局控制器
+ */
+function createProjectMonacoLayoutController(
+  options: ProjectMonacoLayoutControllerOptions,
+): ProjectMonacoLayoutController {
+  let disposed = false;
+  let layoutInFlight = false;
+  let resizeObserver: ResizeObserver | null = null;
+  let scheduledFrame: Promise<void> | null = null;
+  let lastObservedSize = readProjectMonacoContainerSize(options.getContainer());
+  let lastLaidOutSize = lastObservedSize;
+
+  const schedule = (scheduleOptions?: ProjectMonacoLayoutScheduleOptions) => {
+    if (disposed) {
+      return Promise.resolve();
+    }
+
+    const nextSize = readProjectMonacoContainerSize(options.getContainer());
+    const force = Boolean(scheduleOptions?.force);
+    if (!force && areProjectMonacoSizesEqual(nextSize, lastLaidOutSize)) {
+      return scheduledFrame ?? Promise.resolve();
+    }
+
+    if (scheduledFrame || layoutInFlight) {
+      return scheduledFrame ?? Promise.resolve();
+    }
+
+    scheduledFrame = scheduleProjectMonacoLayout(() => {
+      scheduledFrame = null;
+
+      if (disposed || layoutInFlight) {
+        return;
+      }
+
+      layoutInFlight = true;
+      try {
+        options.layout();
+        lastLaidOutSize = readProjectMonacoContainerSize(options.getContainer());
+      } finally {
+        layoutInFlight = false;
+      }
+    });
+
+    return scheduledFrame;
+  };
+
+  return {
+    disconnect() {
+      disposed = true;
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      scheduledFrame = null;
+    },
+    observe() {
+      const container = options.getContainer();
+      if (disposed || typeof ResizeObserver === 'undefined' || !container) {
+        return;
+      }
+
+      resizeObserver?.disconnect();
+      resizeObserver = new ResizeObserver(() => {
+        const nextSize = readProjectMonacoContainerSize(options.getContainer());
+        if (!nextSize || areProjectMonacoSizesEqual(nextSize, lastObservedSize)) {
+          return;
+        }
+
+        lastObservedSize = nextSize;
+        options.onResizeObserved?.(nextSize);
+        void schedule();
+      });
+      resizeObserver.observe(container);
+    },
+    schedule,
+  };
+}
+
+/**
+ * 创建用于 Monaco 编辑器重排的桥接对象。
+ *
+ * @param options.getContainer - 返回编辑器容器元素
+ * @param options.layout - 执行实际布局的回调
+ * @returns 支持 `observe`、`disconnect` 和 `relayout` 的重排桥接对象
+ */
+export function createProjectMonacoRelayoutBridge(options: {
+  getContainer: () => HTMLElement | null;
+  layout: () => void;
+  log: (event: string, detail: Record<string, unknown>) => void;
+}): ProjectMonacoRelayoutBridge {
+  let pendingLayoutReason = 'manual';
+  const layoutController = createProjectMonacoLayoutController({
+    getContainer: options.getContainer,
+    layout: () => {
+      options.log('layout-run', {
+        containerHeight: options.getContainer()?.clientHeight ?? 0,
+        containerWidth: options.getContainer()?.clientWidth ?? 0,
+        reason: pendingLayoutReason,
+      });
+      options.layout();
+    },
+    onResizeObserved: (size) => {
+      pendingLayoutReason = 'resize-observer';
+      options.log('resize-observer-fired', {
+        containerHeight: size.height,
+        containerWidth: size.width,
+      });
+    },
+  });
+
+  return {
+    disconnect() {
+      layoutController.disconnect();
+    },
+    observe() {
+      layoutController.observe();
+    },
+    async relayout(reason = 'manual') {
+      pendingLayoutReason = reason;
+      options.log('layout-scheduled', {
+        containerHeight: options.getContainer()?.clientHeight ?? 0,
+        containerWidth: options.getContainer()?.clientWidth ?? 0,
+        reason,
+      });
+      await layoutController.schedule({ force: true });
+    },
+  };
+}
+
+/**
+ * 获取或创建 Monaco 文本模型。
+ *
+ * @param monacoInstance - Monaco 编辑器实例
+ * @param options - 模型缓存与创建参数
+ * @returns 复用的或新创建的文本模型
+ */
+export function getOrCreateProjectMonacoModel(
+  monacoInstance: MonacoEditorModule,
+  options: ProjectMonacoModelCacheOptions,
+) {
+  const uri = buildProjectMonacoModelUri(options.key, options.language, options.suffix);
+  const cacheKey = String(uri);
+  const existingModel = options.cache.get(cacheKey);
+
+  if (existingModel) {
+    if (existingModel.getValue() !== options.value) {
+      existingModel.setValue(options.value);
+    }
+    return existingModel;
+  }
+
+  const nextModel = monacoInstance.editor.createModel(options.value, options.language, uri);
+  options.cache.set(cacheKey, nextModel);
+  return nextModel;
+}
+
+/**
+ * 清空 Monaco 模型缓存并释放其中的模型。
+ *
+ * @param cache - 要清空的模型缓存
+ * @param reason - 传递给模型释放回调的原因说明
+ * @param disposeModel - 释放缓存模型的回调
+ */
+export function disposeProjectMonacoModelCache(
+  cache: ProjectMonacoModelCache,
+  reason: string,
+  disposeModel: (targetModel: monaco.editor.ITextModel, reason: string) => void,
+) {
+  const cachedModels = Array.from(new Set(cache.values()));
+  cache.clear();
+  for (const cachedModel of cachedModels) {
+    disposeModel(cachedModel, reason);
+  }
+}
+
+/**
+ * 从 Monaco 模型缓存中移除指定模型并释放它。
+ *
+ * @param cache - 当前组件持有的模型缓存
+ * @param targetModel - 需要从缓存中移除的模型
+ * @param reason - 传递给模型释放回调的原因说明
+ * @param disposeModel - 释放缓存模型的回调
+ */
+export function evictProjectMonacoModelFromCache(
+  cache: ProjectMonacoModelCache,
+  targetModel: monaco.editor.ITextModel,
+  reason: string,
+  disposeModel: (targetModel: monaco.editor.ITextModel, reason: string) => void,
+) {
+  let removed = false;
+
+  for (const [cacheKey, cachedModel] of cache.entries()) {
+    if (cachedModel !== targetModel) {
+      continue;
+    }
+
+    cache.delete(cacheKey);
+    removed = true;
+  }
+
+  if (removed) {
+    disposeModel(targetModel, reason);
+  }
+}
+
+/**
+ * 管理 Monaco 编辑器的主题同步与挂载生命周期。
+ *
+ * @param options - 编辑器创建、销毁与 Monaco 实例获取方式
+ * @returns 提供手动应用主题的 `applyTheme` 方法
+ */
 export function useProjectMonacoLifecycle(options: {
   createEditor: () => void | Promise<void>;
   disposeEditor: () => void;
@@ -267,12 +661,25 @@ function resolveCssColor(host: HTMLElement, value: string, fallback: string) {
   return toMonacoColor(resolved, fallback);
 }
 
+/**
+ * 生成一个唯一的模型 URI 后缀。
+ *
+ * @returns 唯一的后缀字符串。
+ */
 export function createProjectMonacoModelUriSuffix() {
   modelUriSuffixSeed += 1;
   return `model-${modelUriSuffixSeed}`;
 }
 
-export function buildProjectMonacoModelUri(key: string, language: string, suffix?: string) {
+/**
+ * 构建项目 Monaco 模型的内存 URI。
+ *
+ * @param key - 模型标识
+ * @param language - 模型语言
+ * @param suffix - 追加到模型名中的可选后缀
+ * @returns 生成的内存 URI
+ */
+function buildProjectMonacoModelUri(key: string, language: string, suffix?: string) {
   const normalizedKey = key.replace(/[^a-z0-9/_.-]/giu, '-');
   const extension = resolveLanguageExtension(language);
   const normalizedSuffix = suffix ? `-${suffix.replace(/[^a-z0-9/_.-]/giu, '-')}` : '';

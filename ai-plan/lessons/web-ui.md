@@ -1,5 +1,73 @@
 # Web UI Lessons
 
+## LESSON-WEB-UI-MONACO-WORKER-001：Monaco YAML worker 故障要先区分 Vite 入口问题和 createWebWorker API 漂移
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `web` Monaco editor / diff editor integration
+  - `monaco-yaml`
+  - Vite worker bundling
+  - third-party Monaco language-service adapters that still依赖 legacy `createWebWorker({ label, moduleId, createData })`
+- Source:
+  - project configuration workspace YAML editor runtime failure
+  - user feedback that the correct action is root-cause repair, not temporary disablement of `monaco-yaml`
+  - diagnosis of repeated browser errors: `Missing requestHandler or method: doValidation`, `resetSchema`,
+    `findLinks`, `findDocumentSymbols`, `getFoldingRanges`
+- Problem:
+  Monaco YAML 能正常高亮并不代表 YAML language worker 已经正确接入。该问题至少有两层常见故障面：
+  一是 Vite 下 `yaml.worker` 入口未按 `monaco-yaml` workaround 包装，导致 YAML worker 文件本身无法正确产出或启动；
+  二是
+  `monaco-yaml` 依赖的 `monaco-worker-manager` 仍按旧接口调用 `monaco.editor.createWebWorker({ label, moduleId, createData })`，
+  但当前 `monaco-editor` standalone ESM 实现已经收敛到 `worker` 形态，不再按旧参数自行创建 foreign worker。第二层漂移会让
+  `monaco-yaml` 以为拿到了 YAML worker，实际上拿到的是普通 `editorWorkerService`，随后一切
+  `doValidation/resetSchema/findLinks/findDocumentSymbols/getFoldingRanges` 调用都会落到错误 worker 并统一报
+  `Missing requestHandler or method: ...`。
+- Correct pattern:
+  接入或修复 `monaco-yaml` 时，必须按两层顺序排查：
+  1. 先确保 YAML worker 入口遵循 `monaco-yaml` README 的 Vite workaround：本地包装
+     `project-yaml.worker.js`，再用 `?worker` 方式导入并创建 YAML worker，而不是直接引用包内 worker 路径。
+  2. 再确认当前仓库使用的 `monaco-editor` 版本是否仍兼容旧的 `createWebWorker({ label, moduleId, createData })`
+     签名；若不兼容，应在项目自己的 Monaco 启动层补一个兼容桥，把 legacy 调用转成当前 Monaco 可工作的
+     `worker: Promise<Worker>` 形态，并继续按 `label` 显式路由到 `yaml` / `json` / `editor` worker。
+  3. 排查时优先看浏览器日志是否真的出现：
+     - `label: 'yaml'`
+     - `workerKind: 'yaml'`
+     - `worker-created { kind: 'yaml' }`
+     若只有 `editorWorkerService`，说明仍然没有真正进入 YAML foreign worker。
+- Anti-pattern:
+  - 看到 YAML 运行时报错就直接停用 `configureMonacoYaml(...)`
+  - 只修 `yaml.worker` 打包入口，却忽略 `createWebWorker` 旧接口在当前 Monaco 版本上已经漂移
+  - 只根据 `Could not create web worker(s)` 一条 warning 判断根因，而不继续核对后续方法缺失报错
+  - 看到 `Missing requestHandler or method: ...` 就去改 `monaco-yaml` provider 逻辑，而不先确认实际拿到的 worker 类型
+  - 不留浏览器侧 worker 路由日志，导致后续只能重复猜测
+- Enforcement:
+  修改 Monaco / `monaco-yaml` 接入时，至少运行 `cd web && bun run typecheck` 和相关 Vitest 用例；浏览器验收时，
+  打开控制台确认 YAML worker 的 `label`、`workerKind`、`worker-created` 三组日志。若再次出现
+  `Missing requestHandler or method: doValidation/resetSchema/findLinks/findDocumentSymbols/getFoldingRanges`，
+  应直接检查：
+  - `web/src/modules/project/shared/project-monaco.ts`
+  - `web/src/modules/project/shared/project-monaco-worker.ts`
+  - `web/src/modules/project/shared/project-yaml.worker.js`
+  - `web/node_modules/monaco-yaml/README.md`
+  - `web/node_modules/monaco-worker-manager/index.js`
+  - `web/node_modules/monaco-editor/esm/vs/editor/standalone/browser/standaloneWebWorker.js`
+  - `web/node_modules/monaco-editor/esm/vs/common/workers.js`
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/modules/project/shared/project-monaco.ts`
+  - `web/src/modules/project/shared/project-monaco-worker.ts`
+  - `web/src/modules/project/shared/project-yaml.worker.js`
+  - `web/src/modules/project/shared/project-monaco-debug.ts`
+  - `web/node_modules/monaco-yaml/README.md`
+  - `web/node_modules/monaco-worker-manager/index.js`
+  - `web/node_modules/monaco-editor/esm/vs/editor/standalone/browser/standaloneWebWorker.js`
+  - `web/node_modules/monaco-editor/esm/vs/common/workers.js`
+- Updated at:
+  2026-07-08
+
 ## LESSON-WEB-UI-ROUTE-LOADING-001：路由切换不能让主内容区短暂卸载为空
 
 - Status: active

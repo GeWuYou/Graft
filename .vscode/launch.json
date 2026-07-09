@@ -119,7 +119,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- server"
+                "export BUN_INSTALL=\"${BUN_INSTALL:-$HOME/.bun}\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- server"
             ],
             "console": "integratedTerminal"
         },
@@ -130,7 +130,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- web"
+                "export BUN_INSTALL=\"${BUN_INSTALL:-$HOME/.bun}\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- web"
             ],
             "console": "integratedTerminal"
         },
@@ -141,7 +141,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- all"
+                "export BUN_INSTALL=\"${BUN_INSTALL:-$HOME/.bun}\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- all"
             ],
             "console": "integratedTerminal"
         }

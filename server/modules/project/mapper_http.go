@@ -304,6 +304,8 @@ func toProjectWorkspaceFileContentResponse(result workspaceFileContentResult) ge
 	}
 }
 
+// toProjectWorkspaceFileSaveResponse 将工作区文件保存结果转换为项目文件保存响应。
+// 生成包含项目 ID、相对路径、保存时间、内容哈希和文件大小的响应。
 func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generated.ProjectFileSaveResponse {
 	return generated.ProjectFileSaveResponse{
 		ProjectId:    mustGeneratedID(result.ProjectID),
@@ -314,25 +316,7 @@ func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generate
 	}
 }
 
-// toConfigurationValidateResponse 将配置校验结果转换为项目配置校验响应。
-// 返回包含项目 ID、规范化项目名、所有权模式、建议配置哈希、规范化 Compose YAML 和声明的服务名称的响应；当存在警告时，还会附加警告列表。
-func toConfigurationValidateResponse(result ConfigurationValidateResult) generated.ProjectConfigurationValidateResponse {
-	response := generated.ProjectConfigurationValidateResponse{
-		ProjectId:             mustGeneratedID(result.ProjectID),
-		CanonicalProjectName:  result.CanonicalProjectName,
-		OwnershipMode:         generated.ProjectOwnershipMode(result.OwnershipMode),
-		ProposedConfigHash:    result.ProposedConfigHash,
-		NormalizedComposeYaml: result.NormalizedComposeYAML,
-		DeclaredServiceNames:  append([]string(nil), result.DeclaredServiceNames...),
-	}
-	if len(result.Warnings) > 0 {
-		warnings := append([]string(nil), result.Warnings...)
-		response.Warnings = &warnings
-	}
-	return response
-}
-
-// toDeployResponse 将部署结果映射为项目部署响应，保留可选消息、守卫结果和声明服务数等字段。
+// 当声明服务数大于等于 0 时包含声明服务数；当消息键、消息或守卫结果存在时一并写入响应。
 func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
 	response := generated.ProjectDeployResponse{
 		ProjectId:            mustGeneratedID(result.ProjectID),

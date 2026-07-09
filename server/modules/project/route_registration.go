@@ -29,7 +29,8 @@ const minimumProjectListLimit = 1
 
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
-// 当上下文或路由器为空时直接返回；当服务或权限依赖无法解析时返回错误。
+// registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
+// 当上下文或路由器为空时直接返回；当服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -73,7 +74,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
-	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
 	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
@@ -475,20 +475,6 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 	})
 }
 
-func (r routeRuntime) handleConfigurationValidate(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
-	if !ok {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectConfigurationValidate(generatedID, bindPostProjectConfigurationValidateParams(ginCtx))
-	result, err := r.service.ValidateConfiguration(ginCtx.Request.Context(), projectID)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationValidateResponse(result))
-}
-
 func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
@@ -829,8 +815,6 @@ func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProject
 }
 func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
-}
 func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams)   {}
 func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams)     {}
 func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)             {}
@@ -1134,20 +1118,18 @@ func bindPutProjectFileContentParams(ginCtx *gin.Context, path string) generated
 	return generated.PutProjectFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
 }
 
+// bindPutProjectFileAnnotationParams 构造更新项目文件注释所需的请求参数。
+//
+// Path 会被编码为工作区路径查询参数。
 func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) generated.PutProjectFileAnnotationParams {
 	locale, requestID := commonHeaders(ginCtx)
 	queryPath := generated.ProjectWorkspacePathQuery(path)
 	return generated.PutProjectFileAnnotationParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
 }
 
-// bindPostProjectConfigurationValidateParams 构造配置校验接口的公共请求参数。
-// 它包含从请求头提取的语言和请求 ID。
-func bindPostProjectConfigurationValidateParams(ginCtx *gin.Context) generated.PostProjectConfigurationValidateParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectConfigurationValidateParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
 // bindGetProjectManagedRootParams 构造获取托管根信息请求的公共参数。
+//
+// 它包含请求的语言环境和请求 ID。
 func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectManagedRootParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectManagedRootParams{XGraftLocale: locale, XRequestId: requestID}

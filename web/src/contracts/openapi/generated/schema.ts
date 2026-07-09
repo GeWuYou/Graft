@@ -2402,26 +2402,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/configuration/validate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Validate current saved project configuration state
-     * @description Validates the current saved working_directory state for the project without mutating tracked files or changing runtime state.
-     */
-    post: operations['postProjectConfigurationValidate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ops/projects/{id}/deploy': {
     parameters: {
       query?: never;
@@ -6152,19 +6132,6 @@ export interface components {
     };
     'enveloped-project-file-tree-item-response': {
       data: components['schemas']['project-file-tree-item'];
-    };
-    'project-configuration-validate-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
-      ownership_mode: components['schemas']['project-ownership-mode'];
-      proposed_config_hash: string;
-      normalized_compose_yaml: string;
-      declared_service_names: string[];
-      warnings?: string[];
-    };
-    'enveloped-project-configuration-validate-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-configuration-validate-response'];
     };
     'project-guard-result': {
       code: string;
@@ -13135,61 +13102,6 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Project record or target path not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postProjectConfigurationValidate: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
-        id: components['parameters']['project-id-path'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Saved project configuration state validated. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-project-configuration-validate-response'];
-        };
-      };
-      /** @description Invalid project id. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description Project record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

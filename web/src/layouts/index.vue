@@ -47,7 +47,6 @@ import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
 import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
-import { createLogger } from '@/utils/logger';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
 import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 import type { AppRouteMeta } from '@/utils/types';
@@ -70,7 +69,6 @@ const settingStore = useSettingStore();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
-const logger = createLogger('layout.tabs');
 const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
 const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
 const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
@@ -245,16 +243,14 @@ const appendNewRoute = () => {
       [LOCALE.EN_US]: '',
     };
   logTabsDebug(
-    logger,
+    'tabs.layout',
     () =>
       `tabs debug: layout appendNewRoute before active=${tabsRouterStore.activeTabKey} route=[path=${path} fullPath=${fullPath} name=${String(
         name || '',
       )} queryName=${String(query?.name || '')} title=${formatTabDebugTitle(titleObj)}] ${formatLayoutTabsSummary()}`,
   );
-  logger.debug('append route into tabs router', {
-    path,
-    name,
-    queryKeys: Object.keys(query),
+  logTabsDebug('tabs.layout', () => {
+    return `tabs debug: append route into tabs router path=${path} name=${String(name || '')} queryKeys=${Object.keys(query).join(',')}`;
   });
   tabsRouterStore.appendTabRouterList({
     tabKey: path,
@@ -269,33 +265,33 @@ const appendNewRoute = () => {
   });
   tabsRouterStore.setActiveRoute(route);
   logTabsDebug(
-    logger,
+    'tabs.layout',
     () => `tabs debug: layout appendNewRoute after active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
 };
 
 onMounted(() => {
   logTabsDebug(
-    logger,
+    'tabs.layout',
     () =>
       `tabs debug: layout onMounted before heal active=${tabsRouterStore.activeTabKey} route=[${formatCurrentRouteSummary()}] ${formatLayoutTabsSummary()}`,
   );
   tabsRouterStore.healPersistedState();
   logTabsDebug(
-    logger,
+    'tabs.layout',
     () =>
       `tabs debug: layout onMounted after state heal active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
   tabsRouterStore.healPersistedRoutes(router);
   logTabsDebug(
-    logger,
+    'tabs.layout',
     () =>
       `tabs debug: layout onMounted after route heal active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );
   appendNewRoute();
   tabsRouterStore.setActiveRoute(route);
   logTabsDebug(
-    logger,
+    'tabs.layout',
     () =>
       `tabs debug: layout onMounted after active sync active=${tabsRouterStore.activeTabKey} ${formatLayoutTabsSummary()}`,
   );

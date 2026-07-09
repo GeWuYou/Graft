@@ -365,6 +365,15 @@ UI 约束：
 - 若本轮不涉及 `TDesign Vue Next` 组件，closeout 明确写 `TDesign MCP preflight: not applicable`
 - 若 MCP 不可用并回退官方文档，closeout 明确写 `mcp_queried: fallback_to_official_docs`，并写明受影响组件和 fallback 原因
 
+前端调试开关与 Debug Runtime 规则：
+
+- 长期保留的前端调试日志必须收口到 shell-owned debug runtime，不得在页面、store、router 守卫或模块 helper 中直接散落裸 `logger.debug`
+- 调试 flag 必须按模块功能使用 namespaced 命名，例如 `tabs`、`tabs.layout`、`tabs.store`、`project.monaco`；禁止使用无边界前缀的平铺 debug key
+- `.env*` 中的调试配置键必须与 flag 命名空间对齐，优先采用 `VITE_DEBUG_<MODULE>_<SUBMODULE>` 形式，并在注释中标注 owner 边界和主要文件
+- `window.__GRAFT_DEBUG__` 只允许作为开发者控制台 API，不作为业务状态真值；真实启停状态必须由 shell-owned debug store 持有
+- Debug Runtime 可以存在于所有环境，但默认关闭；未来若引入危险能力，必须额外受 `import.meta.env.DEV` 限制，不能仅靠运行时 flag 放开
+- 调试日志控制台输出必须优先扁平化，确保关键排障字段在一行内可 grep、可截图、可回归，不依赖深层嵌套对象展开
+
 页面骨架规则：
 
 - 关键页至少覆盖 `page header`、`primary action area`、`main content surface`、`feedback surface` 的存在性和结构稳定性

@@ -45,27 +45,6 @@ func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (C
 	}, nil
 }
 
-// ValidateConfiguration validates the current saved project files without mutating them.
-func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64) (ConfigurationValidateResult, error) {
-	aggregate, err := s.getAggregate(ctx, projectID)
-	if err != nil {
-		return ConfigurationValidateResult{}, err
-	}
-	parseResult, err := s.loadFromAggregate(aggregate)
-	if err != nil {
-		return ConfigurationValidateResult{}, err
-	}
-	return ConfigurationValidateResult{
-		ProjectID:             projectID,
-		CanonicalProjectName:  aggregate.Project.CanonicalProjectName,
-		OwnershipMode:         aggregate.Project.OwnershipMode,
-		ProposedConfigHash:    parseResult.ConfigHash,
-		NormalizedComposeYAML: parseResult.NormalizedComposeYAML,
-		DeclaredServiceNames:  append([]string(nil), parseResult.ServiceNames...),
-		Warnings:              nil,
-	}, nil
-}
-
 // DeployConfiguration refreshes the saved project state and executes docker compose up -d using the current disk files.
 func (s *Service) DeployConfiguration(
 	ctx context.Context,

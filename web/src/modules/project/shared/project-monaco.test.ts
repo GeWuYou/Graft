@@ -1,8 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useDebugStore } from '@/store/modules/debug';
+import { store } from '@/store/pinia';
 
 import { toMonacoColor } from './project-monaco-color';
 import { isProjectMonacoDebugEnabled } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
+
+function resetProjectMonacoDebugState() {
+  const debugStore = useDebugStore(store);
+  debugStore.clearRuntimeFlag();
+  localStorage.clear();
+}
+
+beforeEach(() => {
+  vi.unstubAllEnvs();
+  resetProjectMonacoDebugState();
+});
 
 describe('project-monaco color normalization', () => {
   it('converts srgb browser output into Monaco-safe hex', () => {
@@ -32,7 +46,7 @@ describe('project-monaco worker routing', () => {
     const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
-    const worker = buildProjectMonacoWorker('json', {
+    const worker = buildProjectMonacoWorker('monaco-editor/esm/vs/language/json/json.worker', 'json', {
       createEditorWorker: () => editorWorker,
       createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
@@ -46,7 +60,7 @@ describe('project-monaco worker routing', () => {
     const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
-    const worker = buildProjectMonacoWorker('yaml', {
+    const worker = buildProjectMonacoWorker('monaco-yaml/yaml.worker', 'yaml', {
       createEditorWorker: () => editorWorker,
       createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
@@ -60,7 +74,7 @@ describe('project-monaco worker routing', () => {
     const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
-    const worker = buildProjectMonacoWorker('editorWorkerService', {
+    const worker = buildProjectMonacoWorker('monaco-editor/esm/vs/editor/editor.worker', 'editorWorkerService', {
       createEditorWorker: () => editorWorker,
       createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
@@ -68,22 +82,90 @@ describe('project-monaco worker routing', () => {
 
     expect(worker).toBe(editorWorker);
   });
+
+  it('routes yaml workers by moduleId even when the label is missing', () => {
+    const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
+    const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
+
+    const worker = buildProjectMonacoWorker('monaco-yaml/yaml.worker', '', {
+      createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
+      createYamlWorker: () => yamlWorker,
+    });
+
+    expect(worker).toBe(yamlWorker);
+  });
 });
 
 describe('project-monaco debug toggle', () => {
-  it('reads the explicit global debug flag before localStorage', () => {
-    const previousValue = (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+  it('enables debug logging from the explicit namespaced env flag', async () => {
+    vi.stubEnv('VITE_DEBUG_PROJECT_MONACO', 'true');
 
-    try {
-      (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = true;
+    const { useDebugStore: loadStore } = await import('@/store/modules/debug');
+    const debugStore = loadStore(store);
+    debugStore.recompute();
 
-      expect(isProjectMonacoDebugEnabled()).toBe(true);
-    } finally {
-      if (typeof previousValue === 'undefined') {
-        delete (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
-      } else {
-        (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = previousValue;
-      }
-    }
+    expect(isProjectMonacoDebugEnabled()).toBe(true);
   });
+
+  it('reads the runtime debug store override', () => {
+    const debugStore = useDebugStore(store);
+    debugStore.setRuntimeFlag('project.monaco', true);
+
+    expect(isProjectMonacoDebugEnabled()).toBe(true);
+  });
+});
+
+describe('project-monaco relayout bridge', () => {
+  it('resolves relayout after the scheduled animation frame runs', async () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    document.queryCommandSupported = vi.fn(() => false);
+    vi.resetModules();
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback: FrameRequestCallback) => {
+        rafCallbacks.push(callback);
+        return rafCallbacks.length;
+      }),
+    );
+    vi.doMock('vue', async () => {
+      const actual = await vi.importActual<typeof import('vue')>('vue');
+      return {
+        ...actual,
+        nextTick: () => Promise.resolve(),
+      };
+    });
+
+    const { createProjectMonacoRelayoutBridge } = await import('./project-monaco');
+    const container = document.createElement('div');
+    Object.defineProperties(container, {
+      clientHeight: { configurable: true, value: 240 },
+      clientWidth: { configurable: true, value: 480 },
+    });
+
+    const layout = vi.fn();
+    const bridge = createProjectMonacoRelayoutBridge({
+      getContainer: () => container,
+      layout,
+      log: vi.fn(),
+    });
+
+    let settled = false;
+    const relayoutPromise = bridge.relayout('test-frame').then(() => {
+      settled = true;
+    });
+
+    await Promise.resolve();
+
+    expect(layout).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+    expect(rafCallbacks).toHaveLength(1);
+
+    rafCallbacks[0]?.(0);
+    await relayoutPromise;
+
+    expect(layout).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(true);
+  }, 20000);
 });

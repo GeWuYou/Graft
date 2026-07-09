@@ -1,0 +1,33 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "web: dev",
+            "type": "shell",
+            "command": "export BUN_INSTALL=\"${BUN_INSTALL:-$HOME/.bun}\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; bun run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/web"
+            },
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": false
+            },
+            "problemMatcher": {
+                "owner": "custom",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(?!x)x(.*)$",
+                    "file": 1,
+                    "message": 1
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*vite --mode development.*",
+                    "endsPattern": ".*ready in .* ms.*"
+                }
+            }
+        }
+    ]
+}
