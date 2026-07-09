@@ -5,6 +5,7 @@ const PROJECT_MONACO_DIFF_SURFACE_TEST_STATE_KEY = '__PROJECT_MONACO_DIFF_SURFAC
 
 function createMockState() {
   const callOrder: string[] = [];
+  const evictedModels: Array<{ reason: string; uri: string }> = [];
   const layoutReasons: string[] = [];
   const models: Array<{
     dispose: ReturnType<typeof vi.fn>;
@@ -105,6 +106,7 @@ function createMockState() {
     currentModel: () => currentModel,
     diffEditor,
     disconnect,
+    evictedModels,
     layoutReasons,
     models,
     modifiedEditor,
@@ -114,6 +116,7 @@ function createMockState() {
     },
     reset() {
       callOrder.length = 0;
+      evictedModels.length = 0;
       layoutReasons.length = 0;
       models.length = 0;
       currentModel = null;
@@ -211,6 +214,25 @@ vi.mock('../shared/project-monaco', async () => {
         disposeModel(model, reason);
       }
       cache.clear();
+    },
+    evictProjectMonacoModelFromCache: (
+      cache: Map<string, { dispose: () => void; uri: string }>,
+      targetModel: { dispose: () => void; uri: string },
+      reason: string,
+      disposeModel: (targetModel: { dispose: () => void; uri: string }, reason: string) => void,
+    ) => {
+      let removed = false;
+      for (const [cacheKey, cachedModel] of cache.entries()) {
+        if (cachedModel !== targetModel) {
+          continue;
+        }
+        cache.delete(cacheKey);
+        removed = true;
+      }
+      if (removed) {
+        getMockState().evictedModels.push({ reason, uri: targetModel.uri });
+        disposeModel(targetModel, reason);
+      }
     },
     ensureProjectMonacoConfigured: () => ({
       editor: {
@@ -317,7 +339,46 @@ describe('ProjectMonacoDiffSurface', () => {
     expect(reboundModel?.modified.getLanguageId()).toBe('json');
   });
 
-  it('reuses cached models when the same diff identity is revisited', async () => {
+  it('evicts previous diff models when rebinding to a different diff identity', async () => {
+    const wrapper = mount(ProjectMonacoDiffSurface, {
+      props: {
+        editorAriaLabel: 'Diff Viewer',
+        language: 'yaml',
+        modifiedKey: 'modified.yml',
+        modifiedValue: 'version: 2\n',
+        originalKey: 'original.yml',
+        originalValue: 'version: 1\n',
+      },
+    });
+
+    await flushPromises();
+    const initialBoundModel = mockState.currentModel();
+    expect(initialBoundModel).not.toBeNull();
+
+    await wrapper.setProps({
+      language: 'json',
+      modifiedKey: 'modified.json',
+      modifiedValue: '{"version":2}\n',
+      originalKey: 'original.json',
+      originalValue: '{"version":1}\n',
+    });
+    await flushPromises();
+
+    expect(mockState.evictedModels).toEqual([
+      {
+        reason: 'rebind-diff-original-model',
+        uri: 'inmemory://yaml/original.yml/test-suffix-original',
+      },
+      {
+        reason: 'rebind-diff-modified-model',
+        uri: 'inmemory://yaml/modified.yml/test-suffix-modified',
+      },
+    ]);
+    expect(initialBoundModel?.original.dispose).toHaveBeenCalledTimes(1);
+    expect(initialBoundModel?.modified.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('recreates diff models after the previous diff identity was evicted', async () => {
     const wrapper = mount(ProjectMonacoDiffSurface, {
       props: {
         editorAriaLabel: 'Diff Viewer',
@@ -351,7 +412,7 @@ describe('ProjectMonacoDiffSurface', () => {
     });
     await flushPromises();
 
-    expect(mockState.createModel).toHaveBeenCalledTimes(4);
+    expect(mockState.createModel).toHaveBeenCalledTimes(6);
   });
 
   it('exposes diff change lookup and reveal helpers', async () => {

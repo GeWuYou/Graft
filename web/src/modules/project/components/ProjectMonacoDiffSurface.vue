@@ -193,6 +193,8 @@ function bindModels(monacoInstance: typeof Monaco) {
     return;
   }
 
+  const previousOriginal = originalModel;
+  const previousModified = modifiedModel;
   const nextOriginal = projectMonaco.getOrCreateProjectMonacoModel(monacoInstance, {
     cache: modelCache,
     key: props.originalKey,
@@ -223,6 +225,22 @@ function bindModels(monacoInstance: typeof Monaco) {
   editor.setModel(nextModel);
   originalModel = nextOriginal;
   modifiedModel = nextModified;
+  if (previousOriginal && previousOriginal !== nextOriginal && previousOriginal !== nextModified) {
+    projectMonaco.evictProjectMonacoModelFromCache(
+      modelCache,
+      previousOriginal,
+      'rebind-diff-original-model',
+      disposeDiffModel,
+    );
+  }
+  if (previousModified && previousModified !== nextOriginal && previousModified !== nextModified) {
+    projectMonaco.evictProjectMonacoModelFromCache(
+      modelCache,
+      previousModified,
+      'rebind-diff-modified-model',
+      disposeDiffModel,
+    );
+  }
 
   const boundModel = editor.getModel();
   const modifiedEditorSize = readNestedEditorSize(editor.getModifiedEditor?.bind(editor));
