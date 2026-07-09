@@ -175,15 +175,15 @@ export function createContainerSourceQuickFilter(
 
 function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
-    row.orchestrator?.group_scope_kind || legacyGroupScopeKind(row),
-    row.orchestrator?.group_value || row.orchestrator?.group_display_name || legacyGroupScopeValue(row),
+    row.orchestrator?.group_scope_kind,
+    row.orchestrator?.group_value || row.orchestrator?.group_display_name,
   );
 }
 
 function sourceMemberFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
-    row.orchestrator?.member_scope_kind || legacyMemberScopeKind(row),
-    row.orchestrator?.member_value || row.orchestrator?.member_display_name || legacyMemberScopeValue(row),
+    row.orchestrator?.member_scope_kind,
+    row.orchestrator?.member_value || row.orchestrator?.member_display_name,
   );
 }
 
@@ -200,60 +200,4 @@ function toQuickFilterValue(
     kind,
     value: normalizedValue,
   };
-}
-
-function legacyGroupScopeKind(row: ContainerSummaryRecord): ContainerSourceGroupKind | null {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose' && (row.orchestrator?.project || row.compose_project)) {
-    return 'compose_project';
-  }
-  if (orchestratorType === 'swarm' && row.orchestrator?.stack) {
-    return 'swarm_stack';
-  }
-  if (orchestratorType === 'kubernetes' && row.orchestrator?.namespace) {
-    return 'kubernetes_namespace';
-  }
-  return null;
-}
-
-function legacyGroupScopeValue(row: ContainerSummaryRecord): string | null | undefined {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose') {
-    return row.orchestrator?.project || row.compose_project;
-  }
-  if (orchestratorType === 'swarm') {
-    return row.orchestrator?.stack;
-  }
-  if (orchestratorType === 'kubernetes') {
-    return row.orchestrator?.namespace;
-  }
-  return null;
-}
-
-function legacyMemberScopeKind(row: ContainerSummaryRecord): ContainerSourceMemberKind | null {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose' && (row.orchestrator?.service || row.compose_service)) {
-    return 'compose_service';
-  }
-  if (orchestratorType === 'swarm' && row.orchestrator?.task) {
-    return 'swarm_task';
-  }
-  if (orchestratorType === 'kubernetes' && row.orchestrator?.pod) {
-    return 'kubernetes_pod';
-  }
-  return null;
-}
-
-function legacyMemberScopeValue(row: ContainerSummaryRecord): string | null | undefined {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose') {
-    return row.orchestrator?.service || row.compose_service;
-  }
-  if (orchestratorType === 'swarm') {
-    return row.orchestrator?.task;
-  }
-  if (orchestratorType === 'kubernetes') {
-    return row.orchestrator?.pod;
-  }
-  return null;
 }

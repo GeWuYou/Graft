@@ -138,12 +138,64 @@ func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Managed = info.Type != containerOrchestratorStandalone
 	info.GroupScopeKind = normalizeContainerSourceScopeKind(info.GroupScopeKind)
 	info.MemberScopeKind = normalizeContainerSourceScopeKind(info.MemberScopeKind)
+	info.Project = strings.TrimSpace(info.Project)
+	info.Service = strings.TrimSpace(info.Service)
+	info.Stack = strings.TrimSpace(info.Stack)
+	info.Namespace = strings.TrimSpace(info.Namespace)
+	info.Pod = strings.TrimSpace(info.Pod)
+	info.Task = strings.TrimSpace(info.Task)
+	if info.GroupScopeKind == "" {
+		switch {
+		case info.Project != "":
+			info.GroupScopeKind = composeProjectScopeKind
+		case info.Stack != "":
+			info.GroupScopeKind = swarmStackScopeKind
+		case info.Namespace != "":
+			info.GroupScopeKind = kubernetesNamespaceScopeKind
+		}
+	}
+	if info.MemberScopeKind == "" {
+		switch {
+		case info.Service != "":
+			info.MemberScopeKind = composeServiceScopeKind
+		case info.Task != "":
+			info.MemberScopeKind = swarmTaskScopeKind
+		case info.Pod != "":
+			info.MemberScopeKind = kubernetesPodScopeKind
+		}
+	}
 	info.WorkingDir = strings.TrimSpace(info.WorkingDir)
 	info.ConfigFiles = normalizedStringSlice(info.ConfigFiles)
 	info.GroupValue = strings.TrimSpace(info.GroupValue)
 	info.MemberValue = strings.TrimSpace(info.MemberValue)
 	info.GroupDisplayName = strings.TrimSpace(info.GroupDisplayName)
 	info.MemberDisplayName = strings.TrimSpace(info.MemberDisplayName)
+	if info.GroupValue == "" {
+		switch info.GroupScopeKind {
+		case composeProjectScopeKind:
+			info.GroupValue = info.Project
+		case swarmStackScopeKind:
+			info.GroupValue = info.Stack
+		case kubernetesNamespaceScopeKind:
+			info.GroupValue = info.Namespace
+		}
+	}
+	if info.MemberValue == "" {
+		switch info.MemberScopeKind {
+		case composeServiceScopeKind:
+			info.MemberValue = info.Service
+		case swarmTaskScopeKind:
+			info.MemberValue = info.Task
+		case kubernetesPodScopeKind:
+			info.MemberValue = info.Pod
+		}
+	}
+	if info.GroupDisplayName == "" {
+		info.GroupDisplayName = info.GroupValue
+	}
+	if info.MemberDisplayName == "" {
+		info.MemberDisplayName = info.MemberValue
+	}
 	if strings.TrimSpace(info.Confidence) == "" {
 		if info.Managed {
 			info.Confidence = orchestratorConfidenceMedium
@@ -466,13 +518,9 @@ func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) boo
 // SourceScopeCandidates returns candidate values from the container summary and orchestrator information for matching against the given scope kind.
 func sourceScopeCandidates(item Summary, info OrchestratorInfo, scopeKind string) []string {
 	switch scopeKind {
-	case composeProjectScopeKind:
-		return []string{item.ComposeProject, info.GroupValue}
-	case composeServiceScopeKind:
-		return []string{item.ComposeService, info.MemberValue}
-	case swarmStackScopeKind, kubernetesNamespaceScopeKind:
+	case composeProjectScopeKind, swarmStackScopeKind, kubernetesNamespaceScopeKind:
 		return []string{info.GroupValue}
-	case swarmTaskScopeKind, kubernetesPodScopeKind:
+	case composeServiceScopeKind, swarmTaskScopeKind, kubernetesPodScopeKind:
 		return []string{info.MemberValue}
 	default:
 		return nil

@@ -64,25 +64,7 @@ properties:
       - ContainerOrchestratorInfoConfidenceHigh
       - ContainerOrchestratorInfoConfidenceMedium
       - ContainerOrchestratorInfoConfidenceLow
-  project:
-    type: string
-    nullable: true
-  service:
-    type: string
-    nullable: true
-  stack:
-    type: string
-    nullable: true
-  namespace:
-    type: string
-    nullable: true
-  pod:
-    type: string
-    nullable: true
   container:
-    type: string
-    nullable: true
-  task:
     type: string
     nullable: true
   working_dir:

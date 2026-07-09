@@ -502,8 +502,6 @@ describe('container list page', () => {
         type: 'compose',
         managed: true,
         confidence: 'high',
-        project: 'graft',
-        service: 'web',
         group_scope_kind: 'compose_project',
         group_value: 'graft',
         group_display_name: 'graft',
@@ -1932,16 +1930,12 @@ function createContainerRows(count: number, startOrdinal = 1) {
               memory_percent: 50,
               memory_usage_bytes: 134217728,
             },
-      compose_project: ordinal === 1 ? 'graft' : undefined,
-      compose_service: ordinal === 1 ? 'web' : undefined,
       orchestrator:
         ordinal === 1
           ? {
               type: 'compose' as const,
               managed: true,
               confidence: 'high' as const,
-              project: 'graft',
-              service: 'web',
               group_scope_kind: 'compose_project' as const,
               group_value: 'graft',
               group_display_name: 'graft',

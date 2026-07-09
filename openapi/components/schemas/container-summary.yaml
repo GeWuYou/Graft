@@ -94,14 +94,6 @@ properties:
     description: Nullable when the runtime list path does not expose restart count without inspect.
   restart_policy:
     type: string
-  compose_project:
-    type: string
-    nullable: true
-    description: Docker Compose project label when present.
-  compose_service:
-    type: string
-    nullable: true
-    description: Docker Compose service label when present.
   orchestrator:
     $ref: ./container-orchestrator-info.yaml
   can_start:

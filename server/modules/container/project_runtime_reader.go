@@ -878,11 +878,19 @@ func updateLatestProjectResourceCollectedAt(raw string, latest *time.Time) {
 }
 
 func composeProjectName(item Summary) string {
-	return firstNonEmpty(strings.TrimSpace(item.Orchestrator.Project), strings.TrimSpace(item.ComposeProject))
+	info := normalizedOrchestratorInfo(item.Orchestrator)
+	if info.GroupScopeKind == composeProjectScopeKind {
+		return firstNonEmpty(info.GroupValue, info.Project, strings.TrimSpace(item.ComposeProject))
+	}
+	return firstNonEmpty(info.Project, strings.TrimSpace(item.ComposeProject))
 }
 
 func composeServiceName(item Summary) string {
-	return firstNonEmpty(strings.TrimSpace(item.Orchestrator.Service), strings.TrimSpace(item.ComposeService))
+	info := normalizedOrchestratorInfo(item.Orchestrator)
+	if info.MemberScopeKind == composeServiceScopeKind {
+		return firstNonEmpty(info.MemberValue, info.Service, strings.TrimSpace(item.ComposeService))
+	}
+	return firstNonEmpty(info.Service, strings.TrimSpace(item.ComposeService))
 }
 
 func runtimeCandidateGroupKey(hostScope string, item Summary) string {

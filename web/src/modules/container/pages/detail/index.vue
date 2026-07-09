@@ -3877,11 +3877,10 @@ function orchestratorSummary(detailRecord?: SafeContainerDetail | null) {
   }
 
   return (
-    orchestrator.service ||
-    orchestrator.project ||
-    orchestrator.stack ||
-    orchestrator.namespace ||
-    orchestrator.pod ||
+    orchestrator.member_display_name ||
+    orchestrator.member_value ||
+    orchestrator.group_display_name ||
+    orchestrator.group_value ||
     orchestrator.display_name ||
     t('container.detail.source.summaryUnknown')
   );
