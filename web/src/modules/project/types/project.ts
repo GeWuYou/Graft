@@ -115,21 +115,6 @@ export type ProjectConfigurationFileResponse = {
   read_only?: boolean;
 };
 
-export type ProjectConfigurationValidateRequest = {
-  compose_file_content?: string;
-  env_file_content?: string;
-};
-
-export type ProjectConfigurationValidateResponse = {
-  canonical_project_name: string;
-  declared_service_names: string[];
-  normalized_compose_yaml: string;
-  ownership_mode: ProjectOwnershipMode | string;
-  project_id: number;
-  proposed_config_hash: string;
-  warnings: string[];
-};
-
 export type ProjectDeployRequest = {
   compose_file_content?: string;
   env_file_content?: string;

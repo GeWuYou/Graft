@@ -230,13 +230,19 @@
                     <t-button
                       theme="default"
                       variant="outline"
-                      :loading="Boolean(activeBuffer?.saving) || diffLoading"
+                      :loading="Boolean(activeBuffer?.saving)"
                       :disabled="!canSaveActiveBuffer"
                       @click="saveActiveFile"
                     >
                       {{ workspaceCopy.saveAction }}
                     </t-button>
-                    <t-button theme="default" variant="outline" :loading="validateLoading" @click="runProjectValidate">
+                    <t-button
+                      theme="default"
+                      variant="outline"
+                      :loading="syntaxCheckLoading"
+                      :disabled="!activeBuffer"
+                      @click="runCurrentFileValidation"
+                    >
                       {{ workspaceCopy.validateAction }}
                     </t-button>
                     <t-button theme="primary" :loading="deployLoading" @click="runProjectDeploy">
@@ -347,6 +353,7 @@
                     >
                       <project-monaco-surface
                         v-if="!activeBuffer.error"
+                        ref="activeEditorRef"
                         v-model="activeBuffer.content"
                         class="project-configuration-workspace__monaco-editor"
                         :editor-aria-label="workspaceCopy.editorAriaLabel"
@@ -388,17 +395,33 @@
       <div class="project-configuration-workspace__result-dialog">
         <div class="project-configuration-workspace__result-dialog-header">
           <div class="project-configuration-workspace__section-head">
-            <div>
-              <h2>
-                {{
-                  resultDialogMode === 'diff'
-                    ? t('project.detail.configuration.diffTitle')
-                    : t('project.detail.configuration.validationTitle')
-                }}
-              </h2>
-              <p v-if="resultDialogMode === 'diff'">{{ workspaceCopy.diffConfirmBody }}</p>
+            <div class="project-configuration-workspace__result-dialog-title-block">
+              <h2>{{ resultDialogTitle }}</h2>
+              <p v-if="resultDialogDescription">{{ resultDialogDescription }}</p>
             </div>
-            <t-space size="small">
+            <t-space size="small" class="project-configuration-workspace__result-dialog-actions">
+              <t-button
+                theme="default"
+                variant="outline"
+                size="small"
+                :disabled="!canNavigateResultIssues"
+                data-testid="configuration-result-prev"
+                @click="navigateResultIssue('previous')"
+              >
+                <template #icon><arrow-up-icon /></template>
+                {{ workspaceCopy.validatePreviousAction }}
+              </t-button>
+              <t-button
+                theme="default"
+                variant="outline"
+                size="small"
+                :disabled="!canNavigateResultIssues"
+                data-testid="configuration-result-next"
+                @click="navigateResultIssue('next')"
+              >
+                <template #icon><arrow-down-icon /></template>
+                {{ workspaceCopy.validateNextAction }}
+              </t-button>
               <t-button
                 theme="default"
                 variant="outline"
@@ -513,33 +536,18 @@
           </div>
         </div>
 
-        <div v-else-if="validateResult" class="project-configuration-workspace__feedback-panel">
-          <t-space size="small" break-line>
-            <t-tooltip :content="validateResult.proposed_config_hash" placement="top-left" theme="light">
-              <t-tag theme="primary" variant="light-outline">
-                {{ t('project.detail.configuration.proposedHash') }}:
-                {{ formatWorkspaceHash(validateResult.proposed_config_hash) }}
-              </t-tag>
-            </t-tooltip>
-            <t-tag theme="default" variant="light-outline">
-              {{ t('project.detail.configuration.declaredServices') }}:
-              {{ validateResult.declared_service_names.join(', ') || '-' }}
-            </t-tag>
-          </t-space>
-          <div v-if="validateResult.warnings?.length" class="project-configuration-workspace__warning-list">
-            <t-alert v-for="warning in validateResult.warnings" :key="warning" theme="warning" :message="warning" />
-          </div>
+        <div v-else-if="syntaxValidationResult" class="project-configuration-workspace__feedback-panel">
           <div class="project-configuration-workspace__result-viewer">
             <project-monaco-surface
-              ref="validationViewerRef"
+              ref="syntaxViewerRef"
               class="project-configuration-workspace__monaco-viewer"
-              :model-value="validateResult.normalized_compose_yaml"
-              :editor-aria-label="workspaceCopy.editorAriaLabel"
-              language="yaml"
-              model-key="validation-normalized-yaml"
+              :model-value="syntaxValidationResult.content"
+              :editor-aria-label="workspaceCopy.syntaxViewerAriaLabel"
+              :language="syntaxValidationResult.language"
+              :model-key="syntaxValidationResult.modelKey"
               :options="readonlyOptions"
               read-only
-              test-id="validation-monaco-viewer"
+              test-id="syntax-monaco-viewer"
             />
           </div>
         </div>
@@ -609,6 +617,8 @@
 </template>
 <script setup lang="ts">
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   BrowseIcon,
   BrowseOffIcon,
   CommandIcon,
@@ -632,7 +642,6 @@ import {
   getProjectConfiguration,
   getProjectFileContent,
   getProjectFiles,
-  postProjectConfigurationValidate,
   postProjectDeploy,
   putProjectFileAnnotation,
   putProjectFileContent,
@@ -656,7 +665,6 @@ import {
 import { useProjectPageContext } from '../../shared/page-context';
 import { formatProjectMonacoDebugMessage, isProjectMonacoDebugEnabled } from '../../shared/project-monaco-debug';
 import type {
-  ProjectConfigurationValidateResponse,
   ProjectDetailResponseWithLifecycle,
   ProjectWorkspaceFileContentResponse,
   ProjectWorkspaceFileKind,
@@ -668,9 +676,9 @@ defineOptions({
   name: 'ProjectConfigurationWorkspaceIndex',
 });
 
-type ResultDialogMode = 'diff' | 'validation';
+type ResultDialogMode = 'diff' | 'syntax';
 type DialogResult = 'cancel' | 'continue-disk' | 'discard' | 'save' | 'save-and-continue';
-type PendingWorkspaceAction = 'deploy' | 'save' | 'validate';
+type PendingWorkspaceAction = 'deploy' | 'save';
 type WorkspaceDialogButton = {
   label: string;
   result: DialogResult;
@@ -706,8 +714,37 @@ type WorkspacePreviewDiffResult = {
   has_changes: boolean;
   warnings: string[];
 };
+type WorkspaceSyntaxMarker = {
+  endColumn: number;
+  endLineNumber: number;
+  message: string;
+  severity: number;
+  startColumn: number;
+  startLineNumber: number;
+};
+type WorkspaceDiffLineChange = {
+  modifiedEndLineNumber: number;
+  modifiedStartLineNumber: number;
+  originalEndLineNumber: number;
+  originalStartLineNumber: number;
+};
+type WorkspaceSyntaxValidationResult = {
+  content: string;
+  fileName: string;
+  language: ProjectWorkspaceMonacoLanguage;
+  markerCount: number;
+  modelKey: string;
+  path: string;
+};
 type MonacoViewerHandle = {
+  getLineChanges?: () => WorkspaceDiffLineChange[];
+  getMarkers?: () => WorkspaceSyntaxMarker[];
+  navigateDiff?: (direction: 'next' | 'previous') => boolean;
   relayout: () => Promise<void>;
+  revealFirstDiff?: () => boolean;
+  revealLineChange?: (change: WorkspaceDiffLineChange | null | undefined) => boolean;
+  revealMarker?: (marker: WorkspaceSyntaxMarker | null | undefined) => boolean;
+  waitForDiagnostics?: (options?: { quietMs?: number; timeoutMs?: number }) => Promise<WorkspaceSyntaxMarker[]>;
 };
 type WorkspaceOpenFile = {
   content: string;
@@ -731,6 +768,7 @@ const SIDEBAR_MAX_WIDTH = 360;
 const SIDEBAR_MIN_WIDTH = 208;
 const SIDEBAR_DEFAULT_WIDTH = 256;
 const SIDEBAR_COLLAPSE_BREAKPOINT = 1024;
+const MONACO_MARKER_ERROR_SEVERITY = 8;
 
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
@@ -758,16 +796,19 @@ const resultDialogVisible = ref(false);
 const resultDialogMode = ref<ResultDialogMode>('diff');
 const resultDialogFullscreen = ref(false);
 const diffViewerReady = ref(false);
+const activeEditorRef = ref<MonacoViewerHandle | null>(null);
 const diffViewerRef = ref<MonacoViewerHandle | null>(null);
-const validationViewerRef = ref<MonacoViewerHandle | null>(null);
+const syntaxViewerRef = ref<MonacoViewerHandle | null>(null);
 const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<WorkspacePreviewDiffResult | null>(null);
-const validateResult = ref<ProjectConfigurationValidateResponse | null>(null);
-const diffLoading = ref(false);
-const validateLoading = ref(false);
+const syntaxValidationResult = ref<WorkspaceSyntaxValidationResult | null>(null);
+const syntaxCheckLoading = ref(false);
 const deployLoading = ref(false);
 const saveConfirmLoading = ref(false);
 const selectedDiffFilePath = ref('');
+const resultIssueIndex = ref(0);
+const diffLineChanges = ref<WorkspaceDiffLineChange[]>([]);
+const syntaxMarkers = ref<WorkspaceSyntaxMarker[]>([]);
 const pendingWorkspaceAction = ref<PendingWorkspaceAction | null>(null);
 const openTabs = ref<string[]>([]);
 const activeTabPath = ref('');
@@ -861,6 +902,21 @@ const selectedDiffFile = computed(
 );
 const diffFiles = computed(() => diffResult.value?.files ?? []);
 const diffTreeRows = computed(() => buildDiffTreeRows(diffFiles.value));
+const currentResultIssues = computed(() => syntaxMarkers.value);
+const canNavigateResultIssues = computed(() =>
+  resultDialogMode.value === 'diff' ? Boolean(selectedDiffFile.value) : currentResultIssues.value.length > 0,
+);
+const resultDialogTitle = computed(() =>
+  resultDialogMode.value === 'diff'
+    ? t('project.detail.configuration.diffTitle')
+    : workspaceCopy.value.fileValidationTitle,
+);
+const resultDialogDescription = computed(() => {
+  if (resultDialogMode.value === 'diff') {
+    return workspaceCopy.value.diffConfirmBody;
+  }
+  return '';
+});
 const resultDialogClassName = computed(() =>
   resultDialogFullscreen.value
     ? 'project-configuration-workspace__result-dialog-shell project-configuration-workspace__result-dialog-shell--fullscreen'
@@ -952,6 +1008,10 @@ watch(resultDialogVisible, (visible) => {
   } else {
     diffViewerReady.value = false;
     resultDialogFullscreen.value = false;
+    resultIssueIndex.value = 0;
+    diffLineChanges.value = [];
+    syntaxMarkers.value = [];
+    syntaxValidationResult.value = null;
     if (resultDialogMode.value === 'diff') {
       pendingWorkspaceAction.value = null;
       saveConfirmLoading.value = false;
@@ -984,6 +1044,18 @@ watch(
   },
   { deep: true },
 );
+
+watch(selectedDiffFilePath, () => {
+  if (resultDialogVisible.value && resultDialogMode.value === 'diff') {
+    void refreshDiffLineChanges();
+  }
+});
+
+watch(activeTabPath, () => {
+  if (resultDialogMode.value === 'syntax' && resultDialogVisible.value) {
+    resultDialogVisible.value = false;
+  }
+});
 
 async function loadWorkspace() {
   if (!Number.isFinite(projectId.value)) {
@@ -1625,26 +1697,57 @@ function handleFileTabMenuClick(visible: boolean, ctx: PopupVisibleChangeContext
   }
 }
 
-async function runProjectValidate() {
-  if (hasDirtyFiles.value) {
-    await previewBeforeSave('validate');
+function supportsExplicitSyntaxValidation(language: ProjectWorkspaceMonacoLanguage) {
+  return language === 'json' || language === 'yaml';
+}
+
+async function runCurrentFileValidation() {
+  const current = activeBuffer.value;
+  if (!current) {
+    MessagePlugin.warning(workspaceCopy.value.validateNoFile);
     return;
   }
 
-  await executeProjectValidate();
-}
+  if (!supportsExplicitSyntaxValidation(current.language)) {
+    MessagePlugin.info(workspaceCopy.value.fileValidationUnavailable);
+    return;
+  }
 
-async function executeProjectValidate() {
-  validateLoading.value = true;
+  syntaxCheckLoading.value = true;
+
   try {
-    validateResult.value = await postProjectConfigurationValidate(projectId.value);
-    resultDialogMode.value = 'validation';
+    const markers = await activeEditorRef.value?.waitForDiagnostics?.();
+    const errors = (markers ?? [])
+      .filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY)
+      .sort((left, right) => {
+        if (left.startLineNumber !== right.startLineNumber) {
+          return left.startLineNumber - right.startLineNumber;
+        }
+        return left.startColumn - right.startColumn;
+      });
+
+    if (!errors.length) {
+      MessagePlugin.success(workspaceCopy.value.fileValidationPassed);
+      return;
+    }
+
+    syntaxValidationResult.value = {
+      content: current.content,
+      fileName: current.name,
+      language: current.language,
+      markerCount: errors.length,
+      modelKey: `syntax-${current.path}`,
+      path: current.path,
+    };
+    syntaxMarkers.value = errors;
+    resultIssueIndex.value = 0;
+    resultDialogMode.value = 'syntax';
     resultDialogVisible.value = true;
-    MessagePlugin.success(t('project.detail.configuration.validateSuccess'));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.validateFailed')));
+    await queueResultViewerLayout();
+    revealCurrentResultIssue();
+    MessagePlugin.error(workspaceCopy.value.fileValidationFailed);
   } finally {
-    validateLoading.value = false;
+    syntaxCheckLoading.value = false;
   }
 }
 
@@ -1680,22 +1783,23 @@ async function handleResultDialogOpened() {
       fileCount: diffFiles.value.length,
       selectedPath: selectedDiffFile.value?.path ?? '',
     });
+    await refreshDiffLineChanges();
   }
 
-  queueResultViewerLayout();
+  await queueResultViewerLayout();
+  revealCurrentResultIssue();
 }
 
-function queueResultViewerLayout() {
-  void nextTick(async () => {
-    const layoutTasks: Array<Promise<void>> = [];
-    if (diffViewerRef.value && typeof diffViewerRef.value.relayout === 'function') {
-      layoutTasks.push(diffViewerRef.value.relayout());
-    }
-    if (validationViewerRef.value && typeof validationViewerRef.value.relayout === 'function') {
-      layoutTasks.push(validationViewerRef.value.relayout());
-    }
-    await Promise.allSettled(layoutTasks);
-  });
+async function queueResultViewerLayout() {
+  await nextTick();
+  const layoutTasks: Array<Promise<void>> = [];
+  if (diffViewerRef.value && typeof diffViewerRef.value.relayout === 'function') {
+    layoutTasks.push(diffViewerRef.value.relayout());
+  }
+  if (syntaxViewerRef.value && typeof syntaxViewerRef.value.relayout === 'function') {
+    layoutTasks.push(syntaxViewerRef.value.relayout());
+  }
+  await Promise.allSettled(layoutTasks);
 }
 
 function logWorkspaceDiffDebug(event: string, detail: Record<string, unknown>) {
@@ -1722,7 +1826,6 @@ async function executeProjectDeploy() {
     MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
     diffResult.value = null;
     resultDialogVisible.value = false;
-    validateResult.value = null;
     await loadWorkspaceDirectory('', { root: true });
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
@@ -1766,9 +1869,7 @@ async function previewBeforeSave(action: PendingWorkspaceAction) {
     if (!saved) {
       return false;
     }
-    if (action === 'validate') {
-      await executeProjectValidate();
-    } else if (action === 'deploy') {
+    if (action === 'deploy') {
       await executeProjectDeploy();
     }
     return true;
@@ -1788,7 +1889,7 @@ async function previewBeforeSave(action: PendingWorkspaceAction) {
     proposedHash: files[0]?.proposed_hash ?? '',
     proposedLength: files[0]?.proposed_content.length ?? 0,
   });
-  validateResult.value = null;
+  syntaxValidationResult.value = null;
   pendingWorkspaceAction.value = action;
   resultDialogMode.value = 'diff';
   resultDialogVisible.value = true;
@@ -1817,14 +1918,46 @@ async function confirmDiffPreview() {
     selectedDiffFilePath.value = '';
     pendingWorkspaceAction.value = null;
 
-    if (action === 'validate') {
-      await executeProjectValidate();
-    } else if (action === 'deploy') {
+    if (action === 'deploy') {
       await executeProjectDeploy();
     }
   } finally {
     saveConfirmLoading.value = false;
   }
+}
+
+async function refreshDiffLineChanges() {
+  await queueResultViewerLayout();
+  diffLineChanges.value = diffViewerRef.value?.getLineChanges?.() ?? [];
+  resultIssueIndex.value = 0;
+  diffViewerRef.value?.revealFirstDiff?.();
+}
+
+function revealCurrentResultIssue() {
+  if (resultDialogMode.value === 'diff') {
+    diffViewerRef.value?.revealFirstDiff?.();
+    return;
+  }
+
+  syntaxViewerRef.value?.revealMarker?.(syntaxMarkers.value[resultIssueIndex.value]);
+}
+
+function navigateResultIssue(direction: 'next' | 'previous') {
+  if (resultDialogMode.value === 'diff') {
+    diffViewerRef.value?.navigateDiff?.(direction);
+    return;
+  }
+
+  const issueCount = currentResultIssues.value.length;
+  if (!issueCount) {
+    return;
+  }
+  if (direction === 'next') {
+    resultIssueIndex.value = (resultIssueIndex.value + 1) % issueCount;
+  } else {
+    resultIssueIndex.value = (resultIssueIndex.value - 1 + issueCount) % issueCount;
+  }
+  revealCurrentResultIssue();
 }
 
 function resolveDiffFileLanguage(kind: string | undefined, path: string) {
@@ -2142,6 +2275,23 @@ function stopSidebarResize() {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: var(--graft-density-gap-4) 0 0;
+}
+
+.project-configuration-workspace__result-dialog-title-block {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-2);
+  min-width: 0;
+}
+
+.project-configuration-workspace__result-dialog-title-block p {
+  margin-top: 0 !important;
+}
+
+.project-configuration-workspace__result-dialog-actions {
+  align-self: flex-end;
+  padding-top: var(--graft-density-gap-6);
 }
 
 .project-configuration-workspace__main-grid {
@@ -2680,7 +2830,7 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__result-dialog-header {
   border-bottom: 1px solid var(--graft-workspace-editor-border);
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12) var(--graft-density-gap-8);
+  padding: var(--graft-density-gap-6) var(--graft-density-gap-12) var(--graft-density-gap-10);
 }
 
 .project-configuration-workspace__result-dialog > .project-configuration-workspace__feedback-panel {

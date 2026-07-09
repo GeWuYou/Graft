@@ -45,6 +45,8 @@ let syncingFromProps = false;
 let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
 const modelCache = new Map<string, Monaco.editor.ITextModel>();
 
+type ProjectMonacoMarker = Monaco.editor.IMarker;
+
 const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
@@ -237,6 +239,89 @@ async function relayout(reason = 'manual') {
   await relayoutBridge?.relayout(reason);
 }
 
+function getSortedMarkers() {
+  if (!monaco || !model) {
+    return [] as ProjectMonacoMarker[];
+  }
+
+  return monaco.editor
+    .getModelMarkers({
+      resource: model.uri,
+    })
+    .slice()
+    .sort((left, right) => {
+      if (left.startLineNumber !== right.startLineNumber) {
+        return left.startLineNumber - right.startLineNumber;
+      }
+      if (left.startColumn !== right.startColumn) {
+        return left.startColumn - right.startColumn;
+      }
+      return right.severity - left.severity;
+    });
+}
+
+async function waitForDiagnostics(options?: { quietMs?: number; timeoutMs?: number }) {
+  if (!monaco || !model) {
+    return [] as ProjectMonacoMarker[];
+  }
+
+  const monacoInstance = monaco;
+  const quietMs = Math.max(0, options?.quietMs ?? 120);
+  const timeoutMs = Math.max(quietMs, options?.timeoutMs ?? 900);
+
+  return await new Promise<ProjectMonacoMarker[]>((resolve) => {
+    let settled = false;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const finalize = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+      }
+      markerListener.dispose();
+      clearTimeout(timeoutTimer);
+      resolve(getSortedMarkers());
+    };
+
+    const scheduleIdleFinalize = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+      }
+      idleTimer = setTimeout(finalize, quietMs);
+    };
+
+    const markerListener = monacoInstance.editor.onDidChangeMarkers((resources) => {
+      const currentModel = model;
+      if (!currentModel) {
+        finalize();
+        return;
+      }
+      if (resources.some((resource) => resource.toString() === currentModel.uri.toString())) {
+        scheduleIdleFinalize();
+      }
+    });
+
+    const timeoutTimer = setTimeout(finalize, timeoutMs);
+    scheduleIdleFinalize();
+  });
+}
+
+function revealMarker(marker: ProjectMonacoMarker | null | undefined) {
+  if (!editor || !marker) {
+    return false;
+  }
+
+  const lineNumber = Math.max(1, marker.startLineNumber || marker.endLineNumber || 1);
+  const column = Math.max(1, marker.startColumn || marker.endColumn || 1);
+  editor.setPosition({ column, lineNumber });
+  editor.revealLineInCenter(lineNumber);
+  editor.focus();
+  return true;
+}
+
 function disposeSurfaceModel(targetModel: Monaco.editor.ITextModel | null, reason: string) {
   projectMonacoDebug.disposeProjectMonacoModelDeferred(targetModel, reason, {
     onCancellation: (detail) => {
@@ -260,7 +345,10 @@ function logSurfaceDebug(event: string, detail: Record<string, unknown>) {
 }
 
 defineExpose({
+  getMarkers: getSortedMarkers,
   relayout,
+  revealMarker,
+  waitForDiagnostics,
 });
 </script>
 <style scoped lang="less">

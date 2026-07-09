@@ -41,8 +41,14 @@ const workspaceCopyMessages = {
     'project.configurationWorkspace.copy.diffEmptyDirectSaveHint':
       'No file diff was detected. Draft files will be saved directly.',
     'project.configurationWorkspace.copy.diffTreeTitle': 'Changed Files',
+    'project.configurationWorkspace.copy.fileValidationFailed': 'Syntax errors were found in the active file.',
+    'project.configurationWorkspace.copy.fileValidationPassed': 'No syntax errors were found in the active file.',
+    'project.configurationWorkspace.copy.fileValidationUnavailable':
+      'Explicit syntax validation is not available for this file type.',
     'project.configurationWorkspace.copy.saveAction': 'Save',
     'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
+    'project.configurationWorkspace.copy.validateAction': 'Validate',
+    'project.configurationWorkspace.copy.validateNoFile': 'Open a supported file before running validation.',
   },
   'zh-CN': {
     'project.configurationWorkspace.copy.annotationAction': '编辑注释',
@@ -53,8 +59,13 @@ const workspaceCopyMessages = {
       '请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。',
     'project.configurationWorkspace.copy.diffEmptyDirectSaveHint': '未检测到文件差异，将直接保存草稿文件。',
     'project.configurationWorkspace.copy.diffTreeTitle': '变更文件',
+    'project.configurationWorkspace.copy.fileValidationFailed': '当前文件存在语法错误。',
+    'project.configurationWorkspace.copy.fileValidationPassed': '当前文件未检测到语法错误。',
+    'project.configurationWorkspace.copy.fileValidationUnavailable': '当前文件类型暂不支持显式语法校验。',
     'project.configurationWorkspace.copy.saveAction': '保存',
     'project.configurationWorkspace.copy.saveThenContinueAction': '保存',
+    'project.configurationWorkspace.copy.validateAction': '校验',
+    'project.configurationWorkspace.copy.validateNoFile': '请先打开一个可校验的文件。',
   },
 } as const;
 
@@ -165,8 +176,25 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
     },
     emits: ['update:modelValue'],
     setup(props, { emit, expose }) {
+      const getMarkers = () =>
+        String(props.modelValue).includes('[broken')
+          ? [
+              {
+                endColumn: 15,
+                endLineNumber: 3,
+                message: 'invalid yaml',
+                severity: 8,
+                startColumn: 12,
+                startLineNumber: 3,
+              },
+            ]
+          : [];
+
       expose({
+        getMarkers,
         relayout: () => Promise.resolve(),
+        revealMarker: vi.fn(() => true),
+        waitForDiagnostics: () => Promise.resolve(getMarkers()),
       });
 
       return () =>
@@ -190,7 +218,21 @@ vi.mock('../../components/ProjectMonacoDiffSurface.vue', () => ({
     },
     setup(props, { expose }) {
       expose({
+        getLineChanges: () =>
+          props.originalValue === props.modifiedValue
+            ? []
+            : [
+                {
+                  modifiedEndLineNumber: 3,
+                  modifiedStartLineNumber: 3,
+                  originalEndLineNumber: 3,
+                  originalStartLineNumber: 3,
+                },
+              ],
+        navigateDiff: vi.fn(() => true),
         relayout: () => Promise.resolve(),
+        revealFirstDiff: vi.fn(() => true),
+        revealLineChange: vi.fn(() => true),
       });
 
       return () =>
@@ -954,31 +996,37 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(restoredDialog?.attributes('data-mode')).toBe('modal');
   });
 
-  it('opens validation only after preview confirm saves dirty drafts', async () => {
+  it('validates the active file syntax without saving dirty drafts first', async () => {
     pageContextState.locale = 'zh-CN';
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
     await wrapper
       .findAll('button')
-      .find((button) => button.text().trim() === 'project.configurationWorkspace.copy.validateAction')
+      .find((button) => button.text().trim() === '校验')
       ?.trigger('click');
     await flushPromises();
 
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
-    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。');
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
+    expect(mocks.error).toHaveBeenCalledWith('当前文件存在语法错误。');
+  });
 
-    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+  it('does not open a result dialog when the active file has no syntax errors', async () => {
+    pageContextState.locale = 'en-US';
+    const wrapper = mountWorkspace();
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      1,
-      { path: 'docker-compose.yml' },
-      { content: 'services:\n  api:\n    image: newer\n' },
-    );
-    expect(wrapper.find('[data-testid="validation-monaco-viewer"]').exists()).toBe(true);
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Validate')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(false);
+    expect(mocks.success).toHaveBeenCalledWith('No syntax errors were found in the active file.');
   });
 
   it('keeps the diff file list in workspace tree form instead of compare cards', async () => {

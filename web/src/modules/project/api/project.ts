@@ -3,7 +3,6 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
-  buildProjectConfigurationValidateApiPath,
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
@@ -26,7 +25,6 @@ import type {
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
   ProjectConfigurationMetadataResponse,
-  ProjectConfigurationValidateResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
@@ -91,13 +89,6 @@ type GetProjectConfigurationEnvelope =
   GetProjectConfigurationOperation['responses'][200]['content']['application/json'];
 type GetProjectConfigurationData = NonNullable<GetProjectConfigurationEnvelope['data']>;
 type GetProjectConfigurationPathParams = GetProjectConfigurationOperation['parameters']['path'];
-
-type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
-type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidatePath]['post'];
-type ProjectConfigurationValidateEnvelope =
-  ProjectConfigurationValidateOperation['responses'][200]['content']['application/json'];
-type ProjectConfigurationValidateData = NonNullable<ProjectConfigurationValidateEnvelope['data']>;
-type ProjectConfigurationValidatePathParams = ProjectConfigurationValidateOperation['parameters']['path'];
 
 type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
 type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
@@ -280,18 +271,6 @@ export function putProjectFileAnnotation(
     params: query,
     data: payload,
   }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
-}
-
-/**
- * 校验指定项目的配置。
- *
- * @param id - 项目 ID
- * @returns 配置校验结果
- */
-export function postProjectConfigurationValidate(id: ProjectConfigurationValidatePathParams['id']) {
-  return postProjectAction<ProjectConfigurationValidateData>(
-    buildProjectConfigurationValidateApiPath(id),
-  ) as Promise<ProjectConfigurationValidateResponse>;
 }
 
 /**

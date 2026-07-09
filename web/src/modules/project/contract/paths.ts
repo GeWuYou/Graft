@@ -96,16 +96,6 @@ export function buildProjectConfigurationApiPath(id: number) {
   return PROJECT_API_PATH.CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
 }
 
-/**
- * 构建项目配置校验接口路径。
- *
- * @param id - 项目 ID
- * @returns 替换了 `id` 占位符的配置校验接口路径
- */
-export function buildProjectConfigurationValidateApiPath(id: number) {
-  return PROJECT_API_PATH.CONFIGURATION_VALIDATE.replace('{id}', encodeProjectPathParam(id));
-}
-
 export function buildProjectFilesApiPath(id: number) {
   return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
 }

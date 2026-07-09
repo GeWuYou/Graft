@@ -35,6 +35,8 @@ let modifiedModel: Monaco.editor.ITextModel | null = null;
 let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
 const modelCache = new Map<string, Monaco.editor.ITextModel>();
 
+type ProjectMonacoLineChange = Monaco.editor.ILineChange;
+
 const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
   createEditor,
   disposeEditor() {
@@ -243,6 +245,50 @@ async function relayout(reason = 'manual') {
   await relayoutBridge?.relayout(reason);
 }
 
+function getLineChanges() {
+  return editor?.getLineChanges()?.slice() ?? ([] as ProjectMonacoLineChange[]);
+}
+
+function revealFirstDiff() {
+  if (!editor) {
+    return false;
+  }
+
+  editor.revealFirstDiff();
+  return true;
+}
+
+function navigateDiff(direction: 'next' | 'previous') {
+  if (!editor) {
+    return false;
+  }
+
+  editor.goToDiff(direction);
+  return true;
+}
+
+function revealLineChange(change: ProjectMonacoLineChange | null | undefined) {
+  if (!editor || !change) {
+    return false;
+  }
+
+  const modifiedLineNumber = Math.max(0, change.modifiedStartLineNumber || change.modifiedEndLineNumber || 0);
+  if (modifiedLineNumber > 0) {
+    const modifiedEditor = editor.getModifiedEditor();
+    modifiedEditor.setPosition({ column: 1, lineNumber: modifiedLineNumber });
+    modifiedEditor.revealLineInCenter(modifiedLineNumber);
+    modifiedEditor.focus();
+    return true;
+  }
+
+  const originalLineNumber = Math.max(1, change.originalStartLineNumber || change.originalEndLineNumber || 1);
+  const originalEditor = editor.getOriginalEditor();
+  originalEditor.setPosition({ column: 1, lineNumber: originalLineNumber });
+  originalEditor.revealLineInCenter(originalLineNumber);
+  originalEditor.focus();
+  return true;
+}
+
 function disposeDiffModel(targetModel: Monaco.editor.ITextModel | null, reason: string) {
   projectMonacoDebug.disposeProjectMonacoModelDeferred(targetModel, reason, {
     onCancellation: (detail) => {
@@ -266,7 +312,11 @@ function logDiffDebug(event: string, detail: Record<string, unknown>) {
 }
 
 defineExpose({
+  getLineChanges,
+  navigateDiff,
   relayout,
+  revealFirstDiff,
+  revealLineChange,
 });
 </script>
 <style scoped lang="less">

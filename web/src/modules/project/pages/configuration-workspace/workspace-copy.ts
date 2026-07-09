@@ -13,6 +13,11 @@ type WorkspaceCopy = {
   dirtyCloseTitle: string;
   dirtyProjectActionBody: string;
   dirtyProjectActionTitle: string;
+  fileValidationDescription: string;
+  fileValidationFailed: string;
+  fileValidationPassed: string;
+  fileValidationTitle: string;
+  fileValidationUnavailable: string;
   discardAction: string;
   editorAriaLabel: string;
   envRedeployHint: string;
@@ -46,6 +51,7 @@ type WorkspaceCopy = {
   selectDiffFile: string;
   selectFileToStart: string;
   showHiddenAction: string;
+  syntaxViewerAriaLabel: string;
   summaryDescription: string;
   summaryCurrentPathLabel: string;
   summaryOpenTabsLabel: string;
@@ -53,6 +59,9 @@ type WorkspaceCopy = {
   summaryWorkingDirectoryLabel: string;
   tabsEmpty: string;
   upAction: string;
+  validateNoFile: string;
+  validateNextAction: string;
+  validatePreviousAction: string;
   validateAction: string;
   workspaceRootLabel: string;
 };
@@ -75,6 +84,11 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   dirtyCloseTitle: 'project.configurationWorkspace.copy.dirtyCloseTitle',
   dirtyProjectActionBody: 'project.configurationWorkspace.copy.dirtyProjectActionBody',
   dirtyProjectActionTitle: 'project.configurationWorkspace.copy.dirtyProjectActionTitle',
+  fileValidationDescription: 'project.configurationWorkspace.copy.fileValidationDescription',
+  fileValidationFailed: 'project.configurationWorkspace.copy.fileValidationFailed',
+  fileValidationPassed: 'project.configurationWorkspace.copy.fileValidationPassed',
+  fileValidationTitle: 'project.configurationWorkspace.copy.fileValidationTitle',
+  fileValidationUnavailable: 'project.configurationWorkspace.copy.fileValidationUnavailable',
   discardAction: 'project.configurationWorkspace.copy.discardAction',
   editorAriaLabel: 'project.configurationWorkspace.copy.editorAriaLabel',
   envRedeployHint: 'project.configurationWorkspace.copy.envRedeployHint',
@@ -108,6 +122,7 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   selectDiffFile: 'project.configurationWorkspace.copy.selectDiffFile',
   selectFileToStart: 'project.configurationWorkspace.copy.selectFileToStart',
   showHiddenAction: 'project.configurationWorkspace.copy.showHiddenAction',
+  syntaxViewerAriaLabel: 'project.configurationWorkspace.copy.syntaxViewerAriaLabel',
   summaryDescription: 'project.configurationWorkspace.copy.summaryDescription',
   summaryCurrentPathLabel: 'project.configurationWorkspace.copy.summaryCurrentPathLabel',
   summaryOpenTabsLabel: 'project.configurationWorkspace.copy.summaryOpenTabsLabel',
@@ -115,6 +130,9 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   summaryWorkingDirectoryLabel: 'project.configurationWorkspace.copy.summaryWorkingDirectoryLabel',
   tabsEmpty: 'project.configurationWorkspace.copy.tabsEmpty',
   upAction: 'project.configurationWorkspace.copy.upAction',
+  validateNoFile: 'project.configurationWorkspace.copy.validateNoFile',
+  validateNextAction: 'project.configurationWorkspace.copy.validateNextAction',
+  validatePreviousAction: 'project.configurationWorkspace.copy.validatePreviousAction',
   validateAction: 'project.configurationWorkspace.copy.validateAction',
   workspaceRootLabel: 'project.configurationWorkspace.copy.workspaceRootLabel',
 };

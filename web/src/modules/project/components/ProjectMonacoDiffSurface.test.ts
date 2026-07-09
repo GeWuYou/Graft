@@ -19,6 +19,20 @@ function createMockState() {
     original: (typeof models)[number];
   } | null = null;
 
+  const originalEditor = {
+    focus: vi.fn(),
+    getContainerDomNode: vi.fn(() => ({ clientHeight: 0, clientWidth: 0 })),
+    revealLineInCenter: vi.fn(),
+    setPosition: vi.fn(),
+  };
+
+  const modifiedEditor = {
+    focus: vi.fn(),
+    getContainerDomNode: vi.fn(() => ({ clientHeight: 0, clientWidth: 0 })),
+    revealLineInCenter: vi.fn(),
+    setPosition: vi.fn(),
+  };
+
   const createModel = vi.fn((value: string, language: string, uri: string) => {
     let currentValue = value;
     const model = {
@@ -37,10 +51,26 @@ function createMockState() {
   const diffEditor = {
     dispose: vi.fn(),
     getContainerDomNode: vi.fn(),
+    getLineChanges: vi.fn(() =>
+      currentModel?.original.getValue() === currentModel?.modified.getValue()
+        ? []
+        : [
+            {
+              modifiedEndLineNumber: 3,
+              modifiedStartLineNumber: 3,
+              originalEndLineNumber: 3,
+              originalStartLineNumber: 3,
+            },
+          ],
+    ),
     getModel: vi.fn(() => currentModel),
+    getModifiedEditor: vi.fn(() => modifiedEditor),
+    getOriginalEditor: vi.fn(() => originalEditor),
+    goToDiff: vi.fn(),
     layout: vi.fn(() => {
       callOrder.push('layout');
     }),
+    revealFirstDiff: vi.fn(),
     setModel: vi.fn((model) => {
       callOrder.push(model ? 'setModel' : 'setModel:null');
       currentModel = model;
@@ -77,6 +107,8 @@ function createMockState() {
     disconnect,
     layoutReasons,
     models,
+    modifiedEditor,
+    originalEditor,
     triggerResize() {
       resizeCallback?.();
     },
@@ -91,10 +123,21 @@ function createMockState() {
       createModel.mockClear();
       diffEditor.dispose.mockClear();
       diffEditor.getContainerDomNode.mockClear();
+      diffEditor.getLineChanges.mockClear();
       diffEditor.getModel.mockClear();
+      diffEditor.getModifiedEditor.mockClear();
+      diffEditor.getOriginalEditor.mockClear();
+      diffEditor.goToDiff.mockClear();
       diffEditor.layout.mockClear();
+      diffEditor.revealFirstDiff.mockClear();
       diffEditor.setModel.mockClear();
       disconnect.mockClear();
+      modifiedEditor.focus.mockClear();
+      modifiedEditor.revealLineInCenter.mockClear();
+      modifiedEditor.setPosition.mockClear();
+      originalEditor.focus.mockClear();
+      originalEditor.revealLineInCenter.mockClear();
+      originalEditor.setPosition.mockClear();
     },
   };
 }
@@ -309,5 +352,36 @@ describe('ProjectMonacoDiffSurface', () => {
     await flushPromises();
 
     expect(mockState.createModel).toHaveBeenCalledTimes(4);
+  });
+
+  it('exposes diff change lookup and reveal helpers', async () => {
+    const wrapper = mount(ProjectMonacoDiffSurface, {
+      props: {
+        editorAriaLabel: 'Diff Viewer',
+        language: 'yaml',
+        modifiedKey: 'modified.yml',
+        modifiedValue: 'version: 2\n',
+        originalKey: 'original.yml',
+        originalValue: 'version: 1\n',
+      },
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      getLineChanges: () => Array<{ modifiedStartLineNumber: number }>;
+      revealLineChange: (change: { modifiedStartLineNumber: number }) => boolean;
+    };
+
+    expect(vm.getLineChanges()).toHaveLength(1);
+    expect(vm.revealLineChange({ modifiedStartLineNumber: 3 } as { modifiedStartLineNumber: number })).toBe(true);
+    expect(mockState.diffEditor.getModifiedEditor).toHaveBeenCalled();
+    expect(mockState.modifiedEditor.setPosition).toHaveBeenCalledWith({ column: 1, lineNumber: 3 });
+    expect((wrapper.vm as unknown as { revealFirstDiff: () => boolean }).revealFirstDiff()).toBe(true);
+    expect(mockState.diffEditor.revealFirstDiff).toHaveBeenCalled();
+    expect(
+      (wrapper.vm as unknown as { navigateDiff: (direction: 'next' | 'previous') => boolean }).navigateDiff('next'),
+    ).toBe(true);
+    expect(mockState.diffEditor.goToDiff).toHaveBeenCalledWith('next');
   });
 });

@@ -39,6 +39,7 @@ function createMockState() {
 
   const editor = {
     dispose: vi.fn(),
+    focus: vi.fn(),
     getContainerDomNode: vi.fn(),
     getValue: vi.fn(() => currentModel?.getValue() ?? ''),
     layout: vi.fn(() => {
@@ -47,6 +48,8 @@ function createMockState() {
     onDidChangeModelContent: vi.fn((handler: () => void) => {
       void handler;
     }),
+    revealLineInCenter: vi.fn(),
+    setPosition: vi.fn(),
     setModel: vi.fn((nextModel) => {
       currentModel = nextModel;
       callOrder.push('setModel');
@@ -75,6 +78,7 @@ function createMockState() {
     createModel,
     currentModel: () => currentModel,
     editor,
+    markerListenerDispose: vi.fn(),
     models,
     reset() {
       callOrder.length = 0;
@@ -88,8 +92,12 @@ function createMockState() {
       editor.getValue.mockClear();
       editor.layout.mockClear();
       editor.onDidChangeModelContent.mockClear();
+      editor.focus.mockClear();
+      editor.revealLineInCenter.mockClear();
+      editor.setPosition.mockClear();
       editor.setModel.mockClear();
       editor.updateOptions.mockClear();
+      this.markerListenerDispose.mockClear();
     },
   };
 }
@@ -158,7 +166,11 @@ vi.mock('../shared/project-monaco', async () => {
       editor: {
         create: getMockState().createEditor,
         createModel: getMockState().createModel,
+        getModelMarkers: vi.fn(() => []),
         getModels: () => getMockState().models,
+        onDidChangeMarkers: vi.fn(() => ({
+          dispose: getMockState().markerListenerDispose,
+        })),
       },
     }),
     getOrCreateProjectMonacoModel: (
@@ -276,5 +288,30 @@ describe('ProjectMonacoSurface', () => {
     await wrapper.unmount();
     expect(mockState.models[0]?.dispose).toHaveBeenCalledTimes(1);
     expect(mockState.models[1]?.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes marker lookup and marker reveal helpers', async () => {
+    const wrapper = mount(ProjectMonacoSurface, {
+      props: {
+        editorAriaLabel: 'Editor',
+        language: 'yaml',
+        modelKey: 'docker-compose.yml',
+        modelValue: 'services:\n  api:\n    image: demo\n',
+      },
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      getMarkers: () => Array<{ startLineNumber: number }>;
+      revealMarker: (marker: { startColumn: number; startLineNumber: number }) => boolean;
+      waitForDiagnostics: () => Promise<Array<{ startLineNumber: number }>>;
+    };
+
+    expect(vm.getMarkers()).toEqual([]);
+    expect(await vm.waitForDiagnostics()).toEqual([]);
+    expect(vm.revealMarker({ startColumn: 1, startLineNumber: 3 })).toBe(true);
+    expect(mockState.editor.setPosition).toHaveBeenCalledWith({ column: 1, lineNumber: 3 });
+    expect(mockState.editor.revealLineInCenter).toHaveBeenCalledWith(3);
   });
 });
