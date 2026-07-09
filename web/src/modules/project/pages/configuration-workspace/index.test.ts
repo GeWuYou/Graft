@@ -1400,6 +1400,36 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.putProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' }, { content: 'APP_ENV=prod\n' });
   });
 
+  it('requires explicit confirmation before saving the current unsupported file type', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.warning).toHaveBeenCalledWith(
+      'Files without supported syntax diagnostics are skipped silently during save. config/.env',
+    );
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('config/.env');
+    expect(wrapper.text()).toContain('Confirm Save');
+
+    await wrapper.get('[data-testid="workspace-dialog-save"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' }, { content: 'APP_ENV=prod\n' });
+  });
+
   it('waits for delayed editor rebinding before collecting batch diagnostics and restoring the active tab', async () => {
     mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
       if (query?.path === 'config') {

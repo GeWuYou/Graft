@@ -1871,11 +1871,13 @@ async function finalizePendingWorkspaceAction(action: PendingWorkspaceAction, pa
 }
 
 async function confirmSkippedSyntaxValidationPaths(action: PendingWorkspaceAction, skippedPaths: string[]) {
-  if (action === 'save-current' || !skippedPaths.length) {
+  if (!skippedPaths.length) {
     return true;
   }
 
   const skippedFileList = skippedPaths.join(', ');
+  const confirmLabel =
+    action === 'save-current' ? workspaceCopy.value.confirmSaveCurrentAction : workspaceCopy.value.confirmSaveAllAction;
   const dialogAction = await openDialog({
     body: `${workspaceCopy.value.validateSkipUnsupportedHint} ${skippedFileList}`,
     buttons: [
@@ -1886,7 +1888,7 @@ async function confirmSkippedSyntaxValidationPaths(action: PendingWorkspaceActio
         variant: 'outline',
       },
       {
-        label: workspaceCopy.value.confirmSaveAllAction,
+        label: confirmLabel,
         result: 'save',
         theme: 'primary',
         variant: 'base',
@@ -1900,7 +1902,7 @@ async function confirmSkippedSyntaxValidationPaths(action: PendingWorkspaceActio
 
 async function proceedAfterDiffConfirmation(action: PendingWorkspaceAction, paths: string[]) {
   const { skippedPaths } = resolveSyntaxValidationTargets(paths);
-  syntaxValidationSkippedPaths.value = action === 'save-current' ? [] : skippedPaths;
+  syntaxValidationSkippedPaths.value = skippedPaths;
   notifySkippedSyntaxValidationPaths(syntaxValidationSkippedPaths.value);
   const syntaxIssues = await collectSyntaxValidationIssues(paths);
   if (!syntaxIssues.length) {
