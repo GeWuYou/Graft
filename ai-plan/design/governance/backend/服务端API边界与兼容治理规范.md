@@ -226,6 +226,31 @@ CI 适合做：
 - 兼容期是否可结束
 - 是否存在第二套长期真值风险
 
+### 5.3A 兼容桥接放置规则
+
+服务端 API 兼容桥接必须放在最靠近 transport / response 的边界，默认规则如下：
+
+- 旧 request 字段、旧 query/path 参数兼容：
+  - 放在 OpenAPI + Request 绑定层
+  - 如需下传，先映射到 canonical DTO / use-case 输入
+  - 不把新旧字段同时沉到 Entity、repository 或持久化模型
+- 旧 response 字段、兼容 view shape：
+  - 放在 VO / Response 装配层或最终 transport adapter
+  - service / DTO 内部保持 canonical 语义
+  - 不把兼容字段扩散成新的内部模型真值
+- 旧 path / endpoint：
+  - 放在 OpenAPI、router、handler 边界
+  - service/use-case 继续只暴露 canonical 行为入口
+- 共享兼容 metadata：
+  - authority 仍留在 canonical OpenAPI source 或 module contract
+  - bridge 只是在边界临时转译，不生成第二套长期 DTO 目录或 compatibility model
+
+以下做法默认禁止：
+
+- 为单个 API rename / evolution 提前引入通用 compatibility adapter framework
+- 因一个 response 字段或 action key 清理就新增 task-store、UpgradeTask 或后台升级编排层
+- 把 transport 兼容桥接伪装成 repository upgrade、Entity versioning 或跨模块共享 persistence abstraction
+
 ### 5.4 Release-Time Config Compatibility Governance
 
 当变更的是稳定 runtime config key、默认值语义或 operator-facing 配置口径时，按 release governance 额外检查：
