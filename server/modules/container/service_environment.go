@@ -136,6 +136,17 @@ func normalizeOrchestratorActionLevel(value string) containercontract.Orchestrat
 func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
 	info.Managed = info.Type != containerOrchestratorStandalone
+	info = normalizeOrchestratorIdentityFields(info)
+	info = normalizeOrchestratorScopeKinds(info)
+	info = normalizeOrchestratorScopeValues(info)
+	info = normalizeOrchestratorConfidence(info)
+	if info.Warnings == nil {
+		info.Warnings = []string{}
+	}
+	return info
+}
+
+func normalizeOrchestratorIdentityFields(info OrchestratorInfo) OrchestratorInfo {
 	info.GroupScopeKind = normalizeContainerSourceScopeKind(info.GroupScopeKind)
 	info.MemberScopeKind = normalizeContainerSourceScopeKind(info.MemberScopeKind)
 	info.Project = strings.TrimSpace(info.Project)
@@ -144,6 +155,16 @@ func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Namespace = strings.TrimSpace(info.Namespace)
 	info.Pod = strings.TrimSpace(info.Pod)
 	info.Task = strings.TrimSpace(info.Task)
+	info.WorkingDir = strings.TrimSpace(info.WorkingDir)
+	info.ConfigFiles = normalizedStringSlice(info.ConfigFiles)
+	info.GroupValue = strings.TrimSpace(info.GroupValue)
+	info.MemberValue = strings.TrimSpace(info.MemberValue)
+	info.GroupDisplayName = strings.TrimSpace(info.GroupDisplayName)
+	info.MemberDisplayName = strings.TrimSpace(info.MemberDisplayName)
+	return info
+}
+
+func normalizeOrchestratorScopeKinds(info OrchestratorInfo) OrchestratorInfo {
 	if info.GroupScopeKind == "" {
 		switch {
 		case info.Project != "":
@@ -164,48 +185,62 @@ func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 			info.MemberScopeKind = kubernetesPodScopeKind
 		}
 	}
-	info.WorkingDir = strings.TrimSpace(info.WorkingDir)
-	info.ConfigFiles = normalizedStringSlice(info.ConfigFiles)
-	info.GroupValue = strings.TrimSpace(info.GroupValue)
-	info.MemberValue = strings.TrimSpace(info.MemberValue)
-	info.GroupDisplayName = strings.TrimSpace(info.GroupDisplayName)
-	info.MemberDisplayName = strings.TrimSpace(info.MemberDisplayName)
-	if info.GroupValue == "" {
-		switch info.GroupScopeKind {
-		case composeProjectScopeKind:
-			info.GroupValue = info.Project
-		case swarmStackScopeKind:
-			info.GroupValue = info.Stack
-		case kubernetesNamespaceScopeKind:
-			info.GroupValue = info.Namespace
-		}
-	}
-	if info.MemberValue == "" {
-		switch info.MemberScopeKind {
-		case composeServiceScopeKind:
-			info.MemberValue = info.Service
-		case swarmTaskScopeKind:
-			info.MemberValue = info.Task
-		case kubernetesPodScopeKind:
-			info.MemberValue = info.Pod
-		}
-	}
+	return info
+}
+
+func normalizeOrchestratorScopeValues(info OrchestratorInfo) OrchestratorInfo {
+	info.GroupValue = normalizedGroupScopeValue(info)
+	info.MemberValue = normalizedMemberScopeValue(info)
 	if info.GroupDisplayName == "" {
 		info.GroupDisplayName = info.GroupValue
 	}
 	if info.MemberDisplayName == "" {
 		info.MemberDisplayName = info.MemberValue
 	}
-	if strings.TrimSpace(info.Confidence) == "" {
-		if info.Managed {
-			info.Confidence = orchestratorConfidenceMedium
-		} else {
-			info.Confidence = orchestratorConfidenceHigh
-		}
+	return info
+}
+
+func normalizedGroupScopeValue(info OrchestratorInfo) string {
+	if info.GroupValue != "" {
+		return info.GroupValue
 	}
-	if info.Warnings == nil {
-		info.Warnings = []string{}
+	switch info.GroupScopeKind {
+	case composeProjectScopeKind:
+		return info.Project
+	case swarmStackScopeKind:
+		return info.Stack
+	case kubernetesNamespaceScopeKind:
+		return info.Namespace
+	default:
+		return ""
 	}
+}
+
+func normalizedMemberScopeValue(info OrchestratorInfo) string {
+	if info.MemberValue != "" {
+		return info.MemberValue
+	}
+	switch info.MemberScopeKind {
+	case composeServiceScopeKind:
+		return info.Service
+	case swarmTaskScopeKind:
+		return info.Task
+	case kubernetesPodScopeKind:
+		return info.Pod
+	default:
+		return ""
+	}
+}
+
+func normalizeOrchestratorConfidence(info OrchestratorInfo) OrchestratorInfo {
+	if strings.TrimSpace(info.Confidence) != "" {
+		return info
+	}
+	if info.Managed {
+		info.Confidence = orchestratorConfidenceMedium
+		return info
+	}
+	info.Confidence = orchestratorConfidenceHigh
 	return info
 }
 
@@ -507,7 +542,7 @@ func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) boo
 	if info.Type != "" && !sourceScopeKindCompatibleWithOrchestrator(info.Type, scopeKind) {
 		return false
 	}
-	for _, candidate := range sourceScopeCandidates(item, info, scopeKind) {
+	for _, candidate := range sourceScopeCandidates(info, scopeKind) {
 		if strings.EqualFold(candidate, scope) {
 			return true
 		}
@@ -515,8 +550,8 @@ func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) boo
 	return false
 }
 
-// SourceScopeCandidates returns candidate values from the container summary and orchestrator information for matching against the given scope kind.
-func sourceScopeCandidates(item Summary, info OrchestratorInfo, scopeKind string) []string {
+// SourceScopeCandidates returns candidate values from orchestrator information for matching against the given scope kind.
+func sourceScopeCandidates(info OrchestratorInfo, scopeKind string) []string {
 	switch scopeKind {
 	case composeProjectScopeKind, swarmStackScopeKind, kubernetesNamespaceScopeKind:
 		return []string{info.GroupValue}
