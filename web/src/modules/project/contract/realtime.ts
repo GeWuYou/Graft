@@ -3,7 +3,8 @@ import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/rea
 
 const PROJECT_REALTIME_TOPIC = {
   LIST_SUMMARY: 'project.list.summary',
-  DETAIL_PREFIX: 'project.detail:',
+  RUNTIME_PREFIX: 'project.runtime:',
+  LIFECYCLE_CONFIG_PREFIX: 'project.lifecycle-config:',
   LOGS_PREFIX: 'project.logs:',
 } as const;
 
@@ -11,8 +12,12 @@ export function getProjectListSummaryTopicName() {
   return PROJECT_REALTIME_TOPIC.LIST_SUMMARY;
 }
 
-export function buildProjectDetailTopicName(projectId: number) {
-  return `${PROJECT_REALTIME_TOPIC.DETAIL_PREFIX}${projectId}`;
+export function buildProjectRuntimeTopicName(projectId: number) {
+  return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${projectId}`;
+}
+
+export function buildProjectLifecycleConfigTopicName(projectId: number) {
+  return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${projectId}`;
 }
 
 export function buildProjectLogsTopicName(projectId: number) {
@@ -35,13 +40,20 @@ export type ProjectListSummaryRealtimeItem = {
   drift_status: ProjectDriftStatus;
 };
 
-export type ProjectDetailRealtimePayload = {
+export type ProjectRuntimeRealtimePayload = {
   topic: string;
   project_id: number;
   published_at: string;
   detail: ProjectDetailResponse;
   overview: ProjectOverviewResponse;
   services: ProjectServicesResponse;
+};
+
+export type ProjectLifecycleConfigRealtimePayload = {
+  topic: string;
+  project_id: number;
+  published_at: string;
+  detail: ProjectDetailResponse;
 };
 
 export type ProjectLogsRealtimePayload = {
@@ -79,7 +91,10 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
   return data as ProjectListSummaryRealtimePayload;
 }
 
-export function parseProjectDetailRealtimePayload(raw: unknown): ProjectDetailRealtimePayload | null {
+function parseProjectDetailEnvelopeData(
+  raw: unknown,
+  validator?: (data: Record<string, unknown>) => boolean,
+): Record<string, unknown> | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
     return null;
@@ -89,12 +104,24 @@ export function parseProjectDetailRealtimePayload(raw: unknown): ProjectDetailRe
     typeof data.project_id !== 'number' ||
     typeof data.published_at !== 'string' ||
     !isRealtimePayloadObject(data.detail) ||
-    !isRealtimePayloadObject(data.overview) ||
-    !isRealtimePayloadObject(data.services)
+    (validator && !validator(data))
   ) {
     return null;
   }
-  return data as ProjectDetailRealtimePayload;
+  return data;
+}
+
+export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntimeRealtimePayload | null {
+  const data = parseProjectDetailEnvelopeData(
+    raw,
+    (value) => isRealtimePayloadObject(value.overview) && isRealtimePayloadObject(value.services),
+  );
+  return data as ProjectRuntimeRealtimePayload | null;
+}
+
+export function parseProjectLifecycleConfigRealtimePayload(raw: unknown): ProjectLifecycleConfigRealtimePayload | null {
+  const data = parseProjectDetailEnvelopeData(raw);
+  return data as ProjectLifecycleConfigRealtimePayload | null;
 }
 
 export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealtimePayload | null {

@@ -414,23 +414,24 @@ type ManagedProjectCreateResult struct {
 
 // Service owns project registry, import, and readonly refresh/configuration use cases.
 type Service struct {
-	repository          projectstore.Repository
-	runtimeReader       moduleapi.ContainerProjectRuntimeReader
-	resourceReader      moduleapi.ContainerProjectResourceReader
-	logReader           moduleapi.ContainerProjectLogReader
-	configResolver      moduleapi.SystemConfigResolver
-	authorizer          moduleapi.Authorizer
-	realtimeTickets     realtimeauth.Service
-	realtimeHub         realtime.Hub
-	topicIssuers        realtime.TopicIssuerRegistry
-	streamersMu         sync.Mutex
-	listTopicStreamer   *projectListTopicStreamer
-	detailTopicStreamer *projectDetailTopicStreamer
-	logTopicStreamer    *projectLogTopicStreamer
-	inspectCache        *importInspectionCache
-	auditBus            eventbus.Bus
-	logger              *zap.Logger
-	moduleName          string
+	repository                   projectstore.Repository
+	runtimeReader                moduleapi.ContainerProjectRuntimeReader
+	resourceReader               moduleapi.ContainerProjectResourceReader
+	logReader                    moduleapi.ContainerProjectLogReader
+	configResolver               moduleapi.SystemConfigResolver
+	authorizer                   moduleapi.Authorizer
+	realtimeTickets              realtimeauth.Service
+	realtimeHub                  realtime.Hub
+	topicIssuers                 realtime.TopicIssuerRegistry
+	streamersMu                  sync.Mutex
+	listTopicStreamer            *projectListTopicStreamer
+	runtimeTopicStreamer         *projectRuntimeTopicStreamer
+	lifecycleConfigTopicStreamer *projectLifecycleConfigTopicStreamer
+	logTopicStreamer             *projectLogTopicStreamer
+	inspectCache                 *importInspectionCache
+	auditBus                     eventbus.Bus
+	logger                       *zap.Logger
+	moduleName                   string
 }
 
 // NewService 创建项目服务边界并应用可选配置。

@@ -209,7 +209,7 @@ func (h *countingTopicMonitorHub) RegisterTopicObserver(
 	onInactive func(string),
 ) (func(), error) {
 	switch topic {
-	case "projects.detail.1":
+	case "projects.runtime.1":
 		h.detailRegisters.Add(1)
 	case "projects.logs.1":
 		h.logRegisters.Add(1)
@@ -251,7 +251,7 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			if err := service.ensureProjectDetailTopicStreaming("projects.detail.1", 1); err != nil {
+			if err := service.ensureProjectRuntimeTopicStreaming("projects.runtime.1", 1); err != nil {
 				t.Errorf("ensure detail topic: %v", err)
 			}
 		}()
@@ -306,7 +306,7 @@ func TestProjectDetailTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 	t.Parallel()
 
 	hub := newBlockingTopicMonitorHub()
-	streamer, err := newProjectDetailTopicStreamer(hub, nil, &Service{})
+	streamer, err := newProjectRuntimeTopicStreamer(hub, nil, &Service{})
 	if err != nil {
 		t.Fatalf("new detail topic streamer: %v", err)
 	}

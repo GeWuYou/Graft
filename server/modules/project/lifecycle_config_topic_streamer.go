@@ -8,22 +8,21 @@ import (
 
 	"go.uber.org/zap"
 
-	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 )
 
-type projectRuntimeTopicStreamer struct {
+type projectLifecycleConfigTopicStreamer struct {
 	hub     realtime.Hub
 	monitor realtime.TopicSubscriptionMonitor
 	logger  *zap.Logger
 	service *Service
 
 	mu      sync.Mutex
-	streams map[string]*projectRuntimeTopicStream
+	streams map[string]*projectLifecycleConfigTopicStream
 }
 
-type projectRuntimeTopicStream struct {
+type projectLifecycleConfigTopicStream struct {
 	topic              string
 	projectID          uint64
 	unregisterObserver func()
@@ -32,7 +31,7 @@ type projectRuntimeTopicStream struct {
 	runID              uint64
 }
 
-func markProjectRuntimeTopicStreamDone(done chan struct{}) {
+func markProjectLifecycleConfigTopicStreamDone(done chan struct{}) {
 	if done == nil {
 		return
 	}
@@ -42,14 +41,14 @@ func markProjectRuntimeTopicStreamDone(done chan struct{}) {
 	}
 }
 
-func omitProjectRuntimeTopicStream(
-	streams map[string]*projectRuntimeTopicStream,
+func omitProjectLifecycleConfigTopicStream(
+	streams map[string]*projectLifecycleConfigTopicStream,
 	topic string,
-) map[string]*projectRuntimeTopicStream {
+) map[string]*projectLifecycleConfigTopicStream {
 	if len(streams) == 0 {
 		return streams
 	}
-	next := make(map[string]*projectRuntimeTopicStream, len(streams))
+	next := make(map[string]*projectLifecycleConfigTopicStream, len(streams))
 	for key, stream := range streams {
 		if key == topic {
 			continue
@@ -60,7 +59,11 @@ func omitProjectRuntimeTopicStream(
 }
 
 //nolint:dupl
-func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectRuntimeTopicStreamer, error) {
+func newProjectLifecycleConfigTopicStreamer(
+	hub realtime.Hub,
+	logger *zap.Logger,
+	service *Service,
+) (*projectLifecycleConfigTopicStreamer, error) {
 	if hub == nil {
 		return nil, errors.New("realtime hub is unavailable")
 	}
@@ -69,30 +72,30 @@ func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, servic
 		return nil, errors.New("realtime hub does not support topic subscription monitoring")
 	}
 	if service == nil {
-		return nil, errors.New("project runtime service is unavailable")
+		return nil, errors.New("project lifecycle configuration service is unavailable")
 	}
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	return &projectRuntimeTopicStreamer{
+	return &projectLifecycleConfigTopicStreamer{
 		hub:     hub,
 		monitor: monitor,
 		logger:  logger,
 		service: service,
-		streams: make(map[string]*projectRuntimeTopicStream),
+		streams: make(map[string]*projectLifecycleConfigTopicStream),
 	}, nil
 }
 
-func (s *projectRuntimeTopicStreamer) EnsureTopic(topic string, projectID uint64) error {
+func (s *projectLifecycleConfigTopicStreamer) EnsureTopic(topic string, projectID uint64) error {
 	if s == nil {
-		return errors.New("project runtime topic streamer is unavailable")
+		return errors.New("project lifecycle configuration topic streamer is unavailable")
 	}
 	s.mu.Lock()
 	if s.streams[topic] != nil {
 		s.mu.Unlock()
 		return nil
 	}
-	stream := &projectRuntimeTopicStream{topic: topic, projectID: projectID}
+	stream := &projectLifecycleConfigTopicStream{topic: topic, projectID: projectID}
 	s.streams[topic] = stream
 	s.mu.Unlock()
 
@@ -100,12 +103,16 @@ func (s *projectRuntimeTopicStreamer) EnsureTopic(topic string, projectID uint64
 		s.start(topic)
 	}, func(string) {
 		if err := s.stop(context.Background(), topic); err != nil {
-			s.logger.Warn("stop project runtime stream failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+			s.logger.Warn(
+				"stop project lifecycle configuration stream failed",
+				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.Error(err),
+			)
 		}
 	})
 	if err != nil {
 		s.mu.Lock()
-		s.streams = omitProjectRuntimeTopicStream(s.streams, topic)
+		s.streams = omitProjectLifecycleConfigTopicStream(s.streams, topic)
 		s.mu.Unlock()
 		return err
 	}
@@ -122,7 +129,7 @@ func (s *projectRuntimeTopicStreamer) EnsureTopic(topic string, projectID uint64
 }
 
 //nolint:dupl
-func (s *projectRuntimeTopicStreamer) Close(ctx context.Context) error {
+func (s *projectLifecycleConfigTopicStreamer) Close(ctx context.Context) error {
 	if s == nil {
 		return nil
 	}
@@ -137,7 +144,7 @@ func (s *projectRuntimeTopicStreamer) Close(ctx context.Context) error {
 		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
 		s.mu.Lock()
 		stream := s.streams[topic]
-		s.streams = omitProjectRuntimeTopicStream(s.streams, topic)
+		s.streams = omitProjectLifecycleConfigTopicStream(s.streams, topic)
 		s.mu.Unlock()
 		if stream != nil && stream.unregisterObserver != nil {
 			stream.unregisterObserver()
@@ -146,7 +153,7 @@ func (s *projectRuntimeTopicStreamer) Close(ctx context.Context) error {
 	return closeErr
 }
 
-func (s *projectRuntimeTopicStreamer) start(topic string) {
+func (s *projectLifecycleConfigTopicStreamer) start(topic string) {
 	s.mu.Lock()
 	stream := s.streams[topic]
 	if stream == nil || stream.cancel != nil {
@@ -163,7 +170,7 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 	s.mu.Unlock()
 
 	go func() {
-		defer markProjectRuntimeTopicStreamDone(done)
+		defer markProjectLifecycleConfigTopicStreamDone(done)
 		s.publish(topic, projectID)
 		ticker := time.NewTicker(projectDetailTopicRefreshInterval)
 		defer ticker.Stop()
@@ -179,22 +186,26 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 	}()
 }
 
-func (s *projectRuntimeTopicStreamer) publish(topic string, projectID uint64) {
+func (s *projectLifecycleConfigTopicStreamer) publish(topic string, projectID uint64) {
 	if s == nil || s.service == nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), projectDetailTopicRefreshInterval)
 	defer cancel()
-	payload, err := s.service.buildProjectRuntimeRealtimePayload(ctx, topic, projectID)
+	payload, err := s.service.buildProjectLifecycleConfigRealtimePayload(ctx, topic, projectID)
 	if err != nil {
-		s.logger.Warn("publish project runtime realtime snapshot failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+		s.logger.Warn(
+			"publish project lifecycle configuration snapshot failed",
+			zap.String("topic", logsafe.SanitizeText(topic)),
+			zap.Error(err),
+		)
 		return
 	}
 	s.hub.Publish(topic, payload)
 }
 
 //nolint:dupl
-func (s *projectRuntimeTopicStreamer) stop(ctx context.Context, topic string) error {
+func (s *projectLifecycleConfigTopicStreamer) stop(ctx context.Context, topic string) error {
 	s.mu.Lock()
 	stream := s.streams[topic]
 	if stream == nil || stream.cancel == nil {
@@ -220,7 +231,7 @@ func (s *projectRuntimeTopicStreamer) stop(ctx context.Context, topic string) er
 	}
 }
 
-func (s *projectRuntimeTopicStreamer) clearRun(topic string, runID uint64) {
+func (s *projectLifecycleConfigTopicStreamer) clearRun(topic string, runID uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stream := s.streams[topic]
@@ -231,96 +242,46 @@ func (s *projectRuntimeTopicStreamer) clearRun(topic string, runID uint64) {
 	stream.done = nil
 }
 
-func (s *Service) ensureProjectRuntimeTopicStreaming(topic string, projectID uint64) error {
+func (s *Service) ensureProjectLifecycleConfigTopicStreaming(topic string, projectID uint64) error {
 	if s == nil {
 		return errors.New("project service is unavailable")
 	}
 	if s.realtimeHub == nil {
 		return errors.New("realtime hub is unavailable")
 	}
-	streamer, err := s.projectRuntimeTopicStreamer()
+	streamer, err := s.projectLifecycleConfigTopicStreamer()
 	if err != nil {
 		return err
 	}
 	return streamer.EnsureTopic(topic, projectID)
 }
 
-func (s *Service) projectRuntimeTopicStreamer() (*projectRuntimeTopicStreamer, error) {
+func (s *Service) projectLifecycleConfigTopicStreamer() (*projectLifecycleConfigTopicStreamer, error) {
 	s.streamersMu.Lock()
 	defer s.streamersMu.Unlock()
-	if s.runtimeTopicStreamer == nil {
-		streamer, err := newProjectRuntimeTopicStreamer(s.realtimeHub, s.logger, s)
+	if s.lifecycleConfigTopicStreamer == nil {
+		streamer, err := newProjectLifecycleConfigTopicStreamer(s.realtimeHub, s.logger, s)
 		if err != nil {
 			return nil, err
 		}
-		s.runtimeTopicStreamer = streamer
+		s.lifecycleConfigTopicStreamer = streamer
 	}
-	return s.runtimeTopicStreamer, nil
+	return s.lifecycleConfigTopicStreamer, nil
 }
 
-func (s *Service) buildProjectRuntimeRealtimePayload(
+func (s *Service) buildProjectLifecycleConfigRealtimePayload(
 	ctx context.Context,
 	topic string,
 	projectID uint64,
-) (projectRuntimeRealtimePayload, error) {
+) (projectLifecycleConfigRealtimePayload, error) {
 	detail, err := s.Get(ctx, projectID)
 	if err != nil {
-		return projectRuntimeRealtimePayload{}, err
+		return projectLifecycleConfigRealtimePayload{}, err
 	}
-	overview, err := s.Overview(ctx, projectID)
-	if err != nil {
-		return projectRuntimeRealtimePayload{}, err
-	}
-	services, err := s.Services(ctx, projectID)
-	if err != nil {
-		return projectRuntimeRealtimePayload{}, err
-	}
-	return projectRuntimeRealtimePayload{
+	return projectLifecycleConfigRealtimePayload{
 		Topic:       topic,
 		ProjectID:   mustGeneratedID(projectID),
 		PublishedAt: time.Now().UTC(),
 		Detail:      detail,
-		Overview:    overview,
-		Services:    services,
-	}, nil
-}
-
-func (s *Service) buildProjectListSummaryRealtimePayload(
-	ctx context.Context,
-	topic string,
-) (projectListSummaryRealtimePayload, error) {
-	items := make([]projectListSummaryRealtimeItem, 0)
-	offset := 0
-	for {
-		result, err := s.List(ctx, ListQuery{
-			Limit:  maxProjectListLimit,
-			Offset: offset,
-		})
-		if err != nil {
-			return projectListSummaryRealtimePayload{}, err
-		}
-		for _, item := range result.Items {
-			runtimeStatus := generated.ProjectRuntimeStatusUnknown
-			if item.RuntimeStatus != nil {
-				runtimeStatus = *item.RuntimeStatus
-			}
-			items = append(items, projectListSummaryRealtimeItem{
-				ProjectID:       item.Id,
-				RuntimeStatus:   runtimeStatus,
-				ServiceCount:    item.ServiceCount,
-				ContainerCounts: item.ContainerCounts,
-				DriftStatus:     item.DriftStatus,
-			})
-		}
-		offset += len(result.Items)
-		if len(result.Items) == 0 || offset >= result.Total {
-			break
-		}
-	}
-
-	return projectListSummaryRealtimePayload{
-		Topic:       topic,
-		PublishedAt: time.Now().UTC(),
-		Items:       items,
 	}, nil
 }

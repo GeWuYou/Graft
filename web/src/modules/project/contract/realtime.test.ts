@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  parseProjectDetailRealtimePayload,
+  parseProjectLifecycleConfigRealtimePayload,
   parseProjectListSummaryRealtimePayload,
   parseProjectLogsRealtimePayload,
+  parseProjectRuntimeRealtimePayload,
 } from './realtime';
 
 describe('project realtime payload parsers', () => {
@@ -56,11 +57,11 @@ describe('project realtime payload parsers', () => {
     ).toBeNull();
   });
 
-  it('parses valid project detail payloads', () => {
-    const payload = parseProjectDetailRealtimePayload(
+  it('parses valid project runtime payloads', () => {
+    const payload = parseProjectRuntimeRealtimePayload(
       JSON.stringify({
         data: {
-          topic: 'project.detail:7',
+          topic: 'project.runtime:7',
           project_id: 7,
           published_at: '2026-07-06T00:00:00Z',
           detail: { id: 7 },
@@ -71,15 +72,41 @@ describe('project realtime payload parsers', () => {
     );
 
     expect(payload).toMatchObject({
-      topic: 'project.detail:7',
+      topic: 'project.runtime:7',
       project_id: 7,
       published_at: '2026-07-06T00:00:00Z',
     });
   });
 
-  it('rejects invalid project detail payloads', () => {
-    expect(parseProjectDetailRealtimePayload(JSON.stringify({ data: { topic: 'project.detail:7' } }))).toBeNull();
-    expect(parseProjectDetailRealtimePayload('not-json')).toBeNull();
+  it('rejects invalid project runtime payloads', () => {
+    expect(parseProjectRuntimeRealtimePayload(JSON.stringify({ data: { topic: 'project.runtime:7' } }))).toBeNull();
+    expect(parseProjectRuntimeRealtimePayload('not-json')).toBeNull();
+  });
+
+  it('parses valid lifecycle configuration payloads', () => {
+    const payload = parseProjectLifecycleConfigRealtimePayload(
+      JSON.stringify({
+        data: {
+          topic: 'project.lifecycle-config:7',
+          project_id: 7,
+          published_at: '2026-07-06T00:00:00Z',
+          detail: { id: 7, lifecycle_configuration: { wait_after_up: true } },
+        },
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      topic: 'project.lifecycle-config:7',
+      project_id: 7,
+      published_at: '2026-07-06T00:00:00Z',
+    });
+  });
+
+  it('rejects invalid lifecycle configuration payloads', () => {
+    expect(
+      parseProjectLifecycleConfigRealtimePayload(JSON.stringify({ data: { topic: 'project.lifecycle-config:7' } })),
+    ).toBeNull();
+    expect(parseProjectLifecycleConfigRealtimePayload('not-json')).toBeNull();
   });
 
   it('parses valid project log payloads', () => {

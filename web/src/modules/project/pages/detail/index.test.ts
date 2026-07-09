@@ -1046,7 +1046,7 @@ describe('Project detail service tab', () => {
     await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
     await flushPromises();
 
-    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.detail:7');
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
     expect(detailSocket).toBeTruthy();
 
     detailSocket?.options.onMessage({
@@ -1067,7 +1067,7 @@ describe('Project detail service tab', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.detail:7');
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
     expect(detailSocket).toBeTruthy();
 
     detailSocket?.options.onMessage({

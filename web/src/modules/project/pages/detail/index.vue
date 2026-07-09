@@ -782,10 +782,12 @@ import {
 import LifecycleHelpTrigger from '../../components/LifecycleHelpTrigger.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
-  buildProjectDetailTopicName,
+  buildProjectLifecycleConfigTopicName,
   buildProjectLogsTopicName,
-  parseProjectDetailRealtimePayload,
+  buildProjectRuntimeTopicName,
+  parseProjectLifecycleConfigRealtimePayload,
   parseProjectLogsRealtimePayload,
+  parseProjectRuntimeRealtimePayload,
 } from '../../contract/realtime';
 import { paginateProjectResourceRows } from '../../shared/detail-resources';
 import {
@@ -934,23 +936,31 @@ const networkRateState = ref<{
   rxBytesPerSecond: null,
   txBytesPerSecond: null,
 });
-const projectDetailSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+const projectRuntimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+const projectLifecycleConfigSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 const projectLogsSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 const projectLogsHasSnapshot = ref(false);
 const projectLogsBootstrapRequested = ref(false);
 const projectLogsRecoveryLoadRequested = ref(false);
-let projectDetailRealtimeController: RealtimeTopicSocketController | null = null;
+let projectRuntimeRealtimeController: RealtimeTopicSocketController | null = null;
+let projectLifecycleConfigRealtimeController: RealtimeTopicSocketController | null = null;
 let projectLogsRealtimeController: RealtimeTopicSocketController | null = null;
-let projectDetailRealtimeTopic = '';
+let projectRuntimeRealtimeTopic = '';
+let projectLifecycleConfigRealtimeTopic = '';
 let projectLogsRealtimeTopic = '';
 const projectLogSeenKeys = new Set<string>();
-const projectDetailRealtimeGate = createRealtimeSnapshotGate({
+const projectRuntimeRealtimeGate = createRealtimeSnapshotGate({
   apply: (message: {
     detail: ProjectDetailResponseWithLifecycle;
     overview: ProjectOverviewResponse;
     services: { items: ProjectServiceItem[] };
   }) => {
-    applyProjectRealtimeSnapshot(message);
+    applyProjectRuntimeRealtimeSnapshot(message);
+  },
+});
+const projectLifecycleConfigRealtimeGate = createRealtimeSnapshotGate({
+  apply: (message: { detail: ProjectDetailResponseWithLifecycle }) => {
+    applyProjectLifecycleConfigRealtimeSnapshot(message);
   },
 });
 
@@ -1215,14 +1225,17 @@ const serviceColumns = computed<TableProps['columns']>(() => [
 
 onMounted(async () => {
   await refreshDetail();
-  syncProjectDetailRealtimeSubscription();
+  syncProjectRuntimeRealtimeSubscription();
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 });
 
 onUnmounted(() => {
-  releaseProjectDetailRealtimeSubscription();
+  releaseProjectRuntimeRealtimeSubscription();
+  releaseProjectLifecycleConfigRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
-  projectDetailRealtimeGate.dispose();
+  projectRuntimeRealtimeGate.dispose();
+  projectLifecycleConfigRealtimeGate.dispose();
 });
 
 watch(
@@ -1246,6 +1259,7 @@ watch(activeDetailTab, (value) => {
     });
   }
 
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 });
 
@@ -1268,10 +1282,13 @@ watch(projectId, () => {
   resetProjectLogsState();
   lifecycleBaseline.value = null;
   lifecycleRemoteStale.value = false;
-  projectDetailRealtimeGate.clear();
-  releaseProjectDetailRealtimeSubscription();
+  projectRuntimeRealtimeGate.clear();
+  projectLifecycleConfigRealtimeGate.clear();
+  releaseProjectRuntimeRealtimeSubscription();
+  releaseProjectLifecycleConfigRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
-  syncProjectDetailRealtimeSubscription();
+  syncProjectRuntimeRealtimeSubscription();
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 });
 
@@ -1404,7 +1421,8 @@ async function refreshDetail() {
     if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
       await loadProjectLogs();
     }
-    syncProjectDetailRealtimeSubscription();
+    syncProjectRuntimeRealtimeSubscription();
+    syncProjectLifecycleConfigRealtimeSubscription();
     syncProjectLogsRealtimeSubscription();
   } catch (error) {
     logger.error('failed to load project detail', error);
@@ -1573,13 +1591,12 @@ function applyProjectLogRealtimeEntry(entry: ProjectLogEntry) {
   appendProjectLogEntry(entry);
 }
 
-function applyProjectRealtimeSnapshot(payload: {
+function applyProjectRuntimeRealtimeSnapshot(payload: {
   detail: ProjectDetailResponseWithLifecycle;
   overview: ProjectOverviewResponse;
   services: { items: ProjectServiceItem[] };
 }) {
   detailRecord.value = payload.detail;
-  syncLifecycleState(payload.detail, { preserveDirtyDraft: true });
   updateCurrentTabTitle(buildDetailTitle(payload.detail.display_name));
   detailError.value = '';
   serviceRows.value = payload.services.items;
@@ -1590,37 +1607,78 @@ function applyProjectRealtimeSnapshot(payload: {
   projectOverviewLoaded.value = true;
 }
 
-function syncProjectDetailRealtimeSubscription() {
-  const nextTopic = Number.isFinite(projectId.value) ? buildProjectDetailTopicName(projectId.value) : '';
+function applyProjectLifecycleConfigRealtimeSnapshot(payload: { detail: ProjectDetailResponseWithLifecycle }) {
+  detailRecord.value = payload.detail;
+  syncLifecycleState(payload.detail, { preserveDirtyDraft: true });
+}
+
+function syncProjectRuntimeRealtimeSubscription() {
+  const nextTopic = Number.isFinite(projectId.value) ? buildProjectRuntimeTopicName(projectId.value) : '';
   if (!nextTopic) {
-    releaseProjectDetailRealtimeSubscription();
+    releaseProjectRuntimeRealtimeSubscription();
     return;
   }
-  if (projectDetailRealtimeTopic === nextTopic && projectDetailRealtimeController) {
+  if (projectRuntimeRealtimeTopic === nextTopic && projectRuntimeRealtimeController) {
     return;
   }
-  releaseProjectDetailRealtimeSubscription();
-  projectDetailRealtimeTopic = nextTopic;
-  projectDetailRealtimeController = openRealtimeTopicSocket({
+  releaseProjectRuntimeRealtimeSubscription();
+  projectRuntimeRealtimeTopic = nextTopic;
+  projectRuntimeRealtimeController = openRealtimeTopicSocket({
     topic: nextTopic,
-    parseMessage: parseProjectDetailRealtimePayload,
+    parseMessage: parseProjectRuntimeRealtimePayload,
     onMessage: (message) => {
-      projectDetailRealtimeGate.commit(message);
+      projectRuntimeRealtimeGate.commit(message);
     },
     onStateChange: (state) => {
-      projectDetailSocketState.value = state;
+      projectRuntimeSocketState.value = state;
     },
     onError: (message) => {
-      logger.warn('project detail realtime subscription error', { message, topic: nextTopic });
+      logger.warn('project runtime realtime subscription error', { message, topic: nextTopic });
     },
   });
 }
 
-function releaseProjectDetailRealtimeSubscription() {
-  projectDetailRealtimeTopic = '';
-  projectDetailRealtimeController?.close();
-  projectDetailRealtimeController = null;
-  projectDetailSocketState.value = 'idle';
+function releaseProjectRuntimeRealtimeSubscription() {
+  projectRuntimeRealtimeTopic = '';
+  projectRuntimeRealtimeController?.close();
+  projectRuntimeRealtimeController = null;
+  projectRuntimeSocketState.value = 'idle';
+}
+
+function syncProjectLifecycleConfigRealtimeSubscription() {
+  const nextTopic =
+    Number.isFinite(projectId.value) && activeDetailTab.value === 'lifecycle'
+      ? buildProjectLifecycleConfigTopicName(projectId.value)
+      : '';
+  if (!nextTopic) {
+    releaseProjectLifecycleConfigRealtimeSubscription();
+    return;
+  }
+  if (projectLifecycleConfigRealtimeTopic === nextTopic && projectLifecycleConfigRealtimeController) {
+    return;
+  }
+  releaseProjectLifecycleConfigRealtimeSubscription();
+  projectLifecycleConfigRealtimeTopic = nextTopic;
+  projectLifecycleConfigRealtimeController = openRealtimeTopicSocket({
+    topic: nextTopic,
+    parseMessage: parseProjectLifecycleConfigRealtimePayload,
+    onMessage: (message) => {
+      projectLifecycleConfigRealtimeGate.commit(message);
+    },
+    onStateChange: (state) => {
+      projectLifecycleConfigSocketState.value = state;
+    },
+    onError: (message) => {
+      logger.warn('project lifecycle config realtime subscription error', { message, topic: nextTopic });
+    },
+  });
+}
+
+function releaseProjectLifecycleConfigRealtimeSubscription() {
+  projectLifecycleConfigRealtimeTopic = '';
+  projectLifecycleConfigRealtimeController?.close();
+  projectLifecycleConfigRealtimeController = null;
+  projectLifecycleConfigSocketState.value = 'idle';
 }
 
 function syncProjectLogsRealtimeSubscription() {
@@ -1914,7 +1972,8 @@ async function refreshProjectRuntimeSurface() {
   syncLifecycleState(nextDetail, { preserveDirtyDraft: true });
   updateCurrentTabTitle(buildDetailTitle(nextDetail.display_name));
   await Promise.all([loadProjectServices(true), loadProjectOverview(true)]);
-  syncProjectDetailRealtimeSubscription();
+  syncProjectRuntimeRealtimeSubscription();
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 }
 
