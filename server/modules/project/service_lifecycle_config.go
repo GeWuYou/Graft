@@ -8,6 +8,7 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
+// defaultLifecycleStandardConfig 返回预设的标准生命周期配置。
 func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 	return LifecycleStandardConfig{
 		Profiles:                 []string{},
@@ -31,6 +32,8 @@ func lifecycleSeedForManagedProject() projectstore.LifecycleConfig {
 	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
 }
 
+// lifecycleConfigurationFromAggregate 将项目聚合体转换为生命周期配置，补充默认的策略类型和审核状态，并收集 Compose 文件。
+// 返回包含项目基本信息及标准生命周期配置的 LifecycleConfiguration。
 func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate) LifecycleConfiguration {
 	return LifecycleConfiguration{
 		StrategyKind: LifecycleStrategyKind(nonEmptyString(
@@ -59,6 +62,7 @@ func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate
 	}
 }
 
+// toStoreLifecycleConfig converts a standard lifecycle configuration into its store representation.
 func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.LifecycleConfig {
 	return projectstore.LifecycleConfig{
 		Profiles:                 append([]string(nil), config.Profiles...),
@@ -74,6 +78,8 @@ func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.Lifecyc
 	}
 }
 
+// normalizeLifecycleStandardConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
+// It returns an invalid-argument error when a profile is empty after trimming or the wait timeout is outside the permitted range.
 func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (LifecycleStandardConfig, error) {
 	normalizedProfiles := make([]string, 0, len(config.Profiles))
 	seen := make(map[string]struct{}, len(config.Profiles))
@@ -102,6 +108,7 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 	}, validateLifecycleWaitTimeout(config.WaitTimeoutSeconds)
 }
 
+// normalizeLifecycleWaitTimeout 将零值归一化为默认的生命周期等待超时时间。
 func normalizeLifecycleWaitTimeout(value int) int {
 	if value == 0 {
 		return defaultLifecycleWaitTimeoutSeconds
@@ -109,6 +116,8 @@ func normalizeLifecycleWaitTimeout(value int) int {
 	return value
 }
 
+// validateLifecycleWaitTimeout 验证生命周期等待超时是否在允许的范围内。
+// 值为 0 时使用默认超时时间进行验证。
 func validateLifecycleWaitTimeout(value int) error {
 	timeout := normalizeLifecycleWaitTimeout(value)
 	if timeout < minLifecycleWaitTimeoutSeconds || timeout > maxLifecycleWaitTimeoutSeconds {

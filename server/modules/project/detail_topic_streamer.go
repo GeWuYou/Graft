@@ -32,6 +32,7 @@ type projectRuntimeTopicStream struct {
 	runID              uint64
 }
 
+// markProjectRuntimeTopicStreamDone signals stream completion without blocking when done is available.
 func markProjectRuntimeTopicStreamDone(done chan struct{}) {
 	if done == nil {
 		return
@@ -42,6 +43,7 @@ func markProjectRuntimeTopicStreamDone(done chan struct{}) {
 	}
 }
 
+// omitProjectRuntimeTopicStream 返回移除指定主题后的项目运行时主题流映射。
 func omitProjectRuntimeTopicStream(
 	streams map[string]*projectRuntimeTopicStream,
 	topic string,
@@ -59,7 +61,8 @@ func omitProjectRuntimeTopicStream(
 	return next
 }
 
-//nolint:dupl
+// newProjectRuntimeTopicStreamer creates a project runtime topic streamer with the provided hub, logger, and service.
+// It returns an error if the hub or service is unavailable, or if the hub does not support topic subscription monitoring.
 func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectRuntimeTopicStreamer, error) {
 	if hub == nil {
 		return nil, errors.New("realtime hub is unavailable")

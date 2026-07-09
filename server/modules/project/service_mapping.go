@@ -124,6 +124,7 @@ func toGeneratedProjectLifecycleConfiguration(
 	return toGeneratedLifecycleConfiguration(lifecycleConfigurationFromAggregate(aggregate))
 }
 
+// toGeneratedLifecycleConfiguration converts a lifecycle configuration to its generated API representation, including standard options and generated commands.
 func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ProjectLifecycleConfiguration {
 	return generated.ProjectLifecycleConfiguration{
 		StrategyKind:             generated.ProjectLifecycleStrategyKind(config.StrategyKind),
@@ -220,6 +221,8 @@ func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
 	return base
 }
 
+// buildLifecycleUpArgv 构建用于启动 Compose 服务的命令参数，并根据标准配置添加相应选项。 
+// 返回包含基础参数、后台启动参数及可选构建、重建、清理孤立容器、续用匿名卷和等待选项的参数列表。
 func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []string {
 	args := append(append([]string(nil), base...), "up", "-d")
 	if standard.BuildBeforeUp {
@@ -385,7 +388,8 @@ func mustWriteDigestFragment(writer io.Writer, value []byte) {
 
 // buildRefreshProjectInput 组装项目刷新持久化输入，包含刷新状态、快照、文件与操作者信息。
 // buildRefreshProjectInput 构建用于刷新项目存储记录的输入。
-// 它写入刷新状态、刷新时间、配置哈希、归一化后的 compose 快照和声明服务摘要，并保留操作者信息。
+// buildRefreshProjectInput 构建项目刷新持久化输入，包含配置文件、归一化快照、服务摘要、漂移状态及操作者信息。
+// 返回的输入将漂移状态标记为干净，并记录配置哈希与刷新时间。
 func buildRefreshProjectInput(
 	projectID uint64,
 	parseResult projectcompose.Result,
@@ -410,7 +414,7 @@ func buildRefreshProjectInput(
 	}
 }
 
-// hashString 返回归一化文本块的 SHA-256 十六进制摘要。
+// hashString 返回输入文本归一化后的 SHA-256 十六进制摘要。
 func hashString(value string) string {
 	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
 	return hex.EncodeToString(sum[:])

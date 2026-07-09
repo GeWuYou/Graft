@@ -864,6 +864,7 @@ func ensureProjectServiceResourceSummary(
 	return &summary.Services[index]
 }
 
+// updateLatestProjectResourceCollectedAt records the latest valid RFC3339 timestamp in latest.
 func updateLatestProjectResourceCollectedAt(raw string, latest *time.Time) {
 	if latest == nil {
 		return
@@ -877,6 +878,7 @@ func updateLatestProjectResourceCollectedAt(raw string, latest *time.Time) {
 	}
 }
 
+// composeProjectName returns the canonical project name for a runtime summary.
 func composeProjectName(item Summary) string {
 	info := normalizedOrchestratorInfo(item.Orchestrator)
 	if info.GroupScopeKind == composeProjectScopeKind {
@@ -885,6 +887,7 @@ func composeProjectName(item Summary) string {
 	return firstNonEmpty(info.Project, strings.TrimSpace(item.ComposeProject))
 }
 
+// composeServiceName returns the canonical service name for a container summary, using scoped orchestrator metadata when available.
 func composeServiceName(item Summary) string {
 	info := normalizedOrchestratorInfo(item.Orchestrator)
 	if info.MemberScopeKind == composeServiceScopeKind {
@@ -893,6 +896,7 @@ func composeServiceName(item Summary) string {
 	return firstNonEmpty(info.Service, strings.TrimSpace(item.ComposeService))
 }
 
+// runtimeCandidateGroupKey returns a grouping key for a runtime candidate based on its configuration files, project name, working directory, or member ID.
 func runtimeCandidateGroupKey(hostScope string, item Summary) string {
 	workingDirectory, _, configFiles := resolveRuntimeCandidateMetadata(item)
 	if len(configFiles) > 0 {

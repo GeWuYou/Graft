@@ -100,7 +100,7 @@ type Result struct {
 // Load 解析工作目录、Compose 文件和 Env 文件，汇总静态服务信息并生成归一化快照。
 // 它返回工作目录、计算得到的项目名与配置哈希，以及解析后的文件、服务、网络和卷名称列表。
 // @param input 解析输入。
-// @returns 解析结果和错误。
+// 返回解析结果；解析工作目录、文件或配置内容失败时返回错误。
 func Load(input Input) (Result, error) {
 	workingDirectory, err := resolveWorkingDirectory(input.WorkingDirectory)
 	if err != nil {
@@ -172,7 +172,8 @@ type collectedServices struct {
 // @param composeFiles 已解析的 Compose 文件。
 // @param configHasher 用于累计配置内容哈希的写入器。
 // collectServices 聚合 Compose 文件中的服务、网络和卷定义。
-// @returns 按首次出现顺序记录的服务名、按名称合并后的服务映射、排序后的网络名列表、排序后的卷名列表，以及错误。
+// collectServices 解析 Compose 文件，汇总服务、项目名、网络和卷信息，并按名称排序网络与卷。
+// 同时将 Compose 文件内容写入 configHasher；解析或写入失败时返回错误。
 func collectServices(
 	composeFiles []FileProjection,
 	configHasher hashWriter,
@@ -216,6 +217,7 @@ type hashWriter interface {
 }
 
 // parseComposeDocument 将 Compose 文件内容解析为通用文档。
+// parseComposeDocument 将 Compose 文件内容解析为文档映射。
 // 解析失败时返回包含文件绝对路径的错误。
 func parseComposeDocument(file FileProjection) (map[string]any, error) {
 	var doc map[string]any
@@ -225,6 +227,8 @@ func parseComposeDocument(file FileProjection) (map[string]any, error) {
 	return doc, nil
 }
 
+// collectProjectNameFromDocument extracts a non-empty project name from a Compose document.
+// It returns current when the document has no usable name value.
 func collectProjectNameFromDocument(doc map[string]any, current string) string {
 	raw, ok := doc["name"]
 	if !ok {
@@ -241,6 +245,8 @@ func collectProjectNameFromDocument(doc map[string]any, current string) string {
 	return name
 }
 
+// resolvedCanonicalProjectName determines the canonical project name from the specified project name or working directory.
+// It normalizes the selected name before returning it.
 func resolvedCanonicalProjectName(projectName string, workingDirectory string) string {
 	candidate := filepath.Base(workingDirectory)
 	if strings.TrimSpace(projectName) != "" {
@@ -249,6 +255,8 @@ func resolvedCanonicalProjectName(projectName string, workingDirectory string) s
 	return normalizeComputedProjectName(candidate)
 }
 
+// normalizeComputedProjectName 将项目名称规范化为符合 Compose 项目名格式的值。
+// 对空白、大小写和分隔符进行处理；如果规范化结果无效，则返回原始值。
 func normalizeComputedProjectName(value string) string {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "" {
@@ -282,15 +290,17 @@ func normalizeComputedProjectName(value string) string {
 	return result
 }
 
+// isAlphaNumericProjectNameRune reports whether r is a lowercase ASCII letter or digit.
 func isAlphaNumericProjectNameRune(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
 }
 
+// shouldSkipProjectNameSeparator reports whether a project name separator should be omitted based on the current normalized name.
 func shouldSkipProjectNameSeparator(builderLen int, lastSeparator bool) bool {
 	return builderLen == 0 || lastSeparator
 }
 
-// 它会按首次出现的顺序更新 serviceOrder，并将同名服务的静态投影合并到 serviceMap 中。
+// collectServicesFromDocument 按服务首次出现的顺序更新服务名称列表，并合并同名服务的静态投影。
 func collectServicesFromDocument(
 	doc map[string]any,
 	serviceOrder []string,

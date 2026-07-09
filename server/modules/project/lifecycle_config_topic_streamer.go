@@ -31,6 +31,7 @@ type projectLifecycleConfigTopicStream struct {
 	runID              uint64
 }
 
+// markProjectLifecycleConfigTopicStreamDone signals that a topic stream has completed without blocking.
 func markProjectLifecycleConfigTopicStreamDone(done chan struct{}) {
 	if done == nil {
 		return
@@ -41,6 +42,7 @@ func markProjectLifecycleConfigTopicStreamDone(done chan struct{}) {
 	}
 }
 
+// omitProjectLifecycleConfigTopicStream removes the stream associated with topic from streams.
 func omitProjectLifecycleConfigTopicStream(
 	streams map[string]*projectLifecycleConfigTopicStream,
 	topic string,
@@ -58,7 +60,7 @@ func omitProjectLifecycleConfigTopicStream(
 	return next
 }
 
-//nolint:dupl
+// newProjectLifecycleConfigTopicStreamer creates a project lifecycle configuration topic streamer with the required realtime hub and service dependencies. It uses a no-op logger when logger is nil.
 func newProjectLifecycleConfigTopicStreamer(
 	hub realtime.Hub,
 	logger *zap.Logger,

@@ -173,6 +173,12 @@ export function createContainerSourceQuickFilter(
   };
 }
 
+/**
+ * 从容器编排信息中构建群组作用域筛选条件。
+ *
+ * @param row - 包含编排信息的容器记录
+ * @returns 有效的群组筛选条件；缺少作用域类型或值时返回 `null`
+ */
 function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
     row.orchestrator?.group_scope_kind,
@@ -180,6 +186,12 @@ function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQui
   );
 }
 
+/**
+ * 从容器编排器信息中创建成员范围筛选条件。
+ *
+ * @param row - 包含编排器成员范围信息的容器记录
+ * @returns 有效的成员范围筛选条件；缺少成员范围类型或值时返回 `null`
+ */
 function sourceMemberFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
     row.orchestrator?.member_scope_kind,
@@ -187,6 +199,13 @@ function sourceMemberFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQu
   );
 }
 
+/**
+ * 构造经过清洗且有效的容器来源快速筛选值。
+ *
+ * @param kind - 快速筛选值的作用域类型
+ * @param value - 快速筛选值的原始内容
+ * @returns 包含作用域类型和值的快速筛选对象；输入缺少类型或有效值时返回 `null`
+ */
 function toQuickFilterValue(
   kind: ContainerSourceGroupKind | ContainerSourceMemberKind | null | undefined,
   value?: string | null,

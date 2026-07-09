@@ -344,6 +344,7 @@ func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
 	return response
 }
 
+// toLifecycleConfigurationRequest 将项目生命周期配置请求转换为标准生命周期配置，并复制配置文件列表以避免共享底层切片。
 func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigurationRequest) LifecycleStandardConfig {
 	return LifecycleStandardConfig{
 		Profiles:                 append([]string(nil), request.Profiles...),

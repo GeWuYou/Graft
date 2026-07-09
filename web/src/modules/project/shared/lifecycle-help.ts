@@ -58,6 +58,12 @@ export type LifecycleNumberHelpDefinition = LifecycleHelpDefinition & {
   field: 'wait_timeout_seconds';
 };
 
+/**
+ * 生成包含等待超时时间的 Docker Compose 启动命令。
+ *
+ * @param draft - 项目生命周期配置草稿
+ * @returns 包含 Docker Compose 启动命令的单元素数组
+ */
 function waitTimeoutCommand(draft: ProjectLifecycleConfigurationDraft) {
   return [`docker compose up -d --wait --wait-timeout ${draft.wait_timeout_seconds}`];
 }

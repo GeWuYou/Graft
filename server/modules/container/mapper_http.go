@@ -37,7 +37,7 @@ func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containe
 }
 
 // toSummary 将 Summary 域对象转换为 ContainerSummary 响应。
-// 它会复制容器标识、名称、镜像、状态和重启信息，并将健康状态、端口、网络、资源、编排信息以及可选字段映射为对应的 OpenAPI 类型。
+// toSummary 将容器概要映射为对应的 OpenAPI 类型，包括标识、状态、健康状态、端口、网络、资源、编排信息及可选字段。
 func toSummary(item Summary) containergen.ContainerSummary {
 	return containergen.ContainerSummary{
 		CanRemove:      optionalBool(item.CanRemove),
@@ -68,7 +68,7 @@ func toSummary(item Summary) containergen.ContainerSummary {
 	}
 }
 
-// ToDetail converts the internal Detail domain model into an OpenAPI container detail response.
+// ToDetail 将内部 Detail 领域模型转换为 OpenAPI 容器详情响应。
 func toDetail(detail Detail) containergen.ContainerDetail {
 	return containergen.ContainerDetail{
 		CanRemove:                    optionalBool(detail.CanRemove),

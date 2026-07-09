@@ -260,6 +260,8 @@ func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	return snapshot, nil
 }
 
+// normalizeLifecycleConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
+// It returns ErrInvalidInput if a profile is empty or the wait timeout is outside the permitted range.
 func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 	normalizedProfiles := make([]string, 0, len(config.Profiles))
 	seen := make(map[string]struct{}, len(config.Profiles))
@@ -621,6 +623,7 @@ func encodeLifecycleConfigJSON(config LifecycleConfig) ([]byte, error) {
 	return encoded, nil
 }
 
+// 如果数据为空、格式无效、缺少必需字段或配置值无效，则返回 ErrInvalidInput。
 func decodeLifecycleConfigJSON(raw []byte) (LifecycleConfig, error) {
 	if len(raw) == 0 {
 		return LifecycleConfig{}, ErrInvalidInput
@@ -649,6 +652,7 @@ type lifecycleConfigPayload struct {
 	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
 }
 
+// 如果 JSON 数据格式无效，则返回 ErrInvalidInput。
 func unmarshalLifecycleConfigPayload(raw []byte) (lifecycleConfigPayload, error) {
 	var payload lifecycleConfigPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
@@ -696,6 +700,8 @@ func (payload lifecycleConfigPayload) validateRequiredFields() error {
 	return nil
 }
 
+// encodeWorkspaceAnnotationsJSON 将工作区注释规范化并编码为 JSON。
+// 如果注释无效或编码失败，则返回 ErrInvalidInput。
 func encodeWorkspaceAnnotationsJSON(annotations map[string]string) ([]byte, error) {
 	normalized, err := normalizeWorkspaceAnnotations(annotations)
 	if err != nil {

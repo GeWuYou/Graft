@@ -462,6 +462,7 @@ func (s *Service) unregisterWithActor(
 	}, nil
 }
 
+// composeProjectArgs 根据项目聚合数据和生命周期配置构建 Docker Compose 命令参数；缺少 Compose 文件或项目规范名称无效时返回错误。
 func composeProjectArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	if len(composeFiles) == 0 {
@@ -513,6 +514,8 @@ func lifecycleCommandArgs(aggregate projectstore.ProjectAggregate, action genera
 	}
 }
 
+// lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数，并根据配置添加构建、重建、孤立容器清理、匿名卷更新及等待选项。
+// 返回参数列表；配置无效时返回错误。
 func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
 	base, err := composeProjectArgs(aggregate, config)
 	if err != nil {

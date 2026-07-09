@@ -132,7 +132,7 @@ func normalizeOrchestratorActionLevel(value string) containercontract.Orchestrat
 	}
 }
 
-// normalizedOrchestratorInfo normalizes the provided orchestrator information by validating the type, deriving managed status from type, normalizing scope kinds, trimming whitespace from string fields, applying default confidence based on managed status, and ensuring the warnings slice is initialized.
+// normalizedOrchestratorInfo 标准化编排器信息，补全作用域信息并设置管理状态、置信度和告警列表。
 func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
 	info.Managed = info.Type != containerOrchestratorStandalone
@@ -146,6 +146,9 @@ func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	return info
 }
 
+// normalizeOrchestratorIdentityFields 标准化编排器身份和作用域字段。
+//
+// 该函数会修剪字符串字段的空白、规范化作用域类型，并清理配置文件列表中的空值和重复项。
 func normalizeOrchestratorIdentityFields(info OrchestratorInfo) OrchestratorInfo {
 	info.GroupScopeKind = normalizeContainerSourceScopeKind(info.GroupScopeKind)
 	info.MemberScopeKind = normalizeContainerSourceScopeKind(info.MemberScopeKind)
@@ -164,6 +167,7 @@ func normalizeOrchestratorIdentityFields(info OrchestratorInfo) OrchestratorInfo
 	return info
 }
 
+// normalizeOrchestratorScopeKinds infers missing group and member scope kinds from the corresponding orchestrator identity fields.
 func normalizeOrchestratorScopeKinds(info OrchestratorInfo) OrchestratorInfo {
 	if info.GroupScopeKind == "" {
 		switch {
@@ -188,6 +192,7 @@ func normalizeOrchestratorScopeKinds(info OrchestratorInfo) OrchestratorInfo {
 	return info
 }
 
+// normalizeOrchestratorScopeValues derives missing group and member scope values and fills their display names.
 func normalizeOrchestratorScopeValues(info OrchestratorInfo) OrchestratorInfo {
 	info.GroupValue = normalizedGroupScopeValue(info)
 	info.MemberValue = normalizedMemberScopeValue(info)
@@ -200,6 +205,7 @@ func normalizeOrchestratorScopeValues(info OrchestratorInfo) OrchestratorInfo {
 	return info
 }
 
+// normalizedGroupScopeValue returns the group scope value, deriving it from the corresponding identity field when necessary.
 func normalizedGroupScopeValue(info OrchestratorInfo) string {
 	if info.GroupValue != "" {
 		return info.GroupValue
@@ -216,6 +222,7 @@ func normalizedGroupScopeValue(info OrchestratorInfo) string {
 	}
 }
 
+// normalizedMemberScopeValue returns the member scope value, deriving it from the member scope kind when necessary.
 func normalizedMemberScopeValue(info OrchestratorInfo) string {
 	if info.MemberValue != "" {
 		return info.MemberValue
@@ -232,6 +239,9 @@ func normalizedMemberScopeValue(info OrchestratorInfo) string {
 	}
 }
 
+// normalizeOrchestratorConfidence ensures that orchestrator information has a confidence level.
+// It preserves an existing confidence value, or assigns medium confidence to managed
+// orchestrators and high confidence to standalone orchestrators.
 func normalizeOrchestratorConfidence(info OrchestratorInfo) OrchestratorInfo {
 	if strings.TrimSpace(info.Confidence) != "" {
 		return info
@@ -531,7 +541,7 @@ func sourceScopeKindCompatibleWithOrchestrator(orchestrator string, scopeKind st
 }
 
 // summaryMatchesSourceScope 判断容器摘要是否与指定的源作用域类型和值相匹配。
-// 比较采用不区分大小写的方式，源作用域类型必须与容器的编排器类型兼容。
+// summaryMatchesSourceScope 判断容器是否匹配指定的源作用域类型和值，并以不区分大小写的方式比较作用域值；作用域类型必须与容器的编排器类型兼容。
 func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) bool {
 	scopeKind = normalizeContainerSourceScopeKind(scopeKind)
 	scope = strings.TrimSpace(scope)

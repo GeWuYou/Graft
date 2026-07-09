@@ -106,7 +106,8 @@ type normalizedManagedCreateRequest struct {
 }
 
 // normalizeManagedCreateRequest 规范化受控创建请求并校验必填字段。
-// 它会修剪显示名、规范名、compose 内容和文件名，校验相对目录、compose 文件名以及可选 env 文件信息，并在必填项缺失时返回错误。
+// normalizeManagedCreateRequest 规范化并校验受控项目创建请求，生成可用于创建项目的请求数据。
+// 缺少必填字段或字段无效时返回错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	canonicalName := strings.TrimSpace(request.CanonicalProjectName)
