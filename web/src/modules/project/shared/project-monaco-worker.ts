@@ -17,6 +17,11 @@ type ProjectMonacoWorkerFactories = {
 const logProjectMonacoWorkerDebug = createProjectMonacoDebugLogger('project.monaco.worker');
 const logger = createLogger('project.monaco.worker');
 
+/**
+ * 创建编辑器 Monaco worker。
+ *
+ * @returns 编辑器 worker 实例。
+ */
 function createEditorWorker() {
   return new EditorWorker({
     name: 'editorWorkerService',
@@ -35,6 +40,14 @@ function createJsonWorker() {
   });
 }
 
+/**
+ * 为 Monaco worker 附加调试日志事件处理。
+ *
+ * @param worker - 要附加监听器的 worker
+ * @param label - worker 的标识
+ * @param kind - worker 类型
+ * @returns 已附加调试监听器的 worker
+ */
 function attachProjectMonacoWorkerDebug(worker: Worker, label: string, kind: string) {
   logProjectMonacoWorkerDebug('worker-created', {
     kind,
@@ -65,6 +78,13 @@ function attachProjectMonacoWorkerDebug(worker: Worker, label: string, kind: str
   return worker;
 }
 
+/**
+ * 根据模块标识和标签确定 Monaco worker 类型。
+ *
+ * @param moduleId - worker 模块标识
+ * @param label - worker 标签
+ * @returns `yaml`、`json` 或 `editor`
+ */
 function resolveWorkerKind(moduleId: string, label: string) {
   if (label === 'yaml' || moduleId.includes('yaml.worker')) {
     return 'yaml';
@@ -77,6 +97,14 @@ function resolveWorkerKind(moduleId: string, label: string) {
   return 'editor';
 }
 
+/**
+ * 根据模块标识和标签构建并返回对应的 Monaco Web Worker。
+ *
+ * @param moduleId - 用于解析 worker 类型的模块标识。
+ * @param label - worker 的标签，用于辅助路由到 JSON、YAML 或编辑器 worker。
+ * @param factories - 用于创建各类 worker 的工厂集合。
+ * @returns 构建得到的 worker 实例。
+ */
 export function buildProjectMonacoWorker(
   moduleId: string,
   label: string,

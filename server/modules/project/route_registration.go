@@ -29,7 +29,8 @@ const minimumProjectListLimit = 1
 
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
-// 当上下文或路由器为空时直接返回；当服务或权限依赖无法解析时返回错误。
+// registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
+// 当上下文或路由器为空时直接返回；当服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -1117,6 +1118,9 @@ func bindPutProjectFileContentParams(ginCtx *gin.Context, path string) generated
 	return generated.PutProjectFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
 }
 
+// bindPutProjectFileAnnotationParams 构造更新项目文件注释所需的请求参数。
+//
+// Path 会被编码为工作区路径查询参数。
 func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) generated.PutProjectFileAnnotationParams {
 	locale, requestID := commonHeaders(ginCtx)
 	queryPath := generated.ProjectWorkspacePathQuery(path)
@@ -1124,6 +1128,8 @@ func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) genera
 }
 
 // bindGetProjectManagedRootParams 构造获取托管根信息请求的公共参数。
+//
+// 它包含请求的语言环境和请求 ID。
 func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectManagedRootParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectManagedRootParams{XGraftLocale: locale, XRequestId: requestID}

@@ -235,6 +235,13 @@ export function getProjectConfiguration(id: GetProjectConfigurationPathParams['i
   }) as Promise<ProjectConfigurationMetadataResponse>;
 }
 
+/**
+ * 获取项目工作区文件列表。
+ *
+ * @param id - 项目 ID
+ * @param query - 文件列表查询条件
+ * @returns 项目工作区文件列表响应
+ */
 export function getProjectFiles(id: number, query?: ProjectWorkspaceFilesQuery) {
   return request.get<ProjectWorkspaceFilesResponse>({
     url: buildProjectFilesApiPath(id),
@@ -261,6 +268,14 @@ export function putProjectFileContent(
   }) as Promise<ProjectWorkspaceFileSaveResponse>;
 }
 
+/**
+ * 更新项目文件的注释信息。
+ *
+ * @param id - 项目 ID
+ * @param query - 文件定位查询条件
+ * @param payload - 注释内容
+ * @returns 保存后的文件注释信息
+ */
 export function putProjectFileAnnotation(
   id: number,
   query: ProjectWorkspaceFileContentQuery,

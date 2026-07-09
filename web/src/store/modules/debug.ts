@@ -6,10 +6,21 @@ import { DEBUG_FLAG_MAP, DEBUG_FLAG_REGISTRY, type DebugFlagId } from '@/shared/
 type DebugRuntimeOverrideMap = Partial<Record<DebugFlagId, boolean>>;
 type DebugFlagStateMap = Record<DebugFlagId, boolean>;
 
+/**
+ * 判断值是否表示启用状态。
+ *
+ * @param value - 待判断的值
+ * @returns 当值为 `true`、`'true'`、`'1'` 或 `1` 时为 `true`，否则为 `false`。
+ */
 function isEnabledValue(value: unknown) {
   return value === true || value === 'true' || value === '1' || value === 1;
 }
 
+/**
+ * 构建所有调试旗标的默认状态映射。
+ *
+ * @returns 每个已注册旗标对应其默认启用状态的完整映射
+ */
 function createDefaultFlags() {
   return DEBUG_FLAG_REGISTRY.reduce((accumulator: DebugFlagStateMap, definition) => {
     accumulator[definition.flagId] = definition.defaultEnabled;
@@ -17,6 +28,12 @@ function createDefaultFlags() {
   }, {} as DebugFlagStateMap);
 }
 
+/**
+ * 解析环境变量中的调试标志值。
+ *
+ * @param envKeys - 按顺序检查的环境变量键
+ * @returns 找到可用环境变量时返回其布尔值；未提供键或未找到可用值时返回 `null`
+ */
 function readEnvFlag(envKeys?: readonly (keyof ImportMetaEnv)[]) {
   if (!envKeys || envKeys.length === 0) {
     return null;
@@ -34,6 +51,14 @@ function readEnvFlag(envKeys?: readonly (keyof ImportMetaEnv)[]) {
   return null;
 }
 
+/**
+ * 解析指定调试旗标的最终启用状态。
+ *
+ * @param flagId - 要解析的旗标
+ * @param runtimeOverrides - 运行时覆盖值映射
+ * @param visited - 已访问旗标集合，用于防止循环依赖
+ * @returns 该旗标的最终启用状态；在未知旗标或检测到循环依赖时返回 `false`
+ */
 function resolveFlagEnabled(
   flagId: DebugFlagId,
   runtimeOverrides: DebugRuntimeOverrideMap,
@@ -66,6 +91,12 @@ function resolveFlagEnabled(
   return definition.defaultEnabled;
 }
 
+/**
+ * 计算所有调试旗标的最终启用状态。
+ *
+ * @param runtimeOverrides - 运行时覆盖值映射
+ * @returns 所有已知调试旗标的布尔状态映射
+ */
 function computeFlags(runtimeOverrides: DebugRuntimeOverrideMap): DebugFlagStateMap {
   return DEBUG_FLAG_REGISTRY.reduce((accumulator: DebugFlagStateMap, definition) => {
     accumulator[definition.flagId] = resolveFlagEnabled(definition.flagId, runtimeOverrides);

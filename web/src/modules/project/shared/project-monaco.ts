@@ -79,6 +79,11 @@ export type ProjectMonacoRelayoutBridge = {
   relayout: (reason?: string) => Promise<void>;
 };
 
+/**
+ * 配置项目 Monaco 的 worker 兼容性和 YAML 集成。
+ *
+ * @returns 已配置的 Monaco 实例
+ */
 export function ensureProjectMonacoConfigured() {
   if (monacoConfigured) {
     logProjectMonacoDebug('reuse-existing-config', {});
@@ -134,6 +139,11 @@ export function ensureProjectMonacoConfigured() {
   return monaco;
 }
 
+/**
+ * 为 Monaco 编辑器安装旧版 Web Worker 选项兼容层。
+ *
+ * @param monacoInstance - Monaco 编辑器模块实例
+ */
 function ensureProjectMonacoLegacyWorkerCompat(monacoInstance: MonacoEditorModule) {
   if (monacoLegacyWorkerCompatInstalled) {
     return;
@@ -175,6 +185,12 @@ function ensureProjectMonacoLegacyWorkerCompat(monacoInstance: MonacoEditorModul
   monacoLegacyWorkerCompatInstalled = true;
 }
 
+/**
+ * 判断是否为旧版 Monaco Web Worker 配置。
+ *
+ * @param options - 待检查的创建参数
+ * @returns 符合旧版 worker 配置形状时返回对应配置，否则返回 `null`
+ */
 function asLegacyMonacoWebWorkerOptions(
   options: Parameters<MonacoCreateWebWorker>[0],
 ): LegacyMonacoWebWorkerOptions | null {
@@ -185,6 +201,13 @@ function asLegacyMonacoWebWorkerOptions(
   return options as unknown as LegacyMonacoWebWorkerOptions;
 }
 
+/**
+ * 从旧版配置解析 Monaco Worker。
+ *
+ * @param label - Worker 标识
+ * @param createWorker - 可选的自定义 Worker 创建函数
+ * @returns 解析得到的 Worker 实例
+ */
 function resolveProjectMonacoWorkerFromLegacyOptions(label: string, createWorker?: () => Worker) {
   if (typeof createWorker === 'function') {
     return createWorker();
@@ -193,6 +216,13 @@ function resolveProjectMonacoWorkerFromLegacyOptions(label: string, createWorker
   return buildProjectMonacoWorker('workerMain.js', label);
 }
 
+/**
+ * 比较两个 Monaco 容器尺寸是否相同。
+ *
+ * @param left - 左侧尺寸
+ * @param right - 右侧尺寸
+ * @returns `true` 如果两个尺寸的宽高都相同，`false` 其他情况下
+ */
 function areProjectMonacoSizesEqual(
   left: { height: number; width: number } | null,
   right: { height: number; width: number } | null,
@@ -200,6 +230,12 @@ function areProjectMonacoSizesEqual(
   return left?.height === right?.height && left?.width === right?.width;
 }
 
+/**
+ * 读取 Monaco 容器的当前尺寸。
+ *
+ * @param container - Monaco 编辑器所在容器
+ * @returns 容器尺寸；当容器为空时返回 `null`
+ */
 function readProjectMonacoContainerSize(container: HTMLElement | null) {
   if (!container) {
     return null;
@@ -211,24 +247,47 @@ function readProjectMonacoContainerSize(container: HTMLElement | null) {
   };
 }
 
+/**
+ * 解析当前应使用的 Monaco 主题。
+ *
+ * @returns `theme-mode` 为 `dark` 时返回深色主题，否则返回浅色主题。
+ */
 function resolveProjectMonacoTheme(): ProjectMonacoTheme {
   return document.documentElement.getAttribute('theme-mode') === 'dark'
     ? PROJECT_MONACO_THEME_DARK
     : PROJECT_MONACO_THEME_LIGHT;
 }
 
+/**
+ * 应用项目 Monaco 编辑器主题。
+ *
+ * @param monacoInstance - Monaco 编辑器模块
+ * @param hostElement - 用于读取主题颜色的宿主元素
+ */
 function applyProjectMonacoTheme(monacoInstance: MonacoEditorModule, hostElement?: HTMLElement | null) {
   const theme = resolveProjectMonacoTheme();
   defineProjectMonacoTheme(monacoInstance, theme, hostElement);
   monacoInstance.editor.setTheme(theme);
 }
 
+/**
+ * 在 DOM 更新后安排一次布局执行。
+ *
+ * @param layout - 要在下一帧执行的布局回调
+ * @returns 一个在布局回调被安排后完成的 Promise
+ */
 function scheduleProjectMonacoLayout(layout: () => void) {
   return nextTick().then(() => {
     requestAnimationFrame(layout);
   });
 }
 
+/**
+ * 创建用于跟踪容器尺寸并调度 Monaco 布局的控制器。
+ *
+ * @param options - 布局、容器获取和尺寸变化回调配置
+ * @returns 提供 `observe`、`schedule` 和 `disconnect` 的布局控制器
+ */
 function createProjectMonacoLayoutController(
   options: ProjectMonacoLayoutControllerOptions,
 ): ProjectMonacoLayoutController {
@@ -303,6 +362,13 @@ function createProjectMonacoLayoutController(
   };
 }
 
+/**
+ * 创建用于 Monaco 编辑器重排的桥接对象。
+ *
+ * @param options.getContainer - 返回编辑器容器元素
+ * @param options.layout - 执行实际布局的回调
+ * @returns 支持 `observe`、`disconnect` 和 `relayout` 的重排桥接对象
+ */
 export function createProjectMonacoRelayoutBridge(options: {
   getContainer: () => HTMLElement | null;
   layout: () => void;
@@ -347,6 +413,13 @@ export function createProjectMonacoRelayoutBridge(options: {
   };
 }
 
+/**
+ * 获取或创建 Monaco 文本模型。
+ *
+ * @param monacoInstance - Monaco 编辑器实例
+ * @param options - 模型缓存与创建参数
+ * @returns 复用的或新创建的文本模型
+ */
 export function getOrCreateProjectMonacoModel(
   monacoInstance: MonacoEditorModule,
   options: ProjectMonacoModelCacheOptions,
@@ -367,6 +440,13 @@ export function getOrCreateProjectMonacoModel(
   return nextModel;
 }
 
+/**
+ * 清空 Monaco 模型缓存并释放其中的模型。
+ *
+ * @param cache - 要清空的模型缓存
+ * @param reason - 传递给模型释放回调的原因说明
+ * @param disposeModel - 释放缓存模型的回调
+ */
 export function disposeProjectMonacoModelCache(
   cache: ProjectMonacoModelCache,
   reason: string,
@@ -379,6 +459,12 @@ export function disposeProjectMonacoModelCache(
   }
 }
 
+/**
+ * 管理 Monaco 编辑器的主题同步与挂载生命周期。
+ *
+ * @param options - 编辑器创建、销毁与 Monaco 实例获取方式
+ * @returns 提供手动应用主题的 `applyTheme` 方法
+ */
 export function useProjectMonacoLifecycle(options: {
   createEditor: () => void | Promise<void>;
   disposeEditor: () => void;
@@ -535,11 +621,24 @@ function resolveCssColor(host: HTMLElement, value: string, fallback: string) {
   return toMonacoColor(resolved, fallback);
 }
 
+/**
+ * 生成一个唯一的模型 URI 后缀。
+ *
+ * @returns 唯一的后缀字符串。
+ */
 export function createProjectMonacoModelUriSuffix() {
   modelUriSuffixSeed += 1;
   return `model-${modelUriSuffixSeed}`;
 }
 
+/**
+ * 构建项目 Monaco 模型的内存 URI。
+ *
+ * @param key - 模型标识
+ * @param language - 模型语言
+ * @param suffix - 追加到模型名中的可选后缀
+ * @returns 生成的内存 URI
+ */
 function buildProjectMonacoModelUri(key: string, language: string, suffix?: string) {
   const normalizedKey = key.replace(/[^a-z0-9/_.-]/giu, '-');
   const extension = resolveLanguageExtension(language);

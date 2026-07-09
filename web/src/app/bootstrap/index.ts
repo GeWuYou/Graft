@@ -19,7 +19,11 @@ const appLogger = createLogger('app.runtime').withContext({
   component: 'app.bootstrap',
 });
 
-// bootstrapApp owns the single startup path for the real web runtime.
+/**
+ * 初始化并挂载应用。
+ *
+ * @returns 创建并挂载后的 Vue 应用实例
+ */
 export function bootstrapApp() {
   registerRouteGuards(router);
   syncRouteLoggerContext(router.currentRoute.value.path);
@@ -54,10 +58,10 @@ export function bootstrapApp() {
 }
 
 /**
- * 在浏览器环境中注册全局事件监听器以记录错误和未处理的 Promise 拒绝。
+ * 在浏览器环境中注册全局错误日志监听器。
  *
- * 为 `window` 的 `error` 和 `unhandledrejection` 事件设置监听器。已处理的鉴权请求错误会被阻止，不予记录。
- * 在非浏览器环境中无操作。
+ * 为 `window` 的 `error` 和 `unhandledrejection` 事件添加监听器，并记录未被处理的运行时错误。
+ * 已处理的鉴权请求错误和 Monaco 良性取消错误会被拦截，不再继续记录。
  */
 function registerGlobalLoggerSinks() {
   if (typeof window === 'undefined') {

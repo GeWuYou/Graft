@@ -95,6 +95,12 @@ export function buildProjectConfigurationApiPath(id: number) {
   return PROJECT_API_PATH.CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 生成项目文件接口路径。
+ *
+ * @param id - 项目 ID
+ * @returns 替换了 `{id}` 占位符的文件接口路径
+ */
 export function buildProjectFilesApiPath(id: number) {
   return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
 }
