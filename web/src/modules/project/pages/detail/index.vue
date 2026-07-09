@@ -540,6 +540,18 @@
                     <p class="project-inline-head__hint">
                       {{ t('project.detail.lifecycle.generatedCommandsDescription') }}
                     </p>
+                    <p class="project-inline-head__hint">
+                      {{ t('project.detail.lifecycle.copyCommandHint') }}
+                    </p>
+                    <div class="project-lifecycle-command-toolbar">
+                      <label class="project-lifecycle-command-toolbar__toggle">
+                        <span>{{ t('project.detail.lifecycle.copyAbsolutePaths') }}</span>
+                        <t-switch
+                          v-model="lifecycleCopyUsesAbsolutePaths"
+                          data-testid="project-lifecycle-copy-path-mode"
+                        />
+                      </label>
+                    </div>
                     <div class="project-lifecycle-command-grid">
                       <article
                         v-for="group in lifecycleCommandPreviewCards"
@@ -557,7 +569,7 @@
                             theme="default"
                             variant="outline"
                             :disabled="!group.preview"
-                            @click="copyLifecycleCommand(group.preview)"
+                            @click="copyLifecycleCommand(group.copyText)"
                           >
                             {{ t('project.detail.lifecycle.copyCommand') }}
                           </t-button>
@@ -566,7 +578,7 @@
                           <div class="project-lifecycle-command-meta">
                             <span>{{ group.stepSummary }}</span>
                           </div>
-                          <pre>{{ group.preview }}</pre>
+                          <code-block :code="group.preview" lang="shell" />
                         </div>
                         <t-empty
                           v-else
@@ -739,6 +751,7 @@ import {
   type ProjectContainerActionSubmission,
   type ProjectContainerSummary,
 } from '@/modules/container/contract/project';
+import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
   createActionColumn,
   createMainTextColumn,
@@ -801,6 +814,7 @@ import {
 import {
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
+  formatLifecycleCommandCopyText,
   isLifecycleDraftDirty,
   lifecycleDraftProfilesText,
   projectLifecycleReviewStatusLabel,
@@ -995,6 +1009,7 @@ const lifecycleDraftDirty = computed(() => {
   return isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
 });
 const lifecycleCanSave = computed(() => lifecycleReviewRequired.value || lifecycleDraftDirty.value);
+const lifecycleCopyUsesAbsolutePaths = ref(true);
 const lifecycleProfilesInput = computed({
   get: () => lifecycleDraftProfilesText(lifecycleDraft),
   set: (value: string) => {
@@ -1005,26 +1020,33 @@ const lifecycleCommandPreviewSections = computed(() => [
   {
     key: 'up',
     title: t('project.detail.lifecycle.generatedCommands.up'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'up'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'up', { preferClientGenerated: lifecycleDraftDirty.value }),
   },
   {
     key: 'stop',
     title: t('project.detail.lifecycle.generatedCommands.stop'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'stop'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'stop', { preferClientGenerated: lifecycleDraftDirty.value }),
   },
   {
     key: 'restart',
     title: t('project.detail.lifecycle.generatedCommands.restart'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'restart'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'restart', {
+      preferClientGenerated: lifecycleDraftDirty.value,
+    }),
   },
   {
     key: 'redeploy',
     title: t('project.detail.lifecycle.generatedCommands.redeploy'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'redeploy'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'redeploy', {
+      preferClientGenerated: lifecycleDraftDirty.value,
+    }),
   },
 ]);
 const lifecycleCommandPreviewCards = computed(() =>
   lifecycleCommandPreviewSections.value.map((section) => ({
+    copyText: formatLifecycleCommandCopyText(section.steps, {
+      absolutePaths: lifecycleCopyUsesAbsolutePaths.value,
+    }),
     description: t(`project.detail.lifecycle.generatedCommandsDescriptions.${section.key}`),
     key: section.key,
     preview: section.steps.map((step) => step.command).join('\n'),
@@ -2893,11 +2915,19 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
   font: var(--td-font-body-small);
 }
 
-.project-lifecycle-command-preview pre {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+.project-lifecycle-command-toolbar,
+.project-lifecycle-command-toolbar__toggle {
+  align-items: center;
+  display: flex;
+}
+
+.project-lifecycle-command-toolbar {
+  justify-content: flex-end;
+}
+
+.project-lifecycle-command-toolbar__toggle {
+  color: var(--td-text-color-secondary);
+  gap: var(--graft-density-gap-8);
 }
 
 .project-lifecycle-field :deep(.t-input__wrap),

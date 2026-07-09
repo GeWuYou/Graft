@@ -990,6 +990,8 @@
         "remoteStaleDescription": "Graft received a newer lifecycle snapshot, but your unsaved local edits are still kept. Use Reset to load the latest saved configuration.",
         "generatedCommandsTitle": "Generated Commands",
         "generatedCommandsDescription": "Review the resolved command preview for each lifecycle action before saving or running it.",
+        "copyCommandHint": "When copied, multi-step commands are converted into a single-line shell command chained with &&.",
+        "copyAbsolutePaths": "Copy With Absolute Paths",
         "generatedCommandsEmpty": "No command preview is available yet.",
         "generatedCommands": {
           "up": "Up",

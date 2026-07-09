@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
+  formatLifecycleCommandCopyText,
   isLifecycleDraftDirty,
   resolveLifecycleCommandSteps,
 } from './lifecycle';
@@ -43,6 +44,8 @@ describe('project lifecycle helpers', () => {
         title_key: 'project.detail.lifecycle.step.up',
         command:
           'docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
+        absolute_command:
+          'docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
       },
     ]);
 
@@ -67,8 +70,26 @@ describe('project lifecycle helpers', () => {
         title_key: 'project.detail.lifecycle.step.up',
         command:
           'docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
+        absolute_command:
+          'docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
       },
     ]);
+  });
+
+  it('formats copied lifecycle commands with relative or absolute compose paths', () => {
+    const detail = createProjectDetail() as Record<string, unknown>;
+    detail.canonical_project_name = 'compose-demo-copy-mode';
+    const draft = buildLifecycleConfigurationDraft(detail as never);
+    draft.pull_before_redeploy = true;
+
+    const steps = resolveLifecycleCommandSteps(draft, 'redeploy', { preferClientGenerated: true });
+
+    expect(formatLifecycleCommandCopyText(steps)).toBe(
+      'docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo-copy-mode down && docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo-copy-mode pull && docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo-copy-mode up -d --remove-orphans',
+    );
+    expect(formatLifecycleCommandCopyText(steps, { absolutePaths: true })).toBe(
+      'docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo-copy-mode down && docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo-copy-mode pull && docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo-copy-mode up -d --remove-orphans',
+    );
   });
 
   it('clears session additional args when the saved draft no longer carries them', () => {

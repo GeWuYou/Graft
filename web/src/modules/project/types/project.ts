@@ -63,6 +63,7 @@ export type ProjectLifecycleConfigurationSavedResponse =
 export type ProjectLifecycleCommandStep = {
   title_key: string;
   command: string;
+  absolute_command?: string;
 };
 
 export type ProjectLifecycleCommandPreview = Partial<Record<ProjectLifecycleActionKey, ProjectLifecycleCommandStep[]>>;

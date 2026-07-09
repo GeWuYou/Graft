@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
+import { copyText } from '@/shared/observability';
+
 import ProjectDetailPage from './index.vue';
 
 const containerApiMocks = vi.hoisted(() => ({
@@ -106,6 +108,9 @@ const detailMessages = {
   'project.detail.actions.up': 'Up',
   'project.detail.lifecycle.copyCommand': 'Copy Command',
   'project.detail.lifecycle.copyCommandError': 'Command preview could not be copied.',
+  'project.detail.lifecycle.copyCommandHint':
+    'Copy multi-step commands as a single-line shell command chained with &&.',
+  'project.detail.lifecycle.copyAbsolutePaths': 'Copy With Absolute Paths',
   'project.detail.lifecycle.copyCommandSuccess': 'Command preview copied.',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
@@ -421,33 +426,44 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
       generated_commands: {
         up: {
           action: 'up',
-          display_command: 'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
           steps: [
             {
-              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'up', '-d', '--remove-orphans'],
-              display_command: 'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+              argv: [
+                'docker',
+                'compose',
+                '-f',
+                '/srv/compose-demo/compose.yaml',
+                '-p',
+                'compose-demo',
+                'up',
+                '-d',
+                '--remove-orphans',
+              ],
+              display_command:
+                'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
               kind: 'up',
             },
           ],
         },
         stop: {
           action: 'stop',
-          display_command: 'docker compose -f compose.yaml -p compose-demo stop',
+          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo stop',
           steps: [
             {
-              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'stop'],
-              display_command: 'docker compose -f compose.yaml -p compose-demo stop',
+              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'stop'],
+              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo stop',
               kind: 'stop',
             },
           ],
         },
         restart: {
           action: 'restart',
-          display_command: 'docker compose -f compose.yaml -p compose-demo restart',
+          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo restart',
           steps: [
             {
-              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'restart'],
-              display_command: 'docker compose -f compose.yaml -p compose-demo restart',
+              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'restart'],
+              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo restart',
               kind: 'restart',
             },
           ],
@@ -455,16 +471,27 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
         redeploy: {
           action: 'redeploy',
           display_command:
-            'docker compose -f compose.yaml -p compose-demo down\ndocker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+            'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down\ndocker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
           steps: [
             {
-              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'down'],
-              display_command: 'docker compose -f compose.yaml -p compose-demo down',
+              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'down'],
+              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down',
               kind: 'down',
             },
             {
-              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'up', '-d', '--remove-orphans'],
-              display_command: 'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+              argv: [
+                'docker',
+                'compose',
+                '-f',
+                '/srv/compose-demo/compose.yaml',
+                '-p',
+                'compose-demo',
+                'up',
+                '-d',
+                '--remove-orphans',
+              ],
+              display_command:
+                'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
               kind: 'up',
             },
           ],
@@ -1019,6 +1046,65 @@ describe('Project detail service tab', () => {
     );
     expect(wrapper.find('[data-testid="project-lifecycle-command-preview-redeploy"]').text()).toContain(
       'docker compose -f compose.yaml -p compose-demo down',
+    );
+  });
+
+  it('recomputes lifecycle command previews immediately when the draft changes', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const redeployPreview = wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"]');
+    const upPreview = wrapper.get('[data-testid="project-lifecycle-command-preview-up"]');
+
+    expect(redeployPreview.text()).not.toContain('docker compose -f compose.yaml -p compose-demo pull');
+    expect(redeployPreview.text()).not.toContain('docker image prune -f');
+    expect(upPreview.text()).not.toContain('--wait --wait-timeout 120');
+
+    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-prune-images-after-redeploy-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await flushPromises();
+
+    expect(redeployPreview.text()).toContain('docker compose -f compose.yaml -p compose-demo pull');
+    expect(redeployPreview.text()).toContain('docker image prune -f');
+    expect(upPreview.text()).toContain('--wait --wait-timeout 120');
+  });
+
+  it('copies multi-step lifecycle commands as a shell-safe && chain', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    vi.mocked(copyText).mockResolvedValue(true);
+
+    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-prune-images-after-redeploy-switch"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"] button').trigger('click');
+
+    expect(copyText).toHaveBeenCalledWith(
+      'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down && docker compose -f /srv/compose-demo/compose.yaml -p compose-demo pull && docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans && docker image prune -f',
+    );
+    expect(messageMocks.success).toHaveBeenCalledWith('Command preview copied.');
+  });
+
+  it('allows switching copied lifecycle commands between absolute and relative paths', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    vi.mocked(copyText).mockResolvedValue(true);
+
+    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="project-lifecycle-copy-path-mode"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"] button').trigger('click');
+
+    expect(copyText).toHaveBeenLastCalledWith(
+      'docker compose -f compose.yaml -p compose-demo down && docker compose -f compose.yaml -p compose-demo pull && docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
     );
   });
 

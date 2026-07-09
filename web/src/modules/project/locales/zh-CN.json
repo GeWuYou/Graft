@@ -990,6 +990,8 @@
         "remoteStaleDescription": "后台已收到新的生命周期配置快照，当前保留你未保存的本地修改。需要载入最新配置时，请点击“重置”。",
         "generatedCommandsTitle": "生成命令",
         "generatedCommandsDescription": "在保存或执行动作前，先核对每个生命周期动作的最终命令预览。",
+        "copyCommandHint": "复制时，多步骤命令会转换为使用 && 串联的单行 shell 命令。",
+        "copyAbsolutePaths": "复制使用绝对路径",
         "generatedCommandsEmpty": "当前还没有可用的命令预览。",
         "generatedCommands": {
           "up": "启动",

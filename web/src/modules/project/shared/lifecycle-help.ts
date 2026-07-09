@@ -84,6 +84,7 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     detailKeyPrefix: 'project.detail.lifecycle.help.items.pullBeforeRedeploy',
     recommendation: 'optional',
     commandExample: ['docker compose pull'],
+    switchTestId: 'project-lifecycle-pull-before-redeploy-switch',
   },
   {
     key: 'buildBeforeUp',
@@ -95,6 +96,7 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     detailKeyPrefix: 'project.detail.lifecycle.help.items.buildBeforeUp',
     recommendation: 'defaultOff',
     commandExample: ['docker compose up -d --build'],
+    switchTestId: 'project-lifecycle-build-before-up-switch',
   },
   {
     key: 'forceRecreate',
@@ -165,6 +167,7 @@ export const lifecycleHelpDefinitions: LifecycleHelpDefinition[] = [
     detailKeyPrefix: 'project.detail.lifecycle.help.items.pruneImagesAfterRedeploy',
     recommendation: 'defaultOff',
     commandExample: ['docker image prune -f'],
+    switchTestId: 'project-lifecycle-prune-images-after-redeploy-switch',
   },
 ];
 

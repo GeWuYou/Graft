@@ -71,11 +71,23 @@ function persistLifecycleSessionAdditionalArgs(
   lifecycleAdditionalArgsSession.set(key, value);
 }
 
-function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft) {
+function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory: string) {
+  const value = path.trim();
+  const normalizedWorkingDirectory = workingDirectory.trim().replace(/\/+$/g, '');
+
+  if (!value || !normalizedWorkingDirectory || value.startsWith('/')) {
+    return value;
+  }
+
+  return `${normalizedWorkingDirectory}/${value}`;
+}
+
+function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft, absolutePaths = false) {
   const command = ['docker', 'compose'];
+  const normalizePath = absolutePaths ? resolveAbsoluteLifecycleFilePath : normalizeLifecycleFilePath;
 
   for (const file of config.compose_files) {
-    command.push('-f', normalizeLifecycleFilePath(file, config.working_directory));
+    command.push('-f', normalizePath(file, config.working_directory));
   }
 
   for (const profile of config.profiles) {
@@ -89,8 +101,8 @@ function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft) {
   return command;
 }
 
-function buildUpCommand(config: ProjectLifecycleConfigurationDraft) {
-  const command = [...buildComposeBaseCommand(config), 'up', '-d'];
+function buildUpCommand(config: ProjectLifecycleConfigurationDraft, absolutePaths = false) {
+  const command = [...buildComposeBaseCommand(config, absolutePaths), 'up', '-d'];
 
   if (config.build_before_up) {
     command.push('--build');
@@ -117,11 +129,37 @@ function buildSimpleCommand(config: ProjectLifecycleConfigurationDraft, action: 
   return [...buildComposeBaseCommand(config), action].join(' ');
 }
 
+function buildSimpleCommandWithPathMode(
+  config: ProjectLifecycleConfigurationDraft,
+  action: 'stop' | 'restart' | 'down',
+  absolutePaths = false,
+) {
+  return [...buildComposeBaseCommand(config, absolutePaths), action].join(' ');
+}
+
 function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft): ProjectLifecycleCommandPreview {
   const commands: ProjectLifecycleCommandPreview = {
-    up: [{ title_key: 'project.detail.lifecycle.step.up', command: buildUpCommand(config) }],
-    stop: [{ title_key: 'project.detail.lifecycle.step.stop', command: buildSimpleCommand(config, 'stop') }],
-    restart: [{ title_key: 'project.detail.lifecycle.step.restart', command: buildSimpleCommand(config, 'restart') }],
+    up: [
+      {
+        title_key: 'project.detail.lifecycle.step.up',
+        command: buildUpCommand(config),
+        absolute_command: buildUpCommand(config, true),
+      },
+    ],
+    stop: [
+      {
+        title_key: 'project.detail.lifecycle.step.stop',
+        command: buildSimpleCommand(config, 'stop'),
+        absolute_command: buildSimpleCommandWithPathMode(config, 'stop', true),
+      },
+    ],
+    restart: [
+      {
+        title_key: 'project.detail.lifecycle.step.restart',
+        command: buildSimpleCommand(config, 'restart'),
+        absolute_command: buildSimpleCommandWithPathMode(config, 'restart', true),
+      },
+    ],
     redeploy: [],
   };
 
@@ -129,6 +167,7 @@ function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft
     commands.redeploy?.push({
       title_key: 'project.detail.lifecycle.step.bringDown',
       command: buildSimpleCommand(config, 'down'),
+      absolute_command: buildSimpleCommandWithPathMode(config, 'down', true),
     });
   }
 
@@ -136,18 +175,21 @@ function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft
     commands.redeploy?.push({
       title_key: 'project.detail.lifecycle.step.pullImages',
       command: [...buildComposeBaseCommand(config), 'pull'].join(' '),
+      absolute_command: [...buildComposeBaseCommand(config, true), 'pull'].join(' '),
     });
   }
 
   commands.redeploy?.push({
     title_key: 'project.detail.lifecycle.step.bringUp',
     command: buildUpCommand(config),
+    absolute_command: buildUpCommand(config, true),
   });
 
   if (config.prune_images_after_redeploy) {
     commands.redeploy?.push({
       title_key: 'project.detail.lifecycle.step.pruneImages',
       command: 'docker image prune -f',
+      absolute_command: 'docker image prune -f',
     });
   }
 
@@ -188,27 +230,48 @@ function lifecycleStepTitleKey(kind: string) {
   }
 }
 
-function mapGeneratedCommand(command: ProjectLifecycleGeneratedCommand | undefined): ProjectLifecycleCommandStep[] {
+function normalizeGeneratedArgvCommand(argv: string[], workingDirectory: string, absolutePaths: boolean) {
+  return argv
+    .map((arg, index) => {
+      if (!absolutePaths && index > 0 && argv[index - 1] === '-f') {
+        return normalizeLifecycleFilePath(arg, workingDirectory);
+      }
+
+      return arg;
+    })
+    .join(' ');
+}
+
+function mapGeneratedCommand(
+  command: ProjectLifecycleGeneratedCommand | undefined,
+  workingDirectory: string,
+): ProjectLifecycleCommandStep[] {
   if (!command) {
     return [];
   }
   return command.steps.map((step) => ({
     title_key: lifecycleStepTitleKey(step.kind),
-    command: step.display_command,
+    command: step.argv.length
+      ? normalizeGeneratedArgvCommand(step.argv, workingDirectory, false)
+      : step.display_command,
+    absolute_command: step.argv.length
+      ? normalizeGeneratedArgvCommand(step.argv, workingDirectory, true)
+      : step.display_command,
   }));
 }
 
 function mapGeneratedCommands(
   config: Pick<ProjectLifecycleConfigurationModel, 'generated_commands'> | null | undefined,
+  workingDirectory: string,
 ): ProjectLifecycleCommandPreview | null {
   if (!config?.generated_commands) {
     return null;
   }
   return {
-    up: mapGeneratedCommand(config.generated_commands.up),
-    stop: mapGeneratedCommand(config.generated_commands.stop),
-    restart: mapGeneratedCommand(config.generated_commands.restart),
-    redeploy: mapGeneratedCommand(config.generated_commands.redeploy),
+    up: mapGeneratedCommand(config.generated_commands.up, workingDirectory),
+    stop: mapGeneratedCommand(config.generated_commands.stop, workingDirectory),
+    restart: mapGeneratedCommand(config.generated_commands.restart, workingDirectory),
+    redeploy: mapGeneratedCommand(config.generated_commands.redeploy, workingDirectory),
   };
 }
 
@@ -278,7 +341,7 @@ export function buildLifecycleConfigurationDraft(
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
     additional_args: sessionAdditionalArgs,
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
-    generated_commands: mapGeneratedCommands(source),
+    generated_commands: mapGeneratedCommands(source, detail.working_directory),
   };
 
   return {
@@ -333,11 +396,22 @@ export function updateLifecycleDraftProfiles(draft: ProjectLifecycleConfiguratio
   draft.profiles = splitProfiles(value);
 }
 
+export function formatLifecycleCommandCopyText(
+  steps: ProjectLifecycleCommandStep[],
+  options?: { absolutePaths?: boolean },
+) {
+  return steps
+    .map((step) => (options?.absolutePaths ? step.absolute_command || step.command : step.command).trim())
+    .filter(Boolean)
+    .join(' && ');
+}
+
 export function resolveLifecycleCommandSteps(
   config: ProjectLifecycleConfigurationDraft,
   action: ProjectLifecycleActionKey,
+  options?: { preferClientGenerated?: boolean },
 ): ProjectLifecycleCommandStep[] {
-  if (config.additional_args.trim()) {
+  if (options?.preferClientGenerated || config.additional_args.trim()) {
     return buildClientGeneratedCommands(config)[action] ?? [];
   }
 
