@@ -116,3 +116,56 @@ describe('project-monaco debug toggle', () => {
     expect(isProjectMonacoDebugEnabled()).toBe(true);
   });
 });
+
+describe('project-monaco relayout bridge', () => {
+  it('resolves relayout after the scheduled animation frame runs', async () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    document.queryCommandSupported = vi.fn(() => false);
+    vi.resetModules();
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback: FrameRequestCallback) => {
+        rafCallbacks.push(callback);
+        return rafCallbacks.length;
+      }),
+    );
+    vi.doMock('vue', async () => {
+      const actual = await vi.importActual<typeof import('vue')>('vue');
+      return {
+        ...actual,
+        nextTick: () => Promise.resolve(),
+      };
+    });
+
+    const { createProjectMonacoRelayoutBridge } = await import('./project-monaco');
+    const container = document.createElement('div');
+    Object.defineProperties(container, {
+      clientHeight: { configurable: true, value: 240 },
+      clientWidth: { configurable: true, value: 480 },
+    });
+
+    const layout = vi.fn();
+    const bridge = createProjectMonacoRelayoutBridge({
+      getContainer: () => container,
+      layout,
+      log: vi.fn(),
+    });
+
+    let settled = false;
+    const relayoutPromise = bridge.relayout('test-frame').then(() => {
+      settled = true;
+    });
+
+    await Promise.resolve();
+
+    expect(layout).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+    expect(rafCallbacks).toHaveLength(1);
+
+    rafCallbacks[0]?.(0);
+    await relayoutPromise;
+
+    expect(layout).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(true);
+  }, 20000);
+});

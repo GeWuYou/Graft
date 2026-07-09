@@ -31,6 +31,7 @@ const monacoSurfaceState = vi.hoisted(() => ({
         startColumn: number;
         startLineNumber: number;
       }>),
+  modelKeyLagByPath: {} as Record<string, number>,
 }));
 
 const routeState = reactive({
@@ -239,13 +240,68 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
     },
     emits: ['update:modelValue'],
     setup(props, { emit, expose }) {
-      const getMarkers = () =>
-        monacoSurfaceState.diagnosticsResolver
+      let renderedModelKey = String(props.modelKey);
+      let renderedModelValue = String(props.modelValue);
+      let pendingModelKey: string | null = null;
+      let pendingModelValue = '';
+      let pendingLagSteps = 0;
+
+      const resolveRenderedModel = () => {
+        if (props.readOnly) {
+          renderedModelKey = String(props.modelKey);
+          renderedModelValue = String(props.modelValue);
+          return { modelKey: renderedModelKey, modelValue: renderedModelValue };
+        }
+
+        if (pendingModelKey && pendingLagSteps > 0) {
+          pendingLagSteps -= 1;
+          return { modelKey: renderedModelKey, modelValue: renderedModelValue };
+        }
+
+        if (pendingModelKey) {
+          renderedModelKey = pendingModelKey;
+          renderedModelValue = pendingModelValue;
+          pendingModelKey = null;
+        }
+
+        return { modelKey: renderedModelKey, modelValue: renderedModelValue };
+      };
+
+      watch(
+        () => [String(props.modelKey), String(props.modelValue)] as const,
+        ([nextModelKey, nextModelValue]) => {
+          if (props.readOnly) {
+            renderedModelKey = nextModelKey;
+            renderedModelValue = nextModelValue;
+            pendingModelKey = null;
+            pendingLagSteps = 0;
+            return;
+          }
+
+          const lagSteps = monacoSurfaceState.modelKeyLagByPath[nextModelKey] ?? 0;
+          if (lagSteps > 0) {
+            pendingModelKey = nextModelKey;
+            pendingModelValue = nextModelValue;
+            pendingLagSteps = lagSteps;
+            return;
+          }
+
+          renderedModelKey = nextModelKey;
+          renderedModelValue = nextModelValue;
+          pendingModelKey = null;
+          pendingLagSteps = 0;
+        },
+        { immediate: true },
+      );
+
+      const getMarkers = () => {
+        const { modelKey, modelValue } = resolveRenderedModel();
+        return monacoSurfaceState.diagnosticsResolver
           ? monacoSurfaceState.diagnosticsResolver({
-              modelKey: String(props.modelKey),
-              modelValue: String(props.modelValue),
+              modelKey,
+              modelValue,
             })
-          : String(props.modelValue).includes('[broken')
+          : modelValue.includes('[broken')
             ? [
                 {
                   endColumn: 15,
@@ -257,9 +313,10 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
                 },
               ]
             : [];
+      };
 
       expose({
-        getModelKey: () => String(props.modelKey),
+        getModelKey: () => resolveRenderedModel().modelKey,
         getMarkers,
         relayout: () => Promise.resolve(),
         revealMarker: vi.fn(() => true),
@@ -551,6 +608,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     monacoSurfaceState.diagnosticsResolver = null;
+    monacoSurfaceState.modelKeyLagByPath = {};
     pageContextState.locale = 'en-US';
     mocks.getProject.mockResolvedValue({
       canonical_project_name: 'sub2api',
@@ -1246,6 +1304,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
+    expect(wrapper.text()).toContain('File Validation Errors');
+    expect(wrapper.text()).toContain(
+      'These files still have syntax errors. Saving them may leave the project in a state that later validation or deploy cannot parse correctly.',
+    );
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('app.yaml');
   });
@@ -1357,6 +1419,131 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.text()).toContain('2');
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('app.yaml');
+  });
+
+  it('warns when save all includes dirty files without supported syntax diagnostics', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.warning).toHaveBeenCalledWith(
+      'Files without supported syntax diagnostics are skipped silently during save. config/.env',
+    );
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: newer\n' },
+    );
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' }, { content: 'APP_ENV=prod\n' });
+  });
+
+  it('waits for delayed editor rebinding before collecting batch diagnostics and restoring the active tab', async () => {
+    mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
+      if (query?.path === 'config') {
+        return {
+          current_path: 'config',
+          items: [
+            {
+              editable: true,
+              file_kind: 'config',
+              has_children: false,
+              language_hint: 'yaml',
+              name: 'app.yaml',
+              node_type: 'file',
+              readable: true,
+              relative_path: 'config/app.yaml',
+              size_bytes: 24,
+            },
+          ],
+          root_path: '/srv/sub2api',
+        };
+      }
+      return {
+        current_path: '',
+        items: [
+          {
+            editable: true,
+            file_kind: 'compose',
+            has_children: false,
+            language_hint: 'yaml',
+            name: 'docker-compose.yml',
+            node_type: 'file',
+            readable: true,
+            relative_path: 'docker-compose.yml',
+            size_bytes: 32,
+          },
+          {
+            editable: false,
+            file_kind: 'directory',
+            has_children: true,
+            name: 'config',
+            node_type: 'directory',
+            readable: true,
+            relative_path: 'config',
+          },
+        ],
+        root_path: '/srv/sub2api',
+      };
+    });
+    mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
+      content:
+        query.path === 'docker-compose.yml'
+          ? 'services:\n  api:\n    image: app\n'
+          : query.path === 'config/app.yaml'
+            ? 'name: demo\nenabled: true\n'
+            : '',
+      editable: true,
+      encoding: 'utf-8',
+      file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
+      language_hint: 'yaml',
+      readable: true,
+      relative_path: query.path,
+      size_bytes: 32,
+    }));
+
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-app-yaml"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('name: [broken\nenabled: true\n');
+
+    monacoSurfaceState.modelKeyLagByPath = {
+      'config/app.yaml': 8,
+      'docker-compose.yml': 8,
+    };
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Error Files');
+    expect(wrapper.text()).toContain('2');
+    expect(wrapper.text()).toContain('docker-compose.yml');
+    expect(wrapper.text()).toContain('app.yaml');
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
+      'name: [broken\nenabled: true\n',
+    );
   });
 
   it('previews the active dirty buffers before saving them to disk', async () => {

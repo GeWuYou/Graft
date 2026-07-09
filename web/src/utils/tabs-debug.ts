@@ -1,5 +1,5 @@
 import { LOCALE } from '@/contracts/i18n/locales';
-import { emitDebugLog } from '@/shared/debug/runtime';
+import { emitDebugLog, isDebugFlagEnabled } from '@/shared/debug/runtime';
 import type { TRouterInfo } from '@/utils/types';
 
 type TabsDebugRoute = Pick<TRouterInfo, 'fullPath' | 'name' | 'path' | 'tabKey' | 'title'>;
@@ -42,6 +42,10 @@ export function formatTabsDebugSummary(routes: TabsDebugRoute[]) {
  * @param message - 日志内容，或用于延迟生成日志内容的回调
  */
 export function logTabsDebug(flagId: 'tabs.layout' | 'tabs.store', message: string | (() => string)) {
+  if (!isDebugFlagEnabled(flagId)) {
+    return;
+  }
+
   emitDebugLog(flagId, 'trace', {
     message: typeof message === 'function' ? message() : message,
   });

@@ -902,6 +902,7 @@ const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<WorkspacePreviewDiffResult | null>(null);
 const syntaxValidationResult = ref<WorkspaceSyntaxValidationResult | null>(null);
 const syntaxValidationFiles = ref<WorkspaceSyntaxValidationResult[]>([]);
+const syntaxValidationSkippedPaths = ref<string[]>([]);
 const syntaxCheckLoading = ref(false);
 const deployLoading = ref(false);
 const saveConfirmLoading = ref(false);
@@ -1027,6 +1028,15 @@ const showSyntaxSidebar = computed(
     (pendingWorkspaceAction.value === 'save-all' || pendingWorkspaceAction.value === 'deploy') &&
     syntaxValidationFiles.value.length > 0,
 );
+const batchSyntaxValidationDescription = computed(() => {
+  if (!showSyntaxSidebar.value) {
+    return '';
+  }
+  if (!syntaxValidationSkippedPaths.value.length) {
+    return workspaceCopy.value.batchFileValidationRiskBody;
+  }
+  return `${workspaceCopy.value.batchFileValidationRiskBody} ${workspaceCopy.value.validateSkipUnsupportedHint}`;
+});
 const currentResultIssues = computed(() =>
   resultDialogMode.value === 'syntax' ? (syntaxValidationFile.value?.markers ?? []) : syntaxMarkers.value,
 );
@@ -1038,7 +1048,9 @@ const resultDialogTitle = computed(() =>
     ? pendingWorkspaceAction.value === 'save-current'
       ? workspaceCopy.value.diffCurrentFileTitle
       : t('project.detail.configuration.diffTitle')
-    : workspaceCopy.value.fileValidationTitle,
+    : showSyntaxSidebar.value
+      ? workspaceCopy.value.batchFileValidationTitle
+      : workspaceCopy.value.fileValidationTitle,
 );
 const resultDialogDescription = computed(() => {
   if (resultDialogMode.value === 'diff') {
@@ -1046,7 +1058,10 @@ const resultDialogDescription = computed(() => {
       ? workspaceCopy.value.diffCurrentFileConfirmBody
       : workspaceCopy.value.diffConfirmBody;
   }
-  return '';
+  if (showSyntaxSidebar.value) {
+    return batchSyntaxValidationDescription.value;
+  }
+  return workspaceCopy.value.fileValidationFailed;
 });
 const resultDialogSummaryItems = computed(() => {
   if (resultDialogMode.value === 'diff') {
@@ -1195,6 +1210,7 @@ watch(resultDialogVisible, (visible) => {
     syntaxMarkers.value = [];
     syntaxValidationResult.value = null;
     syntaxValidationFiles.value = [];
+    syntaxValidationSkippedPaths.value = [];
     selectedSyntaxFilePath.value = '';
     pendingWorkspaceAction.value = null;
     pendingWorkspaceActionPaths.value = [];
@@ -1712,13 +1728,41 @@ async function waitForActiveEditorModel(path: string, options?: { maxAttempts?: 
   return activeEditorRef.value?.getModelKey?.() === path;
 }
 
+function resolveSyntaxValidationTargets(paths: string[]) {
+  const supportedPaths: string[] = [];
+  const skippedPaths: string[] = [];
+
+  for (const path of [...new Set(paths)]) {
+    const file = openFileMap.get(path);
+    if (!file?.editable) {
+      continue;
+    }
+    if (supportsExplicitSyntaxValidation(file.language)) {
+      supportedPaths.push(path);
+      continue;
+    }
+    skippedPaths.push(path);
+  }
+
+  return { skippedPaths, supportedPaths };
+}
+
+function notifySkippedSyntaxValidationPaths(paths: string[]) {
+  if (!paths.length) {
+    return;
+  }
+  const fileList = paths.join(', ');
+  MessagePlugin.warning(`${workspaceCopy.value.validateSkipUnsupportedHint} ${fileList}`);
+}
+
 async function collectSyntaxValidationIssueForPath(path: string, options?: { retries?: number }) {
-  let switchedActiveEditor = false;
   if (activeTabPath.value !== path) {
     activeTabPath.value = path;
     await nextTick();
-    await waitForActiveEditorModel(path);
-    switchedActiveEditor = true;
+  }
+  const activeModelReady = await waitForActiveEditorModel(path);
+  if (!activeModelReady) {
+    return null;
   }
 
   const file = openFileMap.get(path);
@@ -1727,7 +1771,7 @@ async function collectSyntaxValidationIssueForPath(path: string, options?: { ret
   }
 
   const errors = await collectActiveEditorSyntaxErrors({
-    retries: options?.retries ?? (switchedActiveEditor ? 1 : 0),
+    retries: options?.retries ?? 0,
   });
   if (!errors.length) {
     return null;
@@ -1737,15 +1781,12 @@ async function collectSyntaxValidationIssueForPath(path: string, options?: { ret
 }
 
 async function collectSyntaxValidationIssues(paths: string[]) {
-  const requestedPaths = [...new Set(paths)].filter((path) => {
-    const file = openFileMap.get(path);
-    return Boolean(file?.editable && supportsExplicitSyntaxValidation(file.language));
-  });
+  const { supportedPaths } = resolveSyntaxValidationTargets(paths);
   const activePathBeforeValidation = activeTabPath.value;
   const uniquePaths =
-    activePathBeforeValidation && requestedPaths.includes(activePathBeforeValidation)
-      ? [activePathBeforeValidation, ...requestedPaths.filter((path) => path !== activePathBeforeValidation)]
-      : requestedPaths;
+    activePathBeforeValidation && supportedPaths.includes(activePathBeforeValidation)
+      ? [activePathBeforeValidation, ...supportedPaths.filter((path) => path !== activePathBeforeValidation)]
+      : supportedPaths;
   const issues = new Map<string, WorkspaceSyntaxValidationResult>();
   const unresolvedPaths: string[] = [];
 
@@ -1771,6 +1812,7 @@ async function collectSyntaxValidationIssues(paths: string[]) {
   if (activePathBeforeValidation && activeTabPath.value !== activePathBeforeValidation) {
     activeTabPath.value = activePathBeforeValidation;
     await nextTick();
+    await waitForActiveEditorModel(activePathBeforeValidation, { maxAttempts: 12 });
   }
 
   return uniquePaths.map((path) => issues.get(path)).filter(Boolean) as WorkspaceSyntaxValidationResult[];
@@ -1813,6 +1855,9 @@ async function finalizePendingWorkspaceAction(action: PendingWorkspaceAction, pa
 }
 
 async function proceedAfterDiffConfirmation(action: PendingWorkspaceAction, paths: string[]) {
+  const { skippedPaths } = resolveSyntaxValidationTargets(paths);
+  syntaxValidationSkippedPaths.value = action === 'save-current' ? [] : skippedPaths;
+  notifySkippedSyntaxValidationPaths(syntaxValidationSkippedPaths.value);
   const syntaxIssues = await collectSyntaxValidationIssues(paths);
   if (!syntaxIssues.length) {
     const saved = await finalizePendingWorkspaceAction(action, paths);
@@ -2103,6 +2148,7 @@ async function runCurrentFileValidation() {
     const validationResult = buildSyntaxValidationResult(current, errors);
     syntaxValidationResult.value = validationResult;
     syntaxValidationFiles.value = [validationResult];
+    syntaxValidationSkippedPaths.value = [];
     selectedSyntaxFilePath.value = current.path;
     syntaxMarkers.value = validationResult.markers;
     resultIssueIndex.value = 0;
@@ -2252,6 +2298,7 @@ async function previewBeforeSave(action: PendingWorkspaceAction) {
   });
   syntaxValidationFiles.value = [];
   syntaxValidationResult.value = null;
+  syntaxValidationSkippedPaths.value = [];
   pendingWorkspaceActionPaths.value = targetPaths;
   pendingWorkspaceAction.value = action;
   resultDialogMode.value = 'diff';

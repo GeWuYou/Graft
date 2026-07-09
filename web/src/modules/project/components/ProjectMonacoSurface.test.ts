@@ -156,6 +156,22 @@ vi.mock('../shared/project-monaco', async () => {
         options.layout();
       }),
     }),
+    evictProjectMonacoModelFromCache: (
+      cache: Map<string, { dispose: () => void }>,
+      targetModel: { dispose: () => void },
+      reason: string,
+      disposeModel: (targetModel: { dispose: () => void }, reason: string) => void,
+    ) => {
+      for (const [cacheKey, cachedModel] of cache.entries()) {
+        if (cachedModel !== targetModel) {
+          continue;
+        }
+
+        cache.delete(cacheKey);
+      }
+
+      disposeModel(targetModel, reason);
+    },
     disposeProjectMonacoModelCache: (
       cache: Map<string, { dispose: () => void }>,
       reason: string,
@@ -261,7 +277,7 @@ describe('ProjectMonacoSurface', () => {
     expect(initialModel?.getValue()).toBe('version: 2\n');
   });
 
-  it('reuses cached models when switching back to a previously opened file', async () => {
+  it('disposes the previously bound model when switching files', async () => {
     const wrapper = mount(ProjectMonacoSurface, {
       props: {
         editorAriaLabel: 'Editor',
@@ -280,6 +296,7 @@ describe('ProjectMonacoSurface', () => {
     });
     await flushPromises();
     expect(mockState.createModel).toHaveBeenCalledTimes(2);
+    expect(mockState.models[0]?.dispose).toHaveBeenCalledTimes(1);
 
     await wrapper.setProps({
       modelKey: 'docker-compose.yml',
@@ -287,12 +304,12 @@ describe('ProjectMonacoSurface', () => {
     });
     await flushPromises();
 
-    expect(mockState.createModel).toHaveBeenCalledTimes(2);
+    expect(mockState.createModel).toHaveBeenCalledTimes(3);
     expect(mockState.editor.setModel).toHaveBeenCalledTimes(2);
+    expect(mockState.models[1]?.dispose).toHaveBeenCalledTimes(1);
 
     await wrapper.unmount();
-    expect(mockState.models[0]?.dispose).toHaveBeenCalledTimes(1);
-    expect(mockState.models[1]?.dispose).toHaveBeenCalledTimes(1);
+    expect(mockState.models[2]?.dispose).toHaveBeenCalledTimes(1);
   });
 
   it('exposes marker lookup and marker reveal helpers', async () => {

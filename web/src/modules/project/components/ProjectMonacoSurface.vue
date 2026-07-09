@@ -126,6 +126,14 @@ watch(
     }
     editor.setModel(nextModel);
     model = nextModel;
+    if (previousModel) {
+      projectMonaco.evictProjectMonacoModelFromCache(
+        modelCache,
+        previousModel,
+        'rebind-editor-model',
+        disposeSurfaceModel,
+      );
+    }
     syncModelMarkers();
     await relayout('rebind-model');
     logSurfaceDebug('model-rebind-complete', {

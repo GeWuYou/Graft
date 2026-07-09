@@ -277,9 +277,19 @@ function applyProjectMonacoTheme(monacoInstance: MonacoEditorModule, hostElement
  * @returns 一个在布局回调被安排后完成的 Promise
  */
 function scheduleProjectMonacoLayout(layout: () => void) {
-  return nextTick().then(() => {
-    requestAnimationFrame(layout);
-  });
+  return nextTick().then(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        requestAnimationFrame(() => {
+          try {
+            layout();
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }),
+  );
 }
 
 /**
@@ -456,6 +466,36 @@ export function disposeProjectMonacoModelCache(
   cache.clear();
   for (const cachedModel of cachedModels) {
     disposeModel(cachedModel, reason);
+  }
+}
+
+/**
+ * 从 Monaco 模型缓存中移除指定模型并释放它。
+ *
+ * @param cache - 当前组件持有的模型缓存
+ * @param targetModel - 需要从缓存中移除的模型
+ * @param reason - 传递给模型释放回调的原因说明
+ * @param disposeModel - 释放缓存模型的回调
+ */
+export function evictProjectMonacoModelFromCache(
+  cache: ProjectMonacoModelCache,
+  targetModel: monaco.editor.ITextModel,
+  reason: string,
+  disposeModel: (targetModel: monaco.editor.ITextModel, reason: string) => void,
+) {
+  let removed = false;
+
+  for (const [cacheKey, cachedModel] of cache.entries()) {
+    if (cachedModel !== targetModel) {
+      continue;
+    }
+
+    cache.delete(cacheKey);
+    removed = true;
+  }
+
+  if (removed) {
+    disposeModel(targetModel, reason);
   }
 }
 
