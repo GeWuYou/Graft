@@ -366,6 +366,7 @@ function logSurfaceDebug(event: string, detail: Record<string, unknown>) {
 }
 
 defineExpose({
+  getModelKey: () => props.modelKey,
   getMarkers: getSortedMarkers,
   relayout,
   revealMarker,

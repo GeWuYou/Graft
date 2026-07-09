@@ -259,6 +259,7 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
             : [];
 
       expose({
+        getModelKey: () => String(props.modelKey),
         getMarkers,
         relayout: () => Promise.resolve(),
         revealMarker: vi.fn(() => true),

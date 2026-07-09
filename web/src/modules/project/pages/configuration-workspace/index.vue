@@ -835,6 +835,7 @@ type WorkspaceSyntaxTreeRow = {
   type: 'directory' | 'file';
 };
 type MonacoViewerHandle = {
+  getModelKey?: () => string;
   getLineChanges?: () => WorkspaceDiffLineChange[];
   getMarkers?: () => WorkspaceSyntaxMarker[];
   navigateDiff?: (direction: 'next' | 'previous') => boolean;
@@ -1697,12 +1698,26 @@ async function collectActiveEditorSyntaxErrors(options?: { retries?: number }) {
   return [] as WorkspaceSyntaxMarker[];
 }
 
+async function waitForActiveEditorModel(path: string, options?: { maxAttempts?: number }) {
+  const maxAttempts = Math.max(1, options?.maxAttempts ?? 6);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (activeEditorRef.value?.getModelKey?.() === path) {
+      return true;
+    }
+
+    await nextTick();
+  }
+
+  return activeEditorRef.value?.getModelKey?.() === path;
+}
+
 async function collectSyntaxValidationIssueForPath(path: string, options?: { retries?: number }) {
   let switchedActiveEditor = false;
   if (activeTabPath.value !== path) {
     activeTabPath.value = path;
     await nextTick();
-    await nextTick();
+    await waitForActiveEditorModel(path);
     switchedActiveEditor = true;
   }
 
