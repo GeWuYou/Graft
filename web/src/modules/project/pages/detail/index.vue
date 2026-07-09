@@ -1018,8 +1018,8 @@ const projectLogEntries = computed(() =>
         stream: entry.stream,
       }),
     )
-    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null)
-    .sort((left, right) => parseActivityTime(right.occurredAt) - parseActivityTime(left.occurredAt)),
+    // Preserve the server/realtime chronological order so LogViewer keeps the latest lines at the bottom.
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null),
 );
 const overviewDiagnostics = computed<OverviewDiagnostic[]>(() => {
   if (configurationMetadata.value?.diagnostics_summary?.length) {

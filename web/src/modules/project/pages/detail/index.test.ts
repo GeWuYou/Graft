@@ -26,6 +26,13 @@ const notifyMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
+const realtimeMocks = vi.hoisted(() => ({
+  sockets: [] as Array<{
+    controller: { close: ReturnType<typeof vi.fn> };
+    options: Record<string, any>;
+  }>,
+}));
+
 const projectApiMocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   getProjectConfiguration: vi.fn(),
@@ -442,6 +449,31 @@ function buildRuntimeContainers() {
   };
 }
 
+function buildProjectLogs(entries: Array<{ line: string; occurred_at: string; stream?: 'stdout' | 'stderr' }>) {
+  return {
+    canonical_project_name: 'compose-demo',
+    entries: entries.map((entry, index) => ({
+      container_id: `container-${index + 1}`,
+      container_name: `compose-demo-${index + 1}`,
+      line: entry.line,
+      occurred_at: entry.occurred_at,
+      service_name: index % 2 === 0 ? 'app' : 'worker',
+      source: {
+        container_id: `container-${index + 1}`,
+        container_name: `compose-demo-${index + 1}`,
+        service_name: index % 2 === 0 ? 'app' : 'worker',
+      },
+      stream: entry.stream ?? 'stdout',
+    })),
+    project_id: 7,
+    stderr: true,
+    stdout: true,
+    tail: 200,
+    timestamps: true,
+    truncated: false,
+  };
+}
+
 function mountPage() {
   return mount(ProjectDetailPage, {
     global: {
@@ -530,8 +562,17 @@ vi.mock('@/shared/localized-api-error', () => ({
 vi.mock('@/shared/observability', () => ({
   LogViewer: defineComponent({
     name: 'LogViewerStub',
-    setup(_props, { slots }) {
-      return () => h('div', { 'data-stub': 'LogViewer' }, slots.default?.());
+    props: {
+      entries: { type: Array, default: () => [] },
+    },
+    setup(props, { slots }) {
+      return () =>
+        h('div', { 'data-stub': 'LogViewer' }, [
+          ...(props.entries as Array<{ line: string }>).map((entry, index) =>
+            h('div', { key: `${index}-${entry.line}`, 'data-log-line': String(index) }, entry.line),
+          ),
+          slots.default?.(),
+        ]);
     },
   }),
   copyText: vi.fn(),
@@ -555,7 +596,11 @@ vi.mock('@/shared/realtime', () => ({
     dispose: vi.fn(),
     flush: vi.fn(),
   }),
-  openRealtimeTopicSocket: vi.fn(() => ({ close: vi.fn() })),
+  openRealtimeTopicSocket: vi.fn((options: Record<string, any>) => {
+    const controller = { close: vi.fn() };
+    realtimeMocks.sockets.push({ controller, options });
+    return controller;
+  }),
 }));
 
 vi.mock('@/utils/logger', () => ({
@@ -601,6 +646,7 @@ vi.mock('tdesign-vue-next/es/notification', () => ({
 describe('Project detail service tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    realtimeMocks.sockets.length = 0;
     routeState.value.query = {};
     tabsRouterStoreMock.tabRouterList = [
       {
@@ -669,6 +715,101 @@ describe('Project detail service tab', () => {
 
     expect(projectApiMocks.getProjectLogs).toHaveBeenCalledTimes(1);
     expect(messageMocks.error).not.toHaveBeenCalled();
+  });
+
+  it('renders project log snapshots in chronological order', async () => {
+    routeState.value.query = { tab: 'logs' };
+    projectApiMocks.getProjectLogs.mockResolvedValue(
+      buildProjectLogs([
+        { line: 'oldest-entry', occurred_at: '2026-07-09T03:00:00Z' },
+        { line: 'middle-entry', occurred_at: '2026-07-09T03:00:01Z' },
+        { line: 'latest-entry', occurred_at: '2026-07-09T03:00:02Z' },
+      ]),
+    );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
+      JSON.stringify({
+        container: 'compose-demo-1',
+        container_id: 'container-1',
+        message: 'oldest-entry',
+        occurred_at: '2026-07-09T03:00:00Z',
+        service: 'app',
+        source: 'app · compose-demo-1',
+        stream: 'stdout',
+      }),
+      JSON.stringify({
+        container: 'compose-demo-2',
+        container_id: 'container-2',
+        message: 'middle-entry',
+        occurred_at: '2026-07-09T03:00:01Z',
+        service: 'worker',
+        source: 'worker · compose-demo-2',
+        stream: 'stdout',
+      }),
+      JSON.stringify({
+        container: 'compose-demo-3',
+        container_id: 'container-3',
+        message: 'latest-entry',
+        occurred_at: '2026-07-09T03:00:02Z',
+        service: 'app',
+        source: 'app · compose-demo-3',
+        stream: 'stdout',
+      }),
+    ]);
+  });
+
+  it('appends realtime project logs after the snapshot tail', async () => {
+    routeState.value.query = { tab: 'logs' };
+    projectApiMocks.getProjectLogs.mockResolvedValue(
+      buildProjectLogs([{ line: 'snapshot-entry', occurred_at: '2026-07-09T03:00:00Z' }]),
+    );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logsSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.logs:7');
+    expect(logsSocket).toBeTruthy();
+
+    logsSocket?.options.onMessage({
+      entry: {
+        container_id: 'container-9',
+        container_name: 'compose-demo-9',
+        line: 'realtime-entry',
+        occurred_at: '2026-07-09T03:00:01Z',
+        service_name: 'worker',
+        source: {
+          container_id: 'container-9',
+          container_name: 'compose-demo-9',
+          service_name: 'worker',
+        },
+        stream: 'stderr',
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
+      JSON.stringify({
+        container: 'compose-demo-1',
+        container_id: 'container-1',
+        message: 'snapshot-entry',
+        occurred_at: '2026-07-09T03:00:00Z',
+        service: 'app',
+        source: 'app · compose-demo-1',
+        stream: 'stdout',
+      }),
+      JSON.stringify({
+        container: 'compose-demo-9',
+        container_id: 'container-9',
+        message: 'realtime-entry',
+        occurred_at: '2026-07-09T03:00:01Z',
+        service: 'worker',
+        source: 'worker · compose-demo-9',
+        stream: 'stderr',
+      }),
+    ]);
   });
 
   it('renders service columns with shared pagination chrome', async () => {
