@@ -6,6 +6,7 @@ Fetch the GitHub PR signals for the current Graft branch.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import html
 import io
 import json
@@ -37,6 +38,7 @@ GEMINI_CODE_ASSIST_LOGIN = "gemini-code-assist[bot]"
 GITHUB_ACTIONS_LOGIN = "github-actions[bot]"
 GITHUB_ADVANCED_SECURITY_LOGIN = "github-advanced-security[bot]"
 REVIEW_COMMENT_ADDRESSED_MARKER = "<!-- <review_comment_addressed> -->"
+PR_REVIEW_LEDGER_MARKER = "<!-- graft-pr-review-ledger -->"
 VISIBLE_ADDRESSED_IN_COMMIT_PATTERN = re.compile(r"✅\s*Addressed in commit\s+[0-9a-f]{7,40}", re.I)
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
 REQUEST_TIMEOUT_ENVIRONMENT_KEY = "GRAFT_PR_REVIEW_TIMEOUT_SECONDS"
@@ -251,6 +253,16 @@ def fetch_json(url: str) -> tuple[Any, Any]:
 
 def post_json(url: str, payload: dict[str, Any]) -> tuple[Any, Any]:
     """Send a JSON payload to GitHub and return the response JSON plus headers."""
+    return send_json(url, payload, method="POST")
+
+
+def patch_json(url: str, payload: dict[str, Any]) -> tuple[Any, Any]:
+    """Patch a JSON payload to GitHub and return the response JSON plus headers."""
+    return send_json(url, payload, method="PATCH")
+
+
+def send_json(url: str, payload: dict[str, Any], *, method: str) -> tuple[Any, Any]:
+    """Send a JSON request to GitHub and return the response JSON plus headers."""
     data = json.dumps(payload).encode("utf-8")
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     request = urllib.request.Request(
@@ -260,7 +272,7 @@ def post_json(url: str, payload: dict[str, Any]) -> tuple[Any, Any]:
             **build_github_request_headers("application/vnd.github+json"),
             "Content-Type": "application/json",
         },
-        method="POST",
+        method=method,
     )
     with opener.open(request, timeout=resolve_request_timeout_seconds()) as response:
         return json.loads(response.read().decode("utf-8", "replace")), response.headers
@@ -607,6 +619,161 @@ def perform_review_reply(
         "html_url": payload.get("html_url") or "",
         "body": payload.get("body") or "",
         "user": payload.get("user", {}).get("login") or "",
+        "request_payload": request_payload,
+    }
+
+
+def find_managed_issue_comment(
+    comments: list[dict[str, Any]],
+    *,
+    marker: str = PR_REVIEW_LEDGER_MARKER,
+) -> dict[str, Any] | None:
+    """Return the latest issue comment that contains the managed ledger marker."""
+    matching_comments = []
+    for comment in comments:
+        body = html.unescape(str(comment.get("body", "")))
+        if marker not in body:
+            continue
+
+        comment_copy = dict(comment)
+        comment_copy["body"] = body
+        matching_comments.append(comment_copy)
+
+    if not matching_comments:
+        return None
+
+    return max(matching_comments, key=lambda item: (item.get("updated_at", ""), item.get("created_at", "")))
+
+
+def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_REVIEW_LEDGER_MARKER) -> dict[str, Any]:
+    """Normalize one managed issue comment into a stable JSON shape."""
+    if comment is None:
+        return {
+            "marker": marker,
+            "comment_id": None,
+            "html_url": "",
+            "created_at": "",
+            "updated_at": "",
+            "body": "",
+        }
+
+    return {
+        "marker": marker,
+        "comment_id": comment.get("id"),
+        "html_url": comment.get("html_url") or "",
+        "created_at": comment.get("created_at") or "",
+        "updated_at": comment.get("updated_at") or "",
+        "body": html.unescape(str(comment.get("body") or "")),
+    }
+
+
+def resolve_ledger_body(args: argparse.Namespace) -> str:
+    """Resolve the desired ledger body from CLI arguments."""
+    if args.ledger_body and args.ledger_body_file:
+        raise RuntimeError("Use only one of --ledger-body or --ledger-body-file.")
+    if args.ledger_body_file:
+        return Path(args.ledger_body_file).read_text(encoding="utf-8").strip()
+    return str(args.ledger_body or "").strip()
+
+
+def build_review_ledger_entry(result: dict[str, Any], body: str) -> str:
+    """Wrap one append-only review-ledger entry with stable run metadata."""
+    if not body:
+        raise RuntimeError("A non-empty ledger body is required.")
+
+    pull_request = result.get("pull_request", {})
+    timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    lines = [
+        f"## Run {timestamp}",
+        f"- PR: #{pull_request.get('number')}",
+        f"- Branch: {pull_request.get('head_branch', '')}",
+        f"- Head SHA: {pull_request.get('head_sha', '')}",
+        "",
+        body,
+    ]
+    return "\n".join(lines).strip()
+
+
+def build_managed_issue_comment_body(
+    existing_body: str,
+    entry: str,
+    *,
+    marker: str = PR_REVIEW_LEDGER_MARKER,
+) -> str:
+    """Append one review-ledger entry to the managed issue comment body."""
+    normalized_existing = existing_body.strip()
+    if not normalized_existing:
+        return "\n".join(
+            [
+                marker,
+                "",
+                "# Graft PR Review Ledger",
+                "",
+                "Append-only run ledger for incremental PR finding confirmation.",
+                "",
+                entry,
+            ]
+        ).strip()
+
+    separator = "\n\n---\n\n" if not normalized_existing.endswith("---") else "\n\n"
+    return f"{normalized_existing.rstrip()}{separator}{entry}".strip()
+
+
+def perform_managed_issue_comment_append(
+    pull_number: int,
+    issue_comments: list[dict[str, Any]],
+    result: dict[str, Any],
+    entry_body: str,
+    *,
+    marker: str = PR_REVIEW_LEDGER_MARKER,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Create or append to the managed PR issue-comment ledger."""
+    if not resolve_github_token():
+        raise RuntimeError("A GitHub token is required to sync the PR review ledger.")
+
+    existing_comment = find_managed_issue_comment(issue_comments, marker=marker)
+    entry = build_review_ledger_entry(result, entry_body)
+    request_payload = {
+        "body": build_managed_issue_comment_body(
+            html.unescape(str(existing_comment.get("body") or "")) if existing_comment else "",
+            entry,
+            marker=marker,
+        )
+    }
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "marker": marker,
+            "operation": "update" if existing_comment else "create",
+            "comment_id": existing_comment.get("id") if existing_comment else None,
+            "entry": entry,
+            "request_payload": request_payload,
+        }
+
+    if existing_comment is None:
+        payload, _ = post_json(
+            f"https://api.github.com/repos/{OWNER}/{REPO}/issues/{pull_number}/comments",
+            request_payload,
+        )
+    else:
+        payload, _ = patch_json(
+            f"https://api.github.com/repos/{OWNER}/{REPO}/issues/comments/{existing_comment['id']}",
+            request_payload,
+        )
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub did not return an issue comment payload.")
+
+    return {
+        "dry_run": False,
+        "marker": marker,
+        "operation": "update" if existing_comment else "create",
+        "comment_id": payload.get("id"),
+        "html_url": payload.get("html_url") or "",
+        "body": payload.get("body") or "",
+        "user": payload.get("user", {}).get("login") or "",
+        "entry": entry,
         "request_payload": request_payload,
     }
 
@@ -1402,6 +1569,7 @@ def summarize_submitted_review(review: dict[str, Any] | None) -> dict[str, Any]:
             "commit_id": "",
             "user": "",
             "body": "",
+            "is_latest_commit_review": False,
         }
 
     return {
@@ -1411,6 +1579,7 @@ def summarize_submitted_review(review: dict[str, Any] | None) -> dict[str, Any]:
         "commit_id": review.get("commit_id") or "",
         "user": review.get("user", {}).get("login") or "",
         "body": review.get("body") or "",
+        "is_latest_commit_review": False,
     }
 
 
@@ -1452,14 +1621,16 @@ def fetch_latest_commit_review(pr_number: int) -> dict[str, Any]:
     latest_reviews_by_user: dict[str, dict[str, Any]] = {}
     for agent in SUPPORTED_AI_REVIEWERS:
         if agent["login"] == CODERABBIT_LOGIN:
-            selected_review = select_latest_coderabbit_grouped_review(candidate_reviews)
+            selected_review = select_latest_coderabbit_grouped_review(reviews)
         else:
             selected_review = select_latest_submitted_review(
                 candidate_reviews,
                 required_user=agent["login"],
                 prefer_non_empty_body=True,
             )
-        latest_reviews_by_user[agent["login"]] = summarize_submitted_review(selected_review)
+        summarized_review = summarize_submitted_review(selected_review)
+        summarized_review["is_latest_commit_review"] = summarized_review.get("commit_id") == latest_commit_sha
+        latest_reviews_by_user[agent["login"]] = summarized_review
 
     latest_commit_comments = [comment for comment in comments if comment.get("commit_id") == latest_commit_sha]
     threads = build_latest_commit_review_threads(latest_commit_comments)
@@ -1490,6 +1661,7 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
     pull_request_metadata = fetch_pull_request_metadata(pr_number)
     workflow_checks: dict[str, Any] = {"head_sha": pull_request_metadata.get("head_sha") or "", "all": [], "failed": [], "warnings": []}
     issue_comments = fetch_issue_comments(pr_number)
+    managed_review_ledger = summarize_issue_comment(find_managed_issue_comment(issue_comments))
     summary_block = select_latest_comment_body(
         issue_comments,
         lambda body: "auto-generated comment: summarize by coderabbit.ai" in body,
@@ -1594,6 +1766,7 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
             "failed_checks": parse_failed_checks(summary_block) if summary_block else [],
             "raw": summary_block,
         },
+        "managed_review_ledger": managed_review_ledger,
         "coderabbit_comments": parse_actionable_comments(actionable_block) if actionable_block else {},
         "coderabbit_review": coderabbit_review,
         "review_agents": review_agents,
@@ -1660,6 +1833,7 @@ def format_text(
     normalized_path_filters = normalize_path_filters(path_filters)
     pr = result["pull_request"]
     reply_action = result.get("reply_action", {})
+    ledger_action = result.get("ledger_action", {})
     if reply_action:
         lines.append(
             "Reply action: "
@@ -1671,6 +1845,18 @@ def format_text(
         )
         if reply_action.get("html_url"):
             lines.append(f"Reply URL: {reply_action['html_url']}")
+        lines.append("")
+    if ledger_action:
+        lines.append(
+            "Ledger action: "
+            + (
+                f"dry-run {ledger_action.get('operation')} for marker {ledger_action.get('marker')}"
+                if ledger_action.get("dry_run")
+                else f"{ledger_action.get('operation')}d comment {ledger_action.get('comment_id')}"
+            )
+        )
+        if ledger_action.get("html_url"):
+            lines.append(f"Ledger URL: {ledger_action['html_url']}")
         lines.append("")
     if "pr" in selected_sections:
         lines.append(f"PR #{pr['number']}: {pr['title']}")
@@ -1970,6 +2156,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Validate and print the reply payload without sending it to GitHub.",
     )
+    parser.add_argument("--ledger-body", help="Append one markdown block to the managed PR review ledger issue comment.")
+    parser.add_argument("--ledger-body-file", help="Read the ledger body from a UTF-8 text file.")
+    parser.add_argument(
+        "--ledger-marker",
+        default=PR_REVIEW_LEDGER_MARKER,
+        help="Marker used to locate the managed PR review ledger issue comment.",
+    )
+    parser.add_argument(
+        "--ledger-dry-run",
+        action="store_true",
+        help="Validate and print the managed PR review ledger payload without sending it to GitHub.",
+    )
     return parser.parse_args()
 
 
@@ -1985,6 +2183,8 @@ def main() -> None:
 
     if args.reply_fixed_commit and (args.reply_body or args.reply_body_file):
         raise RuntimeError("Use either --reply-fixed-commit or a manual reply body, not both.")
+    if args.ledger_dry_run and not (args.ledger_body or args.ledger_body_file):
+        raise RuntimeError("--ledger-dry-run requires --ledger-body or --ledger-body-file.")
 
     result = build_result(pr_number, branch)
     if args.reply_comment_id is not None:
@@ -1998,6 +2198,16 @@ def main() -> None:
             args.reply_comment_id,
             reply_body,
             dry_run=args.reply_dry_run,
+        )
+    if args.ledger_body or args.ledger_body_file:
+        ledger_body = resolve_ledger_body(args)
+        result["ledger_action"] = perform_managed_issue_comment_append(
+            result["pull_request"]["number"],
+            fetch_issue_comments(result["pull_request"]["number"]),
+            result,
+            ledger_body,
+            marker=args.ledger_marker,
+            dry_run=args.ledger_dry_run,
         )
     json_output_path: str | None = None
     if args.json_output:

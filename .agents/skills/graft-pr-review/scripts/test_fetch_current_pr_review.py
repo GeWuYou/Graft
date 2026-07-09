@@ -481,6 +481,41 @@ class FetchLatestCommitReviewTests(unittest.TestCase):
         self.assertEqual(result["all_open_thread_counts_by_user"][MODULE.CODERABBIT_LOGIN], 1)
         self.assertEqual(result["all_open_thread_counts_by_user"][MODULE.GREPTILE_LOGIN], 1)
 
+    def test_fetch_latest_commit_review_uses_pr_wide_grouped_coderabbit_review(self) -> None:
+        """A newer empty head review should not hide an older grouped CodeRabbit review on the PR."""
+        commits = [
+            {"sha": "older-commit", "commit": {"message": "older"}},
+            {"sha": "latest-commit", "commit": {"message": "latest"}},
+        ]
+        reviews = [
+            {
+                "id": 100,
+                "commit_id": "older-commit",
+                "submitted_at": "2026-07-09T03:39:39Z",
+                "state": "CHANGES_REQUESTED",
+                "user": {"login": MODULE.CODERABBIT_LOGIN},
+                "body": "<details><summary>🧹 Nitpick comments (1)</summary><blockquote></blockquote></details>",
+            },
+            {
+                "id": 101,
+                "commit_id": "latest-commit",
+                "submitted_at": "2026-07-09T04:10:04Z",
+                "state": "APPROVED",
+                "user": {"login": MODULE.CODERABBIT_LOGIN},
+                "body": "",
+            },
+        ]
+
+        with mock.patch.object(
+            MODULE,
+            "fetch_paged_json",
+            side_effect=[commits, reviews, []],
+        ):
+            result = MODULE.fetch_latest_commit_review(136)
+
+        self.assertEqual(result["latest_coderabbit_review_with_body"]["id"], 100)
+        self.assertFalse(result["latest_coderabbit_review_with_body"]["is_latest_commit_review"])
+
 
 class WorkflowChecksTests(unittest.TestCase):
     """Cover live GitHub checks, actions job details, and log fallback handling."""
@@ -826,6 +861,10 @@ class MainOutputTests(unittest.TestCase):
             reply_fixed_commit=None,
             reply_fixed_path=None,
             reply_dry_run=False,
+            ledger_body=None,
+            ledger_body_file=None,
+            ledger_marker=MODULE.PR_REVIEW_LEDGER_MARKER,
+            ledger_dry_run=False,
         )
         result = {"pull_request": {"number": 1}, "parse_warnings": []}
 
@@ -864,6 +903,59 @@ class ReviewReplyTests(unittest.TestCase):
         post_json.assert_not_called()
         self.assertTrue(result["dry_run"])
         self.assertEqual(result["request_payload"]["body"], "noise")
+
+
+class ManagedIssueCommentTests(unittest.TestCase):
+    """Cover append-only PR review ledger issue-comment management."""
+
+    def test_perform_managed_issue_comment_append_supports_create_dry_run(self) -> None:
+        """Dry-run ledger sync should build a create payload when no managed comment exists."""
+        result = {
+            "pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": "abc123"},
+        }
+
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"):
+            action = MODULE.perform_managed_issue_comment_append(
+                136,
+                [],
+                result,
+                "coderabbit_handled: 7",
+                dry_run=True,
+            )
+
+        self.assertTrue(action["dry_run"])
+        self.assertEqual(action["operation"], "create")
+        self.assertIn(MODULE.PR_REVIEW_LEDGER_MARKER, action["request_payload"]["body"])
+        self.assertIn("coderabbit_handled: 7", action["request_payload"]["body"])
+
+    def test_perform_managed_issue_comment_append_supports_update_dry_run(self) -> None:
+        """Dry-run ledger sync should append to the existing managed comment."""
+        result = {
+            "pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": "abc123"},
+        }
+        existing_comments = [
+            {
+                "id": 55,
+                "body": f"{MODULE.PR_REVIEW_LEDGER_MARKER}\n\n# Graft PR Review Ledger\n\nExisting entry",
+                "updated_at": "2026-07-09T04:00:00Z",
+                "created_at": "2026-07-09T04:00:00Z",
+            }
+        ]
+
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"):
+            action = MODULE.perform_managed_issue_comment_append(
+                136,
+                existing_comments,
+                result,
+                "coderabbit_nitpick: declared=6 handled=6",
+                dry_run=True,
+            )
+
+        self.assertTrue(action["dry_run"])
+        self.assertEqual(action["operation"], "update")
+        self.assertEqual(action["comment_id"], 55)
+        self.assertIn("Existing entry", action["request_payload"]["body"])
+        self.assertIn("coderabbit_nitpick: declared=6 handled=6", action["request_payload"]["body"])
 
 
 if __name__ == "__main__":
