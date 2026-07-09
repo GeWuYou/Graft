@@ -2,6 +2,14 @@ import { getContainers, type ProjectContainerSummary } from '@/modules/container
 
 export const PROJECT_RUNTIME_CONTAINER_PAGE_SIZE = 100;
 
+export function readProjectContainerSourceGroup(container: ProjectContainerSummary): string {
+  return normalizeProjectContainerSourceValue(container.orchestrator?.group_value);
+}
+
+export function readProjectContainerSourceMember(container: ProjectContainerSummary): string {
+  return normalizeProjectContainerSourceValue(container.orchestrator?.member_value);
+}
+
 export async function fetchProjectRuntimeContainers(canonicalProjectName: string): Promise<ProjectContainerSummary[]> {
   const projectName = canonicalProjectName.trim();
   if (!projectName) {
@@ -31,4 +39,8 @@ export async function fetchProjectRuntimeContainers(canonicalProjectName: string
   } while (rows.length < total);
 
   return rows;
+}
+
+function normalizeProjectContainerSourceValue(value?: string | null): string {
+  return value?.trim() || '';
 }

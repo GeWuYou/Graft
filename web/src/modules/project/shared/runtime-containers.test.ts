@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getContainers } from '@/modules/container/contract/project';
 
-import { fetchProjectRuntimeContainers, PROJECT_RUNTIME_CONTAINER_PAGE_SIZE } from './runtime-containers';
+import {
+  fetchProjectRuntimeContainers,
+  PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
+  readProjectContainerSourceGroup,
+  readProjectContainerSourceMember,
+} from './runtime-containers';
 
 vi.mock('@/modules/container/contract/project', () => ({
   getContainers: vi.fn(),
@@ -24,20 +29,28 @@ describe('runtime-containers', () => {
     mockedGetContainers
       .mockResolvedValueOnce({
         items: [
-          { compose_project: 'compose-demo', compose_service: 'app', id: 'container-1', ports: [] },
-          { compose_project: 'compose-demo', compose_service: 'worker', id: 'container-2', ports: [] },
+          {
+            id: 'container-1',
+            orchestrator: { group_value: 'compose-demo', member_value: 'app' },
+            ports: [],
+          },
+          {
+            id: 'container-2',
+            orchestrator: { group_value: 'compose-demo', member_value: 'worker' },
+            ports: [],
+          },
         ],
         total: 3,
       } as never)
       .mockResolvedValueOnce({
-        items: [{ compose_project: 'compose-demo', compose_service: 'cron', id: 'container-3', ports: [] }],
+        items: [{ id: 'container-3', orchestrator: { group_value: 'compose-demo', member_value: 'cron' }, ports: [] }],
         total: 3,
       } as never);
 
     await expect(fetchProjectRuntimeContainers('compose-demo')).resolves.toEqual([
-      { compose_project: 'compose-demo', compose_service: 'app', id: 'container-1', ports: [] },
-      { compose_project: 'compose-demo', compose_service: 'worker', id: 'container-2', ports: [] },
-      { compose_project: 'compose-demo', compose_service: 'cron', id: 'container-3', ports: [] },
+      { id: 'container-1', orchestrator: { group_value: 'compose-demo', member_value: 'app' }, ports: [] },
+      { id: 'container-2', orchestrator: { group_value: 'compose-demo', member_value: 'worker' }, ports: [] },
+      { id: 'container-3', orchestrator: { group_value: 'compose-demo', member_value: 'cron' }, ports: [] },
     ]);
 
     expect(mockedGetContainers).toHaveBeenNthCalledWith(1, {
@@ -59,7 +72,7 @@ describe('runtime-containers', () => {
   it('stops when the backend returns an empty page before reaching the reported total', async () => {
     mockedGetContainers
       .mockResolvedValueOnce({
-        items: [{ compose_project: 'compose-demo', compose_service: 'app', id: 'container-1', ports: [] }],
+        items: [{ id: 'container-1', orchestrator: { group_value: 'compose-demo', member_value: 'app' }, ports: [] }],
         total: 3,
       } as never)
       .mockResolvedValueOnce({
@@ -68,7 +81,21 @@ describe('runtime-containers', () => {
       } as never);
 
     await expect(fetchProjectRuntimeContainers('compose-demo')).resolves.toEqual([
-      { compose_project: 'compose-demo', compose_service: 'app', id: 'container-1', ports: [] },
+      { id: 'container-1', orchestrator: { group_value: 'compose-demo', member_value: 'app' }, ports: [] },
     ]);
+  });
+
+  it('reads canonical orchestrator group and member values from runtime containers', () => {
+    const container = {
+      orchestrator: {
+        group_display_name: 'Compose Demo',
+        group_value: ' compose-demo ',
+        member_display_name: 'App',
+        member_value: ' app ',
+      },
+    } as never;
+
+    expect(readProjectContainerSourceGroup(container)).toBe('compose-demo');
+    expect(readProjectContainerSourceMember(container)).toBe('app');
   });
 });

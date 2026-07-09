@@ -300,7 +300,11 @@ import {
 } from '../shared/import-inspect-resources';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../shared/navigation';
 import { useProjectPageContext } from '../shared/page-context';
-import { fetchProjectRuntimeContainers } from '../shared/runtime-containers';
+import {
+  fetchProjectRuntimeContainers,
+  readProjectContainerSourceGroup,
+  readProjectContainerSourceMember,
+} from '../shared/runtime-containers';
 import type { ProjectImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
@@ -442,8 +446,8 @@ const filteredContainerRows = computed(() =>
       row.image,
       row.status,
       row.runtime,
-      row.compose_project,
-      row.compose_service,
+      readProjectContainerSourceGroup(row),
+      readProjectContainerSourceMember(row),
       row.network_summary,
     ]),
   ),
@@ -809,7 +813,7 @@ function readContainerSortValue(row: ContainerSummaryRecord, sortBy: string) {
     case 'image':
       return row.image;
     case 'source':
-      return row.compose_project || row.orchestrator?.group_value || '';
+      return readProjectContainerSourceGroup(row);
     case 'cpu':
       return row.resource?.cpu_percent ?? -1;
     case 'memory':

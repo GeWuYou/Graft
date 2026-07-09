@@ -560,22 +560,30 @@ function buildRuntimeContainers() {
   return {
     items: [
       {
-        compose_project: 'compose-demo',
-        compose_service: 'app',
         id: 'container-1',
         image: 'demo:latest',
         names: ['compose-demo-1'],
+        orchestrator: {
+          group_scope_kind: 'compose_project',
+          group_value: 'compose-demo',
+          member_scope_kind: 'compose_service',
+          member_value: 'app',
+        },
         ports: [{ ip: '0.0.0.0', private_port: 8080, public_port: 8316, type: 'tcp' }],
         runtime: 'docker',
         state: 'running',
         status: 'Up 1 minute',
       },
       {
-        compose_project: 'compose-demo',
-        compose_service: 'worker',
         id: 'worker-1',
         image: 'worker:latest',
         names: ['worker-1'],
+        orchestrator: {
+          group_scope_kind: 'compose_project',
+          group_value: 'compose-demo',
+          member_scope_kind: 'compose_service',
+          member_value: 'worker',
+        },
         ports: [],
         runtime: 'docker',
         state: 'created',

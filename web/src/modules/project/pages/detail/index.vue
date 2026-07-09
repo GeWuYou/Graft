@@ -853,7 +853,7 @@ import {
   updateLifecycleDraftProfiles,
 } from '../../shared/lifecycle';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
-import { fetchProjectRuntimeContainers } from '../../shared/runtime-containers';
+import { fetchProjectRuntimeContainers, readProjectContainerSourceMember } from '../../shared/runtime-containers';
 import type {
   ProjectActionResponse,
   ProjectConfigurationMetadataResponse,
@@ -2235,10 +2235,6 @@ function joinList(items: string[]) {
   return items.length > 0 ? items.join(', ') : '-';
 }
 
-function readContainerComposeService(container: ProjectContainerSummary) {
-  return container.orchestrator?.service || container.compose_service || '';
-}
-
 function formatRuntimePortLabel(port: ProjectContainerSummary['ports'][number]) {
   if (typeof port.public_port !== 'number') {
     return '';
@@ -2258,7 +2254,7 @@ function buildServiceRuntimePortSummaries(
   }
 
   for (const container of containers) {
-    const serviceName = readContainerComposeService(container);
+    const serviceName = readProjectContainerSourceMember(container);
     if (!serviceName || !labelsByService.has(serviceName)) {
       continue;
     }
