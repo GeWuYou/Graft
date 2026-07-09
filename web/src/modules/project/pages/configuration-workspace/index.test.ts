@@ -20,6 +20,19 @@ const mocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
+const monacoSurfaceState = vi.hoisted(() => ({
+  diagnosticsResolver: null as
+    | null
+    | ((context: { modelKey: string; modelValue: string }) => Array<{
+        endColumn: number;
+        endLineNumber: number;
+        message: string;
+        severity: number;
+        startColumn: number;
+        startLineNumber: number;
+      }>),
+}));
+
 const routeState = reactive({
   params: { id: '1' },
   query: { name: 'sub2api' },
@@ -219,6 +232,7 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
   default: defineComponent({
     name: 'ProjectMonacoSurfaceStub',
     props: {
+      modelKey: { type: String, default: '' },
       modelValue: { type: String, default: '' },
       testId: { type: String, default: 'monaco-stub' },
       readOnly: { type: Boolean, default: false },
@@ -226,18 +240,23 @@ vi.mock('../../components/ProjectMonacoSurface.vue', () => ({
     emits: ['update:modelValue'],
     setup(props, { emit, expose }) {
       const getMarkers = () =>
-        String(props.modelValue).includes('[broken')
-          ? [
-              {
-                endColumn: 15,
-                endLineNumber: 3,
-                message: 'invalid yaml',
-                severity: 8,
-                startColumn: 12,
-                startLineNumber: 3,
-              },
-            ]
-          : [];
+        monacoSurfaceState.diagnosticsResolver
+          ? monacoSurfaceState.diagnosticsResolver({
+              modelKey: String(props.modelKey),
+              modelValue: String(props.modelValue),
+            })
+          : String(props.modelValue).includes('[broken')
+            ? [
+                {
+                  endColumn: 15,
+                  endLineNumber: 3,
+                  message: 'invalid yaml',
+                  severity: 8,
+                  startColumn: 12,
+                  startLineNumber: 3,
+                },
+              ]
+            : [];
 
       expose({
         getMarkers,
@@ -530,6 +549,7 @@ const TTabPanelStub = defineComponent({
 describe('ProjectConfigurationWorkspaceIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    monacoSurfaceState.diagnosticsResolver = null;
     pageContextState.locale = 'en-US';
     mocks.getProject.mockResolvedValue({
       canonical_project_name: 'sub2api',
@@ -1225,6 +1245,115 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
+    expect(wrapper.text()).toContain('docker-compose.yml');
+    expect(wrapper.text()).toContain('app.yaml');
+  });
+
+  it('rechecks unresolved files so the first batch validation still includes every error file', async () => {
+    const diagnosticsCallCount = new Map<string, number>();
+    monacoSurfaceState.diagnosticsResolver = ({ modelKey, modelValue }) => {
+      const nextCount = (diagnosticsCallCount.get(modelKey) ?? 0) + 1;
+      diagnosticsCallCount.set(modelKey, nextCount);
+      if (modelKey === 'config/app.yaml' && nextCount === 1) {
+        return [];
+      }
+
+      return String(modelValue).includes('[broken')
+        ? [
+            {
+              endColumn: 15,
+              endLineNumber: 3,
+              message: 'invalid yaml',
+              severity: 8,
+              startColumn: 12,
+              startLineNumber: 3,
+            },
+          ]
+        : [];
+    };
+
+    mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
+      if (query?.path === 'config') {
+        return {
+          current_path: 'config',
+          items: [
+            {
+              editable: true,
+              file_kind: 'config',
+              has_children: false,
+              language_hint: 'yaml',
+              name: 'app.yaml',
+              node_type: 'file',
+              readable: true,
+              relative_path: 'config/app.yaml',
+              size_bytes: 24,
+            },
+          ],
+          root_path: '/srv/sub2api',
+        };
+      }
+      return {
+        current_path: '',
+        items: [
+          {
+            editable: true,
+            file_kind: 'compose',
+            has_children: false,
+            language_hint: 'yaml',
+            name: 'docker-compose.yml',
+            node_type: 'file',
+            readable: true,
+            relative_path: 'docker-compose.yml',
+            size_bytes: 32,
+          },
+          {
+            editable: false,
+            file_kind: 'directory',
+            has_children: true,
+            name: 'config',
+            node_type: 'directory',
+            readable: true,
+            relative_path: 'config',
+          },
+        ],
+        root_path: '/srv/sub2api',
+      };
+    });
+    mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
+      content:
+        query.path === 'docker-compose.yml'
+          ? 'services:\n  api:\n    image: app\n'
+          : query.path === 'config/app.yaml'
+            ? 'name: demo\nenabled: true\n'
+            : '',
+      editable: true,
+      encoding: 'utf-8',
+      file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
+      language_hint: 'yaml',
+      readable: true,
+      relative_path: query.path,
+      size_bytes: 32,
+    }));
+
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-app-yaml"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('name: [broken\nenabled: true\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Error Files');
+    expect(wrapper.text()).toContain('2');
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('app.yaml');
   });

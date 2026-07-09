@@ -1669,40 +1669,88 @@ function buildSyntaxValidationResult(file: WorkspaceOpenFile, markers: Workspace
   } satisfies WorkspaceSyntaxValidationResult;
 }
 
+function normalizeSyntaxErrors(markers: WorkspaceSyntaxMarker[] | undefined) {
+  return (markers ?? [])
+    .filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY)
+    .sort((left, right) => {
+      if (left.startLineNumber !== right.startLineNumber) {
+        return left.startLineNumber - right.startLineNumber;
+      }
+      return left.startColumn - right.startColumn;
+    });
+}
+
+async function collectActiveEditorSyntaxErrors(options?: { retries?: number }) {
+  const maxRetries = Math.max(0, options?.retries ?? 0);
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const markers = await activeEditorRef.value?.waitForDiagnostics?.({
+      quietMs: 180,
+      timeoutMs: 1500,
+    });
+    const errors = normalizeSyntaxErrors(markers);
+    if (errors.length > 0 || attempt === maxRetries) {
+      return errors;
+    }
+  }
+
+  return [] as WorkspaceSyntaxMarker[];
+}
+
+async function collectSyntaxValidationIssueForPath(path: string, options?: { retries?: number }) {
+  let switchedActiveEditor = false;
+  if (activeTabPath.value !== path) {
+    activeTabPath.value = path;
+    await nextTick();
+    await nextTick();
+    switchedActiveEditor = true;
+  }
+
+  const file = openFileMap.get(path);
+  if (!file) {
+    return null;
+  }
+
+  const errors = await collectActiveEditorSyntaxErrors({
+    retries: options?.retries ?? (switchedActiveEditor ? 1 : 0),
+  });
+  if (!errors.length) {
+    return null;
+  }
+
+  return buildSyntaxValidationResult(file, errors);
+}
+
 async function collectSyntaxValidationIssues(paths: string[]) {
-  const uniquePaths = [...new Set(paths)].filter((path) => {
+  const requestedPaths = [...new Set(paths)].filter((path) => {
     const file = openFileMap.get(path);
     return Boolean(file?.editable && supportsExplicitSyntaxValidation(file.language));
   });
   const activePathBeforeValidation = activeTabPath.value;
-  const issues: WorkspaceSyntaxValidationResult[] = [];
+  const uniquePaths =
+    activePathBeforeValidation && requestedPaths.includes(activePathBeforeValidation)
+      ? [activePathBeforeValidation, ...requestedPaths.filter((path) => path !== activePathBeforeValidation)]
+      : requestedPaths;
+  const issues = new Map<string, WorkspaceSyntaxValidationResult>();
+  const unresolvedPaths: string[] = [];
 
   for (const path of uniquePaths) {
-    if (activeTabPath.value !== path) {
-      activeTabPath.value = path;
-      await nextTick();
-    }
-
-    const file = openFileMap.get(path);
-    if (!file) {
+    const issue = await collectSyntaxValidationIssueForPath(path);
+    if (issue) {
+      issues.set(path, issue);
       continue;
     }
+    unresolvedPaths.push(path);
+  }
 
-    const markers = await activeEditorRef.value?.waitForDiagnostics?.();
-    const errors = (markers ?? [])
-      .filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY)
-      .sort((left, right) => {
-        if (left.startLineNumber !== right.startLineNumber) {
-          return left.startLineNumber - right.startLineNumber;
-        }
-        return left.startColumn - right.startColumn;
-      });
-
-    if (!errors.length) {
+  for (const path of unresolvedPaths) {
+    if (issues.has(path)) {
       continue;
     }
-
-    issues.push(buildSyntaxValidationResult(file, errors));
+    const issue = await collectSyntaxValidationIssueForPath(path, { retries: 1 });
+    if (issue) {
+      issues.set(path, issue);
+    }
   }
 
   if (activePathBeforeValidation && activeTabPath.value !== activePathBeforeValidation) {
@@ -1710,7 +1758,7 @@ async function collectSyntaxValidationIssues(paths: string[]) {
     await nextTick();
   }
 
-  return issues;
+  return uniquePaths.map((path) => issues.get(path)).filter(Boolean) as WorkspaceSyntaxValidationResult[];
 }
 
 async function saveDirtyFiles(paths?: string[]) {
@@ -2030,14 +2078,7 @@ async function runCurrentFileValidation() {
 
   try {
     const markers = await activeEditorRef.value?.waitForDiagnostics?.();
-    const errors = (markers ?? [])
-      .filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY)
-      .sort((left, right) => {
-        if (left.startLineNumber !== right.startLineNumber) {
-          return left.startLineNumber - right.startLineNumber;
-        }
-        return left.startColumn - right.startColumn;
-      });
+    const errors = normalizeSyntaxErrors(markers);
 
     if (!errors.length) {
       MessagePlugin.success(workspaceCopy.value.fileValidationPassed);
