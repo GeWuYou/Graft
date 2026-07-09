@@ -1,4 +1,23 @@
 {
+  "ops": {
+    "project": {
+      "error": {
+        "invalidArgument": "Invalid project request.",
+        "invalidCanonicalProjectName": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
+        "conflict": "Project action is blocked by a conflicting project state.",
+        "notFound": "Project was not found.",
+        "unsupportedLifecycle": "Project lifecycle action is not available for the current project state.",
+        "importValidationFailed": "Project import inspection failed validation.",
+        "managedRootUnconfigured": "Managed project root is not configured.",
+        "managedRootInvalid": "Managed project root is invalid.",
+        "managedFlowUnsupported": "Managed-only project flow is not available for this project.",
+        "sourceUnsupported": "Project source is not supported in the current phase.",
+        "directoryBrowseForbidden": "Project import directory is outside the allowed roots.",
+        "inspectionExpired": "Project import inspection has expired.",
+        "inspectionStale": "Project import inspection no longer matches the filesystem."
+      }
+    }
+  },
   "menu": {
     "ops": {
       "project": {
@@ -471,7 +490,8 @@
         }
       },
       "validation": {
-        "displayNameRequired": "Display Name Is Required."
+        "displayNameRequired": "Display Name Is Required.",
+        "canonicalProjectNameOverridePattern": "Canonical Project Name Override must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores."
       },
       "picker": {
         "title": "Select Server Directory",
@@ -638,7 +658,7 @@
         "noWarnings": "No Additional Warnings Were Returned.",
         "displayNameRequired": "Display Name Is Required.",
         "canonicalProjectNameRequired": "Canonical Project Name Is Required.",
-        "canonicalProjectNamePattern": "Canonical Project Name May Only Use Letters, Numbers, Dots, Underscores, and Hyphens.",
+        "canonicalProjectNamePattern": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
         "relativeDirectoryRequired": "Relative Project Directory Is Required.",
         "relativeDirectoryPattern": "The Relative Project Directory Must Stay Under the Managed Root and Cannot Traverse Upward.",
         "composeFileNameRequired": "Compose File Name Is Required.",

@@ -191,6 +191,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { getProjectManagedRoot, postProjectCreate, postProjectCreateValidate } from '../../api/project';
 import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { isValidProjectCanonicalName } from '../../shared/canonical-name';
 import { normalizeTextBlock } from '../../shared/configuration-workspace';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
@@ -236,7 +237,7 @@ const formRules: FormProps['rules'] = {
   canonical_project_name: [
     { required: true, message: t('project.create.validation.canonicalProjectNameRequired') },
     {
-      validator: (value) => /^[a-z0-9][a-z0-9_.-]*$/i.test(String(value ?? '')),
+      validator: (value) => isValidProjectCanonicalName(String(value ?? '')),
       message: t('project.create.validation.canonicalProjectNamePattern'),
     },
   ],

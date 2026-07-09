@@ -122,6 +122,10 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	if displayName == "" || canonicalName == "" || composeFileContent == "" {
 		return normalizedManagedCreateRequest{}, fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
 	}
+	canonicalName, err = validateExplicitCanonicalProjectName(canonicalName)
+	if err != nil {
+		return normalizedManagedCreateRequest{}, err
+	}
 	envFileName, err := normalizeManagedOptionalFileName(request.EnvFileName, "env")
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err

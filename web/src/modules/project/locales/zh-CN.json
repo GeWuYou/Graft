@@ -1,4 +1,23 @@
 {
+  "ops": {
+    "project": {
+      "error": {
+        "invalidArgument": "项目请求参数不合法。",
+        "invalidCanonicalProjectName": "Canonical Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
+        "conflict": "当前项目状态存在冲突，无法执行该操作。",
+        "notFound": "未找到对应的项目。",
+        "unsupportedLifecycle": "当前项目状态不支持该生命周期操作。",
+        "importValidationFailed": "项目导入检查未通过校验。",
+        "managedRootUnconfigured": "受管项目根目录尚未配置。",
+        "managedRootInvalid": "受管项目根目录配置无效。",
+        "managedFlowUnsupported": "当前项目不支持该受管流程操作。",
+        "sourceUnsupported": "当前阶段不支持该项目来源。",
+        "directoryBrowseForbidden": "项目导入目录超出允许的根目录范围。",
+        "inspectionExpired": "项目导入检查已过期。",
+        "inspectionStale": "项目导入检查结果已与文件系统不一致。"
+      }
+    }
+  },
   "menu": {
     "ops": {
       "project": {
@@ -471,7 +490,8 @@
         }
       },
       "validation": {
-        "displayNameRequired": "请输入展示名。"
+        "displayNameRequired": "请输入展示名。",
+        "canonicalProjectNameOverridePattern": "规范项目名覆盖必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。"
       },
       "picker": {
         "title": "选择服务器目录",
@@ -638,7 +658,7 @@
         "noWarnings": "当前没有返回额外警告。",
         "displayNameRequired": "请输入展示名。",
         "canonicalProjectNameRequired": "请输入 Canonical Project Name。",
-        "canonicalProjectNamePattern": "Canonical Project Name 只能包含字母、数字、点、下划线和中横线。",
+        "canonicalProjectNamePattern": "Canonical Project Name 必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
         "relativeDirectoryRequired": "请输入相对项目目录。",
         "relativeDirectoryPattern": "相对项目目录必须位于 managed root 下，且不能包含上级回退。",
         "composeFileNameRequired": "请输入 Compose 文件名。",

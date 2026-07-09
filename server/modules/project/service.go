@@ -24,6 +24,7 @@ import (
 var (
 	errProjectServiceUnavailable   = errors.New("project service is unavailable")
 	errProjectInvalidArgument      = errors.New("project invalid argument")
+	errProjectInvalidCanonicalName = errors.New("project invalid canonical name")
 	errProjectNotFound             = errors.New("project not found")
 	errProjectConflict             = errors.New("project conflict")
 	errProjectImportValidation     = errors.New("project import validation failed")

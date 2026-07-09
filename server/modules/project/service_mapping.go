@@ -410,16 +410,6 @@ func buildRefreshProjectInput(
 	}
 }
 
-// displayNameOrCanonical 返回修剪后的显示名称或规范名称。
-//
-// 当显示名称存在且非空时，返回其去除首尾空白后的值；否则返回规范名称。
-func displayNameOrCanonical(displayName *string, canonical string) string {
-	if displayName != nil && strings.TrimSpace(*displayName) != "" {
-		return strings.TrimSpace(*displayName)
-	}
-	return canonical
-}
-
 // hashString 返回归一化文本块的 SHA-256 十六进制摘要。
 func hashString(value string) string {
 	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))

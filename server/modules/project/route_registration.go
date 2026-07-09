@@ -729,6 +729,10 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 		r.writeFileNotFoundError(ginCtx)
 	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation):
 		r.writeInvalidArgumentError(ginCtx)
+	case errors.Is(err, errProjectInvalidCanonicalName):
+		r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidCanonicalProjectName.String(), map[string]any{
+			"code": projectcontract.ProjectInvalidCanonicalProjectName.String(),
+		})
 	case r.writeProjectConflictError(ginCtx, err):
 	case errors.Is(err, errProjectDestroyBlocked):
 		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String(), map[string]any{

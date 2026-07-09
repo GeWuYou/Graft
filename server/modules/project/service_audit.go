@@ -221,7 +221,7 @@ func projectActionAuditStatusCode(result ActionResult, err error) int {
 		return http.StatusOK
 	}
 	switch {
-	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectFileNotFound):
+	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectInvalidCanonicalName), errors.Is(err, errProjectFileNotFound):
 		return http.StatusBadRequest
 	case errors.Is(err, errProjectNotFound):
 		return http.StatusNotFound

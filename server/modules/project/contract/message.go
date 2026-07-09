@@ -51,6 +51,8 @@ const (
 	ProjectInvalidFileID ErrorCode = "ops.project.error.invalidFileId"
 	// ProjectInvalidArgument identifies malformed project request input.
 	ProjectInvalidArgument ErrorCode = "ops.project.error.invalidArgument"
+	// ProjectInvalidCanonicalProjectName identifies invalid canonical project names.
+	ProjectInvalidCanonicalProjectName ErrorCode = "ops.project.error.invalidCanonicalProjectName"
 	// ProjectConflict identifies project-registration uniqueness conflicts.
 	ProjectConflict ErrorCode = "ops.project.error.conflict"
 	// ProjectNotFound identifies unknown project records.

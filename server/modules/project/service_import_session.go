@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -28,9 +29,9 @@ func (s *Service) parseImportRequest(
 	canonicalName := parseResult.CanonicalProjectName
 	canonicalNameSource := parseResult.CanonicalNameSource
 	if request.CanonicalProjectNameOverride != nil {
-		override := strings.TrimSpace(*request.CanonicalProjectNameOverride)
-		if override == "" {
-			return projectcompose.Result{}, ImportValidationResult{}, errProjectInvalidArgument
+		override, err := validateExplicitCanonicalProjectName(*request.CanonicalProjectNameOverride)
+		if err != nil {
+			return projectcompose.Result{}, ImportValidationResult{}, err
 		}
 		canonicalName = override
 		canonicalNameSource = projectcontract.CanonicalProjectNameSourceOverride.String()
@@ -67,7 +68,7 @@ func (s *Service) inspectImportRequest(
 		WorkingDir:      parseResult.WorkingDirectory,
 		CanonicalName:   validation.CanonicalProjectName,
 		CanonicalSource: validation.CanonicalProjectNameSource,
-		DisplayName:     displayNameOrCanonical(request.DisplayName, validation.CanonicalProjectName),
+		DisplayName:     defaultImportedDisplayName(request.DisplayName, parseResult.WorkingDirectory, validation.CanonicalProjectName),
 		ParseResult:     parseResult,
 		Conflicts:       append([]string(nil), conflicts...),
 		Warnings:        append([]string(nil), parseResult.Warnings...),
@@ -129,7 +130,7 @@ func (s *Service) importInspectionSession(
 	}
 	now := time.Now().UTC()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		DisplayName:                displayNameOrCanonical(displayName, freshValidation.CanonicalProjectName),
+		DisplayName:                defaultImportedDisplayName(displayName, freshParse.WorkingDirectory, freshValidation.CanonicalProjectName),
 		CanonicalProjectName:       freshValidation.CanonicalProjectName,
 		CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource,
 		SourceKind:                 projectcontract.SourceKindImported.String(),
@@ -164,6 +165,17 @@ func (s *Service) importInspectionSession(
 	serviceCount := len(freshParse.ServiceNames)
 	response.SnapshotSummary.DeclaredServiceCount = &serviceCount
 	return response, nil
+}
+
+func defaultImportedDisplayName(displayName *string, workingDirectory string, canonical string) string {
+	if displayName != nil && strings.TrimSpace(*displayName) != "" {
+		return strings.TrimSpace(*displayName)
+	}
+	base := strings.TrimSpace(filepath.Base(workingDirectory))
+	if base != "" && base != "." {
+		return base
+	}
+	return canonical
 }
 
 func (s *Service) computeConflicts(

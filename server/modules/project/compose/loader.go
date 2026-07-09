@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+var computedProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 // Input defines the bounded static project parse input for phase 1 import and refresh.
 type Input struct {
@@ -135,7 +138,7 @@ func Load(input Input) (Result, error) {
 
 	return Result{
 		WorkingDirectory:      workingDirectory,
-		CanonicalProjectName:  filepath.Base(workingDirectory),
+		CanonicalProjectName:  resolvedCanonicalProjectName(collected.projectName, workingDirectory),
 		CanonicalNameSource:   "computed",
 		ConfigHash:            hex.EncodeToString(configHasher.Sum(nil)),
 		NormalizedComposeYAML: normalizedYAML,
@@ -154,6 +157,7 @@ func Load(input Input) (Result, error) {
 type collectedServices struct {
 	serviceOrder []string
 	serviceMap   map[string]ServiceProjection
+	projectName  string
 	networks     []NetworkProjection
 	volumes      []VolumeProjection
 	networkNames []string
@@ -176,6 +180,7 @@ func collectServices(
 	serviceOrder := make([]string, 0)
 	serviceSet := make(map[string]struct{})
 	serviceMap := make(map[string]ServiceProjection)
+	projectName := ""
 	networkSet := make(map[string]struct{})
 	volumeSet := make(map[string]struct{})
 	networkMap := make(map[string]NetworkProjection)
@@ -190,6 +195,7 @@ func collectServices(
 			return collectedServices{}, err
 		}
 		serviceOrder = collectServicesFromDocument(doc, serviceOrder, serviceSet, serviceMap)
+		projectName = collectProjectNameFromDocument(doc, projectName)
 		collectTopLevelNetworks(doc, networkSet, networkMap)
 		collectTopLevelVolumes(doc, volumeSet, volumeMap)
 	}
@@ -197,6 +203,7 @@ func collectServices(
 	return collectedServices{
 		serviceOrder: serviceOrder,
 		serviceMap:   serviceMap,
+		projectName:  projectName,
 		networks:     sortedNetworkProjections(networkMap),
 		volumes:      sortedVolumeProjections(volumeMap),
 		networkNames: sortedKeys(networkSet),
@@ -216,6 +223,71 @@ func parseComposeDocument(file FileProjection) (map[string]any, error) {
 		return nil, fmt.Errorf("parse compose file %s: %w", file.AbsolutePath, err)
 	}
 	return doc, nil
+}
+
+func collectProjectNameFromDocument(doc map[string]any, current string) string {
+	raw, ok := doc["name"]
+	if !ok {
+		return current
+	}
+	name, ok := raw.(string)
+	if !ok {
+		return current
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return current
+	}
+	return name
+}
+
+func resolvedCanonicalProjectName(projectName string, workingDirectory string) string {
+	candidate := filepath.Base(workingDirectory)
+	if strings.TrimSpace(projectName) != "" {
+		candidate = projectName
+	}
+	return normalizeComputedProjectName(candidate)
+}
+
+func normalizeComputedProjectName(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return value
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(normalized))
+	lastSeparator := false
+	for _, r := range normalized {
+		if isAlphaNumericProjectNameRune(r) {
+			builder.WriteRune(r)
+			lastSeparator = false
+			continue
+		}
+		if shouldSkipProjectNameSeparator(builder.Len(), lastSeparator) {
+			continue
+		}
+		if r == '-' || r == '_' {
+			builder.WriteRune(r)
+		} else {
+			builder.WriteByte('-')
+		}
+		lastSeparator = true
+	}
+
+	result := strings.Trim(builder.String(), "-_")
+	if result == "" || !computedProjectNamePattern.MatchString(result) {
+		return value
+	}
+	return result
+}
+
+func isAlphaNumericProjectNameRune(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+}
+
+func shouldSkipProjectNameSeparator(builderLen int, lastSeparator bool) bool {
+	return builderLen == 0 || lastSeparator
 }
 
 // 它会按首次出现的顺序更新 serviceOrder，并将同名服务的静态投影合并到 serviceMap 中。

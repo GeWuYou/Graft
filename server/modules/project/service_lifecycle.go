@@ -482,7 +482,10 @@ func composeProjectArgs(aggregate projectstore.ProjectAggregate, config Lifecycl
 		base = append(base, "--profile", profile)
 	}
 	if strings.TrimSpace(config.ProjectName) == "" {
-		return nil, errProjectInvalidArgument
+		return nil, errProjectInvalidCanonicalName
+	}
+	if _, err := validateExplicitCanonicalProjectName(config.ProjectName); err != nil {
+		return nil, err
 	}
 	base = append(base, "-p", config.ProjectName)
 	return base, nil
