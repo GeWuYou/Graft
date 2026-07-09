@@ -39,12 +39,24 @@ const routeState = reactive({
   query: { name: 'sub2api' },
 });
 
+const tabsRouterStoreMock = vi.hoisted(() => ({
+  tabRouterList: [
+    {
+      fullPath: '/ops/projects/1/configuration?name=sub2api',
+      path: '/ops/projects/1/configuration',
+      tabKey: '/ops/projects/1/configuration',
+      title: { 'en-US': 'Project Detail - sub2api', 'zh-CN': '项目详情 - sub2api' },
+    },
+  ],
+}));
+
 const pageContextState = reactive({
   locale: 'en-US',
 });
 
 const workspaceCopyMessages = {
   'en-US': {
+    'project.route.configurationWorkspace.title': 'Configuration Workspace',
     'project.configurationWorkspace.copy.annotationAction': 'Edit Annotation',
     'project.configurationWorkspace.copy.annotationSaveFailed': 'Failed to save the annotation.',
     'project.configurationWorkspace.copy.batchFileValidationRiskBody':
@@ -90,6 +102,7 @@ const workspaceCopyMessages = {
     'project.configurationWorkspace.copy.validateNoFile': 'Open a supported file before running validation.',
   },
   'zh-CN': {
+    'project.route.configurationWorkspace.title': '配置工作台',
     'project.configurationWorkspace.copy.annotationAction': '编辑注释',
     'project.configurationWorkspace.copy.annotationSaveFailed': '注释保存失败。',
     'project.configurationWorkspace.copy.batchFileValidationRiskBody':
@@ -133,6 +146,15 @@ const workspaceCopyMessages = {
   },
 } as const;
 
+type PendingProjectDetail = {
+  canonical_project_name: string;
+  display_name: string;
+  id: number;
+  ownership_mode: string;
+  runtime_status: string;
+  working_directory: string;
+};
+
 vi.mock('../../api/project', () => ({
   getProject: mocks.getProject,
   getProjectConfiguration: mocks.getProjectConfiguration,
@@ -146,11 +168,32 @@ vi.mock('../../api/project', () => ({
 vi.mock('../../shared/page-context', () => ({
   useProjectPageContext: () => ({
     locale: computed(() => pageContextState.locale),
+    tabsRouterStore: tabsRouterStoreMock,
     t: (key: string) =>
       workspaceCopyMessages[pageContextState.locale as keyof typeof workspaceCopyMessages]?.[
         key as keyof (typeof workspaceCopyMessages)[keyof typeof workspaceCopyMessages]
       ] ?? mocks.t(key),
   }),
+}));
+
+vi.mock('../../shared/navigation', () => ({
+  buildDetailTitleWithFallback: (titleKey: string, name: string) => {
+    const baseZh =
+      workspaceCopyMessages['zh-CN'][titleKey as keyof (typeof workspaceCopyMessages)['zh-CN']] ?? titleKey;
+    const baseEn =
+      workspaceCopyMessages['en-US'][titleKey as keyof (typeof workspaceCopyMessages)['en-US']] ?? titleKey;
+    const normalizedName = name.trim();
+    if (!normalizedName || normalizedName === baseZh || normalizedName === baseEn) {
+      return {
+        'en-US': String(baseEn),
+        'zh-CN': String(baseZh),
+      };
+    }
+    return {
+      'en-US': `${String(baseEn)} - ${normalizedName}`,
+      'zh-CN': `${String(baseZh)} - ${normalizedName}`,
+    };
+  },
 }));
 
 vi.mock('@/shared/localized-api-error', () => ({
@@ -675,6 +718,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     monacoSurfaceState.diagnosticsResolver = null;
     monacoSurfaceState.modelKeyLagByPath = {};
     pageContextState.locale = 'en-US';
+    routeState.query = { name: 'sub2api' };
+    tabsRouterStoreMock.tabRouterList = [
+      {
+        fullPath: '/ops/projects/1/configuration?name=sub2api',
+        path: '/ops/projects/1/configuration',
+        tabKey: '/ops/projects/1/configuration',
+        title: { 'en-US': 'Project Detail - sub2api', 'zh-CN': '项目详情 - sub2api' },
+      },
+    ];
     mocks.getProject.mockResolvedValue({
       canonical_project_name: 'sub2api',
       display_name: 'sub2api',
@@ -780,6 +832,41 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'services:\n  api:\n    image: app\n',
     );
+  });
+
+  it('renders the workspace header with the standalone route title', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('sub2api · Configuration Workspace');
+  });
+
+  it('keeps the standalone workspace header title before the detail request resolves', async () => {
+    let resolveProject: (value: PendingProjectDetail) => void = () => {
+      throw new Error('Expected pending project resolver to be assigned');
+    };
+    mocks.getProject.mockReturnValueOnce(
+      new Promise<PendingProjectDetail>((resolve) => {
+        resolveProject = resolve;
+      }),
+    );
+
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('sub2api · Configuration Workspace');
+
+    resolveProject({
+      canonical_project_name: 'sub2api',
+      display_name: 'sub2api',
+      id: 1,
+      ownership_mode: 'managed-root-dedicated',
+      runtime_status: 'running',
+      working_directory: '/srv/sub2api',
+    });
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('sub2api · Configuration Workspace');
   });
 
   it('navigates into nested directories and opens empty file content without a blank editor failure', async () => {

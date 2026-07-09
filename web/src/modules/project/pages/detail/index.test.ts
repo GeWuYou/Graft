@@ -817,6 +817,10 @@ describe('Project detail service tab', () => {
       expect.objectContaining({
         fullPath: '/ops/projects/7/configuration',
         path: '/ops/projects/7/configuration',
+        title: {
+          'en-US': 'Configuration Workspace - Compose Demo',
+          'zh-CN': '配置工作台 - Compose Demo',
+        },
       }),
     );
     expect(routerMocks.push).toHaveBeenCalledWith({

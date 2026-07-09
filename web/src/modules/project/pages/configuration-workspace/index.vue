@@ -753,6 +753,7 @@ import {
   projectRuntimeStatusLabel,
   projectRuntimeStatusTheme,
 } from '../../shared/display';
+import { buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import { formatProjectMonacoDebugMessage, isProjectMonacoDebugEnabled } from '../../shared/project-monaco-debug';
 import type {
@@ -872,7 +873,7 @@ const MONACO_MARKER_ERROR_SEVERITY = 8;
 
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
-const { t } = useProjectPageContext();
+const { t, tabsRouterStore } = useProjectPageContext();
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
 const workspaceShellRef = ref<HTMLElement | null>(null);
@@ -970,7 +971,7 @@ const fallbackDisplayName = computed(() => {
   return queryName;
 });
 const pageHeaderTitle = computed(() => {
-  const suffix = t('project.detail.configuration.title');
+  const suffix = t('project.route.configurationWorkspace.title');
   return detailRecord.value?.display_name
     ? `${detailRecord.value.display_name} · ${suffix}`
     : fallbackDisplayName.value
@@ -1044,6 +1045,25 @@ const currentResultIssues = computed(() =>
 const canNavigateResultIssues = computed(() =>
   resultDialogMode.value === 'diff' ? Boolean(selectedDiffFile.value) : currentResultIssues.value.length > 0,
 );
+
+function buildConfigurationWorkspaceTitle(name: string) {
+  return buildDetailTitleWithFallback('project.route.configurationWorkspace.title', name);
+}
+
+function updateCurrentTabTitle(name: string) {
+  const title = buildConfigurationWorkspaceTitle(name);
+  const routePath = route.path;
+  const routeFullPath = route.fullPath;
+  tabsRouterStore.tabRouterList.forEach((tab, index) => {
+    if (tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath) {
+      tabsRouterStore.tabRouterList[index] = { ...tab, title };
+    }
+  });
+}
+
+if (fallbackDisplayName.value) {
+  updateCurrentTabTitle(fallbackDisplayName.value);
+}
 const resultDialogTitle = computed(() =>
   resultDialogMode.value === 'diff'
     ? pendingWorkspaceAction.value === 'save-current'
@@ -1197,6 +1217,13 @@ watch(showHiddenFiles, () => {
   void loadWorkspaceDirectory('', { root: true });
 });
 
+watch(fallbackDisplayName, (name) => {
+  if (!name) {
+    return;
+  }
+  updateCurrentTabTitle(name);
+});
+
 watch(resultDialogVisible, (visible) => {
   if (visible) {
     if (resultDialogMode.value === 'diff') {
@@ -1283,6 +1310,7 @@ async function loadWorkspace() {
       getProjectConfiguration(projectId.value),
     ]);
     detailRecord.value = detail;
+    updateCurrentTabTitle(detail.display_name);
     metadata.value = configurationMetadata;
     await loadWorkspaceDirectory('', { root: true });
     await nextTick();
