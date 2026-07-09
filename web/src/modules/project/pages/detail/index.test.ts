@@ -305,6 +305,21 @@ const TInputNumberStub = defineComponent({
   },
 });
 
+const LifecycleHelpTriggerStub = defineComponent({
+  name: 'LifecycleHelpTrigger',
+  props: {
+    definition: { type: Object, default: () => ({}) },
+  },
+  setup(props) {
+    return () =>
+      h('button', {
+        'data-help-definition': String((props.definition as { key?: string }).key ?? ''),
+        'data-stub': 'LifecycleHelpTrigger',
+        type: 'button',
+      });
+  },
+});
+
 const ManagementPagedTableStub = defineComponent({
   name: 'ManagementPagedTable',
   props: {
@@ -626,6 +641,7 @@ function mountPage() {
         ManagementPageHeader: slotStub('ManagementPageHeader'),
         ManagementPagedTable: ManagementPagedTableStub,
         ProjectFileEditor: slotStub('ProjectFileEditor'),
+        LifecycleHelpTrigger: LifecycleHelpTriggerStub,
         TableActionMenu: TableActionMenuStub,
         'management-page-header': slotStub('management-page-header'),
         'management-paged-table': ManagementPagedTableStub,
@@ -1017,6 +1033,38 @@ describe('Project detail service tab', () => {
 
     expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(true);
+  });
+
+  it('renders help triggers for all lifecycle strategy items without changing switch state', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const helpDefinitions = wrapper.findAll('[data-help-definition]');
+    expect(helpDefinitions).toHaveLength(8);
+    expect(helpDefinitions.map((item) => item.attributes('data-help-definition'))).toEqual([
+      'downBeforeRedeploy',
+      'pullBeforeRedeploy',
+      'buildBeforeUp',
+      'forceRecreate',
+      'removeOrphans',
+      'waitAfterUp',
+      'renewAnonVolumes',
+      'pruneImagesAfterRedeploy',
+    ]);
+
+    const removeOrphansSwitch = wrapper.get('[data-testid="project-lifecycle-remove-orphans-switch"]');
+    expect(removeOrphansSwitch.attributes('aria-pressed')).toBe('true');
+    await helpDefinitions[4].trigger('click');
+    expect(removeOrphansSwitch.attributes('aria-pressed')).toBe('true');
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await flushPromises();
+
+    const waitTimeoutHelp = wrapper
+      .findAll('[data-help-definition]')
+      .map((item) => item.attributes('data-help-definition'));
+    expect(waitTimeoutHelp).toContain('waitTimeoutSeconds');
   });
 
   it('renders runtime published ports instead of declared compose mappings', async () => {

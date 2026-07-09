@@ -1026,6 +1026,90 @@
           "renewAnonVolumes": "Add --renew-anon-volumes so docker compose up does not reuse anonymous volumes from older containers.",
           "pruneImagesAfterRedeploy": "Run docker image prune -f after redeploy completes."
         },
+        "help": {
+          "common": {
+            "ariaLabel": "View help for {item}",
+            "sections": {
+              "effect": "Effect",
+              "command": "Actual Command",
+              "scenarios": "Recommended When",
+              "risks": "Costs and Risks",
+              "recommendation": "Default Guidance"
+            },
+            "tags": {
+              "recommended": "Recommended",
+              "optional": "Optional",
+              "defaultOff": "Default Off",
+              "tunePerEnv": "Tune Per Environment",
+              "dangerous": "Dangerous"
+            }
+          },
+          "items": {
+            "downBeforeRedeploy": {
+              "tooltip": "Stop and remove the current Compose resources before the new up runs. This creates a clear downtime window but resets stale container and network state.",
+              "effect": "Changes redeploy into a two-step flow: run docker compose down first, then run a fresh docker compose up.",
+              "scenarios": "Use it when you need a clean restart or suspect stale containers, networks, or mounts are contaminating the current deployment.",
+              "risks": "This creates an explicit downtime window. Services are unavailable between down and up, and project-scoped resources are removed before startup resumes.",
+              "recommendation": "Enable it only when you accept the downtime window and need a full reset instead of an in-place bring-up."
+            },
+            "pullBeforeRedeploy": {
+              "tooltip": "Pull images before reusing the current Compose definition. Best when image tags are updated continuously.",
+              "effect": "Runs docker compose pull before the bring-up phase so the project refreshes its referenced images first.",
+              "scenarios": "Use it when CI regularly pushes images, when tags like latest are reused, or when redeploy should always prefer the newest remote image.",
+              "risks": "It adds network time and can pull in an unexpected new image version, which may change behavior or make rollback slower.",
+              "recommendation": "Keep it off for pinned immutable tags. Consider enabling it when the deployment flow depends on remote image updates."
+            },
+            "buildBeforeUp": {
+              "tooltip": "Add --build to up so local images are rebuilt first. Best for projects driven by local Dockerfiles or changed source code.",
+              "effect": "Adds --build to docker compose up so redeploy rebuilds the local image before starting containers.",
+              "scenarios": "Use it when Dockerfiles, build contexts, dependencies, or application source changed and the project relies on local image builds.",
+              "risks": "It increases deployment time, especially when caches are cold. Build failures also block the redeploy entirely.",
+              "recommendation": "Leave it off unless rebuilding locally is part of the normal deployment path for this project."
+            },
+            "forceRecreate": {
+              "tooltip": "Add --force-recreate so containers are rebuilt even if Compose sees no config diff. Useful for flushing bad state, but noisier than a normal up.",
+              "effect": "Adds --force-recreate to docker compose up so all service containers are recreated during bring-up.",
+              "scenarios": "Use it when you suspect container state drift, need mounts or environment changes to be reapplied aggressively, or a plain restart is not enough.",
+              "risks": "It causes more restarts and more churn than a normal up. Services with warm caches or local state will feel the reset more strongly.",
+              "recommendation": "Leave it off by default and enable it only when you intentionally want a forced container refresh."
+            },
+            "removeOrphans": {
+              "tooltip": "Add --remove-orphans so old containers not defined in the current Compose files are cleaned up automatically. Useful after renames, splits, or removals.",
+              "effect": "Adds --remove-orphans to docker compose up so containers that no longer exist in the current Compose definition are removed automatically.",
+              "scenarios": "Use it after service renames, module splits, service removals, or whenever historical containers should be cleaned up as part of redeploy.",
+              "risks": "It removes leftover containers in the same Compose project scope. If you still rely on one of those undeclared containers, it will be removed as well.",
+              "recommendation": "Recommended. It keeps long-lived Compose projects from accumulating confusing leftovers."
+            },
+            "waitAfterUp": {
+              "tooltip": "Add --wait after up. With healthchecks, Compose waits for healthy; without healthchecks, it usually only knows whether containers are running.",
+              "effect": "Turns startup into a synchronous readiness wait so Graft does not finish the action until Compose reports services as ready.",
+              "scenarios": "Use it when operators need a stronger readiness signal before considering the redeploy complete or before running follow-up actions.",
+              "risks": "It increases feedback time. Without service healthchecks, the readiness signal is weaker and may only mean the container reached running state.",
+              "recommendation": "Use it when readiness matters, and prefer adding healthchecks first so the wait result is meaningful."
+            },
+            "waitTimeoutSeconds": {
+              "tooltip": "Limit how long --wait can block. Too short causes false failures; too long slows deployment feedback.",
+              "effect": "Controls the maximum duration for docker compose up -d --wait before the wait is treated as timed out.",
+              "scenarios": "Use it for slow-start services, first-run migrations, cold caches, or environments whose startup time varies noticeably.",
+              "risks": "A timeout that is too small can mark healthy-but-slow startups as failures. A timeout that is too large slows release and debugging feedback loops.",
+              "recommendation": "Tune it per environment based on observed startup time, with enough buffer for normal variance."
+            },
+            "renewAnonVolumes": {
+              "tooltip": "Add --renew-anon-volumes so old anonymous volumes are not reused. Old data in anonymous volumes may no longer be reused by new containers.",
+              "effect": "Adds --renew-anon-volumes to docker compose up so recreated containers get fresh anonymous volumes instead of reusing the previous ones.",
+              "scenarios": "Use it when you intentionally want to clear anonymous cache/state or suspect the old anonymous volume data is corrupted.",
+              "risks": "Old data in anonymous volumes may no longer be reused by the new containers, which can wipe caches, transient state, or misplaced application data.",
+              "recommendation": "Treat this as dangerous. Enable it only when you know what lives in the anonymous volumes and accept losing reuse of the old data."
+            },
+            "pruneImagesAfterRedeploy": {
+              "tooltip": "Run docker image prune -f after redeploy. This is a Docker host-level cleanup, not something scoped only to the current Compose project.",
+              "effect": "Runs docker image prune -f after redeploy so unused images on the Docker host are cleaned up automatically.",
+              "scenarios": "Use it on tightly managed hosts with disk pressure and frequent image churn, especially when automatic image cleanup is already an accepted policy.",
+              "risks": "This is a Docker host-level action, not one limited to the current Compose project. It can affect image cache, rollback speed, or later build performance for other workloads on the same host.",
+              "recommendation": "Leave it off unless the host is intentionally managed that way and reclaiming image space is worth the wider side effects."
+            }
+          }
+        },
         "copyCommand": "Copy Command",
         "copyCommandSuccess": "Command preview copied.",
         "copyCommandError": "Command preview could not be copied.",

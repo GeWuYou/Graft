@@ -616,85 +616,36 @@
                         </div>
                       </header>
                       <div class="project-lifecycle-option-list">
-                        <div class="project-lifecycle-option">
+                        <div
+                          v-for="definition in lifecycleSwitchOptionDefinitionsBeforeWaitTimeout"
+                          :key="definition.key"
+                          class="project-lifecycle-option"
+                        >
                           <div class="project-lifecycle-option__content">
                             <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.downBeforeRedeploy') }}
+                              <span>{{ t(definition.titleKey) }}</span>
+                              <lifecycle-help-trigger :definition="definition" :draft="lifecycleDraft" />
                             </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.downBeforeRedeploy') }}</p>
-                          </div>
-                          <div class="project-lifecycle-option__control">
-                            <t-switch v-model="lifecycleDraft.down_before_redeploy" />
-                          </div>
-                        </div>
-                        <div class="project-lifecycle-option">
-                          <div class="project-lifecycle-option__content">
-                            <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.pullBeforeRedeploy') }}
-                            </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.pullBeforeRedeploy') }}</p>
-                          </div>
-                          <div class="project-lifecycle-option__control">
-                            <t-switch v-model="lifecycleDraft.pull_before_redeploy" />
-                          </div>
-                        </div>
-                        <div class="project-lifecycle-option">
-                          <div class="project-lifecycle-option__content">
-                            <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.buildBeforeUp') }}
-                            </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.buildBeforeUp') }}</p>
-                          </div>
-                          <div class="project-lifecycle-option__control">
-                            <t-switch v-model="lifecycleDraft.build_before_up" />
-                          </div>
-                        </div>
-                        <div class="project-lifecycle-option">
-                          <div class="project-lifecycle-option__content">
-                            <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.forceRecreate') }}
-                            </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.forceRecreate') }}</p>
-                          </div>
-                          <div class="project-lifecycle-option__control">
-                            <t-switch v-model="lifecycleDraft.force_recreate" />
-                          </div>
-                        </div>
-                        <div class="project-lifecycle-option">
-                          <div class="project-lifecycle-option__content">
-                            <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.removeOrphans') }}
-                            </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.removeOrphans') }}</p>
+                            <p>{{ t(definition.summaryKey) }}</p>
                           </div>
                           <div class="project-lifecycle-option__control">
                             <t-switch
-                              v-model="lifecycleDraft.remove_orphans"
-                              data-testid="project-lifecycle-remove-orphans-switch"
-                            />
-                          </div>
-                        </div>
-                        <div class="project-lifecycle-option">
-                          <div class="project-lifecycle-option__content">
-                            <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.waitAfterUp') }}
-                            </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.waitAfterUp') }}</p>
-                          </div>
-                          <div class="project-lifecycle-option__control">
-                            <t-switch
-                              v-model="lifecycleDraft.wait_after_up"
-                              data-testid="project-lifecycle-wait-after-up-switch"
+                              v-model="lifecycleDraft[definition.field]"
+                              :data-testid="definition.switchTestId"
                             />
                           </div>
                         </div>
                         <label
-                          v-if="lifecycleDraft.wait_after_up"
+                          v-if="lifecycleWaitTimeoutDefinition.visible?.(lifecycleDraft)"
                           class="project-lifecycle-field"
                           data-testid="project-lifecycle-wait-timeout-field"
                         >
-                          <span class="project-lifecycle-field__label">
-                            {{ t('project.detail.lifecycle.waitTimeoutSeconds') }}
+                          <span class="project-lifecycle-field__label project-lifecycle-field__label--with-help">
+                            <span>{{ t(lifecycleWaitTimeoutDefinition.titleKey) }}</span>
+                            <lifecycle-help-trigger
+                              :definition="lifecycleWaitTimeoutDefinition"
+                              :draft="lifecycleDraft"
+                            />
                           </span>
                           <t-input-number
                             v-model="lifecycleDraft.wait_timeout_seconds"
@@ -703,20 +654,25 @@
                             :step="1"
                           />
                           <small class="project-lifecycle-field__hint">
-                            {{ t('project.detail.lifecycle.optionDescriptions.waitTimeoutSeconds') }}
+                            {{ t(lifecycleWaitTimeoutDefinition.summaryKey) }}
                           </small>
                         </label>
-                        <div class="project-lifecycle-option">
+                        <div
+                          v-for="definition in lifecycleSwitchOptionDefinitionsAfterWaitTimeout"
+                          :key="definition.key"
+                          class="project-lifecycle-option"
+                        >
                           <div class="project-lifecycle-option__content">
                             <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.renewAnonVolumes') }}
+                              <span>{{ t(definition.titleKey) }}</span>
+                              <lifecycle-help-trigger :definition="definition" :draft="lifecycleDraft" />
                             </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.renewAnonVolumes') }}</p>
+                            <p>{{ t(definition.summaryKey) }}</p>
                           </div>
                           <div class="project-lifecycle-option__control">
                             <t-switch
-                              v-model="lifecycleDraft.renew_anon_volumes"
-                              data-testid="project-lifecycle-renew-anon-volumes-switch"
+                              v-model="lifecycleDraft[definition.field]"
+                              :data-testid="definition.switchTestId"
                             />
                           </div>
                         </div>
@@ -726,17 +682,6 @@
                           theme="warning"
                           :message="t('project.detail.lifecycle.renewAnonVolumesWarning')"
                         />
-                        <div class="project-lifecycle-option">
-                          <div class="project-lifecycle-option__content">
-                            <div class="project-lifecycle-option__label">
-                              {{ t('project.detail.lifecycle.pruneImagesAfterRedeploy') }}
-                            </div>
-                            <p>{{ t('project.detail.lifecycle.optionDescriptions.pruneImagesAfterRedeploy') }}</p>
-                          </div>
-                          <div class="project-lifecycle-option__control">
-                            <t-switch v-model="lifecycleDraft.prune_images_after_redeploy" />
-                          </div>
-                        </div>
                       </div>
                     </section>
                   </div>
@@ -826,6 +771,7 @@ import {
   postProjectUp,
   putProjectLifecycleConfiguration,
 } from '../../api/project';
+import LifecycleHelpTrigger from '../../components/LifecycleHelpTrigger.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   buildProjectDetailTopicName,
@@ -852,6 +798,7 @@ import {
   resolveLifecycleCommandSteps,
   updateLifecycleDraftProfiles,
 } from '../../shared/lifecycle';
+import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../../shared/lifecycle-help';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { fetchProjectRuntimeContainers, readProjectContainerSourceMember } from '../../shared/runtime-containers';
 import type {
@@ -1065,6 +1012,14 @@ const lifecycleCommandPreviewCards = computed(() =>
     title: section.title,
   })),
 );
+const lifecycleWaitTimeoutDefinition = lifecycleWaitTimeoutHelpDefinition;
+const waitAfterUpDefinitionIndex = lifecycleSwitchHelpDefinitions.findIndex((item) => item.key === 'waitAfterUp');
+const lifecycleSwitchOptionDefinitionsBeforeWaitTimeout =
+  waitAfterUpDefinitionIndex >= 0
+    ? lifecycleSwitchHelpDefinitions.slice(0, waitAfterUpDefinitionIndex + 1)
+    : lifecycleSwitchHelpDefinitions;
+const lifecycleSwitchOptionDefinitionsAfterWaitTimeout =
+  waitAfterUpDefinitionIndex >= 0 ? lifecycleSwitchHelpDefinitions.slice(waitAfterUpDefinitionIndex + 1) : [];
 const overviewServiceMap = computed<Map<string, ProjectOverviewServiceItem>>(
   () =>
     new Map(
@@ -2824,6 +2779,13 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-lifecycle-field__label {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-medium);
+}
+
+.project-lifecycle-option__label,
+.project-lifecycle-field__label--with-help {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-6);
 }
 
 .project-lifecycle-command-card__title p,
