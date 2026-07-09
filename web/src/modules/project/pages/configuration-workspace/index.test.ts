@@ -1385,6 +1385,13 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.warning).toHaveBeenCalledWith(
       'Files without supported syntax diagnostics are skipped silently during save. config/.env',
     );
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('config/.env');
+    expect(wrapper.text()).toContain('Confirm Save All');
+
+    await wrapper.get('[data-testid="workspace-dialog-save"]').trigger('click');
+    await flushPromises();
+
     expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
       1,
       { path: 'docker-compose.yml' },

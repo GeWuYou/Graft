@@ -678,6 +678,7 @@
           <t-button
             v-for="button in dialogState.buttons"
             :key="button.result"
+            :data-testid="`workspace-dialog-${button.result}`"
             :theme="button.theme"
             :variant="button.variant"
             @click="resolveDialog(button.result)"
@@ -1869,12 +1870,44 @@ async function finalizePendingWorkspaceAction(action: PendingWorkspaceAction, pa
   return true;
 }
 
+async function confirmSkippedSyntaxValidationPaths(action: PendingWorkspaceAction, skippedPaths: string[]) {
+  if (action === 'save-current' || !skippedPaths.length) {
+    return true;
+  }
+
+  const skippedFileList = skippedPaths.join(', ');
+  const dialogAction = await openDialog({
+    body: `${workspaceCopy.value.validateSkipUnsupportedHint} ${skippedFileList}`,
+    buttons: [
+      {
+        label: workspaceCopy.value.cancelAction,
+        result: 'cancel',
+        theme: 'default',
+        variant: 'outline',
+      },
+      {
+        label: workspaceCopy.value.confirmSaveAllAction,
+        result: 'save',
+        theme: 'primary',
+        variant: 'base',
+      },
+    ],
+    title: workspaceCopy.value.batchFileValidationRiskTitle,
+  });
+
+  return dialogAction === 'save';
+}
+
 async function proceedAfterDiffConfirmation(action: PendingWorkspaceAction, paths: string[]) {
   const { skippedPaths } = resolveSyntaxValidationTargets(paths);
   syntaxValidationSkippedPaths.value = action === 'save-current' ? [] : skippedPaths;
   notifySkippedSyntaxValidationPaths(syntaxValidationSkippedPaths.value);
   const syntaxIssues = await collectSyntaxValidationIssues(paths);
   if (!syntaxIssues.length) {
+    const confirmedSkippedPaths = await confirmSkippedSyntaxValidationPaths(action, syntaxValidationSkippedPaths.value);
+    if (!confirmedSkippedPaths) {
+      return false;
+    }
     const saved = await finalizePendingWorkspaceAction(action, paths);
     if (saved) {
       resultDialogVisible.value = false;
