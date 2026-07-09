@@ -284,17 +284,6 @@ type LifecycleConfiguration struct {
 	Standard     LifecycleStandardConfig
 }
 
-// ConfigurationValidateResult returns bounded managed draft validation output.
-type ConfigurationValidateResult struct {
-	ProjectID             uint64
-	CanonicalProjectName  string
-	OwnershipMode         string
-	ProposedConfigHash    string
-	NormalizedComposeYAML string
-	DeclaredServiceNames  []string
-	Warnings              []string
-}
-
 // DeployResult returns bounded managed deploy output.
 type DeployResult struct {
 	ProjectID            uint64

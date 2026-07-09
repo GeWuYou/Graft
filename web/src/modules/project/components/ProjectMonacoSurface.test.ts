@@ -78,6 +78,7 @@ function createMockState() {
     createModel,
     currentModel: () => currentModel,
     editor,
+    getModelMarkers: vi.fn<() => Array<Record<string, unknown>>>(() => []),
     markerListenerDispose: vi.fn(),
     models,
     reset() {
@@ -97,8 +98,11 @@ function createMockState() {
       editor.setPosition.mockClear();
       editor.setModel.mockClear();
       editor.updateOptions.mockClear();
+      this.getModelMarkers.mockClear();
       this.markerListenerDispose.mockClear();
+      this.setModelMarkers.mockClear();
     },
+    setModelMarkers: vi.fn<(model: unknown, owner: string, markers: Array<Record<string, unknown>>) => void>(),
   };
 }
 
@@ -166,11 +170,12 @@ vi.mock('../shared/project-monaco', async () => {
       editor: {
         create: getMockState().createEditor,
         createModel: getMockState().createModel,
-        getModelMarkers: vi.fn(() => []),
+        getModelMarkers: getMockState().getModelMarkers,
         getModels: () => getMockState().models,
         onDidChangeMarkers: vi.fn(() => ({
           dispose: getMockState().markerListenerDispose,
         })),
+        setModelMarkers: getMockState().setModelMarkers,
       },
     }),
     getOrCreateProjectMonacoModel: (
@@ -291,10 +296,30 @@ describe('ProjectMonacoSurface', () => {
   });
 
   it('exposes marker lookup and marker reveal helpers', async () => {
+    mockState.getModelMarkers.mockReturnValue([
+      {
+        endColumn: 12,
+        endLineNumber: 3,
+        message: 'Invalid yaml',
+        severity: 8,
+        startColumn: 5,
+        startLineNumber: 3,
+      },
+    ]);
     const wrapper = mount(ProjectMonacoSurface, {
       props: {
         editorAriaLabel: 'Editor',
         language: 'yaml',
+        markers: [
+          {
+            endColumn: 12,
+            endLineNumber: 3,
+            message: 'Invalid yaml',
+            severity: 8,
+            startColumn: 5,
+            startLineNumber: 3,
+          },
+        ],
         modelKey: 'docker-compose.yml',
         modelValue: 'services:\n  api:\n    image: demo\n',
       },
@@ -308,8 +333,36 @@ describe('ProjectMonacoSurface', () => {
       waitForDiagnostics: () => Promise<Array<{ startLineNumber: number }>>;
     };
 
-    expect(vm.getMarkers()).toEqual([]);
-    expect(await vm.waitForDiagnostics()).toEqual([]);
+    expect(mockState.setModelMarkers).toHaveBeenCalledWith(mockState.currentModel(), 'project-monaco-surface', [
+      {
+        endColumn: 12,
+        endLineNumber: 3,
+        message: 'Invalid yaml',
+        severity: 8,
+        startColumn: 5,
+        startLineNumber: 3,
+      },
+    ]);
+    expect(vm.getMarkers()).toEqual([
+      {
+        endColumn: 12,
+        endLineNumber: 3,
+        message: 'Invalid yaml',
+        severity: 8,
+        startColumn: 5,
+        startLineNumber: 3,
+      },
+    ]);
+    expect(await vm.waitForDiagnostics()).toEqual([
+      {
+        endColumn: 12,
+        endLineNumber: 3,
+        message: 'Invalid yaml',
+        severity: 8,
+        startColumn: 5,
+        startLineNumber: 3,
+      },
+    ]);
     expect(vm.revealMarker({ startColumn: 1, startLineNumber: 3 })).toBe(true);
     expect(mockState.editor.setPosition).toHaveBeenCalledWith({ column: 1, lineNumber: 3 });
     expect(mockState.editor.revealLineInCenter).toHaveBeenCalledWith(3);

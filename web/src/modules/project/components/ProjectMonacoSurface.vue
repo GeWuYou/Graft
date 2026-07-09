@@ -16,6 +16,7 @@ const props = withDefaults(
   defineProps<{
     editorAriaLabel: string;
     language: string;
+    markers?: Monaco.editor.IMarkerData[];
     modelKey: string;
     modelValue: string;
     options?: MonacoEditorSurfaceOptions;
@@ -23,6 +24,7 @@ const props = withDefaults(
     testId?: string;
   }>(),
   {
+    markers: () => [],
     options: () => ({}),
     readOnly: false,
     testId: 'project-monaco-surface',
@@ -44,6 +46,7 @@ let syncingFromEditor = false;
 let syncingFromProps = false;
 let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
 const modelCache = new Map<string, Monaco.editor.ITextModel>();
+const markerOwner = 'project-monaco-surface';
 
 type ProjectMonacoMarker = Monaco.editor.IMarker;
 
@@ -123,6 +126,7 @@ watch(
     }
     editor.setModel(nextModel);
     model = nextModel;
+    syncModelMarkers();
     await relayout('rebind-model');
     logSurfaceDebug('model-rebind-complete', {
       currentModelLength: model.getValue().length,
@@ -144,6 +148,14 @@ watch(
   () => props.options,
   (options) => {
     editor?.updateOptions(options);
+  },
+  { deep: true },
+);
+
+watch(
+  () => props.markers,
+  () => {
+    syncModelMarkers();
   },
   { deep: true },
 );
@@ -192,6 +204,7 @@ async function createEditor() {
     ...props.options,
     model,
   });
+  syncModelMarkers();
 
   logSurfaceDebug('create-complete', {
     containerHeight: host.clientHeight,
@@ -237,6 +250,14 @@ function observeContainerResize() {
 
 async function relayout(reason = 'manual') {
   await relayoutBridge?.relayout(reason);
+}
+
+function syncModelMarkers() {
+  if (!monaco || !model) {
+    return;
+  }
+
+  monaco.editor.setModelMarkers(model, markerOwner, props.markers ?? []);
 }
 
 function getSortedMarkers() {

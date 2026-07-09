@@ -1,11 +1,21 @@
 type WorkspaceCopy = {
   annotationAction: string;
   annotationSaveFailed: string;
+  batchFileValidationTitle: string;
+  batchFileValidationRiskBody: string;
+  batchFileValidationRiskTitle: string;
   cancelAction: string;
+  confirmSaveAllAction: string;
+  confirmSaveCurrentAction: string;
+  confirmSaveWithErrorsAction: string;
+  confirmSaveAllWithErrorsAction: string;
+  confirmSaveDeployWithErrorsAction: string;
   confirmSaveAction: string;
   continueWithDiskAction: string;
   deployAction: string;
+  diffCurrentFileTitle: string;
   diffConfirmBody: string;
+  diffCurrentFileConfirmBody: string;
   diffEmptyDirectSaveHint: string;
   diffTreeTitle: string;
   diffViewerAriaLabel: string;
@@ -14,6 +24,7 @@ type WorkspaceCopy = {
   dirtyProjectActionBody: string;
   dirtyProjectActionTitle: string;
   fileValidationDescription: string;
+  fileValidationEmbeddedHint: string;
   fileValidationFailed: string;
   fileValidationPassed: string;
   fileValidationTitle: string;
@@ -41,16 +52,25 @@ type WorkspaceCopy = {
   reloadAction: string;
   reloadConfirmBody: string;
   reloadConfirmTitle: string;
+  resultSummaryChangedFilesLabel: string;
+  resultSummaryCurrentErrorsLabel: string;
+  resultSummaryCurrentFileLabel: string;
+  resultSummaryErrorFilesLabel: string;
   resizeFileTreeAriaLabel: string;
   saveAction: string;
+  saveAllAction: string;
   saveAndContinueAction: string;
   saveFailed: string;
+  savePartialHint: string;
   saveSuccess: string;
   saveThenContinueAction: string;
   savingAction: string;
   selectDiffFile: string;
+  selectSyntaxFile: string;
   selectFileToStart: string;
   showHiddenAction: string;
+  syntaxErrorCountLabel: string;
+  syntaxFileTreeTitle: string;
   syntaxViewerAriaLabel: string;
   summaryDescription: string;
   summaryCurrentPathLabel: string;
@@ -63,6 +83,7 @@ type WorkspaceCopy = {
   validateNextAction: string;
   validatePreviousAction: string;
   validateAction: string;
+  validateSkipUnsupportedHint: string;
   workspaceRootLabel: string;
 };
 
@@ -72,11 +93,21 @@ type WorkspaceCopyTranslate = (key: string) => string;
 const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   annotationAction: 'project.configurationWorkspace.copy.annotationAction',
   annotationSaveFailed: 'project.configurationWorkspace.copy.annotationSaveFailed',
+  batchFileValidationTitle: 'project.configurationWorkspace.copy.batchFileValidationTitle',
+  batchFileValidationRiskBody: 'project.configurationWorkspace.copy.batchFileValidationRiskBody',
+  batchFileValidationRiskTitle: 'project.configurationWorkspace.copy.batchFileValidationRiskTitle',
   cancelAction: 'project.configurationWorkspace.copy.cancelAction',
+  confirmSaveAllAction: 'project.configurationWorkspace.copy.confirmSaveAllAction',
+  confirmSaveCurrentAction: 'project.configurationWorkspace.copy.confirmSaveCurrentAction',
+  confirmSaveWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveWithErrorsAction',
+  confirmSaveAllWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction',
+  confirmSaveDeployWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveDeployWithErrorsAction',
   confirmSaveAction: 'project.configurationWorkspace.copy.confirmSaveAction',
   continueWithDiskAction: 'project.configurationWorkspace.copy.continueWithDiskAction',
   deployAction: 'project.configurationWorkspace.copy.deployAction',
+  diffCurrentFileTitle: 'project.configurationWorkspace.copy.diffCurrentFileTitle',
   diffConfirmBody: 'project.configurationWorkspace.copy.diffConfirmBody',
+  diffCurrentFileConfirmBody: 'project.configurationWorkspace.copy.diffCurrentFileConfirmBody',
   diffEmptyDirectSaveHint: 'project.configurationWorkspace.copy.diffEmptyDirectSaveHint',
   diffTreeTitle: 'project.configurationWorkspace.copy.diffTreeTitle',
   diffViewerAriaLabel: 'project.configurationWorkspace.copy.diffViewerAriaLabel',
@@ -85,6 +116,7 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   dirtyProjectActionBody: 'project.configurationWorkspace.copy.dirtyProjectActionBody',
   dirtyProjectActionTitle: 'project.configurationWorkspace.copy.dirtyProjectActionTitle',
   fileValidationDescription: 'project.configurationWorkspace.copy.fileValidationDescription',
+  fileValidationEmbeddedHint: 'project.configurationWorkspace.copy.fileValidationEmbeddedHint',
   fileValidationFailed: 'project.configurationWorkspace.copy.fileValidationFailed',
   fileValidationPassed: 'project.configurationWorkspace.copy.fileValidationPassed',
   fileValidationTitle: 'project.configurationWorkspace.copy.fileValidationTitle',
@@ -112,16 +144,25 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   reloadAction: 'project.configurationWorkspace.copy.reloadAction',
   reloadConfirmBody: 'project.configurationWorkspace.copy.reloadConfirmBody',
   reloadConfirmTitle: 'project.configurationWorkspace.copy.reloadConfirmTitle',
+  resultSummaryChangedFilesLabel: 'project.configurationWorkspace.copy.resultSummaryChangedFilesLabel',
+  resultSummaryCurrentErrorsLabel: 'project.configurationWorkspace.copy.resultSummaryCurrentErrorsLabel',
+  resultSummaryCurrentFileLabel: 'project.configurationWorkspace.copy.resultSummaryCurrentFileLabel',
+  resultSummaryErrorFilesLabel: 'project.configurationWorkspace.copy.resultSummaryErrorFilesLabel',
   resizeFileTreeAriaLabel: 'project.configurationWorkspace.copy.resizeFileTreeAriaLabel',
   saveAction: 'project.configurationWorkspace.copy.saveAction',
+  saveAllAction: 'project.configurationWorkspace.copy.saveAllAction',
   saveAndContinueAction: 'project.configurationWorkspace.copy.saveAndContinueAction',
   saveFailed: 'project.configurationWorkspace.copy.saveFailed',
+  savePartialHint: 'project.configurationWorkspace.copy.savePartialHint',
   saveSuccess: 'project.configurationWorkspace.copy.saveSuccess',
   saveThenContinueAction: 'project.configurationWorkspace.copy.saveThenContinueAction',
   savingAction: 'project.configurationWorkspace.copy.savingAction',
   selectDiffFile: 'project.configurationWorkspace.copy.selectDiffFile',
+  selectSyntaxFile: 'project.configurationWorkspace.copy.selectSyntaxFile',
   selectFileToStart: 'project.configurationWorkspace.copy.selectFileToStart',
   showHiddenAction: 'project.configurationWorkspace.copy.showHiddenAction',
+  syntaxErrorCountLabel: 'project.configurationWorkspace.copy.syntaxErrorCountLabel',
+  syntaxFileTreeTitle: 'project.configurationWorkspace.copy.syntaxFileTreeTitle',
   syntaxViewerAriaLabel: 'project.configurationWorkspace.copy.syntaxViewerAriaLabel',
   summaryDescription: 'project.configurationWorkspace.copy.summaryDescription',
   summaryCurrentPathLabel: 'project.configurationWorkspace.copy.summaryCurrentPathLabel',
@@ -134,6 +175,7 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   validateNextAction: 'project.configurationWorkspace.copy.validateNextAction',
   validatePreviousAction: 'project.configurationWorkspace.copy.validatePreviousAction',
   validateAction: 'project.configurationWorkspace.copy.validateAction',
+  validateSkipUnsupportedHint: 'project.configurationWorkspace.copy.validateSkipUnsupportedHint',
   workspaceRootLabel: 'project.configurationWorkspace.copy.workspaceRootLabel',
 };
 

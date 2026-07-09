@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
   info: vi.fn(),
-  postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
   putProjectFileAnnotation: vi.fn(),
   putProjectFileContent: vi.fn(),
@@ -34,37 +33,88 @@ const workspaceCopyMessages = {
   'en-US': {
     'project.configurationWorkspace.copy.annotationAction': 'Edit Annotation',
     'project.configurationWorkspace.copy.annotationSaveFailed': 'Failed to save the annotation.',
+    'project.configurationWorkspace.copy.batchFileValidationRiskBody':
+      'These files still have syntax errors. Saving them may leave the project in a state that later validation or deploy cannot parse correctly.',
+    'project.configurationWorkspace.copy.batchFileValidationRiskTitle': 'Save Files with Syntax Errors',
+    'project.configurationWorkspace.copy.batchFileValidationTitle': 'File Validation Errors',
     'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
+    'project.configurationWorkspace.copy.confirmSaveAllAction': 'Confirm Save All',
+    'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction': 'Save All Anyway',
+    'project.configurationWorkspace.copy.confirmSaveCurrentAction': 'Confirm Save',
+    'project.configurationWorkspace.copy.confirmSaveDeployWithErrorsAction': 'Save and Deploy Anyway',
     'project.configurationWorkspace.copy.confirmSaveAction': 'Confirm Save',
+    'project.configurationWorkspace.copy.confirmSaveWithErrorsAction': 'Save Anyway',
+    'project.configurationWorkspace.copy.diffCurrentFileConfirmBody':
+      'Review the current file diff below. Changes will be written only after you confirm.',
+    'project.configurationWorkspace.copy.diffCurrentFileTitle': 'Current File Diff',
     'project.configurationWorkspace.copy.diffConfirmBody':
       'Review the changed files below. Changes will be written to the working directory only after you confirm.',
     'project.configurationWorkspace.copy.diffEmptyDirectSaveHint':
       'No file diff was detected. Draft files will be saved directly.',
     'project.configurationWorkspace.copy.diffTreeTitle': 'Changed Files',
+    'project.configurationWorkspace.copy.fileValidationEmbeddedHint':
+      'The current file has syntax errors. Review the highlighted locations before saving or deploying.',
     'project.configurationWorkspace.copy.fileValidationFailed': 'Syntax errors were found in the active file.',
     'project.configurationWorkspace.copy.fileValidationPassed': 'No syntax errors were found in the active file.',
+    'project.configurationWorkspace.copy.fileValidationTitle': 'File Validation',
     'project.configurationWorkspace.copy.fileValidationUnavailable':
       'Explicit syntax validation is not available for this file type.',
+    'project.configurationWorkspace.copy.resultSummaryChangedFilesLabel': 'Changed Files',
+    'project.configurationWorkspace.copy.resultSummaryCurrentErrorsLabel': 'Current Errors',
+    'project.configurationWorkspace.copy.resultSummaryCurrentFileLabel': 'Current File',
+    'project.configurationWorkspace.copy.resultSummaryErrorFilesLabel': 'Error Files',
     'project.configurationWorkspace.copy.saveAction': 'Save',
+    'project.configurationWorkspace.copy.saveAllAction': 'Save All',
+    'project.configurationWorkspace.copy.savePartialHint': 'Only the current file will be saved.',
+    'project.configurationWorkspace.copy.selectSyntaxFile': 'Choose a file to inspect its syntax errors',
+    'project.configurationWorkspace.copy.syntaxErrorCountLabel': '{count} Error(s)',
+    'project.configurationWorkspace.copy.syntaxFileTreeTitle': 'Files with Syntax Errors',
     'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
     'project.configurationWorkspace.copy.validateAction': 'Validate',
+    'project.configurationWorkspace.copy.validateSkipUnsupportedHint':
+      'Files without supported syntax diagnostics are skipped silently during save.',
     'project.configurationWorkspace.copy.validateNoFile': 'Open a supported file before running validation.',
   },
   'zh-CN': {
     'project.configurationWorkspace.copy.annotationAction': '编辑注释',
     'project.configurationWorkspace.copy.annotationSaveFailed': '注释保存失败。',
+    'project.configurationWorkspace.copy.batchFileValidationRiskBody':
+      '这些文件仍存在语法错误。继续保存后，后续校验或部署可能无法正确解析项目配置。',
+    'project.configurationWorkspace.copy.batchFileValidationRiskTitle': '带语法错误保存文件',
+    'project.configurationWorkspace.copy.batchFileValidationTitle': '文件语法错误',
+    'project.configurationWorkspace.copy.confirmSaveAllAction': '确认保存全部',
+    'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction': '仍然保存全部',
+    'project.configurationWorkspace.copy.confirmSaveCurrentAction': '确认保存',
+    'project.configurationWorkspace.copy.confirmSaveDeployWithErrorsAction': '仍然保存并部署',
     'project.configurationWorkspace.copy.confirmSaveAction': '确认保存',
+    'project.configurationWorkspace.copy.confirmSaveWithErrorsAction': '仍然保存',
     'project.configurationWorkspace.copy.deployAction': '部署项目',
+    'project.configurationWorkspace.copy.diffCurrentFileConfirmBody':
+      '请先确认当前文件差异。只有在你确认后，修改才会写入工作目录。',
+    'project.configurationWorkspace.copy.diffCurrentFileTitle': '当前文件差异',
     'project.configurationWorkspace.copy.diffConfirmBody':
       '请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。',
     'project.configurationWorkspace.copy.diffEmptyDirectSaveHint': '未检测到文件差异，将直接保存草稿文件。',
     'project.configurationWorkspace.copy.diffTreeTitle': '变更文件',
+    'project.configurationWorkspace.copy.fileValidationEmbeddedHint':
+      '当前文件存在语法错误，请先检查高亮位置，再决定是否保存或部署。',
     'project.configurationWorkspace.copy.fileValidationFailed': '当前文件存在语法错误。',
     'project.configurationWorkspace.copy.fileValidationPassed': '当前文件未检测到语法错误。',
+    'project.configurationWorkspace.copy.fileValidationTitle': '文件校验',
     'project.configurationWorkspace.copy.fileValidationUnavailable': '当前文件类型暂不支持显式语法校验。',
+    'project.configurationWorkspace.copy.resultSummaryChangedFilesLabel': '变更文件',
+    'project.configurationWorkspace.copy.resultSummaryCurrentErrorsLabel': '当前错误',
+    'project.configurationWorkspace.copy.resultSummaryCurrentFileLabel': '当前文件',
+    'project.configurationWorkspace.copy.resultSummaryErrorFilesLabel': '错误文件',
     'project.configurationWorkspace.copy.saveAction': '保存',
+    'project.configurationWorkspace.copy.saveAllAction': '保存全部',
+    'project.configurationWorkspace.copy.savePartialHint': '这次只会保存当前文件。',
+    'project.configurationWorkspace.copy.selectSyntaxFile': '选择一个文件查看语法错误',
+    'project.configurationWorkspace.copy.syntaxErrorCountLabel': '{count} 处错误',
+    'project.configurationWorkspace.copy.syntaxFileTreeTitle': '存在语法错误的文件',
     'project.configurationWorkspace.copy.saveThenContinueAction': '保存',
     'project.configurationWorkspace.copy.validateAction': '校验',
+    'project.configurationWorkspace.copy.validateSkipUnsupportedHint': '保存时会静默跳过不支持语法诊断的文件。',
     'project.configurationWorkspace.copy.validateNoFile': '请先打开一个可校验的文件。',
   },
 } as const;
@@ -74,7 +124,6 @@ vi.mock('../../api/project', () => ({
   getProjectConfiguration: mocks.getProjectConfiguration,
   getProjectFileContent: mocks.getProjectFileContent,
   getProjectFiles: mocks.getProjectFiles,
-  postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
   postProjectDeploy: mocks.postProjectDeploy,
   putProjectFileAnnotation: mocks.putProjectFileAnnotation,
   putProjectFileContent: mocks.putProjectFileContent,
@@ -573,15 +622,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       tooltip: 'Existing note',
       tooltip_source: 'project-note',
     });
-    mocks.postProjectConfigurationValidate.mockResolvedValue({
-      canonical_project_name: 'sub2api',
-      declared_service_names: ['api'],
-      normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
-      ownership_mode: 'managed-root-dedicated',
-      project_id: 1,
-      proposed_config_hash: '0dd31a7ef1658f86dcad96522b52d891d6f34f27ca10',
-      warnings: [],
-    });
     mocks.postProjectDeploy.mockResolvedValue({
       message: 'deployed',
     });
@@ -949,9 +989,6 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const diffViewer = wrapper.get('[data-testid="configuration-diff-viewer"]');
     expect(diffViewer.find('pre.original').text()).toBe('services:\n  api:\n    image: app');
     expect(diffViewer.find('pre.modified').text()).toBe('services:\n  api:\n    image: newer');
-    expect(wrapper.find('[data-testid="configuration-diff-file-workspace-entry-docker-compose-yml"]').exists()).toBe(
-      true,
-    );
     expect(wrapper.find('[data-testid="configuration-diff-confirm-save"]').exists()).toBe(true);
     const resultDialog = wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]');
     expect(resultDialog?.attributes('data-mode')).toBe('modal');
@@ -1011,7 +1048,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
-    expect(mocks.error).toHaveBeenCalledWith('当前文件存在语法错误。');
+    expect(wrapper.text()).toContain('文件校验');
+    expect(wrapper.html()).toContain('data-message="当前文件存在语法错误，请先检查高亮位置，再决定是否保存或部署。"');
   });
 
   it('does not open a result dialog when the active file has no syntax errors', async () => {
@@ -1029,7 +1067,40 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.success).toHaveBeenCalledWith('No syntax errors were found in the active file.');
   });
 
-  it('keeps the diff file list in workspace tree form instead of compare cards', async () => {
+  it('intercepts save when the current file has syntax errors and only saves after explicit confirmation', async () => {
+    pageContextState.locale = 'zh-CN';
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === '保存')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="configuration-syntax-confirm-save"]').trigger('click');
+    await flushPromises();
+    await wrapper
+      .find('[data-title="带语法错误保存文件"]')
+      .findAll('button')
+      .find((button) => button.text().trim() === '仍然保存')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: [broken\n' },
+    );
+  });
+
+  it('uses a single-pane diff for saving only the current file', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -1043,8 +1114,119 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(false);
+    expect(wrapper.find('[data-class-name*="project-configuration-workspace__result-dialog-shell"]').html()).toContain(
+      'Current File Diff',
+    );
+  });
+
+  it('keeps the diff file list in workspace tree form for save all', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All')
+      ?.trigger('click');
+    await flushDiffViewerFrames();
+
+    expect(wrapper.find('[data-testid="configuration-diff-viewer"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
-    expect(wrapper.find('.project-configuration-workspace__diff-file').exists()).toBe(false);
+    expect(wrapper.text()).toContain('docker-compose.yml');
+    expect(wrapper.text()).toContain('.env');
+  });
+
+  it('shows the syntax file list for save all when multiple files have syntax errors', async () => {
+    mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
+      if (query?.path === 'config') {
+        return {
+          current_path: 'config',
+          items: [
+            {
+              editable: true,
+              file_kind: 'config',
+              has_children: false,
+              language_hint: 'yaml',
+              name: 'app.yaml',
+              node_type: 'file',
+              readable: true,
+              relative_path: 'config/app.yaml',
+              size_bytes: 24,
+            },
+          ],
+          root_path: '/srv/sub2api',
+        };
+      }
+      return {
+        current_path: '',
+        items: [
+          {
+            editable: true,
+            file_kind: 'compose',
+            has_children: false,
+            language_hint: 'yaml',
+            name: 'docker-compose.yml',
+            node_type: 'file',
+            readable: true,
+            relative_path: 'docker-compose.yml',
+            size_bytes: 32,
+          },
+          {
+            editable: false,
+            file_kind: 'directory',
+            has_children: true,
+            name: 'config',
+            node_type: 'directory',
+            readable: true,
+            relative_path: 'config',
+          },
+        ],
+        root_path: '/srv/sub2api',
+      };
+    });
+    mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
+      content:
+        query.path === 'docker-compose.yml'
+          ? 'services:\n  api:\n    image: app\n'
+          : query.path === 'config/app.yaml'
+            ? 'name: demo\nenabled: true\n'
+            : '',
+      editable: true,
+      encoding: 'utf-8',
+      file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
+      language_hint: 'yaml',
+      readable: true,
+      relative_path: query.path,
+      size_bytes: 32,
+    }));
+
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-app-yaml"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('name: [broken\nenabled: true\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
+    expect(wrapper.text()).toContain('docker-compose.yml');
+    expect(wrapper.text()).toContain('app.yaml');
   });
 
   it('previews the active dirty buffers before saving them to disk', async () => {

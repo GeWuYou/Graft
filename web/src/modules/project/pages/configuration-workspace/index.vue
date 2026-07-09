@@ -239,6 +239,15 @@
                     <t-button
                       theme="default"
                       variant="outline"
+                      :loading="saveConfirmLoading && pendingWorkspaceAction === 'save-all'"
+                      :disabled="!canSaveAllBuffers"
+                      @click="saveAllFiles"
+                    >
+                      {{ workspaceCopy.saveAllAction }}
+                    </t-button>
+                    <t-button
+                      theme="default"
+                      variant="outline"
                       :loading="syntaxCheckLoading"
                       :disabled="!activeBuffer"
                       @click="runCurrentFileValidation"
@@ -398,6 +407,19 @@
             <div class="project-configuration-workspace__result-dialog-title-block">
               <h2>{{ resultDialogTitle }}</h2>
               <p v-if="resultDialogDescription">{{ resultDialogDescription }}</p>
+              <div
+                v-if="resultDialogSummaryItems.length"
+                class="project-configuration-workspace__result-dialog-summary"
+              >
+                <span
+                  v-for="item in resultDialogSummaryItems"
+                  :key="item.label"
+                  class="project-configuration-workspace__result-dialog-summary-pill"
+                >
+                  <span class="project-configuration-workspace__result-dialog-summary-label">{{ item.label }}</span>
+                  <strong class="project-configuration-workspace__result-dialog-summary-value">{{ item.value }}</strong>
+                </span>
+              </div>
             </div>
             <t-space size="small" class="project-configuration-workspace__result-dialog-actions">
               <t-button
@@ -438,9 +460,10 @@
         <div
           v-if="resultDialogMode === 'diff'"
           class="project-configuration-workspace__diff-surface"
+          :class="{ 'project-configuration-workspace__diff-surface--single': !showDiffSidebar }"
           data-testid="configuration-diff-modal"
         >
-          <div class="project-configuration-workspace__diff-sidebar graft-scrollbar">
+          <div v-if="showDiffSidebar" class="project-configuration-workspace__diff-sidebar graft-scrollbar">
             <div class="project-configuration-workspace__diff-sidebar-head">
               <span class="project-configuration-workspace__diff-sidebar-title">{{ workspaceCopy.diffTreeTitle }}</span>
               <span class="project-configuration-workspace__diff-sidebar-caption">
@@ -536,19 +559,65 @@
           </div>
         </div>
 
-        <div v-else-if="syntaxValidationResult" class="project-configuration-workspace__feedback-panel">
-          <div class="project-configuration-workspace__result-viewer">
-            <project-monaco-surface
-              ref="syntaxViewerRef"
-              class="project-configuration-workspace__monaco-viewer"
-              :model-value="syntaxValidationResult.content"
-              :editor-aria-label="workspaceCopy.syntaxViewerAriaLabel"
-              :language="syntaxValidationResult.language"
-              :model-key="syntaxValidationResult.modelKey"
-              :options="readonlyOptions"
-              read-only
-              test-id="syntax-monaco-viewer"
-            />
+        <div
+          v-else-if="syntaxValidationResult"
+          class="project-configuration-workspace__feedback-panel"
+          :class="{ 'project-configuration-workspace__feedback-panel--with-sidebar': showSyntaxSidebar }"
+        >
+          <div v-if="showSyntaxSidebar" class="project-configuration-workspace__diff-sidebar graft-scrollbar">
+            <div class="project-configuration-workspace__diff-sidebar-head">
+              <span class="project-configuration-workspace__diff-sidebar-title">
+                {{ workspaceCopy.syntaxFileTreeTitle }}
+              </span>
+              <span class="project-configuration-workspace__diff-sidebar-caption">
+                {{ workspaceCopy.workspaceRootLabel }}
+              </span>
+            </div>
+            <div
+              v-for="row in syntaxTreeRows"
+              :key="row.path"
+              class="project-configuration-workspace__tree-row project-configuration-workspace__tree-row--diff"
+              :class="{
+                'project-configuration-workspace__tree-row--active':
+                  row.type === 'file' && syntaxValidationFile?.path === row.path,
+                'project-configuration-workspace__tree-row--error': row.type === 'file',
+              }"
+              :style="{ '--workspace-tree-depth': String(row.depth) }"
+            >
+              <span class="project-configuration-workspace__tree-expander-placeholder" />
+              <button
+                class="project-configuration-workspace__tree-entry"
+                type="button"
+                :disabled="row.type !== 'file'"
+                @click="row.type === 'file' && (selectedSyntaxFilePath = row.path)"
+              >
+                <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
+                  <folder-icon v-if="row.type === 'directory'" />
+                  <file-code-icon v-else />
+                </span>
+                <span class="project-configuration-workspace__browser-main">
+                  <span class="project-configuration-workspace__browser-title">{{ row.name }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+          <div class="project-configuration-workspace__syntax-stage">
+            <t-alert v-if="!showSyntaxSidebar" theme="error" :message="workspaceCopy.fileValidationEmbeddedHint" />
+            <t-alert v-else theme="warning" :message="workspaceCopy.batchFileValidationRiskBody" />
+            <div class="project-configuration-workspace__result-viewer">
+              <project-monaco-surface
+                ref="syntaxViewerRef"
+                class="project-configuration-workspace__monaco-viewer"
+                :model-value="syntaxValidationResult.content"
+                :editor-aria-label="workspaceCopy.syntaxViewerAriaLabel"
+                :language="syntaxValidationResult.language"
+                :markers="currentResultIssues"
+                :model-key="syntaxValidationResult.modelKey"
+                :options="readonlyOptions"
+                read-only
+                test-id="syntax-monaco-viewer"
+              />
+            </div>
           </div>
         </div>
 
@@ -568,7 +637,28 @@
               data-testid="configuration-diff-confirm-save"
               @click="confirmDiffPreview"
             >
-              {{ workspaceCopy.confirmSaveAction }}
+              {{ diffConfirmActionLabel }}
+            </t-button>
+          </t-space>
+        </div>
+
+        <div v-else-if="syntaxValidationResult" class="project-configuration-workspace__result-dialog-footer">
+          <t-space size="small">
+            <t-button
+              theme="default"
+              variant="outline"
+              data-testid="configuration-syntax-cancel"
+              @click="resultDialogVisible = false"
+            >
+              {{ workspaceCopy.cancelAction }}
+            </t-button>
+            <t-button
+              theme="primary"
+              :loading="saveConfirmLoading"
+              data-testid="configuration-syntax-confirm-save"
+              @click="confirmSyntaxValidation"
+            >
+              {{ syntaxConfirmActionLabel }}
             </t-button>
           </t-space>
         </div>
@@ -678,7 +768,7 @@ defineOptions({
 
 type ResultDialogMode = 'diff' | 'syntax';
 type DialogResult = 'cancel' | 'continue-disk' | 'discard' | 'save' | 'save-and-continue';
-type PendingWorkspaceAction = 'deploy' | 'save';
+type PendingWorkspaceAction = 'deploy' | 'save-all' | 'save-current';
 type WorkspaceDialogButton = {
   label: string;
   result: DialogResult;
@@ -733,8 +823,16 @@ type WorkspaceSyntaxValidationResult = {
   fileName: string;
   language: ProjectWorkspaceMonacoLanguage;
   markerCount: number;
+  markers: WorkspaceSyntaxMarker[];
   modelKey: string;
   path: string;
+};
+type WorkspaceSyntaxTreeRow = {
+  depth: number;
+  file: WorkspaceSyntaxValidationResult | null;
+  name: string;
+  path: string;
+  type: 'directory' | 'file';
 };
 type MonacoViewerHandle = {
   getLineChanges?: () => WorkspaceDiffLineChange[];
@@ -802,14 +900,17 @@ const syntaxViewerRef = ref<MonacoViewerHandle | null>(null);
 const activeFileTabPathForMenu = ref<string | null>(null);
 const diffResult = ref<WorkspacePreviewDiffResult | null>(null);
 const syntaxValidationResult = ref<WorkspaceSyntaxValidationResult | null>(null);
+const syntaxValidationFiles = ref<WorkspaceSyntaxValidationResult[]>([]);
 const syntaxCheckLoading = ref(false);
 const deployLoading = ref(false);
 const saveConfirmLoading = ref(false);
 const selectedDiffFilePath = ref('');
+const selectedSyntaxFilePath = ref('');
 const resultIssueIndex = ref(0);
 const diffLineChanges = ref<WorkspaceDiffLineChange[]>([]);
 const syntaxMarkers = ref<WorkspaceSyntaxMarker[]>([]);
 const pendingWorkspaceAction = ref<PendingWorkspaceAction | null>(null);
+const pendingWorkspaceActionPaths = ref<string[]>([]);
 const openTabs = ref<string[]>([]);
 const activeTabPath = ref('');
 const openFileMap = reactive(new Map<string, WorkspaceOpenFile>());
@@ -855,6 +956,7 @@ const readonlyOptions = {
   lineNumbers: 'on' as const,
   minimap: { enabled: false },
   readOnly: true,
+  renderValidationDecorations: 'on' as const,
   wordWrap: 'off' as const,
 };
 
@@ -886,8 +988,14 @@ const dirtyEditableBuffers = computed(() =>
   openTabBuffers.value.filter((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
 const canSaveActiveBuffer = computed(() =>
-  Boolean(activeBuffer.value?.editable && !activeBuffer.value.saving && dirtyEditableBuffers.value.length),
+  Boolean(
+    activeBuffer.value?.editable &&
+    !activeBuffer.value.saving &&
+    activeBuffer.value.path &&
+    isFileDirty(activeBuffer.value.path),
+  ),
 );
+const canSaveAllBuffers = computed(() => Boolean(!saveConfirmLoading.value && dirtyEditableBuffers.value.length));
 const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE_BREAKPOINT);
 const sidebarPaneStyle = computed(() =>
   isSidebarResizable.value ? { width: `${clampSidebarWidth(sidebarWidth.value)}px` } : undefined,
@@ -902,20 +1010,93 @@ const selectedDiffFile = computed(
 );
 const diffFiles = computed(() => diffResult.value?.files ?? []);
 const diffTreeRows = computed(() => buildDiffTreeRows(diffFiles.value));
-const currentResultIssues = computed(() => syntaxMarkers.value);
+const syntaxValidationFile = computed(
+  () =>
+    syntaxValidationFiles.value.find((file) => file.path === selectedSyntaxFilePath.value) ??
+    syntaxValidationFiles.value[0] ??
+    null,
+);
+const syntaxTreeRows = computed(() => buildSyntaxTreeRows(syntaxValidationFiles.value));
+const showDiffSidebar = computed(
+  () => resultDialogMode.value === 'diff' && pendingWorkspaceAction.value !== 'save-current',
+);
+const showSyntaxSidebar = computed(
+  () =>
+    resultDialogMode.value === 'syntax' &&
+    (pendingWorkspaceAction.value === 'save-all' || pendingWorkspaceAction.value === 'deploy') &&
+    syntaxValidationFiles.value.length > 0,
+);
+const currentResultIssues = computed(() =>
+  resultDialogMode.value === 'syntax' ? (syntaxValidationFile.value?.markers ?? []) : syntaxMarkers.value,
+);
 const canNavigateResultIssues = computed(() =>
   resultDialogMode.value === 'diff' ? Boolean(selectedDiffFile.value) : currentResultIssues.value.length > 0,
 );
 const resultDialogTitle = computed(() =>
   resultDialogMode.value === 'diff'
-    ? t('project.detail.configuration.diffTitle')
+    ? pendingWorkspaceAction.value === 'save-current'
+      ? workspaceCopy.value.diffCurrentFileTitle
+      : t('project.detail.configuration.diffTitle')
     : workspaceCopy.value.fileValidationTitle,
 );
 const resultDialogDescription = computed(() => {
   if (resultDialogMode.value === 'diff') {
-    return workspaceCopy.value.diffConfirmBody;
+    return pendingWorkspaceAction.value === 'save-current'
+      ? workspaceCopy.value.diffCurrentFileConfirmBody
+      : workspaceCopy.value.diffConfirmBody;
   }
   return '';
+});
+const resultDialogSummaryItems = computed(() => {
+  if (resultDialogMode.value === 'diff') {
+    const items = [
+      {
+        label: workspaceCopy.value.resultSummaryChangedFilesLabel,
+        value: String(diffFiles.value.length),
+      },
+    ];
+    if (selectedDiffFile.value?.path) {
+      items.push({
+        label: workspaceCopy.value.resultSummaryCurrentFileLabel,
+        value: selectedDiffFile.value.path,
+      });
+    }
+    return items;
+  }
+
+  const items = [
+    {
+      label: workspaceCopy.value.resultSummaryErrorFilesLabel,
+      value: String(syntaxValidationFiles.value.length || (syntaxValidationResult.value ? 1 : 0)),
+    },
+  ];
+  if (syntaxValidationFile.value) {
+    items.push({
+      label: workspaceCopy.value.resultSummaryCurrentErrorsLabel,
+      value: t('project.configurationWorkspace.copy.syntaxErrorCountLabel', {
+        count: syntaxValidationFile.value.markerCount,
+      }),
+    });
+  }
+  return items;
+});
+const syntaxConfirmActionLabel = computed(() => {
+  if (pendingWorkspaceAction.value === 'deploy') {
+    return workspaceCopy.value.confirmSaveDeployWithErrorsAction;
+  }
+  if (pendingWorkspaceAction.value === 'save-all') {
+    return workspaceCopy.value.confirmSaveAllWithErrorsAction;
+  }
+  return workspaceCopy.value.confirmSaveWithErrorsAction;
+});
+const diffConfirmActionLabel = computed(() => {
+  if (pendingWorkspaceAction.value === 'deploy') {
+    return workspaceCopy.value.confirmSaveAllAction;
+  }
+  if (pendingWorkspaceAction.value === 'save-all') {
+    return workspaceCopy.value.confirmSaveAllAction;
+  }
+  return workspaceCopy.value.confirmSaveCurrentAction;
 });
 const resultDialogClassName = computed(() =>
   resultDialogFullscreen.value
@@ -1012,10 +1193,11 @@ watch(resultDialogVisible, (visible) => {
     diffLineChanges.value = [];
     syntaxMarkers.value = [];
     syntaxValidationResult.value = null;
-    if (resultDialogMode.value === 'diff') {
-      pendingWorkspaceAction.value = null;
-      saveConfirmLoading.value = false;
-    }
+    syntaxValidationFiles.value = [];
+    selectedSyntaxFilePath.value = '';
+    pendingWorkspaceAction.value = null;
+    pendingWorkspaceActionPaths.value = [];
+    saveConfirmLoading.value = false;
   }
 });
 
@@ -1049,6 +1231,18 @@ watch(selectedDiffFilePath, () => {
   if (resultDialogVisible.value && resultDialogMode.value === 'diff') {
     void refreshDiffLineChanges();
   }
+});
+
+watch(selectedSyntaxFilePath, () => {
+  if (!resultDialogVisible.value || resultDialogMode.value !== 'syntax') {
+    return;
+  }
+
+  syntaxMarkers.value = syntaxValidationFile.value?.markers ?? [];
+  resultIssueIndex.value = 0;
+  void queueResultViewerLayout().then(() => {
+    revealCurrentResultIssue();
+  });
 });
 
 watch(activeTabPath, () => {
@@ -1421,7 +1615,14 @@ async function saveActiveFile() {
   if (!canSaveActiveBuffer.value) {
     return;
   }
-  await previewBeforeSave('save');
+  await previewBeforeSave('save-current');
+}
+
+async function saveAllFiles() {
+  if (!canSaveAllBuffers.value) {
+    return;
+  }
+  await previewBeforeSave('save-all');
 }
 
 async function saveWorkspaceFile(path: string, options?: { silent?: boolean }) {
@@ -1448,8 +1649,74 @@ async function saveWorkspaceFile(path: string, options?: { silent?: boolean }) {
   }
 }
 
-async function saveDirtyFiles() {
-  const dirtyPaths = dirtyEditableBuffers.value.map((tab) => tab.path);
+function resolvePendingWorkspacePaths(action: PendingWorkspaceAction) {
+  if (action === 'save-current') {
+    return activeBuffer.value?.path && isFileDirty(activeBuffer.value.path) ? [activeBuffer.value.path] : [];
+  }
+
+  return dirtyEditableBuffers.value.map((tab) => tab.path);
+}
+
+function buildSyntaxValidationResult(file: WorkspaceOpenFile, markers: WorkspaceSyntaxMarker[]) {
+  return {
+    content: file.content,
+    fileName: file.name,
+    language: file.language,
+    markerCount: markers.length,
+    markers,
+    modelKey: `syntax-${file.path}`,
+    path: file.path,
+  } satisfies WorkspaceSyntaxValidationResult;
+}
+
+async function collectSyntaxValidationIssues(paths: string[]) {
+  const uniquePaths = [...new Set(paths)].filter((path) => {
+    const file = openFileMap.get(path);
+    return Boolean(file?.editable && supportsExplicitSyntaxValidation(file.language));
+  });
+  const activePathBeforeValidation = activeTabPath.value;
+  const issues: WorkspaceSyntaxValidationResult[] = [];
+
+  for (const path of uniquePaths) {
+    if (activeTabPath.value !== path) {
+      activeTabPath.value = path;
+      await nextTick();
+    }
+
+    const file = openFileMap.get(path);
+    if (!file) {
+      continue;
+    }
+
+    const markers = await activeEditorRef.value?.waitForDiagnostics?.();
+    const errors = (markers ?? [])
+      .filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY)
+      .sort((left, right) => {
+        if (left.startLineNumber !== right.startLineNumber) {
+          return left.startLineNumber - right.startLineNumber;
+        }
+        return left.startColumn - right.startColumn;
+      });
+
+    if (!errors.length) {
+      continue;
+    }
+
+    issues.push(buildSyntaxValidationResult(file, errors));
+  }
+
+  if (activePathBeforeValidation && activeTabPath.value !== activePathBeforeValidation) {
+    activeTabPath.value = activePathBeforeValidation;
+    await nextTick();
+  }
+
+  return issues;
+}
+
+async function saveDirtyFiles(paths?: string[]) {
+  const dirtyPaths = paths?.length
+    ? [...new Set(paths)].filter((path) => isFileDirty(path))
+    : dirtyEditableBuffers.value.map((tab) => tab.path);
   if (!dirtyPaths.length) {
     return true;
   }
@@ -1462,6 +1729,52 @@ async function saveDirtyFiles() {
   }
   MessagePlugin.success(workspaceCopy.value.saveSuccess);
   return true;
+}
+
+async function finalizePendingWorkspaceAction(action: PendingWorkspaceAction, paths: string[]) {
+  if (action === 'save-current') {
+    const targetPath = paths[0];
+    return targetPath ? saveWorkspaceFile(targetPath) : true;
+  }
+
+  const saved = await saveDirtyFiles(paths);
+  if (!saved) {
+    return false;
+  }
+
+  if (action === 'deploy') {
+    await executeProjectDeploy();
+  }
+
+  return true;
+}
+
+async function proceedAfterDiffConfirmation(action: PendingWorkspaceAction, paths: string[]) {
+  const syntaxIssues = await collectSyntaxValidationIssues(paths);
+  if (!syntaxIssues.length) {
+    const saved = await finalizePendingWorkspaceAction(action, paths);
+    if (saved) {
+      resultDialogVisible.value = false;
+      diffResult.value = null;
+      selectedDiffFilePath.value = '';
+    }
+    return saved;
+  }
+
+  diffResult.value = null;
+  selectedDiffFilePath.value = '';
+  syntaxValidationFiles.value = syntaxIssues;
+  syntaxValidationResult.value = syntaxIssues[0] ?? null;
+  selectedSyntaxFilePath.value = syntaxIssues[0]?.path ?? '';
+  syntaxMarkers.value = syntaxIssues[0]?.markers ?? [];
+  resultIssueIndex.value = 0;
+  resultDialogMode.value = 'syntax';
+  resultDialogVisible.value = true;
+  pendingWorkspaceAction.value = action;
+  pendingWorkspaceActionPaths.value = paths;
+  await queueResultViewerLayout();
+  revealCurrentResultIssue();
+  return false;
 }
 
 async function reloadActiveFile() {
@@ -1731,21 +2044,16 @@ async function runCurrentFileValidation() {
       return;
     }
 
-    syntaxValidationResult.value = {
-      content: current.content,
-      fileName: current.name,
-      language: current.language,
-      markerCount: errors.length,
-      modelKey: `syntax-${current.path}`,
-      path: current.path,
-    };
-    syntaxMarkers.value = errors;
+    const validationResult = buildSyntaxValidationResult(current, errors);
+    syntaxValidationResult.value = validationResult;
+    syntaxValidationFiles.value = [validationResult];
+    selectedSyntaxFilePath.value = current.path;
+    syntaxMarkers.value = validationResult.markers;
     resultIssueIndex.value = 0;
     resultDialogMode.value = 'syntax';
     resultDialogVisible.value = true;
     await queueResultViewerLayout();
     revealCurrentResultIssue();
-    MessagePlugin.error(workspaceCopy.value.fileValidationFailed);
   } finally {
     syntaxCheckLoading.value = false;
   }
@@ -1784,6 +2092,9 @@ async function handleResultDialogOpened() {
       selectedPath: selectedDiffFile.value?.path ?? '',
     });
     await refreshDiffLineChanges();
+  } else {
+    syntaxValidationResult.value = syntaxValidationFile.value;
+    syntaxMarkers.value = syntaxValidationFile.value?.markers ?? [];
   }
 
   await queueResultViewerLayout();
@@ -1857,22 +2168,16 @@ function buildDirtyDiffFiles(paths?: string[]): WorkspacePreviewDiffFile[] {
 }
 
 async function previewBeforeSave(action: PendingWorkspaceAction) {
-  const files = buildDirtyDiffFiles();
+  const targetPaths = resolvePendingWorkspacePaths(action);
+  const files = buildDirtyDiffFiles(targetPaths);
   logWorkspaceDiffDebug('preview-before-save', {
     action,
     diffFileCount: files.length,
-    dirtyBufferCount: dirtyEditableBuffers.value.length,
+    dirtyBufferCount: targetPaths.length,
   });
   if (!files.length) {
     MessagePlugin.info(workspaceCopy.value.diffEmptyDirectSaveHint);
-    const saved = await saveDirtyFiles();
-    if (!saved) {
-      return false;
-    }
-    if (action === 'deploy') {
-      await executeProjectDeploy();
-    }
-    return true;
+    return proceedAfterDiffConfirmation(action, targetPaths);
   }
 
   diffResult.value = {
@@ -1889,7 +2194,9 @@ async function previewBeforeSave(action: PendingWorkspaceAction) {
     proposedHash: files[0]?.proposed_hash ?? '',
     proposedLength: files[0]?.proposed_content.length ?? 0,
   });
+  syntaxValidationFiles.value = [];
   syntaxValidationResult.value = null;
+  pendingWorkspaceActionPaths.value = targetPaths;
   pendingWorkspaceAction.value = action;
   resultDialogMode.value = 'diff';
   resultDialogVisible.value = true;
@@ -1907,20 +2214,48 @@ async function confirmDiffPreview() {
 
   saveConfirmLoading.value = true;
   const action = pendingWorkspaceAction.value;
+  const actionPaths = [...pendingWorkspaceActionPaths.value];
   try {
-    const saved = await saveDirtyFiles();
+    await proceedAfterDiffConfirmation(action, actionPaths);
+  } finally {
+    saveConfirmLoading.value = false;
+  }
+}
+
+async function confirmSyntaxValidation() {
+  if (!pendingWorkspaceAction.value || saveConfirmLoading.value) {
+    return;
+  }
+
+  const action = pendingWorkspaceAction.value;
+  const confirmAction = await openDialog({
+    body: workspaceCopy.value.batchFileValidationRiskBody,
+    buttons: [
+      {
+        label: syntaxConfirmActionLabel.value,
+        result: 'save',
+        theme: 'primary',
+        variant: 'base',
+      },
+      { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+    ],
+    title: workspaceCopy.value.batchFileValidationRiskTitle,
+  });
+  if (confirmAction !== 'save') {
+    return;
+  }
+
+  saveConfirmLoading.value = true;
+  const actionPaths = [...pendingWorkspaceActionPaths.value];
+  try {
+    const saved = await finalizePendingWorkspaceAction(action, actionPaths);
     if (!saved) {
       return;
     }
 
     resultDialogVisible.value = false;
-    diffResult.value = null;
-    selectedDiffFilePath.value = '';
     pendingWorkspaceAction.value = null;
-
-    if (action === 'deploy') {
-      await executeProjectDeploy();
-    }
+    pendingWorkspaceActionPaths.value = [];
   } finally {
     saveConfirmLoading.value = false;
   }
@@ -1939,7 +2274,8 @@ function revealCurrentResultIssue() {
     return;
   }
 
-  syntaxViewerRef.value?.revealMarker?.(syntaxMarkers.value[resultIssueIndex.value]);
+  syntaxValidationResult.value = syntaxValidationFile.value;
+  syntaxViewerRef.value?.revealMarker?.(currentResultIssues.value[resultIssueIndex.value]);
 }
 
 function navigateResultIssue(direction: 'next' | 'previous') {
@@ -2034,6 +2370,58 @@ function buildDiffTreeRows(files: WorkspacePreviewDiffFile[]) {
         depth,
         file,
         name: diffFileName(file.display_path || path),
+        path,
+        type: 'file',
+      });
+    }
+
+    return rows;
+  };
+
+  return appendRows('', 0);
+}
+
+function buildSyntaxTreeRows(files: WorkspaceSyntaxValidationResult[]) {
+  const directoryPaths = new Set<string>();
+  const fileMap = new Map<string, WorkspaceSyntaxValidationResult>();
+
+  for (const file of files) {
+    const normalizedPath = normalizeWorkspacePath(file.path);
+    fileMap.set(normalizedPath, file);
+
+    const segments = normalizedPath.split('/').filter(Boolean);
+    let currentPath = '';
+    for (const segment of segments.slice(0, -1)) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      directoryPaths.add(currentPath);
+    }
+  }
+
+  const appendRows = (basePath: string, depth: number): WorkspaceSyntaxTreeRow[] => {
+    const childDirectories = [...directoryPaths]
+      .filter((path) => resolveWorkspaceParentPath(path) === basePath)
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+    const childFiles = [...fileMap.entries()]
+      .filter(([path]) => resolveWorkspaceParentPath(path) === basePath)
+      .sort(([left], [right]) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+
+    const rows: WorkspaceSyntaxTreeRow[] = [];
+    for (const directoryPath of childDirectories) {
+      rows.push({
+        depth,
+        file: null,
+        name: diffFileName(directoryPath),
+        path: directoryPath,
+        type: 'directory',
+      });
+      rows.push(...appendRows(directoryPath, depth + 1));
+    }
+
+    for (const [path, file] of childFiles) {
+      rows.push({
+        depth,
+        file,
+        name: diffFileName(path),
         path,
         type: 'file',
       });
@@ -2287,6 +2675,42 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__result-dialog-title-block p {
   margin-top: 0 !important;
+}
+
+.project-configuration-workspace__result-dialog-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  margin-top: var(--graft-density-gap-4);
+}
+
+.project-configuration-workspace__result-dialog-summary-pill {
+  align-items: center;
+  background: color-mix(in srgb, var(--graft-workspace-editor-surface-muted) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--graft-workspace-editor-border) 82%, transparent);
+  border-radius: 999px;
+  color: var(--td-text-color-secondary);
+  display: inline-flex;
+  gap: var(--graft-density-gap-6);
+  max-width: 100%;
+  min-width: 0;
+  padding: 0 var(--graft-density-gap-10);
+}
+
+.project-configuration-workspace__result-dialog-summary-label,
+.project-configuration-workspace__result-dialog-summary-value {
+  display: inline-block;
+  font: var(--td-font-body-small);
+  line-height: 28px;
+}
+
+.project-configuration-workspace__result-dialog-summary-value {
+  color: var(--td-text-color-primary);
+  max-width: min(42vw, 480px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-configuration-workspace__result-dialog-actions {
@@ -2738,6 +3162,10 @@ function stopSidebarResize() {
   padding: var(--graft-density-gap-10) var(--graft-density-gap-12) var(--graft-density-gap-12);
 }
 
+.project-configuration-workspace__diff-surface--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .project-configuration-workspace__diff-sidebar {
   background: var(--graft-workspace-editor-surface-muted);
   border: 1px solid var(--graft-workspace-editor-border);
@@ -2774,6 +3202,10 @@ function stopSidebarResize() {
   padding-right: var(--graft-density-gap-4);
 }
 
+.project-configuration-workspace__tree-row--error {
+  background: color-mix(in srgb, var(--td-error-color-5) 12%, transparent);
+}
+
 .project-configuration-workspace__diff-stage {
   display: flex;
   flex: 1 1 auto;
@@ -2781,6 +3213,22 @@ function stopSidebarResize() {
   gap: var(--graft-density-gap-6);
   height: 100%;
   min-height: 0;
+}
+
+.project-configuration-workspace__syntax-stage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-height: 0;
+  min-width: 0;
+}
+
+.project-configuration-workspace__feedback-panel--with-sidebar {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .project-configuration-workspace__diff-pane-heads {

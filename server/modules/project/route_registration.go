@@ -73,7 +73,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
-	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
 	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
@@ -475,20 +474,6 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 	})
 }
 
-func (r routeRuntime) handleConfigurationValidate(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
-	if !ok {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectConfigurationValidate(generatedID, bindPostProjectConfigurationValidateParams(ginCtx))
-	result, err := r.service.ValidateConfiguration(ginCtx.Request.Context(), projectID)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationValidateResponse(result))
-}
-
 func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
@@ -829,8 +814,6 @@ func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProject
 }
 func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
-}
 func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams)   {}
 func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams)     {}
 func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)             {}
@@ -1138,13 +1121,6 @@ func bindPutProjectFileAnnotationParams(ginCtx *gin.Context, path string) genera
 	locale, requestID := commonHeaders(ginCtx)
 	queryPath := generated.ProjectWorkspacePathQuery(path)
 	return generated.PutProjectFileAnnotationParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
-}
-
-// bindPostProjectConfigurationValidateParams 构造配置校验接口的公共请求参数。
-// 它包含从请求头提取的语言和请求 ID。
-func bindPostProjectConfigurationValidateParams(ginCtx *gin.Context) generated.PostProjectConfigurationValidateParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectConfigurationValidateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetProjectManagedRootParams 构造获取托管根信息请求的公共参数。

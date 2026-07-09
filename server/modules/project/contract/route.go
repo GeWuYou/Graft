@@ -23,8 +23,6 @@ const (
 	ProjectWorkspaceFileContentRoute = "/:id/files/content"
 	// ProjectWorkspaceFileAnnotationRoute identifies the path-based workspace annotation write route fragment.
 	ProjectWorkspaceFileAnnotationRoute = "/:id/files/annotation"
-	// ProjectConfigurationValidateRoute identifies the managed configuration draft validate route fragment.
-	ProjectConfigurationValidateRoute = "/:id/configuration/validate"
 	// ProjectImportValidateRoute identifies the import validation route fragment.
 	ProjectImportValidateRoute = "/import/validate"
 	// ProjectImportRuntimeCandidatesRoute identifies the runtime-driven import candidate list route fragment.

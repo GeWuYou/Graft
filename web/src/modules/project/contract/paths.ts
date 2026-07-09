@@ -33,7 +33,6 @@ export const PROJECT_API_PATH = {
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
   CONFIGURATION_PREVIEW: '/api/ops/projects/{id}/configuration/preview',
   CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
-  CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
   FILES: '/api/ops/projects/{id}/files',
   FILES_CONTENT: '/api/ops/projects/{id}/files/content',
   FILES_ANNOTATION: '/api/ops/projects/{id}/files/annotation',
