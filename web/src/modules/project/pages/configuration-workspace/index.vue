@@ -2401,6 +2401,11 @@ async function confirmSyntaxValidation() {
   saveConfirmLoading.value = true;
   const actionPaths = [...pendingWorkspaceActionPaths.value];
   try {
+    const confirmedSkippedPaths = await confirmSkippedSyntaxValidationPaths(action, syntaxValidationSkippedPaths.value);
+    if (!confirmedSkippedPaths) {
+      return;
+    }
+
     const saved = await finalizePendingWorkspaceAction(action, actionPaths);
     if (!saved) {
       return;

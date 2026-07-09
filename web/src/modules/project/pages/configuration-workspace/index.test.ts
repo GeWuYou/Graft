@@ -1430,6 +1430,50 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.putProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' }, { content: 'APP_ENV=prod\n' });
   });
 
+  it('requires skipped-file confirmation after syntax confirmation for mixed save-all batches', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="configuration-syntax-confirm-save"]').trigger('click');
+    await flushPromises();
+    await wrapper
+      .find('[data-title="Save Files with Syntax Errors"]')
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Save All Anyway')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('config/.env');
+    expect(wrapper.text()).toContain('Confirm Save All');
+
+    await wrapper.get('[data-testid="workspace-dialog-save"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: [broken\n' },
+    );
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' }, { content: 'APP_ENV=prod\n' });
+  });
+
   it('waits for delayed editor rebinding before collecting batch diagnostics and restoring the active tab', async () => {
     mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
       if (query?.path === 'config') {
