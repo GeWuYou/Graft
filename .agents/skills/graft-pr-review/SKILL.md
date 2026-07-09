@@ -127,20 +127,32 @@ Fail-closed rule for this skill:
     - `blocked`
     - `stale`
     - `noise`
-19. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
-20. Do not ignore any verified suggestion. If the repair grows large:
+19. At task closeout, always include one reviewer-inventory summary block that is easy to compare across runs:
+    - `coderabbit_handled`
+      - how many CodeRabbit findings from the rebuilt inventory ended this run as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
+    - `coderabbit_outside_diff_range`
+      - declared count and handled count for `Outside diff range comments (N)`; if the section is absent, record `0`
+    - `coderabbit_nitpick`
+      - declared count and handled count for `Nitpick comments (N)`; if the section is absent, record `0`
+    - `open_suggestions`
+      - how many AI review findings remained open on the PR at the time the inventory was captured, plus how many still remain open after this run when rechecked
+    - `greptile_suggestions`
+      - total verified Greptile findings in scope for the run, with their final dispositions
+    - when another AI reviewer is present, keep it in the normal finding inventory, but the five fields above are still mandatory
+20. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
+21. Do not ignore any verified suggestion. If the repair grows large:
    - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
    - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
    - if neither is justified yet, report the finding as `blocked` with the reason
    - never collapse a still-valid large suggestion into a stale/noise label just to end the thread quickly
-21. If any finding is reported as `noise` or AI misjudgment, explicitly record:
+22. If any finding is reported as `noise` or AI misjudgment, explicitly record:
     - which finding it was
     - the concrete local verification reason
     - why it was not adopted
     - wording suitable for replying on the PR
-22. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
+23. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
     `contested` and carry both sides' reasoning into the final summary for human judgment.
-23. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
+24. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
 
 ## Commands
 
@@ -195,6 +207,7 @@ The script should produce:
 - CLI support for writing full JSON to a file and printing only narrowed text sections to stdout
 - Human review closeout that records each verified finding as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
 - Exhaustive coverage confirmation that no latest-review finding section was left unclassified
+- Closeout counts for `coderabbit_handled`, `coderabbit_outside_diff_range`, `coderabbit_nitpick`, `open_suggestions`, and `greptile_suggestions`
 - Thread reply state for replied AI findings: `unreplied`, `pending_ai_followup`, `resolved_after_reply`, or `contested`
 - Guidance and CLI support for replying to fixed-but-still-open AI threads with the fixing commit SHA
 - Explicit closeout guidance that findings needing human review must not be auto-replied on the PR thread
