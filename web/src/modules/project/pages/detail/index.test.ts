@@ -104,6 +104,9 @@ const detailMessages = {
   'project.detail.actions.stop': 'Stop',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
+  'project.detail.lifecycle.copyCommand': 'Copy Command',
+  'project.detail.lifecycle.copyCommandError': 'Command preview could not be copied.',
+  'project.detail.lifecycle.copyCommandSuccess': 'Command preview copied.',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
   'project.detail.logs.authorityProjectOwned': 'Project-owned logs',
@@ -177,6 +180,25 @@ const detailMessages = {
   'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.services': 'Services',
+  'project.detail.lifecycle.statusDescription': 'Review authority and command generation inputs.',
+  'project.detail.lifecycle.generatedCommandsDescription': 'Review each lifecycle command preview.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.up':
+    'Launch the current compose project with the saved strategy.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.stop':
+    'Stop running services without removing project resources.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.restart': 'Restart the current compose services in place.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.redeploy':
+    'Apply the saved redeploy flow, including any optional preparation steps.',
+  'project.detail.lifecycle.groups.base.title': 'Base Parameters',
+  'project.detail.lifecycle.groups.base.description': 'Base settings',
+  'project.detail.lifecycle.groups.redeploy.title': 'Redeploy Strategy',
+  'project.detail.lifecycle.groups.redeploy.description': 'Redeploy settings',
+  'project.detail.lifecycle.optionDescriptions.downBeforeRedeploy': 'Run docker compose down before redeploy.',
+  'project.detail.lifecycle.optionDescriptions.pullBeforeRedeploy': 'Pull images before redeploy.',
+  'project.detail.lifecycle.optionDescriptions.buildBeforeUp': 'Add --build before bring-up.',
+  'project.detail.lifecycle.optionDescriptions.forceRecreate': 'Add --force-recreate during bring-up.',
+  'project.detail.lifecycle.optionDescriptions.waitAfterUp': 'Add --wait when bringing services up.',
+  'project.detail.lifecycle.optionDescriptions.pruneImagesAfterRedeploy': 'Prune images after redeploy.',
   'project.detail.titleFallback': 'Project Detail',
   'project.route.configurationWorkspace.title': 'Configuration Workspace',
   'project.list.actions.actionFailed': 'Action Failed',
@@ -230,6 +252,28 @@ const TButtonStub = defineComponent({
           onClick: (event: MouseEvent) => emit('click', event),
         },
         slots.default?.(),
+      );
+  },
+});
+
+const TSwitchStub = defineComponent({
+  name: 'TSwitchStub',
+  props: {
+    modelValue: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          'aria-pressed': props.modelValue ? 'true' : 'false',
+          'data-stub': 'TSwitch',
+          type: 'button',
+          onClick: () => emit('update:modelValue', !props.modelValue),
+        },
+        props.modelValue ? 'on' : 'off',
       );
   },
 });
@@ -502,6 +546,7 @@ function mountPage() {
         't-tab-panel': slotStub('TTabPanel'),
         't-tabs': slotStub('TTabs'),
         't-tag': slotStub('TTag'),
+        't-switch': TSwitchStub,
       },
     },
   });
@@ -844,6 +889,25 @@ describe('Project detail service tab', () => {
       .filter(Boolean);
 
     expect(tabLabels).not.toContain('Configuration');
+  });
+
+  it('renders lifecycle sections with grouped configuration and command previews', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-lifecycle-summary-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-command-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-configuration-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-config-group-base"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-config-group-redeploy"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-actions"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-command-preview-up"]').text()).toContain(
+      'docker compose -f compose.yaml -p compose-demo up -d',
+    );
+    expect(wrapper.find('[data-testid="project-lifecycle-command-preview-redeploy"]').text()).toContain(
+      'docker compose -f compose.yaml -p compose-demo down',
+    );
   });
 
   it('renders runtime published ports instead of declared compose mappings', async () => {

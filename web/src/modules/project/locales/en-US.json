@@ -964,14 +964,32 @@
         "title": "Lifecycle",
         "description": "Review and confirm the compose lifecycle configuration that Graft will reuse for local project actions.",
         "statusTitle": "Lifecycle Status",
+        "statusDescription": "Review the confirmed authority that drives command generation and lifecycle guards.",
         "configurationTitle": "Deployment Configuration",
         "generatedCommandsTitle": "Generated Commands",
+        "generatedCommandsDescription": "Review the resolved command preview for each lifecycle action before saving or running it.",
         "generatedCommandsEmpty": "No command preview is available yet.",
         "generatedCommands": {
           "up": "Up",
           "stop": "Stop",
           "restart": "Restart",
           "redeploy": "Redeploy"
+        },
+        "generatedCommandsDescriptions": {
+          "up": "Launch the current compose project with the saved strategy.",
+          "stop": "Stop running services without removing project resources.",
+          "restart": "Restart the current compose services in place.",
+          "redeploy": "Apply the saved redeploy flow, including any optional preparation steps."
+        },
+        "groups": {
+          "base": {
+            "title": "Base Parameters",
+            "description": "Adjust profiles and transient compose arguments that shape the generated command preview."
+          },
+          "redeploy": {
+            "title": "Redeploy Strategy",
+            "description": "Choose the standard preflight and cleanup steps that Graft includes around compose up."
+          }
         },
         "runtimeStatus": "Project Status",
         "refreshStatus": "Refresh Status",
@@ -993,6 +1011,17 @@
         "forceRecreate": "Force Recreate",
         "waitAfterUp": "Wait After Up",
         "pruneImagesAfterRedeploy": "Prune Images After Redeploy",
+        "optionDescriptions": {
+          "downBeforeRedeploy": "Run docker compose down before the redeploy bring-up step.",
+          "pullBeforeRedeploy": "Pull the latest images before reusing the saved compose project definition.",
+          "buildBeforeUp": "Add --build to docker compose up when the redeploy flow reaches bring-up.",
+          "forceRecreate": "Add --force-recreate so all containers are recreated during bring-up.",
+          "waitAfterUp": "Add --wait so compose up blocks until declared services report ready.",
+          "pruneImagesAfterRedeploy": "Run docker image prune -f after redeploy completes."
+        },
+        "copyCommand": "Copy Command",
+        "copyCommandSuccess": "Command preview copied.",
+        "copyCommandError": "Command preview could not be copied.",
         "reset": "Reset",
         "save": "Save Configuration",
         "saveSuccess": "Lifecycle configuration saved.",

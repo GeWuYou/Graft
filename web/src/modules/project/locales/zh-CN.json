@@ -964,14 +964,32 @@
         "title": "生命周期",
         "description": "确认 Graft 将用于本地项目生命周期动作的 Compose 配置，并预览生成命令。",
         "statusTitle": "生命周期状态",
+        "statusDescription": "查看当前已确认的生命周期 authority，以及命令生成依赖的关键配置。",
         "configurationTitle": "部署配置",
         "generatedCommandsTitle": "生成命令",
+        "generatedCommandsDescription": "在保存或执行动作前，先核对每个生命周期动作的最终命令预览。",
         "generatedCommandsEmpty": "当前还没有可用的命令预览。",
         "generatedCommands": {
           "up": "启动",
           "stop": "停止",
           "restart": "重启",
           "redeploy": "重新部署"
+        },
+        "generatedCommandsDescriptions": {
+          "up": "按当前保存策略启动 compose 项目。",
+          "stop": "停止当前运行中的服务，但不移除项目资源。",
+          "restart": "在当前 compose 项目内原位重启服务。",
+          "redeploy": "按保存的重新部署策略执行预处理、启动和清理步骤。"
+        },
+        "groups": {
+          "base": {
+            "title": "基础参数",
+            "description": "调整 Profiles 和临时 compose 参数，并即时查看命令预览变化。"
+          },
+          "redeploy": {
+            "title": "重新部署策略",
+            "description": "选择 Graft 在 compose up 前后附带执行的标准预处理和清理步骤。"
+          }
         },
         "runtimeStatus": "项目状态",
         "refreshStatus": "刷新状态",
@@ -993,6 +1011,17 @@
         "forceRecreate": "强制重建容器",
         "waitAfterUp": "up 后等待就绪",
         "pruneImagesAfterRedeploy": "重新部署后清理镜像",
+        "optionDescriptions": {
+          "downBeforeRedeploy": "在重新部署的启动步骤前，先执行 docker compose down。",
+          "pullBeforeRedeploy": "在复用当前 compose 项目定义前，先拉取最新镜像。",
+          "buildBeforeUp": "在重新部署进入 bring-up 阶段时，为 docker compose up 增加 --build。",
+          "forceRecreate": "为 bring-up 增加 --force-recreate，强制重建全部容器。",
+          "waitAfterUp": "为 compose up 增加 --wait，等待声明服务进入就绪状态。",
+          "pruneImagesAfterRedeploy": "重新部署完成后执行 docker image prune -f。"
+        },
+        "copyCommand": "复制命令",
+        "copyCommandSuccess": "命令预览已复制。",
+        "copyCommandError": "命令预览复制失败。",
         "reset": "重置",
         "save": "保存配置",
         "saveSuccess": "生命周期配置已保存。",
