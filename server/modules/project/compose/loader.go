@@ -266,7 +266,7 @@ func resolvedCanonicalProjectName(projectName string, workingDirectory string) s
 }
 
 // normalizeComputedProjectName 将项目名称规范化为符合 Compose 项目名格式的值。
-// 对空白、大小写和分隔符进行处理；如果规范化结果无效，则返回原始值。
+// 对空白、大小写和分隔符进行处理；如果规范化结果无效，则返回空字符串。
 func normalizeComputedProjectName(value string) string {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "" {

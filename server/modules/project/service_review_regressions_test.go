@@ -362,13 +362,13 @@ func (h *blockingTopicMonitorHub) RegisterTopicObserver(
 	}, nil
 }
 
-func TestProjectDetailTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
+func TestProjectRuntimeTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 	t.Parallel()
 
 	hub := newBlockingTopicMonitorHub()
 	streamer, err := newProjectRuntimeTopicStreamer(hub, nil, &Service{})
 	if err != nil {
-		t.Fatalf("new detail topic streamer: %v", err)
+		t.Fatalf("new runtime topic streamer: %v", err)
 	}
 
 	errCh := make(chan error, 1)

@@ -680,20 +680,39 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 	}, nil
 }
 
-// applyLegacyDefaults keeps rows written before newly introduced lifecycle options readable during migration rollout.
+// applyLegacyDefaults keeps rows written before lifecycle configuration support readable.
 func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
-	if payload.RemoveOrphans == nil {
-		value := true
-		payload.RemoveOrphans = &value
+	payload.Profiles = lifecycleSliceOrDefault(payload.Profiles, []string{})
+	payload.DownBeforeRedeploy = lifecycleBoolOrDefault(payload.DownBeforeRedeploy, false)
+	payload.PullBeforeRedeploy = lifecycleBoolOrDefault(payload.PullBeforeRedeploy, false)
+	payload.BuildBeforeUp = lifecycleBoolOrDefault(payload.BuildBeforeUp, false)
+	payload.ForceRecreate = lifecycleBoolOrDefault(payload.ForceRecreate, false)
+	payload.RemoveOrphans = lifecycleBoolOrDefault(payload.RemoveOrphans, true)
+	payload.WaitAfterUp = lifecycleBoolOrDefault(payload.WaitAfterUp, false)
+	payload.WaitTimeoutSeconds = lifecycleIntOrDefault(payload.WaitTimeoutSeconds, defaultLifecycleWaitTimeoutSeconds)
+	payload.RenewAnonVolumes = lifecycleBoolOrDefault(payload.RenewAnonVolumes, false)
+	payload.PruneImagesAfterRedeploy = lifecycleBoolOrDefault(payload.PruneImagesAfterRedeploy, false)
+}
+
+func lifecycleSliceOrDefault(value *[]string, fallback []string) *[]string {
+	if value != nil {
+		return value
 	}
-	if payload.WaitTimeoutSeconds == nil {
-		value := defaultLifecycleWaitTimeoutSeconds
-		payload.WaitTimeoutSeconds = &value
+	return &fallback
+}
+
+func lifecycleBoolOrDefault(value *bool, fallback bool) *bool {
+	if value != nil {
+		return value
 	}
-	if payload.RenewAnonVolumes == nil {
-		value := false
-		payload.RenewAnonVolumes = &value
+	return &fallback
+}
+
+func lifecycleIntOrDefault(value *int, fallback int) *int {
+	if value != nil {
+		return value
 	}
+	return &fallback
 }
 
 func (payload lifecycleConfigPayload) validateRequiredFields() error {

@@ -83,22 +83,14 @@ func TestDecodeLifecycleConfigJSONAcceptsSnakeCasePayload(t *testing.T) {
 	}
 }
 
-func TestDecodeLifecycleConfigJSONAppliesDefaultsForLegacyRowsMissingFields(t *testing.T) {
+func TestDecodeLifecycleConfigJSONAppliesDefaultsForLegacyEmptyObject(t *testing.T) {
 	t.Parallel()
 
-	config, err := decodeLifecycleConfigJSON([]byte(`{
-		"profiles":["blue"],
-		"down_before_redeploy":true,
-		"pull_before_redeploy":false,
-		"build_before_up":false,
-		"force_recreate":false,
-		"wait_after_up":false,
-		"prune_images_after_redeploy":false
-	}`))
+	config, err := decodeLifecycleConfigJSON([]byte(`{}`))
 	if err != nil {
-		t.Fatalf("decode legacy lifecycle config: %v", err)
+		t.Fatalf("decode legacy empty lifecycle config: %v", err)
 	}
-	if !config.RemoveOrphans || config.WaitTimeoutSeconds != defaultLifecycleWaitTimeoutSeconds || config.RenewAnonVolumes {
+	if len(config.Profiles) != 0 || config.DownBeforeRedeploy || config.PullBeforeRedeploy || config.BuildBeforeUp || config.ForceRecreate || !config.RemoveOrphans || config.WaitAfterUp || config.WaitTimeoutSeconds != defaultLifecycleWaitTimeoutSeconds || config.RenewAnonVolumes || config.PruneImagesAfterRedeploy {
 		t.Fatalf("expected legacy defaults, got %#v", config)
 	}
 }
