@@ -485,10 +485,11 @@ func composeProjectArgs(aggregate projectstore.ProjectAggregate, config Lifecycl
 	if strings.TrimSpace(config.ProjectName) == "" {
 		return nil, errProjectInvalidCanonicalName
 	}
-	if _, err := validateExplicitCanonicalProjectName(config.ProjectName); err != nil {
+	canonicalProjectName, err := validateExplicitCanonicalProjectName(config.ProjectName)
+	if err != nil {
 		return nil, err
 	}
-	base = append(base, "-p", config.ProjectName)
+	base = append(base, "-p", canonicalProjectName)
 	return base, nil
 }
 

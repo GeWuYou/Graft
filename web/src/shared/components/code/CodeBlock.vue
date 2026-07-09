@@ -35,6 +35,7 @@ const props = withDefaults(
 const renderedHtml = ref('');
 const themeMode = ref<'dark' | 'light'>(resolveThemeMode());
 let themeObserver: MutationObserver | null = null;
+let renderRequestId = 0;
 
 const contentStyle = computed(() => ({
   maxHeight: typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight,
@@ -43,19 +44,25 @@ const contentStyle = computed(() => ({
 watch(
   () => [props.code, props.lang, themeMode.value] as const,
   async ([code, lang, nextThemeMode]) => {
+    const requestId = ++renderRequestId;
     if (!code.trim()) {
       renderedHtml.value = '';
       return;
     }
 
     try {
-      renderedHtml.value = await renderHighlightedCodeBlock({
+      const nextHtml = await renderHighlightedCodeBlock({
         code,
         lang,
         themeMode: nextThemeMode,
       });
+      if (requestId === renderRequestId) {
+        renderedHtml.value = nextHtml;
+      }
     } catch {
-      renderedHtml.value = '';
+      if (requestId === renderRequestId) {
+        renderedHtml.value = '';
+      }
     }
   },
   { immediate: true },
@@ -76,6 +83,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  renderRequestId += 1;
   themeObserver?.disconnect();
   themeObserver = null;
 });

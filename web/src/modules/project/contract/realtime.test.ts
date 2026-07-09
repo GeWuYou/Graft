@@ -46,6 +46,11 @@ describe('project realtime payload parsers', () => {
     ).toBeNull();
     expect(
       parseProjectListSummaryRealtimePayload(
+        JSON.stringify({ data: { topic: 'project.list.other', published_at: '2026-07-06T00:00:00Z', items: [] } }),
+      ),
+    ).toBeNull();
+    expect(
+      parseProjectListSummaryRealtimePayload(
         JSON.stringify({
           data: {
             topic: 'project.list.summary',
@@ -81,6 +86,20 @@ describe('project realtime payload parsers', () => {
   it('rejects invalid project runtime payloads', () => {
     expect(parseProjectRuntimeRealtimePayload(JSON.stringify({ data: { topic: 'project.runtime:7' } }))).toBeNull();
     expect(parseProjectRuntimeRealtimePayload('not-json')).toBeNull();
+    expect(
+      parseProjectRuntimeRealtimePayload(
+        JSON.stringify({
+          data: {
+            topic: 'project.runtime:8',
+            project_id: 7,
+            published_at: '2026-07-06T00:00:00Z',
+            detail: { id: 7 },
+            overview: { project_id: 7 },
+            services: { items: [] },
+          },
+        }),
+      ),
+    ).toBeNull();
   });
 
   it('parses valid lifecycle configuration payloads', () => {
@@ -107,6 +126,18 @@ describe('project realtime payload parsers', () => {
       parseProjectLifecycleConfigRealtimePayload(JSON.stringify({ data: { topic: 'project.lifecycle-config:7' } })),
     ).toBeNull();
     expect(parseProjectLifecycleConfigRealtimePayload('not-json')).toBeNull();
+    expect(
+      parseProjectLifecycleConfigRealtimePayload(
+        JSON.stringify({
+          data: {
+            topic: 'project.lifecycle-config:8',
+            project_id: 7,
+            published_at: '2026-07-06T00:00:00Z',
+            detail: { id: 7 },
+          },
+        }),
+      ),
+    ).toBeNull();
   });
 
   it('parses valid project log payloads', () => {
@@ -136,5 +167,10 @@ describe('project realtime payload parsers', () => {
       parseProjectLogsRealtimePayload(JSON.stringify({ data: { topic: 'project.logs:7', entry: {} } })),
     ).toBeNull();
     expect(parseProjectLogsRealtimePayload({ data: {} })).toBeNull();
+    expect(
+      parseProjectLogsRealtimePayload(
+        JSON.stringify({ data: { topic: 'project.runtime:7', entry: { line: 'hello' } } }),
+      ),
+    ).toBeNull();
   });
 });

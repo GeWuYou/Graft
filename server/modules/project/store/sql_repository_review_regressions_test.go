@@ -83,10 +83,10 @@ func TestDecodeLifecycleConfigJSONAcceptsSnakeCasePayload(t *testing.T) {
 	}
 }
 
-func TestDecodeLifecycleConfigJSONRejectsLegacyRowsMissingFields(t *testing.T) {
+func TestDecodeLifecycleConfigJSONAppliesDefaultsForLegacyRowsMissingFields(t *testing.T) {
 	t.Parallel()
 
-	_, err := decodeLifecycleConfigJSON([]byte(`{
+	config, err := decodeLifecycleConfigJSON([]byte(`{
 		"profiles":["blue"],
 		"down_before_redeploy":true,
 		"pull_before_redeploy":false,
@@ -95,8 +95,11 @@ func TestDecodeLifecycleConfigJSONRejectsLegacyRowsMissingFields(t *testing.T) {
 		"wait_after_up":false,
 		"prune_images_after_redeploy":false
 	}`))
-	if err == nil {
-		t.Fatalf("expected legacy lifecycle config without new fields to be rejected")
+	if err != nil {
+		t.Fatalf("decode legacy lifecycle config: %v", err)
+	}
+	if !config.RemoveOrphans || config.WaitTimeoutSeconds != defaultLifecycleWaitTimeoutSeconds || config.RenewAnonVolumes {
+		t.Fatalf("expected legacy defaults, got %#v", config)
 	}
 }
 

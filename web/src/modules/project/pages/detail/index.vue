@@ -651,6 +651,7 @@
                           <div class="project-lifecycle-option__control">
                             <t-switch
                               v-model="lifecycleDraft[definition.field]"
+                              :aria-label="t(definition.titleKey)"
                               :data-testid="definition.switchTestId"
                             />
                           </div>
@@ -692,6 +693,7 @@
                           <div class="project-lifecycle-option__control">
                             <t-switch
                               v-model="lifecycleDraft[definition.field]"
+                              :aria-label="t(definition.titleKey)"
                               :data-testid="definition.switchTestId"
                             />
                           </div>
@@ -715,6 +717,7 @@
                       {{ t('project.detail.lifecycle.reset') }}
                     </t-button>
                     <t-button
+                      data-testid="project-lifecycle-save"
                       theme="primary"
                       :disabled="lifecycleSaveLoading || !lifecycleCanSave"
                       :loading="lifecycleSaveLoading"
@@ -1386,23 +1389,12 @@ function assignLifecycleDraft(
   target: ProjectLifecycleConfigurationDraft,
   nextConfig: ProjectLifecycleConfigurationDraft,
 ) {
-  target.strategy_kind = nextConfig.strategy_kind;
-  target.working_directory = nextConfig.working_directory;
-  target.compose_files = [...nextConfig.compose_files];
-  target.canonical_project_name = nextConfig.canonical_project_name;
-  target.profiles = [...nextConfig.profiles];
-  target.down_before_redeploy = nextConfig.down_before_redeploy;
-  target.pull_before_redeploy = nextConfig.pull_before_redeploy;
-  target.build_before_up = nextConfig.build_before_up;
-  target.force_recreate = nextConfig.force_recreate;
-  target.remove_orphans = nextConfig.remove_orphans;
-  target.wait_after_up = nextConfig.wait_after_up;
-  target.wait_timeout_seconds = nextConfig.wait_timeout_seconds;
-  target.renew_anon_volumes = nextConfig.renew_anon_volumes;
-  target.prune_images_after_redeploy = nextConfig.prune_images_after_redeploy;
-  target.additional_args = nextConfig.additional_args;
-  target.review_status = nextConfig.review_status;
-  target.generated_commands = nextConfig.generated_commands ? { ...nextConfig.generated_commands } : null;
+  Object.assign(target, {
+    ...nextConfig,
+    compose_files: [...nextConfig.compose_files],
+    generated_commands: nextConfig.generated_commands ? { ...nextConfig.generated_commands } : null,
+    profiles: [...nextConfig.profiles],
+  });
 }
 
 function syncLifecycleState(
@@ -1413,7 +1405,6 @@ function syncLifecycleState(
 ) {
   const preserveDirtyDraft =
     options.preserveDirtyDraft &&
-    !lifecycleSaveLoading.value &&
     lifecycleBaseline.value !== null &&
     isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
   const nextConfig = buildLifecycleConfigurationDraft(detail);
@@ -2254,7 +2245,7 @@ async function saveLifecycleConfiguration() {
       canonical_project_name: response.canonical_project_name,
       compose_files: response.compose_files,
     };
-    syncLifecycleState(detailRecord.value);
+    syncLifecycleState(detailRecord.value, { preserveDirtyDraft: false });
     MessagePlugin.success(t('project.detail.lifecycle.saveSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.lifecycle.saveFailed')));

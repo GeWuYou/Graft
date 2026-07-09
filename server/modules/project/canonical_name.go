@@ -2,11 +2,10 @@ package project
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
-)
 
-var canonicalProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+	projectcompose "graft/server/modules/project/compose"
+)
 
 // validateExplicitCanonicalProjectName trims surrounding whitespace and validates a canonical project name.
 // It accepts names beginning with a lowercase letter or digit and containing only lowercase letters,
@@ -16,7 +15,7 @@ func validateExplicitCanonicalProjectName(value string) (string, error) {
 	if normalized == "" {
 		return "", errProjectInvalidCanonicalName
 	}
-	if !canonicalProjectNamePattern.MatchString(normalized) {
+	if !projectcompose.IsValidCanonicalProjectName(normalized) {
 		return "", fmt.Errorf("%w: invalid canonical project name", errProjectInvalidCanonicalName)
 	}
 	return normalized, nil

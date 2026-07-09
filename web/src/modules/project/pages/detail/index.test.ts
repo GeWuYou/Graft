@@ -4,6 +4,7 @@ import { defineComponent, h, ref } from 'vue';
 
 import { copyText } from '@/shared/observability';
 
+import type { ProjectLifecycleConfigurationSavedResponse } from '../../types/project';
 import ProjectDetailPage from './index.vue';
 
 const containerApiMocks = vi.hoisted(() => ({
@@ -1124,6 +1125,16 @@ describe('Project detail service tab', () => {
     expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(true);
   });
 
+  it('gives lifecycle switches their visible label as an accessible name', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-label')).toBe(
+      'project.detail.lifecycle.waitAfterUp',
+    );
+  });
+
   it('keeps unsaved lifecycle draft changes when realtime detail snapshots arrive', async () => {
     routeState.value.query = { tab: 'lifecycle' };
     const wrapper = mountPage();
@@ -1146,6 +1157,44 @@ describe('Project detail service tab', () => {
       'true',
     );
     expect(wrapper.find('[data-testid="project-lifecycle-remote-stale-alert"]').exists()).toBe(true);
+  });
+
+  it('keeps an unsaved lifecycle draft when a realtime snapshot arrives during saving', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    let resolveSave: ((value: ProjectLifecycleConfigurationSavedResponse) => void) | undefined;
+    projectApiMocks.putProjectLifecycleConfiguration.mockImplementationOnce(
+      () =>
+        new Promise<ProjectLifecycleConfigurationSavedResponse>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-save"]').trigger('click');
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
+    detailSocket?.options.onMessage({ detail: buildProjectDetail() });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
+      'true',
+    );
+    resolveSave?.({
+      canonical_project_name: 'compose-demo',
+      compose_files: [],
+      lifecycle_configuration: {
+        ...buildProjectDetail().lifecycle_configuration,
+        strategy_kind: 'standard',
+        wait_after_up: true,
+      },
+      lifecycle_review_status: 'confirmed',
+      project_id: 7,
+      working_directory: '/srv/compose-demo',
+    } as ProjectLifecycleConfigurationSavedResponse);
+    await flushPromises();
   });
 
   it('applies lifecycle configuration updates from realtime when the draft is clean', async () => {

@@ -61,6 +61,8 @@ func omitProjectLifecycleConfigTopicStream(
 }
 
 // newProjectLifecycleConfigTopicStreamer creates a project lifecycle configuration topic streamer with the required realtime hub and service dependencies. It uses a no-op logger when logger is nil.
+//
+//nolint:dupl // Runtime and lifecycle streams keep distinct concrete stream types and lifecycle ownership.
 func newProjectLifecycleConfigTopicStreamer(
 	hub realtime.Hub,
 	logger *zap.Logger,
@@ -143,7 +145,11 @@ func (s *projectLifecycleConfigTopicStreamer) Close(ctx context.Context) error {
 	s.mu.Unlock()
 	var closeErr error
 	for _, topic := range topics {
-		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
+		stopErr := s.stop(ctx, topic)
+		closeErr = errors.Join(closeErr, stopErr)
+		if stopErr != nil {
+			continue
+		}
 		s.mu.Lock()
 		stream := s.streams[topic]
 		s.streams = omitProjectLifecycleConfigTopicStream(s.streams, topic)
@@ -276,7 +282,7 @@ func (s *Service) buildProjectLifecycleConfigRealtimePayload(
 	topic string,
 	projectID uint64,
 ) (projectLifecycleConfigRealtimePayload, error) {
-	detail, err := s.Get(ctx, projectID)
+	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return projectLifecycleConfigRealtimePayload{}, err
 	}
@@ -284,6 +290,11 @@ func (s *Service) buildProjectLifecycleConfigRealtimePayload(
 		Topic:       topic,
 		ProjectID:   mustGeneratedID(projectID),
 		PublishedAt: time.Now().UTC(),
-		Detail:      detail,
+		Detail: toProjectDetailResponseWithManagedRoot(
+			aggregate,
+			s.readyManagedRootDirectory(ctx),
+			nil,
+			errProjectRuntimeUnavailable,
+		),
 	}, nil
 }

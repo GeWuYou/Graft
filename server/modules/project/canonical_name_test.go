@@ -14,6 +14,25 @@ func TestValidateExplicitCanonicalProjectNameRejectsUppercase(t *testing.T) {
 	}
 }
 
+func TestValidateExplicitCanonicalProjectNameNormalizesValidNames(t *testing.T) {
+	t.Parallel()
+
+	for input, want := range map[string]string{
+		"my-project":     "my-project",
+		"orders_dev":     "orders_dev",
+		"123abc":         "123abc",
+		"  valid-name  ": "valid-name",
+	} {
+		got, err := validateExplicitCanonicalProjectName(input)
+		if err != nil {
+			t.Fatalf("validate %q: %v", input, err)
+		}
+		if got != want {
+			t.Fatalf("validate %q returned %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestNormalizeManagedCreateRequestRejectsInvalidCanonicalProjectName(t *testing.T) {
 	t.Parallel()
 

@@ -22,5 +22,6 @@ properties:
     maxLength: 120
   canonical_project_name_override:
     type: string
+    maxLength: 120
     minLength: 1
     nullable: true

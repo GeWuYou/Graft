@@ -1061,9 +1061,6 @@ function updateCurrentTabTitle(name: string) {
   });
 }
 
-if (fallbackDisplayName.value) {
-  updateCurrentTabTitle(fallbackDisplayName.value);
-}
 const resultDialogTitle = computed(() =>
   resultDialogMode.value === 'diff'
     ? pendingWorkspaceAction.value === 'save-current'
@@ -1217,12 +1214,16 @@ watch(showHiddenFiles, () => {
   void loadWorkspaceDirectory('', { root: true });
 });
 
-watch(fallbackDisplayName, (name) => {
-  if (!name) {
-    return;
-  }
-  updateCurrentTabTitle(name);
-});
+watch(
+  fallbackDisplayName,
+  (name) => {
+    if (!name) {
+      return;
+    }
+    updateCurrentTabTitle(name);
+  },
+  { immediate: true },
+);
 
 watch(resultDialogVisible, (visible) => {
   if (visible) {
@@ -1657,7 +1658,7 @@ function hydrateOpenFileFromResponse(
   return path;
 }
 
-function isFileDirty(path: string) {
+function isFileDirty(path: string): boolean {
   const current = openFileMap.get(path);
   return current ? hasWorkspaceUnsavedChanges(current.content, current.savedContent) : false;
 }

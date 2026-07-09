@@ -662,6 +662,7 @@ func unmarshalLifecycleConfigPayload(raw []byte) (lifecycleConfigPayload, error)
 }
 
 func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error) {
+	payload.applyLegacyDefaults()
 	if err := payload.validateRequiredFields(); err != nil {
 		return LifecycleConfig{}, err
 	}
@@ -677,6 +678,22 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 		RenewAnonVolumes:         *payload.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
 	}, nil
+}
+
+// applyLegacyDefaults keeps rows written before newly introduced lifecycle options readable during migration rollout.
+func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
+	if payload.RemoveOrphans == nil {
+		value := true
+		payload.RemoveOrphans = &value
+	}
+	if payload.WaitTimeoutSeconds == nil {
+		value := defaultLifecycleWaitTimeoutSeconds
+		payload.WaitTimeoutSeconds = &value
+	}
+	if payload.RenewAnonVolumes == nil {
+		value := false
+		payload.RenewAnonVolumes = &value
+	}
 }
 
 func (payload lifecycleConfigPayload) validateRequiredFields() error {

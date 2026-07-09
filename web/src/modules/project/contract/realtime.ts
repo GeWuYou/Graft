@@ -13,7 +13,7 @@ const PROJECT_REALTIME_TOPIC = {
  *
  * @returns 项目列表摘要主题名称
  */
-export function getProjectListSummaryTopicName() {
+export function getProjectListSummaryTopicName(): string {
   return PROJECT_REALTIME_TOPIC.LIST_SUMMARY;
 }
 
@@ -23,7 +23,7 @@ export function getProjectListSummaryTopicName() {
  * @param projectId - 项目标识
  * @returns 包含项目标识的运行时主题名称
  */
-export function buildProjectRuntimeTopicName(projectId: number) {
+export function buildProjectRuntimeTopicName(projectId: number): string {
   return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${projectId}`;
 }
 
@@ -33,7 +33,7 @@ export function buildProjectRuntimeTopicName(projectId: number) {
  * @param projectId - 项目标识
  * @returns 拼接项目标识后的生命周期配置实时主题名称
  */
-export function buildProjectLifecycleConfigTopicName(projectId: number) {
+export function buildProjectLifecycleConfigTopicName(projectId: number): string {
   return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${projectId}`;
 }
 
@@ -43,7 +43,7 @@ export function buildProjectLifecycleConfigTopicName(projectId: number) {
  * @param projectId - 项目标识
  * @returns 拼接项目标识后的日志 topic 名称
  */
-export function buildProjectLogsTopicName(projectId: number) {
+export function buildProjectLogsTopicName(projectId: number): string {
   return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${projectId}`;
 }
 
@@ -102,7 +102,7 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
     return null;
   }
   if (
-    typeof data.topic !== 'string' ||
+    data.topic !== getProjectListSummaryTopicName() ||
     typeof data.published_at !== 'string' ||
     !Array.isArray(data.items) ||
     !data.items.every(
@@ -129,6 +129,7 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
  */
 function parseProjectDetailEnvelopeData(
   raw: unknown,
+  expectedTopic: (projectId: number) => string,
   validator?: (data: Record<string, unknown>) => boolean,
 ): Record<string, unknown> | null {
   const data = parseRealtimeEnvelopeData(raw);
@@ -138,6 +139,7 @@ function parseProjectDetailEnvelopeData(
   if (
     typeof data.topic !== 'string' ||
     typeof data.project_id !== 'number' ||
+    data.topic !== expectedTopic(data.project_id) ||
     typeof data.published_at !== 'string' ||
     !isRealtimePayloadObject(data.detail) ||
     (validator && !validator(data))
@@ -156,6 +158,7 @@ function parseProjectDetailEnvelopeData(
 export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntimeRealtimePayload | null {
   const data = parseProjectDetailEnvelopeData(
     raw,
+    buildProjectRuntimeTopicName,
     (value) => isRealtimePayloadObject(value.overview) && isRealtimePayloadObject(value.services),
   );
   return data as ProjectRuntimeRealtimePayload | null;
@@ -168,7 +171,7 @@ export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntime
  * @returns 有效的项目生命周期配置实时载荷，或 `null`（当数据格式无效时）
  */
 export function parseProjectLifecycleConfigRealtimePayload(raw: unknown): ProjectLifecycleConfigRealtimePayload | null {
-  const data = parseProjectDetailEnvelopeData(raw);
+  const data = parseProjectDetailEnvelopeData(raw, buildProjectLifecycleConfigTopicName);
   return data as ProjectLifecycleConfigRealtimePayload | null;
 }
 
@@ -183,7 +186,12 @@ export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealti
   if (!isRealtimePayloadObject(data)) {
     return null;
   }
-  if (typeof data.topic !== 'string' || !isRealtimePayloadObject(data.entry) || typeof data.entry.line !== 'string') {
+  if (
+    typeof data.topic !== 'string' ||
+    !data.topic.startsWith(PROJECT_REALTIME_TOPIC.LOGS_PREFIX) ||
+    !isRealtimePayloadObject(data.entry) ||
+    typeof data.entry.line !== 'string'
+  ) {
     return null;
   }
   return data as ProjectLogsRealtimePayload;

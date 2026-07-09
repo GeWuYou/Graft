@@ -10,6 +10,7 @@ properties:
     maxLength: 120
   canonical_project_name_override:
     type: string
+    maxLength: 120
     minLength: 1
     pattern: '^[a-z0-9][a-z0-9_-]*$'
     nullable: true

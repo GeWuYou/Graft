@@ -13,7 +13,7 @@ let highlighterPromise: Promise<Awaited<ReturnType<typeof createHighlighter>>> |
  * @param themeMode - 主题模式
  * @returns 深色模式对应 `github-dark`，浅色模式对应 `github-light`
  */
-function resolveShikiTheme(themeMode: 'dark' | 'light') {
+function resolveShikiTheme(themeMode: 'dark' | 'light'): SharedCodeBlockTheme {
   return themeMode === 'dark' ? 'github-dark' : 'github-light';
 }
 
@@ -23,7 +23,7 @@ function resolveShikiTheme(themeMode: 'dark' | 'light') {
  * @param lang - 代码块语言名称
  * @returns `shellscript`、`null` 或原始语言名称
  */
-function normalizeLanguage(lang: SharedCodeBlockLanguage) {
+function normalizeLanguage(lang: SharedCodeBlockLanguage): SharedCodeBlockLanguage | null {
   switch (lang) {
     case 'shell':
       return 'shellscript';
@@ -41,10 +41,17 @@ function normalizeLanguage(lang: SharedCodeBlockLanguage) {
  */
 async function getHighlighter() {
   if (!highlighterPromise) {
-    highlighterPromise = createHighlighter({
+    const nextHighlighterPromise = createHighlighter({
       langs: ['diff', 'dockerfile', 'ini', 'json', 'markdown', 'shellscript', 'yaml'],
       themes: ['github-dark', 'github-light'],
     });
+    const handledHighlighterPromise = nextHighlighterPromise.catch((error: unknown) => {
+      if (highlighterPromise === handledHighlighterPromise) {
+        highlighterPromise = null;
+      }
+      throw error;
+    });
+    highlighterPromise = handledHighlighterPromise;
   }
 
   return highlighterPromise;
@@ -60,7 +67,7 @@ export async function renderHighlightedCodeBlock(options: {
   code: string;
   lang: SharedCodeBlockLanguage;
   themeMode: 'dark' | 'light';
-}) {
+}): Promise<string> {
   const lang = normalizeLanguage(options.lang);
   if (!lang) {
     return '';
@@ -69,6 +76,6 @@ export async function renderHighlightedCodeBlock(options: {
   const highlighter = await getHighlighter();
   return highlighter.codeToHtml(options.code, {
     lang,
-    theme: resolveShikiTheme(options.themeMode) as SharedCodeBlockTheme,
+    theme: resolveShikiTheme(options.themeMode),
   });
 }

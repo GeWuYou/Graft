@@ -63,6 +63,8 @@ func omitProjectRuntimeTopicStream(
 
 // newProjectRuntimeTopicStreamer creates a project runtime topic streamer with the provided hub, logger, and service.
 // It returns an error if the hub or service is unavailable, or if the hub does not support topic subscription monitoring.
+//
+//nolint:dupl // Runtime and lifecycle streams keep distinct concrete stream types and lifecycle ownership.
 func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectRuntimeTopicStreamer, error) {
 	if hub == nil {
 		return nil, errors.New("realtime hub is unavailable")
@@ -137,7 +139,11 @@ func (s *projectRuntimeTopicStreamer) Close(ctx context.Context) error {
 	s.mu.Unlock()
 	var closeErr error
 	for _, topic := range topics {
-		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
+		stopErr := s.stop(ctx, topic)
+		closeErr = errors.Join(closeErr, stopErr)
+		if stopErr != nil {
+			continue
+		}
 		s.mu.Lock()
 		stream := s.streams[topic]
 		s.streams = omitProjectRuntimeTopicStream(s.streams, topic)

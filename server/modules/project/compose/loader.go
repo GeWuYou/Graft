@@ -15,7 +15,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var computedProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+var canonicalProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+
+// IsValidCanonicalProjectName reports whether value already satisfies the Compose canonical project-name contract.
+func IsValidCanonicalProjectName(value string) bool {
+	return canonicalProjectNamePattern.MatchString(value)
+}
 
 // Input defines the bounded static project parse input for phase 1 import and refresh.
 type Input struct {
@@ -136,9 +141,14 @@ func Load(input Input) (Result, error) {
 
 	services, serviceNames := buildServiceProjections(collected.serviceOrder, collected.serviceMap)
 
+	canonicalProjectName := resolvedCanonicalProjectName(collected.projectName, workingDirectory)
+	if !IsValidCanonicalProjectName(canonicalProjectName) {
+		return Result{}, fmt.Errorf("computed canonical project name is invalid")
+	}
+
 	return Result{
 		WorkingDirectory:      workingDirectory,
-		CanonicalProjectName:  resolvedCanonicalProjectName(collected.projectName, workingDirectory),
+		CanonicalProjectName:  canonicalProjectName,
 		CanonicalNameSource:   "computed",
 		ConfigHash:            hex.EncodeToString(configHasher.Sum(nil)),
 		NormalizedComposeYAML: normalizedYAML,
@@ -284,8 +294,8 @@ func normalizeComputedProjectName(value string) string {
 	}
 
 	result := strings.Trim(builder.String(), "-_")
-	if result == "" || !computedProjectNamePattern.MatchString(result) {
-		return value
+	if !IsValidCanonicalProjectName(result) {
+		return ""
 	}
 	return result
 }
