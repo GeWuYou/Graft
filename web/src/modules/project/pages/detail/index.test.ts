@@ -824,31 +824,24 @@ describe('Project detail service tab', () => {
     containerApiMocks.getContainerLogs.mockResolvedValue({ entries: [] });
   });
 
-  it('normalizes legacy container tabs to services on mount', async () => {
+  it('does not rewrite retired detail tab queries on mount', async () => {
     routeState.value.query = { tab: 'containers' };
 
     mountPage();
     await flushPromises();
 
-    expect(routerMocks.replace).toHaveBeenCalledWith({
-      query: {
-        tab: 'services',
-      },
-    });
+    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).not.toHaveBeenCalled();
   });
 
-  it('redirects the legacy configuration tab query to the configuration workspace route', async () => {
+  it('does not redirect retired configuration tab queries to the configuration workspace route', async () => {
     routeState.value.query = { name: 'Compose Demo', tab: 'configuration' };
 
     mountPage();
     await flushPromises();
 
-    expect(routerMocks.replace).toHaveBeenCalledWith({
-      name: 'ProjectConfigurationWorkspaceIndex',
-      params: { id: '7' },
-      query: { name: 'Compose Demo' },
-    });
-    expect(projectApiMocks.getProject).not.toHaveBeenCalled();
+    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).not.toHaveBeenCalled();
   });
 
   it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {

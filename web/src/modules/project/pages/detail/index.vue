@@ -1249,10 +1249,6 @@ const serviceColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(async () => {
-  if (redirectLegacyConfigurationTab()) {
-    return;
-  }
-  syncCanonicalDetailTabQuery(route.query.tab);
   await refreshDetail();
   syncProjectDetailRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
@@ -1267,14 +1263,10 @@ onUnmounted(() => {
 watch(
   () => route.query.tab,
   (value) => {
-    if (redirectLegacyConfigurationTab()) {
-      return;
-    }
     const nextTab = normalizeDetailTab(value);
     if (activeDetailTab.value !== nextTab) {
       activeDetailTab.value = nextTab;
     }
-    syncCanonicalDetailTabQuery(value);
   },
 );
 
@@ -2315,43 +2307,10 @@ function buildConfigurationWorkspaceTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.configurationWorkspace.title', name);
 }
 
-function redirectLegacyConfigurationTab() {
-  const raw = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab;
-  if (raw !== 'configuration') {
-    return false;
-  }
-  const { tab: _tab, ...query } = route.query;
-  void router.replace({
-    name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-    params: route.params,
-    query,
-  });
-  return true;
-}
-
 function normalizeDetailTab(value: unknown): ProjectDetailTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'runtime') {
-    return 'lifecycle';
-  }
-  if (raw === 'containers' || raw === 'networks' || raw === 'volumes') {
-    return 'services';
-  }
   const tabs: ProjectDetailTab[] = ['overview', 'services', 'logs', 'lifecycle'];
   return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
-}
-
-function syncCanonicalDetailTabQuery(value: unknown) {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const nextTab = normalizeDetailTab(value);
-  if (typeof raw === 'string' && ['runtime', 'containers', 'networks', 'volumes'].includes(raw) && raw !== nextTab) {
-    void router.replace({
-      query: {
-        ...route.query,
-        tab: nextTab,
-      },
-    });
-  }
 }
 
 function readNameFromTabTitle(title?: LocalizedTitle) {
