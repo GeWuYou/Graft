@@ -6,7 +6,10 @@ required:
   - pull_before_redeploy
   - build_before_up
   - force_recreate
+  - remove_orphans
   - wait_after_up
+  - wait_timeout_seconds
+  - renew_anon_volumes
   - prune_images_after_redeploy
   - generated_commands
 properties:
@@ -26,10 +29,21 @@ properties:
     type: boolean
   force_recreate:
     type: boolean
+  remove_orphans:
+    type: boolean
+    default: true
   wait_after_up:
     type: boolean
+  wait_timeout_seconds:
+    type: integer
+    minimum: 1
+    maximum: 3600
+    default: 120
   prune_images_after_redeploy:
     type: boolean
+  renew_anon_volumes:
+    type: boolean
+    default: false
   generated_commands:
     type: object
     required:

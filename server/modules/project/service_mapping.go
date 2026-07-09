@@ -132,7 +132,10 @@ func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.
 		PullBeforeRedeploy:       config.Standard.PullBeforeRedeploy,
 		BuildBeforeUp:            config.Standard.BuildBeforeUp,
 		ForceRecreate:            config.Standard.ForceRecreate,
+		RemoveOrphans:            config.Standard.RemoveOrphans,
 		WaitAfterUp:              config.Standard.WaitAfterUp,
+		WaitTimeoutSeconds:       config.Standard.WaitTimeoutSeconds,
+		RenewAnonVolumes:         config.Standard.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.Standard.PruneImagesAfterRedeploy,
 		GeneratedCommands:        toGeneratedLifecycleCommands(config),
 	}
@@ -225,8 +228,15 @@ func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []str
 	if standard.ForceRecreate {
 		args = append(args, "--force-recreate")
 	}
+	if standard.RemoveOrphans {
+		args = append(args, "--remove-orphans")
+	}
+	if standard.RenewAnonVolumes {
+		args = append(args, "--renew-anon-volumes")
+	}
 	if standard.WaitAfterUp {
 		args = append(args, "--wait")
+		args = append(args, "--wait-timeout", fmt.Sprintf("%d", standard.WaitTimeoutSeconds))
 	}
 	return args
 }

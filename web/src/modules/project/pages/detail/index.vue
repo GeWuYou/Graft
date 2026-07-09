@@ -663,14 +663,69 @@
                         <div class="project-lifecycle-option">
                           <div class="project-lifecycle-option__content">
                             <div class="project-lifecycle-option__label">
+                              {{ t('project.detail.lifecycle.removeOrphans') }}
+                            </div>
+                            <p>{{ t('project.detail.lifecycle.optionDescriptions.removeOrphans') }}</p>
+                          </div>
+                          <div class="project-lifecycle-option__control">
+                            <t-switch
+                              v-model="lifecycleDraft.remove_orphans"
+                              data-testid="project-lifecycle-remove-orphans-switch"
+                            />
+                          </div>
+                        </div>
+                        <div class="project-lifecycle-option">
+                          <div class="project-lifecycle-option__content">
+                            <div class="project-lifecycle-option__label">
                               {{ t('project.detail.lifecycle.waitAfterUp') }}
                             </div>
                             <p>{{ t('project.detail.lifecycle.optionDescriptions.waitAfterUp') }}</p>
                           </div>
                           <div class="project-lifecycle-option__control">
-                            <t-switch v-model="lifecycleDraft.wait_after_up" />
+                            <t-switch
+                              v-model="lifecycleDraft.wait_after_up"
+                              data-testid="project-lifecycle-wait-after-up-switch"
+                            />
                           </div>
                         </div>
+                        <label
+                          v-if="lifecycleDraft.wait_after_up"
+                          class="project-lifecycle-field"
+                          data-testid="project-lifecycle-wait-timeout-field"
+                        >
+                          <span class="project-lifecycle-field__label">
+                            {{ t('project.detail.lifecycle.waitTimeoutSeconds') }}
+                          </span>
+                          <t-input-number
+                            v-model="lifecycleDraft.wait_timeout_seconds"
+                            :min="1"
+                            :max="3600"
+                            :step="1"
+                          />
+                          <small class="project-lifecycle-field__hint">
+                            {{ t('project.detail.lifecycle.optionDescriptions.waitTimeoutSeconds') }}
+                          </small>
+                        </label>
+                        <div class="project-lifecycle-option">
+                          <div class="project-lifecycle-option__content">
+                            <div class="project-lifecycle-option__label">
+                              {{ t('project.detail.lifecycle.renewAnonVolumes') }}
+                            </div>
+                            <p>{{ t('project.detail.lifecycle.optionDescriptions.renewAnonVolumes') }}</p>
+                          </div>
+                          <div class="project-lifecycle-option__control">
+                            <t-switch
+                              v-model="lifecycleDraft.renew_anon_volumes"
+                              data-testid="project-lifecycle-renew-anon-volumes-switch"
+                            />
+                          </div>
+                        </div>
+                        <t-alert
+                          v-if="lifecycleDraft.renew_anon_volumes"
+                          data-testid="project-lifecycle-renew-anon-volumes-warning"
+                          theme="warning"
+                          :message="t('project.detail.lifecycle.renewAnonVolumesWarning')"
+                        />
                         <div class="project-lifecycle-option">
                           <div class="project-lifecycle-option__content">
                             <div class="project-lifecycle-option__label">
@@ -689,12 +744,17 @@
                     <t-button
                       theme="default"
                       variant="outline"
-                      :disabled="lifecycleSaveLoading"
+                      :disabled="lifecycleSaveLoading || !lifecycleDraftDirty"
                       @click="resetLifecycleConfiguration"
                     >
                       {{ t('project.detail.lifecycle.reset') }}
                     </t-button>
-                    <t-button theme="primary" :loading="lifecycleSaveLoading" @click="saveLifecycleConfiguration">
+                    <t-button
+                      theme="primary"
+                      :disabled="lifecycleSaveLoading || !lifecycleCanSave"
+                      :loading="lifecycleSaveLoading"
+                      @click="saveLifecycleConfiguration"
+                    >
                       {{ t('project.detail.lifecycle.save') }}
                     </t-button>
                   </div>
@@ -785,6 +845,7 @@ import {
 import {
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
+  isLifecycleDraftDirty,
   lifecycleDraftProfilesText,
   projectLifecycleReviewStatusLabel,
   projectLifecycleReviewStatusTheme,
@@ -894,7 +955,10 @@ const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
   pull_before_redeploy: false,
   build_before_up: false,
   force_recreate: false,
+  remove_orphans: true,
   wait_after_up: false,
+  wait_timeout_seconds: 120,
+  renew_anon_volumes: false,
   prune_images_after_redeploy: false,
   additional_args: '',
 });
@@ -957,6 +1021,13 @@ const lifecycleReviewStatus = computed<ProjectLifecycleReviewStatus>(() => {
   return buildLifecycleConfigurationDraft(detailRecord.value).review_status ?? 'confirmed';
 });
 const lifecycleReviewRequired = computed(() => lifecycleReviewStatus.value === 'review_required');
+const lifecycleDraftDirty = computed(() => {
+  if (!detailRecord.value) {
+    return false;
+  }
+  return isLifecycleDraftDirty(lifecycleDraft, buildLifecycleConfigurationDraft(detailRecord.value));
+});
+const lifecycleCanSave = computed(() => lifecycleReviewRequired.value || lifecycleDraftDirty.value);
 const lifecycleProfilesInput = computed({
   get: () => lifecycleDraftProfilesText(lifecycleDraft),
   set: (value: string) => {
@@ -1324,7 +1395,10 @@ function syncLifecycleDraft(detail: ProjectDetailResponseWithLifecycle) {
   lifecycleDraft.pull_before_redeploy = nextConfig.pull_before_redeploy;
   lifecycleDraft.build_before_up = nextConfig.build_before_up;
   lifecycleDraft.force_recreate = nextConfig.force_recreate;
+  lifecycleDraft.remove_orphans = nextConfig.remove_orphans;
   lifecycleDraft.wait_after_up = nextConfig.wait_after_up;
+  lifecycleDraft.wait_timeout_seconds = nextConfig.wait_timeout_seconds;
+  lifecycleDraft.renew_anon_volumes = nextConfig.renew_anon_volumes;
   lifecycleDraft.prune_images_after_redeploy = nextConfig.prune_images_after_redeploy;
   lifecycleDraft.additional_args = nextConfig.additional_args;
 }
@@ -2090,6 +2164,13 @@ async function runDestroyAction() {
 
 async function saveLifecycleConfiguration() {
   if (!Number.isFinite(projectId.value) || !detailRecord.value) {
+    return;
+  }
+  if (
+    lifecycleDraft.wait_after_up &&
+    (lifecycleDraft.wait_timeout_seconds < 1 || lifecycleDraft.wait_timeout_seconds > 3600)
+  ) {
+    MessagePlugin.warning(t('project.detail.lifecycle.waitTimeoutValidation'));
     return;
   }
   lifecycleSaveLoading.value = true;

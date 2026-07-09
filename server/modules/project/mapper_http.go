@@ -351,7 +351,10 @@ func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigura
 		PullBeforeRedeploy:       request.PullBeforeRedeploy,
 		BuildBeforeUp:            request.BuildBeforeUp,
 		ForceRecreate:            request.ForceRecreate,
+		RemoveOrphans:            request.RemoveOrphans,
 		WaitAfterUp:              request.WaitAfterUp,
+		WaitTimeoutSeconds:       request.WaitTimeoutSeconds,
+		RenewAnonVolumes:         request.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: request.PruneImagesAfterRedeploy,
 	}
 }

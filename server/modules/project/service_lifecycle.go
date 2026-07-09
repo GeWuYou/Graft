@@ -522,8 +522,15 @@ func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleCo
 	if config.Standard.ForceRecreate {
 		args = append(args, "--force-recreate")
 	}
+	if config.Standard.RemoveOrphans {
+		args = append(args, "--remove-orphans")
+	}
+	if config.Standard.RenewAnonVolumes {
+		args = append(args, "--renew-anon-volumes")
+	}
 	if config.Standard.WaitAfterUp {
 		args = append(args, "--wait")
+		args = append(args, "--wait-timeout", fmt.Sprintf("%d", config.Standard.WaitTimeoutSeconds))
 	}
 	return args, nil
 }

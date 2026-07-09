@@ -29,7 +29,10 @@ func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 		PullBeforeRedeploy:       true,
 		BuildBeforeUp:            true,
 		ForceRecreate:            true,
+		RemoveOrphans:            true,
 		WaitAfterUp:              true,
+		WaitTimeoutSeconds:       180,
+		RenewAnonVolumes:         true,
 		PruneImagesAfterRedeploy: true,
 	})
 	if err != nil {
@@ -45,7 +48,10 @@ func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 		"pull_before_redeploy",
 		"build_before_up",
 		"force_recreate",
+		"remove_orphans",
 		"wait_after_up",
+		"wait_timeout_seconds",
+		"renew_anon_volumes",
 		"prune_images_after_redeploy",
 	} {
 		if _, ok := raw[key]; !ok {
@@ -63,14 +69,34 @@ func TestDecodeLifecycleConfigJSONAcceptsSnakeCasePayload(t *testing.T) {
 		"pull_before_redeploy":true,
 		"build_before_up":true,
 		"force_recreate":true,
+		"remove_orphans":false,
 		"wait_after_up":true,
+		"wait_timeout_seconds":180,
+		"renew_anon_volumes":true,
 		"prune_images_after_redeploy":true
 	}`))
 	if err != nil {
 		t.Fatalf("decode lifecycle config: %v", err)
 	}
-	if len(config.Profiles) != 2 || !config.DownBeforeRedeploy || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.ForceRecreate || !config.WaitAfterUp || !config.PruneImagesAfterRedeploy {
+	if len(config.Profiles) != 2 || !config.DownBeforeRedeploy || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.ForceRecreate || config.RemoveOrphans || !config.WaitAfterUp || config.WaitTimeoutSeconds != 180 || !config.RenewAnonVolumes || !config.PruneImagesAfterRedeploy {
 		t.Fatalf("expected snake_case payload to round-trip, got %#v", config)
+	}
+}
+
+func TestDecodeLifecycleConfigJSONRejectsLegacyRowsMissingFields(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodeLifecycleConfigJSON([]byte(`{
+		"profiles":["blue"],
+		"down_before_redeploy":true,
+		"pull_before_redeploy":false,
+		"build_before_up":false,
+		"force_recreate":false,
+		"wait_after_up":false,
+		"prune_images_after_redeploy":false
+	}`))
+	if err == nil {
+		t.Fatalf("expected legacy lifecycle config without new fields to be rejected")
 	}
 }
 

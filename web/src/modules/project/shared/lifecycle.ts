@@ -13,6 +13,7 @@ import type {
 } from '../types/project';
 
 const lifecycleAdditionalArgsSession = new Map<string, string>();
+const defaultLifecycleWaitTimeoutSeconds = 120;
 
 function normalizeLifecycleFilePath(path: string, workingDirectory: string) {
   const value = path.trim();
@@ -97,8 +98,15 @@ function buildUpCommand(config: ProjectLifecycleConfigurationDraft) {
   if (config.force_recreate) {
     command.push('--force-recreate');
   }
+  if (config.remove_orphans) {
+    command.push('--remove-orphans');
+  }
+  if (config.renew_anon_volumes) {
+    command.push('--renew-anon-volumes');
+  }
   if (config.wait_after_up) {
     command.push('--wait');
+    command.push('--wait-timeout', String(config.wait_timeout_seconds));
   }
 
   command.push(...normalizeAdditionalArgs(config.additional_args));
@@ -117,17 +125,17 @@ function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft
     redeploy: [],
   };
 
-  if (config.pull_before_redeploy) {
-    commands.redeploy?.push({
-      title_key: 'project.detail.lifecycle.step.pullImages',
-      command: [...buildComposeBaseCommand(config), 'pull'].join(' '),
-    });
-  }
-
   if (config.down_before_redeploy) {
     commands.redeploy?.push({
       title_key: 'project.detail.lifecycle.step.bringDown',
       command: buildSimpleCommand(config, 'down'),
+    });
+  }
+
+  if (config.pull_before_redeploy) {
+    commands.redeploy?.push({
+      title_key: 'project.detail.lifecycle.step.pullImages',
+      command: [...buildComposeBaseCommand(config), 'pull'].join(' '),
     });
   }
 
@@ -204,6 +212,46 @@ function mapGeneratedCommands(
   };
 }
 
+function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return defaultLifecycleWaitTimeoutSeconds;
+  }
+  return Math.trunc(value);
+}
+
+function comparableLifecycleDraftState(
+  draft: Pick<
+    ProjectLifecycleConfigurationDraft,
+    | 'strategy_kind'
+    | 'profiles'
+    | 'down_before_redeploy'
+    | 'pull_before_redeploy'
+    | 'build_before_up'
+    | 'force_recreate'
+    | 'remove_orphans'
+    | 'wait_after_up'
+    | 'wait_timeout_seconds'
+    | 'renew_anon_volumes'
+    | 'prune_images_after_redeploy'
+    | 'additional_args'
+  >,
+) {
+  return {
+    strategy_kind: draft.strategy_kind,
+    profiles: draft.profiles.map((item) => item.trim()).filter(Boolean),
+    down_before_redeploy: draft.down_before_redeploy,
+    pull_before_redeploy: draft.pull_before_redeploy,
+    build_before_up: draft.build_before_up,
+    force_recreate: draft.force_recreate,
+    remove_orphans: draft.remove_orphans,
+    wait_after_up: draft.wait_after_up,
+    wait_timeout_seconds: normalizeWaitTimeoutSeconds(draft.wait_timeout_seconds),
+    renew_anon_volumes: draft.renew_anon_volumes,
+    prune_images_after_redeploy: draft.prune_images_after_redeploy,
+    additional_args: draft.additional_args.trim(),
+  };
+}
+
 export function buildLifecycleConfigurationDraft(
   detail: ProjectDetailResponseWithLifecycle,
 ): ProjectLifecycleConfigurationDraft {
@@ -223,7 +271,10 @@ export function buildLifecycleConfigurationDraft(
     pull_before_redeploy: source?.pull_before_redeploy ?? false,
     build_before_up: source?.build_before_up ?? false,
     force_recreate: source?.force_recreate ?? false,
+    remove_orphans: source?.remove_orphans ?? true,
     wait_after_up: source?.wait_after_up ?? false,
+    wait_timeout_seconds: normalizeWaitTimeoutSeconds(source?.wait_timeout_seconds),
+    renew_anon_volumes: source?.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
     additional_args: sessionAdditionalArgs,
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
@@ -240,16 +291,19 @@ export function buildLifecycleConfigurationRequest(
   draft: ProjectLifecycleConfigurationDraft,
 ): ProjectLifecycleConfigurationUpdateRequest {
   persistLifecycleSessionAdditionalArgs(draft);
+  const { additional_args: _additionalArgs, ...request } = comparableLifecycleDraftState(draft);
   return {
-    strategy_kind: draft.strategy_kind,
-    profiles: draft.profiles.map((item) => item.trim()).filter(Boolean),
-    down_before_redeploy: draft.down_before_redeploy,
-    pull_before_redeploy: draft.pull_before_redeploy,
-    build_before_up: draft.build_before_up,
-    force_recreate: draft.force_recreate,
-    wait_after_up: draft.wait_after_up,
-    prune_images_after_redeploy: draft.prune_images_after_redeploy,
+    ...request,
   };
+}
+
+export function isLifecycleDraftDirty(
+  current: ProjectLifecycleConfigurationDraft,
+  baseline: ProjectLifecycleConfigurationDraft,
+) {
+  return (
+    JSON.stringify(comparableLifecycleDraftState(current)) !== JSON.stringify(comparableLifecycleDraftState(baseline))
+  );
 }
 
 export function projectLifecycleReviewStatusLabel(

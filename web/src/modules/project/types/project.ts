@@ -77,7 +77,10 @@ export type ProjectLifecycleConfigurationDraft = {
   pull_before_redeploy: boolean;
   build_before_up: boolean;
   force_recreate: boolean;
+  remove_orphans: boolean;
   wait_after_up: boolean;
+  wait_timeout_seconds: number;
+  renew_anon_volumes: boolean;
   prune_images_after_redeploy: boolean;
   additional_args: string;
   review_status?: ProjectLifecycleReviewStatus | null;

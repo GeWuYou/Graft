@@ -275,6 +275,12 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
 	config.Profiles = normalizedProfiles
+	if config.WaitTimeoutSeconds == 0 {
+		config.WaitTimeoutSeconds = defaultLifecycleWaitTimeoutSeconds
+	}
+	if config.WaitTimeoutSeconds < minLifecycleWaitTimeoutSeconds || config.WaitTimeoutSeconds > maxLifecycleWaitTimeoutSeconds {
+		return LifecycleConfig{}, ErrInvalidInput
+	}
 	return config, nil
 }
 
@@ -617,13 +623,77 @@ func encodeLifecycleConfigJSON(config LifecycleConfig) ([]byte, error) {
 
 func decodeLifecycleConfigJSON(raw []byte) (LifecycleConfig, error) {
 	if len(raw) == 0 {
-		return LifecycleConfig{}, nil
-	}
-	var config LifecycleConfig
-	if err := json.Unmarshal(raw, &config); err != nil {
 		return LifecycleConfig{}, ErrInvalidInput
 	}
+	payload, err := unmarshalLifecycleConfigPayload(raw)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config, err := payload.lifecycleConfig()
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
 	return normalizeLifecycleConfig(config)
+}
+
+type lifecycleConfigPayload struct {
+	Profiles                 *[]string `json:"profiles"`
+	DownBeforeRedeploy       *bool     `json:"down_before_redeploy"`
+	PullBeforeRedeploy       *bool     `json:"pull_before_redeploy"`
+	BuildBeforeUp            *bool     `json:"build_before_up"`
+	ForceRecreate            *bool     `json:"force_recreate"`
+	RemoveOrphans            *bool     `json:"remove_orphans"`
+	WaitAfterUp              *bool     `json:"wait_after_up"`
+	WaitTimeoutSeconds       *int      `json:"wait_timeout_seconds"`
+	RenewAnonVolumes         *bool     `json:"renew_anon_volumes"`
+	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
+}
+
+func unmarshalLifecycleConfigPayload(raw []byte) (lifecycleConfigPayload, error) {
+	var payload lifecycleConfigPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return lifecycleConfigPayload{}, ErrInvalidInput
+	}
+	return payload, nil
+}
+
+func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error) {
+	if err := payload.validateRequiredFields(); err != nil {
+		return LifecycleConfig{}, err
+	}
+	return LifecycleConfig{
+		Profiles:                 append([]string(nil), (*payload.Profiles)...),
+		DownBeforeRedeploy:       *payload.DownBeforeRedeploy,
+		PullBeforeRedeploy:       *payload.PullBeforeRedeploy,
+		BuildBeforeUp:            *payload.BuildBeforeUp,
+		ForceRecreate:            *payload.ForceRecreate,
+		RemoveOrphans:            *payload.RemoveOrphans,
+		WaitAfterUp:              *payload.WaitAfterUp,
+		WaitTimeoutSeconds:       *payload.WaitTimeoutSeconds,
+		RenewAnonVolumes:         *payload.RenewAnonVolumes,
+		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
+	}, nil
+}
+
+func (payload lifecycleConfigPayload) validateRequiredFields() error {
+	required := []bool{
+		payload.Profiles != nil,
+		payload.DownBeforeRedeploy != nil,
+		payload.PullBeforeRedeploy != nil,
+		payload.BuildBeforeUp != nil,
+		payload.ForceRecreate != nil,
+		payload.RemoveOrphans != nil,
+		payload.WaitAfterUp != nil,
+		payload.WaitTimeoutSeconds != nil,
+		payload.RenewAnonVolumes != nil,
+		payload.PruneImagesAfterRedeploy != nil,
+	}
+	for _, present := range required {
+		if !present {
+			return ErrInvalidInput
+		}
+	}
+	return nil
 }
 
 func encodeWorkspaceAnnotationsJSON(annotations map[string]string) ([]byte, error) {

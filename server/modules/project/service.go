@@ -253,6 +253,12 @@ const (
 	LifecycleStrategyKindStandard LifecycleStrategyKind = "standard"
 )
 
+const (
+	defaultLifecycleWaitTimeoutSeconds = 120
+	minLifecycleWaitTimeoutSeconds     = 1
+	maxLifecycleWaitTimeoutSeconds     = 3600
+)
+
 // LifecycleReviewStatus identifies whether a lifecycle config can execute.
 type LifecycleReviewStatus string
 
@@ -270,7 +276,10 @@ type LifecycleStandardConfig struct {
 	PullBeforeRedeploy       bool
 	BuildBeforeUp            bool
 	ForceRecreate            bool
+	RemoveOrphans            bool
 	WaitAfterUp              bool
+	WaitTimeoutSeconds       int
+	RenewAnonVolumes         bool
 	PruneImagesAfterRedeploy bool
 }
 

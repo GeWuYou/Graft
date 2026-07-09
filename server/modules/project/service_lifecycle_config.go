@@ -15,7 +15,10 @@ func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 		PullBeforeRedeploy:       false,
 		BuildBeforeUp:            false,
 		ForceRecreate:            false,
+		RemoveOrphans:            true,
 		WaitAfterUp:              false,
+		WaitTimeoutSeconds:       defaultLifecycleWaitTimeoutSeconds,
+		RenewAnonVolumes:         false,
 		PruneImagesAfterRedeploy: false,
 	}
 }
@@ -47,7 +50,10 @@ func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate
 			PullBeforeRedeploy:       aggregate.Project.LifecycleConfig.PullBeforeRedeploy,
 			BuildBeforeUp:            aggregate.Project.LifecycleConfig.BuildBeforeUp,
 			ForceRecreate:            aggregate.Project.LifecycleConfig.ForceRecreate,
+			RemoveOrphans:            aggregate.Project.LifecycleConfig.RemoveOrphans,
 			WaitAfterUp:              aggregate.Project.LifecycleConfig.WaitAfterUp,
+			WaitTimeoutSeconds:       aggregate.Project.LifecycleConfig.WaitTimeoutSeconds,
+			RenewAnonVolumes:         aggregate.Project.LifecycleConfig.RenewAnonVolumes,
 			PruneImagesAfterRedeploy: aggregate.Project.LifecycleConfig.PruneImagesAfterRedeploy,
 		},
 	}
@@ -60,7 +66,10 @@ func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.Lifecyc
 		PullBeforeRedeploy:       config.PullBeforeRedeploy,
 		BuildBeforeUp:            config.BuildBeforeUp,
 		ForceRecreate:            config.ForceRecreate,
+		RemoveOrphans:            config.RemoveOrphans,
 		WaitAfterUp:              config.WaitAfterUp,
+		WaitTimeoutSeconds:       config.WaitTimeoutSeconds,
+		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
 	}
 }
@@ -85,9 +94,27 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 		PullBeforeRedeploy:       config.PullBeforeRedeploy,
 		BuildBeforeUp:            config.BuildBeforeUp,
 		ForceRecreate:            config.ForceRecreate,
+		RemoveOrphans:            config.RemoveOrphans,
 		WaitAfterUp:              config.WaitAfterUp,
+		WaitTimeoutSeconds:       normalizeLifecycleWaitTimeout(config.WaitTimeoutSeconds),
+		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
-	}, nil
+	}, validateLifecycleWaitTimeout(config.WaitTimeoutSeconds)
+}
+
+func normalizeLifecycleWaitTimeout(value int) int {
+	if value == 0 {
+		return defaultLifecycleWaitTimeoutSeconds
+	}
+	return value
+}
+
+func validateLifecycleWaitTimeout(value int) error {
+	timeout := normalizeLifecycleWaitTimeout(value)
+	if timeout < minLifecycleWaitTimeoutSeconds || timeout > maxLifecycleWaitTimeoutSeconds {
+		return errProjectInvalidArgument
+	}
+	return nil
 }
 
 // UpdateLifecycleConfiguration saves one project's standard compose lifecycle configuration and confirms it.

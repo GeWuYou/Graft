@@ -5666,8 +5666,14 @@ export interface components {
       pull_before_redeploy: boolean;
       build_before_up: boolean;
       force_recreate: boolean;
+      /** @default true */
+      remove_orphans: boolean;
       wait_after_up: boolean;
+      /** @default 120 */
+      wait_timeout_seconds: number;
       prune_images_after_redeploy: boolean;
+      /** @default false */
+      renew_anon_volumes: boolean;
       generated_commands: {
         up: components['schemas']['project-lifecycle-generated-command'];
         stop: components['schemas']['project-lifecycle-generated-command'];
@@ -5992,8 +5998,14 @@ export interface components {
       pull_before_redeploy: boolean;
       build_before_up: boolean;
       force_recreate: boolean;
+      /** @default true */
+      remove_orphans: boolean;
       wait_after_up: boolean;
+      /** @default 120 */
+      wait_timeout_seconds: number;
       prune_images_after_redeploy: boolean;
+      /** @default false */
+      renew_anon_volumes: boolean;
     };
     'project-lifecycle-configuration-response': {
       /** Format: int64 */

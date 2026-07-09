@@ -197,8 +197,13 @@ const detailMessages = {
   'project.detail.lifecycle.optionDescriptions.pullBeforeRedeploy': 'Pull images before redeploy.',
   'project.detail.lifecycle.optionDescriptions.buildBeforeUp': 'Add --build before bring-up.',
   'project.detail.lifecycle.optionDescriptions.forceRecreate': 'Add --force-recreate during bring-up.',
+  'project.detail.lifecycle.optionDescriptions.removeOrphans': 'Remove orphan containers.',
   'project.detail.lifecycle.optionDescriptions.waitAfterUp': 'Add --wait when bringing services up.',
+  'project.detail.lifecycle.optionDescriptions.waitTimeoutSeconds': 'Limit wait time to 1-3600 seconds.',
+  'project.detail.lifecycle.optionDescriptions.renewAnonVolumes': 'Do not reuse anonymous volumes.',
   'project.detail.lifecycle.optionDescriptions.pruneImagesAfterRedeploy': 'Prune images after redeploy.',
+  'project.detail.lifecycle.renewAnonVolumesWarning': 'Anonymous volumes may be recreated and data may be lost.',
+  'project.detail.lifecycle.waitTimeoutValidation': 'Wait timeout must be between 1 and 3600 seconds.',
   'project.detail.titleFallback': 'Project Detail',
   'project.route.configurationWorkspace.title': 'Configuration Workspace',
   'project.list.actions.actionFailed': 'Action Failed',
@@ -275,6 +280,28 @@ const TSwitchStub = defineComponent({
         },
         props.modelValue ? 'on' : 'off',
       );
+  },
+});
+
+const TInputNumberStub = defineComponent({
+  name: 'TInputNumber',
+  props: {
+    modelValue: { type: Number, default: 0 },
+    min: { type: Number, default: undefined },
+    max: { type: Number, default: undefined },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        'data-stub': 'TInputNumber',
+        max: props.max,
+        min: props.min,
+        type: 'number',
+        value: props.modelValue,
+        onInput: (event: Event) => emit('update:modelValue', Number((event.target as HTMLInputElement).value)),
+      });
   },
 });
 
@@ -361,6 +388,71 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
     runtime_status: runtimeStatus,
     service_count: 2,
     working_directory: '/srv/compose-demo',
+    lifecycle_configuration: {
+      strategy_kind: 'standard',
+      profiles: [],
+      down_before_redeploy: true,
+      pull_before_redeploy: false,
+      build_before_up: false,
+      force_recreate: false,
+      remove_orphans: true,
+      wait_after_up: false,
+      wait_timeout_seconds: 120,
+      renew_anon_volumes: false,
+      prune_images_after_redeploy: false,
+      generated_commands: {
+        up: {
+          action: 'up',
+          display_command: 'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'up', '-d', '--remove-orphans'],
+              display_command: 'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+              kind: 'up',
+            },
+          ],
+        },
+        stop: {
+          action: 'stop',
+          display_command: 'docker compose -f compose.yaml -p compose-demo stop',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'stop'],
+              display_command: 'docker compose -f compose.yaml -p compose-demo stop',
+              kind: 'stop',
+            },
+          ],
+        },
+        restart: {
+          action: 'restart',
+          display_command: 'docker compose -f compose.yaml -p compose-demo restart',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'restart'],
+              display_command: 'docker compose -f compose.yaml -p compose-demo restart',
+              kind: 'restart',
+            },
+          ],
+        },
+        redeploy: {
+          action: 'redeploy',
+          display_command:
+            'docker compose -f compose.yaml -p compose-demo down\ndocker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'down'],
+              display_command: 'docker compose -f compose.yaml -p compose-demo down',
+              kind: 'down',
+            },
+            {
+              argv: ['docker', 'compose', '-f', 'compose.yaml', '-p', 'compose-demo', 'up', '-d', '--remove-orphans'],
+              display_command: 'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+              kind: 'up',
+            },
+          ],
+        },
+      },
+    },
   };
 }
 
@@ -540,6 +632,7 @@ function mountPage() {
         't-descriptions-item': slotStub('TDescriptionsItem'),
         't-empty': slotStub('TEmpty'),
         't-input': slotStub('TInput'),
+        't-input-number': TInputNumberStub,
         't-loading': slotStub('TLoading'),
         't-progress': slotStub('TProgress'),
         't-space': slotStub('TSpace'),
@@ -876,7 +969,6 @@ describe('Project detail service tab', () => {
     expect(table.props('paginationVisible')).toBe(true);
     expect(wrapper.text()).not.toContain('Containers');
     expect(wrapper.text()).not.toContain('Networks');
-    expect(wrapper.text()).not.toContain('Volumes');
   });
 
   it('does not render the retired configuration tab label in detail tabs', async () => {
@@ -903,11 +995,27 @@ describe('Project detail service tab', () => {
     expect(wrapper.find('[data-testid="project-lifecycle-config-group-redeploy"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-actions"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-command-preview-up"]').text()).toContain(
-      'docker compose -f compose.yaml -p compose-demo up -d',
+      'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
     );
     expect(wrapper.find('[data-testid="project-lifecycle-command-preview-redeploy"]').text()).toContain(
       'docker compose -f compose.yaml -p compose-demo down',
     );
+  });
+
+  it('shows wait-timeout and destructive-volume warning only when enabled', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-renew-anon-volumes-switch"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(true);
   });
 
   it('renders runtime published ports instead of declared compose mappings', async () => {
