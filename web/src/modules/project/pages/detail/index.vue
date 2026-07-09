@@ -478,6 +478,14 @@
                 :title="t('project.detail.lifecycle.reviewRequiredTitle')"
                 :message="t('project.detail.lifecycle.reviewRequiredDescription')"
               />
+              <t-alert
+                v-if="lifecycleRemoteStale"
+                class="project-lifecycle-alert"
+                data-testid="project-lifecycle-remote-stale-alert"
+                theme="info"
+                :title="t('project.detail.lifecycle.remoteStaleTitle')"
+                :message="t('project.detail.lifecycle.remoteStaleDescription')"
+              />
               <div class="project-lifecycle-layout">
                 <t-card
                   size="small"
@@ -890,6 +898,8 @@ const servicesLoaded = ref(false);
 const projectOverviewLoaded = ref(false);
 const actionLoading = ref<ProjectActionResponse['action'] | 'destroy' | ''>('');
 const lifecycleSaveLoading = ref(false);
+const lifecycleBaseline = ref<ProjectLifecycleConfigurationDraft | null>(null);
+const lifecycleRemoteStale = ref(false);
 const projectLogSince = ref('1h');
 const projectLogTail = ref('200');
 const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
@@ -969,10 +979,10 @@ const lifecycleReviewStatus = computed<ProjectLifecycleReviewStatus>(() => {
 });
 const lifecycleReviewRequired = computed(() => lifecycleReviewStatus.value === 'review_required');
 const lifecycleDraftDirty = computed(() => {
-  if (!detailRecord.value) {
+  if (!lifecycleBaseline.value) {
     return false;
   }
-  return isLifecycleDraftDirty(lifecycleDraft, buildLifecycleConfigurationDraft(detailRecord.value));
+  return isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
 });
 const lifecycleCanSave = computed(() => lifecycleReviewRequired.value || lifecycleDraftDirty.value);
 const lifecycleProfilesInput = computed({
@@ -1256,6 +1266,8 @@ watch(serviceTableRows, (rows) => {
 
 watch(projectId, () => {
   resetProjectLogsState();
+  lifecycleBaseline.value = null;
+  lifecycleRemoteStale.value = false;
   projectDetailRealtimeGate.clear();
   releaseProjectDetailRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
@@ -1331,23 +1343,50 @@ function overviewServiceHealthTheme(value?: ProjectOverviewServiceItem['health']
   return 'default';
 }
 
-function syncLifecycleDraft(detail: ProjectDetailResponseWithLifecycle) {
+function assignLifecycleDraft(
+  target: ProjectLifecycleConfigurationDraft,
+  nextConfig: ProjectLifecycleConfigurationDraft,
+) {
+  target.strategy_kind = nextConfig.strategy_kind;
+  target.working_directory = nextConfig.working_directory;
+  target.compose_files = [...nextConfig.compose_files];
+  target.canonical_project_name = nextConfig.canonical_project_name;
+  target.profiles = [...nextConfig.profiles];
+  target.down_before_redeploy = nextConfig.down_before_redeploy;
+  target.pull_before_redeploy = nextConfig.pull_before_redeploy;
+  target.build_before_up = nextConfig.build_before_up;
+  target.force_recreate = nextConfig.force_recreate;
+  target.remove_orphans = nextConfig.remove_orphans;
+  target.wait_after_up = nextConfig.wait_after_up;
+  target.wait_timeout_seconds = nextConfig.wait_timeout_seconds;
+  target.renew_anon_volumes = nextConfig.renew_anon_volumes;
+  target.prune_images_after_redeploy = nextConfig.prune_images_after_redeploy;
+  target.additional_args = nextConfig.additional_args;
+  target.review_status = nextConfig.review_status;
+  target.generated_commands = nextConfig.generated_commands ? { ...nextConfig.generated_commands } : null;
+}
+
+function syncLifecycleState(
+  detail: ProjectDetailResponseWithLifecycle,
+  options: {
+    preserveDirtyDraft: boolean;
+  } = { preserveDirtyDraft: false },
+) {
+  const preserveDirtyDraft =
+    options.preserveDirtyDraft &&
+    !lifecycleSaveLoading.value &&
+    lifecycleBaseline.value !== null &&
+    isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
   const nextConfig = buildLifecycleConfigurationDraft(detail);
-  lifecycleDraft.strategy_kind = nextConfig.strategy_kind;
-  lifecycleDraft.working_directory = nextConfig.working_directory;
-  lifecycleDraft.compose_files = [...nextConfig.compose_files];
-  lifecycleDraft.canonical_project_name = nextConfig.canonical_project_name;
-  lifecycleDraft.profiles = [...nextConfig.profiles];
-  lifecycleDraft.down_before_redeploy = nextConfig.down_before_redeploy;
-  lifecycleDraft.pull_before_redeploy = nextConfig.pull_before_redeploy;
-  lifecycleDraft.build_before_up = nextConfig.build_before_up;
-  lifecycleDraft.force_recreate = nextConfig.force_recreate;
-  lifecycleDraft.remove_orphans = nextConfig.remove_orphans;
-  lifecycleDraft.wait_after_up = nextConfig.wait_after_up;
-  lifecycleDraft.wait_timeout_seconds = nextConfig.wait_timeout_seconds;
-  lifecycleDraft.renew_anon_volumes = nextConfig.renew_anon_volumes;
-  lifecycleDraft.prune_images_after_redeploy = nextConfig.prune_images_after_redeploy;
-  lifecycleDraft.additional_args = nextConfig.additional_args;
+  lifecycleBaseline.value = nextConfig;
+
+  if (preserveDirtyDraft) {
+    lifecycleRemoteStale.value = true;
+    return;
+  }
+
+  assignLifecycleDraft(lifecycleDraft, nextConfig);
+  lifecycleRemoteStale.value = false;
 }
 
 async function refreshDetail() {
@@ -1359,7 +1398,7 @@ async function refreshDetail() {
   detailError.value = '';
   try {
     detailRecord.value = await getProject(projectId.value);
-    syncLifecycleDraft(detailRecord.value);
+    syncLifecycleState(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
     await Promise.all([loadConfigurationSummary(), loadProjectServices(true), loadProjectOverview(true)]);
     if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
@@ -1540,7 +1579,7 @@ function applyProjectRealtimeSnapshot(payload: {
   services: { items: ProjectServiceItem[] };
 }) {
   detailRecord.value = payload.detail;
-  syncLifecycleDraft(payload.detail);
+  syncLifecycleState(payload.detail, { preserveDirtyDraft: true });
   updateCurrentTabTitle(buildDetailTitle(payload.detail.display_name));
   detailError.value = '';
   serviceRows.value = payload.services.items;
@@ -1872,7 +1911,7 @@ async function refreshProjectRuntimeSurface() {
 
   const nextDetail = await getProject(projectId.value);
   detailRecord.value = nextDetail;
-  syncLifecycleDraft(nextDetail);
+  syncLifecycleState(nextDetail, { preserveDirtyDraft: true });
   updateCurrentTabTitle(buildDetailTitle(nextDetail.display_name));
   await Promise.all([loadProjectServices(true), loadProjectOverview(true)]);
   syncProjectDetailRealtimeSubscription();
@@ -2134,14 +2173,7 @@ async function saveLifecycleConfiguration() {
       canonical_project_name: response.canonical_project_name,
       compose_files: response.compose_files,
     };
-    syncLifecycleDraft({
-      ...detailRecord.value,
-      lifecycle_review_status: response.lifecycle_review_status,
-      lifecycle_configuration: response.lifecycle_configuration,
-      working_directory: response.working_directory,
-      canonical_project_name: response.canonical_project_name,
-      compose_files: response.compose_files,
-    });
+    syncLifecycleState(detailRecord.value);
     MessagePlugin.success(t('project.detail.lifecycle.saveSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.lifecycle.saveFailed')));
@@ -2151,10 +2183,11 @@ async function saveLifecycleConfiguration() {
 }
 
 function resetLifecycleConfiguration() {
-  if (!detailRecord.value) {
+  if (!lifecycleBaseline.value) {
     return;
   }
-  syncLifecycleDraft(detailRecord.value);
+  assignLifecycleDraft(lifecycleDraft, lifecycleBaseline.value);
+  lifecycleRemoteStale.value = false;
 }
 
 async function copyPath(path: string) {

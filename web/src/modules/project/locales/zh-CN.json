@@ -986,6 +986,8 @@
         "statusTitle": "生命周期状态",
         "statusDescription": "查看当前已确认的生命周期 authority，以及命令生成依赖的关键配置。",
         "configurationTitle": "部署配置",
+        "remoteStaleTitle": "远端配置已刷新",
+        "remoteStaleDescription": "后台已收到新的生命周期配置快照，当前保留你未保存的本地修改。需要载入最新配置时，请点击“重置”。",
         "generatedCommandsTitle": "生成命令",
         "generatedCommandsDescription": "在保存或执行动作前，先核对每个生命周期动作的最终命令预览。",
         "generatedCommandsEmpty": "当前还没有可用的命令预览。",

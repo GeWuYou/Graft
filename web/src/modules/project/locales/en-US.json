@@ -986,6 +986,8 @@
         "statusTitle": "Lifecycle Status",
         "statusDescription": "Review the confirmed authority that drives command generation and lifecycle guards.",
         "configurationTitle": "Deployment Configuration",
+        "remoteStaleTitle": "Remote Configuration Refreshed",
+        "remoteStaleDescription": "Graft received a newer lifecycle snapshot, but your unsaved local edits are still kept. Use Reset to load the latest saved configuration.",
         "generatedCommandsTitle": "Generated Commands",
         "generatedCommandsDescription": "Review the resolved command preview for each lifecycle action before saving or running it.",
         "generatedCommandsEmpty": "No command preview is available yet.",

@@ -181,6 +181,9 @@ const detailMessages = {
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.services': 'Services',
   'project.detail.lifecycle.statusDescription': 'Review authority and command generation inputs.',
+  'project.detail.lifecycle.remoteStaleTitle': 'Remote Configuration Refreshed',
+  'project.detail.lifecycle.remoteStaleDescription':
+    'Graft received a newer lifecycle snapshot, but your unsaved local edits are still kept. Use Reset to load the latest saved configuration.',
   'project.detail.lifecycle.generatedCommandsDescription': 'Review each lifecycle command preview.',
   'project.detail.lifecycle.generatedCommandsDescriptions.up':
     'Launch the current compose project with the saved strategy.',
@@ -1033,6 +1036,59 @@ describe('Project detail service tab', () => {
 
     expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(true);
+  });
+
+  it('keeps unsaved lifecycle draft changes when realtime detail snapshots arrive', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.detail:7');
+    expect(detailSocket).toBeTruthy();
+
+    detailSocket?.options.onMessage({
+      detail: buildProjectDetail(),
+      overview: buildProjectOverview(),
+      services: { items: buildProjectServices().items },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
+      'true',
+    );
+    expect(wrapper.find('[data-testid="project-lifecycle-remote-stale-alert"]').exists()).toBe(true);
+  });
+
+  it('applies lifecycle configuration updates from realtime when the draft is clean', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.detail:7');
+    expect(detailSocket).toBeTruthy();
+
+    detailSocket?.options.onMessage({
+      detail: {
+        ...buildProjectDetail(),
+        lifecycle_configuration: {
+          ...buildProjectDetail().lifecycle_configuration,
+          wait_after_up: true,
+          wait_timeout_seconds: 300,
+        },
+      },
+      overview: buildProjectOverview(),
+      services: { items: buildProjectServices().items },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
+      'true',
+    );
+    expect(wrapper.find('[data-testid="project-lifecycle-remote-stale-alert"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(true);
   });
 
   it('renders help triggers for all lifecycle strategy items without changing switch state', async () => {
