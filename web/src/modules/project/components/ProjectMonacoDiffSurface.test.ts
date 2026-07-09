@@ -85,22 +85,9 @@ function createMockState() {
   });
 
   const disconnect = vi.fn();
-  let resizeCallback: (() => void) | null = null;
 
   return {
     callOrder,
-    createLayoutController: vi.fn((options: { layout: () => void }) => {
-      resizeCallback = options.layout;
-      return {
-        disconnect,
-        observe: vi.fn(),
-        schedule: vi.fn(() => {
-          mockState.layoutReasons.push('scheduled');
-          options.layout();
-          return Promise.resolve();
-        }),
-      };
-    }),
     createDiffEditor,
     createModel,
     currentModel: () => currentModel,
@@ -111,17 +98,12 @@ function createMockState() {
     models,
     modifiedEditor,
     originalEditor,
-    triggerResize() {
-      resizeCallback?.();
-    },
     reset() {
       callOrder.length = 0;
       evictedModels.length = 0;
       layoutReasons.length = 0;
       models.length = 0;
       currentModel = null;
-      resizeCallback = null;
-      this.createLayoutController.mockClear();
       createDiffEditor.mockClear();
       createModel.mockClear();
       diffEditor.dispose.mockClear();
@@ -161,6 +143,7 @@ vi.mock('@/utils/logger', () => ({
 }));
 
 vi.mock('../shared/project-monaco-debug', () => ({
+  createProjectMonacoDebugLogger: () => vi.fn(),
   describeProjectMonacoElement: (element: HTMLElement | null) => element?.tagName.toLowerCase() ?? 'null',
   disposeProjectMonacoModelDeferred: (
     targetModel: { dispose: () => void } | null,

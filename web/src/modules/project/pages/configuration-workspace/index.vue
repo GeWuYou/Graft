@@ -760,7 +760,7 @@ import type {
   ProjectWorkspaceFileKind,
   ProjectWorkspaceTreeItem,
 } from '../../types/project';
-import { resolveConfigurationWorkspaceCopy } from './workspace-copy';
+import { resolveConfigurationWorkspaceCopy, resolveConfigurationWorkspaceCopyKey } from './workspace-copy';
 
 defineOptions({
   name: 'ProjectConfigurationWorkspaceIndex',
@@ -1089,7 +1089,7 @@ const resultDialogSummaryItems = computed(() => {
   if (syntaxValidationFile.value) {
     items.push({
       label: workspaceCopy.value.resultSummaryCurrentErrorsLabel,
-      value: t('project.configurationWorkspace.copy.syntaxErrorCountLabel', {
+      value: t(resolveConfigurationWorkspaceCopyKey('syntaxErrorCountLabel'), {
         count: syntaxValidationFile.value.markerCount,
       }),
     });
@@ -1508,10 +1508,13 @@ function replaceWorkspaceItem(items: WorkspaceListItem[], nextItem: WorkspaceLis
   return items.map((item) => (item.relative_path === nextItem.relative_path ? nextItem : item));
 }
 
+let latestOpenRequestPath = '';
+
 async function openWorkspaceFile(path: string, source?: WorkspaceListItem) {
   if (!path) {
     return;
   }
+  latestOpenRequestPath = path;
 
   if (!openFileMap.has(path)) {
     openFileMap.set(path, {
@@ -1544,7 +1547,9 @@ async function openWorkspaceFile(path: string, source?: WorkspaceListItem) {
   }
 
   const resolvedPath = await ensureWorkspaceFileLoaded(path, source);
-  activeTabPath.value = resolvedPath ?? path;
+  if (latestOpenRequestPath === path) {
+    activeTabPath.value = resolvedPath ?? path;
+  }
 }
 
 async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceListItem) {
@@ -1728,6 +1733,13 @@ async function waitForActiveEditorModel(path: string, options?: { maxAttempts?: 
   return activeEditorRef.value?.getModelKey?.() === path;
 }
 
+function failClosedToBoundActiveEditorModel() {
+  const boundModelKey = activeEditorRef.value?.getModelKey?.();
+  if (boundModelKey) {
+    activeTabPath.value = boundModelKey;
+  }
+}
+
 function resolveSyntaxValidationTargets(paths: string[]) {
   const supportedPaths: string[] = [];
   const skippedPaths: string[] = [];
@@ -1812,7 +1824,10 @@ async function collectSyntaxValidationIssues(paths: string[]) {
   if (activePathBeforeValidation && activeTabPath.value !== activePathBeforeValidation) {
     activeTabPath.value = activePathBeforeValidation;
     await nextTick();
-    await waitForActiveEditorModel(activePathBeforeValidation, { maxAttempts: 12 });
+    const restored = await waitForActiveEditorModel(activePathBeforeValidation, { maxAttempts: 12 });
+    if (!restored) {
+      failClosedToBoundActiveEditorModel();
+    }
   }
 
   return uniquePaths.map((path) => issues.get(path)).filter(Boolean) as WorkspaceSyntaxValidationResult[];

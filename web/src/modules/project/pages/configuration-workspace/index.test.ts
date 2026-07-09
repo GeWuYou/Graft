@@ -409,6 +409,71 @@ async function flushDiffViewerFrames() {
   await flushPromises();
 }
 
+function mockTwoFileSyntaxFixture() {
+  mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
+    if (query?.path === 'config') {
+      return {
+        current_path: 'config',
+        items: [
+          {
+            editable: true,
+            file_kind: 'config',
+            has_children: false,
+            language_hint: 'yaml',
+            name: 'app.yaml',
+            node_type: 'file',
+            readable: true,
+            relative_path: 'config/app.yaml',
+            size_bytes: 24,
+          },
+        ],
+        root_path: '/srv/sub2api',
+      };
+    }
+    return {
+      current_path: '',
+      items: [
+        {
+          editable: true,
+          file_kind: 'compose',
+          has_children: false,
+          language_hint: 'yaml',
+          name: 'docker-compose.yml',
+          node_type: 'file',
+          readable: true,
+          relative_path: 'docker-compose.yml',
+          size_bytes: 32,
+        },
+        {
+          editable: false,
+          file_kind: 'directory',
+          has_children: true,
+          name: 'config',
+          node_type: 'directory',
+          readable: true,
+          relative_path: 'config',
+        },
+      ],
+      root_path: '/srv/sub2api',
+    };
+  });
+  mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
+    content:
+      query.path === 'docker-compose.yml'
+        ? 'services:\n  api:\n    image: app\n'
+        : query.path === 'config/app.yaml'
+          ? 'name: demo\nenabled: true\n'
+          : '',
+    editable: true,
+    encoding: 'utf-8',
+    file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
+    language_hint: 'yaml',
+    readable: true,
+    relative_path: query.path,
+    size_bytes: 32,
+  }));
+}
+
 async function waitForDiffViewer(
   wrapper: ReturnType<typeof mount>,
   selector = '[data-testid="configuration-diff-viewer"]',
@@ -1222,68 +1287,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   });
 
   it('shows the syntax file list for save all when multiple files have syntax errors', async () => {
-    mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
-      if (query?.path === 'config') {
-        return {
-          current_path: 'config',
-          items: [
-            {
-              editable: true,
-              file_kind: 'config',
-              has_children: false,
-              language_hint: 'yaml',
-              name: 'app.yaml',
-              node_type: 'file',
-              readable: true,
-              relative_path: 'config/app.yaml',
-              size_bytes: 24,
-            },
-          ],
-          root_path: '/srv/sub2api',
-        };
-      }
-      return {
-        current_path: '',
-        items: [
-          {
-            editable: true,
-            file_kind: 'compose',
-            has_children: false,
-            language_hint: 'yaml',
-            name: 'docker-compose.yml',
-            node_type: 'file',
-            readable: true,
-            relative_path: 'docker-compose.yml',
-            size_bytes: 32,
-          },
-          {
-            editable: false,
-            file_kind: 'directory',
-            has_children: true,
-            name: 'config',
-            node_type: 'directory',
-            readable: true,
-            relative_path: 'config',
-          },
-        ],
-        root_path: '/srv/sub2api',
-      };
-    });
-    mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
-      content:
-        query.path === 'docker-compose.yml'
-          ? 'services:\n  api:\n    image: app\n'
-          : query.path === 'config/app.yaml'
-            ? 'name: demo\nenabled: true\n'
-            : '',
-      editable: true,
-      encoding: 'utf-8',
-      file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
-      language_hint: 'yaml',
-      readable: true,
-      relative_path: query.path,
-      size_bytes: 32,
-    }));
+    mockTwoFileSyntaxFixture();
 
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -1335,68 +1339,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
         : [];
     };
 
-    mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
-      if (query?.path === 'config') {
-        return {
-          current_path: 'config',
-          items: [
-            {
-              editable: true,
-              file_kind: 'config',
-              has_children: false,
-              language_hint: 'yaml',
-              name: 'app.yaml',
-              node_type: 'file',
-              readable: true,
-              relative_path: 'config/app.yaml',
-              size_bytes: 24,
-            },
-          ],
-          root_path: '/srv/sub2api',
-        };
-      }
-      return {
-        current_path: '',
-        items: [
-          {
-            editable: true,
-            file_kind: 'compose',
-            has_children: false,
-            language_hint: 'yaml',
-            name: 'docker-compose.yml',
-            node_type: 'file',
-            readable: true,
-            relative_path: 'docker-compose.yml',
-            size_bytes: 32,
-          },
-          {
-            editable: false,
-            file_kind: 'directory',
-            has_children: true,
-            name: 'config',
-            node_type: 'directory',
-            readable: true,
-            relative_path: 'config',
-          },
-        ],
-        root_path: '/srv/sub2api',
-      };
-    });
-    mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
-      content:
-        query.path === 'docker-compose.yml'
-          ? 'services:\n  api:\n    image: app\n'
-          : query.path === 'config/app.yaml'
-            ? 'name: demo\nenabled: true\n'
-            : '',
-      editable: true,
-      encoding: 'utf-8',
-      file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
-      language_hint: 'yaml',
-      readable: true,
-      relative_path: query.path,
-      size_bytes: 32,
-    }));
+    mockTwoFileSyntaxFixture();
 
     const wrapper = mountWorkspace();
     await flushPromises();

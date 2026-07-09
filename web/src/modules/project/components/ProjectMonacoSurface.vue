@@ -42,6 +42,7 @@ const logProjectMonacoSurfaceDebug = projectMonacoDebug.createProjectMonacoDebug
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
 let model: Monaco.editor.ITextModel | null = null;
+let boundModelKey = '';
 let syncingFromEditor = false;
 let syncingFromProps = false;
 let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
@@ -63,6 +64,7 @@ const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({
     const currentEditor = editor;
     editor = null;
     model = null;
+    boundModelKey = '';
     currentEditor?.dispose();
     projectMonaco.disposeProjectMonacoModelCache(modelCache, 'dispose-editor-model', disposeSurfaceModel);
     logSurfaceDebug('dispose-complete', {
@@ -126,6 +128,7 @@ watch(
     }
     editor.setModel(nextModel);
     model = nextModel;
+    boundModelKey = props.modelKey;
     if (previousModel) {
       projectMonaco.evictProjectMonacoModelFromCache(
         modelCache,
@@ -193,6 +196,7 @@ async function createEditor() {
     suffix: modelUriSuffix,
     value: String(props.modelValue ?? ''),
   });
+  boundModelKey = props.modelKey;
   editor = monaco.editor.create(host, {
     ariaLabel: props.editorAriaLabel,
     automaticLayout: false,
@@ -374,7 +378,7 @@ function logSurfaceDebug(event: string, detail: Record<string, unknown>) {
 }
 
 defineExpose({
-  getModelKey: () => props.modelKey,
+  getModelKey: () => boundModelKey,
   getMarkers: getSortedMarkers,
   relayout,
   revealMarker,

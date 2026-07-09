@@ -88,7 +88,7 @@ type WorkspaceCopy = {
 };
 
 type WorkspaceCopyKey = keyof WorkspaceCopy;
-type WorkspaceCopyTranslate = (key: string) => string;
+type WorkspaceCopyTranslate = (key: string, params?: Record<string, unknown>) => string;
 
 const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   annotationAction: 'project.configurationWorkspace.copy.annotationAction',
@@ -183,4 +183,8 @@ export function resolveConfigurationWorkspaceCopy(translate: WorkspaceCopyTransl
   return Object.fromEntries(
     Object.entries(workspaceCopyKeyMap).map(([field, key]) => [field, String(translate(key))]),
   ) as WorkspaceCopy;
+}
+
+export function resolveConfigurationWorkspaceCopyKey(key: WorkspaceCopyKey) {
+  return workspaceCopyKeyMap[key];
 }

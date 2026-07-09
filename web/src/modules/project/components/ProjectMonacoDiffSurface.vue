@@ -28,6 +28,7 @@ const props = withDefaults(
 const containerRef = ref<HTMLElement | null>(null);
 const modelUriSuffix = projectMonaco.createProjectMonacoModelUriSuffix();
 const logger = createLogger('project.monaco.diffSurface');
+const logProjectMonacoDiffDebug = projectMonacoDebug.createProjectMonacoDebugLogger('project.monaco.diffSurface');
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
@@ -326,7 +327,7 @@ function logDiffDebug(event: string, detail: Record<string, unknown>) {
     return;
   }
 
-  projectMonacoDebug.createProjectMonacoDebugLogger('project.monaco.diffSurface')(event, detail);
+  logProjectMonacoDiffDebug(event, detail);
 }
 
 defineExpose({

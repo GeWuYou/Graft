@@ -67,14 +67,6 @@ function createMockState() {
   return {
     callOrder,
     createEditor,
-    createLayoutController: vi.fn((options: { layout: () => void }) => ({
-      disconnect: vi.fn(),
-      observe: vi.fn(),
-      schedule: vi.fn(() => {
-        options.layout();
-        return Promise.resolve();
-      }),
-    })),
     createModel,
     currentModel: () => currentModel,
     editor,
@@ -86,7 +78,6 @@ function createMockState() {
       models.length = 0;
       currentModel = null;
       createEditor.mockClear();
-      this.createLayoutController.mockClear();
       createModel.mockClear();
       editor.dispose.mockClear();
       editor.getContainerDomNode.mockClear();
@@ -383,5 +374,38 @@ describe('ProjectMonacoSurface', () => {
     expect(vm.revealMarker({ startColumn: 1, startLineNumber: 3 })).toBe(true);
     expect(mockState.editor.setPosition).toHaveBeenCalledWith({ column: 1, lineNumber: 3 });
     expect(mockState.editor.revealLineInCenter).toHaveBeenCalledWith(3);
+  });
+
+  it('exposes the actual bound model key instead of the latest requested prop key', async () => {
+    const wrapper = mount(ProjectMonacoSurface, {
+      props: {
+        editorAriaLabel: 'Editor',
+        language: 'yaml',
+        modelKey: 'docker-compose.yml',
+        modelValue: 'services:\n  api:\n    image: demo\n',
+      },
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      getModelKey: () => string;
+    };
+
+    expect(vm.getModelKey()).toBe('docker-compose.yml');
+
+    const nextValue = 'name: demo\nenabled: true\n';
+    const setPropsPromise = wrapper.setProps({
+      language: 'yaml',
+      modelKey: 'config/app.yaml',
+      modelValue: nextValue,
+    });
+
+    expect(vm.getModelKey()).toBe('docker-compose.yml');
+
+    await setPropsPromise;
+    await flushPromises();
+
+    expect(vm.getModelKey()).toBe('config/app.yaml');
   });
 });
