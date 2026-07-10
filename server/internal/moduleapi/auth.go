@@ -29,18 +29,6 @@ type CurrentUser struct {
 	DisplayName string
 }
 
-// UserAuthCredential 描述认证链路依赖的最小用户口令与受限态摘要。
-//
-// 该 DTO 只暴露登录、refresh、bootstrap 与受限会话判断真正需要的稳定字段，
-// 不泄漏 user 模块内部实体、仓储或 ORM 细节。
-type UserAuthCredential struct {
-	UserID             uint64
-	Username           string
-	PasswordHash       *string
-	MustChangePassword bool
-	PasswordChangedAt  *time.Time
-}
-
 // AccessTokenClaims 描述访问令牌中可被其它模块稳定消费的最小声明集。
 //
 // 这里仅保留身份与时效信息，不把权限列表、刷新令牌细节或额外身份系统塞进跨模块边界。
@@ -215,20 +203,12 @@ type AuthCapabilityProvider interface {
 	AuthCapabilities() AuthCapabilityBundle
 }
 
-// UserAuthIdentityService 暴露 auth 模块可依赖的稳定用户身份能力。
-//
-// auth 通过它读取登录凭据、当前主体摘要与改密写路径；该接口故意不暴露
-// user 模块的仓储实现、Ent client 或管理员资源管理语义。
-type UserAuthIdentityService interface {
-	GetCredentialByUsername(ctx context.Context, username string) (UserAuthCredential, error)
+// UserIdentityProvider exposes only user-profile identity facts needed by
+// auth. Credentials, password state, and sessions are deliberately excluded.
+type UserIdentityProvider interface {
+	LookupUserByUsername(ctx context.Context, username string) (CurrentUser, error)
 	GetCurrentUserByID(ctx context.Context, userID uint64) (CurrentUser, error)
-	SetPasswordByUserID(
-		ctx context.Context,
-		userID uint64,
-		passwordHash string,
-		mustChangePassword bool,
-		changedAt *time.Time,
-	) error
+	EnsureDefaultAdminProfile(ctx context.Context) (CurrentUser, error)
 }
 
 // Authorizer 暴露请求级授权判断能力。

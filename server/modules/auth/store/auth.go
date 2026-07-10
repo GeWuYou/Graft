@@ -139,3 +139,25 @@ type AuthRepository interface {
 	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)
 	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
 }
+
+// CredentialStore owns password credential persistence. It is intentionally
+// separate from user-profile identity so the backing schema can move without
+// changing auth runtime dependencies.
+type CredentialStore interface {
+	GetUserCredentialByUsername(ctx context.Context, username string) (UserCredential, error)
+	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error
+	EnsureUserCredential(ctx context.Context, input EnsureUserCredentialInput) (UserCredential, error)
+	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
+}
+
+// SessionStore owns refresh-session lifecycle persistence.
+type SessionStore interface {
+	CreateRefreshSession(ctx context.Context, input CreateRefreshSessionInput) (RefreshSession, error)
+	GetRefreshSessionByTokenID(ctx context.Context, tokenID string) (RefreshSession, error)
+	RevokeRefreshSession(ctx context.Context, input RevokeRefreshSessionInput) error
+	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
+	RevokeOtherRefreshSessionsByUserID(ctx context.Context, input RevokeOtherRefreshSessionsInput) error
+	RevokeRefreshSessionByUserID(ctx context.Context, input RevokeRefreshSessionByUserIDInput) error
+	ListActiveRefreshSessionsByUserID(ctx context.Context, input ListActiveRefreshSessionsByUserIDInput) ([]RefreshSession, error)
+	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)
+}
