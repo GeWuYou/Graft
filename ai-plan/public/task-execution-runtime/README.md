@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`.
 - Intake summary: long-running feature requiring design, roadmap, ADR, active topic and loop execution.
 - Canonical authority: `ai-plan/design/architecture/任务执行运行时设计.md`, `ADR-004`, `openapi/**`, and `server/internal/moduleapi/task.go`.
-- Completed so far: foundation authority batch.
-- Not started yet: module persistence/runtime implementation and consumer adoption.
+- Completed so far: runtime foundation, persistence, worker/recovery, generic API/realtime, Project adoption, and Task UI.
+- Not started yet: final cross-boundary integration and archive-readiness review.
 
 ## Recovery Receipt
 
@@ -39,16 +39,16 @@ Out of scope:
 ## Phase Plan
 
 - `task-runtime-foundation-authority` completed.
-- `task-module-persistence-state-machine` next.
-- `task-runtime-worker-and-recovery`.
-- `task-api-realtime-and-project-adoption`.
-- `task-web-module-and-project-ui`.
-- `task-final-integration-archive-readiness`.
+- `task-module-persistence-state-machine` completed.
+- `task-runtime-worker-and-recovery` completed.
+- `task-api-realtime-and-project-adoption` completed.
+- `task-web-module-and-project-ui` completed.
+- `task-final-integration-archive-readiness` next.
 
 ## Current Recovery Point
 
-- Foundation design, typed contracts and OpenAPI are committed before runtime work begins.
-- Next step: implement task module persistence and state machine only; do not introduce worker or Project executor yet.
+- Task UI is available through a reusable Task Detail Drawer and Project-scoped Task History.
+- Next step: run final cross-boundary acceptance, resolve any remaining contract/runtime drift, then assess archive readiness.
 
 ## Work Intake
 

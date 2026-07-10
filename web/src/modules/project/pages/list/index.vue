@@ -362,6 +362,7 @@
         </div>
       </t-drawer>
     </management-page-content>
+    <task-detail-drawer v-model:visible="taskDrawerVisible" :task-id="activeTaskId" />
   </div>
 </template>
 <script setup lang="ts">
@@ -372,6 +373,7 @@ import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref, w
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { TaskDetailDrawer } from '@/modules/task';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -423,6 +425,7 @@ import type {
   ProjectListItemWithLifecycle,
   ProjectRuntimeStatus,
   ProjectSourceKind,
+  ProjectTaskReceipt,
 } from '../../types/project';
 
 defineOptions({
@@ -434,6 +437,8 @@ const router = useRouter();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
+const activeTaskId = ref<number | null>(null);
+const taskDrawerVisible = ref(false);
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
@@ -1054,7 +1059,7 @@ function navigateToSourceChooser() {
 }
 
 async function runAction(
-  handler: (id: number) => Promise<ProjectDetailResponse | unknown>,
+  handler: (id: number) => Promise<ProjectTaskReceipt | ProjectDetailResponse | unknown>,
   row: ProjectListItemWithLifecycle,
   successMessage: string,
   pendingAction?: PendingProjectAction,
@@ -1063,11 +1068,17 @@ async function runAction(
     markPendingRowAction(row, pendingAction);
   }
   try {
-    await handler(row.id);
+    const receipt = await handler(row.id);
     if (pendingAction) {
       markPendingRowActionAwaitingChange(row.id);
     }
-    MessagePlugin.success(successMessage);
+    if (isTaskReceipt(receipt)) {
+      activeTaskId.value = receipt.task_id;
+      taskDrawerVisible.value = true;
+      MessagePlugin.success(t('project.list.actions.taskAccepted'));
+    } else {
+      MessagePlugin.success(successMessage);
+    }
     await fetchProjects();
   } catch (error) {
     clearPendingRowAction(row.id);
@@ -1261,14 +1272,20 @@ async function runDestroy(row: ProjectListItemWithLifecycle, payload: ProjectDes
 async function runRedeploy(row: ProjectListItemWithLifecycle) {
   markPendingRowAction(row, 'redeploy');
   try {
-    await postProjectRedeploy(row.id);
+    const receipt = await postProjectRedeploy(row.id);
     markPendingRowActionAwaitingChange(row.id);
-    MessagePlugin.success(t('project.list.actions.actionSuccess'));
+    activeTaskId.value = receipt.task_id;
+    taskDrawerVisible.value = true;
+    MessagePlugin.success(t('project.list.actions.taskAccepted'));
     await fetchProjects();
   } catch (error) {
     clearPendingRowAction(row.id);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
+}
+
+function isTaskReceipt(value: unknown): value is ProjectTaskReceipt {
+  return Boolean(value && typeof value === 'object' && typeof (value as ProjectTaskReceipt).task_id === 'number');
 }
 
 async function executeBatchAction(action: ProjectBatchActionUi, overrides: Partial<ProjectDestroyRequest> = {}) {

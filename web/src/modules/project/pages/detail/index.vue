@@ -730,9 +730,19 @@
               </div>
             </section>
           </t-tab-panel>
+          <t-tab-panel value="tasks" :destroy-on-hide="false" :label="t('project.detail.tabs.tasks')">
+            <section class="project-section project-tab-panel">
+              <task-history-table
+                owner-type="compose_project"
+                :owner-id="String(projectId)"
+                @open="openTaskDrawer($event.id)"
+              />
+            </section>
+          </t-tab-panel>
         </t-tabs>
       </template>
     </section>
+    <task-detail-drawer v-model:visible="taskDrawerVisible" :task-id="activeTaskId" />
   </div>
 </template>
 <script setup lang="ts">
@@ -754,6 +764,7 @@ import {
   type ProjectContainerActionSubmission,
   type ProjectContainerSummary,
 } from '@/modules/container/contract/project';
+import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task';
 import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
   createActionColumn,
@@ -847,7 +858,7 @@ defineOptions({
   name: 'ProjectDetailIndex',
 });
 
-type ProjectDetailTab = 'overview' | 'services' | 'logs' | 'lifecycle';
+type ProjectDetailTab = 'overview' | 'services' | 'logs' | 'lifecycle' | 'tasks';
 type OverviewDiagnostic = {
   key: string;
   message: string;
@@ -891,6 +902,8 @@ const route = useRoute();
 const router = useRouter();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.detail');
+const activeTaskId = ref<number | null>(null);
+const taskDrawerVisible = ref(false);
 
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const detailLoading = ref(false);
@@ -2079,24 +2092,35 @@ async function runLifecycleAction(action: 'up' | 'stop' | 'restart' | 'redeploy'
   }
   actionLoading.value = action;
   try {
+    let receipt: { task_id: number } | null = null;
     if (action === 'up') {
-      await postProjectUp(projectId.value);
+      receipt = await postProjectUp(projectId.value);
     } else if (action === 'stop') {
-      await postProjectStop(projectId.value);
+      receipt = await postProjectStop(projectId.value);
     } else if (action === 'restart') {
-      await postProjectRestart(projectId.value);
+      receipt = await postProjectRestart(projectId.value);
     } else if (action === 'redeploy') {
-      await postProjectRedeploy(projectId.value);
+      receipt = await postProjectRedeploy(projectId.value);
     } else {
       await postProjectUnregister(projectId.value);
     }
-    MessagePlugin.success(t('project.list.actions.actionSuccess'));
+    if (receipt) {
+      openTaskDrawer(receipt.task_id);
+      MessagePlugin.success(t('project.list.actions.taskAccepted'));
+    } else {
+      MessagePlugin.success(t('project.list.actions.actionSuccess'));
+    }
     await refreshDetail();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   } finally {
     actionLoading.value = '';
   }
+}
+
+function openTaskDrawer(taskId: number) {
+  activeTaskId.value = taskId;
+  taskDrawerVisible.value = true;
 }
 
 function isDeleteWorkingDirectoryAllowed() {
@@ -2369,7 +2393,7 @@ function buildConfigurationWorkspaceTitle(name: string): LocalizedTitle {
 
 function normalizeDetailTab(value: unknown): ProjectDetailTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  const tabs: ProjectDetailTab[] = ['overview', 'services', 'logs', 'lifecycle'];
+  const tabs: ProjectDetailTab[] = ['overview', 'services', 'logs', 'lifecycle', 'tasks'];
   return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
 }
 

@@ -51,7 +51,9 @@ closeout:
   `tasks`、`task_stages`、`task_events` 和 `task_logs` migrations, SQL persistence and tested state transitions.
 - The Task Runtime has a PostgreSQL-backed serial dispatcher, fixed in-process workers, executor registry, Task submission,
   cancellation, retry coordination, and conservative crash recovery. It still has no HTTP/realtime route or Project consumer.
-- Task API, realtime and the first Project adoption are complete in the current batch. Next: `task-web-module-and-project-ui`.
+- Task API, realtime, Project adoption, and the reusable Task UI are complete. The Task Detail Drawer uses persisted
+  detail/log reads before and after `task:{id}` notifications, so realtime remains a latency path rather than the fact source.
+  Next: `task-final-integration-archive-readiness`.
 
 ## Task Checklist
 
@@ -59,7 +61,7 @@ closeout:
 - [x] task-module-persistence-state-machine
 - [x] task-runtime-worker-and-recovery
 - [x] task-api-realtime-and-project-adoption
-- [ ] task-web-module-and-project-ui
+- [x] task-web-module-and-project-ui
 - [ ] task-final-integration-archive-readiness
 
 ## Acceptance Conditions
@@ -79,14 +81,14 @@ closeout:
     "task-runtime-foundation-authority",
     "task-module-persistence-state-machine",
     "task-runtime-worker-and-recovery",
-    "task-api-realtime-and-project-adoption"
+    "task-api-realtime-and-project-adoption",
+    "task-web-module-and-project-ui"
   ],
   "pending_batches": [
-    "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-api-realtime-and-project-adoption",
-  "next_batch": "task-web-module-and-project-ui",
+  "current_batch": "task-web-module-and-project-ui",
+  "next_batch": "task-final-integration-archive-readiness",
   "closeout_status": "completed_no_handoff"
 }
 ```

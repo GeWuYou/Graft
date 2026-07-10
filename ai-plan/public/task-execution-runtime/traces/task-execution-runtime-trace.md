@@ -40,6 +40,14 @@
 - Project registers the Compose Stage executors and its `compose_project` owner authorizer; lifecycle actions submit frozen TaskPlans and return the accepted Task receipt with HTTP 202.
 - Canonical OpenAPI lifecycle responses now reference `enveloped-task-receipt`; the bundle and generated backend types were regenerated.
 
+## 2026-07-10 task-web-module-and-project-ui
+
+- Added the `web/src/modules/task` presentation boundary with a reusable Task Detail Drawer and Project-scoped Task History.
+- Lifecycle submission receipts now open the shared Drawer from both Project list and Project detail instead of waiting for a final Compose response.
+- The Drawer seeds task detail and log history through HTTP, then subscribes to `task:{id}`. Each realtime notification triggers durable detail and incremental-log backfill, so reconnects and missed notifications do not lose task facts.
+- The generic Task API was already canonical in `openapi/**`; regenerated the frontend schema so API wrappers consume generated Task types rather than manual transport DTOs.
+- Task capabilities are rendered directly from server-owned detail data for cancel, retry and log download controls.
+
 ## Loop Batch State
 
 ```json
@@ -49,14 +57,14 @@
     "task-runtime-foundation-authority",
     "task-module-persistence-state-machine",
     "task-runtime-worker-and-recovery",
-    "task-api-realtime-and-project-adoption"
+    "task-api-realtime-and-project-adoption",
+    "task-web-module-and-project-ui"
   ],
   "pending_batches": [
-    "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-api-realtime-and-project-adoption",
-  "next_batch": "task-web-module-and-project-ui",
+  "current_batch": "task-web-module-and-project-ui",
+  "next_batch": "task-final-integration-archive-readiness",
   "closeout_status": "completed_no_handoff"
 }
 ```

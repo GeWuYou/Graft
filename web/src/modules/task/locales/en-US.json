@@ -1,0 +1,105 @@
+{
+  "task": {
+    "actions": {
+      "cancel": "Cancel Task",
+      "cancelFailed": "Task cancellation request failed.",
+      "downloadLog": "Download Logs",
+      "refresh": "Refresh",
+      "retry": "Retry Stage",
+      "retryFailed": "Stage retry request failed.",
+      "view": "View"
+    },
+    "connection": {
+      "closed": "Disconnected",
+      "connecting": "Connecting",
+      "error": "Connection Error",
+      "idle": "Not Connected",
+      "open": "Live"
+    },
+    "detail": {
+      "connection": "Realtime",
+      "createdAt": "Created At",
+      "currentStage": "Current Stage",
+      "duration": "Duration",
+      "durationValue": "{seconds}s",
+      "failure": "Failure Details",
+      "identifier": "Task #{id}",
+      "loadFailed": "Task details could not be loaded.",
+      "logs": "Execution Logs",
+      "stages": "Stages",
+      "summary": "Task Summary",
+      "title": "Task Details"
+    },
+    "history": {
+      "columns": {
+        "createdAt": "Created At",
+        "operation": "Operation",
+        "stage": "Current Stage",
+        "status": "Status",
+        "type": "Type"
+      },
+      "description": "Review lifecycle task executions submitted for this project.",
+      "empty": "No task records are available.",
+      "loadFailed": "Task history could not be loaded.",
+      "title": "Task History"
+    },
+    "logs": {
+      "allLevels": "All Levels",
+      "autoScroll": "Auto Scroll",
+      "autoScrollTooltip": "Keep the newest log line visible",
+      "basicInfo": "Basic Information",
+      "clear": "Clear",
+      "collapseDetail": "Collapse Details",
+      "copy": "Copy",
+      "copyError": "Copy failed.",
+      "copyJson": "Copy JSON",
+      "copyLine": "Copy Line",
+      "copyMessage": "Copy Message",
+      "copySuccess": "Copied.",
+      "detailTitle": "Log Details",
+      "download": "Download",
+      "empty": "No execution logs have been recorded.",
+      "importantFields": "Important Fields",
+      "jumpBottom": "Jump to Bottom",
+      "level": "Level",
+      "levelFilter": "Level",
+      "loadFailed": "Task logs could not be loaded.",
+      "matchCount": "{count} Matches",
+      "message": "Message",
+      "metadata": "Metadata",
+      "operation": "Operation",
+      "pause": "Pause",
+      "raw": "Raw",
+      "reconnect": "Reconnect",
+      "resume": "Resume",
+      "retry": "Retry",
+      "search": "Search Logs",
+      "source": "Source",
+      "stderr": "Standard Error",
+      "stdout": "Standard Output",
+      "stream": "Stream",
+      "time": "Time",
+      "truncated": "Logs are truncated.",
+      "viewDetail": "View Details",
+      "wrap": "Wrap Lines"
+    },
+    "stageStatus": {
+      "cancelled": "Cancelled",
+      "failed": "Failed",
+      "pending": "Pending",
+      "running": "Running",
+      "skipped": "Skipped",
+      "success": "Succeeded",
+      "unknown": "Needs Reconciliation"
+    },
+    "status": {
+      "cancelled": "Cancelled",
+      "failed": "Failed",
+      "needs_attention": "Needs Attention",
+      "pending": "Pending",
+      "running": "Running",
+      "scheduled": "Scheduled",
+      "success": "Succeeded"
+    }
+  }
+}

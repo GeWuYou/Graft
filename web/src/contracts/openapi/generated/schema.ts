@@ -977,6 +977,137 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Task history
+     * @description Lists persisted Task history within resources authorized for the caller; a Task ID alone never grants access.
+     */
+    get: operations['listTasks'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tasks/{taskId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Task detail */
+    get: operations['getTask'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tasks/{taskId}/stages': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Task Stages */
+    get: operations['listTaskStages'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tasks/{taskId}/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Replay Task events
+     * @description Returns only non-derivable Task lifecycle, retry, cancellation, and recovery facts.
+     */
+    get: operations['listTaskEvents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tasks/{taskId}/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Replay Task logs */
+    get: operations['listTaskLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tasks/{taskId}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Request Task cancellation
+     * @description Requests cooperative cancellation. The Task Runtime persists the request before invoking the current StageExecutor cancel hook; completed external side effects are not automatically rolled back.
+     */
+    post: operations['cancelTask'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/tasks/{taskId}/stages/{stageId}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Request Task Stage retry
+     * @description Requests a permitted manual retry for a failed or unknown Stage. The Runtime records a retry fact and creates a new attempt without mutating or erasing prior Stage history.
+     */
+    post: operations['retryTaskStage'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/scheduled-tasks/job-definitions': {
     parameters: {
       query?: never;
@@ -2750,6 +2881,26 @@ export interface components {
     RealtimeSubscriptionRequest: components['schemas']['realtime-subscription-request'];
     RealtimeSubscriptionResponse: components['schemas']['realtime-subscription-response'];
     EnvelopedRealtimeSubscriptionResponse: components['schemas']['enveloped-realtime-subscription-response'];
+    TaskStatus: components['schemas']['task-status'];
+    TaskStageStatus: components['schemas']['task-stage-status'];
+    TaskEventType: components['schemas']['task-event-type'];
+    TaskCapabilities: components['schemas']['task-capabilities'];
+    TaskStage: components['schemas']['task-stage'];
+    TaskSummary: components['schemas']['task-summary'];
+    TaskDetail: components['schemas']['task-detail'];
+    TaskReceipt: components['schemas']['task-receipt'];
+    TaskListResponse: components['schemas']['task-list-response'];
+    TaskStageListResponse: components['schemas']['task-stage-list-response'];
+    TaskEvent: components['schemas']['task-event'];
+    TaskEventListResponse: components['schemas']['task-event-list-response'];
+    TaskLogEntry: components['schemas']['task-log-entry'];
+    TaskLogResponse: components['schemas']['task-log-response'];
+    EnvelopedTaskDetail: components['schemas']['enveloped-task-detail'];
+    EnvelopedTaskListResponse: components['schemas']['enveloped-task-list-response'];
+    EnvelopedTaskStageListResponse: components['schemas']['enveloped-task-stage-list-response'];
+    EnvelopedTaskEventListResponse: components['schemas']['enveloped-task-event-list-response'];
+    EnvelopedTaskLogResponse: components['schemas']['enveloped-task-log-response'];
+    EnvelopedTaskReceipt: components['schemas']['enveloped-task-receipt'];
     CreateAnnouncementRequest: components['schemas']['create-announcement-request'];
     UpdateAnnouncementRequest: components['schemas']['update-announcement-request'];
     PublishAnnouncementRequest: components['schemas']['publish-announcement-request'];
@@ -4111,6 +4262,144 @@ export interface components {
     };
     'enveloped-scheduled-task-item': components['schemas']['api-envelope'] & {
       data: components['schemas']['scheduled-task-item'];
+    };
+    /**
+     * @description Canonical persisted Task state-machine state.
+     * @enum {string}
+     */
+    'task-status': 'pending' | 'scheduled' | 'running' | 'success' | 'failed' | 'cancelled' | 'needs_attention';
+    'task-summary': {
+      /** Format: int64 */
+      id: number;
+      /** @description Consumer-owned Task type, such as project.compose.redeploy. */
+      type: string;
+      owner_type: string;
+      owner_id: string;
+      status: components['schemas']['task-status'];
+      current_stage_key?: string | null;
+      /** Format: int64 */
+      created_by?: number | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      started_at?: string | null;
+      /** Format: date-time */
+      finished_at?: string | null;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      failure_code?: string | null;
+      failure_message?: string | null;
+    };
+    'task-list-response': {
+      items: components['schemas']['task-summary'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-task-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-list-response'];
+    };
+    /** @description Server-authoritative operations currently allowed for this Task Detail. */
+    'task-capabilities': {
+      cancel: boolean;
+      retry: boolean;
+      download_log: boolean;
+    };
+    /**
+     * @description Canonical persisted Stage state-machine state.
+     * @enum {string}
+     */
+    'task-stage-status': 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'cancelled' | 'unknown';
+    'task-stage': {
+      /** Format: int64 */
+      id: number;
+      /** @description Stable plan-local Stage key used in the timeline. */
+      key: string;
+      sequence: number;
+      /** @description Consumer-owned StageExecutor type, such as project.compose.pull. */
+      executor_type: string;
+      status: components['schemas']['task-stage-status'];
+      attempt: number;
+      max_attempts: number;
+      /** @enum {string} */
+      recovery_policy: 'manual_reconcile' | 'retry_if_idempotent';
+      /** Format: date-time */
+      started_at?: string | null;
+      /** Format: date-time */
+      finished_at?: string | null;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      failure_code?: string | null;
+      failure_message?: string | null;
+    };
+    'task-detail': components['schemas']['task-summary'] & {
+      capabilities: components['schemas']['task-capabilities'];
+      stages: components['schemas']['task-stage'][];
+    };
+    'enveloped-task-detail': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-detail'];
+    };
+    'task-stage-list-response': {
+      items: components['schemas']['task-stage'][];
+    };
+    'enveloped-task-stage-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-stage-list-response'];
+    };
+    /**
+     * @description Non-derivable Task lifecycle, retry, cancellation, and recovery fact. Stage lifecycle is authoritative in TaskStage and is not duplicated as an event.
+     * @enum {string}
+     */
+    'task-event-type':
+      | 'created'
+      | 'cancel_requested'
+      | 'cancelled'
+      | 'retry_requested'
+      | 'retry_scheduled'
+      | 'recovery_required'
+      | 'recovery_resolved';
+    'task-event': {
+      /** Format: int64 */
+      id: number;
+      /** Format: int64 */
+      sequence: number;
+      type: components['schemas']['task-event-type'];
+      payload?: {
+        [key: string]: unknown;
+      };
+      /** Format: date-time */
+      created_at: string;
+    };
+    'task-event-list-response': {
+      items: components['schemas']['task-event'][];
+      /** Format: int64 */
+      next_after_sequence: number;
+    };
+    'enveloped-task-event-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-event-list-response'];
+    };
+    'task-log-entry': {
+      /** Format: int64 */
+      id: number;
+      /** Format: int64 */
+      sequence: number;
+      /** Format: int64 */
+      stage_id?: number | null;
+      /** @enum {string} */
+      stream: 'stdout' | 'stderr' | 'system';
+      /** @enum {string} */
+      level: 'info' | 'warn' | 'error';
+      line: string;
+      /** Format: date-time */
+      occurred_at: string;
+    };
+    'task-log-response': {
+      items: components['schemas']['task-log-entry'][];
+      /** Format: int64 */
+      next_after_sequence: number;
+    };
+    'enveloped-task-log-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-log-response'];
     };
     'scheduled-task-job-definition-item': {
       /** @description Stable Job Definition key registered by a module. */
@@ -6174,6 +6463,15 @@ export interface components {
     };
     'enveloped-project-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-action-response'];
+    };
+    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
+    'task-receipt': {
+      /** Format: int64 */
+      task_id: number;
+      status: components['schemas']['task-status'];
+    };
+    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-receipt'];
     };
     'project-batch-action-request': {
       /** @enum {string} */
@@ -9079,6 +9377,336 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Scheduled task already exists. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  listTasks: {
+    parameters: {
+      query?: {
+        owner_type?: string;
+        owner_id?: string;
+        type?: string;
+        status?: components['schemas']['task-status'];
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Authorized Task history. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getTask: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        taskId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Task detail with server-authoritative capabilities and Stage timeline. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-detail'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Task was not found or is outside the caller resource scope. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  listTaskStages: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        taskId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Authoritative ordered Stage lifecycle records. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-stage-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  listTaskEvents: {
+    parameters: {
+      query?: {
+        after_sequence?: number;
+        limit?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        taskId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Task event replay page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-event-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  listTaskLogs: {
+    parameters: {
+      query?: {
+        after_sequence?: number;
+        limit?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        taskId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Task log replay page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-log-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  cancelTask: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        taskId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Updated Task detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-detail'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Cancellation is not currently allowed by Task capabilities or state. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  retryTaskStage: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        taskId: number;
+        stageId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Retry was accepted and the Task is pending dispatch. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-detail'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Task or Stage was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Retry is not currently allowed by Task capabilities or Stage recovery policy. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13256,14 +13884,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project up action result. */
-      200: {
+      /** @description Project up Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid project id. */
@@ -13321,14 +13949,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project stop action result. */
-      200: {
+      /** @description Project stop Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid project id. */
@@ -13386,14 +14014,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project restart action result. */
-      200: {
+      /** @description Project restart Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid project id. */
@@ -13451,14 +14079,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project redeploy action result. */
-      200: {
+      /** @description Project redeploy Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid project id. */

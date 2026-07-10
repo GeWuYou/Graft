@@ -42,6 +42,7 @@ import type {
   ProjectOverviewResponse,
   ProjectServicesResponse,
   ProjectSourceCatalogResponse,
+  ProjectTaskReceipt,
   ProjectWorkspaceFileAnnotationRequest,
   ProjectWorkspaceFileAnnotationResponse,
   ProjectWorkspaceFileContentQuery,
@@ -124,22 +125,22 @@ type ProjectDeployData = NonNullable<ProjectDeployEnvelope['data']>;
 type ProjectDeployPathParams = ProjectDeployOperation['parameters']['path'];
 
 type ProjectUpOperation = paths[(typeof PROJECT_API_PATH)['UP']]['post'];
-type ProjectUpEnvelope = ProjectUpOperation['responses'][200]['content']['application/json'];
+type ProjectUpEnvelope = ProjectUpOperation['responses'][202]['content']['application/json'];
 type ProjectUpData = NonNullable<ProjectUpEnvelope['data']>;
 type ProjectUpPathParams = ProjectUpOperation['parameters']['path'];
 
 type ProjectStopOperation = paths[(typeof PROJECT_API_PATH)['STOP']]['post'];
-type ProjectStopEnvelope = ProjectStopOperation['responses'][200]['content']['application/json'];
+type ProjectStopEnvelope = ProjectStopOperation['responses'][202]['content']['application/json'];
 type ProjectStopData = NonNullable<ProjectStopEnvelope['data']>;
 type ProjectStopPathParams = ProjectStopOperation['parameters']['path'];
 
 type ProjectRestartOperation = paths[(typeof PROJECT_API_PATH)['RESTART']]['post'];
-type ProjectRestartEnvelope = ProjectRestartOperation['responses'][200]['content']['application/json'];
+type ProjectRestartEnvelope = ProjectRestartOperation['responses'][202]['content']['application/json'];
 type ProjectRestartData = NonNullable<ProjectRestartEnvelope['data']>;
 type ProjectRestartPathParams = ProjectRestartOperation['parameters']['path'];
 
 type ProjectRedeployOperation = paths[(typeof PROJECT_API_PATH)['REDEPLOY']]['post'];
-type ProjectRedeployEnvelope = ProjectRedeployOperation['responses'][200]['content']['application/json'];
+type ProjectRedeployEnvelope = ProjectRedeployOperation['responses'][202]['content']['application/json'];
 type ProjectRedeployData = NonNullable<ProjectRedeployEnvelope['data']>;
 type ProjectRedeployPathParams = ProjectRedeployOperation['parameters']['path'];
 
@@ -378,7 +379,7 @@ export function postProjectDeploy(id: ProjectDeployPathParams['id']) {
  * @returns 项目操作响应
  */
 export function postProjectUp(id: ProjectUpPathParams['id']) {
-  return postProjectAction<ProjectUpData>(buildProjectUpApiPath(id)) as Promise<ProjectActionResponse>;
+  return postProjectAction<ProjectUpData>(buildProjectUpApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
 /**
@@ -388,7 +389,7 @@ export function postProjectUp(id: ProjectUpPathParams['id']) {
  * @returns 项目操作响应结果
  */
 export function postProjectStop(id: ProjectStopPathParams['id']) {
-  return postProjectAction<ProjectStopData>(buildProjectStopApiPath(id)) as Promise<ProjectActionResponse>;
+  return postProjectAction<ProjectStopData>(buildProjectStopApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
 /**
@@ -398,7 +399,7 @@ export function postProjectStop(id: ProjectStopPathParams['id']) {
  * @returns 重启操作的响应结果
  */
 export function postProjectRestart(id: ProjectRestartPathParams['id']) {
-  return postProjectAction<ProjectRestartData>(buildProjectRestartApiPath(id)) as Promise<ProjectActionResponse>;
+  return postProjectAction<ProjectRestartData>(buildProjectRestartApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
 /**
@@ -408,7 +409,7 @@ export function postProjectRestart(id: ProjectRestartPathParams['id']) {
  * @returns 重新部署操作的响应结果
  */
 export function postProjectRedeploy(id: ProjectRedeployPathParams['id']) {
-  return postProjectAction<ProjectRedeployData>(buildProjectRedeployApiPath(id)) as Promise<ProjectActionResponse>;
+  return postProjectAction<ProjectRedeployData>(buildProjectRedeployApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
 export function putProjectLifecycleConfiguration(id: number, payload: ProjectLifecycleConfigurationUpdateRequest) {

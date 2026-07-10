@@ -264,6 +264,7 @@
         "destroyDeleteProjectFiles": "删除项目文件",
         "refreshSuccess": "项目快照已刷新。",
         "actionSuccess": "项目操作已完成。",
+        "taskAccepted": "项目任务已提交。",
         "actionFailed": "项目操作失败。",
         "confirmUpTitle": "确认启动项目",
         "confirmUpDescription": "确认启动 {name}？这会按当前 Compose 配置拉起已注册服务和容器。",
@@ -830,7 +831,8 @@
         "services": "服务",
         "configuration": "配置",
         "logs": "日志",
-        "lifecycle": "生命周期"
+        "lifecycle": "生命周期",
+        "tasks": "任务历史"
       },
       "resources": {
         "refresh": "刷新资源",
