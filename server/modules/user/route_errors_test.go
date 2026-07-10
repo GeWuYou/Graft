@@ -12,8 +12,10 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/container"
+	messagecontract "graft/server/internal/contract/message"
 	applog "graft/server/internal/logger"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 )
 
 type userRouteAppLogRecorder struct {
@@ -129,5 +131,43 @@ func TestUserRouteRuntimeReusesResolvedAppLogger(t *testing.T) {
 
 	if resolveCalls != 1 {
 		t.Fatalf("expected runtime appLogger to reuse cached logger, got %d resolve calls", resolveCalls)
+	}
+}
+
+func TestMapUserManagementErrorMapsCredentialPasswordValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		message messagecontract.Key
+	}{
+		{
+			name:    "password policy",
+			err:     moduleapi.ErrPasswordPolicyViolation,
+			message: messagecontract.AuthPasswordPolicyViolation,
+		},
+		{
+			name:    "password reuse",
+			err:     moduleapi.ErrPasswordReuseForbidden,
+			message: messagecontract.AuthPasswordReuseForbidden,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			status, key, data := mapUserManagementError(test.err, "new_password")
+			if status != 400 || key != test.message {
+				t.Fatalf("mapUserManagementError() = (%d, %q, %#v)", status, key, data)
+			}
+			if field, ok := errorFieldFromDetails(data); !ok || field != "new_password" {
+				t.Fatalf("error field = %q, %t; want new_password, true", field, ok)
+			}
+		})
+	}
+}
+
+func TestMapUserManagementErrorUsesCreatePasswordField(t *testing.T) {
+	_, _, data := mapUserManagementError(moduleapi.ErrPasswordPolicyViolation, "password")
+	if field, ok := errorFieldFromDetails(data); !ok || field != "password" {
+		t.Fatalf("error field = %q, %t; want password, true", field, ok)
 	}
 }

@@ -60,6 +60,23 @@ func (r *userRepository) GetByID(ctx context.Context, id uint64) (userstore.User
 	}, nil
 }
 
+func (r *userRepository) GetByUsername(ctx context.Context, username string) (userstore.User, error) {
+	record, err := r.client.User.Query().
+		Where(
+			userent.UsernameEQ(username),
+			userent.DeletedAtEQ(0),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return userstore.User{}, userstore.ErrUserNotFound
+		}
+		return userstore.User{}, fmt.Errorf("query user by username: %w", err)
+	}
+
+	return toStoreUser(record), nil
+}
+
 func (r *userRepository) List(ctx context.Context) ([]userstore.User, error) {
 	records, err := r.client.User.Query().
 		Where(userent.DeletedAtEQ(0)).

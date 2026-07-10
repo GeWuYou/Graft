@@ -117,7 +117,22 @@ func (r bootstrapReader) ReadBootstrap(ctx context.Context, request *http.Reques
 	for _, item := range payload.Menus {
 		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, Title: item.Title, TitleKey: item.TitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
 	}
-	return moduleapi.AuthBootstrapPayload{User: moduleapi.CurrentUser{ID: payload.User.ID, Username: payload.User.Username, DisplayName: payload.User.DisplayName}, Roles: payload.Roles, Permissions: payload.Permissions, Menus: menus, Locale: moduleapi.AuthBootstrapLocaleSnapshot{CurrentLocale: payload.Locale.CurrentLocale, DefaultLocale: payload.Locale.DefaultLocale, FallbackLocale: payload.Locale.FallbackLocale, SupportedLocales: payload.Locale.SupportedLocales}}, nil
+	return moduleapi.AuthBootstrapPayload{
+		User: moduleapi.CurrentUser{
+			ID:          payload.User.ID,
+			Username:    payload.User.Username,
+			DisplayName: payload.User.DisplayName,
+		},
+		Roles:       payload.Roles,
+		Permissions: payload.Permissions,
+		Menus:       menus,
+		Locale: moduleapi.AuthBootstrapLocaleSnapshot{
+			CurrentLocale:    payload.Locale.CurrentLocale,
+			DefaultLocale:    payload.Locale.DefaultLocale,
+			FallbackLocale:   payload.Locale.FallbackLocale,
+			SupportedLocales: payload.Locale.SupportedLocales,
+		},
+	}, nil
 }
 
 var _ moduleapi.UserBootstrapProvider = bootstrapReader{}

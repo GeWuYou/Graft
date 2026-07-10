@@ -16,6 +16,10 @@ var (
 	ErrExpiredAccessToken = errors.New("expired access token")
 	// ErrPermissionDenied 表示认证成功但缺少访问所需权限。
 	ErrPermissionDenied = errors.New("permission denied")
+	// ErrPasswordPolicyViolation indicates a password does not satisfy auth's current policy.
+	ErrPasswordPolicyViolation = errors.New("password policy violation")
+	// ErrPasswordReuseForbidden indicates a password is not permitted for reuse by auth policy.
+	ErrPasswordReuseForbidden = errors.New("password reuse forbidden")
 )
 
 type requestAuthContextKey struct{}
@@ -160,7 +164,9 @@ type AuthSessionService interface {
 }
 
 // AuthCredentialManagementService exposes credential lifecycle operations to
-// user-profile management without leaking auth persistence details.
+// user-profile management without leaking auth persistence details. Password
+// inputs that violate policy return ErrPasswordPolicyViolation; inputs that
+// violate auth's reuse rule return ErrPasswordReuseForbidden.
 type AuthCredentialManagementService interface {
 	ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error
 	ResetPassword(ctx context.Context, userID uint64, password string) error

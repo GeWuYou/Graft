@@ -106,7 +106,7 @@ func (s authService) authenticateUser(ctx context.Context, username string, pass
 
 	record, err := s.identity.GetCurrentUserByID(ctx, credential.UserID)
 	if err != nil {
-		if errors.Is(err, authstore.ErrCredentialNotFound) {
+		if errors.Is(err, moduleapi.ErrUserNotFound) {
 			return moduleapi.CurrentUser{}, authstore.UserCredential{}, errInvalidLoginCredentials
 		}
 		return moduleapi.CurrentUser{}, authstore.UserCredential{}, fmt.Errorf("get user profile by id: %w", err)

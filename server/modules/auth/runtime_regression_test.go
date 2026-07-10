@@ -136,6 +136,22 @@ func TestAuthRuntimeRestrictedPasswordChangeAndBootstrapState(t *testing.T) {
 	}
 }
 
+func TestAuthRuntimeRejectsMissingIdentityDuringLoginAndRefresh(t *testing.T) {
+	service, _, user := newRuntimeRegressionService(t, false)
+	login, err := service.LoginWithRefresh(context.Background(), user.Username, runtimeTestPassword)
+	if err != nil {
+		t.Fatalf("login with refresh: %v", err)
+	}
+
+	service.identity = runtimeIdentityProvider{users: map[uint64]moduleapi.CurrentUser{}}
+	if _, err := service.Login(context.Background(), user.Username, runtimeTestPassword); !errors.Is(err, errInvalidLoginCredentials) {
+		t.Fatalf("login with missing identity = %v, want invalid credentials", err)
+	}
+	if _, err := service.RefreshWithRotation(context.Background(), login.RefreshToken); !errors.Is(err, errInvalidRefreshToken) {
+		t.Fatalf("refresh with missing identity = %v, want invalid refresh token", err)
+	}
+}
+
 func newRuntimeRegressionService(t *testing.T, mustChangePassword bool) (*authService, *runtimeAuthStores, moduleapi.CurrentUser) {
 	t.Helper()
 	user := moduleapi.CurrentUser{ID: 42, Username: "alice", DisplayName: "Alice"}

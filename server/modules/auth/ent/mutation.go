@@ -67,8 +67,7 @@ func newAuthCredentialMutation(c config, op Op, opts ...authcredentialOption) *A
 	return m
 }
 
-// withAuthCredentialID 将 ID 设置到变更对象，并配置按该 ID 查询变更前实体的函数。 
-// 变更执行完成后查询旧值会返回错误。
+// withAuthCredentialID sets the ID field of the mutation.
 func withAuthCredentialID(id int) authcredentialOption {
 	return func(m *AuthCredentialMutation) {
 		var (
@@ -90,7 +89,7 @@ func withAuthCredentialID(id int) authcredentialOption {
 	}
 }
 
-// withAuthCredential configures the mutation to use the specified AuthCredential as its old value.
+// withAuthCredential sets the old AuthCredential of the mutation.
 func withAuthCredential(node *AuthCredential) authcredentialOption {
 	return func(m *AuthCredentialMutation) {
 		m.oldValue = func(context.Context) (*AuthCredential, error) {
@@ -728,7 +727,7 @@ var _ ent.Mutation = (*AuthRefreshSessionMutation)(nil)
 // authrefreshsessionOption allows management of the mutation configuration using functional options.
 type authrefreshsessionOption func(*AuthRefreshSessionMutation)
 
-// newAuthRefreshSessionMutation 创建用于 AuthRefreshSession 实体的变更对象。
+// newAuthRefreshSessionMutation creates new mutation for the AuthRefreshSession entity.
 func newAuthRefreshSessionMutation(c config, op Op, opts ...authrefreshsessionOption) *AuthRefreshSessionMutation {
 	m := &AuthRefreshSessionMutation{
 		config:        c,
@@ -742,7 +741,7 @@ func newAuthRefreshSessionMutation(c config, op Op, opts ...authrefreshsessionOp
 	return m
 }
 
-// withAuthRefreshSessionID 为变更设置实体 ID，并配置按该 ID 获取变更前实体值的方式。变更完成后查询旧值会返回错误。
+// withAuthRefreshSessionID sets the ID field of the mutation.
 func withAuthRefreshSessionID(id int) authrefreshsessionOption {
 	return func(m *AuthRefreshSessionMutation) {
 		var (
@@ -764,7 +763,7 @@ func withAuthRefreshSessionID(id int) authrefreshsessionOption {
 	}
 }
 
-// withAuthRefreshSession configures the mutation to use the provided AuthRefreshSession as its old value and associates its ID with the mutation.
+// withAuthRefreshSession sets the old AuthRefreshSession of the mutation.
 func withAuthRefreshSession(node *AuthRefreshSession) authrefreshsessionOption {
 	return func(m *AuthRefreshSessionMutation) {
 		m.oldValue = func(context.Context) (*AuthRefreshSession, error) {

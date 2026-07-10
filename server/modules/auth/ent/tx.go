@@ -173,7 +173,7 @@ type txDriver struct {
 	onRollback []RollbackHook
 }
 
-// newTx starts a transaction using drv and returns a driver wrapper for it.
+// newTx creates a new transactional driver.
 func newTx(ctx context.Context, drv dialect.Driver) (*txDriver, error) {
 	tx, err := drv.Tx(ctx)
 	if err != nil {

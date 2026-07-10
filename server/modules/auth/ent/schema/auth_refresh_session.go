@@ -28,13 +28,16 @@ func (AuthRefreshSession) Annotations() []schema.Annotation {
 func (AuthRefreshSession) Fields() []ent.Field {
 	return []ent.Field{
 		field.Uint64("user_id").
-			Comment("关联用户资料的稳定标识"),
+			Comment("关联用户资料的稳定标识").
+			Immutable(),
 		field.String("token_id").
 			Comment("刷新令牌唯一标识").
 			NotEmpty().
-			Unique(),
+			Unique().
+			Immutable(),
 		field.Time("expires_at").
-			Comment("刷新令牌失效时间"),
+			Comment("刷新令牌失效时间").
+			Immutable(),
 		field.Time("revoked_at").
 			Comment("会话撤销时间，为空表示仍有效").
 			Optional().

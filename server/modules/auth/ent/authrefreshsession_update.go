@@ -28,55 +28,6 @@ func (_u *AuthRefreshSessionUpdate) Where(ps ...predicate.AuthRefreshSession) *A
 	return _u
 }
 
-// SetUserID sets the "user_id" field.
-func (_u *AuthRefreshSessionUpdate) SetUserID(v uint64) *AuthRefreshSessionUpdate {
-	_u.mutation.ResetUserID()
-	_u.mutation.SetUserID(v)
-	return _u
-}
-
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *AuthRefreshSessionUpdate) SetNillableUserID(v *uint64) *AuthRefreshSessionUpdate {
-	if v != nil {
-		_u.SetUserID(*v)
-	}
-	return _u
-}
-
-// AddUserID adds value to the "user_id" field.
-func (_u *AuthRefreshSessionUpdate) AddUserID(v int64) *AuthRefreshSessionUpdate {
-	_u.mutation.AddUserID(v)
-	return _u
-}
-
-// SetTokenID sets the "token_id" field.
-func (_u *AuthRefreshSessionUpdate) SetTokenID(v string) *AuthRefreshSessionUpdate {
-	_u.mutation.SetTokenID(v)
-	return _u
-}
-
-// SetNillableTokenID sets the "token_id" field if the given value is not nil.
-func (_u *AuthRefreshSessionUpdate) SetNillableTokenID(v *string) *AuthRefreshSessionUpdate {
-	if v != nil {
-		_u.SetTokenID(*v)
-	}
-	return _u
-}
-
-// SetExpiresAt sets the "expires_at" field.
-func (_u *AuthRefreshSessionUpdate) SetExpiresAt(v time.Time) *AuthRefreshSessionUpdate {
-	_u.mutation.SetExpiresAt(v)
-	return _u
-}
-
-// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
-func (_u *AuthRefreshSessionUpdate) SetNillableExpiresAt(v *time.Time) *AuthRefreshSessionUpdate {
-	if v != nil {
-		_u.SetExpiresAt(*v)
-	}
-	return _u
-}
-
 // SetRevokedAt sets the "revoked_at" field.
 func (_u *AuthRefreshSessionUpdate) SetRevokedAt(v time.Time) *AuthRefreshSessionUpdate {
 	_u.mutation.SetRevokedAt(v)
@@ -164,20 +115,7 @@ func (_u *AuthRefreshSessionUpdate) defaults() {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *AuthRefreshSessionUpdate) check() error {
-	if v, ok := _u.mutation.TokenID(); ok {
-		if err := authrefreshsession.TokenIDValidator(v); err != nil {
-			return &ValidationError{Name: "token_id", err: fmt.Errorf(`ent: validator failed for field "AuthRefreshSession.token_id": %w`, err)}
-		}
-	}
-	return nil
-}
-
 func (_u *AuthRefreshSessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(authrefreshsession.Table, authrefreshsession.Columns, sqlgraph.NewFieldSpec(authrefreshsession.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -185,18 +123,6 @@ func (_u *AuthRefreshSessionUpdate) sqlSave(ctx context.Context) (_node int, err
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.UserID(); ok {
-		_spec.SetField(authrefreshsession.FieldUserID, field.TypeUint64, value)
-	}
-	if value, ok := _u.mutation.AddedUserID(); ok {
-		_spec.AddField(authrefreshsession.FieldUserID, field.TypeUint64, value)
-	}
-	if value, ok := _u.mutation.TokenID(); ok {
-		_spec.SetField(authrefreshsession.FieldTokenID, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.ExpiresAt(); ok {
-		_spec.SetField(authrefreshsession.FieldExpiresAt, field.TypeTime, value)
 	}
 	if value, ok := _u.mutation.RevokedAt(); ok {
 		_spec.SetField(authrefreshsession.FieldRevokedAt, field.TypeTime, value)
@@ -231,55 +157,6 @@ type AuthRefreshSessionUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *AuthRefreshSessionMutation
-}
-
-// SetUserID sets the "user_id" field.
-func (_u *AuthRefreshSessionUpdateOne) SetUserID(v uint64) *AuthRefreshSessionUpdateOne {
-	_u.mutation.ResetUserID()
-	_u.mutation.SetUserID(v)
-	return _u
-}
-
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *AuthRefreshSessionUpdateOne) SetNillableUserID(v *uint64) *AuthRefreshSessionUpdateOne {
-	if v != nil {
-		_u.SetUserID(*v)
-	}
-	return _u
-}
-
-// AddUserID adds value to the "user_id" field.
-func (_u *AuthRefreshSessionUpdateOne) AddUserID(v int64) *AuthRefreshSessionUpdateOne {
-	_u.mutation.AddUserID(v)
-	return _u
-}
-
-// SetTokenID sets the "token_id" field.
-func (_u *AuthRefreshSessionUpdateOne) SetTokenID(v string) *AuthRefreshSessionUpdateOne {
-	_u.mutation.SetTokenID(v)
-	return _u
-}
-
-// SetNillableTokenID sets the "token_id" field if the given value is not nil.
-func (_u *AuthRefreshSessionUpdateOne) SetNillableTokenID(v *string) *AuthRefreshSessionUpdateOne {
-	if v != nil {
-		_u.SetTokenID(*v)
-	}
-	return _u
-}
-
-// SetExpiresAt sets the "expires_at" field.
-func (_u *AuthRefreshSessionUpdateOne) SetExpiresAt(v time.Time) *AuthRefreshSessionUpdateOne {
-	_u.mutation.SetExpiresAt(v)
-	return _u
-}
-
-// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
-func (_u *AuthRefreshSessionUpdateOne) SetNillableExpiresAt(v *time.Time) *AuthRefreshSessionUpdateOne {
-	if v != nil {
-		_u.SetExpiresAt(*v)
-	}
-	return _u
 }
 
 // SetRevokedAt sets the "revoked_at" field.
@@ -382,20 +259,7 @@ func (_u *AuthRefreshSessionUpdateOne) defaults() {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *AuthRefreshSessionUpdateOne) check() error {
-	if v, ok := _u.mutation.TokenID(); ok {
-		if err := authrefreshsession.TokenIDValidator(v); err != nil {
-			return &ValidationError{Name: "token_id", err: fmt.Errorf(`ent: validator failed for field "AuthRefreshSession.token_id": %w`, err)}
-		}
-	}
-	return nil
-}
-
 func (_u *AuthRefreshSessionUpdateOne) sqlSave(ctx context.Context) (_node *AuthRefreshSession, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(authrefreshsession.Table, authrefreshsession.Columns, sqlgraph.NewFieldSpec(authrefreshsession.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -420,18 +284,6 @@ func (_u *AuthRefreshSessionUpdateOne) sqlSave(ctx context.Context) (_node *Auth
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.UserID(); ok {
-		_spec.SetField(authrefreshsession.FieldUserID, field.TypeUint64, value)
-	}
-	if value, ok := _u.mutation.AddedUserID(); ok {
-		_spec.AddField(authrefreshsession.FieldUserID, field.TypeUint64, value)
-	}
-	if value, ok := _u.mutation.TokenID(); ok {
-		_spec.SetField(authrefreshsession.FieldTokenID, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.ExpiresAt(); ok {
-		_spec.SetField(authrefreshsession.FieldExpiresAt, field.TypeTime, value)
 	}
 	if value, ok := _u.mutation.RevokedAt(); ok {
 		_spec.SetField(authrefreshsession.FieldRevokedAt, field.TypeTime, value)

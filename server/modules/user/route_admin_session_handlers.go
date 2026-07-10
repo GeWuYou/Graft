@@ -139,7 +139,6 @@ func (h userWriteGeneratedHandler) PostUserSessionRevoke(
 // 当限制值大于零时，将其包含在返回参数中。
 //
 // options 提供会话列表的查询选项。
- 񟿿
 func bindGeneratedUserSessionsParams(
 	ginCtx *gin.Context,
 	options userSessionListOptions,

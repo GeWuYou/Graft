@@ -29,16 +29,8 @@ func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.A
 	if err != nil {
 		return fmt.Errorf("ensure default admin profile: %w", err)
 	}
-	hash, err := newPasswordHasher().Hash(defaultAdminPassword)
-	if err != nil {
-		return fmt.Errorf("hash default admin password: %w", err)
-	}
-	now := time.Now().UTC()
-	if err := repository.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: profile.ID, PasswordHash: hash, MustChangePassword: true, ChangedAt: &now}); err != nil {
-		return fmt.Errorf("reset default admin password hash: %w", err)
-	}
-	if err := repository.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: profile.ID, RevokedAt: now}); err != nil {
-		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
+	if err := resetDefaultAdminPasswordAndSessions(ctx, repository, profile.ID); err != nil {
+		return err
 	}
 	seeds, err := permissionSeedsFromItems(localizer, permissions)
 	if err != nil {
@@ -46,6 +38,21 @@ func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.A
 	}
 	if err := rbac.EnsureDefaultAdminAccess(ctx, profile.ID, seeds); err != nil {
 		return fmt.Errorf("ensure default admin access: %w", err)
+	}
+	return nil
+}
+
+func resetDefaultAdminPasswordAndSessions(ctx context.Context, repository authstore.AuthRepository, userID uint64) error {
+	hash, err := newPasswordHasher().Hash(defaultAdminPassword)
+	if err != nil {
+		return fmt.Errorf("hash default admin password: %w", err)
+	}
+	now := time.Now().UTC()
+	if err := repository.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: &now}); err != nil {
+		return fmt.Errorf("reset default admin password hash: %w", err)
+	}
+	if err := repository.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: now}); err != nil {
+		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
 	}
 	return nil
 }

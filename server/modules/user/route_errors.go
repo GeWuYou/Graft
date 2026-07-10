@@ -128,7 +128,7 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 }
 
 func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint64, message string, err error) {
-	status, messageKey, data := mapUserManagementError(err)
+	status, messageKey, data := mapUserManagementError(err, passwordFieldForUserManagementOperation(message))
 	if shouldLogUserManagementError(status, err) {
 		responseCode := errorCodeFromMessageKey(messageKey)
 		logFields := []zap.Field{
@@ -153,10 +153,7 @@ func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint6
 }
 
 func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, err error) {
-	status, messageKey, data := mapUserManagementError(err)
-	if field, ok := errorFieldFromDetails(data); ok && field == "new_password" {
-		data = map[string]any{"field": "password"}
-	}
+	status, messageKey, data := mapUserManagementError(err, "password")
 	if shouldLogUserManagementError(status, err) {
 		responseCode := errorCodeFromMessageKey(messageKey)
 		logFields := []zap.Field{
@@ -248,16 +245,21 @@ func userManagementOperationFromMessage(message string) string {
 	}
 }
 
+func passwordFieldForUserManagementOperation(message string) string {
+	if message == "reset user password failed" {
+		return "new_password"
+	}
+
+	return ""
+}
+
 func errorCodeFromMessageKey(key messagecontract.Key) string {
 	return errorcode.FromMessageKey(key).String()
 }
 
-// mapUserManagementError 将用户管理相关错误映射为 HTTP 状态码、消息键和可选的字段信息。
-// 对于部分密码相关错误，会附带 `new_password` 字段；默认返回内部错误。
-//
-// mapUserManagementError 将用户管理错误映射为 HTTP 状态码、本地化消息键和可选的错误详情。
-// 对于可识别的字段错误，错误详情包含对应的字段名；无法识别的错误映射为内部错误。
-func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any) {
+// mapUserManagementError 将用户管理错误映射为 HTTP 状态码、本地化消息键和可选的字段信息。
+// passwordField 由调用路由提供，以保留 password 与 new_password 的请求契约差异。
+func mapUserManagementError(err error, passwordField string) (int, messagecontract.Key, map[string]any) {
 	switch {
 	case errors.Is(err, userstore.ErrUserNotFound), errors.Is(err, moduleapi.ErrUserNotFound):
 		return http.StatusNotFound, messagecontract.UserNotFound, nil
@@ -271,6 +273,10 @@ func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any
 		return http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"}
 	case errors.Is(err, errProtectedDefaultAdminImmutable):
 		return http.StatusForbidden, messagecontract.UserProtectedDefaultAdminImmutable, nil
+	case errors.Is(err, moduleapi.ErrPasswordPolicyViolation):
+		return http.StatusBadRequest, messagecontract.AuthPasswordPolicyViolation, map[string]any{"field": passwordField}
+	case errors.Is(err, moduleapi.ErrPasswordReuseForbidden):
+		return http.StatusBadRequest, messagecontract.AuthPasswordReuseForbidden, map[string]any{"field": passwordField}
 	default:
 		return http.StatusInternalServerError, messagecontract.CommonInternalError, nil
 	}

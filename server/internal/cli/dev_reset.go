@@ -76,24 +76,12 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 		}
 	}()
 
-	identity, err := devResetNewUserIdentity(resources.SQL)
+	dependencies, err := newDevResetAdminDependencies(resources, cfg.I18n)
 	if err != nil {
-		return fmt.Errorf("create user identity provider: %w", err)
-	}
-	authRepo, err := devResetNewAuthRepository(resources.SQL, identity)
-	if err != nil {
-		return fmt.Errorf("create user auth repository: %w", err)
-	}
-	localizer, err := devResetNewLocalizer(cfg.I18n)
-	if err != nil {
-		return fmt.Errorf("create i18n service: %w", err)
-	}
-	rbacBootstrap, err := devResetResolveRBACBootstrap(resources)
-	if err != nil {
-		return fmt.Errorf("create rbac bootstrap service: %w", err)
+		return err
 	}
 
-	if err := devResetAdmin(cmd.Context(), authRepo, identity, localizer, rbacBootstrap); err != nil {
+	if err := devResetAdmin(cmd.Context(), dependencies.authRepository, dependencies.identity, dependencies.localizer, dependencies.rbacBootstrap); err != nil {
 		return fmt.Errorf("reset default admin: %w", err)
 	}
 
@@ -102,6 +90,33 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 	}
 
 	return err
+}
+
+type devResetAdminDependencies struct {
+	identity       moduleapi.UserIdentityProvider
+	authRepository authstore.AuthRepository
+	localizer      *i18n.Service
+	rbacBootstrap  moduleapi.RBACBootstrapService
+}
+
+func newDevResetAdminDependencies(resources *database.Resources, i18nConfig config.I18nConfig) (devResetAdminDependencies, error) {
+	identity, err := devResetNewUserIdentity(resources.SQL)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create user identity provider: %w", err)
+	}
+	authRepository, err := devResetNewAuthRepository(resources.SQL, identity)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create user auth repository: %w", err)
+	}
+	localizer, err := devResetNewLocalizer(i18nConfig)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create i18n service: %w", err)
+	}
+	rbacBootstrap, err := devResetResolveRBACBootstrap(resources)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create rbac bootstrap service: %w", err)
+	}
+	return devResetAdminDependencies{identity: identity, authRepository: authRepository, localizer: localizer, rbacBootstrap: rbacBootstrap}, nil
 }
 
 func isDevelopmentAppEnv(env string) bool {

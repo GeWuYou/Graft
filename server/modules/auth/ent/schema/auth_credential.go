@@ -28,7 +28,8 @@ func (AuthCredential) Annotations() []schema.Annotation {
 func (AuthCredential) Fields() []ent.Field {
 	return []ent.Field{
 		field.Uint64("user_id").
-			Comment("关联用户资料的稳定标识"),
+			Comment("关联用户资料的稳定标识").
+			Immutable(),
 		field.String("password_hash").
 			Comment("密码哈希值").
 			Sensitive().

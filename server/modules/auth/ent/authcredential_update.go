@@ -28,27 +28,6 @@ func (_u *AuthCredentialUpdate) Where(ps ...predicate.AuthCredential) *AuthCrede
 	return _u
 }
 
-// SetUserID sets the "user_id" field.
-func (_u *AuthCredentialUpdate) SetUserID(v uint64) *AuthCredentialUpdate {
-	_u.mutation.ResetUserID()
-	_u.mutation.SetUserID(v)
-	return _u
-}
-
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *AuthCredentialUpdate) SetNillableUserID(v *uint64) *AuthCredentialUpdate {
-	if v != nil {
-		_u.SetUserID(*v)
-	}
-	return _u
-}
-
-// AddUserID adds value to the "user_id" field.
-func (_u *AuthCredentialUpdate) AddUserID(v int64) *AuthCredentialUpdate {
-	_u.mutation.AddUserID(v)
-	return _u
-}
-
 // SetPasswordHash sets the "password_hash" field.
 func (_u *AuthCredentialUpdate) SetPasswordHash(v string) *AuthCredentialUpdate {
 	_u.mutation.SetPasswordHash(v)
@@ -159,12 +138,6 @@ func (_u *AuthCredentialUpdate) sqlSave(ctx context.Context) (_node int, err err
 			}
 		}
 	}
-	if value, ok := _u.mutation.UserID(); ok {
-		_spec.SetField(authcredential.FieldUserID, field.TypeUint64, value)
-	}
-	if value, ok := _u.mutation.AddedUserID(); ok {
-		_spec.AddField(authcredential.FieldUserID, field.TypeUint64, value)
-	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(authcredential.FieldPasswordHash, field.TypeString, value)
 	}
@@ -201,27 +174,6 @@ type AuthCredentialUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *AuthCredentialMutation
-}
-
-// SetUserID sets the "user_id" field.
-func (_u *AuthCredentialUpdateOne) SetUserID(v uint64) *AuthCredentialUpdateOne {
-	_u.mutation.ResetUserID()
-	_u.mutation.SetUserID(v)
-	return _u
-}
-
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *AuthCredentialUpdateOne) SetNillableUserID(v *uint64) *AuthCredentialUpdateOne {
-	if v != nil {
-		_u.SetUserID(*v)
-	}
-	return _u
-}
-
-// AddUserID adds value to the "user_id" field.
-func (_u *AuthCredentialUpdateOne) AddUserID(v int64) *AuthCredentialUpdateOne {
-	_u.mutation.AddUserID(v)
-	return _u
 }
 
 // SetPasswordHash sets the "password_hash" field.
@@ -363,12 +315,6 @@ func (_u *AuthCredentialUpdateOne) sqlSave(ctx context.Context) (_node *AuthCred
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.UserID(); ok {
-		_spec.SetField(authcredential.FieldUserID, field.TypeUint64, value)
-	}
-	if value, ok := _u.mutation.AddedUserID(); ok {
-		_spec.AddField(authcredential.FieldUserID, field.TypeUint64, value)
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(authcredential.FieldPasswordHash, field.TypeString, value)

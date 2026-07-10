@@ -70,7 +70,6 @@ var (
 	}
 )
 
-// init configures the database table names for the authentication schema.
 func init() {
 	AuthCredentialsTable.Annotation = &entsql.Annotation{
 		Table: "auth_credentials",

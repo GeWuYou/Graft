@@ -277,11 +277,10 @@ func (s userService) CreateUser(
 		return userstore.User{}, err
 	}
 	if s.credentials == nil {
-		return userstore.User{}, errors.New("auth credential management service is unavailable")
+		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, errors.New("auth credential management service is unavailable"))
 	}
 	if err := s.credentials.ProvisionPasswordCredential(ctx, created.ID, command.Password, true); err != nil {
-		_ = s.users.Delete(ctx, userstore.DeleteUserInput{ID: created.ID, DeletedAt: time.Now().UTC(), ActorID: command.ActorID})
-		return userstore.User{}, err
+		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, err)
 	}
 
 	s.publishAudit(ctx, moduleapi.AuditEvent{
@@ -301,6 +300,21 @@ func (s userService) CreateUser(
 	})
 
 	return created, nil
+}
+
+// rollbackCreatedUser compensates for a credential-provisioning failure and
+// retains both failure causes when the profile cleanup also fails.
+func (s userService) rollbackCreatedUser(ctx context.Context, userID, actorID uint64, provisionErr error) error {
+	rollbackErr := s.users.Delete(ctx, userstore.DeleteUserInput{
+		ID:        userID,
+		DeletedAt: time.Now().UTC(),
+		ActorID:   actorID,
+	})
+	if rollbackErr == nil {
+		return provisionErr
+	}
+
+	return errors.Join(provisionErr, fmt.Errorf("rollback created user: %w", rollbackErr))
 }
 
 func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) (userstore.User, error) {

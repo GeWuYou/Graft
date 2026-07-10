@@ -26,7 +26,7 @@ func NewModuleSpec() module.Spec {
 			}
 			client, err := storeent.NewClient(sqlDB)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("create auth persistence client: %w", err)
 			}
 			return NewModule(client), nil
 		}),

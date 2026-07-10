@@ -1,6 +1,9 @@
 package auth
 
-import "unicode"
+import (
+	"unicode"
+	"unicode/utf8"
+)
 
 const (
 	defaultAdminUsername  = "graft"
@@ -22,7 +25,7 @@ func (passwordPolicy) ValidateNewPassword(newPassword string) error {
 	if newPassword == defaultAdminPassword {
 		return errPasswordReuseForbidden
 	}
-	if len(newPassword) < minimumPasswordLength {
+	if utf8.RuneCountInString(newPassword) < minimumPasswordLength {
 		return errPasswordPolicyViolation
 	}
 

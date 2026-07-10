@@ -21,16 +21,11 @@ func (p userIdentityProvider) LookupUserByUsername(ctx context.Context, username
 		return moduleapi.CurrentUser{}, errors.New("user repository is unavailable")
 	}
 	username = strings.TrimSpace(username)
-	users, err := p.users.List(ctx)
+	user, err := p.users.GetByUsername(ctx, username)
 	if err != nil {
 		return moduleapi.CurrentUser{}, err
 	}
-	for _, user := range users {
-		if user.Username == username {
-			return currentUserFromStore(user), nil
-		}
-	}
-	return moduleapi.CurrentUser{}, userstore.ErrUserNotFound
+	return currentUserFromStore(user), nil
 }
 
 func (p userIdentityProvider) GetCurrentUserByID(ctx context.Context, userID uint64) (moduleapi.CurrentUser, error) {
@@ -39,6 +34,9 @@ func (p userIdentityProvider) GetCurrentUserByID(ctx context.Context, userID uin
 	}
 	user, err := p.users.GetByID(ctx, userID)
 	if err != nil {
+		if errors.Is(err, userstore.ErrUserNotFound) {
+			return moduleapi.CurrentUser{}, moduleapi.ErrUserNotFound
+		}
 		return moduleapi.CurrentUser{}, err
 	}
 	return currentUserFromStore(user), nil
@@ -58,6 +56,9 @@ func (p userIdentityProvider) EnsureDefaultAdminProfile(ctx context.Context) (mo
 		Status:   usercontract.UserStatusEnabled,
 	})
 	if err != nil {
+		if errors.Is(err, userstore.ErrUsernameConflict) {
+			return p.LookupUserByUsername(ctx, defaultAdminUsername)
+		}
 		return moduleapi.CurrentUser{}, err
 	}
 	return currentUserFromStore(created), nil

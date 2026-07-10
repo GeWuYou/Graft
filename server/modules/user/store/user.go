@@ -63,6 +63,7 @@ type DeleteUserInput struct {
 // UserRepository exposes the user module's private user read contract.
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
+	GetByUsername(ctx context.Context, username string) (User, error)
 	List(ctx context.Context) ([]User, error)
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, input CreateUserInput) (User, error)

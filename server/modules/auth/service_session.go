@@ -19,8 +19,8 @@ var (
 	errRefreshSessionFailed       = errors.New("refresh session is unavailable")
 	errAccessSessionFailed        = errors.New("access session is unavailable")
 	errSessionNotFound            = errors.New("session not found")
-	errPasswordPolicyViolation    = errors.New("password policy violation")
-	errPasswordReuseForbidden     = errors.New("password reuse forbidden")
+	errPasswordPolicyViolation    = moduleapi.ErrPasswordPolicyViolation
+	errPasswordReuseForbidden     = moduleapi.ErrPasswordReuseForbidden
 	errCurrentPasswordRequired    = errors.New("current password is required")
 	errCurrentPasswordInvalid     = errors.New("current password is invalid")
 	errRequiredPasswordChangeOnly = errors.New("required password change only")
@@ -216,7 +216,7 @@ func (s authService) loadRefreshActor(
 ) (moduleapi.CurrentUser, authstore.UserCredential, error) {
 	record, err := s.identity.GetCurrentUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, authstore.ErrCredentialNotFound) {
+		if errors.Is(err, moduleapi.ErrUserNotFound) {
 			return moduleapi.CurrentUser{}, authstore.UserCredential{}, errInvalidRefreshToken
 		}
 		return moduleapi.CurrentUser{}, authstore.UserCredential{}, err

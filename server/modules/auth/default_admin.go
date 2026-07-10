@@ -26,28 +26,12 @@ func ensureDefaultAdmin(ctx context.Context, localizer *i18n.Service, credential
 	if err != nil {
 		return fmt.Errorf("ensure default admin profile: %w", err)
 	}
-	credential, err := credentials.GetUserCredentialByUsername(ctx, profile.Username)
-	if errors.Is(err, authstore.ErrCredentialNotFound) {
-		hash, hashErr := newPasswordHasher().Hash(defaultAdminPassword)
-		if hashErr != nil {
-			return fmt.Errorf("hash default admin password: %w", hashErr)
-		}
-		if setErr := credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: profile.ID, PasswordHash: hash, MustChangePassword: true}); setErr != nil {
-			return fmt.Errorf("provision default admin credential: %w", setErr)
-		}
-		credential, err = credentials.GetUserCredentialByUsername(ctx, profile.Username)
-	}
+	credential, err := ensureDefaultAdminCredential(ctx, credentials, profile)
 	if err != nil {
-		return fmt.Errorf("get default admin credential: %w", err)
+		return err
 	}
-	if !credential.MustChangePassword && credential.PasswordHash != nil && *credential.PasswordHash != "" {
-		if compareErr := newPasswordHasher().Compare(*credential.PasswordHash, defaultAdminPassword); compareErr == nil {
-			if setErr := credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: credential.UserID, PasswordHash: *credential.PasswordHash, MustChangePassword: true, ChangedAt: credential.PasswordChangedAt}); setErr != nil {
-				return fmt.Errorf("mark default admin credential for password change: %w", setErr)
-			}
-		} else if !errors.Is(compareErr, bcrypt.ErrMismatchedHashAndPassword) {
-			return fmt.Errorf("compare default admin password hash: %w", compareErr)
-		}
+	if err := requireDefaultAdminPasswordChange(ctx, credentials, credential); err != nil {
+		return err
 	}
 	seeds, err := permissionSeedsFromItems(localizer, permissions)
 	if err != nil {
@@ -55,6 +39,49 @@ func ensureDefaultAdmin(ctx context.Context, localizer *i18n.Service, credential
 	}
 	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, seeds); err != nil {
 		return fmt.Errorf("ensure default admin access: %w", err)
+	}
+	return nil
+}
+
+func ensureDefaultAdminCredential(ctx context.Context, credentials authstore.CredentialStore, profile moduleapi.CurrentUser) (authstore.UserCredential, error) {
+	credential, err := credentials.GetUserCredentialByUsername(ctx, profile.Username)
+	if errors.Is(err, authstore.ErrCredentialNotFound) {
+		return provisionDefaultAdminCredential(ctx, credentials, profile)
+	}
+	if err != nil {
+		return authstore.UserCredential{}, fmt.Errorf("get default admin credential: %w", err)
+	}
+	return credential, nil
+}
+
+func provisionDefaultAdminCredential(ctx context.Context, credentials authstore.CredentialStore, profile moduleapi.CurrentUser) (authstore.UserCredential, error) {
+	hash, err := newPasswordHasher().Hash(defaultAdminPassword)
+	if err != nil {
+		return authstore.UserCredential{}, fmt.Errorf("hash default admin password: %w", err)
+	}
+	if err := credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: profile.ID, PasswordHash: hash, MustChangePassword: true}); err != nil {
+		return authstore.UserCredential{}, fmt.Errorf("provision default admin credential: %w", err)
+	}
+	credential, err := credentials.GetUserCredentialByUsername(ctx, profile.Username)
+	if err != nil {
+		return authstore.UserCredential{}, fmt.Errorf("get default admin credential: %w", err)
+	}
+	return credential, nil
+}
+
+func requireDefaultAdminPasswordChange(ctx context.Context, credentials authstore.CredentialStore, credential authstore.UserCredential) error {
+	if credential.MustChangePassword || credential.PasswordHash == nil || *credential.PasswordHash == "" {
+		return nil
+	}
+	compareErr := newPasswordHasher().Compare(*credential.PasswordHash, defaultAdminPassword)
+	if errors.Is(compareErr, bcrypt.ErrMismatchedHashAndPassword) {
+		return nil
+	}
+	if compareErr != nil {
+		return fmt.Errorf("compare default admin password hash: %w", compareErr)
+	}
+	if err := credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: credential.UserID, PasswordHash: *credential.PasswordHash, MustChangePassword: true, ChangedAt: credential.PasswordChangedAt}); err != nil {
+		return fmt.Errorf("mark default admin credential for password change: %w", err)
 	}
 	return nil
 }

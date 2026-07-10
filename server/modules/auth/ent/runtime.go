@@ -11,7 +11,7 @@ import (
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
-// init 根据架构字段描述符初始化认证凭据和刷新会话的默认值、更新默认值及字段校验器。
+// to their package variables.
 func init() {
 	authcredentialFields := schema.AuthCredential{}.Fields()
 	_ = authcredentialFields
