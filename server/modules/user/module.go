@@ -17,7 +17,6 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
-	authcontract "graft/server/modules/auth/contract"
 	usercontract "graft/server/modules/user/contract"
 	userstore "graft/server/modules/user/store"
 )
@@ -26,27 +25,24 @@ import (
 //
 // 该模块展示业务能力如何在 Register 阶段声明边界，在 Boot/Shutdown 阶段保持显式生命周期。
 type Module struct {
-	defaultAdminAuth *authService
 	routeAuthorizer  *deferredAuthorizer
 	bootstrapAccess  *deferredRBACAccessService
 	userRepo         userstore.UserRepository
-	authRepo         userstore.AuthRepository
+	userCredentials  *deferredCredentialManagementService
+	authCapabilities *deferredAuthCapabilities
 }
 
 var (
-	errCannotDisableOwnUser = errors.New("cannot disable own user")
-	errCannotDeleteOwnUser  = errors.New("cannot delete own user")
-	errInvalidUserStatus    = errors.New("invalid user status")
-	errInvalidUserPayload   = errors.New("invalid user payload")
+	errCannotDisableOwnUser           = errors.New("cannot disable own user")
+	errCannotDeleteOwnUser            = errors.New("cannot delete own user")
+	errInvalidUserStatus              = errors.New("invalid user status")
+	errInvalidUserPayload             = errors.New("invalid user payload")
 	errProtectedDefaultAdminImmutable = errors.New("protected default admin is immutable for this operation")
 )
 
 // NewModule 创建示例用户模块。
-func NewModule(userRepo userstore.UserRepository, authRepo userstore.AuthRepository) *Module {
-	return &Module{
-		userRepo: userRepo,
-		authRepo: authRepo,
-	}
+func NewModule(userRepo userstore.UserRepository) *Module {
+	return &Module{userRepo: userRepo}
 }
 
 // Register 声明用户模块需要的权限、菜单、路由和公开服务。
@@ -68,12 +64,6 @@ func (p *Module) Register(ctx *module.Context) error {
 		p.routeAuthorizer,
 		httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID),
 	)
-	authGroup := ctx.Router.Group(authcontract.AuthGroup)
-	guards.restrictedSession = newRestrictedSessionGuard(
-		ctx.I18n,
-		services.authFlow,
-		authGroup.BasePath(),
-	)
 	if err := registerUserRoutes(ctx, moduleID, services.user, services.authSessions, guards); err != nil {
 		return err
 	}
@@ -83,7 +73,7 @@ func (p *Module) Register(ctx *module.Context) error {
 
 // Boot 在注册完成后启动用户模块的运行时行为。
 //
-// 当前阶段只在这里执行默认管理员引导初始化，确保 Register 保持纯声明式装配。
+// 当前阶段只绑定在 Register 阶段尚不可用的 auth 与 RBAC capability。
 func (p *Module) Boot(ctx *module.Context) error {
 	if err := p.bindRouteAuthorizer(ctx); err != nil {
 		return err
@@ -91,20 +81,50 @@ func (p *Module) Boot(ctx *module.Context) error {
 	if err := p.bindBootstrapAccess(ctx); err != nil {
 		return err
 	}
-	if p.defaultAdminAuth == nil {
-		return errors.New("default admin bootstrap service is unavailable")
+	if err := p.bindCredentialManagement(ctx); err != nil {
+		return err
 	}
+	if err := p.bindAuthCapabilities(ctx); err != nil {
+		return err
+	}
+	return nil
+}
 
-	rbacBootstrap, err := resolveService[moduleapi.RBACBootstrapService](ctx, (*moduleapi.RBACBootstrapService)(nil), "rbac bootstrap service")
+func (p *Module) bindAuthCapabilities(ctx *module.Context) error {
+	if p.authCapabilities == nil {
+		return errors.New("auth capability proxy is unavailable")
+	}
+	authService, err := resolveService[moduleapi.AuthService](ctx, (*moduleapi.AuthService)(nil), "auth service")
 	if err != nil {
 		return err
 	}
-
-	if err := p.defaultAdminAuth.ensureDefaultAdmin(ctx.LifecycleContext, ctx.I18n, rbacBootstrap, ctx.PermissionRegistry.Items()); err != nil {
+	sessions, err := resolveService[moduleapi.AuthSessionService](ctx, (*moduleapi.AuthSessionService)(nil), "auth session service")
+	if err != nil {
 		return err
 	}
+	flow, err := resolveService[moduleapi.AuthFlowService](ctx, (*moduleapi.AuthFlowService)(nil), "auth flow service")
+	if err != nil {
+		return err
+	}
+	return p.authCapabilities.SetTargets(authService, sessions, flow)
+}
 
-	return nil
+func (p *Module) bindCredentialManagement(ctx *module.Context) error {
+	if p.userServiceCredentials() == nil {
+		return errors.New("auth credential management proxy is unavailable")
+	}
+	credentials, err := resolveService[moduleapi.AuthCredentialManagementService](ctx, (*moduleapi.AuthCredentialManagementService)(nil), "auth credential management service")
+	if err != nil {
+		return err
+	}
+	return p.userServiceCredentials().SetTarget(credentials)
+}
+
+func (p *Module) userServiceCredentials() *deferredCredentialManagementService {
+	if p.userCredentials == nil {
+		return nil
+	}
+	return p.userCredentials
 }
 
 // Shutdown 在应用停止时释放用户模块资源。
@@ -166,28 +186,12 @@ func resolveService[T any](ctx *module.Context, key any, label string) (T, error
 
 // userService 把用户模块内部仓储读取收敛为跨模块稳定用户摘要服务。
 type userService struct {
-	users    userstore.UserRepository
-	rbac     moduleapi.RBACAccessService
-	auditBus eventbus.Bus
-	logger   *zap.Logger
+	users       userstore.UserRepository
+	rbac        moduleapi.RBACAccessService
+	auditBus    eventbus.Bus
+	logger      *zap.Logger
+	credentials moduleapi.AuthCredentialManagementService
 }
-
-// authService 是 `moduleapi.AuthService` 在用户模块内的最小实现。
-//
-// 它把 access token 解析、refresh session 状态校验、当前用户读取和会话治理
-// 保持在同一模块边界内，避免把生命周期敏感的鉴权协作拆散到 core 或其他模块。
-type authService struct {
-	auth            userstore.AuthRepository           // auth 负责 refresh session 持久化与轮换状态读取。
-	passwordChanges userstore.PasswordChangeRepository // passwordChanges 负责原子改密与会话撤销写路径。
-	users           userstore.UserRepository           // users 提供当前主体与登录路径所需的稳定用户读取能力。
-	passwords       passwordHasher                     // passwords 统一封装口令散列与校验策略。
-	policy          passwordPolicy                     // policy 固定收敛当前 MVP 的默认管理员与改密规则。
-	tokens          *accessTokenManager                // tokens 负责 access token 的签发与解析。
-	refreshTokens   *refreshTokenManager               // refreshTokens 负责 refresh token 的签发与解析。
-	cookies         authCookieManager                  // cookies 收敛 refresh cookie 的读写与清理约束。
-}
-
-const maxSessionListLimit = 100
 
 // GetUserByID 通过稳定仓储契约读取用户，并收敛为跨模块 DTO。
 func (s userService) GetUserByID(ctx context.Context, id uint64) (moduleapi.UserSummary, error) {
@@ -248,8 +252,6 @@ func (s userService) ListUserRoleSummaries(ctx context.Context, userIDs []uint64
 
 func (s userService) CreateUser(
 	ctx context.Context,
-	passwords passwordHasher,
-	policy passwordPolicy,
 	command CreateUserCommand,
 ) (userstore.User, error) {
 	if s.users == nil {
@@ -263,26 +265,22 @@ func (s userService) CreateUser(
 	if display == "" {
 		return userstore.User{}, errInvalidUserPayload
 	}
-	if err := policy.ValidateNewPassword(command.Password); err != nil {
-		return userstore.User{}, err
-	}
-
-	hash, err := passwords.Hash(command.Password)
-	if err != nil {
-		return userstore.User{}, err
-	}
 	input := userstore.CreateUserInput{
-		Username:           username,
-		Display:            display,
-		Status:             normalizeManagedUserStatus(""),
-		PasswordHash:       hash,
-		MustChangePassword: true,
-		ActorID:            command.ActorID,
+		Username: username,
+		Display:  display,
+		Status:   normalizeManagedUserStatus(""),
+		ActorID:  command.ActorID,
 	}
 
 	created, err := s.users.Create(ctx, input)
 	if err != nil {
 		return userstore.User{}, err
+	}
+	if s.credentials == nil {
+		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, errors.New("auth credential management service is unavailable"))
+	}
+	if err := s.credentials.ProvisionPasswordCredential(ctx, created.ID, command.Password, true); err != nil {
+		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, err)
 	}
 
 	s.publishAudit(ctx, moduleapi.AuditEvent{
@@ -302,6 +300,21 @@ func (s userService) CreateUser(
 	})
 
 	return created, nil
+}
+
+// rollbackCreatedUser compensates for a credential-provisioning failure and
+// retains both failure causes when the profile cleanup also fails.
+func (s userService) rollbackCreatedUser(ctx context.Context, userID, actorID uint64, provisionErr error) error {
+	rollbackErr := s.users.Delete(ctx, userstore.DeleteUserInput{
+		ID:        userID,
+		DeletedAt: time.Now().UTC(),
+		ActorID:   actorID,
+	})
+	if rollbackErr == nil {
+		return provisionErr
+	}
+
+	return errors.Join(provisionErr, fmt.Errorf("rollback created user: %w", rollbackErr))
 }
 
 func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) (userstore.User, error) {
@@ -351,13 +364,12 @@ func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) 
 
 func (s userService) SetUserStatus(
 	ctx context.Context,
-	authRepo userstore.AuthRepository,
 	command UpdateUserStatusCommand,
 ) (userstore.User, error) {
 	if s.users == nil {
 		return userstore.User{}, errors.New("user repository is unavailable")
 	}
-	if authRepo == nil {
+	if s.credentials == nil {
 		return userstore.User{}, errors.New("auth repository is unavailable")
 	}
 
@@ -377,10 +389,7 @@ func (s userService) SetUserStatus(
 		return userstore.User{}, err
 	}
 	if status == usercontract.UserStatusDisabled {
-		if err := authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
-			UserID:    input.ID,
-			RevokedAt: time.Now().UTC(),
-		}); err != nil {
+		if err := s.credentials.RevokeSessions(ctx, input.ID); err != nil {
 			return userstore.User{}, err
 		}
 	}
@@ -425,11 +434,11 @@ func (s userService) validateSetUserStatusPreconditions(
 	return status, nil
 }
 
-func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepository, userID uint64) error {
+func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 	if s.users == nil {
 		return errors.New("user repository is unavailable")
 	}
-	if authRepo == nil {
+	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
 	}
 	if requestActorOwnsUser(ctx, userID) {
@@ -451,10 +460,7 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 		return err
 	}
 
-	if err := authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
-		UserID:    userID,
-		RevokedAt: time.Now().UTC(),
-	}); err != nil {
+	if err := s.credentials.RevokeSessions(ctx, userID); err != nil {
 		return err
 	}
 
@@ -472,30 +478,13 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 
 func (s userService) ResetUserPassword(
 	ctx context.Context,
-	authRepo userstore.AuthRepository,
-	passwords passwordHasher,
-	policy passwordPolicy,
 	userID uint64,
 	newPassword string,
 ) error {
-	if authRepo == nil {
+	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
 	}
-	if err := policy.ValidateNewPassword(newPassword); err != nil {
-		return err
-	}
-
-	hash, err := passwords.Hash(newPassword)
-	if err != nil {
-		return err
-	}
-
-	if err := authRepo.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{
-		UserID:             userID,
-		PasswordHash:       hash,
-		MustChangePassword: true,
-		ChangedAt:          time.Now().UTC(),
-	}); err != nil {
+	if err := s.credentials.ResetPassword(ctx, userID, newPassword); err != nil {
 		return err
 	}
 
@@ -579,6 +568,7 @@ func currentAuditOperator(ctx context.Context) *moduleapi.CurrentUser {
 	return &user
 }
 
+// formatUserAuditID 将用户标识格式化为审计事件使用的字符串；标识为零时返回空字符串。
 func formatUserAuditID(id uint64) string {
 	if id == 0 {
 		return ""
@@ -586,128 +576,7 @@ func formatUserAuditID(id uint64) string {
 	return strconv.FormatUint(id, 10)
 }
 
-// CurrentUser 根据请求上下文中已解析的访问令牌声明返回当前主体摘要。
-//
-// 该实现要求调用链先通过鉴权中间件写入稳定 claims，再按用户仓储读取跨
-// 模块可见的最小用户资料，不把 token 解析细节泄漏给业务调用方。
-func (s authService) CurrentUser(ctx context.Context) (*moduleapi.CurrentUser, error) {
-	if s.users == nil {
-		return nil, errors.New("user repository is unavailable")
-	}
-
-	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
-	if !ok || requestAuth.Claims == nil {
-		return nil, moduleapi.ErrUnauthenticated
-	}
-
-	record, err := s.users.GetByID(ctx, requestAuth.Claims.UserID)
-	if err != nil {
-		if errors.Is(err, userstore.ErrUserNotFound) {
-			return nil, moduleapi.ErrUnauthenticated
-		}
-		return nil, err
-	}
-
-	return &moduleapi.CurrentUser{
-		ID:          record.ID,
-		Username:    record.Username,
-		DisplayName: record.Display,
-	}, nil
-}
-
-// ParseAccessToken 校验 access token 并返回跨模块稳定 claims。
-func (s authService) ParseAccessToken(ctx context.Context, token string) (*moduleapi.AccessTokenClaims, error) {
-	if s.tokens == nil {
-		return nil, errors.New("access token manager is unavailable")
-	}
-
-	claims, err := s.tokens.Parse(strings.TrimSpace(token))
-	if err != nil {
-		switch {
-		case errors.Is(err, errExpiredAccessToken):
-			return nil, moduleapi.ErrExpiredAccessToken
-		case errors.Is(err, errInvalidAccessToken):
-			return nil, moduleapi.ErrInvalidAccessToken
-		default:
-			return nil, err
-		}
-	}
-
-	if err := s.validateAccessSession(ctx, claims); err != nil {
-		if errors.Is(err, errAccessSessionFailed) {
-			return nil, moduleapi.ErrInvalidAccessToken
-		}
-		return nil, err
-	}
-
-	return claims, nil
-}
-
-var _ moduleapi.AuthService = authService{}
-
-func (s authService) ListSessionsByUserID(ctx context.Context, userID uint64) ([]moduleapi.AuthSessionSummary, error) {
-	sessions, err := s.ListUserSessions(ctx, userID, sessionListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	summaries := make([]moduleapi.AuthSessionSummary, 0, len(sessions))
-	for _, session := range sessions {
-		summaries = append(summaries, moduleapi.AuthSessionSummary{
-			SessionID: session.SessionID,
-			UserID:    userID,
-			CreatedAt: session.CreatedAt,
-			ExpiresAt: session.ExpiresAt,
-			Current:   session.Current,
-		})
-	}
-
-	return summaries, nil
-}
-
-func (s authService) RevokeSessionByUserID(ctx context.Context, userID uint64, sessionID string) (moduleapi.AuthSessionRevokeResult, error) {
-	if err := s.RevokeUserSession(ctx, userID, sessionID); err != nil {
-		return moduleapi.AuthSessionRevokeResult{}, err
-	}
-
-	return moduleapi.AuthSessionRevokeResult{Revoked: true}, nil
-}
-
-func (s authService) RevokeSessionsByUserID(ctx context.Context, userID uint64) (moduleapi.AuthSessionRevokeResult, error) {
-	if err := s.RevokeAllUserSessions(ctx, userID); err != nil {
-		return moduleapi.AuthSessionRevokeResult{}, err
-	}
-
-	return moduleapi.AuthSessionRevokeResult{Revoked: true}, nil
-}
-
-func (s authService) RevokeOtherSessionsByUserID(
-	ctx context.Context,
-	userID uint64,
-	currentSessionID string,
-) (moduleapi.AuthSessionRevokeResult, error) {
-	sessions, err := s.ListUserSessions(ctx, userID, sessionListOptions{})
-	if err != nil {
-		return moduleapi.AuthSessionRevokeResult{}, err
-	}
-
-	revoked := false
-	for _, session := range sessions {
-		if session.SessionID == currentSessionID {
-			continue
-		}
-		if err := s.RevokeUserSession(ctx, userID, session.SessionID); err != nil {
-			return moduleapi.AuthSessionRevokeResult{}, err
-		}
-		revoked = true
-	}
-
-	return moduleapi.AuthSessionRevokeResult{Revoked: revoked}, nil
-}
-
-var _ moduleapi.AuthSessionService = authService{}
-
-// parseUserID 将路由参数转换为模块内部统一使用的正整数 ID。
+// parseUserID 将路由参数解析为大于零的用户 ID；输入格式无效或 ID 为零时返回错误。
 func parseUserID(input string) (uint64, error) {
 	id, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {
@@ -722,25 +591,26 @@ func parseUserID(input string) (uint64, error) {
 // parseSessionListOptions 将列表查询参数收敛为模块内最小会话列表约束。
 //
 // 当前只允许显式 limit，并把约束留在模块层，避免为了轻量分页提前扩展仓储
-// 或跨模块契约。
-func parseSessionListOptions(rawLimit string) (sessionListOptions, error) {
+// 空值返回默认选项；非空值必须为 1 至 maxUserSessionListLimit 范围内的整数。
+func parseSessionListOptions(rawLimit string) (userSessionListOptions, error) {
 	rawLimit = strings.TrimSpace(rawLimit)
 	if rawLimit == "" {
-		return sessionListOptions{}, nil
+		return userSessionListOptions{}, nil
 	}
 
 	limit, err := strconv.Atoi(rawLimit)
 	if err != nil {
-		return sessionListOptions{}, fmt.Errorf("parse session limit %q: %w", rawLimit, err)
+		return userSessionListOptions{}, fmt.Errorf("parse session limit %q: %w", rawLimit, err)
 	}
-	if limit <= 0 || limit > maxSessionListLimit {
-		return sessionListOptions{}, fmt.Errorf("session limit %d is out of range", limit)
+	if limit <= 0 || limit > maxUserSessionListLimit {
+		return userSessionListOptions{}, fmt.Errorf("session limit %d is out of range", limit)
 	}
 
-	return sessionListOptions{Limit: limit}, nil
+	return userSessionListOptions{Limit: limit}, nil
 }
 
-// mapAuthError 把模块内部鉴权/会话错误收敛为稳定 HTTP 状态与消息键。
+// mapAuthError 将鉴权错误映射为稳定的 HTTP 状态码和消息键。
+// 未认证错误映射为 401 和缺少鉴权令牌的消息键，其余错误映射为 500 和通用内部错误消息键。
 func mapAuthError(err error) (int, messagecontract.Key) {
 	for _, mapping := range []struct {
 		match  error
@@ -748,17 +618,6 @@ func mapAuthError(err error) (int, messagecontract.Key) {
 		key    messagecontract.Key
 	}{
 		{match: moduleapi.ErrUnauthenticated, status: http.StatusUnauthorized, key: messagecontract.AuthTokenMissing},
-		{match: errInvalidLoginCredentials, status: http.StatusBadRequest, key: messagecontract.AuthInvalidCredentials},
-		{match: errRefreshTokenRequired, status: http.StatusUnauthorized, key: messagecontract.AuthTokenMissing},
-		{match: errExpiredRefreshToken, status: http.StatusUnauthorized, key: messagecontract.AuthTokenExpired},
-		{match: errInvalidRefreshToken, status: http.StatusUnauthorized, key: messagecontract.AuthTokenInvalid},
-		{match: errSessionNotFound, status: http.StatusNotFound, key: messagecontract.AuthSessionNotFound},
-		{match: errRequiredPasswordChangeOnly, status: http.StatusForbidden, key: messagecontract.AuthForbidden},
-		{match: errCurrentPasswordRequired, status: http.StatusBadRequest, key: messagecontract.CommonInvalidArgument},
-		{match: errPasswordPolicyViolation, status: http.StatusBadRequest, key: messagecontract.AuthPasswordPolicyViolation},
-		{match: errPasswordReuseForbidden, status: http.StatusBadRequest, key: messagecontract.AuthPasswordReuseForbidden},
-		{match: errCurrentPasswordInvalid, status: http.StatusBadRequest, key: messagecontract.AuthCurrentPasswordInvalid},
-		{match: errRefreshSessionFailed, status: http.StatusUnauthorized, key: messagecontract.AuthTokenInvalid},
 	} {
 		if errors.Is(err, mapping.match) {
 			return mapping.status, mapping.key
@@ -769,9 +628,6 @@ func mapAuthError(err error) (int, messagecontract.Key) {
 }
 
 func authErrorDetails(err error) map[string]any {
-	if errors.Is(err, errCurrentPasswordRequired) {
-		return map[string]any{"field": "current_password"}
-	}
-
+	_ = err
 	return nil
 }

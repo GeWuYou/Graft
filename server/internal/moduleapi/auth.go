@@ -16,6 +16,10 @@ var (
 	ErrExpiredAccessToken = errors.New("expired access token")
 	// ErrPermissionDenied 表示认证成功但缺少访问所需权限。
 	ErrPermissionDenied = errors.New("permission denied")
+	// ErrPasswordPolicyViolation indicates a password does not satisfy auth's current policy.
+	ErrPasswordPolicyViolation = errors.New("password policy violation")
+	// ErrPasswordReuseForbidden indicates a password is not permitted for reuse by auth policy.
+	ErrPasswordReuseForbidden = errors.New("password reuse forbidden")
 )
 
 type requestAuthContextKey struct{}
@@ -27,18 +31,6 @@ type CurrentUser struct {
 	ID          uint64
 	Username    string
 	DisplayName string
-}
-
-// UserAuthCredential 描述认证链路依赖的最小用户口令与受限态摘要。
-//
-// 该 DTO 只暴露登录、refresh、bootstrap 与受限会话判断真正需要的稳定字段，
-// 不泄漏 user 模块内部实体、仓储或 ORM 细节。
-type UserAuthCredential struct {
-	UserID             uint64
-	Username           string
-	PasswordHash       *string
-	MustChangePassword bool
-	PasswordChangedAt  *time.Time
 }
 
 // AccessTokenClaims 描述访问令牌中可被其它模块稳定消费的最小声明集。
@@ -171,10 +163,17 @@ type AuthSessionService interface {
 	) (AuthSessionRevokeResult, error)
 }
 
+// AuthCredentialManagementService exposes credential lifecycle operations to
+// user-profile management without leaking auth persistence details. Password
+// inputs that violate policy return ErrPasswordPolicyViolation; inputs that
+// violate auth's reuse rule return ErrPasswordReuseForbidden.
+type AuthCredentialManagementService interface {
+	ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error
+	ResetPassword(ctx context.Context, userID uint64, password string) error
+	RevokeSessions(ctx context.Context, userID uint64) error
+}
+
 // AuthFlowService 暴露 `/auth/*` 路由需要的稳定认证闭环能力。
-//
-// auth 模块拥有这些路由的 HTTP 运行时注册，但在迁移过渡期允许通过该
-// capability 复用 user 模块内尚未迁出的实现细节。
 type AuthFlowService interface {
 	StartLogin(ctx context.Context, username string, password string) (AuthRefreshResult, error)
 	RefreshSession(ctx context.Context, refreshToken string) (AuthRefreshResult, error)
@@ -190,20 +189,18 @@ type AuthFlowService interface {
 	RouteError(err error) AuthRouteError
 }
 
-// UserAuthIdentityService 暴露 auth 模块可依赖的稳定用户身份能力。
-//
-// auth 通过它读取登录凭据、当前主体摘要与改密写路径；该接口故意不暴露
-// user 模块的仓储实现、Ent client 或管理员资源管理语义。
-type UserAuthIdentityService interface {
-	GetCredentialByUsername(ctx context.Context, username string) (UserAuthCredential, error)
+// UserIdentityProvider exposes only user-profile identity facts needed by
+// auth. Credentials, password state, and sessions are deliberately excluded.
+type UserIdentityProvider interface {
+	LookupUserByUsername(ctx context.Context, username string) (CurrentUser, error)
 	GetCurrentUserByID(ctx context.Context, userID uint64) (CurrentUser, error)
-	SetPasswordByUserID(
-		ctx context.Context,
-		userID uint64,
-		passwordHash string,
-		mustChangePassword bool,
-		changedAt *time.Time,
-	) error
+	EnsureDefaultAdminProfile(ctx context.Context) (CurrentUser, error)
+}
+
+// UserBootstrapProvider exposes the user-owned profile, RBAC, menu, and locale
+// snapshot used by auth's bootstrap route. Credential state remains auth-owned.
+type UserBootstrapProvider interface {
+	ReadBootstrap(ctx context.Context, request *http.Request) (AuthBootstrapPayload, error)
 }
 
 // Authorizer 暴露请求级授权判断能力。

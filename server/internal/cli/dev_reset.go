@@ -12,6 +12,8 @@ import (
 	"graft/server/internal/database"
 	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
+	"graft/server/modules/auth"
+	authstore "graft/server/modules/auth/store"
 	"graft/server/modules/rbac"
 	"graft/server/modules/user"
 )
@@ -20,15 +22,11 @@ var (
 	devResetLoadConfig        = config.Load
 	devResetOpenDB            = database.Open
 	devResetCloseDB           = database.Close
-	devResetNewAuthRepository = user.NewAuthRepositoryForReset
+	devResetNewUserIdentity   = user.NewIdentityProviderForDevelopmentReset
+	devResetNewAuthRepository = auth.NewRepositoryForDevelopmentReset
 	devResetNewLocalizer      = func(cfg config.I18nConfig) (*i18n.Service, error) { return i18n.New(cfg) }
-	devResetAdmin             = func(ctx context.Context, authRepo user.AuthRepositoryForReset, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
-		return user.ResetDefaultAdminForDevelopment(
-			ctx,
-			authRepo,
-			localizer,
-			rbac,
-		)
+	devResetAdmin             = func(ctx context.Context, authRepo authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
+		return auth.ResetDefaultAdminForDevelopment(ctx, authRepo, identity, localizer, rbac, user.DefaultAdminPermissionItems())
 	}
 	devResetResolveRBACBootstrap = func(resources *database.Resources) (moduleapi.RBACBootstrapService, error) {
 		repo, err := rbac.NewRepositoryForReset(resources.SQL)
@@ -39,6 +37,8 @@ var (
 	}
 )
 
+// newDevResetAdminCommand 创建仅限开发环境使用的命令，用于将默认管理员恢复为首次登录状态。
+// 返回配置完成的 reset-admin 命令。
 func newDevResetAdminCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset-admin",
@@ -54,6 +54,8 @@ func newDevResetAdminCommand() *cobra.Command {
 	}
 }
 
+// runDevResetAdmin 在本地或测试环境中初始化重置所需服务，将默认管理员恢复为开发环境首次登录状态，并输出重置结果。
+// 数据库关闭失败时，会将该错误与执行过程中的错误合并返回。
 func runDevResetAdmin(cmd *cobra.Command) (err error) {
 	cfg, err := devResetLoadConfig()
 	if err != nil {
@@ -74,20 +76,12 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 		}
 	}()
 
-	authRepo, err := devResetNewAuthRepository(resources.SQL)
+	dependencies, err := newDevResetAdminDependencies(resources, cfg.I18n)
 	if err != nil {
-		return fmt.Errorf("create user auth repository: %w", err)
-	}
-	localizer, err := devResetNewLocalizer(cfg.I18n)
-	if err != nil {
-		return fmt.Errorf("create i18n service: %w", err)
-	}
-	rbacBootstrap, err := devResetResolveRBACBootstrap(resources)
-	if err != nil {
-		return fmt.Errorf("create rbac bootstrap service: %w", err)
+		return err
 	}
 
-	if err := devResetAdmin(cmd.Context(), authRepo, localizer, rbacBootstrap); err != nil {
+	if err := devResetAdmin(cmd.Context(), dependencies.authRepository, dependencies.identity, dependencies.localizer, dependencies.rbacBootstrap); err != nil {
 		return fmt.Errorf("reset default admin: %w", err)
 	}
 
@@ -96,6 +90,33 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 	}
 
 	return err
+}
+
+type devResetAdminDependencies struct {
+	identity       moduleapi.UserIdentityProvider
+	authRepository authstore.AuthRepository
+	localizer      *i18n.Service
+	rbacBootstrap  moduleapi.RBACBootstrapService
+}
+
+func newDevResetAdminDependencies(resources *database.Resources, i18nConfig config.I18nConfig) (devResetAdminDependencies, error) {
+	identity, err := devResetNewUserIdentity(resources.SQL)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create user identity provider: %w", err)
+	}
+	authRepository, err := devResetNewAuthRepository(resources.SQL, identity)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create user auth repository: %w", err)
+	}
+	localizer, err := devResetNewLocalizer(i18nConfig)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create i18n service: %w", err)
+	}
+	rbacBootstrap, err := devResetResolveRBACBootstrap(resources)
+	if err != nil {
+		return devResetAdminDependencies{}, fmt.Errorf("create rbac bootstrap service: %w", err)
+	}
+	return devResetAdminDependencies{identity: identity, authRepository: authRepository, localizer: localizer, rbacBootstrap: rbacBootstrap}, nil
 }
 
 func isDevelopmentAppEnv(env string) bool {

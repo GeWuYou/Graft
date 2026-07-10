@@ -6,7 +6,6 @@ import (
 	"entgo.io/ent"
 	entsql "entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
 
@@ -38,18 +37,6 @@ func (User) Fields() []ent.Field {
 			Comment("状态：enabled 启用，disabled 禁用").
 			NotEmpty().
 			Default("enabled"),
-		field.String("password_hash").
-			Comment("密码哈希值").
-			Sensitive().
-			Optional().
-			Nillable(),
-		field.Bool("must_change_password").
-			Comment("是否必须在下次登录后修改密码").
-			Default(false),
-		field.Time("password_changed_at").
-			Comment("最近一次修改密码时间").
-			Optional().
-			Nillable(),
 		field.Time("created_at").
 			Comment("创建时间").
 			Immutable().
@@ -71,12 +58,5 @@ func (User) Fields() []ent.Field {
 		field.Uint64("deleted_by").
 			Comment("删除人用户 ID，0 表示未删除").
 			Default(0),
-	}
-}
-
-// Edges returns the user-to-refresh-session relation definitions.
-func (User) Edges() []ent.Edge {
-	return []ent.Edge{
-		edge.To("refresh_sessions", RefreshSession.Type),
 	}
 }

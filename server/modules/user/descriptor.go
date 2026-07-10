@@ -14,7 +14,7 @@ const (
 	moduleID = "user"
 )
 
-// NewModuleSpec exposes the user module's stable compile-time metadata and builder.
+// NewModuleSpec 构建并返回用户模块的稳定元数据及其运行时构建器。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
@@ -37,12 +37,7 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build user storeent repository: %w", err)
 			}
-			authRepo, err := storeRuntime.NewAuthRepository()
-			if err != nil {
-				return nil, fmt.Errorf("build user auth repository: %w", err)
-			}
-
-			return NewModule(userRepo, authRepo), nil
+			return NewModule(userRepo), nil
 		}),
 	}
 }

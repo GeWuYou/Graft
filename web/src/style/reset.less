@@ -44,3 +44,22 @@ p {
 * {
   box-sizing: border-box;
 }
+
+// 浏览器密码管理器会直接给原生 input 注入自动填充背景；使用 token 覆盖其绘制，保持主题一致。
+.t-input {
+  --graft-input-autofill-background: var(--td-bg-color-container);
+}
+
+.t-input__inner:autofill,
+.t-input__inner:autofill:hover,
+.t-input__inner:autofill:focus,
+.t-input__inner:autofill:active,
+.t-input__inner:-webkit-autofill,
+.t-input__inner:-webkit-autofill:hover,
+.t-input__inner:-webkit-autofill:focus,
+.t-input__inner:-webkit-autofill:active {
+  box-shadow: 0 0 0 1000px var(--graft-input-autofill-background) inset;
+  caret-color: var(--td-text-color-primary);
+  color: var(--td-text-color-primary);
+  -webkit-text-fill-color: var(--td-text-color-primary);
+}

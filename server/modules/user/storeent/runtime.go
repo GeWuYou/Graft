@@ -53,11 +53,6 @@ func (r *Runtime) NewUserRepository() (*userRepository, error) {
 	return newUserRepository(r.client)
 }
 
-// NewAuthRepository builds the module-owned auth/session repository from the shared Ent client.
-func (r *Runtime) NewAuthRepository() (*authRepository, error) {
-	return newAuthRepository(r.client)
-}
-
 // Client exposes the shared Ent client for the narrow cases that still need direct client access.
 func (r *Runtime) Client() *ent.Client {
 	return r.client

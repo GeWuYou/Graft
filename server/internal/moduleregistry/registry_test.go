@@ -216,12 +216,12 @@ func TestFilteredOrderedModuleSpecsRequiresTaskRouteProviders(t *testing.T) {
 		t.Fatal("expected task to require its route service providers")
 	}
 
-	got, err := FilteredOrderedModuleSpecs([]string{"user", "rbac", "task"})
+	got, err := FilteredOrderedModuleSpecs([]string{"user", "auth", "rbac", "task"})
 	if err != nil {
 		t.Fatalf("filter task module providers: %v", err)
 	}
 
-	want := []string{"user", "rbac", "task"}
+	want := []string{"user", "auth", "rbac", "task"}
 	if len(got) != len(want) {
 		t.Fatalf("expected %d modules, got %d", len(want), len(got))
 	}

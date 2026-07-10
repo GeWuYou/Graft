@@ -13,6 +13,8 @@
         <t-input
           v-model="formData.phone"
           :maxlength="11"
+          autocomplete="tel"
+          name="tel"
           size="large"
           :placeholder="t('app.auth.register.phonePlaceholder')"
         >
@@ -27,6 +29,8 @@
       <t-form-item name="email">
         <t-input
           v-model="formData.email"
+          autocomplete="email"
+          name="email"
           type="text"
           size="large"
           :placeholder="t('app.auth.register.emailPlaceholder')"
@@ -41,6 +45,8 @@
     <t-form-item name="password">
       <t-input
         v-model="formData.password"
+        autocomplete="new-password"
+        name="new-password"
         size="large"
         :type="showPsw ? 'text' : 'password'"
         clearable
@@ -59,6 +65,8 @@
       <t-form-item class="verification-code" name="verifyCode">
         <t-input
           v-model="formData.verifyCode"
+          autocomplete="one-time-code"
+          name="one-time-code"
           size="large"
           :placeholder="t('app.auth.register.verifyCodePlaceholder')"
         />

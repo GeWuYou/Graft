@@ -12,7 +12,7 @@
 * 在 `Register` 阶段向统一 `server/internal/i18n` facade 注册模块内建菜单标题 message，并通过 bootstrap 菜单快照暴露 `title_key + title fallback`
 * 暴露 `moduleapi.UserService` 与后续 `auth` 所需的稳定用户身份能力
 * 提供受权限保护的用户资料与用户管理路由
-* 负责默认管理员对应的用户记录与用户资料存在性，但不再长期拥有 token/session/cookie/login 运行时闭环
+* 负责默认管理员对应的用户资料存在性；auth 负责其 credential 与 session 初始化
 * 如保留管理员按用户维度的 `/users/:id/sessions` 会话治理入口，它只能作为调用 `auth` capability 的管理入口，不直接持有 auth 持久化
 
 这个模块不负责：
@@ -26,12 +26,13 @@
 
 * `doc.go`：模块用途说明
 * `module.go`：模块生命周期、服务注册与用户管理路由
-* 认证相关实现当前只保留为 `auth` 模块消费的过渡 bridge；`/auth/*` 路由注册已迁入 `server/modules/auth`
+* 不包含认证运行时实现；`/auth/*` 路由、token、credential 与 refresh session 由 `server/modules/auth` 拥有
+* 不得注册 `AuthService`、`AuthSessionService` 或 `AuthFlowService`；这些 capability 由 `auth` 统一注册
 
 ## 关键依赖
 
 * 依赖 `module.Context` 提供的菜单、权限、路由、服务与存储能力
-* `user` 只暴露稳定用户身份与用户管理能力；auth 迁移完成后，登录链路通过 `moduleapi.UserAuthIdentityService` 一类稳定 capability 消费用户身份真相
+* `user` 通过 `moduleapi.UserIdentityProvider` 暴露稳定用户身份与用户管理能力
 * 对外通过 `server/internal/moduleapi` 暴露跨模块可消费的稳定接口
 
 ## 当前认证治理约束

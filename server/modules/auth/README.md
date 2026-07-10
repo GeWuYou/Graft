@@ -4,9 +4,10 @@
 
 `server/modules/auth` 是认证与会话生命周期模块的长期归属边界。
 
-Phase 2 起，这个目录开始接管 token、refresh session、cookie 与 auth-owned
-store/storeent/runtime helper；Phase 3 进一步接管 `/auth/*` 路由注册与 HTTP
-运行时所有权。
+这个目录拥有 token、credential、refresh session、cookie、`/auth/*` 路由与
+认证运行时。`auth` 是所有 `moduleapi` 认证 capability 的唯一注册者。
+`user` 仅通过 `UserIdentityProvider` 提供用户资料事实，并通过
+`UserBootstrapProvider` 提供资料、RBAC、菜单和 locale 快照。
 
 ## 职责边界
 
@@ -24,9 +25,9 @@ store/storeent/runtime helper；Phase 3 进一步接管 `/auth/*` 路由注册�
 * role / permission / resource 的授权模型
 * 默认把认证持久化细节泄漏给其它模块
 
-## Phase 1 状态
+## 主要入口
 
-当前目录当前提供：
+当前目录提供：
 
 * `doc.go`：模块边界说明
 * `descriptor.go`：compile-time descriptor 骨架
@@ -36,10 +37,4 @@ store/storeent/runtime helper；Phase 3 进一步接管 `/auth/*` 路由注册�
 * `store/`：auth-owned credential/session store contract
 * `storeent/`：auth-owned Ent-backed persistence
 * `contract/`：`/auth/*` 契约 owner 占位
-* `migrations/`：后续 auth 自有迁移目录占位
-
-后续迁移顺序固定为：
-
-1. Phase 4+：前端 `modules/auth` 收口与兼容清理
-
-兼容期内，`server/modules/user/store/auth.go` 与 `user` 侧 token helper 只保留薄桥接。
+* `migrations/`：auth-owned credential 和 refresh session schema 与数据前向迁移

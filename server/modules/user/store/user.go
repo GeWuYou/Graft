@@ -32,12 +32,10 @@ type User struct {
 
 // CreateUserInput describes the minimal user creation input.
 type CreateUserInput struct {
-	Username           string
-	Display            string
-	Status             string
-	PasswordHash       string
-	MustChangePassword bool
-	ActorID            uint64
+	Username string
+	Display  string
+	Status   string
+	ActorID  uint64
 }
 
 // UpdateUserInput describes the minimal user profile update input.
@@ -65,6 +63,7 @@ type DeleteUserInput struct {
 // UserRepository exposes the user module's private user read contract.
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
+	GetByUsername(ctx context.Context, username string) (User, error)
 	List(ctx context.Context) ([]User, error)
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, input CreateUserInput) (User, error)

@@ -13,6 +13,7 @@ import (
 	usercontract "graft/server/modules/user/contract"
 )
 
+// newRouteGuards 创建包含身份认证、密码修改限制及用户权限校验处理器的路由守卫集合。
 func newRouteGuards(
 	localizer *i18n.Service,
 	services registeredServices,
@@ -28,12 +29,11 @@ func newRouteGuards(
 		userDisable:            httpx.RequirePermission(localizer, services.auth, authorizer, usercontract.UserDisablePermission.String(), publisher),
 		userSessionRead:        httpx.RequirePermission(localizer, services.auth, authorizer, usercontract.UserSessionReadPermission.String(), publisher),
 		userSessionRevoke:      httpx.RequirePermission(localizer, services.auth, authorizer, usercontract.UserSessionRevokePermission.String(), publisher),
-		authRepo:               services.authRepo,
-		passwords:              services.passwords,
-		policy:                 services.policy,
 	}
 }
 
+// newRequiredPasswordChangeGuard creates middleware that allows requests only for
+// sessions restricted to the password-change flow.
 func newRequiredPasswordChangeGuard(localizer *i18n.Service, authFlow moduleapi.AuthFlowService) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		restricted, ok := loadRestrictedPasswordChangeState(ginCtx, localizer, authFlow)
@@ -49,33 +49,8 @@ func newRequiredPasswordChangeGuard(localizer *i18n.Service, authFlow moduleapi.
 	}
 }
 
-func newRestrictedSessionGuard(localizer *i18n.Service, authFlow moduleapi.AuthFlowService, apiBasePath string) gin.HandlerFunc {
-	allowedPaths := []string{
-		usercontract.JoinRoute(apiBasePath, usercontract.AuthBootstrap),
-		usercontract.JoinRoute(apiBasePath, usercontract.AuthCompleteRequiredPasswordChange),
-	}
-
-	return func(ginCtx *gin.Context) {
-		restricted, ok := loadRestrictedPasswordChangeState(ginCtx, localizer, authFlow)
-		if !ok {
-			return
-		}
-		if !restricted {
-			ginCtx.Next()
-			return
-		}
-
-		for _, allowedPath := range allowedPaths {
-			if ginCtx.FullPath() == allowedPath {
-				ginCtx.Next()
-				return
-			}
-		}
-
-		abortLocalizedContractError(ginCtx, localizer, http.StatusForbidden, messagecontract.AuthForbidden, nil)
-	}
-}
-
+// loadRestrictedPasswordChangeState 判断当前会话是否受到密码修改限制。
+// 成功时返回限制状态和 true。认证缺失或服务不可用时终止请求，并返回 false、false。
 func loadRestrictedPasswordChangeState(
 	ginCtx *gin.Context,
 	localizer *i18n.Service,

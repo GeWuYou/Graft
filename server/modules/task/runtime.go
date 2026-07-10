@@ -242,7 +242,7 @@ func (r *Runtime) cancelNonRunningTask(ctx context.Context, task taskmodel.Task)
 			return err
 		}
 	case moduleapi.TaskStatusNeedsAttention:
-		if err := r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: task.ID, From: moduleapi.TaskStatusNeedsAttention, To: moduleapi.TaskStatusCancelled, FinishedAt: &now, DurationMS: durationSince(task.StartedAt, now)}); err != nil {
+		if err := r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: task.ID, From: moduleapi.TaskStatusNeedsAttention, To: moduleapi.TaskStatusCancelled, CurrentStageKey: task.CurrentStageKey, FinishedAt: &now, DurationMS: durationSince(task.StartedAt, now)}); err != nil {
 			return err
 		}
 	default:
@@ -450,7 +450,7 @@ func (r *Runtime) completeClaim(ctx context.Context, claim taskstore.StageClaim)
 		r.signalWake()
 		return nil
 	}
-	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusSuccess, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)})
+	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusSuccess, CurrentStageKey: &claim.Stage.Key, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)})
 }
 
 func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, code string, message string) error {
@@ -472,7 +472,7 @@ func (r *Runtime) failClaim(ctx context.Context, claim taskstore.StageClaim, cod
 	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusFailed, Attempt: claim.Stage.Attempt, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
 		return err
 	}
-	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusFailed, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)})
+	return r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusFailed, CurrentStageKey: &claim.Stage.Key, FailureCode: &code, FailureMessage: &message, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)})
 }
 
 func (r *Runtime) cancelClaim(ctx context.Context, claim taskstore.StageClaim) error {
@@ -480,7 +480,7 @@ func (r *Runtime) cancelClaim(ctx context.Context, claim taskstore.StageClaim) e
 	if err := r.repository.TransitionStage(ctx, taskstore.StageTransitionInput{StageID: claim.Stage.ID, From: moduleapi.StageStatusRunning, To: moduleapi.StageStatusCancelled, Attempt: claim.Stage.Attempt, FinishedAt: &now, DurationMS: durationSince(claim.Stage.StartedAt, now)}); err != nil {
 		return err
 	}
-	if err := r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusCancelled, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)}); err != nil {
+	if err := r.repository.TransitionTask(ctx, taskstore.TaskTransitionInput{TaskID: claim.Task.ID, From: moduleapi.TaskStatusRunning, To: moduleapi.TaskStatusCancelled, CurrentStageKey: &claim.Stage.Key, FinishedAt: &now, DurationMS: durationSince(claim.Task.StartedAt, now)}); err != nil {
 		return err
 	}
 	return r.appendEvent(ctx, claim.Task.ID, taskmodel.EventTypeCancelled)

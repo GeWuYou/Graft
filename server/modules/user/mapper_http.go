@@ -116,9 +116,11 @@ func toUserListItem(user userstore.User, roles []moduleapi.RoleSummary) (userLis
 	}, nil
 }
 
+// toGeneratedSessionSummariesFromCapability converts authentication session summaries to generated session summaries, applying the configured limit.
+// The returned summaries preserve the source order and include each session's identifier, creation time, expiration time, and current-session status.
 func toGeneratedSessionSummariesFromCapability(
 	sessions []moduleapi.AuthSessionSummary,
-	options sessionListOptions,
+	options userSessionListOptions,
 ) []generated.SessionSummary {
 	if options.Limit > 0 && len(sessions) > options.Limit {
 		sessions = sessions[:options.Limit]

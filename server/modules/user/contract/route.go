@@ -1,47 +1,12 @@
 package contract
 
-import authcontract "graft/server/modules/auth/contract"
-
 // JoinRoute combines a route group path with a route fragment.
 func JoinRoute(group, fragment string) string {
 	return group + fragment
 }
 
-//nolint:gosec // Canonical route fragments are API contracts, not credentials.
+//nolint:gosec // Route fragments are API contracts, not credentials.
 const (
-	// AuthGroup keeps the legacy compatibility alias for the canonical auth route group.
-	AuthGroup = authcontract.AuthGroup
-
-	// AuthLogin keeps the legacy compatibility alias for the canonical auth login route fragment.
-	AuthLogin = authcontract.AuthLogin
-
-	// AuthRefresh keeps the legacy compatibility alias for the canonical auth refresh route fragment.
-	AuthRefresh = authcontract.AuthRefresh
-
-	// AuthLogout keeps the legacy compatibility alias for the canonical auth logout route fragment.
-	AuthLogout = authcontract.AuthLogout
-
-	// AuthSessionsRevokeAll keeps the legacy compatibility alias for the canonical revoke-all route fragment.
-	AuthSessionsRevokeAll = authcontract.AuthSessionsRevokeAll
-
-	// AuthSessionsRevokeOthers keeps the legacy compatibility alias for the canonical revoke-others route fragment.
-	AuthSessionsRevokeOthers = authcontract.AuthSessionsRevokeOthers
-
-	// AuthSessions keeps the legacy compatibility alias for the canonical session-list route fragment.
-	AuthSessions = authcontract.AuthSessions
-
-	// AuthSessionRevoke keeps the legacy compatibility alias for the canonical per-session revoke route fragment.
-	AuthSessionRevoke = authcontract.AuthSessionRevoke
-
-	// AuthBootstrap keeps the legacy compatibility alias for the canonical bootstrap route fragment.
-	AuthBootstrap = authcontract.AuthBootstrap
-
-	// AuthChangePassword keeps the legacy compatibility alias for the canonical password-change route fragment.
-	AuthChangePassword = authcontract.AuthChangePassword
-
-	// AuthCompleteRequiredPasswordChange keeps the legacy compatibility alias for the canonical required-password-change route fragment.
-	AuthCompleteRequiredPasswordChange = authcontract.AuthCompleteRequiredPasswordChange
-
 	// UsersGroup identifies the user-management route group.
 	UsersGroup = "/users"
 

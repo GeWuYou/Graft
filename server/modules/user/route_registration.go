@@ -8,7 +8,6 @@ import (
 	"graft/server/internal/moduleapi"
 	authruntime "graft/server/modules/auth"
 	usercontract "graft/server/modules/user/contract"
-	userstore "graft/server/modules/user/store"
 )
 
 type userRouteRegistrar struct {
@@ -17,13 +16,12 @@ type userRouteRegistrar struct {
 	userSvc      userService
 	authSessions moduleapi.AuthSessionService
 	cookies      authruntime.CookieManager
-	authRepo     userstore.AuthRepository
-	passwords    passwordHasher
-	policy       passwordPolicy
 	guards       routeGuards
 	appLog       applog.AppLogger
 }
 
+// registerUserRoutes 注册用户相关的 HTTP 路由，并为路由组启用请求 ID 中间件。
+// 返回注册结果；当前始终为 nil。
 func registerUserRoutes(
 	ctx *module.Context,
 	moduleName string,
@@ -37,9 +35,6 @@ func registerUserRoutes(
 		userSvc:      userSvc,
 		authSessions: authSessions,
 		cookies:      authruntime.NewCookieManager(ctx.Config.Auth),
-		authRepo:     guards.authRepo,
-		passwords:    guards.passwords,
-		policy:       guards.policy,
 		guards:       guards,
 		appLog:       resolveUserRouteAppLogger(ctx),
 	}

@@ -8,18 +8,6 @@ import (
 	"graft/server/modules/user/ent"
 )
 
-// The RefreshSessionFunc type is an adapter to allow the use of ordinary
-// function as RefreshSession mutator.
-type RefreshSessionFunc func(context.Context, *ent.RefreshSessionMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f RefreshSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.RefreshSessionMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RefreshSessionMutation", m)
-}
-
 // The UserFunc type is an adapter to allow the use of ordinary
 // function as User mutator.
 type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)

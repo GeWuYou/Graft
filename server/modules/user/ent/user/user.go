@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -20,12 +19,6 @@ const (
 	FieldDisplay = "display"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
-	// FieldPasswordHash holds the string denoting the password_hash field in the database.
-	FieldPasswordHash = "password_hash"
-	// FieldMustChangePassword holds the string denoting the must_change_password field in the database.
-	FieldMustChangePassword = "must_change_password"
-	// FieldPasswordChangedAt holds the string denoting the password_changed_at field in the database.
-	FieldPasswordChangedAt = "password_changed_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -38,17 +31,8 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldDeletedBy holds the string denoting the deleted_by field in the database.
 	FieldDeletedBy = "deleted_by"
-	// EdgeRefreshSessions holds the string denoting the refresh_sessions edge name in mutations.
-	EdgeRefreshSessions = "refresh_sessions"
 	// Table holds the table name of the user in the database.
 	Table = "users"
-	// RefreshSessionsTable is the table that holds the refresh_sessions relation/edge.
-	RefreshSessionsTable = "refresh_sessions"
-	// RefreshSessionsInverseTable is the table name for the RefreshSession entity.
-	// It exists in this package in order to avoid circular dependency with the "refreshsession" package.
-	RefreshSessionsInverseTable = "refresh_sessions"
-	// RefreshSessionsColumn is the table column denoting the refresh_sessions relation/edge.
-	RefreshSessionsColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -57,9 +41,6 @@ var Columns = []string{
 	FieldUsername,
 	FieldDisplay,
 	FieldStatus,
-	FieldPasswordHash,
-	FieldMustChangePassword,
-	FieldPasswordChangedAt,
 	FieldCreatedAt,
 	FieldCreatedBy,
 	FieldUpdatedAt,
@@ -87,8 +68,6 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
-	// DefaultMustChangePassword holds the default value on creation for the "must_change_password" field.
-	DefaultMustChangePassword bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
@@ -128,21 +107,6 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
-// ByPasswordHash orders the results by the password_hash field.
-func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPasswordHash, opts...).ToFunc()
-}
-
-// ByMustChangePassword orders the results by the must_change_password field.
-func ByMustChangePassword(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldMustChangePassword, opts...).ToFunc()
-}
-
-// ByPasswordChangedAt orders the results by the password_changed_at field.
-func ByPasswordChangedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPasswordChangedAt, opts...).ToFunc()
-}
-
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -171,25 +135,4 @@ func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedBy orders the results by the deleted_by field.
 func ByDeletedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedBy, opts...).ToFunc()
-}
-
-// ByRefreshSessionsCount orders the results by refresh_sessions count.
-func ByRefreshSessionsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRefreshSessionsStep(), opts...)
-	}
-}
-
-// ByRefreshSessions orders the results by refresh_sessions terms.
-func ByRefreshSessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRefreshSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-func newRefreshSessionsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(RefreshSessionsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, RefreshSessionsTable, RefreshSessionsColumn),
-	)
 }

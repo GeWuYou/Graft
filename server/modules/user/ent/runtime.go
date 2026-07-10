@@ -3,7 +3,6 @@
 package ent
 
 import (
-	"graft/server/modules/user/ent/refreshsession"
 	"graft/server/modules/user/ent/schema"
 	"graft/server/modules/user/ent/user"
 	"time"
@@ -11,24 +10,8 @@ import (
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
-// to their package variables.
+// init 初始化 User 实体字段的校验器及创建、更新默认值。
 func init() {
-	refreshsessionFields := schema.RefreshSession{}.Fields()
-	_ = refreshsessionFields
-	// refreshsessionDescTokenID is the schema descriptor for token_id field.
-	refreshsessionDescTokenID := refreshsessionFields[1].Descriptor()
-	// refreshsession.TokenIDValidator is a validator for the "token_id" field. It is called by the builders before save.
-	refreshsession.TokenIDValidator = refreshsessionDescTokenID.Validators[0].(func(string) error)
-	// refreshsessionDescCreatedAt is the schema descriptor for created_at field.
-	refreshsessionDescCreatedAt := refreshsessionFields[5].Descriptor()
-	// refreshsession.DefaultCreatedAt holds the default value on creation for the created_at field.
-	refreshsession.DefaultCreatedAt = refreshsessionDescCreatedAt.Default.(func() time.Time)
-	// refreshsessionDescUpdatedAt is the schema descriptor for updated_at field.
-	refreshsessionDescUpdatedAt := refreshsessionFields[6].Descriptor()
-	// refreshsession.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	refreshsession.DefaultUpdatedAt = refreshsessionDescUpdatedAt.Default.(func() time.Time)
-	// refreshsession.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	refreshsession.UpdateDefaultUpdatedAt = refreshsessionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescUsername is the schema descriptor for username field.
@@ -45,34 +28,30 @@ func init() {
 	user.DefaultStatus = userDescStatus.Default.(string)
 	// user.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	user.StatusValidator = userDescStatus.Validators[0].(func(string) error)
-	// userDescMustChangePassword is the schema descriptor for must_change_password field.
-	userDescMustChangePassword := userFields[4].Descriptor()
-	// user.DefaultMustChangePassword holds the default value on creation for the must_change_password field.
-	user.DefaultMustChangePassword = userDescMustChangePassword.Default.(bool)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[6].Descriptor()
+	userDescCreatedAt := userFields[3].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescCreatedBy is the schema descriptor for created_by field.
-	userDescCreatedBy := userFields[7].Descriptor()
+	userDescCreatedBy := userFields[4].Descriptor()
 	// user.DefaultCreatedBy holds the default value on creation for the created_by field.
 	user.DefaultCreatedBy = userDescCreatedBy.Default.(uint64)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[8].Descriptor()
+	userDescUpdatedAt := userFields[5].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	user.UpdateDefaultUpdatedAt = userDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// userDescUpdatedBy is the schema descriptor for updated_by field.
-	userDescUpdatedBy := userFields[9].Descriptor()
+	userDescUpdatedBy := userFields[6].Descriptor()
 	// user.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	user.DefaultUpdatedBy = userDescUpdatedBy.Default.(uint64)
 	// userDescDeletedAt is the schema descriptor for deleted_at field.
-	userDescDeletedAt := userFields[10].Descriptor()
+	userDescDeletedAt := userFields[7].Descriptor()
 	// user.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	user.DefaultDeletedAt = userDescDeletedAt.Default.(int64)
 	// userDescDeletedBy is the schema descriptor for deleted_by field.
-	userDescDeletedBy := userFields[11].Descriptor()
+	userDescDeletedBy := userFields[8].Descriptor()
 	// user.DefaultDeletedBy holds the default value on creation for the deleted_by field.
 	user.DefaultDeletedBy = userDescDeletedBy.Default.(uint64)
 }

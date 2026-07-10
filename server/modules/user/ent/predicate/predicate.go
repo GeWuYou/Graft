@@ -6,8 +6,5 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// RefreshSession is the predicate function for refreshsession builders.
-type RefreshSession func(*sql.Selector)
-
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
