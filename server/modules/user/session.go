@@ -174,7 +174,7 @@ func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken stri
 	if err != nil {
 		return err
 	}
-	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
+	session, err := s.sessions.GetRefreshSessionByTokenID(ctx, claims.TokenID)
 	if err != nil {
 		if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 			return errInvalidRefreshToken
@@ -187,7 +187,7 @@ func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken stri
 		return errInvalidRefreshToken
 	}
 
-	if err := s.auth.RevokeRefreshSession(ctx, userstore.RevokeRefreshSessionInput{
+	if err := s.sessions.RevokeRefreshSession(ctx, userstore.RevokeRefreshSessionInput{
 		TokenID:   claims.TokenID,
 		RevokedAt: now,
 	}); err != nil {
@@ -202,10 +202,12 @@ func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken stri
 
 func (s authService) ensureRefreshDependencies() error {
 	switch {
-	case s.auth == nil:
-		return errors.New("auth repository is unavailable")
-	case s.users == nil:
-		return errors.New("user repository is unavailable")
+	case s.credentials == nil:
+		return errors.New("credential store is unavailable")
+	case s.sessions == nil:
+		return errors.New("session store is unavailable")
+	case s.identity == nil:
+		return errors.New("user identity provider is unavailable")
 	case s.tokens == nil:
 		return errors.New("access token manager is unavailable")
 	case s.refreshTokens == nil:
@@ -216,8 +218,8 @@ func (s authService) ensureRefreshDependencies() error {
 }
 
 func (s authService) ensureLogoutDependencies() error {
-	if s.auth == nil {
-		return errors.New("auth repository is unavailable")
+	if s.sessions == nil {
+		return errors.New("session store is unavailable")
 	}
 	if s.refreshTokens == nil {
 		return errors.New("refresh token manager is unavailable")
@@ -248,14 +250,14 @@ func (s authService) loadRefreshActor(
 	ctx context.Context,
 	userID uint64,
 ) (userstore.User, userstore.UserCredential, error) {
-	record, err := s.users.GetByID(ctx, userID)
+	record, err := s.identity.GetCurrentUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, userstore.ErrUserNotFound) {
 			return userstore.User{}, userstore.UserCredential{}, errInvalidRefreshToken
 		}
 		return userstore.User{}, userstore.UserCredential{}, err
 	}
-	credential, err := s.auth.GetUserCredentialByUsername(ctx, record.Username)
+	credential, err := s.credentials.GetUserCredentialByUsername(ctx, record.Username)
 	if err != nil {
 		if errors.Is(err, userstore.ErrUserNotFound) {
 			return userstore.User{}, userstore.UserCredential{}, errInvalidRefreshToken
@@ -263,7 +265,7 @@ func (s authService) loadRefreshActor(
 		return userstore.User{}, userstore.UserCredential{}, err
 	}
 
-	return record, credential, nil
+	return userstore.User{ID: record.ID, Username: record.Username, Display: record.DisplayName}, credential, nil
 }
 
 func (s authService) validateActiveRefreshSession(
@@ -271,7 +273,7 @@ func (s authService) validateActiveRefreshSession(
 	claims *refreshTokenSubject,
 	now time.Time,
 ) error {
-	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
+	session, err := s.sessions.GetRefreshSessionByTokenID(ctx, claims.TokenID)
 	if err != nil {
 		return mapRefreshSessionRepositoryError(err)
 	}
@@ -295,7 +297,7 @@ func (s authService) rotateRefreshSession(
 	currentTokenID string,
 	now time.Time,
 ) (userstore.RefreshSession, error) {
-	nextSession, err := s.auth.RotateRefreshSession(ctx, userstore.RotateRefreshSessionInput{
+	nextSession, err := s.sessions.RotateRefreshSession(ctx, userstore.RotateRefreshSessionInput{
 		CurrentTokenID: currentTokenID,
 		NewTokenID:     uuid.NewString(),
 		Now:            now,
@@ -390,11 +392,11 @@ func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
 }
 
 func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) error {
-	if s.auth == nil {
-		return errors.New("auth repository is unavailable")
+	if s.sessions == nil {
+		return errors.New("session store is unavailable")
 	}
 
-	return s.auth.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
+	return s.sessions.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
 		UserID:    userID,
 		RevokedAt: s.nowUTC(),
 	})
@@ -410,15 +412,15 @@ func (s authService) RevokeCurrentUserSession(ctx context.Context, sessionID str
 }
 
 func (s authService) RevokeUserSession(ctx context.Context, userID uint64, sessionID string) error {
-	if s.auth == nil {
-		return errors.New("auth repository is unavailable")
+	if s.sessions == nil {
+		return errors.New("session store is unavailable")
 	}
 
 	if strings.TrimSpace(sessionID) == "" {
 		return errSessionNotFound
 	}
 
-	if err := s.auth.RevokeRefreshSessionByUserID(ctx, userstore.RevokeRefreshSessionByUserIDInput{
+	if err := s.sessions.RevokeRefreshSessionByUserID(ctx, userstore.RevokeRefreshSessionByUserIDInput{
 		UserID:    userID,
 		TokenID:   strings.TrimSpace(sessionID),
 		RevokedAt: s.nowUTC(),
@@ -442,12 +444,12 @@ func (s authService) ListCurrentUserSessions(ctx context.Context, options sessio
 }
 
 func (s authService) ListUserSessions(ctx context.Context, userID uint64, options sessionListOptions) ([]sessionSummary, error) {
-	if s.auth == nil {
-		return nil, errors.New("auth repository is unavailable")
+	if s.sessions == nil {
+		return nil, errors.New("session store is unavailable")
 	}
 
 	requestAuth, _ := moduleapi.RequestAuthContextFromContext(ctx)
-	sessions, err := s.auth.ListActiveRefreshSessionsByUserID(ctx, userstore.ListActiveRefreshSessionsByUserIDInput{
+	sessions, err := s.sessions.ListActiveRefreshSessionsByUserID(ctx, userstore.ListActiveRefreshSessionsByUserIDInput{
 		UserID: userID,
 		Now:    s.nowUTC(),
 	})
@@ -473,14 +475,14 @@ func (s authService) ListUserSessions(ctx context.Context, userID uint64, option
 }
 
 func (s authService) validateAccessSession(ctx context.Context, claims *moduleapi.AccessTokenClaims) error {
-	if s.auth == nil {
-		return errors.New("auth repository is unavailable")
+	if s.sessions == nil {
+		return errors.New("session store is unavailable")
 	}
 	if claims == nil || strings.TrimSpace(claims.SessionID) == "" {
 		return errAccessSessionFailed
 	}
 
-	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.SessionID)
+	session, err := s.sessions.GetRefreshSessionByTokenID(ctx, claims.SessionID)
 	if err != nil {
 		if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 			return errAccessSessionFailed
@@ -497,8 +499,8 @@ func (s authService) validateAccessSession(ctx context.Context, claims *moduleap
 }
 
 func (s authService) createRefreshSession(ctx context.Context, userID uint64) (refreshSessionGrant, error) {
-	if s.auth == nil {
-		return refreshSessionGrant{}, errors.New("auth repository is unavailable")
+	if s.sessions == nil {
+		return refreshSessionGrant{}, errors.New("session store is unavailable")
 	}
 	if s.refreshTokens == nil {
 		return refreshSessionGrant{}, errors.New("refresh token manager is unavailable")
@@ -507,7 +509,7 @@ func (s authService) createRefreshSession(ctx context.Context, userID uint64) (r
 	tokenID := uuid.NewString()
 	issuedAt := s.refreshTokens.now().UTC()
 	expiresAt := issuedAt.Add(s.refreshTokens.ttl)
-	session, err := s.auth.CreateRefreshSession(ctx, userstore.CreateRefreshSessionInput{
+	session, err := s.sessions.CreateRefreshSession(ctx, userstore.CreateRefreshSessionInput{
 		UserID:    userID,
 		TokenID:   tokenID,
 		ExpiresAt: expiresAt,

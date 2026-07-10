@@ -18,6 +18,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	authcontract "graft/server/modules/auth/contract"
+	authstore "graft/server/modules/auth/store"
 	usercontract "graft/server/modules/user/contract"
 	userstore "graft/server/modules/user/store"
 )
@@ -200,9 +201,15 @@ type userService struct {
 // 它把 access token 解析、refresh session 状态校验、当前用户读取和会话治理
 // 保持在同一模块边界内，避免把生命周期敏感的鉴权协作拆散到 core 或其他模块。
 type authService struct {
-	auth            userstore.AuthRepository           // auth 负责 refresh session 持久化与轮换状态读取。
-	passwordChanges userstore.PasswordChangeRepository // passwordChanges 负责原子改密与会话撤销写路径。
-	users           userstore.UserRepository           // users 提供当前主体与登录路径所需的稳定用户读取能力。
+	// auth and users keep the existing concrete store implementation wired for
+	// this dependency-graph extraction. New runtime code must use the narrow
+	// contracts below; the physical store move is a later batch.
+	auth            userstore.AuthRepository
+	users           userstore.UserRepository
+	credentials     authstore.CredentialStore          // credentials owns password credential persistence.
+	sessions        authstore.SessionStore             // sessions owns refresh-session lifecycle persistence.
+	passwordChanges authstore.PasswordChangeRepository // passwordChanges preserves the current atomic password/session write.
+	identity        moduleapi.UserIdentityProvider     // identity provides user-profile facts without credential access.
 	passwords       passwordHasher                     // passwords 统一封装口令散列与校验策略。
 	policy          passwordPolicy                     // policy 固定收敛当前 MVP 的默认管理员与改密规则。
 	tokens          *accessTokenManager                // tokens 负责 access token 的签发与解析。

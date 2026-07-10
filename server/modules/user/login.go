@@ -8,6 +8,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/moduleapi"
+	authstore "graft/server/modules/auth/store"
 	userstore "graft/server/modules/user/store"
 )
 
@@ -29,16 +30,18 @@ func newAuthService(authConfig config.AuthConfig, authRepo userstore.AuthReposit
 	if err != nil {
 		return nil, err
 	}
-
-	var passwordChanges userstore.PasswordChangeRepository
-	if candidate, ok := authRepo.(userstore.PasswordChangeRepository); ok {
+	var passwordChanges authstore.PasswordChangeRepository
+	if candidate, ok := authRepo.(authstore.PasswordChangeRepository); ok {
 		passwordChanges = candidate
 	}
 
 	return &authService{
 		auth:            authRepo,
-		passwordChanges: passwordChanges,
 		users:           usersRepo,
+		credentials:     authRepo,
+		sessions:        authRepo,
+		passwordChanges: passwordChanges,
+		identity:        userIdentityProvider{users: usersRepo},
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		tokens:          tokens,
@@ -67,7 +70,7 @@ func (s authService) Login(ctx context.Context, username string, password string
 // ProvisionPasswordCredential creates the initial credential for an existing
 // user profile. Profile creation remains user-owned; hashing policy remains auth-owned.
 func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error {
-	if s.auth == nil {
+	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
 	}
 	if err := s.policy.ValidateNewPassword(password); err != nil {
@@ -78,12 +81,12 @@ func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uin
 		return fmt.Errorf("hash initial password: %w", err)
 	}
 	changedAt := s.nowUTC()
-	return s.auth.SetPasswordHash(ctx, userstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
+	return s.credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
 }
 
 // ResetPassword applies the administrator reset policy and revokes all active sessions.
 func (s authService) ResetPassword(ctx context.Context, userID uint64, password string) error {
-	if s.auth == nil {
+	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
 	}
 	if err := s.policy.ValidateNewPassword(password); err != nil {
@@ -93,26 +96,26 @@ func (s authService) ResetPassword(ctx context.Context, userID uint64, password 
 	if err != nil {
 		return fmt.Errorf("hash reset password: %w", err)
 	}
-	return s.auth.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: s.nowUTC()})
+	return s.credentials.ResetPasswordAndRevokeRefreshSessions(ctx, authstore.ResetPasswordAndRevokeSessionsInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: s.nowUTC()})
 }
 
 // RevokeSessions invalidates every refresh session for a user profile lifecycle change.
 func (s authService) RevokeSessions(ctx context.Context, userID uint64) error {
-	if s.auth == nil {
+	if s.sessions == nil {
 		return errors.New("auth repository is unavailable")
 	}
-	return s.auth.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: s.nowUTC()})
+	return s.sessions.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: s.nowUTC()})
 }
 
 func (s authService) authenticateUser(ctx context.Context, username string, password string) (moduleapi.CurrentUser, userstore.UserCredential, error) {
-	if s.auth == nil {
+	if s.credentials == nil {
 		return moduleapi.CurrentUser{}, userstore.UserCredential{}, errors.New("auth repository is unavailable")
 	}
-	if s.users == nil {
+	if s.identity == nil {
 		return moduleapi.CurrentUser{}, userstore.UserCredential{}, errors.New("user repository is unavailable")
 	}
 
-	credential, err := s.auth.GetUserCredentialByUsername(ctx, strings.TrimSpace(username))
+	credential, err := s.credentials.GetUserCredentialByUsername(ctx, strings.TrimSpace(username))
 	if err != nil {
 		if errors.Is(err, userstore.ErrUserNotFound) {
 			// 用户不存在时仍执行一次固定成本的 bcrypt 校验，尽量收敛用户名枚举的时序差异。
@@ -132,7 +135,7 @@ func (s authService) authenticateUser(ctx context.Context, username string, pass
 		return moduleapi.CurrentUser{}, userstore.UserCredential{}, errInvalidLoginCredentials
 	}
 
-	record, err := s.users.GetByID(ctx, credential.UserID)
+	record, err := s.identity.GetCurrentUserByID(ctx, credential.UserID)
 	if err != nil {
 		if errors.Is(err, userstore.ErrUserNotFound) {
 			return moduleapi.CurrentUser{}, userstore.UserCredential{}, errInvalidLoginCredentials
@@ -143,6 +146,6 @@ func (s authService) authenticateUser(ctx context.Context, username string, pass
 	return moduleapi.CurrentUser{
 		ID:          record.ID,
 		Username:    record.Username,
-		DisplayName: record.Display,
+		DisplayName: record.DisplayName,
 	}, credential, nil
 }

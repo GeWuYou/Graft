@@ -151,6 +151,12 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 		return registeredServices{}, err
 	}
 
+	identity := userIdentityProvider{users: userRepo}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.UserIdentityProvider)(nil), func(_ container.Resolver) (any, error) {
+		return identity, nil
+	}); err != nil {
+		return registeredServices{}, err
+	}
 	authSvc, err := newAuthService(ctx.Config.Auth, authRepo, userRepo)
 	if err != nil {
 		return registeredServices{}, err
