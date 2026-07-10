@@ -260,6 +260,8 @@
             <t-input
               v-model="userForm.password"
               type="password"
+              autocomplete="new-password"
+              name="new-password"
               :placeholder="t('user.userList.form.passwordPlaceholder')"
             />
           </t-form-item>
@@ -342,6 +344,8 @@
             <t-input
               v-model="resetPasswordForm.password"
               type="password"
+              autocomplete="new-password"
+              name="new-password"
               :placeholder="t('user.userList.resetPasswordDialog.passwordPlaceholder')"
             />
           </t-form-item>

@@ -26,6 +26,7 @@
               v-model="formData.newPassword"
               type="password"
               autocomplete="new-password"
+              name="new-password"
               :placeholder="t('app.auth.login.forcePasswordChange.newPasswordPlaceholder')"
             />
           </t-form-item>
@@ -35,6 +36,7 @@
               v-model="formData.confirmPassword"
               type="password"
               autocomplete="new-password"
+              name="confirm-new-password"
               :placeholder="t('app.auth.login.forcePasswordChange.confirmPasswordPlaceholder')"
             />
           </t-form-item>

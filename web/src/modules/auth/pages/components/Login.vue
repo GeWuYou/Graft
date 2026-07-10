@@ -10,7 +10,13 @@
   >
     <template v-if="type === 'password'">
       <t-form-item name="account">
-        <t-input v-model="formData.account" size="large" :placeholder="`${t('app.auth.login.input.account')}：admin`">
+        <t-input
+          v-model="formData.account"
+          autocomplete="username"
+          name="username"
+          size="large"
+          :placeholder="`${t('app.auth.login.input.account')}：admin`"
+        >
           <template #prefix-icon>
             <t-icon name="user" />
           </template>
@@ -20,6 +26,8 @@
       <t-form-item name="password">
         <t-input
           v-model="formData.password"
+          autocomplete="current-password"
+          name="current-password"
           size="large"
           :type="showPsw ? 'text' : 'password'"
           clearable
@@ -50,7 +58,13 @@
 
     <template v-else>
       <t-form-item name="phone">
-        <t-input v-model="formData.phone" size="large" :placeholder="t('app.auth.login.input.phone')">
+        <t-input
+          v-model="formData.phone"
+          autocomplete="tel"
+          name="tel"
+          size="large"
+          :placeholder="t('app.auth.login.input.phone')"
+        >
           <template #prefix-icon>
             <t-icon name="mobile" />
           </template>
@@ -58,7 +72,13 @@
       </t-form-item>
 
       <t-form-item class="verification-code" name="verifyCode">
-        <t-input v-model="formData.verifyCode" size="large" :placeholder="t('app.auth.login.input.verification')" />
+        <t-input
+          v-model="formData.verifyCode"
+          autocomplete="one-time-code"
+          name="one-time-code"
+          size="large"
+          :placeholder="t('app.auth.login.input.verification')"
+        />
         <t-button size="large" variant="outline" :disabled="countDown > 0" @click="sendCode">
           {{
             countDown === 0 ? t('app.auth.login.sendVerification') : t('app.auth.login.countdown', { count: countDown })
