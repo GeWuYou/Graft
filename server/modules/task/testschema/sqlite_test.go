@@ -32,6 +32,9 @@ func TestCreateSQLiteEnforcesTaskStageUniqueness(t *testing.T) {
 	assertDuplicateStageRejected(t, db, "duplicate key", `INSERT INTO task_stages (
 		task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms, input_json, recovery_policy, result_json, created_at, updated_at
 	) VALUES (1, 'first', 2, 'test.executor', 'pending', 0, 1, 0, '{}', 'manual_reconcile', '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+	assertDuplicateStageRejected(t, db, "non-positive sequence", `INSERT INTO task_stages (
+		task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms, input_json, recovery_policy, result_json, created_at, updated_at
+	) VALUES (1, 'third', 0, 'test.executor', 'pending', 0, 1, 0, '{}', 'manual_reconcile', '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
 }
 
 func assertDuplicateStageRejected(t *testing.T, db *sql.DB, name string, query string) {
