@@ -51,10 +51,22 @@ func taskColumns() string {
 		failure_code, failure_message, created_at, updated_at`
 }
 
+func taskColumnsFor(alias string) string {
+	return alias + `.id, ` + alias + `.task_type, ` + alias + `.owner_type, ` + alias + `.owner_id, ` + alias + `.status, ` + alias + `.input_json, ` + alias + `.metadata_json, ` + alias + `.plan_json, ` + alias + `.state_json,
+		` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
+		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.created_at, ` + alias + `.updated_at`
+}
+
 func stageColumns() string {
 	return `id, task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
 		next_retry_at, input_json, recovery_policy, result_json, failure_code, failure_message, started_at,
 		finished_at, duration_ms, created_at, updated_at`
+}
+
+func stageColumnsFor(alias string) string {
+	return alias + `.id, ` + alias + `.task_id, ` + alias + `.stage_key, ` + alias + `.sequence, ` + alias + `.executor_type, ` + alias + `.status, ` + alias + `.attempt, ` + alias + `.max_attempts, ` + alias + `.retry_backoff_ms,
+		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.started_at,
+		` + alias + `.finished_at, ` + alias + `.duration_ms, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
 func eventColumns() string {
@@ -97,6 +109,58 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	item.FailureCode = nullableString(failureCode)
 	item.FailureMessage = nullableString(failureMessage)
 	return item, nil
+}
+
+func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, error) {
+	var claim StageClaim
+	var taskType, taskStatus string
+	var taskInput, taskMetadata, taskPlan, taskState []byte
+	var taskCurrentStageKey, taskFailureCode, taskFailureMessage sql.NullString
+	var taskCreatedBy sql.NullInt64
+	var taskScheduledAt, taskCancelRequestedAt, taskStartedAt, taskFinishedAt sql.NullTime
+	var taskDurationMS sql.NullInt64
+	var stageExecutorType, stageStatus, stageRecoveryPolicy string
+	var stageInput, stageResult []byte
+	var stageNextRetryAt, stageStartedAt, stageFinishedAt sql.NullTime
+	var stageFailureCode, stageFailureMessage sql.NullString
+	var stageDurationMS sql.NullInt64
+	if err := scanner.Scan(
+		&claim.Task.ID, &taskType, &claim.Task.Owner.Type, &claim.Task.Owner.ID, &taskStatus, &taskInput, &taskMetadata, &taskPlan, &taskState,
+		&taskCurrentStageKey, &taskCreatedBy, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
+		&taskFailureCode, &taskFailureMessage, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
+		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,
+		&stageNextRetryAt, &stageInput, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageStartedAt,
+		&stageFinishedAt, &stageDurationMS, &claim.Stage.CreatedAt, &claim.Stage.UpdatedAt,
+	); err != nil {
+		return StageClaim{}, err
+	}
+	claim.Task.Type = moduleapi.TaskType(taskType)
+	claim.Task.Status = moduleapi.TaskStatus(taskStatus)
+	claim.Task.Input = normalizeJSON(taskInput)
+	claim.Task.Metadata = normalizeJSON(taskMetadata)
+	claim.Task.Plan = normalizeJSON(taskPlan)
+	claim.Task.State = normalizeJSON(taskState)
+	claim.Task.CurrentStageKey = nullableString(taskCurrentStageKey)
+	claim.Task.CreatedBy = nullableUint64(taskCreatedBy)
+	claim.Task.ScheduledAt = nullableTime(taskScheduledAt)
+	claim.Task.CancelRequestedAt = nullableTime(taskCancelRequestedAt)
+	claim.Task.StartedAt = nullableTime(taskStartedAt)
+	claim.Task.FinishedAt = nullableTime(taskFinishedAt)
+	claim.Task.DurationMS = nullableInt64(taskDurationMS)
+	claim.Task.FailureCode = nullableString(taskFailureCode)
+	claim.Task.FailureMessage = nullableString(taskFailureMessage)
+	claim.Stage.ExecutorType = moduleapi.StageExecutorType(stageExecutorType)
+	claim.Stage.Status = moduleapi.StageStatus(stageStatus)
+	claim.Stage.Input = normalizeJSON(stageInput)
+	claim.Stage.RecoveryPolicy = moduleapi.StageRecoveryPolicy(stageRecoveryPolicy)
+	claim.Stage.Result = normalizeJSON(stageResult)
+	claim.Stage.NextRetryAt = nullableTime(stageNextRetryAt)
+	claim.Stage.FailureCode = nullableString(stageFailureCode)
+	claim.Stage.FailureMessage = nullableString(stageFailureMessage)
+	claim.Stage.StartedAt = nullableTime(stageStartedAt)
+	claim.Stage.FinishedAt = nullableTime(stageFinishedAt)
+	claim.Stage.DurationMS = nullableInt64(stageDurationMS)
+	return claim, nil
 }
 
 func scanStages(rows *sql.Rows) ([]taskmodel.Stage, error) {
@@ -208,4 +272,8 @@ func nullableTime(value sql.NullTime) *time.Time {
 	}
 	result := value.Time.UTC()
 	return &result
+}
+
+func stringPointer(value string) *string {
+	return &value
 }

@@ -49,14 +49,15 @@ closeout:
 
 - Persistence and state-machine foundation completed: `task` is registered as a compile-time module with module-owned
   `tasks`、`task_stages`、`task_events` 和 `task_logs` migrations, SQL persistence and tested state transitions.
-- The Task Runtime still has no worker, dispatcher, retry/cancel coordination, HTTP/realtime route, or consumer executor.
-- Next: `task-runtime-worker-and-recovery`.
+- The Task Runtime has a PostgreSQL-backed serial dispatcher, fixed in-process workers, executor registry, Task submission,
+  cancellation, retry coordination, and conservative crash recovery. It still has no HTTP/realtime route or Project consumer.
+- Next: `task-api-realtime-and-project-adoption`.
 
 ## Task Checklist
 
 - [x] task-runtime-foundation-authority
 - [x] task-module-persistence-state-machine
-- [ ] task-runtime-worker-and-recovery
+- [x] task-runtime-worker-and-recovery
 - [ ] task-api-realtime-and-project-adoption
 - [ ] task-web-module-and-project-ui
 - [ ] task-final-integration-archive-readiness
@@ -79,13 +80,12 @@ closeout:
     "task-module-persistence-state-machine"
   ],
   "pending_batches": [
-    "task-runtime-worker-and-recovery",
     "task-api-realtime-and-project-adoption",
     "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-module-persistence-state-machine",
-  "next_batch": "task-runtime-worker-and-recovery",
+  "current_batch": "task-runtime-worker-and-recovery",
+  "next_batch": "task-api-realtime-and-project-adoption",
   "closeout_status": "completed_no_handoff"
 }
 ```

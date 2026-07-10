@@ -20,7 +20,8 @@ var (
 	ErrStateConflict = errors.New("task runtime state conflict")
 )
 
-// Repository persists Task Runtime facts. It intentionally exposes no worker-claim operation in this batch.
+// Repository persists Task Runtime facts and provides the atomic ownership
+// operations required by the in-process Task Runtime worker.
 type Repository interface {
 	Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, error)
 	Get(ctx context.Context, taskID uint64) (taskmodel.Task, error)
@@ -31,6 +32,22 @@ type Repository interface {
 	TransitionStage(ctx context.Context, input StageTransitionInput) error
 	AppendEvent(ctx context.Context, input AppendEventInput) (taskmodel.Event, error)
 	AppendLog(ctx context.Context, input AppendLogInput) (taskmodel.Log, error)
+	ClaimNextStage(ctx context.Context, now time.Time) (StageClaim, bool, error)
+	RequestCancellation(ctx context.Context, taskID uint64, requestedAt time.Time) (taskmodel.Task, error)
+	CancelPendingTask(ctx context.Context, taskID uint64, finishedAt time.Time, durationMS *int64) error
+	RetryStage(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) (taskmodel.Stage, error)
+	RescheduleStage(ctx context.Context, stageID uint64, retryAt time.Time) error
+	NextEventSequence(ctx context.Context, taskID uint64) (int64, error)
+	NextLogSequence(ctx context.Context, taskID uint64) (int64, error)
+	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
+}
+
+// StageClaim is an exclusive worker lease represented by persisted running state.
+// The task runtime does not persist a second lease record: a worker owns the
+// claim only while the Stage remains running under compare-and-swap updates.
+type StageClaim struct {
+	Task  taskmodel.Task
+	Stage taskmodel.Stage
 }
 
 // CreateInput freezes a Task and its serial Stage plan in one database transaction.

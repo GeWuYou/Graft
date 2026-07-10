@@ -24,6 +24,16 @@
 - No worker, dispatcher, executor registry, API, realtime topic, Project integration, or automatic recovery was added.
 - Validation passed: migration SQL/version gates, focused Task/module-registry tests, backend lint, and full `graft validate backend`.
 
+## 2026-07-10 task-runtime-worker-and-recovery
+
+- Added a PostgreSQL-backed serial Stage dispatcher and fixed in-process worker pool to `server/modules/task`; Redis is not read or written by the correctness path.
+- Added consumer-facing `TaskService` submission, cancellation and operator-approved Stage retry, plus a `TaskRuntimeRegistrar` for consumer-owned `StageExecutor` registration.
+- Stage plans are validated against the registered executors before they are persisted. Workers use `FOR UPDATE SKIP LOCKED` on PostgreSQL to claim one serially eligible Stage; SQLite retains equivalent test-only behavior.
+- Cancellation is cooperative: a running executor receives its `Cancel` hook and a cancelled context; pending/scheduled and needs-attention Tasks can finalize without an executor.
+- Recovery distinguishes policies: interrupted `manual_reconcile` Stages become `unknown` and their Task becomes `needs_attention` with `recovery_required`; explicitly idempotent Stages return to pending for controlled retry.
+- Added direct regression tests for serial completion, retryable execution, operator retry, cancellation from needs-attention, and non-resumable crash recovery.
+- No HTTP, realtime, OpenAPI, Project executor, web, scheduler, Redis, MQ, or distributed worker change was made.
+
 ## Loop Batch State
 
 ```json
@@ -34,13 +44,12 @@
     "task-module-persistence-state-machine"
   ],
   "pending_batches": [
-    "task-runtime-worker-and-recovery",
     "task-api-realtime-and-project-adoption",
     "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-module-persistence-state-machine",
-  "next_batch": "task-runtime-worker-and-recovery",
+  "current_batch": "task-runtime-worker-and-recovery",
+  "next_batch": "task-api-realtime-and-project-adoption",
   "closeout_status": "completed_no_handoff"
 }
 ```

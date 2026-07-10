@@ -21,6 +21,9 @@ var taskTransitions = map[moduleapi.TaskStatus]map[moduleapi.TaskStatus]struct{}
 	moduleapi.TaskStatusRunning: {
 		moduleapi.TaskStatusSuccess: {}, moduleapi.TaskStatusFailed: {}, moduleapi.TaskStatusCancelled: {}, moduleapi.TaskStatusNeedsAttention: {},
 	},
+	moduleapi.TaskStatusFailed: {
+		moduleapi.TaskStatusRunning: {},
+	},
 	moduleapi.TaskStatusNeedsAttention: {
 		moduleapi.TaskStatusRunning: {}, moduleapi.TaskStatusCancelled: {},
 	},

@@ -109,6 +109,8 @@ type TaskReceipt struct {
 // TaskService exposes the Task Runtime submission capability to consumer modules.
 type TaskService interface {
 	Submit(ctx context.Context, input SubmitTaskInput) (TaskReceipt, error)
+	Cancel(ctx context.Context, taskID uint64) error
+	RetryStage(ctx context.Context, taskID uint64, stageID uint64) error
 }
 
 // StageRun is the bounded execution handle supplied to a StageExecutor.

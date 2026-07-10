@@ -274,6 +274,367 @@ func (r *SQLRepository) AppendLog(ctx context.Context, input AppendLogInput) (ta
 	return item, nil
 }
 
+// ClaimNextStage atomically selects the next serially executable Stage and
+// persists its running state. PostgreSQL SKIP LOCKED keeps concurrent workers
+// from running the same Stage; the SQLite path retains equivalent test semantics.
+func (r *SQLRepository) ClaimNextStage(ctx context.Context, now time.Time) (StageClaim, bool, error) {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	if r.placeholder == placeholderQuestion {
+		return r.claimNextStageSQLite(ctx, now.UTC())
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return StageClaim{}, false, fmt.Errorf("begin stage claim transaction: %w", err)
+	}
+	defer rollback(tx)
+
+	claim, found, err := r.claimNextStagePostgres(ctx, tx, now.UTC())
+	if err != nil || !found {
+		return claim, found, err
+	}
+	if err := tx.Commit(); err != nil {
+		return StageClaim{}, false, fmt.Errorf("commit stage claim transaction: %w", err)
+	}
+	return claim, true, nil
+}
+
+func (r *SQLRepository) claimNextStagePostgres(ctx context.Context, tx *sql.Tx, now time.Time) (StageClaim, bool, error) {
+	row := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT `+taskColumnsFor("task")+`, `+stageColumnsFor("stage")+`
+		FROM task_stages stage
+		JOIN tasks task ON task.id = stage.task_id
+		WHERE stage.status = ?
+			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
+			AND task.status IN (?, ?, ?)
+			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
+			AND NOT EXISTS (
+				SELECT 1 FROM task_stages earlier
+				WHERE earlier.task_id = stage.task_id AND earlier.sequence < stage.sequence
+					AND earlier.status NOT IN (?, ?, ?)
+			)
+		ORDER BY task.created_at ASC, stage.sequence ASC, stage.id ASC
+		FOR UPDATE OF task, stage SKIP LOCKED
+		LIMIT 1`),
+		moduleapi.StageStatusPending,
+		now,
+		moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
+		now,
+		moduleapi.StageStatusSuccess, moduleapi.StageStatusSkipped, moduleapi.StageStatusCancelled,
+	)
+	return r.transitionClaimedStage(ctx, tx, row, now)
+}
+
+func (r *SQLRepository) claimNextStageSQLite(ctx context.Context, now time.Time) (StageClaim, bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return StageClaim{}, false, fmt.Errorf("begin stage claim transaction: %w", err)
+	}
+	defer rollback(tx)
+	// #nosec G202 -- projection fragments are static module-owned SQL identifiers, never caller input.
+	row := tx.QueryRowContext(ctx, `SELECT `+taskColumnsFor("task")+`, `+stageColumnsFor("stage")+`
+		FROM task_stages stage
+		JOIN tasks task ON task.id = stage.task_id
+		WHERE stage.status = ?
+			AND (stage.next_retry_at IS NULL OR stage.next_retry_at <= ?)
+			AND task.status IN (?, ?, ?)
+			AND (task.scheduled_at IS NULL OR task.scheduled_at <= ?)
+			AND NOT EXISTS (
+				SELECT 1 FROM task_stages earlier
+				WHERE earlier.task_id = stage.task_id AND earlier.sequence < stage.sequence
+					AND earlier.status NOT IN (?, ?, ?)
+			)
+		ORDER BY task.created_at ASC, stage.sequence ASC, stage.id ASC
+		LIMIT 1`,
+		moduleapi.StageStatusPending,
+		now,
+		moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
+		now,
+		moduleapi.StageStatusSuccess, moduleapi.StageStatusSkipped, moduleapi.StageStatusCancelled,
+	)
+	claim, found, err := r.transitionClaimedStage(ctx, tx, row, now)
+	if err != nil || !found {
+		return claim, found, err
+	}
+	if err := tx.Commit(); err != nil {
+		return StageClaim{}, false, fmt.Errorf("commit stage claim transaction: %w", err)
+	}
+	return claim, true, nil
+}
+
+func (r *SQLRepository) transitionClaimedStage(ctx context.Context, tx *sql.Tx, row *sql.Row, now time.Time) (StageClaim, bool, error) {
+	claim, err := scanStageClaim(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return StageClaim{}, false, nil
+	}
+	if err != nil {
+		return StageClaim{}, false, fmt.Errorf("select claimable task stage: %w", err)
+	}
+	if claim.Task.Status != moduleapi.TaskStatusRunning {
+		if err := state.ValidateTaskTransition(claim.Task.Status, moduleapi.TaskStatusRunning); err != nil {
+			return StageClaim{}, false, err
+		}
+		result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+			SET status = ?, current_stage_key = ?, started_at = COALESCE(started_at, ?), updated_at = ?
+			WHERE id = ? AND status = ?`), moduleapi.TaskStatusRunning, claim.Stage.Key, now, now, claim.Task.ID, claim.Task.Status)
+		if err != nil {
+			return StageClaim{}, false, fmt.Errorf("mark claimed task running: %w", err)
+		}
+		if err := expectOneAffected(result); err != nil {
+			return StageClaim{}, false, err
+		}
+		claim.Task.Status = moduleapi.TaskStatusRunning
+		claim.Task.CurrentStageKey = stringPointer(claim.Stage.Key)
+		claim.Task.StartedAt = &now
+	}
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, attempt = ?, started_at = COALESCE(started_at, ?), updated_at = ?
+		WHERE id = ? AND status = ?`), moduleapi.StageStatusRunning, claim.Stage.Attempt+1, now, now, claim.Stage.ID, moduleapi.StageStatusPending)
+	if err != nil {
+		return StageClaim{}, false, fmt.Errorf("mark claimed stage running: %w", err)
+	}
+	if err := expectOneAffected(result); err != nil {
+		return StageClaim{}, false, err
+	}
+	claim.Stage.Status = moduleapi.StageStatusRunning
+	claim.Stage.Attempt++
+	claim.Stage.StartedAt = &now
+	return claim, true, nil
+}
+
+// RequestCancellation records a cooperative cancellation request. It leaves a
+// running Stage intact so the worker can invoke its consumer-owned Cancel hook.
+func (r *SQLRepository) RequestCancellation(ctx context.Context, taskID uint64, requestedAt time.Time) (taskmodel.Task, error) {
+	if taskID == 0 {
+		return taskmodel.Task{}, ErrInvalidInput
+	}
+	if requestedAt.IsZero() {
+		requestedAt = time.Now().UTC()
+	}
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET cancel_requested_at = COALESCE(cancel_requested_at, ?), updated_at = ?
+		WHERE id = ? AND status IN (?, ?, ?, ?)`),
+		requestedAt.UTC(), requestedAt.UTC(), taskID,
+		moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention,
+	)
+	if err != nil {
+		return taskmodel.Task{}, fmt.Errorf("request task cancellation: %w", err)
+	}
+	if err := expectOneAffected(result); err != nil {
+		return taskmodel.Task{}, err
+	}
+	return r.Get(ctx, taskID)
+}
+
+// CancelPendingTask finalizes an unclaimed task without invoking a Stage executor.
+func (r *SQLRepository) CancelPendingTask(ctx context.Context, taskID uint64, finishedAt time.Time, durationMS *int64) error {
+	if taskID == 0 || finishedAt.IsZero() {
+		return ErrInvalidInput
+	}
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, finished_at = ?, duration_ms = ?, updated_at = ?
+		WHERE id = ? AND status IN (?, ?)`), moduleapi.TaskStatusCancelled, finishedAt.UTC(), durationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled)
+	if err != nil {
+		return fmt.Errorf("cancel pending task: %w", err)
+	}
+	return expectOneAffected(result)
+}
+
+// RetryStage returns an operator-approved failed or unknown Stage to pending.
+// The runtime only accepts retries while the parent Task is needs_attention.
+func (r *SQLRepository) RetryStage(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) (taskmodel.Stage, error) {
+	if taskID == 0 || stageID == 0 || retryAt.IsZero() {
+		return taskmodel.Stage{}, ErrInvalidInput
+	}
+	if err := r.resumeRetryableTask(ctx, taskID); err != nil {
+		return taskmodel.Stage{}, err
+	}
+	if err := r.markStagePendingForRetry(ctx, taskID, stageID, retryAt); err != nil {
+		return taskmodel.Stage{}, err
+	}
+	return r.getStage(ctx, taskID, stageID)
+}
+
+func (r *SQLRepository) resumeRetryableTask(ctx context.Context, taskID uint64) error {
+	task, err := r.Get(ctx, taskID)
+	if err != nil {
+		return err
+	}
+	if task.Status != moduleapi.TaskStatusNeedsAttention && task.Status != moduleapi.TaskStatusFailed {
+		return ErrStateConflict
+	}
+	if err := r.TransitionTask(ctx, TaskTransitionInput{TaskID: taskID, From: task.Status, To: moduleapi.TaskStatusRunning}); err != nil {
+		return fmt.Errorf("resume task for stage retry: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) markStagePendingForRetry(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) error {
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
+			finished_at = NULL, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND task_id = ? AND status IN (?, ?)`),
+		moduleapi.StageStatusPending, retryAt.UTC(), retryAt.UTC(), stageID, taskID, moduleapi.StageStatusFailed, moduleapi.StageStatusUnknown,
+	)
+	if err != nil {
+		return fmt.Errorf("retry task stage: %w", err)
+	}
+	return expectOneAffected(result)
+}
+
+func (r *SQLRepository) getStage(ctx context.Context, taskID uint64, stageID uint64) (taskmodel.Stage, error) {
+	stages, err := r.ListStages(ctx, taskID)
+	if err != nil {
+		return taskmodel.Stage{}, err
+	}
+	for _, stage := range stages {
+		if stage.ID == stageID {
+			return stage, nil
+		}
+	}
+	return taskmodel.Stage{}, ErrNotFound
+}
+
+// RescheduleStage converts a retryable failed attempt into the next pending
+// attempt without rewriting the attempt counter or terminal history details.
+func (r *SQLRepository) RescheduleStage(ctx context.Context, stageID uint64, retryAt time.Time) error {
+	if stageID == 0 || retryAt.IsZero() {
+		return ErrInvalidInput
+	}
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, next_retry_at = ?, finished_at = NULL, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND status = ?`), moduleapi.StageStatusPending, retryAt.UTC(), retryAt.UTC(), stageID, moduleapi.StageStatusFailed)
+	if err != nil {
+		return fmt.Errorf("reschedule task stage: %w", err)
+	}
+	return expectOneAffected(result)
+}
+
+// NextEventSequence returns the next append-only sequence for one Task.
+func (r *SQLRepository) NextEventSequence(ctx context.Context, taskID uint64) (int64, error) {
+	return r.nextSequence(ctx, "task_events", taskID)
+}
+
+// NextLogSequence returns the next append-only log sequence for one Task.
+func (r *SQLRepository) NextLogSequence(ctx context.Context, taskID uint64) (int64, error) {
+	return r.nextSequence(ctx, "task_logs", taskID)
+}
+
+func (r *SQLRepository) nextSequence(ctx context.Context, table string, taskID uint64) (int64, error) {
+	if taskID == 0 {
+		return 0, ErrInvalidInput
+	}
+	var sequence int64
+	query := `SELECT COALESCE(MAX(sequence), 0) + 1 FROM ` + table + ` WHERE task_id = ?`
+	if err := r.db.QueryRowContext(ctx, r.placeholder.rebind(query), taskID).Scan(&sequence); err != nil {
+		return 0, fmt.Errorf("next task sequence: %w", err)
+	}
+	return sequence, nil
+}
+
+// RecoverInterruptedStages marks manual-reconcile running Stages unknown because
+// a restarted process cannot prove an external side effect. Explicitly
+// idempotent Stages return to pending for a controlled retry attempt.
+func (r *SQLRepository) RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error) {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin interrupted stage recovery: %w", err)
+	}
+	defer rollback(tx)
+	unknownCount, err := r.markManualRecoveryUnknown(ctx, tx, now)
+	if err != nil {
+		return 0, err
+	}
+	if err := r.markRecoveryTasks(ctx, tx, now); err != nil {
+		return 0, err
+	}
+	if err := r.appendRecoveryEvents(ctx, tx, now); err != nil {
+		return 0, err
+	}
+	retriedCount, err := r.rescheduleIdempotentRecovery(ctx, tx, now)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit interrupted stage recovery: %w", err)
+	}
+	return unknownCount + retriedCount, nil
+}
+
+func (r *SQLRepository) markManualRecoveryUnknown(ctx context.Context, tx *sql.Tx, now time.Time) (int, error) {
+	recoveryMessage := "stage outcome is unknown after task runtime restart"
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, failure_code = ?, failure_message = ?, finished_at = ?,
+			duration_ms = NULL,
+			updated_at = ?
+		WHERE status = ? AND recovery_policy = ?`), moduleapi.StageStatusUnknown, "runner_interrupted", recoveryMessage, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.StageRecoveryManualReconcile)
+	if err != nil {
+		return 0, fmt.Errorf("mark interrupted stages unknown: %w", err)
+	}
+	count64, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count interrupted stages: %w", err)
+	}
+	return int(count64), nil
+}
+
+func (r *SQLRepository) markRecoveryTasks(ctx context.Context, tx *sql.Tx, now time.Time) error {
+	recoveryMessage := "stage outcome is unknown after task runtime restart"
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, failure_code = ?, failure_message = ?, finished_at = ?,
+			duration_ms = NULL,
+			updated_at = ?
+		WHERE status = ? AND id IN (SELECT DISTINCT task_id FROM task_stages WHERE status = ? AND failure_code = ?)`),
+		moduleapi.TaskStatusNeedsAttention, "runner_interrupted", recoveryMessage, now.UTC(), now.UTC(),
+		moduleapi.TaskStatusRunning, moduleapi.StageStatusUnknown, "runner_interrupted",
+	)
+	if err != nil {
+		return fmt.Errorf("mark interrupted tasks needs attention: %w", err)
+	}
+	if _, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("count interrupted tasks: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) appendRecoveryEvents(ctx context.Context, tx *sql.Tx, now time.Time) error {
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_events (
+		task_id, sequence, event_type, payload_json, created_at
+	) SELECT DISTINCT stage.task_id,
+		COALESCE((SELECT MAX(event.sequence) FROM task_events event WHERE event.task_id = stage.task_id), 0) + 1,
+		?, ?, ?
+	FROM task_stages stage
+	JOIN tasks task ON task.id = stage.task_id
+	WHERE task.status = ? AND stage.status = ? AND stage.failure_code = ?`),
+		taskmodel.EventTypeRecoveryRequired, json.RawMessage(`{}`), now.UTC(),
+		moduleapi.TaskStatusNeedsAttention, moduleapi.StageStatusUnknown, "runner_interrupted",
+	); err != nil {
+		return fmt.Errorf("append interrupted stage recovery events: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) rescheduleIdempotentRecovery(ctx context.Context, tx *sql.Tx, now time.Time) (int, error) {
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
+			finished_at = NULL, duration_ms = NULL, updated_at = ?
+		WHERE status = ? AND recovery_policy = ?`),
+		moduleapi.StageStatusPending, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.StageRecoveryRetryIfIdempotent,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("reschedule idempotent interrupted stages: %w", err)
+	}
+	retriedCount, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count idempotent interrupted stages: %w", err)
+	}
+	return int(retriedCount), nil
+}
+
 func normalizeCreateInput(input CreateInput) (CreateInput, error) {
 	if err := normalizeTaskForCreate(&input.Task, len(input.Stages)); err != nil {
 		return CreateInput{}, err
