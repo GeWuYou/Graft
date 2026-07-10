@@ -4,22 +4,20 @@ import (
 	"database/sql"
 	"fmt"
 
+	"graft/server/internal/moduleapi"
 	authstore "graft/server/modules/auth/store"
-	"graft/server/modules/user/storeent"
-
-	"go.uber.org/zap"
+	"graft/server/modules/auth/storeent"
 )
 
 // NewRepositoryForDevelopmentReset exposes the auth-owned persistence entry
-// used by the development-only reset command. It remains an adapter over the
-// legacy user Ent model until the auth schema migration batch lands.
-func NewRepositoryForDevelopmentReset(sqlDB *sql.DB) (authstore.AuthRepository, error) {
-	runtime, err := storeent.NewRuntime(sqlDB, zap.NewNop())
+// used by the development-only reset command.
+func NewRepositoryForDevelopmentReset(sqlDB *sql.DB, identity moduleapi.UserIdentityProvider) (authstore.AuthRepository, error) {
+	client, err := storeent.NewClient(sqlDB)
 	if err != nil {
-		return nil, fmt.Errorf("build legacy auth persistence runtime: %w", err)
+		return nil, fmt.Errorf("build auth persistence client: %w", err)
 	}
 
-	repository, err := runtime.NewAuthRepository()
+	repository, err := storeent.NewAuthRepository(client, identity)
 	if err != nil {
 		return nil, fmt.Errorf("build auth repository: %w", err)
 	}

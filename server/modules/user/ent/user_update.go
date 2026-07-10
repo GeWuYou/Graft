@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"graft/server/modules/user/ent/predicate"
-	"graft/server/modules/user/ent/refreshsession"
 	"graft/server/modules/user/ent/user"
 	"time"
 
@@ -68,60 +67,6 @@ func (_u *UserUpdate) SetNillableStatus(v *string) *UserUpdate {
 	if v != nil {
 		_u.SetStatus(*v)
 	}
-	return _u
-}
-
-// SetPasswordHash sets the "password_hash" field.
-func (_u *UserUpdate) SetPasswordHash(v string) *UserUpdate {
-	_u.mutation.SetPasswordHash(v)
-	return _u
-}
-
-// SetNillablePasswordHash sets the "password_hash" field if the given value is not nil.
-func (_u *UserUpdate) SetNillablePasswordHash(v *string) *UserUpdate {
-	if v != nil {
-		_u.SetPasswordHash(*v)
-	}
-	return _u
-}
-
-// ClearPasswordHash clears the value of the "password_hash" field.
-func (_u *UserUpdate) ClearPasswordHash() *UserUpdate {
-	_u.mutation.ClearPasswordHash()
-	return _u
-}
-
-// SetMustChangePassword sets the "must_change_password" field.
-func (_u *UserUpdate) SetMustChangePassword(v bool) *UserUpdate {
-	_u.mutation.SetMustChangePassword(v)
-	return _u
-}
-
-// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableMustChangePassword(v *bool) *UserUpdate {
-	if v != nil {
-		_u.SetMustChangePassword(*v)
-	}
-	return _u
-}
-
-// SetPasswordChangedAt sets the "password_changed_at" field.
-func (_u *UserUpdate) SetPasswordChangedAt(v time.Time) *UserUpdate {
-	_u.mutation.SetPasswordChangedAt(v)
-	return _u
-}
-
-// SetNillablePasswordChangedAt sets the "password_changed_at" field if the given value is not nil.
-func (_u *UserUpdate) SetNillablePasswordChangedAt(v *time.Time) *UserUpdate {
-	if v != nil {
-		_u.SetPasswordChangedAt(*v)
-	}
-	return _u
-}
-
-// ClearPasswordChangedAt clears the value of the "password_changed_at" field.
-func (_u *UserUpdate) ClearPasswordChangedAt() *UserUpdate {
-	_u.mutation.ClearPasswordChangedAt()
 	return _u
 }
 
@@ -194,45 +139,9 @@ func (_u *UserUpdate) AddDeletedBy(v int64) *UserUpdate {
 	return _u
 }
 
-// AddRefreshSessionIDs adds the "refresh_sessions" edge to the RefreshSession entity by IDs.
-func (_u *UserUpdate) AddRefreshSessionIDs(ids ...int) *UserUpdate {
-	_u.mutation.AddRefreshSessionIDs(ids...)
-	return _u
-}
-
-// AddRefreshSessions adds the "refresh_sessions" edges to the RefreshSession entity.
-func (_u *UserUpdate) AddRefreshSessions(v ...*RefreshSession) *UserUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddRefreshSessionIDs(ids...)
-}
-
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
-}
-
-// ClearRefreshSessions clears all "refresh_sessions" edges to the RefreshSession entity.
-func (_u *UserUpdate) ClearRefreshSessions() *UserUpdate {
-	_u.mutation.ClearRefreshSessions()
-	return _u
-}
-
-// RemoveRefreshSessionIDs removes the "refresh_sessions" edge to RefreshSession entities by IDs.
-func (_u *UserUpdate) RemoveRefreshSessionIDs(ids ...int) *UserUpdate {
-	_u.mutation.RemoveRefreshSessionIDs(ids...)
-	return _u
-}
-
-// RemoveRefreshSessions removes "refresh_sessions" edges to RefreshSession entities.
-func (_u *UserUpdate) RemoveRefreshSessions(v ...*RefreshSession) *UserUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveRefreshSessionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -312,21 +221,6 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.PasswordHash(); ok {
-		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
-	}
-	if _u.mutation.PasswordHashCleared() {
-		_spec.ClearField(user.FieldPasswordHash, field.TypeString)
-	}
-	if value, ok := _u.mutation.MustChangePassword(); ok {
-		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
-	}
-	if value, ok := _u.mutation.PasswordChangedAt(); ok {
-		_spec.SetField(user.FieldPasswordChangedAt, field.TypeTime, value)
-	}
-	if _u.mutation.PasswordChangedAtCleared() {
-		_spec.ClearField(user.FieldPasswordChangedAt, field.TypeTime)
-	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -347,51 +241,6 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedDeletedBy(); ok {
 		_spec.AddField(user.FieldDeletedBy, field.TypeUint64, value)
-	}
-	if _u.mutation.RefreshSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.RefreshSessionsTable,
-			Columns: []string{user.RefreshSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(refreshsession.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedRefreshSessionsIDs(); len(nodes) > 0 && !_u.mutation.RefreshSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.RefreshSessionsTable,
-			Columns: []string{user.RefreshSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(refreshsession.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RefreshSessionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.RefreshSessionsTable,
-			Columns: []string{user.RefreshSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(refreshsession.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -452,60 +301,6 @@ func (_u *UserUpdateOne) SetNillableStatus(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
 	}
-	return _u
-}
-
-// SetPasswordHash sets the "password_hash" field.
-func (_u *UserUpdateOne) SetPasswordHash(v string) *UserUpdateOne {
-	_u.mutation.SetPasswordHash(v)
-	return _u
-}
-
-// SetNillablePasswordHash sets the "password_hash" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillablePasswordHash(v *string) *UserUpdateOne {
-	if v != nil {
-		_u.SetPasswordHash(*v)
-	}
-	return _u
-}
-
-// ClearPasswordHash clears the value of the "password_hash" field.
-func (_u *UserUpdateOne) ClearPasswordHash() *UserUpdateOne {
-	_u.mutation.ClearPasswordHash()
-	return _u
-}
-
-// SetMustChangePassword sets the "must_change_password" field.
-func (_u *UserUpdateOne) SetMustChangePassword(v bool) *UserUpdateOne {
-	_u.mutation.SetMustChangePassword(v)
-	return _u
-}
-
-// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableMustChangePassword(v *bool) *UserUpdateOne {
-	if v != nil {
-		_u.SetMustChangePassword(*v)
-	}
-	return _u
-}
-
-// SetPasswordChangedAt sets the "password_changed_at" field.
-func (_u *UserUpdateOne) SetPasswordChangedAt(v time.Time) *UserUpdateOne {
-	_u.mutation.SetPasswordChangedAt(v)
-	return _u
-}
-
-// SetNillablePasswordChangedAt sets the "password_changed_at" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillablePasswordChangedAt(v *time.Time) *UserUpdateOne {
-	if v != nil {
-		_u.SetPasswordChangedAt(*v)
-	}
-	return _u
-}
-
-// ClearPasswordChangedAt clears the value of the "password_changed_at" field.
-func (_u *UserUpdateOne) ClearPasswordChangedAt() *UserUpdateOne {
-	_u.mutation.ClearPasswordChangedAt()
 	return _u
 }
 
@@ -578,45 +373,9 @@ func (_u *UserUpdateOne) AddDeletedBy(v int64) *UserUpdateOne {
 	return _u
 }
 
-// AddRefreshSessionIDs adds the "refresh_sessions" edge to the RefreshSession entity by IDs.
-func (_u *UserUpdateOne) AddRefreshSessionIDs(ids ...int) *UserUpdateOne {
-	_u.mutation.AddRefreshSessionIDs(ids...)
-	return _u
-}
-
-// AddRefreshSessions adds the "refresh_sessions" edges to the RefreshSession entity.
-func (_u *UserUpdateOne) AddRefreshSessions(v ...*RefreshSession) *UserUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddRefreshSessionIDs(ids...)
-}
-
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
-}
-
-// ClearRefreshSessions clears all "refresh_sessions" edges to the RefreshSession entity.
-func (_u *UserUpdateOne) ClearRefreshSessions() *UserUpdateOne {
-	_u.mutation.ClearRefreshSessions()
-	return _u
-}
-
-// RemoveRefreshSessionIDs removes the "refresh_sessions" edge to RefreshSession entities by IDs.
-func (_u *UserUpdateOne) RemoveRefreshSessionIDs(ids ...int) *UserUpdateOne {
-	_u.mutation.RemoveRefreshSessionIDs(ids...)
-	return _u
-}
-
-// RemoveRefreshSessions removes "refresh_sessions" edges to RefreshSession entities.
-func (_u *UserUpdateOne) RemoveRefreshSessions(v ...*RefreshSession) *UserUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveRefreshSessionIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -726,21 +485,6 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.PasswordHash(); ok {
-		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
-	}
-	if _u.mutation.PasswordHashCleared() {
-		_spec.ClearField(user.FieldPasswordHash, field.TypeString)
-	}
-	if value, ok := _u.mutation.MustChangePassword(); ok {
-		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
-	}
-	if value, ok := _u.mutation.PasswordChangedAt(); ok {
-		_spec.SetField(user.FieldPasswordChangedAt, field.TypeTime, value)
-	}
-	if _u.mutation.PasswordChangedAtCleared() {
-		_spec.ClearField(user.FieldPasswordChangedAt, field.TypeTime)
-	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -761,51 +505,6 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.AddedDeletedBy(); ok {
 		_spec.AddField(user.FieldDeletedBy, field.TypeUint64, value)
-	}
-	if _u.mutation.RefreshSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.RefreshSessionsTable,
-			Columns: []string{user.RefreshSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(refreshsession.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedRefreshSessionsIDs(); len(nodes) > 0 && !_u.mutation.RefreshSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.RefreshSessionsTable,
-			Columns: []string{user.RefreshSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(refreshsession.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RefreshSessionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.RefreshSessionsTable,
-			Columns: []string{user.RefreshSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(refreshsession.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &User{config: _u.config}
 	_spec.Assign = _node.assignValues

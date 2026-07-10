@@ -23,12 +23,6 @@ type User struct {
 	Display string `json:"display,omitempty"`
 	// 状态：enabled 启用，disabled 禁用
 	Status string `json:"status,omitempty"`
-	// 密码哈希值
-	PasswordHash *string `json:"-"`
-	// 是否必须在下次登录后修改密码
-	MustChangePassword bool `json:"must_change_password,omitempty"`
-	// 最近一次修改密码时间
-	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 创建人用户 ID，0 表示系统
@@ -40,29 +34,8 @@ type User struct {
 	// 软删除时间戳，0 表示未删除
 	DeletedAt int64 `json:"deleted_at,omitempty"`
 	// 删除人用户 ID，0 表示未删除
-	DeletedBy uint64 `json:"deleted_by,omitempty"`
-	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the UserQuery when eager-loading is set.
-	Edges        UserEdges `json:"edges"`
+	DeletedBy    uint64 `json:"deleted_by,omitempty"`
 	selectValues sql.SelectValues
-}
-
-// UserEdges holds the relations/edges for other nodes in the graph.
-type UserEdges struct {
-	// RefreshSessions holds the value of the refresh_sessions edge.
-	RefreshSessions []*RefreshSession `json:"refresh_sessions,omitempty"`
-	// loadedTypes holds the information for reporting if a
-	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
-}
-
-// RefreshSessionsOrErr returns the RefreshSessions value or an error if the edge
-// was not loaded in eager-loading.
-func (e UserEdges) RefreshSessionsOrErr() ([]*RefreshSession, error) {
-	if e.loadedTypes[0] {
-		return e.RefreshSessions, nil
-	}
-	return nil, &NotLoadedError{edge: "refresh_sessions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -70,13 +43,11 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldMustChangePassword:
-			values[i] = new(sql.NullBool)
 		case user.FieldID, user.FieldCreatedBy, user.FieldUpdatedBy, user.FieldDeletedAt, user.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
-		case user.FieldUsername, user.FieldDisplay, user.FieldStatus, user.FieldPasswordHash:
+		case user.FieldUsername, user.FieldDisplay, user.FieldStatus:
 			values[i] = new(sql.NullString)
-		case user.FieldPasswordChangedAt, user.FieldCreatedAt, user.FieldUpdatedAt:
+		case user.FieldCreatedAt, user.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -116,26 +87,6 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
-			}
-		case user.FieldPasswordHash:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field password_hash", values[i])
-			} else if value.Valid {
-				_m.PasswordHash = new(string)
-				*_m.PasswordHash = value.String
-			}
-		case user.FieldMustChangePassword:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field must_change_password", values[i])
-			} else if value.Valid {
-				_m.MustChangePassword = value.Bool
-			}
-		case user.FieldPasswordChangedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field password_changed_at", values[i])
-			} else if value.Valid {
-				_m.PasswordChangedAt = new(time.Time)
-				*_m.PasswordChangedAt = value.Time
 			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -186,11 +137,6 @@ func (_m *User) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryRefreshSessions queries the "refresh_sessions" edge of the User entity.
-func (_m *User) QueryRefreshSessions() *RefreshSessionQuery {
-	return NewUserClient(_m.config).QueryRefreshSessions(_m)
-}
-
 // Update returns a builder for updating this User.
 // Note that you need to call User.Unwrap() before calling this method if this User
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -222,16 +168,6 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
-	builder.WriteString(", ")
-	builder.WriteString("password_hash=<sensitive>")
-	builder.WriteString(", ")
-	builder.WriteString("must_change_password=")
-	builder.WriteString(fmt.Sprintf("%v", _m.MustChangePassword))
-	builder.WriteString(", ")
-	if v := _m.PasswordChangedAt; v != nil {
-		builder.WriteString("password_changed_at=")
-		builder.WriteString(v.Format(time.ANSIC))
-	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

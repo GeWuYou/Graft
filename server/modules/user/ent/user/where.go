@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // ID filters vertices based on their ID field.
@@ -68,21 +67,6 @@ func Display(v string) predicate.User {
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldStatus, v))
-}
-
-// PasswordHash applies equality check predicate on the "password_hash" field. It's identical to PasswordHashEQ.
-func PasswordHash(v string) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
-}
-
-// MustChangePassword applies equality check predicate on the "must_change_password" field. It's identical to MustChangePasswordEQ.
-func MustChangePassword(v bool) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldMustChangePassword, v))
-}
-
-// PasswordChangedAt applies equality check predicate on the "password_changed_at" field. It's identical to PasswordChangedAtEQ.
-func PasswordChangedAt(v time.Time) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldPasswordChangedAt, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -308,141 +292,6 @@ func StatusEqualFold(v string) predicate.User {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldStatus, v))
-}
-
-// PasswordHashEQ applies the EQ predicate on the "password_hash" field.
-func PasswordHashEQ(v string) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
-}
-
-// PasswordHashNEQ applies the NEQ predicate on the "password_hash" field.
-func PasswordHashNEQ(v string) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldPasswordHash, v))
-}
-
-// PasswordHashIn applies the In predicate on the "password_hash" field.
-func PasswordHashIn(vs ...string) predicate.User {
-	return predicate.User(sql.FieldIn(FieldPasswordHash, vs...))
-}
-
-// PasswordHashNotIn applies the NotIn predicate on the "password_hash" field.
-func PasswordHashNotIn(vs ...string) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldPasswordHash, vs...))
-}
-
-// PasswordHashGT applies the GT predicate on the "password_hash" field.
-func PasswordHashGT(v string) predicate.User {
-	return predicate.User(sql.FieldGT(FieldPasswordHash, v))
-}
-
-// PasswordHashGTE applies the GTE predicate on the "password_hash" field.
-func PasswordHashGTE(v string) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldPasswordHash, v))
-}
-
-// PasswordHashLT applies the LT predicate on the "password_hash" field.
-func PasswordHashLT(v string) predicate.User {
-	return predicate.User(sql.FieldLT(FieldPasswordHash, v))
-}
-
-// PasswordHashLTE applies the LTE predicate on the "password_hash" field.
-func PasswordHashLTE(v string) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldPasswordHash, v))
-}
-
-// PasswordHashContains applies the Contains predicate on the "password_hash" field.
-func PasswordHashContains(v string) predicate.User {
-	return predicate.User(sql.FieldContains(FieldPasswordHash, v))
-}
-
-// PasswordHashHasPrefix applies the HasPrefix predicate on the "password_hash" field.
-func PasswordHashHasPrefix(v string) predicate.User {
-	return predicate.User(sql.FieldHasPrefix(FieldPasswordHash, v))
-}
-
-// PasswordHashHasSuffix applies the HasSuffix predicate on the "password_hash" field.
-func PasswordHashHasSuffix(v string) predicate.User {
-	return predicate.User(sql.FieldHasSuffix(FieldPasswordHash, v))
-}
-
-// PasswordHashIsNil applies the IsNil predicate on the "password_hash" field.
-func PasswordHashIsNil() predicate.User {
-	return predicate.User(sql.FieldIsNull(FieldPasswordHash))
-}
-
-// PasswordHashNotNil applies the NotNil predicate on the "password_hash" field.
-func PasswordHashNotNil() predicate.User {
-	return predicate.User(sql.FieldNotNull(FieldPasswordHash))
-}
-
-// PasswordHashEqualFold applies the EqualFold predicate on the "password_hash" field.
-func PasswordHashEqualFold(v string) predicate.User {
-	return predicate.User(sql.FieldEqualFold(FieldPasswordHash, v))
-}
-
-// PasswordHashContainsFold applies the ContainsFold predicate on the "password_hash" field.
-func PasswordHashContainsFold(v string) predicate.User {
-	return predicate.User(sql.FieldContainsFold(FieldPasswordHash, v))
-}
-
-// MustChangePasswordEQ applies the EQ predicate on the "must_change_password" field.
-func MustChangePasswordEQ(v bool) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldMustChangePassword, v))
-}
-
-// MustChangePasswordNEQ applies the NEQ predicate on the "must_change_password" field.
-func MustChangePasswordNEQ(v bool) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldMustChangePassword, v))
-}
-
-// PasswordChangedAtEQ applies the EQ predicate on the "password_changed_at" field.
-func PasswordChangedAtEQ(v time.Time) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldPasswordChangedAt, v))
-}
-
-// PasswordChangedAtNEQ applies the NEQ predicate on the "password_changed_at" field.
-func PasswordChangedAtNEQ(v time.Time) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldPasswordChangedAt, v))
-}
-
-// PasswordChangedAtIn applies the In predicate on the "password_changed_at" field.
-func PasswordChangedAtIn(vs ...time.Time) predicate.User {
-	return predicate.User(sql.FieldIn(FieldPasswordChangedAt, vs...))
-}
-
-// PasswordChangedAtNotIn applies the NotIn predicate on the "password_changed_at" field.
-func PasswordChangedAtNotIn(vs ...time.Time) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldPasswordChangedAt, vs...))
-}
-
-// PasswordChangedAtGT applies the GT predicate on the "password_changed_at" field.
-func PasswordChangedAtGT(v time.Time) predicate.User {
-	return predicate.User(sql.FieldGT(FieldPasswordChangedAt, v))
-}
-
-// PasswordChangedAtGTE applies the GTE predicate on the "password_changed_at" field.
-func PasswordChangedAtGTE(v time.Time) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldPasswordChangedAt, v))
-}
-
-// PasswordChangedAtLT applies the LT predicate on the "password_changed_at" field.
-func PasswordChangedAtLT(v time.Time) predicate.User {
-	return predicate.User(sql.FieldLT(FieldPasswordChangedAt, v))
-}
-
-// PasswordChangedAtLTE applies the LTE predicate on the "password_changed_at" field.
-func PasswordChangedAtLTE(v time.Time) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldPasswordChangedAt, v))
-}
-
-// PasswordChangedAtIsNil applies the IsNil predicate on the "password_changed_at" field.
-func PasswordChangedAtIsNil() predicate.User {
-	return predicate.User(sql.FieldIsNull(FieldPasswordChangedAt))
-}
-
-// PasswordChangedAtNotNil applies the NotNil predicate on the "password_changed_at" field.
-func PasswordChangedAtNotNil() predicate.User {
-	return predicate.User(sql.FieldNotNull(FieldPasswordChangedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -683,29 +532,6 @@ func DeletedByLT(v uint64) predicate.User {
 // DeletedByLTE applies the LTE predicate on the "deleted_by" field.
 func DeletedByLTE(v uint64) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldDeletedBy, v))
-}
-
-// HasRefreshSessions applies the HasEdge predicate on the "refresh_sessions" edge.
-func HasRefreshSessions() predicate.User {
-	return predicate.User(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, RefreshSessionsTable, RefreshSessionsColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasRefreshSessionsWith applies the HasEdge predicate on the "refresh_sessions" edge with a given conditions (other predicates).
-func HasRefreshSessionsWith(preds ...predicate.RefreshSession) predicate.User {
-	return predicate.User(func(s *sql.Selector) {
-		step := newRefreshSessionsStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
 }
 
 // And groups predicates with the AND operator between them.

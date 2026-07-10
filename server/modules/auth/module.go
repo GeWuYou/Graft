@@ -27,7 +27,7 @@ func NewModule(client ...*authent.Client) *Module {
 // Register 声明 auth 模块拥有的 `/auth/*` 运行时路由。
 func (p *Module) Register(ctx *module.Context) error {
 	if p.client == nil {
-		return p.registerLegacyTestAssembly(ctx)
+		return errors.New("auth ent client is unavailable")
 	}
 	authService, flow, err := p.newRuntime(ctx)
 	if err != nil {
@@ -89,36 +89,22 @@ func (p *Module) registerCapabilitiesAndRoutes(ctx *module.Context, authService 
 	return registerAuthRoutes(ctx, moduleID, authService, flow)
 }
 
-// registerLegacyTestAssembly preserves the package-level tests that construct
-// NewModule directly. Runtime construction always comes through NewModuleSpec,
-// which supplies the auth-owned Ent client above.
-func (p *Module) registerLegacyTestAssembly(ctx *module.Context) error {
-	provider, err := resolveService[moduleapi.AuthCapabilityProvider](ctx, (*moduleapi.AuthCapabilityProvider)(nil), "auth test capability provider")
+// Boot creates the auth-owned default credential only after every module has
+// registered its stable RBAC bootstrap capability.
+func (p *Module) Boot(ctx *module.Context) error {
+	identity, err := resolveService[moduleapi.UserIdentityProvider](ctx, (*moduleapi.UserIdentityProvider)(nil), "user identity provider")
 	if err != nil {
 		return err
 	}
-	capabilities := provider.AuthCapabilities()
-	if capabilities.Auth == nil || capabilities.Sessions == nil || capabilities.Flow == nil || capabilities.Credentials == nil {
-		return errors.New("auth test capability provider returned incomplete capabilities")
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) { return capabilities.Auth, nil }); err != nil {
+	rbacBootstrap, err := resolveService[moduleapi.RBACBootstrapService](ctx, (*moduleapi.RBACBootstrapService)(nil), "rbac bootstrap service")
+	if err != nil {
 		return err
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthSessionService)(nil), func(container.Resolver) (any, error) { return capabilities.Sessions, nil }); err != nil {
+	credentials, err := storeent.NewCredentialStore(p.client, identity)
+	if err != nil {
 		return err
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthFlowService)(nil), func(container.Resolver) (any, error) { return capabilities.Flow, nil }); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthCredentialManagementService)(nil), func(container.Resolver) (any, error) { return capabilities.Credentials, nil }); err != nil {
-		return err
-	}
-	return registerAuthRoutes(ctx, moduleID, capabilities.Auth, capabilities.Flow)
-}
-
-// Boot 当前没有额外运行时行为需要启动。
-func (p *Module) Boot(_ *module.Context) error {
-	return nil
+	return ensureDefaultAdmin(ctx.LifecycleContext, ctx.I18n, credentials, identity, rbacBootstrap, ctx.PermissionRegistry.Items())
 }
 
 // Shutdown 当前没有额外资源需要释放。

@@ -12,7 +12,6 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/moduleapi"
-	authstore "graft/server/modules/auth/store"
 )
 
 // bootstrapReader 收敛 web 启动阶段依赖的最小后端快照装配。
@@ -20,23 +19,28 @@ import (
 // 该读模型继续停留在 user 模块边界内，避免为了一个受保护的 bootstrap
 // 契约，把菜单过滤、locale 快照或权限聚合拆散到 core 或新增共享抽象里。
 type bootstrapReader struct {
-	legacyCredentials any
-	rbac              moduleapi.RBACAccessService
-	menuRegistry      *menu.Registry
-	systemConfig      moduleapi.SystemConfigResolver
-	localizer         *i18n.Service
-	localeConfig      config.I18nConfig
+	rbac         moduleapi.RBACAccessService
+	menuRegistry *menu.Registry
+	systemConfig moduleapi.SystemConfigResolver
+	localizer    *i18n.Service
+	localeConfig config.I18nConfig
 }
 
 const localeFallbackCapacity = 2
 
 type bootstrapResponse struct {
-	User               loginUserResponse       `json:"user"`
+	User               bootstrapUserResponse   `json:"user"`
 	MustChangePassword bool                    `json:"must_change_password"`
 	Roles              []string                `json:"roles"`
 	Permissions        []string                `json:"permissions"`
 	Menus              []bootstrapMenuResponse `json:"menus"`
 	Locale             bootstrapLocaleSnapshot `json:"locale"`
+}
+
+type bootstrapUserResponse struct {
+	ID          uint64 `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
 }
 
 type bootstrapMenuResponse struct {
@@ -62,16 +66,14 @@ func newBootstrapReader(
 	localizer *i18n.Service,
 	menuRegistry *menu.Registry,
 	services servicecontainer.Resolver,
-	legacyCredentials any,
 	rbac moduleapi.RBACAccessService,
 ) bootstrapReader {
 	return bootstrapReader{
-		legacyCredentials: legacyCredentials,
-		rbac:              rbac,
-		menuRegistry:      menuRegistry,
-		systemConfig:      resolveBootstrapSystemConfig(services),
-		localizer:         localizer,
-		localeConfig:      localeConfig,
+		rbac:         rbac,
+		menuRegistry: menuRegistry,
+		systemConfig: resolveBootstrapSystemConfig(services),
+		localizer:    localizer,
+		localeConfig: localeConfig,
 	}
 }
 
@@ -90,21 +92,13 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	if err != nil {
 		return bootstrapResponse{}, err
 	}
-	mustChangePassword := false
-	if credentials, ok := r.legacyCredentials.(authstore.CredentialStore); ok {
-		credential, credentialErr := credentials.GetUserCredentialByUsername(ctx, requestAuth.User.Username)
-		if credentialErr != nil {
-			return bootstrapResponse{}, credentialErr
-		}
-		mustChangePassword = credential.MustChangePassword
-	}
 	return bootstrapResponse{
-		User: loginUserResponse{
+		User: bootstrapUserResponse{
 			ID:          requestAuth.User.ID,
 			Username:    requestAuth.User.Username,
 			DisplayName: requestAuth.User.DisplayName,
 		},
-		MustChangePassword: mustChangePassword,
+		MustChangePassword: false,
 		Roles:              roleNames,
 		Permissions:        permissionCodes,
 		Menus:              r.filterBootstrapMenus(ctx, permissionSet),

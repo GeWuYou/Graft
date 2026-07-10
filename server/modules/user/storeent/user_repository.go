@@ -100,9 +100,7 @@ func (r *userRepository) Create(ctx context.Context, input userstore.CreateUserI
 	builder := r.client.User.Create().
 		SetUsername(input.Username).
 		SetDisplay(input.Display).
-		SetStatus(normalizeStoredUserStatus(input.Status)).
-		SetPasswordHash(input.PasswordHash).
-		SetMustChangePassword(input.MustChangePassword)
+		SetStatus(normalizeStoredUserStatus(input.Status))
 	if input.ActorID != 0 {
 		builder = builder.SetCreatedBy(input.ActorID).SetUpdatedBy(input.ActorID)
 	}

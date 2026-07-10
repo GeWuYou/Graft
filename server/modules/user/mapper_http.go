@@ -118,7 +118,7 @@ func toUserListItem(user userstore.User, roles []moduleapi.RoleSummary) (userLis
 
 func toGeneratedSessionSummariesFromCapability(
 	sessions []moduleapi.AuthSessionSummary,
-	options sessionListOptions,
+	options userSessionListOptions,
 ) []generated.SessionSummary {
 	if options.Limit > 0 && len(sessions) > options.Limit {
 		sessions = sessions[:options.Limit]

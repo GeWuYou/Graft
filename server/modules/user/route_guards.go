@@ -46,33 +46,6 @@ func newRequiredPasswordChangeGuard(localizer *i18n.Service, authFlow moduleapi.
 	}
 }
 
-func newRestrictedSessionGuard(localizer *i18n.Service, authFlow moduleapi.AuthFlowService, apiBasePath string) gin.HandlerFunc {
-	allowedPaths := []string{
-		usercontract.JoinRoute(apiBasePath, usercontract.AuthBootstrap),
-		usercontract.JoinRoute(apiBasePath, usercontract.AuthCompleteRequiredPasswordChange),
-	}
-
-	return func(ginCtx *gin.Context) {
-		restricted, ok := loadRestrictedPasswordChangeState(ginCtx, localizer, authFlow)
-		if !ok {
-			return
-		}
-		if !restricted {
-			ginCtx.Next()
-			return
-		}
-
-		for _, allowedPath := range allowedPaths {
-			if ginCtx.FullPath() == allowedPath {
-				ginCtx.Next()
-				return
-			}
-		}
-
-		abortLocalizedContractError(ginCtx, localizer, http.StatusForbidden, messagecontract.AuthForbidden, nil)
-	}
-}
-
 func loadRestrictedPasswordChangeState(
 	ginCtx *gin.Context,
 	localizer *i18n.Service,

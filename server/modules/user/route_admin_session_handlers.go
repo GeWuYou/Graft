@@ -137,7 +137,7 @@ func (h userWriteGeneratedHandler) PostUserSessionRevoke(
 
 func bindGeneratedUserSessionsParams(
 	ginCtx *gin.Context,
-	options sessionListOptions,
+	options userSessionListOptions,
 ) useropenapi.GetUserSessionsParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	params := useropenapi.GetUserSessionsParams{
@@ -166,4 +166,3 @@ func bindGeneratedUserSessionRevokeParams(ginCtx *gin.Context) useropenapi.PostU
 		XRequestId:   requestID,
 	}
 }
-

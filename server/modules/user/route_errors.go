@@ -210,10 +210,8 @@ func zapFieldValue(field zap.Field) any {
 	}
 }
 
-func shouldLogUserManagementError(status int, err error) bool {
-	return status == http.StatusInternalServerError ||
-		errors.Is(err, errPasswordPolicyViolation) ||
-		errors.Is(err, errPasswordReuseForbidden)
+func shouldLogUserManagementError(status int, _ error) bool {
+	return status == http.StatusInternalServerError
 }
 
 func errorFieldFromDetails(data map[string]any) (string, bool) {
@@ -266,9 +264,6 @@ func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any
 		return http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"}
 	case errors.Is(err, errProtectedDefaultAdminImmutable):
 		return http.StatusForbidden, messagecontract.UserProtectedDefaultAdminImmutable, nil
-	case errors.Is(err, errPasswordPolicyViolation), errors.Is(err, errPasswordReuseForbidden):
-		status, key := mapAuthError(err)
-		return status, key, map[string]any{"field": "new_password"}
 	default:
 		return http.StatusInternalServerError, messagecontract.CommonInternalError, nil
 	}

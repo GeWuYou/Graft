@@ -32,12 +32,10 @@ type User struct {
 
 // CreateUserInput describes the minimal user creation input.
 type CreateUserInput struct {
-	Username           string
-	Display            string
-	Status             string
-	PasswordHash       string
-	MustChangePassword bool
-	ActorID            uint64
+	Username string
+	Display  string
+	Status   string
+	ActorID  uint64
 }
 
 // UpdateUserInput describes the minimal user profile update input.

@@ -22,15 +22,11 @@ var (
 	devResetLoadConfig        = config.Load
 	devResetOpenDB            = database.Open
 	devResetCloseDB           = database.Close
+	devResetNewUserIdentity   = user.NewIdentityProviderForDevelopmentReset
 	devResetNewAuthRepository = auth.NewRepositoryForDevelopmentReset
 	devResetNewLocalizer      = func(cfg config.I18nConfig) (*i18n.Service, error) { return i18n.New(cfg) }
-	devResetAdmin             = func(ctx context.Context, authRepo authstore.AuthRepository, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
-		return user.ResetDefaultAdminForDevelopment(
-			ctx,
-			authRepo,
-			localizer,
-			rbac,
-		)
+	devResetAdmin             = func(ctx context.Context, authRepo authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
+		return auth.ResetDefaultAdminForDevelopment(ctx, authRepo, identity, localizer, rbac, user.DefaultAdminPermissionItems())
 	}
 	devResetResolveRBACBootstrap = func(resources *database.Resources) (moduleapi.RBACBootstrapService, error) {
 		repo, err := rbac.NewRepositoryForReset(resources.SQL)
@@ -56,6 +52,7 @@ func newDevResetAdminCommand() *cobra.Command {
 	}
 }
 
+//nolint:cyclop // Explicit dev-only dependency construction keeps the CLI path auditable.
 func runDevResetAdmin(cmd *cobra.Command) (err error) {
 	cfg, err := devResetLoadConfig()
 	if err != nil {
@@ -76,7 +73,11 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 		}
 	}()
 
-	authRepo, err := devResetNewAuthRepository(resources.SQL)
+	identity, err := devResetNewUserIdentity(resources.SQL)
+	if err != nil {
+		return fmt.Errorf("create user identity provider: %w", err)
+	}
+	authRepo, err := devResetNewAuthRepository(resources.SQL, identity)
 	if err != nil {
 		return fmt.Errorf("create user auth repository: %w", err)
 	}
@@ -89,7 +90,7 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 		return fmt.Errorf("create rbac bootstrap service: %w", err)
 	}
 
-	if err := devResetAdmin(cmd.Context(), authRepo, localizer, rbacBootstrap); err != nil {
+	if err := devResetAdmin(cmd.Context(), authRepo, identity, localizer, rbacBootstrap); err != nil {
 		return fmt.Errorf("reset default admin: %w", err)
 	}
 

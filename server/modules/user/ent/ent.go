@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"graft/server/modules/user/ent/refreshsession"
 	"graft/server/modules/user/ent/user"
 	"reflect"
 	"sync"
@@ -74,8 +73,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			refreshsession.Table: refreshsession.ValidColumn,
-			user.Table:           user.ValidColumn,
+			user.Table: user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

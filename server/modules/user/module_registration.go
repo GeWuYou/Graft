@@ -115,22 +115,10 @@ type registeredServices struct {
 	bootstrap    bootstrapReader
 }
 
-type authCapabilityProvider struct {
-	capabilities moduleapi.AuthCapabilityBundle
-}
-
-func (p authCapabilityProvider) AuthCapabilities() moduleapi.AuthCapabilityBundle {
-	return p.capabilities
-}
-
 func (p *Module) registerServices(ctx *module.Context) (registeredServices, error) {
 	userRepo := p.userRepo
-	authRepo := p.authRepo
 	if userRepo == nil {
 		return registeredServices{}, errors.New("user repository is unavailable")
-	}
-	if authRepo == nil {
-		return registeredServices{}, errors.New("auth repository is unavailable")
 	}
 	logger := ctx.Logger
 	if logger == nil {
@@ -157,36 +145,20 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	}); err != nil {
 		return registeredServices{}, err
 	}
-	authSvc, err := newAuthService(ctx.Config.Auth, authRepo, userRepo)
-	if err != nil {
-		return registeredServices{}, err
-	}
-	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, nil, p.bootstrapAccess)
+	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, p.bootstrapAccess)
 	if err := ctx.Services.RegisterSingleton((*moduleapi.UserBootstrapProvider)(nil), func(_ container.Resolver) (any, error) {
 		return bootstrapSvc, nil
 	}); err != nil {
 		return registeredServices{}, err
 	}
-	p.defaultAdminAuth = authSvc
-
-	legacyBootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, authRepo, p.bootstrapAccess)
-	authFlow := authFlowBridge{auth: authSvc, bootstrap: legacyBootstrapSvc}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthCapabilityProvider)(nil), func(_ container.Resolver) (any, error) {
-		return authCapabilityProvider{capabilities: moduleapi.AuthCapabilityBundle{
-			Auth:        authSvc,
-			Sessions:    authSvc,
-			Flow:        authFlow,
-			Credentials: authSvc,
-		}}, nil
-	}); err != nil {
-		return registeredServices{}, err
-	}
+	deferredAuth := newDeferredAuthCapabilities()
+	p.authCapabilities = deferredAuth
 
 	return registeredServices{
 		user:         userSvc,
-		auth:         authSvc,
-		authSessions: authSvc,
-		authFlow:     authFlow,
+		auth:         deferredAuth,
+		authSessions: deferredAuth,
+		authFlow:     deferredAuth,
 		bootstrap:    bootstrapSvc,
 	}, nil
 }

@@ -1,0 +1,60 @@
+package auth
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"graft/server/internal/i18n"
+	"graft/server/internal/moduleapi"
+	"graft/server/internal/permission"
+	authstore "graft/server/modules/auth/store"
+)
+
+// ResetDefaultAdminForDevelopment restores the default administrator through
+// auth-owned credentials and the user-owned profile identity capability.
+//
+//nolint:cyclop // The explicit dev-only reset steps intentionally mirror the production bootstrap flow.
+func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService, permissions []permission.Item) error {
+	if !isDevelopmentResetEnv(os.Getenv("GRAFT_APP_ENV")) {
+		return fmt.Errorf("reset default admin is only available in local/test environments, got %q", strings.TrimSpace(os.Getenv("GRAFT_APP_ENV")))
+	}
+	if repository == nil || identity == nil || rbac == nil {
+		return errors.New("reset default admin dependencies are unavailable")
+	}
+	profile, err := identity.EnsureDefaultAdminProfile(ctx)
+	if err != nil {
+		return fmt.Errorf("ensure default admin profile: %w", err)
+	}
+	hash, err := newPasswordHasher().Hash(defaultAdminPassword)
+	if err != nil {
+		return fmt.Errorf("hash default admin password: %w", err)
+	}
+	now := time.Now().UTC()
+	if err := repository.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: profile.ID, PasswordHash: hash, MustChangePassword: true, ChangedAt: &now}); err != nil {
+		return fmt.Errorf("reset default admin password hash: %w", err)
+	}
+	if err := repository.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: profile.ID, RevokedAt: now}); err != nil {
+		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
+	}
+	seeds, err := permissionSeedsFromItems(localizer, permissions)
+	if err != nil {
+		return fmt.Errorf("build default admin permission seeds: %w", err)
+	}
+	if err := rbac.EnsureDefaultAdminAccess(ctx, profile.ID, seeds); err != nil {
+		return fmt.Errorf("ensure default admin access: %w", err)
+	}
+	return nil
+}
+
+func isDevelopmentResetEnv(env string) bool {
+	switch strings.TrimSpace(env) {
+	case "local", "test":
+		return true
+	default:
+		return false
+	}
+}

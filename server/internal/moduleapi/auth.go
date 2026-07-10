@@ -168,9 +168,6 @@ type AuthCredentialManagementService interface {
 }
 
 // AuthFlowService 暴露 `/auth/*` 路由需要的稳定认证闭环能力。
-//
-// auth 模块拥有这些路由的 HTTP 运行时注册，但在迁移过渡期允许通过该
-// capability 复用 user 模块内尚未迁出的实现细节。
 type AuthFlowService interface {
 	StartLogin(ctx context.Context, username string, password string) (AuthRefreshResult, error)
 	RefreshSession(ctx context.Context, refreshToken string) (AuthRefreshResult, error)
@@ -184,23 +181,6 @@ type AuthFlowService interface {
 	CompleteRequiredPasswordChange(ctx context.Context, newPassword string) error
 	IsRestrictedPasswordChangeSession(ctx context.Context) (bool, error)
 	RouteError(err error) AuthRouteError
-}
-
-// AuthCapabilityBundle groups the authentication capabilities that one module
-// provides during runtime assembly. Consumers must resolve the individual
-// stable interfaces instead of retaining this assembly-only bundle.
-type AuthCapabilityBundle struct {
-	Auth        AuthService
-	Sessions    AuthSessionService
-	Flow        AuthFlowService
-	Credentials AuthCredentialManagementService
-}
-
-// AuthCapabilityProvider is the temporary assembly boundary used while the
-// concrete auth implementation is extracted from the user module. The auth
-// module is the only module that publishes the individual stable capabilities.
-type AuthCapabilityProvider interface {
-	AuthCapabilities() AuthCapabilityBundle
 }
 
 // UserIdentityProvider exposes only user-profile identity facts needed by

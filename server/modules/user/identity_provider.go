@@ -53,10 +53,9 @@ func (p userIdentityProvider) EnsureDefaultAdminProfile(ctx context.Context) (mo
 		return moduleapi.CurrentUser{}, err
 	}
 	created, err := p.users.Create(ctx, userstore.CreateUserInput{
-		Username:           defaultAdminUsername,
-		Display:            defaultAdminDisplay,
-		Status:             usercontract.UserStatusEnabled,
-		MustChangePassword: true,
+		Username: defaultAdminUsername,
+		Display:  defaultAdminDisplay,
+		Status:   usercontract.UserStatusEnabled,
 	})
 	if err != nil {
 		return moduleapi.CurrentUser{}, err

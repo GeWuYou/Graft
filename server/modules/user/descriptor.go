@@ -37,12 +37,7 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build user storeent repository: %w", err)
 			}
-			authRepo, err := storeRuntime.NewAuthRepository()
-			if err != nil {
-				return nil, fmt.Errorf("build user auth repository: %w", err)
-			}
-
-			return NewModule(userRepo, authRepo), nil
+			return NewModule(userRepo), nil
 		}),
 	}
 }
