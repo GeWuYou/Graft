@@ -45,7 +45,7 @@ closeout:
   lessons_review: true
 ```
 
-## Current Recovery Point
+## Final Recovery Point
 
 - Persistence and state-machine foundation completed: `task` is registered as a compile-time module with module-owned
   `tasks`、`task_stages`、`task_events` 和 `task_logs` migrations, SQL persistence and tested state transitions.
@@ -53,7 +53,7 @@ closeout:
   cancellation, retry coordination, and conservative crash recovery. It still has no HTTP/realtime route or Project consumer.
 - Task API, realtime, Project adoption, and the reusable Task UI are complete. The Task Detail Drawer uses persisted
   detail/log reads before and after `task:{id}` notifications, so realtime remains a latency path rather than the fact source.
-  Next: `task-final-integration-archive-readiness`.
+- Final cross-boundary integration and archive-readiness verification passed; this topic is archived.
 
 ## Task Checklist
 
@@ -62,7 +62,7 @@ closeout:
 - [x] task-runtime-worker-and-recovery
 - [x] task-api-realtime-and-project-adoption
 - [x] task-web-module-and-project-ui
-- [ ] task-final-integration-archive-readiness
+- [x] task-final-integration-archive-readiness
 
 ## Acceptance Conditions
 
@@ -82,13 +82,24 @@ closeout:
     "task-module-persistence-state-machine",
     "task-runtime-worker-and-recovery",
     "task-api-realtime-and-project-adoption",
-    "task-web-module-and-project-ui"
-  ],
-  "pending_batches": [
+    "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-web-module-and-project-ui",
-  "next_batch": "task-final-integration-archive-readiness",
-  "closeout_status": "completed_no_handoff"
+  "pending_batches": [],
+  "current_batch": "task-final-integration-archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
+
+## Final Validation
+
+- `cd server && go run ./cmd/graft validate backend`
+- `cd web && bun run check`
+- `node scripts/openapi-bundle.mjs`
+- `python3 scripts/validate_sql_migrations.py`
+- `python3 scripts/validate_ai_plan_structure.py`
+- `git diff --check`
+
+Browser login could not reach an authenticated product state because the frontend proxy authentication endpoints return
+`500`; this existing environment issue does not invalidate the static, contract, or runtime validation above.

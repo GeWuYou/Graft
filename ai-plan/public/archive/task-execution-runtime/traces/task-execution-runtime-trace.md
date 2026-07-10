@@ -48,6 +48,19 @@
 - The generic Task API was already canonical in `openapi/**`; regenerated the frontend schema so API wrappers consume generated Task types rather than manual transport DTOs.
 - Task capabilities are rendered directly from server-owned detail data for cancel, retry and log download controls.
 
+## 2026-07-10 task-final-integration-archive-readiness
+
+- Final architecture review confirmed `task` does not import Project; Project remains the consumer that creates
+  `TaskPlan` values and registers `StageExecutor` implementations.
+- Final runtime review confirmed PostgreSQL is the source of truth, Redis is absent from the correctness path, and
+  Task facts/logs are persisted before `task:{id}` realtime notification.
+- Cross-boundary validation passed: backend entrypoint, frontend completion entrypoint, OpenAPI bundle, live migration
+  gate, AI-plan structure guard, and whitespace check.
+- Browser login verification was attempted with the approved browser agent but could not enter the product because the
+  existing frontend proxy authentication endpoints returned `500`; no authenticated visual assertion is claimed.
+- All topic acceptance conditions pass. The topic moved to `ai-plan/public/archive/task-execution-runtime/` and is
+  `archive-ready`.
+
 ## Loop Batch State
 
 ```json
@@ -58,13 +71,12 @@
     "task-module-persistence-state-machine",
     "task-runtime-worker-and-recovery",
     "task-api-realtime-and-project-adoption",
-    "task-web-module-and-project-ui"
-  ],
-  "pending_batches": [
+    "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-web-module-and-project-ui",
-  "next_batch": "task-final-integration-archive-readiness",
-  "closeout_status": "completed_no_handoff"
+  "pending_batches": [],
+  "current_batch": "task-final-integration-archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
