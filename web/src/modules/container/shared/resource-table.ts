@@ -173,20 +173,39 @@ export function createContainerSourceQuickFilter(
   };
 }
 
+/**
+ * 从容器编排信息中构建群组作用域筛选条件。
+ *
+ * @param row - 包含编排信息的容器记录
+ * @returns 有效的群组筛选条件；缺少作用域类型或值时返回 `null`
+ */
 function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
-    row.orchestrator?.group_scope_kind || legacyGroupScopeKind(row),
-    row.orchestrator?.group_value || row.orchestrator?.group_display_name || legacyGroupScopeValue(row),
+    row.orchestrator?.group_scope_kind,
+    row.orchestrator?.group_value || row.orchestrator?.group_display_name,
   );
 }
 
+/**
+ * 从容器编排器信息中创建成员范围筛选条件。
+ *
+ * @param row - 包含编排器成员范围信息的容器记录
+ * @returns 有效的成员范围筛选条件；缺少成员范围类型或值时返回 `null`
+ */
 function sourceMemberFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
-    row.orchestrator?.member_scope_kind || legacyMemberScopeKind(row),
-    row.orchestrator?.member_value || row.orchestrator?.member_display_name || legacyMemberScopeValue(row),
+    row.orchestrator?.member_scope_kind,
+    row.orchestrator?.member_value || row.orchestrator?.member_display_name,
   );
 }
 
+/**
+ * 构造经过清洗且有效的容器来源快速筛选值。
+ *
+ * @param kind - 快速筛选值的作用域类型
+ * @param value - 快速筛选值的原始内容
+ * @returns 包含作用域类型和值的快速筛选对象；输入缺少类型或有效值时返回 `null`
+ */
 function toQuickFilterValue(
   kind: ContainerSourceGroupKind | ContainerSourceMemberKind | null | undefined,
   value?: string | null,
@@ -200,60 +219,4 @@ function toQuickFilterValue(
     kind,
     value: normalizedValue,
   };
-}
-
-function legacyGroupScopeKind(row: ContainerSummaryRecord): ContainerSourceGroupKind | null {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose' && (row.orchestrator?.project || row.compose_project)) {
-    return 'compose_project';
-  }
-  if (orchestratorType === 'swarm' && row.orchestrator?.stack) {
-    return 'swarm_stack';
-  }
-  if (orchestratorType === 'kubernetes' && row.orchestrator?.namespace) {
-    return 'kubernetes_namespace';
-  }
-  return null;
-}
-
-function legacyGroupScopeValue(row: ContainerSummaryRecord): string | null | undefined {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose') {
-    return row.orchestrator?.project || row.compose_project;
-  }
-  if (orchestratorType === 'swarm') {
-    return row.orchestrator?.stack;
-  }
-  if (orchestratorType === 'kubernetes') {
-    return row.orchestrator?.namespace;
-  }
-  return null;
-}
-
-function legacyMemberScopeKind(row: ContainerSummaryRecord): ContainerSourceMemberKind | null {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose' && (row.orchestrator?.service || row.compose_service)) {
-    return 'compose_service';
-  }
-  if (orchestratorType === 'swarm' && row.orchestrator?.task) {
-    return 'swarm_task';
-  }
-  if (orchestratorType === 'kubernetes' && row.orchestrator?.pod) {
-    return 'kubernetes_pod';
-  }
-  return null;
-}
-
-function legacyMemberScopeValue(row: ContainerSummaryRecord): string | null | undefined {
-  const orchestratorType = readContainerOrchestratorType(row);
-  if (orchestratorType === 'compose') {
-    return row.orchestrator?.service || row.compose_service;
-  }
-  if (orchestratorType === 'swarm') {
-    return row.orchestrator?.task;
-  }
-  if (orchestratorType === 'kubernetes') {
-    return row.orchestrator?.pod;
-  }
-  return null;
 }

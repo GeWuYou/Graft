@@ -1190,6 +1190,41 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('estimated');
   });
 
+  it('ignores legacy camelCase action title keys in favor of canonical snake_case fields', async () => {
+    const definitions = jobDefinitionsResponse();
+    const firstJob = definitions.items[0];
+    const firstAction = firstJob.actions[0] as (typeof firstJob.actions)[number] & {
+      title_key?: string;
+      description_key?: string;
+      titleKey?: string;
+      descriptionKey?: string;
+    };
+
+    delete (firstAction as { title_key?: string }).title_key;
+    delete (firstAction as { description_key?: string }).description_key;
+    firstAction.titleKey = 'scheduledTask.action.dryRun.title';
+    firstAction.descriptionKey = 'scheduledTask.action.dryRun.description';
+    firstAction.title = 'Legacy dry-run title';
+    firstAction.description = 'Legacy dry-run description';
+
+    apiMocks.getScheduledTaskJobDefinitions.mockResolvedValueOnce(definitions);
+    apiMocks.getScheduledTaskJobDefinition.mockImplementationOnce(async (jobKey: string) => {
+      const job = definitions.items.find((item) => item.job_key === jobKey);
+      if (!job) {
+        throw new Error('not found');
+      }
+      return job;
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openFirstTaskEditDrawer(wrapper);
+
+    expect(wrapper.text()).toContain('Legacy dry-run title');
+    expect(findButtonByText(wrapper, '试运行')).toBeUndefined();
+  });
+
   it('blocks dry-run action execution when schema maximum is exceeded', async () => {
     const wrapper = mountPage();
     await flushPromises();

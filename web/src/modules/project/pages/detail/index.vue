@@ -473,137 +473,258 @@
 
               <t-alert
                 v-if="lifecycleReviewRequired"
+                class="project-lifecycle-alert"
                 theme="warning"
                 :title="t('project.detail.lifecycle.reviewRequiredTitle')"
                 :message="t('project.detail.lifecycle.reviewRequiredDescription')"
               />
-              <div class="project-runtime-grid project-lifecycle-grid">
-                <t-card size="small" :title="t('project.detail.lifecycle.statusTitle')">
-                  <t-descriptions size="small" :column="1">
-                    <t-descriptions-item :label="t('project.detail.lifecycle.runtimeStatus')">
-                      {{ runtimeStatusLabel(detailRecord.runtime_status) }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.driftStatus')">
-                      {{ driftStatusLabel(detailRecord.drift_status) }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.reviewStatus')">
-                      <t-tag :theme="projectLifecycleReviewStatusTheme(lifecycleReviewStatus)" variant="light-outline">
-                        {{ projectLifecycleReviewStatusLabel(t, lifecycleReviewStatus) }}
-                      </t-tag>
-                    </t-descriptions-item>
-                  </t-descriptions>
+              <t-alert
+                v-if="lifecycleRemoteStale"
+                class="project-lifecycle-alert"
+                data-testid="project-lifecycle-remote-stale-alert"
+                theme="info"
+                :title="t('project.detail.lifecycle.remoteStaleTitle')"
+                :message="t('project.detail.lifecycle.remoteStaleDescription')"
+              />
+              <div class="project-lifecycle-layout">
+                <t-card
+                  size="small"
+                  :title="t('project.detail.lifecycle.statusTitle')"
+                  data-testid="project-lifecycle-summary-card"
+                >
+                  <div class="project-lifecycle-summary">
+                    <p class="project-inline-head__hint">{{ t('project.detail.lifecycle.statusDescription') }}</p>
+                    <t-descriptions size="small" :column="1" table-layout="auto">
+                      <t-descriptions-item :label="t('project.detail.lifecycle.reviewStatus')">
+                        <t-tag
+                          :theme="projectLifecycleReviewStatusTheme(lifecycleReviewStatus)"
+                          variant="light-outline"
+                        >
+                          {{ projectLifecycleReviewStatusLabel(t, lifecycleReviewStatus) }}
+                        </t-tag>
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('project.detail.lifecycle.mode')">
+                        {{ t('project.detail.lifecycle.modeStandard') }}
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('project.detail.lifecycle.workingDirectory')">
+                        <div class="project-detail-copy-row">
+                          <code>{{ lifecycleDraft.working_directory }}</code>
+                          <t-button
+                            size="small"
+                            theme="default"
+                            variant="text"
+                            @click="copyPath(lifecycleDraft.working_directory)"
+                          >
+                            {{ t('project.detail.actions.copyPath') }}
+                          </t-button>
+                        </div>
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('project.detail.lifecycle.projectName')">
+                        <code>{{ lifecycleDraft.canonical_project_name }}</code>
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('project.detail.lifecycle.composeFiles')">
+                        <div class="project-lifecycle-file-list">
+                          <code v-for="file in lifecycleDraft.compose_files" :key="file">{{ file }}</code>
+                        </div>
+                      </t-descriptions-item>
+                    </t-descriptions>
+                  </div>
                 </t-card>
 
-                <t-card size="small" :title="t('project.detail.lifecycle.configurationTitle')">
-                  <t-descriptions size="small" :column="1">
-                    <t-descriptions-item :label="t('project.detail.lifecycle.mode')">
-                      {{ t('project.detail.lifecycle.modeStandard') }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.workingDirectory')">
-                      <div class="project-detail-copy-row">
-                        <code>{{ lifecycleDraft.working_directory }}</code>
-                        <t-button
-                          size="small"
-                          theme="default"
-                          variant="text"
-                          @click="copyPath(lifecycleDraft.working_directory)"
-                        >
-                          {{ t('project.detail.actions.copyPath') }}
-                        </t-button>
-                      </div>
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.projectName')">
-                      <code>{{ lifecycleDraft.canonical_project_name }}</code>
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.lifecycle.composeFiles')">
-                      <div class="project-lifecycle-file-list">
-                        <code v-for="file in lifecycleDraft.compose_files" :key="file">{{ file }}</code>
-                      </div>
-                    </t-descriptions-item>
-                  </t-descriptions>
-                  <div class="project-lifecycle-editor">
-                    <label class="project-lifecycle-field">
-                      <span>{{ t('project.detail.lifecycle.profiles') }}</span>
-                      <t-input
-                        v-model="lifecycleProfilesInput"
-                        :placeholder="t('project.detail.lifecycle.profilesPlaceholder')"
-                      />
-                    </label>
-                    <label class="project-lifecycle-field">
-                      <span>{{ t('project.detail.lifecycle.additionalArgs') }}</span>
-                      <t-input
-                        v-model="lifecycleDraft.additional_args"
-                        :placeholder="t('project.detail.lifecycle.additionalArgsPlaceholder')"
-                      />
-                    </label>
-                    <div class="project-lifecycle-switch-grid">
-                      <label class="project-lifecycle-switch">
-                        <span>{{ t('project.detail.lifecycle.downBeforeRedeploy') }}</span>
-                        <t-switch v-model="lifecycleDraft.down_before_redeploy" />
-                      </label>
-                      <label class="project-lifecycle-switch">
-                        <span>{{ t('project.detail.lifecycle.pullBeforeRedeploy') }}</span>
-                        <t-switch v-model="lifecycleDraft.pull_before_redeploy" />
-                      </label>
-                      <label class="project-lifecycle-switch">
-                        <span>{{ t('project.detail.lifecycle.buildBeforeUp') }}</span>
-                        <t-switch v-model="lifecycleDraft.build_before_up" />
-                      </label>
-                      <label class="project-lifecycle-switch">
-                        <span>{{ t('project.detail.lifecycle.forceRecreate') }}</span>
-                        <t-switch v-model="lifecycleDraft.force_recreate" />
-                      </label>
-                      <label class="project-lifecycle-switch">
-                        <span>{{ t('project.detail.lifecycle.waitAfterUp') }}</span>
-                        <t-switch v-model="lifecycleDraft.wait_after_up" />
-                      </label>
-                      <label class="project-lifecycle-switch">
-                        <span>{{ t('project.detail.lifecycle.pruneImagesAfterRedeploy') }}</span>
-                        <t-switch v-model="lifecycleDraft.prune_images_after_redeploy" />
+                <t-card
+                  size="small"
+                  :title="t('project.detail.lifecycle.generatedCommandsTitle')"
+                  data-testid="project-lifecycle-command-card"
+                >
+                  <div class="project-lifecycle-command-section">
+                    <p class="project-inline-head__hint">
+                      {{ t('project.detail.lifecycle.generatedCommandsDescription') }}
+                    </p>
+                    <p class="project-inline-head__hint">
+                      {{ t('project.detail.lifecycle.copyCommandHint') }}
+                    </p>
+                    <div class="project-lifecycle-command-toolbar">
+                      <label class="project-lifecycle-command-toolbar__toggle">
+                        <span>{{ t('project.detail.lifecycle.copyAbsolutePaths') }}</span>
+                        <t-switch
+                          v-model="lifecycleCopyUsesAbsolutePaths"
+                          data-testid="project-lifecycle-copy-path-mode"
+                        />
                       </label>
                     </div>
-                    <div class="project-detail-action-bar">
-                      <t-button
-                        theme="default"
-                        variant="outline"
-                        :disabled="lifecycleSaveLoading"
-                        @click="resetLifecycleConfiguration"
+                    <div class="project-lifecycle-command-grid">
+                      <article
+                        v-for="group in lifecycleCommandPreviewCards"
+                        :key="group.key"
+                        class="project-lifecycle-command-card"
+                        :data-testid="`project-lifecycle-command-preview-${group.key}`"
                       >
-                        {{ t('project.detail.lifecycle.reset') }}
-                      </t-button>
-                      <t-button theme="primary" :loading="lifecycleSaveLoading" @click="saveLifecycleConfiguration">
-                        {{ t('project.detail.lifecycle.save') }}
-                      </t-button>
+                        <div class="project-lifecycle-command-card__header">
+                          <div class="project-lifecycle-command-card__title">
+                            <strong>{{ group.title }}</strong>
+                            <p>{{ group.description }}</p>
+                          </div>
+                          <t-button
+                            size="small"
+                            theme="default"
+                            variant="outline"
+                            :disabled="!group.preview"
+                            @click="copyLifecycleCommand(group.copyText)"
+                          >
+                            {{ t('project.detail.lifecycle.copyCommand') }}
+                          </t-button>
+                        </div>
+                        <div v-if="group.preview" class="project-code-panel project-lifecycle-command-preview">
+                          <div class="project-lifecycle-command-meta">
+                            <span>{{ group.stepSummary }}</span>
+                          </div>
+                          <code-block :code="group.preview" lang="shell" />
+                        </div>
+                        <t-empty
+                          v-else
+                          size="small"
+                          :description="t('project.detail.lifecycle.generatedCommandsEmpty')"
+                        />
+                      </article>
                     </div>
                   </div>
                 </t-card>
 
-                <t-card size="small" :title="t('project.detail.lifecycle.generatedCommandsTitle')">
-                  <div class="project-lifecycle-command-groups">
-                    <section
-                      v-for="group in lifecycleCommandPreviewSections"
-                      :key="group.key"
-                      class="project-lifecycle-command-group"
-                    >
-                      <header>
-                        <strong>{{ group.title }}</strong>
+                <t-card
+                  size="small"
+                  :title="t('project.detail.lifecycle.configurationTitle')"
+                  data-testid="project-lifecycle-configuration-card"
+                >
+                  <div class="project-lifecycle-config">
+                    <section class="project-lifecycle-config-group" data-testid="project-lifecycle-config-group-base">
+                      <header class="project-lifecycle-config-group__header">
+                        <div>
+                          <strong>{{ t('project.detail.lifecycle.groups.base.title') }}</strong>
+                          <p>{{ t('project.detail.lifecycle.groups.base.description') }}</p>
+                        </div>
                       </header>
-                      <div v-if="group.steps.length" class="project-code-panel">
-                        <article
-                          v-for="step in group.steps"
-                          :key="`${group.key}-${step.title_key}`"
-                          class="project-lifecycle-command-step"
-                        >
-                          <p class="project-inline-head">{{ t(step.title_key) }}</p>
-                          <pre>{{ step.command }}</pre>
-                        </article>
+                      <div class="project-lifecycle-field-grid">
+                        <label class="project-lifecycle-field">
+                          <span class="project-lifecycle-field__label">{{
+                            t('project.detail.lifecycle.profiles')
+                          }}</span>
+                          <t-input
+                            v-model="lifecycleProfilesInput"
+                            :placeholder="t('project.detail.lifecycle.profilesPlaceholder')"
+                          />
+                        </label>
+                        <label class="project-lifecycle-field">
+                          <span class="project-lifecycle-field__label">
+                            {{ t('project.detail.lifecycle.additionalArgs') }}
+                          </span>
+                          <t-input
+                            v-model="lifecycleDraft.additional_args"
+                            :placeholder="t('project.detail.lifecycle.additionalArgsPlaceholder')"
+                          />
+                        </label>
                       </div>
-                      <t-empty
-                        v-else
-                        size="small"
-                        :description="t('project.detail.lifecycle.generatedCommandsEmpty')"
-                      />
                     </section>
+
+                    <section
+                      class="project-lifecycle-config-group"
+                      data-testid="project-lifecycle-config-group-redeploy"
+                    >
+                      <header class="project-lifecycle-config-group__header">
+                        <div>
+                          <strong>{{ t('project.detail.lifecycle.groups.redeploy.title') }}</strong>
+                          <p>{{ t('project.detail.lifecycle.groups.redeploy.description') }}</p>
+                        </div>
+                      </header>
+                      <div class="project-lifecycle-option-list">
+                        <div
+                          v-for="definition in lifecycleSwitchOptionDefinitionsBeforeWaitTimeout"
+                          :key="definition.key"
+                          class="project-lifecycle-option"
+                        >
+                          <div class="project-lifecycle-option__content">
+                            <div class="project-lifecycle-option__label">
+                              <span>{{ t(definition.titleKey) }}</span>
+                              <lifecycle-help-trigger :definition="definition" :draft="lifecycleDraft" />
+                            </div>
+                            <p>{{ t(definition.summaryKey) }}</p>
+                          </div>
+                          <div class="project-lifecycle-option__control">
+                            <t-switch
+                              v-model="lifecycleDraft[definition.field]"
+                              :aria-label="t(definition.titleKey)"
+                              :data-testid="definition.switchTestId"
+                            />
+                          </div>
+                        </div>
+                        <label
+                          v-if="lifecycleWaitTimeoutDefinition.visible?.(lifecycleDraft)"
+                          class="project-lifecycle-field"
+                          data-testid="project-lifecycle-wait-timeout-field"
+                        >
+                          <span class="project-lifecycle-field__label project-lifecycle-field__label--with-help">
+                            <span>{{ t(lifecycleWaitTimeoutDefinition.titleKey) }}</span>
+                            <lifecycle-help-trigger
+                              :definition="lifecycleWaitTimeoutDefinition"
+                              :draft="lifecycleDraft"
+                            />
+                          </span>
+                          <t-input-number
+                            v-model="lifecycleDraft.wait_timeout_seconds"
+                            :min="1"
+                            :max="3600"
+                            :step="1"
+                          />
+                          <small class="project-lifecycle-field__hint">
+                            {{ t(lifecycleWaitTimeoutDefinition.summaryKey) }}
+                          </small>
+                        </label>
+                        <div
+                          v-for="definition in lifecycleSwitchOptionDefinitionsAfterWaitTimeout"
+                          :key="definition.key"
+                          class="project-lifecycle-option"
+                        >
+                          <div class="project-lifecycle-option__content">
+                            <div class="project-lifecycle-option__label">
+                              <span>{{ t(definition.titleKey) }}</span>
+                              <lifecycle-help-trigger :definition="definition" :draft="lifecycleDraft" />
+                            </div>
+                            <p>{{ t(definition.summaryKey) }}</p>
+                          </div>
+                          <div class="project-lifecycle-option__control">
+                            <t-switch
+                              v-model="lifecycleDraft[definition.field]"
+                              :aria-label="t(definition.titleKey)"
+                              :data-testid="definition.switchTestId"
+                            />
+                          </div>
+                        </div>
+                        <t-alert
+                          v-if="lifecycleDraft.renew_anon_volumes"
+                          data-testid="project-lifecycle-renew-anon-volumes-warning"
+                          theme="warning"
+                          :message="t('project.detail.lifecycle.renewAnonVolumesWarning')"
+                        />
+                      </div>
+                    </section>
+                  </div>
+                  <div class="project-lifecycle-actions" data-testid="project-lifecycle-actions">
+                    <t-button
+                      theme="default"
+                      variant="outline"
+                      :disabled="lifecycleSaveLoading || !lifecycleDraftDirty"
+                      @click="resetLifecycleConfiguration"
+                    >
+                      {{ t('project.detail.lifecycle.reset') }}
+                    </t-button>
+                    <t-button
+                      data-testid="project-lifecycle-save"
+                      theme="primary"
+                      :disabled="lifecycleSaveLoading || !lifecycleCanSave"
+                      :loading="lifecycleSaveLoading"
+                      @click="saveLifecycleConfiguration"
+                    >
+                      {{ t('project.detail.lifecycle.save') }}
+                    </t-button>
                   </div>
                 </t-card>
               </div>
@@ -633,6 +754,7 @@ import {
   type ProjectContainerActionSubmission,
   type ProjectContainerSummary,
 } from '@/modules/container/contract/project';
+import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
   createActionColumn,
   createMainTextColumn,
@@ -673,12 +795,15 @@ import {
   postProjectUp,
   putProjectLifecycleConfiguration,
 } from '../../api/project';
+import LifecycleHelpTrigger from '../../components/LifecycleHelpTrigger.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
-  buildProjectDetailTopicName,
+  buildProjectLifecycleConfigTopicName,
   buildProjectLogsTopicName,
-  parseProjectDetailRealtimePayload,
+  buildProjectRuntimeTopicName,
+  parseProjectLifecycleConfigRealtimePayload,
   parseProjectLogsRealtimePayload,
+  parseProjectRuntimeRealtimePayload,
 } from '../../contract/realtime';
 import { paginateProjectResourceRows } from '../../shared/detail-resources';
 import {
@@ -692,14 +817,17 @@ import {
 import {
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
+  formatLifecycleCommandCopyText,
+  isLifecycleDraftDirty,
   lifecycleDraftProfilesText,
   projectLifecycleReviewStatusLabel,
   projectLifecycleReviewStatusTheme,
   resolveLifecycleCommandSteps,
   updateLifecycleDraftProfiles,
 } from '../../shared/lifecycle';
+import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../../shared/lifecycle-help';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
-import { fetchProjectRuntimeContainers } from '../../shared/runtime-containers';
+import { fetchProjectRuntimeContainers, readProjectContainerSourceMember } from '../../shared/runtime-containers';
 import type {
   ProjectActionResponse,
   ProjectConfigurationMetadataResponse,
@@ -789,6 +917,8 @@ const servicesLoaded = ref(false);
 const projectOverviewLoaded = ref(false);
 const actionLoading = ref<ProjectActionResponse['action'] | 'destroy' | ''>('');
 const lifecycleSaveLoading = ref(false);
+const lifecycleBaseline = ref<ProjectLifecycleConfigurationDraft | null>(null);
+const lifecycleRemoteStale = ref(false);
 const projectLogSince = ref('1h');
 const projectLogTail = ref('200');
 const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
@@ -801,7 +931,10 @@ const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
   pull_before_redeploy: false,
   build_before_up: false,
   force_recreate: false,
+  remove_orphans: true,
   wait_after_up: false,
+  wait_timeout_seconds: 120,
+  renew_anon_volumes: false,
   prune_images_after_redeploy: false,
   additional_args: '',
 });
@@ -820,23 +953,31 @@ const networkRateState = ref<{
   rxBytesPerSecond: null,
   txBytesPerSecond: null,
 });
-const projectDetailSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+const projectRuntimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+const projectLifecycleConfigSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 const projectLogsSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 const projectLogsHasSnapshot = ref(false);
 const projectLogsBootstrapRequested = ref(false);
 const projectLogsRecoveryLoadRequested = ref(false);
-let projectDetailRealtimeController: RealtimeTopicSocketController | null = null;
+let projectRuntimeRealtimeController: RealtimeTopicSocketController | null = null;
+let projectLifecycleConfigRealtimeController: RealtimeTopicSocketController | null = null;
 let projectLogsRealtimeController: RealtimeTopicSocketController | null = null;
-let projectDetailRealtimeTopic = '';
+let projectRuntimeRealtimeTopic = '';
+let projectLifecycleConfigRealtimeTopic = '';
 let projectLogsRealtimeTopic = '';
 const projectLogSeenKeys = new Set<string>();
-const projectDetailRealtimeGate = createRealtimeSnapshotGate({
+const projectRuntimeRealtimeGate = createRealtimeSnapshotGate({
   apply: (message: {
     detail: ProjectDetailResponseWithLifecycle;
     overview: ProjectOverviewResponse;
     services: { items: ProjectServiceItem[] };
   }) => {
-    applyProjectRealtimeSnapshot(message);
+    applyProjectRuntimeRealtimeSnapshot(message);
+  },
+});
+const projectLifecycleConfigRealtimeGate = createRealtimeSnapshotGate({
+  apply: (message: { detail: ProjectDetailResponseWithLifecycle }) => {
+    applyProjectLifecycleConfigRealtimeSnapshot(message);
   },
 });
 
@@ -864,6 +1005,14 @@ const lifecycleReviewStatus = computed<ProjectLifecycleReviewStatus>(() => {
   return buildLifecycleConfigurationDraft(detailRecord.value).review_status ?? 'confirmed';
 });
 const lifecycleReviewRequired = computed(() => lifecycleReviewStatus.value === 'review_required');
+const lifecycleDraftDirty = computed(() => {
+  if (!lifecycleBaseline.value) {
+    return false;
+  }
+  return isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
+});
+const lifecycleCanSave = computed(() => lifecycleReviewRequired.value || lifecycleDraftDirty.value);
+const lifecycleCopyUsesAbsolutePaths = ref(true);
 const lifecycleProfilesInput = computed({
   get: () => lifecycleDraftProfilesText(lifecycleDraft),
   set: (value: string) => {
@@ -874,24 +1023,48 @@ const lifecycleCommandPreviewSections = computed(() => [
   {
     key: 'up',
     title: t('project.detail.lifecycle.generatedCommands.up'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'up'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'up', { preferClientGenerated: lifecycleDraftDirty.value }),
   },
   {
     key: 'stop',
     title: t('project.detail.lifecycle.generatedCommands.stop'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'stop'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'stop', { preferClientGenerated: lifecycleDraftDirty.value }),
   },
   {
     key: 'restart',
     title: t('project.detail.lifecycle.generatedCommands.restart'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'restart'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'restart', {
+      preferClientGenerated: lifecycleDraftDirty.value,
+    }),
   },
   {
     key: 'redeploy',
     title: t('project.detail.lifecycle.generatedCommands.redeploy'),
-    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'redeploy'),
+    steps: resolveLifecycleCommandSteps(lifecycleDraft, 'redeploy', {
+      preferClientGenerated: lifecycleDraftDirty.value,
+    }),
   },
 ]);
+const lifecycleCommandPreviewCards = computed(() =>
+  lifecycleCommandPreviewSections.value.map((section) => ({
+    copyText: formatLifecycleCommandCopyText(section.steps, {
+      absolutePaths: lifecycleCopyUsesAbsolutePaths.value,
+    }),
+    description: t(`project.detail.lifecycle.generatedCommandsDescriptions.${section.key}`),
+    key: section.key,
+    preview: section.steps.map((step) => step.command).join('\n'),
+    stepSummary: section.steps.map((step) => t(step.title_key)).join(' / '),
+    title: section.title,
+  })),
+);
+const lifecycleWaitTimeoutDefinition = lifecycleWaitTimeoutHelpDefinition;
+const waitAfterUpDefinitionIndex = lifecycleSwitchHelpDefinitions.findIndex((item) => item.key === 'waitAfterUp');
+const lifecycleSwitchOptionDefinitionsBeforeWaitTimeout =
+  waitAfterUpDefinitionIndex >= 0
+    ? lifecycleSwitchHelpDefinitions.slice(0, waitAfterUpDefinitionIndex + 1)
+    : lifecycleSwitchHelpDefinitions;
+const lifecycleSwitchOptionDefinitionsAfterWaitTimeout =
+  waitAfterUpDefinitionIndex >= 0 ? lifecycleSwitchHelpDefinitions.slice(waitAfterUpDefinitionIndex + 1) : [];
 const overviewServiceMap = computed<Map<string, ProjectOverviewServiceItem>>(
   () =>
     new Map(
@@ -1018,8 +1191,8 @@ const projectLogEntries = computed(() =>
         stream: entry.stream,
       }),
     )
-    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null)
-    .sort((left, right) => parseActivityTime(right.occurredAt) - parseActivityTime(left.occurredAt)),
+    // Preserve the server/realtime chronological order so LogViewer keeps the latest lines at the bottom.
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null),
 );
 const overviewDiagnostics = computed<OverviewDiagnostic[]>(() => {
   if (configurationMetadata.value?.diagnostics_summary?.length) {
@@ -1076,32 +1249,27 @@ const serviceColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(async () => {
-  if (redirectLegacyConfigurationTab()) {
-    return;
-  }
-  syncCanonicalDetailTabQuery(route.query.tab);
   await refreshDetail();
-  syncProjectDetailRealtimeSubscription();
+  syncProjectRuntimeRealtimeSubscription();
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 });
 
 onUnmounted(() => {
-  releaseProjectDetailRealtimeSubscription();
+  releaseProjectRuntimeRealtimeSubscription();
+  releaseProjectLifecycleConfigRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
-  projectDetailRealtimeGate.dispose();
+  projectRuntimeRealtimeGate.dispose();
+  projectLifecycleConfigRealtimeGate.dispose();
 });
 
 watch(
   () => route.query.tab,
   (value) => {
-    if (redirectLegacyConfigurationTab()) {
-      return;
-    }
     const nextTab = normalizeDetailTab(value);
     if (activeDetailTab.value !== nextTab) {
       activeDetailTab.value = nextTab;
     }
-    syncCanonicalDetailTabQuery(value);
   },
 );
 
@@ -1116,6 +1284,7 @@ watch(activeDetailTab, (value) => {
     });
   }
 
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 });
 
@@ -1136,10 +1305,15 @@ watch(serviceTableRows, (rows) => {
 
 watch(projectId, () => {
   resetProjectLogsState();
-  projectDetailRealtimeGate.clear();
-  releaseProjectDetailRealtimeSubscription();
+  lifecycleBaseline.value = null;
+  lifecycleRemoteStale.value = false;
+  projectRuntimeRealtimeGate.clear();
+  projectLifecycleConfigRealtimeGate.clear();
+  releaseProjectRuntimeRealtimeSubscription();
+  releaseProjectLifecycleConfigRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
-  syncProjectDetailRealtimeSubscription();
+  syncProjectRuntimeRealtimeSubscription();
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 });
 
@@ -1211,20 +1385,38 @@ function overviewServiceHealthTheme(value?: ProjectOverviewServiceItem['health']
   return 'default';
 }
 
-function syncLifecycleDraft(detail: ProjectDetailResponseWithLifecycle) {
+function assignLifecycleDraft(
+  target: ProjectLifecycleConfigurationDraft,
+  nextConfig: ProjectLifecycleConfigurationDraft,
+) {
+  Object.assign(target, {
+    ...nextConfig,
+    compose_files: [...nextConfig.compose_files],
+    generated_commands: nextConfig.generated_commands ? { ...nextConfig.generated_commands } : null,
+    profiles: [...nextConfig.profiles],
+  });
+}
+
+function syncLifecycleState(
+  detail: ProjectDetailResponseWithLifecycle,
+  options: {
+    preserveDirtyDraft: boolean;
+  } = { preserveDirtyDraft: false },
+) {
+  const preserveDirtyDraft =
+    options.preserveDirtyDraft &&
+    lifecycleBaseline.value !== null &&
+    isLifecycleDraftDirty(lifecycleDraft, lifecycleBaseline.value);
   const nextConfig = buildLifecycleConfigurationDraft(detail);
-  lifecycleDraft.strategy_kind = nextConfig.strategy_kind;
-  lifecycleDraft.working_directory = nextConfig.working_directory;
-  lifecycleDraft.compose_files = [...nextConfig.compose_files];
-  lifecycleDraft.canonical_project_name = nextConfig.canonical_project_name;
-  lifecycleDraft.profiles = [...nextConfig.profiles];
-  lifecycleDraft.down_before_redeploy = nextConfig.down_before_redeploy;
-  lifecycleDraft.pull_before_redeploy = nextConfig.pull_before_redeploy;
-  lifecycleDraft.build_before_up = nextConfig.build_before_up;
-  lifecycleDraft.force_recreate = nextConfig.force_recreate;
-  lifecycleDraft.wait_after_up = nextConfig.wait_after_up;
-  lifecycleDraft.prune_images_after_redeploy = nextConfig.prune_images_after_redeploy;
-  lifecycleDraft.additional_args = nextConfig.additional_args;
+  lifecycleBaseline.value = nextConfig;
+
+  if (preserveDirtyDraft) {
+    lifecycleRemoteStale.value = true;
+    return;
+  }
+
+  assignLifecycleDraft(lifecycleDraft, nextConfig);
+  lifecycleRemoteStale.value = false;
 }
 
 async function refreshDetail() {
@@ -1236,13 +1428,14 @@ async function refreshDetail() {
   detailError.value = '';
   try {
     detailRecord.value = await getProject(projectId.value);
-    syncLifecycleDraft(detailRecord.value);
+    syncLifecycleState(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
     await Promise.all([loadConfigurationSummary(), loadProjectServices(true), loadProjectOverview(true)]);
     if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
       await loadProjectLogs();
     }
-    syncProjectDetailRealtimeSubscription();
+    syncProjectRuntimeRealtimeSubscription();
+    syncProjectLifecycleConfigRealtimeSubscription();
     syncProjectLogsRealtimeSubscription();
   } catch (error) {
     logger.error('failed to load project detail', error);
@@ -1411,13 +1604,12 @@ function applyProjectLogRealtimeEntry(entry: ProjectLogEntry) {
   appendProjectLogEntry(entry);
 }
 
-function applyProjectRealtimeSnapshot(payload: {
+function applyProjectRuntimeRealtimeSnapshot(payload: {
   detail: ProjectDetailResponseWithLifecycle;
   overview: ProjectOverviewResponse;
   services: { items: ProjectServiceItem[] };
 }) {
   detailRecord.value = payload.detail;
-  syncLifecycleDraft(payload.detail);
   updateCurrentTabTitle(buildDetailTitle(payload.detail.display_name));
   detailError.value = '';
   serviceRows.value = payload.services.items;
@@ -1428,37 +1620,78 @@ function applyProjectRealtimeSnapshot(payload: {
   projectOverviewLoaded.value = true;
 }
 
-function syncProjectDetailRealtimeSubscription() {
-  const nextTopic = Number.isFinite(projectId.value) ? buildProjectDetailTopicName(projectId.value) : '';
+function applyProjectLifecycleConfigRealtimeSnapshot(payload: { detail: ProjectDetailResponseWithLifecycle }) {
+  detailRecord.value = payload.detail;
+  syncLifecycleState(payload.detail, { preserveDirtyDraft: true });
+}
+
+function syncProjectRuntimeRealtimeSubscription() {
+  const nextTopic = Number.isFinite(projectId.value) ? buildProjectRuntimeTopicName(projectId.value) : '';
   if (!nextTopic) {
-    releaseProjectDetailRealtimeSubscription();
+    releaseProjectRuntimeRealtimeSubscription();
     return;
   }
-  if (projectDetailRealtimeTopic === nextTopic && projectDetailRealtimeController) {
+  if (projectRuntimeRealtimeTopic === nextTopic && projectRuntimeRealtimeController) {
     return;
   }
-  releaseProjectDetailRealtimeSubscription();
-  projectDetailRealtimeTopic = nextTopic;
-  projectDetailRealtimeController = openRealtimeTopicSocket({
+  releaseProjectRuntimeRealtimeSubscription();
+  projectRuntimeRealtimeTopic = nextTopic;
+  projectRuntimeRealtimeController = openRealtimeTopicSocket({
     topic: nextTopic,
-    parseMessage: parseProjectDetailRealtimePayload,
+    parseMessage: parseProjectRuntimeRealtimePayload,
     onMessage: (message) => {
-      projectDetailRealtimeGate.commit(message);
+      projectRuntimeRealtimeGate.commit(message);
     },
     onStateChange: (state) => {
-      projectDetailSocketState.value = state;
+      projectRuntimeSocketState.value = state;
     },
     onError: (message) => {
-      logger.warn('project detail realtime subscription error', { message, topic: nextTopic });
+      logger.warn('project runtime realtime subscription error', { message, topic: nextTopic });
     },
   });
 }
 
-function releaseProjectDetailRealtimeSubscription() {
-  projectDetailRealtimeTopic = '';
-  projectDetailRealtimeController?.close();
-  projectDetailRealtimeController = null;
-  projectDetailSocketState.value = 'idle';
+function releaseProjectRuntimeRealtimeSubscription() {
+  projectRuntimeRealtimeTopic = '';
+  projectRuntimeRealtimeController?.close();
+  projectRuntimeRealtimeController = null;
+  projectRuntimeSocketState.value = 'idle';
+}
+
+function syncProjectLifecycleConfigRealtimeSubscription() {
+  const nextTopic =
+    Number.isFinite(projectId.value) && activeDetailTab.value === 'lifecycle'
+      ? buildProjectLifecycleConfigTopicName(projectId.value)
+      : '';
+  if (!nextTopic) {
+    releaseProjectLifecycleConfigRealtimeSubscription();
+    return;
+  }
+  if (projectLifecycleConfigRealtimeTopic === nextTopic && projectLifecycleConfigRealtimeController) {
+    return;
+  }
+  releaseProjectLifecycleConfigRealtimeSubscription();
+  projectLifecycleConfigRealtimeTopic = nextTopic;
+  projectLifecycleConfigRealtimeController = openRealtimeTopicSocket({
+    topic: nextTopic,
+    parseMessage: parseProjectLifecycleConfigRealtimePayload,
+    onMessage: (message) => {
+      projectLifecycleConfigRealtimeGate.commit(message);
+    },
+    onStateChange: (state) => {
+      projectLifecycleConfigSocketState.value = state;
+    },
+    onError: (message) => {
+      logger.warn('project lifecycle config realtime subscription error', { message, topic: nextTopic });
+    },
+  });
+}
+
+function releaseProjectLifecycleConfigRealtimeSubscription() {
+  projectLifecycleConfigRealtimeTopic = '';
+  projectLifecycleConfigRealtimeController?.close();
+  projectLifecycleConfigRealtimeController = null;
+  projectLifecycleConfigSocketState.value = 'idle';
 }
 
 function syncProjectLogsRealtimeSubscription() {
@@ -1749,10 +1982,11 @@ async function refreshProjectRuntimeSurface() {
 
   const nextDetail = await getProject(projectId.value);
   detailRecord.value = nextDetail;
-  syncLifecycleDraft(nextDetail);
+  syncLifecycleState(nextDetail, { preserveDirtyDraft: true });
   updateCurrentTabTitle(buildDetailTitle(nextDetail.display_name));
   await Promise.all([loadProjectServices(true), loadProjectOverview(true)]);
-  syncProjectDetailRealtimeSubscription();
+  syncProjectRuntimeRealtimeSubscription();
+  syncProjectLifecycleConfigRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
 }
 
@@ -1990,6 +2224,13 @@ async function saveLifecycleConfiguration() {
   if (!Number.isFinite(projectId.value) || !detailRecord.value) {
     return;
   }
+  if (
+    lifecycleDraft.wait_after_up &&
+    (lifecycleDraft.wait_timeout_seconds < 1 || lifecycleDraft.wait_timeout_seconds > 3600)
+  ) {
+    MessagePlugin.warning(t('project.detail.lifecycle.waitTimeoutValidation'));
+    return;
+  }
   lifecycleSaveLoading.value = true;
   try {
     const response = await putProjectLifecycleConfiguration(
@@ -2004,14 +2245,7 @@ async function saveLifecycleConfiguration() {
       canonical_project_name: response.canonical_project_name,
       compose_files: response.compose_files,
     };
-    syncLifecycleDraft({
-      ...detailRecord.value,
-      lifecycle_review_status: response.lifecycle_review_status,
-      lifecycle_configuration: response.lifecycle_configuration,
-      working_directory: response.working_directory,
-      canonical_project_name: response.canonical_project_name,
-      compose_files: response.compose_files,
-    });
+    syncLifecycleState(detailRecord.value, { preserveDirtyDraft: false });
     MessagePlugin.success(t('project.detail.lifecycle.saveSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.lifecycle.saveFailed')));
@@ -2021,10 +2255,11 @@ async function saveLifecycleConfiguration() {
 }
 
 function resetLifecycleConfiguration() {
-  if (!detailRecord.value) {
+  if (!lifecycleBaseline.value) {
     return;
   }
-  syncLifecycleDraft(detailRecord.value);
+  assignLifecycleDraft(lifecycleDraft, lifecycleBaseline.value);
+  lifecycleRemoteStale.value = false;
 }
 
 async function copyPath(path: string) {
@@ -2036,12 +2271,20 @@ async function copyPath(path: string) {
   }
 }
 
-function joinList(items: string[]) {
-  return items.length > 0 ? items.join(', ') : '-';
+async function copyLifecycleCommand(command: string) {
+  if (!command.trim()) {
+    return;
+  }
+  try {
+    await copyText(command);
+    MessagePlugin.success(t('project.detail.lifecycle.copyCommandSuccess'));
+  } catch {
+    MessagePlugin.error(t('project.detail.lifecycle.copyCommandError'));
+  }
 }
 
-function readContainerComposeService(container: ProjectContainerSummary) {
-  return container.orchestrator?.service || container.compose_service || '';
+function joinList(items: string[]) {
+  return items.length > 0 ? items.join(', ') : '-';
 }
 
 function formatRuntimePortLabel(port: ProjectContainerSummary['ports'][number]) {
@@ -2063,7 +2306,7 @@ function buildServiceRuntimePortSummaries(
   }
 
   for (const container of containers) {
-    const serviceName = readContainerComposeService(container);
+    const serviceName = readProjectContainerSourceMember(container);
     if (!serviceName || !labelsByService.has(serviceName)) {
       continue;
     }
@@ -2124,43 +2367,10 @@ function buildConfigurationWorkspaceTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.configurationWorkspace.title', name);
 }
 
-function redirectLegacyConfigurationTab() {
-  const raw = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab;
-  if (raw !== 'configuration') {
-    return false;
-  }
-  const { tab: _tab, ...query } = route.query;
-  void router.replace({
-    name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-    params: route.params,
-    query,
-  });
-  return true;
-}
-
 function normalizeDetailTab(value: unknown): ProjectDetailTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'runtime') {
-    return 'lifecycle';
-  }
-  if (raw === 'containers' || raw === 'networks' || raw === 'volumes') {
-    return 'services';
-  }
   const tabs: ProjectDetailTab[] = ['overview', 'services', 'logs', 'lifecycle'];
   return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
-}
-
-function syncCanonicalDetailTabQuery(value: unknown) {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const nextTab = normalizeDetailTab(value);
-  if (typeof raw === 'string' && ['runtime', 'containers', 'networks', 'volumes'].includes(raw) && raw !== nextTab) {
-    void router.replace({
-      query: {
-        ...route.query,
-        tab: nextTab,
-      },
-    });
-  }
 }
 
 function readNameFromTabTitle(title?: LocalizedTitle) {
@@ -2575,33 +2785,54 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-file-groups,
 .project-activity-card,
 .project-activity-entries,
-.project-lifecycle-command-groups,
-.project-lifecycle-command-group,
-.project-lifecycle-editor,
 .project-lifecycle-file-list {
   flex-direction: column;
 }
 
 .project-file-groups,
 .project-service-name,
-.project-activity-card,
-.project-lifecycle-editor,
-.project-lifecycle-command-group {
+.project-activity-card {
   gap: var(--graft-density-gap-12);
 }
 
-.project-lifecycle-grid {
-  align-items: flex-start;
-}
-
-.project-lifecycle-grid > .t-card:last-child {
-  flex-basis: 100%;
-}
-
-.project-lifecycle-file-list,
-.project-lifecycle-command-groups {
+.project-lifecycle-file-list {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+}
+
+.project-lifecycle-layout,
+.project-lifecycle-summary,
+.project-lifecycle-command-section,
+.project-lifecycle-config,
+.project-lifecycle-config-group,
+.project-lifecycle-command-card,
+.project-lifecycle-command-preview,
+.project-lifecycle-option-list,
+.project-lifecycle-option__content,
+.project-lifecycle-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-lifecycle-layout,
+.project-lifecycle-config,
+.project-lifecycle-command-section {
+  gap: var(--graft-density-gap-16);
+}
+
+.project-lifecycle-summary,
+.project-lifecycle-config-group,
+.project-lifecycle-command-card,
+.project-lifecycle-command-preview,
+.project-lifecycle-option-list,
+.project-lifecycle-option__content,
+.project-lifecycle-field {
+  gap: var(--graft-density-gap-12);
+}
+
+.project-lifecycle-alert {
+  margin-bottom: var(--graft-density-gap-16);
 }
 
 .project-lifecycle-file-list code {
@@ -2611,23 +2842,113 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
   padding: var(--graft-density-gap-4) var(--graft-density-gap-8);
 }
 
-.project-lifecycle-field,
-.project-lifecycle-switch {
+.project-lifecycle-command-grid,
+.project-lifecycle-field-grid {
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-lifecycle-command-card {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.project-lifecycle-command-card__header,
+.project-lifecycle-config-group__header,
+.project-lifecycle-actions,
+.project-lifecycle-option {
+  align-items: center;
   display: flex;
-  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+}
+
+.project-lifecycle-command-card__header,
+.project-lifecycle-option {
+  justify-content: space-between;
+}
+
+.project-lifecycle-command-card__title,
+.project-lifecycle-config-group__header > div,
+.project-lifecycle-option__content,
+.project-lifecycle-field {
+  min-width: 0;
+}
+
+.project-lifecycle-command-card__title strong,
+.project-lifecycle-config-group__header strong,
+.project-lifecycle-option__label,
+.project-lifecycle-field__label {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+.project-lifecycle-option__label,
+.project-lifecycle-field__label--with-help {
+  align-items: center;
+  display: inline-flex;
   gap: var(--graft-density-gap-6);
 }
 
-.project-lifecycle-switch-grid {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+.project-lifecycle-command-card__title p,
+.project-lifecycle-config-group__header p,
+.project-lifecycle-option__content p {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
 }
 
-.project-lifecycle-command-step {
+.project-lifecycle-command-meta {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.project-lifecycle-command-toolbar,
+.project-lifecycle-command-toolbar__toggle {
+  align-items: center;
   display: flex;
-  flex-direction: column;
+}
+
+.project-lifecycle-command-toolbar {
+  justify-content: flex-end;
+}
+
+.project-lifecycle-command-toolbar__toggle {
+  color: var(--td-text-color-secondary);
   gap: var(--graft-density-gap-8);
+}
+
+.project-lifecycle-field :deep(.t-input__wrap),
+.project-lifecycle-field :deep(.t-input) {
+  width: 100%;
+}
+
+.project-lifecycle-option {
+  align-items: center;
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  min-height: 52px;
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-16);
+}
+
+.project-lifecycle-option__control {
+  align-items: center;
+  display: flex;
+  flex: none;
+}
+
+.project-lifecycle-option__control :deep(.t-switch) {
+  flex: none;
+  width: auto;
+}
+
+.project-lifecycle-actions {
+  justify-content: flex-end;
+  margin-top: var(--graft-density-gap-20);
 }
 
 .project-service-name span {
@@ -2673,6 +2994,25 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
   max-height: 420px;
   overflow: auto;
   white-space: pre-wrap;
+}
+
+@media (width <= 960px) {
+  .project-lifecycle-command-grid,
+  .project-lifecycle-field-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (width <= 720px) {
+  .project-lifecycle-command-card__header,
+  .project-lifecycle-option {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-lifecycle-option__control {
+    align-self: flex-end;
+  }
 }
 
 .project-diagnostics-list,

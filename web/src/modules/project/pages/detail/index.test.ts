@@ -2,6 +2,9 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
+import { copyText } from '@/shared/observability';
+
+import type { ProjectLifecycleConfigurationSavedResponse } from '../../types/project';
 import ProjectDetailPage from './index.vue';
 
 const containerApiMocks = vi.hoisted(() => ({
@@ -24,6 +27,13 @@ const messageMocks = vi.hoisted(() => ({
 
 const notifyMocks = vi.hoisted(() => ({
   warning: vi.fn(),
+}));
+
+const realtimeMocks = vi.hoisted(() => ({
+  sockets: [] as Array<{
+    controller: { close: ReturnType<typeof vi.fn> };
+    options: Record<string, any>;
+  }>,
 }));
 
 const projectApiMocks = vi.hoisted(() => ({
@@ -97,6 +107,12 @@ const detailMessages = {
   'project.detail.actions.stop': 'Stop',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
+  'project.detail.lifecycle.copyCommand': 'Copy Command',
+  'project.detail.lifecycle.copyCommandError': 'Command preview could not be copied.',
+  'project.detail.lifecycle.copyCommandHint':
+    'Copy multi-step commands as a single-line shell command chained with &&.',
+  'project.detail.lifecycle.copyAbsolutePaths': 'Copy With Absolute Paths',
+  'project.detail.lifecycle.copyCommandSuccess': 'Command preview copied.',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
   'project.detail.logs.authorityProjectOwned': 'Project-owned logs',
@@ -170,6 +186,33 @@ const detailMessages = {
   'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.services': 'Services',
+  'project.detail.lifecycle.statusDescription': 'Review authority and command generation inputs.',
+  'project.detail.lifecycle.remoteStaleTitle': 'Remote Configuration Refreshed',
+  'project.detail.lifecycle.remoteStaleDescription':
+    'Graft received a newer lifecycle snapshot, but your unsaved local edits are still kept. Use Reset to load the latest saved configuration.',
+  'project.detail.lifecycle.generatedCommandsDescription': 'Review each lifecycle command preview.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.up':
+    'Launch the current compose project with the saved strategy.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.stop':
+    'Stop running services without removing project resources.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.restart': 'Restart the current compose services in place.',
+  'project.detail.lifecycle.generatedCommandsDescriptions.redeploy':
+    'Apply the saved redeploy flow, including any optional preparation steps.',
+  'project.detail.lifecycle.groups.base.title': 'Base Parameters',
+  'project.detail.lifecycle.groups.base.description': 'Base settings',
+  'project.detail.lifecycle.groups.redeploy.title': 'Redeploy Strategy',
+  'project.detail.lifecycle.groups.redeploy.description': 'Redeploy settings',
+  'project.detail.lifecycle.optionDescriptions.downBeforeRedeploy': 'Run docker compose down before redeploy.',
+  'project.detail.lifecycle.optionDescriptions.pullBeforeRedeploy': 'Pull images before redeploy.',
+  'project.detail.lifecycle.optionDescriptions.buildBeforeUp': 'Add --build before bring-up.',
+  'project.detail.lifecycle.optionDescriptions.forceRecreate': 'Add --force-recreate during bring-up.',
+  'project.detail.lifecycle.optionDescriptions.removeOrphans': 'Remove orphan containers.',
+  'project.detail.lifecycle.optionDescriptions.waitAfterUp': 'Add --wait when bringing services up.',
+  'project.detail.lifecycle.optionDescriptions.waitTimeoutSeconds': 'Limit wait time to 1-3600 seconds.',
+  'project.detail.lifecycle.optionDescriptions.renewAnonVolumes': 'Do not reuse anonymous volumes.',
+  'project.detail.lifecycle.optionDescriptions.pruneImagesAfterRedeploy': 'Prune images after redeploy.',
+  'project.detail.lifecycle.renewAnonVolumesWarning': 'Anonymous volumes may be recreated and data may be lost.',
+  'project.detail.lifecycle.waitTimeoutValidation': 'Wait timeout must be between 1 and 3600 seconds.',
   'project.detail.titleFallback': 'Project Detail',
   'project.route.configurationWorkspace.title': 'Configuration Workspace',
   'project.list.actions.actionFailed': 'Action Failed',
@@ -224,6 +267,65 @@ const TButtonStub = defineComponent({
         },
         slots.default?.(),
       );
+  },
+});
+
+const TSwitchStub = defineComponent({
+  name: 'TSwitchStub',
+  props: {
+    modelValue: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          'aria-pressed': props.modelValue ? 'true' : 'false',
+          'data-stub': 'TSwitch',
+          type: 'button',
+          onClick: () => emit('update:modelValue', !props.modelValue),
+        },
+        props.modelValue ? 'on' : 'off',
+      );
+  },
+});
+
+const TInputNumberStub = defineComponent({
+  name: 'TInputNumber',
+  props: {
+    modelValue: { type: Number, default: 0 },
+    min: { type: Number, default: undefined },
+    max: { type: Number, default: undefined },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        'data-stub': 'TInputNumber',
+        max: props.max,
+        min: props.min,
+        type: 'number',
+        value: props.modelValue,
+        onInput: (event: Event) => emit('update:modelValue', Number((event.target as HTMLInputElement).value)),
+      });
+  },
+});
+
+const LifecycleHelpTriggerStub = defineComponent({
+  name: 'LifecycleHelpTrigger',
+  props: {
+    definition: { type: Object, default: () => ({}) },
+  },
+  setup(props) {
+    return () =>
+      h('button', {
+        'data-help-definition': String((props.definition as { key?: string }).key ?? ''),
+        'data-stub': 'LifecycleHelpTrigger',
+        type: 'button',
+      });
   },
 });
 
@@ -310,6 +412,93 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
     runtime_status: runtimeStatus,
     service_count: 2,
     working_directory: '/srv/compose-demo',
+    lifecycle_configuration: {
+      strategy_kind: 'standard',
+      profiles: [],
+      down_before_redeploy: true,
+      pull_before_redeploy: false,
+      build_before_up: false,
+      force_recreate: false,
+      remove_orphans: true,
+      wait_after_up: false,
+      wait_timeout_seconds: 120,
+      renew_anon_volumes: false,
+      prune_images_after_redeploy: false,
+      generated_commands: {
+        up: {
+          action: 'up',
+          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
+          steps: [
+            {
+              argv: [
+                'docker',
+                'compose',
+                '-f',
+                '/srv/compose-demo/compose.yaml',
+                '-p',
+                'compose-demo',
+                'up',
+                '-d',
+                '--remove-orphans',
+              ],
+              display_command:
+                'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
+              kind: 'up',
+            },
+          ],
+        },
+        stop: {
+          action: 'stop',
+          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo stop',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'stop'],
+              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo stop',
+              kind: 'stop',
+            },
+          ],
+        },
+        restart: {
+          action: 'restart',
+          display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo restart',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'restart'],
+              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo restart',
+              kind: 'restart',
+            },
+          ],
+        },
+        redeploy: {
+          action: 'redeploy',
+          display_command:
+            'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down\ndocker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
+          steps: [
+            {
+              argv: ['docker', 'compose', '-f', '/srv/compose-demo/compose.yaml', '-p', 'compose-demo', 'down'],
+              display_command: 'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down',
+              kind: 'down',
+            },
+            {
+              argv: [
+                'docker',
+                'compose',
+                '-f',
+                '/srv/compose-demo/compose.yaml',
+                '-p',
+                'compose-demo',
+                'up',
+                '-d',
+                '--remove-orphans',
+              ],
+              display_command:
+                'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans',
+              kind: 'up',
+            },
+          ],
+        },
+      },
+    },
   };
 }
 
@@ -417,28 +606,61 @@ function buildRuntimeContainers() {
   return {
     items: [
       {
-        compose_project: 'compose-demo',
-        compose_service: 'app',
         id: 'container-1',
         image: 'demo:latest',
         names: ['compose-demo-1'],
+        orchestrator: {
+          group_scope_kind: 'compose_project',
+          group_value: 'compose-demo',
+          member_scope_kind: 'compose_service',
+          member_value: 'app',
+        },
         ports: [{ ip: '0.0.0.0', private_port: 8080, public_port: 8316, type: 'tcp' }],
         runtime: 'docker',
         state: 'running',
         status: 'Up 1 minute',
       },
       {
-        compose_project: 'compose-demo',
-        compose_service: 'worker',
         id: 'worker-1',
         image: 'worker:latest',
         names: ['worker-1'],
+        orchestrator: {
+          group_scope_kind: 'compose_project',
+          group_value: 'compose-demo',
+          member_scope_kind: 'compose_service',
+          member_value: 'worker',
+        },
         ports: [],
         runtime: 'docker',
         state: 'created',
         status: 'Created',
       },
     ],
+  };
+}
+
+function buildProjectLogs(entries: Array<{ line: string; occurred_at: string; stream?: 'stdout' | 'stderr' }>) {
+  return {
+    canonical_project_name: 'compose-demo',
+    entries: entries.map((entry, index) => ({
+      container_id: `container-${index + 1}`,
+      container_name: `compose-demo-${index + 1}`,
+      line: entry.line,
+      occurred_at: entry.occurred_at,
+      service_name: index % 2 === 0 ? 'app' : 'worker',
+      source: {
+        container_id: `container-${index + 1}`,
+        container_name: `compose-demo-${index + 1}`,
+        service_name: index % 2 === 0 ? 'app' : 'worker',
+      },
+      stream: entry.stream ?? 'stdout',
+    })),
+    project_id: 7,
+    stderr: true,
+    stdout: true,
+    tail: 200,
+    timestamps: true,
+    truncated: false,
   };
 }
 
@@ -450,6 +672,7 @@ function mountPage() {
         ManagementPageHeader: slotStub('ManagementPageHeader'),
         ManagementPagedTable: ManagementPagedTableStub,
         ProjectFileEditor: slotStub('ProjectFileEditor'),
+        LifecycleHelpTrigger: LifecycleHelpTriggerStub,
         TableActionMenu: TableActionMenuStub,
         'management-page-header': slotStub('management-page-header'),
         'management-paged-table': ManagementPagedTableStub,
@@ -464,12 +687,14 @@ function mountPage() {
         't-descriptions-item': slotStub('TDescriptionsItem'),
         't-empty': slotStub('TEmpty'),
         't-input': slotStub('TInput'),
+        't-input-number': TInputNumberStub,
         't-loading': slotStub('TLoading'),
         't-progress': slotStub('TProgress'),
         't-space': slotStub('TSpace'),
         't-tab-panel': slotStub('TTabPanel'),
         't-tabs': slotStub('TTabs'),
         't-tag': slotStub('TTag'),
+        't-switch': TSwitchStub,
       },
     },
   });
@@ -530,8 +755,17 @@ vi.mock('@/shared/localized-api-error', () => ({
 vi.mock('@/shared/observability', () => ({
   LogViewer: defineComponent({
     name: 'LogViewerStub',
-    setup(_props, { slots }) {
-      return () => h('div', { 'data-stub': 'LogViewer' }, slots.default?.());
+    props: {
+      entries: { type: Array, default: () => [] },
+    },
+    setup(props, { slots }) {
+      return () =>
+        h('div', { 'data-stub': 'LogViewer' }, [
+          ...(props.entries as Array<{ line: string }>).map((entry, index) =>
+            h('div', { key: `${index}-${entry.line}`, 'data-log-line': String(index) }, entry.line),
+          ),
+          slots.default?.(),
+        ]);
     },
   }),
   copyText: vi.fn(),
@@ -555,7 +789,11 @@ vi.mock('@/shared/realtime', () => ({
     dispose: vi.fn(),
     flush: vi.fn(),
   }),
-  openRealtimeTopicSocket: vi.fn(() => ({ close: vi.fn() })),
+  openRealtimeTopicSocket: vi.fn((options: Record<string, any>) => {
+    const controller = { close: vi.fn() };
+    realtimeMocks.sockets.push({ controller, options });
+    return controller;
+  }),
 }));
 
 vi.mock('@/utils/logger', () => ({
@@ -601,6 +839,7 @@ vi.mock('tdesign-vue-next/es/notification', () => ({
 describe('Project detail service tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    realtimeMocks.sockets.length = 0;
     routeState.value.query = {};
     tabsRouterStoreMock.tabRouterList = [
       {
@@ -632,31 +871,24 @@ describe('Project detail service tab', () => {
     containerApiMocks.getContainerLogs.mockResolvedValue({ entries: [] });
   });
 
-  it('normalizes legacy container tabs to services on mount', async () => {
+  it('does not rewrite retired detail tab queries on mount', async () => {
     routeState.value.query = { tab: 'containers' };
 
     mountPage();
     await flushPromises();
 
-    expect(routerMocks.replace).toHaveBeenCalledWith({
-      query: {
-        tab: 'services',
-      },
-    });
+    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).not.toHaveBeenCalled();
   });
 
-  it('redirects the legacy configuration tab query to the configuration workspace route', async () => {
+  it('does not redirect retired configuration tab queries to the configuration workspace route', async () => {
     routeState.value.query = { name: 'Compose Demo', tab: 'configuration' };
 
     mountPage();
     await flushPromises();
 
-    expect(routerMocks.replace).toHaveBeenCalledWith({
-      name: 'ProjectConfigurationWorkspaceIndex',
-      params: { id: '7' },
-      query: { name: 'Compose Demo' },
-    });
-    expect(projectApiMocks.getProject).not.toHaveBeenCalled();
+    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).not.toHaveBeenCalled();
   });
 
   it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {
@@ -669,6 +901,101 @@ describe('Project detail service tab', () => {
 
     expect(projectApiMocks.getProjectLogs).toHaveBeenCalledTimes(1);
     expect(messageMocks.error).not.toHaveBeenCalled();
+  });
+
+  it('renders project log snapshots in chronological order', async () => {
+    routeState.value.query = { tab: 'logs' };
+    projectApiMocks.getProjectLogs.mockResolvedValue(
+      buildProjectLogs([
+        { line: 'oldest-entry', occurred_at: '2026-07-09T03:00:00Z' },
+        { line: 'middle-entry', occurred_at: '2026-07-09T03:00:01Z' },
+        { line: 'latest-entry', occurred_at: '2026-07-09T03:00:02Z' },
+      ]),
+    );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
+      JSON.stringify({
+        container: 'compose-demo-1',
+        container_id: 'container-1',
+        message: 'oldest-entry',
+        occurred_at: '2026-07-09T03:00:00Z',
+        service: 'app',
+        source: 'app · compose-demo-1',
+        stream: 'stdout',
+      }),
+      JSON.stringify({
+        container: 'compose-demo-2',
+        container_id: 'container-2',
+        message: 'middle-entry',
+        occurred_at: '2026-07-09T03:00:01Z',
+        service: 'worker',
+        source: 'worker · compose-demo-2',
+        stream: 'stdout',
+      }),
+      JSON.stringify({
+        container: 'compose-demo-3',
+        container_id: 'container-3',
+        message: 'latest-entry',
+        occurred_at: '2026-07-09T03:00:02Z',
+        service: 'app',
+        source: 'app · compose-demo-3',
+        stream: 'stdout',
+      }),
+    ]);
+  });
+
+  it('appends realtime project logs after the snapshot tail', async () => {
+    routeState.value.query = { tab: 'logs' };
+    projectApiMocks.getProjectLogs.mockResolvedValue(
+      buildProjectLogs([{ line: 'snapshot-entry', occurred_at: '2026-07-09T03:00:00Z' }]),
+    );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logsSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.logs:7');
+    expect(logsSocket).toBeTruthy();
+
+    logsSocket?.options.onMessage({
+      entry: {
+        container_id: 'container-9',
+        container_name: 'compose-demo-9',
+        line: 'realtime-entry',
+        occurred_at: '2026-07-09T03:00:01Z',
+        service_name: 'worker',
+        source: {
+          container_id: 'container-9',
+          container_name: 'compose-demo-9',
+          service_name: 'worker',
+        },
+        stream: 'stderr',
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
+      JSON.stringify({
+        container: 'compose-demo-1',
+        container_id: 'container-1',
+        message: 'snapshot-entry',
+        occurred_at: '2026-07-09T03:00:00Z',
+        service: 'app',
+        source: 'app · compose-demo-1',
+        stream: 'stdout',
+      }),
+      JSON.stringify({
+        container: 'compose-demo-9',
+        container_id: 'container-9',
+        message: 'realtime-entry',
+        occurred_at: '2026-07-09T03:00:01Z',
+        service: 'worker',
+        source: 'worker · compose-demo-9',
+        stream: 'stderr',
+      }),
+    ]);
   });
 
   it('renders service columns with shared pagination chrome', async () => {
@@ -690,7 +1017,6 @@ describe('Project detail service tab', () => {
     expect(table.props('paginationVisible')).toBe(true);
     expect(wrapper.text()).not.toContain('Containers');
     expect(wrapper.text()).not.toContain('Networks');
-    expect(wrapper.text()).not.toContain('Volumes');
   });
 
   it('does not render the retired configuration tab label in detail tabs', async () => {
@@ -703,6 +1029,233 @@ describe('Project detail service tab', () => {
       .filter(Boolean);
 
     expect(tabLabels).not.toContain('Configuration');
+  });
+
+  it('renders lifecycle sections with grouped configuration and command previews', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-lifecycle-summary-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-command-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-configuration-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-config-group-base"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-config-group-redeploy"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-actions"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-command-preview-up"]').text()).toContain(
+      'docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+    );
+    expect(wrapper.find('[data-testid="project-lifecycle-command-preview-redeploy"]').text()).toContain(
+      'docker compose -f compose.yaml -p compose-demo down',
+    );
+  });
+
+  it('recomputes lifecycle command previews immediately when the draft changes', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const redeployPreview = wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"]');
+    const upPreview = wrapper.get('[data-testid="project-lifecycle-command-preview-up"]');
+
+    expect(redeployPreview.text()).not.toContain('docker compose -f compose.yaml -p compose-demo pull');
+    expect(redeployPreview.text()).not.toContain('docker image prune -f');
+    expect(upPreview.text()).not.toContain('--wait --wait-timeout 120');
+
+    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-prune-images-after-redeploy-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await flushPromises();
+
+    expect(redeployPreview.text()).toContain('docker compose -f compose.yaml -p compose-demo pull');
+    expect(redeployPreview.text()).toContain('docker image prune -f');
+    expect(upPreview.text()).toContain('--wait --wait-timeout 120');
+  });
+
+  it('copies multi-step lifecycle commands as a shell-safe && chain', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    vi.mocked(copyText).mockResolvedValue(true);
+
+    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-prune-images-after-redeploy-switch"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"] button').trigger('click');
+
+    expect(copyText).toHaveBeenCalledWith(
+      'docker compose -f /srv/compose-demo/compose.yaml -p compose-demo down && docker compose -f /srv/compose-demo/compose.yaml -p compose-demo pull && docker compose -f /srv/compose-demo/compose.yaml -p compose-demo up -d --remove-orphans && docker image prune -f',
+    );
+    expect(messageMocks.success).toHaveBeenCalledWith('Command preview copied.');
+  });
+
+  it('allows switching copied lifecycle commands between absolute and relative paths', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    vi.mocked(copyText).mockResolvedValue(true);
+
+    await wrapper.get('[data-testid="project-lifecycle-pull-before-redeploy-switch"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="project-lifecycle-copy-path-mode"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="project-lifecycle-command-preview-redeploy"] button').trigger('click');
+
+    expect(copyText).toHaveBeenLastCalledWith(
+      'docker compose -f compose.yaml -p compose-demo down && docker compose -f compose.yaml -p compose-demo pull && docker compose -f compose.yaml -p compose-demo up -d --remove-orphans',
+    );
+  });
+
+  it('shows wait-timeout and destructive-volume warning only when enabled', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-renew-anon-volumes-switch"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-lifecycle-renew-anon-volumes-warning"]').exists()).toBe(true);
+  });
+
+  it('gives lifecycle switches their visible label as an accessible name', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-label')).toBe(
+      'project.detail.lifecycle.waitAfterUp',
+    );
+  });
+
+  it('keeps unsaved lifecycle draft changes when realtime detail snapshots arrive', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
+    expect(detailSocket).toBeTruthy();
+
+    detailSocket?.options.onMessage({
+      detail: buildProjectDetail(),
+      overview: buildProjectOverview(),
+      services: { items: buildProjectServices().items },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
+      'true',
+    );
+    expect(wrapper.find('[data-testid="project-lifecycle-remote-stale-alert"]').exists()).toBe(true);
+  });
+
+  it('keeps an unsaved lifecycle draft when a realtime snapshot arrives during saving', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    let resolveSave: ((value: ProjectLifecycleConfigurationSavedResponse) => void) | undefined;
+    projectApiMocks.putProjectLifecycleConfiguration.mockImplementationOnce(
+      () =>
+        new Promise<ProjectLifecycleConfigurationSavedResponse>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await wrapper.get('[data-testid="project-lifecycle-save"]').trigger('click');
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
+    detailSocket?.options.onMessage({ detail: buildProjectDetail() });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
+      'true',
+    );
+    resolveSave?.({
+      canonical_project_name: 'compose-demo',
+      compose_files: [],
+      lifecycle_configuration: {
+        ...buildProjectDetail().lifecycle_configuration,
+        strategy_kind: 'standard',
+        wait_after_up: true,
+      },
+      lifecycle_review_status: 'confirmed',
+      project_id: 7,
+      working_directory: '/srv/compose-demo',
+    } as ProjectLifecycleConfigurationSavedResponse);
+    await flushPromises();
+  });
+
+  it('applies lifecycle configuration updates from realtime when the draft is clean', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
+    expect(detailSocket).toBeTruthy();
+
+    detailSocket?.options.onMessage({
+      detail: {
+        ...buildProjectDetail(),
+        lifecycle_configuration: {
+          ...buildProjectDetail().lifecycle_configuration,
+          wait_after_up: true,
+          wait_timeout_seconds: 300,
+        },
+      },
+      overview: buildProjectOverview(),
+      services: { items: buildProjectServices().items },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
+      'true',
+    );
+    expect(wrapper.find('[data-testid="project-lifecycle-remote-stale-alert"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-lifecycle-wait-timeout-field"]').exists()).toBe(true);
+  });
+
+  it('renders help triggers for all lifecycle strategy items without changing switch state', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const helpDefinitions = wrapper.findAll('[data-help-definition]');
+    expect(helpDefinitions).toHaveLength(8);
+    expect(helpDefinitions.map((item) => item.attributes('data-help-definition'))).toEqual([
+      'downBeforeRedeploy',
+      'pullBeforeRedeploy',
+      'buildBeforeUp',
+      'forceRecreate',
+      'removeOrphans',
+      'waitAfterUp',
+      'renewAnonVolumes',
+      'pruneImagesAfterRedeploy',
+    ]);
+
+    const removeOrphansSwitch = wrapper.get('[data-testid="project-lifecycle-remove-orphans-switch"]');
+    expect(removeOrphansSwitch.attributes('aria-pressed')).toBe('true');
+    await helpDefinitions[4].trigger('click');
+    expect(removeOrphansSwitch.attributes('aria-pressed')).toBe('true');
+
+    await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
+    await flushPromises();
+
+    const waitTimeoutHelp = wrapper
+      .findAll('[data-help-definition]')
+      .map((item) => item.attributes('data-help-definition'));
+    expect(waitTimeoutHelp).toContain('waitTimeoutSeconds');
   });
 
   it('renders runtime published ports instead of declared compose mappings', async () => {
@@ -817,6 +1370,10 @@ describe('Project detail service tab', () => {
       expect.objectContaining({
         fullPath: '/ops/projects/7/configuration',
         path: '/ops/projects/7/configuration',
+        title: {
+          'en-US': 'Configuration Workspace - Compose Demo',
+          'zh-CN': '配置工作台 - Compose Demo',
+        },
       }),
     );
     expect(routerMocks.push).toHaveBeenCalledWith({

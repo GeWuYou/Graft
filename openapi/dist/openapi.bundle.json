@@ -20115,31 +20115,7 @@
               "ContainerOrchestratorInfoConfidenceLow"
             ]
           },
-          "project": {
-            "type": "string",
-            "nullable": true
-          },
-          "service": {
-            "type": "string",
-            "nullable": true
-          },
-          "stack": {
-            "type": "string",
-            "nullable": true
-          },
-          "namespace": {
-            "type": "string",
-            "nullable": true
-          },
-          "pod": {
-            "type": "string",
-            "nullable": true
-          },
           "container": {
-            "type": "string",
-            "nullable": true
-          },
-          "task": {
             "type": "string",
             "nullable": true
           },
@@ -20322,16 +20298,6 @@
           },
           "restart_policy": {
             "type": "string"
-          },
-          "compose_project": {
-            "type": "string",
-            "nullable": true,
-            "description": "Docker Compose project label when present."
-          },
-          "compose_service": {
-            "type": "string",
-            "nullable": true,
-            "description": "Docker Compose service label when present."
           },
           "orchestrator": {
             "$ref": "#/components/schemas/container-orchestrator-info"
@@ -22134,6 +22100,7 @@
           },
           "canonical_project_name_override": {
             "type": "string",
+            "maxLength": 120,
             "minLength": 1,
             "nullable": true
           }
@@ -22493,7 +22460,9 @@
           },
           "canonical_project_name_override": {
             "type": "string",
+            "maxLength": 120,
             "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
             "nullable": true
           }
         }
@@ -22798,7 +22767,9 @@
           },
           "canonical_project_name_override": {
             "type": "string",
+            "maxLength": 120,
             "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
             "nullable": true
           }
         }
@@ -22930,7 +22901,9 @@
           },
           "canonical_project_name_override": {
             "type": "string",
+            "maxLength": 120,
             "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
             "nullable": true
           }
         }
@@ -23034,7 +23007,10 @@
           "pull_before_redeploy",
           "build_before_up",
           "force_recreate",
+          "remove_orphans",
           "wait_after_up",
+          "wait_timeout_seconds",
+          "renew_anon_volumes",
           "prune_images_after_redeploy",
           "generated_commands"
         ],
@@ -23062,11 +23038,25 @@
           "force_recreate": {
             "type": "boolean"
           },
+          "remove_orphans": {
+            "type": "boolean",
+            "default": true
+          },
           "wait_after_up": {
             "type": "boolean"
           },
+          "wait_timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600,
+            "default": 120
+          },
           "prune_images_after_redeploy": {
             "type": "boolean"
+          },
+          "renew_anon_volumes": {
+            "type": "boolean",
+            "default": false
           },
           "generated_commands": {
             "type": "object",
@@ -23747,7 +23737,8 @@
           "canonical_project_name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120
+            "maxLength": 120,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
           },
           "relative_project_directory": {
             "type": "string",
@@ -23863,7 +23854,8 @@
           "canonical_project_name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120
+            "maxLength": 120,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
           },
           "relative_project_directory": {
             "type": "string",
@@ -24433,7 +24425,10 @@
           "pull_before_redeploy",
           "build_before_up",
           "force_recreate",
+          "remove_orphans",
           "wait_after_up",
+          "wait_timeout_seconds",
+          "renew_anon_volumes",
           "prune_images_after_redeploy"
         ],
         "properties": {
@@ -24460,11 +24455,25 @@
           "force_recreate": {
             "type": "boolean"
           },
+          "remove_orphans": {
+            "type": "boolean",
+            "default": true
+          },
           "wait_after_up": {
             "type": "boolean"
           },
+          "wait_timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600,
+            "default": 120
+          },
           "prune_images_after_redeploy": {
             "type": "boolean"
+          },
+          "renew_anon_volumes": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false

@@ -2756,13 +2756,7 @@ function jobDefinitionActionDescription(action: ScheduledTaskJobDefinitionAction
 }
 
 function actionTranslationKey(action: ScheduledTaskJobDefinitionAction, field: 'title' | 'description') {
-  const compatibilityAction = action as ScheduledTaskJobDefinitionAction & {
-    titleKey?: string;
-    descriptionKey?: string;
-  };
-  return field === 'title'
-    ? action.title_key || compatibilityAction.titleKey
-    : action.description_key || compatibilityAction.descriptionKey;
+  return field === 'title' ? action.title_key : action.description_key;
 }
 
 function jobDefinitionActionAffectedResource(action: ScheduledTaskJobDefinitionAction, task: ScheduledTaskItem) {

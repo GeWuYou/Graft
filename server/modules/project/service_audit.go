@@ -216,12 +216,13 @@ func collectBatchProjectIDs(items []BatchActionItemResult, include func(BatchAct
 	return ids
 }
 
+// 冲突及操作阻止类错误返回 409；其他错误返回 500。
 func projectActionAuditStatusCode(result ActionResult, err error) int {
 	if err == nil && result.Result == generated.ProjectActionResponseResultProjectActionResultCompleted {
 		return http.StatusOK
 	}
 	switch {
-	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectFileNotFound):
+	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectInvalidCanonicalName), errors.Is(err, errProjectFileNotFound):
 		return http.StatusBadRequest
 	case errors.Is(err, errProjectNotFound):
 		return http.StatusNotFound

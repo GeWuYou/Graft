@@ -260,6 +260,8 @@ func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	return snapshot, nil
 }
 
+// normalizeLifecycleConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
+// It returns ErrInvalidInput if a profile is empty or the wait timeout is outside the permitted range.
 func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 	normalizedProfiles := make([]string, 0, len(config.Profiles))
 	seen := make(map[string]struct{}, len(config.Profiles))
@@ -275,6 +277,12 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
 	config.Profiles = normalizedProfiles
+	if config.WaitTimeoutSeconds == 0 {
+		config.WaitTimeoutSeconds = defaultLifecycleWaitTimeoutSeconds
+	}
+	if config.WaitTimeoutSeconds < minLifecycleWaitTimeoutSeconds || config.WaitTimeoutSeconds > maxLifecycleWaitTimeoutSeconds {
+		return LifecycleConfig{}, ErrInvalidInput
+	}
 	return config, nil
 }
 
@@ -615,17 +623,121 @@ func encodeLifecycleConfigJSON(config LifecycleConfig) ([]byte, error) {
 	return encoded, nil
 }
 
+// 如果数据为空、格式无效、缺少必需字段或配置值无效，则返回 ErrInvalidInput。
 func decodeLifecycleConfigJSON(raw []byte) (LifecycleConfig, error) {
 	if len(raw) == 0 {
-		return LifecycleConfig{}, nil
-	}
-	var config LifecycleConfig
-	if err := json.Unmarshal(raw, &config); err != nil {
 		return LifecycleConfig{}, ErrInvalidInput
+	}
+	payload, err := unmarshalLifecycleConfigPayload(raw)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config, err := payload.lifecycleConfig()
+	if err != nil {
+		return LifecycleConfig{}, err
 	}
 	return normalizeLifecycleConfig(config)
 }
 
+type lifecycleConfigPayload struct {
+	Profiles                 *[]string `json:"profiles"`
+	DownBeforeRedeploy       *bool     `json:"down_before_redeploy"`
+	PullBeforeRedeploy       *bool     `json:"pull_before_redeploy"`
+	BuildBeforeUp            *bool     `json:"build_before_up"`
+	ForceRecreate            *bool     `json:"force_recreate"`
+	RemoveOrphans            *bool     `json:"remove_orphans"`
+	WaitAfterUp              *bool     `json:"wait_after_up"`
+	WaitTimeoutSeconds       *int      `json:"wait_timeout_seconds"`
+	RenewAnonVolumes         *bool     `json:"renew_anon_volumes"`
+	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
+}
+
+// 如果 JSON 数据格式无效，则返回 ErrInvalidInput。
+func unmarshalLifecycleConfigPayload(raw []byte) (lifecycleConfigPayload, error) {
+	var payload lifecycleConfigPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return lifecycleConfigPayload{}, ErrInvalidInput
+	}
+	return payload, nil
+}
+
+func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error) {
+	payload.applyLegacyDefaults()
+	if err := payload.validateRequiredFields(); err != nil {
+		return LifecycleConfig{}, err
+	}
+	return LifecycleConfig{
+		Profiles:                 append([]string(nil), (*payload.Profiles)...),
+		DownBeforeRedeploy:       *payload.DownBeforeRedeploy,
+		PullBeforeRedeploy:       *payload.PullBeforeRedeploy,
+		BuildBeforeUp:            *payload.BuildBeforeUp,
+		ForceRecreate:            *payload.ForceRecreate,
+		RemoveOrphans:            *payload.RemoveOrphans,
+		WaitAfterUp:              *payload.WaitAfterUp,
+		WaitTimeoutSeconds:       *payload.WaitTimeoutSeconds,
+		RenewAnonVolumes:         *payload.RenewAnonVolumes,
+		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
+	}, nil
+}
+
+// applyLegacyDefaults keeps rows written before lifecycle configuration support readable.
+func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
+	payload.Profiles = lifecycleSliceOrDefault(payload.Profiles, []string{})
+	payload.DownBeforeRedeploy = lifecycleBoolOrDefault(payload.DownBeforeRedeploy, false)
+	payload.PullBeforeRedeploy = lifecycleBoolOrDefault(payload.PullBeforeRedeploy, false)
+	payload.BuildBeforeUp = lifecycleBoolOrDefault(payload.BuildBeforeUp, false)
+	payload.ForceRecreate = lifecycleBoolOrDefault(payload.ForceRecreate, false)
+	payload.RemoveOrphans = lifecycleBoolOrDefault(payload.RemoveOrphans, true)
+	payload.WaitAfterUp = lifecycleBoolOrDefault(payload.WaitAfterUp, false)
+	payload.WaitTimeoutSeconds = lifecycleIntOrDefault(payload.WaitTimeoutSeconds, defaultLifecycleWaitTimeoutSeconds)
+	payload.RenewAnonVolumes = lifecycleBoolOrDefault(payload.RenewAnonVolumes, false)
+	payload.PruneImagesAfterRedeploy = lifecycleBoolOrDefault(payload.PruneImagesAfterRedeploy, false)
+}
+
+func lifecycleSliceOrDefault(value *[]string, fallback []string) *[]string {
+	if value != nil {
+		return value
+	}
+	return &fallback
+}
+
+func lifecycleBoolOrDefault(value *bool, fallback bool) *bool {
+	if value != nil {
+		return value
+	}
+	return &fallback
+}
+
+func lifecycleIntOrDefault(value *int, fallback int) *int {
+	if value != nil {
+		return value
+	}
+	return &fallback
+}
+
+func (payload lifecycleConfigPayload) validateRequiredFields() error {
+	required := []bool{
+		payload.Profiles != nil,
+		payload.DownBeforeRedeploy != nil,
+		payload.PullBeforeRedeploy != nil,
+		payload.BuildBeforeUp != nil,
+		payload.ForceRecreate != nil,
+		payload.RemoveOrphans != nil,
+		payload.WaitAfterUp != nil,
+		payload.WaitTimeoutSeconds != nil,
+		payload.RenewAnonVolumes != nil,
+		payload.PruneImagesAfterRedeploy != nil,
+	}
+	for _, present := range required {
+		if !present {
+			return ErrInvalidInput
+		}
+	}
+	return nil
+}
+
+// encodeWorkspaceAnnotationsJSON 将工作区注释规范化并编码为 JSON。
+// 如果注释无效或编码失败，则返回 ErrInvalidInput。
 func encodeWorkspaceAnnotationsJSON(annotations map[string]string) ([]byte, error) {
 	normalized, err := normalizeWorkspaceAnnotations(annotations)
 	if err != nil {

@@ -3,19 +3,47 @@ import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/rea
 
 const PROJECT_REALTIME_TOPIC = {
   LIST_SUMMARY: 'project.list.summary',
-  DETAIL_PREFIX: 'project.detail:',
+  RUNTIME_PREFIX: 'project.runtime:',
+  LIFECYCLE_CONFIG_PREFIX: 'project.lifecycle-config:',
   LOGS_PREFIX: 'project.logs:',
 } as const;
 
-export function getProjectListSummaryTopicName() {
+/**
+ * 获取项目列表摘要的实时通信主题名称。
+ *
+ * @returns 项目列表摘要主题名称
+ */
+export function getProjectListSummaryTopicName(): string {
   return PROJECT_REALTIME_TOPIC.LIST_SUMMARY;
 }
 
-export function buildProjectDetailTopicName(projectId: number) {
-  return `${PROJECT_REALTIME_TOPIC.DETAIL_PREFIX}${projectId}`;
+/**
+ * 构建项目运行时实时通信主题名称。
+ *
+ * @param projectId - 项目标识
+ * @returns 包含项目标识的运行时主题名称
+ */
+export function buildProjectRuntimeTopicName(projectId: number): string {
+  return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${projectId}`;
 }
 
-export function buildProjectLogsTopicName(projectId: number) {
+/**
+ * 构建项目生命周期配置实时主题名称。
+ *
+ * @param projectId - 项目标识
+ * @returns 拼接项目标识后的生命周期配置实时主题名称
+ */
+export function buildProjectLifecycleConfigTopicName(projectId: number): string {
+  return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${projectId}`;
+}
+
+/**
+ * 构建项目日志实时消息的 topic 名称。
+ *
+ * @param projectId - 项目标识
+ * @returns 拼接项目标识后的日志 topic 名称
+ */
+export function buildProjectLogsTopicName(projectId: number): string {
   return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${projectId}`;
 }
 
@@ -35,13 +63,20 @@ export type ProjectListSummaryRealtimeItem = {
   drift_status: ProjectDriftStatus;
 };
 
-export type ProjectDetailRealtimePayload = {
+export type ProjectRuntimeRealtimePayload = {
   topic: string;
   project_id: number;
   published_at: string;
   detail: ProjectDetailResponse;
   overview: ProjectOverviewResponse;
   services: ProjectServicesResponse;
+};
+
+export type ProjectLifecycleConfigRealtimePayload = {
+  topic: string;
+  project_id: number;
+  published_at: string;
+  detail: ProjectDetailResponse;
 };
 
 export type ProjectLogsRealtimePayload = {
@@ -55,13 +90,19 @@ export type ProjectListSummaryRealtimePayload = {
   items: ProjectListSummaryRealtimeItem[];
 };
 
+/**
+ * 解析项目列表摘要实时消息载荷。
+ *
+ * @param raw - 待解析的原始消息数据
+ * @returns 验证通过的项目列表摘要实时载荷，数据格式无效时返回 `null`
+ */
 export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectListSummaryRealtimePayload | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
     return null;
   }
   if (
-    typeof data.topic !== 'string' ||
+    data.topic !== getProjectListSummaryTopicName() ||
     typeof data.published_at !== 'string' ||
     !Array.isArray(data.items) ||
     !data.items.every(
@@ -79,7 +120,18 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
   return data as ProjectListSummaryRealtimePayload;
 }
 
-export function parseProjectDetailRealtimePayload(raw: unknown): ProjectDetailRealtimePayload | null {
+/**
+ * 校验项目详情实时消息信封并返回其数据。
+ *
+ * @param raw - 待解析的原始实时消息
+ * @param validator - 可选的附加数据校验函数
+ * @returns 校验通过的消息数据，或 `null`
+ */
+function parseProjectDetailEnvelopeData(
+  raw: unknown,
+  expectedTopic: (projectId: number) => string,
+  validator?: (data: Record<string, unknown>) => boolean,
+): Record<string, unknown> | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
     return null;
@@ -87,22 +139,59 @@ export function parseProjectDetailRealtimePayload(raw: unknown): ProjectDetailRe
   if (
     typeof data.topic !== 'string' ||
     typeof data.project_id !== 'number' ||
+    data.topic !== expectedTopic(data.project_id) ||
     typeof data.published_at !== 'string' ||
     !isRealtimePayloadObject(data.detail) ||
-    !isRealtimePayloadObject(data.overview) ||
-    !isRealtimePayloadObject(data.services)
+    (validator && !validator(data))
   ) {
     return null;
   }
-  return data as ProjectDetailRealtimePayload;
+  return data;
 }
 
+/**
+ * 解析项目运行时实时消息载荷。
+ *
+ * @param raw - 待解析的原始数据
+ * @returns 有效的项目运行时实时载荷；数据格式无效时返回 `null`
+ */
+export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntimeRealtimePayload | null {
+  const data = parseProjectDetailEnvelopeData(
+    raw,
+    buildProjectRuntimeTopicName,
+    (value) => isRealtimePayloadObject(value.overview) && isRealtimePayloadObject(value.services),
+  );
+  return data as ProjectRuntimeRealtimePayload | null;
+}
+
+/**
+ * 解析项目生命周期配置实时消息载荷。
+ *
+ * @param raw - 待解析的原始消息数据
+ * @returns 有效的项目生命周期配置实时载荷，或 `null`（当数据格式无效时）
+ */
+export function parseProjectLifecycleConfigRealtimePayload(raw: unknown): ProjectLifecycleConfigRealtimePayload | null {
+  const data = parseProjectDetailEnvelopeData(raw, buildProjectLifecycleConfigTopicName);
+  return data as ProjectLifecycleConfigRealtimePayload | null;
+}
+
+/**
+ * 解析项目日志实时消息载荷。
+ *
+ * @param raw - 待解析的原始数据
+ * @returns 验证通过的项目日志实时载荷；数据格式无效时返回 `null`
+ */
 export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealtimePayload | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
     return null;
   }
-  if (typeof data.topic !== 'string' || !isRealtimePayloadObject(data.entry) || typeof data.entry.line !== 'string') {
+  if (
+    typeof data.topic !== 'string' ||
+    !data.topic.startsWith(PROJECT_REALTIME_TOPIC.LOGS_PREFIX) ||
+    !isRealtimePayloadObject(data.entry) ||
+    typeof data.entry.line !== 'string'
+  ) {
     return null;
   }
   return data as ProjectLogsRealtimePayload;

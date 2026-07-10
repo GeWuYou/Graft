@@ -8244,10 +8244,13 @@ type ProjectLifecycleConfiguration struct {
 	Profiles                 []string `json:"profiles"`
 	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
 	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+	RemoveOrphans            bool     `json:"remove_orphans"`
+	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
-	StrategyKind ProjectLifecycleStrategyKind `json:"strategy_kind"`
-	WaitAfterUp  bool                         `json:"wait_after_up"`
+	StrategyKind       ProjectLifecycleStrategyKind `json:"strategy_kind"`
+	WaitAfterUp        bool                         `json:"wait_after_up"`
+	WaitTimeoutSeconds int                          `json:"wait_timeout_seconds"`
 }
 
 // ProjectLifecycleConfigurationRequest defines model for project-lifecycle-configuration-request.
@@ -8258,10 +8261,13 @@ type ProjectLifecycleConfigurationRequest struct {
 	Profiles                 []string `json:"profiles"`
 	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
 	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+	RemoveOrphans            bool     `json:"remove_orphans"`
+	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
-	StrategyKind ProjectLifecycleStrategyKind `json:"strategy_kind"`
-	WaitAfterUp  bool                         `json:"wait_after_up"`
+	StrategyKind       ProjectLifecycleStrategyKind `json:"strategy_kind"`
+	WaitAfterUp        bool                         `json:"wait_after_up"`
+	WaitTimeoutSeconds int                          `json:"wait_timeout_seconds"`
 }
 
 // ProjectLifecycleConfigurationResponse defines model for project-lifecycle-configuration-response.

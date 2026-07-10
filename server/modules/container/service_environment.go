@@ -132,28 +132,125 @@ func normalizeOrchestratorActionLevel(value string) containercontract.Orchestrat
 	}
 }
 
-// normalizedOrchestratorInfo normalizes the provided orchestrator information by validating the type, deriving managed status from type, normalizing scope kinds, trimming whitespace from string fields, applying default confidence based on managed status, and ensuring the warnings slice is initialized.
+// normalizedOrchestratorInfo 标准化编排器信息，补全作用域信息并设置管理状态、置信度和告警列表。
 func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
 	info.Managed = info.Type != containerOrchestratorStandalone
+	info = normalizeOrchestratorIdentityFields(info)
+	info = normalizeOrchestratorScopeKinds(info)
+	info = normalizeOrchestratorScopeValues(info)
+	info = normalizeOrchestratorConfidence(info)
+	if info.Warnings == nil {
+		info.Warnings = []string{}
+	}
+	return info
+}
+
+// normalizeOrchestratorIdentityFields 标准化编排器身份和作用域字段。
+//
+// 该函数会修剪字符串字段的空白、规范化作用域类型，并清理配置文件列表中的空值和重复项。
+func normalizeOrchestratorIdentityFields(info OrchestratorInfo) OrchestratorInfo {
 	info.GroupScopeKind = normalizeContainerSourceScopeKind(info.GroupScopeKind)
 	info.MemberScopeKind = normalizeContainerSourceScopeKind(info.MemberScopeKind)
+	info.Project = strings.TrimSpace(info.Project)
+	info.Service = strings.TrimSpace(info.Service)
+	info.Stack = strings.TrimSpace(info.Stack)
+	info.Namespace = strings.TrimSpace(info.Namespace)
+	info.Pod = strings.TrimSpace(info.Pod)
+	info.Task = strings.TrimSpace(info.Task)
 	info.WorkingDir = strings.TrimSpace(info.WorkingDir)
 	info.ConfigFiles = normalizedStringSlice(info.ConfigFiles)
 	info.GroupValue = strings.TrimSpace(info.GroupValue)
 	info.MemberValue = strings.TrimSpace(info.MemberValue)
 	info.GroupDisplayName = strings.TrimSpace(info.GroupDisplayName)
 	info.MemberDisplayName = strings.TrimSpace(info.MemberDisplayName)
-	if strings.TrimSpace(info.Confidence) == "" {
-		if info.Managed {
-			info.Confidence = orchestratorConfidenceMedium
-		} else {
-			info.Confidence = orchestratorConfidenceHigh
+	return info
+}
+
+// normalizeOrchestratorScopeKinds infers missing group and member scope kinds from the corresponding orchestrator identity fields.
+func normalizeOrchestratorScopeKinds(info OrchestratorInfo) OrchestratorInfo {
+	if info.GroupScopeKind == "" {
+		switch {
+		case info.Project != "":
+			info.GroupScopeKind = composeProjectScopeKind
+		case info.Stack != "":
+			info.GroupScopeKind = swarmStackScopeKind
+		case info.Namespace != "":
+			info.GroupScopeKind = kubernetesNamespaceScopeKind
 		}
 	}
-	if info.Warnings == nil {
-		info.Warnings = []string{}
+	if info.MemberScopeKind == "" {
+		switch {
+		case info.Service != "":
+			info.MemberScopeKind = composeServiceScopeKind
+		case info.Task != "":
+			info.MemberScopeKind = swarmTaskScopeKind
+		case info.Pod != "":
+			info.MemberScopeKind = kubernetesPodScopeKind
+		}
 	}
+	return info
+}
+
+// normalizeOrchestratorScopeValues derives missing group and member scope values and fills their display names.
+func normalizeOrchestratorScopeValues(info OrchestratorInfo) OrchestratorInfo {
+	info.GroupValue = normalizedGroupScopeValue(info)
+	info.MemberValue = normalizedMemberScopeValue(info)
+	if info.GroupDisplayName == "" {
+		info.GroupDisplayName = info.GroupValue
+	}
+	if info.MemberDisplayName == "" {
+		info.MemberDisplayName = info.MemberValue
+	}
+	return info
+}
+
+// normalizedGroupScopeValue returns the group scope value, deriving it from the corresponding identity field when necessary.
+func normalizedGroupScopeValue(info OrchestratorInfo) string {
+	if info.GroupValue != "" {
+		return info.GroupValue
+	}
+	switch info.GroupScopeKind {
+	case composeProjectScopeKind:
+		return info.Project
+	case swarmStackScopeKind:
+		return info.Stack
+	case kubernetesNamespaceScopeKind:
+		return info.Namespace
+	default:
+		return ""
+	}
+}
+
+// normalizedMemberScopeValue returns the member scope value, deriving it from the member scope kind when necessary.
+func normalizedMemberScopeValue(info OrchestratorInfo) string {
+	if info.MemberValue != "" {
+		return info.MemberValue
+	}
+	switch info.MemberScopeKind {
+	case composeServiceScopeKind:
+		return info.Service
+	case swarmTaskScopeKind:
+		return info.Task
+	case kubernetesPodScopeKind:
+		return info.Pod
+	default:
+		return ""
+	}
+}
+
+// normalizeOrchestratorConfidence ensures that orchestrator information has a confidence level.
+// It preserves an existing confidence value, or assigns medium confidence to managed
+// orchestrators and high confidence to standalone orchestrators.
+func normalizeOrchestratorConfidence(info OrchestratorInfo) OrchestratorInfo {
+	if strings.TrimSpace(info.Confidence) != "" {
+		return info
+	}
+	if info.Managed {
+		info.Confidence = orchestratorConfidenceMedium
+		return info
+	}
+	info.Confidence = orchestratorConfidenceHigh
 	return info
 }
 
@@ -444,7 +541,7 @@ func sourceScopeKindCompatibleWithOrchestrator(orchestrator string, scopeKind st
 }
 
 // summaryMatchesSourceScope 判断容器摘要是否与指定的源作用域类型和值相匹配。
-// 比较采用不区分大小写的方式，源作用域类型必须与容器的编排器类型兼容。
+// summaryMatchesSourceScope 判断容器是否匹配指定的源作用域类型和值，并以不区分大小写的方式比较作用域值；作用域类型必须与容器的编排器类型兼容。
 func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) bool {
 	scopeKind = normalizeContainerSourceScopeKind(scopeKind)
 	scope = strings.TrimSpace(scope)
@@ -455,7 +552,7 @@ func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) boo
 	if info.Type != "" && !sourceScopeKindCompatibleWithOrchestrator(info.Type, scopeKind) {
 		return false
 	}
-	for _, candidate := range sourceScopeCandidates(item, info, scopeKind) {
+	for _, candidate := range sourceScopeCandidates(info, scopeKind) {
 		if strings.EqualFold(candidate, scope) {
 			return true
 		}
@@ -463,16 +560,12 @@ func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) boo
 	return false
 }
 
-// SourceScopeCandidates returns candidate values from the container summary and orchestrator information for matching against the given scope kind.
-func sourceScopeCandidates(item Summary, info OrchestratorInfo, scopeKind string) []string {
+// SourceScopeCandidates returns candidate values from orchestrator information for matching against the given scope kind.
+func sourceScopeCandidates(info OrchestratorInfo, scopeKind string) []string {
 	switch scopeKind {
-	case composeProjectScopeKind:
-		return []string{item.ComposeProject, info.GroupValue}
-	case composeServiceScopeKind:
-		return []string{item.ComposeService, info.MemberValue}
-	case swarmStackScopeKind, kubernetesNamespaceScopeKind:
+	case composeProjectScopeKind, swarmStackScopeKind, kubernetesNamespaceScopeKind:
 		return []string{info.GroupValue}
-	case swarmTaskScopeKind, kubernetesPodScopeKind:
+	case composeServiceScopeKind, swarmTaskScopeKind, kubernetesPodScopeKind:
 		return []string{info.MemberValue}
 	default:
 		return nil

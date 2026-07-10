@@ -312,6 +312,7 @@ import ProjectImportConfirmReview from '../../components/ProjectImportConfirmRev
 import ProjectImportInspectOverview from '../../components/ProjectImportInspectOverview.vue';
 import ProjectImportInspectResources from '../../components/ProjectImportInspectResources.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { isValidProjectCanonicalName } from '../../shared/canonical-name';
 import {
   isProjectImportRuntimeCandidateReady,
   normalizeProjectImportInspectResponse,
@@ -452,6 +453,15 @@ const formData = reactive({
 
 const formRules: FormProps['rules'] = {
   display_name: [{ required: true, message: t('project.import.validation.displayNameRequired') }],
+  canonical_project_name_override: [
+    {
+      validator: (value) => {
+        const normalized = String(value ?? '').trim();
+        return !normalized || isValidProjectCanonicalName(normalized);
+      },
+      message: t('project.import.validation.canonicalProjectNameOverridePattern'),
+    },
+  ],
 };
 
 const readyCandidates = computed(() => candidates.value.filter((item) => isProjectImportRuntimeCandidateReady(item)));

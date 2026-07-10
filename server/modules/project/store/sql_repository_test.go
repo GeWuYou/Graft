@@ -14,6 +14,8 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 )
 
+const completeLifecycleConfigJSON = `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"remove_orphans":true,"wait_after_up":false,"wait_timeout_seconds":120,"renew_anon_volumes":false,"prune_images_after_redeploy":false}`
+
 func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 	t.Parallel()
 
@@ -27,7 +29,7 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "demo", "demo", projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(),
-		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
+		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), completeLifecycleConfigJSON,
 		"hash-demo", `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
 	mustExec(t, db, `INSERT INTO compose_project_files (
@@ -252,7 +254,7 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, name, name, projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(),
-		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
+		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), completeLifecycleConfigJSON,
 		"hash-"+name, `{}`, projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
 	)
 }

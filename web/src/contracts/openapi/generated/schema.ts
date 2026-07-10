@@ -4894,13 +4894,7 @@ export interface components {
       member_display_name?: string | null;
       /** @enum {string} */
       confidence: 'high' | 'medium' | 'low';
-      project?: string | null;
-      service?: string | null;
-      stack?: string | null;
-      namespace?: string | null;
-      pod?: string | null;
       container?: string | null;
-      task?: string | null;
       /** @description Compose project working directory metadata, not the runtime container working_dir field. */
       working_dir?: string | null;
       config_files?: string[];
@@ -4951,10 +4945,6 @@ export interface components {
       /** @description Nullable when the runtime list path does not expose restart count without inspect. */
       restart_count?: number | null;
       restart_policy?: string;
-      /** @description Docker Compose project label when present. */
-      compose_project?: string | null;
-      /** @description Docker Compose service label when present. */
-      compose_service?: string | null;
       orchestrator?: components['schemas']['container-orchestrator-info'];
       can_start?: boolean;
       can_stop?: boolean;
@@ -5666,8 +5656,14 @@ export interface components {
       pull_before_redeploy: boolean;
       build_before_up: boolean;
       force_recreate: boolean;
+      /** @default true */
+      remove_orphans: boolean;
       wait_after_up: boolean;
+      /** @default 120 */
+      wait_timeout_seconds: number;
       prune_images_after_redeploy: boolean;
+      /** @default false */
+      renew_anon_volumes: boolean;
       generated_commands: {
         up: components['schemas']['project-lifecycle-generated-command'];
         stop: components['schemas']['project-lifecycle-generated-command'];
@@ -5992,8 +5988,14 @@ export interface components {
       pull_before_redeploy: boolean;
       build_before_up: boolean;
       force_recreate: boolean;
+      /** @default true */
+      remove_orphans: boolean;
       wait_after_up: boolean;
+      /** @default 120 */
+      wait_timeout_seconds: number;
       prune_images_after_redeploy: boolean;
+      /** @default false */
+      renew_anon_volumes: boolean;
     };
     'project-lifecycle-configuration-response': {
       /** Format: int64 */

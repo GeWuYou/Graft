@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+const (
+	defaultLifecycleWaitTimeoutSeconds = 120
+	minLifecycleWaitTimeoutSeconds     = 1
+	maxLifecycleWaitTimeoutSeconds     = 3600
+)
+
 var (
 	// ErrInvalidInput indicates the repository input violates the module persistence contract.
 	ErrInvalidInput = errors.New("project invalid input")
@@ -45,16 +51,16 @@ type Project struct {
 
 // ProjectFile stores one ordered project file reference.
 type ProjectFile struct {
-	ID                  uint64
-	ProjectID           uint64
-	Kind                string
-	Role                string
-	AbsolutePath        string
-	DisplayPath         string
-	OrderIndex          int
-	LastObservedHash    string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID               uint64
+	ProjectID        uint64
+	Kind             string
+	Role             string
+	AbsolutePath     string
+	DisplayPath      string
+	OrderIndex       int
+	LastObservedHash string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // Snapshot stores the latest successful normalized compose snapshot.
@@ -74,7 +80,10 @@ type LifecycleConfig struct {
 	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
 	BuildBeforeUp            bool     `json:"build_before_up"`
 	ForceRecreate            bool     `json:"force_recreate"`
+	RemoveOrphans            bool     `json:"remove_orphans"`
 	WaitAfterUp              bool     `json:"wait_after_up"`
+	WaitTimeoutSeconds       int      `json:"wait_timeout_seconds"`
+	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
 }
 
@@ -87,10 +96,10 @@ type ProjectAggregate struct {
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit             int
-	Offset            int
-	SourceKind        string
-	DriftStatus       string
+	Limit       int
+	Offset      int
+	SourceKind  string
+	DriftStatus string
 }
 
 // ListResult returns a paginated project page.

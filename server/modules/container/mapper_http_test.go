@@ -117,8 +117,8 @@ func assertMappedOrchestrator(t *testing.T, info *containergen.ContainerOrchestr
 		t.Fatalf("expected mapped orchestrator info")
 	}
 	assertMappedOrchestratorIdentity(t, info)
-	assertMappedOrchestratorLegacyFields(t, info)
 	assertMappedOrchestratorScopeFields(t, info)
+	assertMappedOrchestratorLegacyFieldsDropped(t, info)
 	assertMappedOrchestratorPolicy(t, info)
 }
 
@@ -129,10 +129,10 @@ func assertMappedOrchestratorIdentity(t *testing.T, info *containergen.Container
 	}
 }
 
-func assertMappedOrchestratorLegacyFields(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+func assertMappedOrchestratorLegacyFieldsDropped(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
 	t.Helper()
-	if info.Project == nil || *info.Project != "graft" || info.Service == nil || *info.Service != "web" {
-		t.Fatalf("unexpected orchestrator project/service %#v", info)
+	if info.Project != nil || info.Service != nil || info.Stack != nil || info.Namespace != nil || info.Pod != nil || info.Task != nil {
+		t.Fatalf("expected legacy orchestrator fields to be omitted, got %#v", info)
 	}
 }
 
@@ -174,6 +174,46 @@ func TestToOrchestratorInfoNormalizesInvalidScopeKinds(t *testing.T) {
 	if mapped.GroupScopeKind != nil || mapped.MemberScopeKind != nil {
 		t.Fatalf("expected invalid scope kinds to be dropped, got %#v", mapped)
 	}
+}
+
+func TestToSummaryOmitsLegacyComposeFields(t *testing.T) {
+	t.Parallel()
+
+	mapped := toSummary(Summary{
+		ID:             "abc123",
+		ShortID:        "abc123",
+		Name:           "web",
+		Names:          []string{"web"},
+		Image:          "nginx:latest",
+		Runtime:        runtimeNameDocker,
+		CreatedAt:      "2026-06-14T00:00:00Z",
+		State:          "running",
+		Status:         "running",
+		ComposeProject: "graft",
+		ComposeService: "web",
+		Orchestrator: OrchestratorInfo{
+			Type:               containerOrchestratorCompose,
+			Managed:            true,
+			GroupScopeKind:     composeProjectScopeKind,
+			GroupValue:         "graft",
+			MemberScopeKind:    composeServiceScopeKind,
+			MemberValue:        "web",
+			Project:            "graft",
+			Service:            "web",
+			Confidence:         orchestratorConfidenceHigh,
+			ActionLevel:        containercontract.ContainerOrchestratorActionLevelWarn.String(),
+			BatchActionAllowed: false,
+			Warnings:           []string{},
+		},
+	})
+
+	if mapped.ComposeProject != nil || mapped.ComposeService != nil {
+		t.Fatalf("expected legacy compose fields to be omitted, got %#v", mapped)
+	}
+	if mapped.Orchestrator == nil {
+		t.Fatalf("expected mapped orchestrator")
+	}
+	assertMappedOrchestratorLegacyFieldsDropped(t, mapped.Orchestrator)
 }
 
 func assertMappedHealthcheck(t *testing.T, healthcheck *containergen.ContainerHealthcheck) {

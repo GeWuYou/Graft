@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -195,8 +196,36 @@ func mustWorkspaceTooltipRegex(t *testing.T, pattern string) *regexp.Regexp {
 
 type countingTopicMonitorHub struct {
 	realtime.Hub
-	detailRegisters atomic.Int32
-	logRegisters    atomic.Int32
+	runtimeRegisters atomic.Int32
+	logRegisters     atomic.Int32
+}
+
+type countingProjectRuntimeReader struct {
+	listProjectMemberCalls atomic.Int32
+}
+
+func (r *countingProjectRuntimeReader) ListProjectMembers(
+	context.Context,
+	string,
+	string,
+) (moduleapi.ContainerProjectRuntimeSummary, error) {
+	r.listProjectMemberCalls.Add(1)
+	return moduleapi.ContainerProjectRuntimeSummary{}, nil
+}
+
+func (*countingProjectRuntimeReader) ListImportCandidates(
+	context.Context,
+	string,
+) ([]moduleapi.ContainerProjectRuntimeCandidate, error) {
+	return nil, nil
+}
+
+func (*countingProjectRuntimeReader) ListImportCandidateMembers(
+	context.Context,
+	string,
+	moduleapi.ContainerProjectRuntimeCandidate,
+) ([]moduleapi.ContainerProjectMember, error) {
+	return nil, nil
 }
 
 func newCountingTopicMonitorHub() *countingTopicMonitorHub {
@@ -209,9 +238,9 @@ func (h *countingTopicMonitorHub) RegisterTopicObserver(
 	onInactive func(string),
 ) (func(), error) {
 	switch topic {
-	case "projects.detail.1":
-		h.detailRegisters.Add(1)
-	case "projects.logs.1":
+	case projectcontract.ProjectRuntimeTopicPrefix + "1":
+		h.runtimeRegisters.Add(1)
+	case projectcontract.ProjectLogsTopicPrefix + "1":
 		h.logRegisters.Add(1)
 	}
 	monitor, ok := h.Hub.(realtime.TopicSubscriptionMonitor)
@@ -251,15 +280,15 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			if err := service.ensureProjectDetailTopicStreaming("projects.detail.1", 1); err != nil {
-				t.Errorf("ensure detail topic: %v", err)
+			if err := service.ensureProjectRuntimeTopicStreaming(projectcontract.ProjectRuntimeTopicPrefix+"1", 1); err != nil {
+				t.Errorf("ensure runtime topic: %v", err)
 			}
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			<-start
-			if err := service.ensureProjectLogsTopicStreaming("projects.logs.1", 1, LogQuery{Tail: 10, Stdout: true}); err != nil {
+			if err := service.ensureProjectLogsTopicStreaming(projectcontract.ProjectLogsTopicPrefix+"1", 1, LogQuery{Tail: 10, Stdout: true}); err != nil {
 				t.Errorf("ensure logs topic: %v", err)
 			}
 		}()
@@ -267,11 +296,42 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 	close(start)
 	wg.Wait()
 
-	if got := hub.detailRegisters.Load(); got != 1 {
-		t.Fatalf("expected one detail observer registration, got %d", got)
+	if got := hub.runtimeRegisters.Load(); got != 1 {
+		t.Fatalf("expected one runtime observer registration, got %d", got)
 	}
 	if got := hub.logRegisters.Load(); got != 1 {
 		t.Fatalf("expected one log observer registration, got %d", got)
+	}
+}
+
+func TestLifecycleConfigRealtimePayloadDoesNotReadRuntimeSummary(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{aggregate: projectstore.ProjectAggregate{Project: projectstore.Project{
+		ID:                   1,
+		CanonicalProjectName: "demo",
+		HostScope:            projectcontract.HostScopeLocal.String(),
+		WorkingDirectory:     "/srv/demo",
+	}}}
+	runtimeReader := &countingProjectRuntimeReader{}
+	service, err := NewService(repo, WithRuntimeReader(runtimeReader))
+	if err != nil {
+		t.Fatalf("new project service: %v", err)
+	}
+
+	payload, err := service.buildProjectLifecycleConfigRealtimePayload(
+		context.Background(),
+		projectcontract.ProjectLifecycleConfigTopicPrefix+"1",
+		1,
+	)
+	if err != nil {
+		t.Fatalf("build lifecycle configuration realtime payload: %v", err)
+	}
+	if payload.Detail.Id != 1 {
+		t.Fatalf("expected payload detail for project 1, got %#v", payload.Detail)
+	}
+	if got := runtimeReader.listProjectMemberCalls.Load(); got != 0 {
+		t.Fatalf("expected no runtime summary reads, got %d", got)
 	}
 }
 
@@ -302,31 +362,101 @@ func (h *blockingTopicMonitorHub) RegisterTopicObserver(
 	}, nil
 }
 
-func TestProjectDetailTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
+func TestProjectRuntimeTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 	t.Parallel()
 
 	hub := newBlockingTopicMonitorHub()
-	streamer, err := newProjectDetailTopicStreamer(hub, nil, &Service{})
+	streamer, err := newProjectRuntimeTopicStreamer(hub, nil, &Service{})
 	if err != nil {
-		t.Fatalf("new detail topic streamer: %v", err)
+		t.Fatalf("new runtime topic streamer: %v", err)
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- streamer.EnsureTopic("projects.detail.1", 1)
+		errCh <- streamer.EnsureTopic(projectcontract.ProjectRuntimeTopicPrefix+"1", 1)
 	}()
 
 	<-hub.registerStarted
 	if err := streamer.Close(context.Background()); err != nil {
-		t.Fatalf("close detail topic streamer: %v", err)
+		t.Fatalf("close runtime topic streamer: %v", err)
 	}
 	close(hub.releaseRegister)
 
 	if err := <-errCh; err != nil {
-		t.Fatalf("ensure detail topic: %v", err)
+		t.Fatalf("ensure runtime topic: %v", err)
 	}
 	if got := hub.unregisterCalls.Load(); got != 1 {
-		t.Fatalf("expected one late unregister for detail topic, got %d", got)
+		t.Fatalf("expected one late unregister for runtime topic, got %d", got)
+	}
+}
+
+//nolint:dupl // The runtime and lifecycle stream types require independent regression coverage.
+func TestProjectRuntimeTopicStreamerCloseKeepsTimedOutStreamRegistered(t *testing.T) {
+	t.Parallel()
+
+	streamCtx, cancelStream := context.WithCancel(context.Background())
+	defer cancelStream()
+	unregisterCalls := atomic.Int32{}
+	topic := projectcontract.ProjectRuntimeTopicPrefix + "1"
+	streamer := &projectRuntimeTopicStreamer{
+		streams: map[string]*projectRuntimeTopicStream{
+			topic: {
+				topic:              topic,
+				cancel:             cancelStream,
+				done:               make(chan struct{}),
+				unregisterObserver: func() { unregisterCalls.Add(1) },
+			},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := streamer.Close(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled close error, got %v", err)
+	}
+	if streamer.streams[topic] == nil {
+		t.Fatal("expected timed-out runtime stream to remain registered")
+	}
+	if got := unregisterCalls.Load(); got != 0 {
+		t.Fatalf("expected no unregister after timed-out stop, got %d", got)
+	}
+	if streamCtx.Err() == nil {
+		t.Fatal("expected stream cancellation to be requested")
+	}
+}
+
+//nolint:dupl // The runtime and lifecycle stream types require independent regression coverage.
+func TestProjectLifecycleConfigTopicStreamerCloseKeepsTimedOutStreamRegistered(t *testing.T) {
+	t.Parallel()
+
+	streamCtx, cancelStream := context.WithCancel(context.Background())
+	defer cancelStream()
+	unregisterCalls := atomic.Int32{}
+	topic := projectcontract.ProjectLifecycleConfigTopicPrefix + "1"
+	streamer := &projectLifecycleConfigTopicStreamer{
+		streams: map[string]*projectLifecycleConfigTopicStream{
+			topic: {
+				topic:              topic,
+				cancel:             cancelStream,
+				done:               make(chan struct{}),
+				unregisterObserver: func() { unregisterCalls.Add(1) },
+			},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := streamer.Close(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled close error, got %v", err)
+	}
+	if streamer.streams[topic] == nil {
+		t.Fatal("expected timed-out lifecycle configuration stream to remain registered")
+	}
+	if got := unregisterCalls.Load(); got != 0 {
+		t.Fatalf("expected no unregister after timed-out stop, got %d", got)
+	}
+	if streamCtx.Err() == nil {
+		t.Fatal("expected stream cancellation to be requested")
 	}
 }
 
@@ -341,7 +471,7 @@ func TestProjectLogTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- streamer.EnsureTopic("projects.logs.1", 1, LogQuery{Tail: 10, Stdout: true})
+		errCh <- streamer.EnsureTopic(projectcontract.ProjectLogsTopicPrefix+"1", 1, LogQuery{Tail: 10, Stdout: true})
 	}()
 
 	<-hub.registerStarted

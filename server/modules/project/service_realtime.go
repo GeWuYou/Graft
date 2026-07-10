@@ -16,10 +16,10 @@ const projectDetailTopicRefreshInterval = 5 * time.Second
 
 type projectListSummaryRealtimeItem struct {
 	ProjectID       int64                            `json:"project_id"`
-	RuntimeStatus   generated.ProjectRuntimeStatus  `json:"runtime_status"`
+	RuntimeStatus   generated.ProjectRuntimeStatus   `json:"runtime_status"`
 	ServiceCount    int                              `json:"service_count"`
 	ContainerCounts generated.ProjectContainerCounts `json:"container_counts"`
-	DriftStatus     generated.ProjectDriftStatus    `json:"drift_status"`
+	DriftStatus     generated.ProjectDriftStatus     `json:"drift_status"`
 }
 
 type projectListSummaryRealtimePayload struct {
@@ -28,13 +28,20 @@ type projectListSummaryRealtimePayload struct {
 	Items       []projectListSummaryRealtimeItem `json:"items"`
 }
 
-type projectDetailRealtimePayload struct {
+type projectRuntimeRealtimePayload struct {
 	Topic       string                            `json:"topic"`
 	ProjectID   int64                             `json:"project_id"`
 	PublishedAt time.Time                         `json:"published_at"`
 	Detail      generated.ProjectDetailResponse   `json:"detail"`
 	Overview    generated.ProjectOverviewResponse `json:"overview"`
 	Services    generated.ProjectServicesResponse `json:"services"`
+}
+
+type projectLifecycleConfigRealtimePayload struct {
+	Topic       string                          `json:"topic"`
+	ProjectID   int64                           `json:"project_id"`
+	PublishedAt time.Time                       `json:"published_at"`
+	Detail      generated.ProjectDetailResponse `json:"detail"`
 }
 
 type projectLogsRealtimePayload struct {
@@ -57,8 +64,10 @@ func (s *Service) IssueSubscription(
 	switch {
 	case topic == projectcontract.ProjectListSummaryTopic:
 		return s.issueProjectListSummaryRealtimeSubscription(ctx, request, topic)
-	case strings.HasPrefix(topic, projectcontract.ProjectDetailTopicPrefix):
-		return s.issueProjectDetailRealtimeSubscription(ctx, request, topic)
+	case strings.HasPrefix(topic, projectcontract.ProjectRuntimeTopicPrefix):
+		return s.issueProjectRuntimeRealtimeSubscription(ctx, request, topic)
+	case strings.HasPrefix(topic, projectcontract.ProjectLifecycleConfigTopicPrefix):
+		return s.issueProjectLifecycleConfigRealtimeSubscription(ctx, request, topic)
 	case strings.HasPrefix(topic, projectcontract.ProjectLogsTopicPrefix):
 		return s.issueProjectLogsRealtimeSubscription(ctx, request, topic)
 	default:
@@ -76,7 +85,10 @@ func (s *Service) registerRealtimeTopics() error {
 	if err := s.topicIssuers.Register(projectcontract.ProjectListSummaryTopic, s); err != nil {
 		return err
 	}
-	if err := s.topicIssuers.Register(projectcontract.ProjectDetailTopicPrefix, s); err != nil {
+	if err := s.topicIssuers.Register(projectcontract.ProjectRuntimeTopicPrefix, s); err != nil {
+		return err
+	}
+	if err := s.topicIssuers.Register(projectcontract.ProjectLifecycleConfigTopicPrefix, s); err != nil {
 		return err
 	}
 	return s.topicIssuers.Register(projectcontract.ProjectLogsTopicPrefix, s)
@@ -89,15 +101,19 @@ func (s *Service) Close(ctx context.Context) error {
 	}
 	s.streamersMu.Lock()
 	listStreamer := s.listTopicStreamer
-	detailStreamer := s.detailTopicStreamer
+	runtimeStreamer := s.runtimeTopicStreamer
+	lifecycleConfigStreamer := s.lifecycleConfigTopicStreamer
 	logStreamer := s.logTopicStreamer
 	s.streamersMu.Unlock()
 	var closeErr error
 	if listStreamer != nil {
 		closeErr = errors.Join(closeErr, listStreamer.Close(ctx))
 	}
-	if detailStreamer != nil {
-		closeErr = errors.Join(closeErr, detailStreamer.Close(ctx))
+	if runtimeStreamer != nil {
+		closeErr = errors.Join(closeErr, runtimeStreamer.Close(ctx))
+	}
+	if lifecycleConfigStreamer != nil {
+		closeErr = errors.Join(closeErr, lifecycleConfigStreamer.Close(ctx))
 	}
 	if logStreamer != nil {
 		closeErr = errors.Join(closeErr, logStreamer.Close(ctx))
@@ -122,12 +138,42 @@ func (s *Service) issueProjectListSummaryRealtimeSubscription(
 	return s.issueTopicTicket(ctx, request, topic)
 }
 
-func (s *Service) issueProjectDetailRealtimeSubscription(
+func (s *Service) issueProjectRuntimeRealtimeSubscription(
 	ctx context.Context,
 	request realtime.SubscriptionRequest,
 	topic string,
 ) (realtime.SubscriptionResponse, error) {
-	projectID, err := parseProjectRealtimeTopicID(topic, projectcontract.ProjectDetailTopicPrefix)
+	return s.issueProjectScopedRealtimeSubscription(
+		ctx,
+		request,
+		topic,
+		projectcontract.ProjectRuntimeTopicPrefix,
+		s.ensureProjectRuntimeTopicStreaming,
+	)
+}
+
+func (s *Service) issueProjectLifecycleConfigRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	return s.issueProjectScopedRealtimeSubscription(
+		ctx,
+		request,
+		topic,
+		projectcontract.ProjectLifecycleConfigTopicPrefix,
+		s.ensureProjectLifecycleConfigTopicStreaming,
+	)
+}
+
+func (s *Service) issueProjectScopedRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+	prefix string,
+	ensureStreaming func(string, uint64) error,
+) (realtime.SubscriptionResponse, error) {
+	projectID, err := parseProjectRealtimeTopicID(topic, prefix)
 	if err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
@@ -137,7 +183,7 @@ func (s *Service) issueProjectDetailRealtimeSubscription(
 	if _, err := s.Get(ctx, projectID); err != nil {
 		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
 	}
-	if err := s.ensureProjectDetailTopicStreaming(topic, projectID); err != nil {
+	if err := ensureStreaming(topic, projectID); err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
 	}
 	return s.issueTopicTicket(ctx, request, topic)
