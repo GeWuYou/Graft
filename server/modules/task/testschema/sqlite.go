@@ -22,7 +22,9 @@ func CreateSQLite(db *sql.DB) error {
 			retry_backoff_ms INTEGER NOT NULL, next_retry_at TIMESTAMP NULL, input_json BLOB NOT NULL, recovery_policy TEXT NOT NULL,
 			result_json BLOB NOT NULL, failure_code TEXT NULL, failure_message TEXT NULL, started_at TIMESTAMP NULL,
 			finished_at TIMESTAMP NULL, duration_ms INTEGER NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
-			FOREIGN KEY(task_id) REFERENCES tasks(id)
+			FOREIGN KEY(task_id) REFERENCES tasks(id),
+			UNIQUE(task_id, sequence),
+			UNIQUE(task_id, stage_key)
 		)`,
 		`CREATE TABLE task_events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, sequence INTEGER NOT NULL, event_type TEXT NOT NULL,
