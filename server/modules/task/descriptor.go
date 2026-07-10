@@ -15,6 +15,7 @@ const moduleID = "task"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
+		Dependencies:  []string{"user", "rbac"},
 		MigrationPath: []string{"modules/task/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			sqlDB, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

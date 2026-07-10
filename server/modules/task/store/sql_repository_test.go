@@ -153,6 +153,21 @@ func TestSQLRepositoryReplaysEventsAndLogsBySequence(t *testing.T) {
 	}
 }
 
+func TestJSONValuePlaceholderMatchesSQLDialect(t *testing.T) {
+	if got := (&SQLRepository{placeholder: placeholderDollar}).jsonValuePlaceholder(); got != "?::jsonb" {
+		t.Fatalf("postgres json placeholder = %q, want ?::jsonb", got)
+	}
+	if got := (&SQLRepository{placeholder: placeholderQuestion}).jsonValuePlaceholder(); got != "?" {
+		t.Fatalf("sqlite json placeholder = %q, want ?", got)
+	}
+	if got := (&SQLRepository{placeholder: placeholderDollar}).timestampValuePlaceholder(); got != "?::timestamptz" {
+		t.Fatalf("postgres timestamp placeholder = %q, want ?::timestamptz", got)
+	}
+	if got := (&SQLRepository{placeholder: placeholderQuestion}).timestampValuePlaceholder(); got != "?" {
+		t.Fatalf("sqlite timestamp placeholder = %q, want ?", got)
+	}
+}
+
 func TestSQLRepositoryRejectsNonSerialOrDuplicateStagePlan(t *testing.T) {
 	t.Parallel()
 

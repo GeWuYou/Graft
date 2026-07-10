@@ -53,7 +53,6 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"internal/httpx/migrations",
 		"internal/logger/migrations",
 		"internal/drilldown/migrations",
-		"modules/task/migrations",
 		"modules/user/migrations",
 		"modules/auth/migrations",
 		"modules/rbac/migrations",
@@ -61,8 +60,9 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/audit/migrations",
 		"modules/notification/migrations",
 		"modules/system-config/migrations",
-		"modules/project/migrations",
 		"modules/scheduler/migrations",
+		"modules/task/migrations",
+		"modules/project/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {
 		t.Fatalf("expected %v, got %v", expected, dirs)
@@ -207,6 +207,28 @@ func TestFilteredOrderedModuleSpecsRejectsDisabledDependency(t *testing.T) {
 	_, err := FilteredOrderedModuleSpecs([]string{"rbac"})
 	if err == nil {
 		t.Fatal("expected disabled dependency error")
+	}
+}
+
+func TestFilteredOrderedModuleSpecsRequiresTaskRouteProviders(t *testing.T) {
+	_, err := FilteredOrderedModuleSpecs([]string{"task"})
+	if err == nil {
+		t.Fatal("expected task to require its route service providers")
+	}
+
+	got, err := FilteredOrderedModuleSpecs([]string{"user", "rbac", "task"})
+	if err != nil {
+		t.Fatalf("filter task module providers: %v", err)
+	}
+
+	want := []string{"user", "rbac", "task"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d modules, got %d", len(want), len(got))
+	}
+	for index, moduleSpec := range got {
+		if moduleSpec.Name() != want[index] {
+			t.Fatalf("expected module %s at index %d, got %s", want[index], index, moduleSpec.Name())
+		}
 	}
 }
 

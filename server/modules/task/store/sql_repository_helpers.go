@@ -45,6 +45,20 @@ func (s placeholderStyle) rebind(query string) string {
 	return builder.String()
 }
 
+func (r *SQLRepository) jsonValuePlaceholder() string {
+	if r.placeholder == placeholderDollar {
+		return "?::jsonb"
+	}
+	return "?"
+}
+
+func (r *SQLRepository) timestampValuePlaceholder() string {
+	if r.placeholder == placeholderDollar {
+		return "?::timestamptz"
+	}
+	return "?"
+}
+
 func taskColumns() string {
 	return `id, task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json,
 		current_stage_key, created_by, scheduled_at, cancel_requested_at, started_at, finished_at, duration_ms,

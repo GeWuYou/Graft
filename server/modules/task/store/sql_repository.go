@@ -630,14 +630,15 @@ func (r *SQLRepository) markRecoveryTasks(ctx context.Context, tx *sql.Tx, now t
 }
 
 func (r *SQLRepository) appendRecoveryEvents(ctx context.Context, tx *sql.Tx, now time.Time) error {
-	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_events (
+	query := fmt.Sprintf(`INSERT INTO task_events (
 		task_id, sequence, event_type, payload_json, created_at
 	) SELECT DISTINCT stage.task_id,
 		COALESCE((SELECT MAX(event.sequence) FROM task_events event WHERE event.task_id = stage.task_id), 0) + 1,
-		?, ?, ?
+		?, %s, %s
 	FROM task_stages stage
 	JOIN tasks task ON task.id = stage.task_id
-	WHERE task.status = ? AND stage.status = ? AND stage.failure_code = ?`),
+	WHERE task.status = ? AND stage.status = ? AND stage.failure_code = ?`, r.jsonValuePlaceholder(), r.timestampValuePlaceholder())
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(query),
 		taskmodel.EventTypeRecoveryRequired, json.RawMessage(`{}`), now.UTC(),
 		moduleapi.TaskStatusNeedsAttention, moduleapi.StageStatusUnknown, "runner_interrupted",
 	); err != nil {
