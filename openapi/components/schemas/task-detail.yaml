@@ -1,0 +1,9 @@
+allOf:
+  - $ref: ./task-summary.yaml
+  - type: object
+    required: [capabilities, stages]
+    properties:
+      capabilities: { $ref: ./task-capabilities.yaml }
+      stages:
+        type: array
+        items: { $ref: ./task-stage.yaml }

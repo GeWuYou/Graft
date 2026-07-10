@@ -1,0 +1,3 @@
+type: string
+description: Canonical persisted Task state-machine state.
+enum: [pending, scheduled, running, success, failed, cancelled, needs_attention]

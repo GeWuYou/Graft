@@ -1,0 +1,6 @@
+type: object
+description: Receipt returned when a business action accepts asynchronous Task submission.
+required: [task_id, status]
+properties:
+  task_id: { type: integer, format: int64, minimum: 1 }
+  status: { $ref: ./task-status.yaml }

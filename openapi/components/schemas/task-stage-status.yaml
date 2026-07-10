@@ -1,0 +1,3 @@
+type: string
+description: Canonical persisted Stage state-machine state.
+enum: [pending, running, success, failed, skipped, cancelled, unknown]

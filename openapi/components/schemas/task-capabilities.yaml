@@ -1,0 +1,7 @@
+type: object
+description: Server-authoritative operations currently allowed for this Task Detail.
+required: [cancel, retry, download_log]
+properties:
+  cancel: { type: boolean }
+  retry: { type: boolean }
+  download_log: { type: boolean }

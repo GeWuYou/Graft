@@ -561,6 +561,19 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
 - `redeploy` 成为统一的 runtime deploy-style lifecycle action
 - managed draft `deploy` 仍保留，但它只负责编排“写回 tracked files + refresh snapshot + 复用 lifecycle configuration 的 final up”
 
+### 8.4A Future Task Runtime Integration
+
+当前 `up/stop/restart/redeploy` 的 Compose 业务 authority 仍归 `Project`：它验证 lifecycle configuration 和
+guard，生成参数化 compose command plan，并通过 `Container` 的稳定 runtime reader 查询 health/status。
+
+当平台 `task` module 落地后，Project 不再同步等待长时间 Compose 子进程。它将提交由
+`project.compose.*` StageExecutor 构成的 `TaskPlan`，并返回 Task receipt；`task` 负责阶段状态、日志、realtime、
+retry/cancel 和 crash recovery，且不得依赖 Project。`down/pull/build/up/health_check/status_sync` 仍是 Project
+定义的业务 Stage，而不是 Task Runtime 的内置知识。
+
+该集成尚未实现。Task Runtime 的 `unknown` Stage + `needs_attention` Task 语义适用于崩溃时无法判断结果的
+Docker command；Project 不得自动重放这类 command，必须先由操作者完成实际 runtime reconciliation。
+
 ## 8.5 Remove Project
 
 产品文案不建议继续用模糊的 `Remove Project`。

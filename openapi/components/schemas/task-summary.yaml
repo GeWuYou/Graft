@@ -1,0 +1,18 @@
+type: object
+required: [id, type, owner_type, owner_id, status, created_at]
+properties:
+  id: { type: integer, format: int64, minimum: 1 }
+  type:
+    type: string
+    description: Consumer-owned Task type, such as project.compose.redeploy.
+  owner_type: { type: string }
+  owner_id: { type: string }
+  status: { $ref: ./task-status.yaml }
+  current_stage_key: { type: string, nullable: true }
+  created_by: { type: integer, format: int64, minimum: 1, nullable: true }
+  created_at: { type: string, format: date-time }
+  started_at: { type: string, format: date-time, nullable: true }
+  finished_at: { type: string, format: date-time, nullable: true }
+  duration_ms: { type: integer, format: int64, minimum: 0, nullable: true }
+  failure_code: { type: string, nullable: true }
+  failure_message: { type: string, nullable: true }

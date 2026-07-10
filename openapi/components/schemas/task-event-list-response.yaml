@@ -1,0 +1,7 @@
+type: object
+required: [items, next_after_sequence]
+properties:
+  items:
+    type: array
+    items: { $ref: ./task-event.yaml }
+  next_after_sequence: { type: integer, format: int64, minimum: 0 }
