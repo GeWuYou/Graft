@@ -39,7 +39,7 @@ func CanTransitionTask(from moduleapi.TaskStatus, to moduleapi.TaskStatus) bool 
 	return exists
 }
 
-// ValidateTaskTransition rejects transitions that would rewrite Task history.
+// 迁移非法时返回包装 ErrInvalidTransition 的错误，并包含源状态和目标状态。
 func ValidateTaskTransition(from moduleapi.TaskStatus, to moduleapi.TaskStatus) error {
 	if CanTransitionTask(from, to) {
 		return nil
@@ -61,7 +61,7 @@ func CanTransitionStage(from moduleapi.StageStatus, to moduleapi.StageStatus) bo
 	}
 }
 
-// ValidateStageTransition rejects transitions that would rewrite Stage history.
+// ValidateStageTransition 验证阶段状态迁移是否符合允许的生命周期规则；非法迁移返回包含原状态和目标状态的错误。
 func ValidateStageTransition(from moduleapi.StageStatus, to moduleapi.StageStatus) error {
 	if CanTransitionStage(from, to) {
 		return nil

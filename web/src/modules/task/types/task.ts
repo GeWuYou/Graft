@@ -20,6 +20,12 @@ export type TaskListQuery = {
   type?: string;
 };
 
+/**
+ * 将任务日志条目转换为结构化日志条目。
+ *
+ * @param entries - 待转换的任务日志条目
+ * @returns 字段名称转换后的结构化日志条目数组
+ */
 export function taskLogEntriesToStructured(entries: TaskLogEntry[]): StructuredLogEntry[] {
   return entries.map((entry) => ({
     line: entry.line,

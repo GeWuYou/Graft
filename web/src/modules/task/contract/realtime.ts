@@ -19,10 +19,22 @@ export type TaskRealtimeNotification = Readonly<{
   type: TaskRealtimeEventType | string;
 }>;
 
+/**
+ * 根据任务 ID 构建任务实时主题名称。
+ *
+ * @param taskId - 任务 ID
+ * @returns 由任务主题前缀和任务 ID 组成的主题名称
+ */
 export function buildTaskRealtimeTopicName(taskId: number) {
   return `${taskRealtimeTopicPrefix}${taskId}`;
 }
 
+/**
+ * 解析原始数据中的任务实时通知。
+ *
+ * @param raw - 待解析的原始数据
+ * @returns 解析后的任务实时通知；数据格式无效时返回 `null`
+ */
 export function parseTaskRealtimeNotification(raw: unknown): TaskRealtimeNotification | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data) || typeof data.task_id !== 'number' || typeof data.type !== 'string') {

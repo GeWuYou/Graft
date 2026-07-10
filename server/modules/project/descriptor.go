@@ -10,7 +10,7 @@ import (
 
 const moduleID = "project"
 
-// NewModuleSpec declares the project module ID, dependencies, migrations, and builder.
+// NewModuleSpec returns the module specification for the project module, including its dependencies, migration path, and builder.
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

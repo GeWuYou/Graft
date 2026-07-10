@@ -361,7 +361,7 @@ func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigura
 	}
 }
 
-// toActionResponse 将动作结果转换为项目动作响应，并在需要时包含消息键、消息和守卫结果。
+// toActionResponse 将动作结果转换为项目动作响应，并包含可选的消息和守卫结果。
 func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 	response := generated.ProjectActionResponse{
 		ProjectId: mustGeneratedID(result.ProjectID),
@@ -382,7 +382,8 @@ func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 }
 
 // toTaskReceiptResponse exposes the accepted Task Runtime receipt on Project
-// lifecycle routes while preserving the existing action audit representation.
+// toTaskReceiptResponse 从操作结果的守卫结果中提取有效的任务 ID。
+// 找到正整数任务 ID 时返回包含该 ID 的待处理回执，否则返回不含任务 ID 的待处理回执。
 func toTaskReceiptResponse(result ActionResult) generated.TaskReceipt {
 	for _, guard := range result.GuardResults {
 		if guard.Code != "task_id" || guard.Detail == nil {
@@ -396,6 +397,8 @@ func toTaskReceiptResponse(result ActionResult) generated.TaskReceipt {
 	return generated.TaskReceipt{Status: generated.TaskStatusPending}
 }
 
+// toBatchActionResponse 将批量操作结果转换为 OpenAPI 批量操作响应。
+// 返回包含各状态计数及逐项目操作结果的响应。
 func toBatchActionResponse(result BatchActionResult) generated.ProjectBatchActionResponse {
 	items := make([]generated.ProjectBatchActionItem, 0, len(result.Items))
 	for _, item := range result.Items {

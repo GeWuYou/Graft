@@ -240,6 +240,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	return result, nil
 }
 
+// lifecycleTaskPlan creates a task plan for the requested project lifecycle action.
 func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated.ProjectActionResponseAction) (moduleapi.TaskPlan, error) {
 	if action == generated.ProjectActionResponseActionProjectActionRedeploy {
 		return redeployTaskPlan(aggregate)
@@ -251,6 +252,7 @@ func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated
 	return taskPlanWithStage(aggregate, strings.ToLower(string(action)), args)
 }
 
+// redeployTaskPlan builds the staged task plan for redeploying a project, including configured optional stages.
 func redeployTaskPlan(aggregate projectstore.ProjectAggregate) (moduleapi.TaskPlan, error) {
 	config := lifecycleConfigurationFromAggregate(aggregate)
 	stages := make([]moduleapi.StagePlan, 0, projectLifecycleStageCapacity)
@@ -262,6 +264,7 @@ func redeployTaskPlan(aggregate projectstore.ProjectAggregate) (moduleapi.TaskPl
 
 const projectLifecycleStageCapacity = 4
 
+// appendOptionalRedeployStages 将重新部署所需的 Compose 阶段追加到任务计划中，并根据配置可选地包含停止、拉取和镜像清理阶段。
 func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) error {
 	if config.Standard.DownBeforeRedeploy {
 		args, err := lifecycleRedeployDownArgs(aggregate, config)
@@ -294,6 +297,7 @@ func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate proje
 	return nil
 }
 
+// taskPlanWithStage creates a task plan containing one compose execution stage for the specified arguments.
 func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args []string) (moduleapi.TaskPlan, error) {
 	stages := make([]moduleapi.StagePlan, 0, 1)
 	if err := appendTaskPlanStage(&stages, aggregate, key, args); err != nil {
@@ -301,6 +305,7 @@ func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args
 	}
 	return moduleapi.TaskPlan{Stages: stages}, nil
 }
+// appendTaskPlanStage appends a validated Compose execution stage to the task plan. It returns an error if the command arguments are invalid or the stage input cannot be serialized.
 func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, key string, args []string) error {
 	if err := ensureLifecycleCommandArgs(args); err != nil {
 		return err

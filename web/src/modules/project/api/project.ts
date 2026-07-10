@@ -373,20 +373,20 @@ export function postProjectDeploy(id: ProjectDeployPathParams['id']) {
 }
 
 /**
- * 执行项目启动操作。
+ * 启动指定项目。
  *
  * @param id - 项目 ID
- * @returns 项目操作响应
+ * @returns 项目启动任务回执
  */
 export function postProjectUp(id: ProjectUpPathParams['id']) {
   return postProjectAction<ProjectUpData>(buildProjectUpApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
 /**
- * 将指定项目下线。
+ * 停止指定项目。
  *
  * @param id - 项目 ID
- * @returns 项目操作响应结果
+ * @returns 项目任务回执
  */
 export function postProjectStop(id: ProjectStopPathParams['id']) {
   return postProjectAction<ProjectStopData>(buildProjectStopApiPath(id)) as Promise<ProjectTaskReceipt>;
@@ -412,6 +412,13 @@ export function postProjectRedeploy(id: ProjectRedeployPathParams['id']) {
   return postProjectAction<ProjectRedeployData>(buildProjectRedeployApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
+/**
+ * 更新项目的生命周期配置。
+ *
+ * @param id - 项目标识
+ * @param payload - 要保存的生命周期配置
+ * @returns 保存后的项目生命周期配置响应
+ */
 export function putProjectLifecycleConfiguration(id: number, payload: ProjectLifecycleConfigurationUpdateRequest) {
   return request.put<ProjectLifecycleConfigurationSavedResponse>({
     url: buildProjectLifecycleConfigurationApiPath(id),

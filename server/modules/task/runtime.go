@@ -49,7 +49,7 @@ type runningStage struct {
 	cancel   context.CancelFunc
 }
 
-// NewRuntime creates a Task Runtime with a bounded in-process worker pool.
+// NewRuntime 创建一个任务运行时，并初始化其工作线程配置、执行器与授权器注册表以及唤醒通道。
 func NewRuntime(repository taskstore.Repository) *Runtime {
 	return &Runtime{
 		repository:  repository,
@@ -203,6 +203,7 @@ func (r *Runtime) ListTaskEvents(ctx context.Context, taskID uint64, after int64
 	return items, nil
 }
 
+// toTaskView 将持久化的任务模型转换为对外任务视图。
 func toTaskView(task taskmodel.Task) moduleapi.TaskView {
 	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage}
 }
@@ -500,6 +501,7 @@ func (r *Runtime) signalWake() {
 	}
 }
 
+// nullableRequestedBy 将零值请求者标识转换为 nil，否则返回该标识的指针。
 func nullableRequestedBy(value uint64) *uint64 {
 	if value == 0 {
 		return nil
@@ -507,6 +509,8 @@ func nullableRequestedBy(value uint64) *uint64 {
 	return &value
 }
 
+// normalizedMaxAttempts 将小于等于零的最大尝试次数规范化为 1。
+// 返回规范化后的最大尝试次数。
 func normalizedMaxAttempts(value int) int {
 	if value <= 0 {
 		return 1
@@ -514,6 +518,7 @@ func normalizedMaxAttempts(value int) int {
 	return value
 }
 
+// hasPendingStages determines whether any stage is pending or running. Returns true if at least one stage has a pending or running status, and false otherwise.
 func hasPendingStages(stages []taskmodel.Stage) bool {
 	for _, stage := range stages {
 		if stage.Status == moduleapi.StageStatusPending || stage.Status == moduleapi.StageStatusRunning {
@@ -523,6 +528,8 @@ func hasPendingStages(stages []taskmodel.Stage) bool {
 	return false
 }
 
+// durationSince returns the elapsed time between the start and finish timestamps in milliseconds.
+// It returns nil when the start timestamp is absent and clamps negative durations to zero.
 func durationSince(startedAt *time.Time, finishedAt time.Time) *int64 {
 	if startedAt == nil {
 		return nil

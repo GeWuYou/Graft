@@ -25,7 +25,8 @@ type SQLRepository struct {
 	placeholder placeholderStyle
 }
 
-// NewSQLRepository creates a Task Runtime SQL repository.
+// NewSQLRepository creates a SQL repository backed by the provided database.
+// It returns an error if db is nil.
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("task repository requires a non-nil sql db")
@@ -664,6 +665,8 @@ func (r *SQLRepository) rescheduleIdempotentRecovery(ctx context.Context, tx *sq
 	return int(retriedCount), nil
 }
 
+// normalizeCreateInput 校验并规范化任务及其初始阶段配置。
+// 返回规范化后的创建输入；输入无效时返回错误。
 func normalizeCreateInput(input CreateInput) (CreateInput, error) {
 	if err := normalizeTaskForCreate(&input.Task, len(input.Stages)); err != nil {
 		return CreateInput{}, err
@@ -674,6 +677,9 @@ func normalizeCreateInput(input CreateInput) (CreateInput, error) {
 	return input, nil
 }
 
+// normalizeTaskForCreate validates and normalizes a task before creation.
+// It requires a task type, owner, and at least one stage, and permits pending or scheduled tasks.
+// Scheduled tasks must include a scheduled time.
 func normalizeTaskForCreate(task *taskmodel.Task, stageCount int) error {
 	if task == nil || strings.TrimSpace(string(task.Type)) == "" || strings.TrimSpace(task.Owner.Type) == "" || strings.TrimSpace(task.Owner.ID) == "" || stageCount == 0 {
 		return ErrInvalidInput
@@ -691,6 +697,7 @@ func normalizeTaskForCreate(task *taskmodel.Task, stageCount int) error {
 	return nil
 }
 
+// normalizeStagesForCreate validates and normalizes the stages in a task's initial execution plan.
 func normalizeStagesForCreate(stages []taskmodel.Stage) error {
 	seenKeys := make(map[string]struct{}, len(stages))
 	for index := range stages {
@@ -701,6 +708,8 @@ func normalizeStagesForCreate(stages []taskmodel.Stage) error {
 	return nil
 }
 
+// normalizeStageForCreate 验证并规范化创建任务所需的阶段数据，同时检查阶段序号和键的唯一性。
+// 无效阶段或重复键返回 ErrInvalidInput；有效阶段的输入和结果 JSON 为空时规范化为 {}。
 func normalizeStageForCreate(stage *taskmodel.Stage, sequence int, seenKeys map[string]struct{}) error {
 	if !validInitialStage(stage, sequence) {
 		return ErrInvalidInput
@@ -714,6 +723,7 @@ func normalizeStageForCreate(stage *taskmodel.Stage, sequence int, seenKeys map[
 	return nil
 }
 
+// validInitialStage reports whether a stage satisfies the constraints for an initial pending stage at the specified sequence.
 func validInitialStage(stage *taskmodel.Stage, sequence int) bool {
 	return stage != nil &&
 		strings.TrimSpace(stage.Key) != "" &&
@@ -726,6 +736,7 @@ func validInitialStage(stage *taskmodel.Stage, sequence int) bool {
 		stage.RecoveryPolicy != ""
 }
 
+// normalizeJSON 将空 JSON 值规范化为空对象。
 func normalizeJSON(value json.RawMessage) json.RawMessage {
 	if len(value) == 0 {
 		return json.RawMessage(`{}`)
@@ -733,6 +744,9 @@ func normalizeJSON(value json.RawMessage) json.RawMessage {
 	return value
 }
 
+// normalizeLimit 将分页限制规范化到允许的范围内。
+//
+// 小于等于零的值使用默认分页限制，超过最大值的值使用最大分页限制。
 func normalizeLimit(limit int) int {
 	if limit <= 0 {
 		return defaultPageLimit
@@ -743,6 +757,7 @@ func normalizeLimit(limit int) int {
 	return limit
 }
 
+// expectOneAffected verifies that a database operation affected exactly one row.
 func expectOneAffected(result sql.Result) error {
 	affected, err := result.RowsAffected()
 	if err != nil {
@@ -754,14 +769,17 @@ func expectOneAffected(result sql.Result) error {
 	return nil
 }
 
+// rollback 回滚事务并忽略回滚错误。
 func rollback(tx *sql.Tx) {
 	_ = tx.Rollback()
 }
 
+// closeRows 关闭数据库查询结果集并忽略关闭错误。
 func closeRows(rows *sql.Rows) {
 	_ = rows.Close()
 }
 
+// validEventType reports whether the event type is supported by the task repository.
 func validEventType(value taskmodel.EventType) bool {
 	switch value {
 	case taskmodel.EventTypeCreated, taskmodel.EventTypeCancelRequested, taskmodel.EventTypeCancelled, taskmodel.EventTypeRetryRequested, taskmodel.EventTypeRetryScheduled, taskmodel.EventTypeRecoveryRequired, taskmodel.EventTypeRecoveryResolved:
@@ -771,10 +789,12 @@ func validEventType(value taskmodel.EventType) bool {
 	}
 }
 
+// validLogStream reports whether value identifies a supported log stream.
 func validLogStream(value string) bool {
 	return value == "stdout" || value == "stderr" || value == "system"
 }
 
+// validLogLevel reports whether value is a supported log level.
 func validLogLevel(value string) bool {
 	return value == "info" || value == "warn" || value == "error"
 }

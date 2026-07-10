@@ -11,7 +11,7 @@ import (
 
 const moduleID = "task"
 
-// NewModuleSpec exposes the Task Runtime's stable compile-time metadata.
+// NewModuleSpec 返回任务模块的规格定义，包括模块标识、依赖模块、迁移路径以及基于 SQL 数据库构建模块实例的构建器。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

@@ -60,10 +60,13 @@ func (r *Runtime) IssueSubscription(ctx context.Context, request realtime.Subscr
 	return realtime.SubscriptionResponse{Topic: realtime.NormalizeTopic(request.Topic), Ticket: issued.Ticket, WebSocketURL: realtime.BuildTopicWebSocketURL(realtime.NormalizeTopic(request.Topic), issued.Ticket), ExpiresAt: issued.ExpiresAt}, nil
 }
 
+// taskRealtimeTopic 构造指定任务的实时主题名称。
 func taskRealtimeTopic(taskID uint64) string {
 	return taskRealtimeTopicPrefix + strconv.FormatUint(taskID, 10)
 }
 
+// parseTaskRealtimeTopic 从实时主题中解析任务 ID，并验证主题格式和 ID 的有效性。
+// 返回解析出的任务 ID；主题格式无效或任务 ID 无效时返回错误。
 func parseTaskRealtimeTopic(topic string) (uint64, error) {
 	value := strings.TrimPrefix(realtime.NormalizeTopic(topic), taskRealtimeTopicPrefix)
 	if value == "" || taskRealtimeTopicPrefix+value != realtime.NormalizeTopic(topic) {

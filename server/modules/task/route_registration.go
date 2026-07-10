@@ -14,6 +14,8 @@ import (
 	taskstore "graft/server/modules/task/store"
 )
 
+// registerTaskRoutes registers task endpoints and applies request identification and permission middleware.
+// It returns an error if the required authentication or authorization services cannot be resolved.
 func registerTaskRoutes(ctx *module.Context, runtime *Runtime, publisher httpx.SecurityAuditPublisher) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -215,6 +217,7 @@ func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
 
 var errTaskInvalidArgument = errors.New("invalid task argument")
 
+// taskHTTPStatus maps task store errors to their corresponding HTTP status codes.
 func taskHTTPStatus(err error) int {
 	switch {
 	case errors.Is(err, taskstore.ErrNotFound):
@@ -227,6 +230,7 @@ func taskHTTPStatus(err error) int {
 		return http.StatusInternalServerError
 	}
 }
+// taskSequencePage parses and bounds the sequence cursor and page size from the request query.
 func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	after, _ := strconv.ParseInt(c.DefaultQuery("after_sequence", "0"), 10, 64)
 	if after < 0 {
@@ -241,6 +245,8 @@ func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	}
 	return after, limit
 }
+// taskListPage parses and bounds the task list pagination parameters.
+// It returns the requested item limit and offset.
 func taskListPage(c *gin.Context) (int, int) {
 	_, limit := taskSequencePage(c, defaultTaskListLimit, maxTaskListLimit)
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -249,6 +255,8 @@ func taskListPage(c *gin.Context) (int, int) {
 	}
 	return limit, offset
 }
+// taskCapabilities 根据任务及阶段状态计算可用操作能力。
+// 返回包含 cancel、retry 和 download_log 能力标记的映射。
 func taskCapabilities(task moduleapi.TaskView, stages []moduleapi.TaskStageView) map[string]bool {
 	retry := false
 	for _, stage := range stages {

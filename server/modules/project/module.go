@@ -99,6 +99,8 @@ type projectRealtimeDependencies struct {
 	issuers realtime.TopicIssuerRegistry
 }
 
+// resolveProjectRealtime 解析项目实时通信所需的依赖。
+// 返回实时票据服务、通信中心和主题发布者注册表；任一依赖解析失败时返回错误。
 func resolveProjectRealtime(ctx *module.Context) (projectRealtimeDependencies, error) {
 	tickets, err := module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
 	if err != nil {
