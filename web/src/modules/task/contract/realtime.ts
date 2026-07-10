@@ -16,7 +16,7 @@ export type TaskRealtimeEventType =
 
 export type TaskRealtimeNotification = Readonly<{
   task_id: number;
-  type: TaskRealtimeEventType | string;
+  type: string;
 }>;
 
 /**

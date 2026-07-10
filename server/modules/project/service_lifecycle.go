@@ -17,22 +17,22 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// Up executes docker compose up -d within the project's registered working directory.
+// Up submits docker compose up -d for asynchronous execution within the project's registered working directory.
 func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp)
 }
 
-// Stop executes docker compose stop for the registered project.
+// Stop submits docker compose stop for asynchronous execution for the registered project.
 func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop)
 }
 
-// Restart executes docker compose restart for the registered project.
+// Restart submits docker compose restart for asynchronous execution for the registered project.
 func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRestart)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRestart)
 }
 
-// Redeploy executes docker compose down then docker compose up -d for the registered project.
+// Redeploy submits the configured compose redeploy stages for asynchronous execution.
 func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRedeploy)
 }
@@ -188,25 +188,6 @@ func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.
 	}, errProjectUnsupportedLifecycle
 }
 
-func (s *Service) runLifecycleAction(
-	ctx context.Context,
-	projectID uint64,
-	actorID *uint64,
-	action generated.ProjectActionResponseAction,
-) (ActionResult, error) {
-	aggregate, err := s.getAggregate(ctx, projectID)
-	if err != nil {
-		return ActionResult{}, err
-	}
-	actor, blocked, err := s.requireActionActor(ctx, projectID, action, actorID)
-	if err != nil {
-		return blocked, err
-	}
-	_ = aggregate
-	_ = actor
-	return s.submitLifecycleTask(ctx, projectID, actorID, action)
-}
-
 func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, actorID *uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -222,7 +203,10 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 		return result, err
 	}
 	if s.taskService == nil {
-		return ActionResult{}, errors.New("task service is unavailable")
+		err := errors.New("task service is unavailable")
+		result := lifecycleBlockedResult(aggregate, action, err)
+		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		return result, err
 	}
 	plan, err := lifecycleTaskPlan(aggregate, action)
 	if err != nil {
@@ -232,7 +216,9 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	}
 	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("project.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: fmt.Sprintf("%d", projectID)}, RequestedBy: actor.id, Plan: plan})
 	if err != nil {
-		return ActionResult{}, err
+		result := lifecycleBlockedResult(aggregate, action, err)
+		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		return result, err
 	}
 	messageKey := projectcontract.ProjectLifecycleAccepted.String()
 	result := ActionResult{ProjectID: projectID, Action: action, Result: generated.ProjectActionResponseResultProjectActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
@@ -305,6 +291,7 @@ func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args
 	}
 	return moduleapi.TaskPlan{Stages: stages}, nil
 }
+
 // appendTaskPlanStage appends a validated Compose execution stage to the task plan. It returns an error if the command arguments are invalid or the stage input cannot be serialized.
 func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, key string, args []string) error {
 	if err := ensureLifecycleCommandArgs(args); err != nil {

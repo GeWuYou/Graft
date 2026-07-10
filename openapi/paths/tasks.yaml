@@ -8,9 +8,13 @@ get:
     - $ref: ../components/parameters/request-id-header.yaml
     - in: query
       name: owner_type
+      required: true
+      description: Owner resource type. Must be supplied with owner_id to identify the single authorized Task owner.
       schema: { type: string }
     - in: query
       name: owner_id
+      required: true
+      description: Owner resource identifier. Must be supplied with owner_type to identify the single authorized Task owner.
       schema: { type: string }
     - in: query
       name: type

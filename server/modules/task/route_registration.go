@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -180,21 +181,26 @@ func (r taskRoutes) retry(c *gin.Context) {
 
 func (r taskRoutes) list(c *gin.Context) {
 	limit, offset := taskListPage(c)
-	tasks, _, err := r.runtime.ListTasks(c.Request.Context(), limit, offset)
+	auth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context())
+	if !ok || auth.User == nil {
+		httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": []moduleapi.TaskView{}, "total": 0, "limit": limit, "offset": offset})
+		return
+	}
+	owner := moduleapi.TaskOwner{Type: c.Query("owner_type"), ID: c.Query("owner_id")}
+	if owner.Type == "" || owner.ID == "" {
+		r.writeError(c, http.StatusBadRequest, errTaskInvalidArgument)
+		return
+	}
+	if err := r.runtime.AuthorizeOwner(c.Request.Context(), auth.User, moduleapi.TaskOwnerActionView, owner); err != nil {
+		r.writeError(c, http.StatusNotFound, taskstore.ErrNotFound)
+		return
+	}
+	tasks, total, err := r.runtime.ListTasks(c.Request.Context(), owner, limit, offset)
 	if err != nil {
 		r.writeError(c, taskHTTPStatus(err), err)
 		return
 	}
-	auth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context())
-	items := make([]moduleapi.TaskView, 0, len(tasks))
-	if ok && auth.User != nil {
-		for _, task := range tasks {
-			if r.runtime.AuthorizeOwner(c.Request.Context(), auth.User, moduleapi.TaskOwnerActionView, task.Owner) == nil {
-				items = append(items, task)
-			}
-		}
-	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": items, "total": len(items), "limit": limit, "offset": offset})
+	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": tasks, "total": total, "limit": limit, "offset": offset})
 }
 
 func (r taskRoutes) writeDetail(c *gin.Context, status int, task moduleapi.TaskView) {
@@ -203,7 +209,8 @@ func (r taskRoutes) writeDetail(c *gin.Context, status int, task moduleapi.TaskV
 		r.writeError(c, taskHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, status, map[string]any{"id": task.ID, "type": task.Type, "owner_type": task.Owner.Type, "owner_id": task.Owner.ID, "status": task.Status, "current_stage_key": task.CurrentStageKey, "created_by": task.CreatedBy, "created_at": task.CreatedAt, "started_at": task.StartedAt, "finished_at": task.FinishedAt, "duration_ms": task.DurationMS, "failure_code": task.FailureCode, "failure_message": task.FailureMessage, "capabilities": taskCapabilities(task, stages), "stages": stages})
+	auth, _ := moduleapi.RequestAuthContextFromContext(c.Request.Context())
+	httpx.WriteSuccess(c, status, map[string]any{"id": task.ID, "type": task.Type, "owner_type": task.Owner.Type, "owner_id": task.Owner.ID, "status": task.Status, "current_stage_key": task.CurrentStageKey, "created_by": task.CreatedBy, "created_at": task.CreatedAt, "started_at": task.StartedAt, "finished_at": task.FinishedAt, "duration_ms": task.DurationMS, "failure_code": task.FailureCode, "failure_message": task.FailureMessage, "capabilities": taskCapabilities(c.Request.Context(), r.runtime, auth.User, task, stages), "stages": stages})
 }
 
 func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
@@ -230,6 +237,7 @@ func taskHTTPStatus(err error) int {
 		return http.StatusInternalServerError
 	}
 }
+
 // taskSequencePage parses and bounds the sequence cursor and page size from the request query.
 func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	after, _ := strconv.ParseInt(c.DefaultQuery("after_sequence", "0"), 10, 64)
@@ -245,6 +253,7 @@ func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	}
 	return after, limit
 }
+
 // taskListPage parses and bounds the task list pagination parameters.
 // It returns the requested item limit and offset.
 func taskListPage(c *gin.Context) (int, int) {
@@ -255,15 +264,39 @@ func taskListPage(c *gin.Context) (int, int) {
 	}
 	return limit, offset
 }
+
 // taskCapabilities 根据任务及阶段状态计算可用操作能力。
 // 返回包含 cancel、retry 和 download_log 能力标记的映射。
-func taskCapabilities(task moduleapi.TaskView, stages []moduleapi.TaskStageView) map[string]bool {
-	retry := false
+func taskCapabilities(ctx context.Context, runtime *Runtime, actor *moduleapi.CurrentUser, task moduleapi.TaskView, stages []moduleapi.TaskStageView) map[string]bool {
+	return map[string]bool{
+		"cancel":       taskSupportsCancellation(task) && taskActionAllowed(ctx, runtime, actor, moduleapi.TaskOwnerActionCancel, task.Owner),
+		"retry":        taskHasRetryableStage(stages) && taskSupportsRetry(task) && taskActionAllowed(ctx, runtime, actor, moduleapi.TaskOwnerActionRetry, task.Owner),
+		"download_log": true,
+	}
+}
+
+func taskSupportsCancellation(task moduleapi.TaskView) bool {
+	switch task.Status {
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention:
+		return true
+	default:
+		return false
+	}
+}
+
+func taskHasRetryableStage(stages []moduleapi.TaskStageView) bool {
 	for _, stage := range stages {
 		if stage.Status == moduleapi.StageStatusFailed || stage.Status == moduleapi.StageStatusUnknown {
-			retry = true
-			break
+			return true
 		}
 	}
-	return map[string]bool{"cancel": task.Status == moduleapi.TaskStatusPending || task.Status == moduleapi.TaskStatusScheduled || task.Status == moduleapi.TaskStatusRunning || task.Status == moduleapi.TaskStatusNeedsAttention, "retry": retry && (task.Status == moduleapi.TaskStatusFailed || task.Status == moduleapi.TaskStatusNeedsAttention), "download_log": true}
+	return false
+}
+
+func taskSupportsRetry(task moduleapi.TaskView) bool {
+	return task.Status == moduleapi.TaskStatusFailed || task.Status == moduleapi.TaskStatusNeedsAttention
+}
+
+func taskActionAllowed(ctx context.Context, runtime *Runtime, actor *moduleapi.CurrentUser, action moduleapi.TaskOwnerAction, owner moduleapi.TaskOwner) bool {
+	return actor != nil && runtime != nil && runtime.AuthorizeOwner(ctx, actor, action, owner) == nil
 }

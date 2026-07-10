@@ -116,7 +116,7 @@ type TaskService interface {
 // TaskQueryService exposes Task Runtime reads without leaking module-owned persistence.
 type TaskQueryService interface {
 	GetTask(ctx context.Context, taskID uint64) (TaskView, error)
-	ListTasks(ctx context.Context, limit int, offset int) ([]TaskView, int64, error)
+	ListTasks(ctx context.Context, owner TaskOwner, limit int, offset int) ([]TaskView, int64, error)
 	ListTaskStages(ctx context.Context, taskID uint64) ([]TaskStageView, error)
 	ListTaskEvents(ctx context.Context, taskID uint64, after int64, limit int) ([]TaskEventView, error)
 	ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]TaskLogView, error)

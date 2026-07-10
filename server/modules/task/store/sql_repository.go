@@ -25,13 +25,16 @@ type SQLRepository struct {
 	placeholder placeholderStyle
 }
 
-// NewSQLRepository creates a SQL repository backed by the provided database.
-// It returns an error if db is nil.
-func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
+// NewSQLRepository creates a SQL repository with explicitly selected SQL dialect semantics.
+func NewSQLRepository(db *sql.DB, dialect SQLDialect) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("task repository requires a non-nil sql db")
 	}
-	return &SQLRepository{db: db, placeholder: placeholderStyleFor(db)}, nil
+	placeholder, err := placeholderStyleForDialect(dialect)
+	if err != nil {
+		return nil, err
+	}
+	return &SQLRepository{db: db, placeholder: placeholder}, nil
 }
 
 // Create atomically stores a frozen Task, its ordered Stage plan, and the created event.
@@ -135,18 +138,20 @@ func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task,
 	return item, nil
 }
 
-// List returns newest persisted Task history. Consumer authorization is applied by the Task API after loading owners.
-func (r *SQLRepository) List(ctx context.Context, limit int, offset int) ([]taskmodel.Task, int64, error) {
-	if offset < 0 {
+// List returns an owner-scoped Task history page and total using the owner index.
+func (r *SQLRepository) List(ctx context.Context, owner moduleapi.TaskOwner, limit int, offset int) ([]taskmodel.Task, int64, error) {
+	if strings.TrimSpace(owner.Type) == "" || strings.TrimSpace(owner.ID) == "" || offset < 0 {
 		return nil, 0, ErrInvalidInput
 	}
 	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasks`).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count tasks: %w", err)
+	if err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*) FROM tasks WHERE owner_type = ? AND owner_id = ?`), owner.Type, owner.ID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count owner tasks: %w", err)
 	}
-	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+taskColumns()+` FROM tasks ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`), normalizeLimit(limit), offset)
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+taskColumns()+`
+		FROM tasks WHERE owner_type = ? AND owner_id = ?
+		ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`), owner.Type, owner.ID, normalizeLimit(limit), offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("list tasks: %w", err)
+		return nil, 0, fmt.Errorf("list owner tasks: %w", err)
 	}
 	defer closeRows(rows)
 	items := make([]taskmodel.Task, 0)
@@ -158,7 +163,7 @@ func (r *SQLRepository) List(ctx context.Context, limit int, offset int) ([]task
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterate tasks: %w", err)
+		return nil, 0, fmt.Errorf("iterate owner tasks: %w", err)
 	}
 	return items, total, nil
 }
@@ -638,10 +643,20 @@ func (r *SQLRepository) appendRecoveryEvents(ctx context.Context, tx *sql.Tx, no
 		?, %s, %s
 	FROM task_stages stage
 	JOIN tasks task ON task.id = stage.task_id
-	WHERE task.status = ? AND stage.status = ? AND stage.failure_code = ?`, r.jsonValuePlaceholder(), r.timestampValuePlaceholder())
+	WHERE task.status = ? AND stage.status = ? AND stage.failure_code = ?
+		AND NOT EXISTS (
+			SELECT 1 FROM task_events required
+			WHERE required.task_id = stage.task_id AND required.event_type = ?
+				AND NOT EXISTS (
+					SELECT 1 FROM task_events resolved
+					WHERE resolved.task_id = required.task_id
+						AND resolved.event_type = ?
+						AND resolved.sequence > required.sequence
+				)
+		)`, r.jsonValuePlaceholder(), r.timestampValuePlaceholder())
 	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(query),
 		taskmodel.EventTypeRecoveryRequired, json.RawMessage(`{}`), now.UTC(),
-		moduleapi.TaskStatusNeedsAttention, moduleapi.StageStatusUnknown, "runner_interrupted",
+		moduleapi.TaskStatusNeedsAttention, moduleapi.StageStatusUnknown, "runner_interrupted", taskmodel.EventTypeRecoveryRequired, taskmodel.EventTypeRecoveryResolved,
 	); err != nil {
 		return fmt.Errorf("append interrupted stage recovery events: %w", err)
 	}

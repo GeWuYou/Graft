@@ -50,7 +50,7 @@ closeout:
 - Persistence and state-machine foundation completed: `task` is registered as a compile-time module with module-owned
   `tasks`、`task_stages`、`task_events` 和 `task_logs` migrations, SQL persistence and tested state transitions.
 - The Task Runtime has a PostgreSQL-backed serial dispatcher, fixed in-process workers, executor registry, Task submission,
-  cancellation, retry coordination, and conservative crash recovery. It still has no HTTP/realtime route or Project consumer.
+  cancellation, retry coordination, conservative crash recovery, HTTP/realtime routes, and Project as its first consumer.
 - Task API, realtime, Project adoption, and the reusable Task UI are complete. The Task Detail Drawer uses persisted
   detail/log reads before and after `task:{id}` notifications, so realtime remains a latency path rather than the fact source.
 - Final cross-boundary integration and archive-readiness verification passed; this topic is archived.
@@ -86,7 +86,7 @@ closeout:
     "task-final-integration-archive-readiness"
   ],
   "pending_batches": [],
-  "current_batch": "task-final-integration-archive-readiness",
+  "current_batch": null,
   "next_batch": null,
   "closeout_status": "archive-ready"
 }

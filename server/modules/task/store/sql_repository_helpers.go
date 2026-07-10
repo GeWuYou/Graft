@@ -19,13 +19,25 @@ const (
 	placeholderGrowthEstimate = 16
 )
 
-// placeholderStyleFor determines the SQL placeholder style for a database driver. It returns
-// placeholderQuestion for SQLite drivers and placeholderDollar for other drivers or nil databases.
-func placeholderStyleFor(db *sql.DB) placeholderStyle {
-	if db != nil && strings.Contains(strings.ToLower(fmt.Sprintf("%T", db.Driver())), "sqlite") {
-		return placeholderQuestion
+// SQLDialect selects the placeholder and value-cast syntax for a repository connection.
+type SQLDialect string
+
+const (
+	// SQLDialectPostgres uses PostgreSQL positional placeholders and casts.
+	SQLDialectPostgres SQLDialect = "postgres"
+	// SQLDialectSQLite uses SQLite question-mark placeholders for unit tests.
+	SQLDialectSQLite SQLDialect = "sqlite"
+)
+
+func placeholderStyleForDialect(dialect SQLDialect) (placeholderStyle, error) {
+	switch dialect {
+	case SQLDialectPostgres:
+		return placeholderDollar, nil
+	case SQLDialectSQLite:
+		return placeholderQuestion, nil
+	default:
+		return 0, fmt.Errorf("unsupported task repository sql dialect %q", dialect)
 	}
-	return placeholderDollar
 }
 
 func (s placeholderStyle) rebind(query string) string {
@@ -35,9 +47,15 @@ func (s placeholderStyle) rebind(query string) string {
 	var builder strings.Builder
 	builder.Grow(len(query) + placeholderGrowthEstimate)
 	index := 1
-	for _, current := range query {
+	for queryIndex := 0; queryIndex < len(query); queryIndex++ {
+		current := query[queryIndex]
+		if current == '?' && queryIndex+1 < len(query) && query[queryIndex+1] == '?' {
+			builder.WriteByte('?')
+			queryIndex++
+			continue
+		}
 		if current != '?' {
-			builder.WriteRune(current)
+			builder.WriteByte(current)
 			continue
 		}
 		builder.WriteByte('$')

@@ -47,9 +47,11 @@ defineOptions({
   name: 'AuthPage',
 });
 
-const type = ref('login');
+type AuthPanelType = 'login' | 'register';
 
-const switchType = (value: string) => {
+const type = ref<AuthPanelType>('login');
+
+const switchType = (value: AuthPanelType) => {
   type.value = value;
 };
 </script>

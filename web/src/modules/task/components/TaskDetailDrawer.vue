@@ -106,7 +106,13 @@ import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/s
 import { cancelTask, getTask, getTaskLogs, retryTaskStage } from '../api/task';
 import { buildTaskRealtimeTopicName, parseTaskRealtimeNotification } from '../contract/realtime';
 import { taskStatusTheme } from '../shared/presentation';
-import { type TaskDetail, taskLogEntriesToStructured, type TaskStage, type TaskStageStatus } from '../types/task';
+import {
+  type TaskDetail,
+  taskLogEntriesToStructured,
+  type TaskLogEntry,
+  type TaskStage,
+  type TaskStageStatus,
+} from '../types/task';
 
 const props = defineProps<{
   taskId: number | null;
@@ -119,9 +125,7 @@ defineEmits<{
 
 const { locale, t } = useI18n();
 const task = ref<TaskDetail | null>(null);
-const logs = ref<
-  NonNullable<TaskDetail['stages']> extends never ? never[] : Awaited<ReturnType<typeof getTaskLogs>>['items']
->([]);
+const logs = ref<TaskLogEntry[]>([]);
 const loading = ref(false);
 const logsLoading = ref(false);
 const cancelling = ref(false);

@@ -23,6 +23,9 @@
           {{ taskStatusLabel(row.status) }}
         </t-tag>
       </template>
+      <template #created_at="{ row }">
+        {{ formatLocaleDateTime(row.created_at, locale) }}
+      </template>
       <template #operation="{ row }">
         <t-button size="small" theme="primary" variant="text" @click.stop="$emit('open', row as TaskSummary)">
           {{ t('task.actions.view') }}
@@ -38,6 +41,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { formatLocaleDateTime } from '@/shared/observability';
 
 import { getTasks } from '../api/task';
 import { taskStatusTheme } from '../shared/presentation';
@@ -52,7 +56,7 @@ defineEmits<{
   (event: 'open', task: TaskSummary): void;
 }>();
 
-const { t } = useI18n();
+const { locale, t } = useI18n();
 const items = ref<TaskSummary[]>([]);
 const loading = ref(false);
 const errorMessage = ref('');
@@ -61,7 +65,7 @@ const columns = computed<NonNullable<TableProps['columns']>>(() => [
   { colKey: 'type', title: t('task.history.columns.type'), ellipsis: true },
   { colKey: 'status', title: t('task.history.columns.status'), cell: 'status', width: 132 },
   { colKey: 'current_stage_key', title: t('task.history.columns.stage'), ellipsis: true },
-  { colKey: 'created_at', title: t('task.history.columns.createdAt'), width: 188 },
+  { colKey: 'created_at', title: t('task.history.columns.createdAt'), cell: 'created_at', width: 188 },
   { colKey: 'operation', title: t('task.history.columns.operation'), cell: 'operation', width: 92 },
 ]);
 

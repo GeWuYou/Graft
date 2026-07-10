@@ -14,6 +14,7 @@ import (
 	"graft/server/internal/moduleapi"
 	taskmodel "graft/server/modules/task/model"
 	taskstore "graft/server/modules/task/store"
+	"graft/server/modules/task/testschema"
 )
 
 func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
@@ -106,6 +107,89 @@ func TestRepositoryRecoversRunningStageAsUnknownAndTaskNeedsAttention(t *testing
 		t.Fatalf("recover interrupted stages = %d, %v", count, err)
 	}
 	assertInterruptedTaskRecovery(t, repository, receipt.TaskID)
+	if count, err := repository.RecoverInterruptedStages(context.Background(), time.Now().UTC()); err != nil || count != 0 {
+		t.Fatalf("second recovery = %d, %v", count, err)
+	}
+	assertInterruptedTaskRecovery(t, repository, receipt.TaskID)
+}
+
+func TestRuntimeListTasksAuthorizesBeforePagination(t *testing.T) {
+	t.Parallel()
+	runtime, _ := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	for _, ownerID := range []string{"allowed-one", "denied", "allowed-two"} {
+		input := testSubmitInput(1, 1)
+		input.Owner.ID = ownerID
+		if _, err := runtime.Submit(context.Background(), input); err != nil {
+			t.Fatalf("submit %q: %v", ownerID, err)
+		}
+	}
+	items, total, err := runtime.ListTasks(context.Background(), moduleapi.TaskOwner{Type: "test", ID: "allowed-one"}, 1, 0)
+	if err != nil {
+		t.Fatalf("list owner tasks: %v", err)
+	}
+	if total != 1 || len(items) != 1 || items[0].Owner.ID != "allowed-one" {
+		t.Fatalf("owner task page = %#v total=%d", items, total)
+	}
+}
+
+func TestRuntimeConvertsExecutorPanicsToFailedStage(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(panickingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].ExecutorType = panickingExecutorType
+	receipt, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("run panicking executor: %v", err)
+	}
+	task := mustTask(t, repository, receipt.TaskID)
+	if task.Status != moduleapi.TaskStatusFailed || task.FailureCode == nil || *task.FailureCode != errorCodeExecutor {
+		t.Fatalf("task after executor panic = %#v", task)
+	}
+}
+
+func TestRuntimeReturnsErrorWhenExecutorCancellationPanics(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(panickingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].ExecutorType = panickingExecutorType
+	receipt, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	claim, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC())
+	if err != nil || !found {
+		t.Fatalf("claim stage: found=%t err=%v", found, err)
+	}
+	runtime.addRunning(receipt.TaskID, runningStage{executor: panickingExecutor{}, run: &stageRun{runtime: runtime, task: claim.Task, stage: claim.Stage}, cancel: func() {}})
+	if err := runtime.Cancel(context.Background(), receipt.TaskID); err == nil {
+		t.Fatal("cancel with panicking executor succeeded")
+	}
+}
+
+func TestTaskCapabilitiesRequireOperationAuthorization(t *testing.T) {
+	t.Parallel()
+	runtime, _ := newRuntimeForTest(t)
+	if err := runtime.RegisterTaskOwnerAuthorizer(capabilityAuthorizer{}); err != nil {
+		t.Fatalf("register owner authorizer: %v", err)
+	}
+	task := moduleapi.TaskView{Owner: moduleapi.TaskOwner{Type: "capability-test", ID: "1"}, Status: moduleapi.TaskStatusNeedsAttention}
+	stages := []moduleapi.TaskStageView{{Status: moduleapi.StageStatusUnknown}}
+	capabilities := taskCapabilities(context.Background(), runtime, &moduleapi.CurrentUser{}, task, stages)
+	if capabilities["cancel"] || capabilities["retry"] || !capabilities["download_log"] {
+		t.Fatalf("capabilities = %#v", capabilities)
+	}
 }
 
 func assertInterruptedTaskRecovery(t *testing.T, repository *taskstore.SQLRepository, taskID uint64) {
@@ -159,6 +243,41 @@ func TestRuntimeRetriesOperatorApprovedFailedStage(t *testing.T) {
 	}
 }
 
+func TestRuntimeRetryResolvesRecoveryEvent(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	executor := &recordingExecutor{}
+	if err := runtime.RegisterStageExecutor(executor); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].RecoveryPolicy = moduleapi.StageRecoveryManualReconcile
+	receipt, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
+		t.Fatalf("claim stage: found=%t err=%v", found, err)
+	}
+	if _, err := repository.RecoverInterruptedStages(context.Background(), time.Now().UTC()); err != nil {
+		t.Fatalf("recover stage: %v", err)
+	}
+	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
+	if err != nil {
+		t.Fatalf("list stages: %v", err)
+	}
+	if err := runtime.RetryStage(context.Background(), receipt.TaskID, stages[0].ID); err != nil {
+		t.Fatalf("retry recovered stage: %v", err)
+	}
+	events, err := repository.ListEvents(context.Background(), receipt.TaskID, 0, 10)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	if len(events) != 4 || events[2].Type != taskmodel.EventTypeRecoveryResolved || events[3].Type != taskmodel.EventTypeRetryRequested {
+		t.Fatalf("events after recovery retry = %#v", events)
+	}
+}
+
 func TestRuntimeCancelsNeedsAttentionTask(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
@@ -194,26 +313,14 @@ func newRuntimeForTest(t *testing.T) (*Runtime, *taskstore.SQLRepository) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	createRuntimeSchema(t, db)
-	repository, err := taskstore.NewSQLRepository(db)
+	if err := testschema.CreateSQLite(db); err != nil {
+		t.Fatalf("create runtime schema: %v", err)
+	}
+	repository, err := taskstore.NewSQLRepository(db, taskstore.SQLDialectSQLite)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
 	return NewRuntime(repository), repository
-}
-
-func createRuntimeSchema(t *testing.T, db *sql.DB) {
-	t.Helper()
-	for _, statement := range []string{
-		`CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, task_type TEXT NOT NULL, owner_type TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL, input_json BLOB NOT NULL, metadata_json BLOB NOT NULL, plan_json BLOB NOT NULL, state_json BLOB NOT NULL, current_stage_key TEXT, created_by INTEGER, scheduled_at TIMESTAMP, cancel_requested_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP, duration_ms INTEGER, failure_code TEXT, failure_message TEXT, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)`,
-		`CREATE TABLE task_stages (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_key TEXT NOT NULL, sequence INTEGER NOT NULL, executor_type TEXT NOT NULL, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL, retry_backoff_ms INTEGER NOT NULL, next_retry_at TIMESTAMP, input_json BLOB NOT NULL, recovery_policy TEXT NOT NULL, result_json BLOB NOT NULL, failure_code TEXT, failure_message TEXT, started_at TIMESTAMP, finished_at TIMESTAMP, duration_ms INTEGER, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL, FOREIGN KEY(task_id) REFERENCES tasks(id))`,
-		`CREATE TABLE task_events (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, sequence INTEGER NOT NULL, event_type TEXT NOT NULL, payload_json BLOB NOT NULL, created_at TIMESTAMP NOT NULL)`,
-		`CREATE TABLE task_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_id INTEGER, sequence INTEGER NOT NULL, stream TEXT NOT NULL, level TEXT NOT NULL, line TEXT NOT NULL, occurred_at TIMESTAMP NOT NULL)`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatalf("create runtime schema: %v", err)
-		}
-	}
 }
 
 func testSubmitInput(stageCount int, attempts int) moduleapi.SubmitTaskInput {
@@ -258,4 +365,25 @@ func (e *recordingExecutor) calls() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.count
+}
+
+const panickingExecutorType moduleapi.StageExecutorType = "test.panicking"
+
+type panickingExecutor struct{}
+
+func (panickingExecutor) Type() moduleapi.StageExecutorType { return panickingExecutorType }
+
+func (panickingExecutor) Execute(context.Context, moduleapi.StageRun) error { panic("execute") }
+
+func (panickingExecutor) Cancel(context.Context, moduleapi.StageRun) error { panic("cancel") }
+
+type capabilityAuthorizer struct{}
+
+func (capabilityAuthorizer) OwnerType() string { return "capability-test" }
+
+func (capabilityAuthorizer) AuthorizeTaskOwner(_ context.Context, _ *moduleapi.CurrentUser, action moduleapi.TaskOwnerAction, _ moduleapi.TaskOwner) error {
+	if action == moduleapi.TaskOwnerActionView {
+		return nil
+	}
+	return errors.New("operation access denied")
 }

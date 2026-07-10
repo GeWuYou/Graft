@@ -176,7 +176,8 @@ const clearActiveNode = () => {
   activeNode.value = null;
 };
 
-const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[activeNode.value].includes(path);
+const isPathActive = (path: string) =>
+  activeNode.value !== null && (NODE_PATHS[activeNode.value]?.includes(path) ?? false);
 </script>
 <style lang="less" scoped>
 .infrastructure-canvas {

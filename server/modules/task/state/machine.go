@@ -39,7 +39,7 @@ func CanTransitionTask(from moduleapi.TaskStatus, to moduleapi.TaskStatus) bool 
 	return exists
 }
 
-// 迁移非法时返回包装 ErrInvalidTransition 的错误，并包含源状态和目标状态。
+// ValidateTaskTransition rejects Task transitions that would rewrite history.
 func ValidateTaskTransition(from moduleapi.TaskStatus, to moduleapi.TaskStatus) error {
 	if CanTransitionTask(from, to) {
 		return nil

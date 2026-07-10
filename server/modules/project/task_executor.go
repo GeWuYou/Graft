@@ -75,9 +75,8 @@ func (e *composeStageExecutor) Execute(ctx context.Context, run moduleapi.StageR
 	wg.Add(composeOutputStreams)
 	go read("stdout", stdout)
 	go read("stderr", stderr)
-	err = command.Wait()
 	wg.Wait()
-	return err
+	return command.Wait()
 }
 
 func (e *composeStageExecutor) Cancel(_ context.Context, run moduleapi.StageRun) error {

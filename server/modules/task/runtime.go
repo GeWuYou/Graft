@@ -87,8 +87,7 @@ func (r *Runtime) AuthorizeOwner(ctx context.Context, actor *moduleapi.CurrentUs
 	return authorizer.AuthorizeTaskOwner(ctx, actor, action, owner)
 }
 
-// RegisterTaskOwnerAuthorizer is reserved for generic Task HTTP APIs. It is a
-// no-op in the runtime-only batch, where no generic HTTP route exists yet.
+// RegisterTaskOwnerAuthorizer registers consumer-owned authorization for generic Task APIs.
 func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	if r == nil || authorizer == nil || authorizer.OwnerType() == "" {
 		return errors.New("task owner authorizer is required")
@@ -151,9 +150,12 @@ func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskVie
 	return toTaskView(task), nil
 }
 
-// ListTasks returns one persisted Task history page before owner authorization.
-func (r *Runtime) ListTasks(ctx context.Context, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
-	tasks, total, err := r.repository.List(ctx, limit, offset)
+// ListTasks returns one owner-scoped Task history page after the caller authorizes that owner.
+func (r *Runtime) ListTasks(ctx context.Context, owner moduleapi.TaskOwner, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
+	if r == nil || r.repository == nil {
+		return nil, 0, taskstore.ErrInvalidInput
+	}
+	tasks, total, err := r.repository.List(ctx, owner, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -254,7 +256,7 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, taskID uint64) error {
 	running, exists := r.running[taskID]
 	r.mu.RUnlock()
 	if exists {
-		if err := running.executor.Cancel(ctx, running.run); err != nil {
+		if err := cancelStage(ctx, running.executor, running.run); err != nil {
 			return fmt.Errorf("cancel task stage: %w", err)
 		}
 		running.cancel()
@@ -263,13 +265,40 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, taskID uint64) error {
 	return r.appendEvent(ctx, taskID, taskmodel.EventTypeCancelRequested)
 }
 
+func executeStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("stage executor panicked: %v", recovered)
+		}
+	}()
+	return executor.Execute(ctx, run)
+}
+
+func cancelStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("stage executor cancellation panicked: %v", recovered)
+		}
+	}()
+	return executor.Cancel(ctx, run)
+}
+
 // RetryStage records an operator-approved retry for an unknown or failed Stage.
 func (r *Runtime) RetryStage(ctx context.Context, taskID uint64, stageID uint64) error {
 	if r == nil || r.repository == nil {
 		return errors.New("task runtime repository is unavailable")
 	}
+	recoveryResolved, err := r.stageNeedsRecoveryResolution(ctx, taskID, stageID)
+	if err != nil {
+		return err
+	}
 	if _, err := r.repository.RetryStage(ctx, taskID, stageID, time.Now().UTC()); err != nil {
 		return err
+	}
+	if recoveryResolved {
+		if err := r.appendEvent(ctx, taskID, taskmodel.EventTypeRecoveryResolved); err != nil {
+			return err
+		}
 	}
 	if err := r.appendEvent(ctx, taskID, taskmodel.EventTypeRetryRequested); err != nil {
 		return err
@@ -277,6 +306,19 @@ func (r *Runtime) RetryStage(ctx context.Context, taskID uint64, stageID uint64)
 	r.signalWake()
 	r.publishTask(taskID, "task.retry_requested")
 	return nil
+}
+
+func (r *Runtime) stageNeedsRecoveryResolution(ctx context.Context, taskID uint64, stageID uint64) (bool, error) {
+	stages, err := r.repository.ListStages(ctx, taskID)
+	if err != nil {
+		return false, err
+	}
+	for _, stage := range stages {
+		if stage.ID == stageID {
+			return stage.Status == moduleapi.StageStatusUnknown, nil
+		}
+	}
+	return false, taskstore.ErrNotFound
 }
 
 // Start performs crash recovery before starting the bounded worker pool.
@@ -322,7 +364,7 @@ func (r *Runtime) Stop(ctx context.Context) error {
 		return nil
 	}
 	for _, current := range running {
-		_ = current.executor.Cancel(ctx, current.run)
+		_ = cancelStage(ctx, current.executor, current.run)
 		current.cancel()
 	}
 	cancel()
@@ -371,7 +413,7 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	stageContext, cancel := context.WithCancel(ctx)
 	run := &stageRun{runtime: r, task: claim.Task, stage: claim.Stage}
 	r.addRunning(claim.Task.ID, runningStage{executor: executor, run: run, cancel: cancel})
-	err = executor.Execute(stageContext, run)
+	err = executeStage(stageContext, executor, run)
 	cancel()
 	r.removeRunning(claim.Task.ID)
 	finishErr := r.finishClaim(ctx, claim, err)

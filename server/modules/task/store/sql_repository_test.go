@@ -11,6 +11,7 @@ import (
 
 	"graft/server/internal/moduleapi"
 	taskmodel "graft/server/modules/task/model"
+	"graft/server/modules/task/testschema"
 )
 
 func TestSQLRepositoryCreatePersistsFrozenTaskPlanAndCreatedEvent(t *testing.T) {
@@ -153,6 +154,25 @@ func TestSQLRepositoryReplaysEventsAndLogsBySequence(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	for _, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
+		input := validCreateInput()
+		input.Task.Owner = moduleapi.TaskOwner{Type: "compose_project", ID: ownerID}
+		if _, _, err := repository.Create(context.Background(), input); err != nil {
+			t.Fatalf("create %q task: %v", ownerID, err)
+		}
+	}
+	items, total, err := repository.List(context.Background(), moduleapi.TaskOwner{Type: "compose_project", ID: "owner-a"}, 1, 1)
+	if err != nil {
+		t.Fatalf("list owner tasks: %v", err)
+	}
+	if total != 2 || len(items) != 1 || items[0].Owner.ID != "owner-a" {
+		t.Fatalf("owner page = %#v total=%d", items, total)
+	}
+}
+
 func TestJSONValuePlaceholderMatchesSQLDialect(t *testing.T) {
 	if got := (&SQLRepository{placeholder: placeholderDollar}).jsonValuePlaceholder(); got != "?::jsonb" {
 		t.Fatalf("postgres json placeholder = %q, want ?::jsonb", got)
@@ -165,6 +185,25 @@ func TestJSONValuePlaceholderMatchesSQLDialect(t *testing.T) {
 	}
 	if got := (&SQLRepository{placeholder: placeholderQuestion}).timestampValuePlaceholder(); got != "?" {
 		t.Fatalf("sqlite timestamp placeholder = %q, want ?", got)
+	}
+}
+
+func TestPlaceholderRebindPreservesEscapedQuestionMarks(t *testing.T) {
+	query := `SELECT data ?? 'key' FROM tasks WHERE id = ? AND note = ??`
+	if got, want := placeholderDollar.rebind(query), `SELECT data ? 'key' FROM tasks WHERE id = $1 AND note = ?`; got != want {
+		t.Fatalf("rebound query = %q, want %q", got, want)
+	}
+}
+
+func TestPlaceholderStyleForDialect(t *testing.T) {
+	if got, err := placeholderStyleForDialect(SQLDialectPostgres); err != nil || got != placeholderDollar {
+		t.Fatalf("postgres placeholder style = %d, %v", got, err)
+	}
+	if got, err := placeholderStyleForDialect(SQLDialectSQLite); err != nil || got != placeholderQuestion {
+		t.Fatalf("sqlite placeholder style = %d, %v", got, err)
+	}
+	if _, err := placeholderStyleForDialect("unsupported"); err == nil {
+		t.Fatal("unsupported dialect succeeded")
 	}
 }
 
@@ -212,44 +251,12 @@ func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
-	createTaskStoreSchema(t, db)
-	repository, err := NewSQLRepository(db)
+	if err := testschema.CreateSQLite(db); err != nil {
+		t.Fatalf("create task store schema: %v", err)
+	}
+	repository, err := NewSQLRepository(db, SQLDialectSQLite)
 	if err != nil {
 		t.Fatalf("new task repository: %v", err)
 	}
 	return repository, db
-}
-
-func createTaskStoreSchema(t *testing.T, db *sql.DB) {
-	t.Helper()
-	for _, statement := range []string{
-		`CREATE TABLE tasks (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, task_type TEXT NOT NULL, owner_type TEXT NOT NULL, owner_id TEXT NOT NULL,
-			status TEXT NOT NULL, input_json BLOB NOT NULL, metadata_json BLOB NOT NULL, plan_json BLOB NOT NULL, state_json BLOB NOT NULL,
-			current_stage_key TEXT NULL, created_by INTEGER NULL, scheduled_at TIMESTAMP NULL, cancel_requested_at TIMESTAMP NULL,
-			started_at TIMESTAMP NULL, finished_at TIMESTAMP NULL, duration_ms INTEGER NULL, failure_code TEXT NULL, failure_message TEXT NULL,
-			created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL
-		)`,
-		`CREATE TABLE task_stages (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_key TEXT NOT NULL, sequence INTEGER NOT NULL,
-			executor_type TEXT NOT NULL, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL,
-			retry_backoff_ms INTEGER NOT NULL, next_retry_at TIMESTAMP NULL, input_json BLOB NOT NULL, recovery_policy TEXT NOT NULL,
-			result_json BLOB NOT NULL, failure_code TEXT NULL, failure_message TEXT NULL, started_at TIMESTAMP NULL,
-			finished_at TIMESTAMP NULL, duration_ms INTEGER NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
-			FOREIGN KEY(task_id) REFERENCES tasks(id)
-		)`,
-		`CREATE TABLE task_events (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, sequence INTEGER NOT NULL, event_type TEXT NOT NULL,
-			payload_json BLOB NOT NULL, created_at TIMESTAMP NOT NULL, FOREIGN KEY(task_id) REFERENCES tasks(id)
-		)`,
-		`CREATE TABLE task_logs (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_id INTEGER NULL, sequence INTEGER NOT NULL,
-			stream TEXT NOT NULL, level TEXT NOT NULL, line TEXT NOT NULL, occurred_at TIMESTAMP NOT NULL,
-			FOREIGN KEY(task_id) REFERENCES tasks(id), FOREIGN KEY(stage_id) REFERENCES task_stages(id)
-		)`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatalf("create test task store schema: %v", err)
-		}
-	}
 }

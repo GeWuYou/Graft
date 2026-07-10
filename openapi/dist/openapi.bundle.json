@@ -5730,6 +5730,8 @@
           {
             "in": "query",
             "name": "owner_type",
+            "required": true,
+            "description": "Owner resource type. Must be supplied with owner_id to identify the single authorized Task owner.",
             "schema": {
               "type": "string"
             }
@@ -5737,6 +5739,8 @@
           {
             "in": "query",
             "name": "owner_id",
+            "required": true,
+            "description": "Owner resource identifier. Must be supplied with owner_type to identify the single authorized Task owner.",
             "schema": {
               "type": "string"
             }
@@ -13341,7 +13345,7 @@
         ],
         "summary": "Redeploy a registered project",
         "operationId": "postProjectRedeploy",
-        "description": "Runs the saved project lifecycle configuration for the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.\n",
+        "description": "Submits the saved project lifecycle configuration for asynchronous execution on the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -13411,7 +13415,7 @@
             }
           },
           "409": {
-            "description": "Redeploy blocked by lifecycle review guards, project lifecycle guards, or execution failure.",
+            "description": "Redeploy Task submission blocked by lifecycle review guards or project lifecycle guards.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"

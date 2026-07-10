@@ -22,7 +22,7 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve sql db: %w", err)
 			}
-			repository, err := taskstore.NewSQLRepository(sqlDB)
+			repository, err := taskstore.NewSQLRepository(sqlDB, taskstore.SQLDialectPostgres)
 			if err != nil {
 				return nil, fmt.Errorf("build task repository: %w", err)
 			}
