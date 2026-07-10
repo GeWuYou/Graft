@@ -47,14 +47,15 @@ closeout:
 
 ## Current Recovery Point
 
-- Foundation authority completed: Task terminology, execution model, API surface and moduleapi contracts are fixed.
-- Runtime implementation has not started; no `server/modules/task` code or migration exists yet.
-- Next: `task-module-persistence-state-machine`.
+- Persistence and state-machine foundation completed: `task` is registered as a compile-time module with module-owned
+  `tasks`、`task_stages`、`task_events` 和 `task_logs` migrations, SQL persistence and tested state transitions.
+- The Task Runtime still has no worker, dispatcher, retry/cancel coordination, HTTP/realtime route, or consumer executor.
+- Next: `task-runtime-worker-and-recovery`.
 
 ## Task Checklist
 
 - [x] task-runtime-foundation-authority
-- [ ] task-module-persistence-state-machine
+- [x] task-module-persistence-state-machine
 - [ ] task-runtime-worker-and-recovery
 - [ ] task-api-realtime-and-project-adoption
 - [ ] task-web-module-and-project-ui
@@ -73,16 +74,18 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["task-runtime-foundation-authority"],
+  "completed_batches": [
+    "task-runtime-foundation-authority",
+    "task-module-persistence-state-machine"
+  ],
   "pending_batches": [
-    "task-module-persistence-state-machine",
     "task-runtime-worker-and-recovery",
     "task-api-realtime-and-project-adoption",
     "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-runtime-foundation-authority",
-  "next_batch": "task-module-persistence-state-machine",
+  "current_batch": "task-module-persistence-state-machine",
+  "next_batch": "task-runtime-worker-and-recovery",
   "closeout_status": "completed_no_handoff"
 }
 ```

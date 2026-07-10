@@ -15,21 +15,32 @@
 - Scheduler submits Tasks but does not execute Stages.
 - Task Detail capability flags are authoritative UI controls.
 
+## 2026-07-10 task-module-persistence-state-machine
+
+- Added compile-time `task` module registration and embedded `modules/task/migrations` directory.
+- Added append-only Task Runtime fact tables: `tasks`, `task_stages`, `task_events`, and `task_logs`, including Chinese SQL comments, serial plan constraints, ordered replay constraints, and active-owner uniqueness.
+- Added module-owned SQL repository with atomic plan persistence, compare-and-swap Task/Stage transitions, and event/log replay reads.
+- Added Task and Stage state-machine validation; Stage lifecycle remains authoritative in `task_stages`, while the initial `created` event and later non-derivable events belong to `task_events`.
+- No worker, dispatcher, executor registry, API, realtime topic, Project integration, or automatic recovery was added.
+- Validation passed: migration SQL/version gates, focused Task/module-registry tests, backend lint, and full `graft validate backend`.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["task-runtime-foundation-authority"],
+  "completed_batches": [
+    "task-runtime-foundation-authority",
+    "task-module-persistence-state-machine"
+  ],
   "pending_batches": [
-    "task-module-persistence-state-machine",
     "task-runtime-worker-and-recovery",
     "task-api-realtime-and-project-adoption",
     "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-runtime-foundation-authority",
-  "next_batch": "task-module-persistence-state-machine",
+  "current_batch": "task-module-persistence-state-machine",
+  "next_batch": "task-runtime-worker-and-recovery",
   "closeout_status": "completed_no_handoff"
 }
 ```
