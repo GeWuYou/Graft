@@ -45,6 +45,7 @@ export type ProjectCreateValidateResponse = components['schemas']['project-creat
 export type ProjectConfigurationMetadataResponse = components['schemas']['ProjectConfigurationMetadataResponse'];
 export type ProjectConfigurationPreviewResponse = components['schemas']['ProjectConfigurationPreviewResponse'];
 export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];
+export type ProjectTaskReceipt = components['schemas']['TaskReceipt'];
 export type ProjectBatchActionRequest = components['schemas']['project-batch-action-request'];
 export type ProjectBatchActionItem = components['schemas']['project-batch-action-item'];
 export type ProjectBatchActionResponse = components['schemas']['project-batch-action-response'];

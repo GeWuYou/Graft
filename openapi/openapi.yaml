@@ -19,6 +19,8 @@ tags:
   - name: monitor
   - name: modules
   - name: scheduled-tasks
+  - name: tasks
+    description: Platform Task Runtime history and operator controls.
   - name: system-config
   - name: access-log
   - name: app-log
@@ -126,6 +128,20 @@ paths:
     $ref: ./paths/modules.runtime.detail.yaml
   /api/scheduled-tasks:
     $ref: ./paths/scheduled-tasks.list.yaml
+  /api/tasks:
+    $ref: ./paths/tasks.yaml
+  /api/tasks/{taskId}:
+    $ref: ./paths/tasks.detail.yaml
+  /api/tasks/{taskId}/stages:
+    $ref: ./paths/tasks.stages.yaml
+  /api/tasks/{taskId}/events:
+    $ref: ./paths/tasks.events.yaml
+  /api/tasks/{taskId}/logs:
+    $ref: ./paths/tasks.logs.yaml
+  /api/tasks/{taskId}/cancel:
+    $ref: ./paths/tasks.cancel.yaml
+  /api/tasks/{taskId}/stages/{stageId}/retry:
+    $ref: ./paths/tasks.stage-retry.yaml
   /api/scheduled-tasks/job-definitions:
     $ref: ./paths/scheduled-tasks.job-definitions.yaml
   /api/scheduled-tasks/job-definitions/{jobKey}:
@@ -628,6 +644,46 @@ components:
       $ref: ./components/schemas/realtime-subscription-response.yaml
     EnvelopedRealtimeSubscriptionResponse:
       $ref: ./components/schemas/enveloped-realtime-subscription-response.yaml
+    TaskStatus:
+      $ref: ./components/schemas/task-status.yaml
+    TaskStageStatus:
+      $ref: ./components/schemas/task-stage-status.yaml
+    TaskEventType:
+      $ref: ./components/schemas/task-event-type.yaml
+    TaskCapabilities:
+      $ref: ./components/schemas/task-capabilities.yaml
+    TaskStage:
+      $ref: ./components/schemas/task-stage.yaml
+    TaskSummary:
+      $ref: ./components/schemas/task-summary.yaml
+    TaskDetail:
+      $ref: ./components/schemas/task-detail.yaml
+    TaskReceipt:
+      $ref: ./components/schemas/task-receipt.yaml
+    TaskListResponse:
+      $ref: ./components/schemas/task-list-response.yaml
+    TaskStageListResponse:
+      $ref: ./components/schemas/task-stage-list-response.yaml
+    TaskEvent:
+      $ref: ./components/schemas/task-event.yaml
+    TaskEventListResponse:
+      $ref: ./components/schemas/task-event-list-response.yaml
+    TaskLogEntry:
+      $ref: ./components/schemas/task-log-entry.yaml
+    TaskLogResponse:
+      $ref: ./components/schemas/task-log-response.yaml
+    EnvelopedTaskDetail:
+      $ref: ./components/schemas/enveloped-task-detail.yaml
+    EnvelopedTaskListResponse:
+      $ref: ./components/schemas/enveloped-task-list-response.yaml
+    EnvelopedTaskStageListResponse:
+      $ref: ./components/schemas/enveloped-task-stage-list-response.yaml
+    EnvelopedTaskEventListResponse:
+      $ref: ./components/schemas/enveloped-task-event-list-response.yaml
+    EnvelopedTaskLogResponse:
+      $ref: ./components/schemas/enveloped-task-log-response.yaml
+    EnvelopedTaskReceipt:
+      $ref: ./components/schemas/enveloped-task-receipt.yaml
     CreateAnnouncementRequest:
       $ref: ./components/schemas/create-announcement-request.yaml
     UpdateAnnouncementRequest:

@@ -10,11 +10,11 @@ import (
 
 const moduleID = "project"
 
-// NewModuleSpec declares the project module ID, dependencies, migrations, and builder.
+// NewModuleSpec returns the module specification for the project module, including its dependencies, migration path, and builder.
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user", "auth", "rbac", "container", "system-config"},
+		Dependencies:  []string{"user", "auth", "rbac", "container", "system-config", "task"},
 		MigrationPath: []string{"modules/project/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			sqlDB, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

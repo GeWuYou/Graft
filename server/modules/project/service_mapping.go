@@ -207,6 +207,7 @@ func buildLifecycleCommandSteps(
 	}
 }
 
+// buildLifecycleBaseArgv 构建包含 Compose 文件、配置文件和项目名称的 Docker Compose 基础命令参数。
 func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
 	base := []string{"docker", "compose"}
 	for _, file := range config.ComposeFiles {
@@ -221,8 +222,9 @@ func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
 	return base
 }
 
-// buildLifecycleUpArgv 构建用于启动 Compose 服务的命令参数，并根据标准配置添加相应选项。 
-// 返回包含基础参数、后台启动参数及可选构建、重建、清理孤立容器、续用匿名卷和等待选项的参数列表。
+// buildLifecycleUpArgv 构建用于启动 Compose 服务的命令参数，并根据标准配置添加相应选项。
+// buildLifecycleUpArgv 构建 Compose 后台启动命令的参数列表，并根据标准配置追加可选选项。
+// 返回包含基础参数、后台启动参数及配置选项的参数列表。
 func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []string {
 	args := append(append([]string(nil), base...), "up", "-d")
 	if standard.BuildBeforeUp {

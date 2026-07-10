@@ -1,0 +1,105 @@
+{
+  "task": {
+    "actions": {
+      "cancel": "取消任务",
+      "cancelFailed": "任务取消请求失败。",
+      "downloadLog": "下载日志",
+      "refresh": "刷新",
+      "retry": "重试阶段",
+      "retryFailed": "阶段重试请求失败。",
+      "view": "查看"
+    },
+    "connection": {
+      "closed": "已断开",
+      "connecting": "连接中",
+      "error": "连接异常",
+      "idle": "未连接",
+      "open": "实时连接"
+    },
+    "detail": {
+      "connection": "实时状态",
+      "createdAt": "创建时间",
+      "currentStage": "当前阶段",
+      "duration": "执行时长",
+      "durationValue": "{seconds} 秒",
+      "failure": "失败详情",
+      "identifier": "任务 #{id}",
+      "loadFailed": "无法加载任务详情。",
+      "logs": "执行日志",
+      "stages": "执行阶段",
+      "summary": "任务摘要",
+      "title": "任务详情"
+    },
+    "history": {
+      "columns": {
+        "createdAt": "创建时间",
+        "operation": "操作",
+        "stage": "当前阶段",
+        "status": "状态",
+        "type": "类型"
+      },
+      "description": "查看此项目已提交的生命周期任务执行记录。",
+      "empty": "暂无任务记录。",
+      "loadFailed": "无法加载任务历史。",
+      "title": "任务历史"
+    },
+    "logs": {
+      "allLevels": "全部级别",
+      "autoScroll": "自动滚动",
+      "autoScrollTooltip": "保持显示最新日志",
+      "basicInfo": "基本信息",
+      "clear": "清空",
+      "collapseDetail": "收起详情",
+      "copy": "复制",
+      "copyError": "复制失败。",
+      "copyJson": "复制 JSON",
+      "copyLine": "复制本行",
+      "copyMessage": "复制消息",
+      "copySuccess": "已复制。",
+      "detailTitle": "日志详情",
+      "download": "下载",
+      "empty": "尚未记录执行日志。",
+      "importantFields": "重要字段",
+      "jumpBottom": "跳至底部",
+      "level": "级别",
+      "levelFilter": "级别",
+      "loadFailed": "无法加载任务日志。",
+      "matchCount": "匹配 {count} 项",
+      "message": "消息",
+      "metadata": "元数据",
+      "operation": "操作",
+      "pause": "暂停",
+      "raw": "原始内容",
+      "reconnect": "重新连接",
+      "resume": "继续",
+      "retry": "重试",
+      "search": "搜索日志",
+      "source": "来源",
+      "stderr": "标准错误",
+      "stdout": "标准输出",
+      "stream": "流",
+      "time": "时间",
+      "truncated": "日志已被截断。",
+      "viewDetail": "查看详情",
+      "wrap": "自动换行"
+    },
+    "stageStatus": {
+      "cancelled": "已取消",
+      "failed": "失败",
+      "pending": "等待中",
+      "running": "执行中",
+      "skipped": "已跳过",
+      "success": "成功",
+      "unknown": "需要人工确认"
+    },
+    "status": {
+      "cancelled": "已取消",
+      "failed": "失败",
+      "needs_attention": "需要关注",
+      "pending": "等待中",
+      "running": "执行中",
+      "scheduled": "已计划",
+      "success": "成功"
+    }
+  }
+}

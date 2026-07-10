@@ -41,6 +41,10 @@
       "name": "scheduled-tasks"
     },
     {
+      "name": "tasks",
+      "description": "Platform Task Runtime history and operator controls."
+    },
+    {
       "name": "system-config"
     },
     {
@@ -5689,6 +5693,627 @@
           },
           "409": {
             "description": "Scheduled task already exists.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "List Task history",
+        "operationId": "listTasks",
+        "description": "Lists persisted Task history within resources authorized for the caller; a Task ID alone never grants access.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "query",
+            "name": "owner_type",
+            "required": true,
+            "description": "Owner resource type. Must be supplied with owner_id to identify the single authorized Task owner.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_id",
+            "required": true,
+            "description": "Owner resource identifier. Must be supplied with owner_type to identify the single authorized Task owner.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "$ref": "#/components/schemas/task-status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized Task history.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskId}": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Read Task detail",
+        "operationId": "getTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task detail with server-authoritative capabilities and Stage timeline.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-detail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Task was not found or is outside the caller resource scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskId}/stages": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "List Task Stages",
+        "operationId": "listTaskStages",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative ordered Stage lifecycle records.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-stage-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskId}/events": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Replay Task events",
+        "operationId": "listTaskEvents",
+        "description": "Returns only non-derivable Task lifecycle, retry, cancellation, and recovery facts.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_sequence",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task event replay page.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-event-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskId}/logs": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Replay Task logs",
+        "operationId": "listTaskLogs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_sequence",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 200
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task log replay page.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-log-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskId}/cancel": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Request Task cancellation",
+        "operationId": "cancelTask",
+        "description": "Requests cooperative cancellation. The Task Runtime persists the request before invoking the current StageExecutor cancel hook; completed external side effects are not automatically rolled back.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Task detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-detail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Cancellation is not currently allowed by Task capabilities or state.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskId}/stages/{stageId}/retry": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Request Task Stage retry",
+        "operationId": "retryTaskStage",
+        "description": "Requests a permitted manual retry for a failed or unknown Stage. The Runtime records a retry fact and creates a new attempt without mutating or erasing prior Stage history.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "path",
+            "name": "stageId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Retry was accepted and the Task is pending dispatch.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-detail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Task or Stage was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Retry is not currently allowed by Task capabilities or Stage recovery policy.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12447,8 +13072,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project up action result.",
+          "202": {
+            "description": "Project up Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12457,7 +13082,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12544,8 +13169,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project stop action result.",
+          "202": {
+            "description": "Project stop Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12554,7 +13179,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12641,8 +13266,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project restart action result.",
+          "202": {
+            "description": "Project restart Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12651,7 +13276,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12720,7 +13345,7 @@
         ],
         "summary": "Redeploy a registered project",
         "operationId": "postProjectRedeploy",
-        "description": "Runs the saved project lifecycle configuration for the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.\n",
+        "description": "Submits the saved project lifecycle configuration for asynchronous execution on the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12738,8 +13363,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project redeploy action result.",
+          "202": {
+            "description": "Project redeploy Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12748,7 +13373,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12790,7 +13415,7 @@
             }
           },
           "409": {
-            "description": "Redeploy blocked by lifecycle review guards, project lifecycle guards, or execution failure.",
+            "description": "Redeploy Task submission blocked by lifecycle review guards or project lifecycle guards.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13599,6 +14224,66 @@
       },
       "EnvelopedRealtimeSubscriptionResponse": {
         "$ref": "#/components/schemas/enveloped-realtime-subscription-response"
+      },
+      "TaskStatus": {
+        "$ref": "#/components/schemas/task-status"
+      },
+      "TaskStageStatus": {
+        "$ref": "#/components/schemas/task-stage-status"
+      },
+      "TaskEventType": {
+        "$ref": "#/components/schemas/task-event-type"
+      },
+      "TaskCapabilities": {
+        "$ref": "#/components/schemas/task-capabilities"
+      },
+      "TaskStage": {
+        "$ref": "#/components/schemas/task-stage"
+      },
+      "TaskSummary": {
+        "$ref": "#/components/schemas/task-summary"
+      },
+      "TaskDetail": {
+        "$ref": "#/components/schemas/task-detail"
+      },
+      "TaskReceipt": {
+        "$ref": "#/components/schemas/task-receipt"
+      },
+      "TaskListResponse": {
+        "$ref": "#/components/schemas/task-list-response"
+      },
+      "TaskStageListResponse": {
+        "$ref": "#/components/schemas/task-stage-list-response"
+      },
+      "TaskEvent": {
+        "$ref": "#/components/schemas/task-event"
+      },
+      "TaskEventListResponse": {
+        "$ref": "#/components/schemas/task-event-list-response"
+      },
+      "TaskLogEntry": {
+        "$ref": "#/components/schemas/task-log-entry"
+      },
+      "TaskLogResponse": {
+        "$ref": "#/components/schemas/task-log-response"
+      },
+      "EnvelopedTaskDetail": {
+        "$ref": "#/components/schemas/enveloped-task-detail"
+      },
+      "EnvelopedTaskListResponse": {
+        "$ref": "#/components/schemas/enveloped-task-list-response"
+      },
+      "EnvelopedTaskStageListResponse": {
+        "$ref": "#/components/schemas/enveloped-task-stage-list-response"
+      },
+      "EnvelopedTaskEventListResponse": {
+        "$ref": "#/components/schemas/enveloped-task-event-list-response"
+      },
+      "EnvelopedTaskLogResponse": {
+        "$ref": "#/components/schemas/enveloped-task-log-response"
+      },
+      "EnvelopedTaskReceipt": {
+        "$ref": "#/components/schemas/enveloped-task-receipt"
       },
       "CreateAnnouncementRequest": {
         "$ref": "#/components/schemas/create-announcement-request"
@@ -17670,6 +18355,491 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/scheduled-task-item"
+              }
+            }
+          }
+        ]
+      },
+      "task-status": {
+        "type": "string",
+        "description": "Canonical persisted Task state-machine state.",
+        "enum": [
+          "pending",
+          "scheduled",
+          "running",
+          "success",
+          "failed",
+          "cancelled",
+          "needs_attention"
+        ]
+      },
+      "task-summary": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "owner_type",
+          "owner_id",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "description": "Consumer-owned Task type, such as project.compose.redeploy."
+          },
+          "owner_type": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status"
+          },
+          "current_stage_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "failure_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "task-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/task-summary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-task-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "task-capabilities": {
+        "type": "object",
+        "description": "Server-authoritative operations currently allowed for this Task Detail.",
+        "required": [
+          "cancel",
+          "retry",
+          "download_log"
+        ],
+        "properties": {
+          "cancel": {
+            "type": "boolean"
+          },
+          "retry": {
+            "type": "boolean"
+          },
+          "download_log": {
+            "type": "boolean"
+          }
+        }
+      },
+      "task-stage-status": {
+        "type": "string",
+        "description": "Canonical persisted Stage state-machine state.",
+        "enum": [
+          "pending",
+          "running",
+          "success",
+          "failed",
+          "skipped",
+          "cancelled",
+          "unknown"
+        ]
+      },
+      "task-stage": {
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "sequence",
+          "executor_type",
+          "status",
+          "attempt",
+          "max_attempts",
+          "recovery_policy"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "key": {
+            "type": "string",
+            "description": "Stable plan-local Stage key used in the timeline."
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "executor_type": {
+            "type": "string",
+            "description": "Consumer-owned StageExecutor type, such as project.compose.pull."
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-stage-status"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_attempts": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "recovery_policy": {
+            "type": "string",
+            "enum": [
+              "manual_reconcile",
+              "retry_if_idempotent"
+            ]
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "failure_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "task-detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/task-summary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "capabilities",
+              "stages"
+            ],
+            "properties": {
+              "capabilities": {
+                "$ref": "#/components/schemas/task-capabilities"
+              },
+              "stages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/task-stage"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-task-detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-detail"
+              }
+            }
+          }
+        ]
+      },
+      "task-stage-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/task-stage"
+            }
+          }
+        }
+      },
+      "enveloped-task-stage-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-stage-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "task-event-type": {
+        "type": "string",
+        "description": "Non-derivable Task lifecycle, retry, cancellation, and recovery fact. Stage lifecycle is authoritative in TaskStage and is not duplicated as an event.\n",
+        "enum": [
+          "created",
+          "cancel_requested",
+          "cancelled",
+          "retry_requested",
+          "retry_scheduled",
+          "recovery_required",
+          "recovery_resolved"
+        ]
+      },
+      "task-event": {
+        "type": "object",
+        "required": [
+          "id",
+          "sequence",
+          "type",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "type": {
+            "$ref": "#/components/schemas/task-event-type"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "task-event-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_after_sequence"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/task-event"
+            }
+          },
+          "next_after_sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-task-event-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-event-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "task-log-entry": {
+        "type": "object",
+        "required": [
+          "id",
+          "sequence",
+          "stream",
+          "level",
+          "line",
+          "occurred_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "stage_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true
+          },
+          "stream": {
+            "type": "string",
+            "enum": [
+              "stdout",
+              "stderr",
+              "system"
+            ]
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warn",
+              "error"
+            ]
+          },
+          "line": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "task-log-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_after_sequence"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/task-log-entry"
+            }
+          },
+          "next_after_sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-task-log-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-log-response"
               }
             }
           }
@@ -25225,6 +26395,42 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/project-action-response"
+              }
+            }
+          }
+        ]
+      },
+      "task-receipt": {
+        "type": "object",
+        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status"
+          }
+        }
+      },
+      "enveloped-task-receipt": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-receipt"
               }
             }
           }

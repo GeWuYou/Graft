@@ -264,6 +264,7 @@
         "destroyDeleteProjectFiles": "Delete project files",
         "refreshSuccess": "Project Refreshed.",
         "actionSuccess": "Project Action Completed.",
+        "taskAccepted": "Project Task Submitted.",
         "actionFailed": "Project Action Failed.",
         "confirmUpTitle": "Confirm Project Start",
         "confirmUpDescription": "Start {name}? This brings the registered services and containers up with the current Compose configuration.",
@@ -830,7 +831,8 @@
         "services": "Services",
         "configuration": "Configuration",
         "logs": "Logs",
-        "lifecycle": "Lifecycle"
+        "lifecycle": "Lifecycle",
+        "tasks": "Task History"
       },
       "resources": {
         "refresh": "Refresh Resources",

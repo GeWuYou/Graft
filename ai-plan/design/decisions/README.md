@@ -7,6 +7,8 @@ This directory stores ADRs that lock design or governance decisions before wider
 - one explicit decision per ADR
 - decisions that later batches or validators must converge on
 
+Current architecture decisions also include `ADR-004-task-runtime-state-machine.md`, which fixes the platform Task Runtime boundary before consumer implementation.
+
 ## Rules
 
 - Keep ADRs as bounded decision records, not general design-doc catch-alls.

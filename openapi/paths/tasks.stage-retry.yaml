@@ -1,0 +1,45 @@
+post:
+  tags: [tasks]
+  summary: Request Task Stage retry
+  operationId: retryTaskStage
+  description: >
+    Requests a permitted manual retry for a failed or unknown Stage. The Runtime records a retry fact and creates a new
+    attempt without mutating or erasing prior Stage history.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - in: path
+      name: taskId
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    - in: path
+      name: stageId
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+  security:
+    - bearerAuth: []
+  responses:
+    '202':
+      description: Retry was accepted and the Task is pending dispatch.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-task-detail.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404':
+      description: Task or Stage was not found.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '409':
+      description: Retry is not currently allowed by Task capabilities or Stage recovery policy.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

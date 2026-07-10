@@ -1,0 +1,8 @@
+type: object
+required: [id, sequence, type, created_at]
+properties:
+  id: { type: integer, format: int64, minimum: 1 }
+  sequence: { type: integer, format: int64, minimum: 1 }
+  type: { $ref: ./task-event-type.yaml }
+  payload: { type: object, additionalProperties: true }
+  created_at: { type: string, format: date-time }

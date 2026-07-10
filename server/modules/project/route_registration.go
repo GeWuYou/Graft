@@ -518,7 +518,7 @@ func (r routeRuntime) handleUp(ginCtx *gin.Context) {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toTaskReceiptResponse(result))
 }
 
 func (r routeRuntime) handleStop(ginCtx *gin.Context) {
@@ -532,7 +532,7 @@ func (r routeRuntime) handleStop(ginCtx *gin.Context) {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toTaskReceiptResponse(result))
 }
 
 func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
@@ -546,7 +546,7 @@ func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toTaskReceiptResponse(result))
 }
 
 func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
@@ -560,7 +560,7 @@ func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toTaskReceiptResponse(result))
 }
 
 func (r routeRuntime) handleLifecycleConfiguration(ginCtx *gin.Context) {

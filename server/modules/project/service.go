@@ -432,6 +432,14 @@ type Service struct {
 	auditBus                     eventbus.Bus
 	logger                       *zap.Logger
 	moduleName                   string
+	taskService                  moduleapi.TaskService
+}
+
+// SetTaskService configures the platform-owned Task Runtime submission boundary.
+func (s *Service) SetTaskService(service moduleapi.TaskService) {
+	if s != nil {
+		s.taskService = service
+	}
 }
 
 // NewService 创建项目服务边界并应用可选配置。

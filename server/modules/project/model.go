@@ -33,16 +33,16 @@ type Record struct {
 
 // FileRecord stores one ordered Compose or environment file reference for a project.
 type FileRecord struct {
-	ID                  uint64
-	ProjectID           uint64
-	Kind                string
-	Role                string
-	AbsolutePath        string
-	DisplayPath         string
-	OrderIndex          int
-	LastObservedHash    string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID               uint64
+	ProjectID        uint64
+	Kind             string
+	Role             string
+	AbsolutePath     string
+	DisplayPath      string
+	OrderIndex       int
+	LastObservedHash string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // SnapshotRecord stores the latest successful normalized Compose snapshot for one project.

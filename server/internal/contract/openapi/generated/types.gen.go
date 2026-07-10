@@ -3155,19 +3155,19 @@ func (e ScheduledTaskJobDefinitionSummaryCategory) Valid() bool {
 
 // Defines values for ScheduledTaskLastRunStatus.
 const (
-	Failed  ScheduledTaskLastRunStatus = "failed"
-	Running ScheduledTaskLastRunStatus = "running"
-	Success ScheduledTaskLastRunStatus = "success"
+	ScheduledTaskLastRunStatusFailed  ScheduledTaskLastRunStatus = "failed"
+	ScheduledTaskLastRunStatusRunning ScheduledTaskLastRunStatus = "running"
+	ScheduledTaskLastRunStatusSuccess ScheduledTaskLastRunStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskLastRunStatus enum.
 func (e ScheduledTaskLastRunStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case ScheduledTaskLastRunStatusFailed:
 		return true
-	case Running:
+	case ScheduledTaskLastRunStatusRunning:
 		return true
-	case Success:
+	case ScheduledTaskLastRunStatusSuccess:
 		return true
 	default:
 		return false
@@ -3477,6 +3477,165 @@ func (e SystemConfigItemType) Valid() bool {
 	}
 }
 
+// Defines values for TaskEventType.
+const (
+	TaskEventTypeCancelRequested  TaskEventType = "cancel_requested"
+	TaskEventTypeCancelled        TaskEventType = "cancelled"
+	TaskEventTypeCreated          TaskEventType = "created"
+	TaskEventTypeRecoveryRequired TaskEventType = "recovery_required"
+	TaskEventTypeRecoveryResolved TaskEventType = "recovery_resolved"
+	TaskEventTypeRetryRequested   TaskEventType = "retry_requested"
+	TaskEventTypeRetryScheduled   TaskEventType = "retry_scheduled"
+)
+
+// Valid indicates whether the value is a known member of the TaskEventType enum.
+func (e TaskEventType) Valid() bool {
+	switch e {
+	case TaskEventTypeCancelRequested:
+		return true
+	case TaskEventTypeCancelled:
+		return true
+	case TaskEventTypeCreated:
+		return true
+	case TaskEventTypeRecoveryRequired:
+		return true
+	case TaskEventTypeRecoveryResolved:
+		return true
+	case TaskEventTypeRetryRequested:
+		return true
+	case TaskEventTypeRetryScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskLogEntryLevel.
+const (
+	TaskLogEntryLevelError TaskLogEntryLevel = "error"
+	TaskLogEntryLevelInfo  TaskLogEntryLevel = "info"
+	TaskLogEntryLevelWarn  TaskLogEntryLevel = "warn"
+)
+
+// Valid indicates whether the value is a known member of the TaskLogEntryLevel enum.
+func (e TaskLogEntryLevel) Valid() bool {
+	switch e {
+	case TaskLogEntryLevelError:
+		return true
+	case TaskLogEntryLevelInfo:
+		return true
+	case TaskLogEntryLevelWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskLogEntryStream.
+const (
+	Stderr TaskLogEntryStream = "stderr"
+	Stdout TaskLogEntryStream = "stdout"
+	System TaskLogEntryStream = "system"
+)
+
+// Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
+func (e TaskLogEntryStream) Valid() bool {
+	switch e {
+	case Stderr:
+		return true
+	case Stdout:
+		return true
+	case System:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskStageRecoveryPolicy.
+const (
+	ManualReconcile   TaskStageRecoveryPolicy = "manual_reconcile"
+	RetryIfIdempotent TaskStageRecoveryPolicy = "retry_if_idempotent"
+)
+
+// Valid indicates whether the value is a known member of the TaskStageRecoveryPolicy enum.
+func (e TaskStageRecoveryPolicy) Valid() bool {
+	switch e {
+	case ManualReconcile:
+		return true
+	case RetryIfIdempotent:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskStageStatus.
+const (
+	TaskStageStatusCancelled TaskStageStatus = "cancelled"
+	TaskStageStatusFailed    TaskStageStatus = "failed"
+	TaskStageStatusPending   TaskStageStatus = "pending"
+	TaskStageStatusRunning   TaskStageStatus = "running"
+	TaskStageStatusSkipped   TaskStageStatus = "skipped"
+	TaskStageStatusSuccess   TaskStageStatus = "success"
+	TaskStageStatusUnknown   TaskStageStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the TaskStageStatus enum.
+func (e TaskStageStatus) Valid() bool {
+	switch e {
+	case TaskStageStatusCancelled:
+		return true
+	case TaskStageStatusFailed:
+		return true
+	case TaskStageStatusPending:
+		return true
+	case TaskStageStatusRunning:
+		return true
+	case TaskStageStatusSkipped:
+		return true
+	case TaskStageStatusSuccess:
+		return true
+	case TaskStageStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskStatus.
+const (
+	TaskStatusCancelled      TaskStatus = "cancelled"
+	TaskStatusFailed         TaskStatus = "failed"
+	TaskStatusNeedsAttention TaskStatus = "needs_attention"
+	TaskStatusPending        TaskStatus = "pending"
+	TaskStatusRunning        TaskStatus = "running"
+	TaskStatusScheduled      TaskStatus = "scheduled"
+	TaskStatusSuccess        TaskStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the TaskStatus enum.
+func (e TaskStatus) Valid() bool {
+	switch e {
+	case TaskStatusCancelled:
+		return true
+	case TaskStatusFailed:
+		return true
+	case TaskStatusNeedsAttention:
+		return true
+	case TaskStatusPending:
+		return true
+	case TaskStatusRunning:
+		return true
+	case TaskStatusScheduled:
+		return true
+	case TaskStatusSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateRoleStatusRequestStatus.
 const (
 	UpdateRoleStatusRequestStatusDisabled UpdateRoleStatusRequestStatus = "disabled"
@@ -3713,22 +3872,22 @@ func (e GetAnnouncementsParamsSort) Valid() bool {
 
 // Defines values for GetAppLogsParamsSeverity.
 const (
-	Debug GetAppLogsParamsSeverity = "debug"
-	Error GetAppLogsParamsSeverity = "error"
-	Info  GetAppLogsParamsSeverity = "info"
-	Warn  GetAppLogsParamsSeverity = "warn"
+	GetAppLogsParamsSeverityDebug GetAppLogsParamsSeverity = "debug"
+	GetAppLogsParamsSeverityError GetAppLogsParamsSeverity = "error"
+	GetAppLogsParamsSeverityInfo  GetAppLogsParamsSeverity = "info"
+	GetAppLogsParamsSeverityWarn  GetAppLogsParamsSeverity = "warn"
 )
 
 // Valid indicates whether the value is a known member of the GetAppLogsParamsSeverity enum.
 func (e GetAppLogsParamsSeverity) Valid() bool {
 	switch e {
-	case Debug:
+	case GetAppLogsParamsSeverityDebug:
 		return true
-	case Error:
+	case GetAppLogsParamsSeverityError:
 		return true
-	case Info:
+	case GetAppLogsParamsSeverityInfo:
 		return true
-	case Warn:
+	case GetAppLogsParamsSeverityWarn:
 		return true
 	default:
 		return false
@@ -4912,20 +5071,14 @@ type ContainerDashboardTopItemState string
 
 // ContainerDetail defines model for container-detail.
 type ContainerDetail struct {
-	CanRemove  *bool     `json:"can_remove,omitempty"`
-	CanRestart *bool     `json:"can_restart,omitempty"`
-	CanStart   *bool     `json:"can_start,omitempty"`
-	CanStop    *bool     `json:"can_stop,omitempty"`
-	Command    *[]string `json:"command,omitempty"`
-
-	// ComposeProject Docker Compose project label when present.
-	ComposeProject *string `json:"compose_project,omitempty"`
-
-	// ComposeService Docker Compose service label when present.
-	ComposeService *string                      `json:"compose_service,omitempty"`
-	CreatedAt      time.Time                    `json:"created_at"`
-	Entrypoint     *[]string                    `json:"entrypoint,omitempty"`
-	Environment    *[]ContainerEnvironmentEntry `json:"environment,omitempty"`
+	CanRemove   *bool                        `json:"can_remove,omitempty"`
+	CanRestart  *bool                        `json:"can_restart,omitempty"`
+	CanStart    *bool                        `json:"can_start,omitempty"`
+	CanStop     *bool                        `json:"can_stop,omitempty"`
+	Command     *[]string                    `json:"command,omitempty"`
+	CreatedAt   time.Time                    `json:"created_at"`
+	Entrypoint  *[]string                    `json:"entrypoint,omitempty"`
+	Environment *[]ContainerEnvironmentEntry `json:"environment,omitempty"`
 
 	// EnvironmentMaskedCopyEnabled Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized.
 	EnvironmentMaskedCopyEnabled bool `json:"environment_masked_copy_enabled"`
@@ -5223,15 +5376,9 @@ type ContainerOrchestratorInfo struct {
 
 	// MemberValue Canonical member scope value for exact filtering and grouping.
 	MemberValue *string `json:"member_value,omitempty"`
-	Namespace   *string `json:"namespace,omitempty"`
-	Pod         *string `json:"pod,omitempty"`
-	Project     *string `json:"project,omitempty"`
 
 	// RecommendedAction Stable recommended action code without embedded visible copy.
 	RecommendedAction *string                       `json:"recommended_action,omitempty"`
-	Service           *string                       `json:"service,omitempty"`
-	Stack             *string                       `json:"stack,omitempty"`
-	Task              *string                       `json:"task,omitempty"`
 	Type              ContainerOrchestratorInfoType `json:"type"`
 
 	// Warnings Stable warning codes without embedded visible copy.
@@ -5455,17 +5602,11 @@ type ContainerStopErrorResponseSuccess bool
 
 // ContainerSummary defines model for container-summary.
 type ContainerSummary struct {
-	CanRemove  *bool `json:"can_remove,omitempty"`
-	CanRestart *bool `json:"can_restart,omitempty"`
-	CanStart   *bool `json:"can_start,omitempty"`
-	CanStop    *bool `json:"can_stop,omitempty"`
-
-	// ComposeProject Docker Compose project label when present.
-	ComposeProject *string `json:"compose_project,omitempty"`
-
-	// ComposeService Docker Compose service label when present.
-	ComposeService *string   `json:"compose_service,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
+	CanRemove  *bool     `json:"can_remove,omitempty"`
+	CanRestart *bool     `json:"can_restart,omitempty"`
+	CanStart   *bool     `json:"can_start,omitempty"`
+	CanStop    *bool     `json:"can_stop,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
 
 	// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
 	Health  *ContainerSummaryHealth `json:"health,omitempty"`
@@ -7207,6 +7348,128 @@ type EnvelopedSystemConfigListResponse struct {
 	// Code Existing canonical response code.
 	Code string                   `json:"code"`
 	Data SystemConfigListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedTaskDetail defines model for enveloped-task-detail.
+type EnvelopedTaskDetail struct {
+	// Code Existing canonical response code.
+	Code string     `json:"code"`
+	Data TaskDetail `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedTaskEventListResponse defines model for enveloped-task-event-list-response.
+type EnvelopedTaskEventListResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data TaskEventListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedTaskListResponse defines model for enveloped-task-list-response.
+type EnvelopedTaskListResponse struct {
+	// Code Existing canonical response code.
+	Code string           `json:"code"`
+	Data TaskListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedTaskLogResponse defines model for enveloped-task-log-response.
+type EnvelopedTaskLogResponse struct {
+	// Code Existing canonical response code.
+	Code string          `json:"code"`
+	Data TaskLogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedTaskReceipt defines model for enveloped-task-receipt.
+type EnvelopedTaskReceipt struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data TaskReceipt `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedTaskStageListResponse defines model for enveloped-task-stage-list-response.
+type EnvelopedTaskStageListResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data TaskStageListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -9179,6 +9442,153 @@ type SystemConfigListResponse struct {
 	Total int                `json:"total"`
 }
 
+// TaskCapabilities Server-authoritative operations currently allowed for this Task Detail.
+type TaskCapabilities struct {
+	Cancel      bool `json:"cancel"`
+	DownloadLog bool `json:"download_log"`
+	Retry       bool `json:"retry"`
+}
+
+// TaskDetail defines model for task-detail.
+type TaskDetail struct {
+	// Capabilities Server-authoritative operations currently allowed for this Task Detail.
+	Capabilities    TaskCapabilities `json:"capabilities"`
+	CreatedAt       time.Time        `json:"created_at"`
+	CreatedBy       *int64           `json:"created_by,omitempty"`
+	CurrentStageKey *string          `json:"current_stage_key,omitempty"`
+	DurationMs      *int64           `json:"duration_ms,omitempty"`
+	FailureCode     *string          `json:"failure_code,omitempty"`
+	FailureMessage  *string          `json:"failure_message,omitempty"`
+	FinishedAt      *time.Time       `json:"finished_at,omitempty"`
+	Id              int64            `json:"id"`
+	OwnerId         string           `json:"owner_id"`
+	OwnerType       string           `json:"owner_type"`
+	Stages          []TaskStage      `json:"stages"`
+	StartedAt       *time.Time       `json:"started_at,omitempty"`
+
+	// Status Canonical persisted Task state-machine state.
+	Status TaskStatus `json:"status"`
+
+	// Type Consumer-owned Task type, such as project.compose.redeploy.
+	Type string `json:"type"`
+}
+
+// TaskEvent defines model for task-event.
+type TaskEvent struct {
+	CreatedAt time.Time               `json:"created_at"`
+	Id        int64                   `json:"id"`
+	Payload   *map[string]interface{} `json:"payload,omitempty"`
+	Sequence  int64                   `json:"sequence"`
+
+	// Type Non-derivable Task lifecycle, retry, cancellation, and recovery fact. Stage lifecycle is authoritative in TaskStage and is not duplicated as an event.
+	Type TaskEventType `json:"type"`
+}
+
+// TaskEventListResponse defines model for task-event-list-response.
+type TaskEventListResponse struct {
+	Items             []TaskEvent `json:"items"`
+	NextAfterSequence int64       `json:"next_after_sequence"`
+}
+
+// TaskEventType Non-derivable Task lifecycle, retry, cancellation, and recovery fact. Stage lifecycle is authoritative in TaskStage and is not duplicated as an event.
+type TaskEventType string
+
+// TaskListResponse defines model for task-list-response.
+type TaskListResponse struct {
+	Items  []TaskSummary `json:"items"`
+	Limit  int           `json:"limit"`
+	Offset int           `json:"offset"`
+	Total  int64         `json:"total"`
+}
+
+// TaskLogEntry defines model for task-log-entry.
+type TaskLogEntry struct {
+	Id         int64              `json:"id"`
+	Level      TaskLogEntryLevel  `json:"level"`
+	Line       string             `json:"line"`
+	OccurredAt time.Time          `json:"occurred_at"`
+	Sequence   int64              `json:"sequence"`
+	StageId    *int64             `json:"stage_id,omitempty"`
+	Stream     TaskLogEntryStream `json:"stream"`
+}
+
+// TaskLogEntryLevel defines model for TaskLogEntry.Level.
+type TaskLogEntryLevel string
+
+// TaskLogEntryStream defines model for TaskLogEntry.Stream.
+type TaskLogEntryStream string
+
+// TaskLogResponse defines model for task-log-response.
+type TaskLogResponse struct {
+	Items             []TaskLogEntry `json:"items"`
+	NextAfterSequence int64          `json:"next_after_sequence"`
+}
+
+// TaskReceipt Receipt returned when a business action accepts asynchronous Task submission.
+type TaskReceipt struct {
+	// Status Canonical persisted Task state-machine state.
+	Status TaskStatus `json:"status"`
+	TaskId int64      `json:"task_id"`
+}
+
+// TaskStage defines model for task-stage.
+type TaskStage struct {
+	Attempt    int    `json:"attempt"`
+	DurationMs *int64 `json:"duration_ms,omitempty"`
+
+	// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
+	ExecutorType   string     `json:"executor_type"`
+	FailureCode    *string    `json:"failure_code,omitempty"`
+	FailureMessage *string    `json:"failure_message,omitempty"`
+	FinishedAt     *time.Time `json:"finished_at,omitempty"`
+	Id             int64      `json:"id"`
+
+	// Key Stable plan-local Stage key used in the timeline.
+	Key            string                  `json:"key"`
+	MaxAttempts    int                     `json:"max_attempts"`
+	RecoveryPolicy TaskStageRecoveryPolicy `json:"recovery_policy"`
+	Sequence       int                     `json:"sequence"`
+	StartedAt      *time.Time              `json:"started_at,omitempty"`
+
+	// Status Canonical persisted Stage state-machine state.
+	Status TaskStageStatus `json:"status"`
+}
+
+// TaskStageRecoveryPolicy defines model for TaskStage.RecoveryPolicy.
+type TaskStageRecoveryPolicy string
+
+// TaskStageListResponse defines model for task-stage-list-response.
+type TaskStageListResponse struct {
+	Items []TaskStage `json:"items"`
+}
+
+// TaskStageStatus Canonical persisted Stage state-machine state.
+type TaskStageStatus string
+
+// TaskStatus Canonical persisted Task state-machine state.
+type TaskStatus string
+
+// TaskSummary defines model for task-summary.
+type TaskSummary struct {
+	CreatedAt       time.Time  `json:"created_at"`
+	CreatedBy       *int64     `json:"created_by,omitempty"`
+	CurrentStageKey *string    `json:"current_stage_key,omitempty"`
+	DurationMs      *int64     `json:"duration_ms,omitempty"`
+	FailureCode     *string    `json:"failure_code,omitempty"`
+	FailureMessage  *string    `json:"failure_message,omitempty"`
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
+	Id              int64      `json:"id"`
+	OwnerId         string     `json:"owner_id"`
+	OwnerType       string     `json:"owner_type"`
+	StartedAt       *time.Time `json:"started_at,omitempty"`
+
+	// Status Canonical persisted Task state-machine state.
+	Status TaskStatus `json:"status"`
+
+	// Type Consumer-owned Task type, such as project.compose.redeploy.
+	Type string `json:"type"`
+}
+
 // UpdateAnnouncementRequest defines model for update-announcement-request.
 type UpdateAnnouncementRequest struct {
 	Content string `json:"content"`
@@ -10956,6 +11366,89 @@ type PutSystemConfigParams struct {
 
 // PostSystemConfigResetParams defines parameters for PostSystemConfigReset.
 type PostSystemConfigResetParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// ListTasksParams defines parameters for ListTasks.
+type ListTasksParams struct {
+	OwnerType *string     `form:"owner_type,omitempty" json:"owner_type,omitempty"`
+	OwnerId   *string     `form:"owner_id,omitempty" json:"owner_id,omitempty"`
+	Type      *string     `form:"type,omitempty" json:"type,omitempty"`
+	Status    *TaskStatus `form:"status,omitempty" json:"status,omitempty"`
+	Limit     *int        `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset    *int        `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetTaskParams defines parameters for GetTask.
+type GetTaskParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// CancelTaskParams defines parameters for CancelTask.
+type CancelTaskParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// ListTaskEventsParams defines parameters for ListTaskEvents.
+type ListTaskEventsParams struct {
+	AfterSequence *int64 `form:"after_sequence,omitempty" json:"after_sequence,omitempty"`
+	Limit         *int   `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// ListTaskLogsParams defines parameters for ListTaskLogs.
+type ListTaskLogsParams struct {
+	AfterSequence *int64 `form:"after_sequence,omitempty" json:"after_sequence,omitempty"`
+	Limit         *int   `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// ListTaskStagesParams defines parameters for ListTaskStages.
+type ListTaskStagesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// RetryTaskStageParams defines parameters for RetryTaskStage.
+type RetryTaskStageParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
