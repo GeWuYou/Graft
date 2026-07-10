@@ -138,18 +138,19 @@ func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task,
 	return item, nil
 }
 
-// List returns an owner-scoped Task history page and total using the owner index.
-func (r *SQLRepository) List(ctx context.Context, owner moduleapi.TaskOwner, limit int, offset int) ([]taskmodel.Task, int64, error) {
-	if strings.TrimSpace(owner.Type) == "" || strings.TrimSpace(owner.ID) == "" || offset < 0 {
+// List returns an owner-scoped, optionally filtered Task history page and total using the owner index.
+func (r *SQLRepository) List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error) {
+	if strings.TrimSpace(filter.Owner.Type) == "" || strings.TrimSpace(filter.Owner.ID) == "" || offset < 0 {
 		return nil, 0, ErrInvalidInput
 	}
+	where, arguments := taskListWhere(filter)
 	var total int64
-	if err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*) FROM tasks WHERE owner_type = ? AND owner_id = ?`), owner.Type, owner.ID).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*) FROM tasks WHERE `+where), arguments...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count owner tasks: %w", err)
 	}
 	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+taskColumns()+`
-		FROM tasks WHERE owner_type = ? AND owner_id = ?
-		ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`), owner.Type, owner.ID, normalizeLimit(limit), offset)
+		FROM tasks WHERE `+where+`
+		ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`), append(arguments, normalizeLimit(limit), offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list owner tasks: %w", err)
 	}
@@ -166,6 +167,20 @@ func (r *SQLRepository) List(ctx context.Context, owner moduleapi.TaskOwner, lim
 		return nil, 0, fmt.Errorf("iterate owner tasks: %w", err)
 	}
 	return items, total, nil
+}
+
+func taskListWhere(filter moduleapi.TaskListFilter) (string, []any) {
+	clauses := []string{"owner_type = ?", "owner_id = ?"}
+	arguments := []any{filter.Owner.Type, filter.Owner.ID}
+	if filter.Type != nil {
+		clauses = append(clauses, "task_type = ?")
+		arguments = append(arguments, *filter.Type)
+	}
+	if filter.Status != nil {
+		clauses = append(clauses, "status = ?")
+		arguments = append(arguments, *filter.Status)
+	}
+	return strings.Join(clauses, " AND "), arguments
 }
 
 // ListStages returns a Task's immutable serial stage plan in execution order.

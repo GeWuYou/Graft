@@ -150,12 +150,12 @@ func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskVie
 	return toTaskView(task), nil
 }
 
-// ListTasks returns one owner-scoped Task history page after the caller authorizes that owner.
-func (r *Runtime) ListTasks(ctx context.Context, owner moduleapi.TaskOwner, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
+// ListTasks returns one filtered Task history page after the caller authorizes its owner.
+func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
 	if r == nil || r.repository == nil {
 		return nil, 0, taskstore.ErrInvalidInput
 	}
-	tasks, total, err := r.repository.List(ctx, owner, limit, offset)
+	tasks, total, err := r.repository.List(ctx, filter, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}

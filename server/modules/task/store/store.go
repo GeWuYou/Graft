@@ -25,7 +25,7 @@ var (
 type Repository interface {
 	Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, error)
 	Get(ctx context.Context, taskID uint64) (taskmodel.Task, error)
-	List(ctx context.Context, owner moduleapi.TaskOwner, limit int, offset int) ([]taskmodel.Task, int64, error)
+	List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error)
 	ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error)
 	ListEvents(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Event, error)
 	ListLogs(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Log, error)

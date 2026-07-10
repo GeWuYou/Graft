@@ -126,7 +126,7 @@ func TestRuntimeListTasksAuthorizesBeforePagination(t *testing.T) {
 			t.Fatalf("submit %q: %v", ownerID, err)
 		}
 	}
-	items, total, err := runtime.ListTasks(context.Background(), moduleapi.TaskOwner{Type: "test", ID: "allowed-one"}, 1, 0)
+	items, total, err := runtime.ListTasks(context.Background(), moduleapi.TaskListFilter{Owner: moduleapi.TaskOwner{Type: "test", ID: "allowed-one"}}, 1, 0)
 	if err != nil {
 		t.Fatalf("list owner tasks: %v", err)
 	}

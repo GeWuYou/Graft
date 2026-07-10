@@ -164,12 +164,50 @@ func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
 			t.Fatalf("create %q task: %v", ownerID, err)
 		}
 	}
-	items, total, err := repository.List(context.Background(), moduleapi.TaskOwner{Type: "compose_project", ID: "owner-a"}, 1, 1)
+	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{Owner: moduleapi.TaskOwner{Type: "compose_project", ID: "owner-a"}}, 1, 1)
 	if err != nil {
 		t.Fatalf("list owner tasks: %v", err)
 	}
 	if total != 2 || len(items) != 1 || items[0].Owner.ID != "owner-a" {
 		t.Fatalf("owner page = %#v total=%d", items, total)
+	}
+}
+
+func TestSQLRepositoryListsOwnerScopedTypeAndStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	repository, _ := newTestSQLRepository(t)
+	inputs := []struct {
+		taskType moduleapi.TaskType
+		status   moduleapi.TaskStatus
+	}{
+		{taskType: "project.compose.redeploy", status: moduleapi.TaskStatusFailed},
+		{taskType: "project.compose.retry", status: moduleapi.TaskStatusFailed},
+		{taskType: "project.compose.retry", status: moduleapi.TaskStatusSuccess},
+	}
+	for _, spec := range inputs {
+		input := validCreateInput()
+		input.Task.Owner = moduleapi.TaskOwner{Type: "compose_project", ID: "owner-filtered"}
+		created, _, err := repository.Create(context.Background(), input)
+		if err != nil {
+			t.Fatalf("create task: %v", err)
+		}
+		if _, err := repository.db.Exec(`UPDATE tasks SET task_type = ?, status = ? WHERE id = ?`, spec.taskType, spec.status, created.ID); err != nil {
+			t.Fatalf("seed task filters: %v", err)
+		}
+	}
+	taskType := moduleapi.TaskType("project.compose.retry")
+	status := moduleapi.TaskStatusFailed
+	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{
+		Owner:  moduleapi.TaskOwner{Type: "compose_project", ID: "owner-filtered"},
+		Type:   &taskType,
+		Status: &status,
+	}, 20, 0)
+	if err != nil {
+		t.Fatalf("list filtered tasks: %v", err)
+	}
+	if total != 1 || len(items) != 1 || items[0].Type != taskType || items[0].Status != status {
+		t.Fatalf("filtered tasks = %#v total=%d", items, total)
 	}
 }
 

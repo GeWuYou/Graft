@@ -195,7 +195,12 @@ func (r taskRoutes) list(c *gin.Context) {
 		r.writeError(c, http.StatusNotFound, taskstore.ErrNotFound)
 		return
 	}
-	tasks, total, err := r.runtime.ListTasks(c.Request.Context(), owner, limit, offset)
+	filter, err := taskListFilter(c, owner)
+	if err != nil {
+		r.writeError(c, http.StatusBadRequest, err)
+		return
+	}
+	tasks, total, err := r.runtime.ListTasks(c.Request.Context(), filter, limit, offset)
 	if err != nil {
 		r.writeError(c, taskHTTPStatus(err), err)
 		return
@@ -223,6 +228,32 @@ func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
 }
 
 var errTaskInvalidArgument = errors.New("invalid task argument")
+
+func taskListFilter(c *gin.Context, owner moduleapi.TaskOwner) (moduleapi.TaskListFilter, error) {
+	filter := moduleapi.TaskListFilter{Owner: owner}
+	if taskType := c.Query("type"); taskType != "" {
+		value := moduleapi.TaskType(taskType)
+		filter.Type = &value
+	}
+	if status := c.Query("status"); status != "" {
+		value := moduleapi.TaskStatus(status)
+		if !isTaskStatus(value) {
+			return moduleapi.TaskListFilter{}, errTaskInvalidArgument
+		}
+		filter.Status = &value
+	}
+	return filter, nil
+}
+
+func isTaskStatus(status moduleapi.TaskStatus) bool {
+	switch status {
+	case moduleapi.TaskStatusPending, moduleapi.TaskStatusScheduled, moduleapi.TaskStatusRunning,
+		moduleapi.TaskStatusSuccess, moduleapi.TaskStatusFailed, moduleapi.TaskStatusCancelled, moduleapi.TaskStatusNeedsAttention:
+		return true
+	default:
+		return false
+	}
+}
 
 // taskHTTPStatus maps task store errors to their corresponding HTTP status codes.
 func taskHTTPStatus(err error) int {
