@@ -161,10 +161,16 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	if err != nil {
 		return registeredServices{}, err
 	}
-	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, authRepo, p.bootstrapAccess)
+	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, nil, p.bootstrapAccess)
+	if err := ctx.Services.RegisterSingleton((*moduleapi.UserBootstrapProvider)(nil), func(_ container.Resolver) (any, error) {
+		return bootstrapSvc, nil
+	}); err != nil {
+		return registeredServices{}, err
+	}
 	p.defaultAdminAuth = authSvc
 
-	authFlow := authFlowBridge{auth: authSvc, bootstrap: bootstrapSvc}
+	legacyBootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, authRepo, p.bootstrapAccess)
+	authFlow := authFlowBridge{auth: authSvc, bootstrap: legacyBootstrapSvc}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthCapabilityProvider)(nil), func(_ container.Resolver) (any, error) {
 		return authCapabilityProvider{capabilities: moduleapi.AuthCapabilityBundle{
 			Auth:        authSvc,

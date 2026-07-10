@@ -211,6 +211,12 @@ type UserIdentityProvider interface {
 	EnsureDefaultAdminProfile(ctx context.Context) (CurrentUser, error)
 }
 
+// UserBootstrapProvider exposes the user-owned profile, RBAC, menu, and locale
+// snapshot used by auth's bootstrap route. Credential state remains auth-owned.
+type UserBootstrapProvider interface {
+	ReadBootstrap(ctx context.Context, request *http.Request) (AuthBootstrapPayload, error)
+}
+
 // Authorizer 暴露请求级授权判断能力。
 //
 // 该接口只定义能力边界，不绑定具体权限引擎实现，便于后续由 rbac 或其它模块提供实现。

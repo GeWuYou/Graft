@@ -12,7 +12,7 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/moduleapi"
-	userstore "graft/server/modules/user/store"
+	authstore "graft/server/modules/auth/store"
 )
 
 // bootstrapReader 收敛 web 启动阶段依赖的最小后端快照装配。
@@ -20,12 +20,12 @@ import (
 // 该读模型继续停留在 user 模块边界内，避免为了一个受保护的 bootstrap
 // 契约，把菜单过滤、locale 快照或权限聚合拆散到 core 或新增共享抽象里。
 type bootstrapReader struct {
-	auth         userstore.AuthRepository
-	rbac         moduleapi.RBACAccessService
-	menuRegistry *menu.Registry
-	systemConfig moduleapi.SystemConfigResolver
-	localizer    *i18n.Service
-	localeConfig config.I18nConfig
+	legacyCredentials any
+	rbac              moduleapi.RBACAccessService
+	menuRegistry      *menu.Registry
+	systemConfig      moduleapi.SystemConfigResolver
+	localizer         *i18n.Service
+	localeConfig      config.I18nConfig
 }
 
 const localeFallbackCapacity = 2
@@ -62,25 +62,21 @@ func newBootstrapReader(
 	localizer *i18n.Service,
 	menuRegistry *menu.Registry,
 	services servicecontainer.Resolver,
-	auth userstore.AuthRepository,
+	legacyCredentials any,
 	rbac moduleapi.RBACAccessService,
 ) bootstrapReader {
 	return bootstrapReader{
-		auth:         auth,
-		rbac:         rbac,
-		menuRegistry: menuRegistry,
-		systemConfig: resolveBootstrapSystemConfig(services),
-		localizer:    localizer,
-		localeConfig: localeConfig,
+		legacyCredentials: legacyCredentials,
+		rbac:              rbac,
+		menuRegistry:      menuRegistry,
+		systemConfig:      resolveBootstrapSystemConfig(services),
+		localizer:         localizer,
+		localeConfig:      localeConfig,
 	}
 }
 
 // Read 返回当前请求主体可见的最小 bootstrap 载荷。
 func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (bootstrapResponse, error) {
-	if r.auth == nil {
-		return bootstrapResponse{}, errors.New("auth repository is unavailable")
-	}
-
 	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil || requestAuth.User.ID == 0 {
 		return bootstrapResponse{}, moduleapi.ErrUnauthenticated
@@ -94,27 +90,43 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	if err != nil {
 		return bootstrapResponse{}, err
 	}
-	credential, err := r.auth.GetUserCredentialByUsername(ctx, requestAuth.User.Username)
-	if err != nil {
-		if errors.Is(err, userstore.ErrUserNotFound) {
-			return bootstrapResponse{}, moduleapi.ErrUnauthenticated
+	mustChangePassword := false
+	if credentials, ok := r.legacyCredentials.(authstore.CredentialStore); ok {
+		credential, credentialErr := credentials.GetUserCredentialByUsername(ctx, requestAuth.User.Username)
+		if credentialErr != nil {
+			return bootstrapResponse{}, credentialErr
 		}
-		return bootstrapResponse{}, err
+		mustChangePassword = credential.MustChangePassword
 	}
-
 	return bootstrapResponse{
 		User: loginUserResponse{
 			ID:          requestAuth.User.ID,
 			Username:    requestAuth.User.Username,
 			DisplayName: requestAuth.User.DisplayName,
 		},
-		MustChangePassword: credential.MustChangePassword,
+		MustChangePassword: mustChangePassword,
 		Roles:              roleNames,
 		Permissions:        permissionCodes,
 		Menus:              r.filterBootstrapMenus(ctx, permissionSet),
 		Locale:             r.localeSnapshot(request),
 	}, nil
 }
+
+// ReadBootstrap exposes only the user-owned bootstrap snapshot. Auth overlays
+// credential state from its own store before serving the stable route payload.
+func (r bootstrapReader) ReadBootstrap(ctx context.Context, request *http.Request) (moduleapi.AuthBootstrapPayload, error) {
+	payload, err := r.Read(ctx, request)
+	if err != nil {
+		return moduleapi.AuthBootstrapPayload{}, err
+	}
+	menus := make([]moduleapi.AuthBootstrapMenuItem, 0, len(payload.Menus))
+	for _, item := range payload.Menus {
+		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, Title: item.Title, TitleKey: item.TitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
+	}
+	return moduleapi.AuthBootstrapPayload{User: moduleapi.CurrentUser{ID: payload.User.ID, Username: payload.User.Username, DisplayName: payload.User.DisplayName}, Roles: payload.Roles, Permissions: payload.Permissions, Menus: menus, Locale: moduleapi.AuthBootstrapLocaleSnapshot{CurrentLocale: payload.Locale.CurrentLocale, DefaultLocale: payload.Locale.DefaultLocale, FallbackLocale: payload.Locale.FallbackLocale, SupportedLocales: payload.Locale.SupportedLocales}}, nil
+}
+
+var _ moduleapi.UserBootstrapProvider = bootstrapReader{}
 
 func (r bootstrapReader) listPermissionCodes(ctx context.Context, userID uint64) ([]string, map[string]struct{}, error) {
 	if r.rbac == nil {
