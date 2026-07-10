@@ -17,6 +17,14 @@ type recordingBus struct {
 	publishErr error
 }
 
+type recordingCredentialManagement struct{}
+
+func (recordingCredentialManagement) ProvisionPasswordCredential(context.Context, uint64, string, bool) error {
+	return nil
+}
+func (recordingCredentialManagement) ResetPassword(context.Context, uint64, string) error { return nil }
+func (recordingCredentialManagement) RevokeSessions(context.Context, uint64) error        { return nil }
+
 func (b *recordingBus) Subscribe(string, eventbus.Handler) error {
 	return nil
 }
@@ -34,14 +42,15 @@ func TestUserServiceCreateUserPublishesAuditEvent(t *testing.T) {
 				return userstore.User{ID: 42, Username: input.Username, Display: input.Display, Status: input.Status}, nil
 			},
 		},
-		auditBus: bus,
-		logger:   zap.NewNop(),
+		auditBus:    bus,
+		logger:      zap.NewNop(),
+		credentials: recordingCredentialManagement{},
 	}
 	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{
 		User: &moduleapi.CurrentUser{ID: 7, Username: "admin", DisplayName: "Admin"},
 	})
 
-	created, err := svc.CreateUser(ctx, passwordHasher{cost: 4}, passwordPolicy{}, CreateUserCommand{
+	created, err := svc.CreateUser(ctx, CreateUserCommand{
 		Username: "alice",
 		Display:  "Alice",
 		Password: "Password1234",
@@ -72,12 +81,12 @@ func TestUserServiceCreateUserPublishesAuditEvent(t *testing.T) {
 func TestUserServiceResetUserPasswordAuditFailureDoesNotBlock(t *testing.T) {
 	bus := &recordingBus{publishErr: errors.New("audit down")}
 	svc := userService{
-		auditBus: bus,
-		logger:   zap.NewNop(),
+		auditBus:    bus,
+		logger:      zap.NewNop(),
+		credentials: recordingCredentialManagement{},
 	}
-	authRepo := &moduleTestAuthRepository{}
 
-	err := svc.ResetUserPassword(context.Background(), authRepo, passwordHasher{cost: 4}, passwordPolicy{}, 9, "Password1234")
+	err := svc.ResetUserPassword(context.Background(), 9, "Password1234")
 	if err != nil {
 		t.Fatalf("reset user password: %v", err)
 	}

@@ -28,9 +28,6 @@ func newRouteGuards(
 		userDisable:            httpx.RequirePermission(localizer, services.auth, authorizer, usercontract.UserDisablePermission.String(), publisher),
 		userSessionRead:        httpx.RequirePermission(localizer, services.auth, authorizer, usercontract.UserSessionReadPermission.String(), publisher),
 		userSessionRevoke:      httpx.RequirePermission(localizer, services.auth, authorizer, usercontract.UserSessionRevokePermission.String(), publisher),
-		authRepo:               services.authRepo,
-		passwords:              services.passwords,
-		policy:                 services.policy,
 	}
 }
 

@@ -27,6 +27,7 @@
 * `doc.go`：模块用途说明
 * `module.go`：模块生命周期、服务注册与用户管理路由
 * 认证相关实现当前只保留为 `auth` 模块消费的过渡 bridge；`/auth/*` 路由注册已迁入 `server/modules/auth`
+* 不得注册 `AuthService`、`AuthSessionService` 或 `AuthFlowService`；这些 capability 由 `auth` 统一注册
 
 ## 关键依赖
 

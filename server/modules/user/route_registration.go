@@ -8,7 +8,6 @@ import (
 	"graft/server/internal/moduleapi"
 	authruntime "graft/server/modules/auth"
 	usercontract "graft/server/modules/user/contract"
-	userstore "graft/server/modules/user/store"
 )
 
 type userRouteRegistrar struct {
@@ -17,9 +16,6 @@ type userRouteRegistrar struct {
 	userSvc      userService
 	authSessions moduleapi.AuthSessionService
 	cookies      authruntime.CookieManager
-	authRepo     userstore.AuthRepository
-	passwords    passwordHasher
-	policy       passwordPolicy
 	guards       routeGuards
 	appLog       applog.AppLogger
 }
@@ -37,9 +33,6 @@ func registerUserRoutes(
 		userSvc:      userSvc,
 		authSessions: authSessions,
 		cookies:      authruntime.NewCookieManager(ctx.Config.Auth),
-		authRepo:     guards.authRepo,
-		passwords:    guards.passwords,
-		policy:       guards.policy,
 		guards:       guards,
 		appLog:       resolveUserRouteAppLogger(ctx),
 	}

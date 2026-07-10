@@ -64,6 +64,46 @@ func (s authService) Login(ctx context.Context, username string, password string
 	}, nil
 }
 
+// ProvisionPasswordCredential creates the initial credential for an existing
+// user profile. Profile creation remains user-owned; hashing policy remains auth-owned.
+func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error {
+	if s.auth == nil {
+		return errors.New("auth repository is unavailable")
+	}
+	if err := s.policy.ValidateNewPassword(password); err != nil {
+		return err
+	}
+	hash, err := s.passwords.Hash(password)
+	if err != nil {
+		return fmt.Errorf("hash initial password: %w", err)
+	}
+	changedAt := s.nowUTC()
+	return s.auth.SetPasswordHash(ctx, userstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
+}
+
+// ResetPassword applies the administrator reset policy and revokes all active sessions.
+func (s authService) ResetPassword(ctx context.Context, userID uint64, password string) error {
+	if s.auth == nil {
+		return errors.New("auth repository is unavailable")
+	}
+	if err := s.policy.ValidateNewPassword(password); err != nil {
+		return err
+	}
+	hash, err := s.passwords.Hash(password)
+	if err != nil {
+		return fmt.Errorf("hash reset password: %w", err)
+	}
+	return s.auth.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: s.nowUTC()})
+}
+
+// RevokeSessions invalidates every refresh session for a user profile lifecycle change.
+func (s authService) RevokeSessions(ctx context.Context, userID uint64) error {
+	if s.auth == nil {
+		return errors.New("auth repository is unavailable")
+	}
+	return s.auth.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: s.nowUTC()})
+}
+
 func (s authService) authenticateUser(ctx context.Context, username string, password string) (moduleapi.CurrentUser, userstore.UserCredential, error) {
 	if s.auth == nil {
 		return moduleapi.CurrentUser{}, userstore.UserCredential{}, errors.New("auth repository is unavailable")

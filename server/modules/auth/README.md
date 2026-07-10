@@ -8,6 +8,10 @@ Phase 2 起，这个目录开始接管 token、refresh session、cookie 与 auth
 store/storeent/runtime helper；Phase 3 进一步接管 `/auth/*` 路由注册与 HTTP
 运行时所有权。
 
+在具体实现仍从 `user` 迁出的过渡期，`auth` 已是所有 `moduleapi` 认证
+capability 的唯一注册者。`user` 只提供内部装配 bundle，调用方继续解析稳定
+接口而不依赖该过渡实现。
+
 ## 职责边界
 
 这个模块长期负责：

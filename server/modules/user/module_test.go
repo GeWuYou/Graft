@@ -1640,6 +1640,9 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	if ensuredDefaultAdmin {
 		t.Fatal("expected register to stay side-effect free for default admin bootstrap")
 	}
+	if err := authmodule.NewModule().Register(ctx); err != nil {
+		t.Fatalf("register auth module: %v", err)
+	}
 	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
 		t.Fatalf("register rbac module: %v", err)
 	}
@@ -1681,6 +1684,9 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 	)
 	if err := moduleInstance.Register(ctx); err != nil {
 		t.Fatalf("register module: %v", err)
+	}
+	if err := authmodule.NewModule().Register(ctx); err != nil {
+		t.Fatalf("register auth module: %v", err)
 	}
 	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
 		t.Fatalf("register rbac module: %v", err)
@@ -1761,6 +1767,9 @@ func TestBootFailsWhenDefaultAdminPermissionSeedLocalizationUnavailable(t *testi
 	moduleInstance := NewModule(moduleTestUserRepository{}, authRepo)
 	if err := moduleInstance.Register(ctx); err != nil {
 		t.Fatalf("register module: %v", err)
+	}
+	if err := authmodule.NewModule().Register(ctx); err != nil {
+		t.Fatalf("register auth module: %v", err)
 	}
 	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
 		t.Fatalf("register rbac module: %v", err)
@@ -1883,11 +1892,8 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 			if input.Username != "carol" || input.Display != "Carol" {
 				t.Fatalf("unexpected create input: %#v", input)
 			}
-			if input.Status != usercontract.UserStatusEnabled || !input.MustChangePassword {
-				t.Fatalf("expected enabled user with required password change, got %#v", input)
-			}
-			if input.PasswordHash == "Password12345" {
-				t.Fatalf("expected hashed password, got %#v", input)
+			if input.Status != usercontract.UserStatusEnabled || input.MustChangePassword || input.PasswordHash != "" {
+				t.Fatalf("expected profile-only create input, got %#v", input)
 			}
 
 			return store.User{

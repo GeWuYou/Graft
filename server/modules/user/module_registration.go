@@ -16,7 +16,6 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	usercontract "graft/server/modules/user/contract"
-	userstore "graft/server/modules/user/store"
 )
 
 const userMenuOrderList = 2
@@ -114,9 +113,14 @@ type registeredServices struct {
 	authSessions moduleapi.AuthSessionService
 	authFlow     moduleapi.AuthFlowService
 	bootstrap    bootstrapReader
-	authRepo     userstore.AuthRepository
-	passwords    passwordHasher
-	policy       passwordPolicy
+}
+
+type authCapabilityProvider struct {
+	capabilities moduleapi.AuthCapabilityBundle
+}
+
+func (p authCapabilityProvider) AuthCapabilities() moduleapi.AuthCapabilityBundle {
+	return p.capabilities
 }
 
 func (p *Module) registerServices(ctx *module.Context) (registeredServices, error) {
@@ -133,11 +137,13 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 		logger = zap.NewNop()
 	}
 	p.bootstrapAccess = newDeferredRBACAccessService()
+	p.userCredentials = newDeferredCredentialManagementService()
 	userSvc := userService{
-		users:    userRepo,
-		rbac:     p.bootstrapAccess,
-		auditBus: ctx.EventBus,
-		logger:   logger,
+		users:       userRepo,
+		rbac:        p.bootstrapAccess,
+		credentials: p.userCredentials,
+		auditBus:    ctx.EventBus,
+		logger:      logger,
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
@@ -152,21 +158,14 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Services, authRepo, p.bootstrapAccess)
 	p.defaultAdminAuth = authSvc
 
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
-		return authSvc, nil
-	}); err != nil {
-		return registeredServices{}, err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthSessionService)(nil), func(_ container.Resolver) (any, error) {
-		return authSvc, nil
-	}); err != nil {
-		return registeredServices{}, err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthFlowService)(nil), func(_ container.Resolver) (any, error) {
-		return authFlowBridge{
-			auth:      authSvc,
-			bootstrap: bootstrapSvc,
-		}, nil
+	authFlow := authFlowBridge{auth: authSvc, bootstrap: bootstrapSvc}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthCapabilityProvider)(nil), func(_ container.Resolver) (any, error) {
+		return authCapabilityProvider{capabilities: moduleapi.AuthCapabilityBundle{
+			Auth:        authSvc,
+			Sessions:    authSvc,
+			Flow:        authFlow,
+			Credentials: authSvc,
+		}}, nil
 	}); err != nil {
 		return registeredServices{}, err
 	}
@@ -175,13 +174,63 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 		user:         userSvc,
 		auth:         authSvc,
 		authSessions: authSvc,
-		authFlow:     authFlowBridge{auth: authSvc, bootstrap: bootstrapSvc},
+		authFlow:     authFlow,
 		bootstrap:    bootstrapSvc,
-		authRepo:     authSvc.auth,
-		passwords:    authSvc.passwords,
-		policy:       authSvc.policy,
 	}, nil
 }
+
+type deferredCredentialManagementService struct {
+	mu     sync.RWMutex
+	target moduleapi.AuthCredentialManagementService
+}
+
+func newDeferredCredentialManagementService() *deferredCredentialManagementService {
+	return &deferredCredentialManagementService{}
+}
+
+func (s *deferredCredentialManagementService) SetTarget(target moduleapi.AuthCredentialManagementService) error {
+	if target == nil {
+		return errors.New("auth credential management service is required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.target = target
+	return nil
+}
+
+func (s *deferredCredentialManagementService) targetService() (moduleapi.AuthCredentialManagementService, error) {
+	s.mu.RLock()
+	target := s.target
+	s.mu.RUnlock()
+	if target == nil {
+		return nil, errors.New("auth credential management service is unavailable")
+	}
+	return target, nil
+}
+
+func (s *deferredCredentialManagementService) ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error {
+	target, err := s.targetService()
+	if err != nil {
+		return err
+	}
+	return target.ProvisionPasswordCredential(ctx, userID, password, mustChangePassword)
+}
+func (s *deferredCredentialManagementService) ResetPassword(ctx context.Context, userID uint64, password string) error {
+	target, err := s.targetService()
+	if err != nil {
+		return err
+	}
+	return target.ResetPassword(ctx, userID, password)
+}
+func (s *deferredCredentialManagementService) RevokeSessions(ctx context.Context, userID uint64) error {
+	target, err := s.targetService()
+	if err != nil {
+		return err
+	}
+	return target.RevokeSessions(ctx, userID)
+}
+
+var _ moduleapi.AuthCredentialManagementService = (*deferredCredentialManagementService)(nil)
 
 // deferredAuthorizer 让用户路由在 Register 阶段先完成装配，再在 Boot 阶段绑定
 // 已注册的共享 Authorizer，避免复制 RBAC 授权语义或把 Resolve 扩散到请求热路径。
@@ -308,7 +357,4 @@ type routeGuards struct {
 	userDisable            gin.HandlerFunc
 	userSessionRead        gin.HandlerFunc
 	userSessionRevoke      gin.HandlerFunc
-	authRepo               userstore.AuthRepository
-	passwords              passwordHasher
-	policy                 passwordPolicy
 }

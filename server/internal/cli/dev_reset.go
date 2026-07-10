@@ -12,6 +12,8 @@ import (
 	"graft/server/internal/database"
 	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
+	"graft/server/modules/auth"
+	authstore "graft/server/modules/auth/store"
 	"graft/server/modules/rbac"
 	"graft/server/modules/user"
 )
@@ -20,9 +22,9 @@ var (
 	devResetLoadConfig        = config.Load
 	devResetOpenDB            = database.Open
 	devResetCloseDB           = database.Close
-	devResetNewAuthRepository = user.NewAuthRepositoryForReset
+	devResetNewAuthRepository = auth.NewRepositoryForDevelopmentReset
 	devResetNewLocalizer      = func(cfg config.I18nConfig) (*i18n.Service, error) { return i18n.New(cfg) }
-	devResetAdmin             = func(ctx context.Context, authRepo user.AuthRepositoryForReset, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
+	devResetAdmin             = func(ctx context.Context, authRepo authstore.AuthRepository, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService) error {
 		return user.ResetDefaultAdminForDevelopment(
 			ctx,
 			authRepo,

@@ -31,13 +31,14 @@ type Module struct {
 	bootstrapAccess  *deferredRBACAccessService
 	userRepo         userstore.UserRepository
 	authRepo         userstore.AuthRepository
+	userCredentials  *deferredCredentialManagementService
 }
 
 var (
-	errCannotDisableOwnUser = errors.New("cannot disable own user")
-	errCannotDeleteOwnUser  = errors.New("cannot delete own user")
-	errInvalidUserStatus    = errors.New("invalid user status")
-	errInvalidUserPayload   = errors.New("invalid user payload")
+	errCannotDisableOwnUser           = errors.New("cannot disable own user")
+	errCannotDeleteOwnUser            = errors.New("cannot delete own user")
+	errInvalidUserStatus              = errors.New("invalid user status")
+	errInvalidUserPayload             = errors.New("invalid user payload")
 	errProtectedDefaultAdminImmutable = errors.New("protected default admin is immutable for this operation")
 )
 
@@ -91,6 +92,9 @@ func (p *Module) Boot(ctx *module.Context) error {
 	if err := p.bindBootstrapAccess(ctx); err != nil {
 		return err
 	}
+	if err := p.bindCredentialManagement(ctx); err != nil {
+		return err
+	}
 	if p.defaultAdminAuth == nil {
 		return errors.New("default admin bootstrap service is unavailable")
 	}
@@ -105,6 +109,24 @@ func (p *Module) Boot(ctx *module.Context) error {
 	}
 
 	return nil
+}
+
+func (p *Module) bindCredentialManagement(ctx *module.Context) error {
+	if p.userServiceCredentials() == nil {
+		return errors.New("auth credential management proxy is unavailable")
+	}
+	credentials, err := resolveService[moduleapi.AuthCredentialManagementService](ctx, (*moduleapi.AuthCredentialManagementService)(nil), "auth credential management service")
+	if err != nil {
+		return err
+	}
+	return p.userServiceCredentials().SetTarget(credentials)
+}
+
+func (p *Module) userServiceCredentials() *deferredCredentialManagementService {
+	if p.userCredentials == nil {
+		return nil
+	}
+	return p.userCredentials
 }
 
 // Shutdown 在应用停止时释放用户模块资源。
@@ -166,10 +188,11 @@ func resolveService[T any](ctx *module.Context, key any, label string) (T, error
 
 // userService 把用户模块内部仓储读取收敛为跨模块稳定用户摘要服务。
 type userService struct {
-	users    userstore.UserRepository
-	rbac     moduleapi.RBACAccessService
-	auditBus eventbus.Bus
-	logger   *zap.Logger
+	users       userstore.UserRepository
+	rbac        moduleapi.RBACAccessService
+	auditBus    eventbus.Bus
+	logger      *zap.Logger
+	credentials moduleapi.AuthCredentialManagementService
 }
 
 // authService 是 `moduleapi.AuthService` 在用户模块内的最小实现。
@@ -248,8 +271,6 @@ func (s userService) ListUserRoleSummaries(ctx context.Context, userIDs []uint64
 
 func (s userService) CreateUser(
 	ctx context.Context,
-	passwords passwordHasher,
-	policy passwordPolicy,
 	command CreateUserCommand,
 ) (userstore.User, error) {
 	if s.users == nil {
@@ -263,25 +284,22 @@ func (s userService) CreateUser(
 	if display == "" {
 		return userstore.User{}, errInvalidUserPayload
 	}
-	if err := policy.ValidateNewPassword(command.Password); err != nil {
-		return userstore.User{}, err
-	}
-
-	hash, err := passwords.Hash(command.Password)
-	if err != nil {
-		return userstore.User{}, err
-	}
 	input := userstore.CreateUserInput{
-		Username:           username,
-		Display:            display,
-		Status:             normalizeManagedUserStatus(""),
-		PasswordHash:       hash,
-		MustChangePassword: true,
-		ActorID:            command.ActorID,
+		Username: username,
+		Display:  display,
+		Status:   normalizeManagedUserStatus(""),
+		ActorID:  command.ActorID,
 	}
 
 	created, err := s.users.Create(ctx, input)
 	if err != nil {
+		return userstore.User{}, err
+	}
+	if s.credentials == nil {
+		return userstore.User{}, errors.New("auth credential management service is unavailable")
+	}
+	if err := s.credentials.ProvisionPasswordCredential(ctx, created.ID, command.Password, true); err != nil {
+		_ = s.users.Delete(ctx, userstore.DeleteUserInput{ID: created.ID, DeletedAt: time.Now().UTC(), ActorID: command.ActorID})
 		return userstore.User{}, err
 	}
 
@@ -351,13 +369,12 @@ func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) 
 
 func (s userService) SetUserStatus(
 	ctx context.Context,
-	authRepo userstore.AuthRepository,
 	command UpdateUserStatusCommand,
 ) (userstore.User, error) {
 	if s.users == nil {
 		return userstore.User{}, errors.New("user repository is unavailable")
 	}
-	if authRepo == nil {
+	if s.credentials == nil {
 		return userstore.User{}, errors.New("auth repository is unavailable")
 	}
 
@@ -377,10 +394,7 @@ func (s userService) SetUserStatus(
 		return userstore.User{}, err
 	}
 	if status == usercontract.UserStatusDisabled {
-		if err := authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
-			UserID:    input.ID,
-			RevokedAt: time.Now().UTC(),
-		}); err != nil {
+		if err := s.credentials.RevokeSessions(ctx, input.ID); err != nil {
 			return userstore.User{}, err
 		}
 	}
@@ -425,11 +439,11 @@ func (s userService) validateSetUserStatusPreconditions(
 	return status, nil
 }
 
-func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepository, userID uint64) error {
+func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 	if s.users == nil {
 		return errors.New("user repository is unavailable")
 	}
-	if authRepo == nil {
+	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
 	}
 	if requestActorOwnsUser(ctx, userID) {
@@ -451,10 +465,7 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 		return err
 	}
 
-	if err := authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
-		UserID:    userID,
-		RevokedAt: time.Now().UTC(),
-	}); err != nil {
+	if err := s.credentials.RevokeSessions(ctx, userID); err != nil {
 		return err
 	}
 
@@ -472,30 +483,13 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 
 func (s userService) ResetUserPassword(
 	ctx context.Context,
-	authRepo userstore.AuthRepository,
-	passwords passwordHasher,
-	policy passwordPolicy,
 	userID uint64,
 	newPassword string,
 ) error {
-	if authRepo == nil {
+	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
 	}
-	if err := policy.ValidateNewPassword(newPassword); err != nil {
-		return err
-	}
-
-	hash, err := passwords.Hash(newPassword)
-	if err != nil {
-		return err
-	}
-
-	if err := authRepo.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{
-		UserID:             userID,
-		PasswordHash:       hash,
-		MustChangePassword: true,
-		ChangedAt:          time.Now().UTC(),
-	}); err != nil {
+	if err := s.credentials.ResetPassword(ctx, userID, newPassword); err != nil {
 		return err
 	}
 
