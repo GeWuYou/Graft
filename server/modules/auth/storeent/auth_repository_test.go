@@ -8,127 +8,100 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	authstore "graft/server/modules/auth/store"
-	"graft/server/modules/user/ent/enttest"
-	userstore "graft/server/modules/user/store"
+	"graft/server/internal/moduleapi"
+	"graft/server/modules/auth/ent/enttest"
+	"graft/server/modules/auth/store"
 )
 
-func TestAuthRepositorySetPasswordHashRejectsSoftDeletedUser(t *testing.T) {
+func TestCredentialStoreUsesIdentityAndAuthOwnedCredential(t *testing.T) {
 	t.Parallel()
 
-	client := enttest.Open(t, "sqlite3", "file:auth-storeent-set-password?mode=memory&cache=shared&_fk=1")
-	repo, err := newAuthRepository(client)
+	client := enttest.Open(t, "sqlite3", "file:auth-owned-credentials?mode=memory&cache=shared&_fk=1")
+	identity := identityProvider{users: map[string]moduleapi.CurrentUser{
+		"alice": {ID: 7, Username: "alice", DisplayName: "Alice"},
+	}}
+	repo, err := newCredentialStore(client, identity)
 	if err != nil {
-		t.Fatalf("new auth repository: %v", err)
+		t.Fatalf("new credential store: %v", err)
 	}
-
-	ctx := context.Background()
 	changedAt := time.Now().UTC().Truncate(time.Second)
-	record, err := client.User.Create().
-		SetUsername("deleted-set-password").
-		SetDisplay("Deleted Set Password").
-		SetPasswordHash("original-hash").
-		SetMustChangePassword(false).
-		SetPasswordChangedAt(changedAt.Add(-time.Hour)).
-		SetDeletedAt(changedAt.Unix()).
-		Save(ctx)
-	if err != nil {
-		t.Fatalf("seed deleted user: %v", err)
+	if err := repo.SetPasswordHash(context.Background(), store.SetPasswordHashInput{UserID: 7, PasswordHash: "hash", MustChangePassword: true, ChangedAt: &changedAt}); err != nil {
+		t.Fatalf("set password hash: %v", err)
 	}
 
-	err = repo.SetPasswordHash(ctx, authstore.SetPasswordHashInput{
-		UserID:             toStoreID(record.ID),
-		PasswordHash:       "updated-hash",
-		MustChangePassword: true,
-		ChangedAt:          &changedAt,
-	})
-	if !errors.Is(err, userstore.ErrUserNotFound) {
-		t.Fatalf("expected ErrUserNotFound, got %v", err)
-	}
-
-	refreshed, err := client.User.Get(ctx, record.ID)
+	credential, err := repo.GetUserCredentialByUsername(context.Background(), "alice")
 	if err != nil {
-		t.Fatalf("reload user: %v", err)
+		t.Fatalf("get credential: %v", err)
 	}
-	if refreshed.PasswordHash == nil || *refreshed.PasswordHash != "original-hash" {
-		t.Fatalf("expected password hash to remain unchanged, got %#v", refreshed.PasswordHash)
-	}
-	if refreshed.MustChangePassword {
-		t.Fatalf("expected must_change_password to remain false")
-	}
-	if refreshed.PasswordChangedAt == nil || !refreshed.PasswordChangedAt.Equal(changedAt.Add(-time.Hour)) {
-		t.Fatalf("expected password_changed_at to remain unchanged, got %#v", refreshed.PasswordChangedAt)
+	if credential.UserID != 7 || credential.Username != "alice" || credential.PasswordHash == nil || *credential.PasswordHash != "hash" || !credential.MustChangePassword {
+		t.Fatalf("unexpected credential: %#v", credential)
 	}
 }
 
-func TestAuthRepositoryChangePasswordRejectsSoftDeletedUser(t *testing.T) {
+func TestCredentialStoreRequiresExistingProfile(t *testing.T) {
 	t.Parallel()
 
-	client := enttest.Open(t, "sqlite3", "file:auth-storeent-change-password?mode=memory&cache=shared&_fk=1")
-	repo, err := newAuthRepository(client)
+	client := enttest.Open(t, "sqlite3", "file:auth-owned-credentials-missing-profile?mode=memory&cache=shared&_fk=1")
+	repo, err := newCredentialStore(client, identityProvider{users: map[string]moduleapi.CurrentUser{}})
 	if err != nil {
-		t.Fatalf("new auth repository: %v", err)
+		t.Fatalf("new credential store: %v", err)
 	}
+	if err := repo.SetPasswordHash(context.Background(), store.SetPasswordHashInput{UserID: 99, PasswordHash: "hash"}); !errors.Is(err, errIdentityNotFound) {
+		t.Fatalf("expected identity lookup failure, got %v", err)
+	}
+}
 
-	ctx := context.Background()
-	changedAt := time.Now().UTC().Truncate(time.Second)
-	record, err := client.User.Create().
-		SetUsername("deleted-change-password").
-		SetDisplay("Deleted Change Password").
-		SetPasswordHash("original-hash").
-		SetMustChangePassword(false).
-		SetPasswordChangedAt(changedAt.Add(-2 * time.Hour)).
-		SetDeletedAt(changedAt.Unix()).
-		Save(ctx)
-	if err != nil {
-		t.Fatalf("seed deleted user: %v", err)
-	}
-	if _, err := client.RefreshSession.Create().
-		SetUserID(record.ID).
-		SetTokenID("current-token").
-		SetExpiresAt(changedAt.Add(24 * time.Hour)).
-		Save(ctx); err != nil {
-		t.Fatalf("seed current refresh session: %v", err)
-	}
-	otherSession, err := client.RefreshSession.Create().
-		SetUserID(record.ID).
-		SetTokenID("other-token").
-		SetExpiresAt(changedAt.Add(24 * time.Hour)).
-		Save(ctx)
-	if err != nil {
-		t.Fatalf("seed other refresh session: %v", err)
-	}
+func TestSessionStoreRotatesAuthOwnedSession(t *testing.T) {
+	t.Parallel()
 
-	err = repo.ChangePasswordAndRevokeOtherRefreshSessions(ctx, authstore.ChangePasswordAndRevokeOtherRefreshSessionsInput{
-		UserID:             toStoreID(record.ID),
-		PasswordHash:       "updated-hash",
-		MustChangePassword: true,
-		ChangedAt:          changedAt,
-		CurrentTokenID:     "current-token",
-	})
-	if !errors.Is(err, userstore.ErrUserNotFound) {
-		t.Fatalf("expected ErrUserNotFound, got %v", err)
-	}
-
-	refreshedUser, err := client.User.Get(ctx, record.ID)
+	client := enttest.Open(t, "sqlite3", "file:auth-owned-sessions?mode=memory&cache=shared&_fk=1")
+	repo, err := newSessionStore(client)
 	if err != nil {
-		t.Fatalf("reload user: %v", err)
+		t.Fatalf("new session store: %v", err)
 	}
-	if refreshedUser.PasswordHash == nil || *refreshedUser.PasswordHash != "original-hash" {
-		t.Fatalf("expected password hash to remain unchanged, got %#v", refreshedUser.PasswordHash)
+	now := time.Now().UTC().Truncate(time.Second)
+	if _, err := repo.CreateRefreshSession(context.Background(), store.CreateRefreshSessionInput{UserID: 7, TokenID: "current", ExpiresAt: now.Add(time.Hour)}); err != nil {
+		t.Fatalf("create refresh session: %v", err)
 	}
-	if refreshedUser.MustChangePassword {
-		t.Fatalf("expected must_change_password to remain false")
-	}
-	if refreshedUser.PasswordChangedAt == nil || !refreshedUser.PasswordChangedAt.Equal(changedAt.Add(-2*time.Hour)) {
-		t.Fatalf("expected password_changed_at to remain unchanged, got %#v", refreshedUser.PasswordChangedAt)
-	}
-
-	refreshedSession, err := client.RefreshSession.Get(ctx, otherSession.ID)
+	next, err := repo.RotateRefreshSession(context.Background(), store.RotateRefreshSessionInput{CurrentTokenID: "current", NewTokenID: "next", Now: now, RevokedAt: now, NewExpiresAt: now.Add(2 * time.Hour)})
 	if err != nil {
-		t.Fatalf("reload other refresh session: %v", err)
+		t.Fatalf("rotate refresh session: %v", err)
 	}
-	if refreshedSession.RevokedAt != nil {
-		t.Fatalf("expected other refresh session to remain active, got revoked_at=%v", refreshedSession.RevokedAt)
+	if next.UserID != 7 || next.TokenID != "next" {
+		t.Fatalf("unexpected rotated session: %#v", next)
 	}
+	current, err := repo.GetRefreshSessionByTokenID(context.Background(), "current")
+	if err != nil {
+		t.Fatalf("get current session: %v", err)
+	}
+	if current.RevokedAt == nil || current.ReplacedByTokenID == nil || *current.ReplacedByTokenID != "next" {
+		t.Fatalf("expected revoked current session, got %#v", current)
+	}
+}
+
+var errIdentityNotFound = errors.New("identity not found")
+
+type identityProvider struct {
+	users map[string]moduleapi.CurrentUser
+}
+
+func (p identityProvider) LookupUserByUsername(_ context.Context, username string) (moduleapi.CurrentUser, error) {
+	user, ok := p.users[username]
+	if !ok {
+		return moduleapi.CurrentUser{}, errIdentityNotFound
+	}
+	return user, nil
+}
+
+func (p identityProvider) GetCurrentUserByID(_ context.Context, userID uint64) (moduleapi.CurrentUser, error) {
+	for _, user := range p.users {
+		if user.ID == userID {
+			return user, nil
+		}
+	}
+	return moduleapi.CurrentUser{}, errIdentityNotFound
+}
+
+func (p identityProvider) EnsureDefaultAdminProfile(context.Context) (moduleapi.CurrentUser, error) {
+	return moduleapi.CurrentUser{}, errIdentityNotFound
 }

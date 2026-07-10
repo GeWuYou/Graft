@@ -8,6 +8,9 @@ import (
 )
 
 var (
+	// ErrCredentialNotFound indicates an auth credential is not provisioned for a user profile.
+	ErrCredentialNotFound = errors.New("credential not found")
+
 	// ErrRefreshSessionNotFound indicates the requested refresh session does not exist.
 	ErrRefreshSessionNotFound = errors.New("refresh session not found")
 )
