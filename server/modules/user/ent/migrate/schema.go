@@ -35,6 +35,7 @@ var (
 	}
 )
 
+// init associates the users schema with the "users" SQL table.
 func init() {
 	UsersTable.Annotation = &entsql.Annotation{
 		Table: "users",

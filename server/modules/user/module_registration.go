@@ -168,6 +168,7 @@ type deferredCredentialManagementService struct {
 	target moduleapi.AuthCredentialManagementService
 }
 
+// newDeferredCredentialManagementService creates a credential management service without a configured target.
 func newDeferredCredentialManagementService() *deferredCredentialManagementService {
 	return &deferredCredentialManagementService{}
 }

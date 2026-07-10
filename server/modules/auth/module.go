@@ -15,7 +15,8 @@ import (
 // Module 是 auth 模块的认证与会话生命周期运行时入口。
 type Module struct{ client *authent.Client }
 
-// NewModule 创建 auth 模块最小骨架实例。
+// NewModule 创建 auth 模块实例。
+// 如果提供客户端，则使用第一个客户端初始化模块。
 func NewModule(client ...*authent.Client) *Module {
 	module := &Module{}
 	if len(client) > 0 {

@@ -10,7 +10,8 @@ import (
 )
 
 // NewRepositoryForDevelopmentReset exposes the auth-owned persistence entry
-// used by the development-only reset command.
+// NewRepositoryForDevelopmentReset creates the authentication repository used by the development-only reset command.
+// It returns an error if the persistence client or authentication repository cannot be created.
 func NewRepositoryForDevelopmentReset(sqlDB *sql.DB, identity moduleapi.UserIdentityProvider) (authstore.AuthRepository, error) {
 	client, err := storeent.NewClient(sqlDB)
 	if err != nil {

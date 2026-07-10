@@ -60,7 +60,7 @@ type bootstrapLocaleSnapshot struct {
 	SupportedLocales []string `json:"supported_locales"`
 }
 
-// newBootstrapReader wires the provided dependencies into a bootstrapReader, resolving systemConfig from the service container.
+// newBootstrapReader 创建用于生成用户启动快照的读取器，并解析系统配置服务。
 func newBootstrapReader(
 	localeConfig config.I18nConfig,
 	localizer *i18n.Service,

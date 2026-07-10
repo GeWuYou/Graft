@@ -20,6 +20,8 @@ type userRouteRegistrar struct {
 	appLog       applog.AppLogger
 }
 
+// registerUserRoutes 注册用户相关的 HTTP 路由，并为路由组启用请求 ID 中间件。
+// 返回注册结果；当前始终为 nil。
 func registerUserRoutes(
 	ctx *module.Context,
 	moduleName string,

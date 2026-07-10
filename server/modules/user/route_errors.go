@@ -193,6 +193,7 @@ func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message str
 	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 }
 
+// zapFieldValue converts a zap field to its underlying value for logging.
 func zapFieldValue(field zap.Field) any {
 	switch field.Type {
 	case zapcore.StringType:
@@ -210,10 +211,15 @@ func zapFieldValue(field zap.Field) any {
 	}
 }
 
+// shouldLogUserManagementError reports whether a user management error should be logged based on its HTTP status.
+// It returns true for internal server errors and false for other statuses.
 func shouldLogUserManagementError(status int, _ error) bool {
 	return status == http.StatusInternalServerError
 }
 
+// errorFieldFromDetails extracts a non-empty field name from error details.
+// It returns the field name and true when the details contain a valid field value;
+// otherwise, it returns an empty string and false.
 func errorFieldFromDetails(data map[string]any) (string, bool) {
 	if data == nil {
 		return "", false
@@ -249,7 +255,8 @@ func errorCodeFromMessageKey(key messagecontract.Key) string {
 // mapUserManagementError 将用户管理相关错误映射为 HTTP 状态码、消息键和可选的字段信息。
 // 对于部分密码相关错误，会附带 `new_password` 字段；默认返回内部错误。
 //
-// @return HTTP 状态码、对应的本地化消息键以及可选的错误详情。
+// mapUserManagementError 将用户管理错误映射为 HTTP 状态码、本地化消息键和可选的错误详情。
+// 对于可识别的字段错误，错误详情包含对应的字段名；无法识别的错误映射为内部错误。
 func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any) {
 	switch {
 	case errors.Is(err, userstore.ErrUserNotFound), errors.Is(err, moduleapi.ErrUserNotFound):

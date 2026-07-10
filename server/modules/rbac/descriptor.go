@@ -12,7 +12,7 @@ const (
 	moduleID = "rbac"
 )
 
-// NewModuleSpec exposes the RBAC module's stable compile-time metadata and builder.
+// NewModuleSpec 返回 RBAC 模块的稳定元数据及其构建器配置，并声明对 auth 和 user 模块的依赖。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

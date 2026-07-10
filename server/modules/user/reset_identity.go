@@ -12,7 +12,8 @@ import (
 )
 
 // NewIdentityProviderForDevelopmentReset builds the narrow profile capability
-// required by auth's development-only reset command.
+// NewIdentityProviderForDevelopmentReset 为开发环境重置命令创建用户身份提供者。
+// 如果用户 profile runtime 或用户仓储创建失败，则返回相应错误。
 func NewIdentityProviderForDevelopmentReset(sqlDB *sql.DB) (moduleapi.UserIdentityProvider, error) {
 	runtime, err := storeent.NewRuntime(sqlDB, zap.NewNop())
 	if err != nil {
@@ -26,5 +27,6 @@ func NewIdentityProviderForDevelopmentReset(sqlDB *sql.DB) (moduleapi.UserIdenti
 }
 
 // DefaultAdminPermissionItems returns the user-owned permissions required by
-// the development-only default-admin reset path.
+// DefaultAdminPermissionItems 提供开发环境默认管理员重置流程所需的用户权限项。
+// 返回用户模块的权限项。
 func DefaultAdminPermissionItems() []permission.Item { return userPermissionItems(moduleID) }

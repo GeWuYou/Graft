@@ -40,7 +40,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 }
 
-// ValidColumn reports if the column name is valid (part of the table columns).
+// ValidColumn reports whether the specified name matches a column in the auth_credentials table.
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {

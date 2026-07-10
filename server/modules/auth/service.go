@@ -24,6 +24,8 @@ type authService struct {
 	refreshTokens   *RefreshTokenManager
 }
 
+// newAuthService creates an authentication service with the required stores, identity provider, password components, and token managers.
+// It returns an error when a required dependency is unavailable, token manager initialization fails, or the credential store does not support atomic password changes.
 func newAuthService(authConfig config.AuthConfig, credentials authstore.CredentialStore, sessions authstore.SessionStore, identity moduleapi.UserIdentityProvider) (*authService, error) {
 	if credentials == nil || sessions == nil || identity == nil {
 		return nil, errors.New("auth runtime dependencies are unavailable")

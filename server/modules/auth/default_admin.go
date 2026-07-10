@@ -13,7 +13,8 @@ import (
 	authstore "graft/server/modules/auth/store"
 )
 
-//nolint:cyclop,gocognit,gocyclo,nestif // Bootstrap preserves distinct existing-admin and first-provision semantics.
+// ensureDefaultAdmin 确保默认管理员账户、凭据及其 RBAC 权限已完成配置。
+// 缺少必要依赖、配置账户或权限失败时返回错误。
 func ensureDefaultAdmin(ctx context.Context, localizer *i18n.Service, credentials authstore.CredentialStore, identity moduleapi.UserIdentityProvider, rbac moduleapi.RBACBootstrapService, permissions []permission.Item) error {
 	if credentials == nil || identity == nil {
 		return errors.New("auth default-admin dependencies are unavailable")
@@ -58,6 +59,10 @@ func ensureDefaultAdmin(ctx context.Context, localizer *i18n.Service, credential
 	return nil
 }
 
+// permissionSeedsFromItems 根据权限条目构建包含本地化显示文本和描述的权限种子。
+// 如果本地化服务缺失、显示文案键为空或对应资源未注册，则返回错误。
+//
+// 返回构建的权限种子列表及可能发生的错误。
 func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) ([]moduleapi.PermissionSeed, error) {
 	if localizer == nil {
 		return nil, errors.New("permission seed localization requires i18n service")

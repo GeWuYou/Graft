@@ -63,6 +63,7 @@ func (p userIdentityProvider) EnsureDefaultAdminProfile(ctx context.Context) (mo
 	return currentUserFromStore(created), nil
 }
 
+// currentUserFromStore converts a stored user into a current user profile containing identity and display information.
 func currentUserFromStore(user userstore.User) moduleapi.CurrentUser {
 	return moduleapi.CurrentUser{ID: user.ID, Username: user.Username, DisplayName: user.Display}
 }

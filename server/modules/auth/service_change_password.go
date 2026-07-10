@@ -95,6 +95,9 @@ func (s authService) CompleteRequiredPasswordChange(ctx context.Context, newPass
 	return nil
 }
 
+// requireRequestAuth retrieves the authenticated request context from ctx.
+// It returns moduleapi.ErrUnauthenticated when the context or its required user
+// and claims information is unavailable.
 func requireRequestAuth(ctx context.Context) (moduleapi.RequestAuthContext, error) {
 	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil || requestAuth.Claims == nil {

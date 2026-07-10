@@ -9,7 +9,7 @@ import (
 	"graft/server/modules/auth/store"
 )
 
-// NewSessionStore builds the auth-owned refresh-session store.
+// NewSessionStore 创建基于 Ent 客户端的认证刷新会话存储。
 func NewSessionStore(client *authent.Client) (store.SessionStore, error) {
 	return newSessionStore(client)
 }
@@ -18,6 +18,8 @@ type sessionStore struct {
 	client *authent.Client
 }
 
+// newSessionStore creates a session store backed by the provided Ent client.
+// It returns an error when the client is nil.
 func newSessionStore(client *authent.Client) (*sessionStore, error) {
 	if client == nil {
 		return nil, fmt.Errorf("auth session store requires a non-nil ent client")
@@ -145,6 +147,7 @@ func (r *sessionStore) RotateRefreshSession(ctx context.Context, input store.Rot
 	return toStoreRefreshSession(next), nil
 }
 
+// toStoreRefreshSession 将 Ent 刷新会话记录转换为存储层刷新会话模型。
 func toStoreRefreshSession(record *authent.AuthRefreshSession) store.RefreshSession {
 	return store.RefreshSession{
 		//nolint:gosec // Ent IDs come from the controlled schema and remain positive.

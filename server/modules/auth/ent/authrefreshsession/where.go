@@ -14,37 +14,37 @@ func ID(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldID, id))
 }
 
-// IDEQ applies the EQ predicate on the ID field.
+// IDEQ 根据给定的 ID 创建等于条件谓词。
 func IDEQ(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldID, id))
 }
 
-// IDNEQ applies the NEQ predicate on the ID field.
+// IDNEQ creates a predicate that matches records whose ID differs from the specified value.
 func IDNEQ(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldID, id))
 }
 
-// IDIn applies the In predicate on the ID field.
+// IDIn creates a predicate that matches entities whose ID is one of the specified values.
 func IDIn(ids ...int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldID, ids...))
 }
 
-// IDNotIn applies the NotIn predicate on the ID field.
+// It returns a predicate matching entities whose ID is not among ids.
 func IDNotIn(ids ...int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldID, ids...))
 }
 
-// IDGT applies the GT predicate on the ID field.
+// IDGT 根据 ID 字段构造大于给定值的谓词。
 func IDGT(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldID, id))
 }
 
-// IDGTE applies the GTE predicate on the ID field.
+// IDGTE 构造匹配 ID 字段大于或等于给定值的谓词。
 func IDGTE(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldID, id))
 }
 
-// IDLT applies the LT predicate on the ID field.
+// IDLT creates a predicate that matches records whose ID is less than id.
 func IDLT(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldID, id))
 }
@@ -54,72 +54,76 @@ func IDLTE(id int) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLTE(FieldID, id))
 }
 
-// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
+// UserID creates a predicate that matches the specified user ID.
 func UserID(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldUserID, v))
 }
 
-// TokenID applies equality check predicate on the "token_id" field. It's identical to TokenIDEQ.
+// TokenID 构造匹配指定令牌 ID 的查询谓词。
+// 返回匹配 token_id 等于 v 的谓词。
 func TokenID(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldTokenID, v))
 }
 
-// ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
+// ExpiresAt 构造匹配指定过期时间的谓词。
+// 返回值表示 expires_at 字段等于指定时间的查询条件。
 func ExpiresAt(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldExpiresAt, v))
 }
 
-// RevokedAt applies equality check predicate on the "revoked_at" field. It's identical to RevokedAtEQ.
+// RevokedAt 构造匹配指定撤销时间的谓词。
+// 返回用于匹配 revoked_at 字段等于 v 的谓词。
 func RevokedAt(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldRevokedAt, v))
 }
 
-// ReplacedByTokenID applies equality check predicate on the "replaced_by_token_id" field. It's identical to ReplacedByTokenIDEQ.
+// ReplacedByTokenID 构造一个匹配“replaced_by_token_id”字段值的谓词。
 func ReplacedByTokenID(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldReplacedByTokenID, v))
 }
 
-// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+// CreatedAt 为 created_at 字段构造等于指定时间的谓词。
 func CreatedAt(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldCreatedAt, v))
 }
 
-// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
+// UpdatedAt 构造用于匹配 updated_at 字段值的谓词。
+// 返回匹配指定时间的 AuthRefreshSession 谓词。
 func UpdatedAt(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// UserIDEQ applies the EQ predicate on the "user_id" field.
+// UserIDEQ 根据“user_id”字段构造等于指定值的谓词。
 func UserIDEQ(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldUserID, v))
 }
 
-// UserIDNEQ applies the NEQ predicate on the "user_id" field.
+// UserIDNEQ creates a predicate that matches records whose user ID differs from v.
 func UserIDNEQ(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldUserID, v))
 }
 
-// UserIDIn applies the In predicate on the "user_id" field.
+// UserIDIn creates a predicate that matches records whose user_id is one of the specified values.
 func UserIDIn(vs ...uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldUserID, vs...))
 }
 
-// UserIDNotIn applies the NotIn predicate on the "user_id" field.
+// UserIDNotIn 为 user_id 字段构建不属于指定值集合的谓词。
 func UserIDNotIn(vs ...uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldUserID, vs...))
 }
 
-// UserIDGT applies the GT predicate on the "user_id" field.
+// UserIDGT matches auth refresh sessions whose user ID is greater than v.
 func UserIDGT(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldUserID, v))
 }
 
-// UserIDGTE applies the GTE predicate on the "user_id" field.
+// UserIDGTE creates a predicate that matches records whose user ID is greater than or equal to the specified value.
 func UserIDGTE(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldUserID, v))
 }
 
-// UserIDLT applies the LT predicate on the "user_id" field.
+// UserIDLT creates a predicate that matches records whose user_id is less than v.
 func UserIDLT(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldUserID, v))
 }
@@ -129,7 +133,7 @@ func UserIDLTE(v uint64) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLTE(FieldUserID, v))
 }
 
-// TokenIDEQ applies the EQ predicate on the "token_id" field.
+// TokenIDEQ matches auth refresh sessions whose token ID equals v.
 func TokenIDEQ(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldTokenID, v))
 }
@@ -139,27 +143,27 @@ func TokenIDNEQ(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldTokenID, v))
 }
 
-// TokenIDIn applies the In predicate on the "token_id" field.
+// TokenIDIn matches auth refresh sessions whose token ID is among the specified values.
 func TokenIDIn(vs ...string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldTokenID, vs...))
 }
 
-// TokenIDNotIn applies the NotIn predicate on the "token_id" field.
+// TokenIDNotIn creates a predicate that excludes the specified values from the token ID field.
 func TokenIDNotIn(vs ...string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldTokenID, vs...))
 }
 
-// TokenIDGT applies the GT predicate on the "token_id" field.
+// TokenIDGT 构造匹配 token_id 大于给定值的谓词。
 func TokenIDGT(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldTokenID, v))
 }
 
-// TokenIDGTE applies the GTE predicate on the "token_id" field.
+// TokenIDGTE 构造匹配 token_id 字段值大于或等于指定值的谓词。
 func TokenIDGTE(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldTokenID, v))
 }
 
-// TokenIDLT applies the LT predicate on the "token_id" field.
+// TokenIDLT matches auth refresh sessions whose token ID is less than v.
 func TokenIDLT(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldTokenID, v))
 }
@@ -174,7 +178,7 @@ func TokenIDContains(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldContains(FieldTokenID, v))
 }
 
-// TokenIDHasPrefix applies the HasPrefix predicate on the "token_id" field.
+// TokenIDHasPrefix 构造匹配 token_id 字段指定前缀的谓词。
 func TokenIDHasPrefix(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldHasPrefix(FieldTokenID, v))
 }
@@ -184,17 +188,18 @@ func TokenIDHasSuffix(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldHasSuffix(FieldTokenID, v))
 }
 
-// TokenIDEqualFold applies the EqualFold predicate on the "token_id" field.
+// TokenIDEqualFold 构造按不区分大小写匹配 token_id 字段的谓词。
 func TokenIDEqualFold(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEqualFold(FieldTokenID, v))
 }
 
-// TokenIDContainsFold applies the ContainsFold predicate on the "token_id" field.
+// TokenIDContainsFold determines whether the token ID contains the specified text without regard to letter case.
+// It returns a predicate matching token IDs that contain the specified text, ignoring letter case.
 func TokenIDContainsFold(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldContainsFold(FieldTokenID, v))
 }
 
-// ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
+// ExpiresAtEQ applies an equality predicate to the "expires_at" field.
 func ExpiresAtEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldExpiresAt, v))
 }
@@ -204,12 +209,13 @@ func ExpiresAtNEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldExpiresAt, v))
 }
 
-// ExpiresAtIn applies the In predicate on the "expires_at" field.
+// ExpiresAtIn applies an IN predicate to the "expires_at" field. 
+// It returns a predicate matching records whose expiration time is one of the provided values.
 func ExpiresAtIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldExpiresAt, vs...))
 }
 
-// ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
+// ExpiresAtNotIn creates a predicate that excludes records whose expiration time matches any of the specified values.
 func ExpiresAtNotIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldExpiresAt, vs...))
 }
@@ -219,32 +225,33 @@ func ExpiresAtGT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldExpiresAt, v))
 }
 
-// ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
+// ExpiresAtGTE applies a greater-than-or-equal predicate to the "expires_at" field.
 func ExpiresAtGTE(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldExpiresAt, v))
 }
 
-// ExpiresAtLT applies the LT predicate on the "expires_at" field.
+// ExpiresAtLT creates a predicate that matches records whose expiration time is earlier than the specified time.
+// The returned predicate filters records with an "expires_at" value less than v.
 func ExpiresAtLT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldExpiresAt, v))
 }
 
-// ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
+// ExpiresAtLTE 创建一个匹配 expires_at 字段小于或等于指定时间的谓词。
 func ExpiresAtLTE(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLTE(FieldExpiresAt, v))
 }
 
-// RevokedAtEQ applies the EQ predicate on the "revoked_at" field.
+// RevokedAtEQ creates a predicate that matches records with the specified revocation time.
 func RevokedAtEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldRevokedAt, v))
 }
 
-// RevokedAtNEQ applies the NEQ predicate on the "revoked_at" field.
+// RevokedAtNEQ 构造一个匹配 `revoked_at` 字段不等于指定时间的谓词。
 func RevokedAtNEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldRevokedAt, v))
 }
 
-// RevokedAtIn applies the In predicate on the "revoked_at" field.
+// RevokedAtIn determines whether the "revoked_at" field matches any of the specified times.
 func RevokedAtIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldRevokedAt, vs...))
 }
@@ -254,7 +261,7 @@ func RevokedAtNotIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldRevokedAt, vs...))
 }
 
-// RevokedAtGT applies the GT predicate on the "revoked_at" field.
+// RevokedAtGT 根据“revoked_at”字段构建大于给定时间的谓词。
 func RevokedAtGT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldRevokedAt, v))
 }
@@ -269,7 +276,7 @@ func RevokedAtLT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldRevokedAt, v))
 }
 
-// RevokedAtLTE applies the LTE predicate on the "revoked_at" field.
+// RevokedAtLTE creates a predicate that matches records with a revoked_at value less than or equal to v.
 func RevokedAtLTE(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLTE(FieldRevokedAt, v))
 }
@@ -279,47 +286,49 @@ func RevokedAtIsNil() predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIsNull(FieldRevokedAt))
 }
 
-// RevokedAtNotNil applies the NotNil predicate on the "revoked_at" field.
+// RevokedAtNotNil creates a predicate that matches records with a non-null revoked_at field.
 func RevokedAtNotNil() predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotNull(FieldRevokedAt))
 }
 
-// ReplacedByTokenIDEQ applies the EQ predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDEQ creates a predicate that matches the "replaced_by_token_id" field against the specified value.
+// @param v 要匹配的替换令牌 ID。
+// @return 匹配指定替换令牌 ID 的谓词。
 func ReplacedByTokenIDEQ(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDNEQ applies the NEQ predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDNEQ creates a predicate that matches records whose replacement token ID differs from v.
 func ReplacedByTokenIDNEQ(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDIn applies the In predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDIn applies an IN predicate to the "replaced_by_token_id" field.
 func ReplacedByTokenIDIn(vs ...string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldReplacedByTokenID, vs...))
 }
 
-// ReplacedByTokenIDNotIn applies the NotIn predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDNotIn 根据给定值为“replaced_by_token_id”字段构建 NOT IN 谓词。
 func ReplacedByTokenIDNotIn(vs ...string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldReplacedByTokenID, vs...))
 }
 
-// ReplacedByTokenIDGT applies the GT predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDGT 按“replaced_by_token_id”字段值大于给定值构建谓词。
 func ReplacedByTokenIDGT(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDGTE applies the GTE predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDGTE 构造用于匹配“replaced_by_token_id”字段值大于或等于给定值的谓词。
 func ReplacedByTokenIDGTE(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDLT applies the LT predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDLT 构造用于匹配 replaced_by_token_id 字段值小于给定值的谓词。
 func ReplacedByTokenIDLT(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDLTE applies the LTE predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDLTE applies a less-than-or-equal comparison to the "replaced_by_token_id" field.
 func ReplacedByTokenIDLTE(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLTE(FieldReplacedByTokenID, v))
 }
@@ -329,42 +338,43 @@ func ReplacedByTokenIDContains(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldContains(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDHasPrefix applies the HasPrefix predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDHasPrefix 为 replaced_by_token_id 字段构造前缀匹配谓词。
+// v 为要匹配的前缀。
 func ReplacedByTokenIDHasPrefix(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldHasPrefix(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDHasSuffix applies the HasSuffix predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDHasSuffix 构造用于匹配“replaced_by_token_id”字段后缀的谓词。
 func ReplacedByTokenIDHasSuffix(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldHasSuffix(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDIsNil applies the IsNil predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDIsNil 构造一个用于匹配 replaced_by_token_id 字段为空值的谓词。
 func ReplacedByTokenIDIsNil() predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIsNull(FieldReplacedByTokenID))
 }
 
-// ReplacedByTokenIDNotNil applies the NotNil predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDNotNil creates a predicate that matches records with a non-null replacement token ID.
 func ReplacedByTokenIDNotNil() predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotNull(FieldReplacedByTokenID))
 }
 
-// ReplacedByTokenIDEqualFold applies the EqualFold predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDEqualFold applies a case-insensitive equality condition to the "replaced_by_token_id" field.
 func ReplacedByTokenIDEqualFold(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEqualFold(FieldReplacedByTokenID, v))
 }
 
-// ReplacedByTokenIDContainsFold applies the ContainsFold predicate on the "replaced_by_token_id" field.
+// ReplacedByTokenIDContainsFold 构造匹配 `replaced_by_token_id` 字段中包含指定文本且不区分大小写的谓词。
 func ReplacedByTokenIDContainsFold(v string) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldContainsFold(FieldReplacedByTokenID, v))
 }
 
-// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+// CreatedAtEQ determines whether the created-at timestamp equals the specified value.
 func CreatedAtEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldCreatedAt, v))
 }
 
-// CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
+// CreatedAtNEQ reports whether the "created_at" field differs from the specified time.
 func CreatedAtNEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldCreatedAt, v))
 }
@@ -374,22 +384,22 @@ func CreatedAtIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldCreatedAt, vs...))
 }
 
-// CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
+// CreatedAtNotIn creates a predicate that excludes records whose created_at field matches any provided time.
 func CreatedAtNotIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldCreatedAt, vs...))
 }
 
-// CreatedAtGT applies the GT predicate on the "created_at" field.
+// CreatedAtGT 构造用于匹配 created_at 字段大于指定时间的谓词。
 func CreatedAtGT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldCreatedAt, v))
 }
 
-// CreatedAtGTE applies the GTE predicate on the "created_at" field.
+// CreatedAtGTE 为创建时间构造大于或等于指定值的谓词。
 func CreatedAtGTE(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldCreatedAt, v))
 }
 
-// CreatedAtLT applies the LT predicate on the "created_at" field.
+// CreatedAtLT 按“created_at”字段筛选小于指定时间的记录。
 func CreatedAtLT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldCreatedAt, v))
 }
@@ -404,12 +414,12 @@ func UpdatedAtEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
+// UpdatedAtNEQ 创建一个匹配更新时间不等于指定时间的谓词。
 func UpdatedAtNEQ(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNEQ(FieldUpdatedAt, v))
 }
 
-// UpdatedAtIn applies the In predicate on the "updated_at" field.
+// UpdatedAtIn creates a predicate that matches records whose updated_at field equals one of the specified times.
 func UpdatedAtIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldIn(FieldUpdatedAt, vs...))
 }
@@ -419,37 +429,39 @@ func UpdatedAtNotIn(vs ...time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldNotIn(FieldUpdatedAt, vs...))
 }
 
-// UpdatedAtGT applies the GT predicate on the "updated_at" field.
+// UpdatedAtGT returns a predicate that matches records whose updated_at value is greater than v.
 func UpdatedAtGT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGT(FieldUpdatedAt, v))
 }
 
-// UpdatedAtGTE applies the GTE predicate on the "updated_at" field.
+// UpdatedAtGTE 构造一个用于匹配更新时间大于或等于指定时间的谓词。
 func UpdatedAtGTE(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldGTE(FieldUpdatedAt, v))
 }
 
-// UpdatedAtLT applies the LT predicate on the "updated_at" field.
+// UpdatedAtLT 按“updated_at”字段构造小于给定时间的谓词。
 func UpdatedAtLT(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLT(FieldUpdatedAt, v))
 }
 
-// UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
+// UpdatedAtLTE applies a less-than-or-equal predicate to the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// And groups predicates with the AND operator between them.
+// And 使用 AND 运算符组合多个 AuthRefreshSession 谓词。
+// 返回由给定谓词组成的 AND 谓词。
 func And(predicates ...predicate.AuthRefreshSession) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.AndPredicates(predicates...))
 }
 
-// Or groups predicates with the OR operator between them.
+// Or 使用 OR 运算符组合多个 AuthRefreshSession 谓词。
+// 返回由这些谓词组成的 OR 谓词。
 func Or(predicates ...predicate.AuthRefreshSession) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.OrPredicates(predicates...))
 }
 
-// Not applies the not operator on the given predicate.
+// Not negates the given AuthRefreshSession predicate.
 func Not(p predicate.AuthRefreshSession) predicate.AuthRefreshSession {
 	return predicate.AuthRefreshSession(sql.NotPredicates(p))
 }

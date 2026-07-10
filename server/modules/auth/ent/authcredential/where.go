@@ -14,7 +14,8 @@ func ID(id int) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldID, id))
 }
 
-// IDEQ applies the EQ predicate on the ID field.
+// IDEQ applies an equality filter to the ID field.
+// It returns a predicate matching entities whose ID equals id.
 func IDEQ(id int) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldID, id))
 }
@@ -34,12 +35,13 @@ func IDNotIn(ids ...int) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotIn(FieldID, ids...))
 }
 
-// IDGT applies the GT predicate on the ID field.
+// IDGT filters AuthCredential entities whose ID is greater than id.
+// @param id ID threshold.
 func IDGT(id int) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGT(FieldID, id))
 }
 
-// IDGTE applies the GTE predicate on the ID field.
+// IDGTE creates a predicate that matches AuthCredential entities whose ID is greater than or equal to id.
 func IDGTE(id int) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGTE(FieldID, id))
 }
@@ -54,32 +56,35 @@ func IDLTE(id int) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLTE(FieldID, id))
 }
 
-// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
+// UserID filters AuthCredential entities by the user_id field.
+// @param v The user ID to match.
+// @return A predicate matching the specified user ID.
 func UserID(v uint64) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldUserID, v))
 }
 
-// PasswordHash applies equality check predicate on the "password_hash" field. It's identical to PasswordHashEQ.
+// It returns a predicate that matches the specified password hash.
 func PasswordHash(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldPasswordHash, v))
 }
 
-// MustChangePassword applies equality check predicate on the "must_change_password" field. It's identical to MustChangePasswordEQ.
+// MustChangePassword 构造用于匹配 must_change_password 字段值的谓词。
 func MustChangePassword(v bool) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldMustChangePassword, v))
 }
 
-// PasswordChangedAt applies equality check predicate on the "password_changed_at" field. It's identical to PasswordChangedAtEQ.
+// PasswordChangedAt 构造用于匹配 AuthCredential 的 password_changed_at 字段值的谓词。
+// 返回字段值等于给定时间的谓词。
 func PasswordChangedAt(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldPasswordChangedAt, v))
 }
 
-// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+// CreatedAt 根据“created_at”字段的值构建相等谓词。
 func CreatedAt(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldCreatedAt, v))
 }
 
-// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
+// UpdatedAt creates a predicate that matches entities with the specified updated-at timestamp.
 func UpdatedAt(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldUpdatedAt, v))
 }
@@ -99,17 +104,19 @@ func UserIDIn(vs ...uint64) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldIn(FieldUserID, vs...))
 }
 
-// UserIDNotIn applies the NotIn predicate on the "user_id" field.
+// UserIDNotIn applies the NotIn predicate to the "user_id" field.
 func UserIDNotIn(vs ...uint64) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotIn(FieldUserID, vs...))
 }
 
-// UserIDGT applies the GT predicate on the "user_id" field.
+// UserIDGT filters AuthCredential entities whose user_id is greater than the specified value.
 func UserIDGT(v uint64) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGT(FieldUserID, v))
 }
 
-// UserIDGTE applies the GTE predicate on the "user_id" field.
+// UserIDGTE filters AuthCredential entities whose user_id field is greater than or equal to the specified value.
+// @param v user_id 的比较值。
+// @returns 匹配 user_id 大于或等于 v 的谓词。
 func UserIDGTE(v uint64) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGTE(FieldUserID, v))
 }
@@ -124,12 +131,13 @@ func UserIDLTE(v uint64) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLTE(FieldUserID, v))
 }
 
-// PasswordHashEQ applies the EQ predicate on the "password_hash" field.
+// PasswordHashEQ filters AuthCredential entities by an exact password hash value.
+// The returned predicate matches entities whose password_hash field equals v.
 func PasswordHashEQ(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldPasswordHash, v))
 }
 
-// PasswordHashNEQ applies the NEQ predicate on the "password_hash" field.
+// PasswordHashNEQ creates a predicate that excludes the specified password hash value.
 func PasswordHashNEQ(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNEQ(FieldPasswordHash, v))
 }
@@ -149,7 +157,7 @@ func PasswordHashGT(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGT(FieldPasswordHash, v))
 }
 
-// PasswordHashGTE applies the GTE predicate on the "password_hash" field.
+// PasswordHashGTE determines whether the password hash is greater than or equal to the specified value.
 func PasswordHashGTE(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGTE(FieldPasswordHash, v))
 }
@@ -159,7 +167,7 @@ func PasswordHashLT(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLT(FieldPasswordHash, v))
 }
 
-// PasswordHashLTE applies the LTE predicate on the "password_hash" field.
+// PasswordHashLTE determines whether the password hash is less than or equal to the specified value.
 func PasswordHashLTE(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLTE(FieldPasswordHash, v))
 }
@@ -174,7 +182,7 @@ func PasswordHashHasPrefix(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldHasPrefix(FieldPasswordHash, v))
 }
 
-// PasswordHashHasSuffix applies the HasSuffix predicate on the "password_hash" field.
+// PasswordHashHasSuffix 按“password_hash”字段值的后缀构建匹配谓词。
 func PasswordHashHasSuffix(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldHasSuffix(FieldPasswordHash, v))
 }
@@ -189,27 +197,30 @@ func PasswordHashNotNil() predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotNull(FieldPasswordHash))
 }
 
-// PasswordHashEqualFold applies the EqualFold predicate on the "password_hash" field.
+// PasswordHashEqualFold determines whether the password hash matches a value without regard to letter case.
+// It returns a predicate that evaluates to true when the password hash equals v case-insensitively.
 func PasswordHashEqualFold(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEqualFold(FieldPasswordHash, v))
 }
 
-// PasswordHashContainsFold applies the ContainsFold predicate on the "password_hash" field.
+// It returns a predicate matching password hashes that contain the text.
 func PasswordHashContainsFold(v string) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldContainsFold(FieldPasswordHash, v))
 }
 
-// MustChangePasswordEQ applies the EQ predicate on the "must_change_password" field.
+// MustChangePasswordEQ filters AuthCredential entities by an exact must-change-password value.
+// The returned predicate matches entities whose must_change_password field equals v.
 func MustChangePasswordEQ(v bool) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldMustChangePassword, v))
 }
 
-// MustChangePasswordNEQ applies the NEQ predicate on the "must_change_password" field.
+// MustChangePasswordNEQ creates a predicate matching credentials whose password-change requirement differs from the specified value.
 func MustChangePasswordNEQ(v bool) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNEQ(FieldMustChangePassword, v))
 }
 
-// PasswordChangedAtEQ applies the EQ predicate on the "password_changed_at" field.
+// PasswordChangedAtEQ filters AuthCredential entities by an exact password change time.
+// It returns a predicate matching the specified value.
 func PasswordChangedAtEQ(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldPasswordChangedAt, v))
 }
@@ -224,47 +235,50 @@ func PasswordChangedAtIn(vs ...time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldIn(FieldPasswordChangedAt, vs...))
 }
 
-// PasswordChangedAtNotIn applies the NotIn predicate on the "password_changed_at" field.
+// PasswordChangedAtNotIn filters credentials whose password change time is not among the specified values.
 func PasswordChangedAtNotIn(vs ...time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotIn(FieldPasswordChangedAt, vs...))
 }
 
-// PasswordChangedAtGT applies the GT predicate on the "password_changed_at" field.
+// PasswordChangedAtGT applies a greater-than predicate to the "password_changed_at" field.
 func PasswordChangedAtGT(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGT(FieldPasswordChangedAt, v))
 }
 
-// PasswordChangedAtGTE applies the GTE predicate on the "password_changed_at" field.
+// PasswordChangedAtGTE filters AuthCredential entities whose password_changed_at value is greater than or equal to v.
 func PasswordChangedAtGTE(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGTE(FieldPasswordChangedAt, v))
 }
 
-// PasswordChangedAtLT applies the LT predicate on the "password_changed_at" field.
+// PasswordChangedAtLT filters AuthCredential entities whose password_changed_at value is earlier than the specified time.
+// @param v 用于比较的时间。
+// @returns password_changed_at 早于 v 的谓词。
 func PasswordChangedAtLT(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLT(FieldPasswordChangedAt, v))
 }
 
-// PasswordChangedAtLTE applies the LTE predicate on the "password_changed_at" field.
+// PasswordChangedAtLTE filters AuthCredential entities by a password change time less than or equal to v.
 func PasswordChangedAtLTE(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLTE(FieldPasswordChangedAt, v))
 }
 
-// PasswordChangedAtIsNil applies the IsNil predicate on the "password_changed_at" field.
+// PasswordChangedAtIsNil matches AuthCredential entities whose password_changed_at field is null.
 func PasswordChangedAtIsNil() predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldIsNull(FieldPasswordChangedAt))
 }
 
-// PasswordChangedAtNotNil applies the NotNil predicate on the "password_changed_at" field.
+// PasswordChangedAtNotNil filters credentials whose password_changed_at field contains a value.
 func PasswordChangedAtNotNil() predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotNull(FieldPasswordChangedAt))
 }
 
-// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+// CreatedAtEQ applies an equality filter to the created_at field.
+// It returns a predicate matching records whose created_at value equals v.
 func CreatedAtEQ(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldCreatedAt, v))
 }
 
-// CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
+// CreatedAtNEQ filters AuthCredential entities whose created_at value differs from the specified time.
 func CreatedAtNEQ(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNEQ(FieldCreatedAt, v))
 }
@@ -274,42 +288,42 @@ func CreatedAtIn(vs ...time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldIn(FieldCreatedAt, vs...))
 }
 
-// CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
+// CreatedAtNotIn 构造用于筛选 created_at 字段值不属于指定时间集合的谓词。
 func CreatedAtNotIn(vs ...time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotIn(FieldCreatedAt, vs...))
 }
 
-// CreatedAtGT applies the GT predicate on the "created_at" field.
+// CreatedAtGT applies a greater-than filter to the created_at field.
 func CreatedAtGT(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGT(FieldCreatedAt, v))
 }
 
-// CreatedAtGTE applies the GTE predicate on the "created_at" field.
+// CreatedAtGTE 构造用于筛选 created_at 大于或等于指定时间的谓词。
 func CreatedAtGTE(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGTE(FieldCreatedAt, v))
 }
 
-// CreatedAtLT applies the LT predicate on the "created_at" field.
+// CreatedAtLT applies a less-than predicate to the "created_at" field.
 func CreatedAtLT(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLT(FieldCreatedAt, v))
 }
 
-// CreatedAtLTE applies the LTE predicate on the "created_at" field.
+// CreatedAtLTE applies a less-than-or-equal comparison to the created_at field.
 func CreatedAtLTE(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldLTE(FieldCreatedAt, v))
 }
 
-// UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
+// v specifies the time to compare with the updated_at field.
 func UpdatedAtEQ(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
+// UpdatedAtNEQ creates a predicate that matches AuthCredential entities whose updated_at field differs from the specified time.
 func UpdatedAtNEQ(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNEQ(FieldUpdatedAt, v))
 }
 
-// UpdatedAtIn applies the In predicate on the "updated_at" field.
+// UpdatedAtIn applies an inclusion predicate to the "updated_at" field.
 func UpdatedAtIn(vs ...time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldIn(FieldUpdatedAt, vs...))
 }
@@ -319,7 +333,7 @@ func UpdatedAtNotIn(vs ...time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldNotIn(FieldUpdatedAt, vs...))
 }
 
-// UpdatedAtGT applies the GT predicate on the "updated_at" field.
+// UpdatedAtGT creates a predicate that matches AuthCredential entities with an updated_at value later than v.
 func UpdatedAtGT(v time.Time) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.FieldGT(FieldUpdatedAt, v))
 }
@@ -349,7 +363,7 @@ func Or(predicates ...predicate.AuthCredential) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.OrPredicates(predicates...))
 }
 
-// Not applies the not operator on the given predicate.
+// Not negates the result of the given predicate.
 func Not(p predicate.AuthCredential) predicate.AuthCredential {
 	return predicate.AuthCredential(sql.NotPredicates(p))
 }

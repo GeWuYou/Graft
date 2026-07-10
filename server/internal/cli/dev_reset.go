@@ -37,6 +37,8 @@ var (
 	}
 )
 
+// newDevResetAdminCommand 创建仅限开发环境使用的命令，用于将默认管理员恢复为首次登录状态。
+// 返回配置完成的 reset-admin 命令。
 func newDevResetAdminCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset-admin",
@@ -52,7 +54,8 @@ func newDevResetAdminCommand() *cobra.Command {
 	}
 }
 
-//nolint:cyclop // Explicit dev-only dependency construction keeps the CLI path auditable.
+// runDevResetAdmin 在本地或测试环境中初始化重置所需服务，将默认管理员恢复为开发环境首次登录状态，并输出重置结果。
+// 数据库关闭失败时，会将该错误与执行过程中的错误合并返回。
 func runDevResetAdmin(cmd *cobra.Command) (err error) {
 	cfg, err := devResetLoadConfig()
 	if err != nil {

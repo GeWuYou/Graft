@@ -10,7 +10,7 @@ import (
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
-// to their package variables.
+// init 初始化 User 实体字段的校验器及创建、更新默认值。
 func init() {
 	userFields := schema.User{}.Fields()
 	_ = userFields

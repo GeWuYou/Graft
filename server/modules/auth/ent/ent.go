@@ -37,7 +37,7 @@ type (
 
 type clientCtxKey struct{}
 
-// FromContext returns a Client stored inside a context, or nil if there isn't one.
+// FromContext 从上下文中获取关联的 Client；如果上下文中不存在，则返回 nil。
 func FromContext(ctx context.Context) *Client {
 	c, _ := ctx.Value(clientCtxKey{}).(*Client)
 	return c
@@ -50,7 +50,7 @@ func NewContext(parent context.Context, c *Client) context.Context {
 
 type txCtxKey struct{}
 
-// TxFromContext returns a Tx stored inside a context, or nil if there isn't one.
+// TxFromContext 从上下文中获取关联的事务；如果未关联事务，则返回 nil。
 func TxFromContext(ctx context.Context) *Tx {
 	tx, _ := ctx.Value(txCtxKey{}).(*Tx)
 	return tx
@@ -70,7 +70,7 @@ var (
 	columnCheck sql.ColumnCheck
 )
 
-// checkColumn checks if the column exists in the given table.
+// checkColumn 验证指定表中是否存在给定列，并返回验证错误。
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
@@ -93,7 +93,7 @@ func Asc(fields ...string) func(*sql.Selector) {
 	}
 }
 
-// Desc applies the given fields in DESC order.
+// Desc 返回一个按降序应用指定字段的排序函数。
 func Desc(fields ...string) func(*sql.Selector) {
 	return func(s *sql.Selector) {
 		for _, f := range fields {
@@ -112,21 +112,21 @@ type AggregateFunc func(*sql.Selector) string
 //
 //	GroupBy(field1, field2).
 //	Aggregate(ent.As(ent.Sum(field1), "sum_field1"), (ent.As(ent.Sum(field2), "sum_field2")).
-//	Scan(ctx, &v)
+// As renames the result of an aggregate expression.
 func As(fn AggregateFunc, end string) AggregateFunc {
 	return func(s *sql.Selector) string {
 		return sql.As(fn(s), end)
 	}
 }
 
-// Count applies the "count" aggregation function on each group.
+// Count creates a count aggregation expression for each group.
 func Count() AggregateFunc {
 	return func(s *sql.Selector) string {
 		return sql.Count("*")
 	}
 }
 
-// Max applies the "max" aggregation function on the given field of each group.
+// Max 创建一个对指定字段应用 MAX 聚合的聚合函数。
 func Max(field string) AggregateFunc {
 	return func(s *sql.Selector) string {
 		if err := checkColumn(s.TableName(), field); err != nil {
@@ -137,7 +137,7 @@ func Max(field string) AggregateFunc {
 	}
 }
 
-// Mean applies the "mean" aggregation function on the given field of each group.
+// Mean 为指定字段构建平均值聚合表达式；字段无效时向选择器添加验证错误并返回空表达式。
 func Mean(field string) AggregateFunc {
 	return func(s *sql.Selector) string {
 		if err := checkColumn(s.TableName(), field); err != nil {
@@ -148,7 +148,9 @@ func Mean(field string) AggregateFunc {
 	}
 }
 
-// Min applies the "min" aggregation function on the given field of each group.
+// Min 创建一个按指定字段计算最小值的聚合表达式。
+// 字段无效时记录验证错误并生成空表达式。
+// 返回用于生成最小值聚合表达式的函数。
 func Min(field string) AggregateFunc {
 	return func(s *sql.Selector) string {
 		if err := checkColumn(s.TableName(), field); err != nil {
@@ -159,7 +161,7 @@ func Min(field string) AggregateFunc {
 	}
 }
 
-// Sum applies the "sum" aggregation function on the given field of each group.
+// Sum 为指定字段创建求和聚合表达式；字段无效时会记录验证错误并返回空表达式。
 func Sum(field string) AggregateFunc {
 	return func(s *sql.Selector) string {
 		if err := checkColumn(s.TableName(), field); err != nil {
@@ -186,7 +188,7 @@ func (e *ValidationError) Unwrap() error {
 	return e.err
 }
 
-// IsValidationError returns a boolean indicating whether the error is a validation error.
+// IsValidationError 判断错误是否为验证错误或包装了验证错误。
 func IsValidationError(err error) bool {
 	if err == nil {
 		return false
@@ -214,7 +216,7 @@ func IsNotFound(err error) bool {
 	return errors.As(err, &e)
 }
 
-// MaskNotFound masks not found error.
+// MaskNotFound returns nil for a not-found error and returns all other errors unchanged.
 func MaskNotFound(err error) error {
 	if IsNotFound(err) {
 		return nil
@@ -232,7 +234,7 @@ func (e *NotSingularError) Error() string {
 	return "ent: " + e.label + " not singular"
 }
 
-// IsNotSingular returns a boolean indicating whether the error is a not singular error.
+// IsNotSingular 判断 err 是否为 NotSingularError 或其包装错误。
 func IsNotSingular(err error) bool {
 	if err == nil {
 		return false
@@ -490,7 +492,8 @@ func (s *selector) BoolX(ctx context.Context) bool {
 	return v
 }
 
-// withHooks invokes the builder operation with the given hooks, if any.
+// withHooks 使用指定的钩子执行构建器操作，并返回操作结果。
+// 未提供钩子时直接执行操作；钩子未初始化或类型不匹配时返回错误。
 func withHooks[V Value, M any, PM interface {
 	*M
 	Mutation
@@ -524,7 +527,7 @@ func withHooks[V Value, M any, PM interface {
 	return nv, nil
 }
 
-// setContextOp returns a new context with the given QueryContext attached (including its op) in case it does not exist.
+// setContextOp 在上下文中不存在查询上下文时附加给定的查询上下文，并设置其操作名称。
 func setContextOp(ctx context.Context, qc *QueryContext, op string) context.Context {
 	if ent.QueryFromContext(ctx) == nil {
 		qc.Op = op
@@ -533,6 +536,7 @@ func setContextOp(ctx context.Context, qc *QueryContext, op string) context.Cont
 	return ctx
 }
 
+// querierAll 创建一个执行查询并返回全部结果的 Querier；查询类型不匹配时返回错误。
 func querierAll[V Value, Q interface {
 	sqlAll(context.Context, ...queryHook) (V, error)
 }]() Querier {
@@ -545,6 +549,7 @@ func querierAll[V Value, Q interface {
 	})
 }
 
+// querierCount returns a querier that executes the count operation for a query of type Q.
 func querierCount[Q interface {
 	sqlCount(context.Context) (int, error)
 }]() Querier {
@@ -557,6 +562,7 @@ func querierCount[Q interface {
 	})
 }
 
+// withInterceptors 通过拦截器执行查询，并返回指定类型的查询结果；查询失败或结果类型不符合预期时返回错误。
 func withInterceptors[V Value](ctx context.Context, q Query, qr Querier, inters []Interceptor) (v V, err error) {
 	for i := len(inters) - 1; i >= 0; i-- {
 		qr = inters[i].Intercept(qr)
@@ -572,6 +578,8 @@ func withInterceptors[V Value](ctx context.Context, q Query, qr Querier, inters 
 	return vt, nil
 }
 
+// scanWithInterceptors 通过拦截器执行查询，并将扫描结果写入 v。
+// 查询类型不符合预期或扫描失败时返回错误。
 func scanWithInterceptors[Q1 ent.Query, Q2 interface {
 	sqlScan(context.Context, Q1, any) error
 }](ctx context.Context, rootQuery Q1, selectOrGroup Q2, inters []Interceptor, v any) error {

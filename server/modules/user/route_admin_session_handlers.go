@@ -135,6 +135,11 @@ func (h userWriteGeneratedHandler) PostUserSessionRevoke(
 	_ = params
 }
 
+// bindGeneratedUserSessionsParams 将请求头和会话列表选项转换为生成的用户会话查询参数。
+// 当限制值大于零时，将其包含在返回参数中。
+//
+// options 提供会话列表的查询选项。
+ 񟿿
 func bindGeneratedUserSessionsParams(
 	ginCtx *gin.Context,
 	options userSessionListOptions,
@@ -159,6 +164,7 @@ func bindGeneratedUserSessionsRevokeAllParams(ginCtx *gin.Context) useropenapi.P
 	}
 }
 
+// bindGeneratedUserSessionRevokeParams binds request headers to generated session-revocation parameters.
 func bindGeneratedUserSessionRevokeParams(ginCtx *gin.Context) useropenapi.PostUserSessionRevokeParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUserSessionRevokeParams{

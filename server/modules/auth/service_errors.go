@@ -8,6 +8,8 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
+// mapAuthError 将认证相关错误映射为 HTTP 状态码和消息契约键。
+// 对于未匹配的错误，返回 500 状态码和通用内部错误键。
 func mapAuthError(err error) (int, messagecontract.Key) {
 	for _, mapping := range []struct {
 		match  error
@@ -34,6 +36,7 @@ func mapAuthError(err error) (int, messagecontract.Key) {
 	return http.StatusInternalServerError, messagecontract.CommonInternalError
 }
 
+// authErrorDetails 返回当前密码错误所需的字段级明细；匹配当前密码必填错误时返回字段名，否则返回 nil。
 func authErrorDetails(err error) map[string]any {
 	if errors.Is(err, errCurrentPasswordRequired) {
 		return map[string]any{"field": "current_password"}

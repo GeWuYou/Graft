@@ -221,7 +221,7 @@ func (r taskRoutes) writeDetail(c *gin.Context, status int, task moduleapi.TaskV
 	httpx.WriteSuccess(c, status, response)
 }
 
-// taskSummaryResponse adapts the internal Task view to the canonical OpenAPI response shape.
+// taskSummaryResponse converts a task view into its canonical OpenAPI response object.
 func taskSummaryResponse(task moduleapi.TaskView) map[string]any {
 	return map[string]any{
 		"id":                task.ID,
@@ -240,6 +240,7 @@ func taskSummaryResponse(task moduleapi.TaskView) map[string]any {
 	}
 }
 
+// taskSummaryResponses 将任务视图列表转换为任务摘要响应对象列表。
 func taskSummaryResponses(tasks []moduleapi.TaskView) []map[string]any {
 	items := make([]map[string]any, 0, len(tasks))
 	for _, task := range tasks {
@@ -248,6 +249,8 @@ func taskSummaryResponses(tasks []moduleapi.TaskView) []map[string]any {
 	return items
 }
 
+// taskStageResponse 将任务阶段视图转换为 API 响应对象。
+// 返回包含阶段标识、执行信息、状态、时间信息及失败详情的字段映射。
 func taskStageResponse(stage moduleapi.TaskStageView) map[string]any {
 	return map[string]any{
 		"id":              stage.ID,
@@ -266,6 +269,7 @@ func taskStageResponse(stage moduleapi.TaskStageView) map[string]any {
 	}
 }
 
+// taskStageResponses 将任务阶段视图转换为阶段响应对象列表。
 func taskStageResponses(stages []moduleapi.TaskStageView) []map[string]any {
 	items := make([]map[string]any, 0, len(stages))
 	for _, stage := range stages {
@@ -274,6 +278,8 @@ func taskStageResponses(stages []moduleapi.TaskStageView) []map[string]any {
 	return items
 }
 
+// taskEventResponse 将任务事件视图转换为 API 响应对象。
+// 返回包含事件标识、序列号、类型、载荷和创建时间的响应映射。
 func taskEventResponse(event moduleapi.TaskEventView) map[string]any {
 	return map[string]any{
 		"id":         event.ID,
@@ -284,6 +290,7 @@ func taskEventResponse(event moduleapi.TaskEventView) map[string]any {
 	}
 }
 
+// taskEventResponses converts task event views into response objects.
 func taskEventResponses(events []moduleapi.TaskEventView) []map[string]any {
 	items := make([]map[string]any, 0, len(events))
 	for _, event := range events {
@@ -292,6 +299,7 @@ func taskEventResponses(events []moduleapi.TaskEventView) []map[string]any {
 	return items
 }
 
+// taskLogResponse 将任务日志视图转换为 API 响应对象。
 func taskLogResponse(log moduleapi.TaskLogView) map[string]any {
 	return map[string]any{
 		"id":          log.ID,
@@ -304,6 +312,7 @@ func taskLogResponse(log moduleapi.TaskLogView) map[string]any {
 	}
 }
 
+// taskLogResponses converts task log views into response objects.
 func taskLogResponses(logs []moduleapi.TaskLogView) []map[string]any {
 	items := make([]map[string]any, 0, len(logs))
 	for _, log := range logs {

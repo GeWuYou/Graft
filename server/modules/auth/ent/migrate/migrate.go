@@ -45,7 +45,7 @@ func (s *Schema) Create(ctx context.Context, opts ...schema.MigrateOption) error
 	return Create(ctx, s, Tables, opts...)
 }
 
-// Create creates all table resources using the given schema driver.
+// Create creates schema resources for the specified table definitions using the given schema client.
 func Create(ctx context.Context, s *Schema, tables []*schema.Table, opts ...schema.MigrateOption) error {
 	migrate, err := schema.NewMigrate(s.drv, opts...)
 	if err != nil {

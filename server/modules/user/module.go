@@ -554,6 +554,7 @@ func currentAuditOperator(ctx context.Context) *moduleapi.CurrentUser {
 	return &user
 }
 
+// formatUserAuditID 将用户标识格式化为审计事件使用的字符串；标识为零时返回空字符串。
 func formatUserAuditID(id uint64) string {
 	if id == 0 {
 		return ""
@@ -561,7 +562,7 @@ func formatUserAuditID(id uint64) string {
 	return strconv.FormatUint(id, 10)
 }
 
-// parseUserID 将路由参数转换为模块内部统一使用的正整数 ID。
+// parseUserID 将路由参数解析为大于零的用户 ID；输入格式无效或 ID 为零时返回错误。
 func parseUserID(input string) (uint64, error) {
 	id, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {
@@ -576,7 +577,7 @@ func parseUserID(input string) (uint64, error) {
 // parseSessionListOptions 将列表查询参数收敛为模块内最小会话列表约束。
 //
 // 当前只允许显式 limit，并把约束留在模块层，避免为了轻量分页提前扩展仓储
-// 或跨模块契约。
+// 空值返回默认选项；非空值必须为 1 至 maxUserSessionListLimit 范围内的整数。
 func parseSessionListOptions(rawLimit string) (userSessionListOptions, error) {
 	rawLimit = strings.TrimSpace(rawLimit)
 	if rawLimit == "" {
@@ -594,7 +595,8 @@ func parseSessionListOptions(rawLimit string) (userSessionListOptions, error) {
 	return userSessionListOptions{Limit: limit}, nil
 }
 
-// mapAuthError 把模块内部鉴权/会话错误收敛为稳定 HTTP 状态与消息键。
+// mapAuthError 将鉴权错误映射为稳定的 HTTP 状态码和消息键。
+// 未认证错误映射为 401 和缺少鉴权令牌的消息键，其余错误映射为 500 和通用内部错误消息键。
 func mapAuthError(err error) (int, messagecontract.Key) {
 	for _, mapping := range []struct {
 		match  error

@@ -31,20 +31,21 @@ type (
 	}
 )
 
-// WithOptions forwards options to client creation.
+// WithOptions configures client creation with the provided Ent options.
 func WithOptions(opts ...ent.Option) Option {
 	return func(o *options) {
 		o.opts = append(o.opts, opts...)
 	}
 }
 
-// WithMigrateOptions forwards options to auto migration.
+// WithMigrateOptions configures options for automatic schema migration.
 func WithMigrateOptions(opts ...schema.MigrateOption) Option {
 	return func(o *options) {
 		o.migrateOpts = append(o.migrateOpts, opts...)
 	}
 }
 
+// newOptions 创建并应用给定配置选项，返回配置结果。
 func newOptions(opts []Option) *options {
 	o := &options{}
 	for _, opt := range opts {
@@ -53,7 +54,7 @@ func newOptions(opts []Option) *options {
 	return o
 }
 
-// Open calls ent.Open and auto-run migration.
+// 如果客户端创建或模式迁移失败，则报告错误并终止测试。
 func Open(t TestingT, driverName, dataSourceName string, opts ...Option) *ent.Client {
 	o := newOptions(opts)
 	c, err := ent.Open(driverName, dataSourceName, o.opts...)
@@ -65,13 +66,14 @@ func Open(t TestingT, driverName, dataSourceName string, opts ...Option) *ent.Cl
 	return c
 }
 
-// NewClient calls ent.NewClient and auto-run migration.
+// NewClient creates an Ent client and automatically applies the database schema migration.
 func NewClient(t TestingT, opts ...Option) *ent.Client {
 	o := newOptions(opts)
 	c := ent.NewClient(o.opts...)
 	migrateSchema(t, c, o)
 	return c
 }
+// migrateSchema creates or updates the database schema for the Ent client using the configured migration options.
 func migrateSchema(t TestingT, c *ent.Client, o *options) {
 	tables, err := schema.CopyTables(migrate.Tables)
 	if err != nil {

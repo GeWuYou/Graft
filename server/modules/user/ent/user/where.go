@@ -64,12 +64,12 @@ func Display(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldDisplay, v))
 }
 
-// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
+// Status 根据 status 字段的值创建用户查询谓词。
 func Status(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldStatus, v))
 }
 
-// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+// CreatedAt 根据“created_at”字段的值创建相等谓词。
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
 }
@@ -289,12 +289,12 @@ func StatusEqualFold(v string) predicate.User {
 	return predicate.User(sql.FieldEqualFold(FieldStatus, v))
 }
 
-// StatusContainsFold applies the ContainsFold predicate on the "status" field.
+// StatusContainsFold determines whether the status field contains the specified value without regard to letter case.
 func StatusContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldStatus, v))
 }
 
-// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+// CreatedAtEQ 根据给定时间为“created_at”字段创建相等谓词。
 func CreatedAtEQ(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
 }
@@ -529,12 +529,12 @@ func DeletedByLT(v uint64) predicate.User {
 	return predicate.User(sql.FieldLT(FieldDeletedBy, v))
 }
 
-// DeletedByLTE applies the LTE predicate on the "deleted_by" field.
+// DeletedByLTE 创建“deleted_by”字段小于或等于指定值的谓词。
 func DeletedByLTE(v uint64) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldDeletedBy, v))
 }
 
-// And groups predicates with the AND operator between them.
+// And 使用逻辑 AND 运算符组合多个用户谓词。
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))
 }

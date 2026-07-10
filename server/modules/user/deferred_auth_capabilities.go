@@ -18,6 +18,7 @@ type deferredAuthCapabilities struct {
 	flow     moduleapi.AuthFlowService
 }
 
+// newDeferredAuthCapabilities creates deferred authentication capabilities without configured service targets.
 func newDeferredAuthCapabilities() *deferredAuthCapabilities { return &deferredAuthCapabilities{} }
 
 func (d *deferredAuthCapabilities) SetTargets(auth moduleapi.AuthService, sessions moduleapi.AuthSessionService, flow moduleapi.AuthFlowService) error {

@@ -35,7 +35,7 @@ func (f AuthRefreshSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 
-// And groups conditions with the AND operator.
+// And 将多个条件组合为一个逻辑与条件，所有条件均满足时该条件才成立。
 func And(first, second Condition, rest ...Condition) Condition {
 	return func(ctx context.Context, m ent.Mutation) bool {
 		if !first(ctx, m) || !second(ctx, m) {
@@ -50,7 +50,7 @@ func And(first, second Condition, rest ...Condition) Condition {
 	}
 }
 
-// Or groups conditions with the OR operator.
+// Or 创建一个条件，只要任一输入条件满足，该条件就返回 true。
 func Or(first, second Condition, rest ...Condition) Condition {
 	return func(ctx context.Context, m ent.Mutation) bool {
 		if first(ctx, m) || second(ctx, m) {
@@ -65,21 +65,22 @@ func Or(first, second Condition, rest ...Condition) Condition {
 	}
 }
 
-// Not negates a given condition.
+// Not creates a condition that is true when the given condition is false.
 func Not(cond Condition) Condition {
 	return func(ctx context.Context, m ent.Mutation) bool {
 		return !cond(ctx, m)
 	}
 }
 
-// HasOp is a condition testing mutation operation.
+// HasOp 创建一个用于匹配 mutation 操作的条件。
+// 当 mutation 的操作匹配指定操作时，返回 true。
 func HasOp(op ent.Op) Condition {
 	return func(_ context.Context, m ent.Mutation) bool {
 		return m.Op().Is(op)
 	}
 }
 
-// HasAddedFields is a condition validating `.AddedField` on fields.
+// HasAddedFields 判断 mutation 是否包含指定字段的新增值。返回 true 表示所有指定字段均存在新增值，否则返回 false。
 func HasAddedFields(field string, fields ...string) Condition {
 	return func(_ context.Context, m ent.Mutation) bool {
 		if _, exists := m.AddedField(field); !exists {
@@ -94,7 +95,8 @@ func HasAddedFields(field string, fields ...string) Condition {
 	}
 }
 
-// HasClearedFields is a condition validating `.FieldCleared` on fields.
+// HasClearedFields 创建一个用于检查指定字段是否已被清除的条件。
+// 当所有指定字段均已被清除时返回 true，否则返回 false。
 func HasClearedFields(field string, fields ...string) Condition {
 	return func(_ context.Context, m ent.Mutation) bool {
 		if exists := m.FieldCleared(field); !exists {
@@ -109,7 +111,7 @@ func HasClearedFields(field string, fields ...string) Condition {
 	}
 }
 
-// HasFields is a condition validating `.Field` on fields.
+// HasFields creates a condition that is true when the mutation contains values for all specified fields.
 func HasFields(field string, fields ...string) Condition {
 	return func(_ context.Context, m ent.Mutation) bool {
 		if _, exists := m.Field(field); !exists {
@@ -126,7 +128,8 @@ func HasFields(field string, fields ...string) Condition {
 
 // If executes the given hook under condition.
 //
-//	hook.If(ComputeAverage, And(HasFields(...), HasAddedFields(...)))
+// If 根据条件决定是否执行指定的 hook；条件不满足时直接调用后续 mutator。
+// 返回一个按条件包装后续 mutator 的 hook。
 func If(hk ent.Hook, cond Condition) ent.Hook {
 	return func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
@@ -140,19 +143,19 @@ func If(hk ent.Hook, cond Condition) ent.Hook {
 
 // On executes the given hook only for the given operation.
 //
-//	hook.On(Log, ent.Delete|ent.Create)
+// On 返回仅在 mutation 操作匹配指定操作时执行的 hook。
 func On(hk ent.Hook, op ent.Op) ent.Hook {
 	return If(hk, HasOp(op))
 }
 
 // Unless skips the given hook only for the given operation.
 //
-//	hook.Unless(Log, ent.Update|ent.UpdateOne)
+// Unless 仅在 mutation 操作不匹配 op 时执行指定的 hook。
 func Unless(hk ent.Hook, op ent.Op) ent.Hook {
 	return If(hk, Not(HasOp(op)))
 }
 
-// FixedError is a hook returning a fixed error.
+// FixedError returns a hook that always returns the specified error.
 func FixedError(err error) ent.Hook {
 	return func(ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(context.Context, ent.Mutation) (ent.Value, error) {
@@ -167,7 +170,7 @@ func FixedError(err error) ent.Hook {
 //		return []ent.Hook{
 //			Reject(ent.Delete|ent.Update),
 //		}
-//	}
+// Reject 在指定操作上返回固定错误并拒绝执行。
 func Reject(op ent.Op) ent.Hook {
 	hk := FixedError(fmt.Errorf("%s operation is not allowed", op))
 	return On(hk, op)

@@ -14,7 +14,7 @@ const (
 	moduleID = "user"
 )
 
-// NewModuleSpec exposes the user module's stable compile-time metadata and builder.
+// NewModuleSpec 构建并返回用户模块的稳定元数据及其运行时构建器。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

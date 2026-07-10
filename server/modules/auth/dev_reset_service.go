@@ -17,7 +17,7 @@ import (
 // ResetDefaultAdminForDevelopment restores the default administrator through
 // auth-owned credentials and the user-owned profile identity capability.
 //
-//nolint:cyclop // The explicit dev-only reset steps intentionally mirror the production bootstrap flow.
+// the configured default access.
 func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService, permissions []permission.Item) error {
 	if !isDevelopmentResetEnv(os.Getenv("GRAFT_APP_ENV")) {
 		return fmt.Errorf("reset default admin is only available in local/test environments, got %q", strings.TrimSpace(os.Getenv("GRAFT_APP_ENV")))
@@ -50,6 +50,7 @@ func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.A
 	return nil
 }
 
+// isDevelopmentResetEnv determines whether the environment permits development admin resets.
 func isDevelopmentResetEnv(env string) bool {
 	switch strings.TrimSpace(env) {
 	case "local", "test":

@@ -8,7 +8,7 @@ import (
 	authent "graft/server/modules/auth/ent"
 )
 
-// NewClient builds the auth-owned Ent client over the core SQL pool.
+// It returns an error if sqlDB is nil.
 func NewClient(sqlDB *sql.DB) (*authent.Client, error) {
 	if sqlDB == nil {
 		return nil, fmt.Errorf("auth storeent requires a non-nil sql db")

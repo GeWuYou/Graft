@@ -61,7 +61,7 @@ type (
 	Option func(*config)
 )
 
-// newConfig creates a new config for the client.
+// newConfig 创建客户端配置，并应用提供的选项。
 func newConfig(opts ...Option) config {
 	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
 	cfg.options(opts...)
@@ -78,21 +78,22 @@ func (c *config) options(opts ...Option) {
 	}
 }
 
-// Debug enables debug logging on the ent.Driver.
+// Debug enables debug logging on the Ent driver.
 func Debug() Option {
 	return func(c *config) {
 		c.debug = true
 	}
 }
 
-// Log sets the logging function for debug mode.
+// Log 设置调试模式使用的日志函数。
+func Log fn?
 func Log(fn func(...any)) Option {
 	return func(c *config) {
 		c.log = fn
 	}
 }
 
-// Driver configures the client driver.
+// Driver configures the database driver used by the client.
 func Driver(driver dialect.Driver) Option {
 	return func(c *config) {
 		c.driver = driver
@@ -101,7 +102,8 @@ func Driver(driver dialect.Driver) Option {
 
 // Open opens a database/sql.DB specified by the driver name and
 // the data source name, and returns a new client attached to it.
-// Optional parameters can be added for configuring the client.
+// Open 使用指定的数据库驱动和数据源名称创建客户端，并应用可选配置。
+// 支持 MySQL、PostgreSQL 和 SQLite 驱动；驱动名称不受支持或数据库连接失败时返回错误。
 func Open(driverName, dataSourceName string, options ...Option) (*Client, error) {
 	switch driverName {
 	case dialect.MySQL, dialect.Postgres, dialect.SQLite:
