@@ -37,6 +37,9 @@ func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
 	if task.Status != moduleapi.TaskStatusSuccess {
 		t.Fatalf("task status = %q, want success", task.Status)
 	}
+	if task.CurrentStageKey == nil || *task.CurrentStageKey != "stage-2" {
+		t.Fatalf("current stage key = %v, want stage-2", task.CurrentStageKey)
+	}
 	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
 	if err != nil {
 		t.Fatalf("list stages: %v", err)
@@ -153,6 +156,9 @@ func TestRuntimeConvertsExecutorPanicsToFailedStage(t *testing.T) {
 	task := mustTask(t, repository, receipt.TaskID)
 	if task.Status != moduleapi.TaskStatusFailed || task.FailureCode == nil || *task.FailureCode != errorCodeExecutor {
 		t.Fatalf("task after executor panic = %#v", task)
+	}
+	if task.CurrentStageKey == nil || *task.CurrentStageKey != "stage-1" {
+		t.Fatalf("failed task current stage key = %v, want stage-1", task.CurrentStageKey)
 	}
 }
 
@@ -300,7 +306,7 @@ func TestRuntimeCancelsNeedsAttentionTask(t *testing.T) {
 	if err := runtime.Cancel(context.Background(), receipt.TaskID); err != nil {
 		t.Fatalf("cancel needs attention task: %v", err)
 	}
-	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusCancelled {
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusCancelled || task.CurrentStageKey == nil || *task.CurrentStageKey != "stage-1" {
 		t.Fatalf("task after cancel = %#v", task)
 	}
 }

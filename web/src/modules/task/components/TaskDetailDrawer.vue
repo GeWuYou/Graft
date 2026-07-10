@@ -72,7 +72,7 @@
           <log-viewer
             v-bind="logViewerBindings"
             :entries="structuredLogs"
-            :loading="logsLoading"
+            :loading="logsLoading && !hasLoadedLogs"
             :error="logsError"
             @refresh="reload"
           />
@@ -128,6 +128,7 @@ const task = ref<TaskDetail | null>(null);
 const logs = ref<TaskLogEntry[]>([]);
 const loading = ref(false);
 const logsLoading = ref(false);
+const hasLoadedLogs = ref(false);
 const cancelling = ref(false);
 const retryingStageId = ref<number | null>(null);
 const errorMessage = ref('');
@@ -214,6 +215,7 @@ async function loadLogs(afterSequence?: number) {
     logsError.value = resolveLocalizedErrorMessage(t, error, t('task.logs.loadFailed'));
   } finally {
     logsLoading.value = false;
+    hasLoadedLogs.value = true;
   }
 }
 
@@ -328,6 +330,7 @@ watch(
     closeRealtime();
     task.value = null;
     logs.value = [];
+    hasLoadedLogs.value = false;
     if (visible && taskId) void reload();
   },
   { immediate: true },

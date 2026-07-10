@@ -1,13 +1,48 @@
 package task
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"graft/server/internal/moduleapi"
 )
+
+func TestTaskResponseAdaptersUseOpenAPIFieldNames(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.July, 10, 21, 36, 29, 0, time.UTC)
+	stageID := uint64(8)
+	responses := []map[string]any{
+		taskSummaryResponse(moduleapi.TaskView{ID: 7, Type: "project.compose.redeploy", Owner: moduleapi.TaskOwner{Type: "compose_project", ID: "42"}, Status: moduleapi.TaskStatusSuccess, CreatedAt: now}),
+		taskStageResponse(moduleapi.TaskStageView{ID: stageID, Key: "up", Sequence: 3, ExecutorType: "project.compose.up", Status: moduleapi.StageStatusSuccess, Attempt: 1, MaxAttempts: 1, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile}),
+		taskEventResponse(moduleapi.TaskEventView{ID: 9, Sequence: 4, Type: "task.created", Payload: []byte(`{"source":"test"}`), CreatedAt: now}),
+		taskLogResponse(moduleapi.TaskLogView{ID: 10, StageID: &stageID, Sequence: 5, Stream: "stdout", Level: "info", Line: "started", OccurredAt: now}),
+	}
+	for _, response := range responses {
+		encoded, err := json.Marshal(response)
+		if err != nil {
+			t.Fatalf("marshal task response: %v", err)
+		}
+		var fields map[string]any
+		if err := json.Unmarshal(encoded, &fields); err != nil {
+			t.Fatalf("unmarshal task response: %v", err)
+		}
+		for field := range fields {
+			if field[0] >= 'A' && field[0] <= 'Z' {
+				t.Fatalf("response leaked Go field name %q: %s", field, encoded)
+			}
+		}
+	}
+	if stage := responses[1]; stage["status"] != moduleapi.StageStatusSuccess || stage["executor_type"] != moduleapi.StageExecutorType("project.compose.up") {
+		t.Fatalf("stage response = %#v", stage)
+	}
+	if log := responses[3]; log["stage_id"] != &stageID || log["occurred_at"] != now {
+		t.Fatalf("log response = %#v", log)
+	}
+}
 
 func TestTaskListFilterParsesOptionalTypeAndStatus(t *testing.T) {
 	context, _ := gin.CreateTestContext(httptest.NewRecorder())

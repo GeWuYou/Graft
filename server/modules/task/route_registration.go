@@ -93,7 +93,7 @@ func (r taskRoutes) stages(c *gin.Context) {
 		r.writeError(c, taskHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": stages})
+	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": taskStageResponses(stages)})
 }
 
 func (r taskRoutes) events(c *gin.Context) {
@@ -131,13 +131,13 @@ func (r taskRoutes) replayItems(c *gin.Context, taskID uint64, kind taskReplayKi
 		if len(items) > 0 {
 			after = items[len(items)-1].Sequence
 		}
-		return items, after, err
+		return taskEventResponses(items), after, err
 	}
 	items, err := r.runtime.ListTaskLogs(c.Request.Context(), taskID, after, limit)
 	if len(items) > 0 {
 		after = items[len(items)-1].Sequence
 	}
-	return items, after, err
+	return taskLogResponses(items), after, err
 }
 
 func (r taskRoutes) cancel(c *gin.Context) {
@@ -183,7 +183,7 @@ func (r taskRoutes) list(c *gin.Context) {
 	limit, offset := taskListPage(c)
 	auth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context())
 	if !ok || auth.User == nil {
-		httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": []moduleapi.TaskView{}, "total": 0, "limit": limit, "offset": offset})
+		httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": []map[string]any{}, "total": 0, "limit": limit, "offset": offset})
 		return
 	}
 	owner := moduleapi.TaskOwner{Type: c.Query("owner_type"), ID: c.Query("owner_id")}
@@ -205,7 +205,7 @@ func (r taskRoutes) list(c *gin.Context) {
 		r.writeError(c, taskHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": tasks, "total": total, "limit": limit, "offset": offset})
+	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": taskSummaryResponses(tasks), "total": total, "limit": limit, "offset": offset})
 }
 
 func (r taskRoutes) writeDetail(c *gin.Context, status int, task moduleapi.TaskView) {
@@ -215,7 +215,101 @@ func (r taskRoutes) writeDetail(c *gin.Context, status int, task moduleapi.TaskV
 		return
 	}
 	auth, _ := moduleapi.RequestAuthContextFromContext(c.Request.Context())
-	httpx.WriteSuccess(c, status, map[string]any{"id": task.ID, "type": task.Type, "owner_type": task.Owner.Type, "owner_id": task.Owner.ID, "status": task.Status, "current_stage_key": task.CurrentStageKey, "created_by": task.CreatedBy, "created_at": task.CreatedAt, "started_at": task.StartedAt, "finished_at": task.FinishedAt, "duration_ms": task.DurationMS, "failure_code": task.FailureCode, "failure_message": task.FailureMessage, "capabilities": taskCapabilities(c.Request.Context(), r.runtime, auth.User, task, stages), "stages": stages})
+	response := taskSummaryResponse(task)
+	response["capabilities"] = taskCapabilities(c.Request.Context(), r.runtime, auth.User, task, stages)
+	response["stages"] = taskStageResponses(stages)
+	httpx.WriteSuccess(c, status, response)
+}
+
+// taskSummaryResponse adapts the internal Task view to the canonical OpenAPI response shape.
+func taskSummaryResponse(task moduleapi.TaskView) map[string]any {
+	return map[string]any{
+		"id":                task.ID,
+		"type":              task.Type,
+		"owner_type":        task.Owner.Type,
+		"owner_id":          task.Owner.ID,
+		"status":            task.Status,
+		"current_stage_key": task.CurrentStageKey,
+		"created_by":        task.CreatedBy,
+		"created_at":        task.CreatedAt,
+		"started_at":        task.StartedAt,
+		"finished_at":       task.FinishedAt,
+		"duration_ms":       task.DurationMS,
+		"failure_code":      task.FailureCode,
+		"failure_message":   task.FailureMessage,
+	}
+}
+
+func taskSummaryResponses(tasks []moduleapi.TaskView) []map[string]any {
+	items := make([]map[string]any, 0, len(tasks))
+	for _, task := range tasks {
+		items = append(items, taskSummaryResponse(task))
+	}
+	return items
+}
+
+func taskStageResponse(stage moduleapi.TaskStageView) map[string]any {
+	return map[string]any{
+		"id":              stage.ID,
+		"key":             stage.Key,
+		"sequence":        stage.Sequence,
+		"executor_type":   stage.ExecutorType,
+		"status":          stage.Status,
+		"attempt":         stage.Attempt,
+		"max_attempts":    stage.MaxAttempts,
+		"recovery_policy": stage.RecoveryPolicy,
+		"started_at":      stage.StartedAt,
+		"finished_at":     stage.FinishedAt,
+		"duration_ms":     stage.DurationMS,
+		"failure_code":    stage.FailureCode,
+		"failure_message": stage.FailureMessage,
+	}
+}
+
+func taskStageResponses(stages []moduleapi.TaskStageView) []map[string]any {
+	items := make([]map[string]any, 0, len(stages))
+	for _, stage := range stages {
+		items = append(items, taskStageResponse(stage))
+	}
+	return items
+}
+
+func taskEventResponse(event moduleapi.TaskEventView) map[string]any {
+	return map[string]any{
+		"id":         event.ID,
+		"sequence":   event.Sequence,
+		"type":       event.Type,
+		"payload":    event.Payload,
+		"created_at": event.CreatedAt,
+	}
+}
+
+func taskEventResponses(events []moduleapi.TaskEventView) []map[string]any {
+	items := make([]map[string]any, 0, len(events))
+	for _, event := range events {
+		items = append(items, taskEventResponse(event))
+	}
+	return items
+}
+
+func taskLogResponse(log moduleapi.TaskLogView) map[string]any {
+	return map[string]any{
+		"id":          log.ID,
+		"sequence":    log.Sequence,
+		"stage_id":    log.StageID,
+		"stream":      log.Stream,
+		"level":       log.Level,
+		"line":        log.Line,
+		"occurred_at": log.OccurredAt,
+	}
+}
+
+func taskLogResponses(logs []moduleapi.TaskLogView) []map[string]any {
+	items := make([]map[string]any, 0, len(logs))
+	for _, log := range logs {
+		items = append(items, taskLogResponse(log))
+	}
+	return items
 }
 
 func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
