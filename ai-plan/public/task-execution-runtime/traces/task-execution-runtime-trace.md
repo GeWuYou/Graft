@@ -34,6 +34,12 @@
 - Added direct regression tests for serial completion, retryable execution, operator retry, cancellation from needs-attention, and non-resumable crash recovery.
 - No HTTP, realtime, OpenAPI, Project executor, web, scheduler, Redis, MQ, or distributed worker change was made.
 
+## 2026-07-10 task-api-realtime-and-project-adoption
+
+- Added owner-authorized Task list/detail/stage/event/log/cancel/retry HTTP routes and a reusable `task:{id}` realtime topic. Task facts and executor output are persisted before their corresponding realtime notification is published.
+- Project registers the Compose Stage executors and its `compose_project` owner authorizer; lifecycle actions submit frozen TaskPlans and return the accepted Task receipt with HTTP 202.
+- Canonical OpenAPI lifecycle responses now reference `enveloped-task-receipt`; the bundle and generated backend types were regenerated.
+
 ## Loop Batch State
 
 ```json
@@ -41,15 +47,16 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "task-runtime-foundation-authority",
-    "task-module-persistence-state-machine"
+    "task-module-persistence-state-machine",
+    "task-runtime-worker-and-recovery",
+    "task-api-realtime-and-project-adoption"
   ],
   "pending_batches": [
-    "task-api-realtime-and-project-adoption",
     "task-web-module-and-project-ui",
     "task-final-integration-archive-readiness"
   ],
-  "current_batch": "task-runtime-worker-and-recovery",
-  "next_batch": "task-api-realtime-and-project-adoption",
+  "current_batch": "task-api-realtime-and-project-adoption",
+  "next_batch": "task-web-module-and-project-ui",
   "closeout_status": "completed_no_handoff"
 }
 ```

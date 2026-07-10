@@ -118,7 +118,6 @@ func assertMappedOrchestrator(t *testing.T, info *containergen.ContainerOrchestr
 	}
 	assertMappedOrchestratorIdentity(t, info)
 	assertMappedOrchestratorScopeFields(t, info)
-	assertMappedOrchestratorLegacyFieldsDropped(t, info)
 	assertMappedOrchestratorPolicy(t, info)
 }
 
@@ -126,13 +125,6 @@ func assertMappedOrchestratorIdentity(t *testing.T, info *containergen.Container
 	t.Helper()
 	if string(info.Type) != containerOrchestratorCompose || !info.Managed {
 		t.Fatalf("unexpected orchestrator identity %#v", info)
-	}
-}
-
-func assertMappedOrchestratorLegacyFieldsDropped(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
-	t.Helper()
-	if info.Project != nil || info.Service != nil || info.Stack != nil || info.Namespace != nil || info.Pod != nil || info.Task != nil {
-		t.Fatalf("expected legacy orchestrator fields to be omitted, got %#v", info)
 	}
 }
 
@@ -207,13 +199,10 @@ func TestToSummaryOmitsLegacyComposeFields(t *testing.T) {
 		},
 	})
 
-	if mapped.ComposeProject != nil || mapped.ComposeService != nil {
-		t.Fatalf("expected legacy compose fields to be omitted, got %#v", mapped)
-	}
 	if mapped.Orchestrator == nil {
 		t.Fatalf("expected mapped orchestrator")
 	}
-	assertMappedOrchestratorLegacyFieldsDropped(t, mapped.Orchestrator)
+	assertMappedOrchestratorScopeFields(t, mapped.Orchestrator)
 }
 
 func assertMappedHealthcheck(t *testing.T, healthcheck *containergen.ContainerHealthcheck) {

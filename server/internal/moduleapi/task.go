@@ -113,6 +113,69 @@ type TaskService interface {
 	RetryStage(ctx context.Context, taskID uint64, stageID uint64) error
 }
 
+// TaskQueryService exposes Task Runtime reads without leaking module-owned persistence.
+type TaskQueryService interface {
+	GetTask(ctx context.Context, taskID uint64) (TaskView, error)
+	ListTasks(ctx context.Context, limit int, offset int) ([]TaskView, int64, error)
+	ListTaskStages(ctx context.Context, taskID uint64) ([]TaskStageView, error)
+	ListTaskEvents(ctx context.Context, taskID uint64, after int64, limit int) ([]TaskEventView, error)
+	ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]TaskLogView, error)
+}
+
+// TaskView is the stable task read model exposed by the Task Runtime.
+type TaskView struct {
+	ID              uint64
+	Type            TaskType
+	Owner           TaskOwner
+	Status          TaskStatus
+	CurrentStageKey *string
+	CreatedBy       *uint64
+	CreatedAt       time.Time
+	StartedAt       *time.Time
+	FinishedAt      *time.Time
+	DurationMS      *int64
+	FailureCode     *string
+	FailureMessage  *string
+}
+
+// TaskStageView is the stable Stage timeline read model.
+type TaskStageView struct {
+	ID             uint64
+	Key            string
+	Sequence       int
+	ExecutorType   StageExecutorType
+	Status         StageStatus
+	Attempt        int
+	MaxAttempts    int
+	RecoveryPolicy StageRecoveryPolicy
+	StartedAt      *time.Time
+	FinishedAt     *time.Time
+	DurationMS     *int64
+	FailureCode    *string
+	FailureMessage *string
+}
+
+// TaskEventView is one non-derivable persisted Task fact.
+type TaskEventView struct {
+	ID        uint64
+	Sequence  int64
+	Type      string
+	Payload   json.RawMessage
+	CreatedAt time.Time
+}
+
+// TaskLogView is one persisted executor output line.
+type TaskLogView struct {
+	ID         uint64
+	TaskID     uint64
+	StageID    *uint64
+	Sequence   int64
+	Stream     string
+	Level      string
+	Line       string
+	OccurredAt time.Time
+}
+
 // StageRun is the bounded execution handle supplied to a StageExecutor.
 type StageRun interface {
 	TaskID() uint64

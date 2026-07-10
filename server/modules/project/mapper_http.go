@@ -1,6 +1,7 @@
 package project
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -378,6 +379,21 @@ func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 		response.GuardResults = &items
 	}
 	return response
+}
+
+// toTaskReceiptResponse exposes the accepted Task Runtime receipt on Project
+// lifecycle routes while preserving the existing action audit representation.
+func toTaskReceiptResponse(result ActionResult) generated.TaskReceipt {
+	for _, guard := range result.GuardResults {
+		if guard.Code != "task_id" || guard.Detail == nil {
+			continue
+		}
+		id, err := strconv.ParseInt(*guard.Detail, 10, 64)
+		if err == nil && id > 0 {
+			return generated.TaskReceipt{TaskId: id, Status: generated.TaskStatusPending}
+		}
+	}
+	return generated.TaskReceipt{Status: generated.TaskStatusPending}
 }
 
 func toBatchActionResponse(result BatchActionResult) generated.ProjectBatchActionResponse {

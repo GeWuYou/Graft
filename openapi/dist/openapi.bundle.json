@@ -13068,8 +13068,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project up action result.",
+          "202": {
+            "description": "Project up Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13078,7 +13078,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -13165,8 +13165,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project stop action result.",
+          "202": {
+            "description": "Project stop Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13175,7 +13175,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -13262,8 +13262,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project restart action result.",
+          "202": {
+            "description": "Project restart Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13272,7 +13272,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -13359,8 +13359,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project redeploy action result.",
+          "202": {
+            "description": "Project redeploy Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13369,7 +13369,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -26396,6 +26396,42 @@
           }
         ]
       },
+      "task-receipt": {
+        "type": "object",
+        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status"
+          }
+        }
+      },
+      "enveloped-task-receipt": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-receipt"
+              }
+            }
+          }
+        ]
+      },
       "project-batch-action-request": {
         "type": "object",
         "required": [
@@ -26929,42 +26965,6 @@
             "example": 0
           }
         }
-      },
-      "task-receipt": {
-        "type": "object",
-        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
-        "required": [
-          "task_id",
-          "status"
-        ],
-        "properties": {
-          "task_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "status": {
-            "$ref": "#/components/schemas/task-status"
-          }
-        }
-      },
-      "enveloped-task-receipt": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/task-receipt"
-              }
-            }
-          }
-        ]
       }
     },
     "securitySchemes": {

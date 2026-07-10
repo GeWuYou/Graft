@@ -4,8 +4,11 @@ import (
 	"errors"
 
 	"graft/server/internal/container"
+	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
+	"graft/server/internal/realtimeauth"
 	taskstore "graft/server/modules/task/store"
 )
 
@@ -30,14 +33,40 @@ func (m *Module) Register(ctx *module.Context) error {
 	if ctx == nil || ctx.Services == nil || m.runtime == nil {
 		return errors.New("task module register context is unavailable")
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskService)(nil), func(_ container.Resolver) (any, error) {
-		return m.runtime, nil
-	}); err != nil {
+	if err := m.registerServices(ctx); err != nil {
 		return err
 	}
-	return ctx.Services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(_ container.Resolver) (any, error) {
-		return m.runtime, nil
-	})
+	if err := m.configureRealtime(ctx); err != nil {
+		return err
+	}
+	return registerTaskRoutes(ctx, m.runtime, httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID))
+}
+
+func (m *Module) registerServices(ctx *module.Context) error {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskService)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.TaskQueryService)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil }); err != nil {
+		return err
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(_ container.Resolver) (any, error) { return m.runtime, nil })
+}
+
+func (m *Module) configureRealtime(ctx *module.Context) error {
+	tickets, err := module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
+	if err != nil {
+		return err
+	}
+	hub, err := module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil))
+	if err != nil {
+		return err
+	}
+	issuers, err := module.ResolveService[realtime.TopicIssuerRegistry](ctx.Services, (*realtime.TopicIssuerRegistry)(nil))
+	if err != nil {
+		return err
+	}
+	m.runtime.SetRealtime(tickets, hub, issuers)
+	return m.runtime.RegisterRealtimeTopics()
 }
 
 // Boot starts recovery and the module-owned in-process worker pool after all

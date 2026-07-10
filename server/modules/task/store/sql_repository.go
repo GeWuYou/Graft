@@ -134,6 +134,34 @@ func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task,
 	return item, nil
 }
 
+// List returns newest persisted Task history. Consumer authorization is applied by the Task API after loading owners.
+func (r *SQLRepository) List(ctx context.Context, limit int, offset int) ([]taskmodel.Task, int64, error) {
+	if offset < 0 {
+		return nil, 0, ErrInvalidInput
+	}
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasks`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count tasks: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+taskColumns()+` FROM tasks ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`), normalizeLimit(limit), offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list tasks: %w", err)
+	}
+	defer closeRows(rows)
+	items := make([]taskmodel.Task, 0)
+	for rows.Next() {
+		item, scanErr := scanTask(rows)
+		if scanErr != nil {
+			return nil, 0, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate tasks: %w", err)
+	}
+	return items, total, nil
+}
+
 // ListStages returns a Task's immutable serial stage plan in execution order.
 func (r *SQLRepository) ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error) {
 	if taskID == 0 {

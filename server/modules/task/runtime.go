@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
+	"graft/server/internal/realtimeauth"
 	taskmodel "graft/server/modules/task/model"
 	taskstore "graft/server/modules/task/store"
 )
@@ -28,13 +30,17 @@ type Runtime struct {
 	workers    int
 	pollEvery  time.Duration
 
-	mu        sync.RWMutex
-	eventMu   sync.Mutex
-	executors map[moduleapi.StageExecutorType]moduleapi.StageExecutor
-	running   map[uint64]runningStage
-	cancel    context.CancelFunc
-	wake      chan struct{}
-	waitGroup sync.WaitGroup
+	mu              sync.RWMutex
+	eventMu         sync.Mutex
+	executors       map[moduleapi.StageExecutorType]moduleapi.StageExecutor
+	authorizers     map[string]moduleapi.TaskOwnerAuthorizer
+	running         map[uint64]runningStage
+	cancel          context.CancelFunc
+	wake            chan struct{}
+	waitGroup       sync.WaitGroup
+	realtimeTickets realtimeauth.Service
+	realtimeHub     realtime.Hub
+	topicIssuers    realtime.TopicIssuerRegistry
 }
 
 type runningStage struct {
@@ -46,12 +52,13 @@ type runningStage struct {
 // NewRuntime creates a Task Runtime with a bounded in-process worker pool.
 func NewRuntime(repository taskstore.Repository) *Runtime {
 	return &Runtime{
-		repository: repository,
-		workers:    defaultWorkerCount,
-		pollEvery:  defaultPollInterval,
-		executors:  make(map[moduleapi.StageExecutorType]moduleapi.StageExecutor),
-		running:    make(map[uint64]runningStage),
-		wake:       make(chan struct{}, 1),
+		repository:  repository,
+		workers:     defaultWorkerCount,
+		pollEvery:   defaultPollInterval,
+		executors:   make(map[moduleapi.StageExecutorType]moduleapi.StageExecutor),
+		authorizers: make(map[string]moduleapi.TaskOwnerAuthorizer),
+		running:     make(map[uint64]runningStage),
+		wake:        make(chan struct{}, 1),
 	}
 }
 
@@ -69,12 +76,29 @@ func (r *Runtime) RegisterStageExecutor(executor moduleapi.StageExecutor) error 
 	return nil
 }
 
+// AuthorizeOwner delegates resource authorization to the consumer owning the Task.
+func (r *Runtime) AuthorizeOwner(ctx context.Context, actor *moduleapi.CurrentUser, action moduleapi.TaskOwnerAction, owner moduleapi.TaskOwner) error {
+	r.mu.RLock()
+	authorizer := r.authorizers[owner.Type]
+	r.mu.RUnlock()
+	if authorizer == nil {
+		return errors.New("task owner authorizer is unavailable")
+	}
+	return authorizer.AuthorizeTaskOwner(ctx, actor, action, owner)
+}
+
 // RegisterTaskOwnerAuthorizer is reserved for generic Task HTTP APIs. It is a
 // no-op in the runtime-only batch, where no generic HTTP route exists yet.
 func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	if r == nil || authorizer == nil || authorizer.OwnerType() == "" {
 		return errors.New("task owner authorizer is required")
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.authorizers[authorizer.OwnerType()]; exists {
+		return fmt.Errorf("task owner authorizer %q is already registered", authorizer.OwnerType())
+	}
+	r.authorizers[authorizer.OwnerType()] = authorizer
 	return nil
 }
 
@@ -114,7 +138,73 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 		return moduleapi.TaskReceipt{}, fmt.Errorf("create task: %w", err)
 	}
 	r.signalWake()
+	r.publishTask(created.ID, "task.created")
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+}
+
+// GetTask returns one persisted Task read model.
+func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskView, error) {
+	task, err := r.repository.Get(ctx, taskID)
+	if err != nil {
+		return moduleapi.TaskView{}, err
+	}
+	return toTaskView(task), nil
+}
+
+// ListTasks returns one persisted Task history page before owner authorization.
+func (r *Runtime) ListTasks(ctx context.Context, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
+	tasks, total, err := r.repository.List(ctx, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]moduleapi.TaskView, 0, len(tasks))
+	for _, task := range tasks {
+		items = append(items, toTaskView(task))
+	}
+	return items, total, nil
+}
+
+// ListTaskLogs returns one persisted Task log replay page.
+func (r *Runtime) ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskLogView, error) {
+	logs, err := r.repository.ListLogs(ctx, taskID, after, limit)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]moduleapi.TaskLogView, 0, len(logs))
+	for _, log := range logs {
+		items = append(items, moduleapi.TaskLogView{ID: log.ID, TaskID: log.TaskID, StageID: log.StageID, Sequence: log.Sequence, Stream: log.Stream, Level: log.Level, Line: log.Line, OccurredAt: log.OccurredAt})
+	}
+	return items, nil
+}
+
+// ListTaskStages returns the persisted, ordered Stage timeline.
+func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleapi.TaskStageView, error) {
+	stages, err := r.repository.ListStages(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]moduleapi.TaskStageView, 0, len(stages))
+	for _, stage := range stages {
+		items = append(items, moduleapi.TaskStageView{ID: stage.ID, Key: stage.Key, Sequence: stage.Sequence, ExecutorType: stage.ExecutorType, Status: stage.Status, Attempt: stage.Attempt, MaxAttempts: stage.MaxAttempts, RecoveryPolicy: stage.RecoveryPolicy, StartedAt: stage.StartedAt, FinishedAt: stage.FinishedAt, DurationMS: stage.DurationMS, FailureCode: stage.FailureCode, FailureMessage: stage.FailureMessage})
+	}
+	return items, nil
+}
+
+// ListTaskEvents returns persisted non-derivable Task history facts.
+func (r *Runtime) ListTaskEvents(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskEventView, error) {
+	events, err := r.repository.ListEvents(ctx, taskID, after, limit)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]moduleapi.TaskEventView, 0, len(events))
+	for _, event := range events {
+		items = append(items, moduleapi.TaskEventView{ID: event.ID, Sequence: event.Sequence, Type: string(event.Type), Payload: event.Payload, CreatedAt: event.CreatedAt})
+	}
+	return items, nil
+}
+
+func toTaskView(task taskmodel.Task) moduleapi.TaskView {
+	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage}
 }
 
 // Cancel persists a cancellation request and forwards a cancellation signal to a
@@ -128,9 +218,17 @@ func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 		return err
 	}
 	if task.Status != moduleapi.TaskStatusRunning {
-		return r.cancelNonRunningTask(ctx, task)
+		err := r.cancelNonRunningTask(ctx, task)
+		if err == nil {
+			r.publishTask(taskID, "task.cancelled")
+		}
+		return err
 	}
-	return r.cancelRunningTask(ctx, taskID)
+	err = r.cancelRunningTask(ctx, taskID)
+	if err == nil {
+		r.publishTask(taskID, "task.cancel_requested")
+	}
+	return err
 }
 
 func (r *Runtime) cancelNonRunningTask(ctx context.Context, task taskmodel.Task) error {
@@ -176,6 +274,7 @@ func (r *Runtime) RetryStage(ctx context.Context, taskID uint64, stageID uint64)
 		return err
 	}
 	r.signalWake()
+	r.publishTask(taskID, "task.retry_requested")
 	return nil
 }
 
@@ -263,6 +362,7 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	if err != nil || !found {
 		return err
 	}
+	r.publishTask(claim.Task.ID, "task.stage_started")
 	executor, ok := r.executorFor(claim.Stage.ExecutorType)
 	if !ok {
 		return r.failClaim(ctx, claim, errorCodeMissingExec, "no executor registered for stage")
@@ -273,7 +373,15 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	err = executor.Execute(stageContext, run)
 	cancel()
 	r.removeRunning(claim.Task.ID)
-	return r.finishClaim(ctx, claim, err)
+	finishErr := r.finishClaim(ctx, claim, err)
+	if finishErr == nil {
+		eventType := "task.stage_completed"
+		if err != nil {
+			eventType = "task.stage_failed"
+		}
+		r.publishTask(claim.Task.ID, eventType)
+	}
+	return finishErr
 }
 
 func (r *Runtime) finishClaim(ctx context.Context, claim taskstore.StageClaim, executeErr error) error {
@@ -455,5 +563,8 @@ func (r *stageRun) AppendLog(ctx context.Context, entry moduleapi.TaskLogEntry) 
 	}
 	stageID := r.stage.ID
 	_, err = r.runtime.repository.AppendLog(ctx, taskstore.AppendLogInput{TaskID: r.task.ID, StageID: &stageID, Sequence: sequence, Stream: entry.Stream, Level: entry.Level, Line: entry.Line, OccurredAt: time.Now().UTC()})
+	if err == nil {
+		r.runtime.publishTask(r.task.ID, "task.log_appended")
+	}
 	return err
 }

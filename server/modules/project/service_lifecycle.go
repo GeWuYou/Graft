@@ -3,6 +3,7 @@ package project
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -33,17 +34,7 @@ func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64
 
 // Redeploy executes docker compose down then docker compose up -d for the registered project.
 func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	aggregate, err := s.getAggregate(ctx, projectID)
-	if err != nil {
-		return ActionResult{}, err
-	}
-	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionRedeploy, actorID)
-	if err != nil {
-		return blocked, err
-	}
-	result, actionErr := s.redeployWithActor(ctx, aggregate, actor)
-	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
-	return result, actionErr
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRedeploy)
 }
 
 // BatchAction executes one action for multiple projects and returns per-item results.
@@ -211,15 +202,115 @@ func (s *Service) runLifecycleAction(
 	if err != nil {
 		return blocked, err
 	}
-	args, err := lifecycleCommandArgs(aggregate, action)
+	_ = aggregate
+	_ = actor
+	return s.submitLifecycleTask(ctx, projectID, actorID, action)
+}
+
+func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, actorID *uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return ActionResult{}, err
+	}
+	actor, blocked, err := s.requireActionActor(ctx, projectID, action, actorID)
+	if err != nil {
+		return blocked, err
+	}
+	if err := ensureProjectLifecycleReady(aggregate); err != nil {
+		result := lifecycleBlockedResult(aggregate, action, err)
+		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		return result, err
+	}
+	if s.taskService == nil {
+		return ActionResult{}, errors.New("task service is unavailable")
+	}
+	plan, err := lifecycleTaskPlan(aggregate, action)
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	result, actionErr := s.executeLifecycleActionWithAggregate(ctx, aggregate, action, args)
-	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
-	return result, actionErr
+	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("project.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: fmt.Sprintf("%d", projectID)}, RequestedBy: actor.id, Plan: plan})
+	if err != nil {
+		return ActionResult{}, err
+	}
+	messageKey := projectcontract.ProjectLifecycleAccepted.String()
+	result := ActionResult{ProjectID: projectID, Action: action, Result: generated.ProjectActionResponseResultProjectActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
+	s.publishProjectActionAudit(ctx, aggregate, actor, result, nil)
+	return result, nil
+}
+
+func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated.ProjectActionResponseAction) (moduleapi.TaskPlan, error) {
+	if action == generated.ProjectActionResponseActionProjectActionRedeploy {
+		return redeployTaskPlan(aggregate)
+	}
+	args, err := lifecycleCommandArgs(aggregate, action)
+	if err != nil {
+		return moduleapi.TaskPlan{}, err
+	}
+	return taskPlanWithStage(aggregate, strings.ToLower(string(action)), args)
+}
+
+func redeployTaskPlan(aggregate projectstore.ProjectAggregate) (moduleapi.TaskPlan, error) {
+	config := lifecycleConfigurationFromAggregate(aggregate)
+	stages := make([]moduleapi.StagePlan, 0, projectLifecycleStageCapacity)
+	if err := appendOptionalRedeployStages(&stages, aggregate, config); err != nil {
+		return moduleapi.TaskPlan{}, err
+	}
+	return moduleapi.TaskPlan{Stages: stages}, nil
+}
+
+const projectLifecycleStageCapacity = 4
+
+func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) error {
+	if config.Standard.DownBeforeRedeploy {
+		args, err := lifecycleRedeployDownArgs(aggregate, config)
+		if err != nil {
+			return err
+		}
+		if err := appendTaskPlanStage(stages, aggregate, "down", args); err != nil {
+			return err
+		}
+	}
+	if config.Standard.PullBeforeRedeploy {
+		args, err := lifecyclePullArgs(aggregate, config)
+		if err != nil {
+			return err
+		}
+		if err := appendTaskPlanStage(stages, aggregate, "pull", args); err != nil {
+			return err
+		}
+	}
+	up, err := lifecycleUpArgs(aggregate, config)
+	if err != nil {
+		return err
+	}
+	if err := appendTaskPlanStage(stages, aggregate, "up", up); err != nil {
+		return err
+	}
+	if config.Standard.PruneImagesAfterRedeploy {
+		return appendTaskPlanStage(stages, aggregate, "image-prune", []string{"image", "prune", "-f"})
+	}
+	return nil
+}
+
+func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args []string) (moduleapi.TaskPlan, error) {
+	stages := make([]moduleapi.StagePlan, 0, 1)
+	if err := appendTaskPlanStage(&stages, aggregate, key, args); err != nil {
+		return moduleapi.TaskPlan{}, err
+	}
+	return moduleapi.TaskPlan{Stages: stages}, nil
+}
+func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, key string, args []string) error {
+	if err := ensureLifecycleCommandArgs(args); err != nil {
+		return err
+	}
+	input, err := json.Marshal(composeStageInput{WorkingDirectory: aggregate.Project.WorkingDirectory, Args: args})
+	if err != nil {
+		return err
+	}
+	*stages = append(*stages, moduleapi.StagePlan{Key: key, ExecutorType: moduleapi.StageExecutorType(composeStagePrefix + key), Input: input, RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: 1}, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile})
+	return nil
 }
 
 func (s *Service) executeLifecycleActionWithAggregate(

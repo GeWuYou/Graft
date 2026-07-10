@@ -12,15 +12,15 @@ post:
   security:
     - bearerAuth: []
   responses:
-    '200':
-      description: Project redeploy action result.
+    '202':
+      description: Project redeploy Task accepted.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-action-response.yaml
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
     '400':
       description: Invalid project id.
       headers:
