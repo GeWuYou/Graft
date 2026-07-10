@@ -51,146 +51,58 @@
           class="topology__path topology__path--graft"
           :class="{ 'topology__path--highlighted': isPathActive('graft') }"
           pathLength="1"
-          d="M 294 315 C 339 313 393 328 452 340"
+          d="M 294 315 C 341 313 395 327 452 338"
         />
         <path
           class="topology__path topology__path--active"
           :class="{ 'topology__path--highlighted': isPathActive('right-upper') }"
           pathLength="1"
-          d="M 452 340 C 509 323 573 283 640 238"
+          d="M 452 338 C 509 322 573 283 640 238"
         />
         <path
           class="topology__path topology__path--active"
           :class="{ 'topology__path--highlighted': isPathActive('right-bottom') }"
           pathLength="1"
-          d="M 452 340 C 497 369 547 414 594 438"
+          d="M 452 338 C 497 368 547 414 594 438"
         />
         <path
           class="topology__path topology__path--active topology__path--branch"
           :class="{ 'topology__path--highlighted': isPathActive('right-top') }"
           pathLength="1"
-          d="M 520 313 C 514 250 532 193 574 150"
+          d="M 452 338 C 485 305 508 218 574 150"
         />
       </g>
 
       <g class="topology__nodes">
         <g
-          class="topology__node topology__node--standard"
-          :class="{ 'topology__node--highlighted': activeNode === 'left-lower' }"
-          transform="translate(104 392)"
-          @mouseenter="activateNode('left-lower')"
+          v-for="node in nodes"
+          :key="node.id"
+          class="topology__node"
+          :class="[
+            `topology__node--${node.kind}`,
+            {
+              'topology__node--active': node.active,
+              'topology__node--highlighted': activeNode === node.id,
+            },
+          ]"
+          :transform="`translate(${node.x} ${node.y})`"
+          @mouseenter="activateNode(node.id)"
           @mouseleave="clearActiveNode"
         >
           <g class="topology__node-material">
-            <circle r="10" />
-            <circle class="topology__node-sheen" cx="-3" cy="-3.5" r="1.4" />
-            <circle class="topology__node-core" r="2.5" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--terminal"
-          :class="{ 'topology__node--highlighted': activeNode === 'left-upper' }"
-          transform="translate(142 244)"
-          @mouseenter="activateNode('left-upper')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
-            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
-            <circle class="topology__node-core" r="2.25" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--terminal"
-          :class="{ 'topology__node--highlighted': activeNode === 'left-top' }"
-          transform="translate(286 150)"
-          @mouseenter="activateNode('left-top')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
-            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
-            <circle class="topology__node-core" r="2.25" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--junction"
-          :class="{ 'topology__node--highlighted': activeNode === 'left-junction' }"
-          transform="translate(294 315)"
-          @mouseenter="activateNode('left-junction')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <circle r="12" />
-            <circle class="topology__node-ring" r="7" />
-            <circle class="topology__node-sheen" cx="-3.8" cy="-4.2" r="1.5" />
-            <circle class="topology__node-core" r="2.75" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--terminal"
-          :class="{ 'topology__node--highlighted': activeNode === 'left-bottom' }"
-          transform="translate(232 450)"
-          @mouseenter="activateNode('left-bottom')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
-            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
-            <circle class="topology__node-core" r="2.25" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--junction topology__node--active"
-          :class="{ 'topology__node--highlighted': activeNode === 'right-junction' }"
-          transform="translate(452 340)"
-          @mouseenter="activateNode('right-junction')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <circle r="12" />
-            <circle class="topology__node-ring" r="7" />
-            <circle class="topology__node-sheen" cx="-3.8" cy="-4.2" r="1.5" />
-            <circle class="topology__node-core" r="2.75" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--terminal topology__node--active"
-          :class="{ 'topology__node--highlighted': activeNode === 'right-upper' }"
-          transform="translate(640 238)"
-          @mouseenter="activateNode('right-upper')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
-            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
-            <circle class="topology__node-core" r="2.25" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--terminal topology__node--active"
-          :class="{ 'topology__node--highlighted': activeNode === 'right-bottom' }"
-          transform="translate(594 438)"
-          @mouseenter="activateNode('right-bottom')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
-            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
-            <circle class="topology__node-core" r="2.25" />
-          </g>
-        </g>
-        <g
-          class="topology__node topology__node--standard topology__node--active"
-          :class="{ 'topology__node--highlighted': activeNode === 'right-top' }"
-          transform="translate(574 150)"
-          @mouseenter="activateNode('right-top')"
-          @mouseleave="clearActiveNode"
-        >
-          <g class="topology__node-material">
-            <circle r="10" />
-            <circle class="topology__node-sheen" cx="-3" cy="-3.5" r="1.4" />
-            <circle class="topology__node-core" r="2.5" />
+            <rect v-if="node.kind === 'terminal'" x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
+            <circle v-else :r="node.kind === 'junction' ? 12 : 10" />
+            <circle v-if="node.kind === 'junction'" class="topology__node-ring" r="7" />
+            <circle
+              class="topology__node-sheen"
+              :cx="node.kind === 'junction' ? -3.8 : node.kind === 'terminal' ? -2.5 : -3"
+              :cy="node.kind === 'junction' ? -4.2 : node.kind === 'terminal' ? -3 : -3.5"
+              :r="node.kind === 'junction' ? 1.5 : node.kind === 'terminal' ? 1.25 : 1.4"
+            />
+            <circle
+              class="topology__node-core"
+              :r="node.kind === 'junction' ? 2.75 : node.kind === 'terminal' ? 2.25 : 2.5"
+            />
           </g>
         </g>
       </g>
@@ -198,18 +110,16 @@
       <g
         class="topology__graft-connection"
         :class="{ 'topology__graft-connection--highlighted': activeNode === 'graft' }"
-        transform="rotate(13 385 329)"
+        transform="translate(380 326) rotate(8)"
         @mouseenter="activateNode('graft')"
         @mouseleave="clearActiveNode"
       >
-        <path class="topology__graft-sleeve" d="M 352 329 H 418" />
-        <circle class="topology__graft-anchor" cx="363" cy="329" r="6" />
-        <circle class="topology__graft-anchor" cx="385" cy="329" r="5.25" />
-        <circle class="topology__graft-anchor" cx="407" cy="329" r="6" />
-        <circle class="topology__graft-core" cx="363" cy="329" r="1.4" />
-        <circle class="topology__graft-core" cx="385" cy="329" r="1.25" />
-        <circle class="topology__graft-core" cx="407" cy="329" r="1.4" />
-        <path class="topology__graft-seam" d="M 371 329 H 399" />
+        <path class="topology__graft-sleeve" d="M -31 0 H 31" />
+        <circle class="topology__graft-joint-outer" r="11" />
+        <circle class="topology__graft-joint-inner" r="7" />
+        <circle class="topology__graft-sheen" cx="-3.5" cy="-4" r="1.55" />
+        <circle class="topology__graft-core" r="2.15" />
+        <path class="topology__graft-seam" d="M -4.5 0 H 4.5" />
       </g>
     </svg>
   </aside>
@@ -222,6 +132,28 @@ defineOptions({
 });
 
 const activeNode = ref<string | null>(null);
+
+type TopologyNodeKind = 'junction' | 'standard' | 'terminal';
+
+type TopologyNode = {
+  active: boolean;
+  id: string;
+  kind: TopologyNodeKind;
+  x: number;
+  y: number;
+};
+
+const nodes: TopologyNode[] = [
+  { active: false, id: 'left-lower', kind: 'standard', x: 104, y: 392 },
+  { active: false, id: 'left-upper', kind: 'terminal', x: 142, y: 244 },
+  { active: false, id: 'left-top', kind: 'terminal', x: 286, y: 150 },
+  { active: false, id: 'left-junction', kind: 'junction', x: 294, y: 315 },
+  { active: false, id: 'left-bottom', kind: 'terminal', x: 232, y: 450 },
+  { active: true, id: 'right-junction', kind: 'junction', x: 452, y: 338 },
+  { active: true, id: 'right-upper', kind: 'terminal', x: 640, y: 238 },
+  { active: true, id: 'right-bottom', kind: 'terminal', x: 594, y: 438 },
+  { active: true, id: 'right-top', kind: 'standard', x: 574, y: 150 },
+];
 
 const NODE_PATHS: Record<string, string[]> = {
   graft: ['graft'],
@@ -248,15 +180,19 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 </script>
 <style lang="less" scoped>
 .infrastructure-canvas {
-  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 18%, transparent);
-  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-6) 5%, transparent);
-  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 10%, transparent);
-  --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 3%, transparent);
+  --infrastructure-halo-blur: 9px;
+  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 16%, transparent);
+  --infrastructure-halo-primary-middle: color-mix(in srgb, var(--td-brand-color-5) 7%, transparent);
+  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-5) 2%, transparent);
+  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 9%, transparent);
+  --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 2%, transparent);
   --infrastructure-node-depth: color-mix(in srgb, var(--td-bg-color-container) 74%, var(--td-brand-color-6));
   --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 58%, var(--td-brand-color-6));
   --infrastructure-node-highlight: color-mix(in srgb, var(--td-bg-color-container) 82%, var(--td-brand-color-1));
   --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 16%, transparent);
   --infrastructure-node-rim: color-mix(in srgb, var(--td-brand-color-6) 68%, var(--td-component-border));
+  --infrastructure-terminal-rim: color-mix(in srgb, var(--td-brand-color-5) 46%, var(--td-component-border));
+  --infrastructure-joint-rim: color-mix(in srgb, var(--td-brand-color-6) 82%, var(--td-component-border));
   --infrastructure-path-active: var(--td-brand-color-6);
   --infrastructure-path-active-soft: color-mix(in srgb, var(--td-brand-color-5) 68%, var(--td-component-border));
   --infrastructure-path-neutral: color-mix(in srgb, var(--td-component-border) 82%, var(--td-brand-color-5));
@@ -268,7 +204,9 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 
 .infrastructure-canvas__halo {
   aspect-ratio: 1;
+  filter: blur(var(--infrastructure-halo-blur));
   opacity: 0;
+  pointer-events: none;
   position: absolute;
 }
 
@@ -276,12 +214,13 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
   background: radial-gradient(
     circle at 50% 50%,
     var(--infrastructure-halo-primary-core) 0%,
-    var(--infrastructure-halo-primary-edge) 38%,
-    transparent 72%
+    var(--infrastructure-halo-primary-middle) 32%,
+    var(--infrastructure-halo-primary-edge) 58%,
+    transparent 78%
   );
-  left: 10%;
-  top: 34%;
-  width: 64%;
+  left: 7%;
+  top: 25%;
+  width: 82%;
 }
 
 .infrastructure-canvas__halo--secondary {
@@ -291,9 +230,9 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
     var(--infrastructure-halo-secondary-edge) 42%,
     transparent 72%
   );
-  right: -2%;
-  top: 4%;
-  width: 38%;
+  right: 3%;
+  top: 11%;
+  width: 42%;
 }
 
 .infrastructure-canvas__topology {
@@ -310,7 +249,7 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 }
 
 .topology__path {
-  opacity: 0.76;
+  opacity: 0.64;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   stroke-width: 1.4;
@@ -330,13 +269,15 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 }
 
 .topology__path--active {
+  opacity: 0.8;
   stroke: url('#graft-active-path');
   stroke-width: 1.7;
 }
 
 .topology__path--graft {
+  opacity: 0.92;
   stroke: url('#graft-active-path');
-  stroke-width: 2.6;
+  stroke-width: 2.35;
 }
 
 .topology__path--branch {
@@ -378,6 +319,19 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 .topology__node--active circle:first-child,
 .topology__node--active rect {
   stroke: var(--infrastructure-path-active);
+}
+
+.topology__node--terminal .topology__node-material {
+  opacity: 0.82;
+}
+
+.topology__node--terminal rect {
+  stroke: var(--infrastructure-terminal-rim);
+  stroke-width: 1;
+}
+
+.topology__node--junction .topology__node-material {
+  filter: drop-shadow(0 0 3px var(--infrastructure-node-halo));
 }
 
 .topology__node-ring {
@@ -427,19 +381,31 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 
 .topology__graft-sleeve {
   fill: none;
-  stroke: color-mix(in srgb, var(--td-bg-color-container) 40%, var(--infrastructure-path-active));
+  stroke: color-mix(in srgb, var(--td-bg-color-container) 48%, var(--infrastructure-path-active));
   stroke-linecap: round;
-  stroke-width: 13;
+  stroke-width: 12;
   transition: stroke 190ms ease-out;
 }
 
-.topology__graft-anchor {
+.topology__graft-joint-outer {
   fill: url('#graft-node-acrylic');
-  stroke: var(--infrastructure-node-rim);
-  stroke-width: 1.25;
+  stroke: var(--infrastructure-joint-rim);
+  stroke-width: 1.45;
   transition:
     filter 190ms ease-out,
     stroke 190ms ease-out;
+}
+
+.topology__graft-joint-inner {
+  fill: color-mix(in srgb, var(--td-bg-color-container) 50%, var(--td-brand-color-6));
+  opacity: 0.8;
+  stroke: color-mix(in srgb, var(--infrastructure-joint-rim) 62%, var(--td-bg-color-container));
+  stroke-width: 1;
+}
+
+.topology__graft-sheen {
+  fill: var(--infrastructure-node-highlight);
+  opacity: 0.94;
 }
 
 .topology__graft-core {
@@ -452,6 +418,7 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 
 .topology__graft-seam {
   fill: none;
+  opacity: 0.78;
   stroke: var(--td-bg-color-container);
   stroke-linecap: round;
   stroke-width: 1.25;
@@ -462,11 +429,15 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 }
 
 .topology__graft-connection--highlighted .topology__graft-sleeve {
-  stroke: color-mix(in srgb, var(--td-bg-color-container) 24%, var(--infrastructure-path-active));
+  stroke: color-mix(in srgb, var(--td-bg-color-container) 34%, var(--infrastructure-path-active));
 }
 
-.topology__graft-connection--highlighted .topology__graft-anchor {
+.topology__graft-connection--highlighted .topology__graft-joint-outer {
   stroke: var(--infrastructure-path-active);
+}
+
+.topology__graft-connection--highlighted .topology__graft-joint-inner {
+  opacity: 0.92;
 }
 
 .topology__graft-connection--highlighted .topology__graft-core {
@@ -544,16 +515,20 @@ const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[a
 }
 
 :deep([data-theme-mode='dark'] .infrastructure-canvas) {
-  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 28%, transparent);
-  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
-  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 15%, transparent);
-  --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 5%, transparent);
-  --infrastructure-node-depth: color-mix(in srgb, var(--td-bg-color-container) 54%, var(--td-brand-color-6));
-  --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 36%, var(--td-brand-color-6));
-  --infrastructure-node-highlight: color-mix(in srgb, var(--td-bg-color-container) 72%, var(--td-brand-color-1));
-  --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 26%, transparent);
-  --infrastructure-node-rim: color-mix(in srgb, var(--td-brand-color-5) 82%, var(--td-component-border));
-  --infrastructure-path-neutral: color-mix(in srgb, var(--td-component-border) 62%, var(--td-brand-color-5));
+  --infrastructure-halo-blur: 12px;
+  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 20%, transparent);
+  --infrastructure-halo-primary-middle: color-mix(in srgb, var(--td-brand-color-5) 9%, transparent);
+  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-5) 3%, transparent);
+  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 10%, transparent);
+  --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 2%, transparent);
+  --infrastructure-node-depth: color-mix(in srgb, var(--td-bg-color-container) 58%, var(--td-brand-color-6));
+  --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 43%, var(--td-brand-color-6));
+  --infrastructure-node-highlight: color-mix(in srgb, var(--td-bg-color-container) 74%, var(--td-brand-color-1));
+  --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 18%, transparent);
+  --infrastructure-node-rim: color-mix(in srgb, var(--td-brand-color-5) 74%, var(--td-component-border));
+  --infrastructure-terminal-rim: color-mix(in srgb, var(--td-brand-color-5) 54%, var(--td-component-border));
+  --infrastructure-joint-rim: color-mix(in srgb, var(--td-brand-color-6) 78%, var(--td-component-border));
+  --infrastructure-path-neutral: color-mix(in srgb, var(--td-component-border) 58%, var(--td-brand-color-5));
 }
 
 @media (width <= 1023px) {
