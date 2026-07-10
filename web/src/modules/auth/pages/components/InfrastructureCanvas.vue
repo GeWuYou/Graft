@@ -2,11 +2,10 @@
   <aside class="infrastructure-canvas" aria-hidden="true">
     <div class="infrastructure-canvas__halo infrastructure-canvas__halo--primary"></div>
     <div class="infrastructure-canvas__halo infrastructure-canvas__halo--secondary"></div>
-    <div class="infrastructure-canvas__grid"></div>
 
     <svg
       class="infrastructure-canvas__topology"
-      viewBox="0 0 720 560"
+      viewBox="40 70 640 420"
       preserveAspectRatio="xMidYMid meet"
       focusable="false"
     >
@@ -16,89 +15,248 @@
           <stop offset="42%" stop-color="var(--infrastructure-path-active)" />
           <stop offset="100%" stop-color="var(--infrastructure-path-active-soft)" />
         </linearGradient>
+        <radialGradient id="graft-node-acrylic" cx="30%" cy="20%" r="78%">
+          <stop offset="0%" stop-color="var(--infrastructure-node-highlight)" />
+          <stop offset="36%" stop-color="var(--infrastructure-node-fill)" />
+          <stop offset="100%" stop-color="var(--infrastructure-node-depth)" />
+        </radialGradient>
       </defs>
 
       <g class="topology__paths" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path
           class="topology__path topology__path--neutral"
+          :class="{ 'topology__path--highlighted': isPathActive('left-lower') }"
           pathLength="1"
-          d="M 108 374 C 174 358 236 324 348 326 L 405 275"
+          d="M 104 392 C 164 374 228 344 294 315"
         />
-        <path class="topology__path topology__path--neutral" pathLength="1" d="M 348 326 C 290 290 186 250 100 246" />
-        <path class="topology__path topology__path--neutral" pathLength="1" d="M 290 314 C 276 246 298 190 350 154" />
-        <path class="topology__path topology__path--neutral" pathLength="1" d="M 348 326 C 358 390 327 443 280 476" />
-        <path class="topology__path topology__path--neutral" pathLength="1" d="M 326 370 C 290 392 252 418 225 440" />
-        <path class="topology__path topology__path--active" pathLength="1" d="M 405 275 C 469 245 552 188 642 140" />
-        <path class="topology__path topology__path--active" pathLength="1" d="M 405 275 C 438 346 506 397 570 420" />
+        <path
+          class="topology__path topology__path--neutral"
+          :class="{ 'topology__path--highlighted': isPathActive('left-upper') }"
+          pathLength="1"
+          d="M 294 315 C 246 301 191 270 142 244"
+        />
+        <path
+          class="topology__path topology__path--neutral"
+          :class="{ 'topology__path--highlighted': isPathActive('left-top') }"
+          pathLength="1"
+          d="M 294 315 C 267 259 266 202 286 150"
+        />
+        <path
+          class="topology__path topology__path--neutral"
+          :class="{ 'topology__path--highlighted': isPathActive('left-bottom') }"
+          pathLength="1"
+          d="M 294 315 C 307 359 280 411 232 450"
+        />
+        <path
+          class="topology__path topology__path--graft"
+          :class="{ 'topology__path--highlighted': isPathActive('graft') }"
+          pathLength="1"
+          d="M 294 315 C 339 313 393 328 452 340"
+        />
+        <path
+          class="topology__path topology__path--active"
+          :class="{ 'topology__path--highlighted': isPathActive('right-upper') }"
+          pathLength="1"
+          d="M 452 340 C 509 323 573 283 640 238"
+        />
+        <path
+          class="topology__path topology__path--active"
+          :class="{ 'topology__path--highlighted': isPathActive('right-bottom') }"
+          pathLength="1"
+          d="M 452 340 C 497 369 547 414 594 438"
+        />
         <path
           class="topology__path topology__path--active topology__path--branch"
+          :class="{ 'topology__path--highlighted': isPathActive('right-top') }"
           pathLength="1"
-          d="M 496 224 C 494 177 516 144 555 116"
+          d="M 520 313 C 514 250 532 193 574 150"
         />
       </g>
 
       <g class="topology__nodes">
-        <g class="topology__node topology__node--standard" transform="translate(108 374)">
-          <circle r="9" />
-          <circle class="topology__node-core" r="2.5" />
+        <g
+          class="topology__node topology__node--standard"
+          :class="{ 'topology__node--highlighted': activeNode === 'left-lower' }"
+          transform="translate(104 392)"
+          @mouseenter="activateNode('left-lower')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <circle r="10" />
+            <circle class="topology__node-sheen" cx="-3" cy="-3.5" r="1.4" />
+            <circle class="topology__node-core" r="2.5" />
+          </g>
         </g>
-        <g class="topology__node topology__node--terminal" transform="translate(100 246)">
-          <rect x="-7" y="-7" width="14" height="14" rx="2" transform="rotate(45)" />
-          <circle class="topology__node-core" r="2.25" />
+        <g
+          class="topology__node topology__node--terminal"
+          :class="{ 'topology__node--highlighted': activeNode === 'left-upper' }"
+          transform="translate(142 244)"
+          @mouseenter="activateNode('left-upper')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
+            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
+            <circle class="topology__node-core" r="2.25" />
+          </g>
         </g>
-        <g class="topology__node topology__node--terminal" transform="translate(350 154)">
-          <rect x="-7" y="-7" width="14" height="14" rx="2" transform="rotate(45)" />
-          <circle class="topology__node-core" r="2.25" />
+        <g
+          class="topology__node topology__node--terminal"
+          :class="{ 'topology__node--highlighted': activeNode === 'left-top' }"
+          transform="translate(286 150)"
+          @mouseenter="activateNode('left-top')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
+            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
+            <circle class="topology__node-core" r="2.25" />
+          </g>
         </g>
-        <g class="topology__node topology__node--standard" transform="translate(348 326)">
-          <circle r="9" />
-          <circle class="topology__node-core" r="2.5" />
+        <g
+          class="topology__node topology__node--junction"
+          :class="{ 'topology__node--highlighted': activeNode === 'left-junction' }"
+          transform="translate(294 315)"
+          @mouseenter="activateNode('left-junction')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <circle r="12" />
+            <circle class="topology__node-ring" r="7" />
+            <circle class="topology__node-sheen" cx="-3.8" cy="-4.2" r="1.5" />
+            <circle class="topology__node-core" r="2.75" />
+          </g>
         </g>
-        <g class="topology__node topology__node--terminal" transform="translate(280 476)">
-          <rect x="-7" y="-7" width="14" height="14" rx="2" transform="rotate(45)" />
-          <circle class="topology__node-core" r="2.25" />
+        <g
+          class="topology__node topology__node--terminal"
+          :class="{ 'topology__node--highlighted': activeNode === 'left-bottom' }"
+          transform="translate(232 450)"
+          @mouseenter="activateNode('left-bottom')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
+            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
+            <circle class="topology__node-core" r="2.25" />
+          </g>
         </g>
-        <g class="topology__node topology__node--standard" transform="translate(225 440)">
-          <circle r="9" />
-          <circle class="topology__node-core" r="2.5" />
+        <g
+          class="topology__node topology__node--junction topology__node--active"
+          :class="{ 'topology__node--highlighted': activeNode === 'right-junction' }"
+          transform="translate(452 340)"
+          @mouseenter="activateNode('right-junction')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <circle r="12" />
+            <circle class="topology__node-ring" r="7" />
+            <circle class="topology__node-sheen" cx="-3.8" cy="-4.2" r="1.5" />
+            <circle class="topology__node-core" r="2.75" />
+          </g>
         </g>
-        <g class="topology__node topology__node--terminal topology__node--active" transform="translate(642 140)">
-          <rect x="-7" y="-7" width="14" height="14" rx="2" transform="rotate(45)" />
-          <circle class="topology__node-core" r="2.25" />
+        <g
+          class="topology__node topology__node--terminal topology__node--active"
+          :class="{ 'topology__node--highlighted': activeNode === 'right-upper' }"
+          transform="translate(640 238)"
+          @mouseenter="activateNode('right-upper')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
+            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
+            <circle class="topology__node-core" r="2.25" />
+          </g>
         </g>
-        <g class="topology__node topology__node--terminal topology__node--active" transform="translate(570 420)">
-          <rect x="-7" y="-7" width="14" height="14" rx="2" transform="rotate(45)" />
-          <circle class="topology__node-core" r="2.25" />
+        <g
+          class="topology__node topology__node--terminal topology__node--active"
+          :class="{ 'topology__node--highlighted': activeNode === 'right-bottom' }"
+          transform="translate(594 438)"
+          @mouseenter="activateNode('right-bottom')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <rect x="-8" y="-8" width="16" height="16" rx="2" transform="rotate(45)" />
+            <circle class="topology__node-sheen" cx="-2.5" cy="-3" r="1.25" />
+            <circle class="topology__node-core" r="2.25" />
+          </g>
         </g>
-        <g class="topology__node topology__node--active" transform="translate(555 116)">
-          <circle r="9" />
-          <circle class="topology__node-core" r="2.5" />
+        <g
+          class="topology__node topology__node--standard topology__node--active"
+          :class="{ 'topology__node--highlighted': activeNode === 'right-top' }"
+          transform="translate(574 150)"
+          @mouseenter="activateNode('right-top')"
+          @mouseleave="clearActiveNode"
+        >
+          <g class="topology__node-material">
+            <circle r="10" />
+            <circle class="topology__node-sheen" cx="-3" cy="-3.5" r="1.4" />
+            <circle class="topology__node-core" r="2.5" />
+          </g>
         </g>
       </g>
 
-      <g class="topology__graft-point" transform="translate(405 275)">
-        <circle class="topology__graft-halo" r="35" />
-        <circle class="topology__graft-outer" r="16" />
-        <circle class="topology__graft-inner" r="10" />
-        <circle class="topology__graft-core" r="3" />
+      <g
+        class="topology__graft-connection"
+        :class="{ 'topology__graft-connection--highlighted': activeNode === 'graft' }"
+        transform="rotate(13 385 329)"
+        @mouseenter="activateNode('graft')"
+        @mouseleave="clearActiveNode"
+      >
+        <path class="topology__graft-sleeve" d="M 352 329 H 418" />
+        <circle class="topology__graft-anchor" cx="363" cy="329" r="6" />
+        <circle class="topology__graft-anchor" cx="385" cy="329" r="5.25" />
+        <circle class="topology__graft-anchor" cx="407" cy="329" r="6" />
+        <circle class="topology__graft-core" cx="363" cy="329" r="1.4" />
+        <circle class="topology__graft-core" cx="385" cy="329" r="1.25" />
+        <circle class="topology__graft-core" cx="407" cy="329" r="1.4" />
+        <path class="topology__graft-seam" d="M 371 329 H 399" />
       </g>
     </svg>
   </aside>
 </template>
 <script setup lang="ts">
+import { ref } from 'vue';
+
 defineOptions({
   name: 'InfrastructureCanvas',
 });
+
+const activeNode = ref<string | null>(null);
+
+const NODE_PATHS: Record<string, string[]> = {
+  graft: ['graft'],
+  'left-bottom': ['left-bottom'],
+  'left-junction': ['left-lower', 'left-upper', 'left-top', 'left-bottom', 'graft'],
+  'left-lower': ['left-lower'],
+  'left-top': ['left-top'],
+  'left-upper': ['left-upper'],
+  'right-bottom': ['right-bottom'],
+  'right-junction': ['graft', 'right-upper', 'right-bottom', 'right-top'],
+  'right-top': ['right-top', 'right-upper'],
+  'right-upper': ['right-upper'],
+};
+
+const activateNode = (node: string) => {
+  activeNode.value = node;
+};
+
+const clearActiveNode = () => {
+  activeNode.value = null;
+};
+
+const isPathActive = (path: string) => activeNode.value !== null && NODE_PATHS[activeNode.value].includes(path);
 </script>
 <style lang="less" scoped>
 .infrastructure-canvas {
-  --infrastructure-grid-opacity: 0.2;
-  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 15%, transparent);
-  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-6) 4%, transparent);
-  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 9%, transparent);
-  --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 2%, transparent);
-  --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 78%, var(--td-brand-color-6));
-  --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 9%, transparent);
+  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 18%, transparent);
+  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-6) 5%, transparent);
+  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 10%, transparent);
+  --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 3%, transparent);
+  --infrastructure-node-depth: color-mix(in srgb, var(--td-bg-color-container) 74%, var(--td-brand-color-6));
+  --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 58%, var(--td-brand-color-6));
+  --infrastructure-node-highlight: color-mix(in srgb, var(--td-bg-color-container) 82%, var(--td-brand-color-1));
+  --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 16%, transparent);
+  --infrastructure-node-rim: color-mix(in srgb, var(--td-brand-color-6) 68%, var(--td-component-border));
   --infrastructure-path-active: var(--td-brand-color-6);
   --infrastructure-path-active-soft: color-mix(in srgb, var(--td-brand-color-5) 68%, var(--td-component-border));
   --infrastructure-path-neutral: color-mix(in srgb, var(--td-component-border) 82%, var(--td-brand-color-5));
@@ -106,18 +264,6 @@ defineOptions({
   isolation: isolate;
   min-height: min(540px, calc(100vh - 180px));
   position: relative;
-}
-
-.infrastructure-canvas__grid {
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--td-component-stroke) 72%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--td-component-stroke) 72%, transparent) 1px, transparent 1px);
-  background-position: center;
-  background-size: 48px 48px;
-  inset: 0;
-  mask-image: radial-gradient(ellipse 72% 76% at 54% 49%, #000 18%, transparent 78%);
-  opacity: var(--infrastructure-grid-opacity);
-  position: absolute;
 }
 
 .infrastructure-canvas__halo {
@@ -133,9 +279,9 @@ defineOptions({
     var(--infrastructure-halo-primary-edge) 38%,
     transparent 72%
   );
-  left: 30%;
-  top: 19%;
-  width: 57%;
+  left: 10%;
+  top: 34%;
+  width: 64%;
 }
 
 .infrastructure-canvas__halo--secondary {
@@ -145,28 +291,38 @@ defineOptions({
     var(--infrastructure-halo-secondary-edge) 42%,
     transparent 72%
   );
-  right: -3%;
-  top: 3%;
-  width: 33%;
+  right: -2%;
+  top: 4%;
+  width: 38%;
 }
 
 .infrastructure-canvas__topology {
   display: block;
   height: auto;
-  margin: 0 auto;
+  margin: 0 0 0 -9%;
   max-height: 560px;
-  max-width: 720px;
+  max-width: none;
   overflow: visible;
-  pointer-events: none;
+  pointer-events: auto;
   position: relative;
-  width: 100%;
+  width: min(122%, 860px);
   z-index: 1;
 }
 
 .topology__path {
+  opacity: 0.76;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   stroke-width: 1.4;
+  transition:
+    filter 190ms ease-out,
+    opacity 190ms ease-out,
+    stroke 190ms ease-out,
+    stroke-width 190ms ease-out;
+}
+
+.topology__paths {
+  pointer-events: none;
 }
 
 .topology__path--neutral {
@@ -178,91 +334,144 @@ defineOptions({
   stroke-width: 1.7;
 }
 
+.topology__path--graft {
+  stroke: url('#graft-active-path');
+  stroke-width: 2.6;
+}
+
 .topology__path--branch {
   stroke-width: 1.35;
 }
 
-.topology__node {
-  fill: var(--infrastructure-node-fill);
-  opacity: 0;
-  stroke: var(--infrastructure-path-neutral);
-  stroke-width: 1.2;
-}
-
-.topology__node circle:first-child,
-.topology__node rect {
-  filter: drop-shadow(0 0 5px var(--infrastructure-node-halo));
-}
-
-.topology__node-core {
-  fill: var(--infrastructure-path-active);
-  opacity: 0.82;
-  stroke: none;
-}
-
-.topology__node--active {
+.topology__path--highlighted {
+  filter: drop-shadow(0 0 4px var(--infrastructure-node-halo));
+  opacity: 1;
   stroke: var(--infrastructure-path-active);
+  stroke-width: 2.35;
 }
 
-.topology__graft-point {
+.topology__path--graft.topology__path--highlighted {
+  stroke-width: 3.2;
+}
+
+.topology__node {
+  cursor: default;
   opacity: 0;
   pointer-events: all;
 }
 
-.topology__graft-halo {
-  fill: transparent;
-  stroke: var(--infrastructure-node-halo);
-  stroke-width: 12;
-  transition: stroke 180ms ease-out;
+.topology__node-material {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    filter 190ms ease-out,
+    transform 190ms ease-out;
 }
 
-.topology__graft-outer {
-  fill: var(--infrastructure-node-fill);
+.topology__node circle:first-child,
+.topology__node rect {
+  fill: url('#graft-node-acrylic');
+  stroke: var(--infrastructure-node-rim);
+  stroke-width: 1.2;
+}
+
+.topology__node--active circle:first-child,
+.topology__node--active rect {
   stroke: var(--infrastructure-path-active);
-  stroke-width: 1.6;
-  transition:
-    fill 180ms ease-out,
-    stroke 180ms ease-out,
-    stroke-width 180ms ease-out;
 }
 
-.topology__graft-inner {
-  fill: color-mix(in srgb, var(--td-bg-color-container) 67%, var(--td-brand-color-6));
-  stroke: color-mix(in srgb, var(--td-brand-color-6) 72%, var(--td-component-border));
+.topology__node-ring {
+  fill: color-mix(in srgb, var(--td-bg-color-container) 48%, var(--td-brand-color-6));
+  opacity: 0.88;
+  stroke: color-mix(in srgb, var(--infrastructure-node-rim) 72%, var(--td-bg-color-container));
   stroke-width: 1;
+}
+
+.topology__node-sheen {
+  fill: var(--infrastructure-node-highlight);
+  opacity: 0.9;
+  stroke: none;
+}
+
+.topology__node-core {
+  fill: var(--infrastructure-path-active);
+  opacity: 0.86;
+  stroke: none;
   transition:
-    fill 180ms ease-out,
-    stroke 180ms ease-out;
+    filter 190ms ease-out,
+    opacity 190ms ease-out;
+}
+
+.topology__node--highlighted .topology__node-material {
+  filter: drop-shadow(0 0 7px var(--infrastructure-node-halo));
+  transform: scale(1.07);
+}
+
+.topology__node--highlighted circle:first-child,
+.topology__node--highlighted rect {
+  stroke: var(--infrastructure-path-active);
+  stroke-width: 1.45;
+}
+
+.topology__node--highlighted .topology__node-core {
+  filter: drop-shadow(0 0 2px var(--infrastructure-node-halo));
+  opacity: 1;
+}
+
+.topology__graft-connection {
+  cursor: default;
+  opacity: 0;
+  pointer-events: all;
+  transition: filter 190ms ease-out;
+}
+
+.topology__graft-sleeve {
+  fill: none;
+  stroke: color-mix(in srgb, var(--td-bg-color-container) 40%, var(--infrastructure-path-active));
+  stroke-linecap: round;
+  stroke-width: 13;
+  transition: stroke 190ms ease-out;
+}
+
+.topology__graft-anchor {
+  fill: url('#graft-node-acrylic');
+  stroke: var(--infrastructure-node-rim);
+  stroke-width: 1.25;
+  transition:
+    filter 190ms ease-out,
+    stroke 190ms ease-out;
 }
 
 .topology__graft-core {
   fill: var(--infrastructure-path-active);
-  transition: fill 180ms ease-out;
+  opacity: 0.9;
+  transition:
+    filter 190ms ease-out,
+    opacity 190ms ease-out;
 }
 
-@media (hover: hover) {
-  .topology__graft-point {
-    cursor: pointer;
-  }
+.topology__graft-seam {
+  fill: none;
+  stroke: var(--td-bg-color-container);
+  stroke-linecap: round;
+  stroke-width: 1.25;
+}
 
-  .topology__graft-point:hover .topology__graft-halo {
-    stroke: color-mix(in srgb, var(--td-brand-color-6) 28%, transparent);
-  }
+.topology__graft-connection--highlighted {
+  filter: drop-shadow(0 0 7px var(--infrastructure-node-halo));
+}
 
-  .topology__graft-point:hover .topology__graft-outer {
-    fill: color-mix(in srgb, var(--td-bg-color-container) 58%, var(--td-brand-color-6));
-    stroke: var(--td-brand-color-6);
-    stroke-width: 2;
-  }
+.topology__graft-connection--highlighted .topology__graft-sleeve {
+  stroke: color-mix(in srgb, var(--td-bg-color-container) 24%, var(--infrastructure-path-active));
+}
 
-  .topology__graft-point:hover .topology__graft-inner {
-    fill: color-mix(in srgb, var(--td-bg-color-container) 48%, var(--td-brand-color-6));
-    stroke: var(--td-brand-color-5);
-  }
+.topology__graft-connection--highlighted .topology__graft-anchor {
+  stroke: var(--infrastructure-path-active);
+}
 
-  .topology__graft-point:hover .topology__graft-core {
-    fill: var(--td-brand-color-5);
-  }
+.topology__graft-connection--highlighted .topology__graft-core {
+  filter: drop-shadow(0 0 2px var(--infrastructure-node-halo));
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -298,12 +507,12 @@ defineOptions({
   }
 
   .topology__node,
-  .topology__graft-point {
+  .topology__graft-connection {
     animation: topology-node-in 260ms ease-out both;
     animation-delay: 300ms;
   }
 
-  .topology__graft-point {
+  .topology__graft-connection {
     animation-delay: 390ms;
   }
 }
@@ -334,14 +543,16 @@ defineOptions({
   }
 }
 
-[theme-mode='dark'] .infrastructure-canvas {
-  --infrastructure-grid-opacity: 0.28;
-  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 22%, transparent);
-  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
-  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 13%, transparent);
+:deep([data-theme-mode='dark'] .infrastructure-canvas) {
+  --infrastructure-halo-primary-core: color-mix(in srgb, var(--td-brand-color-6) 28%, transparent);
+  --infrastructure-halo-primary-edge: color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
+  --infrastructure-halo-secondary-core: color-mix(in srgb, var(--td-brand-color-5) 15%, transparent);
   --infrastructure-halo-secondary-edge: color-mix(in srgb, var(--td-brand-color-5) 5%, transparent);
-  --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 62%, var(--td-brand-color-6));
-  --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 16%, transparent);
+  --infrastructure-node-depth: color-mix(in srgb, var(--td-bg-color-container) 54%, var(--td-brand-color-6));
+  --infrastructure-node-fill: color-mix(in srgb, var(--td-bg-color-container) 36%, var(--td-brand-color-6));
+  --infrastructure-node-highlight: color-mix(in srgb, var(--td-bg-color-container) 72%, var(--td-brand-color-1));
+  --infrastructure-node-halo: color-mix(in srgb, var(--td-brand-color-6) 26%, transparent);
+  --infrastructure-node-rim: color-mix(in srgb, var(--td-brand-color-5) 82%, var(--td-component-border));
   --infrastructure-path-neutral: color-mix(in srgb, var(--td-component-border) 62%, var(--td-brand-color-5));
 }
 
@@ -351,7 +562,8 @@ defineOptions({
   }
 
   .infrastructure-canvas__topology {
-    max-width: 560px;
+    margin-left: -5%;
+    width: 110%;
   }
 }
 
@@ -365,12 +577,12 @@ defineOptions({
   .infrastructure-canvas,
   .infrastructure-canvas * {
     animation: none !important;
-    transition: none !important;
+    transition-duration: 0ms !important;
   }
 
   .infrastructure-canvas__halo,
   .topology__node,
-  .topology__graft-point {
+  .topology__graft-connection {
     opacity: 1;
   }
 
