@@ -159,6 +159,7 @@ func toImportValidateResponse(result ImportValidationResult) generated.ProjectIm
 	return response
 }
 
+// toRuntimeImportInspectResponse converts runtime import inspection results into an OpenAPI response. It includes project metadata, files, services, resources, runtime members, validation details, and lifecycle configuration.
 func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ProjectImportRuntimeInspectResponse {
 	return generated.ProjectImportRuntimeInspectResponse{
 		InspectionId:               result.InspectionID,
@@ -181,6 +182,8 @@ func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated
 	}
 }
 
+// toGeneratedLifecycleConfigurationRequest 将内部标准生命周期配置转换为 OpenAPI 生命周期配置请求。
+// 返回的请求使用标准策略，并包含配置的配置文件、策略选项和附加参数。
 func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) generated.ProjectLifecycleConfigurationRequest {
 	additionalArgs := append([]string{}, config.AdditionalArgs...)
 	return generated.ProjectLifecycleConfigurationRequest{
@@ -199,6 +202,8 @@ func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) ge
 	}
 }
 
+// lifecycleStandardConfigFromGenerated converts a generated lifecycle configuration request to a standard lifecycle configuration.
+// It returns an error when the requested strategy kind is not standard.
 func lifecycleStandardConfigFromGenerated(config generated.ProjectLifecycleConfigurationRequest) (LifecycleStandardConfig, error) {
 	if config.StrategyKind != generated.ProjectLifecycleStrategyKindStandard {
 		return LifecycleStandardConfig{}, errProjectInvalidArgument
@@ -206,6 +211,7 @@ func lifecycleStandardConfigFromGenerated(config generated.ProjectLifecycleConfi
 	return toLifecycleConfigurationRequest(config), nil
 }
 
+// toRuntimeImportNetworkResources 将运行时导入网络资源转换为 OpenAPI 网络资源，并复制容器和服务名称切片。
 func toRuntimeImportNetworkResources(items []RuntimeImportNetworkResource) []generated.ProjectImportRuntimeNetworkResource {
 	resources := make([]generated.ProjectImportRuntimeNetworkResource, 0, len(items))
 	for _, item := range items {
@@ -371,7 +377,7 @@ func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
 	return response
 }
 
-// toLifecycleConfigurationRequest 将项目生命周期配置请求转换为标准生命周期配置，并复制配置文件列表以避免共享底层切片。
+// toLifecycleConfigurationRequest 将生成的生命周期配置请求转换为标准生命周期配置，并复制切片字段以避免共享底层存储。
 func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigurationRequest) LifecycleStandardConfig {
 	additionalArgs := []string{}
 	if request.AdditionalArgs != nil {

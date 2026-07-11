@@ -52,7 +52,10 @@ export function getTasks(query?: TaskListQuery) {
 }
 
 /**
- * Returns the latest Task owned by a resource without exposing task-list query details to consumers.
+ * 获取指定资源拥有的最新任务。
+ *
+ * @param owner - 任务拥有者的标识及类型
+ * @returns 最新任务；没有匹配任务时返回 `null`
  */
 export async function getLatestTaskForOwner(owner: TaskOwnerReference) {
   const response = await getTasks({ limit: 1, owner_id: owner.ownerId, owner_type: owner.ownerType });

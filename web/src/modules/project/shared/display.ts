@@ -70,10 +70,10 @@ export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
 }
 
 /**
- * 获取运行时状态对应的展示文案。
+ * 获取运行时状态对应的本地化展示文案。
  *
- * @param value - 运行时状态
- * @returns 对应状态的翻译文本
+ * @param value - 运行时状态；未提供或无法识别时使用未知状态文案
+ * @returns 对应运行时状态的本地化文案
  */
 export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return t('project.list.status.runtimeRunning');
@@ -84,7 +84,10 @@ export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeSt
 }
 
 /**
- * Resolves Project-owned Task type labels without coupling the Task module to Project semantics.
+ * 将项目任务类型转换为本地化标签。
+ *
+ * @param taskType - 项目任务类型标识
+ * @returns 对应的本地化标签；未识别的任务类型返回 `undefined`
  */
 export function projectTaskTypeLabel(t: Translate, taskType: string) {
   const key = projectTaskTypeLabelKeys[taskType];

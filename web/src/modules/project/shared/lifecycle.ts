@@ -45,6 +45,12 @@ function splitProfiles(value: string) {
     .filter(Boolean);
 }
 
+/**
+ * 将附加参数字符串解析为命令行参数数组。
+ *
+ * @param value - 以空白字符分隔的附加参数字符串
+ * @returns 去除首尾空白并过滤空项后的参数数组
+ */
 function normalizeAdditionalArgs(value: string) {
   return value.trim().split(/\s+/).filter(Boolean);
 }
@@ -379,7 +385,7 @@ function comparableLifecycleDraftState(
  * 根据项目详情构建生命周期配置草稿。
  *
  * @param detail - 包含生命周期配置、Compose 文件及项目来源信息的项目详情
- * @returns 经过默认值和规范化处理的生命周期配置草稿
+ * @returns 应用默认值和规范化处理后的生命周期配置草稿
  */
 export function buildLifecycleConfigurationDraft(
   detail: ProjectDetailResponseWithLifecycle,
@@ -412,7 +418,10 @@ export function buildLifecycleConfigurationDraft(
 }
 
 /**
- * Builds an editable lifecycle draft from the server-owned import inspection snapshot.
+ * 从导入检查快照构建可编辑的生命周期配置草稿。
+ *
+ * @param result - 导入检查结果，包含生命周期配置、工作目录和 Compose 文件信息
+ * @returns 包含待审核状态和客户端生成命令预览的生命周期配置草稿
  */
 export function buildImportLifecycleConfigurationDraft(
   result: ProjectImportInspectResponse,

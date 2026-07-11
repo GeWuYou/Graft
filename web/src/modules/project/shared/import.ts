@@ -251,8 +251,8 @@ export function normalizeProjectImportInspectResponse(
 /**
  * 判断导入结果是否存在阻塞性冲突。
  *
- * @param result - 导入检索结果
- * @returns `true` 如果存在冲突，`false` 否则。
+ * @param result - 导入检查结果
+ * @returns `true` 如果存在冲突或校验状态为 `conflict`，`false` 否则。
  */
 export function hasBlockingImportConflicts(result: ProjectImportInspectResponse | null) {
   const normalized = normalizeProjectImportInspectResponse(result);

@@ -373,6 +373,7 @@ func importInspectResultFromSession(
 	}
 }
 
+// runtimeImportInspectResultFromSession 根据检查会话和运行时成员构建运行时导入检查结果，并初始化默认生命周期配置。
 func runtimeImportInspectResultFromSession(
 	candidateKey string,
 	session importInspectionSession,

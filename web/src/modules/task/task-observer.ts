@@ -20,23 +20,29 @@ export type TaskObserverOptions = Readonly<{
 }>;
 
 /**
- * Reports whether a persisted Task state has reached a terminal outcome.
+ * 判断任务状态是否已达到终态。
+ *
+ * @returns `true` 表示任务已结束，`false` 表示任务仍在进行中。
  */
 export function isTerminalTaskStatus(status: TaskStatus) {
   return terminalTaskStatuses.includes(status);
 }
 
 /**
- * Observes one Task through its durable detail API and realtime topic.
+ * 创建任务观察器，通过详情接口、实时通知和轮询持续获取任务更新。
  *
- * The observer is module-agnostic: consumers own presentation and resource
- * refresh behavior, while this module owns task transport and cleanup.
+ * @param taskId - 要观察的任务标识
+ * @param options - 任务更新与刷新错误回调，以及可选的轮询间隔
+ * @returns 可手动刷新或停止观察的任务观察器
  */
 export function observeTask(taskId: number, options: TaskObserverOptions): TaskObserver {
   let stopped = false;
   let refreshing = false;
   let refreshQueued = false;
 
+  /**
+   * 刷新任务详情，并在成功或失败时通知相应回调。
+   */
   async function refresh() {
     if (stopped) return;
     if (refreshing) {

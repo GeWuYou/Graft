@@ -181,14 +181,32 @@ export class ProjectLogRealtimeBatcher {
   }
 }
 
+/**
+ * 将行数限制规范化为有效的正整数。
+ *
+ * @param value - 待规范化的行数限制
+ * @returns 有效的正整数限制；输入无效时返回 `200`
+ */
 function normalizeLineLimit(value: number) {
   return Number.isInteger(value) && value > 0 ? value : 200;
 }
 
+/**
+ * 生成项目日志条目的稳定去重键。
+ *
+ * @param entry - 要生成键的项目日志条目
+ * @returns 由容器、服务、流、发生时间和日志内容组成的去重键
+ */
 function projectLogEntryKey(entry: ProjectLogEntry) {
   return [entry.container_id, entry.service_name, entry.stream, entry.occurred_at, entry.line].join('::');
 }
 
+/**
+ * 按发生时间及日志属性对项目日志条目进行稳定排序。
+ *
+ * @param entries - 待排序的项目日志条目
+ * @returns 按发生时间、服务名、容器名、流和日志行依次排序的条目数组
+ */
 function orderProjectLogEntries(entries: Iterable<ProjectLogEntry>) {
   return [...entries].sort((left, right) => {
     const timeDiff = compareText(left.occurred_at, right.occurred_at);
@@ -203,6 +221,13 @@ function orderProjectLogEntries(entries: Iterable<ProjectLogEntry>) {
   });
 }
 
+/**
+ * 比较两个文本值的字典序。
+ *
+ * @param left - 第一个文本值
+ * @param right - 第二个文本值
+ * @returns `left` 小于 `right` 时为 `-1`，大于时为 `1`，相等时为 `0`
+ */
 function compareText(left: string, right: string) {
   return left < right ? -1 : left > right ? 1 : 0;
 }

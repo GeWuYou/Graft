@@ -11,6 +11,9 @@ import (
 
 const projectLogDebugEnvironmentKey = "GRAFT_PROJECT_LOG_DEBUG"
 
+// isProjectLogDebugEnabled determines whether project log diagnostics are enabled.
+// It returns true when GRAFT_PROJECT_LOG_DEBUG is set to 1, true, yes, or on,
+// ignoring surrounding whitespace and letter case.
 func isProjectLogDebugEnabled() bool {
 	value, ok := os.LookupEnv(projectLogDebugEnvironmentKey)
 	if !ok {

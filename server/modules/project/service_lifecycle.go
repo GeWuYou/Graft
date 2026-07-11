@@ -599,7 +599,8 @@ func lifecycleCommandArgs(aggregate projectstore.ProjectAggregate, action genera
 }
 
 // lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数，并根据配置添加构建、重建、孤立容器清理、匿名卷更新及等待选项。
-// 返回参数列表；配置无效时返回错误。
+// lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数列表。
+// 返回包含配置选项和附加参数的命令参数；配置无效时返回错误。
 func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
 	base, err := composeProjectArgs(aggregate, config)
 	if err != nil {

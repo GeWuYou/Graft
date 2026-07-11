@@ -1028,6 +1028,8 @@ func bindGetProjectServicesParams(ginCtx *gin.Context) generated.GetProjectServi
 	return generated.GetProjectServicesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectLogsParams 绑定项目日志查询参数，并在参数无效时中止请求。
+// 返回解析后的参数和参数是否有效。
 func bindGetProjectLogsParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectLogsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := generated.GetProjectLogsParams{XGraftLocale: locale, XRequestId: requestID}

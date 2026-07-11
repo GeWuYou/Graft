@@ -74,6 +74,7 @@ func normalizeProjectLogQuery(query LogQuery) (LogQuery, error) {
 	return normalized, nil
 }
 
+// toContainerProjectLogQuery converts an API log query into a container log query.
 func toContainerProjectLogQuery(query LogQuery) moduleapi.ContainerProjectLogQuery {
 	return moduleapi.ContainerProjectLogQuery{
 		Tail:       query.Tail,
@@ -84,12 +85,14 @@ func toContainerProjectLogQuery(query LogQuery) moduleapi.ContainerProjectLogQue
 	}
 }
 
+// toContainerProjectLogFollowQuery 将日志查询转换为仅跟随模式的容器日志查询。
 func toContainerProjectLogFollowQuery(query LogQuery) moduleapi.ContainerProjectLogQuery {
 	followQuery := toContainerProjectLogQuery(query)
 	followQuery.FollowOnly = true
 	return followQuery
 }
 
+// toProjectLogResponse 将容器日志快照转换为项目日志响应。
 func toProjectLogResponse(
 	projectID uint64,
 	canonicalProjectName string,
