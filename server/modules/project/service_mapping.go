@@ -520,6 +520,10 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSou
 	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
 	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
 	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
+	assignSourceMetadataField(metadata, "remote_host_key", &result.RemoteHostKey)
+	assignSourceMetadataField(metadata, "remote_compose_path", &result.RemoteComposePath)
+	assignSourceMetadataField(metadata, "activity_authority", &result.ActivityAuthority)
+	assignSourceMetadataField(metadata, "activity_rollup_scope", &result.ActivityRollupScope)
 	if result == (generated.ProjectSourceMetadata{}) {
 		return nil
 	}
@@ -539,6 +543,9 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 // buildListSourceMetadataWithManagedRoot 为项目列表构建来源元数据。
 // 当来源类型为受托管根或远程主机时返回对应的来源元数据；其他来源类型返回 nil。
 func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
+		return metadata
+	}
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
@@ -552,6 +559,9 @@ func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggreg
 // buildDetailSourceMetadataWithManagedRoot 返回项目详情来源元数据。
 // 如果没有可映射的来源信息，则返回 nil。
 func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
+		return metadata
+	}
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)

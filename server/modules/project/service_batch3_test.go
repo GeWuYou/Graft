@@ -1022,6 +1022,27 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 	}
 }
 
+func TestCreateManagedProjectMaterializesNestedWorkspaceFiles(t *testing.T) {
+	t.Parallel()
+	managedRoot := t.TempDir()
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+		DisplayName: "Demo", CanonicalProjectName: "demo", RelativeProjectDirectory: "demo", ComposeFileName: "compose.yaml", ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
+		WorkspaceFiles: []ManagedWorkspaceFile{{Path: "compose.yaml", Content: "services:\n  web:\n    image: nginx:latest\n"}, {Path: "nginx/nginx.conf", Content: "events {}\n"}, {Path: ".env.production", Content: "MODE=production\n"}},
+	}, nil)
+	if err != nil {
+		t.Fatalf("create managed workspace: %v", err)
+	}
+	for _, path := range []string{"nginx/nginx.conf", ".env.production"} {
+		if _, statErr := os.Stat(filepath.Join(managedRoot, "demo", path)); statErr != nil {
+			t.Fatalf("expected workspace file %s: %v", path, statErr)
+		}
+	}
+}
+
 func TestListRuntimeImportCandidatesMarksBrokenCompose(t *testing.T) {
 	t.Parallel()
 

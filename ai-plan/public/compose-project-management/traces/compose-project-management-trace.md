@@ -351,3 +351,11 @@
   "closeout_status": "drift-repair-in-progress"
 }
 ```
+
+## 2026-07-11 Creation pipeline contract and server foundation
+
+- `project` 新增 source-neutral creation pipeline；Managed materialize 与 Import adopt 在成功解析真实 workspace 后共用 lifecycle-confirmed aggregate、snapshot 与只读 runtime boundary，不自动 deploy。
+- managed create contract 接受完整 text workspace manifest、显式 Compose/Env 引用及 lifecycle configuration；现有 compose/env 字段暂保留给当前 UI 过渡。
+- `compose_projects.source_metadata_json` 成为无密钥来源 provenance 的持久化 owner；列表/详情优先读取持久化 metadata。
+- Managed writer 支持 nested 与 dot text files，拒绝绝对路径、traversal、重复路径、NUL/非 UTF-8 内容；失败时仍只回滚该请求创建的内容。
+- 下一批：`managed-workspace-wizard-and-lifecycle-review`，不改变 Container runtime authority。

@@ -305,10 +305,6 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 
 // ImportByInspection validates inspection freshness and persists the inspected project.
 func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
-	repository, err := s.repositoryOrErr()
-	if err != nil {
-		return generated.ProjectImportResponse{}, err
-	}
 	if s.inspectCache == nil {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
@@ -316,7 +312,7 @@ func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteR
 	if !ok {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
-	response, importErr := s.importInspectionSession(ctx, repository, session, importInspectionCommitInput{
+	response, importErr := s.importInspectionSession(ctx, session, importInspectionCommitInput{
 		DisplayName:       request.DisplayName,
 		CanonicalOverride: request.CanonicalProjectNameOverride,
 		LifecycleConfig:   request.LifecycleConfiguration,

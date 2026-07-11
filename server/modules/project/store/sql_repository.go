@@ -76,7 +76,7 @@ func (r *SQLRepository) listProjectsPage(
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
@@ -140,7 +140,7 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 		ctx,
 		r.placeholder.rebind(`SELECT
 			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
@@ -666,6 +666,10 @@ func (r *SQLRepository) upsertProject(
 	if err != nil {
 		return 0, err
 	}
+	sourceMetadataJSON, err := encodeSourceMetadataJSON(input.SourceMetadata)
+	if err != nil {
+		return 0, err
+	}
 	err = tx.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(composeProjectsUpsertSQL()),
@@ -676,6 +680,7 @@ func (r *SQLRepository) upsertProject(
 		input.HostScope,
 		input.WorkingDirectory,
 		input.OwnershipMode,
+		string(sourceMetadataJSON),
 		input.LifecycleStrategyKind,
 		input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON),
@@ -697,11 +702,11 @@ func (r *SQLRepository) upsertProject(
 func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
 			display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-			working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (host_scope, canonical_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
@@ -709,6 +714,7 @@ func composeProjectsUpsertSQL() string {
 			source_kind = excluded.source_kind,
 			working_directory = excluded.working_directory,
 			ownership_mode = excluded.ownership_mode,
+			source_metadata_json = excluded.source_metadata_json,
 			lifecycle_strategy_kind = excluded.lifecycle_strategy_kind,
 			lifecycle_review_status = excluded.lifecycle_review_status,
 			lifecycle_config_json = excluded.lifecycle_config_json,

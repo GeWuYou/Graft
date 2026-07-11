@@ -97,6 +97,12 @@ Compose Project Management
 - [x] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
 - [ ] phase-3-batch-3：remote host boundary、project activity authority decision
 - [ ] drift-repair：恢复 Phase 1 import 主入口、托管创建次入口、source selector 边界定位，以及 topic truth
+- [x] creation-pipeline-contract-and-server-foundation：统一 Managed/Import aggregate 注册、workspace manifest contract、来源元数据持久化与受控 nested text materialization
+
+## Creation Pipeline Follow-up
+
+- 当前批次已将 Managed create 与 Import inspection commit 收口到 project-owned creation pipeline，Import 的 candidate/TTL/freshness guard 仍由 Import adapter 保持。
+- 下一批 `managed-workspace-wizard-and-lifecycle-review` 负责 web workspace tree/Monaco、完整 manifest 与 lifecycle review 交互；随后 `import-creation-adapter-and-regression` 负责 Import UI/adapter 回归。
 
 ## Phase 1 Acceptance Conditions
 

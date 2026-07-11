@@ -14558,6 +14558,9 @@
       "ProjectCreateRequest": {
         "$ref": "#/components/schemas/project-create-request"
       },
+      "ProjectWorkspaceManifestFile": {
+        "$ref": "#/components/schemas/project-workspace-manifest-file"
+      },
       "ProjectImportValidateRequest": {
         "$ref": "#/components/schemas/project-import-validate-request"
       },
@@ -24999,6 +25002,26 @@
           }
         ]
       },
+      "project-workspace-manifest-file": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Relative text-file path within the managed workspace. Absolute paths and traversal are rejected."
+          },
+          "content": {
+            "type": "string",
+            "description": "UTF-8 text content to materialize for the file."
+          }
+        }
+      },
       "project-create-validate-request": {
         "type": "object",
         "required": [
@@ -25038,6 +25061,28 @@
             "maxLength": 255,
             "pattern": "^[^/\\\\\\\\]+$",
             "nullable": true
+          },
+          "workspace_files": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Complete managed workspace text manifest to validate without materializing.",
+            "items": {
+              "$ref": "#/components/schemas/project-workspace-manifest-file"
+            }
+          },
+          "compose_file_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "env_file_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
       },
@@ -25165,6 +25210,30 @@
             "type": "string",
             "nullable": true,
             "description": "Optional initial env file content. It is ignored when env_file_name is omitted."
+          },
+          "workspace_files": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.",
+            "items": {
+              "$ref": "#/components/schemas/project-workspace-manifest-file"
+            }
+          },
+          "compose_file_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition."
+          },
+          "env_file_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Explicit workspace-relative env file references."
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
       },

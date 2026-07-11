@@ -1452,6 +1452,15 @@ Phase 1 处理：
 | Remote Host                          | `partial`        | 需在 `host_scope` 与连接配置上再扩展，但 registry 模型可保留 |
 | Project Activity backend aggregation | `future yes`     | 需要单独定义 observability authority，Phase 1 不做           |
 
+### 15.1 Creation Pipeline
+
+所有来源在解析出真实 workspace 后必须进入同一条 project creation pipeline：确认 lifecycle configuration、写入 project aggregate 与来源元数据、生成 compose snapshot，并仅做只读 runtime observation。该 pipeline 不执行 `docker compose up`、pull 或 build。
+
+- Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
+- Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
+- `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。
+- `source_metadata_json` 持久化来源专属、无密钥 provenance；Git、Template、Remote adapters 未来只负责解析/物化 workspace 后调用同一 pipeline。
+
 ## 16. 分阶段实施路线
 
 后续路线图建议按 `Management`、`Observability`、`Configuration` 三类能力组织，而不是按 `Read/Write` 组织。

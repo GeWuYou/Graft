@@ -34,6 +34,7 @@ type Project struct {
 	HostScope                  string
 	WorkingDirectory           string
 	OwnershipMode              string
+	SourceMetadata             map[string]string
 	LifecycleStrategyKind      string
 	LifecycleReviewStatus      string
 	LifecycleConfig            LifecycleConfig
@@ -118,6 +119,7 @@ type ImportProjectInput struct {
 	HostScope                  string
 	WorkingDirectory           string
 	OwnershipMode              string
+	SourceMetadata             map[string]string
 	LifecycleStrategyKind      string
 	LifecycleReviewStatus      string
 	LifecycleConfig            LifecycleConfig

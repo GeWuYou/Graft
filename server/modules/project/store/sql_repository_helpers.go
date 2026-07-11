@@ -22,6 +22,48 @@ const (
 	maxListLimit     = 100
 )
 
+func normalizeSourceMetadata(metadata map[string]string) (map[string]string, error) {
+	if len(metadata) == 0 {
+		return map[string]string{}, nil
+	}
+	result := make(map[string]string, len(metadata))
+	for key, value := range metadata {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" {
+			return nil, ErrInvalidInput
+		}
+		if strings.ContainsAny(key, "\x00\r\n") || strings.Contains(value, "\x00") {
+			return nil, ErrInvalidInput
+		}
+		result[key] = value
+	}
+	return result, nil
+}
+
+func encodeSourceMetadataJSON(metadata map[string]string) ([]byte, error) {
+	normalized, err := normalizeSourceMetadata(metadata)
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return nil, fmt.Errorf("encode source metadata: %w", err)
+	}
+	return encoded, nil
+}
+
+func decodeSourceMetadataJSON(raw []byte) (map[string]string, error) {
+	if len(raw) == 0 {
+		return map[string]string{}, nil
+	}
+	var metadata map[string]string
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		return nil, fmt.Errorf("decode source metadata: %w", err)
+	}
+	return normalizeSourceMetadata(metadata)
+}
+
 func (r *SQLRepository) ensureReady() error {
 	if r == nil || r.db == nil {
 		return errors.New("project repository is unavailable")
@@ -73,6 +115,11 @@ func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 		return ImportProjectInput{}, err
 	}
 	input.Snapshot = snapshot
+	metadata, err := normalizeSourceMetadata(input.SourceMetadata)
+	if err != nil {
+		return ImportProjectInput{}, err
+	}
+	input.SourceMetadata = metadata
 	normalizeTemporalPointers(&input.LastDriftCheckedAt)
 	return input, nil
 }
@@ -86,6 +133,9 @@ func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	input.HostScope = strings.TrimSpace(input.HostScope)
 	input.WorkingDirectory = strings.TrimSpace(input.WorkingDirectory)
 	input.OwnershipMode = strings.TrimSpace(input.OwnershipMode)
+	for key, value := range input.SourceMetadata {
+		input.SourceMetadata[key] = strings.TrimSpace(value)
+	}
 	input.LifecycleStrategyKind = strings.TrimSpace(input.LifecycleStrategyKind)
 	input.LifecycleReviewStatus = strings.TrimSpace(input.LifecycleReviewStatus)
 	input.LastObservedConfigHash = strings.TrimSpace(input.LastObservedConfigHash)
@@ -502,6 +552,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
 	var lifecycleConfigJSON []byte
+	var sourceMetadataJSON []byte
 	var workspaceAnnotationsJSON []byte
 	if err := scanner.Scan(
 		&item.ID,
@@ -512,6 +563,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		&item.HostScope,
 		&item.WorkingDirectory,
 		&item.OwnershipMode,
+		&sourceMetadataJSON,
 		&item.LifecycleStrategyKind,
 		&item.LifecycleReviewStatus,
 		&lifecycleConfigJSON,
@@ -537,6 +589,11 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		return Project{}, err
 	}
 	item.WorkspaceAnnotations = annotations
+	metadata, err := decodeSourceMetadataJSON(sourceMetadataJSON)
+	if err != nil {
+		return Project{}, err
+	}
+	item.SourceMetadata = metadata
 	config, err := decodeLifecycleConfigJSON(lifecycleConfigJSON)
 	if err != nil {
 		return Project{}, err

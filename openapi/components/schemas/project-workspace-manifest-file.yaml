@@ -1,0 +1,14 @@
+type: object
+additionalProperties: false
+required:
+  - path
+  - content
+properties:
+  path:
+    type: string
+    minLength: 1
+    maxLength: 1024
+    description: Relative text-file path within the managed workspace. Absolute paths and traversal are rejected.
+  content:
+    type: string
+    description: UTF-8 text content to materialize for the file.

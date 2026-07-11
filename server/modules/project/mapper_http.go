@@ -587,13 +587,40 @@ func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONReque
 		value := *request.EnvFileName
 		envFileName = &value
 	}
-	return ManagedProjectCreateRequest{
-		DisplayName:              request.DisplayName,
-		CanonicalProjectName:     request.CanonicalProjectName,
-		RelativeProjectDirectory: request.RelativeProjectDirectory,
-		ComposeFileName:          request.ComposeFileName,
-		EnvFileName:              envFileName,
+	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, canonicalName: request.CanonicalProjectName, relativeDirectory: request.RelativeProjectDirectory, composeFileName: request.ComposeFileName, envFileName: envFileName, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+}
+
+type managedCreateHTTPParts struct {
+	displayName, canonicalName, relativeDirectory, composeFileName, composeFileContent string
+	envFileName, envFileContent                                                        *string
+	workspaceFiles                                                                     *[]generated.ProjectWorkspaceManifestFile
+	composeFilePath                                                                    *string
+	envFilePaths                                                                       *[]string
+	lifecycle                                                                          *generated.ProjectLifecycleConfigurationRequest
+}
+
+func managedCreateRequestFromParts(parts managedCreateHTTPParts) ManagedProjectCreateRequest {
+	request := ManagedProjectCreateRequest{
+		DisplayName: parts.displayName, CanonicalProjectName: parts.canonicalName, RelativeProjectDirectory: parts.relativeDirectory, ComposeFileName: parts.composeFileName, ComposeFileContent: parts.composeFileContent, EnvFileName: parts.envFileName, EnvFileContent: parts.envFileContent,
 	}
+	if parts.workspaceFiles != nil {
+		for _, item := range *parts.workspaceFiles {
+			request.WorkspaceFiles = append(request.WorkspaceFiles, ManagedWorkspaceFile{Path: item.Path, Content: item.Content})
+		}
+	}
+	if parts.composeFilePath != nil {
+		request.ComposeFilePath = *parts.composeFilePath
+	}
+	if parts.envFilePaths != nil {
+		request.EnvFilePaths = append([]string(nil), (*parts.envFilePaths)...)
+	}
+	if parts.lifecycle != nil {
+		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
+		if err == nil {
+			request.LifecycleConfig = &config
+		}
+	}
+	return request
 }
 
 // toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求。
@@ -608,15 +635,7 @@ func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONReques
 		value := *request.EnvFileContent
 		envFileContent = &value
 	}
-	return ManagedProjectCreateRequest{
-		DisplayName:              request.DisplayName,
-		CanonicalProjectName:     request.CanonicalProjectName,
-		RelativeProjectDirectory: request.RelativeProjectDirectory,
-		ComposeFileName:          request.ComposeFileName,
-		ComposeFileContent:       request.ComposeFileContent,
-		EnvFileName:              envFileName,
-		EnvFileContent:           envFileContent,
-	}
+	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, canonicalName: request.CanonicalProjectName, relativeDirectory: request.RelativeProjectDirectory, composeFileName: request.ComposeFileName, composeFileContent: request.ComposeFileContent, envFileName: envFileName, envFileContent: envFileContent, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
 }
 
 func toProjectOverviewServiceItem(

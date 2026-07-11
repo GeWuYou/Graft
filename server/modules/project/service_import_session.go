@@ -111,7 +111,6 @@ type importInspectionCommitInput struct {
 
 func (s *Service) importInspectionSession(
 	ctx context.Context,
-	repository projectstore.Repository,
 	session importInspectionSession,
 	input importInspectionCommitInput,
 ) (generated.ProjectImportResponse, error) {
@@ -140,33 +139,9 @@ func (s *Service) importInspectionSession(
 	if err != nil {
 		return generated.ProjectImportResponse{}, err
 	}
-	now := time.Now().UTC()
-	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		DisplayName:                defaultImportedDisplayName(input.DisplayName, freshParse.WorkingDirectory, freshValidation.CanonicalProjectName),
-		CanonicalProjectName:       freshValidation.CanonicalProjectName,
-		CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource,
-		SourceKind:                 projectcontract.SourceKindImported.String(),
-		HostScope:                  projectcontract.HostScopeLocal.String(),
-		WorkingDirectory:           freshParse.WorkingDirectory,
-		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
-		LifecycleStrategyKind:      projectcontract.LifecycleStrategyKindStandard.String(),
-		LifecycleReviewStatus:      projectcontract.LifecycleReviewStatusConfirmed.String(),
-		LifecycleConfig:            toStoreLifecycleConfig(normalizedLifecycleConfig),
-		LastObservedConfigHash:     freshParse.ConfigHash,
-		LastDriftCheckedAt:         &now,
-		DriftStatus:                projectcontract.DriftStatusClean.String(),
-		Files:                      toStoreFiles(freshParse.ComposeFiles, freshParse.EnvFiles),
-		Snapshot: &projectstore.Snapshot{
-			ConfigHash:             freshParse.ConfigHash,
-			NormalizedComposeJSON:  normalizeSnapshotJSON(freshParse.NormalizedComposeJSON),
-			DeclaredServiceCount:   len(freshParse.ServiceNames),
-			DeclaredServicesDigest: digestServiceNames(freshParse.ServiceNames),
-			RefreshedAt:            now,
-		},
-		ActorID: input.ActorID,
-	})
+	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: defaultImportedDisplayName(input.DisplayName, freshParse.WorkingDirectory, freshValidation.CanonicalProjectName), CanonicalProjectName: freshValidation.CanonicalProjectName, CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource, SourceKind: projectcontract.SourceKindImported.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: freshParse.WorkingDirectory, OwnershipMode: projectcontract.OwnershipModeExternal.String(), LifecycleConfig: normalizedLifecycleConfig, ParseResult: freshParse, ActorID: input.ActorID})
 	if err != nil {
-		return generated.ProjectImportResponse{}, mapStoreError(err)
+		return generated.ProjectImportResponse{}, err
 	}
 
 	response := generated.ProjectImportResponse{

@@ -41,23 +41,21 @@ func writeManagedProjectFiles(
 		err = errors.Join(err, workingRoot.Close())
 	}()
 	createdFiles = []string{}
-	composeRelativePath, err := relativePathWithinRoot(workingDirectory, validation.ComposeFileAbsolutePath)
+	workspaceFiles, err := normalizeManagedWorkspaceFiles(normalized.WorkspaceFiles, normalized.ComposeFileName, normalized.ComposeFileContent, normalized.EnvFileName, normalized.EnvFileContent)
 	if err != nil {
-		return workingDirectory, createdFiles, fmt.Errorf("resolve compose file path: %w", err)
+		return workingDirectory, createdFiles, err
 	}
-	if err := workingRoot.WriteFile(composeRelativePath, []byte(normalized.ComposeFileContent), managedCreateFileMode); err != nil {
-		return workingDirectory, createdFiles, fmt.Errorf("write compose file: %w", err)
-	}
-	createdFiles = append(createdFiles, validation.ComposeFileAbsolutePath)
-	if validation.EnvFileAbsolutePath != nil && normalized.EnvFileContent != nil {
-		envRelativePath, relErr := relativePathWithinRoot(workingDirectory, *validation.EnvFileAbsolutePath)
-		if relErr != nil {
-			return workingDirectory, createdFiles, fmt.Errorf("resolve env file path: %w", relErr)
+	for _, item := range workspaceFiles {
+		parent := filepath.Dir(item.Path)
+		if parent != "." {
+			if err := workingRoot.MkdirAll(parent, managedCreateDirMode); err != nil {
+				return workingDirectory, createdFiles, fmt.Errorf("create workspace parent: %w", err)
+			}
 		}
-		if err := workingRoot.WriteFile(envRelativePath, []byte(*normalized.EnvFileContent), managedCreateFileMode); err != nil {
-			return workingDirectory, createdFiles, fmt.Errorf("write env file: %w", err)
+		if err := workingRoot.WriteFile(item.Path, []byte(item.Content), managedCreateFileMode); err != nil {
+			return workingDirectory, createdFiles, fmt.Errorf("write workspace file: %w", err)
 		}
-		createdFiles = append(createdFiles, *validation.EnvFileAbsolutePath)
+		createdFiles = append(createdFiles, filepath.Join(workingDirectory, item.Path))
 	}
 	return workingDirectory, createdFiles, nil
 }

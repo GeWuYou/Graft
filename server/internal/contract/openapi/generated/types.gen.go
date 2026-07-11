@@ -7967,14 +7967,24 @@ type ProjectCreateRequest struct {
 	// ComposeFileContent Initial Compose YAML content to materialize in the managed project directory.
 	ComposeFileContent string `json:"compose_file_content"`
 	ComposeFileName    string `json:"compose_file_name"`
-	DisplayName        string `json:"display_name"`
+
+	// ComposeFilePath Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition.
+	ComposeFilePath *string `json:"compose_file_path,omitempty"`
+	DisplayName     string  `json:"display_name"`
 
 	// EnvFileContent Optional initial env file content. It is ignored when env_file_name is omitted.
 	EnvFileContent *string `json:"env_file_content,omitempty"`
 	EnvFileName    *string `json:"env_file_name,omitempty"`
 
+	// EnvFilePaths Explicit workspace-relative env file references.
+	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
+	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+
 	// RelativeProjectDirectory Relative project directory under the canonical managed root.
 	RelativeProjectDirectory string `json:"relative_project_directory"`
+
+	// WorkspaceFiles Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.
+	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
 }
 
 // ProjectCreateResponse defines model for project-create-response.
@@ -8011,13 +8021,19 @@ type ProjectCreateResponseResult string
 
 // ProjectCreateValidateRequest defines model for project-create-validate-request.
 type ProjectCreateValidateRequest struct {
-	CanonicalProjectName string  `json:"canonical_project_name"`
-	ComposeFileName      string  `json:"compose_file_name"`
-	DisplayName          string  `json:"display_name"`
-	EnvFileName          *string `json:"env_file_name,omitempty"`
+	CanonicalProjectName   string                                `json:"canonical_project_name"`
+	ComposeFileName        string                                `json:"compose_file_name"`
+	ComposeFilePath        *string                               `json:"compose_file_path,omitempty"`
+	DisplayName            string                                `json:"display_name"`
+	EnvFileName            *string                               `json:"env_file_name,omitempty"`
+	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
+	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 
 	// RelativeProjectDirectory Relative project directory under the canonical managed root.
 	RelativeProjectDirectory string `json:"relative_project_directory"`
+
+	// WorkspaceFiles Complete managed workspace text manifest to validate without materializing.
+	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
 }
 
 // ProjectCreateValidateResponse defines model for project-create-validate-response.
@@ -8829,6 +8845,15 @@ type ProjectSourceMetadata struct {
 
 // ProjectWorkspaceFileKind defines model for project-workspace-file-kind.
 type ProjectWorkspaceFileKind string
+
+// ProjectWorkspaceManifestFile defines model for project-workspace-manifest-file.
+type ProjectWorkspaceManifestFile struct {
+	// Content UTF-8 text content to materialize for the file.
+	Content string `json:"content"`
+
+	// Path Relative text-file path within the managed workspace. Absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {

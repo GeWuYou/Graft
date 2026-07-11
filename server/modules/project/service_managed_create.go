@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
+	"unicode/utf8"
 
 	projectcompose "graft/server/modules/project/compose"
-	projectcontract "graft/server/modules/project/contract"
-	projectstore "graft/server/modules/project/store"
 )
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
@@ -19,10 +17,6 @@ func (s *Service) CreateManagedProject(
 	request ManagedProjectCreateRequest,
 	actorID *uint64,
 ) (result ManagedProjectCreateResult, err error) {
-	repository, err := s.repositoryOrErr()
-	if err != nil {
-		return ManagedProjectCreateResult{}, err
-	}
 	validation, err := s.ValidateManagedCreate(ctx, request)
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
@@ -55,33 +49,9 @@ func (s *Service) CreateManagedProject(
 		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
 
-	now := time.Now().UTC()
-	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		DisplayName:                normalized.DisplayName,
-		CanonicalProjectName:       normalized.CanonicalProjectName,
-		CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceOverride.String(),
-		SourceKind:                 projectcontract.SourceKindManaged.String(),
-		HostScope:                  projectcontract.HostScopeLocal.String(),
-		WorkingDirectory:           validation.WorkingDirectory,
-		OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
-		LifecycleStrategyKind:      projectcontract.LifecycleStrategyKindStandard.String(),
-		LifecycleReviewStatus:      projectcontract.LifecycleReviewStatusConfirmed.String(),
-		LifecycleConfig:            lifecycleSeedForManagedProject(),
-		LastObservedConfigHash:     parseResult.ConfigHash,
-		LastDriftCheckedAt:         &now,
-		DriftStatus:                projectcontract.DriftStatusClean.String(),
-		Files:                      toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
-		Snapshot: &projectstore.Snapshot{
-			ConfigHash:             parseResult.ConfigHash,
-			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
-			DeclaredServiceCount:   len(parseResult.ServiceNames),
-			DeclaredServicesDigest: digestServiceNames(parseResult.ServiceNames),
-			RefreshedAt:            now,
-		},
-		ActorID: actorID,
-	})
+	aggregate, now, err := s.createProjectFromWorkspace(ctx, managedCreationCommand(validation, normalized, parseResult, actorID))
 	if err != nil {
-		return ManagedProjectCreateResult{}, mapStoreError(err)
+		return ManagedProjectCreateResult{}, err
 	}
 	shouldCleanup = false
 	result = ManagedProjectCreateResult{
@@ -103,11 +73,22 @@ type normalizedManagedCreateRequest struct {
 	ComposeFileContent       string
 	EnvFileName              *string
 	EnvFileContent           *string
+	WorkspaceFiles           []ManagedWorkspaceFile
+	ComposeFilePath          string
+	EnvFilePaths             []string
+	LifecycleConfig          *LifecycleStandardConfig
+}
+
+type normalizedManagedWorkspaceFile struct {
+	Path    string
+	Content string
 }
 
 // normalizeManagedCreateRequest 规范化受控创建请求并校验必填字段。
 // normalizeManagedCreateRequest 规范化并校验受控项目创建请求，生成可用于创建项目的请求数据。
 // 缺少必填字段或字段无效时返回错误。
+//
+//nolint:cyclop // The coupled request fields must be normalized together before any managed-root write.
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	canonicalName := strings.TrimSpace(request.CanonicalProjectName)
@@ -135,15 +116,70 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	if envFileName == nil {
 		envFileContent = nil
 	}
+	composeFilePath := composeFileName
+	if strings.TrimSpace(request.ComposeFilePath) != "" {
+		composeFilePath, err = normalizeManagedWorkspacePath(request.ComposeFilePath)
+		if err != nil {
+			return normalizedManagedCreateRequest{}, err
+		}
+	}
+	if _, err := normalizeManagedWorkspaceFiles(request.WorkspaceFiles, composeFilePath, composeFileContent, envFileName, envFileContent); err != nil {
+		return normalizedManagedCreateRequest{}, err
+	}
 	return normalizedManagedCreateRequest{
 		DisplayName:              displayName,
 		CanonicalProjectName:     canonicalName,
 		RelativeProjectDirectory: relativeDir,
-		ComposeFileName:          composeFileName,
+		ComposeFileName:          composeFilePath,
 		ComposeFileContent:       composeFileContent,
 		EnvFileName:              envFileName,
 		EnvFileContent:           envFileContent,
+		WorkspaceFiles:           request.WorkspaceFiles,
+		ComposeFilePath:          request.ComposeFilePath,
+		EnvFilePaths:             append([]string(nil), request.EnvFilePaths...),
+		LifecycleConfig:          request.LifecycleConfig,
 	}, nil
+}
+
+func normalizeManagedWorkspaceFiles(items []ManagedWorkspaceFile, composeFileName, composeContent string, envFileName *string, envContent *string) ([]normalizedManagedWorkspaceFile, error) {
+	if len(items) == 0 {
+		items = []ManagedWorkspaceFile{{Path: composeFileName, Content: composeContent}}
+		if envFileName != nil && envContent != nil {
+			items = append(items, ManagedWorkspaceFile{Path: *envFileName, Content: *envContent})
+		}
+	}
+	result := make([]normalizedManagedWorkspaceFile, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		path, err := normalizeManagedWorkspacePath(item.Path)
+		if err != nil {
+			return nil, err
+		}
+		if !utf8.ValidString(item.Content) || strings.Contains(item.Content, "\x00") {
+			return nil, fmt.Errorf("%w: workspace file must be text", errProjectInvalidArgument)
+		}
+		if _, ok := seen[path]; ok {
+			return nil, fmt.Errorf("%w: duplicate workspace file", errProjectInvalidArgument)
+		}
+		seen[path] = struct{}{}
+		result = append(result, normalizedManagedWorkspaceFile{Path: path, Content: item.Content})
+	}
+	if _, ok := seen[composeFileName]; !ok {
+		return nil, fmt.Errorf("%w: compose file is absent from workspace", errProjectInvalidArgument)
+	}
+	return result, nil
+}
+
+func normalizeManagedWorkspacePath(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" || filepath.IsAbs(value) || strings.Contains(value, `\`) {
+		return "", fmt.Errorf("%w: invalid workspace file path", errProjectInvalidArgument)
+	}
+	cleaned := filepath.Clean(value)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%w: workspace file path escapes project", errProjectInvalidArgument)
+	}
+	return filepath.ToSlash(cleaned), nil
 }
 
 // normalizeManagedRelativeDirectory 规范化并校验 managed-create 的相对项目目录。

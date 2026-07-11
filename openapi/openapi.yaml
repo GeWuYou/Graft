@@ -856,6 +856,8 @@ components:
       $ref: ./components/schemas/project-services-response.yaml
     ProjectCreateRequest:
       $ref: ./components/schemas/project-create-request.yaml
+    ProjectWorkspaceManifestFile:
+      $ref: ./components/schemas/project-workspace-manifest-file.yaml
     ProjectImportValidateRequest:
       $ref: ./components/schemas/project-import-validate-request.yaml
     ProjectImportValidateResponse:
