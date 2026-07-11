@@ -33,6 +33,7 @@ import type {
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
   ProjectDiscoveryCandidatesResponse,
+  ProjectGitCreateRequest,
   ProjectLifecycleConfigurationSavedResponse,
   ProjectLifecycleConfigurationUpdateRequest,
   ProjectListQuery,
@@ -43,6 +44,7 @@ import type {
   ProjectServicesResponse,
   ProjectSourceCatalogResponse,
   ProjectTaskReceipt,
+  ProjectTemplateCreateRequest,
   ProjectWorkspaceFileAnnotationRequest,
   ProjectWorkspaceFileAnnotationResponse,
   ProjectWorkspaceFileContentQuery,
@@ -118,6 +120,27 @@ type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
 type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
 type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
 type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
+
+type ProjectGitCreatePath = (typeof PROJECT_API_PATH)['CREATE_GIT'];
+type ProjectGitCreateOperation = paths[ProjectGitCreatePath]['post'];
+type ProjectGitCreateData = NonNullable<
+  ProjectGitCreateOperation['responses'][201]['content']['application/json']['data']
+>;
+type ProjectGitValidatePath = (typeof PROJECT_API_PATH)['CREATE_GIT_VALIDATE'];
+type ProjectGitValidateOperation = paths[ProjectGitValidatePath]['post'];
+type ProjectGitValidateData = NonNullable<
+  ProjectGitValidateOperation['responses'][200]['content']['application/json']['data']
+>;
+type ProjectTemplateCreatePath = (typeof PROJECT_API_PATH)['CREATE_TEMPLATE'];
+type ProjectTemplateCreateOperation = paths[ProjectTemplateCreatePath]['post'];
+type ProjectTemplateCreateData = NonNullable<
+  ProjectTemplateCreateOperation['responses'][201]['content']['application/json']['data']
+>;
+type ProjectTemplateValidatePath = (typeof PROJECT_API_PATH)['CREATE_TEMPLATE_VALIDATE'];
+type ProjectTemplateValidateOperation = paths[ProjectTemplateValidatePath]['post'];
+type ProjectTemplateValidateData = NonNullable<
+  ProjectTemplateValidateOperation['responses'][200]['content']['application/json']['data']
+>;
 
 type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
 type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
@@ -345,6 +368,34 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
   return postProjectAction<ProjectCreateData>(
     PROJECT_API_PATH.CREATE,
     payload as ProjectCreatePayload,
+  ) as Promise<ProjectCreateResponse>;
+}
+
+export function postProjectCreateGitValidate(payload: ProjectGitCreateRequest) {
+  return postProjectAction<ProjectGitValidateData>(
+    PROJECT_API_PATH.CREATE_GIT_VALIDATE,
+    payload,
+  ) as Promise<ProjectCreateValidateResponse>;
+}
+
+export function postProjectCreateGit(payload: ProjectGitCreateRequest) {
+  return postProjectAction<ProjectGitCreateData>(
+    PROJECT_API_PATH.CREATE_GIT,
+    payload,
+  ) as Promise<ProjectCreateResponse>;
+}
+
+export function postProjectCreateTemplateValidate(payload: ProjectTemplateCreateRequest) {
+  return postProjectAction<ProjectTemplateValidateData>(
+    PROJECT_API_PATH.CREATE_TEMPLATE_VALIDATE,
+    payload,
+  ) as Promise<ProjectCreateValidateResponse>;
+}
+
+export function postProjectCreateTemplate(payload: ProjectTemplateCreateRequest) {
+  return postProjectAction<ProjectTemplateCreateData>(
+    PROJECT_API_PATH.CREATE_TEMPLATE,
+    payload,
   ) as Promise<ProjectCreateResponse>;
 }
 

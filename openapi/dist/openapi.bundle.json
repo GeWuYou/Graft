@@ -11916,6 +11916,225 @@
         }
       }
     },
+    "/api/ops/projects/create/git/validate": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Validate a Git project source",
+        "operationId": "postProjectCreateGitValidate",
+        "description": "Resolves a Git workspace in isolated temporary staging and validates the eventual managed-root target without writing it.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-git-create-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Git source validation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-validate-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/git": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Create a managed Compose project from Git",
+        "operationId": "postProjectCreateGit",
+        "description": "Clones a public or locally reachable Git repository into isolated temporary staging, materializes its validated text workspace under the managed root, and registers it without running Compose lifecycle commands.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-git-create-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Git workspace materialized and project registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/template/validate": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Validate a bundled template project source",
+        "operationId": "postProjectCreateTemplateValidate",
+        "description": "Validates the selected bundled template and eventual managed-root target without writing it.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-template-create-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template source validation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-validate-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/template": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Create a managed Compose project from a bundled template",
+        "operationId": "postProjectCreateTemplate",
+        "description": "Materializes one explicit bundled text workspace template under the managed root, then registers it without running Compose lifecycle commands.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-template-create-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Template workspace materialized and project registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}": {
       "get": {
         "tags": [
@@ -25365,6 +25584,84 @@
             }
           }
         ]
+      },
+      "project-git-create-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "display_name",
+          "canonical_project_name",
+          "relative_project_directory",
+          "repository_url"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical_project_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relative_project_directory": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repository_url": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Public or locally reachable Git repository URL. Credentials are never accepted or persisted."
+          },
+          "reference": {
+            "type": "string",
+            "description": "Optional branch, tag, or commit reference. Defaults to HEAD."
+          },
+          "compose_subpath": {
+            "type": "string",
+            "description": "Optional repository-relative directory containing the primary Compose file. Defaults to the repository root."
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
+          }
+        }
+      },
+      "project-template-create-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "display_name",
+          "canonical_project_name",
+          "relative_project_directory"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical_project_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relative_project_directory": {
+            "type": "string",
+            "minLength": 1
+          },
+          "template_key": {
+            "type": "string",
+            "description": "Explicit bundled template key. Defaults to empty-compose."
+          },
+          "template_version": {
+            "type": "string",
+            "description": "Explicit bundled template version. Defaults to v1."
+          },
+          "template_instance_name": {
+            "type": "string",
+            "description": "Safe display provenance for this template instance. Defaults to canonical_project_name."
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
+          }
+        }
       },
       "enveloped-project-detail-response": {
         "allOf": [

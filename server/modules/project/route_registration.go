@@ -64,6 +64,10 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
+	group.POST(projectcontract.ProjectCreateGitValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleGitCreateValidate)
+	group.POST(projectcontract.ProjectCreateGitRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleGitCreate)
+	group.POST(projectcontract.ProjectCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
+	group.POST(projectcontract.ProjectCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreate)
 	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleDetail)
 	group.GET(projectcontract.ProjectOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleOverview)
 	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleServices)
@@ -284,6 +288,98 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
+}
+
+type gitProjectCreateHTTP struct {
+	DisplayName              string                                          `json:"display_name"`
+	CanonicalProjectName     string                                          `json:"canonical_project_name"`
+	RelativeProjectDirectory string                                          `json:"relative_project_directory"`
+	RepositoryURL            string                                          `json:"repository_url"`
+	Reference                string                                          `json:"reference"`
+	ComposeSubpath           string                                          `json:"compose_subpath"`
+	LifecycleConfiguration   *generated.ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+}
+
+type templateProjectCreateHTTP struct {
+	DisplayName              string                                          `json:"display_name"`
+	CanonicalProjectName     string                                          `json:"canonical_project_name"`
+	RelativeProjectDirectory string                                          `json:"relative_project_directory"`
+	TemplateKey              string                                          `json:"template_key"`
+	TemplateVersion          string                                          `json:"template_version"`
+	TemplateInstanceName     string                                          `json:"template_instance_name"`
+	LifecycleConfiguration   *generated.ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+}
+
+func (r routeRuntime) handleGitCreateValidate(ginCtx *gin.Context) {
+	var request gitProjectCreateHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	result, err := r.service.ValidateGitProject(ginCtx.Request.Context(), toGitProjectCreateRequest(request))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
+}
+
+func (r routeRuntime) handleGitCreate(ginCtx *gin.Context) {
+	var request gitProjectCreateHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	result, err := r.service.CreateGitProject(ginCtx.Request.Context(), toGitProjectCreateRequest(request), currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
+}
+
+func (r routeRuntime) handleTemplateCreateValidate(ginCtx *gin.Context) {
+	var request templateProjectCreateHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	result, err := r.service.ValidateTemplateProject(ginCtx.Request.Context(), toTemplateProjectCreateRequest(request))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
+}
+
+func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
+	var request templateProjectCreateHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	result, err := r.service.CreateTemplateProject(ginCtx.Request.Context(), toTemplateProjectCreateRequest(request), currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
+}
+
+func toGitProjectCreateRequest(request gitProjectCreateHTTP) GitProjectCreateRequest {
+	result := GitProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, RepositoryURL: request.RepositoryURL, Reference: request.Reference, ComposeSubpath: request.ComposeSubpath}
+	if request.LifecycleConfiguration != nil {
+		if config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration); err == nil {
+			result.LifecycleConfig = &config
+		}
+	}
+	return result
+}
+
+func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) TemplateProjectCreateRequest {
+	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
+	if request.LifecycleConfiguration != nil {
+		if config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration); err == nil {
+			result.LifecycleConfig = &config
+		}
+	}
+	return result
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {

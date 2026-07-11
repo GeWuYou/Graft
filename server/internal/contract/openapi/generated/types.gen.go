@@ -8248,6 +8248,23 @@ type ProjectFilesResponse struct {
 	RootPath      string                `json:"root_path"`
 }
 
+// ProjectGitCreateRequest defines model for project-git-create-request.
+type ProjectGitCreateRequest struct {
+	CanonicalProjectName string `json:"canonical_project_name"`
+
+	// ComposeSubpath Optional repository-relative directory containing the primary Compose file. Defaults to the repository root.
+	ComposeSubpath         *string                               `json:"compose_subpath,omitempty"`
+	DisplayName            string                                `json:"display_name"`
+	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+
+	// Reference Optional branch, tag, or commit reference. Defaults to HEAD.
+	Reference                *string `json:"reference,omitempty"`
+	RelativeProjectDirectory string  `json:"relative_project_directory"`
+
+	// RepositoryUrl Public or locally reachable Git repository URL. Credentials are never accepted or persisted.
+	RepositoryUrl string `json:"repository_url"`
+}
+
 // ProjectGuardResult defines model for project-guard-result.
 type ProjectGuardResult struct {
 	Code       string  `json:"code"`
@@ -8840,6 +8857,23 @@ type ProjectSourceMetadata struct {
 	TemplateKey *string `json:"template_key,omitempty"`
 
 	// TemplateVersion Planned template version or release channel.
+	TemplateVersion *string `json:"template_version,omitempty"`
+}
+
+// ProjectTemplateCreateRequest defines model for project-template-create-request.
+type ProjectTemplateCreateRequest struct {
+	CanonicalProjectName     string                                `json:"canonical_project_name"`
+	DisplayName              string                                `json:"display_name"`
+	LifecycleConfiguration   *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+	RelativeProjectDirectory string                                `json:"relative_project_directory"`
+
+	// TemplateInstanceName Safe display provenance for this template instance. Defaults to canonical_project_name.
+	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+
+	// TemplateKey Explicit bundled template key. Defaults to empty-compose.
+	TemplateKey *string `json:"template_key,omitempty"`
+
+	// TemplateVersion Explicit bundled template version. Defaults to v1.
 	TemplateVersion *string `json:"template_version,omitempty"`
 }
 
@@ -10719,6 +10753,26 @@ type PostProjectBatchActionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostProjectCreateGitParams defines parameters for PostProjectCreateGit.
+type PostProjectCreateGitParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateGitValidateParams defines parameters for PostProjectCreateGitValidate.
+type PostProjectCreateGitValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectCreateParams defines parameters for PostProjectCreate.
 type PostProjectCreateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10731,6 +10785,26 @@ type PostProjectCreateParams struct {
 
 // PostProjectCreateValidateParams defines parameters for PostProjectCreateValidate.
 type PostProjectCreateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateTemplateParams defines parameters for PostProjectCreateTemplate.
+type PostProjectCreateTemplateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateTemplateValidateParams defines parameters for PostProjectCreateTemplateValidate.
+type PostProjectCreateTemplateValidateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11720,11 +11794,23 @@ type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
 // PostProjectBatchActionsJSONRequestBody defines body for PostProjectBatchActions for application/json ContentType.
 type PostProjectBatchActionsJSONRequestBody = ProjectBatchActionRequest
 
+// PostProjectCreateGitJSONRequestBody defines body for PostProjectCreateGit for application/json ContentType.
+type PostProjectCreateGitJSONRequestBody = ProjectGitCreateRequest
+
+// PostProjectCreateGitValidateJSONRequestBody defines body for PostProjectCreateGitValidate for application/json ContentType.
+type PostProjectCreateGitValidateJSONRequestBody = ProjectGitCreateRequest
+
 // PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
 type PostProjectCreateJSONRequestBody = ProjectCreateRequest
 
 // PostProjectCreateValidateJSONRequestBody defines body for PostProjectCreateValidate for application/json ContentType.
 type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest
+
+// PostProjectCreateTemplateJSONRequestBody defines body for PostProjectCreateTemplate for application/json ContentType.
+type PostProjectCreateTemplateJSONRequestBody = ProjectTemplateCreateRequest
+
+// PostProjectCreateTemplateValidateJSONRequestBody defines body for PostProjectCreateTemplateValidate for application/json ContentType.
+type PostProjectCreateTemplateValidateJSONRequestBody = ProjectTemplateCreateRequest
 
 // PostProjectImportJSONRequestBody defines body for PostProjectImport for application/json ContentType.
 type PostProjectImportJSONRequestBody = ProjectImportRequest

@@ -100,12 +100,13 @@ Compose Project Management
 - [x] creation-pipeline-contract-and-server-foundation：统一 Managed/Import aggregate 注册、workspace manifest contract、来源元数据持久化与受控 nested text materialization
 - [x] managed-workspace-wizard-and-lifecycle-review：Managed Create 已切换为 Identity/Workspace/Lifecycle/Review 向导，使用完整 text workspace manifest、Monaco 草稿编辑器和 source-neutral lifecycle review；Create 不自动 deploy
 - [x] import-creation-adapter-and-regression：Import inspection commit 已验证复用 creation pipeline；保留 candidate/TTL/freshness/adopt guard，复用生命周期审核，并在最终审核明确不自动 deploy
+- [x] git-template-source-adapters：Git/Template 均已通过 source adapter 进入同一 CreationCommand pipeline；Git 仅在隔离暂存目录解析无凭据仓库，Template 使用模块内置的 explicit empty-compose v1 catalog
 
 ## Creation Pipeline Follow-up
 
 - 当前批次已将 Managed create 与 Import inspection commit 收口到 project-owned creation pipeline，Import 的 candidate/TTL/freshness guard 仍由 Import adapter 保持。
 - Import adapter 回归已完成：共享 aggregate 的 imported/local/external metadata、workspace files、snapshot、clean drift 与 confirmed lifecycle 均有覆盖；过期 hash 映射仍保持 `inspection stale`。
-- 下一批 `git-template-source-adapters` 只补 Git/Template source adapter，继续调用同一 creation pipeline。
+- Git/Template source adapters 已完成；下一批是 `remote-source-adapter-and-activity-boundary`，继续保持 Git/Template 不自动 deploy。
 
 ## Phase 1 Acceptance Conditions
 

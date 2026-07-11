@@ -49,8 +49,12 @@ const (
 	ProjectCreateValidateRoute = "/create/managed/validate"
 	// ProjectCreateRoute identifies the managed-create route fragment.
 	ProjectCreateRoute = "/create/managed"
+	// ProjectCreateGitValidateRoute validates a Git source without materializing it.
+	ProjectCreateGitValidateRoute = "/create/git/validate"
 	// ProjectCreateGitRoute identifies the future git source route fragment.
 	ProjectCreateGitRoute = "/create/git"
+	// ProjectCreateTemplateValidateRoute validates a bundled template source without materializing it.
+	ProjectCreateTemplateValidateRoute = "/create/template/validate"
 	// ProjectCreateTemplateRoute identifies the future template source route fragment.
 	ProjectCreateTemplateRoute = "/create/template"
 	// ProjectCreateRemoteHostRoute identifies the future remote-host source route fragment.

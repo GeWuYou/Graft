@@ -789,6 +789,29 @@
         "loadFailed": "项目来源目录加载失败。"
       }
     },
+    "sourceCreate": {
+      "gitDescription": "将公开或本机可访问的仓库克隆到隔离暂存目录，再从其 Compose 工作区创建托管项目。",
+      "templateDescription": "从内置 Compose 工作区模板创建托管项目。",
+      "displayName": "显示名称",
+      "canonicalName": "规范项目名称",
+      "relativeDirectory": "相对目录",
+      "repositoryUrl": "仓库地址",
+      "reference": "引用",
+      "referencePlaceholder": "HEAD",
+      "composeSubpath": "Compose 子路径",
+      "subpathPlaceholder": "仓库根目录",
+      "template": "模板",
+      "emptyComposeTemplate": "空 Compose v1",
+      "instanceName": "模板实例名称",
+      "lifecycleHint": "创建时初始化标准项目生命周期配置；创建不会部署或启动容器。",
+      "validate": "校验来源",
+      "create": "创建项目",
+      "validated": "来源和目标目录有效：{directory}",
+      "validateSuccess": "来源校验完成。",
+      "validateFailed": "来源校验失败。",
+      "createSuccess": "项目已创建。",
+      "createFailed": "项目创建失败。"
+    },
     "discovery": {
       "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册项目，也不改变 runtime authority。",
       "refresh": "刷新候选",

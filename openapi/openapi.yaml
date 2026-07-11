@@ -264,6 +264,14 @@ paths:
     $ref: ./paths/ops-projects.create-validate.yaml
   /api/ops/projects/create/managed:
     $ref: ./paths/ops-projects.create.yaml
+  /api/ops/projects/create/git/validate:
+    $ref: ./paths/ops-projects.create-git-validate.yaml
+  /api/ops/projects/create/git:
+    $ref: ./paths/ops-projects.create-git.yaml
+  /api/ops/projects/create/template/validate:
+    $ref: ./paths/ops-projects.create-template-validate.yaml
+  /api/ops/projects/create/template:
+    $ref: ./paths/ops-projects.create-template.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
   /api/ops/projects/{id}/overview:

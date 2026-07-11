@@ -1638,11 +1638,11 @@ Configuration：
 - Project module owner：`server/modules/project/**`
   - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
   - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
-  - git/template 仅返回 `planned` entry，不执行 clone、模板实例化、目录扫描、remote host 或 backend activity aggregation
+  - Git/Template adapter 已落地：Git 仅在隔离临时目录 clone/checkout 无凭据来源，Template 仅允许显式模块内置 text workspace；二者都不扩展到目录扫描、remote host 或 backend activity aggregation
 - Web module owner：`web/src/modules/project/**`
   - `/ops/projects/create` 固定为 source selector
   - `/ops/projects/create/managed` 承接现有 managed create 页面
-  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 只保留 planned boundary 占位页
+  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 承接 source adapter 创建页；两者都必须在真实 workspace 解析后进入同一 creation pipeline，且不得自动 deploy
 
 IA guardrail:
 

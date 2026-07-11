@@ -374,3 +374,10 @@
 - Import 最终审核复用 source-neutral lifecycle configuration review，并明确 Import 只注册已检查的 workspace、打开项目详情，不会自动 deploy 或启动容器。
 - 验证：focused Go import regressions、focused Vitest import flow/page tests、`bun run lint:i18n`、`git diff --check`；browser QA 由用户明确延期。
 - 剩余 batches：`git-template-source-adapters`、`remote-source-adapter-and-activity-boundary`、`optional-deploy-after-create-and-archive-readiness`；下一批为 `git-template-source-adapters`。
+
+## 2026-07-11 Git and Template source adapters
+
+- Git source now clones only into request-scoped isolated staging with terminal prompts disabled, rejects symlinks/binary or oversized workspace files, and persists only repository URL, resolved reference, and Compose subpath.
+- Template source owns a small module-local `empty-compose v1` text workspace catalog; it has no marketplace, dynamic discovery, or credential persistence.
+- Both source routes validate/materialize under the managed root, parse the actual workspace, and invoke `CreationCommand`; neither source starts Compose services or deploys automatically.
+- `/ops/projects/create/git` and `/ops/projects/create/template` now provide usable source forms and no longer reuse the planned-boundary page. Browser QA remains user-deferred.

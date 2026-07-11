@@ -2350,6 +2350,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/create/git/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validate a Git project source
+     * @description Resolves a Git workspace in isolated temporary staging and validates the eventual managed-root target without writing it.
+     */
+    post: operations['postProjectCreateGitValidate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/git': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a managed Compose project from Git
+     * @description Clones a public or locally reachable Git repository into isolated temporary staging, materializes its validated text workspace under the managed root, and registers it without running Compose lifecycle commands.
+     */
+    post: operations['postProjectCreateGit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/template/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validate a bundled template project source
+     * @description Validates the selected bundled template and eventual managed-root target without writing it.
+     */
+    post: operations['postProjectCreateTemplateValidate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a managed Compose project from a bundled template
+     * @description Materializes one explicit bundled text workspace template under the managed root, then registers it without running Compose lifecycle commands.
+     */
+    post: operations['postProjectCreateTemplate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}': {
     parameters: {
       query?: never;
@@ -6212,6 +6292,30 @@ export interface components {
     };
     'enveloped-project-create-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-create-response'];
+    };
+    'project-git-create-request': {
+      display_name: string;
+      canonical_project_name: string;
+      relative_project_directory: string;
+      /** @description Public or locally reachable Git repository URL. Credentials are never accepted or persisted. */
+      repository_url: string;
+      /** @description Optional branch, tag, or commit reference. Defaults to HEAD. */
+      reference?: string;
+      /** @description Optional repository-relative directory containing the primary Compose file. Defaults to the repository root. */
+      compose_subpath?: string;
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
+    };
+    'project-template-create-request': {
+      display_name: string;
+      canonical_project_name: string;
+      relative_project_directory: string;
+      /** @description Explicit bundled template key. Defaults to empty-compose. */
+      template_key?: string;
+      /** @description Explicit bundled template version. Defaults to v1. */
+      template_version?: string;
+      /** @description Safe display provenance for this template instance. Defaults to canonical_project_name. */
+      template_instance_name?: string;
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-detail-response'];
@@ -13133,6 +13237,147 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectCreateGitValidate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-git-create-request'];
+      };
+    };
+    responses: {
+      /** @description Git source validation result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-validate-response'];
+        };
+      };
+      400: components['responses']['internal-server-error'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postProjectCreateGit: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-git-create-request'];
+      };
+    };
+    responses: {
+      /** @description Git workspace materialized and project registered. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-response'];
+        };
+      };
+      400: components['responses']['internal-server-error'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      409: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectCreateTemplateValidate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-template-create-request'];
+      };
+    };
+    responses: {
+      /** @description Template source validation result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-validate-response'];
+        };
+      };
+      400: components['responses']['internal-server-error'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postProjectCreateTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-template-create-request'];
+      };
+    };
+    responses: {
+      /** @description Template workspace materialized and project registered. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-response'];
+        };
+      };
+      400: components['responses']['internal-server-error'];
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
     };
   };
   getProject: {

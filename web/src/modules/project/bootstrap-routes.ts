@@ -113,7 +113,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_GIT,
-    loadPage: () => import('./pages/create/planned-index.vue'),
+    loadPage: () => import('./pages/create/source-create.vue'),
     meta: {
       hidden: false,
       hiddenMenu: true,
@@ -131,7 +131,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE,
-    loadPage: () => import('./pages/create/planned-index.vue'),
+    loadPage: () => import('./pages/create/source-create.vue'),
     meta: {
       hidden: false,
       hiddenMenu: true,
