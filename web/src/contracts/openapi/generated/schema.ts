@@ -5886,6 +5886,11 @@ export interface components {
     };
     'project-import-runtime-inspect-response': {
       inspection_id: string;
+      /**
+       * Format: date-time
+       * @description Absolute UTC expiration time for this short-lived inspection session.
+       */
+      expires_at: string;
       candidate_key: string;
       resolved_working_directory: string;
       canonical_project_name: string;

@@ -177,6 +177,25 @@ func TestListRuntimeImportCandidatesMarksAlreadyImportedBeyondFirstPage(t *testi
 	}
 }
 
+func TestRuntimeImportCandidateExistingConflictMatchesCanonicalNameCaseInsensitively(t *testing.T) {
+	t.Parallel()
+
+	candidate := RuntimeImportCandidate{
+		CanonicalProjectName: "Arcane",
+		WorkingDirectory:     "/srv/runtime/arcane",
+	}
+	existing := []projectstore.ProjectAggregate{{
+		Project: projectstore.Project{
+			CanonicalProjectName: "arcane",
+			WorkingDirectory:     "/srv/projects/arcane",
+		},
+	}}
+
+	if reason := runtimeImportCandidateExistingConflict(candidate, existing); reason != importRuntimeReasonAlreadyImported {
+		t.Fatalf("expected canonical-name conflict to mark candidate already imported, got %q", reason)
+	}
+}
+
 func TestResolveWorkspaceTooltipDisabledRuleDoesNotClearEarlierEnabledMatch(t *testing.T) {
 	t.Parallel()
 

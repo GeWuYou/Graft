@@ -20,6 +20,7 @@ describe('project import normalization helpers', () => {
   it('preserves structured runtime network and volume resources during inspect normalization', () => {
     const result = normalizeProjectImportInspectResponse({
       inspection_id: 'inspect-structured',
+      expires_at: '2026-07-11T08:05:00Z',
       candidate_key: 'runtime:structured',
       resolved_working_directory: '/srv/structured',
       canonical_project_name: 'structured',
@@ -87,6 +88,7 @@ describe('project import normalization helpers', () => {
   it('drops malformed inspect file entries instead of accepting any object with a display path', () => {
     const result = normalizeProjectImportInspectResponse({
       inspection_id: 'inspect-files',
+      expires_at: '2026-07-11T08:05:00Z',
       candidate_key: 'runtime:files',
       resolved_working_directory: '/srv/files',
       canonical_project_name: 'files',
@@ -153,6 +155,7 @@ describe('project import normalization helpers', () => {
     expect(
       hasBlockingImportConflicts({
         inspection_id: 'inspect-conflict',
+        expires_at: '2026-07-11T08:05:00Z',
         candidate_key: 'runtime:conflict',
         resolved_working_directory: '/srv/conflict',
         canonical_project_name: 'conflict',

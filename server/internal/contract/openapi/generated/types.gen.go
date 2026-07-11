@@ -8400,23 +8400,26 @@ type ProjectImportRuntimeInspectRequest struct {
 
 // ProjectImportRuntimeInspectResponse defines model for project-import-runtime-inspect-response.
 type ProjectImportRuntimeInspectResponse struct {
-	CandidateKey               string                                              `json:"candidate_key"`
-	CanonicalProjectName       string                                              `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource                          `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectImportInspectFileItem                      `json:"compose_files"`
-	ConfigHash                 string                                              `json:"config_hash"`
-	Conflicts                  []string                                            `json:"conflicts"`
-	DisplayNameSuggested       string                                              `json:"display_name_suggested"`
-	EnvFiles                   []ProjectImportInspectFileItem                      `json:"env_files"`
-	InspectionId               string                                              `json:"inspection_id"`
-	LifecycleConfiguration     ProjectLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
-	Networks                   []ProjectImportRuntimeNetworkResource               `json:"networks"`
-	ResolvedWorkingDirectory   string                                              `json:"resolved_working_directory"`
-	RuntimeMembers             []ProjectImportRuntimeMember                        `json:"runtime_members"`
-	Services                   []string                                            `json:"services"`
-	ValidationStatus           ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
-	Volumes                    []ProjectImportRuntimeVolumeResource                `json:"volumes"`
-	Warnings                   []string                                            `json:"warnings"`
+	CandidateKey               string                         `json:"candidate_key"`
+	CanonicalProjectName       string                         `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource     `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectImportInspectFileItem `json:"compose_files"`
+	ConfigHash                 string                         `json:"config_hash"`
+	Conflicts                  []string                       `json:"conflicts"`
+	DisplayNameSuggested       string                         `json:"display_name_suggested"`
+	EnvFiles                   []ProjectImportInspectFileItem `json:"env_files"`
+
+	// ExpiresAt Absolute UTC expiration time for this short-lived inspection session.
+	ExpiresAt                time.Time                                           `json:"expires_at"`
+	InspectionId             string                                              `json:"inspection_id"`
+	LifecycleConfiguration   ProjectLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
+	Networks                 []ProjectImportRuntimeNetworkResource               `json:"networks"`
+	ResolvedWorkingDirectory string                                              `json:"resolved_working_directory"`
+	RuntimeMembers           []ProjectImportRuntimeMember                        `json:"runtime_members"`
+	Services                 []string                                            `json:"services"`
+	ValidationStatus         ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
+	Volumes                  []ProjectImportRuntimeVolumeResource                `json:"volumes"`
+	Warnings                 []string                                            `json:"warnings"`
 }
 
 // ProjectImportRuntimeInspectResponseValidationStatus defines model for ProjectImportRuntimeInspectResponse.ValidationStatus.

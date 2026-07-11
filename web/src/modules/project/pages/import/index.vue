@@ -225,7 +225,7 @@
                 :description="inspectError"
               >
                 <template #actions>
-                  <t-button theme="primary" type="button" @click="handleRefreshInspect">
+                  <t-button theme="primary" type="button" @click="() => handleRefreshInspect()">
                     {{ t('project.import.actions.retryInspect') }}
                   </t-button>
                 </template>
@@ -233,6 +233,13 @@
             </div>
 
             <template v-else-if="normalizedInspectResult">
+              <project-import-inspection-session-alert
+                :error-message="inspectError"
+                :loading="inspectLoading"
+                :valid="inspectionSessionValid"
+                @refresh="handleRefreshInspect"
+              />
+
               <project-import-inspect-overview
                 :can-import="canImport"
                 :resolved-working-directory="resolvedWorkingDirectory"
@@ -249,7 +256,12 @@
                 <t-button theme="default" variant="outline" @click="goToStep('select', true)">
                   {{ t('project.import.actions.backToCandidates') }}
                 </t-button>
-                <t-button theme="default" variant="outline" :loading="inspectLoading" @click="handleRefreshInspect">
+                <t-button
+                  theme="default"
+                  variant="outline"
+                  :loading="inspectLoading"
+                  @click="() => handleRefreshInspect()"
+                >
                   {{ t('project.import.actions.refreshInspect') }}
                 </t-button>
                 <t-button theme="primary" :disabled="!canImport" @click="goToLifecycleStep">
@@ -261,11 +273,19 @@
         </section>
 
         <section v-else-if="currentStep === 'lifecycle'" class="project-import-step">
+          <project-import-inspection-session-alert
+            :error-message="inspectError"
+            :loading="inspectLoading"
+            :valid="inspectionSessionValid"
+            @refresh="handleRefreshInspect"
+          />
           <project-import-lifecycle-review
             v-if="lifecycleDraft"
             v-model:draft="lifecycleDraft"
+            :inspection-refresh-loading="inspectLoading"
             @back="goToStep('inspect', true)"
             @confirm="goToConfirmStep"
+            @refresh="handleRefreshInspect"
           />
           <management-empty-state
             v-else
@@ -282,6 +302,12 @@
         </section>
 
         <section v-else class="project-import-step">
+          <project-import-inspection-session-alert
+            :error-message="inspectError"
+            :loading="inspectLoading"
+            :valid="inspectionSessionValid"
+            @refresh="handleRefreshInspect"
+          />
           <project-import-confirm-review
             v-if="normalizedInspectResult"
             :can-import="canImport"
@@ -292,9 +318,11 @@
             :form-rules="formRules"
             :import-error="importError"
             :import-loading="importLoading"
+            :inspection-refresh-loading="inspectLoading"
             :resolved-working-directory="resolvedWorkingDirectory"
             :result="normalizedInspectResult"
             @back="goToStep('lifecycle', true)"
+            @refresh="handleRefreshInspect"
             @reset="handleReset"
             @submit="handleSubmit"
             @update:canonical-project-name-override="canonicalProjectNameOverride = $event"
@@ -309,7 +337,7 @@
 import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { FormProps, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import type { LocationQueryRaw } from 'vue-router';
 import { useRoute } from 'vue-router';
 
@@ -330,6 +358,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { getProjectImportRuntimeCandidates } from '../../api/import';
 import ProjectImportConfirmReview from '../../components/ProjectImportConfirmReview.vue';
+import ProjectImportInspectionSessionAlert from '../../components/ProjectImportInspectionSessionAlert.vue';
 import ProjectImportInspectOverview from '../../components/ProjectImportInspectOverview.vue';
 import ProjectImportInspectResources from '../../components/ProjectImportInspectResources.vue';
 import ProjectImportLifecycleReview from '../../components/ProjectImportLifecycleReview.vue';
@@ -343,7 +372,7 @@ import {
 } from '../../shared/import';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
-import { useProjectImportFlow } from '../../shared/useProjectImportFlow';
+import { isProjectImportInspectionExpiredError, useProjectImportFlow } from '../../shared/useProjectImportFlow';
 import type {
   ProjectImportExecuteResponse,
   ProjectImportRuntimeCandidate,
@@ -464,6 +493,8 @@ const {
   hasPreview,
   importError,
   importLoading,
+  invalidateInspectionSession,
+  inspectionSessionValid,
   lifecycleDraft,
   lifecycleConfigError,
   inspectCandidate,
@@ -476,6 +507,8 @@ const {
   selectedCandidateKey,
   submitImport,
 } = useProjectImportFlow(t);
+
+let inspectionExpiryTimer: ReturnType<typeof setTimeout> | undefined;
 
 const formData = reactive({
   display_name: displayName,
@@ -508,6 +541,34 @@ const resolvedWorkingDirectory = computed(
 );
 
 const normalizedCandidateSearch = computed(() => candidateSearchKeyword.value.trim());
+
+watch(
+  () => inspectResult.value?.expires_at,
+  (expiresAt) => {
+    if (inspectionExpiryTimer !== undefined) {
+      clearTimeout(inspectionExpiryTimer);
+      inspectionExpiryTimer = undefined;
+    }
+    const expiresAtTimestamp = expiresAt ? Date.parse(expiresAt) : Number.NaN;
+    if (!Number.isFinite(expiresAtTimestamp)) {
+      return;
+    }
+    inspectionExpiryTimer = setTimeout(
+      () => {
+        invalidateInspectionSession();
+        void handleRefreshInspect(true);
+      },
+      Math.max(0, expiresAtTimestamp - Date.now()),
+    );
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (inspectionExpiryTimer !== undefined) {
+    clearTimeout(inspectionExpiryTimer);
+  }
+});
 const hasActiveCandidateFilters = computed(
   () => Boolean(candidateSearchKeyword.value.trim()) || candidateStatusFilter.value !== 'ready',
 );
@@ -1045,18 +1106,35 @@ async function goToConfirmStep() {
   await goToStep('confirm');
 }
 
-async function handleRefreshInspect() {
+async function handleRefreshInspect(automatic = false) {
   try {
     const result = await refreshInspect();
     if (result === 'applied' && inspectResult.value) {
-      MessagePlugin.success(t('project.import.messages.inspectSuccess'));
+      if (!automatic) {
+        MessagePlugin.success(t('project.import.messages.inspectSuccess'));
+      }
       if ((currentStep.value === 'lifecycle' || currentStep.value === 'confirm') && !canImport.value) {
         await goToStep('inspect', true);
       }
     }
-  } catch {
+  } catch (error) {
+    if (isInspectionRefreshBlockingError(error)) {
+      invalidateInspectionSession();
+      await goToStep('inspect', true);
+    }
     MessagePlugin.error(inspectError.value || t('project.import.messages.inspectFailed'));
   }
+}
+
+function isInspectionRefreshBlockingError(error: unknown) {
+  return (
+    error &&
+    typeof error === 'object' &&
+    'isApiRequestError' in error &&
+    (error as { isApiRequestError?: unknown }).isApiRequestError === true &&
+    'status' in error &&
+    ((error as { status?: unknown }).status === 400 || (error as { status?: unknown }).status === 409)
+  );
 }
 
 async function handleCandidateInspect(candidate: ProjectImportRuntimeCandidate) {
@@ -1085,7 +1163,12 @@ async function handleSubmit(context?: SubmitContext) {
     const response = await submitImport();
     MessagePlugin.success(t('project.import.messages.importSuccess'));
     await openDetail(response);
-  } catch {
+  } catch (error) {
+    if (isProjectImportInspectionExpiredError(error)) {
+      invalidateInspectionSession();
+      await handleRefreshInspect(true);
+      return;
+    }
     MessagePlugin.error(importError.value || t('project.import.messages.importFailed'));
   }
 }

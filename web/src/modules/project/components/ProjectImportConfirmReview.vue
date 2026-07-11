@@ -176,7 +176,16 @@
 
           <div class="project-import-confirm__actions">
             <t-button theme="default" variant="outline" type="button" @click="$emit('back')">
-              {{ t('project.import.actions.backToInspect') }}
+              {{ t('project.import.actions.backToLifecycle') }}
+            </t-button>
+            <t-button
+              theme="default"
+              variant="outline"
+              type="button"
+              :loading="inspectionRefreshLoading"
+              @click="$emit('refresh')"
+            >
+              {{ t('project.import.actions.refreshInspect') }}
             </t-button>
             <t-button :form="formId" theme="primary" type="submit" :disabled="!canImport" :loading="importLoading">
               {{ t('project.import.actions.import') }}
@@ -216,12 +225,14 @@ const props = defineProps<{
   formRules: FormProps['rules'];
   importError: string;
   importLoading: boolean;
+  inspectionRefreshLoading: boolean;
   resolvedWorkingDirectory: string;
   result: ProjectImportInspectResponse;
 }>();
 
 const emit = defineEmits<{
   (event: 'back'): void;
+  (event: 'refresh'): void;
   (event: 'reset'): void;
   (event: 'submit', context?: SubmitContext): void;
   (event: 'update:canonicalProjectNameOverride', value: string): void;

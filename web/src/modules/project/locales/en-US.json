@@ -384,7 +384,8 @@
         "continueToConfirm": "Continue to Confirm",
         "continueToLifecycle": "Configure Lifecycle",
         "confirmLifecycle": "Confirm Lifecycle Configuration",
-        "backToInspect": "Back to Inspect"
+        "backToInspect": "Back to Inspect",
+        "backToLifecycle": "Back to Lifecycle Configuration"
       },
       "candidates": {
         "title": "Runtime Candidates",
@@ -479,6 +480,11 @@
         "authorityHint": "This configuration is saved with the import, so lifecycle actions are available when the project opens.",
         "configurationTitle": "Lifecycle Configuration",
         "commandPreviewTitle": "Command Preview"
+      },
+      "inspectionSession": {
+        "ready": "The inspection session is valid and will be refreshed automatically when it expires.",
+        "refreshing": "Refreshing the current inspection. Please wait.",
+        "expired": "The inspection session has expired. Refresh the inspection before importing."
       },
       "confirm": {
         "title": "Final Review",

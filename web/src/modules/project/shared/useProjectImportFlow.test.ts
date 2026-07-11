@@ -210,9 +210,47 @@ describe('useProjectImportFlow', () => {
     expect(flow.lifecycleDraft.value?.wait_after_up).toBe(true);
   });
 
-  it('restores the lifecycle draft after a successful refresh remains importable', async () => {
+  it('preserves editable import fields across a successful refresh', async () => {
     mocks.postProjectImportRuntimeInspect.mockResolvedValue({
       inspection_id: 'inspect-refresh',
+      candidate_key: 'runtime:demo',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/demo' },
+      resolved_working_directory: '/srv/apps/demo',
+      canonical_project_name: 'demo',
+      display_name_suggested: 'Demo Suggested',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      networks: [],
+      volumes: [],
+      warnings: [],
+      conflicts: [],
+      lifecycle_configuration: lifecycleConfiguration,
+    });
+
+    const flow = useProjectImportFlow((key: string) => key);
+    await flow.inspectCandidate(buildRuntimeCandidate());
+    flow.displayName.value = 'Edited Demo';
+    flow.canonicalProjectNameOverride.value = 'edited-demo';
+    expect(flow.prepareLifecycleConfiguration()).toBe(true);
+    flow.lifecycleDraft.value!.profiles = ['production'];
+    flow.lifecycleDraft.value!.wait_after_up = true;
+    flow.lifecycleDraft.value!.additional_args = "--label 'release channel'";
+    await expect(flow.refreshInspect()).resolves.toBe('applied');
+
+    expect(flow.canImport.value).toBe(true);
+    expect(flow.displayName.value).toBe('Edited Demo');
+    expect(flow.canonicalProjectNameOverride.value).toBe('edited-demo');
+    expect(flow.lifecycleDraft.value).toMatchObject({
+      profiles: ['production'],
+      wait_after_up: true,
+      additional_args: "--label 'release channel'",
+    });
+  });
+
+  it('blocks import until an invalidated inspection session refreshes successfully', async () => {
+    mocks.postProjectImportRuntimeInspect.mockResolvedValue({
+      inspection_id: 'inspect-invalidated',
       candidate_key: 'runtime:demo',
       directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/demo' },
       resolved_working_directory: '/srv/apps/demo',
@@ -229,10 +267,13 @@ describe('useProjectImportFlow', () => {
 
     const flow = useProjectImportFlow((key: string) => key);
     await flow.inspectCandidate(buildRuntimeCandidate());
-    await expect(flow.refreshInspect()).resolves.toBe('applied');
-
     expect(flow.canImport.value).toBe(true);
-    expect(flow.lifecycleDraft.value).not.toBeNull();
+
+    flow.invalidateInspectionSession();
+    expect(flow.canImport.value).toBe(false);
+
+    await expect(flow.refreshInspect()).resolves.toBe('applied');
+    expect(flow.canImport.value).toBe(true);
   });
 
   it('blocks import when inspect returns conflicts', async () => {

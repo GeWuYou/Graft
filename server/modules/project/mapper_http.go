@@ -163,6 +163,7 @@ func toImportValidateResponse(result ImportValidationResult) generated.ProjectIm
 func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ProjectImportRuntimeInspectResponse {
 	return generated.ProjectImportRuntimeInspectResponse{
 		InspectionId:               result.InspectionID,
+		ExpiresAt:                  result.ExpiresAt,
 		CandidateKey:               result.CandidateKey,
 		ResolvedWorkingDirectory:   result.ResolvedWorkingDirectory,
 		CanonicalProjectName:       result.CanonicalProjectName,

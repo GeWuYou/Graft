@@ -1,6 +1,9 @@
 package project
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	t.Parallel()
@@ -10,6 +13,7 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	local := "local"
 	result := RuntimeImportInspectResult{
 		InspectionID:               "inspect-1",
+		ExpiresAt:                  time.Date(2026, time.July, 11, 8, 5, 0, 0, time.UTC),
 		CandidateKey:               "runtime:demo",
 		ResolvedWorkingDirectory:   "/srv/demo",
 		CanonicalProjectName:       "demo",
@@ -54,6 +58,9 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	}
 
 	response := toRuntimeImportInspectResponse(result)
+	if !response.ExpiresAt.Equal(result.ExpiresAt) {
+		t.Fatalf("expected inspection expiry %s, got %s", result.ExpiresAt, response.ExpiresAt)
+	}
 	if response.LifecycleConfiguration.Profiles == nil {
 		t.Fatal("expected lifecycle profiles to serialize as an empty array")
 	}

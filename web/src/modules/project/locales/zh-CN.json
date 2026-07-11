@@ -384,7 +384,8 @@
         "continueToConfirm": "继续确认导入",
         "continueToLifecycle": "配置生命周期",
         "confirmLifecycle": "确认生命周期配置",
-        "backToInspect": "返回检查"
+        "backToInspect": "返回检查",
+        "backToLifecycle": "返回生命周期配置"
       },
       "candidates": {
         "title": "运行时候选",
@@ -479,6 +480,11 @@
         "authorityHint": "此配置将随导入一起保存；导入成功后项目生命周期即可执行。",
         "configurationTitle": "生命周期配置",
         "commandPreviewTitle": "命令预览"
+      },
+      "inspectionSession": {
+        "ready": "检查会话有效，系统会在到期时自动重新检查。",
+        "refreshing": "正在重新检查当前项目，请稍候。",
+        "expired": "检查会话已失效，需重新检查后才能继续导入。"
       },
       "confirm": {
         "title": "最终确认",

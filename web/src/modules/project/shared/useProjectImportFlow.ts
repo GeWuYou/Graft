@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { postProjectImportExecute, postProjectImportRuntimeInspect } from '../api/import';
+import { PROJECT_IMPORT_MESSAGE_KEY } from '../contract/messages';
 import type {
   ProjectImportInspectResponse,
   ProjectImportRuntimeCandidate,
@@ -13,6 +14,17 @@ import { buildSuggestedDisplayName, hasBlockingImportConflicts, normalizeProject
 import { buildImportLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from './lifecycle';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
+
+/**
+ * 判断导入提交是否因服务端检查会话失效而失败。
+ */
+export function isProjectImportInspectionExpiredError(error: unknown) {
+  return (
+    Boolean(
+      error && typeof error === 'object' && (error as { isApiRequestError?: unknown }).isApiRequestError === true,
+    ) && (error as { messageKey?: unknown }).messageKey === PROJECT_IMPORT_MESSAGE_KEY.INSPECTION_EXPIRED
+  );
+}
 
 /**
  * 管理项目导入流程的候选 inspect、预览检查和导入提交状态。
@@ -29,6 +41,7 @@ export function useProjectImportFlow(t: Translate) {
   const inspectError = ref('');
   const importError = ref('');
   const inspectResult = ref<ProjectImportInspectResponse | null>(null);
+  const inspectionSessionValid = ref(false);
   const displayName = ref('');
   const canonicalProjectNameOverride = ref('');
   const lifecycleDraft = ref<ProjectLifecycleConfigurationDraft | null>(null);
@@ -37,6 +50,7 @@ export function useProjectImportFlow(t: Translate) {
   const canImport = computed(
     () =>
       Boolean(inspectResult.value?.inspection_id) &&
+      inspectionSessionValid.value &&
       !inspectLoading.value &&
       !importLoading.value &&
       !hasBlockingImportConflicts(inspectResult.value),
@@ -55,6 +69,7 @@ export function useProjectImportFlow(t: Translate) {
     inspectError.value = '';
     importError.value = '';
     inspectResult.value = null;
+    inspectionSessionValid.value = false;
     displayName.value = '';
     canonicalProjectNameOverride.value = '';
     lifecycleDraft.value = null;
@@ -68,6 +83,7 @@ export function useProjectImportFlow(t: Translate) {
     inspectError.value = '';
     importError.value = '';
     inspectResult.value = null;
+    inspectionSessionValid.value = false;
     displayName.value = '';
     canonicalProjectNameOverride.value = '';
     lifecycleDraft.value = null;
@@ -80,10 +96,16 @@ export function useProjectImportFlow(t: Translate) {
    * @param candidateKey - 要检查的运行时候选项标识
    * @returns 检查结果状态：`'applied'` 表示结果已应用，`'stale'` 表示结果已过期
    */
-  async function inspectCandidateByKey(candidateKey: string) {
+  async function inspectCandidateByKey(candidateKey: string, preserveDraft = false) {
     const requestId = ++latestInspectRequestId;
     selectedCandidateKey.value = candidateKey;
-    clearPreview();
+    if (preserveDraft) {
+      inspectError.value = '';
+      importError.value = '';
+      lifecycleConfigError.value = '';
+    } else {
+      clearPreview();
+    }
     inspectLoading.value = true;
     try {
       const payload: ProjectImportRuntimeInspectRequest = { candidate_key: candidateKey };
@@ -93,7 +115,10 @@ export function useProjectImportFlow(t: Translate) {
       }
       const normalizedResponse = normalizeProjectImportInspectResponse(response);
       inspectResult.value = normalizedResponse;
-      displayName.value = normalizedResponse ? buildSuggestedDisplayName(normalizedResponse) : '';
+      inspectionSessionValid.value = Boolean(normalizedResponse?.inspection_id);
+      if (!preserveDraft) {
+        displayName.value = normalizedResponse ? buildSuggestedDisplayName(normalizedResponse) : '';
+      }
       return 'applied' as const;
     } catch (error) {
       if (requestId !== latestInspectRequestId) {
@@ -122,11 +147,18 @@ export function useProjectImportFlow(t: Translate) {
       return 'idle' as const;
     }
 
-    const result = await inspectCandidateByKey(selectedCandidateKey.value);
+    const result = await inspectCandidateByKey(selectedCandidateKey.value, true);
     if (result === 'applied' && canImport.value) {
       prepareLifecycleConfiguration();
     }
     return result;
+  }
+
+  /**
+   * 让当前检查快照立刻失去导入资格，直到重新检查成功。
+   */
+  function invalidateInspectionSession() {
+    inspectionSessionValid.value = false;
   }
 
   /**
@@ -191,6 +223,8 @@ export function useProjectImportFlow(t: Translate) {
     hasPreview,
     importError,
     importLoading,
+    invalidateInspectionSession,
+    inspectionSessionValid,
     lifecycleConfigError,
     lifecycleDraft,
     inspectCandidate,

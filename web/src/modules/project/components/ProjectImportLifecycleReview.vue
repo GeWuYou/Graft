@@ -68,6 +68,9 @@
       <t-button theme="default" variant="outline" @click="$emit('back')">
         {{ t('project.import.actions.backToInspect') }}
       </t-button>
+      <t-button theme="default" variant="outline" :loading="inspectionRefreshLoading" @click="$emit('refresh')">
+        {{ t('project.import.actions.refreshInspect') }}
+      </t-button>
       <t-button theme="primary" @click="$emit('confirm')">
         {{ t('project.import.actions.confirmLifecycle') }}
       </t-button>
@@ -93,7 +96,8 @@ import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 defineOptions({ name: 'ProjectImportLifecycleReview' });
 
 const draft = defineModel<ProjectLifecycleConfigurationDraft>('draft', { required: true });
-defineEmits<{ (event: 'back'): void; (event: 'confirm'): void }>();
+defineProps<{ inspectionRefreshLoading?: boolean }>();
+defineEmits<{ (event: 'back'): void; (event: 'confirm'): void; (event: 'refresh'): void }>();
 
 const { t } = useProjectPageContext();
 const waitTimeoutDefinition = lifecycleWaitTimeoutHelpDefinition;
