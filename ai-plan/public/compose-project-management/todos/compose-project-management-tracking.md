@@ -209,3 +209,29 @@ Compose Project Management
   "closeout_status": "import-creation-adapter-complete"
 }
 ```
+
+## 2026-07-12 Optional Deploy After Create
+
+- Managed 与 Template 创建页面在 Review/创建表单中提供默认关闭的“创建后部署”选项；只有客户端持有 `ops.project.deploy` 时才可选择，服务端继续作为权限 authority。
+- 创建始终先完成 `CreationCommand` 注册、snapshot 与 `Ready` 项目；勾选后仅由前端串行调用既有 Deploy action。部署失败保留成功创建的项目并单独反馈，不触发回滚。
+- Import 与 Git 创建路径保持不自动部署；本批不移除或扩展 Git/Remote source surface。
+- 下一批：`source-surface-simplification-and-extension-seam`，按用户最新范围收敛 Git/Remote 的可执行 UI/API 能力为 extension seam；本主题尚未 archive-ready。
+
+## Current Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "creation-pipeline-contract-and-server-foundation",
+    "managed-workspace-wizard-and-lifecycle-review",
+    "import-creation-adapter-and-regression",
+    "git-template-source-adapters",
+    "optional-deploy-after-create-and-archive-readiness"
+  ],
+  "pending_batches": ["source-surface-simplification-and-extension-seam"],
+  "current_batch": "optional-deploy-after-create-and-archive-readiness",
+  "next_batch": "source-surface-simplification-and-extension-seam",
+  "closeout_status": "optional-deploy-after-create-complete"
+}
+```

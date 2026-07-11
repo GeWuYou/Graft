@@ -745,14 +745,18 @@
         "title": "审核创建",
         "noAutoDeploy": "创建会写入工作区、注册项目并同步只读运行时摘要；不会自动部署。",
         "workingDirectory": "目标工作目录",
-        "workspaceFiles": "工作区文件"
+        "workspaceFiles": "工作区文件",
+        "deployAfterCreate": "项目创建后立即部署",
+        "deployPermissionRequired": "需要项目部署权限才能在创建后部署；不部署也可以正常创建项目。"
       },
       "messages": {
         "rootLoadFailed": "受管根目录 authority 加载失败。",
         "validateSuccess": "创建输入校验通过。",
         "validateFailed": "创建输入校验失败。",
         "createSuccess": "托管项目创建成功。",
-        "createFailed": "托管项目创建失败。"
+        "createFailed": "托管项目创建失败。",
+        "deploySuccess": "项目已在创建后部署。",
+        "deployFailed": "项目已创建，但部署失败。"
       }
     },
     "createSource": {
@@ -810,7 +814,11 @@
       "validateSuccess": "来源校验完成。",
       "validateFailed": "来源校验失败。",
       "createSuccess": "项目已创建。",
-      "createFailed": "项目创建失败。"
+      "createFailed": "项目创建失败。",
+      "deployAfterCreate": "项目创建后立即部署",
+      "deployPermissionRequired": "需要项目部署权限才能在创建后部署；不部署也可以正常创建项目。",
+      "deploySuccess": "项目已在创建后部署。",
+      "deployFailed": "项目已创建，但部署失败。"
     },
     "discovery": {
       "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册项目，也不改变 runtime authority。",

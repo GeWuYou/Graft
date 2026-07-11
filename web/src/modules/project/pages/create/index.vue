@@ -93,6 +93,14 @@
             }}</t-descriptions-item></t-descriptions
           >
           <t-alert v-for="warning in validationWarnings" :key="warning" theme="warning" :message="warning" />
+          <t-checkbox v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
+            {{ t('project.create.review.deployAfterCreate') }}
+          </t-checkbox>
+          <t-alert
+            v-if="!canDeployAfterCreate"
+            theme="info"
+            :message="t('project.create.review.deployPermissionRequired')"
+          />
           <div class="project-create-page__actions">
             <t-button theme="default" variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
             ><t-button theme="primary" :loading="creating" :disabled="!managedCreateEnabled" @click="createProject">{{
@@ -111,12 +119,20 @@ import { computed, reactive, ref } from 'vue';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { usePermissionStore } from '@/store';
 
-import { getProjectManagedRoot, postProjectCreate, postProjectCreateValidate } from '../../api/project';
+import {
+  getProjectManagedRoot,
+  postProjectCreate,
+  postProjectCreateValidate,
+  postProjectDeploy,
+} from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationReview from '../../components/ProjectLifecycleConfigurationReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { PROJECT_PERMISSION_CODE } from '../../contract/permissions';
 import { isValidProjectCanonicalName } from '../../shared/canonical-name';
+import { createWithOptionalDeploy } from '../../shared/create-with-optional-deploy';
 import { buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
@@ -131,10 +147,12 @@ import type {
 } from '../../types/project';
 defineOptions({ name: 'ProjectManagedCreateIndex' });
 const { router, tabsRouterStore, t } = useProjectPageContext();
+const permissionStore = usePermissionStore();
 const formRef = ref<FormInstanceFunctions | null>(null);
 const rootLoading = ref(false);
 const creating = ref(false);
 const step = ref(0);
+const deployAfterCreate = ref(false);
 const managedRoot = ref<ProjectManagedRootResponse | null>(null);
 const validationResult = ref<ProjectCreateValidateResponse | null>(null);
 const formData = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
@@ -191,6 +209,7 @@ const stepOptions = computed(() =>
 const managedCreateEnabled = computed(
   () => managedRoot.value?.supports_managed_create && managedRoot.value.status === 'ready',
 );
+const canDeployAfterCreate = computed(() => permissionStore.hasPermission(PROJECT_PERMISSION_CODE.DEPLOY));
 const validationWarnings = computed(() => validationResult.value?.warnings || []);
 const resolvedDirectory = computed(
   () => `${managedRoot.value?.configured_root_directory || '-'}/${formData.relative_project_directory}`,
@@ -270,8 +289,21 @@ async function createProject() {
   creating.value = true;
   try {
     await validateRequest();
-    const response = await postProjectCreate(requestBase() as ProjectCreateRequest);
+    const result = await createWithOptionalDeploy({
+      create: () => postProjectCreate(requestBase() as ProjectCreateRequest),
+      deploy: postProjectDeploy,
+      deployAfterCreate: deployAfterCreate.value && canDeployAfterCreate.value,
+    });
+    const response = result.created;
     MessagePlugin.success(response.message || t('project.create.messages.createSuccess'));
+    if (result.deployment.status === 'succeeded') {
+      MessagePlugin.success(t('project.create.messages.deploySuccess'));
+    }
+    if (result.deployment.status === 'failed') {
+      MessagePlugin.error(
+        resolveLocalizedErrorMessage(t, result.deployment.error, t('project.create.messages.deployFailed')),
+      );
+    }
     openCreatedProject(response);
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));

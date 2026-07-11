@@ -750,14 +750,18 @@
         "title": "Review Creation",
         "noAutoDeploy": "Create writes the workspace, registers the project, and synchronizes a read-only runtime summary. It does not deploy automatically.",
         "workingDirectory": "Target Working Directory",
-        "workspaceFiles": "Workspace Files"
+        "workspaceFiles": "Workspace Files",
+        "deployAfterCreate": "Deploy after the project is created",
+        "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment."
       },
       "messages": {
         "rootLoadFailed": "Managed Root Authority Could Not Be Loaded.",
         "validateSuccess": "Create Input Validated.",
         "validateFailed": "Create Input Validation Failed.",
         "createSuccess": "Managed Project Created.",
-        "createFailed": "Managed Project Creation Failed."
+        "createFailed": "Managed Project Creation Failed.",
+        "deploySuccess": "Project deployed after creation.",
+        "deployFailed": "Project was created, but deployment failed."
       }
     },
     "createSource": {
@@ -815,7 +819,11 @@
       "validateSuccess": "Source validation completed.",
       "validateFailed": "Source validation failed.",
       "createSuccess": "Project created.",
-      "createFailed": "Project creation failed."
+      "createFailed": "Project creation failed.",
+      "deployAfterCreate": "Deploy after the project is created",
+      "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment.",
+      "deploySuccess": "Project deployed after creation.",
+      "deployFailed": "Project was created, but deployment failed."
     },
     "discovery": {
       "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering projects or changing runtime authority.",

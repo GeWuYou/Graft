@@ -1456,6 +1456,8 @@ Phase 1 处理：
 
 所有来源在解析出真实 workspace 后必须进入同一条 project creation pipeline：确认 lifecycle configuration、写入 project aggregate 与来源元数据、生成 compose snapshot，并仅做只读 runtime observation。该 pipeline 不执行 `docker compose up`、pull 或 build。
 
+受支持的创建页面可以在最终 Review 中提供默认关闭、且受 `ops.project.deploy` 权限约束的“创建后部署”选项。该选项必须在项目已成功注册为 `Ready` 后，单独调用既有 Deploy action；Deploy 失败不得回滚创建结果，也不得改变 creation pipeline 的无运行时副作用约束。
+
 - Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
 - Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
 - `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。

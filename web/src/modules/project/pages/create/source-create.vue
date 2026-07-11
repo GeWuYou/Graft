@@ -40,6 +40,15 @@
         </div>
 
         <t-alert theme="info" :message="t('project.sourceCreate.lifecycleHint')" class="source-create__notice" />
+        <t-checkbox v-if="!isGit" v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
+          {{ t('project.sourceCreate.deployAfterCreate') }}
+        </t-checkbox>
+        <t-alert
+          v-if="!isGit && !canDeployAfterCreate"
+          theme="info"
+          :message="t('project.sourceCreate.deployPermissionRequired')"
+          class="source-create__notice"
+        />
         <t-alert
           v-if="validation"
           theme="success"
@@ -65,13 +74,17 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { usePermissionStore } from '@/store';
 
 import {
   postProjectCreateGit,
   postProjectCreateGitValidate,
   postProjectCreateTemplate,
   postProjectCreateTemplateValidate,
+  postProjectDeploy,
 } from '../../api/project';
+import { PROJECT_PERMISSION_CODE } from '../../contract/permissions';
+import { createWithOptionalDeploy } from '../../shared/create-with-optional-deploy';
 import type {
   ProjectCreateValidateResponse,
   ProjectGitCreateRequest,
@@ -83,9 +96,11 @@ defineOptions({ name: 'ProjectSourceCreate' });
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const permissionStore = usePermissionStore();
 const isGit = computed(() => String(route.name) === 'ProjectGitCreateIndex');
 const validating = ref(false);
 const creating = ref(false);
+const deployAfterCreate = ref(false);
 const validation = ref<ProjectCreateValidateResponse | null>(null);
 const form = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
 const gitForm = reactive({ repository_url: '', reference: '', compose_subpath: '' });
@@ -93,6 +108,7 @@ const templateForm = reactive({ template_key: 'empty-compose', template_version:
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
 ]);
+const canDeployAfterCreate = computed(() => permissionStore.hasPermission(PROJECT_PERMISSION_CODE.DEPLOY));
 
 function gitPayload(): ProjectGitCreateRequest {
   return { ...form, ...gitForm };
@@ -119,11 +135,27 @@ async function onValidate() {
 async function onCreate() {
   creating.value = true;
   try {
-    const result = isGit.value
-      ? await postProjectCreateGit(gitPayload())
-      : await postProjectCreateTemplate(templatePayload());
+    if (isGit.value) {
+      const result = await postProjectCreateGit(gitPayload());
+      MessagePlugin.success(t('project.sourceCreate.createSuccess'));
+      await router.push({ name: 'ProjectDetailIndex', params: { id: result.project_id } });
+      return;
+    }
+    const result = await createWithOptionalDeploy({
+      create: () => postProjectCreateTemplate(templatePayload()),
+      deploy: postProjectDeploy,
+      deployAfterCreate: deployAfterCreate.value && canDeployAfterCreate.value,
+    });
     MessagePlugin.success(t('project.sourceCreate.createSuccess'));
-    await router.push({ name: 'ProjectDetailIndex', params: { id: result.project_id } });
+    if (result.deployment.status === 'succeeded') {
+      MessagePlugin.success(t('project.sourceCreate.deploySuccess'));
+    }
+    if (result.deployment.status === 'failed') {
+      MessagePlugin.error(
+        resolveLocalizedErrorMessage(t, result.deployment.error, t('project.sourceCreate.deployFailed')),
+      );
+    }
+    await router.push({ name: 'ProjectDetailIndex', params: { id: result.created.project_id } });
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
   } finally {

@@ -381,3 +381,9 @@
 - Template source owns a small module-local `empty-compose v1` text workspace catalog; it has no marketplace, dynamic discovery, or credential persistence.
 - Both source routes validate/materialize under the managed root, parse the actual workspace, and invoke `CreationCommand`; neither source starts Compose services or deploys automatically.
 - `/ops/projects/create/git` and `/ops/projects/create/template` now provide usable source forms and no longer reuse the planned-boundary page. Browser QA remains user-deferred.
+
+## 2026-07-12 Optional deploy after create
+
+- Managed and Template UI now expose an opt-in, default-off post-create deployment choice only when the caller has `ops.project.deploy`.
+- The client first receives the successful create response, then invokes the existing independent Deploy operation. Deploy errors remain separate from creation and preserve the registered `Ready` project.
+- Import and Git stay non-deploying in this batch; Remote is not expanded. User-directed source-surface simplification is the next bounded batch, so this topic is not archive-ready.
