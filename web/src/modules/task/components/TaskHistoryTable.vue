@@ -18,6 +18,9 @@
       :empty="t('task.history.empty')"
       @row-click="({ row }) => $emit('open', row as TaskSummary)"
     >
+      <template #type="{ row }">
+        {{ taskTypeLabel((row as TaskSummary).type) }}
+      </template>
       <template #status="{ row }">
         <t-tag :theme="taskStatusTheme(row.status)" size="small" variant="light-outline">
           {{ taskStatusLabel(row.status) }}
@@ -50,6 +53,7 @@ import type { TaskStatus, TaskSummary } from '../types/task';
 const props = defineProps<{
   ownerId: string;
   ownerType: string;
+  resolveTaskType?: (taskType: string) => string | undefined;
 }>();
 
 defineEmits<{
@@ -62,7 +66,7 @@ const loading = ref(false);
 const errorMessage = ref('');
 
 const columns = computed<NonNullable<TableProps['columns']>>(() => [
-  { colKey: 'type', title: t('task.history.columns.type'), ellipsis: true },
+  { colKey: 'type', title: t('task.history.columns.type'), cell: 'type', ellipsis: true },
   { colKey: 'status', title: t('task.history.columns.status'), cell: 'status', width: 132 },
   { colKey: 'current_stage_key', title: t('task.history.columns.stage'), ellipsis: true },
   { colKey: 'created_at', title: t('task.history.columns.createdAt'), cell: 'created_at', width: 188 },
@@ -71,6 +75,10 @@ const columns = computed<NonNullable<TableProps['columns']>>(() => [
 
 function taskStatusLabel(status: TaskStatus) {
   return t(`task.status.${status}`);
+}
+
+function taskTypeLabel(taskType: string) {
+  return props.resolveTaskType?.(taskType) ?? taskType;
 }
 
 async function load() {

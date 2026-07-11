@@ -65,11 +65,8 @@ func (e *composeStageExecutor) Execute(ctx context.Context, run moduleapi.StageR
 		defer wg.Done()
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
-			level := "info"
-			if stream == "stderr" {
-				level = "error"
-			}
-			_ = run.AppendLog(ctx, moduleapi.TaskLogEntry{Stream: stream, Level: level, Line: scanner.Text()})
+			// Compose uses stderr for normal progress output; command exit status owns failure semantics.
+			_ = run.AppendLog(ctx, moduleapi.TaskLogEntry{Stream: stream, Level: "info", Line: scanner.Text()})
 		}
 	}
 	wg.Add(composeOutputStreams)

@@ -6,6 +6,13 @@ import type { ProjectDriftStatus, ProjectRuntimeStatus, ProjectSourceKind } from
 
 type Translate = ComposerTranslation;
 
+const projectTaskTypeLabelKeys: Readonly<Record<string, string>> = {
+  'project.compose.redeploy': 'project.taskTypes.redeploy',
+  'project.compose.restart': 'project.taskTypes.restart',
+  'project.compose.stop': 'project.taskTypes.stop',
+  'project.compose.up': 'project.taskTypes.up',
+};
+
 /**
  * 格式化项目时间。
  *
@@ -74,6 +81,14 @@ export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeSt
   if (value === 'stopped') return t('project.list.status.runtimeStopped');
   if (value === 'transitioning') return t('project.list.status.runtimeTransitioning');
   return t('project.list.status.runtimeUnknown');
+}
+
+/**
+ * Resolves Project-owned Task type labels without coupling the Task module to Project semantics.
+ */
+export function projectTaskTypeLabel(t: Translate, taskType: string) {
+  const key = projectTaskTypeLabelKeys[taskType];
+  return key ? t(key) : undefined;
 }
 
 export type ProjectLifecycleAction = 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister';

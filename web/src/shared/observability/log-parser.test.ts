@@ -33,6 +33,13 @@ describe('log-parser', () => {
     expect(line.parsed.format).toBe('structured');
   });
 
+  it('uses an explicit structured entry level over output-channel content', () => {
+    const line = parseLogLine({ line: 'Container created', level: 'info', occurredAt: '', stream: 'stderr' }, 1);
+
+    expect(line.level).toBe('INFO');
+    expect(line.tone).toBe('info');
+  });
+
   it('parses WARN logs and maps warning tone without strong row coloring', () => {
     const line = parseLogLine(
       createEntry(

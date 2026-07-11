@@ -22,6 +22,8 @@ const projectRealtimeMocks = vi.hoisted(() => ({
   releaseProjectListRealtime: vi.fn(),
 }));
 
+const taskRequestMocks = vi.hoisted(() => ({ get: vi.fn() }));
+
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   resolve: vi.fn(() => ({
@@ -60,6 +62,8 @@ const listMessages = {
   'project.list.actions.import': 'Import Existing Project',
   'project.list.actions.operationMenu': 'Actions',
   'project.list.actions.refresh': 'Refresh',
+  'project.list.actions.noTaskHistory': 'No Task History',
+  'project.list.actions.taskHistoryLoadFailed': 'Latest Task Load Failed',
   'project.list.actions.redeploy': 'Redeploy',
   'project.list.actions.restart': 'Restart',
   'project.list.actions.unregister': 'Unregister',
@@ -116,6 +120,8 @@ const listMessages = {
   'project.list.statusTooltip.runtimeStopped': 'Current Page Stopped',
   'project.list.statusTooltip.runtimeTransitioning': 'Current Page Transitioning',
   'project.list.statusTooltip.runtimeUnknown': 'Current Page Unknown',
+  'project.list.statusTooltip.taskInProgress': 'Task In Progress',
+  'project.list.statusTooltip.viewLatestTask': 'View Latest Task',
 } as const;
 
 function slotStub(name: string) {
@@ -268,6 +274,12 @@ vi.mock('../../shared/list-realtime', () => ({
   releaseProjectListRealtime: projectRealtimeMocks.releaseProjectListRealtime,
 }));
 
+vi.mock('@/utils/request', () => ({
+  request: {
+    get: taskRequestMocks.get,
+  },
+}));
+
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>();
   const locale = ref('en-US');
@@ -403,6 +415,7 @@ function mountPage() {
       renderStubDefaultSlot: true,
       stubs: {
         'project-list-entry-actions': slotStub('ProjectListEntryActions'),
+        'task-detail-drawer': slotStub('TaskDetailDrawer'),
         't-button': TButtonStub,
         't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
@@ -435,6 +448,7 @@ function mountKeepAlivePage() {
         renderStubDefaultSlot: true,
         stubs: {
           'project-list-entry-actions': slotStub('ProjectListEntryActions'),
+          'task-detail-drawer': slotStub('TaskDetailDrawer'),
           't-button': TButtonStub,
           't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
@@ -674,6 +688,26 @@ describe('Project list page', () => {
     expect(row.get('[data-testid="project-runtime-status-1"]').text()).toBe('Stopped');
     expect(row.text()).toContain('Stopped');
     expect(row.find('[data-testid="project-resource-badge-stopped-1"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('opens the latest owner task directly from a settled runtime status', async () => {
+    taskRequestMocks.get.mockResolvedValue({
+      items: [{ id: 19, owner_id: '1', owner_type: 'compose_project', status: 'success' }],
+      limit: 1,
+      offset: 0,
+      total: 1,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-runtime-status-1"]').trigger('click');
+    await flushPromises();
+
+    expect(taskRequestMocks.get).toHaveBeenCalledWith({
+      params: { limit: 1, owner_id: '1', owner_type: 'compose_project' },
+      url: '/api/tasks',
+    });
     wrapper.unmount();
   });
 

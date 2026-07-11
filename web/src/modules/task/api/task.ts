@@ -10,6 +10,11 @@ import {
 } from '../contract/paths';
 import type { TaskDetail, TaskListQuery, TaskListResponse, TaskLogResponse } from '../types/task';
 
+export type TaskOwnerReference = Readonly<{
+  ownerId: string;
+  ownerType: string;
+}>;
+
 type TaskListPath = (typeof TASK_API_PATH)['LIST'];
 type ListTasksOperation = paths[TaskListPath]['get'];
 type ListTasksData = NonNullable<ListTasksOperation['responses'][200]['content']['application/json']['data']>;
@@ -44,6 +49,14 @@ export function getTasks(query?: TaskListQuery) {
     url: TASK_API_PATH.LIST,
     params: query as ListTasksQuery | undefined,
   }) as Promise<TaskListResponse>;
+}
+
+/**
+ * Returns the latest Task owned by a resource without exposing task-list query details to consumers.
+ */
+export async function getLatestTaskForOwner(owner: TaskOwnerReference) {
+  const response = await getTasks({ limit: 1, owner_id: owner.ownerId, owner_type: owner.ownerType });
+  return response.items[0] ?? null;
 }
 
 /**

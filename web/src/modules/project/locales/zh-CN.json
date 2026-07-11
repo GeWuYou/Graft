@@ -26,6 +26,12 @@
     }
   },
   "project": {
+    "taskTypes": {
+      "up": "启动项目",
+      "stop": "停止项目",
+      "restart": "重启项目",
+      "redeploy": "重新部署项目"
+    },
     "route": {
       "list": {
         "title": "运维管理 - 项目管理",
@@ -218,11 +224,13 @@
       },
       "statusTooltip": {
         "lifecycleReviewRequired": "生命周期配置尚未确认，进入详情完成确认。",
+        "taskInProgress": "任务正在执行，点击查看任务详情。",
         "runtimeUnknown": "当前页未知",
         "runtimeRunning": "当前页运行中",
         "runtimeDegraded": "当前页降级",
         "runtimeStopped": "当前页已停止",
-        "runtimeTransitioning": "当前页过渡中"
+        "runtimeTransitioning": "当前页过渡中",
+        "viewLatestTask": "点击查看最近一次任务执行。"
       },
       "sourceKinds": {
         "imported": "导入项目",
@@ -265,6 +273,8 @@
         "refreshSuccess": "项目快照已刷新。",
         "actionSuccess": "项目操作已完成。",
         "taskAccepted": "项目任务已提交。",
+        "taskHistoryLoadFailed": "最近一次任务加载失败。",
+        "noTaskHistory": "该项目暂无任务执行记录。",
         "actionFailed": "项目操作失败。",
         "confirmUpTitle": "确认启动项目",
         "confirmUpDescription": "确认启动 {name}？这会按当前 Compose 配置拉起已注册服务和容器。",

@@ -1424,9 +1424,9 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__stream-pill--stderr {
-  background: color-mix(in srgb, var(--td-error-color-1) 92%, transparent);
-  border-color: color-mix(in srgb, var(--td-error-color-5) 30%, transparent);
-  color: var(--td-error-color-7);
+  background: color-mix(in srgb, var(--td-bg-color-secondarycontainer) 92%, transparent);
+  border-color: var(--td-component-border);
+  color: var(--td-text-color-secondary);
 }
 
 .log-viewer__stream-pill--detail {

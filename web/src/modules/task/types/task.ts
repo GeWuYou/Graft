@@ -28,6 +28,7 @@ export type TaskListQuery = {
  */
 export function taskLogEntriesToStructured(entries: TaskLogEntry[]): StructuredLogEntry[] {
   return entries.map((entry) => ({
+    level: entry.level,
     line: entry.line,
     occurredAt: entry.occurred_at,
     stream: entry.stream === 'stderr' ? 'stderr' : 'stdout',

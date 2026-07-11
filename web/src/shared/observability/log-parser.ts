@@ -127,7 +127,7 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
  */
 export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
   const parsed = parseContainerLogLine(entry.line);
-  const level = parsed.level ?? null;
+  const level = normalizeLogLevel(entry.level) ?? parsed.level ?? null;
   const timestamp = entry.occurredAt || parsed.time || '';
 
   return {

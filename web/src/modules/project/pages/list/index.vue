@@ -257,23 +257,30 @@
         </template>
 
         <template #runtime="{ row }">
-          <span
-            :class="[
-              'project-runtime-badge',
-              `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
-              { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).id) },
-            ]"
-            :data-testid="`project-runtime-status-${projectRow(row).id}`"
-          >
-            <span
-              v-if="isRowActionPending(projectRow(row).id)"
-              class="project-runtime-badge__spinner"
-              :data-testid="`project-runtime-status-loading-${projectRow(row).id}`"
-            />
-            <template v-else>
-              {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
-            </template>
-          </span>
+          <t-tooltip :content="runtimeStatusActionTooltip(projectRow(row))" placement="top" theme="default">
+            <button
+              type="button"
+              :class="[
+                'project-runtime-badge',
+                `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
+                { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).id) },
+              ]"
+              :aria-busy="isRowActionPending(projectRow(row).id)"
+              :aria-label="runtimeStatusActionTooltip(projectRow(row))"
+              :disabled="openingTaskRowId === projectRow(row).id"
+              :data-testid="`project-runtime-status-${projectRow(row).id}`"
+              @click="openProjectTask(projectRow(row))"
+            >
+              <span
+                v-if="isRowActionPending(projectRow(row).id)"
+                class="project-runtime-badge__spinner"
+                :data-testid="`project-runtime-status-loading-${projectRow(row).id}`"
+              />
+              <template v-else>
+                {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
+              </template>
+            </button>
+          </t-tooltip>
         </template>
 
         <template #resources="{ row }">
@@ -362,7 +369,11 @@
         </div>
       </t-drawer>
     </management-page-content>
-    <task-detail-drawer v-model:visible="taskDrawerVisible" :task-id="activeTaskId" />
+    <task-detail-drawer
+      v-model:visible="taskDrawerVisible"
+      :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
+      :task-id="activeTaskId"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -373,7 +384,13 @@ import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref, w
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { TaskDetailDrawer } from '@/modules/task';
+import {
+  getLatestTaskForOwner,
+  isTerminalTaskStatus,
+  observeTask,
+  TaskDetailDrawer,
+  type TaskObserver,
+} from '@/modules/task';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -406,6 +423,7 @@ import {
   projectLifecycleActionVisibility,
   projectRuntimeStatusLabel,
   projectSourceKindLabel,
+  projectTaskTypeLabel,
 } from '../../shared/display';
 import {
   projectLifecycleReviewStatusLabel,
@@ -439,6 +457,7 @@ const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
 const activeTaskId = ref<number | null>(null);
 const taskDrawerVisible = ref(false);
+const openingTaskRowId = ref<number | null>(null);
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
@@ -450,6 +469,7 @@ type PendingProjectActionState = {
   awaitingVisibleChange: boolean;
   deadlineAt: number | null;
   runtimeStatus: ProjectRuntimeStatus | null;
+  taskId?: number;
 };
 type ProjectResourceBadge = {
   key: ProjectResourceBadgeKey;
@@ -564,6 +584,7 @@ onUnmounted(() => {
   realtimeActive.value = false;
   syncProjectListRealtimeSubscription();
   clearPendingRowActionTimeouts();
+  clearPendingTaskObservers();
 });
 
 onActivated(() => {
@@ -710,6 +731,7 @@ function projectSecondaryName(row: ProjectListItemWithLifecycle) {
 
 let refreshRequestSeq = 0;
 const pendingRowTimeouts = new Map<number, number>();
+const pendingTaskObservers = new Map<number, TaskObserver>();
 
 function syncProjectListRealtimeSubscription() {
   if (realtimeActive.value && realtimeSchedulerStore.allowPolling) {
@@ -830,10 +852,13 @@ function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
     const row = rowMap.get(id);
     if (!row) {
       clearPendingRowActionTimeout(id);
+      pendingTaskObservers.get(id)?.stop();
+      pendingTaskObservers.delete(id);
       delete nextPending[id];
       continue;
     }
 
+    if (pending.taskId) continue;
     const runtimeChanged = (row.runtime_status ?? null) !== pending.runtimeStatus;
     if (pending.awaitingVisibleChange && runtimeChanged) {
       clearPendingRowActionTimeout(id);
@@ -893,6 +918,28 @@ function markPendingRowActionAwaitingChange(rowId: number) {
   schedulePendingRowActionTimeout(rowId, deadlineAt);
 }
 
+function observePendingTask(rowId: number, taskId: number) {
+  pendingTaskObservers.get(rowId)?.stop();
+  const observer = observeTask(taskId, {
+    onError: (error) => logger.warn('task status observation failed', { error, rowId, taskId }),
+    onTask: (task) => {
+      if (isTerminalTaskStatus(task.status)) clearPendingRowAction(rowId);
+    },
+  });
+  pendingTaskObservers.set(rowId, observer);
+}
+
+function markPendingRowActionTask(rowId: number, taskId: number) {
+  const pending = pendingRowActions.value[rowId];
+  if (!pending) return;
+  clearPendingRowActionTimeout(rowId);
+  pendingRowActions.value = {
+    ...pendingRowActions.value,
+    [rowId]: { ...pending, awaitingVisibleChange: false, deadlineAt: null, taskId },
+  };
+  observePendingTask(rowId, taskId);
+}
+
 function markPendingRowActionsAwaitingChange(rowIds: number[]) {
   if (rowIds.length === 0) {
     return;
@@ -926,6 +973,8 @@ function clearPendingRowAction(rowId: number) {
     return;
   }
   clearPendingRowActionTimeout(rowId);
+  pendingTaskObservers.get(rowId)?.stop();
+  pendingTaskObservers.delete(rowId);
   const nextPending = { ...pendingRowActions.value };
   delete nextPending[rowId];
   pendingRowActions.value = nextPending;
@@ -944,6 +993,8 @@ function clearPendingRowActions(rowIds: number[]) {
       continue;
     }
     clearPendingRowActionTimeout(rowId);
+    pendingTaskObservers.get(rowId)?.stop();
+    pendingTaskObservers.delete(rowId);
     delete nextPending[rowId];
     changed = true;
   }
@@ -991,6 +1042,11 @@ function clearPendingRowActionTimeouts() {
     window.clearTimeout(timeoutId);
   }
   pendingRowTimeouts.clear();
+}
+
+function clearPendingTaskObservers() {
+  for (const observer of pendingTaskObservers.values()) observer.stop();
+  pendingTaskObservers.clear();
 }
 
 function clearSelection() {
@@ -1069,14 +1125,12 @@ async function runAction(
   }
   try {
     const receipt = await handler(row.id);
-    if (pendingAction) {
-      markPendingRowActionAwaitingChange(row.id);
-    }
     if (isTaskReceipt(receipt)) {
-      activeTaskId.value = receipt.task_id;
-      taskDrawerVisible.value = true;
+      if (pendingAction) markPendingRowActionTask(row.id, receipt.task_id);
+      openTaskDrawer(receipt.task_id);
       MessagePlugin.success(t('project.list.actions.taskAccepted'));
     } else {
+      if (pendingAction) markPendingRowActionAwaitingChange(row.id);
       MessagePlugin.success(successMessage);
     }
     await fetchProjects();
@@ -1273,9 +1327,8 @@ async function runRedeploy(row: ProjectListItemWithLifecycle) {
   markPendingRowAction(row, 'redeploy');
   try {
     const receipt = await postProjectRedeploy(row.id);
-    markPendingRowActionAwaitingChange(row.id);
-    activeTaskId.value = receipt.task_id;
-    taskDrawerVisible.value = true;
+    markPendingRowActionTask(row.id, receipt.task_id);
+    openTaskDrawer(receipt.task_id);
     MessagePlugin.success(t('project.list.actions.taskAccepted'));
     await fetchProjects();
   } catch (error) {
@@ -1286,6 +1339,36 @@ async function runRedeploy(row: ProjectListItemWithLifecycle) {
 
 function isTaskReceipt(value: unknown): value is ProjectTaskReceipt {
   return Boolean(value && typeof value === 'object' && typeof (value as ProjectTaskReceipt).task_id === 'number');
+}
+
+function openTaskDrawer(taskId: number) {
+  activeTaskId.value = taskId;
+  taskDrawerVisible.value = true;
+}
+
+async function openProjectTask(row: ProjectListItemWithLifecycle) {
+  const pendingTaskId = pendingRowActions.value[row.id]?.taskId;
+  if (pendingTaskId) {
+    openTaskDrawer(pendingTaskId);
+    return;
+  }
+
+  openingTaskRowId.value = row.id;
+  try {
+    const task = await getLatestTaskForOwner({ ownerId: String(row.id), ownerType: 'compose_project' });
+    if (task) openTaskDrawer(task.id);
+    else MessagePlugin.info(t('project.list.actions.noTaskHistory'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.taskHistoryLoadFailed')));
+  } finally {
+    openingTaskRowId.value = null;
+  }
+}
+
+function runtimeStatusActionTooltip(row: ProjectListItemWithLifecycle) {
+  return isRowActionPending(row.id)
+    ? t('project.list.statusTooltip.taskInProgress')
+    : t('project.list.statusTooltip.viewLatestTask');
 }
 
 async function executeBatchAction(action: ProjectBatchActionUi, overrides: Partial<ProjectDestroyRequest> = {}) {
@@ -1587,6 +1670,18 @@ async function handleRowAction(action: string, row: ProjectListItemWithLifecycle
   font: var(--td-font-body-small);
   gap: var(--graft-density-gap-4);
   line-height: 1;
+}
+
+button.project-runtime-badge {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+button.project-runtime-badge:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .project-runtime-badge--loading {

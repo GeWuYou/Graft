@@ -1,7 +1,9 @@
 export type LogStream = 'stdout' | 'stderr';
+export type StructuredLogLevel = 'info' | 'warn' | 'error';
 
 export type StructuredLogEntry = Readonly<{
   line: string;
+  level?: StructuredLogLevel;
   occurredAt: string;
   stream: LogStream;
 }>;
@@ -19,6 +21,7 @@ export function normalizeStructuredLogEntry(value: unknown): StructuredLogEntry 
 
   const candidate = value as {
     line?: unknown;
+    level?: unknown;
     occurredAt?: unknown;
     occurred_at?: unknown;
     stream?: unknown;
@@ -36,9 +39,14 @@ export function normalizeStructuredLogEntry(value: unknown): StructuredLogEntry 
         ? candidate.occurred_at
         : '';
   const stream = candidate.stream === 'stderr' ? 'stderr' : 'stdout';
+  const level =
+    candidate.level === 'info' || candidate.level === 'warn' || candidate.level === 'error'
+      ? candidate.level
+      : undefined;
 
   return Object.freeze({
     line,
+    ...(level ? { level } : {}),
     occurredAt,
     stream,
   });

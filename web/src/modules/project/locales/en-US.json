@@ -26,6 +26,12 @@
     }
   },
   "project": {
+    "taskTypes": {
+      "up": "Start Project",
+      "stop": "Stop Project",
+      "restart": "Restart Project",
+      "redeploy": "Redeploy Project"
+    },
     "route": {
       "list": {
         "title": "Operations - Projects",
@@ -218,11 +224,13 @@
       },
       "statusTooltip": {
         "lifecycleReviewRequired": "Lifecycle configuration is not confirmed yet. Open project details to complete the review.",
+        "taskInProgress": "Task is in progress. Click to view task details.",
         "runtimeUnknown": "Current Page Unknown",
         "runtimeRunning": "Current Page Running",
         "runtimeDegraded": "Current Page Degraded",
         "runtimeStopped": "Current Page Stopped",
-        "runtimeTransitioning": "Current Page Transitioning"
+        "runtimeTransitioning": "Current Page Transitioning",
+        "viewLatestTask": "Click to view the latest task execution."
       },
       "sourceKinds": {
         "imported": "Imported",
@@ -265,6 +273,8 @@
         "refreshSuccess": "Project Refreshed.",
         "actionSuccess": "Project Action Completed.",
         "taskAccepted": "Project Task Submitted.",
+        "taskHistoryLoadFailed": "The latest task could not be loaded.",
+        "noTaskHistory": "This project has no task execution records.",
         "actionFailed": "Project Action Failed.",
         "confirmUpTitle": "Confirm Project Start",
         "confirmUpDescription": "Start {name}? This brings the registered services and containers up with the current Compose configuration.",

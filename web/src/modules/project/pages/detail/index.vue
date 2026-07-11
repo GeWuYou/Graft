@@ -735,6 +735,7 @@
               <task-history-table
                 owner-type="compose_project"
                 :owner-id="String(projectId)"
+                :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
                 @open="openTaskDrawer($event.id)"
               />
             </section>
@@ -742,7 +743,11 @@
         </t-tabs>
       </template>
     </section>
-    <task-detail-drawer v-model:visible="taskDrawerVisible" :task-id="activeTaskId" />
+    <task-detail-drawer
+      v-model:visible="taskDrawerVisible"
+      :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
+      :task-id="activeTaskId"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -824,6 +829,7 @@ import {
   projectLifecycleActionVisibility,
   projectRuntimeStatusLabel,
   projectRuntimeStatusTheme as runtimeStatusTheme,
+  projectTaskTypeLabel,
 } from '../../shared/display';
 import {
   buildLifecycleConfigurationDraft,
