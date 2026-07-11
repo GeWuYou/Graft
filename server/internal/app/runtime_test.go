@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -19,6 +20,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
@@ -1182,7 +1184,7 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	docsAssets, err := loadOpenAPIDocsAssets()
+	docsAssets, err := buildOpenAPIDocsAssets(generatedOpenAPIBundleJSON, buildinfo.Info{Version: "v1.2.3"})
 	if err != nil {
 		t.Fatalf("load openapi docs assets: %v", err)
 	}
@@ -1201,8 +1203,8 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 		t.Fatalf("register core routes: %v", err)
 	}
 
-	assertOpenAPIJSONResponse(t, engine)
-	assertOpenAPIYAMLResponse(t, engine)
+	assertOpenAPIJSONResponse(t, engine, "v1.2.3")
+	assertOpenAPIYAMLResponse(t, engine, "v1.2.3")
 	assertDocsHTMLResponse(t, engine)
 }
 
@@ -1218,8 +1220,20 @@ func TestLoadOpenAPIDocsAssetsUsesGeneratedCanonicalBundle(t *testing.T) {
 	if len(assets.json) == 0 {
 		t.Fatal("expected generated openapi docs asset bytes")
 	}
-	if string(assets.json) != string(generatedOpenAPIBundleJSON) {
-		t.Fatal("expected runtime docs asset to serve generated canonical bundle bytes")
+	if string(assets.json) == string(generatedOpenAPIBundleJSON) {
+		t.Fatal("expected runtime docs asset to overlay build metadata onto the generated canonical bundle")
+	}
+
+	var document struct {
+		Info struct {
+			Version string `json:"version"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(assets.json, &document); err != nil {
+		t.Fatalf("decode runtime docs asset: %v", err)
+	}
+	if document.Info.Version != buildinfo.Current().Version {
+		t.Fatalf("expected runtime OpenAPI version %q, got %q", buildinfo.Current().Version, document.Info.Version)
 	}
 
 	sum := sha256.Sum256(generatedOpenAPIBundleJSON)
@@ -1411,7 +1425,7 @@ func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *te
 	}
 }
 
-func assertOpenAPIJSONResponse(t *testing.T, engine *gin.Engine) {
+func assertOpenAPIJSONResponse(t *testing.T, engine *gin.Engine, expectedVersion string) {
 	t.Helper()
 
 	recorder := httptest.NewRecorder()
@@ -1437,9 +1451,13 @@ func assertOpenAPIJSONResponse(t *testing.T, engine *gin.Engine) {
 	if _, ok := loginPath["post"]; !ok {
 		t.Fatalf("%s: expected bundled json to expose POST /api/auth/login", openapiJSONPath)
 	}
+	info := mustDecodeJSONObject(t, document["info"], "info")
+	if info["version"] != expectedVersion {
+		t.Fatalf("%s: expected runtime version %q, got %#v", openapiJSONPath, expectedVersion, info["version"])
+	}
 }
 
-func assertOpenAPIYAMLResponse(t *testing.T, engine *gin.Engine) {
+func assertOpenAPIYAMLResponse(t *testing.T, engine *gin.Engine, expectedVersion string) {
 	t.Helper()
 
 	recorder := httptest.NewRecorder()
@@ -1449,6 +1467,9 @@ func assertOpenAPIYAMLResponse(t *testing.T, engine *gin.Engine) {
 	assertResponseStatusAndType(t, recorder, openapiYAMLPath, http.StatusOK, "application/yaml; charset=utf-8")
 	if !strings.Contains(recorder.Body.String(), "openapi: 3.1.0") {
 		t.Fatalf("%s: expected body to contain root spec marker", openapiYAMLPath)
+	}
+	if !strings.Contains(recorder.Body.String(), "version: "+expectedVersion) {
+		t.Fatalf("%s: expected runtime version %q", openapiYAMLPath, expectedVersion)
 	}
 }
 
@@ -1460,8 +1481,26 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 	engine.ServeHTTP(recorder, request)
 
 	assertResponseStatusAndType(t, recorder, openapiDocsPath, http.StatusOK, "text/html; charset=utf-8")
-	if !strings.Contains(recorder.Body.String(), `data-url="/openapi.json"`) {
-		t.Fatalf("%s: expected body to contain Scalar spec url", openapiDocsPath)
+	configuration := html.UnescapeString(extractHTMLAttribute(t, recorder.Body.String(), "data-configuration"))
+	var scalarConfiguration struct {
+		URL       string `json:"url"`
+		Layout    string `json:"layout"`
+		CustomCSS string `json:"customCss"`
+	}
+	if err := json.Unmarshal([]byte(configuration), &scalarConfiguration); err != nil {
+		t.Fatalf("%s: decode Scalar configuration: %v", openapiDocsPath, err)
+	}
+	if scalarConfiguration.URL != openapiJSONPath || scalarConfiguration.Layout != "modern" {
+		t.Fatalf("%s: unexpected Scalar configuration %#v", openapiDocsPath, scalarConfiguration)
+	}
+	for _, expectedCSS := range []string{
+		"overflow: hidden",
+		".references-rendered",
+		"scrollbar-color: var(--scalar-scrollbar-color, transparent)",
+	} {
+		if !strings.Contains(scalarConfiguration.CustomCSS, expectedCSS) {
+			t.Fatalf("%s: expected Scalar configuration CSS to contain %q", openapiDocsPath, expectedCSS)
+		}
 	}
 	if !strings.Contains(recorder.Body.String(), `href="/favicon.svg?v=3"`) {
 		t.Fatalf("%s: expected body to contain graft favicon link", openapiDocsPath)
@@ -1472,6 +1511,22 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 	if !strings.Contains(recorder.Body.String(), `integrity="`+scalarDocsScriptIntegrity+`"`) {
 		t.Fatalf("%s: expected body to contain the pinned Scalar docs integrity", openapiDocsPath)
 	}
+}
+
+func extractHTMLAttribute(t *testing.T, page string, name string) string {
+	t.Helper()
+
+	prefix := name + `="`
+	start := strings.Index(page, prefix)
+	if start == -1 {
+		t.Fatalf("expected HTML attribute %q", name)
+	}
+	valueStart := start + len(prefix)
+	valueEnd := strings.Index(page[valueStart:], `"`)
+	if valueEnd == -1 {
+		t.Fatalf("expected closing quote for HTML attribute %q", name)
+	}
+	return page[valueStart : valueStart+valueEnd]
 }
 
 func assertResponseStatusAndType(t *testing.T, recorder *httptest.ResponseRecorder, path string, status int, contentType string) {
