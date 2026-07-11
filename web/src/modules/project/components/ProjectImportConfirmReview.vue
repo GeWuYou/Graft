@@ -167,6 +167,7 @@
       >
         <div class="project-import-confirm__card-content">
           <p class="project-import-confirm__supporting-copy">{{ t('project.import.confirm.effectsDescription') }}</p>
+          <t-alert theme="info" :message="t('project.import.confirm.noAutoDeploy')" />
           <ul class="project-import-confirm__checklist">
             <li>{{ t('project.import.confirm.effects.registerProject') }}</li>
             <li>{{ t('project.import.confirm.effects.useInspection') }}</li>

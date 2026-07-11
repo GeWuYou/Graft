@@ -99,11 +99,13 @@ Compose Project Management
 - [ ] drift-repair：恢复 Phase 1 import 主入口、托管创建次入口、source selector 边界定位，以及 topic truth
 - [x] creation-pipeline-contract-and-server-foundation：统一 Managed/Import aggregate 注册、workspace manifest contract、来源元数据持久化与受控 nested text materialization
 - [x] managed-workspace-wizard-and-lifecycle-review：Managed Create 已切换为 Identity/Workspace/Lifecycle/Review 向导，使用完整 text workspace manifest、Monaco 草稿编辑器和 source-neutral lifecycle review；Create 不自动 deploy
+- [x] import-creation-adapter-and-regression：Import inspection commit 已验证复用 creation pipeline；保留 candidate/TTL/freshness/adopt guard，复用生命周期审核，并在最终审核明确不自动 deploy
 
 ## Creation Pipeline Follow-up
 
 - 当前批次已将 Managed create 与 Import inspection commit 收口到 project-owned creation pipeline，Import 的 candidate/TTL/freshness guard 仍由 Import adapter 保持。
-- 下一批 `import-creation-adapter-and-regression` 负责 Import adapter 调用 shared creation pipeline 后的 UI 与回归验证。
+- Import adapter 回归已完成：共享 aggregate 的 imported/local/external metadata、workspace files、snapshot、clean drift 与 confirmed lifecycle 均有覆盖；过期 hash 映射仍保持 `inspection stale`。
+- 下一批 `git-template-source-adapters` 只补 Git/Template source adapter，继续调用同一 creation pipeline。
 
 ## Phase 1 Acceptance Conditions
 

@@ -514,6 +514,7 @@
         "previewWithMore": "{preview} 等另外 {count} 项",
         "effectsTitle": "导入后将执行",
         "effectsDescription": "这一屏只陈述当前合同可确认的导入结果，不额外承诺运行时副作用。",
+        "noAutoDeploy": "导入会注册已检查的工作区并打开项目详情，不会自动部署或启动容器。",
         "effects": {
           "registerProject": "基于当前检查快照创建并注册一个 Graft 项目记录",
           "useInspection": "沿用当前检查会话中的 Compose、服务、网络与卷发现结果",

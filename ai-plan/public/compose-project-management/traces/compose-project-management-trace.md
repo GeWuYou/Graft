@@ -366,3 +366,11 @@
 - 生命周期表单与命令预览被抽取为 source-neutral component；Import 仅保留其 inspect refresh 和专属步骤操作包装。
 - 创建请求携带 canonical workspace manifest、Compose/Env references 和 lifecycle configuration；成功后进入配置工作区且不触发 deploy。
 - 下一批：`import-creation-adapter-and-regression`。
+
+## 2026-07-11 Import creation adapter and regression
+
+- Import inspection commit 已确认通过 `CreationCommand` 进入 source-neutral creation pipeline；candidate availability、inspection TTL、file-hash freshness、conflict 与 adopt-without-write 仍由 Import adapter 独占。
+- 回归覆盖 imported/local/external aggregate metadata、workspace files、snapshot、clean drift 与 confirmed lifecycle；既有 stale hash 回归继续保持 `inspection stale` 映射。
+- Import 最终审核复用 source-neutral lifecycle configuration review，并明确 Import 只注册已检查的 workspace、打开项目详情，不会自动 deploy 或启动容器。
+- 验证：focused Go import regressions、focused Vitest import flow/page tests、`bun run lint:i18n`、`git diff --check`；browser QA 由用户明确延期。
+- 下一批：`git-template-source-adapters`。

@@ -514,6 +514,7 @@
         "previewWithMore": "{preview} and {count} more",
         "effectsTitle": "Import Effects",
         "effectsDescription": "This screen only states outcomes that are contract-safe for the current import flow. It does not promise extra runtime guarantees.",
+        "noAutoDeploy": "Import registers the inspected workspace and opens the project detail. It does not deploy or start containers automatically.",
         "effects": {
           "registerProject": "Create and register one Graft project record from the current inspection snapshot",
           "useInspection": "Reuse the current inspection discovery for Compose, services, networks, and volumes",

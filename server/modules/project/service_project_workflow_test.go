@@ -2311,7 +2311,24 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	if imported.Project.CanonicalProjectName != "orders" {
 		t.Fatalf("unexpected imported project: %#v", imported.Project)
 	}
+	assertImportedCreationPipelinePersisted(t, repo.importInput, projectDir)
 	assertImportedLifecycleConfigPersisted(t, repo.importInput)
+}
+
+func assertImportedCreationPipelinePersisted(t *testing.T, input *projectstore.ImportProjectInput, workingDirectory string) {
+	t.Helper()
+	if input == nil {
+		t.Fatal("expected imported creation pipeline input")
+	}
+	if input.SourceKind != projectcontract.SourceKindImported.String() || input.HostScope != projectcontract.HostScopeLocal.String() || input.OwnershipMode != projectcontract.OwnershipModeExternal.String() {
+		t.Fatalf("expected imported source ownership metadata, got source=%q host=%q ownership=%q", input.SourceKind, input.HostScope, input.OwnershipMode)
+	}
+	if input.WorkingDirectory != workingDirectory || input.DriftStatus != projectcontract.DriftStatusClean.String() || input.LastObservedConfigHash == "" || input.LastDriftCheckedAt == nil {
+		t.Fatalf("expected shared creation aggregate fields, got %#v", input)
+	}
+	if len(input.Files) != 2 || input.Snapshot == nil || input.Snapshot.ConfigHash != input.LastObservedConfigHash || input.Snapshot.DeclaredServiceCount != 1 || input.Snapshot.RefreshedAt.IsZero() {
+		t.Fatalf("expected imported workspace snapshot and files from shared pipeline, got files=%#v snapshot=%#v", input.Files, input.Snapshot)
+	}
 }
 
 func importedLifecycleConfigFixture() LifecycleStandardConfig {
