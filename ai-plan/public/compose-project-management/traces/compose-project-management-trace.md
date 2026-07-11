@@ -387,3 +387,11 @@
 - Managed and Template UI now expose an opt-in, default-off post-create deployment choice only when the caller has `ops.project.deploy`.
 - The client first receives the successful create response, then invokes the existing independent Deploy operation. Deploy errors remain separate from creation and preserve the registered `Ready` project.
 - Import and Git stay non-deploying in this batch; Remote is not expanded. User-directed source-surface simplification is the next bounded batch, so this topic is not archive-ready.
+
+## 2026-07-12 Source surface simplification and extension seam
+
+- 用户将可用来源固定为 Managed、Template 与 Import Existing；Import 继续是独立的 runtime-to-workspace 主流程。
+- 移除了 Git 与 Remote Host 的公开 API、OpenAPI schema、catalog entry、路由、页面和 metadata；没有用 planned placeholder 替代。
+- 保留 source-neutral `CreationCommand` / `createProjectFromWorkspace`：未来来源必须先由 adapter 构建或获取 Workspace，再进入统一 lifecycle/review、aggregate/snapshot 和只读 runtime sync。
+- 该范围不包含浏览器验证，按用户要求由用户自行验证。
+- archive-readiness 验证通过：diff、OpenAPI bundle/generation、backend validate、web check、i18n 与 ai-plan structure guard；主题达到 `archive-ready`。

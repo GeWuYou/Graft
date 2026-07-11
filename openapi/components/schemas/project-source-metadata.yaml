@@ -14,15 +14,6 @@ properties:
     type: string
     nullable: true
     description: Optional managed env file name tracked by project authority.
-  git_repository_url:
-    type: string
-    description: Planned canonical git repository URL for a future git-backed project source.
-  git_reference:
-    type: string
-    description: Planned git branch, tag, or commit ref for a future git-backed project source.
-  git_compose_subpath:
-    type: string
-    description: Planned repository-relative compose working directory or file subpath.
   template_key:
     type: string
     description: Planned stable template identifier for a future template-backed project source.
@@ -32,15 +23,3 @@ properties:
   template_instance_name:
     type: string
     description: Planned template instance name used to derive a managed working directory.
-  remote_host_key:
-    type: string
-    description: Planned stable remote host connection identifier owned by future remote-host project authority.
-  remote_compose_path:
-    type: string
-    description: Planned remote compose working directory or entry compose file path under the remote-host boundary.
-  activity_authority:
-    type: string
-    description: Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner.
-  activity_rollup_scope:
-    type: string
-    description: Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary.

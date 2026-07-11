@@ -45,7 +45,7 @@ func toProjectListItemWithManagedRoot(
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		LifecycleReviewStatus:      generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		SourceMetadata:             buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority()),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
@@ -92,7 +92,7 @@ func toProjectDetailResponseWithManagedRoot(
 		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority()),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 	}
 	if aggregate.Project.LastObservedConfigHash != "" {
@@ -514,16 +514,9 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSou
 	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
 	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
 	assignSourceMetadataField(metadata, "managed_env_file_name", &result.ManagedEnvFileName)
-	assignSourceMetadataField(metadata, "git_repository_url", &result.GitRepositoryUrl)
-	assignSourceMetadataField(metadata, "git_reference", &result.GitReference)
-	assignSourceMetadataField(metadata, "git_compose_subpath", &result.GitComposeSubpath)
 	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
 	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
 	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
-	assignSourceMetadataField(metadata, "remote_host_key", &result.RemoteHostKey)
-	assignSourceMetadataField(metadata, "remote_compose_path", &result.RemoteComposePath)
-	assignSourceMetadataField(metadata, "activity_authority", &result.ActivityAuthority)
-	assignSourceMetadataField(metadata, "activity_rollup_scope", &result.ActivityRollupScope)
 	if result == (generated.ProjectSourceMetadata{}) {
 		return nil
 	}
@@ -549,8 +542,6 @@ func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggreg
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
-	case projectcontract.SourceKindRemoteHost.String():
-		return buildRemoteHostSourceMetadata(aggregate)
 	default:
 		return nil
 	}
@@ -565,8 +556,6 @@ func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggr
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
-	case projectcontract.SourceKindRemoteHost.String():
-		return buildRemoteHostSourceMetadata(aggregate)
 	default:
 		return nil
 	}
@@ -592,23 +581,8 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managed
 	return toGeneratedSourceMetadata(metadata)
 }
 
-// buildRemoteHostSourceMetadata 构建远程主机来源元数据。
-// 元数据包含活动权威和汇总范围。
-func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
-	activityAuthority := string(resolveActivityAuthority(aggregate))
-	rollupScope := "planned-remote-summary"
-	return &generated.ProjectSourceMetadata{
-		ActivityAuthority:   &activityAuthority,
-		ActivityRollupScope: &rollupScope,
-	}
-}
-
-// resolveActivityAuthority 根据项目主机范围确定活动执行方式。
-// 当项目的 HostScope 为 remote 时返回 `ProjectActivityAuthorityBackendPlanned`，否则返回 `ProjectActivityAuthorityFrontendFanout`。
-func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityAuthority {
-	if strings.TrimSpace(aggregate.Project.HostScope) == projectcontract.HostScopeRemote.String() {
-		return ProjectActivityAuthorityBackendPlanned
-	}
+// resolveActivityAuthority keeps local project activity on the container-owned frontend fan-out path.
+func resolveActivityAuthority() ActivityAuthority {
 	return ProjectActivityAuthorityFrontendFanout
 }
 

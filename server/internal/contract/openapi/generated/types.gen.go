@@ -2546,16 +2546,13 @@ func (e ProjectFileTreeNodeType) Valid() bool {
 
 // Defines values for ProjectHostScope.
 const (
-	ProjectHostScopeLocal  ProjectHostScope = "local"
-	ProjectHostScopeRemote ProjectHostScope = "remote"
+	ProjectHostScopeLocal ProjectHostScope = "local"
 )
 
 // Valid indicates whether the value is a known member of the ProjectHostScope enum.
 func (e ProjectHostScope) Valid() bool {
 	switch e {
 	case ProjectHostScopeLocal:
-		return true
-	case ProjectHostScopeRemote:
 		return true
 	default:
 		return false
@@ -2900,20 +2897,14 @@ func (e ProjectSourceEntryStatus) Valid() bool {
 
 // Defines values for ProjectSourceEntryType.
 const (
-	ProjectSourceEntryTypeGit        ProjectSourceEntryType = "git"
-	ProjectSourceEntryTypeManaged    ProjectSourceEntryType = "managed"
-	ProjectSourceEntryTypeRemoteHost ProjectSourceEntryType = "remote-host"
-	ProjectSourceEntryTypeTemplate   ProjectSourceEntryType = "template"
+	ProjectSourceEntryTypeManaged  ProjectSourceEntryType = "managed"
+	ProjectSourceEntryTypeTemplate ProjectSourceEntryType = "template"
 )
 
 // Valid indicates whether the value is a known member of the ProjectSourceEntryType enum.
 func (e ProjectSourceEntryType) Valid() bool {
 	switch e {
-	case ProjectSourceEntryTypeGit:
-		return true
 	case ProjectSourceEntryTypeManaged:
-		return true
-	case ProjectSourceEntryTypeRemoteHost:
 		return true
 	case ProjectSourceEntryTypeTemplate:
 		return true
@@ -2924,7 +2915,6 @@ func (e ProjectSourceEntryType) Valid() bool {
 
 // Defines values for ProjectSourceKind.
 const (
-	ProjectSourceKindGit      ProjectSourceKind = "git"
 	ProjectSourceKindImported ProjectSourceKind = "imported"
 	ProjectSourceKindManaged  ProjectSourceKind = "managed"
 	ProjectSourceKindTemplate ProjectSourceKind = "template"
@@ -2933,8 +2923,6 @@ const (
 // Valid indicates whether the value is a known member of the ProjectSourceKind enum.
 func (e ProjectSourceKind) Valid() bool {
 	switch e {
-	case ProjectSourceKindGit:
-		return true
 	case ProjectSourceKindImported:
 		return true
 	case ProjectSourceKindManaged:
@@ -8248,23 +8236,6 @@ type ProjectFilesResponse struct {
 	RootPath      string                `json:"root_path"`
 }
 
-// ProjectGitCreateRequest defines model for project-git-create-request.
-type ProjectGitCreateRequest struct {
-	CanonicalProjectName string `json:"canonical_project_name"`
-
-	// ComposeSubpath Optional repository-relative directory containing the primary Compose file. Defaults to the repository root.
-	ComposeSubpath         *string                               `json:"compose_subpath,omitempty"`
-	DisplayName            string                                `json:"display_name"`
-	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-
-	// Reference Optional branch, tag, or commit reference. Defaults to HEAD.
-	Reference                *string `json:"reference,omitempty"`
-	RelativeProjectDirectory string  `json:"relative_project_directory"`
-
-	// RepositoryUrl Public or locally reachable Git repository URL. Credentials are never accepted or persisted.
-	RepositoryUrl string `json:"repository_url"`
-}
-
 // ProjectGuardResult defines model for project-guard-result.
 type ProjectGuardResult struct {
 	Code       string  `json:"code"`
@@ -8817,21 +8788,6 @@ type ProjectSourceKind string
 
 // ProjectSourceMetadata defines model for project-source-metadata.
 type ProjectSourceMetadata struct {
-	// ActivityAuthority Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner.
-	ActivityAuthority *string `json:"activity_authority,omitempty"`
-
-	// ActivityRollupScope Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary.
-	ActivityRollupScope *string `json:"activity_rollup_scope,omitempty"`
-
-	// GitComposeSubpath Planned repository-relative compose working directory or file subpath.
-	GitComposeSubpath *string `json:"git_compose_subpath,omitempty"`
-
-	// GitReference Planned git branch, tag, or commit ref for a future git-backed project source.
-	GitReference *string `json:"git_reference,omitempty"`
-
-	// GitRepositoryUrl Planned canonical git repository URL for a future git-backed project source.
-	GitRepositoryUrl *string `json:"git_repository_url,omitempty"`
-
 	// ManagedComposeFileName Canonical managed compose file name tracked by project authority.
 	ManagedComposeFileName *string `json:"managed_compose_file_name,omitempty"`
 
@@ -8843,12 +8799,6 @@ type ProjectSourceMetadata struct {
 
 	// ManagedRootKey Canonical config key that owns the managed project root.
 	ManagedRootKey *string `json:"managed_root_key,omitempty"`
-
-	// RemoteComposePath Planned remote compose working directory or entry compose file path under the remote-host boundary.
-	RemoteComposePath *string `json:"remote_compose_path,omitempty"`
-
-	// RemoteHostKey Planned stable remote host connection identifier owned by future remote-host project authority.
-	RemoteHostKey *string `json:"remote_host_key,omitempty"`
 
 	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
 	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
@@ -10753,26 +10703,6 @@ type PostProjectBatchActionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostProjectCreateGitParams defines parameters for PostProjectCreateGit.
-type PostProjectCreateGitParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectCreateGitValidateParams defines parameters for PostProjectCreateGitValidate.
-type PostProjectCreateGitValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // PostProjectCreateParams defines parameters for PostProjectCreate.
 type PostProjectCreateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -11793,12 +11723,6 @@ type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
 
 // PostProjectBatchActionsJSONRequestBody defines body for PostProjectBatchActions for application/json ContentType.
 type PostProjectBatchActionsJSONRequestBody = ProjectBatchActionRequest
-
-// PostProjectCreateGitJSONRequestBody defines body for PostProjectCreateGit for application/json ContentType.
-type PostProjectCreateGitJSONRequestBody = ProjectGitCreateRequest
-
-// PostProjectCreateGitValidateJSONRequestBody defines body for PostProjectCreateGitValidate for application/json ContentType.
-type PostProjectCreateGitValidateJSONRequestBody = ProjectGitCreateRequest
 
 // PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
 type PostProjectCreateJSONRequestBody = ProjectCreateRequest

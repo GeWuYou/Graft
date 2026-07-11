@@ -422,7 +422,7 @@
       },
       "projectSourceView": {
         "display": "查看项目来源目录",
-        "description": "查看可用的项目来源，以及 managed、git、template 工作流的入口路由。"
+        "description": "查看可用的托管与模板项目来源入口路由。"
       },
       "projectDiscoveryView": {
         "display": "查看项目发现候选项",

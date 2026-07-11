@@ -78,30 +78,11 @@
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
 - 当前下一步：先执行 `drift-repair-import-primary-entry-and-topic-truth`，再回到剩余 Phase 3 bounded work。
 
-## Pending Batch Direction
+## Completion Scope
 
-- `phase-3-batch-1-git-template-source-contract-and-boundary`
-- `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
-- `phase-3-batch-3-remote-host-boundary-and-activity-authority`
-- `drift-repair-import-primary-entry-and-topic-truth`
+用户批准的可用范围是 `Managed`、`Template` 与 `Import Existing`。三者都在 Workspace 解析完成后复用同一 CreationCommand pipeline；创建不自动部署，部署仍是独立操作。
 
-当前 Phase 3 Batch 1 的 authority 目标：
-
-- 固定 `managed | git | template` source catalog contract
-- 固定 `/ops/projects/create` source selector 与 `/create/managed|git|template` route boundary
-- 保持 git/template 为 planned entry，不执行 clone、template instantiate、directory scan、remote host 或 backend activity aggregation
-
-当前 Phase 3 Batch 2 的 authority 目标：
-
-- 固定 bounded local directory scan 与 auto-discovery preview contract
-- candidate 仅用于 preview/listing，不自动注册 project
-- 继续保持 `Project != Runtime`，不引入 project-level runtime persistence 或 backend project activity aggregation
-
-当前 Phase 3 Batch 3 的 authority 目标：
-
-- 固定 `remote-host` source selector / route / permission / metadata boundary
-- 固定 `activity_authority` canonical contract，明确 local project 继续 `frontend-fanout`
-- 对 future remote-host / backend aggregation 只保留 `backend-planned` boundary，不落 remote execution、credential persistence 或后端聚合实现
+Git、Remote Host、ZIP 与 GitHub Template 被明确延后：不保留可点击页面、公开 API、source catalog entry 或 planned enum。未来来源只能通过实现 source adapter、共享 contract 和 catalog entry 后进入现有 pipeline。
 
 ## Validation Targets
 

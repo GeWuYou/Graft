@@ -33,7 +33,6 @@ import type {
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
   ProjectDiscoveryCandidatesResponse,
-  ProjectGitCreateRequest,
   ProjectLifecycleConfigurationSavedResponse,
   ProjectLifecycleConfigurationUpdateRequest,
   ProjectListQuery,
@@ -121,16 +120,6 @@ type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']
 type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
 type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
 
-type ProjectGitCreatePath = (typeof PROJECT_API_PATH)['CREATE_GIT'];
-type ProjectGitCreateOperation = paths[ProjectGitCreatePath]['post'];
-type ProjectGitCreateData = NonNullable<
-  ProjectGitCreateOperation['responses'][201]['content']['application/json']['data']
->;
-type ProjectGitValidatePath = (typeof PROJECT_API_PATH)['CREATE_GIT_VALIDATE'];
-type ProjectGitValidateOperation = paths[ProjectGitValidatePath]['post'];
-type ProjectGitValidateData = NonNullable<
-  ProjectGitValidateOperation['responses'][200]['content']['application/json']['data']
->;
 type ProjectTemplateCreatePath = (typeof PROJECT_API_PATH)['CREATE_TEMPLATE'];
 type ProjectTemplateCreateOperation = paths[ProjectTemplateCreatePath]['post'];
 type ProjectTemplateCreateData = NonNullable<
@@ -368,20 +357,6 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
   return postProjectAction<ProjectCreateData>(
     PROJECT_API_PATH.CREATE,
     payload as ProjectCreatePayload,
-  ) as Promise<ProjectCreateResponse>;
-}
-
-export function postProjectCreateGitValidate(payload: ProjectGitCreateRequest) {
-  return postProjectAction<ProjectGitValidateData>(
-    PROJECT_API_PATH.CREATE_GIT_VALIDATE,
-    payload,
-  ) as Promise<ProjectCreateValidateResponse>;
-}
-
-export function postProjectCreateGit(payload: ProjectGitCreateRequest) {
-  return postProjectAction<ProjectGitCreateData>(
-    PROJECT_API_PATH.CREATE_GIT,
-    payload,
   ) as Promise<ProjectCreateResponse>;
 }
 

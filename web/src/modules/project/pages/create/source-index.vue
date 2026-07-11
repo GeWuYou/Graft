@@ -130,11 +130,7 @@ function openEntry(entry: ProjectSourceEntry) {
   const routeName =
     entry.type === 'managed'
       ? PROJECT_BOOTSTRAP_ROUTE.CREATE_MANAGED.pageRouteName
-      : entry.type === 'git'
-        ? PROJECT_BOOTSTRAP_ROUTE.CREATE_GIT.pageRouteName
-        : entry.type === 'template'
-          ? PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName
-          : PROJECT_BOOTSTRAP_ROUTE.CREATE_REMOTE_HOST.pageRouteName;
+      : PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName;
   const resolved = router.resolve({ name: routeName });
   const title: LocalizedTitle = {
     [LOCALE.ZH_CN]: entry.display_name,

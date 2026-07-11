@@ -53,17 +53,9 @@
         "title": "发现候选预览",
         "breadcrumb": "发现候选预览"
       },
-      "createGit": {
-        "title": "Git 项目边界",
-        "breadcrumb": "Git 项目边界"
-      },
       "createTemplate": {
         "title": "模板项目边界",
         "breadcrumb": "模板项目边界"
-      },
-      "createRemoteHost": {
-        "title": "Remote Host 项目边界",
-        "breadcrumb": "Remote Host 项目边界"
       },
       "detail": {
         "title": "项目详情",
@@ -235,9 +227,7 @@
       "sourceKinds": {
         "imported": "导入项目",
         "managed": "受管项目",
-        "git": "Git 项目",
-        "template": "模板项目",
-        "remote-host": "Remote Host"
+        "template": "模板项目"
       },
       "driftStatus": {
         "unknown": "? 未知",
@@ -651,7 +641,7 @@
     "create": {
       "eyebrow": "来源边界",
       "title": "项目来源边界",
-      "description": "查看托管、Git、模板和远程主机来源的边界状态；真正的用户入口仍以导入和托管创建为准。",
+      "description": "选择本地托管工作区或内置模板；导入已有项目仍是独立的运行时到工作区流程。",
       "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册项目。创建不会自动部署。",
       "actions": {
         "backToList": "返回列表",
@@ -762,9 +752,7 @@
     "createSource": {
       "descriptions": {
         "managed": "在已配置的受管根目录中创建受管 Compose 项目。",
-        "git": "基于 Git 的项目创建暂未提供。",
-        "template": "基于模板的项目创建暂未提供。",
-        "remoteHost": "基于远程主机的项目创建暂未提供。"
+        "template": "从当前可用的内置 Compose 工作区模板创建托管项目。"
       },
       "routePath": "路由路径",
       "permission": "权限",
@@ -794,7 +782,6 @@
       }
     },
     "sourceCreate": {
-      "gitDescription": "将公开或本机可访问的仓库克隆到隔离暂存目录，再从其 Compose 工作区创建托管项目。",
       "templateDescription": "从内置 Compose 工作区模板创建托管项目。",
       "displayName": "显示名称",
       "canonicalName": "规范项目名称",
@@ -909,8 +896,7 @@
         "hostScope": "宿主范围",
         "lastRefreshAt": "最近项目刷新",
         "hostScopeValues": {
-          "local": "本机",
-          "remote-host": "远端宿主"
+          "local": "本机"
         },
         "nameSourceValues": {
           "explicit": "显式配置",

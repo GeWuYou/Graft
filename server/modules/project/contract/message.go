@@ -118,12 +118,8 @@ const (
 	ProjectImportInspected MessageKey = "ops.project.import.inspected"
 	// ProjectSourceManagedDescription identifies the managed source catalog description key.
 	ProjectSourceManagedDescription MessageKey = "ops.project.source.managed.description"
-	// ProjectSourceGitDescription identifies the git source catalog description key.
-	ProjectSourceGitDescription MessageKey = "ops.project.source.git.description"
 	// ProjectSourceTemplateDescription identifies the template source catalog description key.
 	ProjectSourceTemplateDescription MessageKey = "ops.project.source.template.description"
-	// ProjectSourceRemoteHostDescription identifies the remote-host source catalog description key.
-	ProjectSourceRemoteHostDescription MessageKey = "ops.project.source.remoteHost.description"
 )
 
 const (

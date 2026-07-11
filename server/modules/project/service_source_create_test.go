@@ -3,7 +3,6 @@ package project
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -35,47 +34,5 @@ func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(managedRoot, "template-project", "compose.yaml")); err != nil {
 		t.Fatalf("expected template compose workspace: %v", err)
-	}
-}
-
-func TestResolveGitWorkspaceRejectsTraversalSubpath(t *testing.T) {
-	_, err := normalizeGitComposeSubpath("../outside")
-	if err == nil {
-		t.Fatal("expected traversal subpath rejection")
-	}
-}
-
-func TestResolveGitWorkspaceUsesIsolatedLocalCheckout(t *testing.T) {
-	repository := t.TempDir()
-	runGitTestCommand(t, repository, "init", "-q")
-	runGitTestCommand(t, repository, "config", "user.email", "project-test@example.invalid")
-	runGitTestCommand(t, repository, "config", "user.name", "Project Test")
-	if err := os.MkdirAll(filepath.Join(repository, "deploy"), 0o750); err != nil {
-		t.Fatalf("create compose directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(repository, "deploy", "compose.yaml"), []byte("services: {}\n"), 0o600); err != nil {
-		t.Fatalf("write compose: %v", err)
-	}
-	runGitTestCommand(t, repository, "add", ".")
-	runGitTestCommand(t, repository, "commit", "-qm", "fixture")
-
-	workspace, metadata, err := resolveGitWorkspace(context.Background(), GitProjectCreateRequest{RepositoryURL: repository, ComposeSubpath: "deploy"})
-	if err != nil {
-		t.Fatalf("resolve git workspace: %v", err)
-	}
-	if workspace.ComposeFilePath != "compose.yaml" || len(workspace.WorkspaceFiles) != 1 || metadata["git_compose_subpath"] != "deploy" {
-		t.Fatalf("expected staged compose workspace and safe provenance, got workspace=%#v metadata=%#v", workspace, metadata)
-	}
-	if _, err := os.Stat(filepath.Join(repository, "graft-project-git-unexpected")); !os.IsNotExist(err) {
-		t.Fatalf("git staging must not occur inside repository: %v", err)
-	}
-}
-
-func runGitTestCommand(t *testing.T, directory string, args ...string) {
-	t.Helper()
-	//nolint:gosec // Test fixture invokes only fixed Git subcommands against t.TempDir().
-	command := exec.Command("git", append([]string{"-C", directory}, args...)...)
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("git %v: %v (%s)", args, err, output)
 	}
 }

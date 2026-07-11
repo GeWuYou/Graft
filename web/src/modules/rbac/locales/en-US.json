@@ -422,7 +422,7 @@
       },
       "projectSourceView": {
         "display": "View Project Source Catalog",
-        "description": "View available project sources and the entry routes for managed, Git, and template workflows."
+        "description": "View the available managed and template project source entry routes."
       },
       "projectDiscoveryView": {
         "display": "View Project Discovery Candidates",

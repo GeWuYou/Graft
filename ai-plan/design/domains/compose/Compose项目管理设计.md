@@ -1461,7 +1461,7 @@ Phase 1 处理：
 - Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
 - Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
 - `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。
-- `source_metadata_json` 持久化来源专属、无密钥 provenance；Git、Template、Remote adapters 未来只负责解析/物化 workspace 后调用同一 pipeline。
+- `source_metadata_json` 持久化来源专属、无密钥 provenance；当前 Template adapter 与未来来源 adapter 都只负责解析/物化 workspace 后调用同一 pipeline。
 
 ## 16. 分阶段实施路线
 
@@ -1732,3 +1732,15 @@ IA guardrail:
 - `Project` 聚合 Runtime，而不是复制 Runtime
 - `Snapshot` 是最近一次成功解析结果，而不是运行时缓存
 - `Overview` 是 Summary，而不是 Dashboard
+
+## 18. 当前来源范围与扩展口
+
+当前公开且可执行的项目来源只有：
+
+- `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
+- `Template`：模块内置模板生成 Workspace。
+- `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
+
+`GET /api/ops/projects/sources` 只列出当前已有 adapter 的 Managed 与 Template；Import 仍保留独立主入口。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、来源枚举或占位页面。
+
+未来来源只能在其 adapter、OpenAPI contract 和 source catalog entry 同时实现后公开，并且必须遵循 `Source Adapter -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。adapter 负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

@@ -491,7 +491,7 @@ const filters = ref<ProjectFilters>({
 });
 const columnDrawerVisible = ref(false);
 
-const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'git', 'template'];
+const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
 
 const configurableColumns = computed<TableProps['columns']>(() => [

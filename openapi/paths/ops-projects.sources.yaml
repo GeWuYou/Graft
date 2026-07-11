@@ -2,7 +2,7 @@ get:
   tags: [project]
   summary: List Compose project source entrypoints
   operationId: getProjectSources
-  description: Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.
+  description: Returns the currently implemented managed and template project entrypoints. Import Existing remains a dedicated runtime-to-workspace flow.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

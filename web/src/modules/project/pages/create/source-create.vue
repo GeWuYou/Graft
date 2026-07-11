@@ -1,8 +1,8 @@
 <template>
   <management-page-content>
     <management-page-header
-      :title-key="isGit ? 'project.route.createGit.title' : 'project.route.createTemplate.title'"
-      :description="isGit ? t('project.sourceCreate.gitDescription') : t('project.sourceCreate.templateDescription')"
+      title-key="project.route.createTemplate.title"
+      :description="t('project.sourceCreate.templateDescription')"
       :source="{ labelKey: 'project.create.eyebrow', fallback: t('project.create.eyebrow') }"
     />
 
@@ -18,33 +18,20 @@
           <t-form-item :label="t('project.sourceCreate.relativeDirectory')" name="relative_project_directory">
             <t-input v-model="form.relative_project_directory" />
           </t-form-item>
-          <template v-if="isGit">
-            <t-form-item :label="t('project.sourceCreate.repositoryUrl')" name="repository_url">
-              <t-input v-model="gitForm.repository_url" />
-            </t-form-item>
-            <t-form-item :label="t('project.sourceCreate.reference')" name="reference">
-              <t-input v-model="gitForm.reference" :placeholder="t('project.sourceCreate.referencePlaceholder')" />
-            </t-form-item>
-            <t-form-item :label="t('project.sourceCreate.composeSubpath')" name="compose_subpath">
-              <t-input v-model="gitForm.compose_subpath" :placeholder="t('project.sourceCreate.subpathPlaceholder')" />
-            </t-form-item>
-          </template>
-          <template v-else>
-            <t-form-item :label="t('project.sourceCreate.template')" name="template_key">
-              <t-select v-model="templateForm.template_key" :options="templateOptions" />
-            </t-form-item>
-            <t-form-item :label="t('project.sourceCreate.instanceName')" name="template_instance_name">
-              <t-input v-model="templateForm.template_instance_name" :placeholder="form.canonical_project_name" />
-            </t-form-item>
-          </template>
+          <t-form-item :label="t('project.sourceCreate.template')" name="template_key">
+            <t-select v-model="templateForm.template_key" :options="templateOptions" />
+          </t-form-item>
+          <t-form-item :label="t('project.sourceCreate.instanceName')" name="template_instance_name">
+            <t-input v-model="templateForm.template_instance_name" :placeholder="form.canonical_project_name" />
+          </t-form-item>
         </div>
 
         <t-alert theme="info" :message="t('project.sourceCreate.lifecycleHint')" class="source-create__notice" />
-        <t-checkbox v-if="!isGit" v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
+        <t-checkbox v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
           {{ t('project.sourceCreate.deployAfterCreate') }}
         </t-checkbox>
         <t-alert
-          v-if="!isGit && !canDeployAfterCreate"
+          v-if="!canDeployAfterCreate"
           theme="info"
           :message="t('project.sourceCreate.deployPermissionRequired')"
           class="source-create__notice"
@@ -70,49 +57,32 @@
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore } from '@/store';
 
-import {
-  postProjectCreateGit,
-  postProjectCreateGitValidate,
-  postProjectCreateTemplate,
-  postProjectCreateTemplateValidate,
-  postProjectDeploy,
-} from '../../api/project';
+import { postProjectCreateTemplate, postProjectCreateTemplateValidate, postProjectDeploy } from '../../api/project';
 import { PROJECT_PERMISSION_CODE } from '../../contract/permissions';
 import { createWithOptionalDeploy } from '../../shared/create-with-optional-deploy';
-import type {
-  ProjectCreateValidateResponse,
-  ProjectGitCreateRequest,
-  ProjectTemplateCreateRequest,
-} from '../../types/project';
+import type { ProjectCreateValidateResponse, ProjectTemplateCreateRequest } from '../../types/project';
 
 defineOptions({ name: 'ProjectSourceCreate' });
 
-const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const permissionStore = usePermissionStore();
-const isGit = computed(() => String(route.name) === 'ProjectGitCreateIndex');
 const validating = ref(false);
 const creating = ref(false);
 const deployAfterCreate = ref(false);
 const validation = ref<ProjectCreateValidateResponse | null>(null);
 const form = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
-const gitForm = reactive({ repository_url: '', reference: '', compose_subpath: '' });
 const templateForm = reactive({ template_key: 'empty-compose', template_version: 'v1', template_instance_name: '' });
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
 ]);
 const canDeployAfterCreate = computed(() => permissionStore.hasPermission(PROJECT_PERMISSION_CODE.DEPLOY));
-
-function gitPayload(): ProjectGitCreateRequest {
-  return { ...form, ...gitForm };
-}
 
 function templatePayload(): ProjectTemplateCreateRequest {
   return { ...form, ...templateForm };
@@ -121,9 +91,7 @@ function templatePayload(): ProjectTemplateCreateRequest {
 async function onValidate() {
   validating.value = true;
   try {
-    validation.value = isGit.value
-      ? await postProjectCreateGitValidate(gitPayload())
-      : await postProjectCreateTemplateValidate(templatePayload());
+    validation.value = await postProjectCreateTemplateValidate(templatePayload());
     MessagePlugin.success(t('project.sourceCreate.validateSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.validateFailed')));
@@ -135,12 +103,6 @@ async function onValidate() {
 async function onCreate() {
   creating.value = true;
   try {
-    if (isGit.value) {
-      const result = await postProjectCreateGit(gitPayload());
-      MessagePlugin.success(t('project.sourceCreate.createSuccess'));
-      await router.push({ name: 'ProjectDetailIndex', params: { id: result.project_id } });
-      return;
-    }
     const result = await createWithOptionalDeploy({
       create: () => postProjectCreateTemplate(templatePayload()),
       deploy: postProjectDeploy,

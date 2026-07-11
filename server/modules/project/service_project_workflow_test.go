@@ -1596,7 +1596,7 @@ func TestDiscoveryCandidatesMarksConflictWhenProjectAlreadyRegistered(t *testing
 	}
 }
 
-func TestSourceCatalogAddsRemoteHostBoundary(t *testing.T) {
+func TestSourceCatalogExposesOnlyImplementedCreationAdapters(t *testing.T) {
 	t.Parallel()
 
 	managedRoot := t.TempDir()
@@ -1609,21 +1609,14 @@ func TestSourceCatalogAddsRemoteHostBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("source catalog: %v", err)
 	}
-	if len(result.Items) != 4 {
-		t.Fatalf("expected 4 source entries, got %d", len(result.Items))
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 source entries, got %d", len(result.Items))
 	}
-	remote := result.Items[3]
-	if remote.Type != generated.ProjectSourceEntryType("remote-host") {
-		t.Fatalf("expected remote-host source type, got %q", remote.Type)
+	if result.Items[0].Type != generated.ProjectSourceEntryTypeManaged {
+		t.Fatalf("expected managed source entry, got %q", result.Items[0].Type)
 	}
-	if remote.HostScope != generated.ProjectHostScope("remote") {
-		t.Fatalf("expected remote host scope, got %q", remote.HostScope)
-	}
-	if remote.RoutePath != "/ops/projects/create/remote-host" {
-		t.Fatalf("unexpected remote-host route path: %q", remote.RoutePath)
-	}
-	if remote.Status != generated.ProjectSourceEntryStatus("planned") {
-		t.Fatalf("expected planned remote-host status, got %q", remote.Status)
+	if result.Items[1].Type != generated.ProjectSourceEntryTypeTemplate {
+		t.Fatalf("expected template source entry, got %q", result.Items[1].Type)
 	}
 }
 
@@ -1645,30 +1638,6 @@ func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing
 	}, "", nil, nil)
 	if item.ActivityAuthority != generated.ProjectActivityAuthority("frontend-fanout") {
 		t.Fatalf("expected frontend-fanout activity authority, got %q", item.ActivityAuthority)
-	}
-}
-
-func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testing.T) {
-	t.Parallel()
-
-	detail := toProjectDetailResponse(projectstore.ProjectAggregate{
-		Project: projectstore.Project{
-			ID:                         2,
-			DisplayName:                "Remote Orders",
-			CanonicalProjectName:       "orders-remote",
-			CanonicalProjectNameSource: "computed",
-			SourceKind:                 "remote-host",
-			HostScope:                  "remote",
-			OwnershipMode:              "external",
-			WorkingDirectory:           "/remote/orders",
-			DriftStatus:                "unknown",
-		},
-	}, nil, nil)
-	if detail.ActivityAuthority != generated.ProjectActivityAuthority("backend-planned") {
-		t.Fatalf("expected backend-planned activity authority, got %q", detail.ActivityAuthority)
-	}
-	if detail.SourceMetadata == nil || detail.SourceMetadata.ActivityRollupScope == nil {
-		t.Fatalf("expected remote-host source metadata activity rollup scope")
 	}
 }
 

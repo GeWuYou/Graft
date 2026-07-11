@@ -409,9 +409,7 @@ func isValidSourceKind(value string) bool {
 	switch value {
 	case projectcontract.SourceKindImported.String(),
 		projectcontract.SourceKindManaged.String(),
-		projectcontract.SourceKindGit.String(),
-		projectcontract.SourceKindTemplate.String(),
-		projectcontract.SourceKindRemoteHost.String():
+		projectcontract.SourceKindTemplate.String():
 		return true
 	default:
 		return false

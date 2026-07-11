@@ -53,17 +53,9 @@
         "title": "Discovery Candidate Preview",
         "breadcrumb": "Discovery Candidate Preview"
       },
-      "createGit": {
-        "title": "Git Project Boundary",
-        "breadcrumb": "Git Project Boundary"
-      },
       "createTemplate": {
         "title": "Template Project Boundary",
         "breadcrumb": "Template Project Boundary"
-      },
-      "createRemoteHost": {
-        "title": "Remote Host Project Boundary",
-        "breadcrumb": "Remote Host Project Boundary"
       },
       "detail": {
         "title": "Project Detail",
@@ -235,9 +227,7 @@
       "sourceKinds": {
         "imported": "Imported",
         "managed": "Managed",
-        "git": "Git",
-        "template": "Template",
-        "remote-host": "Remote Host"
+        "template": "Template"
       },
       "driftStatus": {
         "unknown": "❓ Unknown",
@@ -651,7 +641,7 @@
     "create": {
       "eyebrow": "Source Boundaries",
       "title": "Project Source Boundaries",
-      "description": "Inspect Managed, Git, Template, and Remote Host source boundaries. Import and Managed Create remain the real user entrypoints.",
+      "description": "Choose a managed workspace or a bundled template. Import Existing remains a dedicated runtime-to-workspace flow.",
       "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the project. Create never deploys automatically.",
       "actions": {
         "backToList": "Back to List",
@@ -767,9 +757,7 @@
     "createSource": {
       "descriptions": {
         "managed": "Create a managed Compose project in the configured managed root directory.",
-        "git": "Git-based project creation is not available yet.",
-        "template": "Template-based project creation is not available yet.",
-        "remoteHost": "Remote host project creation is not available yet."
+        "template": "Create a managed project from the available bundled Compose workspace template."
       },
       "routePath": "Route Path",
       "permission": "Permission",
@@ -799,7 +787,6 @@
       }
     },
     "sourceCreate": {
-      "gitDescription": "Clone a public or locally reachable repository into isolated staging, then create a managed project from its Compose workspace.",
       "templateDescription": "Create a managed project from a bundled Compose workspace template.",
       "displayName": "Display Name",
       "canonicalName": "Canonical Project Name",
@@ -914,8 +901,7 @@
         "hostScope": "Host Scope",
         "lastRefreshAt": "Last Project Refresh",
         "hostScopeValues": {
-          "local": "Local Host",
-          "remote-host": "Remote Host"
+          "local": "Local Host"
         },
         "nameSourceValues": {
           "explicit": "Explicit",

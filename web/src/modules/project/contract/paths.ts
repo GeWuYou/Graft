@@ -4,9 +4,7 @@ export const PROJECT_ROUTE_PATH = {
   CREATE: '/ops/projects/create',
   CREATE_DISCOVERY: '/ops/projects/create/discovery',
   CREATE_MANAGED: '/ops/projects/create/managed',
-  CREATE_GIT: '/ops/projects/create/git',
   CREATE_TEMPLATE: '/ops/projects/create/template',
-  CREATE_REMOTE_HOST: '/ops/projects/create/remote-host',
   DETAIL: '/ops/projects/:id',
   CONFIGURATION_WORKSPACE: '/ops/projects/:id/configuration',
 } as const;
@@ -26,8 +24,6 @@ export const PROJECT_API_PATH = {
   MANAGED_ROOT: '/api/ops/projects/managed/root',
   CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
   CREATE: '/api/ops/projects/create/managed',
-  CREATE_GIT_VALIDATE: '/api/ops/projects/create/git/validate',
-  CREATE_GIT: '/api/ops/projects/create/git',
   CREATE_TEMPLATE_VALIDATE: '/api/ops/projects/create/template/validate',
   CREATE_TEMPLATE: '/api/ops/projects/create/template',
   DETAIL: '/api/ops/projects/{id}',

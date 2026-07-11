@@ -1,7 +1,5 @@
 type: string
-enum: [managed, git, template, remote-host]
+enum: [managed, template]
 x-enum-varnames:
   - ProjectSourceEntryTypeManaged
-  - ProjectSourceEntryTypeGit
   - ProjectSourceEntryTypeTemplate
-  - ProjectSourceEntryTypeRemoteHost

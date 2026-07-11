@@ -13,12 +13,8 @@ const createDiscoveryRouteTitle = localizeRouteTitleKey('project.route.createDis
 const createDiscoveryBreadcrumbTitle = localizeRouteTitleKey('project.route.createDiscovery.breadcrumb');
 const createManagedRouteTitle = localizeRouteTitleKey('project.route.createManaged.title');
 const createManagedBreadcrumbTitle = localizeRouteTitleKey('project.route.createManaged.breadcrumb');
-const createGitRouteTitle = localizeRouteTitleKey('project.route.createGit.title');
-const createGitBreadcrumbTitle = localizeRouteTitleKey('project.route.createGit.breadcrumb');
 const createTemplateRouteTitle = localizeRouteTitleKey('project.route.createTemplate.title');
 const createTemplateBreadcrumbTitle = localizeRouteTitleKey('project.route.createTemplate.breadcrumb');
-const createRemoteHostRouteTitle = localizeRouteTitleKey('project.route.createRemoteHost.title');
-const createRemoteHostBreadcrumbTitle = localizeRouteTitleKey('project.route.createRemoteHost.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('project.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('project.route.detail.breadcrumb');
 const configurationWorkspaceRouteTitle = localizeRouteTitleKey('project.route.configurationWorkspace.title');
@@ -112,24 +108,6 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
     },
   },
   {
-    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_GIT,
-    loadPage: () => import('./pages/create/source-create.vue'),
-    meta: {
-      hidden: false,
-      hiddenMenu: true,
-      keepAlive: false,
-      pageKind: 'detail',
-      pageSurface: 'form-detail',
-      semanticTitle: createGitRouteTitle,
-      breadcrumbTitle: createGitBreadcrumbTitle,
-      domainTitle: listRouteTitle,
-      tabGroup: 'ops',
-      tabTitle: createGitRouteTitle,
-      title: createGitRouteTitle,
-      titleKey: 'project.route.createGit.title',
-    },
-  },
-  {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE,
     loadPage: () => import('./pages/create/source-create.vue'),
     meta: {
@@ -145,24 +123,6 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createTemplateRouteTitle,
       title: createTemplateRouteTitle,
       titleKey: 'project.route.createTemplate.title',
-    },
-  },
-  {
-    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_REMOTE_HOST,
-    loadPage: () => import('./pages/create/planned-index.vue'),
-    meta: {
-      hidden: false,
-      hiddenMenu: true,
-      keepAlive: false,
-      pageKind: 'detail',
-      pageSurface: 'form-detail',
-      semanticTitle: createRemoteHostRouteTitle,
-      breadcrumbTitle: createRemoteHostBreadcrumbTitle,
-      domainTitle: listRouteTitle,
-      tabGroup: 'ops',
-      tabTitle: createRemoteHostRouteTitle,
-      title: createRemoteHostRouteTitle,
-      titleKey: 'project.route.createRemoteHost.title',
     },
   },
   {

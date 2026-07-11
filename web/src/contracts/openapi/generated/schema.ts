@@ -2259,7 +2259,7 @@ export interface paths {
     };
     /**
      * List Compose project source entrypoints
-     * @description Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.
+     * @description Returns the currently implemented managed and template project entrypoints. Import Existing remains a dedicated runtime-to-workspace flow.
      */
     get: operations['getProjectSources'];
     put?: never;
@@ -2344,46 +2344,6 @@ export interface paths {
      * @description Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.
      */
     post: operations['postProjectCreate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/ops/projects/create/git/validate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Validate a Git project source
-     * @description Resolves a Git workspace in isolated temporary staging and validates the eventual managed-root target without writing it.
-     */
-    post: operations['postProjectCreateGitValidate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/ops/projects/create/git': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Create a managed Compose project from Git
-     * @description Clones a public or locally reachable Git repository into isolated temporary staging, materializes its validated text workspace under the managed root, and registers it without running Compose lifecycle commands.
-     */
-    post: operations['postProjectCreateGit'];
     delete?: never;
     options?: never;
     head?: never;
@@ -5739,7 +5699,7 @@ export interface components {
       force: boolean;
     };
     /** @enum {string} */
-    'project-source-kind': 'imported' | 'managed' | 'git' | 'template';
+    'project-source-kind': 'imported' | 'managed' | 'template';
     /** @enum {string} */
     'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
     /** @enum {string} */
@@ -5758,31 +5718,17 @@ export interface components {
       managed_compose_file_name?: string;
       /** @description Optional managed env file name tracked by project authority. */
       managed_env_file_name?: string | null;
-      /** @description Planned canonical git repository URL for a future git-backed project source. */
-      git_repository_url?: string;
-      /** @description Planned git branch, tag, or commit ref for a future git-backed project source. */
-      git_reference?: string;
-      /** @description Planned repository-relative compose working directory or file subpath. */
-      git_compose_subpath?: string;
       /** @description Planned stable template identifier for a future template-backed project source. */
       template_key?: string;
       /** @description Planned template version or release channel. */
       template_version?: string;
       /** @description Planned template instance name used to derive a managed working directory. */
       template_instance_name?: string;
-      /** @description Planned stable remote host connection identifier owned by future remote-host project authority. */
-      remote_host_key?: string;
-      /** @description Planned remote compose working directory or entry compose file path under the remote-host boundary. */
-      remote_compose_path?: string;
-      /** @description Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner. */
-      activity_authority?: string;
-      /** @description Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary. */
-      activity_rollup_scope?: string;
     };
     /** @enum {string} */
     'project-activity-authority': 'frontend-fanout' | 'backend-planned';
     /** @enum {string} */
-    'project-host-scope': 'local' | 'remote';
+    'project-host-scope': 'local';
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
     /**
@@ -6128,7 +6074,7 @@ export interface components {
       data: components['schemas']['project-import-directories-response'];
     };
     /** @enum {string} */
-    'project-source-entry-type': 'managed' | 'git' | 'template' | 'remote-host';
+    'project-source-entry-type': 'managed' | 'template';
     /** @enum {string} */
     'project-source-entry-status': 'ready' | 'blocked' | 'planned';
     'project-source-entry': {
@@ -6292,18 +6238,6 @@ export interface components {
     };
     'enveloped-project-create-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-create-response'];
-    };
-    'project-git-create-request': {
-      display_name: string;
-      canonical_project_name: string;
-      relative_project_directory: string;
-      /** @description Public or locally reachable Git repository URL. Credentials are never accepted or persisted. */
-      repository_url: string;
-      /** @description Optional branch, tag, or commit reference. Defaults to HEAD. */
-      reference?: string;
-      /** @description Optional repository-relative directory containing the primary Compose file. Defaults to the repository root. */
-      compose_subpath?: string;
-      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-template-create-request': {
       display_name: string;
@@ -13237,77 +13171,6 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
-    };
-  };
-  postProjectCreateGitValidate: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['project-git-create-request'];
-      };
-    };
-    responses: {
-      /** @description Git source validation result. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-project-create-validate-response'];
-        };
-      };
-      400: components['responses']['internal-server-error'];
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-    };
-  };
-  postProjectCreateGit: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['project-git-create-request'];
-      };
-    };
-    responses: {
-      /** @description Git workspace materialized and project registered. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-project-create-response'];
-        };
-      };
-      400: components['responses']['internal-server-error'];
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      409: components['responses']['internal-server-error'];
     };
   };
   postProjectCreateTemplateValidate: {

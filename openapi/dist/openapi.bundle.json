@@ -11598,7 +11598,7 @@
         ],
         "summary": "List Compose project source entrypoints",
         "operationId": "getProjectSources",
-        "description": "Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.",
+        "description": "Returns the currently implemented managed and template project entrypoints. Import Existing remains a dedicated runtime-to-workspace flow.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11911,117 +11911,6 @@
             }
           },
           "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/ops/projects/create/git/validate": {
-      "post": {
-        "tags": [
-          "project"
-        ],
-        "summary": "Validate a Git project source",
-        "operationId": "postProjectCreateGitValidate",
-        "description": "Resolves a Git workspace in isolated temporary staging and validates the eventual managed-root target without writing it.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-git-create-request"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Git source validation result.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-create-validate-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/internal-server-error"
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          }
-        }
-      }
-    },
-    "/api/ops/projects/create/git": {
-      "post": {
-        "tags": [
-          "project"
-        ],
-        "summary": "Create a managed Compose project from Git",
-        "operationId": "postProjectCreateGit",
-        "description": "Clones a public or locally reachable Git repository into isolated temporary staging, materializes its validated text workspace under the managed root, and registers it without running Compose lifecycle commands.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-git-create-request"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Git workspace materialized and project registered.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-create-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/internal-server-error"
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "409": {
             "$ref": "#/components/responses/internal-server-error"
           }
         }
@@ -23164,13 +23053,11 @@
         "enum": [
           "imported",
           "managed",
-          "git",
           "template"
         ],
         "x-enum-varnames": [
           "ProjectSourceKindImported",
           "ProjectSourceKindManaged",
-          "ProjectSourceKindGit",
           "ProjectSourceKindTemplate"
         ]
       },
@@ -23233,18 +23120,6 @@
             "nullable": true,
             "description": "Optional managed env file name tracked by project authority."
           },
-          "git_repository_url": {
-            "type": "string",
-            "description": "Planned canonical git repository URL for a future git-backed project source."
-          },
-          "git_reference": {
-            "type": "string",
-            "description": "Planned git branch, tag, or commit ref for a future git-backed project source."
-          },
-          "git_compose_subpath": {
-            "type": "string",
-            "description": "Planned repository-relative compose working directory or file subpath."
-          },
           "template_key": {
             "type": "string",
             "description": "Planned stable template identifier for a future template-backed project source."
@@ -23256,22 +23131,6 @@
           "template_instance_name": {
             "type": "string",
             "description": "Planned template instance name used to derive a managed working directory."
-          },
-          "remote_host_key": {
-            "type": "string",
-            "description": "Planned stable remote host connection identifier owned by future remote-host project authority."
-          },
-          "remote_compose_path": {
-            "type": "string",
-            "description": "Planned remote compose working directory or entry compose file path under the remote-host boundary."
-          },
-          "activity_authority": {
-            "type": "string",
-            "description": "Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner."
-          },
-          "activity_rollup_scope": {
-            "type": "string",
-            "description": "Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary."
           }
         }
       },
@@ -23289,12 +23148,10 @@
       "project-host-scope": {
         "type": "string",
         "enum": [
-          "local",
-          "remote"
+          "local"
         ],
         "x-enum-varnames": [
-          "ProjectHostScopeLocal",
-          "ProjectHostScopeRemote"
+          "ProjectHostScopeLocal"
         ]
       },
       "project-ownership-mode": {
@@ -24839,15 +24696,11 @@
         "type": "string",
         "enum": [
           "managed",
-          "git",
-          "template",
-          "remote-host"
+          "template"
         ],
         "x-enum-varnames": [
           "ProjectSourceEntryTypeManaged",
-          "ProjectSourceEntryTypeGit",
-          "ProjectSourceEntryTypeTemplate",
-          "ProjectSourceEntryTypeRemoteHost"
+          "ProjectSourceEntryTypeTemplate"
         ]
       },
       "project-source-entry-status": {
@@ -25584,46 +25437,6 @@
             }
           }
         ]
-      },
-      "project-git-create-request": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "display_name",
-          "canonical_project_name",
-          "relative_project_directory",
-          "repository_url"
-        ],
-        "properties": {
-          "display_name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "canonical_project_name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "relative_project_directory": {
-            "type": "string",
-            "minLength": 1
-          },
-          "repository_url": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Public or locally reachable Git repository URL. Credentials are never accepted or persisted."
-          },
-          "reference": {
-            "type": "string",
-            "description": "Optional branch, tag, or commit reference. Defaults to HEAD."
-          },
-          "compose_subpath": {
-            "type": "string",
-            "description": "Optional repository-relative directory containing the primary Compose file. Defaults to the repository root."
-          },
-          "lifecycle_configuration": {
-            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
-          }
-        }
       },
       "project-template-create-request": {
         "type": "object",

@@ -235,3 +235,30 @@ Compose Project Management
   "closeout_status": "optional-deploy-after-create-complete"
 }
 ```
+
+## 2026-07-12 Source Surface Simplification
+
+- [x] `source-surface-simplification-and-extension-seam`：公开来源收敛为 Managed、Template 与独立 Import Existing；Git/Remote 的 API、路由、页面、OpenAPI contract、catalog 和 metadata 已移除。
+- [x] 共享 `CreationCommand` 与 `createProjectFromWorkspace` 保持为唯一后半段创建管线；Template 继续作为 materialized Workspace adapter。
+- [x] Git、Remote Host、ZIP 与 GitHub Template 仅保留未来 adapter 设计口，不预先声明为当前支持能力。
+- [x] archive-readiness：`git diff --check`、OpenAPI bundle/generation、`graft validate backend`、`bun run lint:i18n`、`bun run check` 与 ai-plan structure guard 均通过；浏览器验证按用户明确要求未执行。
+
+## Final Loop State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "creation-pipeline-contract-and-server-foundation",
+    "managed-workspace-wizard-and-lifecycle-review",
+    "import-creation-adapter-and-regression",
+    "git-template-source-adapters",
+    "optional-deploy-after-create-and-archive-readiness",
+    "source-surface-simplification-and-extension-seam"
+  ],
+  "pending_batches": [],
+  "current_batch": "source-surface-simplification-and-extension-seam",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
+}
+```
