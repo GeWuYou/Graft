@@ -251,7 +251,7 @@ func (r containerProjectRuntimeReader) StreamProjectLogs(
 	if err != nil {
 		return err
 	}
-	normalizedQuery := toContainerLogQuery(normalizeContainerProjectLogQuery(query))
+	normalizedQuery := projectLogStreamQuery(query)
 	var (
 		wg      sync.WaitGroup
 		errMu   sync.Mutex
@@ -334,6 +334,7 @@ func finalizeProjectResourceSummary(summary *moduleapi.ContainerProjectResourceS
 	}
 }
 
+// normalizeContainerProjectLogQuery 规范化容器项目日志查询参数，补充默认尾部条数和输出流设置，并清理起始时间。
 func normalizeContainerProjectLogQuery(query moduleapi.ContainerProjectLogQuery) moduleapi.ContainerProjectLogQuery {
 	normalized := query
 	if normalized.Tail <= 0 {
@@ -347,6 +348,19 @@ func normalizeContainerProjectLogQuery(query moduleapi.ContainerProjectLogQuery)
 	return normalized
 }
 
+// projectLogStreamQuery 将项目日志查询转换为流式日志查询；仅跟随实时日志时不保留历史条目限制。
+// 返回归一化后的日志查询。
+func projectLogStreamQuery(query moduleapi.ContainerProjectLogQuery) LogQuery {
+	normalized := toContainerLogQuery(normalizeContainerProjectLogQuery(query))
+	if query.FollowOnly {
+		// Project owns the bounded history snapshot. The realtime topic follows only
+		// entries produced after a websocket subscriber becomes active.
+		normalized.Tail = 0
+	}
+	return normalized
+}
+
+// toContainerLogQuery converts a project log query into a container log query.
 func toContainerLogQuery(query moduleapi.ContainerProjectLogQuery) LogQuery {
 	return LogQuery{
 		Tail:       query.Tail,

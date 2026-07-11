@@ -22,6 +22,15 @@ describe('debug runtime', () => {
     expect(isDebugFlagEnabled('project.monaco')).toBe(true);
   });
 
+  it('resolves the project log diagnostic flag through the debug store', () => {
+    vi.stubEnv('VITE_DEBUG_PROJECT_LOGS', 'true');
+
+    const debugStore = useDebugStore(store);
+    debugStore.recompute();
+
+    expect(isDebugFlagEnabled('project.logs')).toBe(true);
+  });
+
   it('exposes a window developer API backed by the debug store', () => {
     initDebugRuntime();
 

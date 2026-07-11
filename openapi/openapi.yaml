@@ -1018,6 +1018,8 @@ components:
       $ref: ./components/parameters/project-workspace-show-hidden-query.yaml
     container-logs-tail:
       $ref: ./components/parameters/container-logs-tail.yaml
+    project-logs-tail:
+      $ref: ./components/parameters/project-logs-tail.yaml
     container-logs-since:
       $ref: ./components/parameters/container-logs-since.yaml
     container-logs-timestamps:

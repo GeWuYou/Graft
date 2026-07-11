@@ -119,15 +119,15 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
 }
 
 /**
- * 解析结构化日志条目并提取其级别、消息、元数据和来源信息。
+ * 将结构化日志条目转换为包含解析消息、级别、来源和元数据的日志行。
  *
  * @param entry - 待解析的结构化日志条目
- * @param lineNo - 在源内容中的行号
- * @returns 包含提取字段、显示信息和计算结果的解析日志行
+ * @param lineNo - 日志条目在源内容中的行号
+ * @returns 包含标准化级别、时间戳、显示音调及容器日志解析结果的日志行
  */
 export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
   const parsed = parseContainerLogLine(entry.line);
-  const level = parsed.level ?? null;
+  const level = normalizeLogLevel(entry.level) ?? parsed.level ?? null;
   const timestamp = entry.occurredAt || parsed.time || '';
 
   return {

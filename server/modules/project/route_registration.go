@@ -165,10 +165,16 @@ func (r routeRuntime) handleImport(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectImport(bindPostProjectImportParams(ginCtx), request)
+	lifecycleConfig, err := lifecycleStandardConfigFromGenerated(request.LifecycleConfiguration)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
 	result, err := r.service.ImportByInspection(ginCtx.Request.Context(), ImportExecuteRequest{
 		InspectionID:                 request.InspectionId,
 		DisplayName:                  request.DisplayName,
 		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+		LifecycleConfiguration:       &lifecycleConfig,
 		ActorID:                      currentUserIDPointer(ginCtx),
 	})
 	if err != nil {
@@ -1022,10 +1028,12 @@ func bindGetProjectServicesParams(ginCtx *gin.Context) generated.GetProjectServi
 	return generated.GetProjectServicesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectLogsParams 绑定项目日志查询参数，并在参数无效时中止请求。
+// 返回解析后的参数和参数是否有效。
 func bindGetProjectLogsParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectLogsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := generated.GetProjectLogsParams{XGraftLocale: locale, XRequestId: requestID}
-	if value, ok := optionalIntQuery[generated.ContainerLogsTail](ginCtx.Query("tail"), 1, maxProjectLogsTail); ok {
+	if value, ok := optionalIntQuery[generated.ProjectLogsTail](ginCtx.Query("tail"), 1, maxProjectLogsTail); ok {
 		params.Tail = value
 	} else {
 		abortInvalidQuery(ginCtx, ctx)

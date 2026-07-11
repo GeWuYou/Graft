@@ -1684,6 +1684,15 @@ func TestProjectLogsNilServiceReturnsRuntimeUnavailable(t *testing.T) {
 	}
 }
 
+func TestToContainerProjectLogFollowQuerySuppressesReplay(t *testing.T) {
+	t.Parallel()
+
+	query := toContainerProjectLogFollowQuery(LogQuery{Tail: 200, Since: "1h", Stdout: true, Timestamps: true})
+	if !query.FollowOnly || query.Tail != 200 || query.Since != "1h" || !query.Stdout || !query.Timestamps {
+		t.Fatalf("unexpected follow query %#v", query)
+	}
+}
+
 func TestImportDirectorySourcesIncludeManagedRootAndAllowlistedRoot(t *testing.T) {
 	t.Parallel()
 
@@ -2271,15 +2280,41 @@ func TestInspectAndImportByInspection(t *testing.T) {
 		t.Fatalf("unexpected inspect result: %#v", inspect)
 	}
 
-	imported, err := service.ImportByInspection(context.Background(), ImportExecuteRequest{InspectionID: inspect.InspectionID})
+	imported, err := service.ImportByInspection(context.Background(), ImportExecuteRequest{
+		InspectionID:           inspect.InspectionID,
+		LifecycleConfiguration: lifecycleConfigPointer(importedLifecycleConfigFixture()),
+	})
 	if err != nil {
 		t.Fatalf("import by inspection: %v", err)
 	}
 	if imported.Project.CanonicalProjectName != "orders" {
 		t.Fatalf("unexpected imported project: %#v", imported.Project)
 	}
-	if repo.importInput == nil {
-		t.Fatalf("expected persisted import input")
+	assertImportedLifecycleConfigPersisted(t, repo.importInput)
+}
+
+func importedLifecycleConfigFixture() LifecycleStandardConfig {
+	config := defaultLifecycleStandardConfig()
+	config.Profiles = []string{"production"}
+	config.PullBeforeRedeploy = true
+	config.BuildBeforeUp = true
+	config.WaitAfterUp = true
+	config.WaitTimeoutSeconds = 75
+	config.AdditionalArgs = []string{"--ansi", "never"}
+	return config
+}
+
+func assertImportedLifecycleConfigPersisted(t *testing.T, input *projectstore.ImportProjectInput) {
+	t.Helper()
+	if input == nil {
+		t.Fatal("expected persisted import input")
+	}
+	if input.LifecycleReviewStatus != projectcontract.LifecycleReviewStatusConfirmed.String() {
+		t.Fatalf("expected imported lifecycle configuration to be confirmed, got %q", input.LifecycleReviewStatus)
+	}
+	config := input.LifecycleConfig
+	if !config.DownBeforeRedeploy || !config.RemoveOrphans || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.WaitAfterUp || config.WaitTimeoutSeconds != 75 || !slices.Equal(config.Profiles, []string{"production"}) || !slices.Equal(config.AdditionalArgs, []string{"--ansi", "never"}) {
+		t.Fatalf("expected supplied lifecycle configuration to be persisted, got %#v", config)
 	}
 }
 
@@ -2316,7 +2351,10 @@ func TestImportByInspectionReturnsInspectionStaleOnFileHashMismatch(t *testing.T
 		t.Fatalf("rewrite compose file: %v", err)
 	}
 
-	_, err = service.ImportByInspection(context.Background(), ImportExecuteRequest{InspectionID: inspect.InspectionID})
+	_, err = service.ImportByInspection(context.Background(), ImportExecuteRequest{
+		InspectionID:           inspect.InspectionID,
+		LifecycleConfiguration: lifecycleConfigPointer(defaultLifecycleStandardConfig()),
+	})
 	if !errors.Is(err, errProjectInspectionStale) {
 		t.Fatalf("expected inspection stale error, got %v", err)
 	}
@@ -2324,6 +2362,10 @@ func TestImportByInspectionReturnsInspectionStaleOnFileHashMismatch(t *testing.T
 
 type stubCompositeConfigResolver struct {
 	values map[string]string
+}
+
+func lifecycleConfigPointer(config LifecycleStandardConfig) *LifecycleStandardConfig {
+	return &config
 }
 
 func (s stubCompositeConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool {

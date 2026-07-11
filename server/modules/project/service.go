@@ -282,6 +282,7 @@ type LifecycleStandardConfig struct {
 	WaitTimeoutSeconds       int
 	RenewAnonVolumes         bool
 	PruneImagesAfterRedeploy bool
+	AdditionalArgs           []string
 }
 
 // LifecycleConfiguration stores the project-owned lifecycle execution configuration.
@@ -637,7 +638,13 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.
 	if err != nil {
 		return generated.ProjectImportResponse{}, err
 	}
-	return s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
+	lifecycleConfig := defaultLifecycleStandardConfig()
+	return s.importInspectionSession(ctx, repository, session, importInspectionCommitInput{
+		DisplayName:       request.DisplayName,
+		CanonicalOverride: request.CanonicalProjectNameOverride,
+		LifecycleConfig:   &lifecycleConfig,
+		ActorID:           request.ActorID,
+	})
 }
 
 // Refresh reparses and persists the latest static compose snapshot.

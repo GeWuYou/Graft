@@ -252,12 +252,33 @@
                 <t-button theme="default" variant="outline" :loading="inspectLoading" @click="handleRefreshInspect">
                   {{ t('project.import.actions.refreshInspect') }}
                 </t-button>
-                <t-button theme="primary" :disabled="!canImport" @click="goToConfirmStep">
-                  {{ t('project.import.actions.continueToConfirm') }}
+                <t-button theme="primary" :disabled="!canImport" @click="goToLifecycleStep">
+                  {{ t('project.import.actions.continueToLifecycle') }}
                 </t-button>
               </div>
             </template>
           </t-loading>
+        </section>
+
+        <section v-else-if="currentStep === 'lifecycle'" class="project-import-step">
+          <project-import-lifecycle-review
+            v-if="lifecycleDraft"
+            v-model:draft="lifecycleDraft"
+            @back="goToStep('inspect', true)"
+            @confirm="goToConfirmStep"
+          />
+          <management-empty-state
+            v-else
+            tone="error"
+            :title="t('project.import.lifecycle.unavailableTitle')"
+            :description="lifecycleConfigError"
+          >
+            <template #actions>
+              <t-button theme="default" variant="outline" @click="goToStep('inspect', true)">
+                {{ t('project.import.actions.backToInspect') }}
+              </t-button>
+            </template>
+          </management-empty-state>
         </section>
 
         <section v-else class="project-import-step">
@@ -273,7 +294,7 @@
             :import-loading="importLoading"
             :resolved-working-directory="resolvedWorkingDirectory"
             :result="normalizedInspectResult"
-            @back="goToStep('inspect', true)"
+            @back="goToStep('lifecycle', true)"
             @reset="handleReset"
             @submit="handleSubmit"
             @update:canonical-project-name-override="canonicalProjectNameOverride = $event"
@@ -311,6 +332,7 @@ import { getProjectImportRuntimeCandidates } from '../../api/import';
 import ProjectImportConfirmReview from '../../components/ProjectImportConfirmReview.vue';
 import ProjectImportInspectOverview from '../../components/ProjectImportInspectOverview.vue';
 import ProjectImportInspectResources from '../../components/ProjectImportInspectResources.vue';
+import ProjectImportLifecycleReview from '../../components/ProjectImportLifecycleReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { isValidProjectCanonicalName } from '../../shared/canonical-name';
 import {
@@ -333,7 +355,7 @@ defineOptions({
   name: 'ProjectImportIndex',
 });
 
-type ImportWizardStep = 'select' | 'inspect' | 'confirm';
+type ImportWizardStep = 'select' | 'inspect' | 'lifecycle' | 'confirm';
 type CandidateStatusFilter = 'all' | 'ready' | 'imported' | 'unavailable';
 type PaginationState = {
   current: number;
@@ -387,6 +409,12 @@ const wizardSteps = [
     descriptionKey: 'project.import.steps.inspect.description',
   },
   {
+    key: 'lifecycle',
+    shortTitleKey: 'project.import.steps.lifecycle.shortTitle',
+    titleKey: 'project.import.steps.lifecycle.title',
+    descriptionKey: 'project.import.steps.lifecycle.description',
+  },
+  {
     key: 'confirm',
     shortTitleKey: 'project.import.steps.confirm.shortTitle',
     titleKey: 'project.import.steps.confirm.title',
@@ -436,10 +464,13 @@ const {
   hasPreview,
   importError,
   importLoading,
+  lifecycleDraft,
+  lifecycleConfigError,
   inspectCandidate,
   inspectError,
   inspectLoading,
   inspectResult,
+  prepareLifecycleConfiguration,
   refreshInspect,
   reset,
   selectedCandidateKey,
@@ -631,7 +662,7 @@ async function initializePage() {
 }
 
 function normalizeWizardStep(value: unknown): ImportWizardStep {
-  if (value === 'inspect' || value === 'confirm') {
+  if (value === 'inspect' || value === 'lifecycle' || value === 'confirm') {
     return value;
   }
 
@@ -704,16 +735,28 @@ async function syncWizardFromRoute() {
         return;
       }
       currentStep.value = 'inspect';
-      if (desiredStep === 'confirm') {
+      if (desiredStep === 'lifecycle' || desiredStep === 'confirm') {
         await updateWizardRoute('inspect', { candidateKey, replace: true });
       }
       return;
     }
   }
 
-  if (desiredStep === 'confirm' && !canImport.value) {
+  if ((desiredStep === 'lifecycle' || desiredStep === 'confirm') && !canImport.value) {
     currentStep.value = 'inspect';
     await updateWizardRoute('inspect', { candidateKey, replace: true });
+    return;
+  }
+
+  if (
+    (desiredStep === 'lifecycle' || desiredStep === 'confirm') &&
+    !lifecycleDraft.value &&
+    !prepareLifecycleConfiguration()
+  ) {
+    currentStep.value = 'lifecycle';
+    if (desiredStep === 'confirm') {
+      await updateWizardRoute('lifecycle', { candidateKey, replace: true });
+    }
     return;
   }
 
@@ -985,8 +1028,17 @@ async function goToStep(step: ImportWizardStep, replace = false) {
   await updateWizardRoute(step, { replace });
 }
 
-async function goToConfirmStep() {
+async function goToLifecycleStep() {
   if (!canImport.value || !selectedCandidateKey.value) {
+    return;
+  }
+
+  prepareLifecycleConfiguration();
+  await goToStep('lifecycle');
+}
+
+async function goToConfirmStep() {
+  if (!canImport.value || !lifecycleDraft.value) {
     return;
   }
 
@@ -998,7 +1050,7 @@ async function handleRefreshInspect() {
     const result = await refreshInspect();
     if (result === 'applied' && inspectResult.value) {
       MessagePlugin.success(t('project.import.messages.inspectSuccess'));
-      if (currentStep.value === 'confirm' && !canImport.value) {
+      if ((currentStep.value === 'lifecycle' || currentStep.value === 'confirm') && !canImport.value) {
         await goToStep('inspect', true);
       }
     }
@@ -1045,7 +1097,7 @@ async function openDetail(response: ProjectImportExecuteResponse) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: project.id },
-    query: { tab: 'overview' },
+    query: { tab: 'lifecycle' },
   };
   const resolved = router.resolve(target);
   appendResolvedTab(

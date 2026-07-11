@@ -40,4 +40,11 @@ get:
           schema: { $ref: ../components/schemas/enveloped-task-list-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
+    '404':
+      description: Task owner was not found or is outside the caller resource scope.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

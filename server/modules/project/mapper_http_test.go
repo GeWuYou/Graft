@@ -54,6 +54,9 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	}
 
 	response := toRuntimeImportInspectResponse(result)
+	if response.LifecycleConfiguration.Profiles == nil {
+		t.Fatal("expected lifecycle profiles to serialize as an empty array")
+	}
 	if len(response.Networks) != 1 {
 		t.Fatalf("expected one mapped network resource, got %#v", response.Networks)
 	}

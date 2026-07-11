@@ -124,7 +124,7 @@ func toGeneratedProjectLifecycleConfiguration(
 	return toGeneratedLifecycleConfiguration(lifecycleConfigurationFromAggregate(aggregate))
 }
 
-// toGeneratedLifecycleConfiguration converts a lifecycle configuration to its generated API representation, including standard options and generated commands.
+// toGeneratedLifecycleConfiguration 将生命周期配置转换为生成的 API 表示形式，包括标准选项、附加参数和生成的命令。
 func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ProjectLifecycleConfiguration {
 	return generated.ProjectLifecycleConfiguration{
 		StrategyKind:             generated.ProjectLifecycleStrategyKind(config.StrategyKind),
@@ -138,6 +138,7 @@ func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.
 		WaitTimeoutSeconds:       config.Standard.WaitTimeoutSeconds,
 		RenewAnonVolumes:         config.Standard.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.Standard.PruneImagesAfterRedeploy,
+		AdditionalArgs:           append([]string{}, config.Standard.AdditionalArgs...),
 		GeneratedCommands:        toGeneratedLifecycleCommands(config),
 	}
 }
@@ -224,7 +225,7 @@ func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
 
 // buildLifecycleUpArgv 构建用于启动 Compose 服务的命令参数，并根据标准配置添加相应选项。
 // buildLifecycleUpArgv 构建 Compose 后台启动命令的参数列表，并根据标准配置追加可选选项。
-// 返回包含基础参数、后台启动参数及配置选项的参数列表。
+// buildLifecycleUpArgv 构建用于后台启动 Compose 服务的命令参数列表，并包含配置的启动选项及附加参数。
 func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []string {
 	args := append(append([]string(nil), base...), "up", "-d")
 	if standard.BuildBeforeUp {
@@ -243,6 +244,7 @@ func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []str
 		args = append(args, "--wait")
 		args = append(args, "--wait-timeout", fmt.Sprintf("%d", standard.WaitTimeoutSeconds))
 	}
+	args = append(args, standard.AdditionalArgs...)
 	return args
 }
 

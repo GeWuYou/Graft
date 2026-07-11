@@ -382,11 +382,6 @@
                       class="project-activity-toolbar__since"
                       :placeholder="t('project.detail.logs.sinceLabel')"
                     />
-                    <t-input
-                      v-model="projectLogTail"
-                      class="project-activity-toolbar__tail"
-                      :placeholder="t('project.detail.logs.tailLabel')"
-                    />
                     <t-button theme="primary" variant="outline" :loading="projectLogLoading" @click="loadProjectLogs()">
                       {{ t('project.list.refresh') }}
                     </t-button>
@@ -409,6 +404,8 @@
                   :content-version="projectLogContentVersion"
                   :loading="projectLogLoading"
                   :error="projectLogError"
+                  :truncated="projectLogResponse?.truncated"
+                  :line-limit="projectLogTail"
                   :clear-label="t('project.detail.logs.clear')"
                   :copy-label="t('project.detail.logs.copy')"
                   :download-label="t('project.detail.logs.download')"
@@ -457,6 +454,7 @@
                   @pause="pauseProjectLogs"
                   @refresh="loadProjectLogs()"
                   @resume="resumeProjectLogs"
+                  @update:line-limit="updateProjectLogTail"
                 />
               </t-card>
             </section>
@@ -734,7 +732,8 @@
             <section class="project-section project-tab-panel">
               <task-history-table
                 owner-type="compose_project"
-                :owner-id="String(projectId)"
+                :owner-id="projectTaskOwnerId"
+                :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
                 @open="openTaskDrawer($event.id)"
               />
             </section>
@@ -742,7 +741,11 @@
         </t-tabs>
       </template>
     </section>
-    <task-detail-drawer v-model:visible="taskDrawerVisible" :task-id="activeTaskId" />
+    <task-detail-drawer
+      v-model:visible="taskDrawerVisible"
+      :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
+      :task-id="activeTaskId"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -764,7 +767,7 @@ import {
   type ProjectContainerActionSubmission,
   type ProjectContainerSummary,
 } from '@/modules/container/contract/project';
-import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task';
+import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task/contract/task-ui';
 import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
   createActionColumn,
@@ -824,6 +827,7 @@ import {
   projectLifecycleActionVisibility,
   projectRuntimeStatusLabel,
   projectRuntimeStatusTheme as runtimeStatusTheme,
+  projectTaskTypeLabel,
 } from '../../shared/display';
 import {
   buildLifecycleConfigurationDraft,
@@ -838,6 +842,8 @@ import {
 } from '../../shared/lifecycle';
 import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../../shared/lifecycle-help';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
+import { emitProjectLogDebug } from '../../shared/project-log-debug';
+import { ProjectLogRealtimeBatcher } from '../../shared/project-log-realtime-batcher';
 import { fetchProjectRuntimeContainers, readProjectContainerSourceMember } from '../../shared/runtime-containers';
 import type {
   ProjectActionResponse,
@@ -914,7 +920,6 @@ const projectLogResponse = ref<ProjectLogResponse | null>(null);
 const projectLogLoading = ref(false);
 const projectLogError = ref('');
 const projectLogPaused = ref(false);
-const pendingProjectLogEntries = ref<ProjectLogEntry[]>([]);
 const projectLogContentVersion = ref(0);
 const serviceRows = ref<ProjectServiceItem[]>([]);
 const projectOverview = ref<ProjectOverviewResponse | null>(null);
@@ -933,7 +938,7 @@ const lifecycleSaveLoading = ref(false);
 const lifecycleBaseline = ref<ProjectLifecycleConfigurationDraft | null>(null);
 const lifecycleRemoteStale = ref(false);
 const projectLogSince = ref('1h');
-const projectLogTail = ref('200');
+const projectLogTail = ref(200);
 const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
   strategy_kind: 'standard',
   working_directory: '',
@@ -978,7 +983,26 @@ let projectLogsRealtimeController: RealtimeTopicSocketController | null = null;
 let projectRuntimeRealtimeTopic = '';
 let projectLifecycleConfigRealtimeTopic = '';
 let projectLogsRealtimeTopic = '';
-const projectLogSeenKeys = new Set<string>();
+let projectLogsSubscriptionSequence = 0;
+let pendingProjectLogSnapshot: ProjectLogResponse | null = null;
+let projectLogsLoadSequence = 0;
+const projectLogRealtimeBatcher = new ProjectLogRealtimeBatcher({
+  lineLimit: projectLogTail.value,
+  onCommit: (snapshot) => {
+    emitProjectLogDebug('view-snapshot-commit', {
+      entryCount: snapshot.entries.length,
+      paused: projectLogPaused.value,
+      tail: snapshot.tail,
+      truncated: snapshot.truncated,
+    });
+    if (projectLogPaused.value) {
+      pendingProjectLogSnapshot = snapshot;
+      return;
+    }
+    projectLogResponse.value = snapshot;
+    projectLogContentVersion.value += 1;
+  },
+});
 const projectRuntimeRealtimeGate = createRealtimeSnapshotGate({
   apply: (message: {
     detail: ProjectDetailResponseWithLifecycle;
@@ -995,11 +1019,17 @@ const projectLifecycleConfigRealtimeGate = createRealtimeSnapshotGate({
 });
 
 const projectId = computed(() => Number(route.params.id));
-const activeTabRoute = computed(() =>
-  tabsRouterStore.tabRouterList.find(
-    (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
-  ),
+const projectTaskOwnerId = computed(() =>
+  Number.isSafeInteger(projectId.value) && projectId.value > 0 ? String(projectId.value) : '',
 );
+const activeTabRoute = computed(() => {
+  if (route.name !== PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName) {
+    return undefined;
+  }
+
+  const activeTab = tabsRouterStore.tabRouterList.find((tab) => tab.tabKey === tabsRouterStore.activeTabKey);
+  return activeTab?.path === route.path && activeTab.name === route.name ? activeTab : undefined;
+});
 const fallbackDisplayName = computed(() => {
   const tabTitle = readNameFromTabTitle(activeTabRoute.value?.title);
   if (tabTitle) return tabTitle;
@@ -1187,8 +1217,9 @@ const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
     };
   }),
 );
-const projectLogEntries = computed(() =>
-  (projectLogResponse.value?.entries ?? [])
+const projectLogEntries = computed(() => {
+  const rawEntries = projectLogResponse.value?.entries ?? [];
+  const normalizedEntries = rawEntries
     .map((entry) =>
       normalizeStructuredLogEntry({
         line: JSON.stringify({
@@ -1205,8 +1236,14 @@ const projectLogEntries = computed(() =>
       }),
     )
     // Preserve the server/realtime chronological order so LogViewer keeps the latest lines at the bottom.
-    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null),
-);
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null);
+  emitProjectLogDebug('view-entries-normalized', {
+    rawCount: rawEntries.length,
+    visibleCount: normalizedEntries.length,
+    truncated: Boolean(projectLogResponse.value?.truncated),
+  });
+  return normalizedEntries;
+});
 const overviewDiagnostics = computed<OverviewDiagnostic[]>(() => {
   if (configurationMetadata.value?.diagnostics_summary?.length) {
     return configurationMetadata.value.diagnostics_summary.map((item, index) => ({
@@ -1274,6 +1311,7 @@ onUnmounted(() => {
   releaseProjectLogsRealtimeSubscription();
   projectRuntimeRealtimeGate.dispose();
   projectLifecycleConfigRealtimeGate.dispose();
+  projectLogRealtimeBatcher.destroy();
 });
 
 watch(
@@ -1476,27 +1514,57 @@ async function loadConfigurationSummary() {
 
 async function loadProjectLogs() {
   if (!Number.isFinite(projectId.value)) return;
+  const requestSequence = ++projectLogsLoadSequence;
+  const currentProjectId = projectId.value;
+  projectLogRealtimeBatcher.beginSnapshot(projectLogTail.value);
+  emitProjectLogDebug('snapshot-request-started', {
+    projectId: currentProjectId,
+    requestSequence,
+    since: projectLogSince.value.trim() || '1h',
+    tail: projectLogTail.value,
+  });
   projectLogLoading.value = true;
   projectLogError.value = '';
   try {
     const response = await getProjectLogs(projectId.value, {
-      tail: Number(projectLogTail.value) || 200,
+      tail: projectLogTail.value,
       since: projectLogSince.value.trim() || '1h',
       timestamps: true,
       stdout: true,
       stderr: true,
+    });
+    if (requestSequence !== projectLogsLoadSequence || currentProjectId !== projectId.value) {
+      emitProjectLogDebug('snapshot-response-discarded', { currentProjectId, requestSequence });
+      return;
+    }
+    emitProjectLogDebug('snapshot-response-received', {
+      projectId: currentProjectId,
+      requestSequence,
+      entryCount: response.entries.length,
+      tail: response.tail,
+      truncated: response.truncated,
     });
     commitProjectLogsSnapshot(response);
     projectLogsHasSnapshot.value = true;
     projectLogsBootstrapRequested.value = false;
     projectLogsRecoveryLoadRequested.value = false;
   } catch (error) {
+    if (requestSequence !== projectLogsLoadSequence || currentProjectId !== projectId.value) {
+      return;
+    }
     logger.error('failed to load project logs', error);
+    emitProjectLogDebug('snapshot-request-failed', {
+      projectId: currentProjectId,
+      requestSequence,
+      error: error instanceof Error ? error.message : String(error),
+    });
     projectLogError.value = resolveLocalizedErrorMessage(t, error, t('project.detail.logs.loadFailed'));
   } finally {
-    projectLogLoading.value = false;
-    if (activeDetailTab.value === 'logs') {
-      syncProjectLogsRealtimeSubscription();
+    if (requestSequence === projectLogsLoadSequence && currentProjectId === projectId.value) {
+      projectLogLoading.value = false;
+      if (activeDetailTab.value === 'logs') {
+        syncProjectLogsRealtimeSubscription();
+      }
     }
   }
 }
@@ -1555,65 +1623,32 @@ async function loadProjectOverview(forceRefresh = false) {
   }
 }
 
-function projectLogEntryKey(entry: ProjectLogEntry) {
-  return [entry.container_id, entry.service_name, entry.stream, entry.occurred_at, entry.line].join('::');
-}
-
 function resetProjectLogsState() {
   projectLogResponse.value = null;
-  pendingProjectLogEntries.value = [];
+  pendingProjectLogSnapshot = null;
   projectLogError.value = '';
+  projectLogPaused.value = false;
   projectLogsHasSnapshot.value = false;
   projectLogsBootstrapRequested.value = false;
   projectLogsRecoveryLoadRequested.value = false;
-  projectLogSeenKeys.clear();
+  projectLogsLoadSequence += 1;
+  projectLogRealtimeBatcher.clear();
 }
 
 function commitProjectLogsSnapshot(response: ProjectLogResponse) {
-  projectLogSeenKeys.clear();
-  for (const entry of response.entries) {
-    projectLogSeenKeys.add(projectLogEntryKey(entry));
-  }
-  projectLogResponse.value = {
-    ...response,
-    entries: [...response.entries],
-  };
-  pendingProjectLogEntries.value = [];
-  projectLogContentVersion.value += 1;
+  emitProjectLogDebug('snapshot-seed', {
+    entryCount: response.entries.length,
+    tail: response.tail,
+    truncated: response.truncated,
+  });
+  projectLogRealtimeBatcher.seed(response);
 }
 
 function appendProjectLogEntry(entry: ProjectLogEntry) {
-  const key = projectLogEntryKey(entry);
-  if (projectLogSeenKeys.has(key)) {
-    return;
-  }
-  projectLogSeenKeys.add(key);
-  if (!projectLogResponse.value) {
-    projectLogResponse.value = {
-      canonical_project_name: detailRecord.value?.canonical_project_name ?? '',
-      entries: [entry],
-      project_id: projectId.value,
-      stderr: true,
-      stdout: true,
-      tail: Number(projectLogTail.value) || 200,
-      timestamps: true,
-      truncated: false,
-    };
-    projectLogContentVersion.value += 1;
-    return;
-  }
-  projectLogResponse.value = {
-    ...projectLogResponse.value,
-    entries: [...projectLogResponse.value.entries, entry],
-  };
-  projectLogContentVersion.value += 1;
+  projectLogRealtimeBatcher.enqueue(entry);
 }
 
 function applyProjectLogRealtimeEntry(entry: ProjectLogEntry) {
-  if (projectLogPaused.value) {
-    pendingProjectLogEntries.value = [...pendingProjectLogEntries.value, entry];
-    return;
-  }
   appendProjectLogEntry(entry);
 }
 
@@ -1713,37 +1748,48 @@ function syncProjectLogsRealtimeSubscription() {
       ? buildProjectLogsTopicName(projectId.value)
       : '';
   if (!nextTopic) {
+    emitProjectLogDebug('subscription-not-required', { activeTab: activeDetailTab.value });
     releaseProjectLogsRealtimeSubscription();
     return;
   }
   if (!projectLogsHasSnapshot.value && !projectLogLoading.value && !projectLogsBootstrapRequested.value) {
     projectLogsBootstrapRequested.value = true;
     void loadProjectLogs();
-    return;
-  }
-  if (
-    !projectLogsHasSnapshot.value &&
-    !projectLogLoading.value &&
-    (projectLogsSocketState.value === 'closed' || projectLogsSocketState.value === 'error') &&
-    !projectLogsRecoveryLoadRequested.value
-  ) {
-    projectLogsRecoveryLoadRequested.value = true;
-    void loadProjectLogs();
-    return;
   }
   if (projectLogsRealtimeTopic === nextTopic && projectLogsRealtimeController) {
+    emitProjectLogDebug('subscription-reused', { topic: nextTopic });
     return;
   }
   releaseProjectLogsRealtimeSubscription();
+  const subscriptionSequence = ++projectLogsSubscriptionSequence;
   projectLogsRealtimeTopic = nextTopic;
+  emitProjectLogDebug('subscription-opening', { subscriptionSequence, topic: nextTopic });
   projectLogsRealtimeController = openRealtimeTopicSocket({
     topic: nextTopic,
     parseMessage: parseProjectLogsRealtimePayload,
     onMessage: (message) => {
+      if (subscriptionSequence !== projectLogsSubscriptionSequence || projectLogsRealtimeTopic !== nextTopic) {
+        return;
+      }
+      emitProjectLogDebug('subscription-entry-received', {
+        subscriptionSequence,
+        topic: nextTopic,
+        socketState: projectLogsSocketState.value,
+      });
       applyProjectLogRealtimeEntry(message.entry);
     },
     onStateChange: (state) => {
+      if (subscriptionSequence !== projectLogsSubscriptionSequence || projectLogsRealtimeTopic !== nextTopic) {
+        return;
+      }
       projectLogsSocketState.value = state;
+      emitProjectLogDebug('subscription-state-changed', {
+        hasSnapshot: projectLogsHasSnapshot.value,
+        loading: projectLogLoading.value,
+        state,
+        subscriptionSequence,
+        topic: nextTopic,
+      });
       if (state === 'open') {
         projectLogsRecoveryLoadRequested.value = false;
       }
@@ -1759,12 +1805,16 @@ function syncProjectLogsRealtimeSubscription() {
       }
     },
     onError: (message) => {
+      emitProjectLogDebug('subscription-error', { message, topic: nextTopic });
       logger.warn('project log realtime subscription error', { message, topic: nextTopic });
     },
   });
 }
 
 function releaseProjectLogsRealtimeSubscription() {
+  emitProjectLogDebug('subscription-releasing', { topic: projectLogsRealtimeTopic });
+  projectLogsSubscriptionSequence += 1;
+  projectLogRealtimeBatcher.flush();
   projectLogsRealtimeTopic = '';
   projectLogsRealtimeController?.close();
   projectLogsRealtimeController = null;
@@ -2009,18 +2059,25 @@ function pauseProjectLogs() {
 
 function resumeProjectLogs() {
   projectLogPaused.value = false;
-  if (pendingProjectLogEntries.value.length) {
-    const pendingEntries = [...pendingProjectLogEntries.value];
-    pendingProjectLogEntries.value = [];
-    for (const entry of pendingEntries) {
-      appendProjectLogEntry(entry);
-    }
+  if (pendingProjectLogSnapshot) {
+    projectLogResponse.value = pendingProjectLogSnapshot;
+    pendingProjectLogSnapshot = null;
+    projectLogContentVersion.value += 1;
   }
 }
 
 function clearProjectLogs() {
-  resetProjectLogsState();
-  projectLogContentVersion.value += 1;
+  projectLogPaused.value = false;
+  pendingProjectLogSnapshot = null;
+  projectLogRealtimeBatcher.clearView();
+}
+
+function updateProjectLogTail(value: number) {
+  if (![100, 200, 500, 1000].includes(value) || projectLogTail.value === value) {
+    return;
+  }
+  projectLogTail.value = value;
+  void loadProjectLogs();
 }
 
 function updateProjectOverviewTrends(previous: ProjectOverviewResponse | null, next: ProjectOverviewResponse) {
@@ -2405,11 +2462,7 @@ function readNameFromTabTitle(title?: LocalizedTitle) {
 }
 
 function updateCurrentTabTitle(title: LocalizedTitle) {
-  const routePath = route.path;
-  const routeFullPath = route.fullPath;
-  tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
-    tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
-  );
+  tabsRouterStore.updateActiveTabTitle(PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName, route, title);
 }
 
 function openConfigurationWorkspace() {

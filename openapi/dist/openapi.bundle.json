@@ -5806,6 +5806,21 @@
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
+          "404": {
+            "description": "Task owner was not found or is outside the caller resource scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -12083,7 +12098,7 @@
             "$ref": "#/components/parameters/project-id-path"
           },
           {
-            "$ref": "#/components/parameters/container-logs-tail"
+            "$ref": "#/components/parameters/project-logs-tail"
           },
           {
             "$ref": "#/components/parameters/container-logs-since"
@@ -22965,7 +22980,7 @@
       },
       "project-lifecycle-review-status": {
         "type": "string",
-        "description": "Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.\n",
+        "description": "Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.\n",
         "enum": [
           "review_required",
           "confirmed"
@@ -23785,6 +23800,89 @@
           }
         }
       },
+      "project-lifecycle-strategy-kind": {
+        "type": "string",
+        "description": "Canonical lifecycle execution strategy kind owned by the project module.",
+        "enum": [
+          "standard"
+        ],
+        "x-enum-varnames": [
+          "ProjectLifecycleStrategyKindStandard"
+        ]
+      },
+      "project-lifecycle-configuration-request": {
+        "type": "object",
+        "required": [
+          "strategy_kind",
+          "profiles",
+          "down_before_redeploy",
+          "pull_before_redeploy",
+          "build_before_up",
+          "force_recreate",
+          "remove_orphans",
+          "wait_after_up",
+          "wait_timeout_seconds",
+          "renew_anon_volumes",
+          "prune_images_after_redeploy"
+        ],
+        "properties": {
+          "strategy_kind": {
+            "$ref": "#/components/schemas/project-lifecycle-strategy-kind"
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "down_before_redeploy": {
+            "type": "boolean"
+          },
+          "pull_before_redeploy": {
+            "type": "boolean"
+          },
+          "build_before_up": {
+            "type": "boolean"
+          },
+          "force_recreate": {
+            "type": "boolean"
+          },
+          "remove_orphans": {
+            "type": "boolean",
+            "default": true
+          },
+          "wait_after_up": {
+            "type": "boolean"
+          },
+          "wait_timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600,
+            "default": 120
+          },
+          "prune_images_after_redeploy": {
+            "type": "boolean"
+          },
+          "renew_anon_volumes": {
+            "type": "boolean",
+            "default": false
+          },
+          "additional_args": {
+            "type": "array",
+            "description": "Bounded extra argv tokens appended to docker compose up; shell expressions and project identity flags are rejected by the server.",
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^\\S+$"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "project-import-runtime-inspect-response": {
         "type": "object",
         "required": [
@@ -23803,7 +23901,8 @@
           "config_hash",
           "warnings",
           "conflicts",
-          "validation_status"
+          "validation_status",
+          "lifecycle_configuration"
         ],
         "properties": {
           "inspection_id": {
@@ -23881,6 +23980,9 @@
               "ready",
               "conflict"
             ]
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
       },
@@ -24057,7 +24159,8 @@
       "project-import-request": {
         "type": "object",
         "required": [
-          "inspection_id"
+          "inspection_id",
+          "lifecycle_configuration"
         ],
         "properties": {
           "inspection_id": {
@@ -24075,18 +24178,11 @@
             "minLength": 1,
             "pattern": "^[a-z0-9][a-z0-9_-]*$",
             "nullable": true
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
-      },
-      "project-lifecycle-strategy-kind": {
-        "type": "string",
-        "description": "Canonical lifecycle execution strategy kind owned by the project module.",
-        "enum": [
-          "standard"
-        ],
-        "x-enum-varnames": [
-          "ProjectLifecycleStrategyKindStandard"
-        ]
       },
       "project-lifecycle-command-step": {
         "type": "object",
@@ -24182,7 +24278,8 @@
           "wait_timeout_seconds",
           "renew_anon_volumes",
           "prune_images_after_redeploy",
-          "generated_commands"
+          "generated_commands",
+          "additional_args"
         ],
         "properties": {
           "strategy_kind": {
@@ -24227,6 +24324,12 @@
           "renew_anon_volumes": {
             "type": "boolean",
             "default": false
+          },
+          "additional_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "generated_commands": {
             "type": "object",
@@ -25585,68 +25688,6 @@
             "$ref": "#/components/schemas/project-log-response"
           }
         }
-      },
-      "project-lifecycle-configuration-request": {
-        "type": "object",
-        "required": [
-          "strategy_kind",
-          "profiles",
-          "down_before_redeploy",
-          "pull_before_redeploy",
-          "build_before_up",
-          "force_recreate",
-          "remove_orphans",
-          "wait_after_up",
-          "wait_timeout_seconds",
-          "renew_anon_volumes",
-          "prune_images_after_redeploy"
-        ],
-        "properties": {
-          "strategy_kind": {
-            "$ref": "#/components/schemas/project-lifecycle-strategy-kind"
-          },
-          "profiles": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            },
-            "uniqueItems": true
-          },
-          "down_before_redeploy": {
-            "type": "boolean"
-          },
-          "pull_before_redeploy": {
-            "type": "boolean"
-          },
-          "build_before_up": {
-            "type": "boolean"
-          },
-          "force_recreate": {
-            "type": "boolean"
-          },
-          "remove_orphans": {
-            "type": "boolean",
-            "default": true
-          },
-          "wait_after_up": {
-            "type": "boolean"
-          },
-          "wait_timeout_seconds": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 3600,
-            "default": 120
-          },
-          "prune_images_after_redeploy": {
-            "type": "boolean"
-          },
-          "renew_anon_volumes": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        "additionalProperties": false
       },
       "project-lifecycle-configuration-response": {
         "type": "object",
@@ -27504,6 +27545,28 @@
           "maxTail": {
             "summary": "Maximum accepted tail window",
             "value": 2000
+          }
+        }
+      },
+      "project-logs-tail": {
+        "name": "tail",
+        "in": "query",
+        "required": false,
+        "description": "Number of aggregated project log lines to return from the end of the project stream.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 200
+        },
+        "examples": {
+          "defaultTail": {
+            "summary": "Default project tail window",
+            "value": 200
+          },
+          "maxTail": {
+            "summary": "Maximum accepted project tail window",
+            "value": 1000
           }
         }
       },

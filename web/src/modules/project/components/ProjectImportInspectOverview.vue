@@ -72,6 +72,7 @@
       >
         <div class="project-import-overview__diagnostics">
           <t-alert v-if="!canImport" theme="error" :message="t('project.import.preview.blockedDescription')" />
+          <t-alert v-if="hasUnspecifiedConflict" theme="error" :message="t('project.import.preview.unknownConflict')" />
           <t-alert
             v-for="(conflict, index) in result.conflicts"
             :key="`overview-conflict-${index}-${conflict}`"
@@ -85,7 +86,7 @@
             :message="warning"
           />
           <t-empty
-            v-if="!(result.warnings.length || result.conflicts.length)"
+            v-if="!(hasUnspecifiedConflict || result.warnings.length || result.conflicts.length)"
             :description="t('project.import.preview.noDiagnostics')"
             type="empty"
           />
@@ -120,6 +121,9 @@ const { t } = useI18n();
 
 const networkCount = computed(() => normalizeImportInspectNetworkRows(props.result).length);
 const volumeCount = computed(() => normalizeImportInspectVolumeRows(props.result).length);
+const hasUnspecifiedConflict = computed(
+  () => props.result.validation_status === 'conflict' && props.result.conflicts.length === 0,
+);
 
 function formatValidationStatus(status: string) {
   return formatImportPreviewValidationStatus(t, status);

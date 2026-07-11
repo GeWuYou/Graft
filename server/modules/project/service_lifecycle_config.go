@@ -21,19 +21,17 @@ func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 		WaitTimeoutSeconds:       defaultLifecycleWaitTimeoutSeconds,
 		RenewAnonVolumes:         false,
 		PruneImagesAfterRedeploy: false,
+		AdditionalArgs:           []string{},
 	}
 }
 
-func lifecycleSeedForImportedProject() projectstore.LifecycleConfig {
-	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
-}
-
+// lifecycleSeedForManagedProject returns the default lifecycle configuration in store format.
 func lifecycleSeedForManagedProject() projectstore.LifecycleConfig {
 	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
 }
 
 // lifecycleConfigurationFromAggregate 将项目聚合体转换为生命周期配置，补充默认的策略类型和审核状态，并收集 Compose 文件。
-// 返回包含项目基本信息及标准生命周期配置的 LifecycleConfiguration。
+// lifecycleConfigurationFromAggregate 从项目聚合体构建包含项目基本信息及标准生命周期配置的 LifecycleConfiguration。
 func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate) LifecycleConfiguration {
 	return LifecycleConfiguration{
 		StrategyKind: LifecycleStrategyKind(nonEmptyString(
@@ -58,11 +56,12 @@ func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate
 			WaitTimeoutSeconds:       aggregate.Project.LifecycleConfig.WaitTimeoutSeconds,
 			RenewAnonVolumes:         aggregate.Project.LifecycleConfig.RenewAnonVolumes,
 			PruneImagesAfterRedeploy: aggregate.Project.LifecycleConfig.PruneImagesAfterRedeploy,
+			AdditionalArgs:           append([]string(nil), aggregate.Project.LifecycleConfig.AdditionalArgs...),
 		},
 	}
 }
 
-// toStoreLifecycleConfig converts a standard lifecycle configuration into its store representation.
+// toStoreLifecycleConfig 将标准生命周期配置转换为存储层表示。
 func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.LifecycleConfig {
 	return projectstore.LifecycleConfig{
 		Profiles:                 append([]string(nil), config.Profiles...),
@@ -75,11 +74,13 @@ func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.Lifecyc
 		WaitTimeoutSeconds:       config.WaitTimeoutSeconds,
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
+		AdditionalArgs:           append([]string(nil), config.AdditionalArgs...),
 	}
 }
 
 // normalizeLifecycleStandardConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
-// It returns an invalid-argument error when a profile is empty after trimming or the wait timeout is outside the permitted range.
+// normalizeLifecycleStandardConfig 规范化并校验标准生命周期配置，包括配置档案、附加参数和等待超时时间。
+// 返回规范化后的配置；当配置包含无效配置档案、附加参数或超出允许范围的等待超时时间时，返回错误。
 func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (LifecycleStandardConfig, error) {
 	normalizedProfiles := make([]string, 0, len(config.Profiles))
 	seen := make(map[string]struct{}, len(config.Profiles))
@@ -94,6 +95,10 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 		seen[profile] = struct{}{}
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
+	normalizedAdditionalArgs, err := normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
 	return LifecycleStandardConfig{
 		Profiles:                 normalizedProfiles,
 		DownBeforeRedeploy:       config.DownBeforeRedeploy,
@@ -105,6 +110,7 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 		WaitTimeoutSeconds:       normalizeLifecycleWaitTimeout(config.WaitTimeoutSeconds),
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
+		AdditionalArgs:           normalizedAdditionalArgs,
 	}, validateLifecycleWaitTimeout(config.WaitTimeoutSeconds)
 }
 
@@ -117,13 +123,46 @@ func normalizeLifecycleWaitTimeout(value int) int {
 }
 
 // validateLifecycleWaitTimeout 验证生命周期等待超时是否在允许的范围内。
-// 值为 0 时使用默认超时时间进行验证。
+// validateLifecycleWaitTimeout 验证生命周期等待超时时间是否在允许范围内；值为 0 时使用默认超时时间。
 func validateLifecycleWaitTimeout(value int) error {
 	timeout := normalizeLifecycleWaitTimeout(value)
 	if timeout < minLifecycleWaitTimeoutSeconds || timeout > maxLifecycleWaitTimeoutSeconds {
 		return errProjectInvalidArgument
 	}
 	return nil
+}
+
+// 它会裁剪参数首尾空白，并拒绝数量、长度、字符内容或权限覆盖相关约束不符合要求的参数。
+func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
+	normalized, valid := projectcontract.NormalizeLifecycleAdditionalArgs(values)
+	if !valid {
+		return nil, errProjectInvalidArgument
+	}
+	for _, argument := range normalized {
+		if isLifecycleAuthorityOverrideArg(argument) {
+			return nil, errProjectInvalidArgument
+		}
+	}
+	return normalized, nil
+}
+
+// isLifecycleAuthorityOverrideArg 判断参数是否为禁止覆盖项目权威配置的选项。
+func isLifecycleAuthorityOverrideArg(argument string) bool {
+	forbidden := []string{
+		"-f",
+		"--file",
+		"-p",
+		"--project-name",
+		"--project-directory",
+		"--env-file",
+		"--profile",
+	}
+	for _, prefix := range forbidden {
+		if argument == prefix || strings.HasPrefix(argument, prefix+"=") {
+			return true
+		}
+	}
+	return argument == "--"
 }
 
 // UpdateLifecycleConfiguration saves one project's standard compose lifecycle configuration and confirms it.

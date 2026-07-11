@@ -253,12 +253,20 @@ func (s *Service) streamProjectLogs(ctx context.Context, topic string, projectID
 	if err != nil {
 		return err
 	}
-	return s.logReader.StreamProjectLogs(
+	s.logProjectLogDiagnostic("follow-started",
+		zap.Uint64("project_id", projectID),
+		zap.String("topic", topic),
+		zap.Int("requested_tail", normalized.Tail),
+		zap.Bool("follow_only", true),
+	)
+	emittedCount := 0
+	err = s.logReader.StreamProjectLogs(
 		ctx,
 		aggregate.Project.HostScope,
 		aggregate.Project.CanonicalProjectName,
-		toContainerProjectLogQuery(normalized),
+		toContainerProjectLogFollowQuery(normalized),
 		func(entry moduleapi.ContainerProjectLogEntry) error {
+			emittedCount++
 			payload := projectLogsRealtimePayload{
 				Topic: topic,
 				Entry: generated.ProjectLogEntry{
@@ -279,4 +287,11 @@ func (s *Service) streamProjectLogs(ctx context.Context, topic string, projectID
 			return nil
 		},
 	)
+	s.logProjectLogDiagnostic("follow-stopped",
+		zap.Uint64("project_id", projectID),
+		zap.String("topic", topic),
+		zap.Int("emitted_count", emittedCount),
+		zap.Error(err),
+	)
+	return err
 }

@@ -8082,7 +8082,7 @@ type ProjectDetailResponse struct {
 	LastObservedConfigHash     *string                       `json:"last_observed_config_hash,omitempty"`
 	LifecycleConfiguration     ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
 
-	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
@@ -8333,9 +8333,10 @@ type ProjectImportInspectResponseValidationStatus string
 
 // ProjectImportRequest defines model for project-import-request.
 type ProjectImportRequest struct {
-	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
-	DisplayName                  *string `json:"display_name,omitempty"`
-	InspectionId                 string  `json:"inspection_id"`
+	CanonicalProjectNameOverride *string                              `json:"canonical_project_name_override,omitempty"`
+	DisplayName                  *string                              `json:"display_name,omitempty"`
+	InspectionId                 string                               `json:"inspection_id"`
+	LifecycleConfiguration       ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
 }
 
 // ProjectImportResponse defines model for project-import-response.
@@ -8408,6 +8409,7 @@ type ProjectImportRuntimeInspectResponse struct {
 	DisplayNameSuggested       string                                              `json:"display_name_suggested"`
 	EnvFiles                   []ProjectImportInspectFileItem                      `json:"env_files"`
 	InspectionId               string                                              `json:"inspection_id"`
+	LifecycleConfiguration     ProjectLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
 	Networks                   []ProjectImportRuntimeNetworkResource               `json:"networks"`
 	ResolvedWorkingDirectory   string                                              `json:"resolved_working_directory"`
 	RuntimeMembers             []ProjectImportRuntimeMember                        `json:"runtime_members"`
@@ -8495,9 +8497,10 @@ type ProjectLifecycleCommandStepKind string
 
 // ProjectLifecycleConfiguration defines model for project-lifecycle-configuration.
 type ProjectLifecycleConfiguration struct {
-	BuildBeforeUp      bool `json:"build_before_up"`
-	DownBeforeRedeploy bool `json:"down_before_redeploy"`
-	ForceRecreate      bool `json:"force_recreate"`
+	AdditionalArgs     []string `json:"additional_args"`
+	BuildBeforeUp      bool     `json:"build_before_up"`
+	DownBeforeRedeploy bool     `json:"down_before_redeploy"`
+	ForceRecreate      bool     `json:"force_recreate"`
 	GeneratedCommands  struct {
 		Redeploy ProjectLifecycleGeneratedCommand `json:"redeploy"`
 		Restart  ProjectLifecycleGeneratedCommand `json:"restart"`
@@ -8518,14 +8521,16 @@ type ProjectLifecycleConfiguration struct {
 
 // ProjectLifecycleConfigurationRequest defines model for project-lifecycle-configuration-request.
 type ProjectLifecycleConfigurationRequest struct {
-	BuildBeforeUp            bool     `json:"build_before_up"`
-	DownBeforeRedeploy       bool     `json:"down_before_redeploy"`
-	ForceRecreate            bool     `json:"force_recreate"`
-	Profiles                 []string `json:"profiles"`
-	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
-	RemoveOrphans            bool     `json:"remove_orphans"`
-	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
+	// AdditionalArgs Bounded extra argv tokens appended to docker compose up; shell expressions and project identity flags are rejected by the server.
+	AdditionalArgs           *[]string `json:"additional_args,omitempty"`
+	BuildBeforeUp            bool      `json:"build_before_up"`
+	DownBeforeRedeploy       bool      `json:"down_before_redeploy"`
+	ForceRecreate            bool      `json:"force_recreate"`
+	Profiles                 []string  `json:"profiles"`
+	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
+	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
+	RemoveOrphans            bool      `json:"remove_orphans"`
+	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
 
 	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
 	StrategyKind       ProjectLifecycleStrategyKind `json:"strategy_kind"`
@@ -8542,7 +8547,7 @@ type ProjectLifecycleConfigurationResponse struct {
 	ComposeFiles           []ProjectFileItem             `json:"compose_files"`
 	LifecycleConfiguration ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
 
-	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	ProjectId             int64                        `json:"project_id"`
 
@@ -8562,7 +8567,7 @@ type ProjectLifecycleGeneratedCommand struct {
 // ProjectLifecycleGeneratedCommandAction defines model for ProjectLifecycleGeneratedCommand.Action.
 type ProjectLifecycleGeneratedCommandAction string
 
-// ProjectLifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+// ProjectLifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 type ProjectLifecycleReviewStatus string
 
 // ProjectLifecycleStrategyKind Canonical lifecycle execution strategy kind owned by the project module.
@@ -8579,7 +8584,7 @@ type ProjectListItem struct {
 	HostScope                  ProjectHostScope           `json:"host_scope"`
 	Id                         int64                      `json:"id"`
 
-	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
@@ -9772,6 +9777,9 @@ type ProjectListOffset = int
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
 
+// ProjectLogsTail defines model for project-logs-tail.
+type ProjectLogsTail = int
+
 // ProjectWorkspacePathQuery defines model for project-workspace-path-query.
 type ProjectWorkspacePathQuery = string
 
@@ -10949,8 +10957,8 @@ type PutProjectLifecycleConfigurationParams struct {
 
 // GetProjectLogsParams defines parameters for GetProjectLogs.
 type GetProjectLogsParams struct {
-	// Tail Number of log lines to return from the end of the stream.
-	Tail *ContainerLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
+	// Tail Number of aggregated project log lines to return from the end of the project stream.
+	Tail *ProjectLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
 
 	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
 	Since *ContainerLogsSince `form:"since,omitempty" json:"since,omitempty"`
@@ -11376,12 +11384,15 @@ type PostSystemConfigResetParams struct {
 
 // ListTasksParams defines parameters for ListTasks.
 type ListTasksParams struct {
-	OwnerType *string     `form:"owner_type,omitempty" json:"owner_type,omitempty"`
-	OwnerId   *string     `form:"owner_id,omitempty" json:"owner_id,omitempty"`
-	Type      *string     `form:"type,omitempty" json:"type,omitempty"`
-	Status    *TaskStatus `form:"status,omitempty" json:"status,omitempty"`
-	Limit     *int        `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset    *int        `form:"offset,omitempty" json:"offset,omitempty"`
+	// OwnerType Owner resource type. Must be supplied with owner_id to identify the single authorized Task owner.
+	OwnerType string `form:"owner_type" json:"owner_type"`
+
+	// OwnerId Owner resource identifier. Must be supplied with owner_type to identify the single authorized Task owner.
+	OwnerId string      `form:"owner_id" json:"owner_id"`
+	Type    *string     `form:"type,omitempty" json:"type,omitempty"`
+	Status  *TaskStatus `form:"status,omitempty" json:"status,omitempty"`
+	Limit   *int        `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset  *int        `form:"offset,omitempty" json:"offset,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`

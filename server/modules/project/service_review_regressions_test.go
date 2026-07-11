@@ -93,6 +93,16 @@ func TestUpdateLifecycleConfigurationReturnsRepositoryAggregate(t *testing.T) {
 	}
 }
 
+func TestNormalizeLifecycleAdditionalArgsRejectsProjectAuthorityOverrides(t *testing.T) {
+	t.Parallel()
+
+	for _, args := range [][]string{{"-f", "other.yaml"}, {"--project-name=other"}, {"--"}} {
+		if _, err := normalizeLifecycleStandardConfig(LifecycleStandardConfig{AdditionalArgs: args}); !errors.Is(err, errProjectInvalidArgument) {
+			t.Fatalf("expected args %#v to be rejected, got %v", args, err)
+		}
+	}
+}
+
 func TestListProjectConflictScanItemsPaginatesBeyondFirstPage(t *testing.T) {
 	t.Parallel()
 

@@ -8,7 +8,9 @@ import type {
   ProjectImportRuntimeCandidate,
   ProjectImportRuntimeInspectRequest,
 } from '../types/import';
+import type { ProjectLifecycleConfigurationDraft } from '../types/project';
 import { buildSuggestedDisplayName, hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
+import { buildImportLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from './lifecycle';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -29,6 +31,8 @@ export function useProjectImportFlow(t: Translate) {
   const inspectResult = ref<ProjectImportInspectResponse | null>(null);
   const displayName = ref('');
   const canonicalProjectNameOverride = ref('');
+  const lifecycleDraft = ref<ProjectLifecycleConfigurationDraft | null>(null);
+  const lifecycleConfigError = ref('');
 
   const canImport = computed(
     () =>
@@ -40,6 +44,9 @@ export function useProjectImportFlow(t: Translate) {
 
   const hasPreview = computed(() => Boolean(inspectResult.value));
 
+  /**
+   * 将项目导入流程恢复到初始状态。
+   */
   function reset() {
     latestInspectRequestId += 1;
     selectedCandidateKey.value = '';
@@ -50,16 +57,29 @@ export function useProjectImportFlow(t: Translate) {
     inspectResult.value = null;
     displayName.value = '';
     canonicalProjectNameOverride.value = '';
+    lifecycleDraft.value = null;
+    lifecycleConfigError.value = '';
   }
 
+  /**
+   * 清除当前项目导入预览及其相关状态。
+   */
   function clearPreview() {
     inspectError.value = '';
     importError.value = '';
     inspectResult.value = null;
     displayName.value = '';
     canonicalProjectNameOverride.value = '';
+    lifecycleDraft.value = null;
+    lifecycleConfigError.value = '';
   }
 
+  /**
+   * 检查指定的运行时候选项并更新项目导入预览。
+   *
+   * @param candidateKey - 要检查的运行时候选项标识
+   * @returns 检查结果状态：`'applied'` 表示结果已应用，`'stale'` 表示结果已过期
+   */
   async function inspectCandidateByKey(candidateKey: string) {
     const requestId = ++latestInspectRequestId;
     selectedCandidateKey.value = candidateKey;
@@ -92,17 +112,58 @@ export function useProjectImportFlow(t: Translate) {
     return inspectCandidateByKey(candidate.candidate_key);
   }
 
+  /**
+   * 刷新当前选中候选运行时的检查结果。
+   *
+   * @returns 当前未选择候选运行时时为 `'idle'`，否则为检查请求的执行状态
+   */
   async function refreshInspect() {
     if (!selectedCandidateKey.value) {
       return 'idle' as const;
     }
 
-    return inspectCandidateByKey(selectedCandidateKey.value);
+    const result = await inspectCandidateByKey(selectedCandidateKey.value);
+    if (result === 'applied' && canImport.value) {
+      prepareLifecycleConfiguration();
+    }
+    return result;
   }
 
+  /**
+   * 根据当前检查结果准备生命周期配置草稿。
+   *
+   * @returns 成功生成配置草稿时为 `true`，否则为 `false`
+   */
+  function prepareLifecycleConfiguration() {
+    if (lifecycleDraft.value) {
+      return true;
+    }
+    if (!inspectResult.value) {
+      return false;
+    }
+    try {
+      lifecycleDraft.value = buildImportLifecycleConfigurationDraft(inspectResult.value);
+      lifecycleConfigError.value = '';
+      return true;
+    } catch {
+      lifecycleDraft.value = null;
+      lifecycleConfigError.value = t('project.import.messages.lifecycleConfigUnavailable');
+      return false;
+    }
+  }
+
+  /**
+   * 提交项目导入请求。
+   *
+   * @returns 导入执行请求的结果
+   * @throws 当缺少检查标识或生命周期配置时抛出错误；请求执行失败时重新抛出原始错误
+   */
   async function submitImport() {
     if (!inspectResult.value?.inspection_id) {
       throw new Error('missing inspection authority');
+    }
+    if (!lifecycleDraft.value) {
+      throw new Error('missing lifecycle configuration');
     }
 
     importLoading.value = true;
@@ -112,6 +173,7 @@ export function useProjectImportFlow(t: Translate) {
         inspection_id: inspectResult.value.inspection_id,
         display_name: displayName.value.trim() || undefined,
         canonical_project_name_override: canonicalProjectNameOverride.value.trim() || null,
+        lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
       });
     } catch (error) {
       importError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.importFailed'));
@@ -129,10 +191,13 @@ export function useProjectImportFlow(t: Translate) {
     hasPreview,
     importError,
     importLoading,
+    lifecycleConfigError,
+    lifecycleDraft,
     inspectCandidate,
     inspectError,
     inspectLoading,
     inspectResult,
+    prepareLifecycleConfiguration,
     refreshInspect,
     reset,
     selectedCandidateKey,

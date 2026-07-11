@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
 import { copyText } from '@/shared/observability';
@@ -57,6 +57,7 @@ const projectApiMocks = vi.hoisted(() => ({
 const routeState = vi.hoisted(() => ({
   value: {
     fullPath: '/ops/projects/7',
+    name: 'ProjectDetailIndex',
     params: { id: '7' },
     path: '/ops/projects/7',
     query: {} as Record<string, unknown>,
@@ -87,7 +88,9 @@ const routerMocks = vi.hoisted(() => ({
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
   appendTabRouterList: vi.fn(),
+  activeTabKey: '/ops/projects/7',
   setActiveTabKey: vi.fn(),
+  updateActiveTabTitle: vi.fn(),
   tabRouterList: [
     {
       fullPath: '/ops/projects/7',
@@ -311,6 +314,16 @@ const TInputNumberStub = defineComponent({
         value: props.modelValue,
         onInput: (event: Event) => emit('update:modelValue', Number((event.target as HTMLInputElement).value)),
       });
+  },
+});
+
+const TaskHistoryTableStub = defineComponent({
+  name: 'TaskHistoryTable',
+  props: {
+    ownerId: { type: String, default: '' },
+  },
+  setup(props) {
+    return () => h('div', { 'data-owner-id': props.ownerId, 'data-stub': 'TaskHistoryTable' });
   },
 });
 
@@ -671,6 +684,7 @@ function mountPage() {
       stubs: {
         ManagementPageHeader: slotStub('ManagementPageHeader'),
         ManagementPagedTable: ManagementPagedTableStub,
+        TaskHistoryTable: TaskHistoryTableStub,
         ProjectFileEditor: slotStub('ProjectFileEditor'),
         LifecycleHelpTrigger: LifecycleHelpTriggerStub,
         TableActionMenu: TableActionMenuStub,
@@ -769,6 +783,47 @@ vi.mock('@/shared/observability', () => ({
     },
   }),
   copyText: vi.fn(),
+  LogBatchBuffer: class {
+    #flushTimer: ReturnType<typeof setTimeout> | null = null;
+    #items: unknown[] = [];
+    #onFlush: (items: unknown[]) => void;
+    #flushIntervalMs: number;
+
+    constructor(options: { flushIntervalMs?: number; onFlush: (items: unknown[]) => void }) {
+      this.#flushIntervalMs = options.flushIntervalMs ?? 100;
+      this.#onFlush = options.onFlush;
+    }
+
+    append(item: unknown) {
+      this.#items.push(item);
+      if (this.#flushTimer === null) {
+        this.#flushTimer = setTimeout(() => this.flush(), this.#flushIntervalMs);
+      }
+    }
+
+    flush() {
+      if (this.#flushTimer !== null) {
+        clearTimeout(this.#flushTimer);
+        this.#flushTimer = null;
+      }
+      if (!this.#items.length) return;
+      const items = this.#items;
+      this.#items = [];
+      this.#onFlush(items);
+    }
+
+    clear() {
+      if (this.#flushTimer !== null) {
+        clearTimeout(this.#flushTimer);
+        this.#flushTimer = null;
+      }
+      this.#items = [];
+    }
+
+    destroy() {
+      this.clear();
+    }
+  },
   formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
   formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
   normalizeStructuredLogEntry: (value: { line?: string; occurred_at?: string; stream?: string }) =>
@@ -792,6 +847,7 @@ vi.mock('@/shared/realtime', () => ({
   openRealtimeTopicSocket: vi.fn((options: Record<string, any>) => {
     const controller = { close: vi.fn() };
     realtimeMocks.sockets.push({ controller, options });
+    queueMicrotask(() => options.onStateChange?.('open'));
     return controller;
   }),
 }));
@@ -837,10 +893,20 @@ vi.mock('tdesign-vue-next/es/notification', () => ({
 }));
 
 describe('Project detail service tab', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     realtimeMocks.sockets.length = 0;
     routeState.value.query = {};
+    routeState.value.name = 'ProjectDetailIndex';
+    routeState.value.path = '/ops/projects/7';
+    routeState.value.fullPath = '/ops/projects/7';
+    routeState.value.params = { id: '7' };
+    tabsRouterStoreMock.activeTabKey = '/ops/projects/7';
     tabsRouterStoreMock.tabRouterList = [
       {
         fullPath: '/ops/projects/7',
@@ -879,6 +945,15 @@ describe('Project detail service tab', () => {
 
     expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
     expect(routerMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('does not mount task history for an invalid route ID', async () => {
+    routeState.value.params = { id: 'not-a-project-id' };
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-stub="TaskHistoryTable"]').exists()).toBe(false);
   });
 
   it('does not redirect retired configuration tab queries to the configuration workspace route', async () => {
@@ -948,6 +1023,7 @@ describe('Project detail service tab', () => {
   });
 
   it('appends realtime project logs after the snapshot tail', async () => {
+    vi.useFakeTimers();
     routeState.value.query = { tab: 'logs' };
     projectApiMocks.getProjectLogs.mockResolvedValue(
       buildProjectLogs([{ line: 'snapshot-entry', occurred_at: '2026-07-09T03:00:00Z' }]),
@@ -974,6 +1050,8 @@ describe('Project detail service tab', () => {
         stream: 'stderr',
       },
     });
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(100);
     await flushPromises();
 
     expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
@@ -1189,6 +1267,7 @@ describe('Project detail service tab', () => {
         ...buildProjectDetail().lifecycle_configuration,
         strategy_kind: 'standard',
         wait_after_up: true,
+        additional_args: [],
       },
       lifecycle_review_status: 'confirmed',
       project_id: 7,

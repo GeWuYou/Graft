@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeProjectImportInspectResponse } from './import';
+import { hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
+
+const lifecycleConfiguration = {
+  strategy_kind: 'standard' as const,
+  profiles: [],
+  down_before_redeploy: true,
+  pull_before_redeploy: false,
+  build_before_up: false,
+  force_recreate: false,
+  remove_orphans: true,
+  wait_after_up: false,
+  wait_timeout_seconds: 120,
+  renew_anon_volumes: false,
+  prune_images_after_redeploy: false,
+};
 
 describe('project import normalization helpers', () => {
   it('preserves structured runtime network and volume resources during inspect normalization', () => {
@@ -42,6 +56,7 @@ describe('project import normalization helpers', () => {
       conflicts: [],
       validation_status: 'ready',
       config_hash: 'hash-structured',
+      lifecycle_configuration: lifecycleConfiguration,
     });
 
     expect(result?.networks).toEqual([
@@ -110,6 +125,7 @@ describe('project import normalization helpers', () => {
       conflicts: [],
       validation_status: 'ready',
       config_hash: 'hash-files',
+      lifecycle_configuration: lifecycleConfiguration,
     });
 
     expect(result?.compose_files).toEqual([
@@ -131,5 +147,29 @@ describe('project import normalization helpers', () => {
         last_observed_hash: 'hash-env',
       },
     ]);
+  });
+
+  it('treats an explicit conflict status as blocking even without conflict details', () => {
+    expect(
+      hasBlockingImportConflicts({
+        inspection_id: 'inspect-conflict',
+        candidate_key: 'runtime:conflict',
+        resolved_working_directory: '/srv/conflict',
+        canonical_project_name: 'conflict',
+        canonical_project_name_source: 'computed',
+        display_name_suggested: 'Conflict',
+        compose_files: [],
+        env_files: [],
+        services: [],
+        networks: [],
+        volumes: [],
+        runtime_members: [],
+        warnings: [],
+        conflicts: [],
+        validation_status: 'conflict',
+        config_hash: 'hash-conflict',
+        lifecycle_configuration: lifecycleConfiguration,
+      }),
+    ).toBe(true);
   });
 });

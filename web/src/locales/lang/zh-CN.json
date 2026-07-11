@@ -3,7 +3,9 @@
   "common": {
     "appName": "Graft",
     "copyright": "Copyright (C) 2021-2026 Graft. All Rights Reserved",
-    "conjunction": "和"
+    "conjunction": "和",
+    "internal_error": "服务内部错误",
+    "not_found": "请求的资源不存在"
   },
   "components": {
     "commonTable": {

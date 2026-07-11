@@ -3,7 +3,9 @@
   "common": {
     "appName": "Graft",
     "copyright": "Copyright (C) 2021-2026 Graft. All Rights Reserved",
-    "conjunction": "and"
+    "conjunction": "and",
+    "internal_error": "Internal server error",
+    "not_found": "Requested resource not found"
   },
   "components": {
     "commonTable": {

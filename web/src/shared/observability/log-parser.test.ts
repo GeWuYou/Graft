@@ -33,6 +33,13 @@ describe('log-parser', () => {
     expect(line.parsed.format).toBe('structured');
   });
 
+  it('uses an explicit structured entry level over output-channel content', () => {
+    const line = parseLogLine({ line: 'Container created', level: 'info', occurredAt: '', stream: 'stderr' }, 1);
+
+    expect(line.level).toBe('INFO');
+    expect(line.tone).toBe('info');
+  });
+
   it('parses WARN logs and maps warning tone without strong row coloring', () => {
     const line = parseLogLine(
       createEntry(
@@ -77,6 +84,13 @@ describe('log-parser', () => {
     expect(line.message).toBe('http request completed');
     expect(line.fields.path).toBe('/api/v1/auth/me');
     expect(line.display.subtitleParts).toEqual(['2026-06-17T08:30:27.324+0800', 'middleware/logger.go:61']);
+  });
+
+  it('prefers the explicit message field over event metadata in JSON logs', () => {
+    const line = parseContainerLogLine('{"event":"request.completed","message":"Request completed"}');
+
+    expect(line.format).toBe('json');
+    expect(line.message).toBe('Request completed');
   });
 
   it('prioritizes HTTP structured metadata in important fields', () => {

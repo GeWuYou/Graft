@@ -316,7 +316,12 @@ func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteR
 	if !ok {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
-	response, importErr := s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
+	response, importErr := s.importInspectionSession(ctx, repository, session, importInspectionCommitInput{
+		DisplayName:       request.DisplayName,
+		CanonicalOverride: request.CanonicalProjectNameOverride,
+		LifecycleConfig:   request.LifecycleConfiguration,
+		ActorID:           request.ActorID,
+	})
 	if importErr != nil {
 		if errors.Is(importErr, errProjectConflict) && errors.Is(importErr, errProjectFileHashMismatch) {
 			return generated.ProjectImportResponse{}, errProjectInspectionStale

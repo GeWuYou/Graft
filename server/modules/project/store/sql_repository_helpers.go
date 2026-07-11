@@ -261,7 +261,8 @@ func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 }
 
 // normalizeLifecycleConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
-// It returns ErrInvalidInput if a profile is empty or the wait timeout is outside the permitted range.
+// normalizeLifecycleConfig trims and deduplicates profiles, normalizes additional arguments, and applies lifecycle timeout defaults and bounds.
+// It returns ErrInvalidInput if a profile or additional argument is invalid, or if the wait timeout is outside the permitted range.
 func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 	normalizedProfiles := make([]string, 0, len(config.Profiles))
 	seen := make(map[string]struct{}, len(config.Profiles))
@@ -277,6 +278,11 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
 	config.Profiles = normalizedProfiles
+	additionalArgs, err := normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config.AdditionalArgs = additionalArgs
 	if config.WaitTimeoutSeconds == 0 {
 		config.WaitTimeoutSeconds = defaultLifecycleWaitTimeoutSeconds
 	}
@@ -284,6 +290,17 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		return LifecycleConfig{}, ErrInvalidInput
 	}
 	return config, nil
+}
+
+// normalizeLifecycleAdditionalArgs trims and validates lifecycle configuration arguments.
+// It returns the normalized arguments, or ErrInvalidInput if the count or any argument
+// exceeds the allowed constraints or contains invalid content.
+func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
+	normalized, valid := projectcontract.NormalizeLifecycleAdditionalArgs(values)
+	if !valid {
+		return nil, ErrInvalidInput
+	}
+	return normalized, nil
 }
 
 // normalizeTemporalPointers 将提供的时间指针统一转换为 UTC。
@@ -650,6 +667,7 @@ type lifecycleConfigPayload struct {
 	WaitTimeoutSeconds       *int      `json:"wait_timeout_seconds"`
 	RenewAnonVolumes         *bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
+	AdditionalArgs           *[]string `json:"additional_args"`
 }
 
 // 如果 JSON 数据格式无效，则返回 ErrInvalidInput。
@@ -677,6 +695,7 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 		WaitTimeoutSeconds:       *payload.WaitTimeoutSeconds,
 		RenewAnonVolumes:         *payload.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
+		AdditionalArgs:           append([]string(nil), (*payload.AdditionalArgs)...),
 	}, nil
 }
 
@@ -692,8 +711,10 @@ func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
 	payload.WaitTimeoutSeconds = lifecycleIntOrDefault(payload.WaitTimeoutSeconds, defaultLifecycleWaitTimeoutSeconds)
 	payload.RenewAnonVolumes = lifecycleBoolOrDefault(payload.RenewAnonVolumes, false)
 	payload.PruneImagesAfterRedeploy = lifecycleBoolOrDefault(payload.PruneImagesAfterRedeploy, false)
+	payload.AdditionalArgs = lifecycleSliceOrDefault(payload.AdditionalArgs, []string{})
 }
 
+// lifecycleSliceOrDefault 返回 value 指向的切片；当 value 为 nil 时返回 fallback 的地址。
 func lifecycleSliceOrDefault(value *[]string, fallback []string) *[]string {
 	if value != nil {
 		return value
@@ -727,6 +748,7 @@ func (payload lifecycleConfigPayload) validateRequiredFields() error {
 		payload.WaitTimeoutSeconds != nil,
 		payload.RenewAnonVolumes != nil,
 		payload.PruneImagesAfterRedeploy != nil,
+		payload.AdditionalArgs != nil,
 	}
 	for _, present := range required {
 		if !present {

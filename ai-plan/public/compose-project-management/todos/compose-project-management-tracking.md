@@ -75,7 +75,7 @@ Compose Project Management
   - `Canonical Project Name` 与 `Display Name` 必须分离。
   - `Unregister` 是安全默认；`Destroy` 是显式高危动作。
   - 本地项目统一保存结构化 `Lifecycle Configuration`，而不是原始部署脚本或裸命令串。
-  - `managed` 项目默认 `lifecycle_review_status=confirmed`；`imported` 项目默认 `review_required`，在确认前禁止执行 compose lifecycle actions。
+  - `managed` 项目默认 `lifecycle_review_status=confirmed`；运行时 `imported` 项目必须在导入向导内确认 lifecycle configuration，并与注册一起保存为 `confirmed`。
   - `update-deploy` 已从一等动作移除；`redeploy` 是 canonical deploy-style lifecycle action，pull/down/prune 语义收口到 lifecycle configuration。
 
 ## Task Checklist

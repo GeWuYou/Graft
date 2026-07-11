@@ -12,7 +12,7 @@
       <div v-if="task" class="task-detail" data-testid="task-detail-drawer">
         <div class="task-detail__summary">
           <div>
-            <h3>{{ task.type }}</h3>
+            <h3>{{ taskTypeLabel(task.type) }}</h3>
             <p>{{ t('task.detail.identifier', { id: task.id }) }}</p>
           </div>
           <t-tag :theme="taskStatusTheme(task.status)" variant="light-outline">{{
@@ -115,6 +115,7 @@ import {
 } from '../types/task';
 
 const props = defineProps<{
+  resolveTaskType?: (taskType: string) => string | undefined;
   taskId: number | null;
   visible: boolean;
 }>();
@@ -300,6 +301,10 @@ function downloadLogs() {
 
 function taskStatusLabel(status: TaskDetail['status']) {
   return t(`task.status.${status}`);
+}
+
+function taskTypeLabel(taskType: string) {
+  return props.resolveTaskType?.(taskType) ?? taskType;
 }
 
 function stageStepStatus(status: TaskStageStatus): StepItemProps['status'] {

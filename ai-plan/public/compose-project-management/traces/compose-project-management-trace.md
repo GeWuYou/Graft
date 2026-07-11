@@ -1,5 +1,11 @@
 # Compose Project Management Trace
 
+## 2026-07-11 Import Lifecycle Confirmation
+
+- 将运行时 Compose 导入从“注册后进入详情页审核”收口为导入向导内的强制生命周期审核步骤。
+- OpenAPI 检查响应提供 project-authority 默认配置；最终导入请求携带该配置，并在同一注册写入中持久化为 `confirmed`。
+- 导入流程保持不执行 lifecycle action；仅保存后续 `up`、`stop`、`restart` 和 `redeploy` 的结构化策略。
+
 ## 2026-06-28 Phase 0 authority and recovery persistence
 
 - 建立 Compose Project 设计 authority：`ai-plan/design/domains/compose/Compose项目管理设计.md`。

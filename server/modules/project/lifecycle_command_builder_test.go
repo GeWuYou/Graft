@@ -23,6 +23,7 @@ func TestLifecycleUpArgsIncludesStructuredLifecycleFlags(t *testing.T) {
 				WaitAfterUp:        true,
 				WaitTimeoutSeconds: 180,
 				RenewAnonVolumes:   true,
+				AdditionalArgs:     []string{"--progress", "plain"},
 			},
 		},
 		Files: []projectstore.ProjectFile{
@@ -52,6 +53,7 @@ func TestLifecycleUpArgsIncludesStructuredLifecycleFlags(t *testing.T) {
 		"--renew-anon-volumes",
 		"--wait",
 		"--wait-timeout", "180",
+		"--progress", "plain",
 	}
 	if len(args) != len(expected) {
 		t.Fatalf("expected %d args, got %d: %#v", len(expected), len(args), args)

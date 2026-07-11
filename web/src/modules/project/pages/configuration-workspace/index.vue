@@ -739,6 +739,7 @@ import {
 } from '../../api/project';
 import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.vue';
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
+import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   hasWorkspaceUnsavedChanges,
   normalizeTextBlock,
@@ -1051,14 +1052,11 @@ function buildConfigurationWorkspaceTitle(name: string) {
 }
 
 function updateCurrentTabTitle(name: string) {
-  const title = buildConfigurationWorkspaceTitle(name);
-  const routePath = route.path;
-  const routeFullPath = route.fullPath;
-  tabsRouterStore.tabRouterList.forEach((tab, index) => {
-    if (tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath) {
-      tabsRouterStore.tabRouterList[index] = { ...tab, title };
-    }
-  });
+  tabsRouterStore.updateActiveTabTitle(
+    PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
+    route,
+    buildConfigurationWorkspaceTitle(name),
+  );
 }
 
 const resultDialogTitle = computed(() =>

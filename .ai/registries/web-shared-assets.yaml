@@ -74,6 +74,23 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "task-runtime-client"
+    type: "frontend-contract"
+    path: "web/src/modules/task"
+    owner: "module:task"
+    purpose: "Generic Task detail, owner-scoped history lookup, and realtime-plus-polling task observation for modules that submit asynchronous work."
+    use_when:
+      - "A module receives a Task receipt and needs to show or observe durable task state without owning Task transport internals."
+    do_not_use_when:
+      - "Tracking a module-specific resource snapshot that is not represented by the Task Runtime."
+    examples:
+      - "web/src/modules/project/pages/list/index.vue"
+    related_assets:
+      - "observability-helpers"
+      - "openapi-contracts"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "metric-components"
     type: "frontend-component-suite"
     path: "web/src/shared/components/metrics"

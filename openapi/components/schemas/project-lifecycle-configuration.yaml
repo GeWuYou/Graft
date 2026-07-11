@@ -12,6 +12,7 @@ required:
   - renew_anon_volumes
   - prune_images_after_redeploy
   - generated_commands
+  - additional_args
 properties:
   strategy_kind:
     $ref: ./project-lifecycle-strategy-kind.yaml
@@ -44,6 +45,10 @@ properties:
   renew_anon_volumes:
     type: boolean
     default: false
+  additional_args:
+    type: array
+    items:
+      type: string
   generated_commands:
     type: object
     required:

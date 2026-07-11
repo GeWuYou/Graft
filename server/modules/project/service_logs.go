@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 )
@@ -36,10 +38,23 @@ func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (g
 	if err != nil {
 		return generated.ProjectLogResponse{}, err
 	}
+	s.logProjectLogDiagnostic("snapshot-started",
+		zap.Uint64("project_id", projectID),
+		zap.String("canonical_project_name", aggregate.Project.CanonicalProjectName),
+		zap.Int("tail", logQuery.Tail),
+		zap.String("since", logQuery.Since),
+	)
 	snapshot, err := s.logReader.ReadProjectLogs(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName, toContainerProjectLogQuery(logQuery))
 	if err != nil {
+		s.logProjectLogDiagnostic("snapshot-failed", zap.Uint64("project_id", projectID), zap.Error(err))
 		return generated.ProjectLogResponse{}, err
 	}
+	s.logProjectLogDiagnostic("snapshot-completed",
+		zap.Uint64("project_id", projectID),
+		zap.Int("entry_count", len(snapshot.Entries)),
+		zap.Int("tail", snapshot.Tail),
+		zap.Bool("truncated", snapshot.Truncated),
+	)
 	return toProjectLogResponse(projectID, aggregate.Project.CanonicalProjectName, snapshot), nil
 }
 
@@ -59,6 +74,7 @@ func normalizeProjectLogQuery(query LogQuery) (LogQuery, error) {
 	return normalized, nil
 }
 
+// toContainerProjectLogQuery converts an API log query into a container log query.
 func toContainerProjectLogQuery(query LogQuery) moduleapi.ContainerProjectLogQuery {
 	return moduleapi.ContainerProjectLogQuery{
 		Tail:       query.Tail,
@@ -69,6 +85,14 @@ func toContainerProjectLogQuery(query LogQuery) moduleapi.ContainerProjectLogQue
 	}
 }
 
+// toContainerProjectLogFollowQuery 将日志查询转换为仅跟随模式的容器日志查询。
+func toContainerProjectLogFollowQuery(query LogQuery) moduleapi.ContainerProjectLogQuery {
+	followQuery := toContainerProjectLogQuery(query)
+	followQuery.FollowOnly = true
+	return followQuery
+}
+
+// toProjectLogResponse 将容器日志快照转换为项目日志响应。
 func toProjectLogResponse(
 	projectID uint64,
 	canonicalProjectName string,

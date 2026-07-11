@@ -85,6 +85,7 @@ type LifecycleConfig struct {
 	WaitTimeoutSeconds       int      `json:"wait_timeout_seconds"`
 	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+	AdditionalArgs           []string `json:"additional_args"`
 }
 
 // ProjectAggregate joins one project with its files and latest snapshot.

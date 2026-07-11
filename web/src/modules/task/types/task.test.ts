@@ -18,6 +18,7 @@ describe('taskLogEntriesToStructured', () => {
 
     expect(taskLogEntriesToStructured(entries)).toEqual([
       {
+        level: 'error',
         line: 'compose failed',
         occurredAt: '2026-07-10T13:36:29Z',
         stream: 'stderr',
