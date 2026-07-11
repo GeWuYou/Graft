@@ -193,14 +193,18 @@ Compose Project Management
     "phase-2-batch-4-diff-validate-and-deploy-flow",
     "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
     "phase-3-batch-1-git-template-source-contract-and-boundary",
-    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+    "creation-pipeline-contract-and-server-foundation",
+    "managed-workspace-wizard-and-lifecycle-review",
+    "import-creation-adapter-and-regression"
   ],
   "pending_batches": [
-    "drift-repair-import-primary-entry-and-topic-truth",
-    "phase-3-batch-3-remote-host-boundary-and-activity-authority"
+    "git-template-source-adapters",
+    "remote-source-adapter-and-activity-boundary",
+    "optional-deploy-after-create-and-archive-readiness"
   ],
-  "current_batch": "drift-repair-import-primary-entry-and-topic-truth",
-  "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
-  "closeout_status": "drift-repair-in-progress"
+  "current_batch": "import-creation-adapter-and-regression",
+  "next_batch": "git-template-source-adapters",
+  "closeout_status": "import-creation-adapter-complete"
 }
 ```

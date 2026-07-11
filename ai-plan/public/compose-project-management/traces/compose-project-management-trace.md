@@ -373,4 +373,4 @@
 - 回归覆盖 imported/local/external aggregate metadata、workspace files、snapshot、clean drift 与 confirmed lifecycle；既有 stale hash 回归继续保持 `inspection stale` 映射。
 - Import 最终审核复用 source-neutral lifecycle configuration review，并明确 Import 只注册已检查的 workspace、打开项目详情，不会自动 deploy 或启动容器。
 - 验证：focused Go import regressions、focused Vitest import flow/page tests、`bun run lint:i18n`、`git diff --check`；browser QA 由用户明确延期。
-- 下一批：`git-template-source-adapters`。
+- 剩余 batches：`git-template-source-adapters`、`remote-source-adapter-and-activity-boundary`、`optional-deploy-after-create-and-archive-readiness`；下一批为 `git-template-source-adapters`。
