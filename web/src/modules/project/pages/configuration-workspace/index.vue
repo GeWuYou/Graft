@@ -40,13 +40,27 @@
                   {{ detailRecord?.ownership_mode || '-' }}
                 </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryWorkingDirectoryLabel">
-                  <code>{{ detailRecord?.working_directory || '-' }}</code>
+                  <t-tooltip :content="detailRecord?.working_directory || '-'" placement="top-left" theme="light">
+                    <code
+                      class="project-configuration-workspace__summary-technical"
+                      data-testid="workspace-working-directory"
+                    >
+                      {{ workingDirectoryDisplay }}
+                    </code>
+                  </t-tooltip>
                 </t-descriptions-item>
                 <t-descriptions-item :label="t('project.detail.configuration.driftStatus')">
                   {{ driftLabel }}
                 </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryCurrentPathLabel">
-                  <code>{{ currentWorkspacePathLabel }}</code>
+                  <t-tooltip :content="currentWorkspacePathLabel" placement="top-left" theme="light">
+                    <code
+                      class="project-configuration-workspace__summary-technical"
+                      data-testid="workspace-current-path"
+                    >
+                      {{ currentWorkspacePathDisplay }}
+                    </code>
+                  </t-tooltip>
                 </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryOpenTabsLabel">
                   {{ openTabs.length }}
@@ -1182,7 +1196,19 @@ const currentWorkspaceDirectoryPath = computed(() => {
 const currentWorkspacePathLabel = computed(
   () => currentWorkspaceDirectoryPath.value || workspaceCopy.value.workspaceRootLabel,
 );
+const workingDirectoryDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.working_directory));
+const currentWorkspacePathDisplay = computed(() => abbreviateWorkspacePath(currentWorkspacePathLabel.value));
 const workspaceFlatRows = computed(() => flattenWorkspaceRows(rootWorkspaceItems.value, 0));
+
+function abbreviateWorkspacePath(value?: string | null, maxLength = 16) {
+  const normalized = value?.trim() || '-';
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  const edgeLength = Math.max(4, Math.floor((maxLength - 3) / 2));
+  return `${normalized.slice(0, edgeLength)}...${normalized.slice(-edgeLength)}`;
+}
 
 onMounted(() => {
   window.addEventListener('keydown', handleWorkspaceKeydown);
@@ -2848,6 +2874,15 @@ function stopSidebarResize() {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: var(--graft-density-gap-4) 0 0;
+}
+
+.project-configuration-workspace__summary-technical {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-configuration-workspace__result-dialog-title-block {

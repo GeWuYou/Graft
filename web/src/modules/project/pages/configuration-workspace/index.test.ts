@@ -845,6 +845,25 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('h1').text()).toBe('sub2api · Configuration Workspace');
   });
 
+  it('middle-truncates long workspace paths while keeping full values in tooltips', async () => {
+    const fullWorkingDirectory = '/srv/graft/releases/2026/06/14/shared-postgres/configuration';
+    mocks.getProject.mockResolvedValueOnce({
+      canonical_project_name: 'sub2api',
+      display_name: 'sub2api',
+      id: 1,
+      ownership_mode: 'managed-root-dedicated',
+      runtime_status: 'running',
+      working_directory: fullWorkingDirectory,
+    });
+
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="workspace-working-directory"]').text()).toBe('/srv/g...ration');
+    expect(wrapper.text()).not.toContain(fullWorkingDirectory);
+    expect(wrapper.find(`[data-tooltip-content="${fullWorkingDirectory}"]`).exists()).toBe(true);
+  });
+
   it('delegates the current tab title update to the active workspace tab', async () => {
     mountWorkspace();
     await flushPromises();
