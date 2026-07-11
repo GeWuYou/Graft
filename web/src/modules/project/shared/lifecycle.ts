@@ -48,11 +48,73 @@ function splitProfiles(value: string) {
 /**
  * 将附加参数字符串解析为命令行参数数组。
  *
- * @param value - 以空白字符分隔的附加参数字符串
- * @returns 去除首尾空白并过滤空项后的参数数组
+ * @param value - 以空白分隔、支持单引号、双引号和反斜杠转义的附加参数字符串
+ * @returns 保留每个 argv 边界的参数数组
  */
 function normalizeAdditionalArgs(value: string) {
-  return value.trim().split(/\s+/).filter(Boolean);
+  const args: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  let escaping = false;
+  let tokenStarted = false;
+
+  for (const character of value.trim()) {
+    if (escaping) {
+      current += character;
+      escaping = false;
+      tokenStarted = true;
+      continue;
+    }
+    if (character === '\\') {
+      escaping = true;
+      tokenStarted = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      } else {
+        current += character;
+      }
+      tokenStarted = true;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      tokenStarted = true;
+      continue;
+    }
+    if (/\s/.test(character)) {
+      if (tokenStarted) {
+        args.push(current);
+        current = '';
+        tokenStarted = false;
+      }
+      continue;
+    }
+    current += character;
+    tokenStarted = true;
+  }
+
+  if (escaping) {
+    current += '\\';
+  }
+  if (tokenStarted) {
+    args.push(current);
+  }
+
+  return args;
+}
+
+function formatAdditionalArg(value: string) {
+  if (!value || /[\s'"\\]/.test(value)) {
+    return `'${value.replace(/'/g, "'\\\\''")}'`;
+  }
+  return value;
+}
+
+function formatAdditionalArgs(values: readonly string[] | null | undefined) {
+  return values?.map(formatAdditionalArg).join(' ') ?? '';
 }
 
 /**
@@ -127,7 +189,7 @@ function buildUpCommand(config: ProjectLifecycleConfigurationDraft, absolutePath
   }
 
   command.push(...normalizeAdditionalArgs(config.additional_args));
-  return command.join(' ');
+  return command.map(formatAdditionalArg).join(' ');
 }
 
 /**
@@ -406,7 +468,7 @@ export function buildLifecycleConfigurationDraft(
     wait_timeout_seconds: normalizeWaitTimeoutSeconds(source?.wait_timeout_seconds),
     renew_anon_volumes: source?.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
-    additional_args: source?.additional_args?.join(' ') ?? '',
+    additional_args: formatAdditionalArgs(source?.additional_args),
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
     generated_commands: mapGeneratedCommands(source, detail.working_directory),
   };
@@ -445,7 +507,7 @@ export function buildImportLifecycleConfigurationDraft(
     wait_timeout_seconds: normalizeWaitTimeoutSeconds(source.wait_timeout_seconds),
     renew_anon_volumes: source.renew_anon_volumes,
     prune_images_after_redeploy: source.prune_images_after_redeploy,
-    additional_args: '',
+    additional_args: formatAdditionalArgs(source.additional_args),
     review_status: 'review_required',
     generated_commands: null,
   };

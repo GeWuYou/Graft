@@ -250,7 +250,7 @@ type ImportExecuteRequest struct {
 	InspectionID                 string                   `json:"inspection_id"`
 	DisplayName                  *string                  `json:"display_name,omitempty"`
 	CanonicalProjectNameOverride *string                  `json:"canonical_project_name_override,omitempty"`
-	LifecycleConfiguration       *LifecycleStandardConfig `json:"lifecycle_configuration"`
+	LifecycleConfiguration       *LifecycleStandardConfig `json:"lifecycle_configuration,omitempty"`
 	ActorID                      *uint64                  `json:"-"`
 }
 

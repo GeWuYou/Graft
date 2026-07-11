@@ -748,7 +748,11 @@ async function syncWizardFromRoute() {
     return;
   }
 
-  if ((desiredStep === 'lifecycle' || desiredStep === 'confirm') && !prepareLifecycleConfiguration()) {
+  if (
+    (desiredStep === 'lifecycle' || desiredStep === 'confirm') &&
+    !lifecycleDraft.value &&
+    !prepareLifecycleConfiguration()
+  ) {
     currentStep.value = 'lifecycle';
     if (desiredStep === 'confirm') {
       await updateWizardRoute('lifecycle', { candidateKey, replace: true });

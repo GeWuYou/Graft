@@ -134,20 +134,14 @@ func validateLifecycleWaitTimeout(value int) error {
 
 // 它会裁剪参数首尾空白，并拒绝数量、长度、字符内容或权限覆盖相关约束不符合要求的参数。
 func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
-	const (
-		maxArgs   = 32
-		maxArgLen = 256
-	)
-	if len(values) > maxArgs {
+	normalized, valid := projectcontract.NormalizeLifecycleAdditionalArgs(values)
+	if !valid {
 		return nil, errProjectInvalidArgument
 	}
-	normalized := make([]string, 0, len(values))
-	for _, value := range values {
-		argument := strings.TrimSpace(value)
-		if argument == "" || len(argument) > maxArgLen || strings.ContainsAny(argument, "\r\n\x00") || isLifecycleAuthorityOverrideArg(argument) {
+	for _, argument := range normalized {
+		if isLifecycleAuthorityOverrideArg(argument) {
 			return nil, errProjectInvalidArgument
 		}
-		normalized = append(normalized, argument)
 	}
 	return normalized, nil
 }

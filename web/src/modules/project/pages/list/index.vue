@@ -267,7 +267,7 @@
               ]"
               :aria-busy="isRowActionPending(projectRow(row).id)"
               :aria-label="runtimeStatusActionTooltip(projectRow(row))"
-              :disabled="openingTaskRowId === projectRow(row).id"
+              :disabled="openingTaskRowIds.has(projectRow(row).id)"
               :data-testid="`project-runtime-status-${projectRow(row).id}`"
               @click="openProjectTask(projectRow(row))"
             >
@@ -384,13 +384,9 @@ import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref, w
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import {
-  getLatestTaskForOwner,
-  isTerminalTaskStatus,
-  observeTask,
-  TaskDetailDrawer,
-  type TaskObserver,
-} from '@/modules/task';
+import { getLatestTaskForOwner } from '@/modules/task/contract/latest-task';
+import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
+import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -457,7 +453,8 @@ const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
 const activeTaskId = ref<number | null>(null);
 const taskDrawerVisible = ref(false);
-const openingTaskRowId = ref<number | null>(null);
+const openingTaskRowIds = ref(new Set<number>());
+let taskOpenRequestVersion = 0;
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
@@ -1342,6 +1339,7 @@ function isTaskReceipt(value: unknown): value is ProjectTaskReceipt {
 }
 
 function openTaskDrawer(taskId: number) {
+  taskOpenRequestVersion += 1;
   activeTaskId.value = taskId;
   taskDrawerVisible.value = true;
 }
@@ -1353,15 +1351,21 @@ async function openProjectTask(row: ProjectListItemWithLifecycle) {
     return;
   }
 
-  openingTaskRowId.value = row.id;
+  const requestVersion = ++taskOpenRequestVersion;
+  openingTaskRowIds.value = new Set(openingTaskRowIds.value).add(row.id);
   try {
     const task = await getLatestTaskForOwner({ ownerId: String(row.id), ownerType: 'compose_project' });
+    if (requestVersion !== taskOpenRequestVersion) return;
     if (task) openTaskDrawer(task.id);
     else MessagePlugin.info(t('project.list.actions.noTaskHistory'));
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.taskHistoryLoadFailed')));
+    if (requestVersion === taskOpenRequestVersion) {
+      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.taskHistoryLoadFailed')));
+    }
   } finally {
-    openingTaskRowId.value = null;
+    const nextOpeningRows = new Set(openingTaskRowIds.value);
+    nextOpeningRows.delete(row.id);
+    openingTaskRowIds.value = nextOpeningRows;
   }
 }
 

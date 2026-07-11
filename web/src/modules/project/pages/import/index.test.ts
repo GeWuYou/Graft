@@ -629,6 +629,7 @@ function mountPage() {
         't-loading': WrapperStub,
         't-option': TOptionStub,
         't-pagination': TPaginationStub,
+        'project-import-lifecycle-review': true,
         't-select': TSelectStub,
         't-space': WrapperStub,
         't-steps': WrapperStub,
@@ -984,6 +985,54 @@ describe('ProjectImportIndex', () => {
     expect(wrapper.text()).toContain('inspect-confirm');
     expect(wrapper.text()).toContain('web, worker, cron 等另外 1 项');
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
+  });
+
+  it('does not rebuild an existing lifecycle draft during route synchronization', async () => {
+    routeState.query = {
+      step: 'lifecycle',
+      candidate: 'runtime:demo',
+    };
+
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.canImport.value = true;
+    flowState.lifecycleDraft.value = {
+      strategy_kind: 'standard',
+      working_directory: '/srv/demo',
+      compose_files: ['compose.yaml'],
+      canonical_project_name: 'demo',
+      profiles: [],
+      down_before_redeploy: true,
+      pull_before_redeploy: false,
+      build_before_up: false,
+      force_recreate: false,
+      remove_orphans: true,
+      wait_after_up: false,
+      wait_timeout_seconds: 120,
+      renew_anon_volumes: false,
+      prune_images_after_redeploy: false,
+      additional_args: '',
+    } as never;
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-lifecycle',
+      candidate_key: 'runtime:demo',
+      resolved_working_directory: '/srv/demo',
+      canonical_project_name: 'demo',
+      display_name_suggested: 'Demo',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      networks: [],
+      volumes: [],
+      warnings: [],
+      conflicts: [],
+    } as never;
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    mountPage();
+    await flushPromises();
+
+    expect(flowState.prepareLifecycleConfiguration).not.toHaveBeenCalled();
   });
 
   it('recovers a routed ready candidate even when it is outside the current page payload', async () => {

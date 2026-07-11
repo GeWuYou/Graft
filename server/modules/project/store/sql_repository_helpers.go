@@ -18,10 +18,8 @@ import (
 )
 
 const (
-	defaultListLimit                = 20
-	maxListLimit                    = 100
-	maxLifecycleAdditionalArgs      = 32
-	maxLifecycleAdditionalArgLength = 256
+	defaultListLimit = 20
+	maxListLimit     = 100
 )
 
 func (r *SQLRepository) ensureReady() error {
@@ -298,16 +296,9 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 // It returns the normalized arguments, or ErrInvalidInput if the count or any argument
 // exceeds the allowed constraints or contains invalid content.
 func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
-	if len(values) > maxLifecycleAdditionalArgs {
+	normalized, valid := projectcontract.NormalizeLifecycleAdditionalArgs(values)
+	if !valid {
 		return nil, ErrInvalidInput
-	}
-	normalized := make([]string, 0, len(values))
-	for _, value := range values {
-		argument := strings.TrimSpace(value)
-		if argument == "" || len(argument) > maxLifecycleAdditionalArgLength || strings.ContainsAny(argument, "\r\n\x00") {
-			return nil, ErrInvalidInput
-		}
-		normalized = append(normalized, argument)
 	}
 	return normalized, nil
 }

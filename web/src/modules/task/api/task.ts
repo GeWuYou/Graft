@@ -10,11 +10,6 @@ import {
 } from '../contract/paths';
 import type { TaskDetail, TaskListQuery, TaskListResponse, TaskLogResponse } from '../types/task';
 
-export type TaskOwnerReference = Readonly<{
-  ownerId: string;
-  ownerType: string;
-}>;
-
 type TaskListPath = (typeof TASK_API_PATH)['LIST'];
 type ListTasksOperation = paths[TaskListPath]['get'];
 type ListTasksData = NonNullable<ListTasksOperation['responses'][200]['content']['application/json']['data']>;
@@ -49,17 +44,6 @@ export function getTasks(query?: TaskListQuery) {
     url: TASK_API_PATH.LIST,
     params: query as ListTasksQuery | undefined,
   }) as Promise<TaskListResponse>;
-}
-
-/**
- * 获取指定资源拥有的最新任务。
- *
- * @param owner - 任务拥有者的标识及类型
- * @returns 最新任务；没有匹配任务时返回 `null`
- */
-export async function getLatestTaskForOwner(owner: TaskOwnerReference) {
-  const response = await getTasks({ limit: 1, owner_id: owner.ownerId, owner_type: owner.ownerType });
-  return response.items[0] ?? null;
 }
 
 /**

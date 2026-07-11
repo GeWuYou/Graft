@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
 import { copyText } from '@/shared/observability';
@@ -893,8 +893,13 @@ vi.mock('tdesign-vue-next/es/notification', () => ({
 }));
 
 describe('Project detail service tab', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     realtimeMocks.sockets.length = 0;
     routeState.value.query = {};
     routeState.value.name = 'ProjectDetailIndex';
@@ -1018,6 +1023,7 @@ describe('Project detail service tab', () => {
   });
 
   it('appends realtime project logs after the snapshot tail', async () => {
+    vi.useFakeTimers();
     routeState.value.query = { tab: 'logs' };
     projectApiMocks.getProjectLogs.mockResolvedValue(
       buildProjectLogs([{ line: 'snapshot-entry', occurred_at: '2026-07-09T03:00:00Z' }]),
@@ -1045,7 +1051,8 @@ describe('Project detail service tab', () => {
       },
     });
     await flushPromises();
-    await new Promise((resolve) => setTimeout(resolve, 120));
+    await vi.advanceTimersByTimeAsync(100);
+    await flushPromises();
 
     expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
       JSON.stringify({

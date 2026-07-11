@@ -8,7 +8,7 @@ vi.mock('@/utils/request', () => ({
   },
 }));
 
-import { getLatestTaskForOwner } from './task';
+import { getLatestTaskForOwner } from './latest-task';
 
 describe('getLatestTaskForOwner', () => {
   it('uses the owner-scoped task list and returns its newest item', async () => {

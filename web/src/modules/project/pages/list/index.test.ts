@@ -143,6 +143,17 @@ function slotStub(name: string) {
   });
 }
 
+const TaskDetailDrawerStub = defineComponent({
+  name: 'TaskDetailDrawer',
+  props: {
+    taskId: { type: Number, default: null },
+    visible: { type: Boolean, default: false },
+  },
+  setup(props) {
+    return () => h('div', { 'data-stub': 'TaskDetailDrawer', 'data-task-id': String(props.taskId ?? '') });
+  },
+});
+
 const TButtonStub = defineComponent({
   name: 'TButtonStub',
   props: {
@@ -415,7 +426,7 @@ function mountPage() {
       renderStubDefaultSlot: true,
       stubs: {
         'project-list-entry-actions': slotStub('ProjectListEntryActions'),
-        'task-detail-drawer': slotStub('TaskDetailDrawer'),
+        'task-detail-drawer': TaskDetailDrawerStub,
         't-button': TButtonStub,
         't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
@@ -448,7 +459,7 @@ function mountKeepAlivePage() {
         renderStubDefaultSlot: true,
         stubs: {
           'project-list-entry-actions': slotStub('ProjectListEntryActions'),
-          'task-detail-drawer': slotStub('TaskDetailDrawer'),
+          'task-detail-drawer': TaskDetailDrawerStub,
           't-button': TButtonStub,
           't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
@@ -708,6 +719,46 @@ describe('Project list page', () => {
       params: { limit: 1, owner_id: '1', owner_type: 'compose_project' },
       url: '/api/tasks',
     });
+    const taskDrawer = wrapper.getComponent({ name: 'TaskDetailDrawer' });
+    expect(taskDrawer.props('taskId')).toBe(19);
+    expect(taskDrawer.props('visible')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('keeps the newest task selection when earlier owner lookups resolve late', async () => {
+    let resolveFirst!: (value: { items: Array<{ id: number }>; limit: number; offset: number; total: number }) => void;
+    let resolveSecond!: (value: { items: Array<{ id: number }>; limit: number; offset: number; total: number }) => void;
+    taskRequestMocks.get
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecond = resolve;
+        }),
+      );
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [buildProjectRow({ id: 1 }), buildProjectRow({ id: 2 })],
+      limit: 20,
+      offset: 0,
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="project-runtime-status-1"]').trigger('click');
+    await wrapper.get('[data-testid="project-runtime-status-2"]').trigger('click');
+
+    resolveSecond({ items: [{ id: 22 }], limit: 1, offset: 0, total: 1 });
+    await flushPromises();
+    resolveFirst({ items: [{ id: 11 }], limit: 1, offset: 0, total: 1 });
+    await flushPromises();
+
+    expect(wrapper.getComponent({ name: 'TaskDetailDrawer' }).props('taskId')).toBe(22);
+    expect(wrapper.get('[data-testid="project-runtime-status-1"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.get('[data-testid="project-runtime-status-2"]').attributes('disabled')).toBeUndefined();
     wrapper.unmount();
   });
 

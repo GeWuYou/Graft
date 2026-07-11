@@ -32,5 +32,5 @@ func (s *Service) logProjectLogDiagnostic(event string, fields ...zap.Field) {
 	if s == nil || !isProjectLogDebugEnabled() {
 		return
 	}
-	logsafe.Info(s.logger, "project log diagnostic: "+event, fields...)
+	logsafe.Info(s.logger, "project log diagnostic", append([]zap.Field{zap.String("event", event)}, fields...)...)
 }

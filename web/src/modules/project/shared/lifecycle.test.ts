@@ -37,17 +37,17 @@ function createProjectDetail(additionalArgs: string[] = []) {
 }
 
 describe('project lifecycle helpers', () => {
-  it('persists additional args through lifecycle requests and detail drafts', () => {
+  it('preserves additional argv boundaries through lifecycle requests and inspection drafts', () => {
     const firstDraft = buildLifecycleConfigurationDraft(createProjectDetail());
-    firstDraft.additional_args = '--progress plain';
+    firstDraft.additional_args = "--progress 'plain output'";
 
     expect(resolveLifecycleCommandSteps(firstDraft, 'up')).toEqual([
       {
         title_key: 'project.detail.lifecycle.step.up',
         command:
-          'docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
+          "docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress 'plain output'",
         absolute_command:
-          'docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
+          "docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress 'plain output'",
       },
     ]);
 
@@ -63,18 +63,18 @@ describe('project lifecycle helpers', () => {
       wait_timeout_seconds: 120,
       renew_anon_volumes: false,
       prune_images_after_redeploy: false,
-      additional_args: ['--progress', 'plain'],
+      additional_args: ['--progress', 'plain output'],
     });
 
-    const refreshedDraft = buildLifecycleConfigurationDraft(createProjectDetail(['--progress', 'plain']));
-    expect(refreshedDraft.additional_args).toBe('--progress plain');
+    const refreshedDraft = buildLifecycleConfigurationDraft(createProjectDetail(['--progress', 'plain output']));
+    expect(refreshedDraft.additional_args).toBe("--progress 'plain output'");
     expect(resolveLifecycleCommandSteps(refreshedDraft, 'up')).toEqual([
       {
         title_key: 'project.detail.lifecycle.step.up',
         command:
-          'docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
+          "docker compose -f compose.yaml -f compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress 'plain output'",
         absolute_command:
-          'docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress plain',
+          "docker compose -f /srv/compose-demo/compose.yaml -f /srv/compose-demo/compose.override.yaml --profile web -p compose-demo up -d --remove-orphans --progress 'plain output'",
       },
     ]);
   });
@@ -142,6 +142,31 @@ describe('project lifecycle helpers', () => {
     } as never);
 
     expect(draft.profiles).toEqual([]);
+  });
+
+  it('hydrates inspection additional args without flattening argv boundaries', () => {
+    const draft = buildImportLifecycleConfigurationDraft({
+      canonical_project_name: 'compose-demo',
+      compose_files: [],
+      lifecycle_configuration: {
+        strategy_kind: 'standard',
+        profiles: [],
+        down_before_redeploy: true,
+        pull_before_redeploy: false,
+        build_before_up: false,
+        force_recreate: false,
+        remove_orphans: true,
+        wait_after_up: false,
+        wait_timeout_seconds: 120,
+        renew_anon_volumes: false,
+        prune_images_after_redeploy: false,
+        additional_args: ['--label', 'release channel'],
+      },
+      resolved_working_directory: '/srv/compose-demo',
+    } as never);
+
+    expect(draft.additional_args).toBe("--label 'release channel'");
+    expect(buildLifecycleConfigurationRequest(draft).additional_args).toEqual(['--label', 'release channel']);
   });
 
   it('treats wait-timeout changes as dirty lifecycle state', () => {

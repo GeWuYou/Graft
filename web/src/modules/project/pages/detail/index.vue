@@ -767,7 +767,7 @@ import {
   type ProjectContainerActionSubmission,
   type ProjectContainerSummary,
 } from '@/modules/container/contract/project';
-import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task';
+import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task/contract/task-ui';
 import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
   createActionColumn,

@@ -135,7 +135,7 @@ describe('useProjectImportFlow', () => {
         wait_timeout_seconds: 120,
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
-        additional_args: [],
+        additional_args: ['--label', 'release channel'],
       },
     });
     mocks.postProjectImportExecute.mockResolvedValue({
@@ -159,6 +159,7 @@ describe('useProjectImportFlow', () => {
     flow.displayName.value = 'Srv Override';
     flow.canonicalProjectNameOverride.value = 'srv-override';
     expect(flow.prepareLifecycleConfiguration()).toBe(true);
+    expect(flow.lifecycleDraft.value?.additional_args).toBe("--label 'release channel'");
 
     await flow.submitImport();
 
@@ -178,9 +179,60 @@ describe('useProjectImportFlow', () => {
         wait_timeout_seconds: 120,
         renew_anon_volumes: false,
         prune_images_after_redeploy: false,
-        additional_args: [],
+        additional_args: ['--label', 'release channel'],
       },
     });
+  });
+
+  it('preserves an edited lifecycle draft when route sync prepares it again', async () => {
+    mocks.postProjectImportRuntimeInspect.mockResolvedValue({
+      inspection_id: 'inspect-preserved',
+      candidate_key: 'runtime:demo',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/demo' },
+      resolved_working_directory: '/srv/apps/demo',
+      canonical_project_name: 'demo',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      networks: [],
+      volumes: [],
+      warnings: [],
+      conflicts: [],
+      lifecycle_configuration: lifecycleConfiguration,
+    });
+
+    const flow = useProjectImportFlow((key: string) => key);
+    await flow.inspectCandidate(buildRuntimeCandidate());
+    expect(flow.prepareLifecycleConfiguration()).toBe(true);
+    flow.lifecycleDraft.value!.wait_after_up = true;
+
+    expect(flow.prepareLifecycleConfiguration()).toBe(true);
+    expect(flow.lifecycleDraft.value?.wait_after_up).toBe(true);
+  });
+
+  it('restores the lifecycle draft after a successful refresh remains importable', async () => {
+    mocks.postProjectImportRuntimeInspect.mockResolvedValue({
+      inspection_id: 'inspect-refresh',
+      candidate_key: 'runtime:demo',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/demo' },
+      resolved_working_directory: '/srv/apps/demo',
+      canonical_project_name: 'demo',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      networks: [],
+      volumes: [],
+      warnings: [],
+      conflicts: [],
+      lifecycle_configuration: lifecycleConfiguration,
+    });
+
+    const flow = useProjectImportFlow((key: string) => key);
+    await flow.inspectCandidate(buildRuntimeCandidate());
+    await expect(flow.refreshInspect()).resolves.toBe('applied');
+
+    expect(flow.canImport.value).toBe(true);
+    expect(flow.lifecycleDraft.value).not.toBeNull();
   });
 
   it('blocks import when inspect returns conflicts', async () => {

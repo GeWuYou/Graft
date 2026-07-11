@@ -122,7 +122,11 @@ export function useProjectImportFlow(t: Translate) {
       return 'idle' as const;
     }
 
-    return inspectCandidateByKey(selectedCandidateKey.value);
+    const result = await inspectCandidateByKey(selectedCandidateKey.value);
+    if (result === 'applied' && canImport.value) {
+      prepareLifecycleConfiguration();
+    }
+    return result;
   }
 
   /**
@@ -131,6 +135,9 @@ export function useProjectImportFlow(t: Translate) {
    * @returns 成功生成配置草稿时为 `true`，否则为 `false`
    */
   function prepareLifecycleConfiguration() {
+    if (lifecycleDraft.value) {
+      return true;
+    }
     if (!inspectResult.value) {
       return false;
     }

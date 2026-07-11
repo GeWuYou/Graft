@@ -86,6 +86,13 @@ describe('log-parser', () => {
     expect(line.display.subtitleParts).toEqual(['2026-06-17T08:30:27.324+0800', 'middleware/logger.go:61']);
   });
 
+  it('prefers the explicit message field over event metadata in JSON logs', () => {
+    const line = parseContainerLogLine('{"event":"request.completed","message":"Request completed"}');
+
+    expect(line.format).toBe('json');
+    expect(line.message).toBe('Request completed');
+  });
+
   it('prioritizes HTTP structured metadata in important fields', () => {
     const line = parseContainerLogLine(
       '2026-06-17T06:31:42.585+0800 INFO middleware/logger.go:61 http request completed {"service":"sub2api","env":"production","component":"http","request_id":"abc","latency_ms":12,"method":"GET","path":"/health","status_code":200}',

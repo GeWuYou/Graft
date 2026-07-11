@@ -2282,7 +2282,7 @@ func TestInspectAndImportByInspection(t *testing.T) {
 
 	imported, err := service.ImportByInspection(context.Background(), ImportExecuteRequest{
 		InspectionID:           inspect.InspectionID,
-		LifecycleConfiguration: lifecycleConfigPointer(defaultLifecycleStandardConfig()),
+		LifecycleConfiguration: lifecycleConfigPointer(importedLifecycleConfigFixture()),
 	})
 	if err != nil {
 		t.Fatalf("import by inspection: %v", err)
@@ -2290,11 +2290,31 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	if imported.Project.CanonicalProjectName != "orders" {
 		t.Fatalf("unexpected imported project: %#v", imported.Project)
 	}
-	if repo.importInput == nil {
-		t.Fatalf("expected persisted import input")
+	assertImportedLifecycleConfigPersisted(t, repo.importInput)
+}
+
+func importedLifecycleConfigFixture() LifecycleStandardConfig {
+	config := defaultLifecycleStandardConfig()
+	config.Profiles = []string{"production"}
+	config.PullBeforeRedeploy = true
+	config.BuildBeforeUp = true
+	config.WaitAfterUp = true
+	config.WaitTimeoutSeconds = 75
+	config.AdditionalArgs = []string{"--ansi", "never"}
+	return config
+}
+
+func assertImportedLifecycleConfigPersisted(t *testing.T, input *projectstore.ImportProjectInput) {
+	t.Helper()
+	if input == nil {
+		t.Fatal("expected persisted import input")
 	}
-	if repo.importInput.LifecycleReviewStatus != projectcontract.LifecycleReviewStatusConfirmed.String() {
-		t.Fatalf("expected imported lifecycle configuration to be confirmed, got %q", repo.importInput.LifecycleReviewStatus)
+	if input.LifecycleReviewStatus != projectcontract.LifecycleReviewStatusConfirmed.String() {
+		t.Fatalf("expected imported lifecycle configuration to be confirmed, got %q", input.LifecycleReviewStatus)
+	}
+	config := input.LifecycleConfig
+	if !config.DownBeforeRedeploy || !config.RemoveOrphans || !config.PullBeforeRedeploy || !config.BuildBeforeUp || !config.WaitAfterUp || config.WaitTimeoutSeconds != 75 || !slices.Equal(config.Profiles, []string{"production"}) || !slices.Equal(config.AdditionalArgs, []string{"--ansi", "never"}) {
+		t.Fatalf("expected supplied lifecycle configuration to be persisted, got %#v", config)
 	}
 }
 
