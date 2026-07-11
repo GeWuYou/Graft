@@ -72,8 +72,10 @@
           <log-viewer
             v-bind="logViewerBindings"
             :entries="structuredLogs"
+            :content-version="projectLogContentVersion"
             :loading="logsLoading && !hasLoadedLogs"
             :error="logsError"
+            :truncated="logsTruncated"
             @refresh="reload"
           />
         </section>
@@ -100,19 +102,15 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatLocaleDateTime, LogViewer } from '@/shared/observability';
+import { formatLocaleDateTime, LogViewer, type StructuredLogEntry } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import { cancelTask, getTask, getTaskLogs, retryTaskStage } from '../api/task';
 import { buildTaskRealtimeTopicName, parseTaskRealtimeNotification } from '../contract/realtime';
 import { taskStatusTheme } from '../shared/presentation';
-import {
-  type TaskDetail,
-  taskLogEntriesToStructured,
-  type TaskLogEntry,
-  type TaskStage,
-  type TaskStageStatus,
-} from '../types/task';
+import { TaskRealtimeRefreshScheduler } from '../shared/realtime-refresh-scheduler';
+import { TaskLogRealtimeBatcher } from '../shared/task-log-realtime-batcher';
+import { type TaskDetail, type TaskStage, type TaskStageStatus } from '../types/task';
 
 const props = defineProps<{
   resolveTaskType?: (taskType: string) => string | undefined;
@@ -126,7 +124,9 @@ defineEmits<{
 
 const { locale, t } = useI18n();
 const task = ref<TaskDetail | null>(null);
-const logs = ref<TaskLogEntry[]>([]);
+const structuredLogs = ref<readonly StructuredLogEntry[]>([]);
+const projectLogContentVersion = ref(0);
+const logsTruncated = ref(false);
 const loading = ref(false);
 const logsLoading = ref(false);
 const hasLoadedLogs = ref(false);
@@ -136,8 +136,15 @@ const errorMessage = ref('');
 const logsError = ref('');
 const socketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 let realtimeController: RealtimeTopicSocketController | null = null;
+let viewEpoch = 0;
 
-const structuredLogs = computed(() => taskLogEntriesToStructured(logs.value));
+const taskLogRealtimeBatcher = new TaskLogRealtimeBatcher({
+  onCommit: (snapshot) => {
+    structuredLogs.value = snapshot.entries;
+    projectLogContentVersion.value = snapshot.contentVersion;
+    logsTruncated.value = snapshot.truncated;
+  },
+});
 const stageOptions = computed<StepItemProps[]>(() =>
   (task.value?.stages ?? []).map((stage) => ({
     content: stageDescription(stage),
@@ -198,37 +205,40 @@ function closeRealtime() {
   socketState.value = 'idle';
 }
 
-function mergeLogs(incoming: Awaited<ReturnType<typeof getTaskLogs>>['items']) {
-  const bySequence = new Map(logs.value.map((entry) => [entry.sequence, entry]));
-  for (const entry of incoming) bySequence.set(entry.sequence, entry);
-  logs.value = [...bySequence.values()].sort((left, right) => left.sequence - right.sequence);
-}
-
-async function loadLogs(afterSequence?: number) {
-  if (!props.taskId) return;
+async function loadLogs(afterSequence?: number, epoch = viewEpoch) {
+  const taskId = props.taskId;
+  if (!taskId) return;
   logsLoading.value = true;
   logsError.value = '';
   try {
-    const response = await getTaskLogs(props.taskId, { after_sequence: afterSequence, limit: 1000 });
-    if (afterSequence) mergeLogs(response.items);
-    else logs.value = response.items;
+    const response = await getTaskLogs(taskId, { after_sequence: afterSequence, limit: 1000 });
+    if (epoch !== viewEpoch || taskId !== props.taskId) return;
+    if (afterSequence === undefined) taskLogRealtimeBatcher.seed(response);
+    else taskLogRealtimeBatcher.append(response);
   } catch (error) {
     logsError.value = resolveLocalizedErrorMessage(t, error, t('task.logs.loadFailed'));
   } finally {
     logsLoading.value = false;
-    hasLoadedLogs.value = true;
+    if (epoch === viewEpoch && taskId === props.taskId) hasLoadedLogs.value = true;
   }
 }
 
 async function refreshFromDurableState() {
   if (!props.taskId || !props.visible) return;
+  const epoch = viewEpoch;
   try {
-    const [nextTask] = await Promise.all([getTask(props.taskId), loadLogs(logs.value.at(-1)?.sequence)]);
+    const afterSequence = hasLoadedLogs.value ? taskLogRealtimeBatcher.nextAfterSequence() : undefined;
+    const [nextTask] = await Promise.all([getTask(props.taskId), loadLogs(afterSequence, epoch)]);
+    if (epoch !== viewEpoch || !props.visible) return;
     task.value = nextTask;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('task.detail.loadFailed'));
   }
 }
+
+const realtimeRefreshScheduler = new TaskRealtimeRefreshScheduler({
+  onRefresh: refreshFromDurableState,
+});
 
 function openRealtime() {
   if (!props.taskId || realtimeController) return;
@@ -237,11 +247,11 @@ function openRealtime() {
     topic: buildTaskRealtimeTopicName(taskId),
     parseMessage: parseTaskRealtimeNotification,
     onMessage: (event) => {
-      if (event.task_id === taskId) void refreshFromDurableState();
+      if (event.task_id === taskId) void realtimeRefreshScheduler.request();
     },
     onStateChange: (state) => {
       socketState.value = state;
-      if (state === 'open') void refreshFromDurableState();
+      if (state === 'open') void realtimeRefreshScheduler.request(true);
     },
     onError: (message) => {
       logsError.value = message;
@@ -254,8 +264,7 @@ async function reload() {
   loading.value = true;
   errorMessage.value = '';
   try {
-    const [nextTask] = await Promise.all([getTask(props.taskId), loadLogs()]);
-    task.value = nextTask;
+    await realtimeRefreshScheduler.request(true);
     openRealtime();
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('task.detail.loadFailed'));
@@ -269,7 +278,7 @@ async function cancel() {
   cancelling.value = true;
   try {
     task.value = await cancelTask(props.taskId);
-    await loadLogs(logs.value.at(-1)?.sequence);
+    await realtimeRefreshScheduler.request(true);
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('task.actions.cancelFailed'));
   } finally {
@@ -290,7 +299,7 @@ async function retry(stageId: number) {
 }
 
 function downloadLogs() {
-  const text = logs.value.map((entry) => `[${entry.occurred_at}] ${entry.stream}: ${entry.line}`).join('\n');
+  const text = structuredLogs.value.map((entry) => `[${entry.occurredAt}] ${entry.stream}: ${entry.line}`).join('\n');
   const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -332,16 +341,25 @@ function formatTime(value: string) {
 watch(
   () => [props.visible, props.taskId],
   ([visible, taskId]) => {
+    viewEpoch += 1;
+    realtimeRefreshScheduler.cancel();
     closeRealtime();
     task.value = null;
-    logs.value = [];
+    taskLogRealtimeBatcher.clear();
+    structuredLogs.value = [];
+    projectLogContentVersion.value = 0;
+    logsTruncated.value = false;
     hasLoadedLogs.value = false;
     if (visible && taskId) void reload();
   },
   { immediate: true },
 );
 
-onUnmounted(closeRealtime);
+onUnmounted(() => {
+  realtimeRefreshScheduler.destroy();
+  taskLogRealtimeBatcher.clear();
+  closeRealtime();
+});
 </script>
 <style scoped lang="less">
 .task-detail {
