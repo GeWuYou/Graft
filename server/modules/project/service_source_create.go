@@ -89,6 +89,9 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 	return ManagedProjectCreateResult{Validation: validation, SourceType: sourceType, ProjectID: aggregate.Project.ID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
 }
 
+// resolveTemplateWorkspace resolves a template request into a materialization workspace and its template metadata.
+// It applies default template identifiers, validates that the requested template is supported, and derives
+// the instance name from the canonical project name when none is provided.
 func resolveTemplateWorkspace(request TemplateProjectCreateRequest) (ManagedProjectCreateRequest, map[string]string, error) {
 	key := strings.TrimSpace(request.TemplateKey)
 	if key == "" {

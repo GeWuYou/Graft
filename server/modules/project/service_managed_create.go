@@ -88,7 +88,9 @@ type normalizedManagedWorkspaceFile struct {
 // normalizeManagedCreateRequest 规范化并校验受控项目创建请求，生成可用于创建项目的请求数据。
 // 缺少必填字段或字段无效时返回错误。
 //
-//nolint:cyclop // The coupled request fields must be normalized together before any managed-root write.
+// normalizeManagedCreateRequest 规范化并验证受控项目创建请求，生成用于后续项目创建的输入数据。
+// 它会校验项目名称、目录、Compose 文件、可选环境文件及工作区文件，并保留生命周期配置和环境文件路径。
+// 返回规范化后的请求数据及验证错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	canonicalName := strings.TrimSpace(request.CanonicalProjectName)
@@ -141,6 +143,7 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	}, nil
 }
 
+// normalizeManagedWorkspaceFiles validates and normalizes workspace files, supplying default compose and environment files when none are provided.
 func normalizeManagedWorkspaceFiles(items []ManagedWorkspaceFile, composeFileName, composeContent string, envFileName *string, envContent *string) ([]normalizedManagedWorkspaceFile, error) {
 	if len(items) == 0 {
 		items = []ManagedWorkspaceFile{{Path: composeFileName, Content: composeContent}}
@@ -170,6 +173,8 @@ func normalizeManagedWorkspaceFiles(items []ManagedWorkspaceFile, composeFileNam
 	return result, nil
 }
 
+// normalizeManagedWorkspacePath validates and normalizes a relative workspace file path.
+// It rejects absolute paths, backslashes, empty paths, and paths that escape the project.
 func normalizeManagedWorkspacePath(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || filepath.IsAbs(value) || strings.Contains(value, `\`) {

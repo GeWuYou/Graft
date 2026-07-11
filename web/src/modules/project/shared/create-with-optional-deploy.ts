@@ -13,8 +13,10 @@ export type CreateWithOptionalDeployResult<T extends ProjectCreated> = {
 };
 
 /**
- * Runs creation first, then optionally invokes the existing independent deployment action.
- * A deployment failure never invalidates an already-created project.
+ * 创建项目，并根据配置决定是否执行部署。
+ *
+ * @param options - 创建、部署及部署开关配置
+ * @returns 包含已创建项目及部署状态的结果；部署失败时包含错误信息
  */
 export async function createWithOptionalDeploy<T extends ProjectCreated>(options: {
   create: () => Promise<T>;

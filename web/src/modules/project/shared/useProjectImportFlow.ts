@@ -59,7 +59,7 @@ export function useProjectImportFlow(t: Translate) {
   const hasPreview = computed(() => Boolean(inspectResult.value));
 
   /**
-   * 将项目导入流程恢复到初始状态。
+   * 将项目导入流程恢复到初始状态，并使正在进行的检查请求失效。
    */
   function reset() {
     latestInspectRequestId += 1;
@@ -94,7 +94,7 @@ export function useProjectImportFlow(t: Translate) {
    * 检查指定的运行时候选项并更新项目导入预览。
    *
    * @param candidateKey - 要检查的运行时候选项标识
-   * @returns 检查结果状态：`'applied'` 表示结果已应用，`'stale'` 表示结果已过期
+   * @returns `'applied'` 表示检查结果已应用，`'stale'` 表示检查结果已过期
    */
   async function inspectCandidateByKey(candidateKey: string, preserveDraft = false) {
     const requestId = ++latestInspectRequestId;

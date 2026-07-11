@@ -30,7 +30,8 @@ const minimumProjectListLimit = 1
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
 // registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
-// 当上下文或路由器为空时直接返回；当服务缺失或认证依赖解析失败时返回错误。
+// registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
+// 当上下文或路由器为空时返回 nil；当服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -324,6 +325,8 @@ func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
 }
 
+// toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
+// It includes the lifecycle configuration when it can be converted successfully.
 func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) TemplateProjectCreateRequest {
 	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
 	if request.LifecycleConfiguration != nil {
@@ -1019,7 +1022,7 @@ func bindPostProjectImportParams(ginCtx *gin.Context) generated.PostProjectImpor
 }
 
 // bindPostProjectImportInspectParams 组装项目导入检查请求所需的公共头参数。
-// 它会填充 `XGraftLocale` 和 `XRequestId`。
+// bindPostProjectImportInspectParams 构造项目导入检查请求参数，并填充本地化语言和请求 ID。
 func bindPostProjectImportInspectParams(ginCtx *gin.Context) generated.PostProjectImportInspectParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportInspectParams{XGraftLocale: locale, XRequestId: requestID}

@@ -699,6 +699,7 @@ func (r *SQLRepository) upsertProject(
 	return projectID, nil
 }
 
+// composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句。
 func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
 			display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,

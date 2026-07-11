@@ -104,7 +104,8 @@ func loadOpenAPIDocsAssets() (*openAPIDocsAssets, error) {
 	return buildOpenAPIDocsAssets(generatedOpenAPIBundleJSON, buildinfo.Current())
 }
 
-// buildOpenAPIDocsAssets 从规范字节构建 OpenAPI 文档资源。它验证规范的有效性，确保规范为完整的打包内容且不包含外部文件引用。
+// buildOpenAPIDocsAssets 验证 OpenAPI 规范并构建运行时文档资源。
+// 它根据构建信息设置规范版本，并拒绝仍包含外部文件引用的规范。
 func buildOpenAPIDocsAssets(spec []byte, build buildinfo.Info) (*openAPIDocsAssets, error) {
 	if len(spec) == 0 {
 		return nil, fmt.Errorf("generated bundled openapi spec is empty")
@@ -138,7 +139,11 @@ func buildOpenAPIDocsAssets(spec []byte, build buildinfo.Info) (*openAPIDocsAsse
 	}, nil
 }
 
-// renderScalarDocsHTML 渲染 Scalar 文档 HTML 页面，其中包含指定的 OpenAPI 规范 URL。
+// renderScalarDocsHTML 根据指定的 OpenAPI 规范 URL 渲染 Scalar 文档 HTML 页面。
+//
+// specURL 指定页面加载的 OpenAPI 规范地址。
+//
+// 返回渲染后的 HTML 内容；如果配置编码或模板渲染失败，则返回错误。
 func renderScalarDocsHTML(specURL string) ([]byte, error) {
 	configuration, err := json.Marshal(struct {
 		URL       string `json:"url"`

@@ -25,7 +25,9 @@ func sameWorkingDirectory(left string, right string) bool {
 }
 
 // toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
-// 结果包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
+// toProjectListItemWithManagedRoot 将项目聚合及运行时信息转换为项目列表项。
+//
+// 结果包含项目标识、名称、来源元数据、工作目录、声明服务数、容器数量、运行时状态和漂移状态。
 func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -68,6 +70,8 @@ func toProjectDetailResponse(
 	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary, runtimeErr)
 }
 
+// toProjectDetailResponseWithManagedRoot builds a detailed project response, including
+// lifecycle configuration, file metadata, runtime information, and managed-root source metadata.
 func toProjectDetailResponseWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -484,7 +488,8 @@ func mapManagedCreationMethodAvailability(status string) string {
 	}
 }
 
-// managedRootCreationBlockedReason maps managed-root status to a stable creation-method reason code.
+// managedRootCreationBlockedReason 将托管根状态映射为稳定的创建方式阻塞原因代码。
+// 就绪状态返回 nil；未配置、无效或未知状态分别返回对应的原因代码指针。
 func managedRootCreationBlockedReason(status string) *string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
@@ -500,7 +505,7 @@ func managedRootCreationBlockedReason(status string) *string {
 
 // toGeneratedSourceMetadata 将源元数据映射为生成的项目来源元数据。
 //
-// 仅在至少有一个已知字段可映射时返回结果；否则返回 nil。
+// toGeneratedSourceMetadata 将已知来源元数据字段转换为生成的来源元数据；没有可映射的字段时返回 nil。
 func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
 	if len(metadata) == 0 {
 		return nil
@@ -530,7 +535,7 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 }
 
 // buildListSourceMetadataWithManagedRoot 为项目列表构建来源元数据。
-// 当来源类型为受托管根或远程主机时返回对应的来源元数据；其他来源类型返回 nil。
+// buildListSourceMetadataWithManagedRoot 构建项目列表中的来源元数据；优先使用项目已存储的可映射元数据，托管来源在缺少该元数据时根据托管根目录生成，否则返回 nil。
 func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
 		return metadata
@@ -544,7 +549,8 @@ func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggreg
 }
 
 // buildDetailSourceMetadataWithManagedRoot 返回项目详情来源元数据。
-// 如果没有可映射的来源信息，则返回 nil。
+// buildDetailSourceMetadataWithManagedRoot 构建项目详情的来源元数据；优先使用项目中可映射的来源信息，并为托管来源补充托管根目录元数据。
+// 如果无法生成来源元数据，则返回 nil。
 func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
 		return metadata
@@ -558,7 +564,9 @@ func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggr
 }
 
 // buildManagedSourceMetadata 生成托管项目的来源元数据。
-// 结果包含托管根标识、相对目录，以及已登记的 Compose 和环境文件名。
+// buildManagedSourceMetadata 构建托管项目的来源元数据，包含托管根标识、相对目录以及已登记的 Compose 和环境文件名。// @param aggregate 项目聚合数据。
+// @param managedRootDirectory 托管根目录。
+// @returns 托管项目的来源元数据。
 func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
@@ -577,7 +585,7 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managed
 	return toGeneratedSourceMetadata(metadata)
 }
 
-// resolveActivityAuthority keeps local project activity on the container-owned frontend fan-out path.
+// resolveActivityAuthority 返回项目活动使用的权威路径，固定为容器所有者前端扇出路径。
 func resolveActivityAuthority() ActivityAuthority {
 	return ProjectActivityAuthorityFrontendFanout
 }

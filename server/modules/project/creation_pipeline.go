@@ -73,6 +73,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	return aggregate, now, nil
 }
 
+// defaultManagedLifecycleConfig 返回用于受管项目的生命周期配置；未提供配置时使用默认配置。
 func defaultManagedLifecycleConfig(config *LifecycleStandardConfig) LifecycleStandardConfig {
 	if config == nil {
 		return lifecycleStandardConfigFromStore(lifecycleSeedForManagedProject())
@@ -80,10 +81,12 @@ func defaultManagedLifecycleConfig(config *LifecycleStandardConfig) LifecycleSta
 	return *config
 }
 
+// lifecycleStandardConfigFromStore 将存储层生命周期配置转换为领域层标准生命周期配置。
 func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) LifecycleStandardConfig {
 	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy, AdditionalArgs: append([]string(nil), config.AdditionalArgs...)}
 }
 
+// managedCreationCommand 构建受管项目创建流程使用的源无关创建命令。
 func managedCreationCommand(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
 	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: normalized.CanonicalProjectName, CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceOverride.String(), SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkingDirectory, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID}
 }

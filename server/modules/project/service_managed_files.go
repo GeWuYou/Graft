@@ -17,7 +17,7 @@ type managedRootFS struct {
 // 它会写入 compose 文件，并在提供环境文件路径和内容时写入 env 文件。
 // @param validation 包含工作目录以及各文件绝对路径的校验结果。
 // @param normalized 包含要写入的规范化文件内容。
-// @returns 返回清理后的工作目录、已创建文件的绝对路径列表，以及错误。
+// writeManagedProjectFiles 创建工作目录并写入工作区文件，返回工作目录、已创建文件的绝对路径及可能发生的错误。
 func writeManagedProjectFiles(
 	validation ManagedProjectCreateValidationResult,
 	normalized normalizedManagedCreateRequest,

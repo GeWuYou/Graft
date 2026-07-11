@@ -361,6 +361,12 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
   ) as Promise<ProjectCreateResponse>;
 }
 
+/**
+ * 校验基于模板创建项目的请求。
+ *
+ * @param payload - 模板创建请求数据
+ * @returns 项目创建校验结果
+ */
 export function postProjectCreateTemplateValidate(payload: ProjectTemplateCreateRequest) {
   return postProjectAction<ProjectTemplateValidateData>(
     PROJECT_API_PATH.CREATE_TEMPLATE_VALIDATE,
@@ -368,6 +374,12 @@ export function postProjectCreateTemplateValidate(payload: ProjectTemplateCreate
   ) as Promise<ProjectCreateValidateResponse>;
 }
 
+/**
+ * 使用模板创建项目。
+ *
+ * @param payload - 模板创建请求数据
+ * @returns 创建项目的响应
+ */
 export function postProjectCreateTemplate(payload: ProjectTemplateCreateRequest) {
   return postProjectAction<ProjectTemplateCreateData>(
     PROJECT_API_PATH.CREATE_TEMPLATE,
