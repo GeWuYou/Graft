@@ -10,7 +10,7 @@ get:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
-    - $ref: ../components/parameters/container-logs-tail.yaml
+    - $ref: ../components/parameters/project-logs-tail.yaml
     - $ref: ../components/parameters/container-logs-since.yaml
     - $ref: ../components/parameters/container-logs-timestamps.yaml
     - $ref: ../components/parameters/container-logs-stdout.yaml

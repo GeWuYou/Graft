@@ -769,6 +769,47 @@ vi.mock('@/shared/observability', () => ({
     },
   }),
   copyText: vi.fn(),
+  LogBatchBuffer: class {
+    #flushTimer: ReturnType<typeof setTimeout> | null = null;
+    #items: unknown[] = [];
+    #onFlush: (items: unknown[]) => void;
+    #flushIntervalMs: number;
+
+    constructor(options: { flushIntervalMs?: number; onFlush: (items: unknown[]) => void }) {
+      this.#flushIntervalMs = options.flushIntervalMs ?? 100;
+      this.#onFlush = options.onFlush;
+    }
+
+    append(item: unknown) {
+      this.#items.push(item);
+      if (this.#flushTimer === null) {
+        this.#flushTimer = setTimeout(() => this.flush(), this.#flushIntervalMs);
+      }
+    }
+
+    flush() {
+      if (this.#flushTimer !== null) {
+        clearTimeout(this.#flushTimer);
+        this.#flushTimer = null;
+      }
+      if (!this.#items.length) return;
+      const items = this.#items;
+      this.#items = [];
+      this.#onFlush(items);
+    }
+
+    clear() {
+      if (this.#flushTimer !== null) {
+        clearTimeout(this.#flushTimer);
+        this.#flushTimer = null;
+      }
+      this.#items = [];
+    }
+
+    destroy() {
+      this.clear();
+    }
+  },
   formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
   formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
   normalizeStructuredLogEntry: (value: { line?: string; occurred_at?: string; stream?: string }) =>
@@ -792,6 +833,7 @@ vi.mock('@/shared/realtime', () => ({
   openRealtimeTopicSocket: vi.fn((options: Record<string, any>) => {
     const controller = { close: vi.fn() };
     realtimeMocks.sockets.push({ controller, options });
+    queueMicrotask(() => options.onStateChange?.('open'));
     return controller;
   }),
 }));
@@ -975,6 +1017,7 @@ describe('Project detail service tab', () => {
       },
     });
     await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 120));
 
     expect(wrapper.findAll('[data-log-line]').map((node) => node.text())).toEqual([
       JSON.stringify({

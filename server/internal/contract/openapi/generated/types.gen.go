@@ -9772,6 +9772,9 @@ type ProjectListOffset = int
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
 
+// ProjectLogsTail defines model for project-logs-tail.
+type ProjectLogsTail = int
+
 // ProjectWorkspacePathQuery defines model for project-workspace-path-query.
 type ProjectWorkspacePathQuery = string
 
@@ -10949,8 +10952,8 @@ type PutProjectLifecycleConfigurationParams struct {
 
 // GetProjectLogsParams defines parameters for GetProjectLogs.
 type GetProjectLogsParams struct {
-	// Tail Number of log lines to return from the end of the stream.
-	Tail *ContainerLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
+	// Tail Number of aggregated project log lines to return from the end of the project stream.
+	Tail *ProjectLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
 
 	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
 	Since *ContainerLogsSince `form:"since,omitempty" json:"since,omitempty"`

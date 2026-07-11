@@ -1,4 +1,4 @@
-export type DebugFlagId = 'tabs' | 'tabs.layout' | 'tabs.store' | 'project.monaco';
+export type DebugFlagId = 'tabs' | 'tabs.layout' | 'tabs.store' | 'project.logs' | 'project.monaco';
 
 export type DebugFlagDefinition = {
   defaultEnabled: boolean;
@@ -36,6 +36,18 @@ export const DEBUG_FLAG_REGISTRY = [
     relatedPaths: ['src/store/modules/tabs-router.ts', 'src/utils/tabs-debug.ts'],
     defaultEnabled: false,
     parentFlagId: 'tabs',
+  },
+  {
+    flagId: 'project.logs',
+    envKeys: ['VITE_DEBUG_PROJECT_LOGS'],
+    owner: 'project log snapshot and realtime runtime',
+    summary: '项目日志 HTTP 快照、实时订阅、批处理与视图归一化诊断日志。',
+    relatedPaths: [
+      'src/modules/project/pages/detail/index.vue',
+      'src/modules/project/shared/project-log-debug.ts',
+      'src/modules/project/shared/project-log-realtime-batcher.ts',
+    ],
+    defaultEnabled: false,
   },
   {
     flagId: 'project.monaco',

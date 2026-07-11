@@ -1684,6 +1684,15 @@ func TestProjectLogsNilServiceReturnsRuntimeUnavailable(t *testing.T) {
 	}
 }
 
+func TestToContainerProjectLogFollowQuerySuppressesReplay(t *testing.T) {
+	t.Parallel()
+
+	query := toContainerProjectLogFollowQuery(LogQuery{Tail: 200, Since: "1h", Stdout: true, Timestamps: true})
+	if !query.FollowOnly || query.Tail != 200 || query.Since != "1h" || !query.Stdout || !query.Timestamps {
+		t.Fatalf("unexpected follow query %#v", query)
+	}
+}
+
 func TestImportDirectorySourcesIncludeManagedRootAndAllowlistedRoot(t *testing.T) {
 	t.Parallel()
 

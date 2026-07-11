@@ -1025,7 +1025,7 @@ func bindGetProjectServicesParams(ginCtx *gin.Context) generated.GetProjectServi
 func bindGetProjectLogsParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectLogsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := generated.GetProjectLogsParams{XGraftLocale: locale, XRequestId: requestID}
-	if value, ok := optionalIntQuery[generated.ContainerLogsTail](ginCtx.Query("tail"), 1, maxProjectLogsTail); ok {
+	if value, ok := optionalIntQuery[generated.ProjectLogsTail](ginCtx.Query("tail"), 1, maxProjectLogsTail); ok {
 		params.Tail = value
 	} else {
 		abortInvalidQuery(ginCtx, ctx)

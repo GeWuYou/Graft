@@ -12083,7 +12083,7 @@
             "$ref": "#/components/parameters/project-id-path"
           },
           {
-            "$ref": "#/components/parameters/container-logs-tail"
+            "$ref": "#/components/parameters/project-logs-tail"
           },
           {
             "$ref": "#/components/parameters/container-logs-since"
@@ -27504,6 +27504,28 @@
           "maxTail": {
             "summary": "Maximum accepted tail window",
             "value": 2000
+          }
+        }
+      },
+      "project-logs-tail": {
+        "name": "tail",
+        "in": "query",
+        "required": false,
+        "description": "Number of aggregated project log lines to return from the end of the project stream.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 200
+        },
+        "examples": {
+          "defaultTail": {
+            "summary": "Default project tail window",
+            "value": 200
+          },
+          "maxTail": {
+            "summary": "Maximum accepted project tail window",
+            "value": 1000
           }
         }
       },

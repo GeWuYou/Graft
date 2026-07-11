@@ -118,6 +118,9 @@ type ContainerProjectLogQuery struct {
 	Timestamps bool
 	Stdout     bool
 	Stderr     bool
+	// FollowOnly suppresses the runtime tail replay when the query is used for a live stream.
+	// Historical entries must be obtained from ReadProjectLogs before follow begins.
+	FollowOnly bool
 }
 
 // ContainerProjectLogEntry preserves one project-owned log entry with explicit runtime source attribution.

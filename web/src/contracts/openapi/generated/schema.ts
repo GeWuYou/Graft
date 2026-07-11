@@ -6715,6 +6715,8 @@ export interface components {
     'project-workspace-show-hidden-query': boolean;
     /** @description Number of log lines to return from the end of the stream. */
     'container-logs-tail': number;
+    /** @description Number of aggregated project log lines to return from the end of the project stream. */
+    'project-logs-tail': number;
     /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
     'container-logs-since': string;
     /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */
@@ -13205,8 +13207,8 @@ export interface operations {
   getProjectLogs: {
     parameters: {
       query?: {
-        /** @description Number of log lines to return from the end of the stream. */
-        tail?: components['parameters']['container-logs-tail'];
+        /** @description Number of aggregated project log lines to return from the end of the project stream. */
+        tail?: components['parameters']['project-logs-tail'];
         /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
         since?: components['parameters']['container-logs-since'];
         /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */

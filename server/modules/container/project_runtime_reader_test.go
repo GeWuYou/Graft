@@ -18,6 +18,21 @@ type stubProjectReaderRuntime struct {
 	logs  map[string]Logs
 }
 
+type streamQueryProjectReaderRuntime struct {
+	stubProjectReaderRuntime
+	queries []LogQuery
+}
+
+func (s *streamQueryProjectReaderRuntime) StreamLogs(
+	_ context.Context,
+	_ Ref,
+	query LogQuery,
+	_ func(LogChunk) error,
+) error {
+	s.queries = append(s.queries, query)
+	return nil
+}
+
 func (s stubProjectReaderRuntime) Info(context.Context) (RuntimeInfo, error) {
 	return RuntimeInfo{Runtime: runtimeNameDocker, ServerVersion: "27.0.1"}, nil
 }
@@ -222,6 +237,40 @@ func TestContainerProjectRuntimeReaderAppliesTailAcrossProject(t *testing.T) {
 	}
 	if snapshot.Entries[0].Line != "web-2" || snapshot.Entries[1].Line != "worker-2" {
 		t.Fatalf("expected latest project-wide entries, got %#v", snapshot.Entries)
+	}
+}
+
+func TestContainerProjectRuntimeReaderFollowsWithoutTailReplay(t *testing.T) {
+	t.Parallel()
+
+	runtime := &streamQueryProjectReaderRuntime{
+		stubProjectReaderRuntime: stubProjectReaderRuntime{
+			items: []Summary{{
+				ID:             "container-1",
+				Name:           "demo-app-1",
+				State:          "running",
+				ComposeProject: "demo",
+				ComposeService: "app",
+			}},
+		},
+	}
+	reader := containerProjectRuntimeReader{service: &service{runtime: runtime, enabled: true}}
+
+	err := reader.StreamProjectLogs(context.Background(), "local", "demo", moduleapi.ContainerProjectLogQuery{
+		FollowOnly: true,
+		Tail:       200,
+		Stdout:     true,
+	}, func(moduleapi.ContainerProjectLogEntry) error {
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("stream project logs: %v", err)
+	}
+	if len(runtime.queries) != 1 {
+		t.Fatalf("expected one runtime stream query, got %#v", runtime.queries)
+	}
+	if runtime.queries[0].Tail != 0 {
+		t.Fatalf("expected follow-only stream without tail replay, got %#v", runtime.queries[0])
 	}
 }
 

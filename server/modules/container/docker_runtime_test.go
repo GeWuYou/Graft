@@ -203,6 +203,26 @@ func TestDockerRuntimeStreamLogsEmitsIncrementalLines(t *testing.T) {
 	}
 }
 
+func TestDockerRuntimeStreamLogsPassesZeroTailForFollowOnlyStream(t *testing.T) {
+	t.Parallel()
+
+	client := &countingDockerClient{logReader: dockerLogReadCloser(t)}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
+
+	if err := runtime.StreamLogs(context.Background(), Ref{Value: "web"}, LogQuery{Tail: 0, Stdout: true}, func(LogChunk) error {
+		return nil
+	}); err != nil {
+		t.Fatalf("stream logs: %v", err)
+	}
+	if client.lastLogOptions.Tail != "0" {
+		t.Fatalf("expected Docker follow request to preserve zero tail, got %#v", client.lastLogOptions)
+	}
+}
+
 func TestDockerRuntimeStreamLogsPreservesCanonicalChunkMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -1853,6 +1873,7 @@ type countingDockerClient struct {
 	execResizeCalls    atomic.Int64
 	removeForce        atomic.Bool
 	logReader          io.ReadCloser
+	lastLogOptions     mobyclient.ContainerLogsOptions
 	inspect            container.InspectResponse
 	list               []container.Summary
 	stats              container.StatsResponse
@@ -1884,8 +1905,9 @@ func (c *countingDockerClient) ContainerInspect(context.Context, string) (contai
 	return c.inspect, nil
 }
 
-func (c *countingDockerClient) ContainerLogs(context.Context, string, mobyclient.ContainerLogsOptions) (io.ReadCloser, error) {
+func (c *countingDockerClient) ContainerLogs(_ context.Context, _ string, options mobyclient.ContainerLogsOptions) (io.ReadCloser, error) {
 	c.logCalls.Add(1)
+	c.lastLogOptions = options
 	if c.logReader == nil {
 		return io.NopCloser(bytes.NewReader(nil)), nil
 	}

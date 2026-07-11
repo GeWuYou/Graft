@@ -251,7 +251,7 @@ func (r containerProjectRuntimeReader) StreamProjectLogs(
 	if err != nil {
 		return err
 	}
-	normalizedQuery := toContainerLogQuery(normalizeContainerProjectLogQuery(query))
+	normalizedQuery := projectLogStreamQuery(query)
 	var (
 		wg      sync.WaitGroup
 		errMu   sync.Mutex
@@ -344,6 +344,16 @@ func normalizeContainerProjectLogQuery(query moduleapi.ContainerProjectLogQuery)
 		normalized.Stderr = true
 	}
 	normalized.Since = strings.TrimSpace(normalized.Since)
+	return normalized
+}
+
+func projectLogStreamQuery(query moduleapi.ContainerProjectLogQuery) LogQuery {
+	normalized := toContainerLogQuery(normalizeContainerProjectLogQuery(query))
+	if query.FollowOnly {
+		// Project owns the bounded history snapshot. The realtime topic follows only
+		// entries produced after a websocket subscriber becomes active.
+		normalized.Tail = 0
+	}
 	return normalized
 }
 
