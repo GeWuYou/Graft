@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	defaultListLimit = 20
-	maxListLimit     = 100
+	defaultListLimit                = 20
+	maxListLimit                    = 100
+	maxLifecycleAdditionalArgs      = 32
+	maxLifecycleAdditionalArgLength = 256
 )
 
 func (r *SQLRepository) ensureReady() error {
@@ -277,6 +279,11 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
 	config.Profiles = normalizedProfiles
+	additionalArgs, err := normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
+	if err != nil {
+		return LifecycleConfig{}, err
+	}
+	config.AdditionalArgs = additionalArgs
 	if config.WaitTimeoutSeconds == 0 {
 		config.WaitTimeoutSeconds = defaultLifecycleWaitTimeoutSeconds
 	}
@@ -284,6 +291,21 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 		return LifecycleConfig{}, ErrInvalidInput
 	}
 	return config, nil
+}
+
+func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
+	if len(values) > maxLifecycleAdditionalArgs {
+		return nil, ErrInvalidInput
+	}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		argument := strings.TrimSpace(value)
+		if argument == "" || len(argument) > maxLifecycleAdditionalArgLength || strings.ContainsAny(argument, "\r\n\x00") {
+			return nil, ErrInvalidInput
+		}
+		normalized = append(normalized, argument)
+	}
+	return normalized, nil
 }
 
 // normalizeTemporalPointers 将提供的时间指针统一转换为 UTC。
@@ -650,6 +672,7 @@ type lifecycleConfigPayload struct {
 	WaitTimeoutSeconds       *int      `json:"wait_timeout_seconds"`
 	RenewAnonVolumes         *bool     `json:"renew_anon_volumes"`
 	PruneImagesAfterRedeploy *bool     `json:"prune_images_after_redeploy"`
+	AdditionalArgs           *[]string `json:"additional_args"`
 }
 
 // 如果 JSON 数据格式无效，则返回 ErrInvalidInput。
@@ -677,6 +700,7 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 		WaitTimeoutSeconds:       *payload.WaitTimeoutSeconds,
 		RenewAnonVolumes:         *payload.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: *payload.PruneImagesAfterRedeploy,
+		AdditionalArgs:           append([]string(nil), (*payload.AdditionalArgs)...),
 	}, nil
 }
 
@@ -692,6 +716,7 @@ func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
 	payload.WaitTimeoutSeconds = lifecycleIntOrDefault(payload.WaitTimeoutSeconds, defaultLifecycleWaitTimeoutSeconds)
 	payload.RenewAnonVolumes = lifecycleBoolOrDefault(payload.RenewAnonVolumes, false)
 	payload.PruneImagesAfterRedeploy = lifecycleBoolOrDefault(payload.PruneImagesAfterRedeploy, false)
+	payload.AdditionalArgs = lifecycleSliceOrDefault(payload.AdditionalArgs, []string{})
 }
 
 func lifecycleSliceOrDefault(value *[]string, fallback []string) *[]string {
@@ -727,6 +752,7 @@ func (payload lifecycleConfigPayload) validateRequiredFields() error {
 		payload.WaitTimeoutSeconds != nil,
 		payload.RenewAnonVolumes != nil,
 		payload.PruneImagesAfterRedeploy != nil,
+		payload.AdditionalArgs != nil,
 	}
 	for _, present := range required {
 		if !present {

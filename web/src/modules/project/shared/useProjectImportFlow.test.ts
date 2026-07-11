@@ -8,6 +8,20 @@ const mocks = vi.hoisted(() => ({
   postProjectImportRuntimeInspect: vi.fn(),
 }));
 
+const lifecycleConfiguration = {
+  strategy_kind: 'standard' as const,
+  profiles: [],
+  down_before_redeploy: true,
+  pull_before_redeploy: false,
+  build_before_up: false,
+  force_recreate: false,
+  remove_orphans: true,
+  wait_after_up: false,
+  wait_timeout_seconds: 120,
+  renew_anon_volumes: false,
+  prune_images_after_redeploy: false,
+};
+
 vi.mock('../api/import', () => ({
   postProjectImportExecute: mocks.postProjectImportExecute,
   postProjectImportRuntimeInspect: mocks.postProjectImportRuntimeInspect,
@@ -67,6 +81,20 @@ describe('useProjectImportFlow', () => {
       conflicts: [],
       validation_status: 'ready',
       config_hash: 'abc',
+      lifecycle_configuration: {
+        strategy_kind: 'standard',
+        profiles: [],
+        down_before_redeploy: true,
+        pull_before_redeploy: false,
+        build_before_up: false,
+        force_recreate: false,
+        remove_orphans: true,
+        wait_after_up: false,
+        wait_timeout_seconds: 120,
+        renew_anon_volumes: false,
+        prune_images_after_redeploy: false,
+        additional_args: [],
+      },
     });
 
     const flow = useProjectImportFlow((key: string) => key);
@@ -95,6 +123,20 @@ describe('useProjectImportFlow', () => {
       volumes: [],
       warnings: [],
       conflicts: [],
+      lifecycle_configuration: {
+        strategy_kind: 'standard',
+        profiles: [],
+        down_before_redeploy: true,
+        pull_before_redeploy: false,
+        build_before_up: false,
+        force_recreate: false,
+        remove_orphans: true,
+        wait_after_up: false,
+        wait_timeout_seconds: 120,
+        renew_anon_volumes: false,
+        prune_images_after_redeploy: false,
+        additional_args: [],
+      },
     });
     mocks.postProjectImportExecute.mockResolvedValue({
       project: {
@@ -116,6 +158,7 @@ describe('useProjectImportFlow', () => {
     );
     flow.displayName.value = 'Srv Override';
     flow.canonicalProjectNameOverride.value = 'srv-override';
+    expect(flow.prepareLifecycleConfiguration()).toBe(true);
 
     await flow.submitImport();
 
@@ -123,6 +166,20 @@ describe('useProjectImportFlow', () => {
       inspection_id: 'inspect-2',
       display_name: 'Srv Override',
       canonical_project_name_override: 'srv-override',
+      lifecycle_configuration: {
+        strategy_kind: 'standard',
+        profiles: [],
+        down_before_redeploy: true,
+        pull_before_redeploy: false,
+        build_before_up: false,
+        force_recreate: false,
+        remove_orphans: true,
+        wait_after_up: false,
+        wait_timeout_seconds: 120,
+        renew_anon_volumes: false,
+        prune_images_after_redeploy: false,
+        additional_args: [],
+      },
     });
   });
 
@@ -140,6 +197,7 @@ describe('useProjectImportFlow', () => {
       volumes: [],
       warnings: [],
       conflicts: ['Canonical project name already exists'],
+      lifecycle_configuration: lifecycleConfiguration,
     });
 
     const flow = useProjectImportFlow((key: string) => key);
@@ -175,6 +233,7 @@ describe('useProjectImportFlow', () => {
       conflicts: null,
       validation_status: 'ready',
       config_hash: 'nullable-hash',
+      lifecycle_configuration: lifecycleConfiguration,
     });
 
     const flow = useProjectImportFlow((key: string) => key);
@@ -255,6 +314,7 @@ describe('useProjectImportFlow', () => {
       volumes: [],
       warnings: [],
       conflicts: [],
+      lifecycle_configuration: lifecycleConfiguration,
     });
 
     await expect(secondSelection).resolves.toBe('applied');
@@ -276,6 +336,7 @@ describe('useProjectImportFlow', () => {
       volumes: [],
       warnings: [],
       conflicts: [],
+      lifecycle_configuration: lifecycleConfiguration,
     });
 
     await expect(firstSelection).resolves.toBe('stale');

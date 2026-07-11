@@ -242,14 +242,16 @@ type RuntimeImportInspectResult struct {
 	Warnings                   []string                       `json:"warnings"`
 	Conflicts                  []string                       `json:"conflicts"`
 	ValidationStatus           string                         `json:"validation_status"`
+	LifecycleConfiguration     LifecycleStandardConfig        `json:"lifecycle_configuration"`
 }
 
 // ImportExecuteRequest finalizes an import from a prior inspection snapshot.
 type ImportExecuteRequest struct {
-	InspectionID                 string  `json:"inspection_id"`
-	DisplayName                  *string `json:"display_name,omitempty"`
-	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
-	ActorID                      *uint64 `json:"-"`
+	InspectionID                 string                   `json:"inspection_id"`
+	DisplayName                  *string                  `json:"display_name,omitempty"`
+	CanonicalProjectNameOverride *string                  `json:"canonical_project_name_override,omitempty"`
+	LifecycleConfiguration       *LifecycleStandardConfig `json:"lifecycle_configuration"`
+	ActorID                      *uint64                  `json:"-"`
 }
 
 // FileView exposes one discovered compose/env file in inspect responses.

@@ -102,13 +102,18 @@ func (s *Service) validationResultFromSession(session importInspectionSession) I
 	}
 }
 
+type importInspectionCommitInput struct {
+	DisplayName       *string
+	CanonicalOverride *string
+	LifecycleConfig   *LifecycleStandardConfig
+	ActorID           *uint64
+}
+
 func (s *Service) importInspectionSession(
 	ctx context.Context,
 	repository projectstore.Repository,
 	session importInspectionSession,
-	displayName *string,
-	canonicalOverride *string,
-	actorID *uint64,
+	input importInspectionCommitInput,
 ) (generated.ProjectImportResponse, error) {
 	if len(session.Conflicts) > 0 {
 		return generated.ProjectImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(session.Conflicts, ", "))
@@ -117,9 +122,9 @@ func (s *Service) importInspectionSession(
 		WorkingDirectory:             session.WorkingDir,
 		ComposeFiles:                 displayPathsFromCompose(session.ParseResult.ComposeFiles),
 		EnvFiles:                     displayPathsFromCompose(session.ParseResult.EnvFiles),
-		DisplayName:                  displayName,
-		CanonicalProjectNameOverride: canonicalOverride,
-		ActorID:                      actorID,
+		DisplayName:                  input.DisplayName,
+		CanonicalProjectNameOverride: input.CanonicalOverride,
+		ActorID:                      input.ActorID,
 	}
 	freshParse, freshValidation, err := s.parseImportRequest(currentRequest)
 	if err != nil {
@@ -128,9 +133,16 @@ func (s *Service) importInspectionSession(
 	if !sameFileHashes(session.FileHashes, freshParse) {
 		return generated.ProjectImportResponse{}, errors.Join(errProjectConflict, errProjectFileHashMismatch)
 	}
+	if input.LifecycleConfig == nil {
+		return generated.ProjectImportResponse{}, errProjectInvalidArgument
+	}
+	normalizedLifecycleConfig, err := normalizeLifecycleStandardConfig(*input.LifecycleConfig)
+	if err != nil {
+		return generated.ProjectImportResponse{}, err
+	}
 	now := time.Now().UTC()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		DisplayName:                defaultImportedDisplayName(displayName, freshParse.WorkingDirectory, freshValidation.CanonicalProjectName),
+		DisplayName:                defaultImportedDisplayName(input.DisplayName, freshParse.WorkingDirectory, freshValidation.CanonicalProjectName),
 		CanonicalProjectName:       freshValidation.CanonicalProjectName,
 		CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource,
 		SourceKind:                 projectcontract.SourceKindImported.String(),
@@ -138,8 +150,8 @@ func (s *Service) importInspectionSession(
 		WorkingDirectory:           freshParse.WorkingDirectory,
 		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
 		LifecycleStrategyKind:      projectcontract.LifecycleStrategyKindStandard.String(),
-		LifecycleReviewStatus:      projectcontract.LifecycleReviewStatusReviewRequired.String(),
-		LifecycleConfig:            lifecycleSeedForImportedProject(),
+		LifecycleReviewStatus:      projectcontract.LifecycleReviewStatusConfirmed.String(),
+		LifecycleConfig:            toStoreLifecycleConfig(normalizedLifecycleConfig),
 		LastObservedConfigHash:     freshParse.ConfigHash,
 		LastDriftCheckedAt:         &now,
 		DriftStatus:                projectcontract.DriftStatusClean.String(),
@@ -151,7 +163,7 @@ func (s *Service) importInspectionSession(
 			DeclaredServicesDigest: digestServiceNames(freshParse.ServiceNames),
 			RefreshedAt:            now,
 		},
-		ActorID: actorID,
+		ActorID: input.ActorID,
 	})
 	if err != nil {
 		return generated.ProjectImportResponse{}, mapStoreError(err)

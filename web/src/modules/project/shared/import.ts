@@ -255,7 +255,8 @@ export function normalizeProjectImportInspectResponse(
  * @returns `true` 如果存在冲突，`false` 否则。
  */
 export function hasBlockingImportConflicts(result: ProjectImportInspectResponse | null) {
-  return Boolean(normalizeProjectImportInspectResponse(result)?.conflicts?.length);
+  const normalized = normalizeProjectImportInspectResponse(result);
+  return Boolean(normalized?.conflicts?.length) || normalized?.validation_status === 'conflict';
 }
 
 /**

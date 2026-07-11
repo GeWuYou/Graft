@@ -138,6 +138,7 @@ func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.
 		WaitTimeoutSeconds:       config.Standard.WaitTimeoutSeconds,
 		RenewAnonVolumes:         config.Standard.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.Standard.PruneImagesAfterRedeploy,
+		AdditionalArgs:           append([]string{}, config.Standard.AdditionalArgs...),
 		GeneratedCommands:        toGeneratedLifecycleCommands(config),
 	}
 }
@@ -243,6 +244,7 @@ func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []str
 		args = append(args, "--wait")
 		args = append(args, "--wait-timeout", fmt.Sprintf("%d", standard.WaitTimeoutSeconds))
 	}
+	args = append(args, standard.AdditionalArgs...)
 	return args
 }
 

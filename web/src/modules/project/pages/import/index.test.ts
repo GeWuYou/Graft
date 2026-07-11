@@ -370,10 +370,13 @@ function createFlowState() {
     hasPreview: ref(false),
     importError: ref(''),
     importLoading: ref(false),
+    lifecycleDraft: ref(null),
+    lifecycleConfigError: ref(''),
     inspectCandidate: vi.fn(),
     inspectError: ref(''),
     inspectLoading: ref(false),
     inspectResult: ref(null),
+    prepareLifecycleConfiguration: vi.fn(() => true),
     refreshInspect: vi.fn(),
     reset: vi.fn(),
     selectedCandidateKey: ref('runtime:demo'),
@@ -928,7 +931,7 @@ describe('ProjectImportIndex', () => {
 
     expect(wrapper.get('[data-testid="inspect-overview-stub"]').text()).toContain('检查概览');
     expect(wrapper.get('[data-testid="inspect-resources-stub"]').text()).toContain('资源');
-    expect(wrapper.text()).toContain('继续确认导入');
+    expect(wrapper.text()).toContain('配置生命周期');
   });
 
   it('renders a review-focused confirm step from the existing inspect payload without re-inspecting', async () => {
@@ -1204,7 +1207,7 @@ describe('ProjectImportIndex', () => {
     expect(mocks.push).toHaveBeenCalledWith({
       name: 'ProjectDetailIndex',
       params: { id: 1 },
-      query: { tab: 'overview' },
+      query: { tab: 'lifecycle' },
     });
     expect(mocks.closeTabsByPredicate).toHaveBeenCalledTimes(1);
   });

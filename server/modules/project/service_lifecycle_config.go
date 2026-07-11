@@ -21,11 +21,8 @@ func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 		WaitTimeoutSeconds:       defaultLifecycleWaitTimeoutSeconds,
 		RenewAnonVolumes:         false,
 		PruneImagesAfterRedeploy: false,
+		AdditionalArgs:           []string{},
 	}
-}
-
-func lifecycleSeedForImportedProject() projectstore.LifecycleConfig {
-	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
 }
 
 func lifecycleSeedForManagedProject() projectstore.LifecycleConfig {
@@ -58,6 +55,7 @@ func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate
 			WaitTimeoutSeconds:       aggregate.Project.LifecycleConfig.WaitTimeoutSeconds,
 			RenewAnonVolumes:         aggregate.Project.LifecycleConfig.RenewAnonVolumes,
 			PruneImagesAfterRedeploy: aggregate.Project.LifecycleConfig.PruneImagesAfterRedeploy,
+			AdditionalArgs:           append([]string(nil), aggregate.Project.LifecycleConfig.AdditionalArgs...),
 		},
 	}
 }
@@ -75,6 +73,7 @@ func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.Lifecyc
 		WaitTimeoutSeconds:       config.WaitTimeoutSeconds,
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
+		AdditionalArgs:           append([]string(nil), config.AdditionalArgs...),
 	}
 }
 
@@ -94,6 +93,10 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 		seen[profile] = struct{}{}
 		normalizedProfiles = append(normalizedProfiles, profile)
 	}
+	normalizedAdditionalArgs, err := normalizeLifecycleAdditionalArgs(config.AdditionalArgs)
+	if err != nil {
+		return LifecycleStandardConfig{}, err
+	}
 	return LifecycleStandardConfig{
 		Profiles:                 normalizedProfiles,
 		DownBeforeRedeploy:       config.DownBeforeRedeploy,
@@ -105,6 +108,7 @@ func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (Lifecycle
 		WaitTimeoutSeconds:       normalizeLifecycleWaitTimeout(config.WaitTimeoutSeconds),
 		RenewAnonVolumes:         config.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
+		AdditionalArgs:           normalizedAdditionalArgs,
 	}, validateLifecycleWaitTimeout(config.WaitTimeoutSeconds)
 }
 
@@ -124,6 +128,43 @@ func validateLifecycleWaitTimeout(value int) error {
 		return errProjectInvalidArgument
 	}
 	return nil
+}
+
+func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
+	const (
+		maxArgs   = 32
+		maxArgLen = 256
+	)
+	if len(values) > maxArgs {
+		return nil, errProjectInvalidArgument
+	}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		argument := strings.TrimSpace(value)
+		if argument == "" || len(argument) > maxArgLen || strings.ContainsAny(argument, "\r\n\x00") || isLifecycleAuthorityOverrideArg(argument) {
+			return nil, errProjectInvalidArgument
+		}
+		normalized = append(normalized, argument)
+	}
+	return normalized, nil
+}
+
+func isLifecycleAuthorityOverrideArg(argument string) bool {
+	forbidden := []string{
+		"-f",
+		"--file",
+		"-p",
+		"--project-name",
+		"--project-directory",
+		"--env-file",
+		"--profile",
+	}
+	for _, prefix := range forbidden {
+		if argument == prefix || strings.HasPrefix(argument, prefix+"=") {
+			return true
+		}
+	}
+	return argument == "--"
 }
 
 // UpdateLifecycleConfiguration saves one project's standard compose lifecycle configuration and confirms it.

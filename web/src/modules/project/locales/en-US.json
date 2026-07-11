@@ -343,7 +343,7 @@
     },
     "import": {
       "eyebrow": "Import Project",
-      "description": "Choose a running Compose project first, review the Inspect result next, and confirm the import last.",
+      "description": "Choose a running Compose project, review the inspection, confirm lifecycle configuration, then import.",
       "meta": {
         "selectedCandidate": "Current Candidate: {name}"
       },
@@ -359,9 +359,14 @@
           "title": "Step 2 · Inspect Preview",
           "description": "Review only the Inspect discovery result and diagnostics before moving forward."
         },
+        "lifecycle": {
+          "shortTitle": "Configure Lifecycle",
+          "title": "Step 3 · Configure Lifecycle",
+          "description": "Confirm the configuration and command previews Graft will use for Compose operations."
+        },
         "confirm": {
           "shortTitle": "Confirm Import",
-          "title": "Step 3 · Confirm Import",
+          "title": "Step 4 · Confirm Import",
           "description": "Review the import target, inspection summary, and impact notes before running the final import."
         }
       },
@@ -377,6 +382,8 @@
         "clearFilters": "Clear Filters",
         "backToCandidates": "Back to Project Selection",
         "continueToConfirm": "Continue to Confirm",
+        "continueToLifecycle": "Configure Lifecycle",
+        "confirmLifecycle": "Confirm Lifecycle Configuration",
         "backToInspect": "Back to Inspect"
       },
       "candidates": {
@@ -464,6 +471,14 @@
         "displayNamePlaceholder": "For Example: Orders Service Dev",
         "canonicalProjectNameOverride": "Canonical Project Name Override",
         "canonicalProjectNameOverridePlaceholder": "Leave Blank to Keep the Inspected Value"
+      },
+      "lifecycle": {
+        "title": "Confirm Lifecycle Configuration",
+        "description": "Confirm the Compose strategy used later for start, stop, restart, and redeploy actions.",
+        "unavailableTitle": "Lifecycle Configuration Unavailable",
+        "authorityHint": "This configuration is saved with the import, so lifecycle actions are available when the project opens.",
+        "configurationTitle": "Lifecycle Configuration",
+        "commandPreviewTitle": "Command Preview"
       },
       "confirm": {
         "title": "Final Review",
@@ -560,6 +575,7 @@
         "runtimeMemberState": "State",
         "runtimeMemberContainerId": "Container ID",
         "blockedDescription": "The current Inspect result contains conflicts and must be fixed before the import can be confirmed.",
+        "unknownConflict": "The server marked this inspection as conflicted but did not provide details. Inspect again, then check server logs if it persists.",
         "noDiagnostics": "No additional warnings or conflicts were returned.",
         "resources": {
           "tabs": {
@@ -619,6 +635,7 @@
         "directorySourceLoadFailed": "Directory Sources Could Not Be Loaded.",
         "directoryLoadFailed": "Directory List Could Not Be Loaded.",
         "inspectSuccess": "Inspect Completed.",
+        "lifecycleConfigUnavailable": "The server did not return a complete lifecycle configuration, so the import cannot continue. Inspect again, then update the server if it persists.",
         "inspectFailed": "Inspect Failed.",
         "importSuccess": "Compose Project Imported.",
         "importFailed": "Compose Project Import Failed."

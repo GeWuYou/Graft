@@ -622,6 +622,7 @@ func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleCo
 		args = append(args, "--wait")
 		args = append(args, "--wait-timeout", fmt.Sprintf("%d", config.Standard.WaitTimeoutSeconds))
 	}
+	args = append(args, config.Standard.AdditionalArgs...)
 	return args, nil
 }
 

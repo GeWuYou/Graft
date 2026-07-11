@@ -165,10 +165,16 @@ func (r routeRuntime) handleImport(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectImport(bindPostProjectImportParams(ginCtx), request)
+	lifecycleConfig, err := lifecycleStandardConfigFromGenerated(request.LifecycleConfiguration)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
 	result, err := r.service.ImportByInspection(ginCtx.Request.Context(), ImportExecuteRequest{
 		InspectionID:                 request.InspectionId,
 		DisplayName:                  request.DisplayName,
 		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+		LifecycleConfiguration:       &lifecycleConfig,
 		ActorID:                      currentUserIDPointer(ginCtx),
 	})
 	if err != nil {

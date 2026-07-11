@@ -1,3 +1,4 @@
+import type { ProjectImportInspectResponse } from '../types/import';
 import type {
   ProjectDetailResponseWithLifecycle,
   ProjectLifecycleActionKey,
@@ -12,7 +13,6 @@ import type {
   ProjectSourceKind,
 } from '../types/project';
 
-const lifecycleAdditionalArgsSession = new Map<string, string>();
 const defaultLifecycleWaitTimeoutSeconds = 120;
 
 /**
@@ -47,40 +47,6 @@ function splitProfiles(value: string) {
 
 function normalizeAdditionalArgs(value: string) {
   return value.trim().split(/\s+/).filter(Boolean);
-}
-
-function buildLifecycleSessionKey(
-  config: Pick<ProjectLifecycleConfigurationDraft, 'canonical_project_name' | 'compose_files' | 'working_directory'>,
-) {
-  return [config.working_directory.trim(), config.canonical_project_name.trim(), ...config.compose_files].join('\n');
-}
-
-function readLifecycleSessionAdditionalArgs(
-  config: Pick<ProjectLifecycleConfigurationDraft, 'canonical_project_name' | 'compose_files' | 'working_directory'>,
-) {
-  return lifecycleAdditionalArgsSession.get(buildLifecycleSessionKey(config)) ?? '';
-}
-
-/**
- * 持久化生命周期配置中的附加参数。
- *
- * @param config - 包含附加参数及项目会话标识信息的配置
- */
-function persistLifecycleSessionAdditionalArgs(
-  config: Pick<
-    ProjectLifecycleConfigurationDraft,
-    'additional_args' | 'canonical_project_name' | 'compose_files' | 'working_directory'
-  >,
-) {
-  const key = buildLifecycleSessionKey(config);
-  const value = config.additional_args.trim();
-
-  if (!value) {
-    lifecycleAdditionalArgsSession.delete(key);
-    return;
-  }
-
-  lifecycleAdditionalArgsSession.set(key, value);
 }
 
 /**
@@ -419,11 +385,6 @@ export function buildLifecycleConfigurationDraft(
   detail: ProjectDetailResponseWithLifecycle,
 ): ProjectLifecycleConfigurationDraft {
   const source = detail.lifecycle_configuration;
-  const sessionAdditionalArgs = readLifecycleSessionAdditionalArgs({
-    canonical_project_name: detail.canonical_project_name,
-    compose_files: normalizeComposeFiles(detail),
-    working_directory: detail.working_directory,
-  });
   const config: ProjectLifecycleConfigurationDraft = {
     strategy_kind: source?.strategy_kind ?? 'standard',
     working_directory: detail.working_directory,
@@ -439,7 +400,7 @@ export function buildLifecycleConfigurationDraft(
     wait_timeout_seconds: normalizeWaitTimeoutSeconds(source?.wait_timeout_seconds),
     renew_anon_volumes: source?.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
-    additional_args: sessionAdditionalArgs,
+    additional_args: source?.additional_args?.join(' ') ?? '',
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
     generated_commands: mapGeneratedCommands(source, detail.working_directory),
   };
@@ -451,18 +412,51 @@ export function buildLifecycleConfigurationDraft(
 }
 
 /**
- * 将生命周期配置草稿转换为更新请求，并持久化附加命令参数。
+ * Builds an editable lifecycle draft from the server-owned import inspection snapshot.
+ */
+export function buildImportLifecycleConfigurationDraft(
+  result: ProjectImportInspectResponse,
+): ProjectLifecycleConfigurationDraft {
+  const source = result.lifecycle_configuration;
+  const composeFiles = result.compose_files
+    .map((file) => file.display_path || file.absolute_path || '')
+    .filter(Boolean);
+  const config: ProjectLifecycleConfigurationDraft = {
+    strategy_kind: source.strategy_kind,
+    working_directory: result.resolved_working_directory,
+    compose_files: composeFiles.length ? composeFiles : ['compose.yaml'],
+    canonical_project_name: result.canonical_project_name,
+    profiles: Array.isArray(source.profiles) ? [...source.profiles] : [],
+    down_before_redeploy: source.down_before_redeploy,
+    pull_before_redeploy: source.pull_before_redeploy,
+    build_before_up: source.build_before_up,
+    force_recreate: source.force_recreate,
+    remove_orphans: source.remove_orphans,
+    wait_after_up: source.wait_after_up,
+    wait_timeout_seconds: normalizeWaitTimeoutSeconds(source.wait_timeout_seconds),
+    renew_anon_volumes: source.renew_anon_volumes,
+    prune_images_after_redeploy: source.prune_images_after_redeploy,
+    additional_args: '',
+    review_status: 'review_required',
+    generated_commands: null,
+  };
+
+  return { ...config, generated_commands: buildClientGeneratedCommands(config) };
+}
+
+/**
+ * 将生命周期配置草稿转换为更新请求。
  *
  * @param draft - 要转换的生命周期配置草稿
- * @returns 不包含 `additional_args` 的生命周期配置更新请求
+ * @returns 包含结构化附加 argv 参数的生命周期配置更新请求
  */
 export function buildLifecycleConfigurationRequest(
   draft: ProjectLifecycleConfigurationDraft,
 ): ProjectLifecycleConfigurationUpdateRequest {
-  persistLifecycleSessionAdditionalArgs(draft);
-  const { additional_args: _additionalArgs, ...request } = comparableLifecycleDraftState(draft);
+  const { additional_args, ...request } = comparableLifecycleDraftState(draft);
   return {
     ...request,
+    additional_args: normalizeAdditionalArgs(additional_args),
   };
 }
 

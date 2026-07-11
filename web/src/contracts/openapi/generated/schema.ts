@@ -5664,7 +5664,7 @@ export interface components {
     /** @enum {string} */
     'project-canonical-name-source': 'computed' | 'override';
     /**
-     * @description Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+     * @description Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
      * @enum {string}
      */
     'project-lifecycle-review-status': 'review_required' | 'confirmed';
@@ -5861,6 +5861,29 @@ export interface components {
       service_name: string;
       state: string;
     };
+    /**
+     * @description Canonical lifecycle execution strategy kind owned by the project module.
+     * @enum {string}
+     */
+    'project-lifecycle-strategy-kind': 'standard';
+    'project-lifecycle-configuration-request': {
+      strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
+      profiles: string[];
+      down_before_redeploy: boolean;
+      pull_before_redeploy: boolean;
+      build_before_up: boolean;
+      force_recreate: boolean;
+      /** @default true */
+      remove_orphans: boolean;
+      wait_after_up: boolean;
+      /** @default 120 */
+      wait_timeout_seconds: number;
+      prune_images_after_redeploy: boolean;
+      /** @default false */
+      renew_anon_volumes: boolean;
+      /** @description Bounded extra argv tokens appended to docker compose up; shell expressions and project identity flags are rejected by the server. */
+      additional_args?: string[];
+    };
     'project-import-runtime-inspect-response': {
       inspection_id: string;
       candidate_key: string;
@@ -5879,6 +5902,7 @@ export interface components {
       conflicts: string[];
       /** @enum {string} */
       validation_status: 'ready' | 'conflict';
+      lifecycle_configuration: components['schemas']['project-lifecycle-configuration-request'];
     };
     'enveloped-project-import-runtime-inspect-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-runtime-inspect-response'];
@@ -5918,12 +5942,8 @@ export interface components {
       inspection_id: string;
       display_name?: string;
       canonical_project_name_override?: string | null;
+      lifecycle_configuration: components['schemas']['project-lifecycle-configuration-request'];
     };
-    /**
-     * @description Canonical lifecycle execution strategy kind owned by the project module.
-     * @enum {string}
-     */
-    'project-lifecycle-strategy-kind': 'standard';
     'project-lifecycle-command-step': {
       /** @enum {string} */
       kind: 'down' | 'pull' | 'up' | 'stop' | 'restart' | 'prune';
@@ -5953,6 +5973,7 @@ export interface components {
       prune_images_after_redeploy: boolean;
       /** @default false */
       renew_anon_volumes: boolean;
+      additional_args: string[];
       generated_commands: {
         up: components['schemas']['project-lifecycle-generated-command'];
         stop: components['schemas']['project-lifecycle-generated-command'];
@@ -6269,22 +6290,6 @@ export interface components {
       code: number;
       msg: string;
       data: components['schemas']['project-log-response'];
-    };
-    'project-lifecycle-configuration-request': {
-      strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
-      profiles: string[];
-      down_before_redeploy: boolean;
-      pull_before_redeploy: boolean;
-      build_before_up: boolean;
-      force_recreate: boolean;
-      /** @default true */
-      remove_orphans: boolean;
-      wait_after_up: boolean;
-      /** @default 120 */
-      wait_timeout_seconds: number;
-      prune_images_after_redeploy: boolean;
-      /** @default false */
-      renew_anon_volumes: boolean;
     };
     'project-lifecycle-configuration-response': {
       /** Format: int64 */

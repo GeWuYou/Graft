@@ -1260,6 +1260,7 @@ describe('Project detail service tab', () => {
         ...buildProjectDetail().lifecycle_configuration,
         strategy_kind: 'standard',
         wait_after_up: true,
+        additional_args: [],
       },
       lifecycle_review_status: 'confirmed',
       project_id: 7,

@@ -519,7 +519,7 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
 - `imported`
   - 只能从 working directory、tracked compose files、canonical project name 推导出可恢复的最小 authority
   - `profiles`、`pull/build/wait/force-recreate/prune` 等不可从 Docker runtime 历史可靠恢复
-  - 因此导入后必须落一个可编辑的默认 lifecycle configuration，并进入 `review_required`
+  - 因此导入向导必须先展示可编辑的默认 lifecycle configuration；操作员确认后，项目注册与配置一起保存为 `confirmed`
 - `git`、`template`、`remote-host`
   - 当前只保留 future-friendly strategy wording，不在本批实现 custom script 或 remote execution
 
@@ -528,6 +528,7 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
 - `Project` 保存结构化配置，而不是保存一整段原始 shell 命令
 - working directory、ordered compose files、canonical project name 继续由 project registry authority 拥有
 - lifecycle configuration 只保存可编辑的 compose 执行选项
+- `additional_args` 以受限的 argv token 列表持久化，并只追加到 `up` / `redeploy` 的 `compose up`；不得承载 shell 表达式或覆盖项目 authority 的 `-f`、`-p`、profile 等参数
 - UI 可展示 generated command preview，但 preview 是 derived artifact，不是第二套 authority
 - 若项目仍是 `review_required`，`up/stop/restart/redeploy` 必须先被 guard 拦住，直到用户确认或更新配置
 
@@ -1534,7 +1535,7 @@ Configuration：
   - `compose_project_files` 降级为 compose/env 元数据 overlay，不再承载 workspace state 或 Preview Diff authority
   - `files` / `files/content` 使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束
   - validate 只针对当前已保存磁盘状态做静态解析，不消费前端未保存草稿
-  - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`，imported 默认 `review_required`
+  - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`；运行时导入必须在导入向导内审核服务端提供的默认配置，并与项目注册一起保存为 `confirmed`
   - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 deploy
   - deploy 只读取当前已保存磁盘状态、刷新 project snapshot，并复用 project-owned lifecycle configuration 做 final compose `up`
   - redeploy 成为统一 runtime deploy-style lifecycle action；pull/down/prune 等语义都收口到 lifecycle configuration

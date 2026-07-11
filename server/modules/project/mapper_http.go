@@ -177,7 +177,33 @@ func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated
 		Warnings:                   append([]string(nil), result.Warnings...),
 		Conflicts:                  append([]string(nil), result.Conflicts...),
 		ValidationStatus:           generated.ProjectImportRuntimeInspectResponseValidationStatus(result.ValidationStatus),
+		LifecycleConfiguration:     toGeneratedLifecycleConfigurationRequest(result.LifecycleConfiguration),
 	}
+}
+
+func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) generated.ProjectLifecycleConfigurationRequest {
+	additionalArgs := append([]string{}, config.AdditionalArgs...)
+	return generated.ProjectLifecycleConfigurationRequest{
+		StrategyKind:             generated.ProjectLifecycleStrategyKindStandard,
+		Profiles:                 append([]string{}, config.Profiles...),
+		DownBeforeRedeploy:       config.DownBeforeRedeploy,
+		PullBeforeRedeploy:       config.PullBeforeRedeploy,
+		BuildBeforeUp:            config.BuildBeforeUp,
+		ForceRecreate:            config.ForceRecreate,
+		RemoveOrphans:            config.RemoveOrphans,
+		WaitAfterUp:              config.WaitAfterUp,
+		WaitTimeoutSeconds:       config.WaitTimeoutSeconds,
+		RenewAnonVolumes:         config.RenewAnonVolumes,
+		PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy,
+		AdditionalArgs:           &additionalArgs,
+	}
+}
+
+func lifecycleStandardConfigFromGenerated(config generated.ProjectLifecycleConfigurationRequest) (LifecycleStandardConfig, error) {
+	if config.StrategyKind != generated.ProjectLifecycleStrategyKindStandard {
+		return LifecycleStandardConfig{}, errProjectInvalidArgument
+	}
+	return toLifecycleConfigurationRequest(config), nil
 }
 
 func toRuntimeImportNetworkResources(items []RuntimeImportNetworkResource) []generated.ProjectImportRuntimeNetworkResource {
@@ -347,6 +373,10 @@ func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
 
 // toLifecycleConfigurationRequest 将项目生命周期配置请求转换为标准生命周期配置，并复制配置文件列表以避免共享底层切片。
 func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigurationRequest) LifecycleStandardConfig {
+	additionalArgs := []string{}
+	if request.AdditionalArgs != nil {
+		additionalArgs = append(additionalArgs, (*request.AdditionalArgs)...)
+	}
 	return LifecycleStandardConfig{
 		Profiles:                 append([]string(nil), request.Profiles...),
 		DownBeforeRedeploy:       request.DownBeforeRedeploy,
@@ -358,6 +388,7 @@ func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigura
 		WaitTimeoutSeconds:       request.WaitTimeoutSeconds,
 		RenewAnonVolumes:         request.RenewAnonVolumes,
 		PruneImagesAfterRedeploy: request.PruneImagesAfterRedeploy,
+		AdditionalArgs:           additionalArgs,
 	}
 }
 

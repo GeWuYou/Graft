@@ -16,6 +16,7 @@ required:
   - warnings
   - conflicts
   - validation_status
+  - lifecycle_configuration
 properties:
   inspection_id:
     type: string
@@ -66,3 +67,5 @@ properties:
   validation_status:
     type: string
     enum: [ready, conflict]
+  lifecycle_configuration:
+    $ref: ./project-lifecycle-configuration-request.yaml

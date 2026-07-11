@@ -2280,7 +2280,10 @@ func TestInspectAndImportByInspection(t *testing.T) {
 		t.Fatalf("unexpected inspect result: %#v", inspect)
 	}
 
-	imported, err := service.ImportByInspection(context.Background(), ImportExecuteRequest{InspectionID: inspect.InspectionID})
+	imported, err := service.ImportByInspection(context.Background(), ImportExecuteRequest{
+		InspectionID:           inspect.InspectionID,
+		LifecycleConfiguration: lifecycleConfigPointer(defaultLifecycleStandardConfig()),
+	})
 	if err != nil {
 		t.Fatalf("import by inspection: %v", err)
 	}
@@ -2289,6 +2292,9 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	}
 	if repo.importInput == nil {
 		t.Fatalf("expected persisted import input")
+	}
+	if repo.importInput.LifecycleReviewStatus != projectcontract.LifecycleReviewStatusConfirmed.String() {
+		t.Fatalf("expected imported lifecycle configuration to be confirmed, got %q", repo.importInput.LifecycleReviewStatus)
 	}
 }
 
@@ -2325,7 +2331,10 @@ func TestImportByInspectionReturnsInspectionStaleOnFileHashMismatch(t *testing.T
 		t.Fatalf("rewrite compose file: %v", err)
 	}
 
-	_, err = service.ImportByInspection(context.Background(), ImportExecuteRequest{InspectionID: inspect.InspectionID})
+	_, err = service.ImportByInspection(context.Background(), ImportExecuteRequest{
+		InspectionID:           inspect.InspectionID,
+		LifecycleConfiguration: lifecycleConfigPointer(defaultLifecycleStandardConfig()),
+	})
 	if !errors.Is(err, errProjectInspectionStale) {
 		t.Fatalf("expected inspection stale error, got %v", err)
 	}
@@ -2333,6 +2342,10 @@ func TestImportByInspectionReturnsInspectionStaleOnFileHashMismatch(t *testing.T
 
 type stubCompositeConfigResolver struct {
 	values map[string]string
+}
+
+func lifecycleConfigPointer(config LifecycleStandardConfig) *LifecycleStandardConfig {
+	return &config
 }
 
 func (s stubCompositeConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool {

@@ -8,7 +8,9 @@ import type {
   ProjectImportRuntimeCandidate,
   ProjectImportRuntimeInspectRequest,
 } from '../types/import';
+import type { ProjectLifecycleConfigurationDraft } from '../types/project';
 import { buildSuggestedDisplayName, hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
+import { buildImportLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from './lifecycle';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -29,6 +31,8 @@ export function useProjectImportFlow(t: Translate) {
   const inspectResult = ref<ProjectImportInspectResponse | null>(null);
   const displayName = ref('');
   const canonicalProjectNameOverride = ref('');
+  const lifecycleDraft = ref<ProjectLifecycleConfigurationDraft | null>(null);
+  const lifecycleConfigError = ref('');
 
   const canImport = computed(
     () =>
@@ -50,6 +54,8 @@ export function useProjectImportFlow(t: Translate) {
     inspectResult.value = null;
     displayName.value = '';
     canonicalProjectNameOverride.value = '';
+    lifecycleDraft.value = null;
+    lifecycleConfigError.value = '';
   }
 
   function clearPreview() {
@@ -58,6 +64,8 @@ export function useProjectImportFlow(t: Translate) {
     inspectResult.value = null;
     displayName.value = '';
     canonicalProjectNameOverride.value = '';
+    lifecycleDraft.value = null;
+    lifecycleConfigError.value = '';
   }
 
   async function inspectCandidateByKey(candidateKey: string) {
@@ -100,9 +108,27 @@ export function useProjectImportFlow(t: Translate) {
     return inspectCandidateByKey(selectedCandidateKey.value);
   }
 
+  function prepareLifecycleConfiguration() {
+    if (!inspectResult.value) {
+      return false;
+    }
+    try {
+      lifecycleDraft.value = buildImportLifecycleConfigurationDraft(inspectResult.value);
+      lifecycleConfigError.value = '';
+      return true;
+    } catch {
+      lifecycleDraft.value = null;
+      lifecycleConfigError.value = t('project.import.messages.lifecycleConfigUnavailable');
+      return false;
+    }
+  }
+
   async function submitImport() {
     if (!inspectResult.value?.inspection_id) {
       throw new Error('missing inspection authority');
+    }
+    if (!lifecycleDraft.value) {
+      throw new Error('missing lifecycle configuration');
     }
 
     importLoading.value = true;
@@ -112,6 +138,7 @@ export function useProjectImportFlow(t: Translate) {
         inspection_id: inspectResult.value.inspection_id,
         display_name: displayName.value.trim() || undefined,
         canonical_project_name_override: canonicalProjectNameOverride.value.trim() || null,
+        lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
       });
     } catch (error) {
       importError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.importFailed'));
@@ -129,10 +156,13 @@ export function useProjectImportFlow(t: Translate) {
     hasPreview,
     importError,
     importLoading,
+    lifecycleConfigError,
+    lifecycleDraft,
     inspectCandidate,
     inspectError,
     inspectLoading,
     inspectResult,
+    prepareLifecycleConfiguration,
     refreshInspect,
     reset,
     selectedCandidateKey,

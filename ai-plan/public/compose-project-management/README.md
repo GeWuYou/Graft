@@ -73,7 +73,7 @@
   - `Import Existing Project` 的主入口应是 runtime candidate，而不是 folder picker。
   - 当前 import 的 `directory browse / inspect` 能力继续保留，但只作为非主入口 inspect/file-system 复用底座。
   - `config_files` 是 runtime candidate 的 stronger authority；`working_directory` 是 hint，可在缺少 label 时由 `config_files[0]` 派生。
-  - 本地项目统一收口到保存型 `Lifecycle Configuration` authority：managed 默认 `confirmed`，imported 默认 `review_required`。
+  - 本地项目统一收口到保存型 `Lifecycle Configuration` authority：managed 默认 `confirmed`；运行时导入在向导内强制审核配置，并与注册一起保存为 `confirmed`。
   - `update-deploy` 不再作为一等动作保留；`redeploy` 成为唯一 deploy-style lifecycle action，pull/down/prune 等语义统一由 lifecycle configuration 持有。
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
 - 当前下一步：先执行 `drift-repair-import-primary-entry-and-topic-truth`，再回到剩余 Phase 3 bounded work。

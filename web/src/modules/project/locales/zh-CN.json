@@ -343,7 +343,7 @@
     },
     "import": {
       "eyebrow": "导入项目",
-      "description": "按步骤选择运行中的 Compose 项目、查看检查结果，再确认导入。",
+      "description": "按步骤选择运行中的 Compose 项目、查看检查结果、确认生命周期配置，再导入。",
       "meta": {
         "selectedCandidate": "当前候选：{name}"
       },
@@ -359,9 +359,14 @@
           "title": "第 2 步 · 检查预览",
           "description": "只查看本次检查的发现结果与诊断信息，不在这一屏填写导入选项。"
         },
+        "lifecycle": {
+          "shortTitle": "配置生命周期",
+          "title": "第 3 步 · 配置生命周期",
+          "description": "确认 Graft 将用于后续 Compose 操作的配置和命令预览。"
+        },
         "confirm": {
           "shortTitle": "确认导入",
-          "title": "第 3 步 · 确认导入",
+          "title": "第 4 步 · 确认导入",
           "description": "复核导入对象、检查摘要和影响说明，再执行最终导入。"
         }
       },
@@ -377,6 +382,8 @@
         "clearFilters": "清除筛选",
         "backToCandidates": "返回选择项目",
         "continueToConfirm": "继续确认导入",
+        "continueToLifecycle": "配置生命周期",
+        "confirmLifecycle": "确认生命周期配置",
         "backToInspect": "返回检查"
       },
       "candidates": {
@@ -464,6 +471,14 @@
         "displayNamePlaceholder": "例如：订单服务开发环境",
         "canonicalProjectNameOverride": "规范项目名覆盖",
         "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
+      },
+      "lifecycle": {
+        "title": "确认生命周期配置",
+        "description": "导入前确认后续启动、停止、重启和重新部署将使用的 Compose 策略。",
+        "unavailableTitle": "无法加载生命周期配置",
+        "authorityHint": "此配置将随导入一起保存；导入成功后项目生命周期即可执行。",
+        "configurationTitle": "生命周期配置",
+        "commandPreviewTitle": "命令预览"
       },
       "confirm": {
         "title": "最终确认",
@@ -560,6 +575,7 @@
         "runtimeMemberState": "状态",
         "runtimeMemberContainerId": "容器 ID",
         "blockedDescription": "当前检查结果包含冲突，解决后才能继续确认导入。",
+        "unknownConflict": "服务端将本次检查标记为冲突，但未返回具体冲突信息。请重新检查；若问题持续，请查看服务端日志。",
         "noDiagnostics": "当前没有额外警告或冲突。",
         "resources": {
           "tabs": {
@@ -619,6 +635,7 @@
         "directorySourceLoadFailed": "目录来源加载失败。",
         "directoryLoadFailed": "目录列表加载失败。",
         "inspectSuccess": "检查已完成。",
+        "lifecycleConfigUnavailable": "当前服务端未返回完整的生命周期配置，无法继续导入。请刷新检查；若问题持续，请更新服务端后重试。",
         "inspectFailed": "检查失败。",
         "importSuccess": "Compose 项目导入成功。",
         "importFailed": "Compose 项目导入失败。"

@@ -397,6 +397,7 @@ func runtimeImportInspectResultFromSession(
 		Warnings:                   preview.warnings,
 		Conflicts:                  preview.conflicts,
 		ValidationStatus:           preview.validationStatus,
+		LifecycleConfiguration:     defaultLifecycleStandardConfig(),
 	}
 }
 

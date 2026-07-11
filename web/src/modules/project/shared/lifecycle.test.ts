@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildImportLifecycleConfigurationDraft,
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
   formatLifecycleCommandCopyText,
@@ -8,7 +9,7 @@ import {
   resolveLifecycleCommandSteps,
 } from './lifecycle';
 
-function createProjectDetail() {
+function createProjectDetail(additionalArgs: string[] = []) {
   return {
     canonical_project_name: 'compose-demo',
     compose_files: [
@@ -27,6 +28,7 @@ function createProjectDetail() {
       wait_timeout_seconds: 120,
       renew_anon_volumes: false,
       prune_images_after_redeploy: false,
+      additional_args: additionalArgs,
     },
     lifecycle_review_status: 'confirmed',
     source_kind: 'manual',
@@ -35,7 +37,7 @@ function createProjectDetail() {
 }
 
 describe('project lifecycle helpers', () => {
-  it('keeps additional args as session-only draft state across saves', () => {
+  it('persists additional args through lifecycle requests and detail drafts', () => {
     const firstDraft = buildLifecycleConfigurationDraft(createProjectDetail());
     firstDraft.additional_args = '--progress plain';
 
@@ -61,9 +63,10 @@ describe('project lifecycle helpers', () => {
       wait_timeout_seconds: 120,
       renew_anon_volumes: false,
       prune_images_after_redeploy: false,
+      additional_args: ['--progress', 'plain'],
     });
 
-    const refreshedDraft = buildLifecycleConfigurationDraft(createProjectDetail());
+    const refreshedDraft = buildLifecycleConfigurationDraft(createProjectDetail(['--progress', 'plain']));
     expect(refreshedDraft.additional_args).toBe('--progress plain');
     expect(resolveLifecycleCommandSteps(refreshedDraft, 'up')).toEqual([
       {
@@ -92,15 +95,7 @@ describe('project lifecycle helpers', () => {
     );
   });
 
-  it('clears session additional args when the saved draft no longer carries them', () => {
-    const draft = buildLifecycleConfigurationDraft(createProjectDetail());
-    draft.additional_args = '--wait';
-    buildLifecycleConfigurationRequest(draft);
-
-    const clearedDraft = buildLifecycleConfigurationDraft(createProjectDetail());
-    clearedDraft.additional_args = '   ';
-    buildLifecycleConfigurationRequest(clearedDraft);
-
+  it('uses an empty draft value when persisted additional args are absent', () => {
     expect(buildLifecycleConfigurationDraft(createProjectDetail()).additional_args).toBe('');
   });
 
@@ -123,6 +118,30 @@ describe('project lifecycle helpers', () => {
     expect(draft.remove_orphans).toBe(true);
     expect(draft.wait_timeout_seconds).toBe(120);
     expect(draft.renew_anon_volumes).toBe(false);
+  });
+
+  it('normalizes legacy null import profiles to an empty list', () => {
+    const draft = buildImportLifecycleConfigurationDraft({
+      canonical_project_name: 'compose-demo',
+      compose_files: [],
+      lifecycle_configuration: {
+        strategy_kind: 'standard',
+        profiles: null,
+        down_before_redeploy: true,
+        pull_before_redeploy: false,
+        build_before_up: false,
+        force_recreate: false,
+        remove_orphans: true,
+        wait_after_up: false,
+        wait_timeout_seconds: 120,
+        renew_anon_volumes: false,
+        prune_images_after_redeploy: false,
+        additional_args: [],
+      },
+      resolved_working_directory: '/srv/compose-demo',
+    } as never);
+
+    expect(draft.profiles).toEqual([]);
   });
 
   it('treats wait-timeout changes as dirty lifecycle state', () => {

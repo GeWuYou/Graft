@@ -43,4 +43,13 @@ properties:
   renew_anon_volumes:
     type: boolean
     default: false
+  additional_args:
+    type: array
+    description: Bounded extra argv tokens appended to docker compose up; shell expressions and project identity flags are rejected by the server.
+    maxItems: 32
+    items:
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^\S+$'
 additionalProperties: false
