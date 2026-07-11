@@ -2987,6 +2987,7 @@ export interface components {
     ProjectServiceItem: components['schemas']['project-service-item'];
     ProjectServicesResponse: components['schemas']['project-services-response'];
     ProjectCreateRequest: components['schemas']['project-create-request'];
+    ProjectWorkspaceManifestFile: components['schemas']['project-workspace-manifest-file'];
     ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
     ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
     ProjectImportResponse: components['schemas']['project-import-response'];
@@ -6126,6 +6127,12 @@ export interface components {
     'enveloped-project-managed-root-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-managed-root-response'];
     };
+    'project-workspace-manifest-file': {
+      /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
+      path: string;
+      /** @description UTF-8 text content to materialize for the file. */
+      content: string;
+    };
     'project-create-validate-request': {
       display_name: string;
       canonical_project_name: string;
@@ -6133,6 +6140,11 @@ export interface components {
       relative_project_directory: string;
       compose_file_name: string;
       env_file_name?: string | null;
+      /** @description Complete managed workspace text manifest to validate without materializing. */
+      workspace_files?: components['schemas']['project-workspace-manifest-file'][];
+      compose_file_path?: string;
+      env_file_paths?: string[];
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-validate-response': {
       managed_root: components['schemas']['project-managed-root-response'];
@@ -6162,6 +6174,13 @@ export interface components {
       env_file_name?: string | null;
       /** @description Optional initial env file content. It is ignored when env_file_name is omitted. */
       env_file_content?: string | null;
+      /** @description Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest. */
+      workspace_files?: components['schemas']['project-workspace-manifest-file'][];
+      /** @description Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition. */
+      compose_file_path?: string;
+      /** @description Explicit workspace-relative env file references. */
+      env_file_paths?: string[];
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];

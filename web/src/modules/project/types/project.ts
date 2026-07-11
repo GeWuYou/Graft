@@ -42,6 +42,7 @@ export type ProjectCreateRequest = components['schemas']['ProjectCreateRequest']
 export type ProjectCreateResponse = components['schemas']['project-create-response'];
 export type ProjectCreateValidateRequest = components['schemas']['project-create-validate-request'];
 export type ProjectCreateValidateResponse = components['schemas']['project-create-validate-response'];
+export type ProjectWorkspaceManifestFile = components['schemas']['project-workspace-manifest-file'];
 export type ProjectConfigurationMetadataResponse = components['schemas']['ProjectConfigurationMetadataResponse'];
 export type ProjectConfigurationPreviewResponse = components['schemas']['ProjectConfigurationPreviewResponse'];
 export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];

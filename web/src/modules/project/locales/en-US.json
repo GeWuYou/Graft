@@ -651,12 +651,17 @@
       "eyebrow": "Source Boundaries",
       "title": "Project Source Boundaries",
       "description": "Inspect Managed, Git, Template, and Remote Host source boundaries. Import and Managed Create remain the real user entrypoints.",
+      "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the project. Create never deploys automatically.",
       "actions": {
         "backToList": "Back to List",
         "refreshAuthority": "Refresh Authority",
         "validate": "Validate Create Input",
         "create": "Create and Open Project",
-        "reset": "Reset Form"
+        "reset": "Reset Form",
+        "back": "Back",
+        "continue": "Continue",
+        "review": "Review",
+        "cancel": "Cancel"
       },
       "root": {
         "status": {
@@ -716,6 +721,35 @@
         "fullscreen": "Fullscreen",
         "exitFullscreen": "Exit Fullscreen",
         "resize": "Resize Editor Height"
+      },
+      "steps": {
+        "identity": "Identity and Root",
+        "workspace": "Workspace",
+        "lifecycle": "Lifecycle",
+        "review": "Review"
+      },
+      "workspace": {
+        "hint": "The complete workspace is materialized in the managed root. Only text configuration files are supported.",
+        "filesTitle": "Workspace Files",
+        "addFile": "Add File",
+        "removeFile": "Remove File",
+        "filePath": "Relative File Path",
+        "filePathPlaceholder": "For example nginx/nginx.conf or .env.production",
+        "invalidFilePath": "The file path must be a unique workspace-relative path without absolute or parent directory segments.",
+        "editorAriaLabel": "Edit {path}"
+      },
+      "lifecycle": {
+        "title": "Lifecycle Configuration",
+        "description": "Confirm the Compose lifecycle configuration owned by the project after creation.",
+        "authorityHint": "Create saves lifecycle configuration only; it does not deploy or start containers.",
+        "configurationTitle": "Lifecycle Configuration",
+        "commandPreviewTitle": "Command Preview"
+      },
+      "review": {
+        "title": "Review Creation",
+        "noAutoDeploy": "Create writes the workspace, registers the project, and synchronizes a read-only runtime summary. It does not deploy automatically.",
+        "workingDirectory": "Target Working Directory",
+        "workspaceFiles": "Workspace Files"
       },
       "messages": {
         "rootLoadFailed": "Managed Root Authority Could Not Be Loaded.",

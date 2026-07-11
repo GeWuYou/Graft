@@ -651,12 +651,17 @@
       "eyebrow": "来源边界",
       "title": "项目来源边界",
       "description": "查看托管、Git、模板和远程主机来源的边界状态；真正的用户入口仍以导入和托管创建为准。",
+      "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册项目。创建不会自动部署。",
       "actions": {
         "backToList": "返回列表",
         "refreshAuthority": "刷新 authority",
         "validate": "校验创建输入",
         "create": "创建并打开项目",
-        "reset": "重置表单"
+        "reset": "重置表单",
+        "back": "上一步",
+        "continue": "继续",
+        "review": "查看审核",
+        "cancel": "取消"
       },
       "root": {
         "status": {
@@ -716,6 +721,30 @@
         "fullscreen": "全屏",
         "exitFullscreen": "退出全屏",
         "resize": "调整编辑器高度"
+      },
+      "steps": { "identity": "项目与根目录", "workspace": "工作区", "lifecycle": "生命周期", "review": "审核" },
+      "workspace": {
+        "hint": "工作区会作为项目目录完整写入受管根目录。仅支持文本配置文件。",
+        "filesTitle": "工作区文件",
+        "addFile": "新增文件",
+        "removeFile": "删除文件",
+        "filePath": "相对文件路径",
+        "filePathPlaceholder": "例如 nginx/nginx.conf 或 .env.production",
+        "invalidFilePath": "文件路径必须是唯一的工作区相对路径，且不能包含绝对路径或上级目录。",
+        "editorAriaLabel": "编辑 {path}"
+      },
+      "lifecycle": {
+        "title": "Lifecycle Configuration",
+        "description": "确认创建后由项目持有的 Compose 生命周期配置。",
+        "authorityHint": "创建只保存生命周期配置，不会执行部署或启动容器。",
+        "configurationTitle": "Lifecycle Configuration",
+        "commandPreviewTitle": "命令预览"
+      },
+      "review": {
+        "title": "审核创建",
+        "noAutoDeploy": "创建会写入工作区、注册项目并同步只读运行时摘要；不会自动部署。",
+        "workingDirectory": "目标工作目录",
+        "workspaceFiles": "工作区文件"
       },
       "messages": {
         "rootLoadFailed": "受管根目录 authority 加载失败。",

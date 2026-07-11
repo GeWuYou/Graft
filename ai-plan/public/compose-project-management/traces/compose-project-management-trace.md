@@ -359,3 +359,10 @@
 - `compose_projects.source_metadata_json` 成为无密钥来源 provenance 的持久化 owner；列表/详情优先读取持久化 metadata。
 - Managed writer 支持 nested 与 dot text files，拒绝绝对路径、traversal、重复路径、NUL/非 UTF-8 内容；失败时仍只回滚该请求创建的内容。
 - 下一批：`managed-workspace-wizard-and-lifecycle-review`，不改变 Container runtime authority。
+
+## 2026-07-11 Managed workspace wizard and lifecycle review
+
+- Managed Create 已使用 `Identity & Managed Root -> Workspace -> Lifecycle -> Review -> Create` 向导，草稿工作区支持 nested 与 dot text files，并通过 `ProjectMonacoSurface` 和现有语言解析保持编辑体验一致。
+- 生命周期表单与命令预览被抽取为 source-neutral component；Import 仅保留其 inspect refresh 和专属步骤操作包装。
+- 创建请求携带 canonical workspace manifest、Compose/Env references 和 lifecycle configuration；成功后进入配置工作区且不触发 deploy。
+- 下一批：`import-creation-adapter-and-regression`。
