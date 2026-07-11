@@ -36,12 +36,14 @@ const monacoSurfaceState = vi.hoisted(() => ({
 
 const routeState = reactive({
   fullPath: '/ops/projects/1/configuration?name=sub2api',
+  name: 'ProjectConfigurationWorkspaceIndex',
   params: { id: '1' },
   path: '/ops/projects/1/configuration',
   query: { name: 'sub2api' },
 });
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
+  updateActiveTabTitle: vi.fn(),
   tabRouterList: [
     {
       fullPath: '/ops/projects/1/configuration?name=sub2api',
@@ -843,14 +845,18 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('h1').text()).toBe('sub2api · Configuration Workspace');
   });
 
-  it('updates the current tab title to the standalone workspace title', async () => {
+  it('delegates the current tab title update to the active workspace tab', async () => {
     mountWorkspace();
     await flushPromises();
 
-    expect(tabsRouterStoreMock.tabRouterList[0].title).toEqual({
-      'en-US': 'Configuration Workspace - sub2api',
-      'zh-CN': '配置工作台 - sub2api',
-    });
+    expect(tabsRouterStoreMock.updateActiveTabTitle).toHaveBeenCalledWith(
+      'ProjectConfigurationWorkspaceIndex',
+      routeState,
+      {
+        'en-US': 'Configuration Workspace - sub2api',
+        'zh-CN': '配置工作台 - sub2api',
+      },
+    );
   });
 
   it('keeps the standalone workspace header title before the detail request resolves', async () => {

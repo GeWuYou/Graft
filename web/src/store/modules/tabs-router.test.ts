@@ -606,4 +606,57 @@ describe('useTabsRouterStore', () => {
 
     expect(tabsRouterStore.activeTabKey).toBe(duplicated?.tabKey);
   });
+
+  it('updates only the active tab title when its route identity matches', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/ops/projects/1',
+      path: '/ops/projects/1',
+      name: 'ProjectDetailIndex',
+      title: { 'en-US': 'Project Detail - one', 'zh-CN': '项目详情 - one' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/ops/projects/1/configuration',
+      path: '/ops/projects/1/configuration',
+      name: 'ProjectConfigurationWorkspaceIndex',
+      title: { 'en-US': 'Configuration Workspace - one', 'zh-CN': '配置工作台 - one' },
+    });
+    tabsRouterStore.setActiveTabKey('/ops/projects/1');
+
+    tabsRouterStore.updateActiveTabTitle(
+      'ProjectDetailIndex',
+      { name: 'ProjectDetailIndex', path: '/ops/projects/1' } as never,
+      { 'en-US': 'Project Detail - updated', 'zh-CN': '项目详情 - 已更新' },
+    );
+
+    expect(tabsRouterStore.tabRouters.find((tab) => tab.tabKey === '/ops/projects/1')?.title?.['en-US']).toBe(
+      'Project Detail - updated',
+    );
+    expect(
+      tabsRouterStore.tabRouters.find((tab) => tab.tabKey === '/ops/projects/1/configuration')?.title?.['en-US'],
+    ).toBe('Configuration Workspace - one');
+  });
+
+  it('ignores title updates from a deactivated page after navigation', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/ops/projects/2',
+      path: '/ops/projects/2',
+      name: 'ProjectDetailIndex',
+      title: { 'en-US': 'Project Detail - two', 'zh-CN': '项目详情 - two' },
+    });
+    tabsRouterStore.setActiveTabKey('/ops/projects/2');
+
+    tabsRouterStore.updateActiveTabTitle(
+      'ProjectConfigurationWorkspaceIndex',
+      { name: 'ProjectDetailIndex', path: '/ops/projects/2' } as never,
+      { 'en-US': 'Configuration Workspace - stale', 'zh-CN': '配置工作台 - 过期' },
+    );
+
+    expect(tabsRouterStore.tabRouters.find((tab) => tab.tabKey === '/ops/projects/2')?.title?.['en-US']).toBe(
+      'Project Detail - two',
+    );
+  });
 });

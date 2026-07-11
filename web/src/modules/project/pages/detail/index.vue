@@ -732,7 +732,7 @@
             <section class="project-section project-tab-panel">
               <task-history-table
                 owner-type="compose_project"
-                :owner-id="String(projectId)"
+                :owner-id="projectTaskOwnerId"
                 :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
                 @open="openTaskDrawer($event.id)"
               />
@@ -1019,11 +1019,17 @@ const projectLifecycleConfigRealtimeGate = createRealtimeSnapshotGate({
 });
 
 const projectId = computed(() => Number(route.params.id));
-const activeTabRoute = computed(() =>
-  tabsRouterStore.tabRouterList.find(
-    (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
-  ),
+const projectTaskOwnerId = computed(() =>
+  Number.isSafeInteger(projectId.value) && projectId.value > 0 ? String(projectId.value) : '',
 );
+const activeTabRoute = computed(() => {
+  if (route.name !== PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName) {
+    return undefined;
+  }
+
+  const activeTab = tabsRouterStore.tabRouterList.find((tab) => tab.tabKey === tabsRouterStore.activeTabKey);
+  return activeTab?.path === route.path && activeTab.name === route.name ? activeTab : undefined;
+});
 const fallbackDisplayName = computed(() => {
   const tabTitle = readNameFromTabTitle(activeTabRoute.value?.title);
   if (tabTitle) return tabTitle;
@@ -2456,11 +2462,7 @@ function readNameFromTabTitle(title?: LocalizedTitle) {
 }
 
 function updateCurrentTabTitle(title: LocalizedTitle) {
-  const routePath = route.path;
-  const routeFullPath = route.fullPath;
-  tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
-    tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
-  );
+  tabsRouterStore.updateActiveTabTitle(PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName, route, title);
 }
 
 function openConfigurationWorkspace() {

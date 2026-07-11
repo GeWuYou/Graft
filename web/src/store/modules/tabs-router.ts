@@ -7,7 +7,7 @@ import {
   type RouteRecordName,
 } from 'vue-router';
 
-import { LOCALE } from '@/contracts/i18n/locales';
+import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
 import { createLogger } from '@/utils/logger';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
@@ -381,6 +381,24 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       logTabsDebug(
         'tabs.store',
         () => `tabs debug: appendTabRouterList after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
+      );
+    },
+    updateActiveTabTitle(
+      expectedRouteName: RouteRecordName,
+      route: Pick<RouteLocationNormalizedLoaded, 'name' | 'path'>,
+      title: LocalizedTitle,
+    ) {
+      if (route.name !== expectedRouteName) {
+        return;
+      }
+
+      const activeTab = this.tabRouterList.find((tab) => getTabKey(tab) === this.activeTabKey);
+      if (!activeTab || activeTab.path !== route.path || activeTab.name !== route.name) {
+        return;
+      }
+
+      this.tabRouterList = this.tabRouterList.map((tab) =>
+        getTabKey(tab) === this.activeTabKey ? { ...tab, title } : tab,
       );
     },
     // 处理关闭当前

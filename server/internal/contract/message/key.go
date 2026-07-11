@@ -53,6 +53,9 @@ const (
 	// CommonInvalidArgument identifies invalid request parameter failures.
 	CommonInvalidArgument Key = "common.invalid_argument"
 
+	// CommonNotFound identifies resources hidden because they do not exist or are outside the caller scope.
+	CommonNotFound Key = "common.not_found"
+
 	// CommonConjunction identifies the shared conjunction label used by runtime UI copy.
 	CommonConjunction Key = "common.conjunction"
 

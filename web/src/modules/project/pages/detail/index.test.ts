@@ -57,6 +57,7 @@ const projectApiMocks = vi.hoisted(() => ({
 const routeState = vi.hoisted(() => ({
   value: {
     fullPath: '/ops/projects/7',
+    name: 'ProjectDetailIndex',
     params: { id: '7' },
     path: '/ops/projects/7',
     query: {} as Record<string, unknown>,
@@ -87,7 +88,9 @@ const routerMocks = vi.hoisted(() => ({
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
   appendTabRouterList: vi.fn(),
+  activeTabKey: '/ops/projects/7',
   setActiveTabKey: vi.fn(),
+  updateActiveTabTitle: vi.fn(),
   tabRouterList: [
     {
       fullPath: '/ops/projects/7',
@@ -311,6 +314,16 @@ const TInputNumberStub = defineComponent({
         value: props.modelValue,
         onInput: (event: Event) => emit('update:modelValue', Number((event.target as HTMLInputElement).value)),
       });
+  },
+});
+
+const TaskHistoryTableStub = defineComponent({
+  name: 'TaskHistoryTable',
+  props: {
+    ownerId: { type: String, default: '' },
+  },
+  setup(props) {
+    return () => h('div', { 'data-owner-id': props.ownerId, 'data-stub': 'TaskHistoryTable' });
   },
 });
 
@@ -671,6 +684,7 @@ function mountPage() {
       stubs: {
         ManagementPageHeader: slotStub('ManagementPageHeader'),
         ManagementPagedTable: ManagementPagedTableStub,
+        TaskHistoryTable: TaskHistoryTableStub,
         ProjectFileEditor: slotStub('ProjectFileEditor'),
         LifecycleHelpTrigger: LifecycleHelpTriggerStub,
         TableActionMenu: TableActionMenuStub,
@@ -883,6 +897,11 @@ describe('Project detail service tab', () => {
     vi.clearAllMocks();
     realtimeMocks.sockets.length = 0;
     routeState.value.query = {};
+    routeState.value.name = 'ProjectDetailIndex';
+    routeState.value.path = '/ops/projects/7';
+    routeState.value.fullPath = '/ops/projects/7';
+    routeState.value.params = { id: '7' };
+    tabsRouterStoreMock.activeTabKey = '/ops/projects/7';
     tabsRouterStoreMock.tabRouterList = [
       {
         fullPath: '/ops/projects/7',
@@ -921,6 +940,15 @@ describe('Project detail service tab', () => {
 
     expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
     expect(routerMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('does not mount task history for an invalid route ID', async () => {
+    routeState.value.params = { id: 'not-a-project-id' };
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-stub="TaskHistoryTable"]').exists()).toBe(false);
   });
 
   it('does not redirect retired configuration tab queries to the configuration workspace route', async () => {

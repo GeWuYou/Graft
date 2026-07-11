@@ -59,6 +59,9 @@ const (
 	// CommonInvalidArgument identifies invalid request parameter failures.
 	CommonInvalidArgument Code = "COMMON_INVALID_ARGUMENT"
 
+	// CommonNotFound identifies resources hidden because they do not exist or are outside the caller scope.
+	CommonNotFound Code = "COMMON_NOT_FOUND"
+
 	// RbacCannotRemoveOwnAdminRole identifies self-lockout prevention failures for builtin admin role replacement.
 	RbacCannotRemoveOwnAdminRole Code = "RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE"
 
@@ -96,6 +99,7 @@ var messageKeyCodes = map[messagecontract.Key]Code{
 	messagecontract.AuthTokenMissing:                     AuthTokenMissing,
 	messagecontract.CommonInternalError:                  CommonInternalError,
 	messagecontract.CommonInvalidArgument:                CommonInvalidArgument,
+	messagecontract.CommonNotFound:                       CommonNotFound,
 	messagecontract.RbacCannotRemoveOwnAdminRole:         RbacCannotRemoveOwnAdminRole,
 	messagecontract.RbacBuiltinAdminPermissionsImmutable: RbacBuiltinAdminPermissionsImmutable,
 	messagecontract.PermissionNotFound:                   PermissionNotFound,

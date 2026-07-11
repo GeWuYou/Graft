@@ -323,8 +323,11 @@ func taskLogResponses(logs []moduleapi.TaskLogView) []map[string]any {
 
 func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
 	key := messagecontract.CommonInternalError.String()
-	if status == http.StatusBadRequest {
+	switch status {
+	case http.StatusBadRequest:
 		key = messagecontract.CommonInvalidArgument.String()
+	case http.StatusNotFound:
+		key = messagecontract.CommonNotFound.String()
 	}
 	httpx.WriteLocalizedError(c, r.ctx.I18n, status, key, map[string]any{"error": err.Error()})
 	c.Abort()

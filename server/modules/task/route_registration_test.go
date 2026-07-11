@@ -2,13 +2,20 @@ package task
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"graft/server/internal/config"
+	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/httpx"
+	"graft/server/internal/i18n"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	taskstore "graft/server/modules/task/store"
 )
 
 func TestTaskResponseAdaptersUseOpenAPIFieldNames(t *testing.T) {
@@ -61,5 +68,34 @@ func TestTaskListFilterRejectsUnknownStatus(t *testing.T) {
 	context.Request = httptest.NewRequest("GET", "/tasks?status=unsupported", nil)
 	if _, err := taskListFilter(context, moduleapi.TaskOwner{Type: "compose_project", ID: "42"}); err == nil {
 		t.Fatal("unknown task status accepted")
+	}
+}
+
+func TestTaskRouteWritesNotFoundContract(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = httptest.NewRequest(http.MethodGet, "/api/tasks?owner_type=compose_project&owner_id=NaN", nil)
+	context.Request.Header.Set(i18n.LocaleHeader, "en-US")
+
+	routes := taskRoutes{ctx: &module.Context{I18n: i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "zh-CN",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})}}
+	routes.writeError(context, http.StatusNotFound, taskstore.ErrNotFound)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, recorder.Code)
+	}
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Code != "COMMON_NOT_FOUND" || payload.MessageKey != messagecontract.CommonNotFound.String() {
+		t.Fatalf("unexpected not-found contract payload: %#v", payload)
+	}
+	if payload.Locale != "en-US" || payload.Message != "Requested resource not found" {
+		t.Fatalf("unexpected localized message: %#v", payload)
 	}
 }

@@ -9429,6 +9429,16 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Task owner was not found or is outside the caller resource scope. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
