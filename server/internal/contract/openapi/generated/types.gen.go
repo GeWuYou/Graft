@@ -2343,6 +2343,45 @@ func (e ProjectCreateResponseResult) Valid() bool {
 	}
 }
 
+// Defines values for ProjectCreationMethodAvailability.
+const (
+	ProjectCreationMethodAvailabilityBlocked ProjectCreationMethodAvailability = "blocked"
+	ProjectCreationMethodAvailabilityReady   ProjectCreationMethodAvailability = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreationMethodAvailability enum.
+func (e ProjectCreationMethodAvailability) Valid() bool {
+	switch e {
+	case ProjectCreationMethodAvailabilityBlocked:
+		return true
+	case ProjectCreationMethodAvailabilityReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectCreationMethodType.
+const (
+	ProjectCreationMethodTypeBlank    ProjectCreationMethodType = "blank"
+	ProjectCreationMethodTypeImport   ProjectCreationMethodType = "import"
+	ProjectCreationMethodTypeTemplate ProjectCreationMethodType = "template"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreationMethodType enum.
+func (e ProjectCreationMethodType) Valid() bool {
+	switch e {
+	case ProjectCreationMethodTypeBlank:
+		return true
+	case ProjectCreationMethodTypeImport:
+		return true
+	case ProjectCreationMethodTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectDeployResponseAction.
 const (
 	ProjectDeployResponseActionDeploy ProjectDeployResponseAction = "deploy"
@@ -2868,45 +2907,6 @@ func (e ProjectRuntimeStatus) Valid() bool {
 	case ProjectRuntimeStatusTransitioning:
 		return true
 	case ProjectRuntimeStatusUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSourceEntryStatus.
-const (
-	ProjectSourceEntryStatusBlocked ProjectSourceEntryStatus = "blocked"
-	ProjectSourceEntryStatusPlanned ProjectSourceEntryStatus = "planned"
-	ProjectSourceEntryStatusReady   ProjectSourceEntryStatus = "ready"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSourceEntryStatus enum.
-func (e ProjectSourceEntryStatus) Valid() bool {
-	switch e {
-	case ProjectSourceEntryStatusBlocked:
-		return true
-	case ProjectSourceEntryStatusPlanned:
-		return true
-	case ProjectSourceEntryStatusReady:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSourceEntryType.
-const (
-	ProjectSourceEntryTypeManaged  ProjectSourceEntryType = "managed"
-	ProjectSourceEntryTypeTemplate ProjectSourceEntryType = "template"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSourceEntryType enum.
-func (e ProjectSourceEntryType) Valid() bool {
-	switch e {
-	case ProjectSourceEntryTypeManaged:
-		return true
-	case ProjectSourceEntryTypeTemplate:
 		return true
 	default:
 		return false
@@ -6684,6 +6684,26 @@ type EnvelopedProjectCreateValidateResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectCreationMethodCatalogResponse defines model for enveloped-project-creation-method-catalog-response.
+type EnvelopedProjectCreationMethodCatalogResponse struct {
+	// Code Existing canonical response code.
+	Code string                               `json:"code"`
+	Data ProjectCreationMethodCatalogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectDeployResponse defines model for enveloped-project-deploy-response.
 type EnvelopedProjectDeployResponse struct {
 	// Code Existing canonical response code.
@@ -6996,26 +7016,6 @@ type EnvelopedProjectServicesResponse struct {
 	// Code Existing canonical response code.
 	Code string                  `json:"code"`
 	Data ProjectServicesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectSourceCatalogResponse defines model for enveloped-project-source-catalog-response.
-type EnvelopedProjectSourceCatalogResponse struct {
-	// Code Existing canonical response code.
-	Code string                       `json:"code"`
-	Data ProjectSourceCatalogResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -7996,7 +7996,7 @@ type ProjectCreateResponse struct {
 		RefreshedAt          time.Time `json:"refreshed_at"`
 	} `json:"snapshot_summary"`
 	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
-	SourceType       ProjectSourceEntryType `json:"source_type"`
+	SourceType       ProjectSourceKind      `json:"source_type"`
 	Warnings         *[]string              `json:"warnings,omitempty"`
 	WorkingDirectory string                 `json:"working_directory"`
 }
@@ -8035,10 +8035,30 @@ type ProjectCreateValidateResponse struct {
 	ManagedRoot             ProjectManagedRootResponse `json:"managed_root"`
 	OwnershipMode           ProjectOwnershipMode       `json:"ownership_mode"`
 	SourceMetadata          *ProjectSourceMetadata     `json:"source_metadata,omitempty"`
-	SourceType              ProjectSourceEntryType     `json:"source_type"`
+	SourceType              ProjectSourceKind          `json:"source_type"`
 	Warnings                *[]string                  `json:"warnings,omitempty"`
 	WorkingDirectory        string                     `json:"working_directory"`
 }
+
+// ProjectCreationMethod defines model for project-creation-method.
+type ProjectCreationMethod struct {
+	Availability ProjectCreationMethodAvailability `json:"availability"`
+
+	// BlockedReason Stable reason code when the creation method is blocked.
+	BlockedReason *string                   `json:"blocked_reason,omitempty"`
+	Method        ProjectCreationMethodType `json:"method"`
+}
+
+// ProjectCreationMethodAvailability defines model for project-creation-method-availability.
+type ProjectCreationMethodAvailability string
+
+// ProjectCreationMethodCatalogResponse defines model for project-creation-method-catalog-response.
+type ProjectCreationMethodCatalogResponse struct {
+	Items []ProjectCreationMethod `json:"items"`
+}
+
+// ProjectCreationMethodType defines model for project-creation-method-type.
+type ProjectCreationMethodType string
 
 // ProjectDeployResponse defines model for project-deploy-response.
 type ProjectDeployResponse struct {
@@ -8116,7 +8136,7 @@ type ProjectDiscoveryCandidate struct {
 	ServiceCount               int                                        `json:"service_count"`
 	SourceKind                 ProjectSourceKind                          `json:"source_kind"`
 	SourceMetadata             *ProjectSourceMetadata                     `json:"source_metadata,omitempty"`
-	SourceType                 *ProjectSourceEntryType                    `json:"source_type,omitempty"`
+	SourceType                 *ProjectSourceKind                         `json:"source_type,omitempty"`
 	Status                     ProjectDiscoveryCandidateStatus            `json:"status"`
 	StatusReason               *string                                    `json:"status_reason,omitempty"`
 	Warnings                   []string                                   `json:"warnings"`
@@ -8136,7 +8156,7 @@ type ProjectDiscoveryCandidateStatus string
 type ProjectDiscoveryCandidatesResponse struct {
 	AuthorityRoot         *string                     `json:"authority_root"`
 	Items                 []ProjectDiscoveryCandidate `json:"items"`
-	SourceType            ProjectSourceEntryType      `json:"source_type"`
+	SourceType            ProjectSourceKind           `json:"source_type"`
 	StatusReason          *string                     `json:"status_reason,omitempty"`
 	SupportsAutoDiscovery bool                        `json:"supports_auto_discovery"`
 	SupportsScan          bool                        `json:"supports_scan"`
@@ -8653,7 +8673,7 @@ type ProjectManagedRootResponse struct {
 	ConfiguredRootDirectory *string                  `json:"configured_root_directory,omitempty"`
 	CreatePermission        string                   `json:"create_permission"`
 	OwnershipMode           ProjectOwnershipMode     `json:"ownership_mode"`
-	SourceType              ProjectSourceEntryType   `json:"source_type"`
+	SourceType              ProjectSourceKind        `json:"source_type"`
 	Status                  ProjectManagedRootStatus `json:"status"`
 	StatusReason            *string                  `json:"status_reason,omitempty"`
 	SupportsManagedCreate   bool                     `json:"supports_managed_create"`
@@ -8753,35 +8773,6 @@ type ProjectServicesResponse struct {
 	Items                []ProjectServiceItem `json:"items"`
 	ProjectId            int64                `json:"project_id"`
 }
-
-// ProjectSourceCatalogResponse defines model for project-source-catalog-response.
-type ProjectSourceCatalogResponse struct {
-	Items []ProjectSourceEntry `json:"items"`
-}
-
-// ProjectSourceEntry defines model for project-source-entry.
-type ProjectSourceEntry struct {
-	Description     string                   `json:"description"`
-	DescriptionKey  string                   `json:"description_key"`
-	DisplayName     string                   `json:"display_name"`
-	HostScope       ProjectHostScope         `json:"host_scope"`
-	MenuGroup       string                   `json:"menu_group"`
-	MetadataFields  []string                 `json:"metadata_fields"`
-	Permission      string                   `json:"permission"`
-	RouteName       string                   `json:"route_name"`
-	RoutePath       string                   `json:"route_path"`
-	Status          ProjectSourceEntryStatus `json:"status"`
-	StatusReason    *string                  `json:"status_reason,omitempty"`
-	StatusReasonKey *string                  `json:"status_reason_key,omitempty"`
-	TitleKey        string                   `json:"title_key"`
-	Type            ProjectSourceEntryType   `json:"type"`
-}
-
-// ProjectSourceEntryStatus defines model for project-source-entry-status.
-type ProjectSourceEntryStatus string
-
-// ProjectSourceEntryType defines model for project-source-entry-type.
-type ProjectSourceEntryType string
 
 // ProjectSourceKind defines model for project-source-kind.
 type ProjectSourceKind string
@@ -10743,6 +10734,16 @@ type PostProjectCreateTemplateValidateParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetProjectCreationMethodsParams defines parameters for GetProjectCreationMethods.
+type GetProjectCreationMethodsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetProjectDiscoveryCandidatesParams defines parameters for GetProjectDiscoveryCandidates.
 type GetProjectDiscoveryCandidatesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10854,16 +10855,6 @@ type PostProjectImportValidateParams struct {
 
 // GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
 type GetProjectManagedRootParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectSourcesParams defines parameters for GetProjectSources.
-type GetProjectSourcesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

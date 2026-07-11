@@ -37,25 +37,25 @@
         "title": "Operations - Projects",
         "breadcrumb": "Projects"
       },
-      "import": {
+      "createImport": {
         "title": "Import Existing Project",
         "breadcrumb": "Import Existing Project"
       },
       "create": {
-        "title": "Project Source Boundaries",
-        "breadcrumb": "Project Source Boundaries"
+        "title": "Create Project",
+        "breadcrumb": "Create Project"
       },
-      "createManaged": {
-        "title": "Create Managed Project",
-        "breadcrumb": "Create Managed Project"
+      "createBlank": {
+        "title": "Create Blank Project",
+        "breadcrumb": "Create Blank Project"
       },
       "createDiscovery": {
         "title": "Discovery Candidate Preview",
         "breadcrumb": "Discovery Candidate Preview"
       },
       "createTemplate": {
-        "title": "Template Project Boundary",
-        "breadcrumb": "Template Project Boundary"
+        "title": "Create From Template",
+        "breadcrumb": "Create From Template"
       },
       "detail": {
         "title": "Project Detail",
@@ -244,7 +244,7 @@
         "detail": "Detail",
         "operationMenu": "Actions",
         "import": "Import Existing Project",
-        "create": "Choose Project Source",
+        "create": "Create Project",
         "refresh": "Refresh",
         "up": "Up",
         "stop": "Stop",
@@ -639,9 +639,9 @@
       }
     },
     "create": {
-      "eyebrow": "Source Boundaries",
-      "title": "Project Source Boundaries",
-      "description": "Choose a managed workspace or a bundled template. Import Existing remains a dedicated runtime-to-workspace flow.",
+      "eyebrow": "Create Blank Project",
+      "title": "Create Blank Project",
+      "description": "Create a new Compose workspace in the managed directory.",
       "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the project. Create never deploys automatically.",
       "actions": {
         "backToList": "Back to List",
@@ -754,37 +754,52 @@
         "deployFailed": "Project was created, but deployment failed."
       }
     },
-    "createSource": {
-      "descriptions": {
-        "managed": "Create a managed Compose project in the configured managed root directory.",
-        "template": "Create a managed project from the available bundled Compose workspace template."
+    "creation": {
+      "eyebrow": "Create Project",
+      "title": "Create Project",
+      "description": "Choose how to initialize the project. Every method is managed as one Compose project afterward.",
+      "availability": { "ready": "Available", "blocked": "Unavailable" },
+      "blockedReasons": {
+        "managed_root_unconfigured": "The managed project root is not configured, so blank projects cannot be created yet.",
+        "managed_root_invalid": "The managed project root configuration is invalid. Repair system configuration before creating a blank project.",
+        "managed_root_unknown": "The managed project root status is unknown. Refresh system configuration and try again.",
+        "unknown": "This creation method is currently unavailable."
       },
-      "routePath": "Route Path",
-      "permission": "Permission",
-      "discovery": "Discovery Candidates",
-      "metadataFields": "Metadata Fields",
-      "hostScope": "Host Scope",
-      "status": {
-        "ready": "Ready",
-        "blocked": "Needs Configuration",
-        "planned": "Planned"
+      "actions": { "start": "Start Creating", "unavailable": "Unavailable", "retry": "Retry" },
+      "advanced": { "title": "Advanced Information" },
+      "methods": {
+        "blank": {
+          "title": "Create Blank Project",
+          "description": "Create a new Compose workspace.",
+          "benefits": {
+            "workspace": "Creates a dedicated project workspace",
+            "lifecycle": "Initializes standard lifecycle configuration",
+            "authority": "Keeps subsequent operations under platform management"
+          },
+          "advanced": "Files are materialized under the configured managed project root."
+        },
+        "template": {
+          "title": "Create From Template",
+          "description": "Start quickly from a bundled Compose template.",
+          "benefits": {
+            "workspace": "Initializes from a standard workspace template",
+            "lifecycle": "Retains unified lifecycle management",
+            "authority": "Registers the project for platform management"
+          },
+          "advanced": "Available templates are shipped by the project module."
+        },
+        "import": {
+          "title": "Import Existing Project",
+          "description": "Register an existing Compose workspace.",
+          "benefits": {
+            "detect": "Detects Compose configuration automatically",
+            "preserve": "Preserves the existing directory and project structure",
+            "register": "Registers runtime status under one project record"
+          },
+          "advanced": "Import reviews directory and runtime information before registration."
+        }
       },
-      "statusReason": {
-        "managedUnconfigured": "Managed Root Is Not Configured Yet. Managed Create Is Implemented, but the Current Environment Cannot Create Projects Directly.",
-        "managedInvalid": "Managed Root Configuration Is Invalid. Repair the Upstream System Config Before Using Managed Create.",
-        "managedUnknown": "Managed Root Status Is Unknown. Review System Config and Refresh Authority First.",
-        "planned": "This Source Only Has Contract and Route Boundaries Today. Materialization Will Land in a Later Bounded Batch."
-      },
-      "actions": {
-        "open": "Open Entry",
-        "configure": "Fix Config First",
-        "reviewBoundary": "Review Boundary",
-        "reviewCandidates": "Review Candidates",
-        "openImport": "Go to Import"
-      },
-      "messages": {
-        "loadFailed": "Project Source Catalog Could Not Be Loaded."
-      }
+      "messages": { "loadFailed": "Project Creation Methods Could Not Be Loaded." }
     },
     "sourceCreate": {
       "templateDescription": "Create a managed project from a bundled Compose workspace template.",

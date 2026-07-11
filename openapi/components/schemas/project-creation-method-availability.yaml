@@ -1,0 +1,5 @@
+type: string
+enum: [ready, blocked]
+x-enum-varnames:
+  - ProjectCreationMethodAvailabilityReady
+  - ProjectCreationMethodAvailabilityBlocked

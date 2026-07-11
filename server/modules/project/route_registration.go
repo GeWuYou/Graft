@@ -59,7 +59,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
 	group.GET(projectcontract.ProjectImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectorySources)
 	group.GET(projectcontract.ProjectImportDirectoriesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectories)
-	group.GET(projectcontract.ProjectSourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectSourceViewPermission.String(), publisher), routes.handleSources)
+	group.GET(projectcontract.ProjectCreationMethodsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreationMethodViewPermission.String(), publisher), routes.handleCreationMethods)
 	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
@@ -230,14 +230,14 @@ func (r routeRuntime) handleImportDirectories(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
 }
 
-func (r routeRuntime) handleSources(ginCtx *gin.Context) {
-	projectGeneratedHandler{}.GetProjectSources(bindGetProjectSourcesParams(ginCtx))
-	result, err := r.service.SourceCatalog(ginCtx.Request.Context())
+func (r routeRuntime) handleCreationMethods(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectCreationMethods(bindGetProjectCreationMethodsParams(ginCtx))
+	result, err := r.service.CreationMethodCatalog(ginCtx.Request.Context())
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toSourceCatalogResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toCreationMethodCatalogResponse(result))
 }
 
 func (r routeRuntime) handleDiscoveryCandidates(ginCtx *gin.Context) {
@@ -840,8 +840,8 @@ func (r routeRuntime) writeLocalizedActionError(ginCtx *gin.Context, status int,
 
 type projectGeneratedHandler struct{}
 
-func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)             {}
-func (projectGeneratedHandler) GetProjectSources(generated.GetProjectSourcesParams) {}
+func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)                             {}
+func (projectGeneratedHandler) GetProjectCreationMethods(generated.GetProjectCreationMethodsParams) {}
 func (projectGeneratedHandler) GetProjectDiscoveryCandidates(generated.GetProjectDiscoveryCandidatesParams) {
 }
 func (projectGeneratedHandler) GetProjectImportRuntimeCandidates(generated.GetProjectImportRuntimeCandidatesParams) {
@@ -1025,11 +1025,10 @@ func bindPostProjectImportInspectParams(ginCtx *gin.Context) generated.PostProje
 	return generated.PostProjectImportInspectParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// bindGetProjectSourcesParams 组装项目来源接口的公共请求参数。
-// 它从请求中提取语言和请求 ID，并填充到生成的参数结构中。
-func bindGetProjectSourcesParams(ginCtx *gin.Context) generated.GetProjectSourcesParams {
+// bindGetProjectCreationMethodsParams assembles common headers for the creation-method catalog.
+func bindGetProjectCreationMethodsParams(ginCtx *gin.Context) generated.GetProjectCreationMethodsParams {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetProjectSourcesParams{XGraftLocale: locale, XRequestId: requestID}
+	return generated.GetProjectCreationMethodsParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetProjectDiscoveryCandidatesParams 构造项目发现候选列表请求参数。

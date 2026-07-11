@@ -1,5 +1,0 @@
-type: string
-enum: [managed, template]
-x-enum-varnames:
-  - ProjectSourceEntryTypeManaged
-  - ProjectSourceEntryTypeTemplate

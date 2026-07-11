@@ -1,8 +1,8 @@
 get:
   tags: [project]
-  summary: List Compose project source entrypoints
-  operationId: getProjectSources
-  description: Returns the currently implemented managed and template project entrypoints. Import Existing remains a dedicated runtime-to-workspace flow.
+  summary: List Compose project creation methods
+  operationId: getProjectCreationMethods
+  description: Returns the currently supported ways to create a Compose project. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -10,14 +10,14 @@ get:
     - bearerAuth: []
   responses:
     '200':
-      description: Project source catalog.
+      description: Project creation method catalog.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-source-catalog-response.yaml
+            $ref: ../components/schemas/enveloped-project-creation-method-catalog-response.yaml
     '401':
       $ref: ../components/responses/unauthorized.yaml
     '403':

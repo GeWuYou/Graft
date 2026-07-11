@@ -77,11 +77,11 @@ func permissionItems(moduleName string) []permission.Item {
 			Module:         moduleName,
 		},
 		{
-			Code:           projectcontract.ProjectSourceViewPermission.String(),
-			Name:           "View compose project source entrypoints",
-			DisplayKey:     "rbac.permissionCatalog.projectSourceView.display",
-			Description:    "Inspect the Phase 3 source catalog and source-selector routes for managed, git, and template project flows.",
-			DescriptionKey: "rbac.permissionCatalog.projectSourceView.description",
+			Code:           projectcontract.ProjectCreationMethodViewPermission.String(),
+			Name:           "View compose project creation methods",
+			DisplayKey:     "rbac.permissionCatalog.projectCreationMethodView.display",
+			Description:    "View supported Compose project creation methods and their availability.",
+			DescriptionKey: "rbac.permissionCatalog.projectCreationMethodView.description",
 			Module:         moduleName,
 		},
 		{

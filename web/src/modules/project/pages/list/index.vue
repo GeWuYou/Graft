@@ -24,11 +24,9 @@
         <template #actions>
           <t-space size="small" break-line>
             <project-list-entry-actions
-              :import-label="t('project.list.actions.import')"
               :create-label="t('project.list.actions.create')"
               :reset-label="t('project.list.clearFilters')"
               :show-reset="hasActiveFilters"
-              @import="navigateToImport"
               @create="navigateToSourceChooser"
               @reset="resetFilters"
             />
@@ -338,11 +336,9 @@
             >
               <template #action>
                 <project-list-entry-actions
-                  :import-label="t('project.list.actions.import')"
                   :create-label="t('project.list.actions.create')"
                   :reset-label="t('project.list.clearFilters')"
                   :show-reset="hasActiveFilters"
-                  @import="navigateToImport"
                   @create="navigateToSourceChooser"
                   @reset="resetFilters"
                 />
@@ -1091,15 +1087,6 @@ function navigateToDetail(row: ProjectListItemWithLifecycle, tab?: string) {
     buildDetailTitleWithFallback('project.route.detail.title', row.display_name),
   );
   return router.push(target);
-}
-
-function navigateToImport() {
-  const target = {
-    name: PROJECT_BOOTSTRAP_ROUTE.IMPORT.pageRouteName,
-  };
-  const resolved = router.resolve(target);
-  appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey('project.route.import.title'));
-  void router.push(target);
 }
 
 function navigateToSourceChooser() {

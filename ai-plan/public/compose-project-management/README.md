@@ -82,7 +82,7 @@
 
 用户批准的可用范围是 `Managed`、`Template` 与 `Import Existing`。三者都在 Workspace 解析完成后复用同一 CreationCommand pipeline；创建不自动部署，部署仍是独立操作。
 
-Git、Remote Host、ZIP 与 GitHub Template 被明确延后：不保留可点击页面、公开 API、source catalog entry 或 planned enum。未来来源只能通过实现 source adapter、共享 contract 和 catalog entry 后进入现有 pipeline。
+Git、Remote Host、ZIP 与 GitHub Template 被明确延后：不保留可点击页面、公开 API、创建方式枚举或占位入口。未来能力只能在其真实向导、共享契约和创建方式目录同时实现后公开。
 
 ## Validation Targets
 

@@ -1596,7 +1596,7 @@ func TestDiscoveryCandidatesMarksConflictWhenProjectAlreadyRegistered(t *testing
 	}
 }
 
-func TestSourceCatalogExposesOnlyImplementedCreationAdapters(t *testing.T) {
+func TestCreationMethodCatalogExposesSupportedMethods(t *testing.T) {
 	t.Parallel()
 
 	managedRoot := t.TempDir()
@@ -1605,18 +1605,44 @@ func TestSourceCatalogExposesOnlyImplementedCreationAdapters(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.SourceCatalog(context.Background())
+	result, err := service.CreationMethodCatalog(context.Background())
 	if err != nil {
-		t.Fatalf("source catalog: %v", err)
+		t.Fatalf("creation method catalog: %v", err)
 	}
-	if len(result.Items) != 2 {
-		t.Fatalf("expected 2 source entries, got %d", len(result.Items))
+	if len(result.Items) != 3 {
+		t.Fatalf("expected 3 creation methods, got %d", len(result.Items))
 	}
-	if result.Items[0].Type != generated.ProjectSourceEntryTypeManaged {
-		t.Fatalf("expected managed source entry, got %q", result.Items[0].Type)
+	if result.Items[0].Method != generated.ProjectCreationMethodTypeBlank {
+		t.Fatalf("expected blank creation method, got %q", result.Items[0].Method)
 	}
-	if result.Items[1].Type != generated.ProjectSourceEntryTypeTemplate {
-		t.Fatalf("expected template source entry, got %q", result.Items[1].Type)
+	if result.Items[0].Availability != generated.ProjectCreationMethodAvailabilityReady {
+		t.Fatalf("expected ready blank method, got %q", result.Items[0].Availability)
+	}
+	if result.Items[1].Method != generated.ProjectCreationMethodTypeTemplate {
+		t.Fatalf("expected template creation method, got %q", result.Items[1].Method)
+	}
+	if result.Items[2].Method != generated.ProjectCreationMethodTypeImport {
+		t.Fatalf("expected import creation method, got %q", result.Items[2].Method)
+	}
+}
+
+func TestCreationMethodCatalogBlocksBlankWhenManagedRootIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	service, err := NewService(&stubProjectRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.CreationMethodCatalog(context.Background())
+	if err != nil {
+		t.Fatalf("creation method catalog: %v", err)
+	}
+	if result.Items[0].Availability != generated.ProjectCreationMethodAvailabilityBlocked {
+		t.Fatalf("expected blocked blank method, got %q", result.Items[0].Availability)
+	}
+	if result.Items[0].BlockedReason == nil || *result.Items[0].BlockedReason != "managed_root_invalid" {
+		t.Fatalf("expected managed-root-invalid reason, got %#v", result.Items[0].BlockedReason)
 	}
 }
 

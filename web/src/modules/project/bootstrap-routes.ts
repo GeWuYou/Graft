@@ -5,14 +5,14 @@ import { PROJECT_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const listRouteTitle = localizeRouteTitleKey('project.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('project.route.list.breadcrumb');
-const importRouteTitle = localizeRouteTitleKey('project.route.import.title');
-const importBreadcrumbTitle = localizeRouteTitleKey('project.route.import.breadcrumb');
+const importRouteTitle = localizeRouteTitleKey('project.route.createImport.title');
+const importBreadcrumbTitle = localizeRouteTitleKey('project.route.createImport.breadcrumb');
 const createRouteTitle = localizeRouteTitleKey('project.route.create.title');
 const createBreadcrumbTitle = localizeRouteTitleKey('project.route.create.breadcrumb');
 const createDiscoveryRouteTitle = localizeRouteTitleKey('project.route.createDiscovery.title');
 const createDiscoveryBreadcrumbTitle = localizeRouteTitleKey('project.route.createDiscovery.breadcrumb');
-const createManagedRouteTitle = localizeRouteTitleKey('project.route.createManaged.title');
-const createManagedBreadcrumbTitle = localizeRouteTitleKey('project.route.createManaged.breadcrumb');
+const createBlankRouteTitle = localizeRouteTitleKey('project.route.createBlank.title');
+const createBlankBreadcrumbTitle = localizeRouteTitleKey('project.route.createBlank.breadcrumb');
 const createTemplateRouteTitle = localizeRouteTitleKey('project.route.createTemplate.title');
 const createTemplateBreadcrumbTitle = localizeRouteTitleKey('project.route.createTemplate.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('project.route.detail.title');
@@ -36,7 +36,7 @@ export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
 
 export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
-    ...PROJECT_BOOTSTRAP_ROUTE.IMPORT,
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_IMPORT,
     loadPage: () => import('./pages/import/index.vue'),
     meta: {
       hidden: false,
@@ -50,7 +50,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabGroup: 'ops',
       tabTitle: importRouteTitle,
       title: importRouteTitle,
-      titleKey: 'project.route.import.title',
+      titleKey: 'project.route.createImport.title',
     },
   },
   {
@@ -90,7 +90,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
     },
   },
   {
-    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_MANAGED,
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK,
     loadPage: () => import('./pages/create/index.vue'),
     meta: {
       hidden: false,
@@ -98,13 +98,13 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       keepAlive: true,
       pageKind: 'detail',
       pageSurface: 'form-detail',
-      semanticTitle: createManagedRouteTitle,
-      breadcrumbTitle: createManagedBreadcrumbTitle,
+      semanticTitle: createBlankRouteTitle,
+      breadcrumbTitle: createBlankBreadcrumbTitle,
       domainTitle: listRouteTitle,
       tabGroup: 'ops',
-      tabTitle: createManagedRouteTitle,
-      title: createManagedRouteTitle,
-      titleKey: 'project.route.createManaged.title',
+      tabTitle: createBlankRouteTitle,
+      title: createBlankRouteTitle,
+      titleKey: 'project.route.createBlank.title',
     },
   },
   {

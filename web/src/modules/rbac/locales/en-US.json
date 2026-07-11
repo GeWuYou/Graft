@@ -420,9 +420,9 @@
         "display": "Create Managed Compose Projects",
         "description": "View managed root settings and create managed Compose projects."
       },
-      "projectSourceView": {
-        "display": "View Project Source Catalog",
-        "description": "View the available managed and template project source entry routes."
+      "projectCreationMethodView": {
+        "display": "View Project Creation Methods",
+        "description": "View supported Compose project creation methods and their availability."
       },
       "projectDiscoveryView": {
         "display": "View Project Discovery Candidates",

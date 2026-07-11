@@ -37,12 +37,12 @@ const (
 	ProjectImportDirectorySourcesRoute = "/import/directory-sources"
 	// ProjectImportDirectoriesRoute identifies the root-relative import directory browse route fragment.
 	ProjectImportDirectoriesRoute = "/import/directories"
-	// ProjectSourcesRoute identifies the project source catalog route fragment.
-	ProjectSourcesRoute = "/sources"
+	// ProjectCreationMethodsRoute identifies the project creation-method catalog route fragment.
+	ProjectCreationMethodsRoute = "/creation-methods"
 	// ProjectDiscoveryCandidatesRoute identifies the bounded discovery-candidate preview route fragment.
 	ProjectDiscoveryCandidatesRoute = "/discovery-candidates"
-	// ProjectCreateSourceSelectorRoute identifies the source selector route fragment.
-	ProjectCreateSourceSelectorRoute = "/create"
+	// ProjectCreationMethodSelectorRoute identifies the creation-method selector route fragment.
+	ProjectCreationMethodSelectorRoute = "/create"
 	// ProjectManagedRootRoute identifies the managed-root metadata route fragment.
 	ProjectManagedRootRoute = "/managed/root"
 	// ProjectCreateValidateRoute identifies the managed-create validation route fragment.
@@ -77,12 +77,14 @@ const (
 	ProjectMenuRootPath = "/ops"
 	// ProjectMenuPath identifies the canonical web menu path for Compose project management.
 	ProjectMenuPath = "/ops/projects"
-	// ProjectSourceMenuPath identifies the global source selector route path.
-	ProjectSourceMenuPath = "/ops/projects/create"
-	// ProjectManagedCreateMenuPath identifies the managed source create route path.
-	ProjectManagedCreateMenuPath = "/ops/projects/create/managed"
+	// ProjectCreationMenuPath identifies the global creation-method selector route path.
+	ProjectCreationMenuPath = "/ops/projects/create"
+	// ProjectBlankCreateMenuPath identifies the blank-project create route path.
+	ProjectBlankCreateMenuPath = "/ops/projects/create/blank"
 	// ProjectTemplateCreateMenuPath identifies the template source create route path.
 	ProjectTemplateCreateMenuPath = "/ops/projects/create/template"
+	// ProjectImportCreateMenuPath identifies the import-project create route path.
+	ProjectImportCreateMenuPath = "/ops/projects/create/import"
 	// ProjectDiscoveryCandidatesMenuPath identifies the hidden discovery-candidate preview route path.
 	ProjectDiscoveryCandidatesMenuPath = "/ops/projects/create/discovery"
 )

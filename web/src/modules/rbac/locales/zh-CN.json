@@ -420,9 +420,9 @@
         "display": "创建受管 Compose 项目",
         "description": "查看受管根目录设置，并创建受管 Compose 项目。"
       },
-      "projectSourceView": {
-        "display": "查看项目来源目录",
-        "description": "查看可用的托管与模板项目来源入口路由。"
+      "projectCreationMethodView": {
+        "display": "查看项目创建方式",
+        "description": "查看当前支持的 Compose 项目创建方式及其可用性。"
       },
       "projectDiscoveryView": {
         "display": "查看项目发现候选项",

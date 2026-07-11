@@ -2,7 +2,7 @@
   <div class="project-import-page" data-page-type="workflow">
     <management-page-content>
       <management-page-header
-        title-key="project.route.import.title"
+        title-key="project.route.createImport.title"
         description-key="project.import.description"
         :source="{ labelKey: 'project.import.eyebrow', fallback: t('project.import.eyebrow') }"
       >
@@ -1078,7 +1078,7 @@ async function updateWizardRoute(
 
   const navigate = options.replace ? router.replace : router.push;
   await navigate({
-    name: route.name || PROJECT_BOOTSTRAP_ROUTE.IMPORT.pageRouteName,
+    name: route.name || PROJECT_BOOTSTRAP_ROUTE.CREATE_IMPORT.pageRouteName,
     params: route.params,
     query: nextQuery,
   });

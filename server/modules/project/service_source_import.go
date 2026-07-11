@@ -12,47 +12,28 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// SourceCatalog returns the bounded Phase 3 source entrypoints without executing source-specific provisioning.
-func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error) {
+// CreationMethodCatalog returns creation methods without executing a method-specific workflow.
+func (s *Service) CreationMethodCatalog(ctx context.Context) (CreationMethodCatalogResult, error) {
 	managedRoot, err := s.ManagedRoot(ctx)
 	if err != nil {
-		return SourceCatalogResult{}, err
+		return CreationMethodCatalogResult{}, err
 	}
-	items := []generated.ProjectSourceEntry{
+	items := []generated.ProjectCreationMethod{
 		{
-			Type:            generated.ProjectSourceEntryType("managed"),
-			Status:          generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
-			DisplayName:     "Managed Project",
-			TitleKey:        "project.list.sourceKinds.managed",
-			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:       projectcontract.ProjectManagedCreateMenuPath,
-			RouteName:       "ProjectManagedCreate",
-			Permission:      projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:       projectcontract.ProjectMenuPath,
-			Description:     "Create a managed Compose project under the canonical managed root owned by project authority.",
-			DescriptionKey:  "project.createSource.descriptions.managed",
-			MetadataFields:  []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
-			StatusReason:    managedRoot.StatusReason,
-			StatusReasonKey: managedRootStatusReasonKey(managedRoot.Status),
+			Method:        generated.ProjectCreationMethodTypeBlank,
+			Availability:  generated.ProjectCreationMethodAvailability(mapManagedCreationMethodAvailability(managedRoot.Status)),
+			BlockedReason: managedRootCreationBlockedReason(managedRoot.Status),
 		},
 		{
-			Type:            generated.ProjectSourceEntryType("template"),
-			Status:          generated.ProjectSourceEntryStatus("ready"),
-			DisplayName:     "Template Project",
-			TitleKey:        "project.list.sourceKinds.template",
-			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:       projectcontract.ProjectTemplateCreateMenuPath,
-			RouteName:       "ProjectTemplateCreate",
-			Permission:      projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:       projectcontract.ProjectMenuPath,
-			Description:     "Create a managed project from an explicit bundled Compose workspace template.",
-			DescriptionKey:  "project.createSource.descriptions.template",
-			MetadataFields:  []string{"template_key", "template_version", "template_instance_name"},
-			StatusReason:    stringPointer("The bundled empty-compose v1 template is available now."),
-			StatusReasonKey: stringPointer("project.createSource.statusReason.templateReady"),
+			Method:       generated.ProjectCreationMethodTypeTemplate,
+			Availability: generated.ProjectCreationMethodAvailabilityReady,
+		},
+		{
+			Method:       generated.ProjectCreationMethodTypeImport,
+			Availability: generated.ProjectCreationMethodAvailabilityReady,
 		},
 	}
-	return SourceCatalogResult{Items: items}, nil
+	return CreationMethodCatalogResult{Items: items}, nil
 }
 
 // DiscoveryCandidates returns bounded local discovery candidates without auto-registering projects.
@@ -62,7 +43,7 @@ func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesR
 		return DiscoveryCandidatesResult{}, err
 	}
 	result := DiscoveryCandidatesResult{
-		SourceType:            string(generated.ProjectSourceEntryTypeManaged),
+		SourceType:            projectcontract.SourceKindManaged.String(),
 		SupportsScan:          false,
 		SupportsAutoDiscovery: false,
 		StatusReason:          managedRoot.StatusReason,

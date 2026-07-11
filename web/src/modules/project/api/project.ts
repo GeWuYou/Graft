@@ -29,6 +29,7 @@ import type {
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
   ProjectCreateValidateResponse,
+  ProjectCreationMethodCatalogResponse,
   ProjectDeployResponse,
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
@@ -41,7 +42,6 @@ import type {
   ProjectManagedRootResponse,
   ProjectOverviewResponse,
   ProjectServicesResponse,
-  ProjectSourceCatalogResponse,
   ProjectTaskReceipt,
   ProjectTemplateCreateRequest,
   ProjectWorkspaceFileAnnotationRequest,
@@ -97,10 +97,11 @@ type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
 type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
 type GetProjectManagedRootData = NonNullable<GetProjectManagedRootEnvelope['data']>;
 
-type ProjectSourcesPath = (typeof PROJECT_API_PATH)['SOURCES'];
-type GetProjectSourcesOperation = paths[ProjectSourcesPath]['get'];
-type GetProjectSourcesEnvelope = GetProjectSourcesOperation['responses'][200]['content']['application/json'];
-type GetProjectSourcesData = NonNullable<GetProjectSourcesEnvelope['data']>;
+type ProjectCreationMethodsPath = (typeof PROJECT_API_PATH)['CREATION_METHODS'];
+type GetProjectCreationMethodsOperation = paths[ProjectCreationMethodsPath]['get'];
+type GetProjectCreationMethodsEnvelope =
+  GetProjectCreationMethodsOperation['responses'][200]['content']['application/json'];
+type GetProjectCreationMethodsData = NonNullable<GetProjectCreationMethodsEnvelope['data']>;
 
 type ProjectDiscoveryCandidatesPath = (typeof PROJECT_API_PATH)['DISCOVERY_CANDIDATES'];
 type GetProjectDiscoveryCandidatesOperation = paths[ProjectDiscoveryCandidatesPath]['get'];
@@ -313,14 +314,14 @@ export function getProjectManagedRoot() {
 }
 
 /**
- * 获取项目来源目录。
+ * 获取项目创建方式目录。
  *
- * @returns 项目来源目录信息。
+ * @returns 项目创建方式目录信息。
  */
-export function getProjectSources() {
-  return request.get<GetProjectSourcesData>({
-    url: PROJECT_API_PATH.SOURCES,
-  }) as Promise<ProjectSourceCatalogResponse>;
+export function getProjectCreationMethods() {
+  return request.get<GetProjectCreationMethodsData>({
+    url: PROJECT_API_PATH.CREATION_METHODS,
+  }) as Promise<ProjectCreationMethodCatalogResponse>;
 }
 
 /**

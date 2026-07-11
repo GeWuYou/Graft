@@ -37,25 +37,25 @@
         "title": "运维管理 - 项目管理",
         "breadcrumb": "项目管理"
       },
-      "import": {
+      "createImport": {
         "title": "导入现有项目",
         "breadcrumb": "导入现有项目"
       },
       "create": {
-        "title": "项目来源边界",
-        "breadcrumb": "项目来源边界"
+        "title": "创建项目",
+        "breadcrumb": "创建项目"
       },
-      "createManaged": {
-        "title": "创建托管项目",
-        "breadcrumb": "创建托管项目"
+      "createBlank": {
+        "title": "新建空白项目",
+        "breadcrumb": "新建空白项目"
       },
       "createDiscovery": {
         "title": "发现候选预览",
         "breadcrumb": "发现候选预览"
       },
       "createTemplate": {
-        "title": "模板项目边界",
-        "breadcrumb": "模板项目边界"
+        "title": "基于模板创建",
+        "breadcrumb": "基于模板创建"
       },
       "detail": {
         "title": "项目详情",
@@ -244,7 +244,7 @@
         "detail": "详情",
         "operationMenu": "操作",
         "import": "导入现有项目",
-        "create": "选择项目来源",
+        "create": "创建项目",
         "refresh": "刷新",
         "up": "启动项目",
         "stop": "停止项目",
@@ -639,9 +639,9 @@
       }
     },
     "create": {
-      "eyebrow": "来源边界",
-      "title": "项目来源边界",
-      "description": "选择本地托管工作区或内置模板；导入已有项目仍是独立的运行时到工作区流程。",
+      "eyebrow": "新建空白项目",
+      "title": "新建空白项目",
+      "description": "在受管目录中创建新的 Compose 工作区。",
       "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册项目。创建不会自动部署。",
       "actions": {
         "backToList": "返回列表",
@@ -749,37 +749,52 @@
         "deployFailed": "项目已创建，但部署失败。"
       }
     },
-    "createSource": {
-      "descriptions": {
-        "managed": "在已配置的受管根目录中创建受管 Compose 项目。",
-        "template": "从当前可用的内置 Compose 工作区模板创建托管项目。"
+    "creation": {
+      "eyebrow": "创建项目",
+      "title": "创建项目",
+      "description": "选择项目创建方式。不同的初始化方式最终都会作为统一的 Compose 项目进行管理。",
+      "availability": { "ready": "可用", "blocked": "暂不可用" },
+      "blockedReasons": {
+        "managed_root_unconfigured": "受管项目根目录尚未配置，暂时无法新建空白项目。",
+        "managed_root_invalid": "受管项目根目录配置无效，修复系统配置后才能新建空白项目。",
+        "managed_root_unknown": "受管项目根目录状态未知，请刷新系统配置后重试。",
+        "unknown": "当前创建方式暂不可用。"
       },
-      "routePath": "路由路径",
-      "permission": "权限",
-      "discovery": "发现候选",
-      "metadataFields": "元数据字段",
-      "hostScope": "宿主范围",
-      "status": {
-        "ready": "已就绪",
-        "blocked": "待配置",
-        "planned": "规划中"
+      "actions": { "start": "开始创建", "unavailable": "暂不可用", "retry": "重试" },
+      "advanced": { "title": "高级信息" },
+      "methods": {
+        "blank": {
+          "title": "新建空白项目",
+          "description": "创建一个新的 Compose 工作区。",
+          "benefits": {
+            "workspace": "自动生成项目工作区",
+            "lifecycle": "初始化统一生命周期配置",
+            "authority": "由平台统一管理后续操作"
+          },
+          "advanced": "文件将写入已配置的受管项目根目录。"
+        },
+        "template": {
+          "title": "基于模板创建",
+          "description": "从内置 Compose 模板快速开始。",
+          "benefits": {
+            "workspace": "从标准工作区模板初始化",
+            "lifecycle": "保留统一生命周期管理",
+            "authority": "创建后纳入平台项目管理"
+          },
+          "advanced": "当前可用模板由项目模块随版本提供。"
+        },
+        "import": {
+          "title": "导入已有项目",
+          "description": "登记已经存在的 Compose 工作区。",
+          "benefits": {
+            "detect": "自动识别 Compose 配置",
+            "preserve": "保留原有目录和项目结构",
+            "register": "登记后统一查看运行状态"
+          },
+          "advanced": "导入会先检查目录与运行时信息，再登记项目。"
+        }
       },
-      "statusReason": {
-        "managedUnconfigured": "Managed root 尚未配置；托管创建能力已经实现，但当前环境不能直接创建项目。",
-        "managedInvalid": "Managed root 配置无效；需要先修复上游系统配置，再使用托管创建。",
-        "managedUnknown": "Managed root 状态未知；请先检查系统配置或刷新 authority。",
-        "planned": "该来源边界仅完成契约和路由占位，真正物化执行仍留在后续 bounded batch。"
-      },
-      "actions": {
-        "open": "打开入口",
-        "configure": "先修复配置",
-        "reviewBoundary": "查看边界",
-        "reviewCandidates": "查看候选",
-        "openImport": "前往导入入口"
-      },
-      "messages": {
-        "loadFailed": "项目来源目录加载失败。"
-      }
+      "messages": { "loadFailed": "项目创建方式加载失败。" }
     },
     "sourceCreate": {
       "templateDescription": "从内置 Compose 工作区模板创建托管项目。",

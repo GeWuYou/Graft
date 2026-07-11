@@ -395,3 +395,10 @@
 - 保留 source-neutral `CreationCommand` / `createProjectFromWorkspace`：未来来源必须先由 adapter 构建或获取 Workspace，再进入统一 lifecycle/review、aggregate/snapshot 和只读 runtime sync。
 - 该范围不包含浏览器验证，按用户要求由用户自行验证。
 - archive-readiness 验证通过：diff、OpenAPI bundle/generation、backend validate、web check、i18n 与 ai-plan structure guard；主题达到 `archive-ready`。
+
+## 2026-07-12 Unified creation entry
+
+- 列表页收敛为唯一的“创建项目”操作；`/ops/projects/create` 是 `blank`、`template` 与 `import` 的统一选择入口。
+- `GET /api/ops/projects/creation-methods` 取代旧 `/sources` 目录。后端仅发布创建方式、可用性和阻塞码；项目已持久化的 `source_kind` 继续描述项目来源。
+- 空白创建、模板创建和导入分别进入 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`，未保留旧路由或旧 API 别名。
+- `ops.project.source.view` 经 RBAC migration 直接更名为 `ops.project.creation-method.view`，保留原 permission ID 与既有角色关联。

@@ -1735,12 +1735,12 @@ IA guardrail:
 
 ## 18. 当前来源范围与扩展口
 
-当前公开且可执行的项目来源只有：
+当前公开且可执行的项目创建方式只有：
 
 - `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
 - `Template`：模块内置模板生成 Workspace。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
-`GET /api/ops/projects/sources` 只列出当前已有 adapter 的 Managed 与 Template；Import 仍保留独立主入口。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、来源枚举或占位页面。
+`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。统一入口是 `/ops/projects/create`，三个向导路径分别为 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
 
-未来来源只能在其 adapter、OpenAPI contract 和 source catalog entry 同时实现后公开，并且必须遵循 `Source Adapter -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。adapter 负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。
+未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Creation Method -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

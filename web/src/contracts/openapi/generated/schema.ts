@@ -2250,7 +2250,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/sources': {
+  '/api/ops/projects/creation-methods': {
     parameters: {
       query?: never;
       header?: never;
@@ -2258,10 +2258,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List Compose project source entrypoints
-     * @description Returns the currently implemented managed and template project entrypoints. Import Existing remains a dedicated runtime-to-workspace flow.
+     * List Compose project creation methods
+     * @description Returns the currently supported ways to create a Compose project. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
      */
-    get: operations['getProjectSources'];
+    get: operations['getProjectCreationMethods'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2992,10 +2992,10 @@ export interface components {
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     ProjectSourceKind: components['schemas']['project-source-kind'];
-    ProjectSourceEntryType: components['schemas']['project-source-entry-type'];
-    ProjectSourceEntryStatus: components['schemas']['project-source-entry-status'];
-    ProjectSourceEntry: components['schemas']['project-source-entry'];
-    ProjectSourceCatalogResponse: components['schemas']['project-source-catalog-response'];
+    ProjectCreationMethodType: components['schemas']['project-creation-method-type'];
+    ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
+    ProjectCreationMethod: components['schemas']['project-creation-method'];
+    ProjectCreationMethodCatalogResponse: components['schemas']['project-creation-method-catalog-response'];
     ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
@@ -3056,7 +3056,7 @@ export interface components {
     ProjectBatchActionItem: components['schemas']['project-batch-action-item'];
     ProjectBatchActionResponse: components['schemas']['project-batch-action-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
-    EnvelopedProjectSourceCatalogResponse: components['schemas']['enveloped-project-source-catalog-response'];
+    EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
     EnvelopedProjectLogResponse: components['schemas']['enveloped-project-log-response'];
     EnvelopedProjectOverviewResponse: components['schemas']['enveloped-project-overview-response'];
@@ -6074,30 +6074,20 @@ export interface components {
       data: components['schemas']['project-import-directories-response'];
     };
     /** @enum {string} */
-    'project-source-entry-type': 'managed' | 'template';
+    'project-creation-method-type': 'blank' | 'template' | 'import';
     /** @enum {string} */
-    'project-source-entry-status': 'ready' | 'blocked' | 'planned';
-    'project-source-entry': {
-      type: components['schemas']['project-source-entry-type'];
-      status: components['schemas']['project-source-entry-status'];
-      display_name: string;
-      title_key: string;
-      route_path: string;
-      route_name: string;
-      permission: string;
-      menu_group: string;
-      description: string;
-      description_key: string;
-      metadata_fields: string[];
-      host_scope: components['schemas']['project-host-scope'];
-      status_reason?: string | null;
-      status_reason_key?: string | null;
+    'project-creation-method-availability': 'ready' | 'blocked';
+    'project-creation-method': {
+      method: components['schemas']['project-creation-method-type'];
+      availability: components['schemas']['project-creation-method-availability'];
+      /** @description Stable reason code when the creation method is blocked. */
+      blocked_reason?: string | null;
     };
-    'project-source-catalog-response': {
-      items: components['schemas']['project-source-entry'][];
+    'project-creation-method-catalog-response': {
+      items: components['schemas']['project-creation-method'][];
     };
-    'enveloped-project-source-catalog-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-source-catalog-response'];
+    'enveloped-project-creation-method-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-creation-method-catalog-response'];
     };
     /** @enum {string} */
     'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
@@ -6107,7 +6097,7 @@ export interface components {
       candidate_key: string;
       candidate_kind: components['schemas']['project-discovery-candidate-kind'];
       source_kind: components['schemas']['project-source-kind'];
-      source_type?: components['schemas']['project-source-entry-type'];
+      source_type?: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
       display_name: string;
       canonical_project_name: string;
@@ -6128,7 +6118,7 @@ export interface components {
       conflicts: string[];
     };
     'project-discovery-candidates-response': {
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       authority_root: string | null;
       supports_scan: boolean;
       supports_auto_discovery: boolean;
@@ -6142,7 +6132,7 @@ export interface components {
     'project-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
     'project-managed-root-response': {
       status: components['schemas']['project-managed-root-status'];
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       config_key: string;
       configured_root_directory?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
@@ -6174,7 +6164,7 @@ export interface components {
     };
     'project-create-validate-response': {
       managed_root: components['schemas']['project-managed-root-response'];
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       display_name: string;
       canonical_project_name: string;
       ownership_mode: components['schemas']['project-ownership-mode'];
@@ -6210,7 +6200,7 @@ export interface components {
     };
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
@@ -12965,7 +12955,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectSources: {
+  getProjectCreationMethods: {
     parameters: {
       query?: never;
       header?: {
@@ -12982,14 +12972,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project source catalog. */
+      /** @description Project creation method catalog. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-source-catalog-response'];
+          'application/json': components['schemas']['enveloped-project-creation-method-catalog-response'];
         };
       };
       401: components['responses']['unauthorized'];

@@ -5,4 +5,4 @@ properties:
   items:
     type: array
     items:
-      $ref: ./project-source-entry.yaml
+      $ref: ./project-creation-method.yaml

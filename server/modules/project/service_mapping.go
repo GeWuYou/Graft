@@ -472,11 +472,8 @@ func stringValue(value *string) string {
 	return *value
 }
 
-// mapManagedSourceCatalogStatus 将托管根状态映射为来源目录状态。
-//
-// @param status 托管根状态字符串。
-// @returns 目录状态值；当状态为 ready 时返回 "ready"，其余情况返回 "blocked"。
-func mapManagedSourceCatalogStatus(status string) string {
+// mapManagedCreationMethodAvailability maps managed-root status to creation-method availability.
+func mapManagedCreationMethodAvailability(status string) string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
 		return "ready"
@@ -487,18 +484,17 @@ func mapManagedSourceCatalogStatus(status string) string {
 	}
 }
 
-// managedRootStatusReasonKey 将托管根状态映射为状态原因键。
-// 返回与给定托管根状态对应的原因键；当状态为就绪时返回 nil。
-func managedRootStatusReasonKey(status string) *string {
+// managedRootCreationBlockedReason maps managed-root status to a stable creation-method reason code.
+func managedRootCreationBlockedReason(status string) *string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
 		return nil
 	case projectcontract.ManagedRootStatusUnconfigured.String():
-		return stringPointer("project.createSource.statusReason.managedUnconfigured")
+		return stringPointer("managed_root_unconfigured")
 	case projectcontract.ManagedRootStatusInvalid.String():
-		return stringPointer("project.createSource.statusReason.managedInvalid")
+		return stringPointer("managed_root_invalid")
 	default:
-		return stringPointer("project.createSource.statusReason.managedUnknown")
+		return stringPointer("managed_root_unknown")
 	}
 }
 

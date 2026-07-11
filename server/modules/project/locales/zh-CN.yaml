@@ -26,14 +26,12 @@ rbac.permissionCatalog.projectDestroy.display: 注销或销毁 Compose 项目
 rbac.permissionCatalog.projectDestroy.description: 对项目记录执行注销和受保护的销毁动作。
 rbac.permissionCatalog.projectCreate.display: 创建受管 Compose 项目
 rbac.permissionCatalog.projectCreate.description: 查看受管根目录设置，并创建受管 Compose 项目。
-rbac.permissionCatalog.projectSourceView.display: 查看项目来源目录
-rbac.permissionCatalog.projectSourceView.description: 查看可用的托管与模板项目来源入口路由。
+rbac.permissionCatalog.projectCreationMethodView.display: 查看项目创建方式
+rbac.permissionCatalog.projectCreationMethodView.description: 查看当前支持的 Compose 项目创建方式及其可用性。
 rbac.permissionCatalog.projectDiscoveryView.display: 查看项目发现候选项
 rbac.permissionCatalog.projectDiscoveryView.description: 预览本机发现到的 Compose 目录，不直接注册项目。
 rbac.permissionCatalog.projectDeploy.display: 部署受管 Compose 项目草稿
 rbac.permissionCatalog.projectDeploy.description: 对受管项目配置草稿执行 diff、validate 和 deploy。
-ops.project.source.managed.description: 在已配置的受管根目录中创建受管 Compose 项目。
-ops.project.source.template.description: 从当前可用的内置 Compose 工作区模板创建托管项目。
 ops.project.discovery.candidates.ready: 项目发现候选预览已就绪。
 systemConfig.project.ops.project.managed.root_directory.title: 受管项目根目录
 systemConfig.project.ops.project.managed.root_directory.description: 受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。

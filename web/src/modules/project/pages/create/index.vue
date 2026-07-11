@@ -2,7 +2,7 @@
   <div class="project-create-page" data-page-type="editor">
     <management-page-content>
       <management-page-header
-        title-key="project.route.createManaged.title"
+        title-key="project.route.createBlank.title"
         description-key="project.create.wizardDescription"
       >
         <template #meta

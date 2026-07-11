@@ -139,9 +139,9 @@ Compose Project Management
 
 当前 batch-1 已完成的前置条件：
 
-- source catalog authority 已固定到 `openapi/** + server/modules/project/** + web/src/modules/project/**`
-- source selector 与 `managed/git/template` route boundary 已固定
-- git/template 仍保持 planned，不存在 runtime persistence、directory scan、remote host 或 backend activity aggregation 越界
+- 创建方式目录 authority 固定到 `openapi/** + server/modules/project/** + web/src/modules/project/**`
+- 统一创建入口固定为 `blank/template/import`，并分别进入现有空白、模板与导入向导
+- Git、Remote Host、ZIP 与 GitHub Template 仍不公开，不存在 runtime persistence、directory scan、remote host 或 backend activity aggregation 越界
 
 当前 batch-2 已完成的前置条件：
 

@@ -11591,14 +11591,14 @@
         }
       }
     },
-    "/api/ops/projects/sources": {
+    "/api/ops/projects/creation-methods": {
       "get": {
         "tags": [
           "project"
         ],
-        "summary": "List Compose project source entrypoints",
-        "operationId": "getProjectSources",
-        "description": "Returns the currently implemented managed and template project entrypoints. Import Existing remains a dedicated runtime-to-workspace flow.",
+        "summary": "List Compose project creation methods",
+        "operationId": "getProjectCreationMethods",
+        "description": "Returns the currently supported ways to create a Compose project. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11614,7 +11614,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Project source catalog.",
+            "description": "Project creation method catalog.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -11623,7 +11623,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-source-catalog-response"
+                  "$ref": "#/components/schemas/enveloped-project-creation-method-catalog-response"
                 }
               }
             }
@@ -14561,17 +14561,17 @@
       "ProjectSourceKind": {
         "$ref": "#/components/schemas/project-source-kind"
       },
-      "ProjectSourceEntryType": {
-        "$ref": "#/components/schemas/project-source-entry-type"
+      "ProjectCreationMethodType": {
+        "$ref": "#/components/schemas/project-creation-method-type"
       },
-      "ProjectSourceEntryStatus": {
-        "$ref": "#/components/schemas/project-source-entry-status"
+      "ProjectCreationMethodAvailability": {
+        "$ref": "#/components/schemas/project-creation-method-availability"
       },
-      "ProjectSourceEntry": {
-        "$ref": "#/components/schemas/project-source-entry"
+      "ProjectCreationMethod": {
+        "$ref": "#/components/schemas/project-creation-method"
       },
-      "ProjectSourceCatalogResponse": {
-        "$ref": "#/components/schemas/project-source-catalog-response"
+      "ProjectCreationMethodCatalogResponse": {
+        "$ref": "#/components/schemas/project-creation-method-catalog-response"
       },
       "ProjectSourceMetadata": {
         "$ref": "#/components/schemas/project-source-metadata"
@@ -14753,8 +14753,8 @@
       "EnvelopedProjectListResponse": {
         "$ref": "#/components/schemas/enveloped-project-list-response"
       },
-      "EnvelopedProjectSourceCatalogResponse": {
-        "$ref": "#/components/schemas/enveloped-project-source-catalog-response"
+      "EnvelopedProjectCreationMethodCatalogResponse": {
+        "$ref": "#/components/schemas/enveloped-project-creation-method-catalog-response"
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
@@ -24692,97 +24692,51 @@
           }
         ]
       },
-      "project-source-entry-type": {
+      "project-creation-method-type": {
         "type": "string",
         "enum": [
-          "managed",
-          "template"
+          "blank",
+          "template",
+          "import"
         ],
         "x-enum-varnames": [
-          "ProjectSourceEntryTypeManaged",
-          "ProjectSourceEntryTypeTemplate"
+          "ProjectCreationMethodTypeBlank",
+          "ProjectCreationMethodTypeTemplate",
+          "ProjectCreationMethodTypeImport"
         ]
       },
-      "project-source-entry-status": {
+      "project-creation-method-availability": {
         "type": "string",
         "enum": [
           "ready",
-          "blocked",
-          "planned"
+          "blocked"
         ],
         "x-enum-varnames": [
-          "ProjectSourceEntryStatusReady",
-          "ProjectSourceEntryStatusBlocked",
-          "ProjectSourceEntryStatusPlanned"
+          "ProjectCreationMethodAvailabilityReady",
+          "ProjectCreationMethodAvailabilityBlocked"
         ]
       },
-      "project-source-entry": {
+      "project-creation-method": {
         "type": "object",
         "required": [
-          "type",
-          "status",
-          "display_name",
-          "title_key",
-          "route_path",
-          "route_name",
-          "permission",
-          "menu_group",
-          "description",
-          "description_key",
-          "metadata_fields",
-          "host_scope"
+          "method",
+          "availability"
         ],
         "properties": {
-          "type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+          "method": {
+            "$ref": "#/components/schemas/project-creation-method-type"
           },
-          "status": {
-            "$ref": "#/components/schemas/project-source-entry-status"
+          "availability": {
+            "$ref": "#/components/schemas/project-creation-method-availability"
           },
-          "display_name": {
-            "type": "string"
-          },
-          "title_key": {
-            "type": "string"
-          },
-          "route_path": {
-            "type": "string"
-          },
-          "route_name": {
-            "type": "string"
-          },
-          "permission": {
-            "type": "string"
-          },
-          "menu_group": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "description_key": {
-            "type": "string"
-          },
-          "metadata_fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "host_scope": {
-            "$ref": "#/components/schemas/project-host-scope"
-          },
-          "status_reason": {
+          "blocked_reason": {
             "type": "string",
-            "nullable": true
-          },
-          "status_reason_key": {
-            "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Stable reason code when the creation method is blocked."
           }
         }
       },
-      "project-source-catalog-response": {
+      "project-creation-method-catalog-response": {
         "type": "object",
         "required": [
           "items"
@@ -24791,12 +24745,12 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/project-source-entry"
+              "$ref": "#/components/schemas/project-creation-method"
             }
           }
         }
       },
-      "enveloped-project-source-catalog-response": {
+      "enveloped-project-creation-method-catalog-response": {
         "allOf": [
           {
             "$ref": "#/components/schemas/api-envelope"
@@ -24808,7 +24762,7 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/project-source-catalog-response"
+                "$ref": "#/components/schemas/project-creation-method-catalog-response"
               }
             }
           }
@@ -24871,7 +24825,7 @@
             "$ref": "#/components/schemas/project-source-kind"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "source_metadata": {
             "$ref": "#/components/schemas/project-source-metadata"
@@ -24962,7 +24916,7 @@
         ],
         "properties": {
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "authority_root": {
             "type": "string",
@@ -25032,7 +24986,7 @@
             "$ref": "#/components/schemas/project-managed-root-status"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "config_key": {
             "type": "string"
@@ -25175,7 +25129,7 @@
             "$ref": "#/components/schemas/project-managed-root-response"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "display_name": {
             "type": "string"
@@ -25330,7 +25284,7 @@
             "$ref": "#/components/schemas/project-managed-root-response"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "project_id": {
             "type": "integer",

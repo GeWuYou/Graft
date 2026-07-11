@@ -3,7 +3,7 @@
     <management-page-header
       title-key="project.route.createTemplate.title"
       :description="t('project.sourceCreate.templateDescription')"
-      :source="{ labelKey: 'project.create.eyebrow', fallback: t('project.create.eyebrow') }"
+      :source="{ labelKey: 'project.creation.eyebrow', fallback: t('project.creation.eyebrow') }"
     />
 
     <t-card :bordered="true">

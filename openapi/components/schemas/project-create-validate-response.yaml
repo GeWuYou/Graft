@@ -12,7 +12,7 @@ properties:
   managed_root:
     $ref: ./project-managed-root-response.yaml
   source_type:
-    $ref: ./project-source-entry-type.yaml
+    $ref: ./project-source-kind.yaml
   display_name:
     type: string
   canonical_project_name:

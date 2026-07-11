@@ -91,9 +91,9 @@ type ListResult struct {
 	Offset int
 }
 
-// SourceCatalogResult returns the bounded project source entrypoints owned by project authority.
-type SourceCatalogResult struct {
-	Items []generated.ProjectSourceEntry
+// CreationMethodCatalogResult returns the available Compose project creation methods.
+type CreationMethodCatalogResult struct {
+	Items []generated.ProjectCreationMethod
 }
 
 // ActivityAuthority identifies the stable project activity authority contract.

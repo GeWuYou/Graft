@@ -73,12 +73,10 @@ func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImpo
 	return members
 }
 
-// toSourceCatalogResponse 将源目录结果转换为源目录响应，并复制条目列表。
-//
-// @return Items 复制后的源目录条目列表。
-func toSourceCatalogResponse(result SourceCatalogResult) generated.ProjectSourceCatalogResponse {
-	return generated.ProjectSourceCatalogResponse{
-		Items: append([]generated.ProjectSourceEntry(nil), result.Items...),
+// toCreationMethodCatalogResponse maps creation-method availability into the OpenAPI response.
+func toCreationMethodCatalogResponse(result CreationMethodCatalogResult) generated.ProjectCreationMethodCatalogResponse {
+	return generated.ProjectCreationMethodCatalogResponse{
+		Items: append([]generated.ProjectCreationMethod(nil), result.Items...),
 	}
 }
 
@@ -111,7 +109,7 @@ func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.P
 			candidate.SourceMetadata = metadata
 		}
 		if item.SourceType != "" {
-			sourceType := generated.ProjectSourceEntryType(item.SourceType)
+			sourceType := generated.ProjectSourceKind(item.SourceType)
 			candidate.SourceType = &sourceType
 		}
 		if item.StatusReason != nil {
@@ -120,7 +118,7 @@ func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.P
 		items = append(items, candidate)
 	}
 	response := generated.ProjectDiscoveryCandidatesResponse{
-		SourceType:            generated.ProjectSourceEntryType(result.SourceType),
+		SourceType:            generated.ProjectSourceKind(result.SourceType),
 		SupportsScan:          result.SupportsScan,
 		SupportsAutoDiscovery: result.SupportsAutoDiscovery,
 		Items:                 items,
@@ -487,7 +485,7 @@ func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult
 // toManagedRootResponse 将托管根目录信息映射为 OpenAPI 响应，并在可用时附加可配置根目录和状态原因。
 func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
 	response := generated.ProjectManagedRootResponse{
-		SourceType:            generated.ProjectSourceEntryType(info.SourceType),
+		SourceType:            generated.ProjectSourceKind(info.SourceType),
 		Status:                generated.ProjectManagedRootStatus(info.Status),
 		ConfigKey:             info.ConfigKey,
 		OwnershipMode:         generated.ProjectOwnershipMode(info.OwnershipMode),
@@ -509,7 +507,7 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
 	response := generated.ProjectCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
-		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
+		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		DisplayName:             result.DisplayName,
 		CanonicalProjectName:    result.CanonicalProjectName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
@@ -538,7 +536,7 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
-		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
+		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		ProjectId:               mustGeneratedID(result.ProjectID),
 		DisplayName:             result.Validation.DisplayName,
 		CanonicalProjectName:    result.Validation.CanonicalProjectName,

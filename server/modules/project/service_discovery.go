@@ -160,7 +160,7 @@ func (s *Service) buildDiscoveryCandidate(
 		CandidateKey:  candidateKeyForWorkingDirectory(workingDirectory),
 		CandidateKind: "directory-scan",
 		SourceKind:    projectcontract.SourceKindManaged.String(),
-		SourceType:    string(generated.ProjectSourceEntryTypeManaged),
+		SourceType:    projectcontract.SourceKindManaged.String(),
 		SourceMetadata: map[string]string{
 			"managed_root_key":           configKey,
 			"managed_relative_directory": name,

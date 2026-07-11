@@ -26,7 +26,7 @@ properties:
   source_kind:
     $ref: ./project-source-kind.yaml
   source_type:
-    $ref: ./project-source-entry-type.yaml
+    $ref: ./project-source-kind.yaml
   source_metadata:
     $ref: ./project-source-metadata.yaml
   display_name:

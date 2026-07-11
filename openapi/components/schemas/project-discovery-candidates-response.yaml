@@ -7,7 +7,7 @@ required:
   - items
 properties:
   source_type:
-    $ref: ./project-source-entry-type.yaml
+    $ref: ./project-source-kind.yaml
   authority_root:
     type: string
     nullable: true

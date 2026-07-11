@@ -115,9 +115,9 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
     displayKey: 'rbac.permissionCatalog.projectCreate.display',
     descriptionKey: 'rbac.permissionCatalog.projectCreate.description',
   },
-  ['ops.project.source.view']: {
-    displayKey: 'rbac.permissionCatalog.projectSourceView.display',
-    descriptionKey: 'rbac.permissionCatalog.projectSourceView.description',
+  ['ops.project.creation-method.view']: {
+    displayKey: 'rbac.permissionCatalog.projectCreationMethodView.display',
+    descriptionKey: 'rbac.permissionCatalog.projectCreationMethodView.description',
   },
   ['ops.project.discovery.view']: {
     displayKey: 'rbac.permissionCatalog.projectDiscoveryView.display',
