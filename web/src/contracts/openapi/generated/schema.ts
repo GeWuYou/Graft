@@ -2641,7 +2641,7 @@ export interface paths {
     put?: never;
     /**
      * Redeploy a registered project
-     * @description Runs the saved project lifecycle configuration for the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
+     * @description Submits the saved project lifecycle configuration for asynchronous execution on the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
      */
     post: operations['postProjectRedeploy'];
     delete?: never;
@@ -9393,9 +9393,11 @@ export interface operations {
   };
   listTasks: {
     parameters: {
-      query?: {
-        owner_type?: string;
-        owner_id?: string;
+      query: {
+        /** @description Owner resource type. Must be supplied with owner_id to identify the single authorized Task owner. */
+        owner_type: string;
+        /** @description Owner resource identifier. Must be supplied with owner_type to identify the single authorized Task owner. */
+        owner_id: string;
         type?: string;
         status?: components['schemas']['task-status'];
         limit?: number;
@@ -14113,7 +14115,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Redeploy blocked by lifecycle review guards, project lifecycle guards, or execution failure. */
+      /** @description Redeploy Task submission blocked by lifecycle review guards or project lifecycle guards. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

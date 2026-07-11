@@ -11379,12 +11379,15 @@ type PostSystemConfigResetParams struct {
 
 // ListTasksParams defines parameters for ListTasks.
 type ListTasksParams struct {
-	OwnerType *string     `form:"owner_type,omitempty" json:"owner_type,omitempty"`
-	OwnerId   *string     `form:"owner_id,omitempty" json:"owner_id,omitempty"`
-	Type      *string     `form:"type,omitempty" json:"type,omitempty"`
-	Status    *TaskStatus `form:"status,omitempty" json:"status,omitempty"`
-	Limit     *int        `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset    *int        `form:"offset,omitempty" json:"offset,omitempty"`
+	// OwnerType Owner resource type. Must be supplied with owner_id to identify the single authorized Task owner.
+	OwnerType string `form:"owner_type" json:"owner_type"`
+
+	// OwnerId Owner resource identifier. Must be supplied with owner_type to identify the single authorized Task owner.
+	OwnerId string      `form:"owner_id" json:"owner_id"`
+	Type    *string     `form:"type,omitempty" json:"type,omitempty"`
+	Status  *TaskStatus `form:"status,omitempty" json:"status,omitempty"`
+	Limit   *int        `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset  *int        `form:"offset,omitempty" json:"offset,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
