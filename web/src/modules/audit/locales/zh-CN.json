@@ -13,11 +13,11 @@
   "audit": {
     "route": {
       "logList": {
-        "title": "安全审计 - 审计日志",
+        "title": "审计日志",
         "breadcrumb": "审计日志"
       },
       "incidentDetail": {
-        "title": "安全审计 - 事件钻取",
+        "title": "事件钻取",
         "breadcrumb": "事件钻取"
       }
     },

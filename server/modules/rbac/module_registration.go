@@ -166,7 +166,6 @@ func registerMessages(localizer *i18n.Service) error {
 
 func rbacMessageKeys() []rbaccontract.MessageKey {
 	return []rbaccontract.MessageKey{
-		rbaccontract.AccessControlMenuTitle,
 		rbaccontract.RoleListMenuTitle,
 		rbaccontract.PermissionListMenuTitle,
 		rbaccontract.AuditRolePermissionsAdded,

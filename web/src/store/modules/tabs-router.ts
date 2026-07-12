@@ -16,7 +16,14 @@ import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/uti
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
 const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
-const REMOVED_OVERVIEW_TAB_KEYS = new Set(['/access-control/overview', '/audit/overview']);
+const REMOVED_LEGACY_TAB_KEYS = new Set([
+  '/access-control/overview',
+  '/access-control/users',
+  '/access-control/roles',
+  '/access-control/permissions',
+  '/audit/overview',
+]);
+const LEGACY_ACCESS_CONTROL_TITLE_MARKERS = ['访问控制', 'Access Control'];
 const MAX_CLOSED_TABS = 20;
 const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
 const logger = createLogger('store.tabsRouter');
@@ -74,8 +81,7 @@ function readPinnedTabKeys() {
     }
 
     const keys = parsed.filter(
-      (item): item is string =>
-        typeof item === 'string' && Boolean(item.trim()) && !REMOVED_OVERVIEW_TAB_KEYS.has(item),
+      (item): item is string => typeof item === 'string' && Boolean(item.trim()) && !REMOVED_LEGACY_TAB_KEYS.has(item),
     );
     if (keys.length !== parsed.length) {
       writePinnedTabKeys(keys);
@@ -107,6 +113,23 @@ function normalizeTabKey(value?: string) {
 
 function getTabKey(route: Pick<TRouterInfo, 'path' | 'tabKey'>) {
   return normalizeTabKey(route.tabKey) || normalizeTabKey(route.path) || '/';
+}
+
+function isRemovedLegacyTab(route: TRouterInfo) {
+  const identifiers = [route.tabKey, route.path, route.fullPath, route.duplicatedFrom]
+    .map(normalizeTabKey)
+    .filter(Boolean);
+  if (identifiers.some((identifier) => REMOVED_LEGACY_TAB_KEYS.has(identifier))) {
+    return true;
+  }
+
+  return Object.values(route.title ?? {}).some((title) =>
+    LEGACY_ACCESS_CONTROL_TITLE_MARKERS.some((marker) => title.includes(marker)),
+  );
+}
+
+function removeLegacyTabs(routes: TRouterInfo[]) {
+  return routes.filter((route) => !isRemovedLegacyTab(route));
 }
 
 function cloneTab(route: TRouterInfo): TRouterInfo {
@@ -318,7 +341,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
-      this.tabRouterList = ensureNonEmptyTabs(this.tabRouters);
+      this.tabRouterList = ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters));
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
@@ -344,7 +367,10 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
-      this.closedTabStack = this.closedTabStack.filter(canKeepRoute).slice(-MAX_CLOSED_TABS).map(cloneTab);
+      this.closedTabStack = removeLegacyTabs(this.closedTabStack)
+        .filter(canKeepRoute)
+        .slice(-MAX_CLOSED_TABS)
+        .map(cloneTab);
       this.clearSnapshotsForMissingTabs();
       this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();

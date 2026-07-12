@@ -77,8 +77,8 @@ func TestRegisterMessagesIncludesRolePermissionAuditKeys(t *testing.T) {
 		t.Fatalf("register rbac messages: %v", err)
 	}
 
-	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AccessControlMenuTitle.String(), "访问控制")
-	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.AccessControlMenuTitle.String(), "Access Control")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.RoleListMenuTitle.String(), "角色管理")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.PermissionListMenuTitle.String(), "Permission Management")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsAdded.String(), "角色权限已追加")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsRemoved.String(), "角色权限已移除")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.AuditRolePermissionsAdded.String(), "Role permissions added")

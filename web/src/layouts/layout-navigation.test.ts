@@ -86,7 +86,7 @@ describe('layout navigation helpers', () => {
       '/audit/logs/access',
     );
 
-    expect(expanded).toEqual(['/audit', '/audit/logs']);
+    expect(expanded).toEqual(['/audit', 'logs']);
   });
 
   it('keeps grouped parent menus expanded for descendant detail routes', () => {
@@ -106,5 +106,25 @@ describe('layout navigation helpers', () => {
     );
 
     expect(expanded).toEqual(['/ops']);
+  });
+
+  it('uses bootstrap menu codes as the submenu expanded values', () => {
+    const expanded = findExpandedMenuPaths(
+      [
+        {
+          path: 'domain.platform',
+          meta: { navigationTargetPath: '/scheduled-tasks' },
+          children: [
+            {
+              path: 'scheduled-task.list',
+              meta: { navigationTargetPath: '/scheduled-tasks' },
+            },
+          ],
+        },
+      ],
+      '/scheduled-tasks',
+    );
+
+    expect(expanded).toEqual(['domain.platform']);
   });
 });

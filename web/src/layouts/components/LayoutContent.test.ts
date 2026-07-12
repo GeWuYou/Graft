@@ -230,6 +230,14 @@ const LContentStub = defineComponent({
   },
 });
 
+const TTabsStub = defineComponent({
+  name: 'TTabs',
+  emits: ['change'],
+  setup(_, { slots }) {
+    return () => h('div', { 'data-testid': 'tabs' }, slots.default?.());
+  },
+});
+
 function createTab(path: string, name: string, isHome = false) {
   return {
     fullPath: path,
@@ -270,9 +278,7 @@ function mountLayoutContent() {
           props: ['value'],
           template: '<div data-testid="tab-panel"><slot name="label" /></div>',
         },
-        TTabs: {
-          template: '<div data-testid="tabs"><slot /></div>',
-        },
+        TTabs: TTabsStub,
       },
     },
   });
@@ -547,6 +553,19 @@ describe('LayoutContent', () => {
       query: undefined,
     });
     expect(wrapper.find('[data-testid="close-all-dialog"]').exists()).toBe(false);
+  });
+
+  it('navigates to the selected route when a tab changes', async () => {
+    const wrapper = mountLayoutContent();
+
+    wrapper.findComponent(TTabsStub).vm.$emit('change', '/audit/logs');
+    await nextTick();
+
+    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith('/audit/logs');
+    expect(routerMock.push).toHaveBeenCalledWith({
+      path: '/audit/logs',
+      query: undefined,
+    });
   });
 
   it('refreshes the current tab by bumping its refresh state', async () => {

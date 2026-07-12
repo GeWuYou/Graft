@@ -91,7 +91,10 @@ describe('frontend visible-copy governance', () => {
     const requiredKeys = [
       'menu.role_list.title',
       'menu.user_list.title',
-      'menu.access_control.title',
+      'menu.domain.security.title',
+      'menu.security.users.title',
+      'menu.security.roles.title',
+      'menu.security.permissions.title',
       'menu.modulesRuntime.title',
       'menu.logCenter.title',
     ];

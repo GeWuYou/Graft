@@ -13,11 +13,11 @@
   "audit": {
     "route": {
       "logList": {
-        "title": "Security Audit - Audit Logs",
+        "title": "Audit Logs",
         "breadcrumb": "Audit Logs"
       },
       "incidentDetail": {
-        "title": "Security Audit - Incident Drilldown",
+        "title": "Incident Drilldown",
         "breadcrumb": "Incident Drilldown"
       }
     },

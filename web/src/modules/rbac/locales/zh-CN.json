@@ -2,11 +2,11 @@
   "rbac": {
     "route": {
       "roleList": {
-        "title": "访问控制 - 角色管理",
+        "title": "角色管理",
         "breadcrumb": "角色管理"
       },
       "permissionList": {
-        "title": "访问控制 - 权限管理",
+        "title": "权限管理",
         "breadcrumb": "权限管理"
       }
     },
