@@ -269,3 +269,29 @@ Compose Project Management
 - [x] Expose target/provider summaries and server-side project-list filters through the application projection contract.
 - [x] Extend project saved-view state validation for application filters, page size, and visible columns.
 - [x] Implement the web Application Management surface and icon system: server-side application filters, target/provider columns, user-private saved views, and static Iconify menu icons are wired and browser-checked.
+
+## 2026-07-12 Cross-Boundary Acceptance
+
+- [x] Saved View foundation: user/surface-scoped private views retain filters, page size and visible columns; current page is rejected from persisted state; live display names are unique per user and surface.
+- [x] Application projection: each Compose application binds one Runtime Target through a migration bridge, consumes target/provider summaries, and applies list filters server-side without changing Container runtime authority.
+- [x] Application Management UI: `/projects` has saved-view CRUD and contract-aligned target/provider filter linkage; applying a view returns to page one.
+- [x] Navigation icon system: menus resolve static Iconify data through a single component, using Lucide by default and `tabler:brand-docker` for the Docker outline brand glyph.
+- [x] Acceptance validation: SQL migration gate, OpenAPI bundle/type governance, targeted contract tests, `graft validate backend`, `bun run check`, shared asset registry and ai-plan structure guards all passed; generated artifacts and working tree are clean.
+
+## Current Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "saved-view-foundation-and-project-contract",
+    "application-target-association-and-list-query",
+    "web-application-management-and-icon-system",
+    "cross-boundary-acceptance-and-topic-closeout"
+  ],
+  "pending_batches": ["remote-source-adapter-and-activity-boundary"],
+  "current_batch": "cross-boundary-acceptance-and-topic-closeout",
+  "next_batch": "remote-source-adapter-and-activity-boundary",
+  "closeout_status": "application-management-accepted-topic-active"
+}
+```

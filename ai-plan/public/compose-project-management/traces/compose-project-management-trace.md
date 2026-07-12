@@ -422,3 +422,11 @@
 - The icon authority repair expanded to core domain descriptors plus currently visible module entries; it changes only menu metadata and resolver mappings, never routes, permissions, or page behavior.
 - Browser evidence captured Application Management, Runtime Targets and the visible Docker sidebar logo under `.ai/artifacts/browser/application-management-page` and `.ai/artifacts/browser/runtime-target-icons`.
 - Follow-up visual audit replaced legacy/fallback menu identifiers for core domains and visible observability, security and platform entries. Final browser evidence at `.ai/artifacts/browser/observability-icons-final` shows Overview, Runtime, Dependencies, Module Runtime, Access Log and App Log with distinct semantic glyphs; Docker uses the Tabler outline brand glyph.
+
+## 2026-07-12 Cross-boundary acceptance and recovery update
+
+- Accepted the saved-view contract: generic storage is private to `(owner user, surface)` and enforces one live display name per scope. It persists filters, page size and visible columns, while the Project consumer validates query/column state and always restores at page one.
+- Accepted the application projection: Compose stores only a Runtime Target reference and consumes its target/provider summary; list keyword and application, target, provider, source, runtime and drift filters are server-owned. Container remains the runtime authority.
+- Accepted the Application Management UI and icon boundary: `/projects` supports saved-view CRUD and target/provider filtering; menu rendering has one static Iconify resolver, with Lucide defaults and Tabler's outline Docker logo.
+- Validation passed: `git diff --check`, `python3 scripts/validate_sql_migrations.py`, `node scripts/openapi-bundle.mjs`, `cd web && bun run openapi:types:check`, targeted Go/Vitest suites, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `python3 scripts/validate_shared_asset_registries.py`, and `python3 scripts/validate_ai_plan_structure.py`.
+- Archive-readiness remains false. The previously deferred `remote-source-adapter-and-activity-boundary` is independent Phase 3 work; it must not be represented by a placeholder route, API, or source catalog entry.

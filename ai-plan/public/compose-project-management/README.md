@@ -3,7 +3,7 @@
 ## 当前状态摘要
 
 - 当前主题目标是在 `Graft` 增加 Docker Compose Project 管理能力。
-- 当前状态：`active`。
+- 当前状态：`active`；应用管理、运行目标关联、私有分页保存视图与导航图标收敛已完成验收，独立的 Phase 3 远程来源与项目活动聚合边界仍待完成。
 - 任务分类为 `cross-boundary`，涉及 `ai-plan/design`、future OpenAPI、future `server/modules/project/**`、future `web/src/modules/project/**`，并与现有 `container` runtime authority 协作。
 - Canonical design：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
 - 当前已完成 Phase 0、Phase 1、Phase 2 的主要实现，但主题仍处于 `active`，因为产品入口、lifecycle authority 和 topic 完成口径出现了 drift repair 待修复项。
@@ -76,7 +76,9 @@
   - 本地项目统一收口到保存型 `Lifecycle Configuration` authority：managed 默认 `confirmed`；运行时导入在向导内强制审核配置，并与注册一起保存为 `confirmed`。
   - `update-deploy` 不再作为一等动作保留；`redeploy` 成为唯一 deploy-style lifecycle action，pull/down/prune 等语义统一由 lifecycle configuration 持有。
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
-- 当前下一步：先执行 `drift-repair-import-primary-entry-and-topic-truth`，再回到剩余 Phase 3 bounded work。
+  - Application Management 已稳定消费 Runtime Target 的摘要；Compose 仍是当前唯一 application type，Container 保持 runtime authority。
+  - 用户私有 Saved View 是可复用分页列表基础能力，保存筛选、每页大小和可见列，不保存当前页；同一用户和 surface 下名称唯一。
+- 当前下一步：`remote-source-adapter-and-activity-boundary`，仅在完整 adapter、契约与真实向导可以同时落地时再恢复 Remote Host 能力，并明确后端 Project Activity aggregation authority。
 
 ## Completion Scope
 
