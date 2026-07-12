@@ -14,6 +14,13 @@ describe('container bootstrap route registrations', () => {
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
     expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
       tabGroup: 'infrastructure',
+      navigationSection: {
+        key: 'runtime',
+        title: {
+          'zh-CN': '运行时',
+          'en-US': 'Runtime',
+        },
+      },
       semanticTitle: {
         'zh-CN': '容器管理',
         'en-US': 'Containers',

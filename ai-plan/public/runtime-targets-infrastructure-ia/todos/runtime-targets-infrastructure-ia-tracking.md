@@ -34,7 +34,7 @@ closeout:
 ## Task Checklist
 
 - [x] work-intake-and-authority-foundation
-- [ ] menu-section-contract-and-sidebar-rendering
+- [x] menu-section-contract-and-sidebar-rendering
 - [ ] runtime-target-foundation
 - [ ] container-deployment-type-and-target-filter
 - [ ] docker-resources-and-application-integration
@@ -53,10 +53,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-and-authority-foundation"],
-  "pending_batches": ["menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
-  "current_batch": "work-intake-and-authority-foundation",
-  "next_batch": "menu-section-contract-and-sidebar-rendering",
-  "closeout_status": "batch-1-complete"
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering"],
+  "pending_batches": ["runtime-target-foundation", "container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "current_batch": "menu-section-contract-and-sidebar-rendering",
+  "next_batch": "runtime-target-foundation",
+  "closeout_status": "batch-2-complete"
 }
 ```

@@ -1,7 +1,10 @@
 {
   "menu": {
-    "container": {
-      "title": "Containers"
+    "docker": {
+      "title": "Docker"
+    },
+    "section": {
+      "runtime": "Runtime"
     }
   },
   "container": {

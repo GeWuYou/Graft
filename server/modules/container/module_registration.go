@@ -199,6 +199,7 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Kind:                     menu.NodeKindEntry,
 		Title:                    "",
 		TitleKey:                 containercontract.ContainerMenuTitle.String(),
+		SectionKey:               "runtime",
 		Path:                     containercontract.ContainerMenuPath,
 		Icon:                     "server",
 		Order:                    containerMenuOrderList,

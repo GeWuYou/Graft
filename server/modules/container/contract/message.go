@@ -9,8 +9,10 @@ func (k MessageKey) String() string {
 }
 
 const (
-	// ContainerMenuTitle identifies the container management menu title.
-	ContainerMenuTitle MessageKey = "menu.container.title"
+	// ContainerMenuTitle identifies the Docker provider navigation title.
+	ContainerMenuTitle MessageKey = "menu.docker.title"
+	// ContainerMenuSectionTitle identifies the visual-only runtime sidebar section title.
+	ContainerMenuSectionTitle MessageKey = "menu.section.runtime"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.
 	ContainerRuntimeDisabled MessageKey = "ops.container.error.runtimeDisabled"
 	// ContainerRuntimeSocketMissing identifies missing runtime socket errors.

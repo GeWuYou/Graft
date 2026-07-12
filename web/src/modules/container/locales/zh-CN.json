@@ -1,7 +1,10 @@
 {
   "menu": {
-    "container": {
-      "title": "容器管理"
+    "docker": {
+      "title": "Docker"
+    },
+    "section": {
+      "runtime": "运行时"
     }
   },
   "container": {

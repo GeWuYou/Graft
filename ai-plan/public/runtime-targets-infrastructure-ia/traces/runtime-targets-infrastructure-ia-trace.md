@@ -20,3 +20,24 @@
   "closeout_status": "batch-1-complete"
 }
 ```
+
+## 2026-07-12 Menu Section Contract And Sidebar Rendering
+
+- Added `SectionKey` to backend menu entry metadata and rejected it on non-navigable domain groups; it does not create a menu node, route, permission, breadcrumb, tab, quick action, or search result.
+- Kept the existing Bootstrap OpenAPI wire shape unchanged in this bounded batch. The web module registration attaches matching visual-only section metadata to the already authorized `/containers` route rather than emitting an undeclared wire field.
+- Reclassified the visible Infrastructure entry as `Docker` while preserving the canonical `/containers` route and container API. The page semantic title remains `Containers`.
+- The existing sidebar now renders a `Runtime` / `运行时` text label once before visible runtime entries. Header navigation does not render section labels, and collapsed sidebars hide them.
+- Validation passed: focused Go and Vitest suites, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, and `git diff --check`.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering"],
+  "pending_batches": ["runtime-target-foundation", "container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "current_batch": "menu-section-contract-and-sidebar-rendering",
+  "next_batch": "runtime-target-foundation",
+  "closeout_status": "batch-2-complete"
+}
+```

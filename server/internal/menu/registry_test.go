@@ -8,6 +8,7 @@ func TestRegistryValidateRejectsMalformedNavigationGraph(t *testing.T) {
 		items []Item
 	}{
 		{"group path", []Item{{Code: "group", Kind: NodeKindGroup, Path: "/unexpected"}}},
+		{"group section", []Item{{Code: "group", Kind: NodeKindGroup, SectionKey: "runtime"}}},
 		{"entry missing path", []Item{{Code: "entry", Kind: NodeKindEntry}}},
 		{"unknown parent", []Item{{Code: "entry", Kind: NodeKindEntry, Path: "/entries", ParentCode: "missing"}}},
 		{"entry parent", []Item{{Code: "entry", Kind: NodeKindEntry, Path: "/entries"}, {Code: "child", Kind: NodeKindEntry, Path: "/children", ParentCode: "entry"}}},

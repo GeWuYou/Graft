@@ -29,8 +29,8 @@ vi.mock('@/router', () => ({
 }));
 
 describe('MenuContent', () => {
-  it('navigates grouped mix-menu items to the first visible leaf route', async () => {
-    const menuItemStub = defineComponent({
+  function createMenuItemStub() {
+    return defineComponent({
       props: {
         value: { type: String, required: false, default: '' },
       },
@@ -48,7 +48,77 @@ describe('MenuContent', () => {
           );
       },
     });
+  }
 
+  it('renders an authorized visual-only section label once without creating a menu item', () => {
+    const wrapper = mount(MenuContent, {
+      props: {
+        showSections: true,
+        navData: [
+          {
+            path: '/containers',
+            meta: {
+              title: { 'zh-CN': 'Docker', 'en-US': 'Docker' },
+              navigationSection: {
+                key: 'runtime',
+                title: { 'zh-CN': '运行时', 'en-US': 'Runtime' },
+              },
+            },
+          },
+          {
+            path: '/images',
+            meta: {
+              title: { 'zh-CN': '镜像', 'en-US': 'Images' },
+              navigationSection: {
+                key: 'runtime',
+                title: { 'zh-CN': '运行时', 'en-US': 'Runtime' },
+              },
+            },
+          },
+        ],
+      },
+      global: {
+        stubs: {
+          't-menu-item': createMenuItemStub(),
+          't-icon': defineComponent({ setup: () => () => h('i') }),
+        },
+      },
+    });
+
+    expect(wrapper.findAll('.graft-menu-section-label')).toHaveLength(1);
+    expect(wrapper.get('.graft-menu-section-label').text()).toBe('运行时');
+    expect(wrapper.findAll('button')).toHaveLength(2);
+    expect(wrapper.find('[data-menu-value="runtime"]').exists()).toBe(false);
+  });
+
+  it('does not render sidebar section labels outside the side navigation', () => {
+    const wrapper = mount(MenuContent, {
+      props: {
+        navData: [
+          {
+            path: '/containers',
+            meta: {
+              title: { 'zh-CN': 'Docker', 'en-US': 'Docker' },
+              navigationSection: {
+                key: 'runtime',
+                title: { 'zh-CN': '运行时', 'en-US': 'Runtime' },
+              },
+            },
+          },
+        ],
+      },
+      global: {
+        stubs: {
+          't-menu-item': createMenuItemStub(),
+          't-icon': defineComponent({ setup: () => () => h('i') }),
+        },
+      },
+    });
+
+    expect(wrapper.find('.graft-menu-section-label').exists()).toBe(false);
+  });
+
+  it('navigates grouped mix-menu items to the first visible leaf route', async () => {
     const submenuStub = defineComponent({
       name: 'TSubmenuStub',
       setup(_, { slots }) {
@@ -91,7 +161,7 @@ describe('MenuContent', () => {
       },
       global: {
         stubs: {
-          't-menu-item': menuItemStub,
+          't-menu-item': createMenuItemStub(),
           't-submenu': submenuStub,
           't-icon': iconStub,
         },

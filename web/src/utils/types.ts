@@ -31,6 +31,8 @@ export interface AppRouteMeta {
   /** Explicit bootstrap navigation graph metadata; never inferred from URL ancestry. */
   navigationCode?: string;
   navigationKind?: 'group' | 'entry';
+  /** Visual-only sidebar grouping metadata; it never creates a navigation node. */
+  navigationSection?: NavigationSection;
   navigationTargetPath?: string;
   /** Explicit localized navigation ancestors used by shell breadcrumbs and tabs. */
   navigationAncestors?: NavigationAncestor[];
@@ -64,6 +66,11 @@ export interface AppRouteMeta {
 export interface NavigationAncestor {
   code: string;
   path: string;
+  title: LocalizedTitle;
+}
+
+export interface NavigationSection {
+  key: string;
   title: LocalizedTitle;
 }
 

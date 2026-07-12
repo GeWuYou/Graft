@@ -101,7 +101,7 @@ describe('layout navigation helpers', () => {
           children: [
             {
               path: 'containers',
-              meta: { titleKey: 'menu.container.title' },
+              meta: { titleKey: 'menu.docker.title' },
             },
           ],
         },

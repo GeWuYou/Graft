@@ -37,6 +37,9 @@ type Item struct {
 	Kind       NodeKind
 	Title      string
 	TitleKey   string
+	// SectionKey optionally assigns an entry to a visual-only sidebar section.
+	// It is display metadata, never a menu node, route, permission, or identity.
+	SectionKey string
 	Path       string
 	Icon       string
 	// Order 是后端声明的 canonical 导航排序值；数值越小越靠前。
@@ -112,14 +115,25 @@ func validateItem(item Item, existing map[string]Item) error {
 	if kind == "" {
 		kind = NodeKindEntry
 	}
-	if kind == NodeKindGroup && strings.TrimSpace(item.Path) != "" {
+	switch kind {
+	case NodeKindGroup:
+		return validateGroupItem(code, item)
+	case NodeKindEntry:
+		if strings.TrimSpace(item.Path) == "" {
+			return fmt.Errorf("menu entry %q must declare a path", code)
+		}
+		return nil
+	default:
+		return fmt.Errorf("menu item %q has invalid kind %q", code, kind)
+	}
+}
+
+func validateGroupItem(code string, item Item) error {
+	if strings.TrimSpace(item.Path) != "" {
 		return fmt.Errorf("menu group %q must not declare a path", code)
 	}
-	if kind == NodeKindEntry && strings.TrimSpace(item.Path) == "" {
-		return fmt.Errorf("menu entry %q must declare a path", code)
-	}
-	if kind != NodeKindGroup && kind != NodeKindEntry {
-		return fmt.Errorf("menu item %q has invalid kind %q", code, kind)
+	if strings.TrimSpace(item.SectionKey) != "" {
+		return fmt.Errorf("menu group %q must not declare a section key", code)
 	}
 	return nil
 }
