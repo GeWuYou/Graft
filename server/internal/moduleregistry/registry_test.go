@@ -14,17 +14,17 @@ import (
 func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 	got := EmbeddedLocaleResources()
 	expected := map[string]map[i18n.LocaleTag]struct{}{
-		"announcement":  {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"audit":         {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"container":     {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"monitor":       {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"project":       {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"rbac":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"announcement":   {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"audit":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"container":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"monitor":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"project":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"rbac":           {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"runtime-target": {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"scheduler":     {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"security":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"system-config": {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
-		"user":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"scheduler":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"security":       {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"system-config":  {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"user":           {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 	}
 
 	expectedCount := 0
@@ -62,6 +62,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/audit/migrations",
 		"modules/notification/migrations",
 		"modules/runtime-target/migrations",
+		"modules/saved-view/migrations",
 		"modules/system-config/migrations",
 		"modules/scheduler/migrations",
 		"modules/task/migrations",

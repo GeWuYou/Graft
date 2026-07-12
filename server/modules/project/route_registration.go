@@ -53,6 +53,10 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group := ctx.Router.Group(projectcontract.ProjectAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(projectcontract.ProjectCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleList)
+	group.GET(projectcontract.ProjectSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleSavedViewList)
+	group.POST(projectcontract.ProjectSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleSavedViewCreate)
+	group.PUT(projectcontract.ProjectSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleSavedViewUpdate)
+	group.DELETE(projectcontract.ProjectSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleSavedViewDelete)
 	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportValidate)
 	group.GET(projectcontract.ProjectImportRuntimeCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportRuntimeCandidates)
 	group.POST(projectcontract.ProjectImportRuntimeInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportRuntimeInspect)
@@ -108,6 +112,122 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectListResponse(result))
+}
+
+func (r routeRuntime) handleSavedViewList(ginCtx *gin.Context) {
+	ownerID, ok := currentUserID(ginCtx)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	items, err := r.service.listSavedViews(ginCtx.Request.Context(), ownerID)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	mapped := make([]generated.ProjectSavedView, 0, len(items))
+	for _, item := range items {
+		view, mapErr := toGeneratedProjectSavedView(item)
+		if mapErr != nil {
+			r.writeSavedViewError(ginCtx, mapErr)
+			return
+		}
+		mapped = append(mapped, view)
+	}
+	projectGeneratedHandler{}.GetProjectSavedViews(generated.GetProjectSavedViewsParams{})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ProjectSavedViewListResponse{Items: mapped})
+}
+
+func (r routeRuntime) handleSavedViewCreate(ginCtx *gin.Context) {
+	ownerID, ok := currentUserID(ginCtx)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	var body generated.PostProjectSavedViewJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &body) {
+		return
+	}
+	request, err := projectSavedViewRequestFromGenerated(body)
+	if err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	projectGeneratedHandler{}.PostProjectSavedView(generated.PostProjectSavedViewParams{}, body)
+	item, err := r.service.createSavedView(ginCtx.Request.Context(), ownerID, request)
+	if err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	mapped, err := toGeneratedProjectSavedView(item)
+	if err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, mapped)
+}
+
+func (r routeRuntime) handleSavedViewUpdate(ginCtx *gin.Context) {
+	ownerID, ok := currentUserID(ginCtx)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	id, ok := bindSavedViewID(ginCtx)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	var body generated.PutProjectSavedViewJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &body) {
+		return
+	}
+	request, err := projectSavedViewRequestFromGenerated(body)
+	if err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	generatedID, ok := generatedSavedViewID(id)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	projectGeneratedHandler{}.PutProjectSavedView(generatedID, generated.PutProjectSavedViewParams{}, body)
+	item, err := r.service.updateSavedView(ginCtx.Request.Context(), ownerID, id, request)
+	if err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	mapped, err := toGeneratedProjectSavedView(item)
+	if err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, mapped)
+}
+
+func (r routeRuntime) handleSavedViewDelete(ginCtx *gin.Context) {
+	ownerID, ok := currentUserID(ginCtx)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	id, ok := bindSavedViewID(ginCtx)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	generatedID, ok := generatedSavedViewID(id)
+	if !ok {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	projectGeneratedHandler{}.DeleteProjectSavedView(generatedID, generated.DeleteProjectSavedViewParams{})
+	if err := r.service.deleteSavedView(ginCtx.Request.Context(), ownerID, id); err != nil {
+		r.writeSavedViewError(ginCtx, err)
+		return
+	}
+	ginCtx.Status(http.StatusNoContent)
 }
 
 func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
@@ -865,7 +985,14 @@ func (r routeRuntime) writeLocalizedActionError(ginCtx *gin.Context, status int,
 
 type projectGeneratedHandler struct{}
 
-func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)                             {}
+func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)                   {}
+func (projectGeneratedHandler) GetProjectSavedViews(generated.GetProjectSavedViewsParams) {}
+func (projectGeneratedHandler) PostProjectSavedView(generated.PostProjectSavedViewParams, generated.PostProjectSavedViewJSONRequestBody) {
+}
+func (projectGeneratedHandler) PutProjectSavedView(int64, generated.PutProjectSavedViewParams, generated.PutProjectSavedViewJSONRequestBody) {
+}
+func (projectGeneratedHandler) DeleteProjectSavedView(int64, generated.DeleteProjectSavedViewParams) {
+}
 func (projectGeneratedHandler) GetProjectCreationMethods(generated.GetProjectCreationMethodsParams) {}
 func (projectGeneratedHandler) GetProjectDiscoveryCandidates(generated.GetProjectDiscoveryCandidatesParams) {
 }
@@ -1416,6 +1543,38 @@ func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	}
 	userID := auth.User.ID
 	return &userID
+}
+
+func currentUserID(ginCtx *gin.Context) (uint64, bool) {
+	value := currentUserIDPointer(ginCtx)
+	if value == nil || *value == 0 {
+		return 0, false
+	}
+	return *value, true
+}
+
+func bindSavedViewID(ginCtx *gin.Context) (uint64, bool) {
+	value, err := strconv.ParseUint(strings.TrimSpace(ginCtx.Param("viewId")), 10, 64)
+	return value, err == nil && value > 0
+}
+
+func generatedSavedViewID(value uint64) (int64, bool) {
+	if value == 0 || value > math.MaxInt64 {
+		return 0, false
+	}
+	return int64(value), true
+}
+
+func (r routeRuntime) writeSavedViewError(ginCtx *gin.Context, err error) {
+	switch {
+	case errors.Is(err, errProjectConflict):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectSavedViewConflict.String())
+	case errors.Is(err, errProjectNotFound):
+		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectSavedViewNotFound.String())
+	default:
+		r.writeLocalizedProjectError(ginCtx, http.StatusBadRequest, projectcontract.ProjectSavedViewInvalid.String())
+	}
+	ginCtx.Abort()
 }
 
 // mapLifecycleErrorCode 将生命周期错误映射为对应的错误码字符串。

@@ -1,0 +1,8 @@
+name: viewId
+in: path
+required: true
+description: Private saved-view identifier.
+schema:
+  type: integer
+  format: int64
+  minimum: 1

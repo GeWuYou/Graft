@@ -11294,6 +11294,241 @@
         }
       }
     },
+    "/api/ops/projects/saved-views": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List private project-list saved views",
+        "operationId": "getProjectSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's saved project-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-saved-view-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Create a private project-list saved view",
+        "operationId": "postProjectSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ops/projects/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Update a private project-list saved view",
+        "operationId": "putProjectSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate saved-view name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Delete a private project-list saved view",
+        "operationId": "deleteProjectSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/runtime-targets": {
       "get": {
         "tags": [
@@ -15230,6 +15465,15 @@
       "ProjectBatchActionResponse": {
         "$ref": "#/components/schemas/project-batch-action-response"
       },
+      "ProjectSavedView": {
+        "$ref": "#/components/schemas/project-saved-view"
+      },
+      "ProjectSavedViewRequest": {
+        "$ref": "#/components/schemas/project-saved-view-request"
+      },
+      "ProjectSavedViewListResponse": {
+        "$ref": "#/components/schemas/project-saved-view-list-response"
+      },
       "EnvelopedProjectListResponse": {
         "$ref": "#/components/schemas/enveloped-project-list-response"
       },
@@ -15289,6 +15533,12 @@
       },
       "EnvelopedProjectBatchActionResponse": {
         "$ref": "#/components/schemas/enveloped-project-batch-action-response"
+      },
+      "EnvelopedProjectSavedView": {
+        "$ref": "#/components/schemas/enveloped-project-saved-view"
+      },
+      "EnvelopedProjectSavedViewList": {
+        "$ref": "#/components/schemas/enveloped-project-saved-view-list"
       },
       "RuntimeTarget": {
         "$ref": "#/components/schemas/runtime-target"
@@ -23979,6 +24229,140 @@
           }
         ]
       },
+      "project-saved-view": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query_state",
+          "page_size",
+          "visible_columns",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "query_state": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Consumer-validated filter and query state. It never contains the current page number."
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "visible_columns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "project-saved-view-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-saved-view"
+            }
+          }
+        }
+      },
+      "enveloped-project-saved-view-list": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-saved-view-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-saved-view-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "query_state",
+          "page_size",
+          "visible_columns"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "query_state": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Project-list filter state. The server validates this payload for the project saved-view surface."
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "visible_columns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        }
+      },
+      "enveloped-project-saved-view": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-saved-view"
+              }
+            }
+          }
+        ]
+      },
       "runtime-target": {
         "type": "object",
         "required": [
@@ -28387,6 +28771,17 @@
             "summary": "Imported project id",
             "value": 42
           }
+        }
+      },
+      "project-saved-view-id": {
+        "name": "viewId",
+        "in": "path",
+        "required": true,
+        "description": "Private saved-view identifier.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       },
       "project-workspace-path-query": {

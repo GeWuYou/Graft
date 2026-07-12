@@ -402,3 +402,9 @@
 - `GET /api/ops/projects/creation-methods` 取代旧 `/sources` 目录。后端仅发布创建方式、可用性和阻塞码；项目已持久化的 `source_kind` 继续描述项目来源。
 - 空白创建、模板创建和导入分别进入 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`，未保留旧路由或旧 API 别名。
 - `ops.project.source.view` 经 RBAC migration 直接更名为 `ops.project.creation-method.view`，保留原 permission ID 与既有角色关联。
+
+## 2026-07-12 Saved-view foundation and project contract
+
+- 新增 module-owned `saved_views` 表和 generic `moduleapi.SavedViewService`，没有菜单、快捷操作或无法实施领域授权的公共 HTTP API。
+- 表按 owner user 与 consumer `surface_key` 隔离；live 名称通过部分唯一索引保持唯一。持久化筛选/查询 JSON、页大小和可见列；当前页不持久化，应用视图从第一页开始。
+- `project` 保持 `/api/ops/projects/saved-views` 的授权与 payload authority，以 `ops.project.view` 保护，并仅接受当前 project list 定义的筛选字段和列键。

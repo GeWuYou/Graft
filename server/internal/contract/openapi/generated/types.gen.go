@@ -6964,6 +6964,46 @@ type EnvelopedProjectOverviewResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectSavedView defines model for enveloped-project-saved-view.
+type EnvelopedProjectSavedView struct {
+	// Code Existing canonical response code.
+	Code string           `json:"code"`
+	Data ProjectSavedView `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectSavedViewList defines model for enveloped-project-saved-view-list.
+type EnvelopedProjectSavedViewList struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data ProjectSavedViewListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectServicesResponse defines model for enveloped-project-services-response.
 type EnvelopedProjectServicesResponse struct {
 	// Code Existing canonical response code.
@@ -8758,6 +8798,34 @@ type ProjectOwnershipMode string
 // ProjectRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 type ProjectRuntimeStatus string
 
+// ProjectSavedView defines model for project-saved-view.
+type ProjectSavedView struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	PageSize  int       `json:"page_size"`
+
+	// QueryState Consumer-validated filter and query state. It never contains the current page number.
+	QueryState     map[string]interface{} `json:"query_state"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// ProjectSavedViewListResponse defines model for project-saved-view-list-response.
+type ProjectSavedViewListResponse struct {
+	Items []ProjectSavedView `json:"items"`
+}
+
+// ProjectSavedViewRequest defines model for project-saved-view-request.
+type ProjectSavedViewRequest struct {
+	Name     string `json:"name"`
+	PageSize int    `json:"page_size"`
+
+	// QueryState Project-list filter state. The server validates this payload for the project saved-view surface.
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
 // ProjectServiceItem defines model for project-service-item.
 type ProjectServiceItem struct {
 	BuildContext     *string `json:"build_context,omitempty"`
@@ -9863,6 +9931,9 @@ type ProjectListSourceKind = ProjectSourceKind
 // ProjectLogsTail defines model for project-logs-tail.
 type ProjectLogsTail = int
 
+// ProjectSavedViewId defines model for project-saved-view-id.
+type ProjectSavedViewId = int64
+
 // ProjectWorkspacePathQuery defines model for project-workspace-path-query.
 type ProjectWorkspacePathQuery = string
 
@@ -10925,6 +10996,46 @@ type GetProjectManagedRootParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetProjectSavedViewsParams defines parameters for GetProjectSavedViews.
+type GetProjectSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectSavedViewParams defines parameters for PostProjectSavedView.
+type PostProjectSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteProjectSavedViewParams defines parameters for DeleteProjectSavedView.
+type DeleteProjectSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutProjectSavedViewParams defines parameters for PutProjectSavedView.
+type PutProjectSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetProjectParams defines parameters for GetProject.
 type GetProjectParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -11845,6 +11956,12 @@ type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspec
 
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
+
+// PostProjectSavedViewJSONRequestBody defines body for PostProjectSavedView for application/json ContentType.
+type PostProjectSavedViewJSONRequestBody = ProjectSavedViewRequest
+
+// PutProjectSavedViewJSONRequestBody defines body for PutProjectSavedView for application/json ContentType.
+type PutProjectSavedViewJSONRequestBody = ProjectSavedViewRequest
 
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest

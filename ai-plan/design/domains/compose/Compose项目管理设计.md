@@ -809,6 +809,15 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 ## 10.1 项目列表与详情
 
+项目列表可使用通用 `saved-view` module 保存用户私有的分页视图。`project` 仍是 `/api/ops/projects/saved-views` 的 HTTP 与领域授权 owner：它只在调用 generic service 前校验 `surface_key=project.list`、筛选状态和可见列。保存状态包含筛选/查询 JSON、`page_size` 与可见列键；不保存当前页，应用视图一律从第一页开始。视图不共享，展示名称在同一 `(owner_user_id, surface_key)` live scope 内唯一。
+
+### 保存视图表设计摘要
+
+- owner module：`saved-view`；表：`saved_views`，不是 `project` 专用偏好表。
+- 生命周期：当前用户创建、更新、软删除自己的视图；所有读取固定 `deleted_at = 0`，用户和 consumer surface 都是查询边界。
+- 索引：`(owner_user_id, surface_key, name) WHERE deleted_at = 0` 保障 live 名称唯一；`(owner_user_id, surface_key, updated_at DESC, id DESC) WHERE deleted_at = 0` 支撑列表。
+- 状态：`query_state_json` 只保存 consumer 已校验的 JSON，`page_size` 和 `visible_columns_json` 可复用到任何分页列表；当前页不持久化，也不提供共享语义。
+
 | Method | Path                              | 语义             |
 | ------ | --------------------------------- | ---------------- |
 | `GET`  | `/api/ops/projects`               | 项目列表         |

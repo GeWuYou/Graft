@@ -101,6 +101,7 @@ Compose Project Management
 - [x] managed-workspace-wizard-and-lifecycle-review：Managed Create 已切换为 Identity/Workspace/Lifecycle/Review 向导，使用完整 text workspace manifest、Monaco 草稿编辑器和 source-neutral lifecycle review；Create 不自动 deploy
 - [x] import-creation-adapter-and-regression：Import inspection commit 已验证复用 creation pipeline；保留 candidate/TTL/freshness/adopt guard，复用生命周期审核，并在最终审核明确不自动 deploy
 - [x] git-template-source-adapters：Git/Template 均已通过 source adapter 进入同一 CreationCommand pipeline；Git 仅在隔离暂存目录解析无凭据仓库，Template 使用模块内置的 explicit empty-compose v1 catalog
+- [x] saved-view-foundation-and-project-contract：新增无菜单 `saved-view` module，提供用户私有、surface-scoped 的分页保存视图；Project 通过自身 view 权限提供 `/api/ops/projects/saved-views`，保存筛选、每页大小和可见列，不保存当前页。
 
 ## Creation Pipeline Follow-up
 

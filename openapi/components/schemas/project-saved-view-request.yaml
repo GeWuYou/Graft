@@ -1,0 +1,21 @@
+type: object
+required: [name, query_state, page_size, visible_columns]
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  query_state:
+    type: object
+    additionalProperties: true
+    description: Project-list filter state. The server validates this payload for the project saved-view surface.
+  page_size:
+    type: integer
+    minimum: 1
+    maximum: 500
+  visible_columns:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 120

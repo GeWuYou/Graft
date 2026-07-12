@@ -74,6 +74,10 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	if err != nil {
 		return nil, fmt.Errorf("resolve system config resolver: %w", err)
 	}
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve saved view service: %w", err)
+	}
 	authorizer, err := resolveAuthorizer(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("resolve authorizer: %w", err)
@@ -87,6 +91,7 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	m.service.SetTaskService(taskService)
 	m.service.SetLogReader(logReader)
 	m.service.SetSystemConfigResolver(configResolver)
+	m.service.SetSavedViewService(savedViews)
 	m.service.SetAuthorizer(authorizer)
 	m.service.SetRealtime(realtimeDeps.tickets, realtimeDeps.hub, realtimeDeps.issuers)
 	m.service.SetAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)

@@ -430,6 +430,7 @@ type Service struct {
 	resourceReader               moduleapi.ContainerProjectResourceReader
 	logReader                    moduleapi.ContainerProjectLogReader
 	configResolver               moduleapi.SystemConfigResolver
+	savedViews                   moduleapi.SavedViewService
 	authorizer                   moduleapi.Authorizer
 	realtimeTickets              realtimeauth.Service
 	realtimeHub                  realtime.Hub
@@ -557,6 +558,13 @@ func (s *Service) SetSystemConfigResolver(resolver moduleapi.SystemConfigResolve
 		return
 	}
 	s.configResolver = resolver
+}
+
+// SetSavedViewService injects the generic saved-view persistence boundary.
+func (s *Service) SetSavedViewService(service moduleapi.SavedViewService) {
+	if s != nil {
+		s.savedViews = service
+	}
 }
 
 // SetAuthorizer injects the authorizer after module registration.
