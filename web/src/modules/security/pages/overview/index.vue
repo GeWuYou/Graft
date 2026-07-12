@@ -352,8 +352,8 @@ onMounted(fetchOverview);
 .security-overview__metric strong,
 .security-overview__pending-item strong {
   color: var(--td-text-color-primary);
-  font-size: 20px;
-  line-height: 28px;
+  font-size: var(--td-font-size-title-extraLarge);
+  line-height: var(--td-line-height-title-extraLarge);
 }
 
 .security-overview__metric small,
