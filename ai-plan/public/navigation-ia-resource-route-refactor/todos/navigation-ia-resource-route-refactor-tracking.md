@@ -38,9 +38,9 @@ closeout:
 
 ## Current Recovery Point
 
-- Work Intake classified this as a long-running cross-boundary refactor.
-- Batch 1 established the design authority and placement skill.
-- Batch 2 added the server-owned explicit navigation graph and bootstrap contract; the next batch consumes it in the Web shell.
+- All implementation batches are committed. Archive readiness is blocked by the final full Web validation retry: `src/modules/project/shared/project-monaco.test.ts > project-monaco relayout bridge > resolves relayout after the scheduled animation frame runs` timed out after 20 seconds.
+- The retry result was `1 failed | 192 passed (193)` test files and `1 failed | 1271 passed (1272)` tests; all preceding `bun run check` stages passed before `test:run` stopped the chain.
+- This batch owns neither the Monaco bridge nor its test. Do not archive or modify unrelated runtime code in this topic-closeout batch; the next owner must resolve or formally reclassify the full-Web-check blocker, then rerun archive readiness.
 
 ## Task Checklist
 
@@ -63,8 +63,8 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation"],
   "pending_batches": [],
-  "current_batch": "web-hygiene-and-final-validation",
+  "current_batch": "navigation-final-validation-and-archive",
   "next_batch": null,
-  "closeout_status": "batch-5-complete-pending-archive-readiness"
+  "closeout_status": "blocked-validation-failed"
 }
 ```

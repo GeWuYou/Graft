@@ -102,4 +102,24 @@
   "closeout_status": "batch-5-complete-pending-archive-readiness"
 }
 ```
+
+## 2026-07-12 Final Archive-Readiness Retry Blocked
+
+- After commit `0bb2910c`, reran the full Web completion entrypoint: `cd web && bun run check`.
+- Format, typecheck, OpenAPI frontend governance, i18n governance, ESLint, Stylelint, hygiene, and 1,271 tests passed before the test runner ended with one failure.
+- Exact failing test: `src/modules/project/shared/project-monaco.test.ts > project-monaco relayout bridge > resolves relayout after the scheduled animation frame runs`.
+- Exact failure: `Error: Test timed out in 20000ms.` at `src/modules/project/shared/project-monaco.test.ts:121:3`; final runner summary was `1 failed | 192 passed (193)` test files and `1 failed | 1271 passed (1272)` tests.
+- The failure matches the pre-existing Monaco RAF flake recorded in Batch 5. This archive batch did not modify that module, so it remains outside the safe repair scope. The active topic must not move to `ai-plan/public/archive/` until the full Web check passes or a later, explicitly authorized owner resolves the validation policy.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation"],
+  "pending_batches": [],
+  "current_batch": "navigation-final-validation-and-archive",
+  "next_batch": null,
+  "closeout_status": "blocked-validation-failed"
+}
 ```
