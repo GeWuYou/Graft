@@ -22,6 +22,7 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 		"rbac":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"runtime-target": {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"scheduler":     {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"security":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"system-config": {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"user":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 	}

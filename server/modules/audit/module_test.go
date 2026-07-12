@@ -566,10 +566,10 @@ func TestRegisterRegistersAuditRiskEventsDashboardWidget(t *testing.T) {
 	if widget.Type != dashboard.WidgetTypeAlertList {
 		t.Fatalf("expected alert-list widget, got %q", widget.Type)
 	}
-	if widget.RouteLocation != "/audit/overview" {
-		t.Fatalf("expected audit overview route, got %q", widget.RouteLocation)
+	if widget.RouteLocation != "/security/overview" {
+		t.Fatalf("expected security overview route, got %q", widget.RouteLocation)
 	}
-	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != "audit.read" {
+	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != "security.overview.read" {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
 
@@ -1120,13 +1120,13 @@ func defaultModuleTestPolicyRules() []store.AuditPolicyRule {
 			MatchType:   store.AuditPolicyMatchTypePrefix,
 		},
 		{
-			Name:        "request.audit.overview.exclude",
+			Name:        "request.security.overview.exclude",
 			Source:      store.AuditSourceRequest,
 			Enabled:     true,
 			Priority:    3,
 			Effect:      store.AuditPolicyEffectExclude,
 			Method:      http.MethodGet,
-			PathPattern: "/api/audit/overview",
+			PathPattern: "/api/security/overview",
 			MatchType:   store.AuditPolicyMatchTypeExact,
 		},
 		{
@@ -1500,7 +1500,7 @@ func TestAuditReadRoutesStayOutOfAuditLogByPolicy(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	_, engine, _ := newModuleTestContext(t, repo)
 
-	for _, path := range []string{"/api/audit/logs", "/api/audit/overview?window=7d"} {
+	for _, path := range []string{"/api/audit/logs"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		request.Header.Set("Authorization", "Bearer token")
 		recorder := httptest.NewRecorder()
@@ -1569,11 +1569,10 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 	}
 
 	items := ctx.MenuRegistry.Items()
-	if len(items) != 2 {
-		t.Fatalf("expected 2 audit menu items, got %#v", items)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 audit menu item, got %#v", items)
 	}
-	assertAuditMenuItem(t, items[0], "audit.overview", "/audit/overview", "menu.audit.overview.title", 201)
-	assertAuditMenuItem(t, items[1], "audit.logs", "/audit/logs", "menu.audit.logs.title", 202)
+	assertAuditMenuItem(t, items[0], "audit.logs", "/audit/logs", "menu.audit.logs.title", 202)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -1591,30 +1590,6 @@ func assertAuditMenuItem(t *testing.T, item menu.Item, code string, path string,
 	if item.Code != code || item.ParentCode != "domain.security" || item.Kind != menu.NodeKindEntry || item.Path != path || item.TitleKey != titleKey || item.Order != order {
 		t.Fatalf("unexpected audit menu item: %#v", item)
 	}
-}
-
-func TestAuditOverviewRouteReturnsPayload(t *testing.T) {
-	repo := &memoryAuditRepository{}
-	_, engine, _ := newModuleTestContext(t, repo)
-
-	request := httptest.NewRequest(http.MethodGet, "/api/audit/overview?preset=last_7d", nil)
-	request.Header.Set("Authorization", "Bearer token")
-	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", recorder.Code)
-	}
-	if !strings.Contains(recorder.Body.String(), `"time_preset":"last_7d"`) {
-		t.Fatalf("expected overview preset in response, got %s", recorder.Body.String())
-	}
-	if !strings.Contains(recorder.Body.String(), `"failed_auth"`) {
-		t.Fatalf("expected failed_auth in response, got %s", recorder.Body.String())
-	}
-}
-
-func TestAuditOverviewRouteRejectsInvalidPreset(t *testing.T) {
-	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/overview?preset=invalid", "preset")
 }
 
 func assertAuditReadRouteRejectsInvalidArgument(t *testing.T, route string, field string) {

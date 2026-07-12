@@ -326,11 +326,7 @@
       "security": { "title": "Security" },
       "platform": { "title": "Platform" }
     },
-    "access_control": {
-      "title": "Access Control",
-      "overview": {
-        "title": "Overview"
-      },
+    "security": {
       "users": {
         "title": "Users"
       },

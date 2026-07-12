@@ -54,7 +54,7 @@ const props = withDefaults(
     titleKey?: string;
     descriptionKey?: string;
     source?: PageHeaderSource;
-    domain?: 'audit' | 'monitor' | 'rbac' | 'access-control' | 'neutral';
+    domain?: 'audit' | 'monitor' | 'rbac' | 'security' | 'neutral';
     density?: 'comfortable' | 'compact';
     compactHeader?: boolean;
   }>(),
@@ -74,8 +74,8 @@ const props = withDefaults(
 const domainSourceKeyMap: Record<NonNullable<typeof props.domain>, string> = {
   audit: 'menu.audit.title',
   monitor: 'monitor.sectionTitle',
-  rbac: 'menu.access_control.title',
-  'access-control': 'menu.access_control.title',
+  rbac: 'menu.domain.security.title',
+  security: 'security.overview.navHint',
   neutral: '',
 };
 
@@ -83,7 +83,7 @@ const domainSourceColorMap: Record<NonNullable<typeof props.domain>, string> = {
   audit: 'var(--td-warning-color-5)',
   monitor: 'var(--td-brand-color-6)',
   rbac: 'var(--td-success-color-6)',
-  'access-control': 'var(--td-success-color-6)',
+  security: 'var(--td-brand-color-6)',
   neutral: 'var(--td-brand-color-6)',
 };
 
@@ -152,9 +152,12 @@ const resolvedSource = computed<PageHeaderSource | undefined>(() => {
   --governance-shell-accent: var(--td-brand-color-6);
 }
 
-.governance-dashboard-shell[data-governance-domain='rbac'],
-.governance-dashboard-shell[data-governance-domain='access-control'] {
+.governance-dashboard-shell[data-governance-domain='rbac'] {
   --governance-shell-accent: var(--td-success-color-6);
+}
+
+.governance-dashboard-shell[data-governance-domain='security'] {
+  --governance-shell-accent: var(--td-brand-color-6);
 }
 
 @media (width <= 1199px) {

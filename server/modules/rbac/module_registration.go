@@ -42,18 +42,12 @@ func (p *Module) Register(ctx *module.Context) error {
 	if repository == nil {
 		return errors.New("rbac repository is unavailable")
 	}
-	if err := registerModuleServices(ctx, repository); err != nil {
+	userService, securityReader, err := resolveUserServices(ctx)
+	if err != nil {
 		return err
 	}
-
-	resolvedUserService, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
-	if err != nil {
-		return fmt.Errorf("resolve user service: %w", err)
-	}
-
-	userService, ok := resolvedUserService.(moduleapi.UserService)
-	if !ok {
-		return fmt.Errorf("resolve user service: unexpected type %T", resolvedUserService)
+	if err := registerModuleServices(ctx, repository, securityReader); err != nil {
+		return err
 	}
 
 	readService := managementReader{
@@ -103,11 +97,47 @@ func (p *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
-func registerModuleServices(ctx *module.Context, repository rbacstore.Repository) error {
+// resolveUserServices resolves the required user service and the optional user security reader.
+// It returns a nil security reader when that service is not registered, and an error when
+// resolution fails or a resolved service has an unexpected type.
+func resolveUserServices(ctx *module.Context) (moduleapi.UserService, moduleapi.UserSecurityReader, error) {
+	resolvedUserService, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve user service: %w", err)
+	}
+	userService, ok := resolvedUserService.(moduleapi.UserService)
+	if !ok {
+		return nil, nil, fmt.Errorf("resolve user service: unexpected type %T", resolvedUserService)
+	}
+
+	resolvedSecurityReader, err := ctx.Services.Resolve((*moduleapi.UserSecurityReader)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return userService, nil, nil
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve user security reader: %w", err)
+	}
+	securityReader, ok := resolvedSecurityReader.(moduleapi.UserSecurityReader)
+	if !ok {
+		return nil, nil, fmt.Errorf("resolve user security reader: unexpected type %T", resolvedSecurityReader)
+	}
+	return userService, securityReader, nil
+}
+
+// registerModuleServices registers RBAC access, bootstrap, and authorization services.
+// It registers the security posture service only when a user security reader is available.
+func registerModuleServices(ctx *module.Context, repository rbacstore.Repository, users moduleapi.UserSecurityReader) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
 		return accessService{rbac: repository}, nil
 	}); err != nil {
 		return err
+	}
+	if users != nil {
+		if err := ctx.Services.RegisterSingleton((*moduleapi.RBACSecurityPostureService)(nil), func(_ container.Resolver) (any, error) {
+			return accessService{rbac: repository, users: users}, nil
+		}); err != nil {
+			return err
+		}
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACBootstrapService)(nil), func(_ container.Resolver) (any, error) {
 		return bootstrapService{rbac: repository}, nil
@@ -139,12 +169,11 @@ func registerMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// rbacMessageKeys 返回 RBAC 模块注册所需的消息键列表。
 func rbacMessageKeys() []rbaccontract.MessageKey {
 	return []rbaccontract.MessageKey{
-		rbaccontract.AccessControlMenuTitle,
 		rbaccontract.RoleListMenuTitle,
 		rbaccontract.PermissionListMenuTitle,
-		rbaccontract.AccessControlOverviewMenuTitle,
 		rbaccontract.AuditRolePermissionsAdded,
 		rbaccontract.AuditRolePermissionsRemoved,
 	}

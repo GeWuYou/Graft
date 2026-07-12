@@ -6,7 +6,7 @@
         :title="t('rbac.permissionList.listTitle')"
         description-key="rbac.permissionList.hint"
         :description="t('rbac.permissionList.hint')"
-        :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
+        :source="{ labelKey: 'menu.domain.security.title', fallback: t('menu.domain.security.title') }"
       >
         <template #meta>
           <t-tag theme="default" variant="light">{{ t('rbac.permissionList.readonlyNotice') }}</t-tag>

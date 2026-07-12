@@ -9,14 +9,10 @@ func (k MessageKey) String() string {
 }
 
 const (
-	// AccessControlMenuTitle identifies the localized title for the access-control root menu.
-	AccessControlMenuTitle MessageKey = "menu.access_control.title"
 	// RoleListMenuTitle identifies the localized title for the role list menu.
-	RoleListMenuTitle MessageKey = "menu.access_control.roles.title"
+	RoleListMenuTitle MessageKey = "menu.security.roles.title"
 	// PermissionListMenuTitle identifies the localized title for the permission list menu.
-	PermissionListMenuTitle MessageKey = "menu.access_control.permissions.title"
-	// AccessControlOverviewMenuTitle identifies the localized title for the access-control overview menu.
-	AccessControlOverviewMenuTitle MessageKey = "menu.access_control.overview.title"
+	PermissionListMenuTitle MessageKey = "menu.security.permissions.title"
 	// AuditRolePermissionsAdded identifies role-permission append audit messages.
 	AuditRolePermissionsAdded MessageKey = "rbac.audit.rolePermissionsAdded"
 	// AuditRolePermissionsRemoved identifies role-permission removal audit messages.

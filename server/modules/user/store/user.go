@@ -65,6 +65,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
 	GetByUsername(ctx context.Context, username string) (User, error)
 	List(ctx context.Context) ([]User, error)
+	ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]User, error)
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, input CreateUserInput) (User, error)
 	Update(ctx context.Context, input UpdateUserInput) (User, error)

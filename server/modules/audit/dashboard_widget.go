@@ -11,21 +11,22 @@ import (
 	"graft/server/internal/module"
 	auditcontract "graft/server/modules/audit/contract"
 	auditstore "graft/server/modules/audit/store"
+	securitycontract "graft/server/modules/security/contract"
 )
 
 const (
-	auditRiskEventsWidgetID     = "audit.risk-events"
-	auditRiskEventsWidgetOrder  = 100
-	auditRiskEventsItemCap      = 3
-	auditLogsQueryPreset        = "preset"
-	auditLogsQueryBusiness      = "business_category"
-	auditLogsQueryResults       = "results"
-	auditLogsQueryRiskLevels    = "risk_levels"
+	auditRiskEventsWidgetID    = "audit.risk-events"
+	auditRiskEventsWidgetOrder = 100
+	auditRiskEventsItemCap     = 3
+	auditLogsQueryPreset       = "preset"
+	auditLogsQueryBusiness     = "business_category"
+	auditLogsQueryResults      = "results"
+	auditLogsQueryRiskLevels   = "risk_levels"
 )
 
 // Registers an audit risk events dashboard widget.
 // It returns nil if ctx or ctx.DashboardRegistry is nil.
-// It returns an error if widget registration fails.
+// registerAuditDashboardWidget 将审计风险事件小组件注册到仪表盘注册表中；注册失败时返回包装后的错误。
 func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 	if ctx == nil || ctx.DashboardRegistry == nil {
 		return nil
@@ -41,12 +42,12 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 		Category:       dashboard.WidgetCategorySecurity,
 		Priority:       dashboard.WidgetPriorityWarning,
 		Order:          auditRiskEventsWidgetOrder,
-		RouteLocation:  auditcontract.AuditOverviewMenuPath,
+		RouteLocation:  securitycontract.OverviewMenuPath,
 		Action: dashboard.WidgetAction{
 			LabelKey: "dashboard.actions.details",
-			Route:    auditcontract.AuditOverviewMenuPath,
+			Route:    securitycontract.OverviewMenuPath,
 		},
-		RequiredPermissions: []string{auditcontract.AuditReadPermission.String()},
+		RequiredPermissions: []string{securitycontract.OverviewReadPermission.String()},
 		Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
 			return loadAuditRiskEventsWidget(ctx, reader)
 		}),
@@ -56,7 +57,9 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 
 	return nil
 }
-// LoadAuditRiskEventsWidget builds the audit risk events dashboard widget payload for the last 24 hours, including alert items for high-risk events, failed operations, and failed authentications.
+
+// loadAuditRiskEventsWidget 构建过去 24 小时的审计风险事件仪表盘小组件载荷，包含高风险事件、失败操作和认证失败条目。
+// 返回小组件数据载荷；获取审计概览失败时返回相应错误。
 func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.WidgetPayload, error) {
 	overview, err := reader.Overview(ctx, auditstore.AuditTimePresetLast24Hours)
 	if err != nil {

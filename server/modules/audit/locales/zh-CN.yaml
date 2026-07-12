@@ -1,5 +1,4 @@
 menu.audit.title: 安全审计
-menu.audit.overview.title: 概览
 menu.audit.logs.title: 审计日志
 audit.target.user: 用户
 audit.target.role: 角色

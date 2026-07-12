@@ -1,7 +1,5 @@
-menu.access_control.title: Access Control
-menu.access_control.roles.title: Role Management
-menu.access_control.permissions.title: Permission Management
-menu.access_control.overview.title: Access Control Overview
+menu.security.roles.title: Role Management
+menu.security.permissions.title: Permission Management
 rbac.permissionCatalog.accessLogRead.display: Access Log Read
 rbac.permissionCatalog.accessLogRead.description: Allows reading canonical access-log explorer data.
 rbac.permissionCatalog.appLogRead.display: App Log Read

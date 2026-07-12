@@ -99,7 +99,7 @@ function findExpandedMenuMatch(
     if (childMatch.matched) {
       return {
         matched: true,
-        expandedPaths: menu.meta?.single ? childMatch.expandedPaths : [fullPath, ...childMatch.expandedPaths],
+        expandedPaths: menu.meta?.single ? childMatch.expandedPaths : [menu.path, ...childMatch.expandedPaths],
       };
     }
 
@@ -109,7 +109,7 @@ function findExpandedMenuMatch(
     if (matchesCurrentMenu) {
       return {
         matched: true,
-        expandedPaths: isExpandableMenu ? [fullPath] : [],
+        expandedPaths: isExpandableMenu ? [menu.path] : [],
       };
     }
   }

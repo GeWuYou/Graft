@@ -123,6 +123,7 @@ func toConvertibleFiltersMap(filters *drilldown.ConvertibleFilters) map[string]a
 	return converted
 }
 
+// addStringSliceField adds a copy of a non-empty string slice to target under key.
 func addStringSliceField(target map[string]any, key string, values []string) {
 	if len(values) == 0 {
 		return
@@ -130,78 +131,7 @@ func addStringSliceField(target map[string]any, key string, values []string) {
 	target[key] = append([]string(nil), values...)
 }
 
-func toAuditOverviewResponse(result auditOverviewResult) (map[string]any, error) {
-	riskGroups := make([]map[string]any, 0, len(result.RiskGroups))
-	for _, group := range result.RiskGroups {
-		riskGroups = append(riskGroups, map[string]any{
-			"key":        group.Key,
-			"label_key":  group.LabelKey,
-			"count":      group.Count,
-			"risk_level": string(group.RiskLevel),
-		})
-	}
-	trendPoints := make([]map[string]any, 0, len(result.Trend.Points))
-	for _, point := range result.Trend.Points {
-		trendPoints = append(trendPoints, map[string]any{
-			"bucket_start":    point.BucketStart.UTC(),
-			"bucket_end":      point.BucketEnd.UTC(),
-			"total":           point.Total,
-			"failed":          point.Failed,
-			"high_risk":       point.HighRisk,
-			"security_events": point.SecurityEvents,
-		})
-	}
-	securityTimeline := make([]map[string]any, 0, len(result.SecurityTimeline))
-	for _, item := range result.SecurityTimeline {
-		id, err := mustConvertAuditGeneratedID(item.ID, "audit overview security timeline id")
-		if err != nil {
-			return nil, err
-		}
-		securityTimeline = append(securityTimeline, map[string]any{
-			"id":                 id,
-			"incident_seed":      map[string]any{"event_id": id},
-			"created_at":         item.CreatedAt.UTC(),
-			"source":             string(item.Source),
-			"risk_level":         string(item.RiskLevel),
-			"action":             item.Action,
-			"result":             string(item.Result),
-			"request_id":         item.RequestID,
-			"actor_display_name": item.ActorDisplayName,
-			"actor_username":     item.ActorUsername,
-			"resource_name":      item.ResourceName,
-			"resource_type":      item.ResourceType,
-		})
-	}
-	failedAuth, err := toAuditOverviewItems(result.FailedAuth)
-	if err != nil {
-		return nil, err
-	}
-	permissionDenied, err := toAuditOverviewItems(result.PermissionDenied)
-	if err != nil {
-		return nil, err
-	}
-	sensitiveOps, err := toAuditOverviewItems(result.SensitiveOps)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]any{
-		"time_preset": string(result.TimePreset),
-		"summary": map[string]any{
-			"total_logs":           result.Summary.TotalLogs,
-			"failed_operations":    result.Summary.FailedOperations,
-			"high_risk_events":     result.Summary.HighRiskEvents,
-			"sensitive_operations": result.Summary.SensitiveOperations,
-		},
-		"risk_groups":          riskGroups,
-		"trend":                map[string]any{"bucket_unit": result.Trend.BucketUnit, "bucket_size": result.Trend.BucketSize, "points": trendPoints},
-		"security_timeline":    securityTimeline,
-		"failed_auth":          failedAuth,
-		"permission_denied":    permissionDenied,
-		"sensitive_operations": sensitiveOps,
-	}, nil
-}
-
+// 返回转换后的事件响应；任一嵌套数据转换失败时返回错误。
 func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error) {
 	seedEvent, err := toAuditLogListItem(result.SeedEvent)
 	if err != nil {
@@ -651,6 +581,8 @@ func appendAuditLogActorUserID(converted *generated.AuditLogListItem, actorUserI
 	return nil
 }
 
+// appendAuditLogMetadata decodes raw audit metadata and assigns it to the converted audit log item.
+// It returns an error when the metadata is not valid JSON.
 func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata json.RawMessage) error {
 	if len(rawMetadata) == 0 {
 		return nil
@@ -664,94 +596,12 @@ func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata j
 	return nil
 }
 
-func toAuditOverviewItems(items []auditstore.OverviewItem) ([]map[string]any, error) {
-	converted := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		mapped, err := toAuditOverviewItem(item)
-		if err != nil {
-			return nil, err
-		}
-		converted = append(converted, mapped)
-	}
-	return converted, nil
-}
-
-func toAuditOverviewItem(item auditstore.OverviewItem) (map[string]any, error) {
-	id, err := mustConvertAuditGeneratedID(item.ID, "audit overview item id")
-	if err != nil {
-		return nil, err
-	}
-
-	converted := map[string]any{
-		"id":         id,
-		"source":     string(item.Source),
-		"action":     item.Action,
-		"success":    item.Success,
-		"request_id": item.RequestID,
-		"message":    item.Message,
-		"created_at": item.CreatedAt.UTC(),
-	}
-	if err := appendAuditOverviewActor(converted, item); err != nil {
-		return nil, err
-	}
-	appendAuditOverviewResource(converted, item)
-
-	metadata, err := decodeAuditOverviewMetadata(item.Metadata)
-	if err != nil {
-		return nil, err
-	}
-	converted["metadata"] = metadata
-
-	return converted, nil
-}
-
+// mustConvertAuditGeneratedID converts an unsigned identifier to int64 when it fits.
+// It returns an error if the identifier exceeds the maximum int64 value.
 func mustConvertAuditGeneratedID(id uint64, label string) (int64, error) {
 	if id > math.MaxInt64 {
 		return 0, fmt.Errorf("%s exceeds int64: %d", label, id)
 	}
 
 	return int64(id), nil
-}
-
-func appendAuditOverviewActor(converted map[string]any, item auditstore.OverviewItem) error {
-	if item.ActorUserID != nil {
-		actorUserID, err := mustConvertAuditGeneratedID(*item.ActorUserID, "audit overview actor user id")
-		if err != nil {
-			return err
-		}
-		converted["actor_user_id"] = actorUserID
-	}
-	if item.ActorUsername != "" {
-		converted["actor_username"] = item.ActorUsername
-	}
-	if item.ActorDisplayName != "" {
-		converted["actor_display_name"] = item.ActorDisplayName
-	}
-
-	return nil
-}
-
-func appendAuditOverviewResource(converted map[string]any, item auditstore.OverviewItem) {
-	if item.ResourceType != "" {
-		converted["resource_type"] = item.ResourceType
-	}
-	if item.ResourceID != "" {
-		converted["resource_id"] = item.ResourceID
-	}
-	if item.ResourceName != "" {
-		converted["resource_name"] = item.ResourceName
-	}
-}
-
-func decodeAuditOverviewMetadata(raw json.RawMessage) (map[string]any, error) {
-	if len(raw) == 0 {
-		return map[string]any{}, nil
-	}
-
-	var metadata map[string]any
-	if err := json.Unmarshal(raw, &metadata); err != nil {
-		return nil, fmt.Errorf("decode audit overview metadata: %w", err)
-	}
-
-	return metadata, nil
 }

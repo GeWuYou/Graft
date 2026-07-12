@@ -5,4 +5,4 @@ properties:
     type: boolean
     enum: [true]
   data:
-    $ref: ./audit-overview-response.yaml
+    $ref: ./security-overview-response.yaml

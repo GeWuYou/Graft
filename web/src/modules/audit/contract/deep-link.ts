@@ -5,7 +5,6 @@ import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation
 
 import { withMonitorOrigin } from './navigation';
 import { AUDIT_ROUTE_PATH } from './paths';
-import { AUDIT_DRILLDOWN_SCOPE } from './presets';
 
 type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
 
@@ -112,6 +111,12 @@ function normalizeAuditLogsRouteQuery(query: AuditLogsRouteQuery) {
   return normalized;
 }
 
+/**
+ * 构建审计日志页面的路由位置对象。
+ *
+ * @param query - 审计日志路由查询参数
+ * @returns 包含审计日志路径和归一化查询参数的路由位置对象
+ */
 export function buildAuditLogsLocation(query: AuditLogsRouteQuery) {
   return {
     path: AUDIT_ROUTE_PATH.LOGS,
@@ -119,16 +124,14 @@ export function buildAuditLogsLocation(query: AuditLogsRouteQuery) {
   };
 }
 
-function buildAuditScopeLocation(
-  scope: components['schemas']['AuditDrilldownScope'],
-  query: Omit<AuditLogsRouteQuery, 'scope'> = {},
-) {
-  return buildAuditLogsLocation({
-    ...query,
-    scope,
-  });
-}
-
+/**
+ * 构建用于定位审计资源相关日志的路由位置。
+ *
+ * @param resourceType - 资源类型
+ * @param resourceId - 资源标识
+ * @param resourceName - 资源名称
+ * @returns 包含资源筛选条件的审计日志路由位置
+ */
 export function buildAuditResourceLocation(resourceType: string, resourceId: string, resourceName?: string) {
   return buildAuditLogsLocation({
     resource_name: resourceName,
@@ -137,20 +140,24 @@ export function buildAuditResourceLocation(resourceType: string, resourceId: str
   });
 }
 
+/**
+ * 构建指定请求的审计日志路由位置。
+ *
+ * @param requestId - 请求标识
+ * @returns 包含请求标识查询参数的审计日志路由位置
+ */
 export function buildAuditRequestLocation(requestId: string) {
   return buildAuditLogsLocation({
     request_id: requestId,
   });
 }
 
-export function buildAuditPermissionDeniedLocation(query: Omit<AuditLogsRouteQuery, 'scope'> = {}) {
-  return buildAuditScopeLocation(AUDIT_DRILLDOWN_SCOPE.PERMISSION_DENIALS, query);
-}
-
-export function buildAuditRbacChangesLocation(query: Omit<AuditLogsRouteQuery, 'scope'> = {}) {
-  return buildAuditScopeLocation(AUDIT_DRILLDOWN_SCOPE.RBAC_CHANGES, query);
-}
-
+/**
+ * 构建审计事件详情页的位置对象。
+ *
+ * @param eventId - 审计事件的标识符
+ * @returns 包含替换事件标识符后的审计事件详情路径的位置对象
+ */
 function buildAuditIncidentLocation(eventId: number | string) {
   return {
     path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':event_id', String(eventId)),

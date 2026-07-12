@@ -15,6 +15,8 @@ const rootZh = loadJson(resolve(process.cwd(), 'src/locales/lang/zh-CN.json'));
 const rootEn = loadJson(resolve(process.cwd(), 'src/locales/lang/en-US.json'));
 const auditZh = loadJson(resolve(process.cwd(), 'src/modules/audit/locales/zh-CN.json'));
 const auditEn = loadJson(resolve(process.cwd(), 'src/modules/audit/locales/en-US.json'));
+const securityZh = loadJson(resolve(process.cwd(), 'src/modules/security/locales/zh-CN.json'));
+const securityEn = loadJson(resolve(process.cwd(), 'src/modules/security/locales/en-US.json'));
 
 const visibleScopes: VisibleScope[] = [
   {
@@ -58,16 +60,6 @@ const visibleScopes: VisibleScope[] = [
     paths: ['user.userList'],
   },
   {
-    label: 'access-control zh visible ui',
-    filePath: resolve(process.cwd(), 'src/modules/access-control/locales/zh-CN.json'),
-    paths: ['accessControl.overview'],
-  },
-  {
-    label: 'access-control en visible ui',
-    filePath: resolve(process.cwd(), 'src/modules/access-control/locales/en-US.json'),
-    paths: ['accessControl.overview'],
-  },
-  {
     label: 'audit zh visible ui',
     filePath: resolve(process.cwd(), 'src/modules/audit/locales/zh-CN.json'),
     paths: ['audit.logList'],
@@ -99,8 +91,10 @@ describe('frontend visible-copy governance', () => {
     const requiredKeys = [
       'menu.role_list.title',
       'menu.user_list.title',
-      'menu.access_control.title',
-      'menu.access_control.overview.title',
+      'menu.domain.security.title',
+      'menu.security.users.title',
+      'menu.security.roles.title',
+      'menu.security.permissions.title',
       'menu.modulesRuntime.title',
       'menu.logCenter.title',
     ];
@@ -110,9 +104,14 @@ describe('frontend visible-copy governance', () => {
       expect(resolvePath(rootEn, key)).toEqual(expect.any(String));
     });
 
-    ['menu.audit.title', 'menu.audit.overview.title', 'menu.audit.logs.title'].forEach((key) => {
+    ['menu.audit.title', 'menu.audit.logs.title'].forEach((key) => {
       expect(resolvePath(auditZh, key)).toEqual(expect.any(String));
       expect(resolvePath(auditEn, key)).toEqual(expect.any(String));
+    });
+
+    ['menu.security.overview.title'].forEach((key) => {
+      expect(resolvePath(securityZh, key)).toEqual(expect.any(String));
+      expect(resolvePath(securityEn, key)).toEqual(expect.any(String));
     });
   });
 

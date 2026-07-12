@@ -19,8 +19,6 @@ func (k TargetLabelMessageKey) String() string {
 const (
 	// AuditRootMenuTitle identifies the localized title for the audit root menu.
 	AuditRootMenuTitle MenuMessageKey = "menu.audit.title"
-	// AuditOverviewMenuTitle identifies the localized title for the audit overview menu.
-	AuditOverviewMenuTitle MenuMessageKey = "menu.audit.overview.title"
 	// AuditLogMenuTitle identifies the localized title for the audit-log menu.
 	AuditLogMenuTitle MenuMessageKey = "menu.audit.logs.title"
 

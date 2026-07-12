@@ -1,0 +1,53 @@
+type: object
+required: [time_preset, access_control, audit]
+properties:
+  time_preset:
+    type: string
+    enum: [last_24h, last_7d, last_30d]
+  access_control:
+    type: object
+    required: [total_users, disabled_users, role_count, builtin_role_count, custom_role_count, permission_count, role_assignment_count, unassigned_user_count, empty_custom_role_count]
+    properties:
+      total_users: { type: integer, minimum: 0 }
+      disabled_users: { type: integer, minimum: 0 }
+      role_count: { type: integer, minimum: 0 }
+      builtin_role_count: { type: integer, minimum: 0 }
+      custom_role_count: { type: integer, minimum: 0 }
+      permission_count: { type: integer, minimum: 0 }
+      role_assignment_count: { type: integer, minimum: 0 }
+      unassigned_user_count: { type: integer, minimum: 0 }
+      empty_custom_role_count: { type: integer, minimum: 0 }
+  audit:
+    type: object
+    required: [time_preset, total_logs, failed_operations, high_risk_events, sensitive_operations, risk_groups, recent_events]
+    properties:
+      time_preset:
+        type: string
+        enum: [last_24h, last_7d, last_30d]
+      total_logs: { type: integer, minimum: 0 }
+      failed_operations: { type: integer, minimum: 0 }
+      high_risk_events: { type: integer, minimum: 0 }
+      sensitive_operations: { type: integer, minimum: 0 }
+      risk_groups:
+        type: array
+        items:
+          type: object
+          required: [key, label_key, count, risk_level]
+          properties:
+            key: { type: string }
+            label_key: { type: string }
+            count: { type: integer, minimum: 0 }
+            risk_level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+      recent_events:
+        type: array
+        items:
+          type: object
+          required: [id, created_at, action, resource, risk_level, result, request_id]
+          properties:
+            id: { type: integer, format: int64 }
+            created_at: { type: string, format: date-time }
+            action: { type: string }
+            resource: { type: string }
+            risk_level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+            result: { type: string, enum: [SUCCESS, FAILED, DENIED, ERROR] }
+            request_id: { type: string }

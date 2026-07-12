@@ -31,12 +31,8 @@ describe('layout navigation helpers', () => {
   it('follows redirected child groups until the first visible leaf page', () => {
     const monitorMenu: MenuRoute = {
       path: '/audit',
-      redirect: '/audit/overview',
+      redirect: '/audit/logs',
       children: [
-        {
-          path: 'overview',
-          meta: { titleKey: 'menu.audit.overview.title' },
-        },
         {
           path: 'logs',
           meta: { titleKey: 'menu.audit.logs.title' },
@@ -44,7 +40,7 @@ describe('layout navigation helpers', () => {
       ],
     };
 
-    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/audit/overview');
+    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/audit/logs');
   });
 
   it('flattens mix header menus into direct leaf navigation targets', () => {
@@ -90,7 +86,7 @@ describe('layout navigation helpers', () => {
       '/audit/logs/access',
     );
 
-    expect(expanded).toEqual(['/audit', '/audit/logs']);
+    expect(expanded).toEqual(['/audit', 'logs']);
   });
 
   it('keeps grouped parent menus expanded for descendant detail routes', () => {
@@ -110,5 +106,25 @@ describe('layout navigation helpers', () => {
     );
 
     expect(expanded).toEqual(['/ops']);
+  });
+
+  it('uses bootstrap menu codes as the submenu expanded values', () => {
+    const expanded = findExpandedMenuPaths(
+      [
+        {
+          path: 'domain.platform',
+          meta: { navigationTargetPath: '/scheduled-tasks' },
+          children: [
+            {
+              path: 'scheduled-task.list',
+              meta: { navigationTargetPath: '/scheduled-tasks' },
+            },
+          ],
+        },
+      ],
+      '/scheduled-tasks',
+    );
+
+    expect(expanded).toEqual(['domain.platform']);
   });
 });

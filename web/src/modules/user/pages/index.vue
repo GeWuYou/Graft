@@ -4,7 +4,7 @@
       <management-page-header
         title-key="user.userList.listTitle"
         description-key="user.userList.hint"
-        :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
+        :source="{ labelKey: 'menu.domain.security.title', fallback: t('menu.domain.security.title') }"
       >
         <template #actions>
           <t-button

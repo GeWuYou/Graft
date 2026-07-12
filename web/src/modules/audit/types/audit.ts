@@ -1,14 +1,12 @@
 import type { components } from '@/contracts/openapi/generated/schema';
 import type { QuerySorter } from '@/shared/observability';
 
+import type { AuditTimePreset } from '../contract/time-presets';
+
 export type AuditLogListItem = components['schemas']['audit-log-list-item'];
 export type AuditLogDetailResponse = components['schemas']['audit-log-detail-response'];
 export type AuditLogListResponse = components['schemas']['audit-log-list-response'];
-export type AuditOverviewItem = components['schemas']['AuditOverviewItem'];
-export type AuditOverviewSummary = components['schemas']['AuditOverviewSummary'];
-export type AuditOverviewResponse = components['schemas']['AuditOverviewResponse'];
 export type AuditIncidentResponse = components['schemas']['AuditIncidentResponse'];
-export type AuditIncidentSeed = AuditOverviewResponse['security_timeline'][number]['incident_seed'];
 export type AuditIncidentSummary = AuditIncidentResponse['incident'];
 export type AuditIncidentActor = AuditIncidentResponse['related_actors'][number];
 export type AuditIncidentResource = AuditIncidentResponse['related_resources'][number];
@@ -20,7 +18,6 @@ export type DrilldownScopeProjection = components['schemas']['drilldown-scope-pr
 export type DrilldownScopeProjectionItem = components['schemas']['drilldown-scope-projection-item'];
 export type AuditLogConvertibleFilters = components['schemas']['audit-log-convertible-filters'];
 
-export type AuditTimePreset = components['schemas']['AuditOverviewResponse']['time_preset'];
 export type AuditBusinessCategory = components['schemas']['AuditBusinessCategory'];
 export type AuditDrilldownScope = components['schemas']['AuditDrilldownScope'];
 export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -67,10 +64,6 @@ export type AuditLogQuery = {
   created_from?: string;
   created_to?: string;
   sort?: string[];
-};
-
-export type AuditOverviewQuery = {
-  preset?: AuditTimePreset;
 };
 
 export type AuditVisibilityDefaultUpdateRequest = components['schemas']['AuditVisibilityDefaultUpdateRequest'];

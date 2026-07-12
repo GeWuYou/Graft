@@ -326,11 +326,7 @@
       "security": { "title": "安全" },
       "platform": { "title": "平台" }
     },
-    "access_control": {
-      "title": "访问控制",
-      "overview": {
-        "title": "概览"
-      },
+    "security": {
       "users": {
         "title": "用户管理"
       },

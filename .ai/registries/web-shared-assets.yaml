@@ -59,7 +59,7 @@ assets:
     type: "frontend-utility"
     path: "web/src/shared/observability"
     owner: "web/shared"
-    purpose: "Locale-aware log timestamps, log and JSON viewers, resource formatting, deep-link query helpers, copy helpers, list error/interaction helpers, sorters, and trend axis utilities."
+    purpose: "Locale-aware log timestamps, log and JSON viewers, resource formatting, deep-link query helpers, copy helpers, list error/interaction helpers, and sorters."
     use_when:
       - "Building access log, app log, audit, container, dashboard, or monitor UI that consumes observability contracts or needs read-only log/JSON troubleshooting surfaces."
     do_not_use_when:

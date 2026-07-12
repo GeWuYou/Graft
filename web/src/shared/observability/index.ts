@@ -47,5 +47,3 @@ export {
   normalizePageStateRangeForRoute,
   normalizeRouteRangeForPageState,
 } from './time-range';
-export type { TrendAxisPoint, TrendAxisPreset } from './trend-axis';
-export { buildTrendAxisLabels, formatTrendTooltipDateTime } from './trend-axis';

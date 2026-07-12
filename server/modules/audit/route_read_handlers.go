@@ -16,7 +16,6 @@ import (
 type auditReader interface {
 	List(ctx context.Context, query ListQuery) (ListResult, error)
 	Detail(ctx context.Context, id uint64) (DetailResult, error)
-	Overview(ctx context.Context, preset auditstore.AuditTimePreset) (OverviewResult, error)
 	Incident(ctx context.Context, eventID uint64) (IncidentResult, error)
 	VisibilityPolicy(ctx context.Context) (VisibilityPolicyResult, error)
 	UpdateVisibilityDefault(
@@ -31,7 +30,6 @@ type auditReader interface {
 
 type auditListResult = ListResult
 type auditDetailResult = DetailResult
-type auditOverviewResult = OverviewResult
 type auditIncidentResult = IncidentResult
 
 type auditGuard struct {

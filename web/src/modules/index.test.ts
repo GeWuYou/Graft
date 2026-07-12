@@ -11,7 +11,7 @@ import type { WebModuleRegistration } from './types';
 
 describe('module registration aggregation', () => {
   it('exposes the actual module bootstrap registration map', () => {
-    expect(getBootstrapRouteRegistration('/access-control/overview')?.routeName).toBe('AccessControlOverview');
+    expect(getBootstrapRouteRegistration('/security/overview')?.routeName).toBe('SecurityOverview');
     expect(getBootstrapRouteRegistration('/users')?.routeName).toBe('UserList');
     expect(getBootstrapRouteRegistration('/roles')?.routeName).toBe('RoleList');
     expect(getBootstrapRouteRegistration('/permissions')?.routeName).toBe('PermissionList');
@@ -21,7 +21,7 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/system/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
     expect(getBootstrapRouteRegistration('/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
     expect(getBootstrapRouteRegistration('/system-config')?.routeName).toBe('SystemConfigList');
-    expect(getBootstrapRouteRegistration('/audit/overview')?.routeName).toBe('AuditOverview');
+    expect(getBootstrapRouteRegistration('/audit/overview')).toBeUndefined();
     expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
     expect(getBootstrapRouteRegistration('/notifications')).toBeUndefined();
     expect(getGlobalRouteRegistrations().find((route) => route.path === '/notifications')?.routeName).toBe(

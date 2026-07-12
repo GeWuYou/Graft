@@ -2,9 +2,6 @@
   "menu": {
     "audit": {
       "title": "安全审计",
-      "overview": {
-        "title": "概览"
-      },
       "logs": {
         "title": "审计日志"
       },
@@ -15,16 +12,12 @@
   },
   "audit": {
     "route": {
-      "overview": {
-        "title": "安全审计 - 概览",
-        "breadcrumb": "概览"
-      },
       "logList": {
-        "title": "安全审计 - 审计日志",
+        "title": "审计日志",
         "breadcrumb": "审计日志"
       },
       "incidentDetail": {
-        "title": "安全审计 - 事件钻取",
+        "title": "事件钻取",
         "breadcrumb": "事件钻取"
       }
     },
@@ -65,102 +58,11 @@
       }
     },
     "overview": {
-      "title": "安全审计概览",
-      "description": "聚焦认证、授权与敏感操作相关的安全审计事件，不包含健康检查、监控轮询和页面加载噪音。",
-      "refresh": "刷新",
-      "retry": "重试",
-      "errorTitle": "审计概览暂时不可用",
-      "loadFailed": "审计概览加载失败",
-      "timeRanges": {
-        "24h": "最近 24 小时",
-        "7d": "最近 7 天",
-        "30d": "最近 30 天"
-      },
-      "itemResult": {
-        "failed": "失败",
-        "denied": "拒绝",
-        "sensitive": "复核"
-      },
-      "sections": {
-        "failedAuth": "最近认证失败事件",
-        "permissionDenied": "最近权限拒绝事件",
-        "sensitiveOps": "最近敏感操作事件",
-        "trend": "风险趋势",
-        "securityTimeline": "安全事件时间线",
-        "shortcuts": "快捷入口",
-        "riskWatch": "最近风险"
-      },
       "riskGroups": {
         "authFailures": "认证失败",
         "criticalSecurity": "关键安全事件",
         "highRiskOperations": "高风险操作",
-        "permissionDenials": "权限拒绝",
-        "meta": "当前窗口共 {count} 条",
-        "action": "查看相关事件"
-      },
-      "trend": {
-        "emptyTitle": "暂无足够风险事件数据",
-        "emptyDescription": "产生更多审计事件后将展示趋势分析。",
-        "totalMetric": "总事件",
-        "highRiskMetric": "高风险",
-        "securityMetric": "安全事件"
-      },
-      "timeline": {
-        "openEvent": "查看事件"
-      },
-      "empty": {
-        "failedAuth": {
-          "title": "暂无认证失败事件",
-          "description": "所选时间范围内没有失败登录或认证审计事件。"
-        },
-        "permissionDenied": {
-          "title": "暂无权限拒绝事件",
-          "description": "所选时间范围内没有授权拒绝事件。"
-        },
-        "sensitiveOps": {
-          "title": "暂无敏感操作事件",
-          "description": "所选时间范围内没有导出、删除、重置、授权等高权限写操作事件。"
-        },
-        "riskGroups": {
-          "title": "暂无活跃风险分组",
-          "description": "所选时间范围内没有需要关注的聚合审计风险。"
-        },
-        "securityTimeline": {
-          "title": "暂无安全时间线事件",
-          "description": "所选时间范围内没有安全事件。"
-        }
-      },
-      "stats": {
-        "totalLogs": {
-          "title": "审计日志数",
-          "unit": "条"
-        },
-        "failedWindow": {
-          "title": "安全失败事件数",
-          "unit": "次"
-        },
-        "highRisk": {
-          "title": "高风险事件数",
-          "unit": "条"
-        },
-        "sensitiveOps": {
-          "title": "敏感操作数",
-          "unit": "次"
-        }
-      },
-      "shortcuts": {
-        "failedAuth": {
-          "title": "查看失败认证",
-          "description": "查看失败登录、令牌失效等认证失败审计事件"
-        },
-        "rbacChanges": {
-          "title": "查看权限配置变更",
-          "description": "查看角色、权限、资源、菜单等配置调整记录"
-        },
-        "sensitiveOps": {
-          "title": "查看敏感操作",
-          "description": "定位导出、删除与高权限写操作审计事件"
-        }
+        "permissionDenials": "权限拒绝"
       }
     },
     "incident": {

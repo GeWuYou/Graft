@@ -13,6 +13,7 @@ import (
 	rbacmodule "graft/server/modules/rbac"
 	runtime_targetmodule "graft/server/modules/runtime-target"
 	schedulermodule "graft/server/modules/scheduler"
+	securitymodule "graft/server/modules/security"
 	system_configmodule "graft/server/modules/system-config"
 	taskmodule "graft/server/modules/task"
 	usermodule "graft/server/modules/user"
@@ -29,6 +30,7 @@ var generatedModuleSpecs = []module.Spec{
 	rbacmodule.NewModuleSpec(),
 	runtime_targetmodule.NewModuleSpec(),
 	schedulermodule.NewModuleSpec(),
+	securitymodule.NewModuleSpec(),
 	system_configmodule.NewModuleSpec(),
 	taskmodule.NewModuleSpec(),
 	usermodule.NewModuleSpec(),

@@ -4,7 +4,7 @@
       <management-page-header
         title-key="rbac.roleList.listTitle"
         description-key="rbac.roleList.hint"
-        :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
+        :source="{ labelKey: 'menu.domain.security.title', fallback: t('menu.domain.security.title') }"
       >
         <template #actions>
           <t-button

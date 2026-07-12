@@ -32,6 +32,7 @@ import union from 'lodash/union';
 import type { MenuValue } from 'tdesign-vue-next';
 import type { PropType } from 'vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
@@ -89,11 +90,13 @@ const MIN_POINT = 992 - 1;
 
 const collapsed = computed(() => renderCompact);
 const menuAutoCollapsed = computed(() => useSettingStore().menuAutoCollapsed);
+const route = useRoute();
 
 const active = computed(() => getActive());
 
 const expanded = ref<MenuValue[]>([]);
 const expandedBeforeCompact = ref<MenuValue[]>([]);
+const pendingExpandedSync = ref(false);
 
 const buildExpandedFromActive = () => {
   return findExpandedMenuPaths(menu, getActive());
@@ -105,40 +108,27 @@ const getExpanded = () => {
   expanded.value = menuAutoCollapsed.value ? result : union(result, expanded.value);
 };
 
-watch(
-  () => active.value,
-  () => {
-    if (
-      collapsed.value ||
-      motionPhase === 'collapsing-width' ||
-      motionPhase === 'collapsing-submenu' ||
-      motionPhase === 'collapsing-topmenu' ||
-      motionPhase === 'expanding-width' ||
-      motionPhase === 'expanding-topmenu'
-    ) {
-      return;
-    }
-    getExpanded();
-  },
-);
+const isExpandedSyncDeferred = () =>
+  collapsed.value ||
+  motionPhase === 'collapsing-width' ||
+  motionPhase === 'collapsing-submenu' ||
+  motionPhase === 'collapsing-topmenu' ||
+  motionPhase === 'expanding-width' ||
+  motionPhase === 'expanding-topmenu';
 
-watch(
-  () => menu,
-  () => {
-    if (
-      collapsed.value ||
-      motionPhase === 'collapsing-width' ||
-      motionPhase === 'collapsing-submenu' ||
-      motionPhase === 'collapsing-topmenu' ||
-      motionPhase === 'expanding-width' ||
-      motionPhase === 'expanding-topmenu'
-    ) {
-      return;
-    }
-    getExpanded();
-  },
-  { deep: true },
-);
+const syncExpandedForCurrentRoute = () => {
+  if (isExpandedSyncDeferred()) {
+    pendingExpandedSync.value = true;
+    return;
+  }
+
+  pendingExpandedSync.value = false;
+  getExpanded();
+};
+
+watch(() => route.fullPath, syncExpandedForCurrentRoute, { flush: 'post' });
+
+watch(() => menu, syncExpandedForCurrentRoute, { deep: true });
 
 watch(
   () => motionPhase,
@@ -161,6 +151,12 @@ watch(
     if (nextPhase === 'expanding-submenu') {
       const routeExpanded = buildExpandedFromActive();
       expanded.value = menuAutoCollapsed.value ? routeExpanded : union(routeExpanded, expandedBeforeCompact.value);
+      pendingExpandedSync.value = false;
+      return;
+    }
+
+    if (nextPhase === 'expanded' && pendingExpandedSync.value) {
+      syncExpandedForCurrentRoute();
     }
   },
 );

@@ -1,6 +1,56 @@
 package moduleapi
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+// AuditOverviewPreset identifies the bounded audit window used by security overview reads.
+type AuditOverviewPreset string
+
+const (
+	// AuditOverviewPresetLast24Hours identifies the most recent 24-hour window.
+	AuditOverviewPresetLast24Hours AuditOverviewPreset = "last_24h"
+	// AuditOverviewPresetLast7Days identifies the most recent seven-day window.
+	AuditOverviewPresetLast7Days AuditOverviewPreset = "last_7d"
+	// AuditOverviewPresetLast30Days identifies the most recent 30-day window.
+	AuditOverviewPresetLast30Days AuditOverviewPreset = "last_30d"
+)
+
+// AuditSecurityRiskGroup is the bounded risk grouping exposed to the security module.
+type AuditSecurityRiskGroup struct {
+	Key       string `json:"key"`
+	LabelKey  string `json:"label_key"`
+	Count     int    `json:"count"`
+	RiskLevel string `json:"risk_level"`
+}
+
+// AuditSecurityEvent is the minimal recent-event projection used by the security overview.
+type AuditSecurityEvent struct {
+	ID        uint64    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Action    string    `json:"action"`
+	Resource  string    `json:"resource"`
+	RiskLevel string    `json:"risk_level"`
+	Result    string    `json:"result"`
+	RequestID string    `json:"request_id"`
+}
+
+// AuditSecuritySnapshot contains audit-owned counters and bounded recent security signals.
+type AuditSecuritySnapshot struct {
+	TimePreset          AuditOverviewPreset      `json:"time_preset"`
+	TotalLogs           int                      `json:"total_logs"`
+	FailedOperations    int                      `json:"failed_operations"`
+	HighRiskEvents      int                      `json:"high_risk_events"`
+	SensitiveOperations int                      `json:"sensitive_operations"`
+	RiskGroups          []AuditSecurityRiskGroup `json:"risk_groups"`
+	RecentEvents        []AuditSecurityEvent     `json:"recent_events"`
+}
+
+// AuditSecurityReader exposes a bounded audit-owned security read model.
+type AuditSecurityReader interface {
+	ReadSecuritySnapshot(ctx context.Context, preset AuditOverviewPreset) (AuditSecuritySnapshot, error)
+}
 
 // EventName 标识跨模块稳定事件名契约。
 type EventName string

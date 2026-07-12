@@ -1,0 +1,76 @@
+{
+  "menu": {
+    "security": {
+      "overview": { "title": "Overview" }
+    }
+  },
+  "security": {
+    "route": { "overview": { "title": "Overview", "breadcrumb": "Overview" } },
+    "overview": {
+      "title": "Security Overview",
+      "navHint": "Security",
+      "description": "Review access-control posture and recent security audit signals in one focused view.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "loadFailed": "Unable to load the security overview.",
+      "errorTitle": "Security Overview Unavailable",
+      "timeRanges": { "24h": "Last 24 Hours", "7d": "Last 7 Days", "30d": "Last 30 Days" },
+      "stats": {
+        "users": "Accounts",
+        "usersDescription": "Current access-control account baseline",
+        "unassigned": "Unassigned Accounts",
+        "unassignedDescription": "Accounts with no role assignment",
+        "highRisk": "High-Risk Events",
+        "highRiskDescription": "High-risk signals in the selected window",
+        "denied": "Failed or Denied Operations",
+        "deniedDescription": "Review the audit trail for details"
+      },
+      "sections": {
+        "access": "Access-Control Summary",
+        "accessDescription": "Current account, role, permission, and assignment health.",
+        "audit": "Security Audit Summary",
+        "auditDescription": "Audit activity and risk signals in the selected time window.",
+        "events": "Recent Security Events",
+        "eventsDescription": "Only recent events are shown here; use Audit Logs for the full evidence trail.",
+        "pending": "Pending Security Items",
+        "pendingDescription": "Access-control and audit risks that need administrator follow-up."
+      },
+      "access": {
+        "roles": "Roles",
+        "rolesDescription": "Including {custom} custom roles",
+        "permissions": "Permissions",
+        "permissionsDescription": "Registered system permissions",
+        "bindings": "Role Assignments",
+        "bindingsDescription": "Account-to-role authorization relationships",
+        "disabled": "Disabled Accounts",
+        "disabledDescription": "Accounts that cannot currently sign in",
+        "usersAction": "Manage Users",
+        "rolesAction": "Manage Roles"
+      },
+      "audit": {
+        "total": "Audit Events",
+        "totalDescription": "Recorded events in the selected window",
+        "sensitive": "Sensitive Operations",
+        "sensitiveDescription": "Permission operations that need audit attention",
+        "riskGroups": "Risk Groups",
+        "riskGroupsDescription": "Aggregated active risk categories"
+      },
+      "risk": { "viewLogs": "View Audit Logs" },
+      "events": {
+        "unknownResource": "Unknown Resource",
+        "emptyTitle": "No Security Events",
+        "emptyDescription": "No security events were found in the selected window."
+      },
+      "pending": {
+        "unassigned": "Account Authorization",
+        "unassignedDescription": "These accounts have no role assignment.",
+        "emptyRoles": "Empty Custom Roles",
+        "emptyRolesDescription": "These custom roles have no configured permissions.",
+        "highRisk": "High-Risk Audit Events",
+        "highRiskDescription": "Review these high-risk signals in Audit Logs.",
+        "emptyTitle": "No Pending Security Items",
+        "emptyDescription": "Current access-control and audit signals need no follow-up."
+      }
+    }
+  }
+}

@@ -219,6 +219,23 @@ func (s userService) CountUsers(ctx context.Context) (int, error) {
 	return s.users.Count(ctx)
 }
 
+// ListSecuritySummaries returns one bounded, ID-ordered account-state page for authorized aggregate readers.
+func (s userService) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]moduleapi.UserSecuritySummary, error) {
+	if s.users == nil {
+		return nil, errors.New("user repository is unavailable")
+	}
+
+	users, err := s.users.ListSecuritySummaries(ctx, afterID, limit)
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]moduleapi.UserSecuritySummary, 0, len(users))
+	for _, user := range users {
+		summaries = append(summaries, moduleapi.UserSecuritySummary{ID: user.ID, Status: user.Status})
+	}
+	return summaries, nil
+}
+
 // GetUser keeps route handlers on the public service boundary while preserving
 // the full managed-user record needed for HTTP response mapping.
 func (s userService) GetUser(ctx context.Context, id uint64) (userstore.User, error) {

@@ -110,6 +110,29 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.activeTabKey).toBe('/');
   });
 
+  it('removes legacy access-control tabs and stale migrated titles during startup healing', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/access-control/permissions',
+      path: '/access-control/permissions',
+      name: 'LegacyPermissionList',
+      title: { 'en-US': 'Access Control / Permissions', 'zh-CN': '安全 / 访问控制 - 权限管理' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/permissions',
+      path: '/permissions',
+      name: 'PermissionList',
+      title: { 'en-US': 'Access Control / Permissions', 'zh-CN': '安全 / 访问控制 - 权限管理' },
+    });
+    tabsRouterStore.setActiveTabKey('/permissions');
+
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/']);
+    expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
   it('resets the active tab after route healing removes stale tabs', () => {
     const tabsRouterStore = useTabsRouterStore();
     const router = {

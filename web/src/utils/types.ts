@@ -5,7 +5,7 @@ import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
 export type ModeType = 'light' | 'dark';
 export type PageFooterContent = string | LocalizedTitle;
-export type GovernanceDomain = 'rbac' | 'audit' | 'monitor';
+export type GovernanceDomain = 'rbac' | 'audit' | 'monitor' | 'security';
 export type AppRoutePageKind = 'overview' | 'list' | 'detail' | 'runtime' | 'investigation';
 export type AppRoutePageSurface = 'shell' | 'overview-dashboard' | 'paged-table' | 'form-detail' | 'editor';
 

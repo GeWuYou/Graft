@@ -29,6 +29,10 @@ func (r *identityProviderRepository) List(context.Context) ([]userstore.User, er
 	return nil, errors.New("List must not be used for username lookup")
 }
 
+func (*identityProviderRepository) ListSecuritySummaries(context.Context, uint64, int) ([]userstore.User, error) {
+	return nil, nil
+}
+
 func (r *identityProviderRepository) Count(context.Context) (int, error) { return 0, nil }
 
 func (r *identityProviderRepository) Create(ctx context.Context, input userstore.CreateUserInput) (userstore.User, error) {

@@ -102,6 +102,34 @@ func (r *userRepository) List(ctx context.Context) ([]userstore.User, error) {
 	return users, nil
 }
 
+func (r *userRepository) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]userstore.User, error) {
+	if limit <= 0 {
+		return nil, fmt.Errorf("security summary limit must be positive")
+	}
+	afterEntID := 0
+	if afterID != 0 {
+		var err error
+		afterEntID, err = toEntID(afterID)
+		if err != nil {
+			return nil, fmt.Errorf("convert security summary cursor: %w", err)
+		}
+	}
+	records, err := r.client.User.Query().
+		Where(userent.DeletedAtEQ(0), userent.IDGT(afterEntID)).
+		Order(ent.Asc(userent.FieldID)).
+		Limit(limit).
+		Select(userent.FieldID, userent.FieldStatus).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list security user summaries: %w", err)
+	}
+	summaries := make([]userstore.User, 0, len(records))
+	for _, record := range records {
+		summaries = append(summaries, userstore.User{ID: toStoreID(record.ID), Status: normalizeStoredUserStatus(record.Status)})
+	}
+	return summaries, nil
+}
+
 func (r *userRepository) Count(ctx context.Context) (int, error) {
 	total, err := r.client.User.Query().
 		Where(userent.DeletedAtEQ(0)).

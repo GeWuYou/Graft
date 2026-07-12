@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"graft/server/internal/moduleapi"
 	rbacstore "graft/server/modules/rbac/store"
 )
 
@@ -11,6 +12,26 @@ type accessServiceTestRepository struct {
 	roles       []rbacstore.Role
 	permissions []rbacstore.Permission
 	userIDs     []uint64
+}
+
+type securitySummaryReader struct {
+	summaries []moduleapi.UserSecuritySummary
+	calls     []uint64
+}
+
+func (r *securitySummaryReader) ListSecuritySummaries(_ context.Context, afterID uint64, limit int) ([]moduleapi.UserSecuritySummary, error) {
+	r.calls = append(r.calls, afterID)
+	page := make([]moduleapi.UserSecuritySummary, 0, limit)
+	for _, summary := range r.summaries {
+		if summary.ID <= afterID {
+			continue
+		}
+		page = append(page, summary)
+		if len(page) == limit {
+			break
+		}
+	}
+	return page, nil
 }
 
 func (r accessServiceTestRepository) EnsureRole(context.Context, rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
@@ -148,6 +169,35 @@ func TestAccessServiceListsStableRoleNamesAndPermissionCodes(t *testing.T) {
 		t.Fatalf("list user ids by permission code: %v", err)
 	}
 	requireUserIDs(t, userIDs, []uint64{7, 11, 42})
+}
+
+func TestReadSecurityPostureReadsUserSummariesInBoundedPages(t *testing.T) {
+	reader := &securitySummaryReader{summaries: make([]moduleapi.UserSecuritySummary, 0, securityPostureUserPageSize+1)}
+	for id := uint64(1); id <= securityPostureUserPageSize+1; id++ {
+		status := "enabled"
+		if id == 3 {
+			status = "disabled"
+		}
+		reader.summaries = append(reader.summaries, moduleapi.UserSecuritySummary{ID: id, Status: status})
+	}
+
+	service := accessService{
+		rbac:  accessServiceTestRepository{roles: []rbacstore.Role{{ID: 1}}, permissions: []rbacstore.Permission{{ID: 1}}},
+		users: reader,
+	}
+	posture, err := service.ReadSecurityPosture(context.Background())
+	if err != nil {
+		t.Fatalf("ReadSecurityPosture() error = %v", err)
+	}
+	if posture.TotalUsers != securityPostureUserPageSize+1 || posture.DisabledUsers != 1 {
+		t.Fatalf("unexpected user posture: %#v", posture)
+	}
+	if posture.RoleAssignmentCount != 1 || posture.UnassignedUserCount != securityPostureUserPageSize {
+		t.Fatalf("unexpected role posture: %#v", posture)
+	}
+	if len(reader.calls) != 2 || reader.calls[0] != 0 || reader.calls[1] != securityPostureUserPageSize {
+		t.Fatalf("unexpected page cursors: %#v", reader.calls)
+	}
 }
 
 func requireStrings(t *testing.T, actual []string, expected []string, label string) {

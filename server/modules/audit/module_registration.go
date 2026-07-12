@@ -14,12 +14,9 @@ import (
 	auditcontract "graft/server/modules/audit/contract"
 )
 
-const (
-	auditMenuOrderOverview = 201
-	auditMenuOrderLogs     = 202
-)
+const auditMenuOrderLogs = 202
 
-// registerAuditPermissions 注册审计模块的权限条目。
+// registerAuditPermissions 注册审计模块的读取和管理权限条目。
 func registerAuditPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -39,23 +36,11 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 	})
 }
 
-// registerAuditMenu 注册审计概览和日志菜单项，并为其配置审计读取权限。
+// registerAuditMenu 注册审计日志菜单项，并为其配置审计读取权限。
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
 	}
-
-	registry.Register(menu.Item{
-		Code:       "audit.overview",
-		ParentCode: "domain.security",
-		Kind:       menu.NodeKindEntry,
-		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
-		Path:       auditcontract.AuditOverviewMenuPath,
-		Icon:       "dashboard",
-		Order:      auditMenuOrderOverview,
-		Permission: auditcontract.AuditReadPermission.String(),
-		Module:     moduleName,
-	})
 
 	registry.Register(menu.Item{
 		Code:       "audit.logs",
@@ -87,10 +72,10 @@ func registerAuditMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// auditMessageKeys 返回审计模块所需的本地化消息键。
 func auditMessageKeys() []string {
 	return []string{
 		auditcontract.AuditRootMenuTitle.String(),
-		auditcontract.AuditOverviewMenuTitle.String(),
 		auditcontract.AuditLogMenuTitle.String(),
 		auditcontract.AuditTargetLabelUser.String(),
 		auditcontract.AuditTargetLabelRole.String(),
@@ -131,6 +116,7 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 	}, nil
 }
 
+// registerAuditService registers the audit service and its security reader with the module service container.
 func registerAuditService(ctx *module.Context, reader *Service) error {
 	if ctx == nil || ctx.Services == nil {
 		return errors.New("module context services are unavailable")
@@ -139,7 +125,12 @@ func registerAuditService(ctx *module.Context, reader *Service) error {
 		return errors.New("audit service is unavailable")
 	}
 
-	return ctx.Services.RegisterSingleton((*auditReader)(nil), func(_ container.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*auditReader)(nil), func(_ container.Resolver) (any, error) {
 		return reader, nil
+	}); err != nil {
+		return err
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.AuditSecurityReader)(nil), func(_ container.Resolver) (any, error) {
+		return auditSecurityReader{reader: reader}, nil
 	})
 }

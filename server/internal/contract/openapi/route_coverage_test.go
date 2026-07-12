@@ -57,7 +57,7 @@ func TestRequiredLiveRoutesStayCoveredByRootSpec(t *testing.T) {
 		"/api/users/roles/add",
 		"/api/users/roles/remove",
 		"/api/audit/logs",
-		"/api/audit/overview",
+		"/api/security/overview",
 		"/api/monitor/server-status",
 		"/api/modules/runtime",
 		"/api/modules/runtime/{module_key}",
@@ -85,6 +85,7 @@ func TestRequiredLiveRoutesStayCoveredByRootSpec(t *testing.T) {
 	}
 
 	excludedPaths := []string{
+		"/api/audit/overview",
 		"/healthz",
 		"/docs",
 		"/openapi.json",

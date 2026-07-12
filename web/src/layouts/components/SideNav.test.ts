@@ -35,9 +35,16 @@ vi.mock('@/store', () => ({
 const activePathState = {
   value: '/server/runtime',
 };
+const routeState = reactive({
+  fullPath: '/server/runtime',
+});
 
 vi.mock('@/router', () => ({
   getActive: () => activePathState.value,
+}));
+
+vi.mock('vue-router', () => ({
+  useRoute: () => routeState,
 }));
 
 vi.mock('@/layouts/useShellNavigation', () => ({
@@ -158,10 +165,60 @@ function mountSideNav() {
   });
 }
 
+const expectExpandedMenus = (wrapper: ReturnType<typeof mount>, expected: string[]) => {
+  const expanded = JSON.parse(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded') ?? '[]') as string[];
+  expect(expanded).toHaveLength(expected.length);
+  expect(expanded).toEqual(expect.arrayContaining(expected));
+};
+
+const navigationMenu = [
+  {
+    path: '/server',
+    meta: {
+      title: {
+        'zh-CN': '可观测性',
+        'en-US': 'Observability',
+      },
+    },
+    children: [
+      {
+        path: 'runtime',
+        meta: {
+          title: {
+            'zh-CN': '运行时',
+            'en-US': 'Runtime',
+          },
+        },
+      },
+    ],
+  },
+  {
+    path: '/security',
+    meta: {
+      title: {
+        'zh-CN': '安全',
+        'en-US': 'Security',
+      },
+    },
+    children: [
+      {
+        path: 'overview',
+        meta: {
+          title: {
+            'zh-CN': '概览',
+            'en-US': 'Overview',
+          },
+        },
+      },
+    ],
+  },
+];
+
 describe('SideNav', () => {
   beforeEach(() => {
     updateConfigMock.mockReset();
     activePathState.value = '/server/runtime';
+    routeState.fullPath = '/server/runtime';
     settingStoreProxy.value ??= reactive({
       ...settingStoreState,
       updateConfig: updateConfigMock,
@@ -236,6 +293,109 @@ describe('SideNav', () => {
     await nextTick();
 
     expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
+  });
+
+  it('expands the active sidebar branch after switching routes through a tab', async () => {
+    const wrapper = mount(SideNav, {
+      props: {
+        isCompact: false,
+        isFixed: true,
+        layout: 'side',
+        menu: navigationMenu,
+        motionPhase: 'expanded',
+        showLogo: true,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    activePathState.value = '/security/overview';
+    routeState.fullPath = '/security/overview';
+    await nextTick();
+
+    expectExpandedMenus(wrapper, ['/server', '/security']);
+  });
+
+  it('defers route branch expansion until sidebar motion can render submenus', async () => {
+    const wrapper = mount(SideNav, {
+      props: {
+        isCompact: false,
+        isFixed: true,
+        layout: 'side',
+        menu: navigationMenu,
+        motionPhase: 'expanded',
+        showLogo: true,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    await wrapper.setProps({ motionPhase: 'collapsing-width' });
+    activePathState.value = '/security/overview';
+    routeState.fullPath = '/security/overview';
+    await nextTick();
+
+    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
+
+    await wrapper.setProps({ motionPhase: 'expanded' });
+
+    expectExpandedMenus(wrapper, ['/server', '/security']);
+  });
+
+  it('expands bootstrap menu codes without normalizing their submenu values as URLs', async () => {
+    activePathState.value = '/scheduled-tasks';
+    routeState.fullPath = '/scheduled-tasks';
+    const wrapper = mount(SideNav, {
+      props: {
+        isCompact: false,
+        isFixed: true,
+        layout: 'side',
+        menu: [
+          {
+            path: 'domain.platform',
+            meta: {
+              navigationTargetPath: '/scheduled-tasks',
+              title: {
+                'zh-CN': '平台',
+                'en-US': 'Platform',
+              },
+            },
+            children: [
+              {
+                path: 'scheduled-task.list',
+                meta: {
+                  navigationTargetPath: '/scheduled-tasks',
+                  title: {
+                    'zh-CN': '定时任务',
+                    'en-US': 'Scheduled Tasks',
+                  },
+                },
+              },
+            ],
+          },
+        ],
+        motionPhase: 'expanded',
+        showLogo: true,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["domain.platform"]');
   });
 
   it('expands the owning parent menu for descendant routes outside the literal menu path chain', async () => {

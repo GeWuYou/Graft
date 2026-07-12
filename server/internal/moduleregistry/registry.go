@@ -19,6 +19,7 @@ import (
 	rbaclocales "graft/server/modules/rbac/locales"
 	runtimetargetlocales "graft/server/modules/runtime-target/locales"
 	schedulerlocales "graft/server/modules/scheduler/locales"
+	securitylocales "graft/server/modules/security/locales"
 	systemconfiglocales "graft/server/modules/system-config/locales"
 	userlocales "graft/server/modules/user/locales"
 )
@@ -46,7 +47,7 @@ type EmbeddedMigrationDir struct {
 }
 
 // EmbeddedLocaleResources 返回按固定模块顺序聚合后的编译期本地化资源。
-// EmbeddedLocaleResources 按固定模块顺序聚合嵌入式区域资源；任一模块资源加载失败时会触发 panic。
+// EmbeddedLocaleResources 按固定模块顺序聚合嵌入式区域资源；任一模块资源加载失败时触发 panic。
 func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 	providers := []struct {
 		name string
@@ -60,6 +61,7 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "rbac", load: rbaclocales.EmbeddedLocaleResources},
 		{name: "runtime-target", load: runtimetargetlocales.EmbeddedLocaleResources},
 		{name: "scheduler", load: schedulerlocales.EmbeddedLocaleResources},
+		{name: "security", load: securitylocales.EmbeddedLocaleResources},
 		{name: "system-config", load: systemconfiglocales.EmbeddedLocaleResources},
 		{name: "user", load: userlocales.EmbeddedLocaleResources},
 	}

@@ -8,11 +8,10 @@ import (
 )
 
 // registerAuditRoutes 为审计相关接口注册路由，并挂载请求 ID 中间件。
-// 它注册审计概览、审计日志、审计事件、可见性策略及可见性覆盖的读取、更新和删除路由。
+// registerAuditRoutes 注册审计日志、审计事件、可见性策略及可见性覆盖的相关路由。
 func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditReader, guard auditGuard) {
 	group := ctx.Router.Group(auditcontract.AuditGroup)
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET(auditcontract.AuditOverviewCollection, guard.read, handleReadAuditOverview(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditCollection, guard.read, handleListAuditLogs(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditItem, guard.read, handleReadAuditLog(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditIncidentItem, guard.read, handleReadAuditIncident(ctx, moduleName, reader))
