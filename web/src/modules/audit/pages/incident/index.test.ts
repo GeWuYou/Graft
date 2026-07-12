@@ -279,7 +279,7 @@ describe('AuditIncidentPage', () => {
 
     await buttons[0]!.trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/server/overview',
+      path: '/system/overview',
       query: {
         monitorView: 'overview',
         monitorTrendRange: '10m',

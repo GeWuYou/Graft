@@ -1,8 +1,14 @@
 type: object
-required: [code, title, path, icon, permission]
+required: [code, kind, title, icon, permission]
 properties:
   code:
     type: string
+  parent_code:
+    type: string
+    description: Explicit parent navigation group code. Navigation hierarchy is never inferred from path.
+  kind:
+    type: string
+    enum: [group, entry]
   order:
     type: integer
     description: Canonical menu order declared by the backend. Lower values render first within the same parent.
@@ -14,6 +20,7 @@ properties:
     description: Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only.
   path:
     type: string
+    description: Required for entry nodes and absent for group nodes.
   icon:
     type: string
   permission:

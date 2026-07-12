@@ -8,11 +8,11 @@ import AppLayout from './index.vue';
 const routeState = vi.hoisted(
   () =>
     ({
-      fullPath: '/ops/containers/container-1?tab=overview',
+      fullPath: '/containers/container-1?tab=overview',
       meta: {},
       name: 'ContainerDetail',
       params: { id: 'container-1' },
-      path: '/ops/containers/container-1',
+      path: '/containers/container-1',
       query: { tab: 'overview' },
     }) as Partial<RouteLocationNormalizedLoaded> & {
       fullPath: string;
@@ -150,8 +150,8 @@ describe('App layout route effects', () => {
     settingStoreProxy.value.isSidebarCompact = false;
     settingStoreProxy.value.layout = { value: 'side' };
     settingStoreProxy.value.showSidebar = true;
-    routeProxy.value!.fullPath = '/ops/containers/container-1?tab=overview';
-    routeProxy.value!.path = '/ops/containers/container-1';
+    routeProxy.value!.fullPath = '/containers/container-1?tab=overview';
+    routeProxy.value!.path = '/containers/container-1';
     routeProxy.value!.name = 'ContainerDetail';
     routeProxy.value!.params = { id: 'container-1' };
     routeProxy.value!.query = { tab: 'overview' };
@@ -175,16 +175,16 @@ describe('App layout route effects', () => {
   it('updates tab route state without scrolling for same-page query changes', async () => {
     const wrapper = mountAppLayout();
 
-    routeProxy.value!.fullPath = '/ops/containers/container-1?tab=health';
+    routeProxy.value!.fullPath = '/containers/container-1?tab=health';
     routeProxy.value!.query = { tab: 'health' };
     await wrapper.vm.$nextTick();
 
     expect(storeState.tabsRouterStore.appendTabRouterList).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        fullPath: '/ops/containers/container-1?tab=health',
-        path: '/ops/containers/container-1',
+        fullPath: '/containers/container-1?tab=health',
+        path: '/containers/container-1',
         query: { tab: 'health' },
-        tabKey: '/ops/containers/container-1',
+        tabKey: '/containers/container-1',
       }),
     );
     expect(scrollToMock).not.toHaveBeenCalled();
@@ -201,8 +201,8 @@ describe('App layout route effects', () => {
   it('scrolls to top when the route path changes', async () => {
     const wrapper = mountAppLayout();
 
-    routeProxy.value!.fullPath = '/server/runtime';
-    routeProxy.value!.path = '/server/runtime';
+    routeProxy.value!.fullPath = '/system/runtime';
+    routeProxy.value!.path = '/system/runtime';
     routeProxy.value!.name = 'ServerRuntime';
     routeProxy.value!.params = {};
     routeProxy.value!.query = {};
@@ -213,7 +213,7 @@ describe('App layout route effects', () => {
 
   it('exposes the sidebar compact state on the shell surface', async () => {
     settingStoreProxy.value!.isSidebarCompact = false;
-    routeProxy.value!.path = '/ops/containers';
+    routeProxy.value!.path = '/containers';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
@@ -242,7 +242,7 @@ describe('App layout route effects', () => {
   });
 
   it('keeps overlay mode disabled outside the container list route', () => {
-    routeProxy.value!.path = '/server/runtime';
+    routeProxy.value!.path = '/system/runtime';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('false');
@@ -250,7 +250,7 @@ describe('App layout route effects', () => {
 
   it('runs the reverse sidebar motion when expanding back out', async () => {
     settingStoreProxy.value!.isSidebarCompact = true;
-    routeProxy.value!.path = '/ops/containers';
+    routeProxy.value!.path = '/containers';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');

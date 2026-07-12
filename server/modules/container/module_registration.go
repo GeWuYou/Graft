@@ -187,23 +187,17 @@ func permissionItems(moduleName string) []permission.Item {
 	}
 }
 
+// registerMenu registers the container list menu item with the specified module name.
+// It returns an error when the menu registry is unavailable.
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
 
 	registry.Register(menu.Item{
-		Code:       "ops.root",
-		Title:      "",
-		TitleKey:   containercontract.OperationsMenuTitle.String(),
-		Path:       containercontract.ContainerMenuRootPath,
-		Icon:       "tools",
-		Order:      operationsMenuOrderRoot,
-		Permission: "",
-		Module:     moduleName,
-	})
-	registry.Register(menu.Item{
 		Code:                     "container.list",
+		ParentCode:               "domain.infrastructure",
+		Kind:                     menu.NodeKindEntry,
 		Title:                    "",
 		TitleKey:                 containercontract.ContainerMenuTitle.String(),
 		Path:                     containercontract.ContainerMenuPath,

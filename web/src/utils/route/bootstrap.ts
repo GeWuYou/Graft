@@ -4,54 +4,78 @@ import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { getBootstrapRouteRegistration } from '@/modules';
 import type { BootstrapMenu } from '@/modules/auth/contract/types';
 import type { GlobalRouteRegistration } from '@/modules/types';
-import { BLANK_LAYOUT, LAYOUT } from '@/utils/route/constant';
-import type { AppRouteMeta } from '@/utils/types';
+import { LAYOUT } from '@/utils/route/constant';
+import type { AppRouteMeta, MenuRoute, NavigationAncestor } from '@/utils/types';
 
-import { resolveRouteLocalizedTitle } from './meta';
 import { localizeRouteTitle } from './title';
 
-type BootstrapMenuNode = {
-  menu: BootstrapMenu;
-  children: BootstrapMenuNode[];
-};
+type BootstrapMenuNode = { menu: BootstrapMenu; children: BootstrapMenuNode[] };
 
-type BootstrapLeaf = {
-  fullPath: string;
-  relativePath: string;
-  route: RouteRecordRaw;
-};
-
-// transformBootstrapMenusToRoutes 把后端 bootstrap 菜单快照映射为当前 web 可消费的最小动态路由。
-//
-// 当前阶段只接入已在 `web` 内存在页面实现的真实菜单项，避免继续沿用 starter demo 菜单树。
-export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRecordRaw[] {
-  const rootNodes = buildBootstrapMenuTree(menus);
-  const routes = rootNodes
-    .map((node) => buildRootRoute(node))
-    .filter((route): route is RouteRecordRaw => Boolean(route));
-
-  return routes;
+/**
+ * 将 Bootstrap 菜单转换为可见的导航树。
+ *
+ * @param menus - Bootstrap 菜单项列表
+ * @returns 可用于构建导航的菜单路由列表
+ */
+export function buildBootstrapNavigationTree(menus: BootstrapMenu[]): MenuRoute[] {
+  const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
+  return buildBootstrapMenuTree(menus)
+    .map((node) => buildNavigationNode(node, ancestorsByEntryPath))
+    .filter((node): node is MenuRoute => Boolean(node));
 }
 
 /**
- * Converts global route registrations into route record definitions.
+ * 将 Bootstrap 菜单条目转换为 Vue Router 路由记录。
  *
- * Each registration is transformed into a top-level route with an index child route.
- * The breadcrumb title is derived from the domain title, breadcrumb title, or title
- * in that priority order.
- *
- * @returns An array of route records corresponding to the input registrations.
+ * @param menus - 待转换的 Bootstrap 菜单列表
+ * @returns 已注册菜单条目对应的路由记录列表
  */
-export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteRegistration[]): RouteRecordRaw[] {
+export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRecordRaw[] {
+  const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
+  return menus.flatMap((menu) => {
+    if (menu.kind !== 'entry' || !menu.path) return [];
+    const registration = getBootstrapRouteRegistration(menu.path);
+    if (!registration) return [];
+    const routeMeta = buildRouteMeta(menu, registration.meta, ancestorsByEntryPath.get(menu.path));
+    return [
+      toRouteRecordRaw({
+        path: menu.path,
+        name: registration.routeName,
+        component: LAYOUT,
+        meta: routeMeta,
+        children: [
+          toRouteRecordRaw({
+            path: '',
+            name: `${registration.routeName}Index`,
+            component: registration.loadPage,
+            meta: { ...routeMeta, hiddenBreadcrumb: true },
+          }),
+        ],
+      }),
+    ];
+  });
+}
+
+/**
+ * 将全局路由注册项转换为 Vue Router 路由记录。
+ *
+ * @param registrations - 全局路由注册项列表
+ * @param menus - 用于补充导航祖先上下文的菜单列表
+ * @returns 转换后的路由记录列表
+ */
+export function transformGlobalRegistrationsToRoutes(
+  registrations: GlobalRouteRegistration[],
+  menus: BootstrapMenu[] = [],
+): RouteRecordRaw[] {
+  const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
   return registrations.map((registration) =>
     toRouteRecordRaw({
       path: registration.path,
       name: registration.routeName,
       component: LAYOUT,
       meta: {
-        ...registration.meta,
-        breadcrumbTitle:
-          registration.meta?.domainTitle ?? registration.meta?.breadcrumbTitle ?? registration.meta?.title,
+        ...withNavigationContext(registration.meta, ancestorsByEntryPath.get(registration.navigationParentPath ?? '')),
+        navigationTargetPath: registration.navigationParentPath,
         hiddenMenu: true,
         single: true,
       },
@@ -61,9 +85,14 @@ export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteR
           name: `${registration.routeName}Index`,
           component: registration.loadPage,
           meta: {
-            ...registration.meta,
+            ...withNavigationContext(
+              registration.meta,
+              ancestorsByEntryPath.get(registration.navigationParentPath ?? ''),
+            ),
+            navigationTargetPath: registration.navigationParentPath,
             hiddenMenu: true,
-            hiddenBreadcrumb: !registration.meta?.domainTitle,
+            hiddenBreadcrumb:
+              !registration.meta?.domainTitle && !ancestorsByEntryPath.has(registration.navigationParentPath ?? ''),
           },
         }),
       ],
@@ -71,230 +100,169 @@ export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteR
   );
 }
 
-function toRouteRecordRaw(route: object): RouteRecordRaw {
-  return route as unknown as RouteRecordRaw;
-}
-
-function buildBootstrapMenuTree(menus: BootstrapMenu[]) {
-  const orderedMenus = menus
-    .filter((menu) => normalizePath(menu.path))
-    .map((menu) => ({
-      ...menu,
-      path: normalizePath(menu.path),
-    }));
+/**
+ * 将 Bootstrap 菜单构建为按父子关系组织并按顺序排列的树。
+ *
+ * @param menus - 待构建的菜单项
+ * @returns 排序后的顶层菜单节点列表
+ */
+function buildBootstrapMenuTree(menus: BootstrapMenu[]): BootstrapMenuNode[] {
   const nodeMap = new Map<string, BootstrapMenuNode>();
   const roots: BootstrapMenuNode[] = [];
-
-  for (const menu of orderedMenus) {
-    nodeMap.set(menu.path, {
-      menu,
-      children: [],
-    });
+  for (const menu of menus) nodeMap.set(menu.code, { menu, children: [] });
+  for (const menu of menus) {
+    const node = nodeMap.get(menu.code)!;
+    const parent = menu.parent_code ? nodeMap.get(menu.parent_code) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
   }
-
-  for (const menu of orderedMenus) {
-    const node = nodeMap.get(menu.path);
-    if (!node) {
-      continue;
-    }
-
-    const parentPath = parentMenuPath(menu.path);
-    if (!parentPath) {
-      roots.push(node);
-      continue;
-    }
-
-    const parentNode = nodeMap.get(parentPath);
-    if (!parentNode) {
-      roots.push(node);
-      continue;
-    }
-
-    parentNode.children.push(node);
-  }
-
+  const sort = (nodes: BootstrapMenuNode[]) => {
+    nodes.sort((a, b) => (a.menu.order ?? 0) - (b.menu.order ?? 0));
+    nodes.forEach((node) => sort(node.children));
+  };
+  sort(roots);
   return roots;
 }
 
-function buildRootRoute(node: BootstrapMenuNode) {
-  const registration = getBootstrapRouteRegistration(node.menu.path);
-  if (registration && node.children.length === 0) {
-    return buildTopLevelLeafRoute(node.menu, registration.routeName, registration.loadPage);
-  }
-
-  const builtChildren = buildNestedChildren(node, node.menu.path);
-
-  if (builtChildren.length === 0) {
-    return null;
-  }
-
-  return toRouteRecordRaw({
-    path: node.menu.path,
-    component: LAYOUT,
-    redirect: builtChildren[0]?.fullPath,
-    name: buildGroupRouteName(node.menu.path),
-    meta: buildRouteMeta(node.menu, false),
-    children: builtChildren.map((child) => child.route),
-  });
-}
-
-function buildNestedRoute(
+/**
+ * 将 Bootstrap 菜单节点转换为导航路由节点。
+ *
+ * @param node - 待转换的菜单节点
+ * @param ancestorsByEntryPath - 按条目路径索引的导航祖先信息
+ * @returns 转换后的导航路由节点；节点无有效目标或无法关联路由时返回 `null`
+ */
+function buildNavigationNode(
   node: BootstrapMenuNode,
-  parentFullPath: string,
-  parentMenu: BootstrapMenu,
-): BootstrapLeaf | null {
-  const registration = getBootstrapRouteRegistration(node.menu.path);
-  const relativePath = childSegment(parentFullPath, node.menu.path);
-  if (!relativePath) {
-    return null;
-  }
-
-  if (registration && node.children.length === 0) {
-    return {
-      fullPath: node.menu.path,
-      relativePath,
-      route: toRouteRecordRaw({
-        path: relativePath,
-        name: `${registration.routeName}Index`,
-        component: registration.loadPage,
-        meta: buildRouteMeta(node.menu, false, registration.meta, parentMenu),
-      }),
-    };
-  }
-
-  const builtChildren = buildNestedChildren(node, node.menu.path);
-
-  if (builtChildren.length === 0) {
-    return null;
-  }
-
+  ancestorsByEntryPath: Map<string, NavigationAncestor[]>,
+): MenuRoute | null {
+  const children = node.children
+    .map((child) => buildNavigationNode(child, ancestorsByEntryPath))
+    .filter((child): child is MenuRoute => Boolean(child));
+  const registration =
+    node.menu.kind === 'entry' && node.menu.path ? getBootstrapRouteRegistration(node.menu.path) : undefined;
+  if (node.menu.kind === 'entry' && !registration) return null;
+  if (node.menu.kind === 'group' && children.length === 0) return null;
+  const targetPath = node.menu.kind === 'entry' ? node.menu.path : children[0]?.meta?.navigationTargetPath;
+  if (!targetPath) return null;
   return {
-    fullPath: node.menu.path,
-    relativePath,
-    route: toRouteRecordRaw({
-      path: relativePath,
-      name: buildGroupRouteName(node.menu.path),
-      component: BLANK_LAYOUT,
-      redirect: builtChildren[0]?.relativePath,
-      meta: buildRouteMeta(node.menu, false),
-      children: builtChildren.map((child) => child.route),
-    }),
-  };
+    path: node.menu.code,
+    name: registration?.routeName ?? node.menu.code,
+    title: localizeRouteTitle(node.menu.title, node.menu.title_key),
+    meta: {
+      ...buildRouteMeta(
+        node.menu,
+        registration?.meta,
+        node.menu.path ? ancestorsByEntryPath.get(node.menu.path) : undefined,
+      ),
+      navigationCode: node.menu.code,
+      navigationKind: node.menu.kind,
+      navigationTargetPath: targetPath,
+    },
+    children,
+  } as MenuRoute;
 }
 
-function buildNestedChildren(node: BootstrapMenuNode, parentFullPath: string): BootstrapLeaf[] {
-  return node.children
-    .map((childNode) => buildNestedRoute(childNode, parentFullPath, node.menu))
-    .filter((child): child is BootstrapLeaf => Boolean(child));
-}
-
-function buildTopLevelLeafRoute(menu: BootstrapMenu, routeName: string, loadPage: RouteRecordRaw['component']) {
-  const registration = getBootstrapRouteRegistration(menu.path);
-  const routeMeta = buildRouteMeta(menu, true, registration?.meta);
-  return toRouteRecordRaw({
-    path: menu.path,
-    component: LAYOUT,
-    redirect: `${menu.path}/index`,
-    name: routeName,
-    meta: routeMeta,
-    children: [
-      toRouteRecordRaw({
-        path: 'index',
-        name: `${routeName}Index`,
-        component: loadPage,
-        meta: {
-          ...registration?.meta,
-          hidden: true,
-          hiddenBreadcrumb: true,
-          title: routeMeta.title,
-          titleKey: menu.title_key,
-          semanticTitle: resolveRouteLocalizedTitle(routeMeta, 'page'),
-          breadcrumbTitle: resolveRouteLocalizedTitle(routeMeta, 'breadcrumb'),
-          tabTitle: resolveRouteLocalizedTitle(routeMeta, 'tab'),
-        },
-      }),
-    ],
-  });
-}
-
+/**
+ * 根据菜单信息构建路由元数据。
+ *
+ * @param menu - 用于生成标题、图标和排序信息的菜单
+ * @param metaPatch - 覆盖或补充默认路由元数据的内容
+ * @param navigationAncestors - 菜单对应的导航祖先信息
+ * @returns 包含菜单基础信息和导航上下文的路由元数据
+ */
 function buildRouteMeta(
   menu: BootstrapMenu,
-  single: boolean,
   metaPatch?: Partial<AppRouteMeta>,
-  parentMenu?: BootstrapMenu,
+  navigationAncestors?: NavigationAncestor[],
 ): AppRouteMeta {
-  const title = localizeRouteTitle(menu.title, menu.title_key);
-  const parentTitle = parentMenu ? localizeRouteTitle(parentMenu.title, parentMenu.title_key) : undefined;
-  const derivedTitlePatch = buildDerivedTitleMeta(title, parentTitle);
-
   return {
-    title,
+    ...withNavigationContext(metaPatch, navigationAncestors, localizeRouteTitle(menu.title, menu.title_key)),
+    title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,
     orderNo: menu.order ?? 0,
-    single,
-    ...derivedTitlePatch,
-    ...metaPatch,
   };
 }
 
-function buildDerivedTitleMeta(title: LocalizedTitle, parentTitle?: LocalizedTitle): Partial<AppRouteMeta> {
-  if (!parentTitle) {
-    return {};
+/**
+ * 将导航祖先信息补充到路由元数据中。
+ *
+ * @param metaPatch - 要合并的路由元数据
+ * @param navigationAncestors - 当前路由的导航祖先列表
+ * @param currentTitle - 当前路由的本地化标题
+ * @returns 合并后的路由元数据；存在导航祖先时包含导航标题和祖先信息
+ */
+function withNavigationContext(
+  metaPatch: Partial<AppRouteMeta> | undefined,
+  navigationAncestors: NavigationAncestor[] | undefined,
+  currentTitle?: LocalizedTitle,
+): Partial<AppRouteMeta> {
+  const context = navigationAncestors?.length
+    ? {
+        navigationAncestors,
+        navigationTitle: joinLocalizedTitles([
+          ...navigationAncestors.map((ancestor) => ancestor.title),
+          metaPatch?.tabTitle ?? metaPatch?.semanticTitle ?? metaPatch?.title ?? currentTitle,
+        ]),
+      }
+    : {};
+  return { ...metaPatch, ...context };
+}
+
+/**
+ * 构建条目路径到其导航祖先列表的映射。
+ *
+ * @param menus - 用于解析条目父级关系的菜单列表
+ * @returns 以条目路径为键、按层级从上到下排列的导航祖先列表映射
+ */
+function buildNavigationAncestorsByEntryPath(menus: BootstrapMenu[]) {
+  const nodeMap = new Map(menus.map((menu) => [menu.code, menu]));
+  const ancestorsByEntryPath = new Map<string, NavigationAncestor[]>();
+  for (const menu of menus) {
+    if (menu.kind !== 'entry' || !menu.path) continue;
+    const ancestors: NavigationAncestor[] = [];
+    let parentCode = menu.parent_code;
+    while (parentCode) {
+      const parent = nodeMap.get(parentCode);
+      if (!parent) break;
+      ancestors.unshift({
+        code: parent.code,
+        path: parent.path ?? menu.path,
+        title: localizeRouteTitle(parent.title, parent.title_key),
+      });
+      parentCode = parent.parent_code;
+    }
+    ancestorsByEntryPath.set(menu.path, ancestors);
   }
-
-  const combinedTitle = combineLocalizedTitles(parentTitle, title);
-
-  return {
-    semanticTitle: combinedTitle,
-    breadcrumbTitle: title,
-    tabTitle: combinedTitle,
-  };
+  return ancestorsByEntryPath;
 }
 
-function combineLocalizedTitles(parentTitle: LocalizedTitle, title: LocalizedTitle): LocalizedTitle {
-  return Object.entries(title).reduce<LocalizedTitle>((combined, [locale, localeTitle]) => {
-    const parentLocaleTitle = parentTitle[locale as keyof LocalizedTitle];
-    combined[locale as keyof LocalizedTitle] = parentLocaleTitle
-      ? `${parentLocaleTitle} - ${localeTitle}`
-      : localeTitle;
-    return combined;
-  }, {} as LocalizedTitle);
+/**
+ * 将多个本地化标题按语言合并为以“ / ”分隔的标题。
+ *
+ * @param titles - 待合并的本地化标题，空值将被忽略
+ * @returns 合并后的本地化标题；没有有效标题时返回 `undefined`
+ */
+function joinLocalizedTitles(titles: Array<LocalizedTitle | undefined>): LocalizedTitle | undefined {
+  const resolved = titles.filter((title): title is LocalizedTitle => Boolean(title));
+  if (resolved.length === 0) return undefined;
+  return Object.fromEntries(
+    Object.keys(resolved[0]).map((locale) => [
+      locale,
+      resolved
+        .map((title) => title[locale as keyof LocalizedTitle])
+        .filter(Boolean)
+        .join(' / '),
+    ]),
+  ) as LocalizedTitle;
 }
 
-function normalizePath(path: string) {
-  const trimmed = path.trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return withLeadingSlash === '/' ? withLeadingSlash : withLeadingSlash.replace(/\/+$/, '');
-}
-
-function parentMenuPath(path: string) {
-  const segments = path.split('/').filter(Boolean);
-  if (segments.length <= 1) {
-    return '';
-  }
-
-  return `/${segments.slice(0, -1).join('/')}`;
-}
-
-function childSegment(parentFullPath: string, childFullPath: string) {
-  if (!childFullPath.startsWith(`${parentFullPath}/`)) {
-    return '';
-  }
-
-  return childFullPath.slice(parentFullPath.length + 1);
-}
-
-function buildGroupRouteName(path: string) {
-  const suffix = path
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => segment.replace(/(^\w)|-(\w)/g, (_, start, afterDash) => (start || afterDash).toUpperCase()))
-    .join('');
-
-  return `BootstrapGroup${suffix}`;
+/**
+ * 将路由对象转换为 Vue Router 路由记录。
+ *
+ * @param route - 要转换的路由对象
+ * @returns 作为 `RouteRecordRaw` 使用的路由对象
+ */
+function toRouteRecordRaw(route: object): RouteRecordRaw {
+  return route as RouteRecordRaw;
 }

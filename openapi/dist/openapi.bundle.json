@@ -11959,7 +11959,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/internal-server-error"
+            "description": "Invalid template create validation request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -12013,7 +12025,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/internal-server-error"
+            "description": "Invalid template create request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -15020,14 +15044,25 @@
         "type": "object",
         "required": [
           "code",
+          "kind",
           "title",
-          "path",
           "icon",
           "permission"
         ],
         "properties": {
           "code": {
             "type": "string"
+          },
+          "parent_code": {
+            "type": "string",
+            "description": "Explicit parent navigation group code. Navigation hierarchy is never inferred from path."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "group",
+              "entry"
+            ]
           },
           "order": {
             "type": "integer",
@@ -15042,7 +15077,8 @@
             "description": "Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only."
           },
           "path": {
-            "type": "string"
+            "type": "string",
+            "description": "Required for entry nodes and absent for group nodes."
           },
           "icon": {
             "type": "string"
@@ -24825,7 +24861,8 @@
             "$ref": "#/components/schemas/project-source-kind"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-kind"
+            "$ref": "#/components/schemas/project-source-kind",
+            "description": "Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value."
           },
           "source_metadata": {
             "$ref": "#/components/schemas/project-source-metadata"
@@ -25098,14 +25135,20 @@
           },
           "compose_file_path": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$",
+            "description": "Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace."
           },
           "env_file_paths": {
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1
-            }
+              "minLength": 1,
+              "maxLength": 1024,
+              "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$"
+            },
+            "description": "Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"
@@ -25248,15 +25291,19 @@
           "compose_file_path": {
             "type": "string",
             "minLength": 1,
-            "description": "Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition."
+            "maxLength": 1024,
+            "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$",
+            "description": "Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition."
           },
           "env_file_paths": {
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 1024,
+              "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$"
             },
-            "description": "Explicit workspace-relative env file references."
+            "description": "Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"

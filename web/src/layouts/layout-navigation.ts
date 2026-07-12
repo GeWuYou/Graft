@@ -10,6 +10,12 @@ export type SidebarMotionPhase =
   | 'expanding-topmenu'
   | 'expanding-submenu';
 
+/**
+ * 将混合布局的顶级菜单转换为扁平化导航菜单。
+ *
+ * @param menus - 待转换的菜单列表
+ * @returns 扁平化后的菜单列表
+ */
 export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
   return menus.map((menu) => ({
     ...menu,
@@ -23,7 +29,18 @@ export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
   }));
 }
 
+/**
+ * 确定菜单项用于导航的路径。
+ *
+ * @param menu - 要解析导航路径的菜单项
+ * @param parentPath - 菜单项的父级路径
+ * @returns 菜单项的显式目标路径、重定向路径、首个可见子菜单路径或自身完整路径
+ */
 export function resolveMenuNavigationPath(menu: MenuRoute, parentPath = ''): string {
+  const explicitTarget = menu.meta?.navigationTargetPath;
+  if (typeof explicitTarget === 'string' && explicitTarget) {
+    return explicitTarget;
+  }
   const fullPath = normalizeMenuPath(parentPath, menu.path);
 
   if (typeof menu.redirect === 'string' && menu.redirect.trim()) {
@@ -49,6 +66,14 @@ export function findExpandedMenuPaths(menus: MenuRoute[], activePath: string, pa
   return findExpandedMenuMatch(menus, activePath, parentPath).expandedPaths;
 }
 
+/**
+ * 查找与当前路径匹配的菜单，并确定需要展开的菜单路径。
+ *
+ * @param menus - 要搜索的菜单列表
+ * @param activePath - 当前激活的路由路径
+ * @param parentPath - 菜单父级路径
+ * @returns 包含匹配状态和待展开菜单路径的结果
+ */
 function findExpandedMenuMatch(
   menus: MenuRoute[],
   activePath: string,
@@ -64,6 +89,7 @@ function findExpandedMenuMatch(
     }
 
     const fullPath = normalizeMenuPath(parentPath, menu.path);
+    const targetPath = resolveMenuNavigationPath(menu, parentPath);
     const visibleChildren = (menu.children ?? []).filter((child) => child.meta?.hidden !== true);
     const childMatch =
       visibleChildren.length > 0
@@ -77,13 +103,8 @@ function findExpandedMenuMatch(
       };
     }
 
-    const navigationPath = resolveMenuNavigationPath(menu, parentPath);
     const isExpandableMenu = visibleChildren.length > 0 && menu.meta?.single !== true;
-    const matchesCurrentMenu =
-      activePath === fullPath ||
-      activePath === navigationPath ||
-      activePath.startsWith(`${fullPath}/`) ||
-      activePath.startsWith(`${navigationPath}/`);
+    const matchesCurrentMenu = activePath === targetPath || activePath.startsWith(`${targetPath}/`);
 
     if (matchesCurrentMenu) {
       return {

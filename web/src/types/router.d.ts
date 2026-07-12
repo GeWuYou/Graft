@@ -3,7 +3,7 @@ import 'vue-router';
 import type { Component, DefineComponent, FunctionalComponent } from 'vue';
 
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
-import type { AppRoutePageKind, GovernanceDomain, PageFooterMeta } from '@/utils/types';
+import type { AppRoutePageKind, GovernanceDomain, NavigationAncestor, PageFooterMeta } from '@/utils/types';
 
 export {};
 declare module 'vue-router' {
@@ -12,6 +12,9 @@ declare module 'vue-router' {
     titleKey?: string;
     domain?: GovernanceDomain;
     domainTitle?: LocalizedTitle;
+    navigationAncestors?: NavigationAncestor[];
+    navigationTitle?: LocalizedTitle;
+    navigationTargetPath?: string;
     semanticTitle?: LocalizedTitle;
     breadcrumbTitle?: LocalizedTitle;
     tabTitle?: LocalizedTitle;

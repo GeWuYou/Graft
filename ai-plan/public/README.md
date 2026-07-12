@@ -21,6 +21,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/rbac-feature-and-nplusone-hardening/README.md`
 - `rbac-further-development`
   - Recovery entry: `ai-plan/public/rbac-further-development/todos/rbac-further-development-tracking.md`
+- `navigation-ia-resource-route-refactor`
+  - Recovery entry: `ai-plan/public/navigation-ia-resource-route-refactor/README.md`
 
 ## Archive Location
 

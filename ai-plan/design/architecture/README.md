@@ -7,6 +7,7 @@ This directory is for repository-wide structural design truth.
 - backend/module baseline architecture
 - frontend shell and module structure
 - cross-repository structural design that explains how major layers fit together
+- navigation and resource-route information architecture
 
 ## Do Not Use This Directory For
 
@@ -18,3 +19,8 @@ This directory is for repository-wide structural design truth.
 
 The baseline architecture authorities now live in this directory. Keep new repository-wide structural design documents
 here instead of restoring them to the `ai-plan/design/` root.
+
+## Navigation And Routes
+
+- [导航与资源路由信息架构规范.md](导航与资源路由信息架构规范.md) is the authority for Graft's visible navigation domains,
+  resource-oriented UI routes, global entries, and runtime/source placement rules.

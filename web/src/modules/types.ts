@@ -19,6 +19,8 @@ export type GlobalRouteRegistration = {
   path: string;
   routeName: string;
   loadPage: RouteRecordRaw['component'];
+  /** Explicit bootstrap resource whose navigation ancestry owns this global detail page. */
+  navigationParentPath?: string;
   meta: AppRouteMeta;
 };
 

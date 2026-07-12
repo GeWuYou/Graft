@@ -861,6 +861,24 @@ func (e AuditVisibilityOverrideUpsertRequestStrategy) Valid() bool {
 	}
 }
 
+// Defines values for BootstrapMenuKind.
+const (
+	Entry BootstrapMenuKind = "entry"
+	Group BootstrapMenuKind = "group"
+)
+
+// Valid indicates whether the value is a known member of the BootstrapMenuKind enum.
+func (e BootstrapMenuKind) Valid() bool {
+	switch e {
+	case Entry:
+		return true
+	case Group:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerActionResponseAction.
 const (
 	ContainerActionResponseActionValueRemove  ContainerActionResponseAction = "remove"
@@ -4893,13 +4911,19 @@ type BootstrapLocale struct {
 
 // BootstrapMenu defines model for bootstrap-menu.
 type BootstrapMenu struct {
-	Code string `json:"code"`
-	Icon string `json:"icon"`
+	Code string            `json:"code"`
+	Icon string            `json:"icon"`
+	Kind BootstrapMenuKind `json:"kind"`
 
 	// Order Canonical menu order declared by the backend. Lower values render first within the same parent.
-	Order      *int   `json:"order,omitempty"`
-	Path       string `json:"path"`
-	Permission string `json:"permission"`
+	Order *int `json:"order,omitempty"`
+
+	// ParentCode Explicit parent navigation group code. Navigation hierarchy is never inferred from path.
+	ParentCode *string `json:"parent_code,omitempty"`
+
+	// Path Required for entry nodes and absent for group nodes.
+	Path       *string `json:"path,omitempty"`
+	Permission string  `json:"permission"`
 
 	// Title Existing menu-title fallback text. Consumers should prefer title_key when present.
 	Title string `json:"title"`
@@ -4907,6 +4931,9 @@ type BootstrapMenu struct {
 	// TitleKey Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only.
 	TitleKey *string `json:"title_key,omitempty"`
 }
+
+// BootstrapMenuKind defines model for BootstrapMenu.Kind.
+type BootstrapMenuKind string
 
 // BootstrapResponse defines model for bootstrap-response.
 type BootstrapResponse struct {
@@ -7956,7 +7983,7 @@ type ProjectCreateRequest struct {
 	ComposeFileContent string `json:"compose_file_content"`
 	ComposeFileName    string `json:"compose_file_name"`
 
-	// ComposeFilePath Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition.
+	// ComposeFilePath Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition.
 	ComposeFilePath *string `json:"compose_file_path,omitempty"`
 	DisplayName     string  `json:"display_name"`
 
@@ -7964,7 +7991,7 @@ type ProjectCreateRequest struct {
 	EnvFileContent *string `json:"env_file_content,omitempty"`
 	EnvFileName    *string `json:"env_file_name,omitempty"`
 
-	// EnvFilePaths Explicit workspace-relative env file references.
+	// EnvFilePaths Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
 	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 
@@ -8009,11 +8036,15 @@ type ProjectCreateResponseResult string
 
 // ProjectCreateValidateRequest defines model for project-create-validate-request.
 type ProjectCreateValidateRequest struct {
-	CanonicalProjectName   string                                `json:"canonical_project_name"`
-	ComposeFileName        string                                `json:"compose_file_name"`
-	ComposeFilePath        *string                               `json:"compose_file_path,omitempty"`
-	DisplayName            string                                `json:"display_name"`
-	EnvFileName            *string                               `json:"env_file_name,omitempty"`
+	CanonicalProjectName string `json:"canonical_project_name"`
+	ComposeFileName      string `json:"compose_file_name"`
+
+	// ComposeFilePath Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
+	ComposeFilePath *string `json:"compose_file_path,omitempty"`
+	DisplayName     string  `json:"display_name"`
+	EnvFileName     *string `json:"env_file_name,omitempty"`
+
+	// EnvFilePaths Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
 	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 
@@ -8136,11 +8167,13 @@ type ProjectDiscoveryCandidate struct {
 	ServiceCount               int                                        `json:"service_count"`
 	SourceKind                 ProjectSourceKind                          `json:"source_kind"`
 	SourceMetadata             *ProjectSourceMetadata                     `json:"source_metadata,omitempty"`
-	SourceType                 *ProjectSourceKind                         `json:"source_type,omitempty"`
-	Status                     ProjectDiscoveryCandidateStatus            `json:"status"`
-	StatusReason               *string                                    `json:"status_reason,omitempty"`
-	Warnings                   []string                                   `json:"warnings"`
-	WorkingDirectory           string                                     `json:"working_directory"`
+
+	// SourceType Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value.
+	SourceType       *ProjectSourceKind              `json:"source_type,omitempty"`
+	Status           ProjectDiscoveryCandidateStatus `json:"status"`
+	StatusReason     *string                         `json:"status_reason,omitempty"`
+	Warnings         []string                        `json:"warnings"`
+	WorkingDirectory string                          `json:"working_directory"`
 }
 
 // ProjectDiscoveryCandidateRecommendedAction defines model for ProjectDiscoveryCandidate.RecommendedAction.

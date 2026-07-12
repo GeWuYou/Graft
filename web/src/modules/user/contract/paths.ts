@@ -1,11 +1,9 @@
 /**
  * USER_ROUTE_PATH 定义用户管理模块的 canonical 前端路由入口。
  *
- * `LEGACY_LIST` 仅用于兼容旧菜单或旧跳转路径；当上下游不再产出旧路径时应移除。
  */
 export const USER_ROUTE_PATH = {
-  LIST: '/access-control/users',
-  LEGACY_LIST: '/users',
+  LIST: '/users',
 } as const;
 
 /**

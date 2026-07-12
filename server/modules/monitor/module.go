@@ -298,30 +298,21 @@ func registerMonitorPermissions(registry *permission.Registry, moduleName string
 }
 
 const (
-	monitorMenuOrderRoot         = 100
 	monitorMenuOrderOverview     = 101
 	monitorMenuOrderRuntime      = 102
 	monitorMenuOrderDependencies = 103
 )
 
+// registerMonitorMenu registers the server status entries under the observability menu.
 func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
 	}
 
 	registry.Register(menu.Item{
-		Code:       "monitor.section",
-		Title:      "",
-		TitleKey:   monitorcontract.ServerStatusMenuTitle.String(),
-		Path:       monitorcontract.ServerStatusMenuPath,
-		Icon:       "server",
-		Order:      monitorMenuOrderRoot,
-		Permission: "",
-		Module:     moduleName,
-	})
-
-	registry.Register(menu.Item{
 		Code:       "monitor.server-status.overview",
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusOverviewMenuPath,
@@ -333,6 +324,8 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "monitor.server-status.runtime",
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusRuntimeMenuPath,
@@ -344,6 +337,8 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "monitor.server-status.dependencies",
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusDependenciesMenuPath,

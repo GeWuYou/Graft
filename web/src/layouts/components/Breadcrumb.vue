@@ -30,6 +30,12 @@ interface BreadcrumbItem {
 }
 
 const crumbs = computed(() => {
+  const navigationAncestors = route.meta?.navigationAncestors ?? [];
+  const navigationCrumbs = navigationAncestors.map((ancestor) => ({
+    key: `navigation:${ancestor.code}`,
+    to: ancestor.path,
+    title: renderLocalizedTitle(ancestor.title, locale.value, ''),
+  }));
   return route.matched.reduce<BreadcrumbItem[]>((breadcrumbArray, matchedRoute) => {
     const { meta, path } = matchedRoute;
     if (meta?.hiddenBreadcrumb) {
@@ -51,7 +57,7 @@ const crumbs = computed(() => {
     });
 
     return breadcrumbArray;
-  }, []);
+  }, navigationCrumbs);
 });
 
 function resolveMatchedRoutePath(name: string | symbol | undefined | null, path: string) {

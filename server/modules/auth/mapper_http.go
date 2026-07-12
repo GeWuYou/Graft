@@ -24,14 +24,18 @@ func toLoginResponse(result moduleapi.AuthRefreshResult) (generated.LoginRespons
 	return response, nil
 }
 
+// toBootstrapResponse 将认证引导数据转换为引导响应，包含用户、角色、权限、菜单和语言环境信息。
+// 当用户 ID 超出响应支持的 int64 范围时返回错误。
 func toBootstrapResponse(payload moduleapi.AuthBootstrapPayload) (generated.BootstrapResponse, error) {
 	menus := make([]generated.BootstrapMenu, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
 		menus = append(menus, generated.BootstrapMenu{
 			Code:       item.Code,
+			ParentCode: optionalStringPointer(item.ParentCode),
+			Kind:       generated.BootstrapMenuKind(item.Kind),
 			Title:      item.Title,
 			TitleKey:   optionalStringPointer(item.TitleKey),
-			Path:       item.Path,
+			Path:       optionalStringPointer(item.Path),
 			Icon:       item.Icon,
 			Order:      optionalIntPointer(item.Order),
 			Permission: item.Permission,

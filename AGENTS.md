@@ -387,6 +387,9 @@ Prefer the repository skills below when their trigger matches the task:
   - use when evaluating or changing AI tooling, MCP adoption, repository skills, Python helper scripts, environment
     inventory, or drift between AGENTS and AI workflow documents; pair it with `graft-ai-plan-governance` when the
     same slice also changes `ai-plan/**` governance
+- `graft-navigation-route-governance`
+  - use before adding, moving, or reviewing a menu item, UI route, global page, or object-detail entry so the
+    capability is classified against the repository navigation and resource-route authority before implementation
 
 If a repository skill and this document diverge, follow `AGENTS.md` first and update the skill in the same change.
 

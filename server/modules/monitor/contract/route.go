@@ -25,7 +25,7 @@ const (
 	DependenciesRoute = "/dependencies"
 
 	// ServerStatusMenuPath identifies the second-level server management menu path.
-	ServerStatusMenuPath = MonitorMenuRoot
+	ServerStatusMenuPath = "/system"
 
 	// ServerStatusOverviewMenuPath identifies the canonical overview menu path.
 	ServerStatusOverviewMenuPath = ServerStatusMenuPath + OverviewRoute

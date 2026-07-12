@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
+import type { NavigationAncestor } from '@/utils/types';
 
 import Breadcrumb from './Breadcrumb.vue';
 
@@ -11,6 +12,7 @@ const routeState = vi.hoisted(() => ({
     id: 'container-1',
   },
   fullPath: '/ops/containers/container-1',
+  meta: {} as { navigationAncestors?: NavigationAncestor[] },
   matched: [
     {
       name: 'ContainerDetail',
@@ -81,6 +83,7 @@ describe('Breadcrumb', () => {
     routeState.matched[0].path = '/ops/containers/:id';
     routeState.matched[1].name = 'ContainerDetailIndex';
     routeState.matched[1].path = '';
+    routeState.meta = {};
     routerMock.resolve.mockClear();
   });
 
@@ -127,5 +130,31 @@ describe('Breadcrumb', () => {
     });
 
     expect(wrapper.find('nav').exists()).toBe(false);
+  });
+
+  it('prepends explicit navigation ancestors instead of deriving them from the route path', () => {
+    routeState.meta.navigationAncestors = [
+      {
+        code: 'domain.infrastructure',
+        path: '/containers',
+        title: { 'zh-CN': '基础设施', 'en-US': 'Infrastructure' },
+      },
+    ];
+
+    const wrapper = mount(Breadcrumb, {
+      global: {
+        stubs: {
+          TBreadcrumb: { template: '<nav><slot /></nav>' },
+          TBreadcrumbItem: {
+            props: ['to'],
+            template: "<a :data-to=\"typeof to === 'string' ? to : ''\"><slot /></a>",
+          },
+        },
+      },
+    });
+
+    const items = wrapper.findAll('a');
+    expect(items.map((item) => item.text())).toEqual(['基础设施', '容器管理', '容器详情']);
+    expect(items[0]?.attributes('data-to')).toBe('/containers');
   });
 });

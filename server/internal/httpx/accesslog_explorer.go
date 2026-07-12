@@ -19,14 +19,11 @@ import (
 const (
 	// AccessLogReadPermission 约束 access-log explorer 的只读访问权限码。
 	AccessLogReadPermission = "access_log.read"
-	accessLogMenuRootPath   = "/logs"
 	accessLogMenuListPath   = "/logs/access"
-	accessLogMenuCodeRoot   = "log-center.root"
 	accessLogMenuCodeList   = "access-log.list"
 	accessLogModuleOwner    = "core.httpx"
 	accessLogRouteGroup     = "/access-log"
 	accessLogRouteItemParam = "id"
-	accessLogMenuRootOrder  = 210
 	accessLogMenuListOrder  = 211
 	accessLogSortPartCount  = 2
 )
@@ -56,22 +53,16 @@ func registerAccessLogExplorerPermissions(registry *permission.Registry) {
 	})
 }
 
+// registerAccessLogExplorerMenu registers the access-log explorer entry under the observability menu.
 func registerAccessLogExplorerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return
 	}
 
 	registry.Register(menu.Item{
-		Code:       accessLogMenuCodeRoot,
-		TitleKey:   "menu.logCenter.title",
-		Path:       accessLogMenuRootPath,
-		Icon:       "bulletpoint",
-		Order:      accessLogMenuRootOrder,
-		Permission: "",
-		Module:     accessLogModuleOwner,
-	})
-	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeList,
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   "menu.accessLog.title",
 		Path:       accessLogMenuListPath,
 		Icon:       "search",

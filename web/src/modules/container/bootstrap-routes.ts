@@ -25,6 +25,7 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
 export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     ...CONTAINER_BOOTSTRAP_ROUTE.DETAIL,
+    navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/detail/index.vue'),
     meta: {
       hidden: false,

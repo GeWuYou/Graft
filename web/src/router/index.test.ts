@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 
-import router from './index';
+import router, { getActive } from './index';
 
 describe('router static runtime surface', () => {
   it('does not register starter demo homepage or grouped result routes', () => {
@@ -34,5 +34,24 @@ describe('router static runtime surface', () => {
     expect(rootRoute?.meta.hidden).not.toBe(true);
     expect(catchAllRoute?.name).toBe('404Page');
     expect(catchAllRoute?.redirect).toBeUndefined();
+  });
+
+  it('selects the canonical navigation target for hidden detail routes', async () => {
+    const removeRoute = router.addRoute({
+      path: '/projects/:id/configuration',
+      name: 'ProjectConfigurationSelection',
+      component: () => Promise.resolve({ template: '<div />' }),
+      meta: {
+        hiddenMenu: true,
+        navigationTargetPath: '/projects',
+      },
+    });
+
+    try {
+      await router.push('/projects/42/configuration');
+      expect(getActive()).toBe('/projects');
+    } finally {
+      removeRoute();
+    }
   });
 });

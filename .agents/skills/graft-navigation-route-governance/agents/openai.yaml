@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Navigation Route Governance"
+  short_description: "Classify Graft navigation and UI routes before implementation."
+  default_prompt: "Use $graft-navigation-route-governance to classify this Graft menu, UI route, or global page before changing it."

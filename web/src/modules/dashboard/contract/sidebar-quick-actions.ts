@@ -1,13 +1,11 @@
-import type { RouteRecordRaw } from 'vue-router';
-
 import { getDefaultLocale, type SupportedLocale } from '@/contracts/i18n/locales';
 import { renderLocalizedTitle, resolveRouteLocalizedTitle } from '@/utils/route/meta';
-import type { AppRouteMeta } from '@/utils/types';
+import type { AppRouteMeta, MenuRoute } from '@/utils/types';
 
 import type { DashboardQuickActionLink } from './quick-action-links';
 import { normalizeDashboardRoutePath, normalizeJoinedDashboardRoutePath } from './route-paths';
 
-type QuickActionSource = Pick<RouteRecordRaw, 'path' | 'children' | 'name' | 'meta'>;
+type QuickActionSource = Pick<MenuRoute, 'path' | 'children' | 'name' | 'meta'>;
 interface QuickActionParent {
   groupKey?: string;
   groupLabel?: string;
@@ -19,19 +17,27 @@ type QuickActionRouteMeta = AppRouteMeta & {
 };
 
 /**
- * Builds a sorted list of dashboard quick action links from Vue Router routes.
+ * 根据路由构建并排序仪表盘快速操作链接。
  *
- * @param routes - The array of Vue Router route records to extract quick action links from.
- * @returns An array of DashboardQuickActionLink objects sorted by order (ascending), then by id (lexicographically).
+ * @param routes - 用于提取快速操作链接的路由记录。
+ * @param locale - 用于生成本地化标题的语言环境。
+ * @returns 按顺序升序排列、顺序相同时按标识符字典序排列的快速操作链接。
  */
-export function buildDashboardQuickActionLinks(routes: RouteRecordRaw[], locale: SupportedLocale = getDefaultLocale()) {
-  return collectLeafLinks(routes, locale).sort(compareQuickActions);
+export function buildDashboardQuickActionLinks(
+  routes: Array<QuickActionSource | RouteRecordRaw>,
+  locale: SupportedLocale = getDefaultLocale(),
+) {
+  return collectLeafLinks(routes as QuickActionSource[], locale).sort(compareQuickActions);
 }
 
 /**
- * Recursively collects visible leaf routes and transforms them into dashboard quick action links.
+ * 递归收集可见的叶子路由，并将其转换为仪表盘快速操作链接。
  *
- * @returns An array of dashboard quick action links for visible leaf routes
+ * @param routes - 待处理的路由列表
+ * @param locale - 用于生成本地化标题的区域设置
+ * @param parentPath - 父级路由路径
+ * @param parent - 传递给子路由的分组信息
+ * @returns 可见叶子路由对应的仪表盘快速操作链接
  */
 function collectLeafLinks(
   routes: QuickActionSource[],
@@ -41,7 +47,8 @@ function collectLeafLinks(
 ): DashboardQuickActionLink[] {
   return routes.flatMap((route) => {
     const routeMeta = toRouteMeta(route.meta);
-    const fullPath = normalizeJoinedDashboardRoutePath(parentPath, String(route.path ?? ''));
+    const fullPath =
+      routeMeta?.navigationTargetPath ?? normalizeJoinedDashboardRoutePath(parentPath, String(route.path ?? ''));
     if (!fullPath || routeMeta?.hidden || routeMeta?.hiddenMenu) {
       return [];
     }
@@ -257,3 +264,4 @@ const ROUTE_NAME_NOISE_TOKENS = new Set([
   'Management',
   'Page',
 ]);
+import type { RouteRecordRaw } from 'vue-router';

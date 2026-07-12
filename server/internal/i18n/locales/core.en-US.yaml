@@ -22,3 +22,10 @@ permission.not_found: Permission not found
 role.not_found: Role not found
 user.not_found: User not found
 user.protected_default_admin_immutable: The builtin default administrator cannot be changed in this way
+menu.domain.application.title: Application
+menu.domain.infrastructure.title: Infrastructure
+menu.domain.build.title: Build
+menu.domain.resources.title: Resources
+menu.domain.observability.title: Observability
+menu.domain.security.title: Security
+menu.domain.platform.title: Platform

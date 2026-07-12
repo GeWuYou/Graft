@@ -237,7 +237,8 @@ const appendNewRoute = () => {
     return;
   }
 
-  const titleObj = toLocalizedTitle(resolveRouteLocalizedTitle(route.meta as AppRouteMeta, 'tab')) ??
+  const titleObj = toLocalizedTitle((route.meta as AppRouteMeta).navigationTitle) ??
+    toLocalizedTitle(resolveRouteLocalizedTitle(route.meta as AppRouteMeta, 'tab')) ??
     toLocalizedTitle(resolveRouteLocalizedTitle(route.meta as AppRouteMeta, 'page')) ?? {
       [LOCALE.ZH_CN]: '',
       [LOCALE.EN_US]: '',

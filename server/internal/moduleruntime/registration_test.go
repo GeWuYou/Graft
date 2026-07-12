@@ -24,7 +24,7 @@ func TestRegisterExposesProtectedSnapshotRoutesAndMetadata(t *testing.T) {
 
 	localizer := mustNewModuleRuntimeTestLocalizer(t)
 	menuRegistry := menu.NewRegistry()
-	menuRegistry.Register(menu.Item{Code: "monitor.section", Path: "/server"})
+	menuRegistry.Register(menu.Item{Code: "domain.observability", Kind: menu.NodeKindGroup})
 	permissionRegistry := permission.NewRegistry()
 	authorizer := recordingAuthorizer{}
 
@@ -221,24 +221,17 @@ func assertRegisteredMetadata(t *testing.T, menus []menu.Item, permissions []per
 		t.Fatalf("expected module runtime read permission, got %#v", permissions)
 	}
 
-	rootCount := 0
 	foundRuntimeMenu := false
 	for _, item := range menus {
-		if item.Path == menuRootPath {
-			rootCount++
-		}
-		if item.Path == menuRuntimePath {
+		if item.Code == menuCodeRuntime {
 			foundRuntimeMenu = true
-			if item.TitleKey != menuModulesRuntimeTitleKey || item.Permission != PermissionRead {
+			if item.ParentCode != "domain.observability" || item.Kind != menu.NodeKindEntry || item.Path != menuRuntimePath || item.TitleKey != menuModulesRuntimeTitleKey || item.Permission != PermissionRead {
 				t.Fatalf("unexpected runtime menu item: %#v", item)
 			}
 		}
 	}
-	if rootCount != 1 {
-		t.Fatalf("expected existing /server root not to be duplicated, got %d", rootCount)
-	}
 	if !foundRuntimeMenu {
-		t.Fatalf("expected %s menu item in %#v", menuRuntimePath, menus)
+		t.Fatalf("expected %s menu item in %#v", menuCodeRuntime, menus)
 	}
 }
 

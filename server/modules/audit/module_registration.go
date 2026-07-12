@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	auditMenuOrderRoot     = 200
 	auditMenuOrderOverview = 201
 	auditMenuOrderLogs     = 202
 )
@@ -40,25 +39,16 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 	})
 }
 
-// registerAuditMenu 注册审计模块的菜单项。
-// 当 registry 为 nil 时直接返回。它会注册审计首页、概览和日志三个菜单项，并为概览和日志菜单配置审计读取权限。
+// registerAuditMenu 注册审计概览和日志菜单项，并为其配置审计读取权限。
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
 	}
 
 	registry.Register(menu.Item{
-		Code:       "audit.root",
-		TitleKey:   auditcontract.AuditRootMenuTitle.String(),
-		Path:       auditcontract.AuditMenuPath,
-		Icon:       "secured",
-		Order:      auditMenuOrderRoot,
-		Permission: "",
-		Module:     moduleName,
-	})
-
-	registry.Register(menu.Item{
 		Code:       "audit.overview",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
 		Path:       auditcontract.AuditOverviewMenuPath,
 		Icon:       "dashboard",
@@ -69,6 +59,8 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.logs",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   auditcontract.AuditLogMenuTitle.String(),
 		Path:       auditcontract.AuditLogsMenuPath,
 		Icon:       "history",

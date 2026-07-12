@@ -56,15 +56,12 @@ const (
 	AppLogReadPermission = "app_log.read"
 	// AppLogDeletePermission constrains explicit manual deletion of retained App Log rows.
 	AppLogDeletePermission   = "app_log.delete"
-	appLogMenuRootPath       = "/logs"
 	appLogMenuListPath       = "/logs/app"
-	appLogMenuCodeRoot       = "log-center.root"
 	appLogMenuCodeList       = "app-log.list"
 	appLogModuleOwner        = "core.logger"
 	appLogRouteGroup         = "/app-log"
 	appLogRouteItemParam     = "id"
 	appLogBatchDeleteRoute   = "/batch-delete"
-	appLogMenuRootOrder      = 210
 	appLogMenuListOrder      = 212
 	appLogSortPartCount      = 2
 	appLogManualDeleteAction = "app_log.manual_delete"
@@ -103,22 +100,16 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	})
 }
 
+// registerAppLogExplorerMenu registers the App Log Explorer list menu item.
 func registerAppLogExplorerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return
 	}
 
 	registry.Register(menu.Item{
-		Code:       appLogMenuCodeRoot,
-		TitleKey:   "menu.logCenter.title",
-		Path:       appLogMenuRootPath,
-		Icon:       "bulletpoint",
-		Order:      appLogMenuRootOrder,
-		Permission: "",
-		Module:     appLogModuleOwner,
-	})
-	registry.Register(menu.Item{
 		Code:       appLogMenuCodeList,
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   "menu.appLog.title",
 		Path:       appLogMenuListPath,
 		Icon:       "file-search",

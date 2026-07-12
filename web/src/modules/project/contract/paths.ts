@@ -1,12 +1,12 @@
 export const PROJECT_ROUTE_PATH = {
-  LIST: '/ops/projects',
-  CREATE_IMPORT: '/ops/projects/create/import',
-  CREATE: '/ops/projects/create',
-  CREATE_DISCOVERY: '/ops/projects/create/discovery',
-  CREATE_BLANK: '/ops/projects/create/blank',
-  CREATE_TEMPLATE: '/ops/projects/create/template',
-  DETAIL: '/ops/projects/:id',
-  CONFIGURATION_WORKSPACE: '/ops/projects/:id/configuration',
+  LIST: '/projects',
+  CREATE_IMPORT: '/projects/create/import',
+  CREATE: '/projects/create',
+  CREATE_DISCOVERY: '/projects/create/discovery',
+  CREATE_BLANK: '/projects/create/blank',
+  CREATE_TEMPLATE: '/projects/create/template',
+  DETAIL: '/projects/:id',
+  CONFIGURATION_WORKSPACE: '/projects/:id/configuration',
 } as const;
 
 export const PROJECT_API_PATH = {

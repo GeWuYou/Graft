@@ -23,14 +23,10 @@ const (
 	routeGroup          = "/modules/runtime"
 	routeModuleKeyParam = "module_key"
 
-	menuCodeRoot     = "module-runtime.root"
 	menuCodeRuntime  = "module-runtime.list"
-	menuRootPath     = "/server"
-	menuRuntimePath  = "/server/modules"
-	menuRootOrder    = 100
+	menuRuntimePath  = "/system/modules"
 	menuRuntimeOrder = 104
 
-	menuServerTitleKey         = "menu.server.title"
 	menuModulesRuntimeTitleKey = "menu.modulesRuntime.title"
 )
 
@@ -102,26 +98,16 @@ func registerPermissions(registry *permission.Registry) {
 	})
 }
 
+// registerMenu registers the module runtime menu entry when a menu registry is available.
 func registerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return
 	}
 
-	if !hasMenuPath(registry.Items(), menuRootPath) {
-		registry.Register(menu.Item{
-			Code:       menuCodeRoot,
-			Title:      "",
-			TitleKey:   menuServerTitleKey,
-			Path:       menuRootPath,
-			Icon:       "server",
-			Order:      menuRootOrder,
-			Permission: "",
-			Module:     moduleOwner,
-		})
-	}
-
 	registry.Register(menu.Item{
 		Code:       menuCodeRuntime,
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   menuModulesRuntimeTitleKey,
 		Path:       menuRuntimePath,
@@ -132,16 +118,9 @@ func registerMenu(registry *menu.Registry) {
 	})
 }
 
-func hasMenuPath(items []menu.Item, path string) bool {
-	for _, item := range items {
-		if strings.TrimSpace(item.Path) == path {
-			return true
-		}
-	}
-
-	return false
-}
-
+// registerRoutes 注册模块运行时的只读 HTTP 路由，支持获取运行时快照列表和按模块键获取单项详情。
+// 路由要求有效的路由器、认证服务和授权器，并对请求执行读取权限校验。
+// 当指定模块不存在时返回本地化的 404 错误；依赖不可用时返回错误。
 func registerRoutes(
 	registration Registration,
 	router gin.IRouter,

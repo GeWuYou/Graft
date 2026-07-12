@@ -31,25 +31,19 @@ const (
 	accessControlMenuOrderPermissions = 4
 )
 
+// registerRBACPermissions registers the RBAC permission definitions for a module.
 func registerRBACPermissions(registry *permission.Registry, moduleName string) {
 	for _, item := range rbacPermissionItems(moduleName) {
 		registry.Register(item)
 	}
 }
 
+// registerRBACMenu registers the role-based access control entries in the menu registry.
 func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
-		Code:       "access-control.root",
-		Title:      "",
-		TitleKey:   rbaccontract.AccessControlMenuTitle.String(),
-		Path:       "/access-control",
-		Icon:       "secured",
-		Order:      accessControlMenuOrderRoot,
-		Permission: "",
-		Module:     moduleName,
-	})
-	registry.Register(menu.Item{
 		Code:       "access-control.overview",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
 		Path:       "/access-control/overview",
@@ -60,9 +54,11 @@ func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	})
 	registry.Register(menu.Item{
 		Code:       "role.list",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   rbaccontract.RoleListMenuTitle.String(),
-		Path:       "/access-control/roles",
+		Path:       "/roles",
 		Icon:       "secured",
 		Order:      accessControlMenuOrderRoles,
 		Permission: rbaccontract.RoleReadPermission.String(),
@@ -70,9 +66,11 @@ func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	})
 	registry.Register(menu.Item{
 		Code:       "permission.list",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   rbaccontract.PermissionListMenuTitle.String(),
-		Path:       "/access-control/permissions",
+		Path:       "/permissions",
 		Icon:       "lock-on",
 		Order:      accessControlMenuOrderPermissions,
 		Permission: rbaccontract.PermissionReadPermission.String(),

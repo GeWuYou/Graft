@@ -26,12 +26,15 @@ func registerUserPermissions(registry *permission.Registry, moduleName string) {
 	}
 }
 
+// registerUserMenu registers the user list menu entry under the security domain.
 func registerUserMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:       "user.list",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   usercontract.UserListMenuTitle.String(),
-		Path:       "/access-control/users",
+		Path:       "/users",
 		Icon:       "usergroup",
 		Order:      userMenuOrderList,
 		Permission: usercontract.UserReadPermission.String(),

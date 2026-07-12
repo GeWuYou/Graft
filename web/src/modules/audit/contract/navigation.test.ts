@@ -43,7 +43,7 @@ describe('audit navigation context', () => {
     });
 
     expect(buildMonitorReturnLocation(query)).toEqual({
-      path: '/server/dependencies',
+      path: '/system/dependencies',
       query: {
         monitorView: 'dependencies',
         monitorTrendRange: '30m',

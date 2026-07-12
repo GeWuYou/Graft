@@ -28,6 +28,14 @@ export interface PageFooterMeta {
  * bootstrap label when no translation exists.
  */
 export interface AppRouteMeta {
+  /** Explicit bootstrap navigation graph metadata; never inferred from URL ancestry. */
+  navigationCode?: string;
+  navigationKind?: 'group' | 'entry';
+  navigationTargetPath?: string;
+  /** Explicit localized navigation ancestors used by shell breadcrumbs and tabs. */
+  navigationAncestors?: NavigationAncestor[];
+  /** Explicit localized navigation trail used as the default tab title. */
+  navigationTitle?: LocalizedTitle;
   title?: LocalizedTitle;
   titleKey?: string;
   domain?: GovernanceDomain;
@@ -51,6 +59,12 @@ export interface AppRouteMeta {
   frameBlank?: boolean;
   keepAlive?: boolean;
   footer?: false | PageFooterMeta;
+}
+
+export interface NavigationAncestor {
+  code: string;
+  path: string;
+  title: LocalizedTitle;
 }
 
 export interface MenuRoute extends Omit<RouteRecordRaw, 'children' | 'meta'> {

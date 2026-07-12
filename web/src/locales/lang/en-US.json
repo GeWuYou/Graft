@@ -317,6 +317,15 @@
     }
   },
   "menu": {
+    "domain": {
+      "application": { "title": "Application" },
+      "infrastructure": { "title": "Infrastructure" },
+      "build": { "title": "Build" },
+      "resources": { "title": "Resources" },
+      "observability": { "title": "Observability" },
+      "security": { "title": "Security" },
+      "platform": { "title": "Platform" }
+    },
     "access_control": {
       "title": "Access Control",
       "overview": {

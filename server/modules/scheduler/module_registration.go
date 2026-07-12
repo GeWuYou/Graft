@@ -97,6 +97,7 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 	return nil
 }
 
+// registerSchedulerMenu 为定时任务注册菜单项；registry 为 nil 时返回错误。
 func registerSchedulerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
@@ -104,6 +105,8 @@ func registerSchedulerMenu(registry *menu.Registry, moduleName string) error {
 
 	registry.Register(menu.Item{
 		Code:       "scheduled-task.list",
+		ParentCode: "domain.platform",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   schedulercontract.ScheduledTaskMenuTitle.String(),
 		Path:       schedulercontract.ScheduledTaskMenuPath,

@@ -12,15 +12,15 @@ import type { WebModuleRegistration } from './types';
 describe('module registration aggregation', () => {
   it('exposes the actual module bootstrap registration map', () => {
     expect(getBootstrapRouteRegistration('/access-control/overview')?.routeName).toBe('AccessControlOverview');
-    expect(getBootstrapRouteRegistration('/access-control/users')?.routeName).toBe('UserList');
-    expect(getBootstrapRouteRegistration('/access-control/roles')?.routeName).toBe('RoleList');
-    expect(getBootstrapRouteRegistration('/access-control/permissions')?.routeName).toBe('PermissionList');
-    expect(getBootstrapRouteRegistration('/server/overview')?.routeName).toBe('MonitorServerStatusOverview');
-    expect(getBootstrapRouteRegistration('/server/runtime')?.routeName).toBe('MonitorServerStatusRuntime');
-    expect(getBootstrapRouteRegistration('/server/dependencies')?.routeName).toBe('MonitorServerStatusDependencies');
-    expect(getBootstrapRouteRegistration('/server/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
-    expect(getBootstrapRouteRegistration('/server/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
-    expect(getBootstrapRouteRegistration('/server/system-config')?.routeName).toBe('SystemConfigList');
+    expect(getBootstrapRouteRegistration('/users')?.routeName).toBe('UserList');
+    expect(getBootstrapRouteRegistration('/roles')?.routeName).toBe('RoleList');
+    expect(getBootstrapRouteRegistration('/permissions')?.routeName).toBe('PermissionList');
+    expect(getBootstrapRouteRegistration('/system/overview')?.routeName).toBe('MonitorServerStatusOverview');
+    expect(getBootstrapRouteRegistration('/system/runtime')?.routeName).toBe('MonitorServerStatusRuntime');
+    expect(getBootstrapRouteRegistration('/system/dependencies')?.routeName).toBe('MonitorServerStatusDependencies');
+    expect(getBootstrapRouteRegistration('/system/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
+    expect(getBootstrapRouteRegistration('/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
+    expect(getBootstrapRouteRegistration('/system-config')?.routeName).toBe('SystemConfigList');
     expect(getBootstrapRouteRegistration('/audit/overview')?.routeName).toBe('AuditOverview');
     expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
     expect(getBootstrapRouteRegistration('/notifications')).toBeUndefined();

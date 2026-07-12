@@ -1,5 +1,5 @@
 export const SCHEDULED_TASK_ROUTE_PATH = {
-  LIST: '/server/scheduled-tasks',
+  LIST: '/scheduled-tasks',
 } as const;
 
 export const SCHEDULED_TASK_API_PATH = {
