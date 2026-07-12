@@ -175,13 +175,13 @@ func RegisterDomainGroups(r *Registry) {
 		return
 	}
 	for _, item := range []Item{
-		{Code: "domain.application", Kind: NodeKindGroup, TitleKey: "menu.domain.application.title", Order: domainOrderApplication, Module: "core.navigation"},
-		{Code: "domain.infrastructure", Kind: NodeKindGroup, TitleKey: "menu.domain.infrastructure.title", Order: domainOrderInfrastructure, Module: "core.navigation"},
-		{Code: "domain.build", Kind: NodeKindGroup, TitleKey: "menu.domain.build.title", Order: domainOrderBuild, Module: "core.navigation"},
-		{Code: "domain.resources", Kind: NodeKindGroup, TitleKey: "menu.domain.resources.title", Order: domainOrderResources, Module: "core.navigation"},
-		{Code: "domain.observability", Kind: NodeKindGroup, TitleKey: "menu.domain.observability.title", Order: domainOrderObservability, Module: "core.navigation"},
-		{Code: "domain.security", Kind: NodeKindGroup, TitleKey: "menu.domain.security.title", Order: domainOrderSecurity, Module: "core.navigation"},
-		{Code: "domain.platform", Kind: NodeKindGroup, TitleKey: "menu.domain.platform.title", Order: domainOrderPlatform, Module: "core.navigation"},
+		{Code: "domain.application", Kind: NodeKindGroup, TitleKey: "menu.domain.application.title", Icon: "folder-open", Order: domainOrderApplication, Module: "core.navigation"},
+		{Code: "domain.infrastructure", Kind: NodeKindGroup, TitleKey: "menu.domain.infrastructure.title", Icon: "server", Order: domainOrderInfrastructure, Module: "core.navigation"},
+		{Code: "domain.build", Kind: NodeKindGroup, TitleKey: "menu.domain.build.title", Icon: "tools", Order: domainOrderBuild, Module: "core.navigation"},
+		{Code: "domain.resources", Kind: NodeKindGroup, TitleKey: "menu.domain.resources.title", Icon: "data-base", Order: domainOrderResources, Module: "core.navigation"},
+		{Code: "domain.observability", Kind: NodeKindGroup, TitleKey: "menu.domain.observability.title", Icon: "dashboard", Order: domainOrderObservability, Module: "core.navigation"},
+		{Code: "domain.security", Kind: NodeKindGroup, TitleKey: "menu.domain.security.title", Icon: "secured", Order: domainOrderSecurity, Module: "core.navigation"},
+		{Code: "domain.platform", Kind: NodeKindGroup, TitleKey: "menu.domain.platform.title", Icon: "setting", Order: domainOrderPlatform, Module: "core.navigation"},
 	} {
 		r.Register(item)
 	}

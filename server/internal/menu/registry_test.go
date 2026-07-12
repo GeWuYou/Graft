@@ -34,3 +34,23 @@ func TestRegistryValidateAcceptsExplicitDomainGraph(t *testing.T) {
 		t.Fatalf("validate graph: %v", err)
 	}
 }
+
+func TestRegisterDomainGroupsProvidesIcons(t *testing.T) {
+	registry := NewRegistry()
+	RegisterDomainGroups(registry)
+
+	expectedIcons := map[string]string{
+		"domain.application":    "folder-open",
+		"domain.infrastructure": "server",
+		"domain.build":          "tools",
+		"domain.resources":      "data-base",
+		"domain.observability":  "dashboard",
+		"domain.security":       "secured",
+		"domain.platform":       "setting",
+	}
+	for _, item := range registry.Items() {
+		if expected, ok := expectedIcons[item.Code]; !ok || item.Icon != expected {
+			t.Fatalf("unexpected domain icon for %q: %#v", item.Code, item)
+		}
+	}
+}
