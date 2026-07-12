@@ -69,7 +69,7 @@
 - Updated affected route contract assertions to canonical `/containers`, `/system/**`, `/scheduled-tasks`, `/system-config`, and `/my-announcements` paths. Active registration code has no `/ops` or `/server` UI hierarchy.
 - Validation passed: `cd server && go run ./cmd/graft validate backend`; focused Web navigation suite (28 tests); Web typecheck, ESLint, Stylelint, OpenAPI frontend governance, i18n governance, production Vite build; `git diff --check`; and AI plan/governance checks.
 - Browser evidence: authenticated shell bootstrap at `http://172.21.235.129:3002` rendered Application, Infrastructure, Observability, Security, and Platform only; Build and Resources were absent because empty. Artifacts: `.ai/artifacts/browser/navigation-ia-auth-closeout`.
-- Known unrelated baseline blockers: `bun run hygiene:check` reports unused `BLANK_LAYOUT` in `src/utils/route/constant.ts`; full Web suite retains intermittent Monaco RAF timeout and container log-stream disconnect assertion failures. The route-contract failures discovered during this batch were repaired and pass in the focused suite.
+- At this batch's closeout, `bun run hygiene:check` reported the unused `BLANK_LAYOUT` export; Batch 5 removed it. The full Web suite retains intermittent Monaco RAF timeout and container log-stream disconnect assertion failures. The route-contract failures discovered during this batch were repaired and pass in the focused suite.
 
 ## Loop Batch State
 
@@ -81,6 +81,25 @@
   "current_batch": "cross-boundary-validation-closeout",
   "next_batch": null,
   "closeout_status": "batch-4-complete-pending-archive-readiness"
+}
+```
+
+## 2026-07-12 Web Hygiene And Final Validation
+
+- Removed the unused `BLANK_LAYOUT` route export and its wholly unreferenced `layouts/blank.vue` asset after a repository-wide reference and shared-asset registry preflight. The `route-bootstrap-utils` registry entry remains valid because the shared route utility directory remains in use; no registry update is required.
+- Full Web validation ran through all static checks and reached the test suite, where one existing flaky Monaco RAF test timed out: `src/modules/project/shared/project-monaco.test.ts > resolves relayout after the scheduled animation frame runs` (1 failed, 1,271 passed). An isolated retry passed all 11 tests, confirming this batch does not introduce the failure; therefore `bun run check` is not claimed as passed.
+- Focused route tests passed (4 files, 11 tests). Shared asset registry and AI governance validation passed.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation"],
+  "pending_batches": [],
+  "current_batch": "web-hygiene-and-final-validation",
+  "next_batch": null,
+  "closeout_status": "batch-5-complete-pending-archive-readiness"
 }
 ```
 ```
