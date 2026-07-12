@@ -336,7 +336,6 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     tabRouters: (state: TTabRouterType) => state.tabRouterList,
     closedTabs: (state: TTabRouterType) => state.closedTabStack,
     canReopenClosedTab: (state: TTabRouterType) => state.closedTabStack.length > 0,
-    hasOnlyHomeTab: (state: TTabRouterType) => state.tabRouterList.length === 1 && state.tabRouterList[0]?.isHome,
     refreshing: (state: TTabRouterType) => Boolean(state.refreshingTabKey),
   },
   actions: {

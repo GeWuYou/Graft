@@ -384,8 +384,6 @@ describe('useTabsRouterStore', () => {
   it('closes all closable tabs while preserving home and pinned tabs', () => {
     const tabsRouterStore = useTabsRouterStore();
 
-    expect(tabsRouterStore.hasOnlyHomeTab).toBe(true);
-
     tabsRouterStore.appendTabRouterList({
       tabKey: '/audit/overview',
       path: '/audit/overview',
@@ -403,13 +401,10 @@ describe('useTabsRouterStore', () => {
     });
     tabsRouterStore.togglePinnedTab('/audit/overview');
 
-    expect(tabsRouterStore.hasOnlyHomeTab).toBe(false);
-
     tabsRouterStore.closeAllClosableTabs();
 
     expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview']);
     expect(tabsRouterStore.closedTabs.map((route) => route.path)).toEqual(['/audit/logs', '/access/logs']);
-    expect(tabsRouterStore.hasOnlyHomeTab).toBe(false);
   });
 
   it('resolves the preserved home tab after closing every unpinned business tab', () => {
@@ -432,7 +427,6 @@ describe('useTabsRouterStore', () => {
       path: '/',
       query: undefined,
     });
-    expect(tabsRouterStore.hasOnlyHomeTab).toBe(true);
   });
 
   it('keeps pinned tabs when closing other tabs', () => {

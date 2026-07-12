@@ -92,7 +92,7 @@ const shellSurfaceAttrs = computed(() => ({
 }));
 
 const shouldRenderSidebar = computed(
-  () => settingStore.showSidebar && !(setting.layout.value === 'mix' && tabsRouterStore.hasOnlyHomeTab),
+  () => settingStore.showSidebar && !(setting.layout.value === 'mix' && route.path === '/'),
 );
 
 const mainLayoutCls = computed(() => [
