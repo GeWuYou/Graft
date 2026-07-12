@@ -6,7 +6,7 @@ import { MONITOR_ROUTE_PATH } from './contract/paths';
 describe('monitor bootstrap route registrations', () => {
   it('keeps module runtime dashboard semantics while using the paged table surface', () => {
     const moduleRuntimeRoute = monitorBootstrapRouteRegistrations.find(
-      (registration) => registration.menuPath === MONITOR_ROUTE_PATH.SERVER_MODULES,
+      (registration) => registration.menuPath === MONITOR_ROUTE_PATH.SYSTEM_MODULES,
     );
 
     expect(moduleRuntimeRoute).toMatchObject({

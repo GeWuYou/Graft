@@ -93,7 +93,6 @@ import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } fr
 import { usePermissionStore } from '@/store/modules/permission';
 import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
-import type { MenuRoute } from '@/utils/types';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
 import { getDashboardSystemConfigs } from '../api/quick-actions-config';
@@ -184,7 +183,7 @@ const lastUpdatedLabel = computed(() =>
   formatLocaleDateTime(lastUpdatedAt.value, currentLocale, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS),
 );
 const quickLinks = computed(() =>
-  buildDashboardQuickActionLinks(permissionStore.routers as MenuRoute[], currentLocale.value as SupportedLocale),
+  buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
 );
 const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
 const containerDashboardSummary = computed<ContainerDashboardSummary>(

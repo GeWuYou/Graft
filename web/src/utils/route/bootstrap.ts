@@ -75,6 +75,7 @@ export function transformGlobalRegistrationsToRoutes(
       component: LAYOUT,
       meta: {
         ...withNavigationContext(registration.meta, ancestorsByEntryPath.get(registration.navigationParentPath ?? '')),
+        navigationTargetPath: registration.navigationParentPath,
         hiddenMenu: true,
         single: true,
       },
@@ -88,6 +89,7 @@ export function transformGlobalRegistrationsToRoutes(
               registration.meta,
               ancestorsByEntryPath.get(registration.navigationParentPath ?? ''),
             ),
+            navigationTargetPath: registration.navigationParentPath,
             hiddenMenu: true,
             hiddenBreadcrumb:
               !registration.meta?.domainTitle && !ancestorsByEntryPath.has(registration.navigationParentPath ?? ''),
@@ -174,11 +176,11 @@ function buildRouteMeta(
   navigationAncestors?: NavigationAncestor[],
 ): AppRouteMeta {
   return {
+    ...withNavigationContext(metaPatch, navigationAncestors, localizeRouteTitle(menu.title, menu.title_key)),
     title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,
     orderNo: menu.order ?? 0,
-    ...withNavigationContext(metaPatch, navigationAncestors, localizeRouteTitle(menu.title, menu.title_key)),
   };
 }
 

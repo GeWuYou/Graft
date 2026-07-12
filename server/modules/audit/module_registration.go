@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	auditMenuOrderRoot     = 200
 	auditMenuOrderOverview = 201
 	auditMenuOrderLogs     = 202
 )
@@ -40,7 +39,6 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 	})
 }
 
-// registerAuditMenu 注册审计模块的菜单项。
 // registerAuditMenu 注册审计概览和日志菜单项，并为其配置审计读取权限。
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {

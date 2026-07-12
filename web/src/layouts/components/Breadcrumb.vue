@@ -16,7 +16,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useLocale } from '@/locales/useLocale';
 import { useSettingStore } from '@/store';
 import { renderLocalizedTitle, resolveRouteLocalizedTitle } from '@/utils/route/meta';
-import type { NavigationAncestor } from '@/utils/types';
 
 const { locale } = useLocale();
 const route = useRoute();
@@ -31,7 +30,7 @@ interface BreadcrumbItem {
 }
 
 const crumbs = computed(() => {
-  const navigationAncestors = (route.meta?.navigationAncestors ?? []) as NavigationAncestor[];
+  const navigationAncestors = route.meta?.navigationAncestors ?? [];
   const navigationCrumbs = navigationAncestors.map((ancestor) => ({
     key: `navigation:${ancestor.code}`,
     to: ancestor.path,

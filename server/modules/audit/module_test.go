@@ -1572,12 +1572,8 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 	if len(items) != 2 {
 		t.Fatalf("expected 2 audit menu items, got %#v", items)
 	}
-	if items[0].Path != "/audit/overview" || items[0].TitleKey != "menu.audit.overview.title" || items[0].Order != 201 {
-		t.Fatalf("unexpected audit overview menu: %#v", items[0])
-	}
-	if items[1].Path != "/audit/logs" || items[1].TitleKey != "menu.audit.logs.title" || items[1].Order != 202 {
-		t.Fatalf("unexpected audit logs menu: %#v", items[1])
-	}
+	assertAuditMenuItem(t, items[0], "audit.overview", "/audit/overview", "menu.audit.overview.title", 201)
+	assertAuditMenuItem(t, items[1], "audit.logs", "/audit/logs", "menu.audit.logs.title", 202)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -1586,6 +1582,14 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+}
+
+func assertAuditMenuItem(t *testing.T, item menu.Item, code string, path string, titleKey string, order int) {
+	t.Helper()
+
+	if item.Code != code || item.ParentCode != "domain.security" || item.Kind != menu.NodeKindEntry || item.Path != path || item.TitleKey != titleKey || item.Order != order {
+		t.Fatalf("unexpected audit menu item: %#v", item)
 	}
 }
 

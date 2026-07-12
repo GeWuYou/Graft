@@ -35,6 +35,38 @@ func TestRegistryValidateAcceptsExplicitDomainGraph(t *testing.T) {
 	}
 }
 
+func TestRegistryValidateRejectsEmptyDuplicateAndInvalidKinds(t *testing.T) {
+	tests := []struct {
+		name  string
+		items []Item
+	}{
+		{"empty code", []Item{{Kind: NodeKindEntry, Path: "/entries"}}},
+		{"duplicate code", []Item{{Code: "entry", Kind: NodeKindEntry, Path: "/entries"}, {Code: "entry", Kind: NodeKindEntry, Path: "/other"}}},
+		{"invalid kind", []Item{{Code: "entry", Kind: NodeKind("unknown"), Path: "/entries"}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			registry := NewRegistry()
+			for _, item := range test.items {
+				registry.Register(item)
+			}
+			if err := registry.Validate(); err == nil {
+				t.Fatal("expected invalid navigation graph")
+			}
+		})
+	}
+}
+
+func TestRegistryRegisterNormalizesEmptyKind(t *testing.T) {
+	registry := NewRegistry()
+	registry.Register(Item{Code: "entry", Path: "/entries"})
+
+	items := registry.Items()
+	if len(items) != 1 || items[0].Kind != NodeKindEntry {
+		t.Fatalf("expected empty kind normalized to entry, got %#v", items)
+	}
+}
+
 func TestRegisterDomainGroupsProvidesIcons(t *testing.T) {
 	registry := NewRegistry()
 	RegisterDomainGroups(registry)

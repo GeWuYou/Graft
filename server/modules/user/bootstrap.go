@@ -90,7 +90,6 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 			return bootstrapResponse{}, err
 		}
 	}
-
 	permissionCodes, permissionSet, err := r.listPermissionCodes(ctx, requestAuth.User.ID)
 	if err != nil {
 		return bootstrapResponse{}, err
@@ -185,7 +184,7 @@ func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[s
 }
 
 // filterBootstrapMenus 根据授予的权限和系统配置可见性过滤菜单项，去重并排序，同时移除没有可见子项的菜单组。
-// registry 为空或验证失败时返回空切片。
+// registry 为空时返回空切片；调用方在进入该过滤阶段前验证导航图。
 func filterBootstrapMenus(
 	ctx context.Context,
 	registry *menu.Registry,
@@ -193,10 +192,6 @@ func filterBootstrapMenus(
 	systemConfig moduleapi.SystemConfigResolver,
 ) []bootstrapMenuResponse {
 	if registry == nil {
-		return []bootstrapMenuResponse{}
-	}
-	// Registry validation is the lifecycle boundary that prevents malformed navigation graphs.
-	if err := registry.Validate(); err != nil {
 		return []bootstrapMenuResponse{}
 	}
 
@@ -353,26 +348,11 @@ func compareBootstrapMenus(left, right bootstrapMenuResponse) int {
 		return left.Order - right.Order
 	}
 
-	leftPath := strings.TrimSpace(left.Path)
-	rightPath := strings.TrimSpace(right.Path)
-	leftDepth := bootstrapPathDepth(leftPath)
-	rightDepth := bootstrapPathDepth(rightPath)
-	if leftDepth != rightDepth {
-		return leftDepth - rightDepth
-	}
-	if leftPath != rightPath {
-		return strings.Compare(leftPath, rightPath)
+	if parentCode := strings.Compare(strings.TrimSpace(left.ParentCode), strings.TrimSpace(right.ParentCode)); parentCode != 0 {
+		return parentCode
 	}
 
 	return strings.Compare(left.Code, right.Code)
-}
-
-func bootstrapPathDepth(path string) int {
-	if path == "" {
-		return 0
-	}
-
-	return strings.Count(strings.Trim(path, "/"), "/") + 1
 }
 
 func (r bootstrapReader) localeSnapshot(request *http.Request) bootstrapLocaleSnapshot {

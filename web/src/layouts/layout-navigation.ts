@@ -103,13 +103,8 @@ function findExpandedMenuMatch(
       };
     }
 
-    const navigationPath = resolveMenuNavigationPath(menu, parentPath);
     const isExpandableMenu = visibleChildren.length > 0 && menu.meta?.single !== true;
-    const matchesCurrentMenu =
-      activePath === targetPath ||
-      activePath === navigationPath ||
-      activePath.startsWith(`${targetPath}/`) ||
-      activePath.startsWith(`${navigationPath}/`);
+    const matchesCurrentMenu = activePath === targetPath || activePath.startsWith(`${targetPath}/`);
 
     if (matchesCurrentMenu) {
       return {

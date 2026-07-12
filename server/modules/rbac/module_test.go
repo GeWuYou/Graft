@@ -477,15 +477,35 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	if len(menus) != 3 {
 		t.Fatalf("expected 3 registered menus, got %d", len(menus))
 	}
-	if menus[0].Path != "/access-control/overview" || menus[0].TitleKey != rbaccontract.AccessControlOverviewMenuTitle.String() {
-		t.Fatalf("unexpected overview menu: %#v", menus[0])
-	}
-	if menus[1].Path != "/roles" || menus[1].Permission != rbaccontract.RoleReadPermission.String() {
-		t.Fatalf("unexpected role menu: %#v", menus[1])
-	}
-	if menus[2].Path != "/permissions" || menus[2].Permission != rbaccontract.PermissionReadPermission.String() {
-		t.Fatalf("unexpected permission menu: %#v", menus[2])
-	}
+	assertRBACMenuItem(t, menus[0], expectedRBACMenuItem{
+		code:       "access-control.overview",
+		parentCode: "domain.security",
+		kind:       menu.NodeKindEntry,
+		path:       "/access-control/overview",
+		titleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
+		icon:       "dashboard",
+		order:      1,
+	})
+	assertRBACMenuItem(t, menus[1], expectedRBACMenuItem{
+		code:       "role.list",
+		parentCode: "domain.security",
+		kind:       menu.NodeKindEntry,
+		path:       "/roles",
+		titleKey:   rbaccontract.RoleListMenuTitle.String(),
+		icon:       "secured",
+		order:      3,
+		permission: rbaccontract.RoleReadPermission.String(),
+	})
+	assertRBACMenuItem(t, menus[2], expectedRBACMenuItem{
+		code:       "permission.list",
+		parentCode: "domain.security",
+		kind:       menu.NodeKindEntry,
+		path:       "/permissions",
+		titleKey:   rbaccontract.PermissionListMenuTitle.String(),
+		icon:       "lock-on",
+		order:      4,
+		permission: rbaccontract.PermissionReadPermission.String(),
+	})
 
 	resolved, err := ctx.Services.Resolve((*moduleapi.Authorizer)(nil))
 	if err != nil {

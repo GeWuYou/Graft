@@ -19,16 +19,22 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 		t,
 		menus[0],
 		expectedRBACMenuItem{
-			path:     "/access-control/overview",
-			titleKey: rbaccontract.AccessControlOverviewMenuTitle.String(),
-			icon:     "dashboard",
-			order:    1,
+			code:       "access-control.overview",
+			parentCode: "domain.security",
+			kind:       menu.NodeKindEntry,
+			path:       "/access-control/overview",
+			titleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
+			icon:       "dashboard",
+			order:      1,
 		},
 	)
 	assertRBACMenuItem(
 		t,
 		menus[1],
 		expectedRBACMenuItem{
+			code:       "role.list",
+			parentCode: "domain.security",
+			kind:       menu.NodeKindEntry,
 			path:       "/roles",
 			titleKey:   rbaccontract.RoleListMenuTitle.String(),
 			icon:       "secured",
@@ -40,6 +46,9 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 		t,
 		menus[2],
 		expectedRBACMenuItem{
+			code:       "permission.list",
+			parentCode: "domain.security",
+			kind:       menu.NodeKindEntry,
 			path:       "/permissions",
 			titleKey:   rbaccontract.PermissionListMenuTitle.String(),
 			icon:       "lock-on",
@@ -50,6 +59,9 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 }
 
 type expectedRBACMenuItem struct {
+	code       string
+	parentCode string
+	kind       menu.NodeKind
 	path       string
 	titleKey   string
 	icon       string
@@ -60,6 +72,9 @@ type expectedRBACMenuItem struct {
 func assertRBACMenuItem(t *testing.T, item menu.Item, expected expectedRBACMenuItem) {
 	t.Helper()
 
+	if item.Code != expected.code || item.ParentCode != expected.parentCode || item.Kind != expected.kind {
+		t.Fatalf("unexpected menu hierarchy: %#v", item)
+	}
 	if item.Path != expected.path {
 		t.Fatalf("unexpected menu path: %#v", item)
 	}

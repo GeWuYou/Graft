@@ -78,10 +78,10 @@ export function buildMonitorLocationFromOrigin(context: MonitorOriginContext): R
 
   const path =
     normalized.view === 'runtime'
-      ? MONITOR_ROUTE_PATH.SERVER_RUNTIME
+      ? MONITOR_ROUTE_PATH.SYSTEM_RUNTIME
       : normalized.view === 'dependencies'
-        ? MONITOR_ROUTE_PATH.SERVER_DEPENDENCIES
-        : MONITOR_ROUTE_PATH.SERVER_OVERVIEW;
+        ? MONITOR_ROUTE_PATH.SYSTEM_DEPENDENCIES
+        : MONITOR_ROUTE_PATH.SYSTEM_OVERVIEW;
 
   return {
     path,

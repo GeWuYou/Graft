@@ -298,7 +298,6 @@ func registerMonitorPermissions(registry *permission.Registry, moduleName string
 }
 
 const (
-	monitorMenuOrderRoot         = 100
 	monitorMenuOrderOverview     = 101
 	monitorMenuOrderRuntime      = 102
 	monitorMenuOrderDependencies = 103

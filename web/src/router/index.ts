@@ -141,7 +141,7 @@ export const getActive = (maxLevel = 3): string => {
   }
 
   if (route.meta?.hiddenMenu) {
-    return '';
+    return route.meta.navigationTargetPath ?? '';
   }
 
   return route.path

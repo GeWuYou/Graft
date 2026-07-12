@@ -223,15 +223,15 @@ func assertRegisteredMetadata(t *testing.T, menus []menu.Item, permissions []per
 
 	foundRuntimeMenu := false
 	for _, item := range menus {
-		if item.Path == menuRuntimePath {
+		if item.Code == menuCodeRuntime {
 			foundRuntimeMenu = true
-			if item.TitleKey != menuModulesRuntimeTitleKey || item.Permission != PermissionRead {
+			if item.ParentCode != "domain.observability" || item.Kind != menu.NodeKindEntry || item.Path != menuRuntimePath || item.TitleKey != menuModulesRuntimeTitleKey || item.Permission != PermissionRead {
 				t.Fatalf("unexpected runtime menu item: %#v", item)
 			}
 		}
 	}
 	if !foundRuntimeMenu {
-		t.Fatalf("expected %s menu item in %#v", menuRuntimePath, menus)
+		t.Fatalf("expected %s menu item in %#v", menuCodeRuntime, menus)
 	}
 }
 

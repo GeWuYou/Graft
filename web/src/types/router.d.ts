@@ -14,6 +14,7 @@ declare module 'vue-router' {
     domainTitle?: LocalizedTitle;
     navigationAncestors?: NavigationAncestor[];
     navigationTitle?: LocalizedTitle;
+    navigationTargetPath?: string;
     semanticTitle?: LocalizedTitle;
     breadcrumbTitle?: LocalizedTitle;
     tabTitle?: LocalizedTitle;

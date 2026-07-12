@@ -19,14 +19,11 @@ import (
 const (
 	// AccessLogReadPermission 约束 access-log explorer 的只读访问权限码。
 	AccessLogReadPermission = "access_log.read"
-	accessLogMenuRootPath   = "/logs"
 	accessLogMenuListPath   = "/logs/access"
-	accessLogMenuCodeRoot   = "log-center.root"
 	accessLogMenuCodeList   = "access-log.list"
 	accessLogModuleOwner    = "core.httpx"
 	accessLogRouteGroup     = "/access-log"
 	accessLogRouteItemParam = "id"
-	accessLogMenuRootOrder  = 210
 	accessLogMenuListOrder  = 211
 	accessLogSortPartCount  = 2
 )

@@ -1,9 +1,9 @@
 export const MONITOR_ROUTE_PATH = {
-  SERVER: '/system',
-  SERVER_OVERVIEW: '/system/overview',
-  SERVER_RUNTIME: '/system/runtime',
-  SERVER_DEPENDENCIES: '/system/dependencies',
-  SERVER_MODULES: '/system/modules',
+  SYSTEM: '/system',
+  SYSTEM_OVERVIEW: '/system/overview',
+  SYSTEM_RUNTIME: '/system/runtime',
+  SYSTEM_DEPENDENCIES: '/system/dependencies',
+  SYSTEM_MODULES: '/system/modules',
 } as const;
 
 export const MONITOR_API_PATH = {

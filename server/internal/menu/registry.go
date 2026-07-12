@@ -67,6 +67,9 @@ func NewRegistry() *Registry {
 // 当前注册表保持“显式声明即生效”的最小语义，不在此处做去重或权限校验，
 // 以便把冲突处理留给更接近装配阶段的调用方。
 func (r *Registry) Register(item Item) {
+	if item.Kind == "" {
+		item.Kind = NodeKindEntry
+	}
 	r.items = append(r.items, item)
 }
 

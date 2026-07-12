@@ -14,7 +14,7 @@ const moduleRuntimeBreadcrumbTitle = localizeRouteTitleKey('monitor.route.module
 
 export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
-    menuPath: MONITOR_ROUTE_PATH.SERVER_OVERVIEW,
+    menuPath: MONITOR_ROUTE_PATH.SYSTEM_OVERVIEW,
     routeName: 'MonitorServerStatusOverview',
     loadPage: () => import('./pages/overview/index.vue'),
     meta: {
@@ -28,7 +28,7 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
     },
   },
   {
-    menuPath: MONITOR_ROUTE_PATH.SERVER_RUNTIME,
+    menuPath: MONITOR_ROUTE_PATH.SYSTEM_RUNTIME,
     routeName: 'MonitorServerStatusRuntime',
     loadPage: () => import('./pages/runtime/index.vue'),
     meta: {
@@ -42,7 +42,7 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
     },
   },
   {
-    menuPath: MONITOR_ROUTE_PATH.SERVER_DEPENDENCIES,
+    menuPath: MONITOR_ROUTE_PATH.SYSTEM_DEPENDENCIES,
     routeName: 'MonitorServerStatusDependencies',
     loadPage: () => import('./pages/dependencies/index.vue'),
     meta: {
@@ -56,7 +56,7 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
     },
   },
   {
-    menuPath: MONITOR_ROUTE_PATH.SERVER_MODULES,
+    menuPath: MONITOR_ROUTE_PATH.SYSTEM_MODULES,
     routeName: 'MonitorModuleRuntimeOverview',
     loadPage: () => import('./pages/modules/index.vue'),
     meta: {

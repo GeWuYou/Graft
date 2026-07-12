@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { getBootstrapRouteRegistration } from '@/modules';
+
 import {
   buildBootstrapNavigationTree,
   transformBootstrapMenusToRoutes,
@@ -68,6 +70,34 @@ describe('bootstrap navigation graph', () => {
     expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / Users');
   });
 
+  it('keeps bootstrap-owned menu display metadata ahead of registration patches', () => {
+    const registration = getBootstrapRouteRegistration('/users');
+    const originalMeta = registration?.meta;
+    const overriddenTitle = { 'zh-CN': '错误标题', 'en-US': 'Incorrect Title' };
+
+    expect(registration).toBeDefined();
+    registration!.meta = {
+      ...originalMeta,
+      title: overriddenTitle,
+      titleKey: 'incorrect.title',
+      icon: 'close',
+      orderNo: 999,
+    };
+
+    try {
+      const [route] = transformBootstrapMenusToRoutes(graph.map((item) => ({ ...item })));
+
+      expect(route?.meta).toMatchObject({
+        title: { 'en-US': 'Users' },
+        titleKey: 'menu.user_list.title',
+        icon: 'usergroup',
+        orderNo: 1,
+      });
+    } finally {
+      registration!.meta = originalMeta;
+    }
+  });
+
   it('keeps global routes out of menu navigation and preserves their breadcrumb policy', () => {
     const routes = transformGlobalRegistrationsToRoutes([
       {
@@ -80,6 +110,7 @@ describe('bootstrap navigation graph', () => {
     expect(routes[0]?.path).toBe('/notifications');
     expect(routes[0]?.children?.[0]?.meta?.hiddenMenu).toBe(true);
     expect(routes[0]?.children?.[0]?.meta?.hiddenBreadcrumb).toBe(true);
+    expect(routes[0]?.meta?.navigationTargetPath).toBeUndefined();
   });
 
   it('attaches an explicitly declared parent resource trail to global detail routes', () => {
@@ -97,5 +128,6 @@ describe('bootstrap navigation graph', () => {
     );
     expect(routes[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual(['domain.security']);
     expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / User Detail');
+    expect(routes[0]?.meta?.navigationTargetPath).toBe('/users');
   });
 });
