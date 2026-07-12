@@ -16865,8 +16865,7 @@
                     "resource",
                     "risk_level",
                     "result",
-                    "request_id",
-                    "incident_id"
+                    "request_id"
                   ],
                   "properties": {
                     "id": {
@@ -16903,10 +16902,6 @@
                     },
                     "request_id": {
                       "type": "string"
-                    },
-                    "incident_id": {
-                      "type": "integer",
-                      "format": "int64"
                     }
                   }
                 }

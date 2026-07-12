@@ -6,7 +6,10 @@ import (
 
 	"graft/server/internal/moduleapi"
 	rbacstore "graft/server/modules/rbac/store"
+	usercontract "graft/server/modules/user/contract"
 )
+
+const securityPostureUserPageSize = 100
 
 type accessService struct {
 	rbac  rbacstore.Repository
@@ -14,7 +17,6 @@ type accessService struct {
 }
 
 type securityPostureInputs struct {
-	users       []moduleapi.UserSecuritySummary
 	roles       []rbacstore.Role
 	permissions []rbacstore.Permission
 }
@@ -32,10 +34,6 @@ func (s accessService) ReadSecurityPosture(ctx context.Context) (moduleapi.Secur
 }
 
 func (s accessService) loadSecurityPostureInputs(ctx context.Context) (securityPostureInputs, error) {
-	users, err := s.users.ListSecuritySummaries(ctx)
-	if err != nil {
-		return securityPostureInputs{}, fmt.Errorf("list security user summaries: %w", err)
-	}
 	roles, err := s.rbac.ListRoles(ctx, rbacstore.RoleFilter{})
 	if err != nil {
 		return securityPostureInputs{}, fmt.Errorf("list roles for security posture: %w", err)
@@ -44,28 +42,27 @@ func (s accessService) loadSecurityPostureInputs(ctx context.Context) (securityP
 	if err != nil {
 		return securityPostureInputs{}, fmt.Errorf("list permissions for security posture: %w", err)
 	}
-	return securityPostureInputs{users: users, roles: roles, permissions: permissions}, nil
+	return securityPostureInputs{roles: roles, permissions: permissions}, nil
 }
 
 func (s accessService) buildSecurityPosture(ctx context.Context, inputs securityPostureInputs) (moduleapi.SecurityPosture, error) {
-	userIDs := make([]uint64, 0, len(inputs.users))
-	posture := moduleapi.SecurityPosture{TotalUsers: len(inputs.users), RoleCount: len(inputs.roles), PermissionCount: len(inputs.permissions)}
-	for _, user := range inputs.users {
-		userIDs = append(userIDs, user.ID)
-		if user.Status == "disabled" {
-			posture.DisabledUsers++
+	posture := moduleapi.SecurityPosture{RoleCount: len(inputs.roles), PermissionCount: len(inputs.permissions)}
+	var afterID uint64
+	for {
+		users, err := s.users.ListSecuritySummaries(ctx, afterID, securityPostureUserPageSize)
+		if err != nil {
+			return moduleapi.SecurityPosture{}, fmt.Errorf("list security user summaries: %w", err)
 		}
-	}
-	rolesByUserID, err := s.rbac.ListRolesByUserIDs(ctx, userIDs)
-	if err != nil {
-		return moduleapi.SecurityPosture{}, fmt.Errorf("list role bindings for security posture: %w", err)
-	}
-	for _, roleIDs := range rolesByUserID {
-		posture.RoleAssignmentCount += len(roleIDs)
-	}
-	for _, user := range inputs.users {
-		if len(rolesByUserID[user.ID]) == 0 {
-			posture.UnassignedUserCount++
+		if len(users) == 0 {
+			break
+		}
+
+		if err := s.accumulateSecurityUserPage(ctx, &posture, users); err != nil {
+			return moduleapi.SecurityPosture{}, err
+		}
+		afterID = users[len(users)-1].ID
+		if len(users) < securityPostureUserPageSize {
+			break
 		}
 	}
 	for _, role := range inputs.roles {
@@ -79,6 +76,33 @@ func (s accessService) buildSecurityPosture(ctx context.Context, inputs security
 		}
 	}
 	return posture, nil
+}
+
+func (s accessService) accumulateSecurityUserPage(
+	ctx context.Context,
+	posture *moduleapi.SecurityPosture,
+	users []moduleapi.UserSecuritySummary,
+) error {
+	userIDs := make([]uint64, 0, len(users))
+	for _, user := range users {
+		userIDs = append(userIDs, user.ID)
+		posture.TotalUsers++
+		if user.Status == usercontract.UserStatusDisabled {
+			posture.DisabledUsers++
+		}
+	}
+	rolesByUserID, err := s.rbac.ListRolesByUserIDs(ctx, userIDs)
+	if err != nil {
+		return fmt.Errorf("list role bindings for security posture: %w", err)
+	}
+	for _, user := range users {
+		roleIDs := rolesByUserID[user.ID]
+		posture.RoleAssignmentCount += len(roleIDs)
+		if len(roleIDs) == 0 {
+			posture.UnassignedUserCount++
+		}
+	}
+	return nil
 }
 
 func (s accessService) ListRoleNamesByUserID(ctx context.Context, userID uint64) ([]string, error) {

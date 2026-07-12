@@ -41,5 +41,6 @@ type UserService interface {
 
 // UserSecurityReader exposes the narrow account-state projection needed by security posture aggregation.
 type UserSecurityReader interface {
-	ListSecuritySummaries(ctx context.Context) ([]UserSecuritySummary, error)
+	// ListSecuritySummaries returns one ID-ordered, bounded page after afterID.
+	ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]UserSecuritySummary, error)
 }

@@ -27,14 +27,13 @@ type AuditSecurityRiskGroup struct {
 
 // AuditSecurityEvent is the minimal recent-event projection used by the security overview.
 type AuditSecurityEvent struct {
-	ID         uint64    `json:"id"`
-	CreatedAt  time.Time `json:"created_at"`
-	Action     string    `json:"action"`
-	Resource   string    `json:"resource"`
-	RiskLevel  string    `json:"risk_level"`
-	Result     string    `json:"result"`
-	RequestID  string    `json:"request_id"`
-	IncidentID uint64    `json:"incident_id"`
+	ID        uint64    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Action    string    `json:"action"`
+	Resource  string    `json:"resource"`
+	RiskLevel string    `json:"risk_level"`
+	Result    string    `json:"result"`
+	RequestID string    `json:"request_id"`
 }
 
 // AuditSecuritySnapshot contains audit-owned counters and bounded recent security signals.

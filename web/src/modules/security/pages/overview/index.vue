@@ -295,15 +295,25 @@ function openAuditLogs(requestId: string) {
   router.push({ path: AUDIT_ROUTE_PATH.LOGS, query: requestId ? { request_id: requestId } : {} });
 }
 
+let fetchSequence = 0;
+
 async function fetchOverview() {
+  const requestSequence = ++fetchSequence;
   loading.value = true;
   loadError.value = '';
   try {
-    overview.value = await getSecurityOverview({ preset: activePreset.value });
+    const response = await getSecurityOverview({ preset: activePreset.value });
+    if (requestSequence === fetchSequence) {
+      overview.value = response;
+    }
   } catch (error) {
-    loadError.value = resolveLocalizedErrorMessage(t, error, t('security.overview.loadFailed'));
+    if (requestSequence === fetchSequence) {
+      loadError.value = resolveLocalizedErrorMessage(t, error, t('security.overview.loadFailed'));
+    }
   } finally {
-    loading.value = false;
+    if (requestSequence === fetchSequence) {
+      loading.value = false;
+    }
   }
 }
 

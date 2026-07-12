@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
@@ -150,11 +151,13 @@ func handleOverview(
 		requestCtx := ginCtx.Request.Context()
 		posture, err := rbacPosture.ReadSecurityPosture(requestCtx)
 		if err != nil {
+			ctx.Logger.Error("read security posture failed", zap.Error(err))
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
 		}
 		auditSnapshot, err := auditReader.ReadSecuritySnapshot(requestCtx, preset)
 		if err != nil {
+			ctx.Logger.Error("read security audit snapshot failed", zap.Error(err))
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
 		}

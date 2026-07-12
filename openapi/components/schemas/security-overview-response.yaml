@@ -42,7 +42,7 @@ properties:
         type: array
         items:
           type: object
-          required: [id, created_at, action, resource, risk_level, result, request_id, incident_id]
+          required: [id, created_at, action, resource, risk_level, result, request_id]
           properties:
             id: { type: integer, format: int64 }
             created_at: { type: string, format: date-time }
@@ -51,4 +51,3 @@ properties:
             risk_level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
             result: { type: string, enum: [SUCCESS, FAILED, DENIED, ERROR] }
             request_id: { type: string }
-            incident_id: { type: integer, format: int64 }

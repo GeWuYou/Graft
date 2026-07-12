@@ -219,13 +219,13 @@ func (s userService) CountUsers(ctx context.Context) (int, error) {
 	return s.users.Count(ctx)
 }
 
-// ListSecuritySummaries returns only account identifiers and status for authorized aggregate readers.
-func (s userService) ListSecuritySummaries(ctx context.Context) ([]moduleapi.UserSecuritySummary, error) {
+// ListSecuritySummaries returns one bounded, ID-ordered account-state page for authorized aggregate readers.
+func (s userService) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]moduleapi.UserSecuritySummary, error) {
 	if s.users == nil {
 		return nil, errors.New("user repository is unavailable")
 	}
 
-	users, err := s.users.List(ctx)
+	users, err := s.users.ListSecuritySummaries(ctx, afterID, limit)
 	if err != nil {
 		return nil, err
 	}

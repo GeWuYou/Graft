@@ -47,7 +47,7 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 			LabelKey: "dashboard.actions.details",
 			Route:    securitycontract.OverviewMenuPath,
 		},
-		RequiredPermissions: []string{auditcontract.AuditReadPermission.String()},
+		RequiredPermissions: []string{securitycontract.OverviewReadPermission.String()},
 		Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
 			return loadAuditRiskEventsWidget(ctx, reader)
 		}),

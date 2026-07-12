@@ -9190,14 +9190,13 @@ type SecurityOverviewResponse struct {
 		FailedOperations int `json:"failed_operations"`
 		HighRiskEvents   int `json:"high_risk_events"`
 		RecentEvents     []struct {
-			Action     string                                             `json:"action"`
-			CreatedAt  time.Time                                          `json:"created_at"`
-			Id         int64                                              `json:"id"`
-			IncidentId int64                                              `json:"incident_id"`
-			RequestId  string                                             `json:"request_id"`
-			Resource   string                                             `json:"resource"`
-			Result     SecurityOverviewResponseAuditRecentEventsResult    `json:"result"`
-			RiskLevel  SecurityOverviewResponseAuditRecentEventsRiskLevel `json:"risk_level"`
+			Action    string                                             `json:"action"`
+			CreatedAt time.Time                                          `json:"created_at"`
+			Id        int64                                              `json:"id"`
+			RequestId string                                             `json:"request_id"`
+			Resource  string                                             `json:"resource"`
+			Result    SecurityOverviewResponseAuditRecentEventsResult    `json:"result"`
+			RiskLevel SecurityOverviewResponseAuditRecentEventsRiskLevel `json:"risk_level"`
 		} `json:"recent_events"`
 		RiskGroups []struct {
 			Count     int                                              `json:"count"`

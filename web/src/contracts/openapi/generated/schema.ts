@@ -3716,8 +3716,6 @@ export interface components {
           /** @enum {string} */
           result: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
           request_id: string;
-          /** Format: int64 */
-          incident_id: number;
         }[];
       };
     };

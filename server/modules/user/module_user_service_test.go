@@ -21,7 +21,10 @@ func (*createUserRepository) GetByUsername(context.Context, string) (userstore.U
 	return userstore.User{}, nil
 }
 func (*createUserRepository) List(context.Context) ([]userstore.User, error) { return nil, nil }
-func (*createUserRepository) Count(context.Context) (int, error)             { return 0, nil }
+func (*createUserRepository) ListSecuritySummaries(context.Context, uint64, int) ([]userstore.User, error) {
+	return nil, nil
+}
+func (*createUserRepository) Count(context.Context) (int, error) { return 0, nil }
 func (*createUserRepository) Update(context.Context, userstore.UpdateUserInput) (userstore.User, error) {
 	return userstore.User{}, nil
 }

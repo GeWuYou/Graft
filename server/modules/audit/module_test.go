@@ -569,7 +569,7 @@ func TestRegisterRegistersAuditRiskEventsDashboardWidget(t *testing.T) {
 	if widget.RouteLocation != "/security/overview" {
 		t.Fatalf("expected security overview route, got %q", widget.RouteLocation)
 	}
-	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != "audit.read" {
+	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != "security.overview.read" {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
 
