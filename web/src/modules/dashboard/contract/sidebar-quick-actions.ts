@@ -1,13 +1,11 @@
-import type { RouteRecordRaw } from 'vue-router';
-
 import { getDefaultLocale, type SupportedLocale } from '@/contracts/i18n/locales';
 import { renderLocalizedTitle, resolveRouteLocalizedTitle } from '@/utils/route/meta';
-import type { AppRouteMeta } from '@/utils/types';
+import type { AppRouteMeta, MenuRoute } from '@/utils/types';
 
 import type { DashboardQuickActionLink } from './quick-action-links';
 import { normalizeDashboardRoutePath, normalizeJoinedDashboardRoutePath } from './route-paths';
 
-type QuickActionSource = Pick<RouteRecordRaw, 'path' | 'children' | 'name' | 'meta'>;
+type QuickActionSource = Pick<MenuRoute, 'path' | 'children' | 'name' | 'meta'>;
 interface QuickActionParent {
   groupKey?: string;
   groupLabel?: string;
@@ -24,8 +22,11 @@ type QuickActionRouteMeta = AppRouteMeta & {
  * @param routes - The array of Vue Router route records to extract quick action links from.
  * @returns An array of DashboardQuickActionLink objects sorted by order (ascending), then by id (lexicographically).
  */
-export function buildDashboardQuickActionLinks(routes: RouteRecordRaw[], locale: SupportedLocale = getDefaultLocale()) {
-  return collectLeafLinks(routes, locale).sort(compareQuickActions);
+export function buildDashboardQuickActionLinks(
+  routes: Array<QuickActionSource | RouteRecordRaw>,
+  locale: SupportedLocale = getDefaultLocale(),
+) {
+  return collectLeafLinks(routes as QuickActionSource[], locale).sort(compareQuickActions);
 }
 
 /**
@@ -41,7 +42,8 @@ function collectLeafLinks(
 ): DashboardQuickActionLink[] {
   return routes.flatMap((route) => {
     const routeMeta = toRouteMeta(route.meta);
-    const fullPath = normalizeJoinedDashboardRoutePath(parentPath, String(route.path ?? ''));
+    const fullPath =
+      routeMeta?.navigationTargetPath ?? normalizeJoinedDashboardRoutePath(parentPath, String(route.path ?? ''));
     if (!fullPath || routeMeta?.hidden || routeMeta?.hiddenMenu) {
       return [];
     }
@@ -257,3 +259,4 @@ const ROUTE_NAME_NOISE_TOKENS = new Set([
   'Management',
   'Page',
 ]);
+import type { RouteRecordRaw } from 'vue-router';

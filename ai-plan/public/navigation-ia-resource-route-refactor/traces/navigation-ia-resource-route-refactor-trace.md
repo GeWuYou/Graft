@@ -42,4 +42,23 @@
   "closeout_status": "batch-2-complete"
 }
 ```
+
+## 2026-07-12 Frontend Navigation Route Migration
+
+- Split Web navigation graph construction from Vue Router registration: groups are graph-only nodes, entries register only their canonical resource routes, and no path ancestry fallback remains.
+- Migrated Web route constants and bootstrap registrations to `/projects/**`, `/containers/**`, `/system/**`, `/users`, `/roles`, `/permissions`, `/scheduled-tasks`, `/system-config`, and `/announcements`; the Notification Center remains a global menu-external route.
+- Added root locale ownership for the seven domain titles and focused graph/routing coverage. Persisted removed legacy URLs are rejected by the existing route restoration validity check rather than aliased.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration"],
+  "pending_batches": ["cross-boundary-validation-closeout"],
+  "current_batch": "frontend-navigation-route-migration",
+  "next_batch": "cross-boundary-validation-closeout",
+  "closeout_status": "batch-3-complete"
+}
+```
 ```

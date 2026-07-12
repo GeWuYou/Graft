@@ -317,6 +317,15 @@
     }
   },
   "menu": {
+    "domain": {
+      "application": { "title": "应用" },
+      "infrastructure": { "title": "基础设施" },
+      "build": { "title": "构建" },
+      "resources": { "title": "资源" },
+      "observability": { "title": "可观测性" },
+      "security": { "title": "安全" },
+      "platform": { "title": "平台" }
+    },
     "access_control": {
       "title": "访问控制",
       "overview": {

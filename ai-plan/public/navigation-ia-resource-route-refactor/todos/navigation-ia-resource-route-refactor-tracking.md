@@ -46,7 +46,7 @@ closeout:
 
 - [x] navigation-design-topic-and-skill
 - [x] backend-navigation-contract
-- [ ] frontend-navigation-route-migration
+- [x] frontend-navigation-route-migration
 - [ ] cross-boundary-validation-closeout
 
 ## Acceptance Conditions
@@ -60,13 +60,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract"],
-  "pending_batches": [
-    "frontend-navigation-route-migration",
-    "cross-boundary-validation-closeout"
-  ],
-  "current_batch": "backend-navigation-contract",
-  "next_batch": "frontend-navigation-route-migration",
-  "closeout_status": "batch-2-complete"
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration"],
+  "pending_batches": ["cross-boundary-validation-closeout"],
+  "current_batch": "frontend-navigation-route-migration",
+  "next_batch": "cross-boundary-validation-closeout",
+  "closeout_status": "batch-3-complete"
 }
 ```

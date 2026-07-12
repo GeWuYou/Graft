@@ -51,7 +51,6 @@ import { useRouter } from 'vue-router';
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { resolveMenuNavigationPath } from '@/layouts/layout-navigation';
 import { useLocale } from '@/locales/useLocale';
-import { getActive } from '@/router';
 import type { MenuRoute } from '@/utils/types';
 
 type ListItemType = MenuRoute;
@@ -67,7 +66,6 @@ const { navData, depth } = defineProps({
   },
 });
 
-const active = computed(() => getActive());
 const router = useRouter();
 
 const { locale } = useLocale();
@@ -91,7 +89,7 @@ const renderMenuTitle = (title?: LocalizedTitle) => {
   return title[locale.value as keyof LocalizedTitle] || '';
 };
 
-function getMenuList(list: MenuRoute[], basePath?: string): MenuRoute[] {
+function getMenuList(list: MenuRoute[]): MenuRoute[] {
   if (!list || list.length === 0) {
     return [];
   }
@@ -101,13 +99,11 @@ function getMenuList(list: MenuRoute[], basePath?: string): MenuRoute[] {
   });
   return list
     .map((item) => {
-      const path = basePath && !item.path.includes(basePath) ? `${basePath}/${item.path}` : item.path;
-
       return {
-        path,
+        path: item.path,
         title: item.meta?.title as LocalizedTitle | undefined,
         icon: item.meta?.icon,
-        children: getMenuList(item.children ?? [], path),
+        children: getMenuList(item.children ?? []),
         meta: item.meta,
         redirect: typeof item.redirect === 'string' ? item.redirect : undefined,
       } as MenuRoute;
@@ -123,19 +119,7 @@ const getHref = (item: MenuRoute) => {
   return null;
 };
 
-const getPath = (item: ListItemType) => {
-  const activeLevel = active.value.split('/').length;
-  const pathLevel = item.path.split('/').length;
-  if (activeLevel > pathLevel && active.value.startsWith(item.path)) {
-    return active.value;
-  }
-
-  if (active.value === item.path) {
-    return active.value;
-  }
-
-  return item.meta?.single ? item.redirect : item.path;
-};
+const getPath = (item: ListItemType) => item.meta?.navigationTargetPath ?? item.path;
 
 const getMenuValue = (item: ListItemType) => {
   return String(getPath(item) ?? item.path);

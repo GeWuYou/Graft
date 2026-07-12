@@ -38,7 +38,8 @@ const sideMenu = computed(() => {
   let newMenuRouters = menuRouters.value as Array<MenuRoute>;
   if (layout === 'mix' && splitMenu) {
     newMenuRouters.forEach((menu) => {
-      if (route.path.indexOf(menu.path) === 0 && menu.children?.length) {
+      const targetPath = menu.meta?.navigationTargetPath ?? menu.path;
+      if (route.path.indexOf(targetPath) === 0 && menu.children?.length) {
         newMenuRouters = [
           {
             ...menu,

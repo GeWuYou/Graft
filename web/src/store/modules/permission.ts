@@ -6,13 +6,18 @@ import { getGlobalRouteRegistrations } from '@/modules';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { store } from '@/store/pinia';
-import { transformBootstrapMenusToRoutes, transformGlobalRegistrationsToRoutes } from '@/utils/route/bootstrap';
+import {
+  buildBootstrapNavigationTree,
+  transformBootstrapMenusToRoutes,
+  transformGlobalRegistrationsToRoutes,
+} from '@/utils/route/bootstrap';
+import type { MenuRoute } from '@/utils/types';
 
 export const usePermissionStore = defineStore('permission', {
   state: () => ({
     whiteListRouters: [AUTH_ROUTE_PATH.LOGIN] as string[],
     bootstrapSnapshot: null as BootstrapResponse | null,
-    routers: [] as RouteRecordRaw[],
+    routers: [] as Array<RouteRecordRaw | MenuRoute>,
     removeRoutes: [] as RouteRecordRaw[],
     asyncRoutes: [] as RouteRecordRaw[],
     globalRoutes: [] as RouteRecordRaw[],
@@ -31,10 +36,7 @@ export const usePermissionStore = defineStore('permission', {
       this.bootstrapSnapshot = snapshot;
     },
     async initRoutes() {
-      const accessedRouters = this.asyncRoutes;
-
-      // 菜单展示只保留 bootstrap 动态菜单，避免继续暴露 starter 静态演示菜单。
-      this.routers = cloneDeep(accessedRouters);
+      this.routers = cloneDeep(buildBootstrapNavigationTree(this.bootstrapSnapshot?.menus ?? []));
     },
     async buildAsyncRoutes() {
       this.asyncRoutes = transformBootstrapMenusToRoutes(this.bootstrapSnapshot?.menus ?? []);

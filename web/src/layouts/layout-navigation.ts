@@ -24,6 +24,10 @@ export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
 }
 
 export function resolveMenuNavigationPath(menu: MenuRoute, parentPath = ''): string {
+  const explicitTarget = menu.meta?.navigationTargetPath;
+  if (typeof explicitTarget === 'string' && explicitTarget) {
+    return explicitTarget;
+  }
   const fullPath = normalizeMenuPath(parentPath, menu.path);
 
   if (typeof menu.redirect === 'string' && menu.redirect.trim()) {
@@ -64,6 +68,7 @@ function findExpandedMenuMatch(
     }
 
     const fullPath = normalizeMenuPath(parentPath, menu.path);
+    const targetPath = resolveMenuNavigationPath(menu, parentPath);
     const visibleChildren = (menu.children ?? []).filter((child) => child.meta?.hidden !== true);
     const childMatch =
       visibleChildren.length > 0
@@ -80,9 +85,9 @@ function findExpandedMenuMatch(
     const navigationPath = resolveMenuNavigationPath(menu, parentPath);
     const isExpandableMenu = visibleChildren.length > 0 && menu.meta?.single !== true;
     const matchesCurrentMenu =
-      activePath === fullPath ||
+      activePath === targetPath ||
       activePath === navigationPath ||
-      activePath.startsWith(`${fullPath}/`) ||
+      activePath.startsWith(`${targetPath}/`) ||
       activePath.startsWith(`${navigationPath}/`);
 
     if (matchesCurrentMenu) {

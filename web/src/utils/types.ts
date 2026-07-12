@@ -28,6 +28,10 @@ export interface PageFooterMeta {
  * bootstrap label when no translation exists.
  */
 export interface AppRouteMeta {
+  /** Explicit bootstrap navigation graph metadata; never inferred from URL ancestry. */
+  navigationCode?: string;
+  navigationKind?: 'group' | 'entry';
+  navigationTargetPath?: string;
   title?: LocalizedTitle;
   titleKey?: string;
   domain?: GovernanceDomain;
