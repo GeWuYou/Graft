@@ -1,0 +1,7 @@
+name: provider
+in: query
+required: false
+description: Optional Runtime Target provider. Docker is the only current Compose provider.
+schema:
+  type: string
+  enum: [docker]

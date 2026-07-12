@@ -91,6 +91,10 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	if err != nil {
 		return ListQuery{}, err
 	}
+	query.Keyword = strings.TrimSpace(query.Keyword)
+	if len(query.Keyword) > 128 || (query.RuntimeTargetID != nil && *query.RuntimeTargetID < 1) {
+		return ListQuery{}, ErrInvalidInput
+	}
 	if query.Limit <= 0 {
 		query.Limit = defaultListLimit
 	}
@@ -556,6 +560,7 @@ func rollbackTx(tx *sql.Tx) {
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
 	var lastDriftCheckedAt sql.NullTime
+	var runtimeTargetID sql.NullInt64
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
@@ -564,6 +569,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var workspaceAnnotationsJSON []byte
 	if err := scanner.Scan(
 		&item.ID,
+		&runtimeTargetID,
 		&item.DisplayName,
 		&item.CanonicalProjectName,
 		&item.CanonicalProjectNameSource,
@@ -589,6 +595,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		return Project{}, err
 	}
 	item.LastDriftCheckedAt = nullableTime(lastDriftCheckedAt)
+	item.RuntimeTargetID = nullableUint64(runtimeTargetID)
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)
 	item.DeletedBy = nullableUint64(deletedBy)

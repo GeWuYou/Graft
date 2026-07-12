@@ -2,6 +2,7 @@ type: object
 required:
   - id
   - display_name
+  - application_type
   - canonical_project_name
   - canonical_project_name_source
   - lifecycle_review_status
@@ -20,6 +21,12 @@ properties:
     minimum: 1
   display_name:
     type: string
+  application_type:
+    type: string
+    enum: [compose]
+  runtime_target:
+    $ref: ./project-runtime-target-summary.yaml
+    nullable: true
   canonical_project_name:
     type: string
   canonical_project_name_source:

@@ -13,4 +13,5 @@ type RuntimeTargetSummary struct {
 // It deliberately exposes neither endpoints nor credentials.
 type RuntimeTargetReader interface {
 	ReadDockerTarget(context.Context, *int64) (RuntimeTargetSummary, error)
+	ListDockerTargets(context.Context) ([]RuntimeTargetSummary, error)
 }

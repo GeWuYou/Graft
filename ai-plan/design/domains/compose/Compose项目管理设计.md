@@ -12,6 +12,8 @@
 
 Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用目标，不能自行维护另一套 Docker endpoint 或凭据目录。Project 详情可以跳转到关联 Docker Container 资源，但跳转不得改变上述 authority。
 
+每个 Compose Application 绑定一个 Docker `runtime_target_id`。新建、导入和受管来源创建在写入注册前必须解析该 Target；非 Docker 或未知 Target 不能进入当前 Compose 生命周期。`compose_projects.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史 `host_scope=local` 行。该桥的 authority 是 Runtime Target，影响者是 Project 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
+
 ## 1. 启动治理与 Authority
 
 - 任务分类：`cross-boundary`

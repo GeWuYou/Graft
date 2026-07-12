@@ -87,6 +87,24 @@ func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (m
 	return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 }
 
+// ListDockerTargets exposes target identity only. Consumers must not receive endpoint or credential fields.
+func (r runtimeTargetReader) ListDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
+	if r.repository == nil {
+		return nil, store.ErrNotFound
+	}
+	items, err := r.repository.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]moduleapi.RuntimeTargetSummary, 0, len(items))
+	for _, target := range items {
+		if summary, ok := dockerTargetSummary(target); ok {
+			results = append(results, summary)
+		}
+	}
+	return results, nil
+}
+
 // dockerTargetSummary converts a Docker target with a representable identifier into a runtime target summary.
 func dockerTargetSummary(target store.Target) (moduleapi.RuntimeTargetSummary, bool) {
 	if target.ID > maxRuntimeTargetID || target.Provider != "docker" {

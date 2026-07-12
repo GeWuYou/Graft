@@ -25,6 +25,7 @@ type CreationCommand struct {
 	LifecycleConfig            LifecycleStandardConfig
 	ParseResult                projectcompose.Result
 	ActorID                    *uint64
+	RuntimeTargetID            uint64
 }
 
 // createProjectFromWorkspace persists the common project aggregate after a source
@@ -42,6 +43,10 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
 	now := time.Now().UTC()
+	targetID, err := s.resolveDockerRuntimeTarget(ctx, command.RuntimeTargetID)
+	if err != nil {
+		return projectstore.ProjectAggregate{}, time.Time{}, err
+	}
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
 		DisplayName:                strings.TrimSpace(command.DisplayName),
 		CanonicalProjectName:       strings.TrimSpace(command.CanonicalProjectName),
@@ -65,12 +70,32 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 			DeclaredServicesDigest: digestServiceNames(command.ParseResult.ServiceNames),
 			RefreshedAt:            now,
 		},
-		ActorID: command.ActorID,
+		ActorID:         command.ActorID,
+		RuntimeTargetID: targetID,
 	})
 	if err != nil {
 		return projectstore.ProjectAggregate{}, time.Time{}, mapStoreError(err)
 	}
 	return aggregate, now, nil
+}
+
+func (s *Service) resolveDockerRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {
+	if s == nil || s.runtimeTargets == nil {
+		return 0, nil // Unit tests construct the service without module wiring.
+	}
+	var id *int64
+	if requested > 0 {
+		if requested > uint64(^uint64(0)>>1) {
+			return 0, errProjectInvalidArgument
+		}
+		value := int64(requested)
+		id = &value
+	}
+	target, err := s.runtimeTargets.ReadDockerTarget(ctx, id)
+	if err != nil || target.ID < 1 {
+		return 0, errProjectInvalidArgument
+	}
+	return uint64(target.ID), nil
 }
 
 // defaultManagedLifecycleConfig 返回用于受管项目的生命周期配置；未提供配置时使用默认配置。

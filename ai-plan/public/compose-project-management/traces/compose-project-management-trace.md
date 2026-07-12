@@ -408,3 +408,8 @@
 - 新增 module-owned `saved_views` 表和 generic `moduleapi.SavedViewService`，没有菜单、快捷操作或无法实施领域授权的公共 HTTP API。
 - 表按 owner user 与 consumer `surface_key` 隔离；live 名称通过部分唯一索引保持唯一。持久化筛选/查询 JSON、页大小和可见列；当前页不持久化，应用视图从第一页开始。
 - `project` 保持 `/api/ops/projects/saved-views` 的授权与 payload authority，以 `ops.project.view` 保护，并仅接受当前 project list 定义的筛选字段和列键。
+# 2026-07-12 Application Runtime Target Association
+
+- Runtime Target remains the target/provider authority; Project stores only nullable migration-bridge `runtime_target_id` and consumes summaries through `moduleapi`.
+- New Compose registrations resolve a Docker target before persistence. Historical local rows are idempotently backfilled after Runtime Target Boot discovery.
+- `/api/ops/projects` now models the generic application list projection with `application_type=compose`, target summary and server-side identity/target/provider/source/drift filters. The bridge becomes non-null only after live backfill evidence confirms no remaining rows.

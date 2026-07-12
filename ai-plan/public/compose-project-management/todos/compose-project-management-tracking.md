@@ -263,3 +263,9 @@ Compose Project Management
   "closeout_status": "archive-ready"
 }
 ```
+# Application Target Association (2026-07-12)
+
+- [x] Bind Compose application registry records to Docker Runtime Target references with a documented nullable migration bridge.
+- [x] Expose target/provider summaries and server-side project-list filters through the application projection contract.
+- [x] Extend project saved-view state validation for application filters, page size, and visible columns.
+- [ ] Implement the web Application Management surface and icon system in the next loop batch.

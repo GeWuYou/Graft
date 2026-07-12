@@ -19,3 +19,11 @@ func TestValidateProjectListSavedViewRejectsUnknownConsumerFields(t *testing.T) 
 		t.Fatal("unknown project-list column must be rejected")
 	}
 }
+
+func TestValidateProjectListSavedViewAcceptsApplicationFilters(t *testing.T) {
+	t.Parallel()
+	state, _ := json.Marshal(map[string]any{"keyword": "api", "application_type": "compose", "runtime_target_id": 7, "provider": "docker", "runtime_status": "running", "source_kind": "managed", "drift_status": "clean"})
+	if err := validateProjectListSavedView(savedViewRequest{Name: "Docker API", QueryState: state, PageSize: 50, VisibleColumns: []string{"application_type", "runtime_target", "provider"}}); err != nil {
+		t.Fatalf("valid application filters rejected: %v", err)
+	}
+}

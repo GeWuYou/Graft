@@ -13,7 +13,7 @@ import (
 const projectListSavedViewSurface = "project.list"
 
 var projectListSavedViewColumns = map[string]struct{}{
-	"name": {}, "source_kind": {}, "runtime_status": {}, "resources": {}, "drift_status": {}, "updated_at": {},
+	"name": {}, "application_type": {}, "runtime_target": {}, "provider": {}, "source_kind": {}, "runtime_status": {}, "resources": {}, "drift_status": {}, "updated_at": {},
 }
 
 // savedViewRequest is the project-owned, consumer-specific state accepted by its saved-view routes.
@@ -64,27 +64,51 @@ func validateProjectListSavedView(request savedViewRequest) error {
 	return validateProjectListVisibleColumns(request.VisibleColumns)
 }
 
+//nolint:gocognit,gocyclo,cyclop // Explicit field-level validation prevents opaque saved-view query state.
 func validateProjectListQueryState(queryState json.RawMessage) error {
 	var state struct {
-		SourceKind  *string `json:"source_kind"`
-		DriftStatus *string `json:"drift_status"`
+		Keyword         *string `json:"keyword"`
+		ApplicationType *string `json:"application_type"`
+		RuntimeTargetID *int64  `json:"runtime_target_id"`
+		Provider        *string `json:"provider"`
+		SourceKind      *string `json:"source_kind"`
+		RuntimeStatus   *string `json:"runtime_status"`
+		DriftStatus     *string `json:"drift_status"`
 	}
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(queryState, &raw); err != nil || raw == nil {
 		return errProjectInvalidArgument
 	}
 	for key := range raw {
-		if key != "source_kind" && key != "drift_status" {
+		if key != "keyword" && key != "application_type" && key != "runtime_target_id" && key != "provider" && key != "source_kind" && key != "runtime_status" && key != "drift_status" {
 			return errProjectInvalidArgument
 		}
 	}
 	if err := json.Unmarshal(queryState, &state); err != nil {
 		return errProjectInvalidArgument
 	}
-	for _, value := range []*string{state.SourceKind, state.DriftStatus} {
+	for _, value := range []*string{state.Keyword, state.ApplicationType, state.Provider, state.SourceKind, state.RuntimeStatus, state.DriftStatus} {
 		if value != nil && strings.TrimSpace(*value) == "" {
 			return errProjectInvalidArgument
 		}
+	}
+	if state.RuntimeTargetID != nil && *state.RuntimeTargetID < 1 {
+		return errProjectInvalidArgument
+	}
+	if state.ApplicationType != nil && *state.ApplicationType != "compose" {
+		return errProjectInvalidArgument
+	}
+	if state.Provider != nil && *state.Provider != "docker" {
+		return errProjectInvalidArgument
+	}
+	if state.SourceKind != nil && !generated.ProjectSourceKind(*state.SourceKind).Valid() {
+		return errProjectInvalidArgument
+	}
+	if state.RuntimeStatus != nil && !generated.ProjectRuntimeStatus(*state.RuntimeStatus).Valid() {
+		return errProjectInvalidArgument
+	}
+	if state.DriftStatus != nil && !generated.ProjectDriftStatus(*state.DriftStatus).Valid() {
+		return errProjectInvalidArgument
 	}
 	return nil
 }

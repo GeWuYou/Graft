@@ -102,10 +102,15 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	}
 	projectGeneratedHandler{}.GetProjects(params)
 	result, err := r.service.List(ginCtx.Request.Context(), ListQuery{
-		Limit:       intPtrValue(params.Limit),
-		Offset:      intPtrValue(params.Offset),
-		SourceKind:  stringPtrValue(params.SourceKind),
-		DriftStatus: stringPtrValue(params.DriftStatus),
+		Limit:           intPtrValue(params.Limit),
+		Offset:          intPtrValue(params.Offset),
+		Keyword:         stringPtrValue(params.Keyword),
+		ApplicationType: stringPtrValue(params.ApplicationType),
+		RuntimeTargetID: params.RuntimeTargetId,
+		Provider:        stringPtrValue(params.Provider),
+		SourceKind:      stringPtrValue(params.SourceKind),
+		RuntimeStatus:   stringPtrValue(params.RuntimeStatus),
+		DriftStatus:     stringPtrValue(params.DriftStatus),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -1042,6 +1047,8 @@ func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDe
 
 // bindListParams 绑定项目列表查询参数和公共请求头。
 // 它解析 source_kind、drift_status、limit 和 offset，并在分页参数无效时中止请求。
+//
+//nolint:cyclop // generated-contract query binding stays explicit at the HTTP boundary.
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
@@ -1061,6 +1068,35 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	}
 	params.SourceKind = sourceKind
 	params.DriftStatus = driftStatus
+	if keyword := strings.TrimSpace(query.Get("keyword")); keyword != "" {
+		params.Keyword = &keyword
+	}
+	applicationType, ok := optionalValidatedEnumQuery(query.Get("application_type"), generated.GetProjectsParamsApplicationType.Valid)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	params.ApplicationType = applicationType
+	provider, ok := optionalValidatedEnumQuery(query.Get("provider"), generated.GetProjectsParamsProvider.Valid)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	params.Provider = provider
+	runtimeStatus, ok := optionalValidatedEnumQuery(query.Get("runtime_status"), generated.ProjectRuntimeStatus.Valid)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	params.RuntimeStatus = runtimeStatus
+	if value := strings.TrimSpace(query.Get("runtime_target_id")); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || parsed < 1 {
+			abortInvalidQuery(ginCtx, ctx)
+			return generated.GetProjectsParams{}, false
+		}
+		params.RuntimeTargetId = &parsed
+	}
 	if params.Limit, ok = optionalIntQuery[generated.ProjectListLimit](query.Get("limit"), minimumProjectListLimit, maxProjectListLimit); !ok {
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetProjectsParams{}, false

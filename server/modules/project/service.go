@@ -67,10 +67,15 @@ const (
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit       int
-	Offset      int
-	SourceKind  string
-	DriftStatus string
+	Limit           int
+	Offset          int
+	Keyword         string
+	ApplicationType string
+	RuntimeTargetID *int64
+	Provider        string
+	SourceKind      string
+	RuntimeStatus   string
+	DriftStatus     string
 }
 
 // ImportRequest describes batch-2 import validate and import payloads.
@@ -431,6 +436,7 @@ type Service struct {
 	logReader                    moduleapi.ContainerProjectLogReader
 	configResolver               moduleapi.SystemConfigResolver
 	savedViews                   moduleapi.SavedViewService
+	runtimeTargets               moduleapi.RuntimeTargetReader
 	authorizer                   moduleapi.Authorizer
 	realtimeTickets              realtimeauth.Service
 	realtimeHub                  realtime.Hub
@@ -567,6 +573,13 @@ func (s *Service) SetSavedViewService(service moduleapi.SavedViewService) {
 	}
 }
 
+// SetRuntimeTargetReader injects the narrow Runtime Target identity authority.
+func (s *Service) SetRuntimeTargetReader(reader moduleapi.RuntimeTargetReader) {
+	if s != nil {
+		s.runtimeTargets = reader
+	}
+}
+
 // SetAuthorizer injects the authorizer after module registration.
 func (s *Service) SetAuthorizer(authorizer moduleapi.Authorizer) {
 	if s == nil {
@@ -600,16 +613,37 @@ func (s *Service) SetAuditPublisher(bus eventbus.Bus, logger *zap.Logger, module
 }
 
 // List returns one page of registered projects.
+//
+//nolint:gocognit,gocyclo,cyclop // Application list mapping keeps target and runtime authority explicit.
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
 		return ListResult{}, err
 	}
+	if query.ApplicationType != "" && query.ApplicationType != "compose" {
+		return ListResult{}, errProjectInvalidArgument
+	}
+	targets, err := s.listDockerTargets(ctx)
+	if err != nil {
+		return ListResult{}, err
+	}
+	_, targetByID := runtimeTargetLookup(targets)
+	if query.Provider != "" && query.Provider != "docker" {
+		return ListResult{Items: []generated.ProjectListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
+	}
+	if query.RuntimeTargetID != nil {
+		//nolint:gosec // bindListParams and store normalization both reject values below one.
+		if _, ok := targetByID[uint64(*query.RuntimeTargetID)]; !ok {
+			return ListResult{}, errProjectInvalidArgument
+		}
+	}
 	storeResult, err := repository.List(ctx, projectstore.ListQuery{
-		Limit:       query.Limit,
-		Offset:      query.Offset,
-		SourceKind:  strings.TrimSpace(query.SourceKind),
-		DriftStatus: strings.TrimSpace(query.DriftStatus),
+		Limit:           query.Limit,
+		Offset:          query.Offset,
+		Keyword:         strings.TrimSpace(query.Keyword),
+		RuntimeTargetID: query.RuntimeTargetID,
+		SourceKind:      strings.TrimSpace(query.SourceKind),
+		DriftStatus:     strings.TrimSpace(query.DriftStatus),
 	})
 	if err != nil {
 		return ListResult{}, mapStoreError(err)
@@ -618,9 +652,53 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	items := make([]generated.ProjectListItem, 0, len(storeResult.Items))
 	for _, item := range storeResult.Items {
 		runtimeSummary, runtimeErr := s.runtimeSummary(ctx, item)
-		items = append(items, toProjectListItemWithManagedRoot(item, managedRootDirectory, &runtimeSummary, runtimeErr))
+		mapped := toProjectListItemWithManagedRoot(item, managedRootDirectory, &runtimeSummary, runtimeErr)
+		mapped.ApplicationType = generated.ProjectListItemApplicationTypeCompose
+		if item.Project.RuntimeTargetID != nil {
+			if target, ok := targetByID[*item.Project.RuntimeTargetID]; ok {
+				mapped.RuntimeTarget = &generated.ProjectRuntimeTargetSummary{Id: target.ID, DisplayName: target.DisplayName, Provider: generated.ProjectRuntimeTargetSummaryProvider(target.Provider)}
+			}
+		}
+		if query.RuntimeStatus != "" && (mapped.RuntimeStatus == nil || string(*mapped.RuntimeStatus) != query.RuntimeStatus) {
+			continue
+		}
+		items = append(items, mapped)
 	}
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
+}
+
+func (s *Service) listDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
+	if s == nil || s.runtimeTargets == nil {
+		return []moduleapi.RuntimeTargetSummary{}, nil
+	}
+	return s.runtimeTargets.ListDockerTargets(ctx)
+}
+
+func runtimeTargetLookup(targets []moduleapi.RuntimeTargetSummary) ([]int64, map[uint64]moduleapi.RuntimeTargetSummary) {
+	ids := make([]int64, 0, len(targets))
+	byID := make(map[uint64]moduleapi.RuntimeTargetSummary, len(targets))
+	for _, target := range targets {
+		if target.ID > 0 {
+			ids = append(ids, target.ID)
+			byID[uint64(target.ID)] = target
+		}
+	}
+	return ids, byID
+}
+
+// BackfillRuntimeTargets binds historical local Compose records after runtime-target Boot discovery.
+func (s *Service) BackfillRuntimeTargets(ctx context.Context) error {
+	if s == nil || s.repository == nil || s.runtimeTargets == nil {
+		return nil
+	}
+	target, err := s.runtimeTargets.ReadDockerTarget(ctx, nil)
+	if err != nil {
+		return nil
+	}
+	if target.ID < 1 {
+		return nil
+	}
+	return s.repository.BackfillRuntimeTarget(ctx, uint64(target.ID))
 }
 
 // Get returns one project detail payload.

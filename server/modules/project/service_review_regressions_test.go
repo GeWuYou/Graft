@@ -523,6 +523,8 @@ type pagedConflictRepository struct {
 	listCalls []projectstore.ListQuery
 }
 
+func (r *pagedConflictRepository) BackfillRuntimeTarget(context.Context, uint64) error { return nil }
+
 func (r *pagedConflictRepository) List(_ context.Context, query projectstore.ListQuery) (projectstore.ListResult, error) {
 	r.listCalls = append(r.listCalls, query)
 	if query.Offset >= r.total {

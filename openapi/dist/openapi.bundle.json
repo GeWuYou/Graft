@@ -11238,9 +11238,9 @@
         "tags": [
           "project"
         ],
-        "summary": "List Compose projects",
+        "summary": "List applications",
         "operationId": "getProjects",
-        "description": "Returns registered Compose projects without introducing a second runtime authority.",
+        "description": "Returns application projections. Compose remains the only supported application type and Runtime Target remains the target/provider authority.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11255,7 +11255,22 @@
             "$ref": "#/components/parameters/project-list-offset"
           },
           {
+            "$ref": "#/components/parameters/project-list-keyword"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-application-type"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-runtime-target-id"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-provider"
+          },
+          {
             "$ref": "#/components/parameters/project-list-source-kind"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-runtime-status"
           },
           {
             "$ref": "#/components/parameters/project-list-drift-status"
@@ -23958,6 +23973,24 @@
           "ProjectSourceKindTemplate"
         ]
       },
+      "project-runtime-status": {
+        "type": "string",
+        "enum": [
+          "running",
+          "degraded",
+          "stopped",
+          "transitioning",
+          "unknown"
+        ],
+        "x-enum-varnames": [
+          "ProjectRuntimeStatusRunning",
+          "ProjectRuntimeStatusDegraded",
+          "ProjectRuntimeStatusStopped",
+          "ProjectRuntimeStatusTransitioning",
+          "ProjectRuntimeStatusUnknown"
+        ],
+        "description": "Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.\n"
+      },
       "project-drift-status": {
         "type": "string",
         "enum": [
@@ -23972,6 +24005,31 @@
           "ProjectDriftStatusChanged",
           "ProjectDriftStatusMissing"
         ]
+      },
+      "project-runtime-target-summary": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "docker"
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "project-canonical-name-source": {
         "type": "string",
@@ -24062,24 +24120,6 @@
           "ProjectOwnershipModeManagedRootDedicated"
         ]
       },
-      "project-runtime-status": {
-        "type": "string",
-        "enum": [
-          "running",
-          "degraded",
-          "stopped",
-          "transitioning",
-          "unknown"
-        ],
-        "x-enum-varnames": [
-          "ProjectRuntimeStatusRunning",
-          "ProjectRuntimeStatusDegraded",
-          "ProjectRuntimeStatusStopped",
-          "ProjectRuntimeStatusTransitioning",
-          "ProjectRuntimeStatusUnknown"
-        ],
-        "description": "Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.\n"
-      },
       "project-container-counts": {
         "type": "object",
         "required": [
@@ -24117,6 +24157,7 @@
         "required": [
           "id",
           "display_name",
+          "application_type",
           "canonical_project_name",
           "canonical_project_name_source",
           "lifecycle_review_status",
@@ -24137,6 +24178,16 @@
           },
           "display_name": {
             "type": "string"
+          },
+          "application_type": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "runtime_target": {
+            "$ref": "#/components/schemas/project-runtime-target-summary",
+            "nullable": true
           },
           "canonical_project_name": {
             "type": "string"
@@ -24327,8 +24378,41 @@
           },
           "query_state": {
             "type": "object",
-            "additionalProperties": true,
-            "description": "Project-list filter state. The server validates this payload for the project saved-view surface."
+            "additionalProperties": false,
+            "description": "Project-list filter state. The server validates this payload for the project saved-view surface.",
+            "properties": {
+              "keyword": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "application_type": {
+                "type": "string",
+                "enum": [
+                  "compose"
+                ]
+              },
+              "runtime_target_id": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "docker"
+                ]
+              },
+              "source_kind": {
+                "$ref": "#/components/schemas/project-source-kind"
+              },
+              "runtime_status": {
+                "$ref": "#/components/schemas/project-runtime-status"
+              },
+              "drift_status": {
+                "$ref": "#/components/schemas/project-drift-status"
+              }
+            }
           },
           "page_size": {
             "type": "integer",
@@ -28928,6 +29012,61 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        }
+      },
+      "project-list-keyword": {
+        "name": "keyword",
+        "in": "query",
+        "required": false,
+        "description": "Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "project-list-application-type": {
+        "name": "application_type",
+        "in": "query",
+        "required": false,
+        "description": "Optional application type. Compose is the only currently supported type.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "compose"
+          ]
+        }
+      },
+      "project-list-runtime-target-id": {
+        "name": "runtime_target_id",
+        "in": "query",
+        "required": false,
+        "description": "Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
+        }
+      },
+      "project-list-provider": {
+        "name": "provider",
+        "in": "query",
+        "required": false,
+        "description": "Optional Runtime Target provider. Docker is the only current Compose provider.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "docker"
+          ]
+        }
+      },
+      "project-list-runtime-status": {
+        "name": "runtime_status",
+        "in": "query",
+        "required": false,
+        "description": "Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.",
+        "schema": {
+          "$ref": "#/components/schemas/project-runtime-status"
         }
       },
       "project-import-runtime-candidate-list-keyword": {
