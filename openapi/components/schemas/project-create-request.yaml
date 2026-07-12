@@ -49,12 +49,16 @@ properties:
   compose_file_path:
     type: string
     minLength: 1
-    description: Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition.
+    maxLength: 1024
+    pattern: '^[^/\\\\][^\\\\]*$'
+    description: Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition.
   env_file_paths:
     type: array
     items:
       type: string
       minLength: 1
-    description: Explicit workspace-relative env file references.
+      maxLength: 1024
+      pattern: '^[^/\\\\][^\\\\]*$'
+    description: Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
   lifecycle_configuration:
     $ref: ./project-lifecycle-configuration-request.yaml

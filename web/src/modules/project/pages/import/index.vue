@@ -1122,7 +1122,9 @@ async function handleRefreshInspect(automatic = false) {
       invalidateInspectionSession();
       await goToStep('inspect', true);
     }
-    MessagePlugin.error(inspectError.value || t('project.import.messages.inspectFailed'));
+    if (!automatic) {
+      MessagePlugin.error(inspectError.value || t('project.import.messages.inspectFailed'));
+    }
   }
 }
 

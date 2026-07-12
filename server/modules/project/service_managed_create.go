@@ -84,13 +84,11 @@ type normalizedManagedWorkspaceFile struct {
 	Content string
 }
 
-// normalizeManagedCreateRequest 规范化受控创建请求并校验必填字段。
-// normalizeManagedCreateRequest 规范化并校验受控项目创建请求，生成可用于创建项目的请求数据。
-// 缺少必填字段或字段无效时返回错误。
-//
 // normalizeManagedCreateRequest 规范化并验证受控项目创建请求，生成用于后续项目创建的输入数据。
 // 它会校验项目名称、目录、Compose 文件、可选环境文件及工作区文件，并保留生命周期配置和环境文件路径。
 // 返回规范化后的请求数据及验证错误。
+//
+//nolint:cyclop // The coupled request fields must be normalized together before any managed-root write.
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	canonicalName := strings.TrimSpace(request.CanonicalProjectName)

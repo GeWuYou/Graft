@@ -6097,6 +6097,7 @@ export interface components {
       candidate_key: string;
       candidate_kind: components['schemas']['project-discovery-candidate-kind'];
       source_kind: components['schemas']['project-source-kind'];
+      /** @description Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value. */
       source_type?: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
       display_name: string;
@@ -6158,7 +6159,9 @@ export interface components {
       env_file_name?: string | null;
       /** @description Complete managed workspace text manifest to validate without materializing. */
       workspace_files?: components['schemas']['project-workspace-manifest-file'][];
+      /** @description Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
       compose_file_path?: string;
+      /** @description Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace. */
       env_file_paths?: string[];
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
@@ -6192,9 +6195,9 @@ export interface components {
       env_file_content?: string | null;
       /** @description Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest. */
       workspace_files?: components['schemas']['project-workspace-manifest-file'][];
-      /** @description Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition. */
+      /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition. */
       compose_file_path?: string;
-      /** @description Explicit workspace-relative env file references. */
+      /** @description Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace. */
       env_file_paths?: string[];
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
@@ -13193,7 +13196,16 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-create-validate-response'];
         };
       };
-      400: components['responses']['internal-server-error'];
+      /** @description Invalid template create validation request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
     };
@@ -13228,7 +13240,16 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-create-response'];
         };
       };
-      400: components['responses']['internal-server-error'];
+      /** @description Invalid template create request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
     };

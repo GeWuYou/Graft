@@ -74,7 +74,7 @@
           />
           <div class="project-create-page__actions">
             <t-button theme="default" variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" @click="step++">{{ t('project.create.actions.review') }}</t-button>
+            ><t-button theme="primary" @click="nextFromLifecycle">{{ t('project.create.actions.review') }}</t-button>
           </div>
         </section>
         <section v-else>
@@ -280,6 +280,14 @@ function requestBase() {
 }
 async function validateRequest() {
   validationResult.value = await postProjectCreateValidate(requestBase() as ProjectCreateValidateRequest);
+}
+async function nextFromLifecycle() {
+  try {
+    await validateRequest();
+    step.value++;
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));
+  }
 }
 async function createProject() {
   if (!managedCreateEnabled.value) {

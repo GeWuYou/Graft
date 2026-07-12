@@ -267,7 +267,12 @@ func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectCreateValidate(bindPostProjectCreateValidateParams(ginCtx), request)
-	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), toManagedCreateRequest(request))
+	managedRequest, err := toManagedCreateRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), managedRequest)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -281,7 +286,12 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectCreate(bindPostProjectCreateParams(ginCtx), request)
-	result, err := r.service.CreateManagedProject(ginCtx.Request.Context(), toManagedCreateExecuteRequest(request), currentUserIDPointer(ginCtx))
+	managedRequest, err := toManagedCreateExecuteRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.CreateManagedProject(ginCtx.Request.Context(), managedRequest, currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -304,7 +314,12 @@ func (r routeRuntime) handleTemplateCreateValidate(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	result, err := r.service.ValidateTemplateProject(ginCtx.Request.Context(), toTemplateProjectCreateRequest(request))
+	templateRequest, err := toTemplateProjectCreateRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.ValidateTemplateProject(ginCtx.Request.Context(), templateRequest)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -317,7 +332,12 @@ func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	result, err := r.service.CreateTemplateProject(ginCtx.Request.Context(), toTemplateProjectCreateRequest(request), currentUserIDPointer(ginCtx))
+	templateRequest, err := toTemplateProjectCreateRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.CreateTemplateProject(ginCtx.Request.Context(), templateRequest, currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -326,15 +346,17 @@ func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
 }
 
 // toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
-// It includes the lifecycle configuration when it can be converted successfully.
-func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) TemplateProjectCreateRequest {
+// It returns an error when the lifecycle configuration cannot use the standard strategy.
+func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (TemplateProjectCreateRequest, error) {
 	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
 	if request.LifecycleConfiguration != nil {
-		if config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration); err == nil {
-			result.LifecycleConfig = &config
+		config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration)
+		if err != nil {
+			return TemplateProjectCreateRequest{}, err
 		}
+		result.LifecycleConfig = &config
 	}
-	return result
+	return result, nil
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {

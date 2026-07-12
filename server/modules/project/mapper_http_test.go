@@ -1,9 +1,43 @@
 package project
 
 import (
+	"errors"
 	"testing"
 	"time"
+
+	"graft/server/internal/contract/openapi/generated"
 )
+
+func TestManagedCreateRequestMappersRejectUnsupportedLifecycleStrategy(t *testing.T) {
+	t.Parallel()
+
+	invalidLifecycle := &generated.ProjectLifecycleConfigurationRequest{
+		StrategyKind: generated.ProjectLifecycleStrategyKind("unsupported"),
+	}
+	if _, err := toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody{
+		LifecycleConfiguration: invalidLifecycle,
+	}); !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid lifecycle strategy error from validate mapper, got %v", err)
+	}
+	if _, err := toManagedCreateExecuteRequest(generated.PostProjectCreateJSONRequestBody{
+		LifecycleConfiguration: invalidLifecycle,
+	}); !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid lifecycle strategy error from create mapper, got %v", err)
+	}
+}
+
+func TestTemplateProjectCreateRequestRejectsUnsupportedLifecycleStrategy(t *testing.T) {
+	t.Parallel()
+
+	_, err := toTemplateProjectCreateRequest(templateProjectCreateHTTP{
+		LifecycleConfiguration: &generated.ProjectLifecycleConfigurationRequest{
+			StrategyKind: generated.ProjectLifecycleStrategyKind("unsupported"),
+		},
+	})
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid lifecycle strategy error from template mapper, got %v", err)
+	}
+}
 
 func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	t.Parallel()

@@ -36,7 +36,7 @@ func normalizeSourceMetadata(metadata map[string]string) (map[string]string, err
 		if key == "" || value == "" {
 			return nil, ErrInvalidInput
 		}
-		if strings.ContainsAny(key, "\x00\r\n") || strings.Contains(value, "\x00") {
+		if strings.ContainsAny(key, "\x00\r\n") || strings.ContainsAny(value, "\x00\r\n") {
 			return nil, ErrInvalidInput
 		}
 		result[key] = value

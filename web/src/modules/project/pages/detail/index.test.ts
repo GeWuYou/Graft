@@ -824,6 +824,35 @@ vi.mock('@/shared/observability', () => ({
       this.clear();
     }
   },
+  LogRingBuffer: class<T> {
+    #capacity: number;
+    #items: T[] = [];
+    #version = 0;
+
+    constructor(capacity: number) {
+      this.#capacity = capacity;
+    }
+
+    append(item: T) {
+      const overwritten = this.#items.length >= this.#capacity ? this.#items.shift() : undefined;
+      this.#items.push(item);
+      this.#version += 1;
+      return { overwritten, overwrittenSeq: undefined, seq: this.#version, version: this.#version };
+    }
+
+    clear() {
+      this.#items = [];
+      this.#version += 1;
+    }
+
+    snapshot() {
+      const items = this.#items.slice();
+      return {
+        version: this.#version,
+        toArray: () => items.slice(),
+      };
+    }
+  },
   formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
   formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
   normalizeStructuredLogEntry: (value: { line?: string; occurred_at?: string; stream?: string }) =>

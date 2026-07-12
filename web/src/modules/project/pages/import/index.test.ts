@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive, ref } from 'vue';
 
 import zhProjectLocale from '../../locales/zh-CN.json';
@@ -23,6 +23,11 @@ const mocks = vi.hoisted(() => ({
     query: { tab: 'overview' },
   })),
   useProjectImportFlow: vi.fn(),
+}));
+
+const messageMocks = vi.hoisted(() => ({
+  error: vi.fn(),
+  success: vi.fn(),
 }));
 
 const routeState = reactive({
@@ -69,10 +74,7 @@ vi.mock('vue-router', async () => {
 });
 
 vi.mock('tdesign-vue-next/es/message', () => ({
-  MessagePlugin: {
-    error: vi.fn(),
-    success: vi.fn(),
-  },
+  MessagePlugin: messageMocks,
 }));
 
 vi.mock('@/shared/components/management', async () => {
@@ -370,6 +372,7 @@ function createFlowState() {
     hasPreview: ref(false),
     importError: ref(''),
     importLoading: ref(false),
+    invalidateInspectionSession: vi.fn(),
     lifecycleDraft: ref(null),
     lifecycleConfigError: ref(''),
     inspectCandidate: vi.fn(),
@@ -642,6 +645,10 @@ function mountPage() {
 }
 
 describe('ProjectImportIndex', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     routeState.query = {};
     routeState.params = {};
@@ -654,6 +661,8 @@ describe('ProjectImportIndex', () => {
     mocks.resolve.mockClear();
     mocks.setActiveTabKey.mockReset();
     mocks.useProjectImportFlow.mockReset();
+    messageMocks.error.mockReset();
+    messageMocks.success.mockReset();
     window.localStorage.clear();
 
     mocks.getProjectImportRuntimeCandidates.mockResolvedValue({
@@ -1207,6 +1216,56 @@ describe('ProjectImportIndex', () => {
 
     expect(wrapper.text()).not.toContain('Inspect');
     expect(wrapper.text()).toContain('检查');
+  });
+
+  it('keeps automatic inspection refresh failures in page state without showing an error toast', async () => {
+    vi.useFakeTimers();
+    routeState.query = {
+      step: 'inspect',
+      candidate: 'runtime:demo',
+    };
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.inspectResult.value = {
+      candidate_key: 'runtime:demo',
+      expires_at: new Date(Date.now() + 1).toISOString(),
+    } as never;
+    flowState.refreshInspect.mockRejectedValue(new Error('automatic refresh failed'));
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+
+    expect(flowState.refreshInspect).toHaveBeenCalledTimes(1);
+    expect(messageMocks.error).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('shows an error toast when a user manually refreshes inspection and it fails', async () => {
+    routeState.query = {
+      step: 'inspect',
+      candidate: 'runtime:demo',
+    };
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.inspectResult.value = {
+      candidate_key: 'runtime:demo',
+    } as never;
+    flowState.refreshInspect.mockRejectedValue(new Error('manual refresh failed'));
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('刷新检查'))
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(flowState.refreshInspect).toHaveBeenCalledTimes(1);
+    expect(messageMocks.error).toHaveBeenCalledWith('检查失败。');
   });
 
   it('closes the import tab after a successful import opens project detail', async () => {

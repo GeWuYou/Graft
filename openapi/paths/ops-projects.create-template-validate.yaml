@@ -22,7 +22,14 @@ post:
           schema:
             $ref: ../components/schemas/enveloped-project-create-validate-response.yaml
     '400':
-      $ref: ../components/responses/internal-server-error.yaml
+      description: Invalid template create validation request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
     '401':
       $ref: ../components/responses/unauthorized.yaml
     '403':

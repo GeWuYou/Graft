@@ -159,7 +159,6 @@ func toImportValidateResponse(result ImportValidationResult) generated.ProjectIm
 }
 
 // toRuntimeImportInspectResponse 将运行时导入检查结果转换为 OpenAPI 响应。
- 马会
 func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ProjectImportRuntimeInspectResponse {
 	return generated.ProjectImportRuntimeInspectResponse{
 		InspectionId:               result.InspectionID,
@@ -585,7 +584,7 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 // toManagedCreateRequest 将项目创建校验请求转换为内部创建请求。
 // toManagedCreateRequest 将项目创建校验请求转换为内部托管项目创建请求，并保留工作区文件、Compose/环境文件路径及生命周期配置等可选信息。
 // 返回转换后的托管项目创建请求。
-func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) ManagedProjectCreateRequest {
+func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	var envFileName *string
 	if request.EnvFileName != nil {
 		value := *request.EnvFileName
@@ -604,8 +603,8 @@ type managedCreateHTTPParts struct {
 }
 
 // managedCreateRequestFromParts 将托管项目创建 HTTP 请求的各部分组装为内部请求。
-// 它会复制工作区文件、Compose 和环境文件路径，并在生命周期配置采用标准策略时设置该配置。
-func managedCreateRequestFromParts(parts managedCreateHTTPParts) ManagedProjectCreateRequest {
+// 它会复制工作区文件、Compose 和环境文件路径，并校验生命周期配置采用标准策略。
+func managedCreateRequestFromParts(parts managedCreateHTTPParts) (ManagedProjectCreateRequest, error) {
 	request := ManagedProjectCreateRequest{
 		DisplayName: parts.displayName, CanonicalProjectName: parts.canonicalName, RelativeProjectDirectory: parts.relativeDirectory, ComposeFileName: parts.composeFileName, ComposeFileContent: parts.composeFileContent, EnvFileName: parts.envFileName, EnvFileContent: parts.envFileContent,
 	}
@@ -622,15 +621,16 @@ func managedCreateRequestFromParts(parts managedCreateHTTPParts) ManagedProjectC
 	}
 	if parts.lifecycle != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
-		if err == nil {
-			request.LifecycleConfig = &config
+		if err != nil {
+			return ManagedProjectCreateRequest{}, err
 		}
+		request.LifecycleConfig = &config
 	}
-	return request
+	return request, nil
 }
 
 // toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求。
-func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) ManagedProjectCreateRequest {
+func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	var envFileName *string
 	if request.EnvFileName != nil {
 		value := *request.EnvFileName

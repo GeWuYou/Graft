@@ -42,6 +42,7 @@
                 <t-descriptions-item :label="workspaceCopy.summaryWorkingDirectoryLabel">
                   <t-tooltip :content="detailRecord?.working_directory || '-'" placement="top-left" theme="light">
                     <code
+                      :aria-label="detailRecord?.working_directory || '-'"
                       class="project-configuration-workspace__summary-technical"
                       data-testid="workspace-working-directory"
                     >
@@ -55,6 +56,7 @@
                 <t-descriptions-item :label="workspaceCopy.summaryCurrentPathLabel">
                   <t-tooltip :content="currentWorkspacePathLabel" placement="top-left" theme="light">
                     <code
+                      :aria-label="currentWorkspacePathLabel"
                       class="project-configuration-workspace__summary-technical"
                       data-testid="workspace-current-path"
                     >

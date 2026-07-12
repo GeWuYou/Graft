@@ -860,6 +860,9 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     expect(wrapper.get('[data-testid="workspace-working-directory"]').text()).toBe('/srv/g...ration');
+    expect(wrapper.get('[data-testid="workspace-working-directory"]').attributes('aria-label')).toBe(
+      fullWorkingDirectory,
+    );
     expect(wrapper.text()).not.toContain(fullWorkingDirectory);
     expect(wrapper.find(`[data-tooltip-content="${fullWorkingDirectory}"]`).exists()).toBe(true);
   });

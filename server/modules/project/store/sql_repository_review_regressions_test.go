@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -95,6 +96,29 @@ func TestDecodeLifecycleConfigJSONAppliesDefaultsForLegacyEmptyObject(t *testing
 	}
 	if len(config.Profiles) != 0 || config.DownBeforeRedeploy || config.PullBeforeRedeploy || config.BuildBeforeUp || config.ForceRecreate || !config.RemoveOrphans || config.WaitAfterUp || config.WaitTimeoutSeconds != defaultLifecycleWaitTimeoutSeconds || config.RenewAnonVolumes || config.PruneImagesAfterRedeploy || len(config.AdditionalArgs) != 0 {
 		t.Fatalf("expected legacy defaults, got %#v", config)
+	}
+}
+
+func TestSourceMetadataRejectsLineBreaksInValues(t *testing.T) {
+	t.Parallel()
+
+	for name, metadata := range map[string]map[string]string{
+		"carriage return": {"source": "runtime\rcompose"},
+		"line feed":       {"source": "runtime\ncompose"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := encodeSourceMetadataJSON(metadata); !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("expected encode to reject line break metadata value, got %v", err)
+			}
+
+			raw, err := json.Marshal(metadata)
+			if err != nil {
+				t.Fatalf("marshal metadata: %v", err)
+			}
+			if _, err := decodeSourceMetadataJSON(raw); !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("expected decode to reject line break metadata value, got %v", err)
+			}
+		})
 	}
 }
 
