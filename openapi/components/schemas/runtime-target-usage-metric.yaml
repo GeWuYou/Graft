@@ -1,0 +1,8 @@
+type: object
+required: [available, usedBytes, totalBytes, usagePercent, unavailableReason]
+properties:
+  available: {type: boolean}
+  usedBytes: {type: integer, format: int64}
+  totalBytes: {type: integer, format: int64}
+  usagePercent: {type: number, format: double}
+  unavailableReason: {type: string}

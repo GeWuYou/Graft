@@ -263,6 +263,8 @@ paths:
     $ref: ./paths/ops-projects.saved-view.yaml
   /api/runtime-targets:
     $ref: ./paths/runtime-targets.collection.yaml
+  /api/runtime-targets/discover-local:
+    $ref: ./paths/runtime-targets.discover-local.yaml
   /api/runtime-targets/{id}:
     $ref: ./paths/runtime-targets.detail.yaml
   /api/runtime-targets/{id}/refresh:
@@ -1019,6 +1021,14 @@ components:
       $ref: ./components/schemas/enveloped-project-saved-view-list-response.yaml
     RuntimeTarget:
       $ref: ./components/schemas/runtime-target.yaml
+    RuntimeTargetSummary:
+      $ref: ./components/schemas/runtime-target-summary.yaml
+    RuntimeTargetCountMetric:
+      $ref: ./components/schemas/runtime-target-count-metric.yaml
+    RuntimeTargetImageMetric:
+      $ref: ./components/schemas/runtime-target-image-metric.yaml
+    RuntimeTargetUsageMetric:
+      $ref: ./components/schemas/runtime-target-usage-metric.yaml
     RuntimeTargetListResponse:
       $ref: ./components/schemas/runtime-target-list-response.yaml
     EnvelopedRuntimeTargetListResponse:

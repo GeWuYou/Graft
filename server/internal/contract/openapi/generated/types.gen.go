@@ -4317,6 +4317,30 @@ func (e GetRolesParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetRuntimeTargetsParamsLimit.
+const (
+	N10  GetRuntimeTargetsParamsLimit = 10
+	N100 GetRuntimeTargetsParamsLimit = 100
+	N20  GetRuntimeTargetsParamsLimit = 20
+	N50  GetRuntimeTargetsParamsLimit = 50
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsLimit enum.
+func (e GetRuntimeTargetsParamsLimit) Valid() bool {
+	switch e {
+	case N10:
+		return true
+	case N100:
+		return true
+	case N20:
+		return true
+	case N50:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetSecurityOverviewParamsPreset.
 const (
 	Last24h GetSecurityOverviewParamsPreset = "last_24h"
@@ -9182,13 +9206,53 @@ type RuntimeTarget struct {
 	LastCheckedAt *time.Time `json:"lastCheckedAt,omitempty"`
 
 	// LastError Sanitized latest probe diagnostic.
-	LastError string `json:"lastError"`
-	Provider  string `json:"provider"`
+	LastError string               `json:"lastError"`
+	Provider  string               `json:"provider"`
+	Summary   RuntimeTargetSummary `json:"summary"`
+}
+
+// RuntimeTargetCountMetric defines model for runtime-target-count-metric.
+type RuntimeTargetCountMetric struct {
+	Available         bool   `json:"available"`
+	Running           int64  `json:"running"`
+	Stopped           int64  `json:"stopped"`
+	Total             int64  `json:"total"`
+	UnavailableReason string `json:"unavailableReason"`
+}
+
+// RuntimeTargetImageMetric defines model for runtime-target-image-metric.
+type RuntimeTargetImageMetric struct {
+	Available         bool   `json:"available"`
+	Total             int64  `json:"total"`
+	UnavailableReason string `json:"unavailableReason"`
+	Unused            int64  `json:"unused"`
+	Used              int64  `json:"used"`
 }
 
 // RuntimeTargetListResponse defines model for runtime-target-list-response.
 type RuntimeTargetListResponse struct {
-	Items []RuntimeTarget `json:"items"`
+	Items  []RuntimeTarget `json:"items"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
+	Total  int64           `json:"total"`
+}
+
+// RuntimeTargetSummary defines model for runtime-target-summary.
+type RuntimeTargetSummary struct {
+	Containers RuntimeTargetCountMetric `json:"containers"`
+	Cpu        RuntimeTargetUsageMetric `json:"cpu"`
+	Disk       RuntimeTargetUsageMetric `json:"disk"`
+	Images     RuntimeTargetImageMetric `json:"images"`
+	Memory     RuntimeTargetUsageMetric `json:"memory"`
+}
+
+// RuntimeTargetUsageMetric defines model for runtime-target-usage-metric.
+type RuntimeTargetUsageMetric struct {
+	Available         bool    `json:"available"`
+	TotalBytes        int64   `json:"totalBytes"`
+	UnavailableReason string  `json:"unavailableReason"`
+	UsagePercent      float64 `json:"usagePercent"`
+	UsedBytes         int64   `json:"usedBytes"`
 }
 
 // ScheduledTaskActionRequest defines model for scheduled-task-action-request.
@@ -11611,6 +11675,22 @@ type PostRoleUpdateParams struct {
 
 // GetRuntimeTargetsParams defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParams struct {
+	Limit  *GetRuntimeTargetsParamsLimit `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int                          `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRuntimeTargetsParamsLimit defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsLimit int
+
+// PostRuntimeTargetsDiscoverLocalParams defines parameters for PostRuntimeTargetsDiscoverLocal.
+type PostRuntimeTargetsDiscoverLocalParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

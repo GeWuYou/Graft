@@ -24,10 +24,15 @@ import (
 const maxRuntimeTargetID = uint64(^uint64(0) >> 1)
 
 // Module exposes runtime-target API routes and bounded Local Docker discovery.
-type Module struct{ repository *store.SQLRepository }
+type Module struct {
+	repository *store.SQLRepository
+	summaries  *summaryCache
+}
 
 // NewModule constructs the runtime-target module.
-func NewModule(repository *store.SQLRepository) *Module { return &Module{repository: repository} }
+func NewModule(repository *store.SQLRepository) *Module {
+	return &Module{repository: repository, summaries: newSummaryCache()}
+}
 
 // Register declares runtime-target permissions, menu metadata, and API routes.
 func (m *Module) Register(ctx *module.Context) error {
@@ -50,6 +55,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
+	ctx.Router.POST("/runtime-targets/discover-local", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
 	return nil
@@ -126,16 +132,20 @@ func (m *Module) Boot(ctx *module.Context) error {
 func (m *Module) Shutdown(*module.Context) error { return nil }
 
 func (m *Module) handleList(c *gin.Context) {
-	items, err := m.repository.List(c.Request.Context())
+	limit, offset, ok := runtimeTargetListWindow(c)
+	if !ok {
+		return
+	}
+	page, err := m.repository.ListPage(c.Request.Context(), limit, offset)
 	if err != nil {
 		httpx.AbortLocalizedError(c, nil, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return
 	}
-	mapped := make([]generated.RuntimeTarget, 0, len(items))
-	for _, item := range items {
-		mapped = append(mapped, toHTTP(item))
+	mapped := make([]generated.RuntimeTarget, 0, len(page.Items))
+	for _, item := range page.Items {
+		mapped = append(mapped, m.toHTTP(c.Request.Context(), item))
 	}
-	httpx.WriteSuccess(c, http.StatusOK, generated.RuntimeTargetListResponse{Items: mapped})
+	httpx.WriteSuccess(c, http.StatusOK, generated.RuntimeTargetListResponse{Items: mapped, Total: page.Total, Limit: limit, Offset: offset})
 }
 
 func (m *Module) handleDetail(c *gin.Context) {
@@ -143,7 +153,7 @@ func (m *Module) handleDetail(c *gin.Context) {
 	if !ok {
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toHTTP(target))
+	httpx.WriteSuccess(c, http.StatusOK, m.toHTTP(c.Request.Context(), target))
 }
 
 func (m *Module) handleRefresh(moduleCtx *module.Context) gin.HandlerFunc {
@@ -158,8 +168,52 @@ func (m *Module) handleRefresh(moduleCtx *module.Context) gin.HandlerFunc {
 			httpx.AbortLocalizedError(c, moduleCtx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
 		}
-		httpx.WriteSuccess(c, http.StatusOK, toHTTP(refreshed))
+		m.summaries.invalidate(target.ID)
+		httpx.WriteSuccess(c, http.StatusOK, m.toHTTP(c.Request.Context(), refreshed))
 	}
+}
+
+func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := discoverLocalDocker(c.Request.Context(), m.repository); err != nil {
+			httpx.AbortLocalizedError(c, moduleCtx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+		target, err := m.repository.FindSystemLocalDocker(c.Request.Context())
+		if errors.Is(err, store.ErrNotFound) {
+			httpx.WriteSuccess[any](c, http.StatusOK, nil)
+			return
+		}
+		if err != nil {
+			httpx.AbortLocalizedError(c, moduleCtx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+		m.summaries.invalidate(target.ID)
+		m.publishRefreshAudit(c.Request.Context(), moduleCtx, target, nil)
+		httpx.WriteSuccess(c, http.StatusOK, m.toHTTP(c.Request.Context(), target))
+	}
+}
+
+func runtimeTargetListWindow(c *gin.Context) (int, int, bool) {
+	limit := 10
+	offset := 0
+	if raw := c.Query("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || (parsed != 10 && parsed != 20 && parsed != 50 && parsed != 100) {
+			httpx.AbortLocalizedError(c, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+			return 0, 0, false
+		}
+		limit = parsed
+	}
+	if raw := c.Query("offset"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			httpx.AbortLocalizedError(c, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+			return 0, 0, false
+		}
+		offset = parsed
+	}
+	return limit, offset, true
 }
 
 func (m *Module) readTarget(c *gin.Context) (store.Target, bool) {
@@ -182,11 +236,19 @@ func (m *Module) readTarget(c *gin.Context) (store.Target, bool) {
 
 // toHTTP converts a stored runtime target to its HTTP response representation.
 // It returns an empty response when the target ID cannot be represented safely.
-func toHTTP(target store.Target) generated.RuntimeTarget {
+func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.RuntimeTarget {
 	if target.ID > maxRuntimeTargetID {
 		return generated.RuntimeTarget{}
 	}
-	return generated.RuntimeTarget{Id: int64(target.ID), Provider: target.Provider, DisplayName: target.DisplayName, EndpointLabel: target.EndpointLabel, ConnectionKind: target.ConnectionKind, Capabilities: target.Capabilities, Availability: target.Availability, LastError: target.LastError, LastCheckedAt: target.CheckedAt}
+	summary := unavailableTargetSummary("Docker target is unavailable")
+	if m != nil && m.summaries != nil {
+		summary = m.summaries.get(ctx, target)
+	}
+	return generated.RuntimeTarget{Id: int64(target.ID), Provider: target.Provider, DisplayName: target.DisplayName, EndpointLabel: target.EndpointLabel, ConnectionKind: target.ConnectionKind, Capabilities: target.Capabilities, Availability: target.Availability, LastError: target.LastError, LastCheckedAt: target.CheckedAt, Summary: toHTTPSummary(summary)}
+}
+
+func toHTTPSummary(summary targetRuntimeSummary) generated.RuntimeTargetSummary {
+	return generated.RuntimeTargetSummary{Containers: generated.RuntimeTargetCountMetric{Available: summary.Containers.Available, Total: summary.Containers.Total, Running: summary.Containers.Running, Stopped: summary.Containers.Stopped, UnavailableReason: summary.Containers.UnavailableReason}, Images: generated.RuntimeTargetImageMetric{Available: summary.Images.Available, Total: summary.Images.Total, Used: summary.Images.Used, Unused: summary.Images.Unused, UnavailableReason: summary.Images.UnavailableReason}, Cpu: generated.RuntimeTargetUsageMetric{Available: summary.CPU.Available, UsedBytes: summary.CPU.UsedBytes, TotalBytes: summary.CPU.TotalBytes, UsagePercent: summary.CPU.UsagePercent, UnavailableReason: summary.CPU.UnavailableReason}, Memory: generated.RuntimeTargetUsageMetric{Available: summary.Memory.Available, UsedBytes: summary.Memory.UsedBytes, TotalBytes: summary.Memory.TotalBytes, UsagePercent: summary.Memory.UsagePercent, UnavailableReason: summary.Memory.UnavailableReason}, Disk: generated.RuntimeTargetUsageMetric{Available: summary.Disk.Available, UsedBytes: summary.Disk.UsedBytes, TotalBytes: summary.Disk.TotalBytes, UsagePercent: summary.Disk.UsagePercent, UnavailableReason: summary.Disk.UnavailableReason}}
 }
 
 func (m *Module) publishRefreshAudit(ctx context.Context, moduleCtx *module.Context, target store.Target, refreshErr error) {

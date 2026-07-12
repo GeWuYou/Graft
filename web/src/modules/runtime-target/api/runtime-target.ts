@@ -1,35 +1,33 @@
-import type { paths } from '@/contracts/openapi/generated/schema';
+import type { components, paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { RUNTIME_TARGET_API_PATH, runtimeTargetDetailApiPath, runtimeTargetRefreshApiPath } from '../contract/paths';
+import { RUNTIME_TARGET_API_PATH, runtimeTargetRefreshApiPath } from '../contract/paths';
 
 type ListOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['LIST']]['get'];
-type DetailOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DETAIL']]['get'];
 type RefreshOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['REFRESH']]['post'];
+type DiscoverLocalOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DISCOVER_LOCAL']]['post'];
 export type RuntimeTarget = NonNullable<
   ListOperation['responses'][200]['content']['application/json']['data']
 >['items'][number];
 type RuntimeTargetList = NonNullable<ListOperation['responses'][200]['content']['application/json']['data']>;
-type RuntimeTargetDetail = NonNullable<DetailOperation['responses'][200]['content']['application/json']['data']>;
 type RuntimeTargetRefresh = NonNullable<RefreshOperation['responses'][200]['content']['application/json']['data']>;
+type RuntimeTargetDiscoverLocal = NonNullable<
+  DiscoverLocalOperation['responses'][200]['content']['application/json']['data']
+>;
+export type RuntimeTargetMetric = components['schemas']['runtime-target-usage-metric'];
+export type RuntimeTargetPage = RuntimeTargetList;
 
-/**
- * 获取运行时目标列表。
- *
- * @returns 运行时目标数组；响应中没有列表项时返回空数组。
- */
+/** Returns the bounded target collection used by existing selector consumers. */
 export async function listRuntimeTargets(): Promise<RuntimeTarget[]> {
-  const data = await request.get<RuntimeTargetList>({ url: RUNTIME_TARGET_API_PATH.LIST });
-  return data.items ?? [];
+  const page = await listRuntimeTargetPage({ limit: 100, offset: 0 });
+  return page.items;
 }
-/**
- * 获取指定 ID 的运行时目标详情。
- *
- * @param id - 运行时目标的唯一标识
- * @returns 运行时目标详情；无结果时为 `null`
- */
-export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail | null> {
-  return request.get<RuntimeTargetDetail>({ url: runtimeTargetDetailApiPath(id) });
+
+export async function listRuntimeTargetPage(params: { limit: number; offset: number }): Promise<RuntimeTargetPage> {
+  return request.get<RuntimeTargetPage>({
+    url: RUNTIME_TARGET_API_PATH.LIST,
+    params,
+  });
 }
 /**
  * 刷新指定的运行时目标。
@@ -39,4 +37,11 @@ export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail 
  */
 export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRefresh | null> {
   return request.post<RuntimeTargetRefresh>({ url: runtimeTargetRefreshApiPath(id) });
+}
+
+/**
+ * 探测当前服务器的 Local Docker；服务端负责幂等创建或恢复系统管理目标。
+ */
+export async function discoverLocalDocker(): Promise<RuntimeTargetDiscoverLocal | null> {
+  return request.post<RuntimeTargetDiscoverLocal | null>({ url: RUNTIME_TARGET_API_PATH.DISCOVER_LOCAL });
 }

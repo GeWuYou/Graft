@@ -1,0 +1,13 @@
+type: object
+required: [containers, images, cpu, memory, disk]
+properties:
+  containers:
+    $ref: ./runtime-target-count-metric.yaml
+  images:
+    $ref: ./runtime-target-image-metric.yaml
+  cpu:
+    $ref: ./runtime-target-usage-metric.yaml
+  memory:
+    $ref: ./runtime-target-usage-metric.yaml
+  disk:
+    $ref: ./runtime-target-usage-metric.yaml

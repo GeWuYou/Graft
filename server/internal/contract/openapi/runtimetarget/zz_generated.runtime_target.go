@@ -7,6 +7,30 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetRuntimeTargetsParamsLimit.
+const (
+	N10  GetRuntimeTargetsParamsLimit = 10
+	N100 GetRuntimeTargetsParamsLimit = 100
+	N20  GetRuntimeTargetsParamsLimit = 20
+	N50  GetRuntimeTargetsParamsLimit = 50
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsLimit enum.
+func (e GetRuntimeTargetsParamsLimit) Valid() bool {
+	switch e {
+	case N10:
+		return true
+	case N100:
+		return true
+	case N20:
+		return true
+	case N50:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRuntimeTargets401JSONResponseBodySuccess.
 const (
 	GetRuntimeTargets401JSONResponseBodySuccessFalse GetRuntimeTargets401JSONResponseBodySuccess = false
@@ -46,6 +70,51 @@ const (
 func (e GetRuntimeTargets500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetRuntimeTargets500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccessFalse PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccessFalse PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess.
+const (
+	PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccessFalse PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess enum.
+func (e PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -129,13 +198,13 @@ func (e PostRuntimeTargetRefresh403JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostRuntimeTargetRefresh500JSONResponseBodySuccess.
 const (
-	False PostRuntimeTargetRefresh500JSONResponseBodySuccess = false
+	PostRuntimeTargetRefresh500JSONResponseBodySuccessFalse PostRuntimeTargetRefresh500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh500JSONResponseBodySuccess enum.
 func (e PostRuntimeTargetRefresh500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostRuntimeTargetRefresh500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -150,6 +219,9 @@ type refreshCookieContextKey string
 
 // GetRuntimeTargetsParams defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParams struct {
+	Limit  *GetRuntimeTargetsParamsLimit `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int                          `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -157,6 +229,9 @@ type GetRuntimeTargetsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetRuntimeTargetsParamsLimit defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsLimit int
 
 // GetRuntimeTargets401JSONResponseBodySuccess defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets401JSONResponseBodySuccess bool
@@ -166,6 +241,25 @@ type GetRuntimeTargets403JSONResponseBodySuccess bool
 
 // GetRuntimeTargets500JSONResponseBodySuccess defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets500JSONResponseBodySuccess bool
+
+// PostRuntimeTargetsDiscoverLocalParams defines parameters for PostRuntimeTargetsDiscoverLocal.
+type PostRuntimeTargetsDiscoverLocalParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess defines parameters for PostRuntimeTargetsDiscoverLocal.
+type PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess bool
+
+// PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess defines parameters for PostRuntimeTargetsDiscoverLocal.
+type PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess bool
+
+// PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess defines parameters for PostRuntimeTargetsDiscoverLocal.
+type PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess bool
 
 // GetRuntimeTargetParams defines parameters for GetRuntimeTarget.
 type GetRuntimeTargetParams struct {

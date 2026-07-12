@@ -2282,6 +2282,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/runtime-targets/discover-local': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Discover or recover Local Docker */
+    post: operations['postRuntimeTargetsDiscoverLocal'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/runtime-targets/{id}': {
     parameters: {
       query?: never;
@@ -3299,6 +3316,10 @@ export interface components {
     EnvelopedProjectSavedView: components['schemas']['enveloped-project-saved-view'];
     EnvelopedProjectSavedViewListResponse: components['schemas']['enveloped-project-saved-view-list-response'];
     RuntimeTarget: components['schemas']['runtime-target'];
+    RuntimeTargetSummary: components['schemas']['runtime-target-summary'];
+    RuntimeTargetCountMetric: components['schemas']['runtime-target-count-metric'];
+    RuntimeTargetImageMetric: components['schemas']['runtime-target-image-metric'];
+    RuntimeTargetUsageMetric: components['schemas']['runtime-target-usage-metric'];
     RuntimeTargetListResponse: components['schemas']['runtime-target-list-response'];
     EnvelopedRuntimeTargetListResponse: components['schemas']['enveloped-runtime-target-list-response'];
     EnvelopedRuntimeTargetResponse: components['schemas']['enveloped-runtime-target-response'];
@@ -6077,6 +6098,43 @@ export interface components {
     'enveloped-project-saved-view': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-saved-view'];
     };
+    'runtime-target-count-metric': {
+      available: boolean;
+      /** Format: int64 */
+      total: number;
+      /** Format: int64 */
+      running: number;
+      /** Format: int64 */
+      stopped: number;
+      unavailableReason: string;
+    };
+    'runtime-target-image-metric': {
+      available: boolean;
+      /** Format: int64 */
+      total: number;
+      /** Format: int64 */
+      used: number;
+      /** Format: int64 */
+      unused: number;
+      unavailableReason: string;
+    };
+    'runtime-target-usage-metric': {
+      available: boolean;
+      /** Format: int64 */
+      usedBytes: number;
+      /** Format: int64 */
+      totalBytes: number;
+      /** Format: double */
+      usagePercent: number;
+      unavailableReason: string;
+    };
+    'runtime-target-summary': {
+      containers: components['schemas']['runtime-target-count-metric'];
+      images: components['schemas']['runtime-target-image-metric'];
+      cpu: components['schemas']['runtime-target-usage-metric'];
+      memory: components['schemas']['runtime-target-usage-metric'];
+      disk: components['schemas']['runtime-target-usage-metric'];
+    };
     'runtime-target': {
       /** Format: int64 */
       id: number;
@@ -6093,9 +6151,14 @@ export interface components {
       lastCheckedAt?: string | null;
       /** @description Sanitized latest probe diagnostic. */
       lastError: string;
+      summary: components['schemas']['runtime-target-summary'];
     };
     'runtime-target-list-response': {
       items: components['schemas']['runtime-target'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-list-response'];
@@ -13360,7 +13423,10 @@ export interface operations {
   };
   getRuntimeTargets: {
     parameters: {
-      query?: never;
+      query?: {
+        limit?: 10 | 20 | 50 | 100;
+        offset?: number;
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -13382,6 +13448,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-runtime-target-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetsDiscoverLocal: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Local Docker discovery completed. Data is null when no local Docker socket exists. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-response'];
         };
       };
       401: components['responses']['unauthorized'];
