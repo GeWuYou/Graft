@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	projectConfigDomain          = "application"
+	projectConfigDomain          = "ops"
 	projectConfigGroupCreate     = "ops.project.create"
 	projectConfigGroupImport     = "ops.project.import"
 	projectConfigGroupWorkspace  = "ops.project.workspace"
@@ -27,7 +27,7 @@ const defaultImportAllowedRoots = "[]"
 const defaultWorkspaceHiddenDirectories = `[".git",".github","node_modules","vendor","target","build","dist","coverage","data","logs","tmp","cache",".idea",".vscode"]`
 const defaultWorkspaceFileTooltipRules = `[{"pattern":"^docker-compose(?:\\.[^.]+)?\\.ya?ml$","tooltip":"Compose 配置","enabled":true},{"pattern":"^\\.env(?:\\..+)?$","tooltip":"环境变量文件","enabled":true}]`
 const defaultWorkspaceDirectoryTooltipRules = `[{"pattern":"^logs$","tooltip":"日志目录","enabled":true}]`
-const projectConfigDomainKey = "systemConfig.domains.application"
+const projectConfigDomainKey = "systemConfig.domains.ops"
 
 type projectConfigDefinitionSpec struct {
 	key                 string
