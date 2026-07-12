@@ -33,6 +33,11 @@ validation rules.
    - if the current slice is blocked by a local generated-artifact drift, stale snapshot, test expectation drift, or
      similar commit-path issue that is clearly inside the owned scope and can be repaired safely in the same slice,
      repair it first, rerun the required validation, and then continue to commit
+   - treat a hook, static-analysis, test, formatting, style, or build failure as a commit-path issue to diagnose before
+     refusing the commit; a failing file outside the initial diff is not, by itself, proof that its repair is unsafe
+   - when the failure has a concrete, bounded repair with clear ownership, fix it, rerun the failing check and the
+     required completion validation, then commit the repair in a separate scoped commit when it is logically distinct
+     from the requested slice
    - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
      confirmed scope, or the necessary repair would widen into a new unsafe slice
 
