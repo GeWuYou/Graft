@@ -44,6 +44,42 @@
             @enter="handleFilterQuery"
           />
           <t-select
+            v-model="filters.applicationType"
+            class="management-toolbar__select"
+            :placeholder="t('project.list.filters.applicationType')"
+          >
+            <t-option value="all" :label="t('project.list.filters.allApplicationTypes')" />
+            <t-option value="compose" :label="t('project.list.applicationType.compose')" />
+          </t-select>
+          <t-select
+            v-model="filters.provider"
+            class="management-toolbar__select"
+            clearable
+            :placeholder="t('project.list.filters.provider')"
+          >
+            <t-option value="all" :label="t('project.list.filters.allProviders')" />
+            <t-option
+              v-for="provider in providerOptions"
+              :key="provider"
+              :value="provider"
+              :label="providerLabel(provider)"
+            />
+          </t-select>
+          <t-select
+            v-model="filters.runtimeTargetId"
+            class="management-toolbar__select"
+            clearable
+            :placeholder="t('project.list.filters.runtimeTarget')"
+          >
+            <t-option :value="0" :label="t('project.list.filters.allRuntimeTargets')" />
+            <t-option
+              v-for="target in filteredRuntimeTargets"
+              :key="target.id"
+              :value="target.id"
+              :label="target.displayName"
+            />
+          </t-select>
+          <t-select
             v-model="filters.sourceKind"
             class="management-toolbar__select"
             :placeholder="t('project.list.filters.sourceKind')"
@@ -67,6 +103,19 @@
               :key="option"
               :value="option"
               :label="driftStatusLabel(option)"
+            />
+          </t-select>
+          <t-select
+            v-model="filters.runtimeStatus"
+            class="management-toolbar__select"
+            :placeholder="t('project.list.filters.runtimeStatus')"
+          >
+            <t-option value="all" :label="t('project.list.filters.allRuntimeStatuses')" />
+            <t-option
+              v-for="option in runtimeStatusOptions"
+              :key="option"
+              :value="option"
+              :label="runtimeStatusLabel(option)"
             />
           </t-select>
           <t-button theme="primary" @click="handleFilterQuery">{{ t('project.list.filters.query') }}</t-button>
@@ -105,10 +154,36 @@
           </div>
         </template>
         <template #toolbar>
-          <table-view-toolbar
-            :column-settings-label="t('project.list.columnSettings')"
-            @column-settings="columnDrawerVisible = true"
-          />
+          <div class="project-list-toolbar">
+            <t-select
+              v-model="selectedSavedViewId"
+              class="project-list-toolbar__views"
+              clearable
+              :placeholder="t('project.list.savedViews.placeholder')"
+              @change="applySelectedSavedView"
+            >
+              <t-option v-for="view in savedViews" :key="view.id" :value="view.id" :label="view.name" />
+            </t-select>
+            <t-button size="small" variant="text" @click="openSavedViewDialog('create')">
+              {{ t('project.list.savedViews.save') }}
+            </t-button>
+            <t-button size="small" variant="text" :disabled="!selectedSavedView" @click="openSavedViewDialog('update')">
+              {{ t('project.list.savedViews.update') }}
+            </t-button>
+            <t-button
+              size="small"
+              theme="danger"
+              variant="text"
+              :disabled="!selectedSavedView"
+              @click="removeSelectedSavedView"
+            >
+              {{ t('project.list.savedViews.delete') }}
+            </t-button>
+            <table-view-toolbar
+              :column-settings-label="t('project.list.columnSettings')"
+              @column-settings="columnDrawerVisible = true"
+            />
+          </div>
         </template>
         <template v-if="selectedRows.length > 0" #batch>
           <div class="project-batch-bar">
@@ -254,6 +329,20 @@
           </t-tag>
         </template>
 
+        <template #applicationType="{ row }">
+          <t-tag theme="primary" variant="light-outline">
+            {{ applicationTypeLabel(projectRow(row).application_type) }}
+          </t-tag>
+        </template>
+
+        <template #runtimeTarget="{ row }">
+          <span>{{ projectRow(row).runtime_target?.display_name || t('project.list.runtimeTargetUnavailable') }}</span>
+        </template>
+
+        <template #provider="{ row }">
+          <span>{{ projectProviderLabel(projectRow(row)) }}</span>
+        </template>
+
         <template #runtime="{ row }">
           <t-tooltip :content="runtimeStatusActionTooltip(projectRow(row))" placement="top" theme="default">
             <button
@@ -364,6 +453,23 @@
           </t-checkbox-group>
         </div>
       </t-drawer>
+      <t-dialog
+        v-model:visible="savedViewDialogVisible"
+        :header="
+          savedViewDialogMode === 'create' ? t('project.list.savedViews.save') : t('project.list.savedViews.update')
+        "
+        :confirm-btn="t('project.list.savedViews.confirm')"
+        :cancel-btn="t('project.list.savedViews.cancel')"
+        :confirm-loading="savedViewSubmitting"
+        @confirm="submitSavedView"
+      >
+        <t-input
+          v-model="savedViewName"
+          clearable
+          :maxlength="120"
+          :placeholder="t('project.list.savedViews.namePlaceholder')"
+        />
+      </t-dialog>
     </management-page-content>
     <task-detail-drawer
       v-model:visible="taskDrawerVisible"
@@ -380,6 +486,7 @@ import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref, w
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { getLatestTaskForOwner } from '@/modules/task/contract/latest-task';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
@@ -399,14 +506,18 @@ import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import {
+  deleteProjectSavedView,
   getProjects,
+  getProjectSavedViews,
   postProjectBatchActions,
   postProjectDestroy,
   postProjectRedeploy,
   postProjectRestart,
+  postProjectSavedView,
   postProjectStop,
   postProjectUnregister,
   postProjectUp,
+  putProjectSavedView,
 } from '../../api/project';
 import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -425,6 +536,7 @@ import {
 import { acquireProjectListRealtime, releaseProjectListRealtime } from '../../shared/list-realtime';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
+  ProjectApplicationType,
   ProjectBatchAction,
   ProjectBatchActionItem,
   ProjectBatchActionResponse,
@@ -433,7 +545,11 @@ import type {
   ProjectDriftStatus,
   ProjectFilters,
   ProjectListItemWithLifecycle,
+  ProjectProvider,
   ProjectRuntimeStatus,
+  ProjectSavedView,
+  ProjectSavedViewQueryState,
+  ProjectSavedViewRequest,
   ProjectSourceKind,
   ProjectTaskReceipt,
 } from '../../types/project';
@@ -482,13 +598,38 @@ const pagination = ref({
 });
 const filters = ref<ProjectFilters>({
   keyword: '',
+  applicationType: 'all',
+  runtimeTargetId: undefined,
+  provider: 'all',
   sourceKind: 'all',
+  runtimeStatus: 'all',
   driftStatus: 'all',
 });
+const runtimeTargets = ref<RuntimeTarget[]>([]);
+const savedViews = ref<ProjectSavedView[]>([]);
+const selectedSavedViewId = ref<number | undefined>(undefined);
+const savedViewDialogVisible = ref(false);
+const savedViewDialogMode = ref<'create' | 'update'>('create');
+const savedViewName = ref('');
+const savedViewSubmitting = ref(false);
 const columnDrawerVisible = ref(false);
 
 const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
+const runtimeStatusOptions: ProjectRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
+const providerOptions = computed(() =>
+  [...new Set(runtimeTargets.value.map((target) => target.provider))].filter(
+    (provider): provider is ProjectProvider => provider === 'docker',
+  ),
+);
+const filteredRuntimeTargets = computed(() =>
+  filters.value.provider === 'all'
+    ? runtimeTargets.value
+    : runtimeTargets.value.filter((target) => target.provider === filters.value.provider),
+);
+const selectedSavedView = computed(
+  () => savedViews.value.find((view) => view.id === selectedSavedViewId.value) ?? null,
+);
 
 const configurableColumns = computed<TableProps['columns']>(() => [
   {
@@ -500,13 +641,27 @@ const configurableColumns = computed<TableProps['columns']>(() => [
     align: 'center',
   },
   { colKey: 'name', title: t('project.list.columns.name'), width: 300 },
+  { colKey: 'applicationType', title: t('project.list.columns.applicationType'), width: 128, align: 'center' },
+  { colKey: 'runtimeTarget', title: t('project.list.columns.runtimeTarget'), width: 180 },
+  { colKey: 'provider', title: t('project.list.columns.provider'), width: 128, align: 'center' },
   { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
   { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
   { colKey: 'resources', title: t('project.list.columns.resources'), width: 236, align: 'center' },
   { colKey: 'drift', title: t('project.list.columns.drift'), width: 124, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
-const visibleColumnKeys = ref(['row-select', 'name', 'source', 'runtime', 'resources', 'drift', 'operation']);
+const visibleColumnKeys = ref([
+  'row-select',
+  'name',
+  'applicationType',
+  'runtimeTarget',
+  'provider',
+  'source',
+  'runtime',
+  'resources',
+  'drift',
+  'operation',
+]);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
@@ -550,7 +705,13 @@ const headerStatusSummaryItems = computed(() =>
 );
 const hasActiveFilters = computed(
   () =>
-    Boolean(filters.value.keyword.trim()) || filters.value.sourceKind !== 'all' || filters.value.driftStatus !== 'all',
+    Boolean(filters.value.keyword.trim()) ||
+    filters.value.applicationType !== 'all' ||
+    (typeof filters.value.runtimeTargetId === 'number' && filters.value.runtimeTargetId > 0) ||
+    filters.value.provider !== 'all' ||
+    filters.value.sourceKind !== 'all' ||
+    filters.value.runtimeStatus !== 'all' ||
+    filters.value.driftStatus !== 'all',
 );
 const paginationSummary = computed(() => {
   if (!pagination.value.total || rows.value.length === 0) {
@@ -571,6 +732,8 @@ onMounted(() => {
   realtimeActive.value = true;
   syncProjectListRealtimeSubscription();
   void fetchProjects();
+  void loadRuntimeTargets();
+  void loadSavedViews();
 });
 
 onUnmounted(() => {
@@ -604,6 +767,18 @@ function projectRow(row: unknown) {
 
 function sourceKindLabel(value: ProjectSourceKind) {
   return projectSourceKindLabel(t, value);
+}
+
+function applicationTypeLabel(value: ProjectApplicationType) {
+  return t(`project.list.applicationType.${value}`);
+}
+
+function providerLabel(value: ProjectProvider) {
+  return t(`project.list.provider.${value}`);
+}
+
+function projectProviderLabel(row: ProjectListItemWithLifecycle) {
+  return row.runtime_target ? providerLabel(row.runtime_target.provider) : '-';
 }
 
 function driftStatusLabel(value: ProjectDriftStatus) {
@@ -747,21 +922,21 @@ async function fetchProjects() {
     const response = await getProjects({
       limit: pagination.value.pageSize,
       offset: (pagination.value.current - 1) * pagination.value.pageSize,
+      ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
+      ...(filters.value.applicationType !== 'all' ? { application_type: filters.value.applicationType } : {}),
+      ...(filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0
+        ? { runtime_target_id: filters.value.runtimeTargetId }
+        : {}),
+      ...(filters.value.provider !== 'all' ? { provider: filters.value.provider } : {}),
       ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
+      ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
       ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
     });
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
     syncPaginationFromResponse(response);
-    const keyword = filters.value.keyword.trim().toLowerCase();
-    const nextRows = keyword
-      ? response.items.filter((item) =>
-          [item.display_name, item.canonical_project_name, item.working_directory]
-            .filter(Boolean)
-            .some((candidate) => String(candidate).toLowerCase().includes(keyword)),
-        )
-      : response.items;
+    const nextRows = response.items;
     rows.value = nextRows;
     reconcilePendingRowActions(nextRows);
     selectedRowKeys.value = selectedRowKeys.value.filter((id) => nextRows.some((row) => row.id === id));
@@ -778,6 +953,24 @@ async function fetchProjects() {
       tableLoading.value = false;
       refreshing.value = false;
     }
+  }
+}
+
+async function loadRuntimeTargets() {
+  try {
+    runtimeTargets.value = await listRuntimeTargets();
+  } catch (error) {
+    logger.error('failed to load runtime targets', error);
+    runtimeTargets.value = [];
+  }
+}
+
+async function loadSavedViews() {
+  try {
+    savedViews.value = await getProjectSavedViews();
+  } catch (error) {
+    logger.error('failed to load project saved views', error);
+    savedViews.value = [];
   }
 }
 
@@ -1053,9 +1246,14 @@ function handleSelectChange(rowKeys: Array<string | number>) {
 function resetFilters() {
   filters.value = {
     keyword: '',
+    applicationType: 'all',
+    runtimeTargetId: undefined,
+    provider: 'all',
     sourceKind: 'all',
+    runtimeStatus: 'all',
     driftStatus: 'all',
   };
+  selectedSavedViewId.value = undefined;
   pagination.value.current = 1;
   void fetchProjects();
 }
@@ -1070,6 +1268,116 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
   pagination.value.pageSize = pageInfo.pageSize;
   void fetchProjects();
 }
+
+function openSavedViewDialog(mode: 'create' | 'update') {
+  savedViewDialogMode.value = mode;
+  savedViewName.value = mode === 'update' ? (selectedSavedView.value?.name ?? '') : '';
+  savedViewDialogVisible.value = true;
+}
+
+function buildSavedViewRequest(): ProjectSavedViewRequest {
+  return {
+    name: savedViewName.value.trim(),
+    query_state: currentSavedViewQueryState(),
+    page_size: pagination.value.pageSize,
+    visible_columns: [...visibleColumnKeys.value],
+  };
+}
+
+function currentSavedViewQueryState(): ProjectSavedViewQueryState {
+  return {
+    ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
+    ...(filters.value.applicationType !== 'all' ? { application_type: filters.value.applicationType } : {}),
+    ...(filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0
+      ? { runtime_target_id: filters.value.runtimeTargetId }
+      : {}),
+    ...(filters.value.provider !== 'all' ? { provider: filters.value.provider } : {}),
+    ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
+    ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
+    ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
+  };
+}
+
+async function submitSavedView() {
+  if (!savedViewName.value.trim()) {
+    MessagePlugin.error(t('project.list.savedViews.nameRequired'));
+    return;
+  }
+
+  savedViewSubmitting.value = true;
+  try {
+    const view =
+      savedViewDialogMode.value === 'update' && selectedSavedView.value
+        ? await putProjectSavedView(selectedSavedView.value.id, buildSavedViewRequest())
+        : await postProjectSavedView(buildSavedViewRequest());
+    await loadSavedViews();
+    selectedSavedViewId.value = view.id;
+    savedViewDialogVisible.value = false;
+    MessagePlugin.success(t('project.list.savedViews.saved'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.savedViews.conflict')));
+  } finally {
+    savedViewSubmitting.value = false;
+  }
+}
+
+async function removeSelectedSavedView() {
+  const view = selectedSavedView.value;
+  if (!view) return;
+
+  try {
+    await deleteProjectSavedView(view.id);
+    selectedSavedViewId.value = undefined;
+    await loadSavedViews();
+    MessagePlugin.success(t('project.list.savedViews.deleted'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.savedViews.deleteFailed')));
+  }
+}
+
+function applySelectedSavedView(value: unknown) {
+  const view = savedViews.value.find((item) => item.id === Number(value));
+  selectedSavedViewId.value = view?.id;
+  if (!view) return;
+
+  const state = view.query_state as ProjectSavedViewQueryState;
+  filters.value = {
+    keyword: state.keyword ?? '',
+    applicationType: state.application_type ?? 'all',
+    runtimeTargetId: state.runtime_target_id,
+    provider: state.provider ?? 'all',
+    sourceKind: state.source_kind ?? 'all',
+    runtimeStatus: state.runtime_status ?? 'all',
+    driftStatus: state.drift_status ?? 'all',
+  };
+  pagination.value.pageSize = view.page_size;
+  visibleColumnKeys.value = view.visible_columns.filter((key) =>
+    (configurableColumns.value ?? []).some((column) => String(column.colKey) === key),
+  );
+  pagination.value.current = 1;
+  void fetchProjects();
+}
+
+watch(
+  () => filters.value.runtimeTargetId,
+  (targetId) => {
+    const target = runtimeTargets.value.find((item) => item.id === targetId);
+    if (target?.provider === 'docker') {
+      filters.value.provider = target.provider;
+    }
+  },
+);
+
+watch(
+  () => filters.value.provider,
+  (provider) => {
+    if (provider === 'all') return;
+    const target = runtimeTargets.value.find((item) => item.id === filters.value.runtimeTargetId);
+    if (target && target.provider !== provider) {
+      filters.value.runtimeTargetId = undefined;
+    }
+  },
+);
 
 function navigateToDetail(row: ProjectListItemWithLifecycle, tab?: string) {
   const target = {

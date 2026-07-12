@@ -1,4 +1,5 @@
 {
+  "menu": { "runtimeTargets": { "title": "Runtime Targets" } },
   "runtimeTarget": {
     "route": { "list": { "title": "Runtime Targets" } },
     "list": {

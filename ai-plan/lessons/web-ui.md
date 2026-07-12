@@ -1,5 +1,32 @@
 # Web UI Lessons
 
+## LESSON-WEB-UI-MENU-ICON-AUTHORITY-001：菜单图标必须从上游 descriptor 的语义 key 统一解析
+
+- Status: active
+- Level: L2
+- Applies to:
+  - server menu descriptor metadata
+  - web shell navigation
+  - Iconify menu icon resolver
+- Source:
+  - 用户反馈指出可见 sidebar 将不识别的 menu icon 回退为重复 folder，Docker 又被误替换为不协调的品牌样式
+- Problem:
+  直接沿用旧图标库 identifier 或在页面按菜单名称修补，会让 resolver 回退到同一个 generic glyph；菜单层级、Overview、Runtime、Dependencies、日志等对象因此失去区分度。品牌图标若绕过同一接口或运行时加载，也会破坏尺寸、stroke 和离线可用性。
+- Correct pattern:
+  先修 server descriptor 的 canonical semantic key，再由一个 shell-owned Iconify resolver 静态映射。常规导航使用 Lucide；仅缺少专业 glyph 时使用 Tabler；Docker 使用静态 `tabler:brand-docker`。新 key 必须有 resolver test，菜单修改必须用真实 sidebar 截图确认 SVG 已渲染、相邻可见入口不重复。
+- Anti-pattern:
+  - 把未知 icon key 静默回退为 folder 并当作完成
+  - 为单一菜单名称添加前端条件分支
+  - 用通用 server/container 图标替代 Docker 品牌 glyph
+  - 依赖 Iconify CDN 或运行时网络加载
+- Enforcement:
+  修改可见菜单时，检查 descriptor identifier、`web/src/shared/icons` resolver 和 `MenuContent` SVG test；运行 `bun run check`、相关 Go menu tests，并用 browser agent 截图核验。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes (`ai-plan/design/domains/compose/Compose项目管理设计.md`)
+- Updated at:
+  2026-07-12
+
 ## LESSON-WEB-UI-MONACO-WORKER-001：Monaco YAML worker 故障要先区分 Vite 入口问题和 createWebWorker API 漂移
 
 - Status: active

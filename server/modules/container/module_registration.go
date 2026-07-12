@@ -203,7 +203,7 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		TitleKey:                 containercontract.ContainerMenuTitle.String(),
 		SectionKey:               "runtime",
 		Path:                     containercontract.ContainerMenuPath,
-		Icon:                     "server",
+		Icon:                     "docker",
 		Order:                    containerMenuOrderList,
 		Permission:               containercontract.ContainerViewPermission.String(),
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),

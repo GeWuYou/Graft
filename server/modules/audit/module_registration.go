@@ -48,7 +48,7 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 		Kind:       menu.NodeKindEntry,
 		TitleKey:   auditcontract.AuditLogMenuTitle.String(),
 		Path:       auditcontract.AuditLogsMenuPath,
-		Icon:       "history",
+		Icon:       "audit",
 		Order:      auditMenuOrderLogs,
 		Permission: auditcontract.AuditReadPermission.String(),
 		Module:     moduleName,

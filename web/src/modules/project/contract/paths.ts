@@ -11,6 +11,8 @@ export const PROJECT_ROUTE_PATH = {
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  SAVED_VIEWS: '/api/ops/projects/saved-views',
+  SAVED_VIEW: '/api/ops/projects/saved-views/{viewId}',
   BATCH_ACTIONS: '/api/ops/projects/batch-actions',
   IMPORT_RUNTIME_CANDIDATES: '/api/ops/projects/import/runtime-candidates',
   IMPORT_RUNTIME_INSPECT: '/api/ops/projects/import/runtime-inspect',
@@ -55,6 +57,10 @@ export const PROJECT_API_PATH = {
  */
 function encodeProjectPathParam(value: string | number) {
   return encodeURIComponent(String(value));
+}
+
+export function buildProjectSavedViewApiPath(viewId: number) {
+  return PROJECT_API_PATH.SAVED_VIEW.replace('{viewId}', encodeProjectPathParam(viewId));
 }
 
 /**

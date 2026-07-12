@@ -33,7 +33,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		code:       "monitor.server-status.runtime",
 		titleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
 		path:       monitorcontract.ServerStatusRuntimeMenuPath,
-		icon:       "time",
+		icon:       "runtime-overview",
 		order:      102,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
@@ -43,7 +43,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		code:       "monitor.server-status.dependencies",
 		titleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
 		path:       monitorcontract.ServerStatusDependenciesMenuPath,
-		icon:       "data-base",
+		icon:       "dependencies",
 		order:      103,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})

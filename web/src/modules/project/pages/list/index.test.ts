@@ -7,6 +7,9 @@ import ProjectListPage from './index.vue';
 
 const projectApiMocks = vi.hoisted(() => ({
   getProjects: vi.fn(),
+  deleteProjectSavedView: vi.fn(),
+  getProjectSavedViews: vi.fn(),
+  postProjectSavedView: vi.fn(),
   postProjectBatchActions: vi.fn(),
   postProjectDestroy: vi.fn(),
   postProjectStop: vi.fn(),
@@ -15,7 +18,10 @@ const projectApiMocks = vi.hoisted(() => ({
   postProjectUpdateDeploy: vi.fn(),
   postProjectUnregister: vi.fn(),
   postProjectUp: vi.fn(),
+  putProjectSavedView: vi.fn(),
 }));
+
+const runtimeTargetMocks = vi.hoisted(() => ({ listRuntimeTargets: vi.fn() }));
 
 const projectRealtimeMocks = vi.hoisted(() => ({
   acquireProjectListRealtime: vi.fn(),
@@ -210,6 +216,16 @@ const TTagStub = defineComponent({
   },
 });
 
+const TDialogStub = defineComponent({
+  name: 'TDialogStub',
+  props: {
+    visible: { type: Boolean, default: false },
+  },
+  setup(props, { slots }) {
+    return () => (props.visible ? h('div', { 'data-stub': 'TDialog' }, slots.default?.()) : null);
+  },
+});
+
 const TCheckboxStub = defineComponent({
   name: 'TCheckboxStub',
   props: {
@@ -269,8 +285,11 @@ const TTableStub = defineComponent({
 });
 
 vi.mock('../../api/project', () => ({
+  deleteProjectSavedView: projectApiMocks.deleteProjectSavedView,
   getProjects: projectApiMocks.getProjects,
+  getProjectSavedViews: projectApiMocks.getProjectSavedViews,
   postProjectBatchActions: projectApiMocks.postProjectBatchActions,
+  postProjectSavedView: projectApiMocks.postProjectSavedView,
   postProjectDestroy: projectApiMocks.postProjectDestroy,
   postProjectStop: projectApiMocks.postProjectStop,
   postProjectRedeploy: projectApiMocks.postProjectRedeploy,
@@ -278,6 +297,11 @@ vi.mock('../../api/project', () => ({
   postProjectUpdateDeploy: projectApiMocks.postProjectUpdateDeploy,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
   postProjectUp: projectApiMocks.postProjectUp,
+  putProjectSavedView: projectApiMocks.putProjectSavedView,
+}));
+
+vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
+  listRuntimeTargets: runtimeTargetMocks.listRuntimeTargets,
 }));
 
 vi.mock('../../shared/list-realtime', () => ({
@@ -430,6 +454,7 @@ function mountPage() {
         't-button': TButtonStub,
         't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
+        't-dialog': TDialogStub,
         't-drawer': slotStub('TDrawer'),
         't-empty': slotStub('TEmpty'),
         't-input': slotStub('TInput'),
@@ -463,6 +488,7 @@ function mountKeepAlivePage() {
           't-button': TButtonStub,
           't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
+          't-dialog': TDialogStub,
           't-drawer': slotStub('TDrawer'),
           't-empty': slotStub('TEmpty'),
           't-input': slotStub('TInput'),
@@ -497,6 +523,8 @@ describe('Project list page', () => {
     vi.useRealTimers();
     projectRealtimeMocks.acquireProjectListRealtime.mockImplementation(() => undefined);
     projectRealtimeMocks.releaseProjectListRealtime.mockImplementation(() => undefined);
+    runtimeTargetMocks.listRuntimeTargets.mockResolvedValue([]);
+    projectApiMocks.getProjectSavedViews.mockResolvedValue([]);
 
     projectApiMocks.getProjects.mockResolvedValue({
       items: [
@@ -570,6 +598,17 @@ describe('Project list page', () => {
 
     expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 42');
     expect(wrapper.get('[data-testid="project-table-summary"]').text()).toBe('Total 42');
+  });
+
+  it('opens the saved-view dialog from the compact list toolbar', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.save');
+    expect(saveButton).toBeDefined();
+
+    await saveButton?.trigger('click');
+    expect(wrapper.find('[data-stub="TDialog"]').exists()).toBe(true);
   });
 
   it('renders dynamic container resource badges with four-way semantics', async () => {

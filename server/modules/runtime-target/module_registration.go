@@ -31,6 +31,6 @@ func registerModuleMetadata(ctx *module.Context, moduleName string) error {
 	} {
 		ctx.PermissionRegistry.Register(item)
 	}
-	ctx.MenuRegistry.Register(menu.Item{Code: "runtime-target.list", ParentCode: "domain.infrastructure", Kind: menu.NodeKindEntry, TitleKey: contract.MenuTitle, Path: contract.MenuPath, Icon: "server", Order: runtimeTargetMenuOrder, Permission: contract.ViewPermission, Module: moduleName})
+	ctx.MenuRegistry.Register(menu.Item{Code: "runtime-target.list", ParentCode: "domain.infrastructure", Kind: menu.NodeKindEntry, TitleKey: contract.MenuTitle, Path: contract.MenuPath, Icon: "runtime-target", Order: runtimeTargetMenuOrder, Permission: contract.ViewPermission, Module: moduleName})
 	return nil
 }

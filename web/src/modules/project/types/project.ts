@@ -100,9 +100,19 @@ type GetProjectListOperation = paths[ProjectListPath]['get'];
 
 export type ProjectListQuery = NonNullable<GetProjectListOperation['parameters']['query']>;
 
+export type ProjectApplicationType = ProjectListItem['application_type'];
+export type ProjectProvider = NonNullable<ProjectListItem['runtime_target']>['provider'];
+export type ProjectSavedView = components['schemas']['project-saved-view'];
+export type ProjectSavedViewRequest = components['schemas']['project-saved-view-request'];
+export type ProjectSavedViewQueryState = ProjectSavedViewRequest['query_state'];
+
 export type ProjectFilters = {
   keyword: string;
+  applicationType: ProjectApplicationType | 'all';
+  runtimeTargetId: number | undefined;
+  provider: ProjectProvider | 'all';
   sourceKind: ProjectSourceKind | 'all';
+  runtimeStatus: ProjectRuntimeStatus | 'all';
   driftStatus: ProjectDriftStatus | 'all';
 };
 

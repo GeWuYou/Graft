@@ -413,3 +413,12 @@
 - Runtime Target remains the target/provider authority; Project stores only nullable migration-bridge `runtime_target_id` and consumes summaries through `moduleapi`.
 - New Compose registrations resolve a Docker target before persistence. Historical local rows are idempotently backfilled after Runtime Target Boot discovery.
 - `/api/ops/projects` now models the generic application list projection with `application_type=compose`, target summary and server-side identity/target/provider/source/drift filters. The bridge becomes non-null only after live backfill evidence confirms no remaining rows.
+
+## 2026-07-12 Application Management Web And Icon System
+
+- `/projects` remains the stable route but now presents Application Management. Compose is visible as the current application type, while Runtime Target and Provider are first-class columns and server-backed filters.
+- The Project saved-view consumer now lists, applies, creates, updates and deletes user-private saved views. Applying a view restores filters, page size and visible columns while resetting to page one.
+- Menu descriptors use distinct semantic identifiers across visible domain and entry nodes. The web resolves them through one static Iconify boundary: Lucide for ordinary navigation and Tabler's outline Docker brand glyph for Docker.
+- The icon authority repair expanded to core domain descriptors plus currently visible module entries; it changes only menu metadata and resolver mappings, never routes, permissions, or page behavior.
+- Browser evidence captured Application Management, Runtime Targets and the visible Docker sidebar logo under `.ai/artifacts/browser/application-management-page` and `.ai/artifacts/browser/runtime-target-icons`.
+- Follow-up visual audit replaced legacy/fallback menu identifiers for core domains and visible observability, security and platform entries. Final browser evidence at `.ai/artifacts/browser/observability-icons-final` shows Overview, Runtime, Dependencies, Module Runtime, Access Log and App Log with distinct semantic glyphs; Docker uses the Tabler outline brand glyph.

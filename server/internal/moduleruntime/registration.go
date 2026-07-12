@@ -111,7 +111,7 @@ func registerMenu(registry *menu.Registry) {
 		Title:      "",
 		TitleKey:   menuModulesRuntimeTitleKey,
 		Path:       menuRuntimePath,
-		Icon:       "module",
+		Icon:       "module-runtime",
 		Order:      menuRuntimeOrder,
 		Permission: PermissionRead,
 		Module:     moduleOwner,

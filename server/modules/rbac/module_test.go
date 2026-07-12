@@ -483,7 +483,7 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		kind:       menu.NodeKindEntry,
 		path:       "/roles",
 		titleKey:   rbaccontract.RoleListMenuTitle.String(),
-		icon:       "secured",
+		icon:       "roles",
 		order:      3,
 		permission: rbaccontract.RoleReadPermission.String(),
 	})
@@ -493,7 +493,7 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		kind:       menu.NodeKindEntry,
 		path:       "/permissions",
 		titleKey:   rbaccontract.PermissionListMenuTitle.String(),
-		icon:       "lock-on",
+		icon:       "permissions",
 		order:      4,
 		permission: rbaccontract.PermissionReadPermission.String(),
 	})

@@ -73,13 +73,13 @@ func TestRegisterDomainGroupsProvidesIcons(t *testing.T) {
 	RegisterDomainGroups(registry)
 
 	expectedIcons := map[string]string{
-		"domain.application":    "folder-open",
-		"domain.infrastructure": "server",
-		"domain.build":          "tools",
-		"domain.resources":      "data-base",
-		"domain.observability":  "dashboard",
-		"domain.security":       "secured",
-		"domain.platform":       "setting",
+		"domain.application":    "application",
+		"domain.infrastructure": "infrastructure",
+		"domain.build":          "build",
+		"domain.resources":      "resources",
+		"domain.observability":  "observability",
+		"domain.security":       "security",
+		"domain.platform":       "platform",
 	}
 	for _, item := range registry.Items() {
 		if expected, ok := expectedIcons[item.Code]; !ok || item.Icon != expected {

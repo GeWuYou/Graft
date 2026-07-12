@@ -20,7 +20,7 @@
   },
   "menu": {
     "project": {
-      "title": "Projects"
+      "title": "Application Management"
     }
   },
   "project": {
@@ -32,8 +32,8 @@
     },
     "route": {
       "list": {
-        "title": "Projects",
-        "breadcrumb": "Projects"
+        "title": "Application Management",
+        "breadcrumb": "Application Management"
       },
       "createImport": {
         "title": "Import Existing Project",
@@ -156,8 +156,8 @@
     },
     "list": {
       "eyebrow": "Application",
-      "title": "Compose Projects",
-      "description": "Manage Imported Compose Projects Without Duplicating Runtime Authority.",
+      "title": "Application Management",
+      "description": "View Applications, Runtime Targets, and Providers Without Duplicating Runtime Authority.",
       "refresh": "Refresh",
       "retry": "Retry",
       "tableSummary": "{count} Projects",
@@ -172,12 +172,37 @@
       "projectCount": "Total {count}",
       "runningProjects": "Running {count}",
       "stoppedProjects": "Stopped {count}",
+      "runtimeTargetUnavailable": "No Runtime Target",
+      "applicationType": { "compose": "Compose" },
+      "provider": { "docker": "Docker" },
+      "savedViews": {
+        "placeholder": "Quick Filters",
+        "save": "Save Filter",
+        "update": "Update Filter",
+        "delete": "Delete Filter",
+        "confirm": "Save",
+        "cancel": "Cancel",
+        "namePlaceholder": "Filter Name",
+        "nameRequired": "Enter a filter name.",
+        "saved": "Filter Saved.",
+        "deleted": "Filter Deleted.",
+        "deleteFailed": "Failed to Delete Filter.",
+        "conflict": "A filter with this name already exists."
+      },
       "filters": {
         "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
+        "applicationType": "Application Type",
+        "provider": "Provider",
+        "runtimeTarget": "Runtime Target",
         "sourceKind": "Source",
+        "runtimeStatus": "Runtime Status",
         "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
         "allSourceKinds": "All Sources",
+        "allApplicationTypes": "All Application Types",
+        "allProviders": "All Providers",
+        "allRuntimeTargets": "All Runtime Targets",
+        "allRuntimeStatuses": "All Runtime Statuses",
         "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
         "query": "Query",
@@ -186,6 +211,9 @@
       "columns": {
         "selection": "Select",
         "name": "Project",
+        "applicationType": "Application Type",
+        "runtimeTarget": "Runtime Target",
+        "provider": "Provider",
         "source": "Source",
         "runtime": "Status",
         "resources": "Resources",

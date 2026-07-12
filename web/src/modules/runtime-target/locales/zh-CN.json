@@ -1,4 +1,5 @@
 {
+  "menu": { "runtimeTargets": { "title": "运行目标" } },
   "runtimeTarget": {
     "route": { "list": { "title": "运行目标" } },
     "list": {

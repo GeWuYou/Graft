@@ -268,4 +268,4 @@ Compose Project Management
 - [x] Bind Compose application registry records to Docker Runtime Target references with a documented nullable migration bridge.
 - [x] Expose target/provider summaries and server-side project-list filters through the application projection contract.
 - [x] Extend project saved-view state validation for application filters, page size, and visible columns.
-- [ ] Implement the web Application Management surface and icon system in the next loop batch.
+- [x] Implement the web Application Management surface and icon system: server-side application filters, target/provider columns, user-private saved views, and static Iconify menu icons are wired and browser-checked.

@@ -13,7 +13,7 @@
           @click="openHref(item)"
         >
           <template #icon>
-            <component :is="menuIcon(item)" class="t-icon"></component>
+            <graft-menu-icon :icon-key="menuIcon(item)" class="t-icon" />
           </template>
           {{ renderMenuTitle(item.title ?? item.meta?.title) }}
         </t-menu-item>
@@ -25,7 +25,7 @@
           @click="handleMenuItemClick(item)"
         >
           <template #icon>
-            <component :is="menuIcon(item)" class="t-icon"></component>
+            <graft-menu-icon :icon-key="menuIcon(item)" class="t-icon" />
           </template>
           {{ renderMenuTitle(item.title ?? item.meta?.title) }}
         </t-menu-item>
@@ -38,7 +38,7 @@
         :title="renderMenuTitle(item.title ?? item.meta?.title)"
       >
         <template #icon>
-          <component :is="menuIcon(item)" class="t-icon"></component>
+          <graft-menu-icon :icon-key="menuIcon(item)" class="t-icon" />
         </template>
         <menu-content v-if="item.children" :nav-data="item.children" :depth="depth + 1" :show-sections="showSections" />
       </t-submenu>
@@ -46,14 +46,14 @@
   </div>
 </template>
 <script setup lang="ts">
-import { Icon as TIcon } from 'tdesign-vue-next/es/icon';
 import type { PropType } from 'vue';
-import { computed, h } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { resolveMenuNavigationPath } from '@/layouts/layout-navigation';
 import { useLocale } from '@/locales/useLocale';
+import GraftMenuIcon from '@/shared/icons/MenuIcon.vue';
 import type { MenuRoute } from '@/utils/types';
 
 type ListItemType = MenuRoute;
@@ -84,11 +84,7 @@ const list = computed(() => {
 
 const menuIcon = (item: ListItemType) => {
   const icon = item.icon ?? item.meta?.icon;
-  if (typeof icon === 'string') {
-    return () => h(TIcon, { name: icon });
-  }
-  const RenderIcon = icon;
-  return RenderIcon;
+  return typeof icon === 'string' ? icon : undefined;
 };
 
 const renderMenuTitle = (title?: LocalizedTitle) => {

@@ -70,7 +70,7 @@ func registerSystemConfigMenu(registry *menu.Registry, moduleName string) error 
 		Title:      "",
 		TitleKey:   systemconfigcontract.SystemConfigMenuTitle.String(),
 		Path:       systemconfigcontract.SystemConfigMenuPath,
-		Icon:       "setting",
+		Icon:       "config",
 		Order:      systemConfigMenuOrder,
 		Permission: systemconfigcontract.SystemConfigReadPermission.String(),
 		Module:     moduleName,

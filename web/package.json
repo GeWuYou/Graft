@@ -36,6 +36,9 @@
     "check": "bun run format:check && bun run typecheck && bun run openapi:frontend-governance:check && bun run lint:i18n && bun run lint && bun run stylelint && bun run hygiene:check && bun run test:run && bun run build"
   },
   "dependencies": {
+    "@iconify-icons/lucide": "^1.2.135",
+    "@iconify-icons/tabler": "^1.2.95",
+    "@iconify/vue": "^5.0.1",
     "@vueuse/core": "^14.2.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",

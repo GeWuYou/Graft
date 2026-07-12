@@ -14,6 +14,7 @@ import {
   buildProjectOverviewApiPath,
   buildProjectRedeployApiPath,
   buildProjectRestartApiPath,
+  buildProjectSavedViewApiPath,
   buildProjectServicesApiPath,
   buildProjectStopApiPath,
   buildProjectUnregisterApiPath,
@@ -41,6 +42,8 @@ import type {
   ProjectLogResponse,
   ProjectManagedRootResponse,
   ProjectOverviewResponse,
+  ProjectSavedView,
+  ProjectSavedViewRequest,
   ProjectServicesResponse,
   ProjectTaskReceipt,
   ProjectTemplateCreateRequest,
@@ -172,6 +175,18 @@ type ProjectBatchActionsOperation = paths[(typeof PROJECT_API_PATH)['BATCH_ACTIO
 type ProjectBatchActionsEnvelope = ProjectBatchActionsOperation['responses'][200]['content']['application/json'];
 type ProjectBatchActionsData = NonNullable<ProjectBatchActionsEnvelope['data']>;
 type ProjectBatchActionsPayload = ProjectBatchActionsOperation['requestBody']['content']['application/json'];
+type ProjectSavedViewsOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEWS']]['get'];
+type ProjectSavedViewsData = NonNullable<
+  ProjectSavedViewsOperation['responses'][200]['content']['application/json']['data']
+>;
+type ProjectCreateSavedViewOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEWS']]['post'];
+type ProjectCreateSavedViewData = NonNullable<
+  ProjectCreateSavedViewOperation['responses'][201]['content']['application/json']['data']
+>;
+type ProjectSavedViewOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEW']]['put'];
+type ProjectUpdateSavedViewData = NonNullable<
+  ProjectSavedViewOperation['responses'][200]['content']['application/json']['data']
+>;
 
 /**
  * 规范化项目列表查询参数。
@@ -198,6 +213,29 @@ export function getProjects(query?: ProjectListQuery) {
     url: PROJECT_API_PATH.LIST,
     params: normalizeProjectListQuery(query),
   }) as Promise<ProjectListResponseWithLifecycle>;
+}
+
+export async function getProjectSavedViews(): Promise<ProjectSavedView[]> {
+  const data = await request.get<ProjectSavedViewsData>({ url: PROJECT_API_PATH.SAVED_VIEWS });
+  return data.items ?? [];
+}
+
+export function postProjectSavedView(payload: ProjectSavedViewRequest) {
+  return request.post<ProjectCreateSavedViewData>({
+    url: PROJECT_API_PATH.SAVED_VIEWS,
+    data: payload,
+  }) as Promise<ProjectSavedView>;
+}
+
+export function putProjectSavedView(viewId: number, payload: ProjectSavedViewRequest) {
+  return request.put<ProjectUpdateSavedViewData>({
+    url: buildProjectSavedViewApiPath(viewId),
+    data: payload,
+  }) as Promise<ProjectSavedView>;
+}
+
+export function deleteProjectSavedView(viewId: number) {
+  return request.delete({ url: buildProjectSavedViewApiPath(viewId) });
 }
 
 /**

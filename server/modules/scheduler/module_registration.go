@@ -110,7 +110,7 @@ func registerSchedulerMenu(registry *menu.Registry, moduleName string) error {
 		Title:      "",
 		TitleKey:   schedulercontract.ScheduledTaskMenuTitle.String(),
 		Path:       schedulercontract.ScheduledTaskMenuPath,
-		Icon:       "time",
+		Icon:       "scheduled-tasks",
 		Order:      scheduledTaskMenuOrder,
 		Permission: schedulercontract.ScheduledTaskReadPermission.String(),
 		Module:     moduleName,
