@@ -8,6 +8,24 @@ const (
 	RefreshCookieScopes refreshCookieContextKey = "refreshCookie.Scopes"
 )
 
+// Defines values for GetAuthBootstrap200JSONResponseBodyDataMenusKind.
+const (
+	Entry GetAuthBootstrap200JSONResponseBodyDataMenusKind = "entry"
+	Group GetAuthBootstrap200JSONResponseBodyDataMenusKind = "group"
+)
+
+// Valid indicates whether the value is a known member of the GetAuthBootstrap200JSONResponseBodyDataMenusKind enum.
+func (e GetAuthBootstrap200JSONResponseBodyDataMenusKind) Valid() bool {
+	switch e {
+	case Entry:
+		return true
+	case Group:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuthBootstrap401JSONResponseBodySuccess.
 const (
 	GetAuthBootstrap401JSONResponseBodySuccessFalse GetAuthBootstrap401JSONResponseBodySuccess = false
@@ -518,6 +536,9 @@ type GetAuthBootstrapParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetAuthBootstrap200JSONResponseBodyDataMenusKind defines parameters for GetAuthBootstrap.
+type GetAuthBootstrap200JSONResponseBodyDataMenusKind string
 
 // GetAuthBootstrap401JSONResponseBodySuccess defines parameters for GetAuthBootstrap.
 type GetAuthBootstrap401JSONResponseBodySuccess bool

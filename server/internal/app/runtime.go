@@ -296,6 +296,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		moduleManager:        module.NewManager(),
 		appLogRepository:     appLogRepo,
 	}
+	menu.RegisterDomainGroups(runtime.menuRegistry)
 	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
 		_ = runtime.closeCoreResources()
 		return nil, err

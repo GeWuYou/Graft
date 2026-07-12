@@ -23,14 +23,10 @@ const (
 	routeGroup          = "/modules/runtime"
 	routeModuleKeyParam = "module_key"
 
-	menuCodeRoot     = "module-runtime.root"
 	menuCodeRuntime  = "module-runtime.list"
-	menuRootPath     = "/server"
-	menuRuntimePath  = "/server/modules"
-	menuRootOrder    = 100
+	menuRuntimePath  = "/system/modules"
 	menuRuntimeOrder = 104
 
-	menuServerTitleKey         = "menu.server.title"
 	menuModulesRuntimeTitleKey = "menu.modulesRuntime.title"
 )
 
@@ -107,21 +103,10 @@ func registerMenu(registry *menu.Registry) {
 		return
 	}
 
-	if !hasMenuPath(registry.Items(), menuRootPath) {
-		registry.Register(menu.Item{
-			Code:       menuCodeRoot,
-			Title:      "",
-			TitleKey:   menuServerTitleKey,
-			Path:       menuRootPath,
-			Icon:       "server",
-			Order:      menuRootOrder,
-			Permission: "",
-			Module:     moduleOwner,
-		})
-	}
-
 	registry.Register(menu.Item{
 		Code:       menuCodeRuntime,
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   menuModulesRuntimeTitleKey,
 		Path:       menuRuntimePath,
@@ -130,16 +115,6 @@ func registerMenu(registry *menu.Registry) {
 		Permission: PermissionRead,
 		Module:     moduleOwner,
 	})
-}
-
-func hasMenuPath(items []menu.Item, path string) bool {
-	for _, item := range items {
-		if strings.TrimSpace(item.Path) == path {
-			return true
-		}
-	}
-
-	return false
 }
 
 func registerRoutes(

@@ -32,7 +32,7 @@ const (
 	// ContainerBatchActionsRoute is the batch action route fragment.
 	ContainerBatchActionsRoute = "/batch-actions"
 	// ContainerMenuRootPath is the web menu root path for operations.
-	ContainerMenuRootPath = "/ops"
+	ContainerMenuRootPath = "/containers"
 	// ContainerMenuPath is the web menu path for container management.
-	ContainerMenuPath = "/ops/containers"
+	ContainerMenuPath = "/containers"
 )

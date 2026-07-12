@@ -109,16 +109,9 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 	}
 
 	registry.Register(menu.Item{
-		Code:       appLogMenuCodeRoot,
-		TitleKey:   "menu.logCenter.title",
-		Path:       appLogMenuRootPath,
-		Icon:       "bulletpoint",
-		Order:      appLogMenuRootOrder,
-		Permission: "",
-		Module:     appLogModuleOwner,
-	})
-	registry.Register(menu.Item{
 		Code:       appLogMenuCodeList,
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   "menu.appLog.title",
 		Path:       appLogMenuListPath,
 		Icon:       "file-search",

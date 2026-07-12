@@ -22,3 +22,10 @@ permission.not_found: 权限不存在
 role.not_found: 角色不存在
 user.not_found: 用户不存在
 user.protected_default_admin_immutable: 内置默认管理员不允许执行该变更
+menu.domain.application.title: 应用
+menu.domain.infrastructure.title: 基础设施
+menu.domain.build.title: 构建
+menu.domain.resources.title: 资源
+menu.domain.observability.title: 可观测性
+menu.domain.security.title: 安全
+menu.domain.platform.title: 平台

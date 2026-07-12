@@ -45,6 +45,8 @@ type bootstrapUserResponse struct {
 
 type bootstrapMenuResponse struct {
 	Code       string `json:"code"`
+	ParentCode string `json:"parent_code,omitempty"`
+	Kind       string `json:"kind"`
 	Title      string `json:"title"`
 	TitleKey   string `json:"title_key,omitempty"`
 	Path       string `json:"path"`
@@ -83,6 +85,11 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	if !ok || requestAuth.User == nil || requestAuth.User.ID == 0 {
 		return bootstrapResponse{}, moduleapi.ErrUnauthenticated
 	}
+	if r.menuRegistry != nil {
+		if err := r.menuRegistry.Validate(); err != nil {
+			return bootstrapResponse{}, err
+		}
+	}
 
 	permissionCodes, permissionSet, err := r.listPermissionCodes(ctx, requestAuth.User.ID)
 	if err != nil {
@@ -115,7 +122,7 @@ func (r bootstrapReader) ReadBootstrap(ctx context.Context, request *http.Reques
 	}
 	menus := make([]moduleapi.AuthBootstrapMenuItem, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
-		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, Title: item.Title, TitleKey: item.TitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
+		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, ParentCode: item.ParentCode, Kind: item.Kind, Title: item.Title, TitleKey: item.TitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
 	}
 	return moduleapi.AuthBootstrapPayload{
 		User: moduleapi.CurrentUser{
@@ -187,9 +194,12 @@ func filterBootstrapMenus(
 	if registry == nil {
 		return []bootstrapMenuResponse{}
 	}
+	// Registry validation is the lifecycle boundary that prevents malformed navigation graphs.
+	if err := registry.Validate(); err != nil {
+		return []bootstrapMenuResponse{}
+	}
 
 	items := registry.Items()
-	originalParentPaths := bootstrapOriginalParentPaths(items)
 	menusByKey := make(map[string]bootstrapMenuResponse, len(items))
 	menuKeys := make([]string, 0, len(items))
 	for _, item := range items {
@@ -205,6 +215,8 @@ func filterBootstrapMenus(
 
 		response := bootstrapMenuResponse{
 			Code:       item.Code,
+			ParentCode: item.ParentCode,
+			Kind:       string(item.Kind),
 			Title:      item.Title,
 			TitleKey:   item.TitleKey,
 			Path:       item.Path,
@@ -226,62 +238,40 @@ func filterBootstrapMenus(
 	for _, key := range menuKeys {
 		menus = append(menus, menusByKey[key])
 	}
-	menus = pruneEmptyBootstrapParentMenus(menus, originalParentPaths)
+	menus = pruneEmptyBootstrapGroups(menus)
 
 	slices.SortStableFunc(menus, compareBootstrapMenus)
 
 	return menus
 }
 
-func bootstrapOriginalParentPaths(items []menu.Item) map[string]struct{} {
-	parentPaths := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		path := strings.TrimSpace(item.Path)
-		for parent := parentMenuPath(path); parent != ""; parent = parentMenuPath(parent) {
-			parentPaths[parent] = struct{}{}
-		}
-	}
-	return parentPaths
-}
-
-func pruneEmptyBootstrapParentMenus(
-	menus []bootstrapMenuResponse,
-	originalParentPaths map[string]struct{},
-) []bootstrapMenuResponse {
-	if len(menus) == 0 || len(originalParentPaths) == 0 {
-		return menus
-	}
-	includedChildParents := make(map[string]struct{}, len(menus))
+func pruneEmptyBootstrapGroups(menus []bootstrapMenuResponse) []bootstrapMenuResponse {
+	visible := make(map[string]bootstrapMenuResponse, len(menus))
 	for _, item := range menus {
-		path := strings.TrimSpace(item.Path)
-		for parent := parentMenuPath(path); parent != ""; parent = parentMenuPath(parent) {
-			includedChildParents[parent] = struct{}{}
-		}
+		visible[item.Code] = item
 	}
-
-	pruned := menus[:0]
-	for _, item := range menus {
-		path := strings.TrimSpace(item.Path)
-		if _, isDeclaredParent := originalParentPaths[path]; isDeclaredParent {
-			if _, hasVisibleChild := includedChildParents[path]; !hasVisibleChild {
-				continue
+	for changed := true; changed; {
+		changed = false
+		children := make(map[string]bool, len(visible))
+		for _, item := range visible {
+			if item.ParentCode != "" {
+				children[item.ParentCode] = true
 			}
 		}
-		pruned = append(pruned, item)
+		for code, item := range visible {
+			if item.Kind == string(menu.NodeKindGroup) && !children[code] {
+				delete(visible, code)
+				changed = true
+			}
+		}
+	}
+	pruned := make([]bootstrapMenuResponse, 0, len(visible))
+	for _, item := range menus {
+		if _, ok := visible[item.Code]; ok {
+			pruned = append(pruned, item)
+		}
 	}
 	return pruned
-}
-
-func parentMenuPath(path string) string {
-	path = strings.TrimRight(strings.TrimSpace(path), "/")
-	if path == "" || path == "/" {
-		return ""
-	}
-	index := strings.LastIndex(path, "/")
-	if index <= 0 {
-		return ""
-	}
-	return path[:index]
 }
 
 func resolveBootstrapSystemConfig(resolver servicecontainer.Resolver) moduleapi.SystemConfigResolver {
@@ -327,6 +317,12 @@ func mergeBootstrapMenu(existing, next bootstrapMenuResponse) bootstrapMenuRespo
 	merged := existing
 	if merged.Title == "" {
 		merged.Title = next.Title
+	}
+	if merged.ParentCode == "" {
+		merged.ParentCode = next.ParentCode
+	}
+	if merged.Kind == "" {
+		merged.Kind = next.Kind
 	}
 	if merged.TitleKey == "" {
 		merged.TitleKey = next.TitleKey

@@ -1,14 +1,44 @@
 // Package menu 存放后端声明的导航元数据，供后续壳层装配使用。
 package menu
 
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// NodeKind distinguishes non-navigable domain groups from page entries.
+type NodeKind string
+
+const (
+	// NodeKindGroup identifies a non-navigable navigation group.
+	NodeKindGroup NodeKind = "group"
+	// NodeKindEntry identifies a navigable page entry.
+	NodeKindEntry NodeKind = "entry"
+
+	visitUnseen uint8 = iota
+	visitActive
+	visitDone
+
+	domainOrderApplication    = 10
+	domainOrderInfrastructure = 20
+	domainOrderBuild          = 30
+	domainOrderResources      = 40
+	domainOrderObservability  = 50
+	domainOrderSecurity       = 60
+	domainOrderPlatform       = 70
+)
+
 // Item 表示一个由后端声明的菜单项。
 type Item struct {
 	// Code 是菜单项的稳定后端标识，用于后续增量对比、去重或权限联动。
-	Code     string
-	Title    string
-	TitleKey string
-	Path     string
-	Icon     string
+	Code       string
+	ParentCode string
+	Kind       NodeKind
+	Title      string
+	TitleKey   string
+	Path       string
+	Icon       string
 	// Order 是后端声明的 canonical 导航排序值；数值越小越靠前。
 	Order int
 	// Permission 记录访问该菜单所需的后端权限编码；留空表示暂不做权限门控。
@@ -47,4 +77,112 @@ func (r *Registry) Items() []Item {
 	items := make([]Item, len(r.items))
 	copy(items, r.items)
 	return items
+}
+
+// Validate rejects malformed navigation graphs before bootstrap emits them.
+func (r *Registry) Validate() error {
+	items := r.Items()
+	byCode := make(map[string]Item, len(items))
+	for _, item := range items {
+		if err := validateItem(item, byCode); err != nil {
+			return err
+		}
+		item.Code = strings.TrimSpace(item.Code)
+		byCode[item.Code] = item
+	}
+	if err := validateParents(byCode); err != nil {
+		return err
+	}
+	return validateCycles(byCode)
+}
+
+func validateItem(item Item, existing map[string]Item) error {
+	code := strings.TrimSpace(item.Code)
+	if code == "" {
+		return fmt.Errorf("menu item code is required")
+	}
+	if _, exists := existing[code]; exists {
+		return fmt.Errorf("duplicate menu code %q", code)
+	}
+	kind := item.Kind
+	if kind == "" {
+		kind = NodeKindEntry
+	}
+	if kind == NodeKindGroup && strings.TrimSpace(item.Path) != "" {
+		return fmt.Errorf("menu group %q must not declare a path", code)
+	}
+	if kind == NodeKindEntry && strings.TrimSpace(item.Path) == "" {
+		return fmt.Errorf("menu entry %q must declare a path", code)
+	}
+	if kind != NodeKindGroup && kind != NodeKindEntry {
+		return fmt.Errorf("menu item %q has invalid kind %q", code, kind)
+	}
+	return nil
+}
+
+func validateParents(items map[string]Item) error {
+	for code, item := range items {
+		parent := strings.TrimSpace(item.ParentCode)
+		if parent == "" {
+			continue
+		}
+		parentItem, exists := items[parent]
+		if !exists {
+			return fmt.Errorf("menu item %q references unknown parent %q", code, parent)
+		}
+		if parentItem.Kind != NodeKindGroup {
+			return fmt.Errorf("menu item %q parent %q is not a group", code, parent)
+		}
+	}
+	return nil
+}
+
+func validateCycles(items map[string]Item) error {
+	state := make(map[string]uint8, len(items))
+	var visit func(string) error
+	visit = func(code string) error {
+		if state[code] == visitActive {
+			return fmt.Errorf("menu graph contains a cycle at %q", code)
+		}
+		if state[code] == visitDone {
+			return nil
+		}
+		state[code] = visitActive
+		if parent := strings.TrimSpace(items[code].ParentCode); parent != "" {
+			if err := visit(parent); err != nil {
+				return err
+			}
+		}
+		state[code] = visitDone
+		return nil
+	}
+	codes := make([]string, 0, len(items))
+	for code := range items {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	for _, code := range codes {
+		if err := visit(code); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RegisterDomainGroups declares the stable top-level navigation taxonomy.
+func RegisterDomainGroups(r *Registry) {
+	if r == nil {
+		return
+	}
+	for _, item := range []Item{
+		{Code: "domain.application", Kind: NodeKindGroup, TitleKey: "menu.domain.application.title", Order: domainOrderApplication, Module: "core.navigation"},
+		{Code: "domain.infrastructure", Kind: NodeKindGroup, TitleKey: "menu.domain.infrastructure.title", Order: domainOrderInfrastructure, Module: "core.navigation"},
+		{Code: "domain.build", Kind: NodeKindGroup, TitleKey: "menu.domain.build.title", Order: domainOrderBuild, Module: "core.navigation"},
+		{Code: "domain.resources", Kind: NodeKindGroup, TitleKey: "menu.domain.resources.title", Order: domainOrderResources, Module: "core.navigation"},
+		{Code: "domain.observability", Kind: NodeKindGroup, TitleKey: "menu.domain.observability.title", Order: domainOrderObservability, Module: "core.navigation"},
+		{Code: "domain.security", Kind: NodeKindGroup, TitleKey: "menu.domain.security.title", Order: domainOrderSecurity, Module: "core.navigation"},
+		{Code: "domain.platform", Kind: NodeKindGroup, TitleKey: "menu.domain.platform.title", Order: domainOrderPlatform, Module: "core.navigation"},
+	} {
+		r.Register(item)
+	}
 }

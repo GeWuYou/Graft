@@ -24,5 +24,5 @@ const (
 	MyAnnouncementUnreadCountRoute = "/unread-count"
 
 	// AnnouncementMenuPath identifies the canonical announcement management menu path.
-	AnnouncementMenuPath = "/server/announcements"
+	AnnouncementMenuPath = "/announcements"
 )

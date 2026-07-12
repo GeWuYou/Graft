@@ -104,6 +104,8 @@ func registerSchedulerMenu(registry *menu.Registry, moduleName string) error {
 
 	registry.Register(menu.Item{
 		Code:       "scheduled-task.list",
+		ParentCode: "domain.platform",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   schedulercontract.ScheduledTaskMenuTitle.String(),
 		Path:       schedulercontract.ScheduledTaskMenuPath,

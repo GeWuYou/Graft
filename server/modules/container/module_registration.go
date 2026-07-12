@@ -193,17 +193,9 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 	}
 
 	registry.Register(menu.Item{
-		Code:       "ops.root",
-		Title:      "",
-		TitleKey:   containercontract.OperationsMenuTitle.String(),
-		Path:       containercontract.ContainerMenuRootPath,
-		Icon:       "tools",
-		Order:      operationsMenuOrderRoot,
-		Permission: "",
-		Module:     moduleName,
-	})
-	registry.Register(menu.Item{
 		Code:                     "container.list",
+		ParentCode:               "domain.infrastructure",
+		Kind:                     menu.NodeKindEntry,
 		Title:                    "",
 		TitleKey:                 containercontract.ContainerMenuTitle.String(),
 		Path:                     containercontract.ContainerMenuPath,

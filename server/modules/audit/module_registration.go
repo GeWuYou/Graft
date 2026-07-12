@@ -48,17 +48,9 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	}
 
 	registry.Register(menu.Item{
-		Code:       "audit.root",
-		TitleKey:   auditcontract.AuditRootMenuTitle.String(),
-		Path:       auditcontract.AuditMenuPath,
-		Icon:       "secured",
-		Order:      auditMenuOrderRoot,
-		Permission: "",
-		Module:     moduleName,
-	})
-
-	registry.Register(menu.Item{
 		Code:       "audit.overview",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
 		Path:       auditcontract.AuditOverviewMenuPath,
 		Icon:       "dashboard",
@@ -69,6 +61,8 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.logs",
+		ParentCode: "domain.security",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   auditcontract.AuditLogMenuTitle.String(),
 		Path:       auditcontract.AuditLogsMenuPath,
 		Icon:       "history",

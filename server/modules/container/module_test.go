@@ -123,7 +123,7 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerAPIGroup != "/ops/containers" {
 		t.Fatalf("unexpected API group %q", containercontract.ContainerAPIGroup)
 	}
-	if containercontract.ContainerMenuPath != "/ops/containers" {
+	if containercontract.ContainerMenuPath != "/containers" {
 		t.Fatalf("unexpected menu path %q", containercontract.ContainerMenuPath)
 	}
 	if containercontract.ContainerDockerEndpointConfig.String() != "ops.container.docker.endpoint" {
@@ -283,28 +283,20 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 2 {
-		t.Fatalf("expected root and container menu items, got %#v", items)
+	if len(items) != 1 {
+		t.Fatalf("expected container menu item, got %#v", items)
 	}
-	assertMenuItem(t, items, expectedMenuItem{
-		code:                     "ops.root",
-		title:                    "",
-		titleKey:                 containercontract.OperationsMenuTitle.String(),
-		path:                     "/ops",
-		permission:               "",
-		visibleWhenConfigEnabled: "",
-	})
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "container.list",
 		title:                    "",
 		titleKey:                 containercontract.ContainerMenuTitle.String(),
-		path:                     "/ops/containers",
+		path:                     "/containers",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
 	for _, item := range items {
-		if strings.Contains(item.Path, "/server") || strings.Contains(item.Title, "服务器") {
-			t.Fatalf("container menu must stay under operations IA, got %#v", item)
+		if item.ParentCode != "domain.infrastructure" || item.Kind != menu.NodeKindEntry {
+			t.Fatalf("container menu must use infrastructure navigation metadata, got %#v", item)
 		}
 	}
 }

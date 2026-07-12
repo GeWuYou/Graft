@@ -11,19 +11,13 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 	ctx, _ := newModuleTestContext(t, testRBACRepository{})
 
 	menus := ctx.MenuRegistry.Items()
-	if len(menus) != 4 {
-		t.Fatalf("expected 4 registered menus, got %d", len(menus))
+	if len(menus) != 3 {
+		t.Fatalf("expected 3 registered menus, got %d", len(menus))
 	}
 
-	assertRBACMenuItem(t, menus[0], expectedRBACMenuItem{
-		path:     "/access-control",
-		titleKey: rbaccontract.AccessControlMenuTitle.String(),
-		icon:     "secured",
-		order:    0,
-	})
 	assertRBACMenuItem(
 		t,
-		menus[1],
+		menus[0],
 		expectedRBACMenuItem{
 			path:     "/access-control/overview",
 			titleKey: rbaccontract.AccessControlOverviewMenuTitle.String(),
@@ -33,9 +27,9 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 	)
 	assertRBACMenuItem(
 		t,
-		menus[2],
+		menus[1],
 		expectedRBACMenuItem{
-			path:       "/access-control/roles",
+			path:       "/roles",
 			titleKey:   rbaccontract.RoleListMenuTitle.String(),
 			icon:       "secured",
 			order:      3,
@@ -44,9 +38,9 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 	)
 	assertRBACMenuItem(
 		t,
-		menus[3],
+		menus[2],
 		expectedRBACMenuItem{
-			path:       "/access-control/permissions",
+			path:       "/permissions",
 			titleKey:   rbaccontract.PermissionListMenuTitle.String(),
 			icon:       "lock-on",
 			order:      4,

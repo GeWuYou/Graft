@@ -40,12 +40,12 @@ closeout:
 
 - Work Intake classified this as a long-running cross-boundary refactor.
 - Batch 1 established the design authority and placement skill.
-- Next batch must add the server-owned explicit navigation contract before Web migration.
+- Batch 2 added the server-owned explicit navigation graph and bootstrap contract; the next batch consumes it in the Web shell.
 
 ## Task Checklist
 
 - [x] navigation-design-topic-and-skill
-- [ ] backend-navigation-contract
+- [x] backend-navigation-contract
 - [ ] frontend-navigation-route-migration
 - [ ] cross-boundary-validation-closeout
 
@@ -60,14 +60,13 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["navigation-design-topic-and-skill"],
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract"],
   "pending_batches": [
-    "backend-navigation-contract",
     "frontend-navigation-route-migration",
     "cross-boundary-validation-closeout"
   ],
-  "current_batch": "navigation-design-topic-and-skill",
-  "next_batch": "backend-navigation-contract",
-  "closeout_status": "batch-1-complete"
+  "current_batch": "backend-navigation-contract",
+  "next_batch": "frontend-navigation-route-migration",
+  "closeout_status": "batch-2-complete"
 }
 ```

@@ -1569,17 +1569,14 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 	}
 
 	items := ctx.MenuRegistry.Items()
-	if len(items) != 3 {
-		t.Fatalf("expected 3 audit menu items, got %#v", items)
+	if len(items) != 2 {
+		t.Fatalf("expected 2 audit menu items, got %#v", items)
 	}
-	if items[0].Path != "/audit" || items[0].TitleKey != "menu.audit.title" || items[0].Order != 200 {
-		t.Fatalf("unexpected audit root menu: %#v", items[0])
+	if items[0].Path != "/audit/overview" || items[0].TitleKey != "menu.audit.overview.title" || items[0].Order != 201 {
+		t.Fatalf("unexpected audit overview menu: %#v", items[0])
 	}
-	if items[1].Path != "/audit/overview" || items[1].TitleKey != "menu.audit.overview.title" || items[1].Order != 201 {
-		t.Fatalf("unexpected audit overview menu: %#v", items[1])
-	}
-	if items[2].Path != "/audit/logs" || items[2].TitleKey != "menu.audit.logs.title" || items[2].Order != 202 {
-		t.Fatalf("unexpected audit logs menu: %#v", items[2])
+	if items[1].Path != "/audit/logs" || items[1].TitleKey != "menu.audit.logs.title" || items[1].Order != 202 {
+		t.Fatalf("unexpected audit logs menu: %#v", items[1])
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs", nil)

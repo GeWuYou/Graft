@@ -89,6 +89,8 @@ func registerAnnouncementMenu(registry *menu.Registry, moduleName string) error 
 	}
 	registry.Register(menu.Item{
 		Code:       "announcement.list",
+		ParentCode: "domain.platform",
+		Kind:       menu.NodeKindEntry,
 		Title:      "",
 		TitleKey:   announcementcontract.AnnouncementMenuTitle.String(),
 		Path:       announcementcontract.AnnouncementMenuPath,

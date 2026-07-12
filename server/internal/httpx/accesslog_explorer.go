@@ -62,16 +62,9 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 	}
 
 	registry.Register(menu.Item{
-		Code:       accessLogMenuCodeRoot,
-		TitleKey:   "menu.logCenter.title",
-		Path:       accessLogMenuRootPath,
-		Icon:       "bulletpoint",
-		Order:      accessLogMenuRootOrder,
-		Permission: "",
-		Module:     accessLogModuleOwner,
-	})
-	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeList,
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
 		TitleKey:   "menu.accessLog.title",
 		Path:       accessLogMenuListPath,
 		Icon:       "search",
