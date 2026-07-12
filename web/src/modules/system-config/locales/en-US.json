@@ -389,7 +389,7 @@
   "systemConfig.groups.notification.display": "Display",
   "systemConfig.groups.notification.display.description": "Control Notification Center display defaults.",
   "systemConfig.domains.application": "Application",
-  "systemConfig.domains.infrastructure": "Infrastructure",
+  "systemConfig.domains.ops": "Infrastructure",
   "systemConfig.groups.ops.container.general": "Container Management",
   "systemConfig.groups.ops.container.general.description": "Control the container management baseline.",
   "systemConfig.groups.ops.container.runtime": "Runtime",

@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	containerConfigDomain            = "infrastructure"
-	containerConfigDomainKey         = "systemConfig.domains.infrastructure"
+	containerConfigDomain            = "ops"
+	containerConfigDomainKey         = "systemConfig.domains.ops"
 	containerConfigGeneralGroup      = "ops.container.general"
 	containerConfigGeneralGroupKey   = "systemConfig.groups.ops.container.general"
 	containerConfigGeneralDescKey    = "systemConfig.groups.ops.container.general.description"
@@ -334,7 +334,7 @@ func baseContainerDefinition(spec containerDefinitionSpec) configregistry.Defini
 		TitleKey:            containerConfigTitleKey(spec.key),
 		Description:         spec.fallbackDescription,
 		DescriptionKey:      containerConfigDescriptionKey(spec.key),
-		Tags:                []string{"ops", "container", spec.group},
+		Tags:                []string{containerConfigDomain, "container", spec.group},
 		Type:                spec.valueType,
 		Schema:              spec.schema,
 		DefaultValue:        spec.defaultValue,

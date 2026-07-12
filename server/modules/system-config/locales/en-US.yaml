@@ -21,7 +21,7 @@ systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid: Rank by re
 systemConfig.domains.logs: Logs
 systemConfig.domains.notification: Notification
 systemConfig.domains.application: Application
-systemConfig.domains.infrastructure: Infrastructure
+systemConfig.domains.ops: Infrastructure
 systemConfig.domains.audit: Security Audit
 systemConfig.groups.coreHttpxLogRetention: Access Log Retention
 systemConfig.groupDescriptions.coreHttpxLogRetention: Manage access log cleanup retention and batch policy.

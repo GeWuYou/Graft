@@ -389,7 +389,7 @@
   "systemConfig.groups.notification.display": "展示",
   "systemConfig.groups.notification.display.description": "控制通知中心的展示默认值。",
   "systemConfig.domains.application": "应用",
-  "systemConfig.domains.infrastructure": "基础设施",
+  "systemConfig.domains.ops": "基础设施",
   "systemConfig.groups.ops.container.general": "容器管理",
   "systemConfig.groups.ops.container.general.description": "控制容器管理能力的基础开关。",
   "systemConfig.groups.ops.container.runtime": "运行时",

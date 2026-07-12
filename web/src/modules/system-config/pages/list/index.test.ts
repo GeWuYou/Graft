@@ -30,7 +30,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.domains.logs': '日志配置',
   'systemConfig.domains.notification': '站内通知',
   'systemConfig.domains.application': '应用',
-  'systemConfig.domains.infrastructure': '基础设施',
+  'systemConfig.domains.ops': '基础设施',
   'systemConfig.groupDescriptions.dashboardQuickActions': '管理首页快捷入口的显示与排序策略。',
   'systemConfig.groupDescriptions.coreLoggerLogRetention': '管理应用日志清理的保留周期与批量策略。',
   'systemConfig.groupDescriptions.coreHttpxLogRetention': '管理访问日志清理的保留周期与批量策略。',
@@ -389,9 +389,7 @@ describe('system config list page', () => {
     expect(wrapper.text()).not.toContain('Notification general');
     expect(wrapper.text()).not.toContain('Control the Notification Center baseline behavior.');
 
-    await wrapper
-      .findComponent({ name: 'TTree' })
-      .vm.$emit('active', ['infrastructure:container:ops.container.general']);
+    await wrapper.findComponent({ name: 'TTree' }).vm.$emit('active', ['ops:container:ops.container.general']);
     await flushPromises();
 
     expect(wrapper.text()).toContain('容器管理');
@@ -1737,8 +1735,8 @@ function containerConfigItem(input: {
   return {
     key: input.key,
     module: 'container',
-    domain: 'infrastructure',
-    domain_key: 'systemConfig.domains.infrastructure',
+    domain: 'ops',
+    domain_key: 'systemConfig.domains.ops',
     domain_label: 'Infrastructure',
     group: 'ops.container.general',
     group_key: 'systemConfig.groups.ops.container.general',

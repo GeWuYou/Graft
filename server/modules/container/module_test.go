@@ -521,6 +521,9 @@ func assertConfigDefinitionMetadata(t *testing.T, definition configregistry.Defi
 	if definition.Permission != containercontract.ContainerViewPermission.String() {
 		t.Fatalf("expected config permission %s, got %#v", containercontract.ContainerViewPermission, definition)
 	}
+	if len(definition.Tags) == 0 || definition.Tags[0] != definition.Domain {
+		t.Fatalf("expected config tags to start with domain %q, got %#v", definition.Domain, definition.Tags)
+	}
 	for _, key := range []string{
 		definition.DomainKey,
 		definition.GroupKey,
