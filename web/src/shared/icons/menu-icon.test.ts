@@ -1,3 +1,4 @@
+import box from '@iconify-icons/lucide/box';
 import docker from '@iconify-icons/tabler/brand-docker';
 import { describe, expect, it } from 'vitest';
 
@@ -6,6 +7,10 @@ import { resolveMenuIcon } from './menu-icon';
 describe('resolveMenuIcon', () => {
   it('uses the Tabler Docker brand icon for Docker menus', () => {
     expect(resolveMenuIcon('docker')).toEqual(docker);
+  });
+
+  it('uses the Lucide box icon for container menus', () => {
+    expect(resolveMenuIcon('container')).toEqual(box);
   });
 
   it('keeps application and runtime targets semantically distinct', () => {

@@ -1,5 +1,5 @@
 menu.monitor.overview.title: 概览
-menu.monitor.runtime.title: 服务状态
+menu.monitor.serviceStatus.title: 服务状态
 menu.monitor.dependencies.title: 依赖服务
 monitor.evidence.auditUnavailable.title: 审计证据不可用
 dashboard.widget.monitorSystemHealth.title: 系统健康

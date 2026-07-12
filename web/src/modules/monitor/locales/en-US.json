@@ -2,7 +2,7 @@
   "menu": {
     "monitor": {
       "overview": { "title": "Overview" },
-      "runtime": { "title": "Service Status" },
+      "serviceStatus": { "title": "Service Status" },
       "dependencies": { "title": "Dependencies" }
     }
   },

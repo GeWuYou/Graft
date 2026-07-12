@@ -18,8 +18,8 @@ const (
 	// OverviewRoute identifies the overview route fragment under server-status.
 	OverviewRoute = "/overview"
 
-	// RuntimeRoute identifies the runtime route fragment under server-status.
-	RuntimeRoute = "/runtime"
+	// ServiceStatusRoute identifies the service-status route fragment under server-status.
+	ServiceStatusRoute = "/service-status"
 
 	// DependenciesRoute identifies the dependencies route fragment under server-status.
 	DependenciesRoute = "/dependencies"
@@ -30,8 +30,8 @@ const (
 	// ServerStatusOverviewMenuPath identifies the canonical overview menu path.
 	ServerStatusOverviewMenuPath = ServerStatusMenuPath + OverviewRoute
 
-	// ServerStatusRuntimeMenuPath identifies the canonical runtime menu path.
-	ServerStatusRuntimeMenuPath = ServerStatusMenuPath + RuntimeRoute
+	// ServerStatusServiceStatusMenuPath identifies the canonical service-status menu path.
+	ServerStatusServiceStatusMenuPath = ServerStatusMenuPath + ServiceStatusRoute
 
 	// ServerStatusDependenciesMenuPath identifies the canonical dependencies menu path.
 	ServerStatusDependenciesMenuPath = ServerStatusMenuPath + DependenciesRoute

@@ -15782,6 +15782,11 @@
           "icon",
           "permission"
         ],
+        "dependentRequired": {
+          "section_key": [
+            "section_title_key"
+          ]
+        },
         "properties": {
           "code": {
             "type": "string"

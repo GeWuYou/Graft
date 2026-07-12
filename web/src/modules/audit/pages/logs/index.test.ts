@@ -505,7 +505,7 @@ describe('AuditLogsPage', () => {
         { path: '/security/audit', component: AuditLogsPage },
         { path: '/observability/access-logs', component: passthroughStub },
         { path: '/observability/application-logs', component: passthroughStub },
-        { path: '/audit/overview', component: passthroughStub },
+        { path: '/observability/overview', component: passthroughStub },
       ],
     });
 

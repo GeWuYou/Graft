@@ -162,7 +162,7 @@ func registerMessages(localizer *i18n.Service) error {
 	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
 		for _, key := range []monitorcontract.MessageKey{
 			monitorcontract.ServerStatusOverviewMenuTitle,
-			monitorcontract.ServerStatusRuntimeMenuTitle,
+			monitorcontract.ServerStatusServiceStatusMenuTitle,
 			monitorcontract.ServerStatusDependenciesMenuTitle,
 			monitorcontract.AuditEvidenceUnavailableTitle,
 		} {
@@ -327,8 +327,8 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 		ParentCode: "domain.observability",
 		Kind:       menu.NodeKindEntry,
 		Title:      "",
-		TitleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
-		Path:       monitorcontract.ServerStatusRuntimeMenuPath,
+		TitleKey:   monitorcontract.ServerStatusServiceStatusMenuTitle.String(),
+		Path:       monitorcontract.ServerStatusServiceStatusMenuPath,
 		Icon:       "runtime-overview",
 		Order:      monitorMenuOrderRuntime,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),

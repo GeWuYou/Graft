@@ -478,24 +478,28 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		t.Fatalf("expected 2 registered menus, got %d", len(menus))
 	}
 	assertRBACMenuItem(t, menus[0], expectedRBACMenuItem{
-		code:       "role.list",
-		parentCode: "domain.security",
-		kind:       menu.NodeKindEntry,
-		path:       "/security/roles",
-		titleKey:   rbaccontract.RoleListMenuTitle.String(),
-		icon:       "roles",
-		order:      4,
-		permission: rbaccontract.RoleReadPermission.String(),
+		code:            "role.list",
+		parentCode:      "domain.security",
+		kind:            menu.NodeKindEntry,
+		path:            "/security/roles",
+		titleKey:        rbaccontract.RoleListMenuTitle.String(),
+		icon:            "roles",
+		order:           4,
+		permission:      rbaccontract.RoleReadPermission.String(),
+		sectionKey:      menu.AccessControlSectionKey,
+		sectionTitleKey: menu.AccessControlSectionTitleKey,
 	})
 	assertRBACMenuItem(t, menus[1], expectedRBACMenuItem{
-		code:       "permission.list",
-		parentCode: "domain.security",
-		kind:       menu.NodeKindEntry,
-		path:       "/security/permissions",
-		titleKey:   rbaccontract.PermissionListMenuTitle.String(),
-		icon:       "permissions",
-		order:      5,
-		permission: rbaccontract.PermissionReadPermission.String(),
+		code:            "permission.list",
+		parentCode:      "domain.security",
+		kind:            menu.NodeKindEntry,
+		path:            "/security/permissions",
+		titleKey:        rbaccontract.PermissionListMenuTitle.String(),
+		icon:            "permissions",
+		order:           5,
+		permission:      rbaccontract.PermissionReadPermission.String(),
+		sectionKey:      menu.AccessControlSectionKey,
+		sectionTitleKey: menu.AccessControlSectionTitleKey,
 	})
 
 	resolved, err := ctx.Services.Resolve((*moduleapi.Authorizer)(nil))

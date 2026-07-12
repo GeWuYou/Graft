@@ -2,7 +2,7 @@
   "menu": {
     "monitor": {
       "overview": { "title": "概览" },
-      "runtime": { "title": "服务状态" },
+      "serviceStatus": { "title": "服务状态" },
       "dependencies": { "title": "依赖服务" }
     }
   },
