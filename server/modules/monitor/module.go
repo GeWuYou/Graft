@@ -302,7 +302,8 @@ const (
 	monitorMenuOrderDependencies = 103
 )
 
-// registerMonitorMenu registers the server status entries under the observability menu.
+// registerMonitorMenu registers server status entries under the observability menu.
+// It does nothing when registry is nil.
 func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -328,7 +329,7 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 		Title:      "",
 		TitleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusRuntimeMenuPath,
-		Icon:       "time",
+		Icon:       "runtime-overview",
 		Order:      monitorMenuOrderRuntime,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
 		Module:     moduleName,
@@ -341,7 +342,7 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 		Title:      "",
 		TitleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusDependenciesMenuPath,
-		Icon:       "data-base",
+		Icon:       "dependencies",
 		Order:      monitorMenuOrderDependencies,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
 		Module:     moduleName,

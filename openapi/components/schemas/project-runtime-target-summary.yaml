@@ -1,0 +1,13 @@
+type: object
+required: [id, display_name, provider]
+properties:
+  id:
+    type: integer
+    format: int64
+    minimum: 1
+  display_name:
+    type: string
+  provider:
+    type: string
+    enum: [docker]
+additionalProperties: false

@@ -16,7 +16,7 @@ type SQLRepository struct {
 }
 
 const (
-	projectListWhereArgCapacity         = 3
+	projectListWhereArgCapacity         = 6
 	workspaceAnnotationUpdateRetryLimit = 3
 )
 
@@ -75,7 +75,7 @@ func (r *SQLRepository) listProjectsPage(
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
+			id, runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
@@ -139,7 +139,7 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 	project, err := scanProject(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
+			id, runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
@@ -464,7 +464,8 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 }
 
 // buildListWhere 构建项目列表查询的 WHERE 条件和参数。
-// 它始终包含已删除过滤，并按需附加来源类型、漂移状态和最近刷新状态条件。
+// buildListWhere 构建项目列表查询的过滤条件及其参数，始终排除已删除项目，并按需筛选来源类型、漂移状态、关键字和运行时目标。
+// 返回条件片段及其对应的参数值。
 func buildListWhere(query ListQuery) ([]string, []any) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, projectListWhereArgCapacity)
@@ -476,7 +477,29 @@ func buildListWhere(query ListQuery) ([]string, []any) {
 		where = append(where, "drift_status = ?")
 		args = append(args, query.DriftStatus)
 	}
+	if query.Keyword != "" {
+		where = append(where, "(LOWER(display_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(canonical_project_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(working_directory) LIKE LOWER(?) ESCAPE '\\')")
+		keyword := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(query.Keyword) + "%"
+		args = append(args, keyword, keyword, keyword)
+	}
+	if query.RuntimeTargetID != nil {
+		where = append(where, "runtime_target_id = ?")
+		args = append(args, *query.RuntimeTargetID)
+	}
 	return where, args
+}
+
+// BackfillRuntimeTarget assigns the discovered Local Docker target to historical unbound local records.
+func (r *SQLRepository) BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error {
+	if err := r.ensureReady(); err != nil {
+		return err
+	}
+	id, err := toDBID(runtimeTargetID)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE compose_projects SET runtime_target_id = ?, updated_at = NOW(), updated_by = 0 WHERE deleted_at = 0 AND host_scope = 'local' AND runtime_target_id IS NULL`), id)
+	return err
 }
 
 func (r *SQLRepository) ensureProjectExists(ctx context.Context, tx *sql.Tx, projectID uint64) error {
@@ -670,10 +693,15 @@ func (r *SQLRepository) upsertProject(
 	if err != nil {
 		return 0, err
 	}
+	var runtimeTargetID any
+	if input.RuntimeTargetID > 0 {
+		runtimeTargetID = input.RuntimeTargetID
+	}
 	err = tx.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(composeProjectsUpsertSQL()),
 		input.DisplayName,
+		runtimeTargetID,
 		input.CanonicalProjectName,
 		input.CanonicalProjectNameSource,
 		input.SourceKind,
@@ -699,18 +727,19 @@ func (r *SQLRepository) upsertProject(
 	return projectID, nil
 }
 
-// composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句。
+// composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句，并通过 RETURNING 子句返回项目 ID。
 func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
-			display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
+			display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (host_scope, canonical_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
+			runtime_target_id = excluded.runtime_target_id,
 			canonical_project_name_source = excluded.canonical_project_name_source,
 			source_kind = excluded.source_kind,
 			working_directory = excluded.working_directory,

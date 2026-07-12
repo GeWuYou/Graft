@@ -402,3 +402,31 @@
 - `GET /api/ops/projects/creation-methods` 取代旧 `/sources` 目录。后端仅发布创建方式、可用性和阻塞码；项目已持久化的 `source_kind` 继续描述项目来源。
 - 空白创建、模板创建和导入分别进入 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`，未保留旧路由或旧 API 别名。
 - `ops.project.source.view` 经 RBAC migration 直接更名为 `ops.project.creation-method.view`，保留原 permission ID 与既有角色关联。
+
+## 2026-07-12 Saved-view foundation and project contract
+
+- 新增 module-owned `saved_views` 表和 generic `moduleapi.SavedViewService`，没有菜单、快捷操作或无法实施领域授权的公共 HTTP API。
+- 表按 owner user 与 consumer `surface_key` 隔离；live 名称通过部分唯一索引保持唯一。持久化筛选/查询 JSON、页大小和可见列；当前页不持久化，应用视图从第一页开始。
+- `project` 保持 `/api/ops/projects/saved-views` 的授权与 payload authority，以 `ops.project.view` 保护，并仅接受当前 project list 定义的筛选字段和列键。
+# 2026-07-12 Application Runtime Target Association
+
+- Runtime Target remains the target/provider authority; Project stores only nullable migration-bridge `runtime_target_id` and consumes summaries through `moduleapi`.
+- New Compose registrations resolve a Docker target before persistence. Historical local rows are idempotently backfilled after Runtime Target Boot discovery.
+- `/api/ops/projects` now models the generic application list projection with `application_type=compose`, target summary and server-side identity/target/provider/source/drift filters. The bridge becomes non-null only after live backfill evidence confirms no remaining rows.
+
+## 2026-07-12 Application Management Web And Icon System
+
+- `/projects` remains the stable route but now presents Application Management. Compose is visible as the current application type, while Runtime Target and Provider are first-class columns and server-backed filters.
+- The Project saved-view consumer now lists, applies, creates, updates and deletes user-private saved views. Applying a view restores filters, page size and visible columns while resetting to page one.
+- Menu descriptors use distinct semantic identifiers across visible domain and entry nodes. The web resolves them through one static Iconify boundary: Lucide for ordinary navigation and Tabler's outline Docker brand glyph for Docker.
+- The icon authority repair expanded to core domain descriptors plus currently visible module entries; it changes only menu metadata and resolver mappings, never routes, permissions, or page behavior.
+- Browser evidence captured Application Management, Runtime Targets and the visible Docker sidebar logo under `.ai/artifacts/browser/application-management-page` and `.ai/artifacts/browser/runtime-target-icons`.
+- Follow-up visual audit replaced legacy/fallback menu identifiers for core domains and visible observability, security and platform entries. Final browser evidence at `.ai/artifacts/browser/observability-icons-final` shows Overview, Runtime, Dependencies, Module Runtime, Access Log and App Log with distinct semantic glyphs; Docker uses the Tabler outline brand glyph.
+
+## 2026-07-12 Cross-boundary acceptance and recovery update
+
+- Accepted the saved-view contract: generic storage is private to `(owner user, surface)` and enforces one live display name per scope. It persists filters, page size and visible columns, while the Project consumer validates query/column state and always restores at page one.
+- Accepted the application projection: Compose stores only a Runtime Target reference and consumes its target/provider summary; list keyword and application, target, provider, source, runtime and drift filters are server-owned. Container remains the runtime authority.
+- Accepted the Application Management UI and icon boundary: `/projects` supports saved-view CRUD and target/provider filtering; menu rendering has one static Iconify resolver, with Lucide defaults and Tabler's outline Docker logo.
+- Validation passed: `git diff --check`, `python3 scripts/validate_sql_migrations.py`, `node scripts/openapi-bundle.mjs`, `cd web && bun run openapi:types:check`, targeted Go/Vitest suites, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `python3 scripts/validate_shared_asset_registries.py`, and `python3 scripts/validate_ai_plan_structure.py`.
+- Archive-readiness remains false. The previously deferred `remote-source-adapter-and-activity-boundary` is independent Phase 3 work; it must not be represented by a placeholder route, API, or source catalog entry.

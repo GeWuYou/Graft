@@ -66,6 +66,13 @@ func (r *runtimeTargetReaderStub) ReadDockerTarget(_ context.Context, id *int64)
 	return r.target, r.err
 }
 
+func (r *runtimeTargetReaderStub) ListDockerTargets(context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	return []moduleapi.RuntimeTargetSummary{r.target}, nil
+}
+
 type rejectingAuthorizer struct {
 	err error
 }
@@ -671,7 +678,7 @@ func TestServiceListResolvesDockerRuntimeTargetAndDeploymentType(t *testing.T) {
 	}
 
 	result, err := service.List(context.Background(), ListQuery{
-		DeploymentType: containerOrchestratorStandalone,
+		DeploymentType:  containerOrchestratorStandalone,
 		RuntimeTargetID: &targetID,
 	})
 	if err != nil {

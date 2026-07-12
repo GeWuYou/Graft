@@ -7,6 +7,9 @@ import ProjectListPage from './index.vue';
 
 const projectApiMocks = vi.hoisted(() => ({
   getProjects: vi.fn(),
+  deleteProjectSavedView: vi.fn(),
+  getProjectSavedViews: vi.fn(),
+  postProjectSavedView: vi.fn(),
   postProjectBatchActions: vi.fn(),
   postProjectDestroy: vi.fn(),
   postProjectStop: vi.fn(),
@@ -15,7 +18,10 @@ const projectApiMocks = vi.hoisted(() => ({
   postProjectUpdateDeploy: vi.fn(),
   postProjectUnregister: vi.fn(),
   postProjectUp: vi.fn(),
+  putProjectSavedView: vi.fn(),
 }));
+
+const runtimeTargetMocks = vi.hoisted(() => ({ listRuntimeTargets: vi.fn() }));
 
 const projectRealtimeMocks = vi.hoisted(() => ({
   acquireProjectListRealtime: vi.fn(),
@@ -90,6 +96,7 @@ const listMessages = {
   'project.list.batch.unregister': 'Batch Unregister',
   'project.list.batch.unregisterConfirm': 'Unregister {count} selected projects?',
   'project.list.clearFilters': 'Clear Filters',
+  'project.list.runtimeTargetsLoadFailed': 'Failed to load runtime targets.',
   'project.list.columnSettings': 'Column Settings',
   'project.list.columns.selection': 'Select',
   'project.list.columns.drift': 'Sync Status',
@@ -122,6 +129,9 @@ const listMessages = {
   'project.list.statusTooltip.runtimeUnknown': 'Current Page Unknown',
   'project.list.statusTooltip.taskInProgress': 'Task In Progress',
   'project.list.statusTooltip.viewLatestTask': 'View Latest Task',
+  'project.list.savedViews.deleteConfirmDescription': 'Delete filter "{name}"? This cannot be undone.',
+  'project.list.savedViews.deleteConfirmTitle': 'Delete Filter',
+  'project.list.savedViews.loadFailed': 'Failed to load saved filters.',
 } as const;
 
 function slotStub(name: string) {
@@ -210,6 +220,44 @@ const TTagStub = defineComponent({
   },
 });
 
+const TDialogStub = defineComponent({
+  name: 'TDialogStub',
+  props: {
+    visible: { type: Boolean, default: false },
+  },
+  emits: ['confirm'],
+  setup(props, { slots }) {
+    return () => (props.visible ? h('div', { 'data-stub': 'TDialog' }, slots.default?.()) : null);
+  },
+});
+
+const TInputStub = defineComponent({
+  name: 'TInputStub',
+  props: {
+    modelValue: { type: String, default: '' },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit, attrs }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        value: props.modelValue,
+        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+      });
+  },
+});
+
+const TSelectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    modelValue: { type: [Number, String], default: undefined },
+  },
+  emits: ['change', 'update:modelValue'],
+  setup(_props, { slots }) {
+    return () => h('div', { 'data-stub': 'TSelect' }, slots.default?.());
+  },
+});
+
 const TCheckboxStub = defineComponent({
   name: 'TCheckboxStub',
   props: {
@@ -269,8 +317,11 @@ const TTableStub = defineComponent({
 });
 
 vi.mock('../../api/project', () => ({
+  deleteProjectSavedView: projectApiMocks.deleteProjectSavedView,
   getProjects: projectApiMocks.getProjects,
+  getProjectSavedViews: projectApiMocks.getProjectSavedViews,
   postProjectBatchActions: projectApiMocks.postProjectBatchActions,
+  postProjectSavedView: projectApiMocks.postProjectSavedView,
   postProjectDestroy: projectApiMocks.postProjectDestroy,
   postProjectStop: projectApiMocks.postProjectStop,
   postProjectRedeploy: projectApiMocks.postProjectRedeploy,
@@ -278,6 +329,11 @@ vi.mock('../../api/project', () => ({
   postProjectUpdateDeploy: projectApiMocks.postProjectUpdateDeploy,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
   postProjectUp: projectApiMocks.postProjectUp,
+  putProjectSavedView: projectApiMocks.putProjectSavedView,
+}));
+
+vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
+  listRuntimeTargets: runtimeTargetMocks.listRuntimeTargets,
 }));
 
 vi.mock('../../shared/list-realtime', () => ({
@@ -430,12 +486,13 @@ function mountPage() {
         't-button': TButtonStub,
         't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
+        't-dialog': TDialogStub,
         't-drawer': slotStub('TDrawer'),
         't-empty': slotStub('TEmpty'),
-        't-input': slotStub('TInput'),
+        't-input': TInputStub,
         't-option': slotStub('TOption'),
         't-pagination': slotStub('TPagination'),
-        't-select': slotStub('TSelect'),
+        't-select': TSelectStub,
         't-space': slotStub('TSpace'),
         't-table': TTableStub,
         't-tag': TTagStub,
@@ -463,12 +520,13 @@ function mountKeepAlivePage() {
           't-button': TButtonStub,
           't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
+          't-dialog': TDialogStub,
           't-drawer': slotStub('TDrawer'),
           't-empty': slotStub('TEmpty'),
-          't-input': slotStub('TInput'),
+          't-input': TInputStub,
           't-option': slotStub('TOption'),
           't-pagination': slotStub('TPagination'),
-          't-select': slotStub('TSelect'),
+          't-select': TSelectStub,
           't-space': slotStub('TSpace'),
           't-table': TTableStub,
           't-tag': TTagStub,
@@ -497,6 +555,8 @@ describe('Project list page', () => {
     vi.useRealTimers();
     projectRealtimeMocks.acquireProjectListRealtime.mockImplementation(() => undefined);
     projectRealtimeMocks.releaseProjectListRealtime.mockImplementation(() => undefined);
+    runtimeTargetMocks.listRuntimeTargets.mockResolvedValue([]);
+    projectApiMocks.getProjectSavedViews.mockResolvedValue([]);
 
     projectApiMocks.getProjects.mockResolvedValue({
       items: [
@@ -570,6 +630,135 @@ describe('Project list page', () => {
 
     expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 42');
     expect(wrapper.get('[data-testid="project-table-summary"]').text()).toBe('Total 42');
+  });
+
+  it('opens the saved-view dialog from the compact list toolbar', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.save');
+    expect(saveButton).toBeDefined();
+
+    await saveButton?.trigger('click');
+    expect(wrapper.find('[data-stub="TDialog"]').exists()).toBe(true);
+  });
+
+  it('creates and updates saved views from the list toolbar', async () => {
+    const initialView = {
+      created_at: '2026-07-12T00:00:00Z',
+      id: 8,
+      name: 'Operations',
+      page_size: 20,
+      query_state: {},
+      updated_at: '2026-07-12T00:00:00Z',
+      visible_columns: ['name'],
+    };
+    const createdView = { ...initialView, id: 9, name: 'Production' };
+    projectApiMocks.postProjectSavedView.mockResolvedValueOnce(createdView);
+    projectApiMocks.getProjectSavedViews.mockResolvedValue([initialView, createdView]);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.save');
+    await saveButton?.trigger('click');
+    await wrapper.findAllComponents(TInputStub).at(-1)?.setValue('Production');
+    wrapper.getComponent(TDialogStub).vm.$emit('confirm');
+    await flushPromises();
+
+    expect(projectApiMocks.postProjectSavedView).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Production', page_size: 20 }),
+    );
+
+    const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
+    if (!savedViewSelect) {
+      throw new Error('saved view select not found');
+    }
+    savedViewSelect.vm.$emit('update:modelValue', initialView.id);
+    savedViewSelect.vm.$emit('change', initialView.id);
+    await nextTick();
+
+    const updateButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.update');
+    await updateButton?.trigger('click');
+    await wrapper.findAllComponents(TInputStub).at(-1)?.setValue('Operations Updated');
+    wrapper.getComponent(TDialogStub).vm.$emit('confirm');
+    await flushPromises();
+
+    expect(projectApiMocks.putProjectSavedView).toHaveBeenCalledWith(
+      initialView.id,
+      expect.objectContaining({ name: 'Operations Updated' }),
+    );
+  });
+
+  it('applies a saved view to filters, page size, and visible columns', async () => {
+    const view = {
+      created_at: '2026-07-12T00:00:00Z',
+      id: 11,
+      name: 'Docker runtime',
+      page_size: 50,
+      query_state: { keyword: 'api', provider: 'docker', runtime_status: 'running' },
+      updated_at: '2026-07-12T00:00:00Z',
+      visible_columns: ['name', 'runtime'],
+    };
+    projectApiMocks.getProjectSavedViews.mockResolvedValue([view]);
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
+    if (!savedViewSelect) {
+      throw new Error('saved view select not found');
+    }
+    savedViewSelect.vm.$emit('update:modelValue', view.id);
+    savedViewSelect.vm.$emit('change', view.id);
+    await flushPromises();
+
+    expect(projectApiMocks.getProjects).toHaveBeenLastCalledWith(
+      expect.objectContaining({ keyword: 'api', limit: 50, provider: 'docker', runtime_status: 'running' }),
+    );
+    expect(wrapper.findAll('th[data-col]').map((column) => column.attributes('data-col'))).toEqual(['name', 'runtime']);
+  });
+
+  it('requires confirmation before deleting a selected saved view', async () => {
+    const view = {
+      created_at: '2026-07-12T00:00:00Z',
+      id: 12,
+      name: 'Disposable',
+      page_size: 20,
+      query_state: {},
+      updated_at: '2026-07-12T00:00:00Z',
+      visible_columns: ['name'],
+    };
+    projectApiMocks.getProjectSavedViews.mockResolvedValue([view]);
+    const dialog = { destroy: vi.fn() };
+    let confirmOptions: Record<string, (...args: never[]) => void> | undefined;
+    dialogConfirmMock.mockImplementation((options: Record<string, (...args: never[]) => void>) => {
+      confirmOptions = options;
+      return dialog;
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
+    if (!savedViewSelect) {
+      throw new Error('saved view select not found');
+    }
+    savedViewSelect.vm.$emit('update:modelValue', view.id);
+    savedViewSelect.vm.$emit('change', view.id);
+    await nextTick();
+
+    const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.delete');
+    await deleteButton?.trigger('click');
+
+    expect(dialogConfirmMock).toHaveBeenCalledWith(
+      expect.objectContaining({ header: 'Delete Filter', theme: 'warning' }),
+    );
+    expect(projectApiMocks.deleteProjectSavedView).not.toHaveBeenCalled();
+
+    await confirmOptions?.onConfirm?.();
+    await flushPromises();
+
+    expect(projectApiMocks.deleteProjectSavedView).toHaveBeenCalledWith(view.id);
+    expect(dialog.destroy).toHaveBeenCalledTimes(1);
   });
 
   it('renders dynamic container resource badges with four-way semantics', async () => {

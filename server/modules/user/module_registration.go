@@ -35,7 +35,7 @@ func registerUserMenu(registry *menu.Registry, moduleName string) {
 		Title:      "",
 		TitleKey:   usercontract.UserListMenuTitle.String(),
 		Path:       "/users",
-		Icon:       "usergroup",
+		Icon:       "users",
 		Order:      userMenuOrderList,
 		Permission: usercontract.UserReadPermission.String(),
 		Module:     moduleName,

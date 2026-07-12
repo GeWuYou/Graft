@@ -101,6 +101,7 @@ Compose Project Management
 - [x] managed-workspace-wizard-and-lifecycle-review：Managed Create 已切换为 Identity/Workspace/Lifecycle/Review 向导，使用完整 text workspace manifest、Monaco 草稿编辑器和 source-neutral lifecycle review；Create 不自动 deploy
 - [x] import-creation-adapter-and-regression：Import inspection commit 已验证复用 creation pipeline；保留 candidate/TTL/freshness/adopt guard，复用生命周期审核，并在最终审核明确不自动 deploy
 - [x] git-template-source-adapters：Git/Template 均已通过 source adapter 进入同一 CreationCommand pipeline；Git 仅在隔离暂存目录解析无凭据仓库，Template 使用模块内置的 explicit empty-compose v1 catalog
+- [x] saved-view-foundation-and-project-contract：新增无菜单 `saved-view` module，提供用户私有、surface-scoped 的分页保存视图；Project 通过自身 view 权限提供 `/api/ops/projects/saved-views`，保存筛选、每页大小和可见列，不保存当前页。
 
 ## Creation Pipeline Follow-up
 
@@ -260,5 +261,37 @@ Compose Project Management
   "current_batch": "source-surface-simplification-and-extension-seam",
   "next_batch": null,
   "closeout_status": "archive-ready"
+}
+```
+# Application Target Association (2026-07-12)
+
+- [x] Bind Compose application registry records to Docker Runtime Target references with a documented nullable migration bridge.
+- [x] Expose target/provider summaries and server-side project-list filters through the application projection contract.
+- [x] Extend project saved-view state validation for application filters, page size, and visible columns.
+- [x] Implement the web Application Management surface and icon system: server-side application filters, target/provider columns, user-private saved views, and static Iconify menu icons are wired and browser-checked.
+
+## 2026-07-12 Cross-Boundary Acceptance
+
+- [x] Saved View foundation: user/surface-scoped private views retain filters, page size and visible columns; current page is rejected from persisted state; live display names are unique per user and surface.
+- [x] Application projection: each Compose application binds one Runtime Target through a migration bridge, consumes target/provider summaries, and applies list filters server-side without changing Container runtime authority.
+- [x] Application Management UI: `/projects` has saved-view CRUD and contract-aligned target/provider filter linkage; applying a view returns to page one.
+- [x] Navigation icon system: menus resolve static Iconify data through a single component, using Lucide by default and `tabler:brand-docker` for the Docker outline brand glyph.
+- [x] Acceptance validation: SQL migration gate, OpenAPI bundle/type governance, targeted contract tests, `graft validate backend`, `bun run check`, shared asset registry and ai-plan structure guards all passed; generated artifacts and working tree are clean.
+
+## Current Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "saved-view-foundation-and-project-contract",
+    "application-target-association-and-list-query",
+    "web-application-management-and-icon-system",
+    "cross-boundary-acceptance-and-topic-closeout"
+  ],
+  "pending_batches": ["remote-source-adapter-and-activity-boundary"],
+  "current_batch": "cross-boundary-acceptance-and-topic-closeout",
+  "next_batch": "remote-source-adapter-and-activity-boundary",
+  "closeout_status": "application-management-accepted-topic-active"
 }
 ```

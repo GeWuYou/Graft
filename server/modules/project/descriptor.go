@@ -10,11 +10,11 @@ import (
 
 const moduleID = "project"
 
-// NewModuleSpec returns the module specification for the project module, including its dependencies, migration path, and builder.
+// NewModuleSpec 返回项目模块的规范，包括其依赖项、迁移路径和构建器。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user", "auth", "rbac", "container", "system-config", "task"},
+		Dependencies:  []string{"user", "auth", "rbac", "container", "runtime-target", "saved-view", "system-config", "task"},
 		MigrationPath: []string{"modules/project/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			sqlDB, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

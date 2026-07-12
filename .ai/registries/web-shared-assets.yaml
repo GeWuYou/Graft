@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: "2026-07-07"
+updated_at: "2026-07-12"
 assets:
   - name: "management-components"
     type: "frontend-component-suite"
@@ -36,6 +36,22 @@ assets:
     related_assets:
       - "management-components"
       - "observability-helpers"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "menu-icon-resolver"
+    type: "frontend-component"
+    path: "web/src/shared/icons"
+    owner: "web/shell"
+    purpose: "One static Iconify resolver for server-owned menu icon identifiers, with Lucide defaults and brand icon support."
+    use_when:
+      - "Rendering server descriptor menu icons in the shell without runtime icon-network loading."
+    do_not_use_when:
+      - "Rendering module-private status glyphs or page-local illustrative icons."
+    examples:
+      - "web/src/layouts/components/MenuContent.vue"
+    related_assets:
+      - "route-bootstrap-utils"
     validation_commands:
       - "cd web && bun run check"
 

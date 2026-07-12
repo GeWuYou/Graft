@@ -49,6 +49,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	return registerRoutes(ctx, moduleID, m.service)
 }
 
+//nolint:cyclop // Explicit module dependency resolution keeps DI wiring auditable.
 func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeRegistrar, error) {
 	runtimeReader, err := module.ResolveService[moduleapi.ContainerProjectRuntimeReader](ctx.Services, (*moduleapi.ContainerProjectRuntimeReader)(nil))
 	if err != nil {
@@ -74,6 +75,14 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	if err != nil {
 		return nil, fmt.Errorf("resolve system config resolver: %w", err)
 	}
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve saved view service: %w", err)
+	}
+	runtimeTargets, err := resolveProjectRuntimeTargetReader(ctx)
+	if err != nil {
+		return nil, err
+	}
 	authorizer, err := resolveAuthorizer(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("resolve authorizer: %w", err)
@@ -87,10 +96,21 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	m.service.SetTaskService(taskService)
 	m.service.SetLogReader(logReader)
 	m.service.SetSystemConfigResolver(configResolver)
+	m.service.SetSavedViewService(savedViews)
+	m.service.SetRuntimeTargetReader(runtimeTargets)
 	m.service.SetAuthorizer(authorizer)
 	m.service.SetRealtime(realtimeDeps.tickets, realtimeDeps.hub, realtimeDeps.issuers)
 	m.service.SetAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	return taskRegistrar, nil
+}
+
+// resolveProjectRuntimeTargetReader resolves the project runtime target reader from the module service registry.
+func resolveProjectRuntimeTargetReader(ctx *module.Context) (moduleapi.RuntimeTargetReader, error) {
+	reader, err := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve runtime target reader: %w", err)
+	}
+	return reader, nil
 }
 
 type projectRealtimeDependencies struct {
@@ -100,7 +120,7 @@ type projectRealtimeDependencies struct {
 }
 
 // resolveProjectRealtime 解析项目实时通信所需的依赖。
-// 返回实时票据服务、通信中心和主题发布者注册表；任一依赖解析失败时返回错误。
+// resolveProjectRealtime 解析实时票据服务、通信中心和主题发布者注册表；任一依赖解析失败时返回错误。
 func resolveProjectRealtime(ctx *module.Context) (projectRealtimeDependencies, error) {
 	tickets, err := module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
 	if err != nil {
@@ -118,8 +138,11 @@ func resolveProjectRealtime(ctx *module.Context) (projectRealtimeDependencies, e
 }
 
 // Boot currently has no runtime-owned background work.
-func (m *Module) Boot(_ *module.Context) error {
-	return nil
+func (m *Module) Boot(ctx *module.Context) error {
+	if m == nil || m.service == nil || ctx == nil {
+		return nil
+	}
+	return m.service.BackfillRuntimeTargets(ctx.LifecycleContext)
 }
 
 // Shutdown currently has no runtime-owned resources to close.

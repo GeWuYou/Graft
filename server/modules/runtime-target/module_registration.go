@@ -14,7 +14,8 @@ const runtimeTargetMenuOrder = 40
 
 // registerModuleMetadata 校验运行时目标模块依赖及本地化资源，并注册其权限和菜单元数据。
 // moduleName 用于标识已注册元数据所属的模块。
-// 返回注册成功时的 nil；依赖或本地化资源不可用时返回错误。
+// registerModuleMetadata 注册运行时目标模块的权限和菜单元数据。
+// 当模块上下文或所需本地化资源不可用时返回错误；成功时返回 nil。
 func registerModuleMetadata(ctx *module.Context, moduleName string) error {
 	if ctx == nil || ctx.I18n == nil || ctx.PermissionRegistry == nil || ctx.MenuRegistry == nil {
 		return errors.New("runtime target module context is unavailable")
@@ -31,6 +32,6 @@ func registerModuleMetadata(ctx *module.Context, moduleName string) error {
 	} {
 		ctx.PermissionRegistry.Register(item)
 	}
-	ctx.MenuRegistry.Register(menu.Item{Code: "runtime-target.list", ParentCode: "domain.infrastructure", Kind: menu.NodeKindEntry, TitleKey: contract.MenuTitle, Path: contract.MenuPath, Icon: "server", Order: runtimeTargetMenuOrder, Permission: contract.ViewPermission, Module: moduleName})
+	ctx.MenuRegistry.Register(menu.Item{Code: "runtime-target.list", ParentCode: "domain.infrastructure", Kind: menu.NodeKindEntry, TitleKey: contract.MenuTitle, Path: contract.MenuPath, Icon: "runtime-target", Order: runtimeTargetMenuOrder, Permission: contract.ViewPermission, Module: moduleName})
 	return nil
 }

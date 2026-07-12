@@ -20,7 +20,7 @@
   },
   "menu": {
     "project": {
-      "title": "项目管理"
+      "title": "应用管理"
     }
   },
   "project": {
@@ -32,8 +32,8 @@
     },
     "route": {
       "list": {
-        "title": "项目管理",
-        "breadcrumb": "项目管理"
+        "title": "应用管理",
+        "breadcrumb": "应用管理"
       },
       "createImport": {
         "title": "导入现有项目",
@@ -156,12 +156,12 @@
     },
     "list": {
       "eyebrow": "应用",
-      "title": "Compose 项目管理",
-      "description": "管理已导入的 Compose 项目，同时保持容器运行时 authority 不被复制。",
+      "title": "应用管理",
+      "description": "统一查看应用、运行目标和提供者，运行时信息仍由对应运行时系统提供。",
       "refresh": "刷新",
       "retry": "重试",
       "tableSummary": "共 {count} 个项目",
-      "tableHint": "项目注册拥有文件与生命周期；运行时事实仍由容器 authority 提供。",
+      "tableHint": "项目注册管理文件与生命周期；运行时事实仍由容器运行时提供。",
       "emptyTitle": "暂无项目",
       "emptyDescription": "先导入现有 Compose 项目，再查看 Overview、Services、Configuration 和 Activity。",
       "emptyFilteredDescription": "当前筛选条件下没有匹配的项目。",
@@ -172,12 +172,41 @@
       "projectCount": "总数 {count}",
       "runningProjects": "运行中 {count}",
       "stoppedProjects": "已停止 {count}",
+      "runtimeTargetUnavailable": "未关联运行目标",
+      "runtimeTargetsLoadFailed": "加载运行目标失败。",
+      "applicationType": { "compose": "Compose" },
+      "provider": { "docker": "Docker" },
+      "savedViews": {
+        "placeholder": "快捷筛选",
+        "save": "保存筛选",
+        "update": "更新筛选",
+        "delete": "删除筛选",
+        "confirm": "保存",
+        "cancel": "取消",
+        "namePlaceholder": "筛选名称",
+        "nameRequired": "请输入筛选名称。",
+        "saved": "筛选已保存。",
+        "deleted": "筛选已删除。",
+        "deleteFailed": "删除筛选失败。",
+        "deleteConfirmTitle": "删除筛选",
+        "deleteConfirmDescription": "确定删除筛选“{name}”吗？此操作无法撤销。",
+        "loadFailed": "加载已保存筛选失败。",
+        "conflict": "该筛选名称已存在，请使用其他名称。"
+      },
       "filters": {
         "searchPlaceholder": "搜索展示名、Canonical 名或工作目录",
+        "applicationType": "应用类型",
+        "provider": "提供者",
+        "runtimeTarget": "运行目标",
         "sourceKind": "来源",
+        "runtimeStatus": "运行状态",
         "driftStatus": "同步状态",
         "refreshStatus": "刷新状态",
         "allSourceKinds": "全部来源",
+        "allApplicationTypes": "全部应用类型",
+        "allProviders": "全部提供者",
+        "allRuntimeTargets": "全部运行目标",
+        "allRuntimeStatuses": "全部运行状态",
         "allDriftStatuses": "全部同步状态",
         "allRefreshStatuses": "全部刷新状态",
         "query": "查询",
@@ -186,6 +215,9 @@
       "columns": {
         "selection": "选择",
         "name": "项目",
+        "applicationType": "应用类型",
+        "runtimeTarget": "运行目标",
+        "provider": "提供者",
         "source": "来源",
         "runtime": "状态",
         "resources": "资源",

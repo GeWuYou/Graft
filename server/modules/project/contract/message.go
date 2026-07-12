@@ -73,6 +73,12 @@ const (
 	ProjectInspectionExpired ErrorCode = "ops.project.error.inspectionExpired"
 	// ProjectInspectionStale identifies import requests whose inspection snapshot no longer matches the filesystem.
 	ProjectInspectionStale ErrorCode = "ops.project.error.inspectionStale"
+	// ProjectSavedViewInvalid identifies a saved-view payload that the project consumer rejects.
+	ProjectSavedViewInvalid ErrorCode = "ops.project.error.savedViewInvalid"
+	// ProjectSavedViewConflict identifies a duplicate saved-view display name on the project list.
+	ProjectSavedViewConflict ErrorCode = "ops.project.error.savedViewConflict"
+	// ProjectSavedViewNotFound identifies an unknown or foreign saved view.
+	ProjectSavedViewNotFound ErrorCode = "ops.project.error.savedViewNotFound"
 )
 
 const (

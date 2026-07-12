@@ -2,7 +2,7 @@
   <div class="app-shell" v-bind="shellSurfaceAttrs">
     <template v-if="setting.layout.value === 'side'">
       <t-layout key="side" :class="['app-shell__layout', mainLayoutCls]">
-        <t-aside>
+        <t-aside v-if="shouldRenderSidebar">
           <layout-side-nav
             :render-compact="sidebarRenderCompact"
             :width-compact="sidebarWidthCompact"
@@ -25,6 +25,7 @@
         </t-header>
         <t-layout :class="['app-shell__main', mainLayoutCls]">
           <layout-side-nav
+            v-if="shouldRenderSidebar"
             :render-compact="sidebarRenderCompact"
             :width-compact="sidebarWidthCompact"
             :motion-phase="sidebarMotionPhase"
@@ -90,9 +91,13 @@ const shellSurfaceAttrs = computed(() => ({
   'data-theme-mode': settingStore.displayMode,
 }));
 
+const shouldRenderSidebar = computed(
+  () => settingStore.showSidebar && !(setting.layout.value === 'mix' && route.path === '/'),
+);
+
 const mainLayoutCls = computed(() => [
   {
-    't-layout--with-sider': settingStore.showSidebar,
+    't-layout--with-sider': shouldRenderSidebar.value,
   },
 ]);
 

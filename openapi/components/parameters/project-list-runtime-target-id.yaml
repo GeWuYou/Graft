@@ -1,0 +1,8 @@
+name: runtime_target_id
+in: query
+required: false
+description: Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.
+schema:
+  type: integer
+  format: int64
+  minimum: 1

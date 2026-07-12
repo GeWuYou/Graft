@@ -1,14 +1,19 @@
 get:
   tags: [project]
-  summary: List Compose projects
+  summary: List applications
   operationId: getProjects
-  description: Returns registered Compose projects without introducing a second runtime authority.
+  description: Returns application projections. Compose remains the only supported application type and Runtime Target remains the target/provider authority.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-list-limit.yaml
     - $ref: ../components/parameters/project-list-offset.yaml
+    - $ref: ../components/parameters/project-list-keyword.yaml
+    - $ref: ../components/parameters/project-list-application-type.yaml
+    - $ref: ../components/parameters/project-list-runtime-target-id.yaml
+    - $ref: ../components/parameters/project-list-provider.yaml
     - $ref: ../components/parameters/project-list-source-kind.yaml
+    - $ref: ../components/parameters/project-list-runtime-status.yaml
     - $ref: ../components/parameters/project-list-drift-status.yaml
   security:
     - bearerAuth: []

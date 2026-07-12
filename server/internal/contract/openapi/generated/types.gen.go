@@ -1334,13 +1334,13 @@ func (e ContainerRuntimeInfoStatus) Valid() bool {
 
 // Defines values for ContainerRuntimeTargetSummaryProvider.
 const (
-	Docker ContainerRuntimeTargetSummaryProvider = "docker"
+	ContainerRuntimeTargetSummaryProviderDocker ContainerRuntimeTargetSummaryProvider = "docker"
 )
 
 // Valid indicates whether the value is a known member of the ContainerRuntimeTargetSummaryProvider enum.
 func (e ContainerRuntimeTargetSummaryProvider) Valid() bool {
 	switch e {
-	case Docker:
+	case ContainerRuntimeTargetSummaryProviderDocker:
 		return true
 	default:
 		return false
@@ -2244,6 +2244,21 @@ func (e ProjectDeployResponseResult) Valid() bool {
 	}
 }
 
+// Defines values for ProjectDetailResponseApplicationType.
+const (
+	ProjectDetailResponseApplicationTypeCompose ProjectDetailResponseApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDetailResponseApplicationType enum.
+func (e ProjectDetailResponseApplicationType) Valid() bool {
+	switch e {
+	case ProjectDetailResponseApplicationTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectDiscoveryCandidateRecommendedAction.
 const (
 	ProjectDiscoveryCandidateActionImport ProjectDiscoveryCandidateRecommendedAction = "import"
@@ -2619,6 +2634,21 @@ func (e ProjectLifecycleStrategyKind) Valid() bool {
 	}
 }
 
+// Defines values for ProjectListItemApplicationType.
+const (
+	ProjectListItemApplicationTypeCompose ProjectListItemApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ProjectListItemApplicationType enum.
+func (e ProjectListItemApplicationType) Valid() bool {
+	switch e {
+	case ProjectListItemApplicationTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectLogEntryStream.
 const (
 	ProjectLogEntryStreamStderr ProjectLogEntryStream = "stderr"
@@ -2739,6 +2769,51 @@ func (e ProjectRuntimeStatus) Valid() bool {
 	case ProjectRuntimeStatusTransitioning:
 		return true
 	case ProjectRuntimeStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectRuntimeTargetSummaryProvider.
+const (
+	ProjectRuntimeTargetSummaryProviderDocker ProjectRuntimeTargetSummaryProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ProjectRuntimeTargetSummaryProvider enum.
+func (e ProjectRuntimeTargetSummaryProvider) Valid() bool {
+	switch e {
+	case ProjectRuntimeTargetSummaryProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectSavedViewRequestQueryStateApplicationType.
+const (
+	ProjectSavedViewRequestQueryStateApplicationTypeCompose ProjectSavedViewRequestQueryStateApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateApplicationType enum.
+func (e ProjectSavedViewRequestQueryStateApplicationType) Valid() bool {
+	switch e {
+	case ProjectSavedViewRequestQueryStateApplicationTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectSavedViewRequestQueryStateProvider.
+const (
+	ProjectSavedViewRequestQueryStateProviderDocker ProjectSavedViewRequestQueryStateProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateProvider enum.
+func (e ProjectSavedViewRequestQueryStateProvider) Valid() bool {
+	switch e {
+	case ProjectSavedViewRequestQueryStateProviderDocker:
 		return true
 	default:
 		return false
@@ -3690,6 +3765,36 @@ func (e ContainerListState) Valid() bool {
 	}
 }
 
+// Defines values for ProjectListApplicationType.
+const (
+	ProjectListApplicationTypeCompose ProjectListApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ProjectListApplicationType enum.
+func (e ProjectListApplicationType) Valid() bool {
+	switch e {
+	case ProjectListApplicationTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectListProvider.
+const (
+	ProjectListProviderDocker ProjectListProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ProjectListProvider enum.
+func (e ProjectListProvider) Valid() bool {
+	switch e {
+	case ProjectListProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrendRangeQuery.
 const (
 	TrendRangeQueryN10m TrendRangeQuery = "10m"
@@ -4122,6 +4227,36 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectsParamsApplicationType.
+const (
+	Compose GetProjectsParamsApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectsParamsApplicationType enum.
+func (e GetProjectsParamsApplicationType) Valid() bool {
+	switch e {
+	case Compose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectsParamsProvider.
+const (
+	Docker GetProjectsParamsProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectsParamsProvider enum.
+func (e GetProjectsParamsProvider) Valid() bool {
+	switch e {
+	case Docker:
 		return true
 	default:
 		return false
@@ -6964,6 +7099,46 @@ type EnvelopedProjectOverviewResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectSavedView defines model for enveloped-project-saved-view.
+type EnvelopedProjectSavedView struct {
+	// Code Existing canonical response code.
+	Code string           `json:"code"`
+	Data ProjectSavedView `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectSavedViewList defines model for enveloped-project-saved-view-list.
+type EnvelopedProjectSavedViewList struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data ProjectSavedViewListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectServicesResponse defines model for enveloped-project-services-response.
 type EnvelopedProjectServicesResponse struct {
 	// Code Existing canonical response code.
@@ -8098,31 +8273,36 @@ type ProjectDestroyRequest struct {
 
 // ProjectDetailResponse defines model for project-detail-response.
 type ProjectDetailResponse struct {
-	ActivityAuthority          ProjectActivityAuthority      `json:"activity_authority"`
-	CanonicalProjectName       string                        `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource    `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectFileItem             `json:"compose_files"`
-	ContainerCounts            ProjectContainerCounts        `json:"container_counts"`
-	DisplayName                string                        `json:"display_name"`
-	DriftStatus                ProjectDriftStatus            `json:"drift_status"`
-	EnvFiles                   []ProjectFileItem             `json:"env_files"`
-	HostScope                  ProjectHostScope              `json:"host_scope"`
-	Id                         int64                         `json:"id"`
-	LastDriftCheckedAt         *time.Time                    `json:"last_drift_checked_at,omitempty"`
-	LastObservedConfigHash     *string                       `json:"last_observed_config_hash,omitempty"`
-	LifecycleConfiguration     ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
+	ActivityAuthority          ProjectActivityAuthority             `json:"activity_authority"`
+	ApplicationType            ProjectDetailResponseApplicationType `json:"application_type"`
+	CanonicalProjectName       string                               `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource           `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectFileItem                    `json:"compose_files"`
+	ContainerCounts            ProjectContainerCounts               `json:"container_counts"`
+	DisplayName                string                               `json:"display_name"`
+	DriftStatus                ProjectDriftStatus                   `json:"drift_status"`
+	EnvFiles                   []ProjectFileItem                    `json:"env_files"`
+	HostScope                  ProjectHostScope                     `json:"host_scope"`
+	Id                         int64                                `json:"id"`
+	LastDriftCheckedAt         *time.Time                           `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash     *string                              `json:"last_observed_config_hash,omitempty"`
+	LifecycleConfiguration     ProjectLifecycleConfiguration        `json:"lifecycle_configuration"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
 	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
-	ServiceCount     int                    `json:"service_count"`
-	SourceKind       ProjectSourceKind      `json:"source_kind"`
-	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
-	WorkingDirectory string                 `json:"working_directory"`
+	RuntimeStatus    *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
+	RuntimeTarget    *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
+	ServiceCount     int                          `json:"service_count"`
+	SourceKind       ProjectSourceKind            `json:"source_kind"`
+	SourceMetadata   *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
+	WorkingDirectory string                       `json:"working_directory"`
 }
+
+// ProjectDetailResponseApplicationType defines model for ProjectDetailResponse.ApplicationType.
+type ProjectDetailResponseApplicationType string
 
 // ProjectDiscoveryCandidate defines model for project-discovery-candidate.
 type ProjectDiscoveryCandidate struct {
@@ -8610,26 +8790,31 @@ type ProjectLifecycleStrategyKind string
 
 // ProjectListItem defines model for project-list-item.
 type ProjectListItem struct {
-	ActivityAuthority          ProjectActivityAuthority   `json:"activity_authority"`
-	CanonicalProjectName       string                     `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
-	ContainerCounts            ProjectContainerCounts     `json:"container_counts"`
-	DisplayName                string                     `json:"display_name"`
-	DriftStatus                ProjectDriftStatus         `json:"drift_status"`
-	HostScope                  ProjectHostScope           `json:"host_scope"`
-	Id                         int64                      `json:"id"`
+	ActivityAuthority          ProjectActivityAuthority       `json:"activity_authority"`
+	ApplicationType            ProjectListItemApplicationType `json:"application_type"`
+	CanonicalProjectName       string                         `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource     `json:"canonical_project_name_source"`
+	ContainerCounts            ProjectContainerCounts         `json:"container_counts"`
+	DisplayName                string                         `json:"display_name"`
+	DriftStatus                ProjectDriftStatus             `json:"drift_status"`
+	HostScope                  ProjectHostScope               `json:"host_scope"`
+	Id                         int64                          `json:"id"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
 	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
-	ServiceCount     int                    `json:"service_count"`
-	SourceKind       ProjectSourceKind      `json:"source_kind"`
-	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
-	WorkingDirectory string                 `json:"working_directory"`
+	RuntimeStatus    *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
+	RuntimeTarget    *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
+	ServiceCount     int                          `json:"service_count"`
+	SourceKind       ProjectSourceKind            `json:"source_kind"`
+	SourceMetadata   *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
+	WorkingDirectory string                       `json:"working_directory"`
 }
+
+// ProjectListItemApplicationType defines model for ProjectListItem.ApplicationType.
+type ProjectListItemApplicationType string
 
 // ProjectListResponse defines model for project-list-response.
 type ProjectListResponse struct {
@@ -8757,6 +8942,60 @@ type ProjectOwnershipMode string
 
 // ProjectRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 type ProjectRuntimeStatus string
+
+// ProjectRuntimeTargetSummary defines model for project-runtime-target-summary.
+type ProjectRuntimeTargetSummary struct {
+	DisplayName string                              `json:"display_name"`
+	Id          int64                               `json:"id"`
+	Provider    ProjectRuntimeTargetSummaryProvider `json:"provider"`
+}
+
+// ProjectRuntimeTargetSummaryProvider defines model for ProjectRuntimeTargetSummary.Provider.
+type ProjectRuntimeTargetSummaryProvider string
+
+// ProjectSavedView defines model for project-saved-view.
+type ProjectSavedView struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	PageSize  int       `json:"page_size"`
+
+	// QueryState Consumer-validated filter and query state. It never contains the current page number.
+	QueryState     map[string]interface{} `json:"query_state"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// ProjectSavedViewListResponse defines model for project-saved-view-list-response.
+type ProjectSavedViewListResponse struct {
+	Items []ProjectSavedView `json:"items"`
+}
+
+// ProjectSavedViewRequest defines model for project-saved-view-request.
+type ProjectSavedViewRequest struct {
+	Name     string `json:"name"`
+	PageSize int    `json:"page_size"`
+
+	// QueryState Project-list filter state. The server validates this payload for the project saved-view surface.
+	QueryState struct {
+		ApplicationType *ProjectSavedViewRequestQueryStateApplicationType `json:"application_type,omitempty"`
+		DriftStatus     *ProjectDriftStatus                               `json:"drift_status,omitempty"`
+		Keyword         *string                                           `json:"keyword,omitempty"`
+		Provider        *ProjectSavedViewRequestQueryStateProvider        `json:"provider,omitempty"`
+
+		// RuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+		RuntimeStatus   *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
+		RuntimeTargetId *int64                `json:"runtime_target_id,omitempty"`
+		SourceKind      *ProjectSourceKind    `json:"source_kind,omitempty"`
+	} `json:"query_state"`
+	VisibleColumns []string `json:"visible_columns"`
+}
+
+// ProjectSavedViewRequestQueryStateApplicationType defines model for ProjectSavedViewRequest.QueryState.ApplicationType.
+type ProjectSavedViewRequestQueryStateApplicationType string
+
+// ProjectSavedViewRequestQueryStateProvider defines model for ProjectSavedViewRequest.QueryState.Provider.
+type ProjectSavedViewRequestQueryStateProvider string
 
 // ProjectServiceItem defines model for project-service-item.
 type ProjectServiceItem struct {
@@ -9848,8 +10087,14 @@ type ProjectImportRuntimeCandidateListLimit = int
 // ProjectImportRuntimeCandidateListOffset defines model for project-import-runtime-candidate-list-offset.
 type ProjectImportRuntimeCandidateListOffset = int
 
+// ProjectListApplicationType defines model for project-list-application-type.
+type ProjectListApplicationType string
+
 // ProjectListDriftStatus defines model for project-list-drift-status.
 type ProjectListDriftStatus = ProjectDriftStatus
+
+// ProjectListKeyword defines model for project-list-keyword.
+type ProjectListKeyword = string
 
 // ProjectListLimit defines model for project-list-limit.
 type ProjectListLimit = int
@@ -9857,11 +10102,23 @@ type ProjectListLimit = int
 // ProjectListOffset defines model for project-list-offset.
 type ProjectListOffset = int
 
+// ProjectListProvider defines model for project-list-provider.
+type ProjectListProvider string
+
+// ProjectListRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+type ProjectListRuntimeStatus = ProjectRuntimeStatus
+
+// ProjectListRuntimeTargetId defines model for project-list-runtime-target-id.
+type ProjectListRuntimeTargetId = int64
+
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
 
 // ProjectLogsTail defines model for project-logs-tail.
 type ProjectLogsTail = int
+
+// ProjectSavedViewId defines model for project-saved-view-id.
+type ProjectSavedViewId = int64
 
 // ProjectWorkspacePathQuery defines model for project-workspace-path-query.
 type ProjectWorkspacePathQuery = string
@@ -10732,8 +10989,23 @@ type GetProjectsParams struct {
 	// Offset Optional zero-based offset for projects.
 	Offset *ProjectListOffset `form:"offset,omitempty" json:"offset,omitempty"`
 
+	// Keyword Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.
+	Keyword *ProjectListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// ApplicationType Optional application type. Compose is the only currently supported type.
+	ApplicationType *GetProjectsParamsApplicationType `form:"application_type,omitempty" json:"application_type,omitempty"`
+
+	// RuntimeTargetId Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.
+	RuntimeTargetId *ProjectListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
+
+	// Provider Optional Runtime Target provider. Docker is the only current Compose provider.
+	Provider *GetProjectsParamsProvider `form:"provider,omitempty" json:"provider,omitempty"`
+
 	// SourceKind Optional project source filter.
 	SourceKind *ProjectListSourceKind `form:"source_kind,omitempty" json:"source_kind,omitempty"`
+
+	// RuntimeStatus Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.
+	RuntimeStatus *ProjectListRuntimeStatus `form:"runtime_status,omitempty" json:"runtime_status,omitempty"`
 
 	// DriftStatus Optional project drift-status filter.
 	DriftStatus *ProjectListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
@@ -10745,6 +11017,12 @@ type GetProjectsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// GetProjectsParamsApplicationType defines parameters for GetProjects.
+type GetProjectsParamsApplicationType string
+
+// GetProjectsParamsProvider defines parameters for GetProjects.
+type GetProjectsParamsProvider string
 
 // PostProjectBatchActionsParams defines parameters for PostProjectBatchActions.
 type PostProjectBatchActionsParams struct {
@@ -10917,6 +11195,46 @@ type PostProjectImportValidateParams struct {
 
 // GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
 type GetProjectManagedRootParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectSavedViewsParams defines parameters for GetProjectSavedViews.
+type GetProjectSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectSavedViewParams defines parameters for PostProjectSavedView.
+type PostProjectSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteProjectSavedViewParams defines parameters for DeleteProjectSavedView.
+type DeleteProjectSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutProjectSavedViewParams defines parameters for PutProjectSavedView.
+type PutProjectSavedViewParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11845,6 +12163,12 @@ type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspec
 
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
+
+// PostProjectSavedViewJSONRequestBody defines body for PostProjectSavedView for application/json ContentType.
+type PostProjectSavedViewJSONRequestBody = ProjectSavedViewRequest
+
+// PutProjectSavedViewJSONRequestBody defines body for PutProjectSavedView for application/json ContentType.
+type PutProjectSavedViewJSONRequestBody = ProjectSavedViewRequest
 
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest

@@ -1,0 +1,8 @@
+name: keyword
+in: query
+required: false
+description: Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 128

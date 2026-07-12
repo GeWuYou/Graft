@@ -21,6 +21,23 @@ func TestComposeProjectsUpsertSQLPlaceholderCountMatchesColumns(t *testing.T) {
 	}
 }
 
+func TestBuildListWhereEscapesKeywordLikeMetacharacters(t *testing.T) {
+	t.Parallel()
+
+	where, args := buildListWhere(ListQuery{Keyword: `50%_\`})
+	if len(where) != 2 || !strings.Contains(where[1], "ESCAPE '\\'") {
+		t.Fatalf("expected LIKE escape clause, got %#v", where)
+	}
+	if len(args) != 3 {
+		t.Fatalf("expected one keyword argument per LIKE term, got %#v", args)
+	}
+	for _, arg := range args {
+		if got, ok := arg.(string); !ok || got != `%50\%\_\\%` {
+			t.Fatalf("expected escaped LIKE pattern, got %#v", arg)
+		}
+	}
+}
+
 func TestLifecycleConfigJSONUsesStableSnakeCaseKeys(t *testing.T) {
 	t.Parallel()
 

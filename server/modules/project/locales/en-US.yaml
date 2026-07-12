@@ -1,4 +1,4 @@
-menu.project.title: Projects
+menu.project.title: Application Management
 ops.project.error.invalidProjectId: Invalid project id.
 ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.
@@ -14,6 +14,9 @@ ops.project.error.sourceUnsupported: Project source is not supported in the curr
 ops.project.error.directoryBrowseForbidden: Project import directory is outside the allowed roots.
 ops.project.error.inspectionExpired: Project import inspection has expired.
 ops.project.error.inspectionStale: Project import inspection no longer matches the filesystem.
+ops.project.error.savedViewInvalid: Saved view state is invalid for the project list.
+ops.project.error.savedViewConflict: A saved view with this name already exists.
+ops.project.error.savedViewNotFound: Saved view was not found.
 rbac.permissionCatalog.projectView.display: View Compose Projects
 rbac.permissionCatalog.projectView.description: Read registered Compose project summaries and readonly details.
 rbac.permissionCatalog.projectImport.display: Import Compose Projects

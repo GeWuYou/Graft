@@ -85,7 +85,7 @@ vi.mock('./components/LayoutHeader.vue', () => ({
 }));
 
 vi.mock('./components/LayoutSideNav.vue', () => ({
-  default: { name: 'LayoutSideNav', template: '<div />' },
+  default: { name: 'LayoutSideNav', template: '<div data-test-id="layout-side-nav" />' },
 }));
 
 vi.mock('pinia', async (importOriginal) => ({
@@ -132,7 +132,6 @@ function mountAppLayout() {
         ForcePasswordChangeDialog: true,
         LayoutContent: true,
         LayoutHeader: true,
-        LayoutSideNav: true,
         TAside: PlainStub,
         TContent: PlainStub,
         THeader: PlainStub,
@@ -246,6 +245,23 @@ describe('App layout route effects', () => {
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('false');
+  });
+
+  it('hides the mixed-layout sidebar while the home route is active', async () => {
+    settingStoreProxy.value!.layout = { value: 'mix' };
+    routeProxy.value!.fullPath = '/';
+    routeProxy.value!.path = '/';
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(false);
+    expect(wrapper.get('.app-shell__main').classes()).not.toContain('t-layout--with-sider');
+
+    routeProxy.value!.fullPath = '/system/runtime';
+    routeProxy.value!.path = '/system/runtime';
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(true);
+    expect(wrapper.get('.app-shell__main').classes()).toContain('t-layout--with-sider');
   });
 
   it('runs the reverse sidebar motion when expanding back out', async () => {

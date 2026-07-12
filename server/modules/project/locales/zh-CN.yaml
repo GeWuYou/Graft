@@ -14,6 +14,9 @@ ops.project.error.sourceUnsupported: 当前阶段不支持该项目来源。
 ops.project.error.directoryBrowseForbidden: 项目导入目录超出允许的根目录范围。
 ops.project.error.inspectionExpired: 项目导入检查已过期。
 ops.project.error.inspectionStale: 项目导入检查结果已与文件系统不一致。
+ops.project.error.savedViewInvalid: 保存视图状态不符合项目列表要求。
+ops.project.error.savedViewConflict: 已存在同名保存视图。
+ops.project.error.savedViewNotFound: 未找到保存视图。
 rbac.permissionCatalog.projectView.display: 查看 Compose 项目
 rbac.permissionCatalog.projectView.description: 读取已注册 Compose 项目的摘要和只读详情。
 rbac.permissionCatalog.projectImport.display: 导入 Compose 项目

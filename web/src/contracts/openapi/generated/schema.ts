@@ -2217,13 +2217,49 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List Compose projects
-     * @description Returns registered Compose projects without introducing a second runtime authority.
+     * List applications
+     * @description Returns application projections. Compose remains the only supported application type and Runtime Target remains the target/provider authority.
      */
     get: operations['getProjects'];
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private project-list saved views */
+    get: operations['getProjectSavedViews'];
+    put?: never;
+    /** Create a private project-list saved view */
+    post: operations['postProjectSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private project-list saved view */
+    put: operations['putProjectSavedView'];
+    post?: never;
+    /** Delete a private project-list saved view */
+    delete: operations['deleteProjectSavedView'];
     options?: never;
     head?: never;
     patch?: never;
@@ -3237,6 +3273,9 @@ export interface components {
     ProjectBatchActionRequest: components['schemas']['project-batch-action-request'];
     ProjectBatchActionItem: components['schemas']['project-batch-action-item'];
     ProjectBatchActionResponse: components['schemas']['project-batch-action-response'];
+    ProjectSavedView: components['schemas']['project-saved-view'];
+    ProjectSavedViewRequest: components['schemas']['project-saved-view-request'];
+    ProjectSavedViewListResponse: components['schemas']['project-saved-view-list-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
@@ -3257,6 +3296,8 @@ export interface components {
     EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
+    EnvelopedProjectSavedView: components['schemas']['enveloped-project-saved-view'];
+    EnvelopedProjectSavedViewListResponse: components['schemas']['enveloped-project-saved-view-list-response'];
     RuntimeTarget: components['schemas']['runtime-target'];
     RuntimeTargetListResponse: components['schemas']['runtime-target-list-response'];
     EnvelopedRuntimeTargetListResponse: components['schemas']['enveloped-runtime-target-list-response'];
@@ -5909,8 +5950,20 @@ export interface components {
     };
     /** @enum {string} */
     'project-source-kind': 'imported' | 'managed' | 'template';
+    /**
+     * @description Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+     * @enum {string}
+     */
+    'project-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
     /** @enum {string} */
     'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
+    'project-runtime-target-summary': {
+      /** Format: int64 */
+      id: number;
+      display_name: string;
+      /** @enum {string} */
+      provider: 'docker';
+    };
     /** @enum {string} */
     'project-canonical-name-source': 'computed' | 'override';
     /**
@@ -5940,11 +5993,6 @@ export interface components {
     'project-host-scope': 'local';
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
-    /**
-     * @description Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
-     * @enum {string}
-     */
-    'project-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
     'project-container-counts': {
       running: number;
       stopped: number;
@@ -5956,6 +6004,9 @@ export interface components {
       /** Format: int64 */
       id: number;
       display_name: string;
+      /** @enum {string} */
+      application_type: 'compose';
+      runtime_target?: components['schemas']['project-runtime-target-summary'];
       canonical_project_name: string;
       canonical_project_name_source: components['schemas']['project-canonical-name-source'];
       lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
@@ -5979,6 +6030,48 @@ export interface components {
     };
     'enveloped-project-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-list-response'];
+    };
+    'project-saved-view': {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      /** @description Consumer-validated filter and query state. It never contains the current page number. */
+      query_state: {
+        [key: string]: unknown;
+      };
+      page_size: number;
+      visible_columns: string[];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    'project-saved-view-list-response': {
+      items: components['schemas']['project-saved-view'][];
+    };
+    'enveloped-project-saved-view-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-saved-view-list-response'];
+    };
+    'project-saved-view-request': {
+      name: string;
+      /** @description Project-list filter state. The server validates this payload for the project saved-view surface. */
+      query_state: {
+        keyword?: string;
+        /** @enum {string} */
+        application_type?: 'compose';
+        /** Format: int64 */
+        runtime_target_id?: number;
+        /** @enum {string} */
+        provider?: 'docker';
+        source_kind?: components['schemas']['project-source-kind'];
+        runtime_status?: components['schemas']['project-runtime-status'];
+        drift_status?: components['schemas']['project-drift-status'];
+      };
+      page_size: number;
+      visible_columns: string[];
+    };
+    'enveloped-project-saved-view': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-saved-view'];
     };
     'runtime-target': {
       /** Format: int64 */
@@ -7003,6 +7096,7 @@ export interface components {
     'project-list-drift-status': components['schemas']['project-drift-status'];
     /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
     'project-id-path': number;
+    'project-saved-view-id-path': string;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
     'project-workspace-path-query': string;
     /** @description Whether the workspace should include directories and dot entries hidden by default. */
@@ -7025,6 +7119,18 @@ export interface components {
     'realtime-ticket-query': string;
     /** @description Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`. */
     'realtime-topic-query': string;
+    /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
+    'project-list-keyword': string;
+    /** @description Optional application type. Compose is the only currently supported type. */
+    'project-list-application-type': 'compose';
+    /** @description Optional Docker Runtime Target identifier. The target and provider filters are conjunctive. */
+    'project-list-runtime-target-id': number;
+    /** @description Optional Runtime Target provider. Docker is the only current Compose provider. */
+    'project-list-provider': 'docker';
+    /** @description Optional derived Compose runtime status filter, evaluated by the server before it returns the list page. */
+    'project-list-runtime-status': components['schemas']['project-runtime-status'];
+    /** @description Private saved-view identifier. */
+    'project-saved-view-id': number;
     /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
     'project-import-runtime-candidate-list-keyword': string;
     /** @description Optional runtime import availability filter. */
@@ -13018,8 +13124,18 @@ export interface operations {
         limit?: components['parameters']['project-list-limit'];
         /** @description Optional zero-based offset for projects. */
         offset?: components['parameters']['project-list-offset'];
+        /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
+        keyword?: components['parameters']['project-list-keyword'];
+        /** @description Optional application type. Compose is the only currently supported type. */
+        application_type?: components['parameters']['project-list-application-type'];
+        /** @description Optional Docker Runtime Target identifier. The target and provider filters are conjunctive. */
+        runtime_target_id?: components['parameters']['project-list-runtime-target-id'];
+        /** @description Optional Runtime Target provider. Docker is the only current Compose provider. */
+        provider?: components['parameters']['project-list-provider'];
         /** @description Optional project source filter. */
         source_kind?: components['parameters']['project-list-source-kind'];
+        /** @description Optional derived Compose runtime status filter, evaluated by the server before it returns the list page. */
+        runtime_status?: components['parameters']['project-list-runtime-status'];
         /** @description Optional project drift-status filter. */
         drift_status?: components['parameters']['project-list-drift-status'];
       };
@@ -13050,6 +13166,192 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's saved project-list views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postProjectSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+    };
+  };
+  putProjectSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['project-saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+    };
+  };
+  deleteProjectSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['project-saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
     };
   };
   getRuntimeTargets: {

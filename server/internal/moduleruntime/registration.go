@@ -98,7 +98,7 @@ func registerPermissions(registry *permission.Registry) {
 	})
 }
 
-// registerMenu registers the module runtime menu entry when a menu registry is available.
+// registerMenu 将模块运行时菜单项注册到可用的菜单注册表中。
 func registerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return
@@ -111,7 +111,7 @@ func registerMenu(registry *menu.Registry) {
 		Title:      "",
 		TitleKey:   menuModulesRuntimeTitleKey,
 		Path:       menuRuntimePath,
-		Icon:       "module",
+		Icon:       "module-runtime",
 		Order:      menuRuntimeOrder,
 		Permission: PermissionRead,
 		Module:     moduleOwner,

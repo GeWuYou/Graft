@@ -5,6 +5,10 @@ const (
 	ProjectAPIGroup = "/ops/projects"
 	// ProjectCollectionRoute identifies the project list route fragment.
 	ProjectCollectionRoute = ""
+	// ProjectSavedViewsRoute identifies the project-list saved-view collection route.
+	ProjectSavedViewsRoute = "/saved-views"
+	// ProjectSavedViewRoute identifies one project-list saved view.
+	ProjectSavedViewRoute = "/saved-views/:viewId"
 	// ProjectDetailRoute identifies one project summary route fragment.
 	ProjectDetailRoute = "/:id"
 	// ProjectServicesRoute identifies the project services aggregation route fragment.

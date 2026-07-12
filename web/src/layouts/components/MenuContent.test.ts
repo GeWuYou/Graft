@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 import MenuContent from './MenuContent.vue';
 
@@ -44,7 +44,7 @@ describe('MenuContent', () => {
               'data-menu-value': props.value,
               onClick: () => emit('click'),
             },
-            slots.default?.(),
+            [slots.icon?.(), slots.default?.()],
           );
       },
     });
@@ -116,6 +116,29 @@ describe('MenuContent', () => {
     });
 
     expect(wrapper.find('.graft-menu-section-label').exists()).toBe(false);
+  });
+
+  it('renders distinct static SVG icons for application, runtime target, and Docker entries', async () => {
+    const wrapper = mount(MenuContent, {
+      props: {
+        navData: [
+          { path: '/applications', meta: { icon: 'application', title: { 'en-US': 'Applications', 'zh-CN': '应用' } } },
+          { path: '/targets', meta: { icon: 'runtime-target', title: { 'en-US': 'Targets', 'zh-CN': '目标' } } },
+          { path: '/containers', meta: { icon: 'docker', title: { 'en-US': 'Docker', 'zh-CN': 'Docker' } } },
+        ],
+      },
+      global: {
+        stubs: { 't-menu-item': createMenuItemStub() },
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.html()).toContain('<svg');
+    const icons = wrapper.findAll('svg');
+    expect(icons).toHaveLength(3);
+    expect(new Set(icons.map((icon) => icon.html())).size).toBe(3);
+    expect(wrapper.html()).not.toContain('<icon');
   });
 
   it('navigates grouped mix-menu items to the first visible leaf route', async () => {

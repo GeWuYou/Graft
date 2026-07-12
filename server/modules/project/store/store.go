@@ -27,6 +27,7 @@ var (
 // Project stores one Compose project registry record.
 type Project struct {
 	ID                         uint64
+	RuntimeTargetID            *uint64
 	DisplayName                string
 	CanonicalProjectName       string
 	CanonicalProjectNameSource string
@@ -98,10 +99,12 @@ type ProjectAggregate struct {
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit       int
-	Offset      int
-	SourceKind  string
-	DriftStatus string
+	Limit           int
+	Offset          int
+	Keyword         string
+	RuntimeTargetID *int64
+	SourceKind      string
+	DriftStatus     string
 }
 
 // ListResult returns a paginated project page.
@@ -112,6 +115,7 @@ type ListResult struct {
 
 // ImportProjectInput creates or replaces one project registry entry.
 type ImportProjectInput struct {
+	RuntimeTargetID            uint64
 	DisplayName                string
 	CanonicalProjectName       string
 	CanonicalProjectNameSource string
@@ -175,4 +179,5 @@ type Repository interface {
 	UpdateLifecycleConfig(ctx context.Context, input UpdateLifecycleConfigInput) (ProjectAggregate, error)
 	UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ProjectAggregate, error)
 	UnregisterProject(ctx context.Context, input UnregisterProjectInput) error
+	BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error
 }

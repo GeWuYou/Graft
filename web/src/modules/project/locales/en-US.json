@@ -20,7 +20,7 @@
   },
   "menu": {
     "project": {
-      "title": "Projects"
+      "title": "Application Management"
     }
   },
   "project": {
@@ -32,8 +32,8 @@
     },
     "route": {
       "list": {
-        "title": "Projects",
-        "breadcrumb": "Projects"
+        "title": "Application Management",
+        "breadcrumb": "Application Management"
       },
       "createImport": {
         "title": "Import Existing Project",
@@ -156,12 +156,12 @@
     },
     "list": {
       "eyebrow": "Application",
-      "title": "Compose Projects",
-      "description": "Manage Imported Compose Projects Without Duplicating Runtime Authority.",
+      "title": "Application Management",
+      "description": "View applications, runtime targets, and providers while runtime information remains provided by its runtime system.",
       "refresh": "Refresh",
       "retry": "Retry",
       "tableSummary": "{count} Projects",
-      "tableHint": "Project Registry Owns Files and Lifecycle; Runtime Facts Stay in Container Authority.",
+      "tableHint": "Project registration manages files and lifecycle; runtime facts remain provided by the container runtime.",
       "emptyTitle": "No Projects",
       "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
       "emptyFilteredDescription": "No Projects Match the Current Filters.",
@@ -172,12 +172,41 @@
       "projectCount": "Total {count}",
       "runningProjects": "Running {count}",
       "stoppedProjects": "Stopped {count}",
+      "runtimeTargetUnavailable": "No Runtime Target",
+      "runtimeTargetsLoadFailed": "Failed to load runtime targets.",
+      "applicationType": { "compose": "Compose" },
+      "provider": { "docker": "Docker" },
+      "savedViews": {
+        "placeholder": "Quick Filters",
+        "save": "Save Filter",
+        "update": "Update Filter",
+        "delete": "Delete Filter",
+        "confirm": "Save",
+        "cancel": "Cancel",
+        "namePlaceholder": "Filter Name",
+        "nameRequired": "Enter a filter name.",
+        "saved": "Filter Saved.",
+        "deleted": "Filter Deleted.",
+        "deleteFailed": "Failed to Delete Filter.",
+        "deleteConfirmTitle": "Delete Filter",
+        "deleteConfirmDescription": "Delete filter \"{name}\"? This cannot be undone.",
+        "loadFailed": "Failed to load saved filters.",
+        "conflict": "A filter with this name already exists."
+      },
       "filters": {
         "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
+        "applicationType": "Application Type",
+        "provider": "Provider",
+        "runtimeTarget": "Runtime Target",
         "sourceKind": "Source",
+        "runtimeStatus": "Runtime Status",
         "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
         "allSourceKinds": "All Sources",
+        "allApplicationTypes": "All Application Types",
+        "allProviders": "All Providers",
+        "allRuntimeTargets": "All Runtime Targets",
+        "allRuntimeStatuses": "All Runtime Statuses",
         "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
         "query": "Query",
@@ -186,6 +215,9 @@
       "columns": {
         "selection": "Select",
         "name": "Project",
+        "applicationType": "Application Type",
+        "runtimeTarget": "Runtime Target",
+        "provider": "Provider",
         "source": "Source",
         "runtime": "Status",
         "resources": "Resources",

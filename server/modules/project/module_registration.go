@@ -109,7 +109,8 @@ func permissionItems(moduleName string) []permission.Item {
 // registerMenu 注册项目模块的菜单项。
 //
 // @param moduleName 菜单项所属的模块名称。
-// @returns 注册成功时为 nil；菜单注册表不可用时返回错误。
+// registerMenu 注册项目模块的菜单项。
+// 当菜单注册表不可用时返回错误，否则返回 nil。
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
@@ -119,10 +120,10 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Code:       "project.list",
 		ParentCode: "domain.application",
 		Kind:       menu.NodeKindEntry,
-		Title:      "Compose Projects",
+		Title:      "Application Management",
 		TitleKey:   projectcontract.ProjectMenuTitle.String(),
 		Path:       projectcontract.ProjectMenuPath,
-		Icon:       "folder-open",
+		Icon:       "application",
 		Order:      projectMenuOrderList,
 		Permission: projectcontract.ProjectViewPermission.String(),
 		Module:     moduleName,

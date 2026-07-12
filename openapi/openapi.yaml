@@ -257,6 +257,10 @@ paths:
     $ref: ./paths/ops-docker-system.yaml
   /api/ops/projects:
     $ref: ./paths/ops-projects.collection.yaml
+  /api/ops/projects/saved-views:
+    $ref: ./paths/ops-projects.saved-views.yaml
+  /api/ops/projects/saved-views/{viewId}:
+    $ref: ./paths/ops-projects.saved-view.yaml
   /api/runtime-targets:
     $ref: ./paths/runtime-targets.collection.yaml
   /api/runtime-targets/{id}:
@@ -963,6 +967,12 @@ components:
       $ref: ./components/schemas/project-batch-action-item.yaml
     ProjectBatchActionResponse:
       $ref: ./components/schemas/project-batch-action-response.yaml
+    ProjectSavedView:
+      $ref: ./components/schemas/project-saved-view.yaml
+    ProjectSavedViewRequest:
+      $ref: ./components/schemas/project-saved-view-request.yaml
+    ProjectSavedViewListResponse:
+      $ref: ./components/schemas/project-saved-view-list-response.yaml
     EnvelopedProjectListResponse:
       $ref: ./components/schemas/enveloped-project-list-response.yaml
     EnvelopedProjectCreationMethodCatalogResponse:
@@ -1003,6 +1013,10 @@ components:
       $ref: ./components/schemas/enveloped-project-action-response.yaml
     EnvelopedProjectBatchActionResponse:
       $ref: ./components/schemas/enveloped-project-batch-action-response.yaml
+    EnvelopedProjectSavedView:
+      $ref: ./components/schemas/enveloped-project-saved-view.yaml
+    EnvelopedProjectSavedViewListResponse:
+      $ref: ./components/schemas/enveloped-project-saved-view-list-response.yaml
     RuntimeTarget:
       $ref: ./components/schemas/runtime-target.yaml
     RuntimeTargetListResponse:
@@ -1073,6 +1087,8 @@ components:
       $ref: ./components/parameters/project-list-drift-status.yaml
     project-id-path:
       $ref: ./components/parameters/project-id-path.yaml
+    project-saved-view-id-path:
+      $ref: ./components/parameters/project-saved-view-id.yaml
     project-workspace-path-query:
       $ref: ./components/parameters/project-workspace-path-query.yaml
     project-workspace-show-hidden-query:

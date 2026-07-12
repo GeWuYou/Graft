@@ -41,6 +41,8 @@ func (s *stubProjectRepository) List(context.Context, projectstore.ListQuery) (p
 	return projectstore.ListResult{Items: []projectstore.ProjectAggregate{s.aggregate}, Total: 1}, nil
 }
 
+func (s *stubProjectRepository) BackfillRuntimeTarget(context.Context, uint64) error { return nil }
+
 func (s *stubProjectRepository) Get(context.Context, uint64) (projectstore.ProjectAggregate, error) {
 	s.getCalls++
 	if s.aggregate.Project.ID == 0 {

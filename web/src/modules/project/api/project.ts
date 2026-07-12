@@ -14,6 +14,7 @@ import {
   buildProjectOverviewApiPath,
   buildProjectRedeployApiPath,
   buildProjectRestartApiPath,
+  buildProjectSavedViewApiPath,
   buildProjectServicesApiPath,
   buildProjectStopApiPath,
   buildProjectUnregisterApiPath,
@@ -41,6 +42,8 @@ import type {
   ProjectLogResponse,
   ProjectManagedRootResponse,
   ProjectOverviewResponse,
+  ProjectSavedView,
+  ProjectSavedViewRequest,
   ProjectServicesResponse,
   ProjectTaskReceipt,
   ProjectTemplateCreateRequest,
@@ -172,6 +175,18 @@ type ProjectBatchActionsOperation = paths[(typeof PROJECT_API_PATH)['BATCH_ACTIO
 type ProjectBatchActionsEnvelope = ProjectBatchActionsOperation['responses'][200]['content']['application/json'];
 type ProjectBatchActionsData = NonNullable<ProjectBatchActionsEnvelope['data']>;
 type ProjectBatchActionsPayload = ProjectBatchActionsOperation['requestBody']['content']['application/json'];
+type ProjectSavedViewsOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEWS']]['get'];
+type ProjectSavedViewsData = NonNullable<
+  ProjectSavedViewsOperation['responses'][200]['content']['application/json']['data']
+>;
+type ProjectCreateSavedViewOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEWS']]['post'];
+type ProjectCreateSavedViewData = NonNullable<
+  ProjectCreateSavedViewOperation['responses'][201]['content']['application/json']['data']
+>;
+type ProjectSavedViewOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEW']]['put'];
+type ProjectUpdateSavedViewData = NonNullable<
+  ProjectSavedViewOperation['responses'][200]['content']['application/json']['data']
+>;
 
 /**
  * 规范化项目列表查询参数。
@@ -198,6 +213,53 @@ export function getProjects(query?: ProjectListQuery) {
     url: PROJECT_API_PATH.LIST,
     params: normalizeProjectListQuery(query),
   }) as Promise<ProjectListResponseWithLifecycle>;
+}
+
+/**
+ * 获取项目已保存视图列表。
+ *
+ * @returns 项目已保存视图数组；响应缺少列表数据时返回空数组。
+ */
+export async function getProjectSavedViews(): Promise<ProjectSavedView[]> {
+  const data = await request.get<ProjectSavedViewsData>({ url: PROJECT_API_PATH.SAVED_VIEWS });
+  return data.items ?? [];
+}
+
+/**
+ * 创建项目已保存视图。
+ *
+ * @param payload - 已保存视图的创建数据
+ * @returns 创建后的项目已保存视图
+ */
+export function postProjectSavedView(payload: ProjectSavedViewRequest) {
+  return request.post<ProjectCreateSavedViewData>({
+    url: PROJECT_API_PATH.SAVED_VIEWS,
+    data: payload,
+  }) as Promise<ProjectSavedView>;
+}
+
+/**
+ * 更新指定的项目已保存视图。
+ *
+ * @param viewId - 要更新的已保存视图 ID
+ * @param payload - 已保存视图的更新数据
+ * @returns 更新后的项目已保存视图
+ */
+export function putProjectSavedView(viewId: number, payload: ProjectSavedViewRequest) {
+  return request.put<ProjectUpdateSavedViewData>({
+    url: buildProjectSavedViewApiPath(viewId),
+    data: payload,
+  }) as Promise<ProjectSavedView>;
+}
+
+/**
+ * 删除指定的项目已保存视图。
+ *
+ * @param viewId - 要删除的已保存视图标识
+ * @returns 删除请求的响应结果
+ */
+export function deleteProjectSavedView(viewId: number) {
+  return request.delete({ url: buildProjectSavedViewApiPath(viewId) });
 }
 
 /**

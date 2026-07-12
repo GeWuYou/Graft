@@ -12,6 +12,12 @@
 
 Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用目标，不能自行维护另一套 Docker endpoint 或凭据目录。Project 详情可以跳转到关联 Docker Container 资源，但跳转不得改变上述 authority。
 
+每个 Compose Application 绑定一个 Docker `runtime_target_id`。新建、导入和受管来源创建在写入注册前必须解析该 Target；非 Docker 或未知 Target 不能进入当前 Compose 生命周期。`compose_projects.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史 `host_scope=local` 行。该桥的 authority 是 Runtime Target，影响者是 Project 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
+
+`/projects` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `application_type=compose` 的实现和生命周期能力；列表必须首先展示应用类型、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
+
+菜单图标统一由 web 的 Iconify resolver 消费 server descriptor identifier：常规导航使用 Lucide，专业补充使用 Tabler，品牌使用静态 Iconify 数据。Docker 必须使用 Tabler 的 Docker brand glyph，不能以通用 server/container 图标代替；Iconify 不得通过运行时 CDN 加载图标。
+
 ## 1. 启动治理与 Authority
 
 - 任务分类：`cross-boundary`
@@ -808,6 +814,15 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 `openapi/**` 漂移。
 
 ## 10.1 项目列表与详情
+
+项目列表可使用通用 `saved-view` module 保存用户私有的分页视图。`project` 仍是 `/api/ops/projects/saved-views` 的 HTTP 与领域授权 owner：它只在调用 generic service 前校验 `surface_key=project.list`、筛选状态和可见列。保存状态包含筛选/查询 JSON、`page_size` 与可见列键；不保存当前页，应用视图一律从第一页开始。视图不共享，展示名称在同一 `(owner_user_id, surface_key)` live scope 内唯一。
+
+### 保存视图表设计摘要
+
+- owner module：`saved-view`；表：`saved_views`，不是 `project` 专用偏好表。
+- 生命周期：当前用户创建、更新、软删除自己的视图；所有读取固定 `deleted_at = 0`，用户和 consumer surface 都是查询边界。
+- 索引：`(owner_user_id, surface_key, name) WHERE deleted_at = 0` 保障 live 名称唯一；`(owner_user_id, surface_key, updated_at DESC, id DESC) WHERE deleted_at = 0` 支撑列表。
+- 状态：`query_state_json` 只保存 consumer 已校验的 JSON，`page_size` 和 `visible_columns_json` 可复用到任何分页列表；当前页不持久化，也不提供共享语义。
 
 | Method | Path                              | 语义             |
 | ------ | --------------------------------- | ---------------- |
