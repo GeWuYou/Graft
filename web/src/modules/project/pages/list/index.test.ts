@@ -671,6 +671,9 @@ describe('Project list page', () => {
     );
 
     const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
+    if (!savedViewSelect) {
+      throw new Error('saved view select not found');
+    }
     savedViewSelect.vm.$emit('update:modelValue', initialView.id);
     savedViewSelect.vm.$emit('change', initialView.id);
     await nextTick();
@@ -702,6 +705,9 @@ describe('Project list page', () => {
     await flushPromises();
 
     const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
+    if (!savedViewSelect) {
+      throw new Error('saved view select not found');
+    }
     savedViewSelect.vm.$emit('update:modelValue', view.id);
     savedViewSelect.vm.$emit('change', view.id);
     await flushPromises();
@@ -733,6 +739,9 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
     const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
+    if (!savedViewSelect) {
+      throw new Error('saved view select not found');
+    }
     savedViewSelect.vm.$emit('update:modelValue', view.id);
     savedViewSelect.vm.$emit('change', view.id);
     await nextTick();
