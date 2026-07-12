@@ -38,8 +38,9 @@ type migrateUpOptions struct {
 }
 
 type atlasExecutorHandle struct {
-	executor atlasExecutor
-	close    func() error
+	executor           atlasExecutor
+	preflightRevisions func(context.Context) error
+	close              func() error
 }
 
 type atlasExecutor interface {
@@ -128,14 +129,21 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
 		}
 		err = errors.Join(err, fmt.Errorf("close atlas executor: %w", closeErr))
 	}()
+	return executeAtlasMigrations(commandContext, handle)
+}
 
-	if err := handle.executor.ExecuteN(commandContext, 0); err != nil {
+func executeAtlasMigrations(ctx context.Context, handle *atlasExecutorHandle) error {
+	if handle.preflightRevisions != nil {
+		if err := handle.preflightRevisions(ctx); err != nil {
+			return err
+		}
+	}
+	if err := handle.executor.ExecuteN(ctx, 0); err != nil {
 		if errors.Is(err, atlasmigrate.ErrNoPendingFiles) {
 			return nil
 		}
 		return fmt.Errorf("apply atlas migrations: %w", err)
 	}
-
 	return nil
 }
 
@@ -222,10 +230,11 @@ func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmig
 		return nil, fmt.Errorf("open atlas postgres driver: %w", err)
 	}
 
+	revisions := newAtlasRevisionStore(sqlDB)
 	executor, err := atlasmigrate.NewExecutor(
 		driver,
 		dir,
-		newAtlasRevisionStore(sqlDB),
+		revisions,
 		atlasmigrate.WithAllowDirty(allowDirty),
 		atlasmigrate.WithLogger(logger),
 		atlasmigrate.WithOperatorVersion("graft"),
@@ -236,7 +245,29 @@ func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmig
 	}
 
 	return &atlasExecutorHandle{
-		executor: executor,
-		close:    sqlDB.Close,
+		executor:           executor,
+		preflightRevisions: func(ctx context.Context) error { return validateAtlasRevisionMetadata(ctx, revisions) },
+		close:              sqlDB.Close,
 	}, nil
+}
+
+// validateAtlasRevisionMetadata rejects revision rows that Atlas v1.2.3 would
+// otherwise index unsafely while resuming a partially applied migration.
+func validateAtlasRevisionMetadata(ctx context.Context, store atlasmigrate.RevisionReadWriter) error {
+	revisions, err := store.ReadRevisions(ctx)
+	if err != nil {
+		return fmt.Errorf("read atlas revisions for preflight: %w", err)
+	}
+	for _, revision := range revisions {
+		if revision.Applied < 0 || revision.Total < 0 {
+			return fmt.Errorf("unsafe atlas revision metadata for version %q: applied=%d, total=%d; repair atlas_schema_revisions before retrying", revision.Version, revision.Applied, revision.Total)
+		}
+		if revision.Applied > revision.Total {
+			return fmt.Errorf("unsafe atlas revision metadata for version %q: applied=%d exceeds total=%d; repair atlas_schema_revisions before retrying", revision.Version, revision.Applied, revision.Total)
+		}
+		if revision.Applied > 0 && revision.Applied < revision.Total && len(revision.PartialHashes) < revision.Applied {
+			return fmt.Errorf("unsafe atlas revision metadata for version %q: applied=%d requires at least %d partial hashes, found %d; repair atlas_schema_revisions before retrying", revision.Version, revision.Applied, revision.Applied, len(revision.PartialHashes))
+		}
+	}
+	return nil
 }

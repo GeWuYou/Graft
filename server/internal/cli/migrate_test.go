@@ -1306,6 +1306,80 @@ func TestRunMigrateUpTreatsNoPendingAsSuccess(t *testing.T) {
 	}
 }
 
+func TestRunMigrateUpRejectsUnsafeRevisionMetadataBeforeExecuting(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	setMigrateCommandTestEnv(t)
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
+
+	executed := false
+	migrateOpenExecutor = func(_ string, _ atlasmigrate.Dir, _ atlasmigrate.Logger, _ bool) (*atlasExecutorHandle, error) {
+		return &atlasExecutorHandle{
+			executor: fakeAtlasExecutor{executeN: func(context.Context, int) error {
+				executed = true
+				return nil
+			}},
+			preflightRevisions: func(context.Context) error {
+				return validateAtlasRevisionMetadata(context.Background(), revisionReadWriterStub{revisions: []*atlasmigrate.Revision{{
+					Version: "202607120001",
+					Applied: 5,
+					Total:   1,
+				}}})
+			},
+		}, nil
+	}
+
+	err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: "modules/user/migrations", workingDir: t.TempDir()})
+	if err == nil || !strings.Contains(err.Error(), "applied=5 exceeds total=1") {
+		t.Fatalf("expected unsafe revision metadata error, got %v", err)
+	}
+	if executed {
+		t.Fatal("expected preflight failure to prevent ExecuteN")
+	}
+}
+
+type revisionReadWriterStub struct {
+	revisions []*atlasmigrate.Revision
+}
+
+func (s revisionReadWriterStub) Ident() *atlasmigrate.TableIdent { return nil }
+
+func (s revisionReadWriterStub) ReadRevisions(context.Context) ([]*atlasmigrate.Revision, error) {
+	return s.revisions, nil
+}
+
+func (s revisionReadWriterStub) ReadRevision(_ context.Context, version string) (*atlasmigrate.Revision, error) {
+	for _, revision := range s.revisions {
+		if revision.Version == version {
+			return revision, nil
+		}
+	}
+	return nil, atlasmigrate.ErrRevisionNotExist
+}
+
+func (revisionReadWriterStub) WriteRevision(context.Context, *atlasmigrate.Revision) error {
+	return nil
+}
+
+func (revisionReadWriterStub) DeleteRevision(context.Context, string) error { return nil }
+
+func TestValidateAtlasRevisionMetadataRejectsIncompletePartialHashes(t *testing.T) {
+	err := validateAtlasRevisionMetadata(context.Background(), revisionReadWriterStub{revisions: []*atlasmigrate.Revision{{
+		Version:       "202607120002",
+		Applied:       2,
+		Total:         3,
+		PartialHashes: []string{"h1:first"},
+	}}})
+	if err == nil || !strings.Contains(err.Error(), "requires at least 2 partial hashes, found 1") {
+		t.Fatalf("expected incomplete partial hashes error, got %v", err)
+	}
+}
+
 func TestRunMigrateUpPropagatesExecutorOpenError(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
