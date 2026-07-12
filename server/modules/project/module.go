@@ -104,6 +104,7 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	return taskRegistrar, nil
 }
 
+// resolveProjectRuntimeTargetReader resolves the project runtime target reader from the module service registry.
 func resolveProjectRuntimeTargetReader(ctx *module.Context) (moduleapi.RuntimeTargetReader, error) {
 	reader, err := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
 	if err != nil {
@@ -119,7 +120,7 @@ type projectRealtimeDependencies struct {
 }
 
 // resolveProjectRealtime 解析项目实时通信所需的依赖。
-// 返回实时票据服务、通信中心和主题发布者注册表；任一依赖解析失败时返回错误。
+// resolveProjectRealtime 解析实时票据服务、通信中心和主题发布者注册表；任一依赖解析失败时返回错误。
 func resolveProjectRealtime(ctx *module.Context) (projectRealtimeDependencies, error) {
 	tickets, err := module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
 	if err != nil {

@@ -31,7 +31,8 @@ const minimumProjectListLimit = 1
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
 // registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
 // registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
-// 当上下文或路由器为空时返回 nil；当服务缺失或认证依赖解析失败时返回错误。
+// registerRoutes 注册项目模块的 HTTP 路由。
+// 当上下文或路由器为空时返回 nil；当项目服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -1048,7 +1049,8 @@ func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDe
 // bindListParams 绑定项目列表查询参数和公共请求头。
 // 它解析 source_kind、drift_status、limit 和 offset，并在分页参数无效时中止请求。
 //
-//nolint:cyclop // generated-contract query binding stays explicit at the HTTP boundary.
+// bindListParams 解析并校验项目列表查询参数。
+// 参数无效时中止请求并返回 false；否则返回解析后的参数和 true.
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
@@ -1568,7 +1570,8 @@ func slicePtrValue(value *[]string) []string {
 
 // currentUserIDPointer 从请求上下文中提取当前认证用户的 ID。
 // 当请求、认证上下文或用户信息不可用时，返回 nil。
-// 否则返回用户 ID 的指针。
+// currentUserIDPointer 获取当前请求认证用户的 ID 指针。
+// 当请求上下文、认证信息或用户信息不可用时返回 nil。
 func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	if ginCtx == nil || ginCtx.Request == nil {
 		return nil
@@ -1581,6 +1584,7 @@ func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	return &userID
 }
 
+// currentUserID returns the authenticated user's non-zero ID and whether it is available.
 func currentUserID(ginCtx *gin.Context) (uint64, bool) {
 	value := currentUserIDPointer(ginCtx)
 	if value == nil || *value == 0 {
@@ -1589,11 +1593,14 @@ func currentUserID(ginCtx *gin.Context) (uint64, bool) {
 	return *value, true
 }
 
+// bindSavedViewID 解析并校验保存视图路由参数，返回有效的非零视图 ID。
 func bindSavedViewID(ginCtx *gin.Context) (uint64, bool) {
 	value, err := strconv.ParseUint(strings.TrimSpace(ginCtx.Param("viewId")), 10, 64)
 	return value, err == nil && value > 0
 }
 
+// generatedSavedViewID 将有效的无符号保存视图 ID 转换为 int64。
+// 返回转换后的 ID 及其有效性。
 func generatedSavedViewID(value uint64) (int64, bool) {
 	if value == 0 || value > math.MaxInt64 {
 		return 0, false

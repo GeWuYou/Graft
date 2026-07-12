@@ -11,7 +11,7 @@ import (
 
 const moduleID = "saved-view"
 
-// NewModuleSpec returns the compile-time module descriptor for saved views.
+// NewModuleSpec 创建 savedview 模块的编译期描述符。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

@@ -10,7 +10,7 @@ import (
 
 const moduleID = "project"
 
-// NewModuleSpec returns the module specification for the project module, including its dependencies, migration path, and builder.
+// NewModuleSpec 返回项目模块的规范，包括其依赖项、迁移路径和构建器。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

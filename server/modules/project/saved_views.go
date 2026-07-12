@@ -54,6 +54,8 @@ func (s *Service) deleteSavedView(ctx context.Context, ownerUserID, id uint64) e
 	return mapSavedViewError(s.savedViews.Delete(ctx, ownerUserID, projectListSavedViewSurface, id))
 }
 
+// validateProjectListSavedView validates the name, page size, query state, and visible columns of a project list saved-view request.
+// It returns errProjectInvalidArgument when any field is invalid.
 func validateProjectListSavedView(request savedViewRequest) error {
 	if strings.TrimSpace(request.Name) == "" || request.PageSize < 1 || !json.Valid(request.QueryState) {
 		return errProjectInvalidArgument
@@ -64,7 +66,7 @@ func validateProjectListSavedView(request savedViewRequest) error {
 	return validateProjectListVisibleColumns(request.VisibleColumns)
 }
 
-//nolint:gocognit,gocyclo,cyclop // Explicit field-level validation prevents opaque saved-view query state.
+// validateProjectListQueryState 校验项目列表已保存视图查询状态中的字段和值。
 func validateProjectListQueryState(queryState json.RawMessage) error {
 	var state struct {
 		Keyword         *string `json:"keyword"`
@@ -113,6 +115,8 @@ func validateProjectListQueryState(queryState json.RawMessage) error {
 	return nil
 }
 
+// validateProjectListVisibleColumns 验证项目列表已保存视图的可见列是否均受支持。
+// 如果所有列均有效则返回 nil，否则返回 errProjectInvalidArgument。
 func validateProjectListVisibleColumns(columns []string) error {
 	for _, column := range columns {
 		if _, ok := projectListSavedViewColumns[strings.TrimSpace(column)]; !ok {
@@ -122,6 +126,7 @@ func validateProjectListVisibleColumns(columns []string) error {
 	return nil
 }
 
+// mapSavedViewError 将已保存视图错误映射为项目域错误。
 func mapSavedViewError(err error) error {
 	switch {
 	case err == nil:
@@ -135,6 +140,8 @@ func mapSavedViewError(err error) error {
 	}
 }
 
+// projectSavedViewRequestFromGenerated converts a generated saved-view request into the internal request format.
+// It serializes the query state and copies the visible columns. It returns an invalid-argument error if serialization fails.
 func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequest) (savedViewRequest, error) {
 	queryState, err := json.Marshal(request.QueryState)
 	if err != nil {
@@ -143,6 +150,8 @@ func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequ
 	return savedViewRequest{Name: request.Name, QueryState: queryState, PageSize: request.PageSize, VisibleColumns: append([]string(nil), request.VisibleColumns...)}, nil
 }
 
+// toGeneratedProjectSavedView 将已保存视图转换为生成的项目视图模型。
+// 如果视图 ID 无效或查询状态不是合法 JSON，则返回参数错误。
 func toGeneratedProjectSavedView(view moduleapi.SavedView) (generated.ProjectSavedView, error) {
 	if view.ID == 0 || view.ID > uint64(^uint64(0)>>1) {
 		return generated.ProjectSavedView{}, errProjectInvalidArgument

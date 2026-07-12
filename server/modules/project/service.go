@@ -674,6 +674,7 @@ func (s *Service) listDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTar
 	return s.runtimeTargets.ListDockerTargets(ctx)
 }
 
+// runtimeTargetLookup collects positive runtime target IDs and indexes their summaries by ID.
 func runtimeTargetLookup(targets []moduleapi.RuntimeTargetSummary) ([]int64, map[uint64]moduleapi.RuntimeTargetSummary) {
 	ids := make([]int64, 0, len(targets))
 	byID := make(map[uint64]moduleapi.RuntimeTargetSummary, len(targets))

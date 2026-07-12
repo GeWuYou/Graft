@@ -10,7 +10,7 @@ import (
 // Service validates generic view structure and delegates opaque consumer state to its store.
 type Service struct{ repository store.Repository }
 
-// NewService constructs a generic saved-view service.
+// NewService 创建一个已保存视图服务。
 func NewService(repository store.Repository) *Service { return &Service{repository: repository} }
 
 // List returns views belonging to one owner and one consumer surface.

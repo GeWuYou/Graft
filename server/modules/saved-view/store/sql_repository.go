@@ -22,7 +22,8 @@ const (
 // SQLRepository persists saved views in the module-owned table.
 type SQLRepository struct{ db *sql.DB }
 
-// NewSQLRepository constructs a repository backed by the platform database pool.
+// NewSQLRepository 创建一个由平台数据库连接支持的保存视图仓储。
+// 如果 db 为 nil，则返回错误。
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("saved view repository requires a non-nil sql db")
@@ -116,6 +117,8 @@ func (r *SQLRepository) Delete(ctx context.Context, ownerUserID uint64, surfaceK
 	return nil
 }
 
+// normalizeCreate trims and validates saved-view creation input, including its owner, surface, name, query state, page size, and visible columns.
+// It returns the normalized input or moduleapi.ErrSavedViewInvalidInput when validation fails.
 func normalizeCreate(input moduleapi.SavedViewCreateInput) (moduleapi.SavedViewCreateInput, error) {
 	if err := validateOwnerAndSurface(input.OwnerUserID, input.SurfaceKey); err != nil {
 		return input, err
@@ -131,6 +134,8 @@ func normalizeCreate(input moduleapi.SavedViewCreateInput) (moduleapi.SavedViewC
 	return input, nil
 }
 
+// normalizeUpdate validates and normalizes the fields of a saved view update input.
+// It returns the normalized input when valid, or an invalid-input error otherwise.
 func normalizeUpdate(input moduleapi.SavedViewUpdateInput) (moduleapi.SavedViewUpdateInput, error) {
 	if input.ID == 0 {
 		return input, moduleapi.ErrSavedViewInvalidInput
@@ -143,6 +148,7 @@ func normalizeUpdate(input moduleapi.SavedViewUpdateInput) (moduleapi.SavedViewU
 	return input, nil
 }
 
+// validateOwnerAndSurface validates the owner identifier and surface key for a saved view.
 func validateOwnerAndSurface(ownerUserID uint64, surfaceKey string) error {
 	if ownerUserID == 0 || len(strings.TrimSpace(surfaceKey)) == 0 || len(strings.TrimSpace(surfaceKey)) > maxSurfaceKeyLength {
 		return moduleapi.ErrSavedViewInvalidInput
@@ -150,6 +156,9 @@ func validateOwnerAndSurface(ownerUserID uint64, surfaceKey string) error {
 	return nil
 }
 
+// normalizeState 校验并规范化保存视图的查询状态、分页大小和可见列。
+// 它会裁剪可见列两端的空白，并拒绝无效查询状态、越界分页大小、空列名、过长列名或重复列名。
+// 返回 moduleapi.ErrSavedViewInvalidInput 表示输入无效。
 func normalizeState(queryState *json.RawMessage, pageSize *int, columns *[]string) error {
 	if *pageSize < 1 || *pageSize > maxPageSize || !json.Valid(*queryState) {
 		return moduleapi.ErrSavedViewInvalidInput
@@ -175,12 +184,14 @@ func normalizeState(queryState *json.RawMessage, pageSize *int, columns *[]strin
 
 type rowScanner interface{ Scan(...any) error }
 
+// closeRows closes the provided database rows when non-nil and ignores any close error.
 func closeRows(rows *sql.Rows) {
 	if rows != nil {
 		_ = rows.Close()
 	}
 }
 
+// scanView 将数据库行扫描为保存视图；扫描失败时返回错误。
 func scanView(row rowScanner) (moduleapi.SavedView, error) {
 	var item moduleapi.SavedView
 	if err := row.Scan(&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.CreatedAt, &item.UpdatedAt); err != nil {
@@ -191,6 +202,7 @@ func scanView(row rowScanner) (moduleapi.SavedView, error) {
 
 type columnsValue struct{ target *[]string }
 
+// columnScanner 创建用于将数据库中的可见列 JSON 扫描到目标字符串切片的值。
 func columnScanner(target *[]string) *columnsValue { return &columnsValue{target: target} }
 func (v *columnsValue) Scan(value any) error {
 	raw, ok := value.([]byte)
@@ -199,12 +211,14 @@ func (v *columnsValue) Scan(value any) error {
 	}
 	return json.Unmarshal(raw, v.target)
 }
+// mapWriteError maps duplicate or unique-constraint errors to the saved-view conflict error and wraps other errors with creation context.
 func mapWriteError(err error) error {
 	if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
 		return moduleapi.ErrSavedViewConflict
 	}
 	return fmt.Errorf("create saved view: %w", err)
 }
+// mapReadError maps missing-row errors to the saved-view not-found error and wraps other errors with write-operation context.
 func mapReadError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return moduleapi.ErrSavedViewNotFound

@@ -80,7 +80,7 @@ func (r *SQLRepository) ensureReady() error {
 }
 
 // normalizeListQuery 规范化列表查询参数。
-// 它会去除筛选字段首尾空白、校验可选 typed-contract 过滤值，并将分页参数限制在允许范围内。
+// normalizeListQuery 规范化列表查询条件并将分页参数限制在允许范围内；无效筛选值、过长关键字或小于 1 的运行目标 ID 会返回 ErrInvalidInput。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	var err error
 	query.SourceKind, err = normalizeOptionalContractValue(query.SourceKind, isValidSourceKind)
@@ -556,7 +556,7 @@ func rollbackTx(tx *sql.Tx) {
 // scanProject 读取并组装项目记录。
 //
 // 将查询结果中的可空时间和可空用户 ID 转换为对应的指针字段。
-// scanProject 扫描并组装项目记录及其 JSON 字段和可空字段；扫描或字段解码失败时返回错误。
+// scanProject 扫描并组装项目记录，包含可空字段及 JSON 编码的项目元数据、生命周期配置和工作区注释；扫描或字段解码失败时返回错误。
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
 	var lastDriftCheckedAt sql.NullTime

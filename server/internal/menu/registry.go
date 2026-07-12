@@ -192,7 +192,7 @@ func validateCycles(items map[string]Item) error {
 }
 
 // RegisterDomainGroups registers the stable top-level navigation domain groups in r.
-// A nil registry is ignored.
+// RegisterDomainGroups 注册预定义的顶层领域菜单分组；当注册表为 nil 时忽略操作。
 func RegisterDomainGroups(r *Registry) {
 	if r == nil {
 		return

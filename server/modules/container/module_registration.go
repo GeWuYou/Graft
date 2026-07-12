@@ -189,7 +189,8 @@ func permissionItems(moduleName string) []permission.Item {
 // registerMenu registers the container list menu item with the specified module name.
 // registerMenu 注册容器列表菜单项。
 // @param moduleName 菜单项所属的模块名称。
-// @returns 注册成功时为 nil；菜单注册器不可用时返回错误。
+// registerMenu 注册容器列表菜单项。
+// 注册成功时返回 nil；菜单注册器不可用时返回错误。
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")

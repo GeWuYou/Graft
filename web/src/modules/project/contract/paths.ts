@@ -59,6 +59,12 @@ function encodeProjectPathParam(value: string | number) {
   return encodeURIComponent(String(value));
 }
 
+/**
+ * 构建指定已保存视图的 API 路径。
+ *
+ * @param viewId - 已保存视图的标识符
+ * @returns 已替换并编码视图标识符的 API 路径
+ */
 export function buildProjectSavedViewApiPath(viewId: number) {
   return PROJECT_API_PATH.SAVED_VIEW.replace('{viewId}', encodeProjectPathParam(viewId));
 }

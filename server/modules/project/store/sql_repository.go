@@ -464,7 +464,8 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 }
 
 // buildListWhere 构建项目列表查询的 WHERE 条件和参数。
-// 它始终包含已删除过滤，并按需附加来源类型、漂移状态和最近刷新状态条件。
+// buildListWhere 构建项目列表查询的过滤条件及其参数，始终排除已删除项目，并按需筛选来源类型、漂移状态、关键字和运行时目标。
+// 返回条件片段及其对应的参数值。
 func buildListWhere(query ListQuery) ([]string, []any) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, projectListWhereArgCapacity)
@@ -726,7 +727,7 @@ func (r *SQLRepository) upsertProject(
 	return projectID, nil
 }
 
-// composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句。
+// composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句，并通过 RETURNING 子句返回项目 ID。
 func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
 			display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,

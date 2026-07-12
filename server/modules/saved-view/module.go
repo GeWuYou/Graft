@@ -11,7 +11,7 @@ import (
 // Module registers the generic saved-view service. It intentionally owns no menu or HTTP routes.
 type Module struct{ service *Service }
 
-// NewModule constructs a saved-view module.
+// NewModule constructs a saved-view module with the provided service.
 func NewModule(service *Service) *Module { return &Module{service: service} }
 
 // Register exposes only the consumer-neutral service boundary.

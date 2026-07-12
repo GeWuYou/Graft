@@ -215,11 +215,22 @@ export function getProjects(query?: ProjectListQuery) {
   }) as Promise<ProjectListResponseWithLifecycle>;
 }
 
+/**
+ * 获取项目已保存视图列表。
+ *
+ * @returns 项目已保存视图数组；响应缺少列表数据时返回空数组。
+ */
 export async function getProjectSavedViews(): Promise<ProjectSavedView[]> {
   const data = await request.get<ProjectSavedViewsData>({ url: PROJECT_API_PATH.SAVED_VIEWS });
   return data.items ?? [];
 }
 
+/**
+ * 创建项目已保存视图。
+ *
+ * @param payload - 已保存视图的创建数据
+ * @returns 创建后的项目已保存视图
+ */
 export function postProjectSavedView(payload: ProjectSavedViewRequest) {
   return request.post<ProjectCreateSavedViewData>({
     url: PROJECT_API_PATH.SAVED_VIEWS,
@@ -227,6 +238,13 @@ export function postProjectSavedView(payload: ProjectSavedViewRequest) {
   }) as Promise<ProjectSavedView>;
 }
 
+/**
+ * 更新指定的项目已保存视图。
+ *
+ * @param viewId - 要更新的已保存视图 ID
+ * @param payload - 已保存视图的更新数据
+ * @returns 更新后的项目已保存视图
+ */
 export function putProjectSavedView(viewId: number, payload: ProjectSavedViewRequest) {
   return request.put<ProjectUpdateSavedViewData>({
     url: buildProjectSavedViewApiPath(viewId),
@@ -234,6 +252,12 @@ export function putProjectSavedView(viewId: number, payload: ProjectSavedViewReq
   }) as Promise<ProjectSavedView>;
 }
 
+/**
+ * 删除指定的项目已保存视图。
+ *
+ * @param viewId - 要删除的已保存视图标识
+ * @returns 删除请求的响应结果
+ */
 export function deleteProjectSavedView(viewId: number) {
   return request.delete({ url: buildProjectSavedViewApiPath(viewId) });
 }

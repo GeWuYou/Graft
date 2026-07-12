@@ -105,7 +105,8 @@ func (r runtimeTargetReader) ListDockerTargets(ctx context.Context) ([]moduleapi
 	return results, nil
 }
 
-// dockerTargetSummary converts a Docker target with a representable identifier into a runtime target summary.
+// dockerTargetSummary 将可表示标识符的 Docker 目标转换为运行时目标摘要。
+// 如果目标不是 Docker 目标或其标识符超出可表示范围，则返回 false。
 func dockerTargetSummary(target store.Target) (moduleapi.RuntimeTargetSummary, bool) {
 	if target.ID > maxRuntimeTargetID || target.Provider != "docker" {
 		return moduleapi.RuntimeTargetSummary{}, false

@@ -64,7 +64,12 @@ const menuIcons = {
 
 export type MenuIconKey = keyof typeof menuIcons;
 
-/** Resolves server-owned menu icon identifiers to statically bundled Iconify data. */
+/**
+ * 将服务器提供的菜单图标标识符解析为已静态打包的图标数据。
+ *
+ * @param key - 菜单图标标识符
+ * @returns 对应的图标数据；标识符缺失或未匹配时返回文件夹图标
+ */
 export function resolveMenuIcon(key?: string) {
   if (key && key in menuIcons) {
     return menuIcons[key as MenuIconKey];

@@ -302,7 +302,8 @@ const (
 	monitorMenuOrderDependencies = 103
 )
 
-// registerMonitorMenu registers the server status entries under the observability menu.
+// registerMonitorMenu registers server status entries under the observability menu.
+// It does nothing when registry is nil.
 func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
