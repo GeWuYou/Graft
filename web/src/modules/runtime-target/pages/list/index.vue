@@ -20,95 +20,55 @@
         </template>
       </management-page-header>
 
-      <t-loading :loading="loading" size="large">
-        <t-row v-if="items.length" :gutter="[16, 16]" class="runtime-target-page__grid">
-          <t-col v-for="target in items" :key="target.id" :xs="12" :md="6" :xl="4">
-            <article class="runtime-target-card" :data-testid="`runtime-target-card-${target.id}`">
-              <header class="runtime-target-card__header">
-                <div class="runtime-target-card__identity">
-                  <div class="runtime-target-card__title-row">
-                    <h2>{{ target.displayName }}</h2>
-                    <t-tag :theme="target.availability ? 'success' : 'danger'" variant="light" size="small">
-                      {{ availabilityText(target.availability) }}
-                    </t-tag>
-                  </div>
-                  <p>{{ target.endpointLabel }}</p>
-                </div>
-                <t-tooltip :content="t('runtimeTarget.list.refresh')">
-                  <t-button
-                    theme="default"
-                    variant="text"
-                    shape="square"
-                    :loading="refreshingId === target.id"
-                    @click="refreshTarget(target.id)"
-                  >
-                    <template #icon><refresh-icon /></template>
-                  </t-button>
-                </t-tooltip>
-              </header>
-
-              <div class="runtime-target-card__counts">
-                <section>
-                  <span>{{ t('runtimeTarget.metrics.containers') }}</span>
-                  <strong>{{ target.summary?.containers.total ?? '-' }}</strong>
-                  <small v-if="target.summary">
-                    {{ t('runtimeTarget.metrics.running') }} {{ target.summary.containers.running }} ·
-                    {{ t('runtimeTarget.metrics.stopped') }} {{ target.summary.containers.stopped }}
-                  </small>
-                </section>
-                <section>
-                  <span>{{ t('runtimeTarget.metrics.images') }}</span>
-                  <strong>{{ target.summary?.images.total ?? '-' }}</strong>
-                  <small v-if="target.summary">
-                    {{ t('runtimeTarget.metrics.used') }} {{ target.summary.images.used }} ·
-                    {{ t('runtimeTarget.metrics.unused') }} {{ target.summary.images.unused }}
-                  </small>
-                </section>
-              </div>
-
-              <div class="runtime-target-card__metrics">
-                <metric-progress :label="t('runtimeTarget.metrics.cpu')" :metric="target.summary?.cpu" />
-                <metric-progress :label="t('runtimeTarget.metrics.memory')" :metric="target.summary?.memory" />
-                <metric-progress :label="t('runtimeTarget.metrics.disk')" :metric="target.summary?.disk" />
-              </div>
-            </article>
-          </t-col>
-        </t-row>
-
-        <t-empty
-          v-else
-          :title="t('runtimeTarget.list.emptyTitle')"
-          :description="t('runtimeTarget.list.emptyDescription')"
-          class="runtime-target-page__empty"
-        >
-          <template #action>
-            <t-button theme="primary" :loading="discovering" @click="discoverLocal">
-              {{ t('runtimeTarget.list.discoverLocal') }}
-            </t-button>
+      <management-table-card :description="t('runtimeTarget.list.summary', { count: total })">
+        <template #toolbar>
+          <t-button theme="default" variant="text" :loading="loading" @click="load">
+            <template #icon><refresh-icon /></template>
+            {{ t('runtimeTarget.list.reload') }}
+          </t-button>
+        </template>
+        <t-table row-key="id" :data="items" :columns="columns" :loading="loading">
+          <template #empty>
+            <t-empty
+              :title="t('runtimeTarget.list.emptyTitle')"
+              :description="t('runtimeTarget.list.emptyDescription')"
+            >
+              <template #action
+                ><t-button theme="primary" :loading="discovering" @click="discoverLocal">{{
+                  t('runtimeTarget.list.discoverLocal')
+                }}</t-button></template
+              >
+            </t-empty>
           </template>
-        </t-empty>
-      </t-loading>
-
-      <management-table-pagination :summary="t('runtimeTarget.list.summary', { count: total })">
-        <t-pagination
-          v-model:current="pagination.current"
-          v-model:page-size="pagination.pageSize"
-          :total="total"
-          :page-size-options="[10, 20, 50, 100]"
-          :show-page-number="true"
-          @change="load"
-        />
-      </management-table-pagination>
+        </t-table>
+        <template #footer>
+          <management-table-pagination :summary="t('runtimeTarget.list.summary', { count: total })">
+            <t-pagination
+              v-model:current="pagination.current"
+              v-model:page-size="pagination.pageSize"
+              :total="total"
+              :page-size-options="[10, 20, 50, 100]"
+              :show-page-number="true"
+              @change="load"
+            />
+          </management-table-pagination>
+        </template>
+      </management-table-card>
     </management-page-content>
   </div>
 </template>
 <script setup lang="ts">
 import { RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent } from 'vue';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, resolveComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ManagementPageContent, ManagementPageHeader, ManagementTablePagination } from '@/shared/components/management';
+import {
+  ManagementPageContent,
+  ManagementPageHeader,
+  ManagementTableCard,
+  ManagementTablePagination,
+} from '@/shared/components/management';
 import { formatBytes } from '@/shared/observability';
 
 import {
@@ -127,45 +87,93 @@ const items = ref<RuntimeTarget[]>([]);
 const total = ref(0);
 const pagination = reactive({ current: 1, pageSize: 10 });
 
-const MetricProgress = defineComponent({
-  props: {
-    label: { type: String, required: true },
-    metric: { type: Object as () => RuntimeTargetMetric | undefined, default: undefined },
+function metricText(metric: RuntimeTargetMetric) {
+  if (!metric.available) return t('runtimeTarget.metrics.unavailable');
+  const percent = `${metric.usagePercent.toFixed(1)}%`;
+  return metric.totalBytes > 0
+    ? `${percent} · ${formatBytes(metric.usedBytes)} / ${formatBytes(metric.totalBytes)}`
+    : percent;
+}
+
+function metricCell(metric: RuntimeTargetMetric) {
+  const percent = Math.max(0, Math.min(100, metric.usagePercent));
+  const tooltip = metric.available
+    ? metricText(metric)
+    : metric.unavailableReason || t('runtimeTarget.metrics.unavailableHint');
+  return h(resolveComponent('t-tooltip'), { content: tooltip }, () =>
+    h('div', { class: 'runtime-target-meter', 'data-available': metric.available }, [
+      metric.available
+        ? h(resolveComponent('t-progress'), {
+            theme: 'circle',
+            label: false,
+            percentage: percent,
+            size: 36,
+            strokeWidth: 4,
+          })
+        : h('span', { class: 'runtime-target-meter__empty' }),
+      h('span', metric.available ? `${percent.toFixed(1)}%` : t('runtimeTarget.metrics.unavailable')),
+    ]),
+  );
+}
+
+const columns = computed<any[]>(() => [
+  {
+    colKey: 'displayName',
+    title: t('runtimeTarget.columns.name'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
+      h('div', [h('strong', row.displayName), h('small', row.endpointLabel)]),
   },
-  setup(props) {
-    const metricAvailable = computed(() => props.metric?.available === true);
-    const percentage = computed(() => Math.max(0, Math.min(100, props.metric?.usagePercent ?? 0)));
-    const usage = computed(() => {
-      if (!metricAvailable.value) return t('runtimeTarget.metrics.unavailable');
-      if (props.metric?.usedBytes !== undefined && props.metric.totalBytes !== undefined) {
-        return `${formatBytes(props.metric.usedBytes)} / ${formatBytes(props.metric.totalBytes)}`;
-      }
-      return `${percentage.value.toFixed(1)}%`;
-    });
-    return () =>
-      h('section', { class: 'runtime-target-metric' }, [
-        h('div', { class: 'runtime-target-metric__head' }, [
-          h('span', props.label),
-          metricAvailable.value
-            ? h('strong', `${percentage.value.toFixed(1)}%`)
-            : h('span', { class: 'runtime-target-metric__unavailable' }, t('runtimeTarget.metrics.unavailable')),
-        ]),
-        metricAvailable.value
-          ? h(resolveComponent('t-progress'), {
-              percentage: percentage.value,
-              theme: 'line',
-              label: false,
-              trackColor: 'var(--td-component-stroke)',
-            })
-          : h(
-              'span',
-              { class: 'runtime-target-metric__hint' },
-              props.metric?.unavailableReason || t('runtimeTarget.metrics.unavailableHint'),
-            ),
-        h('small', usage.value),
-      ]);
+  {
+    colKey: 'availability',
+    title: t('runtimeTarget.columns.status'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
+      h('t-tag', { theme: row.availability ? 'success' : 'danger', variant: 'light' }, () =>
+        availabilityText(row.availability),
+      ),
   },
-});
+  {
+    colKey: 'containers',
+    title: t('runtimeTarget.metrics.containers'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
+      `${row.summary.containers.total} (${t('runtimeTarget.metrics.running')} ${row.summary.containers.running} · ${t('runtimeTarget.metrics.stopped')} ${row.summary.containers.stopped})`,
+  },
+  {
+    colKey: 'images',
+    title: t('runtimeTarget.metrics.images'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
+      `${row.summary.images.total} (${t('runtimeTarget.metrics.used')} ${row.summary.images.used} · ${t('runtimeTarget.metrics.unused')} ${row.summary.images.unused})`,
+  },
+  {
+    colKey: 'cpu',
+    title: t('runtimeTarget.metrics.cpu'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.summary.cpu),
+  },
+  {
+    colKey: 'memory',
+    title: t('runtimeTarget.metrics.memory'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.summary.memory),
+  },
+  {
+    colKey: 'disk',
+    title: t('runtimeTarget.metrics.disk'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.summary.disk),
+  },
+  {
+    colKey: 'actions',
+    title: t('runtimeTarget.list.refresh'),
+    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
+      h(
+        't-button',
+        {
+          theme: 'default',
+          variant: 'text',
+          loading: refreshingId.value === row.id,
+          onClick: () => refreshTarget(row.id),
+        },
+        () => h(RefreshIcon),
+      ),
+  },
+]);
 
 function availabilityText(value: boolean) {
   return value ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable');
@@ -207,9 +215,49 @@ async function discoverLocal() {
   }
 }
 
-onMounted(load);
+const refreshIntervalMs = 5_000;
+let refreshTimer: number | null = null;
+function startRealtimeRefresh() {
+  if (refreshTimer !== null) return;
+  refreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible' && !loading.value) void load();
+  }, refreshIntervalMs);
+}
+function stopRealtimeRefresh() {
+  if (refreshTimer !== null) window.clearInterval(refreshTimer);
+  refreshTimer = null;
+}
+onMounted(() => {
+  void load();
+  startRealtimeRefresh();
+});
+onActivated(startRealtimeRefresh);
+onDeactivated(stopRealtimeRefresh);
+onUnmounted(stopRealtimeRefresh);
 </script>
 <style scoped lang="less">
+.runtime-target-meter {
+  align-items: center;
+  background: var(--td-bg-color-container-hover);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: var(--graft-density-gap-8);
+  padding: var(--graft-density-gap-2) var(--graft-density-gap-8) var(--graft-density-gap-2) var(--graft-density-gap-2);
+  white-space: nowrap;
+}
+
+.runtime-target-meter > span:last-child {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.runtime-target-meter__empty {
+  border: 1px dashed var(--td-component-stroke);
+  border-radius: 50%;
+  height: 36px;
+  width: 36px;
+}
+
 .runtime-target-page__grid {
   margin-top: var(--graft-density-gap-4);
 }

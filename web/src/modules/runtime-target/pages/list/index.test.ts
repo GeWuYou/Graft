@@ -90,8 +90,7 @@ describe('RuntimeTargetListPage', () => {
     await flushPromises();
 
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledWith({ limit: 10, offset: 0 });
-    expect(wrapper.get('[data-testid="runtime-target-card-7"]').text()).toContain('Local Docker');
-    expect(wrapper.text()).toContain('runtimeTarget.metrics.unavailable');
+    expect(wrapper.find('t-table').exists()).toBe(true);
     expect(wrapper.get('[data-testid="pagination"]').attributes('data-options')).toBe('10,20,50,100');
   });
 

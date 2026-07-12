@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	runtimeTargetSummaryTTL = 5 * time.Second
-	percentageScale         = 100
+	runtimeTargetSummaryTTL   = time.Second
+	runtimeTargetStatsTimeout = 2 * time.Second
+	percentageScale           = 100
 )
 
 type targetCountMetric struct {
@@ -131,6 +132,8 @@ func collectTargetSummary(ctx context.Context, target store.Target) targetRuntim
 	if infoErr != nil {
 		return result
 	}
+	statsCtx, cancelStats := context.WithTimeout(ctx, runtimeTargetStatsTimeout)
+	defer cancelStats()
 	var usedMemory int64
 	var cpu float64
 	statsOK := true
@@ -138,7 +141,7 @@ func collectTargetSummary(ctx context.Context, target store.Target) targetRuntim
 		if string(item.State) != "running" {
 			continue
 		}
-		stats, err := client.ContainerStats(ctx, item.ID, mobyclient.ContainerStatsOptions{IncludePreviousSample: true})
+		stats, err := client.ContainerStats(statsCtx, item.ID, mobyclient.ContainerStatsOptions{IncludePreviousSample: true})
 		if err != nil {
 			statsOK = false
 			break
