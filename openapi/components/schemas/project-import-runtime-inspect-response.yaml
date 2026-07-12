@@ -1,6 +1,7 @@
 type: object
 required:
   - inspection_id
+  - expires_at
   - candidate_key
   - resolved_working_directory
   - canonical_project_name
@@ -20,6 +21,10 @@ required:
 properties:
   inspection_id:
     type: string
+  expires_at:
+    type: string
+    format: date-time
+    description: Absolute UTC expiration time for this short-lived inspection session.
   candidate_key:
     type: string
   resolved_working_directory:

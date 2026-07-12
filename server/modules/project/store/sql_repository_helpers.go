@@ -22,6 +22,56 @@ const (
 	maxListLimit     = 100
 )
 
+// normalizeSourceMetadata trims metadata keys and values and validates their content.
+// It returns a normalized copy of the metadata or ErrInvalidInput when a key or value
+// is empty or contains prohibited characters.
+func normalizeSourceMetadata(metadata map[string]string) (map[string]string, error) {
+	if len(metadata) == 0 {
+		return map[string]string{}, nil
+	}
+	result := make(map[string]string, len(metadata))
+	for key, value := range metadata {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" {
+			return nil, ErrInvalidInput
+		}
+		if strings.ContainsAny(key, "\x00\r\n") || strings.ContainsAny(value, "\x00\r\n") {
+			return nil, ErrInvalidInput
+		}
+		result[key] = value
+	}
+	return result, nil
+}
+
+// encodeSourceMetadataJSON normalizes source metadata and encodes it as JSON.
+// It returns an error when the metadata is invalid or cannot be encoded.
+func encodeSourceMetadataJSON(metadata map[string]string) ([]byte, error) {
+	normalized, err := normalizeSourceMetadata(metadata)
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return nil, fmt.Errorf("encode source metadata: %w", err)
+	}
+	return encoded, nil
+}
+
+// decodeSourceMetadataJSON decodes and normalizes source metadata from JSON.
+// Empty input produces an empty metadata map. It returns an error when the JSON
+// is invalid or the decoded metadata fails validation.
+func decodeSourceMetadataJSON(raw []byte) (map[string]string, error) {
+	if len(raw) == 0 {
+		return map[string]string{}, nil
+	}
+	var metadata map[string]string
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		return nil, fmt.Errorf("decode source metadata: %w", err)
+	}
+	return normalizeSourceMetadata(metadata)
+}
+
 func (r *SQLRepository) ensureReady() error {
 	if r == nil || r.db == nil {
 		return errors.New("project repository is unavailable")
@@ -54,7 +104,8 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 }
 
 // validateImportInput 规范化并校验导入项目输入，返回可直接使用的输入值。
-// 该函数会修剪字符串字段、校验必填字段、规范化文件和快照，并将时间指针统一转换为 UTC。
+// validateImportInput 修剪并验证项目导入输入，规范化文件、快照、源元数据以及时间字段。
+// 返回规范化后的导入输入；输入无效时返回错误。
 func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 	input = trimImportInput(input)
 	if err := validateRequiredImportFields(input); err != nil {
@@ -73,11 +124,16 @@ func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 		return ImportProjectInput{}, err
 	}
 	input.Snapshot = snapshot
+	metadata, err := normalizeSourceMetadata(input.SourceMetadata)
+	if err != nil {
+		return ImportProjectInput{}, err
+	}
+	input.SourceMetadata = metadata
 	normalizeTemporalPointers(&input.LastDriftCheckedAt)
 	return input, nil
 }
 
-// trimImportInput 去除导入项目输入中字符串字段首尾空白。
+// trimImportInput 去除导入项目输入中字符串字段及来源元数据值的首尾空白。
 func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.CanonicalProjectName = strings.TrimSpace(input.CanonicalProjectName)
@@ -86,6 +142,9 @@ func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	input.HostScope = strings.TrimSpace(input.HostScope)
 	input.WorkingDirectory = strings.TrimSpace(input.WorkingDirectory)
 	input.OwnershipMode = strings.TrimSpace(input.OwnershipMode)
+	for key, value := range input.SourceMetadata {
+		input.SourceMetadata[key] = strings.TrimSpace(value)
+	}
 	input.LifecycleStrategyKind = strings.TrimSpace(input.LifecycleStrategyKind)
 	input.LifecycleReviewStatus = strings.TrimSpace(input.LifecycleReviewStatus)
 	input.LastObservedConfigHash = strings.TrimSpace(input.LastObservedConfigHash)
@@ -355,13 +414,12 @@ func normalizeOptionalContractValue(value string, valid func(string) bool) (stri
 	return value, nil
 }
 
+// isValidSourceKind reports whether value is a supported project source kind.
 func isValidSourceKind(value string) bool {
 	switch value {
 	case projectcontract.SourceKindImported.String(),
 		projectcontract.SourceKindManaged.String(),
-		projectcontract.SourceKindGit.String(),
-		projectcontract.SourceKindTemplate.String(),
-		projectcontract.SourceKindRemoteHost.String():
+		projectcontract.SourceKindTemplate.String():
 		return true
 	default:
 		return false
@@ -494,7 +552,7 @@ func rollbackTx(tx *sql.Tx) {
 // scanProject 读取并组装项目记录。
 //
 // 将查询结果中的可空时间和可空用户 ID 转换为对应的指针字段。
-// @returns 组装后的项目记录；扫描失败时返回错误。
+// scanProject 扫描并组装项目记录及其 JSON 字段和可空字段；扫描或字段解码失败时返回错误。
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
 	var lastDriftCheckedAt sql.NullTime
@@ -502,6 +560,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
 	var lifecycleConfigJSON []byte
+	var sourceMetadataJSON []byte
 	var workspaceAnnotationsJSON []byte
 	if err := scanner.Scan(
 		&item.ID,
@@ -512,6 +571,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		&item.HostScope,
 		&item.WorkingDirectory,
 		&item.OwnershipMode,
+		&sourceMetadataJSON,
 		&item.LifecycleStrategyKind,
 		&item.LifecycleReviewStatus,
 		&lifecycleConfigJSON,
@@ -537,6 +597,11 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		return Project{}, err
 	}
 	item.WorkspaceAnnotations = annotations
+	metadata, err := decodeSourceMetadataJSON(sourceMetadataJSON)
+	if err != nil {
+		return Project{}, err
+	}
+	item.SourceMetadata = metadata
 	config, err := decodeLifecycleConfigJSON(lifecycleConfigJSON)
 	if err != nil {
 		return Project{}, err

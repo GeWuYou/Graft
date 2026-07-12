@@ -2343,6 +2343,45 @@ func (e ProjectCreateResponseResult) Valid() bool {
 	}
 }
 
+// Defines values for ProjectCreationMethodAvailability.
+const (
+	ProjectCreationMethodAvailabilityBlocked ProjectCreationMethodAvailability = "blocked"
+	ProjectCreationMethodAvailabilityReady   ProjectCreationMethodAvailability = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreationMethodAvailability enum.
+func (e ProjectCreationMethodAvailability) Valid() bool {
+	switch e {
+	case ProjectCreationMethodAvailabilityBlocked:
+		return true
+	case ProjectCreationMethodAvailabilityReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectCreationMethodType.
+const (
+	ProjectCreationMethodTypeBlank    ProjectCreationMethodType = "blank"
+	ProjectCreationMethodTypeImport   ProjectCreationMethodType = "import"
+	ProjectCreationMethodTypeTemplate ProjectCreationMethodType = "template"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreationMethodType enum.
+func (e ProjectCreationMethodType) Valid() bool {
+	switch e {
+	case ProjectCreationMethodTypeBlank:
+		return true
+	case ProjectCreationMethodTypeImport:
+		return true
+	case ProjectCreationMethodTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectDeployResponseAction.
 const (
 	ProjectDeployResponseActionDeploy ProjectDeployResponseAction = "deploy"
@@ -2546,16 +2585,13 @@ func (e ProjectFileTreeNodeType) Valid() bool {
 
 // Defines values for ProjectHostScope.
 const (
-	ProjectHostScopeLocal  ProjectHostScope = "local"
-	ProjectHostScopeRemote ProjectHostScope = "remote"
+	ProjectHostScopeLocal ProjectHostScope = "local"
 )
 
 // Valid indicates whether the value is a known member of the ProjectHostScope enum.
 func (e ProjectHostScope) Valid() bool {
 	switch e {
 	case ProjectHostScopeLocal:
-		return true
-	case ProjectHostScopeRemote:
 		return true
 	default:
 		return false
@@ -2877,54 +2913,8 @@ func (e ProjectRuntimeStatus) Valid() bool {
 	}
 }
 
-// Defines values for ProjectSourceEntryStatus.
-const (
-	ProjectSourceEntryStatusBlocked ProjectSourceEntryStatus = "blocked"
-	ProjectSourceEntryStatusPlanned ProjectSourceEntryStatus = "planned"
-	ProjectSourceEntryStatusReady   ProjectSourceEntryStatus = "ready"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSourceEntryStatus enum.
-func (e ProjectSourceEntryStatus) Valid() bool {
-	switch e {
-	case ProjectSourceEntryStatusBlocked:
-		return true
-	case ProjectSourceEntryStatusPlanned:
-		return true
-	case ProjectSourceEntryStatusReady:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSourceEntryType.
-const (
-	ProjectSourceEntryTypeGit        ProjectSourceEntryType = "git"
-	ProjectSourceEntryTypeManaged    ProjectSourceEntryType = "managed"
-	ProjectSourceEntryTypeRemoteHost ProjectSourceEntryType = "remote-host"
-	ProjectSourceEntryTypeTemplate   ProjectSourceEntryType = "template"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSourceEntryType enum.
-func (e ProjectSourceEntryType) Valid() bool {
-	switch e {
-	case ProjectSourceEntryTypeGit:
-		return true
-	case ProjectSourceEntryTypeManaged:
-		return true
-	case ProjectSourceEntryTypeRemoteHost:
-		return true
-	case ProjectSourceEntryTypeTemplate:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ProjectSourceKind.
 const (
-	ProjectSourceKindGit      ProjectSourceKind = "git"
 	ProjectSourceKindImported ProjectSourceKind = "imported"
 	ProjectSourceKindManaged  ProjectSourceKind = "managed"
 	ProjectSourceKindTemplate ProjectSourceKind = "template"
@@ -2933,8 +2923,6 @@ const (
 // Valid indicates whether the value is a known member of the ProjectSourceKind enum.
 func (e ProjectSourceKind) Valid() bool {
 	switch e {
-	case ProjectSourceKindGit:
-		return true
 	case ProjectSourceKindImported:
 		return true
 	case ProjectSourceKindManaged:
@@ -6696,6 +6684,26 @@ type EnvelopedProjectCreateValidateResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectCreationMethodCatalogResponse defines model for enveloped-project-creation-method-catalog-response.
+type EnvelopedProjectCreationMethodCatalogResponse struct {
+	// Code Existing canonical response code.
+	Code string                               `json:"code"`
+	Data ProjectCreationMethodCatalogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectDeployResponse defines model for enveloped-project-deploy-response.
 type EnvelopedProjectDeployResponse struct {
 	// Code Existing canonical response code.
@@ -7008,26 +7016,6 @@ type EnvelopedProjectServicesResponse struct {
 	// Code Existing canonical response code.
 	Code string                  `json:"code"`
 	Data ProjectServicesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectSourceCatalogResponse defines model for enveloped-project-source-catalog-response.
-type EnvelopedProjectSourceCatalogResponse struct {
-	// Code Existing canonical response code.
-	Code string                       `json:"code"`
-	Data ProjectSourceCatalogResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -7967,14 +7955,24 @@ type ProjectCreateRequest struct {
 	// ComposeFileContent Initial Compose YAML content to materialize in the managed project directory.
 	ComposeFileContent string `json:"compose_file_content"`
 	ComposeFileName    string `json:"compose_file_name"`
-	DisplayName        string `json:"display_name"`
+
+	// ComposeFilePath Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition.
+	ComposeFilePath *string `json:"compose_file_path,omitempty"`
+	DisplayName     string  `json:"display_name"`
 
 	// EnvFileContent Optional initial env file content. It is ignored when env_file_name is omitted.
 	EnvFileContent *string `json:"env_file_content,omitempty"`
 	EnvFileName    *string `json:"env_file_name,omitempty"`
 
+	// EnvFilePaths Explicit workspace-relative env file references.
+	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
+	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+
 	// RelativeProjectDirectory Relative project directory under the canonical managed root.
 	RelativeProjectDirectory string `json:"relative_project_directory"`
+
+	// WorkspaceFiles Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.
+	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
 }
 
 // ProjectCreateResponse defines model for project-create-response.
@@ -7998,7 +7996,7 @@ type ProjectCreateResponse struct {
 		RefreshedAt          time.Time `json:"refreshed_at"`
 	} `json:"snapshot_summary"`
 	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
-	SourceType       ProjectSourceEntryType `json:"source_type"`
+	SourceType       ProjectSourceKind      `json:"source_type"`
 	Warnings         *[]string              `json:"warnings,omitempty"`
 	WorkingDirectory string                 `json:"working_directory"`
 }
@@ -8011,13 +8009,19 @@ type ProjectCreateResponseResult string
 
 // ProjectCreateValidateRequest defines model for project-create-validate-request.
 type ProjectCreateValidateRequest struct {
-	CanonicalProjectName string  `json:"canonical_project_name"`
-	ComposeFileName      string  `json:"compose_file_name"`
-	DisplayName          string  `json:"display_name"`
-	EnvFileName          *string `json:"env_file_name,omitempty"`
+	CanonicalProjectName   string                                `json:"canonical_project_name"`
+	ComposeFileName        string                                `json:"compose_file_name"`
+	ComposeFilePath        *string                               `json:"compose_file_path,omitempty"`
+	DisplayName            string                                `json:"display_name"`
+	EnvFileName            *string                               `json:"env_file_name,omitempty"`
+	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
+	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 
 	// RelativeProjectDirectory Relative project directory under the canonical managed root.
 	RelativeProjectDirectory string `json:"relative_project_directory"`
+
+	// WorkspaceFiles Complete managed workspace text manifest to validate without materializing.
+	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
 }
 
 // ProjectCreateValidateResponse defines model for project-create-validate-response.
@@ -8031,10 +8035,30 @@ type ProjectCreateValidateResponse struct {
 	ManagedRoot             ProjectManagedRootResponse `json:"managed_root"`
 	OwnershipMode           ProjectOwnershipMode       `json:"ownership_mode"`
 	SourceMetadata          *ProjectSourceMetadata     `json:"source_metadata,omitempty"`
-	SourceType              ProjectSourceEntryType     `json:"source_type"`
+	SourceType              ProjectSourceKind          `json:"source_type"`
 	Warnings                *[]string                  `json:"warnings,omitempty"`
 	WorkingDirectory        string                     `json:"working_directory"`
 }
+
+// ProjectCreationMethod defines model for project-creation-method.
+type ProjectCreationMethod struct {
+	Availability ProjectCreationMethodAvailability `json:"availability"`
+
+	// BlockedReason Stable reason code when the creation method is blocked.
+	BlockedReason *string                   `json:"blocked_reason,omitempty"`
+	Method        ProjectCreationMethodType `json:"method"`
+}
+
+// ProjectCreationMethodAvailability defines model for project-creation-method-availability.
+type ProjectCreationMethodAvailability string
+
+// ProjectCreationMethodCatalogResponse defines model for project-creation-method-catalog-response.
+type ProjectCreationMethodCatalogResponse struct {
+	Items []ProjectCreationMethod `json:"items"`
+}
+
+// ProjectCreationMethodType defines model for project-creation-method-type.
+type ProjectCreationMethodType string
 
 // ProjectDeployResponse defines model for project-deploy-response.
 type ProjectDeployResponse struct {
@@ -8112,7 +8136,7 @@ type ProjectDiscoveryCandidate struct {
 	ServiceCount               int                                        `json:"service_count"`
 	SourceKind                 ProjectSourceKind                          `json:"source_kind"`
 	SourceMetadata             *ProjectSourceMetadata                     `json:"source_metadata,omitempty"`
-	SourceType                 *ProjectSourceEntryType                    `json:"source_type,omitempty"`
+	SourceType                 *ProjectSourceKind                         `json:"source_type,omitempty"`
 	Status                     ProjectDiscoveryCandidateStatus            `json:"status"`
 	StatusReason               *string                                    `json:"status_reason,omitempty"`
 	Warnings                   []string                                   `json:"warnings"`
@@ -8132,7 +8156,7 @@ type ProjectDiscoveryCandidateStatus string
 type ProjectDiscoveryCandidatesResponse struct {
 	AuthorityRoot         *string                     `json:"authority_root"`
 	Items                 []ProjectDiscoveryCandidate `json:"items"`
-	SourceType            ProjectSourceEntryType      `json:"source_type"`
+	SourceType            ProjectSourceKind           `json:"source_type"`
 	StatusReason          *string                     `json:"status_reason,omitempty"`
 	SupportsAutoDiscovery bool                        `json:"supports_auto_discovery"`
 	SupportsScan          bool                        `json:"supports_scan"`
@@ -8400,23 +8424,26 @@ type ProjectImportRuntimeInspectRequest struct {
 
 // ProjectImportRuntimeInspectResponse defines model for project-import-runtime-inspect-response.
 type ProjectImportRuntimeInspectResponse struct {
-	CandidateKey               string                                              `json:"candidate_key"`
-	CanonicalProjectName       string                                              `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource                          `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectImportInspectFileItem                      `json:"compose_files"`
-	ConfigHash                 string                                              `json:"config_hash"`
-	Conflicts                  []string                                            `json:"conflicts"`
-	DisplayNameSuggested       string                                              `json:"display_name_suggested"`
-	EnvFiles                   []ProjectImportInspectFileItem                      `json:"env_files"`
-	InspectionId               string                                              `json:"inspection_id"`
-	LifecycleConfiguration     ProjectLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
-	Networks                   []ProjectImportRuntimeNetworkResource               `json:"networks"`
-	ResolvedWorkingDirectory   string                                              `json:"resolved_working_directory"`
-	RuntimeMembers             []ProjectImportRuntimeMember                        `json:"runtime_members"`
-	Services                   []string                                            `json:"services"`
-	ValidationStatus           ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
-	Volumes                    []ProjectImportRuntimeVolumeResource                `json:"volumes"`
-	Warnings                   []string                                            `json:"warnings"`
+	CandidateKey               string                         `json:"candidate_key"`
+	CanonicalProjectName       string                         `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource     `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectImportInspectFileItem `json:"compose_files"`
+	ConfigHash                 string                         `json:"config_hash"`
+	Conflicts                  []string                       `json:"conflicts"`
+	DisplayNameSuggested       string                         `json:"display_name_suggested"`
+	EnvFiles                   []ProjectImportInspectFileItem `json:"env_files"`
+
+	// ExpiresAt Absolute UTC expiration time for this short-lived inspection session.
+	ExpiresAt                time.Time                                           `json:"expires_at"`
+	InspectionId             string                                              `json:"inspection_id"`
+	LifecycleConfiguration   ProjectLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
+	Networks                 []ProjectImportRuntimeNetworkResource               `json:"networks"`
+	ResolvedWorkingDirectory string                                              `json:"resolved_working_directory"`
+	RuntimeMembers           []ProjectImportRuntimeMember                        `json:"runtime_members"`
+	Services                 []string                                            `json:"services"`
+	ValidationStatus         ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
+	Volumes                  []ProjectImportRuntimeVolumeResource                `json:"volumes"`
+	Warnings                 []string                                            `json:"warnings"`
 }
 
 // ProjectImportRuntimeInspectResponseValidationStatus defines model for ProjectImportRuntimeInspectResponse.ValidationStatus.
@@ -8646,7 +8673,7 @@ type ProjectManagedRootResponse struct {
 	ConfiguredRootDirectory *string                  `json:"configured_root_directory,omitempty"`
 	CreatePermission        string                   `json:"create_permission"`
 	OwnershipMode           ProjectOwnershipMode     `json:"ownership_mode"`
-	SourceType              ProjectSourceEntryType   `json:"source_type"`
+	SourceType              ProjectSourceKind        `json:"source_type"`
 	Status                  ProjectManagedRootStatus `json:"status"`
 	StatusReason            *string                  `json:"status_reason,omitempty"`
 	SupportsManagedCreate   bool                     `json:"supports_managed_create"`
@@ -8747,55 +8774,11 @@ type ProjectServicesResponse struct {
 	ProjectId            int64                `json:"project_id"`
 }
 
-// ProjectSourceCatalogResponse defines model for project-source-catalog-response.
-type ProjectSourceCatalogResponse struct {
-	Items []ProjectSourceEntry `json:"items"`
-}
-
-// ProjectSourceEntry defines model for project-source-entry.
-type ProjectSourceEntry struct {
-	Description     string                   `json:"description"`
-	DescriptionKey  string                   `json:"description_key"`
-	DisplayName     string                   `json:"display_name"`
-	HostScope       ProjectHostScope         `json:"host_scope"`
-	MenuGroup       string                   `json:"menu_group"`
-	MetadataFields  []string                 `json:"metadata_fields"`
-	Permission      string                   `json:"permission"`
-	RouteName       string                   `json:"route_name"`
-	RoutePath       string                   `json:"route_path"`
-	Status          ProjectSourceEntryStatus `json:"status"`
-	StatusReason    *string                  `json:"status_reason,omitempty"`
-	StatusReasonKey *string                  `json:"status_reason_key,omitempty"`
-	TitleKey        string                   `json:"title_key"`
-	Type            ProjectSourceEntryType   `json:"type"`
-}
-
-// ProjectSourceEntryStatus defines model for project-source-entry-status.
-type ProjectSourceEntryStatus string
-
-// ProjectSourceEntryType defines model for project-source-entry-type.
-type ProjectSourceEntryType string
-
 // ProjectSourceKind defines model for project-source-kind.
 type ProjectSourceKind string
 
 // ProjectSourceMetadata defines model for project-source-metadata.
 type ProjectSourceMetadata struct {
-	// ActivityAuthority Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner.
-	ActivityAuthority *string `json:"activity_authority,omitempty"`
-
-	// ActivityRollupScope Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary.
-	ActivityRollupScope *string `json:"activity_rollup_scope,omitempty"`
-
-	// GitComposeSubpath Planned repository-relative compose working directory or file subpath.
-	GitComposeSubpath *string `json:"git_compose_subpath,omitempty"`
-
-	// GitReference Planned git branch, tag, or commit ref for a future git-backed project source.
-	GitReference *string `json:"git_reference,omitempty"`
-
-	// GitRepositoryUrl Planned canonical git repository URL for a future git-backed project source.
-	GitRepositoryUrl *string `json:"git_repository_url,omitempty"`
-
 	// ManagedComposeFileName Canonical managed compose file name tracked by project authority.
 	ManagedComposeFileName *string `json:"managed_compose_file_name,omitempty"`
 
@@ -8808,12 +8791,6 @@ type ProjectSourceMetadata struct {
 	// ManagedRootKey Canonical config key that owns the managed project root.
 	ManagedRootKey *string `json:"managed_root_key,omitempty"`
 
-	// RemoteComposePath Planned remote compose working directory or entry compose file path under the remote-host boundary.
-	RemoteComposePath *string `json:"remote_compose_path,omitempty"`
-
-	// RemoteHostKey Planned stable remote host connection identifier owned by future remote-host project authority.
-	RemoteHostKey *string `json:"remote_host_key,omitempty"`
-
 	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
 	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
 
@@ -8824,8 +8801,34 @@ type ProjectSourceMetadata struct {
 	TemplateVersion *string `json:"template_version,omitempty"`
 }
 
+// ProjectTemplateCreateRequest defines model for project-template-create-request.
+type ProjectTemplateCreateRequest struct {
+	CanonicalProjectName     string                                `json:"canonical_project_name"`
+	DisplayName              string                                `json:"display_name"`
+	LifecycleConfiguration   *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+	RelativeProjectDirectory string                                `json:"relative_project_directory"`
+
+	// TemplateInstanceName Safe display provenance for this template instance. Defaults to canonical_project_name.
+	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+
+	// TemplateKey Explicit bundled template key. Defaults to empty-compose.
+	TemplateKey *string `json:"template_key,omitempty"`
+
+	// TemplateVersion Explicit bundled template version. Defaults to v1.
+	TemplateVersion *string `json:"template_version,omitempty"`
+}
+
 // ProjectWorkspaceFileKind defines model for project-workspace-file-kind.
 type ProjectWorkspaceFileKind string
+
+// ProjectWorkspaceManifestFile defines model for project-workspace-manifest-file.
+type ProjectWorkspaceManifestFile struct {
+	// Content UTF-8 text content to materialize for the file.
+	Content string `json:"content"`
+
+	// Path Relative text-file path within the managed workspace. Absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -10711,6 +10714,36 @@ type PostProjectCreateValidateParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostProjectCreateTemplateParams defines parameters for PostProjectCreateTemplate.
+type PostProjectCreateTemplateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateTemplateValidateParams defines parameters for PostProjectCreateTemplateValidate.
+type PostProjectCreateTemplateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectCreationMethodsParams defines parameters for GetProjectCreationMethods.
+type GetProjectCreationMethodsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetProjectDiscoveryCandidatesParams defines parameters for GetProjectDiscoveryCandidates.
 type GetProjectDiscoveryCandidatesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10822,16 +10855,6 @@ type PostProjectImportValidateParams struct {
 
 // GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
 type GetProjectManagedRootParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectSourcesParams defines parameters for GetProjectSources.
-type GetProjectSourcesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11697,6 +11720,12 @@ type PostProjectCreateJSONRequestBody = ProjectCreateRequest
 
 // PostProjectCreateValidateJSONRequestBody defines body for PostProjectCreateValidate for application/json ContentType.
 type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest
+
+// PostProjectCreateTemplateJSONRequestBody defines body for PostProjectCreateTemplate for application/json ContentType.
+type PostProjectCreateTemplateJSONRequestBody = ProjectTemplateCreateRequest
+
+// PostProjectCreateTemplateValidateJSONRequestBody defines body for PostProjectCreateTemplateValidate for application/json ContentType.
+type PostProjectCreateTemplateValidateJSONRequestBody = ProjectTemplateCreateRequest
 
 // PostProjectImportJSONRequestBody defines body for PostProjectImport for application/json ContentType.
 type PostProjectImportJSONRequestBody = ProjectImportRequest

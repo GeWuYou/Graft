@@ -1022,6 +1022,27 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 	}
 }
 
+func TestCreateManagedProjectMaterializesNestedWorkspaceFiles(t *testing.T) {
+	t.Parallel()
+	managedRoot := t.TempDir()
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+		DisplayName: "Demo", CanonicalProjectName: "demo", RelativeProjectDirectory: "demo", ComposeFileName: "compose.yaml", ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
+		WorkspaceFiles: []ManagedWorkspaceFile{{Path: "compose.yaml", Content: "services:\n  web:\n    image: nginx:latest\n"}, {Path: "nginx/nginx.conf", Content: "events {}\n"}, {Path: ".env.production", Content: "MODE=production\n"}},
+	}, nil)
+	if err != nil {
+		t.Fatalf("create managed workspace: %v", err)
+	}
+	for _, path := range []string{"nginx/nginx.conf", ".env.production"} {
+		if _, statErr := os.Stat(filepath.Join(managedRoot, "demo", path)); statErr != nil {
+			t.Fatalf("expected workspace file %s: %v", path, statErr)
+		}
+	}
+}
+
 func TestListRuntimeImportCandidatesMarksBrokenCompose(t *testing.T) {
 	t.Parallel()
 
@@ -1575,7 +1596,7 @@ func TestDiscoveryCandidatesMarksConflictWhenProjectAlreadyRegistered(t *testing
 	}
 }
 
-func TestSourceCatalogAddsRemoteHostBoundary(t *testing.T) {
+func TestCreationMethodCatalogExposesSupportedMethods(t *testing.T) {
 	t.Parallel()
 
 	managedRoot := t.TempDir()
@@ -1584,25 +1605,44 @@ func TestSourceCatalogAddsRemoteHostBoundary(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.SourceCatalog(context.Background())
+	result, err := service.CreationMethodCatalog(context.Background())
 	if err != nil {
-		t.Fatalf("source catalog: %v", err)
+		t.Fatalf("creation method catalog: %v", err)
 	}
-	if len(result.Items) != 4 {
-		t.Fatalf("expected 4 source entries, got %d", len(result.Items))
+	if len(result.Items) != 3 {
+		t.Fatalf("expected 3 creation methods, got %d", len(result.Items))
 	}
-	remote := result.Items[3]
-	if remote.Type != generated.ProjectSourceEntryType("remote-host") {
-		t.Fatalf("expected remote-host source type, got %q", remote.Type)
+	if result.Items[0].Method != generated.ProjectCreationMethodTypeBlank {
+		t.Fatalf("expected blank creation method, got %q", result.Items[0].Method)
 	}
-	if remote.HostScope != generated.ProjectHostScope("remote") {
-		t.Fatalf("expected remote host scope, got %q", remote.HostScope)
+	if result.Items[0].Availability != generated.ProjectCreationMethodAvailabilityReady {
+		t.Fatalf("expected ready blank method, got %q", result.Items[0].Availability)
 	}
-	if remote.RoutePath != "/ops/projects/create/remote-host" {
-		t.Fatalf("unexpected remote-host route path: %q", remote.RoutePath)
+	if result.Items[1].Method != generated.ProjectCreationMethodTypeTemplate {
+		t.Fatalf("expected template creation method, got %q", result.Items[1].Method)
 	}
-	if remote.Status != generated.ProjectSourceEntryStatus("planned") {
-		t.Fatalf("expected planned remote-host status, got %q", remote.Status)
+	if result.Items[2].Method != generated.ProjectCreationMethodTypeImport {
+		t.Fatalf("expected import creation method, got %q", result.Items[2].Method)
+	}
+}
+
+func TestCreationMethodCatalogBlocksBlankWhenManagedRootIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	service, err := NewService(&stubProjectRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.CreationMethodCatalog(context.Background())
+	if err != nil {
+		t.Fatalf("creation method catalog: %v", err)
+	}
+	if result.Items[0].Availability != generated.ProjectCreationMethodAvailabilityBlocked {
+		t.Fatalf("expected blocked blank method, got %q", result.Items[0].Availability)
+	}
+	if result.Items[0].BlockedReason == nil || *result.Items[0].BlockedReason != "managed_root_invalid" {
+		t.Fatalf("expected managed-root-invalid reason, got %#v", result.Items[0].BlockedReason)
 	}
 }
 
@@ -1624,30 +1664,6 @@ func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing
 	}, "", nil, nil)
 	if item.ActivityAuthority != generated.ProjectActivityAuthority("frontend-fanout") {
 		t.Fatalf("expected frontend-fanout activity authority, got %q", item.ActivityAuthority)
-	}
-}
-
-func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testing.T) {
-	t.Parallel()
-
-	detail := toProjectDetailResponse(projectstore.ProjectAggregate{
-		Project: projectstore.Project{
-			ID:                         2,
-			DisplayName:                "Remote Orders",
-			CanonicalProjectName:       "orders-remote",
-			CanonicalProjectNameSource: "computed",
-			SourceKind:                 "remote-host",
-			HostScope:                  "remote",
-			OwnershipMode:              "external",
-			WorkingDirectory:           "/remote/orders",
-			DriftStatus:                "unknown",
-		},
-	}, nil, nil)
-	if detail.ActivityAuthority != generated.ProjectActivityAuthority("backend-planned") {
-		t.Fatalf("expected backend-planned activity authority, got %q", detail.ActivityAuthority)
-	}
-	if detail.SourceMetadata == nil || detail.SourceMetadata.ActivityRollupScope == nil {
-		t.Fatalf("expected remote-host source metadata activity rollup scope")
 	}
 }
 
@@ -2290,7 +2306,24 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	if imported.Project.CanonicalProjectName != "orders" {
 		t.Fatalf("unexpected imported project: %#v", imported.Project)
 	}
+	assertImportedCreationPipelinePersisted(t, repo.importInput, projectDir)
 	assertImportedLifecycleConfigPersisted(t, repo.importInput)
+}
+
+func assertImportedCreationPipelinePersisted(t *testing.T, input *projectstore.ImportProjectInput, workingDirectory string) {
+	t.Helper()
+	if input == nil {
+		t.Fatal("expected imported creation pipeline input")
+	}
+	if input.SourceKind != projectcontract.SourceKindImported.String() || input.HostScope != projectcontract.HostScopeLocal.String() || input.OwnershipMode != projectcontract.OwnershipModeExternal.String() {
+		t.Fatalf("expected imported source ownership metadata, got source=%q host=%q ownership=%q", input.SourceKind, input.HostScope, input.OwnershipMode)
+	}
+	if input.WorkingDirectory != workingDirectory || input.DriftStatus != projectcontract.DriftStatusClean.String() || input.LastObservedConfigHash == "" || input.LastDriftCheckedAt == nil {
+		t.Fatalf("expected shared creation aggregate fields, got %#v", input)
+	}
+	if len(input.Files) != 2 || input.Snapshot == nil || input.Snapshot.ConfigHash != input.LastObservedConfigHash || input.Snapshot.DeclaredServiceCount != 1 || input.Snapshot.RefreshedAt.IsZero() {
+		t.Fatalf("expected imported workspace snapshot and files from shared pipeline, got files=%#v snapshot=%#v", input.Files, input.Snapshot)
+	}
 }
 
 func importedLifecycleConfigFixture() LifecycleStandardConfig {

@@ -517,7 +517,7 @@ describe('Project list page', () => {
           display_name: 'Gamma',
           id: 3,
           runtime_status: 'transitioning',
-          source_kind: 'git',
+          source_kind: 'template',
           working_directory: '/srv/gamma',
         }),
         buildProjectRow({

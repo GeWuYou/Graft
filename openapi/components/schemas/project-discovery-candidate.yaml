@@ -26,7 +26,8 @@ properties:
   source_kind:
     $ref: ./project-source-kind.yaml
   source_type:
-    $ref: ./project-source-entry-type.yaml
+    $ref: ./project-source-kind.yaml
+    description: Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value.
   source_metadata:
     $ref: ./project-source-metadata.yaml
   display_name:

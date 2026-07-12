@@ -40,3 +40,25 @@ properties:
     type: string
     nullable: true
     description: Optional initial env file content. It is ignored when env_file_name is omitted.
+  workspace_files:
+    type: array
+    minItems: 1
+    description: Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.
+    items:
+      $ref: ./project-workspace-manifest-file.yaml
+  compose_file_path:
+    type: string
+    minLength: 1
+    maxLength: 1024
+    pattern: '^[^/\\\\][^\\\\]*$'
+    description: Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition.
+  env_file_paths:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 1024
+      pattern: '^[^/\\\\][^\\\\]*$'
+    description: Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
+  lifecycle_configuration:
+    $ref: ./project-lifecycle-configuration-request.yaml

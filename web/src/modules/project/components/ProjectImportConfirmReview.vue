@@ -167,6 +167,7 @@
       >
         <div class="project-import-confirm__card-content">
           <p class="project-import-confirm__supporting-copy">{{ t('project.import.confirm.effectsDescription') }}</p>
+          <t-alert theme="info" :message="t('project.import.confirm.noAutoDeploy')" />
           <ul class="project-import-confirm__checklist">
             <li>{{ t('project.import.confirm.effects.registerProject') }}</li>
             <li>{{ t('project.import.confirm.effects.useInspection') }}</li>
@@ -176,7 +177,16 @@
 
           <div class="project-import-confirm__actions">
             <t-button theme="default" variant="outline" type="button" @click="$emit('back')">
-              {{ t('project.import.actions.backToInspect') }}
+              {{ t('project.import.actions.backToLifecycle') }}
+            </t-button>
+            <t-button
+              theme="default"
+              variant="outline"
+              type="button"
+              :loading="inspectionRefreshLoading"
+              @click="$emit('refresh')"
+            >
+              {{ t('project.import.actions.refreshInspect') }}
             </t-button>
             <t-button :form="formId" theme="primary" type="submit" :disabled="!canImport" :loading="importLoading">
               {{ t('project.import.actions.import') }}
@@ -216,12 +226,14 @@ const props = defineProps<{
   formRules: FormProps['rules'];
   importError: string;
   importLoading: boolean;
+  inspectionRefreshLoading: boolean;
   resolvedWorkingDirectory: string;
   result: ProjectImportInspectResponse;
 }>();
 
 const emit = defineEmits<{
   (event: 'back'): void;
+  (event: 'refresh'): void;
   (event: 'reset'): void;
   (event: 'submit', context?: SubmitContext): void;
   (event: 'update:canonicalProjectNameOverride', value: string): void;

@@ -91,9 +91,9 @@ type ListResult struct {
 	Offset int
 }
 
-// SourceCatalogResult returns the bounded project source entrypoints owned by project authority.
-type SourceCatalogResult struct {
-	Items []generated.ProjectSourceEntry
+// CreationMethodCatalogResult returns the available Compose project creation methods.
+type CreationMethodCatalogResult struct {
+	Items []generated.ProjectCreationMethod
 }
 
 // ActivityAuthority identifies the stable project activity authority contract.
@@ -385,6 +385,16 @@ type ManagedProjectCreateRequest struct {
 	ComposeFileContent       string
 	EnvFileName              *string
 	EnvFileContent           *string
+	WorkspaceFiles           []ManagedWorkspaceFile
+	ComposeFilePath          string
+	EnvFilePaths             []string
+	LifecycleConfig          *LifecycleStandardConfig
+}
+
+// ManagedWorkspaceFile is one text file in a managed create draft.
+type ManagedWorkspaceFile struct {
+	Path    string
+	Content string
 }
 
 // ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.
@@ -639,7 +649,7 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.
 		return generated.ProjectImportResponse{}, err
 	}
 	lifecycleConfig := defaultLifecycleStandardConfig()
-	return s.importInspectionSession(ctx, repository, session, importInspectionCommitInput{
+	return s.importInspectionSession(ctx, session, importInspectionCommitInput{
 		DisplayName:       request.DisplayName,
 		CanonicalOverride: request.CanonicalProjectNameOverride,
 		LifecycleConfig:   &lifecycleConfig,

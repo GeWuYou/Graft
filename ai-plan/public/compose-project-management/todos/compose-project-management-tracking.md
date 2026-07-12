@@ -97,6 +97,16 @@ Compose Project Management
 - [x] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
 - [ ] phase-3-batch-3：remote host boundary、project activity authority decision
 - [ ] drift-repair：恢复 Phase 1 import 主入口、托管创建次入口、source selector 边界定位，以及 topic truth
+- [x] creation-pipeline-contract-and-server-foundation：统一 Managed/Import aggregate 注册、workspace manifest contract、来源元数据持久化与受控 nested text materialization
+- [x] managed-workspace-wizard-and-lifecycle-review：Managed Create 已切换为 Identity/Workspace/Lifecycle/Review 向导，使用完整 text workspace manifest、Monaco 草稿编辑器和 source-neutral lifecycle review；Create 不自动 deploy
+- [x] import-creation-adapter-and-regression：Import inspection commit 已验证复用 creation pipeline；保留 candidate/TTL/freshness/adopt guard，复用生命周期审核，并在最终审核明确不自动 deploy
+- [x] git-template-source-adapters：Git/Template 均已通过 source adapter 进入同一 CreationCommand pipeline；Git 仅在隔离暂存目录解析无凭据仓库，Template 使用模块内置的 explicit empty-compose v1 catalog
+
+## Creation Pipeline Follow-up
+
+- 当前批次已将 Managed create 与 Import inspection commit 收口到 project-owned creation pipeline，Import 的 candidate/TTL/freshness guard 仍由 Import adapter 保持。
+- Import adapter 回归已完成：共享 aggregate 的 imported/local/external metadata、workspace files、snapshot、clean drift 与 confirmed lifecycle 均有覆盖；过期 hash 映射仍保持 `inspection stale`。
+- Git/Template source adapters 已完成；下一批是 `remote-source-adapter-and-activity-boundary`，继续保持 Git/Template 不自动 deploy。
 
 ## Phase 1 Acceptance Conditions
 
@@ -129,9 +139,9 @@ Compose Project Management
 
 当前 batch-1 已完成的前置条件：
 
-- source catalog authority 已固定到 `openapi/** + server/modules/project/** + web/src/modules/project/**`
-- source selector 与 `managed/git/template` route boundary 已固定
-- git/template 仍保持 planned，不存在 runtime persistence、directory scan、remote host 或 backend activity aggregation 越界
+- 创建方式目录 authority 固定到 `openapi/** + server/modules/project/** + web/src/modules/project/**`
+- 统一创建入口固定为 `blank/template/import`，并分别进入现有空白、模板与导入向导
+- Git、Remote Host、ZIP 与 GitHub Template 仍不公开，不存在 runtime persistence、directory scan、remote host 或 backend activity aggregation 越界
 
 当前 batch-2 已完成的前置条件：
 
@@ -184,14 +194,71 @@ Compose Project Management
     "phase-2-batch-4-diff-validate-and-deploy-flow",
     "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
     "phase-3-batch-1-git-template-source-contract-and-boundary",
-    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+    "creation-pipeline-contract-and-server-foundation",
+    "managed-workspace-wizard-and-lifecycle-review",
+    "import-creation-adapter-and-regression"
   ],
   "pending_batches": [
-    "drift-repair-import-primary-entry-and-topic-truth",
-    "phase-3-batch-3-remote-host-boundary-and-activity-authority"
+    "git-template-source-adapters",
+    "remote-source-adapter-and-activity-boundary",
+    "optional-deploy-after-create-and-archive-readiness"
   ],
-  "current_batch": "drift-repair-import-primary-entry-and-topic-truth",
-  "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
-  "closeout_status": "drift-repair-in-progress"
+  "current_batch": "import-creation-adapter-and-regression",
+  "next_batch": "git-template-source-adapters",
+  "closeout_status": "import-creation-adapter-complete"
+}
+```
+
+## 2026-07-12 Optional Deploy After Create
+
+- Managed 与 Template 创建页面在 Review/创建表单中提供默认关闭的“创建后部署”选项；只有客户端持有 `ops.project.deploy` 时才可选择，服务端继续作为权限 authority。
+- 创建始终先完成 `CreationCommand` 注册、snapshot 与 `Ready` 项目；勾选后仅由前端串行调用既有 Deploy action。部署失败保留成功创建的项目并单独反馈，不触发回滚。
+- Import 与 Git 创建路径保持不自动部署；本批不移除或扩展 Git/Remote source surface。
+- 下一批：`source-surface-simplification-and-extension-seam`，按用户最新范围收敛 Git/Remote 的可执行 UI/API 能力为 extension seam；本主题尚未 archive-ready。
+
+## Current Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "creation-pipeline-contract-and-server-foundation",
+    "managed-workspace-wizard-and-lifecycle-review",
+    "import-creation-adapter-and-regression",
+    "git-template-source-adapters",
+    "optional-deploy-after-create-and-archive-readiness"
+  ],
+  "pending_batches": ["source-surface-simplification-and-extension-seam"],
+  "current_batch": "optional-deploy-after-create-and-archive-readiness",
+  "next_batch": "source-surface-simplification-and-extension-seam",
+  "closeout_status": "optional-deploy-after-create-complete"
+}
+```
+
+## 2026-07-12 Source Surface Simplification
+
+- [x] `source-surface-simplification-and-extension-seam`：公开来源收敛为 Managed、Template 与独立 Import Existing；Git/Remote 的 API、路由、页面、OpenAPI contract、catalog 和 metadata 已移除。
+- [x] 共享 `CreationCommand` 与 `createProjectFromWorkspace` 保持为唯一后半段创建管线；Template 继续作为 materialized Workspace adapter。
+- [x] Git、Remote Host、ZIP 与 GitHub Template 仅保留未来 adapter 设计口，不预先声明为当前支持能力。
+- [x] archive-readiness：`git diff --check`、OpenAPI bundle/generation、`graft validate backend`、`bun run lint:i18n`、`bun run check` 与 ai-plan structure guard 均通过；浏览器验证按用户明确要求未执行。
+
+## Final Loop State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "creation-pipeline-contract-and-server-foundation",
+    "managed-workspace-wizard-and-lifecycle-review",
+    "import-creation-adapter-and-regression",
+    "git-template-source-adapters",
+    "optional-deploy-after-create-and-archive-readiness",
+    "source-surface-simplification-and-extension-seam"
+  ],
+  "pending_batches": [],
+  "current_batch": "source-surface-simplification-and-extension-seam",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

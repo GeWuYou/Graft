@@ -2250,7 +2250,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/sources': {
+  '/api/ops/projects/creation-methods': {
     parameters: {
       query?: never;
       header?: never;
@@ -2258,10 +2258,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List Compose project source entrypoints
-     * @description Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.
+     * List Compose project creation methods
+     * @description Returns the currently supported ways to create a Compose project. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
      */
-    get: operations['getProjectSources'];
+    get: operations['getProjectCreationMethods'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2344,6 +2344,46 @@ export interface paths {
      * @description Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.
      */
     post: operations['postProjectCreate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/template/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validate a bundled template project source
+     * @description Validates the selected bundled template and eventual managed-root target without writing it.
+     */
+    post: operations['postProjectCreateTemplateValidate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a managed Compose project from a bundled template
+     * @description Materializes one explicit bundled text workspace template under the managed root, then registers it without running Compose lifecycle commands.
+     */
+    post: operations['postProjectCreateTemplate'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2952,10 +2992,10 @@ export interface components {
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     ProjectSourceKind: components['schemas']['project-source-kind'];
-    ProjectSourceEntryType: components['schemas']['project-source-entry-type'];
-    ProjectSourceEntryStatus: components['schemas']['project-source-entry-status'];
-    ProjectSourceEntry: components['schemas']['project-source-entry'];
-    ProjectSourceCatalogResponse: components['schemas']['project-source-catalog-response'];
+    ProjectCreationMethodType: components['schemas']['project-creation-method-type'];
+    ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
+    ProjectCreationMethod: components['schemas']['project-creation-method'];
+    ProjectCreationMethodCatalogResponse: components['schemas']['project-creation-method-catalog-response'];
     ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
@@ -2987,6 +3027,7 @@ export interface components {
     ProjectServiceItem: components['schemas']['project-service-item'];
     ProjectServicesResponse: components['schemas']['project-services-response'];
     ProjectCreateRequest: components['schemas']['project-create-request'];
+    ProjectWorkspaceManifestFile: components['schemas']['project-workspace-manifest-file'];
     ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
     ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
     ProjectImportResponse: components['schemas']['project-import-response'];
@@ -3015,7 +3056,7 @@ export interface components {
     ProjectBatchActionItem: components['schemas']['project-batch-action-item'];
     ProjectBatchActionResponse: components['schemas']['project-batch-action-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
-    EnvelopedProjectSourceCatalogResponse: components['schemas']['enveloped-project-source-catalog-response'];
+    EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
     EnvelopedProjectLogResponse: components['schemas']['enveloped-project-log-response'];
     EnvelopedProjectOverviewResponse: components['schemas']['enveloped-project-overview-response'];
@@ -5658,7 +5699,7 @@ export interface components {
       force: boolean;
     };
     /** @enum {string} */
-    'project-source-kind': 'imported' | 'managed' | 'git' | 'template';
+    'project-source-kind': 'imported' | 'managed' | 'template';
     /** @enum {string} */
     'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
     /** @enum {string} */
@@ -5677,31 +5718,17 @@ export interface components {
       managed_compose_file_name?: string;
       /** @description Optional managed env file name tracked by project authority. */
       managed_env_file_name?: string | null;
-      /** @description Planned canonical git repository URL for a future git-backed project source. */
-      git_repository_url?: string;
-      /** @description Planned git branch, tag, or commit ref for a future git-backed project source. */
-      git_reference?: string;
-      /** @description Planned repository-relative compose working directory or file subpath. */
-      git_compose_subpath?: string;
       /** @description Planned stable template identifier for a future template-backed project source. */
       template_key?: string;
       /** @description Planned template version or release channel. */
       template_version?: string;
       /** @description Planned template instance name used to derive a managed working directory. */
       template_instance_name?: string;
-      /** @description Planned stable remote host connection identifier owned by future remote-host project authority. */
-      remote_host_key?: string;
-      /** @description Planned remote compose working directory or entry compose file path under the remote-host boundary. */
-      remote_compose_path?: string;
-      /** @description Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner. */
-      activity_authority?: string;
-      /** @description Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary. */
-      activity_rollup_scope?: string;
     };
     /** @enum {string} */
     'project-activity-authority': 'frontend-fanout' | 'backend-planned';
     /** @enum {string} */
-    'project-host-scope': 'local' | 'remote';
+    'project-host-scope': 'local';
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
     /**
@@ -5886,6 +5913,11 @@ export interface components {
     };
     'project-import-runtime-inspect-response': {
       inspection_id: string;
+      /**
+       * Format: date-time
+       * @description Absolute UTC expiration time for this short-lived inspection session.
+       */
+      expires_at: string;
       candidate_key: string;
       resolved_working_directory: string;
       canonical_project_name: string;
@@ -6042,30 +6074,20 @@ export interface components {
       data: components['schemas']['project-import-directories-response'];
     };
     /** @enum {string} */
-    'project-source-entry-type': 'managed' | 'git' | 'template' | 'remote-host';
+    'project-creation-method-type': 'blank' | 'template' | 'import';
     /** @enum {string} */
-    'project-source-entry-status': 'ready' | 'blocked' | 'planned';
-    'project-source-entry': {
-      type: components['schemas']['project-source-entry-type'];
-      status: components['schemas']['project-source-entry-status'];
-      display_name: string;
-      title_key: string;
-      route_path: string;
-      route_name: string;
-      permission: string;
-      menu_group: string;
-      description: string;
-      description_key: string;
-      metadata_fields: string[];
-      host_scope: components['schemas']['project-host-scope'];
-      status_reason?: string | null;
-      status_reason_key?: string | null;
+    'project-creation-method-availability': 'ready' | 'blocked';
+    'project-creation-method': {
+      method: components['schemas']['project-creation-method-type'];
+      availability: components['schemas']['project-creation-method-availability'];
+      /** @description Stable reason code when the creation method is blocked. */
+      blocked_reason?: string | null;
     };
-    'project-source-catalog-response': {
-      items: components['schemas']['project-source-entry'][];
+    'project-creation-method-catalog-response': {
+      items: components['schemas']['project-creation-method'][];
     };
-    'enveloped-project-source-catalog-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-source-catalog-response'];
+    'enveloped-project-creation-method-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-creation-method-catalog-response'];
     };
     /** @enum {string} */
     'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
@@ -6075,7 +6097,8 @@ export interface components {
       candidate_key: string;
       candidate_kind: components['schemas']['project-discovery-candidate-kind'];
       source_kind: components['schemas']['project-source-kind'];
-      source_type?: components['schemas']['project-source-entry-type'];
+      /** @description Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value. */
+      source_type?: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
       display_name: string;
       canonical_project_name: string;
@@ -6096,7 +6119,7 @@ export interface components {
       conflicts: string[];
     };
     'project-discovery-candidates-response': {
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       authority_root: string | null;
       supports_scan: boolean;
       supports_auto_discovery: boolean;
@@ -6110,7 +6133,7 @@ export interface components {
     'project-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
     'project-managed-root-response': {
       status: components['schemas']['project-managed-root-status'];
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       config_key: string;
       configured_root_directory?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
@@ -6121,6 +6144,12 @@ export interface components {
     'enveloped-project-managed-root-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-managed-root-response'];
     };
+    'project-workspace-manifest-file': {
+      /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
+      path: string;
+      /** @description UTF-8 text content to materialize for the file. */
+      content: string;
+    };
     'project-create-validate-request': {
       display_name: string;
       canonical_project_name: string;
@@ -6128,10 +6157,17 @@ export interface components {
       relative_project_directory: string;
       compose_file_name: string;
       env_file_name?: string | null;
+      /** @description Complete managed workspace text manifest to validate without materializing. */
+      workspace_files?: components['schemas']['project-workspace-manifest-file'][];
+      /** @description Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
+      compose_file_path?: string;
+      /** @description Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace. */
+      env_file_paths?: string[];
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-validate-response': {
       managed_root: components['schemas']['project-managed-root-response'];
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       display_name: string;
       canonical_project_name: string;
       ownership_mode: components['schemas']['project-ownership-mode'];
@@ -6157,10 +6193,17 @@ export interface components {
       env_file_name?: string | null;
       /** @description Optional initial env file content. It is ignored when env_file_name is omitted. */
       env_file_content?: string | null;
+      /** @description Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest. */
+      workspace_files?: components['schemas']['project-workspace-manifest-file'][];
+      /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition. */
+      compose_file_path?: string;
+      /** @description Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace. */
+      env_file_paths?: string[];
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];
-      source_type: components['schemas']['project-source-entry-type'];
+      source_type: components['schemas']['project-source-kind'];
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
@@ -6188,6 +6231,18 @@ export interface components {
     };
     'enveloped-project-create-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-create-response'];
+    };
+    'project-template-create-request': {
+      display_name: string;
+      canonical_project_name: string;
+      relative_project_directory: string;
+      /** @description Explicit bundled template key. Defaults to empty-compose. */
+      template_key?: string;
+      /** @description Explicit bundled template version. Defaults to v1. */
+      template_version?: string;
+      /** @description Safe display provenance for this template instance. Defaults to canonical_project_name. */
+      template_instance_name?: string;
+      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-detail-response'];
@@ -12903,7 +12958,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectSources: {
+  getProjectCreationMethods: {
     parameters: {
       query?: never;
       header?: {
@@ -12920,14 +12975,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project source catalog. */
+      /** @description Project creation method catalog. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-source-catalog-response'];
+          'application/json': components['schemas']['enveloped-project-creation-method-catalog-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -13109,6 +13164,94 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectCreateTemplateValidate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-template-create-request'];
+      };
+    };
+    responses: {
+      /** @description Template source validation result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-validate-response'];
+        };
+      };
+      /** @description Invalid template create validation request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postProjectCreateTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-template-create-request'];
+      };
+    };
+    responses: {
+      /** @description Template workspace materialized and project registered. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-response'];
+        };
+      };
+      /** @description Invalid template create request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
     };
   };
   getProject: {

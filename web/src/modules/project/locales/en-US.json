@@ -37,33 +37,25 @@
         "title": "Operations - Projects",
         "breadcrumb": "Projects"
       },
-      "import": {
+      "createImport": {
         "title": "Import Existing Project",
         "breadcrumb": "Import Existing Project"
       },
       "create": {
-        "title": "Project Source Boundaries",
-        "breadcrumb": "Project Source Boundaries"
+        "title": "Create Project",
+        "breadcrumb": "Create Project"
       },
-      "createManaged": {
-        "title": "Create Managed Project",
-        "breadcrumb": "Create Managed Project"
+      "createBlank": {
+        "title": "Create Blank Project",
+        "breadcrumb": "Create Blank Project"
       },
       "createDiscovery": {
         "title": "Discovery Candidate Preview",
         "breadcrumb": "Discovery Candidate Preview"
       },
-      "createGit": {
-        "title": "Git Project Boundary",
-        "breadcrumb": "Git Project Boundary"
-      },
       "createTemplate": {
-        "title": "Template Project Boundary",
-        "breadcrumb": "Template Project Boundary"
-      },
-      "createRemoteHost": {
-        "title": "Remote Host Project Boundary",
-        "breadcrumb": "Remote Host Project Boundary"
+        "title": "Create From Template",
+        "breadcrumb": "Create From Template"
       },
       "detail": {
         "title": "Project Detail",
@@ -235,9 +227,7 @@
       "sourceKinds": {
         "imported": "Imported",
         "managed": "Managed",
-        "git": "Git",
-        "template": "Template",
-        "remote-host": "Remote Host"
+        "template": "Template"
       },
       "driftStatus": {
         "unknown": "❓ Unknown",
@@ -254,7 +244,7 @@
         "detail": "Detail",
         "operationMenu": "Actions",
         "import": "Import Existing Project",
-        "create": "Choose Project Source",
+        "create": "Create Project",
         "refresh": "Refresh",
         "up": "Up",
         "stop": "Stop",
@@ -384,7 +374,8 @@
         "continueToConfirm": "Continue to Confirm",
         "continueToLifecycle": "Configure Lifecycle",
         "confirmLifecycle": "Confirm Lifecycle Configuration",
-        "backToInspect": "Back to Inspect"
+        "backToInspect": "Back to Inspect",
+        "backToLifecycle": "Back to Lifecycle Configuration"
       },
       "candidates": {
         "title": "Runtime Candidates",
@@ -480,6 +471,11 @@
         "configurationTitle": "Lifecycle Configuration",
         "commandPreviewTitle": "Command Preview"
       },
+      "inspectionSession": {
+        "ready": "The inspection session is valid and will be refreshed automatically when it expires.",
+        "refreshing": "Refreshing the current inspection. Please wait.",
+        "expired": "The inspection session has expired. Refresh the inspection before importing."
+      },
       "confirm": {
         "title": "Final Review",
         "description": "Use the last step to review and confirm. The display name is still editable, but the import authority stays bound to the current inspection snapshot.",
@@ -508,6 +504,7 @@
         "previewWithMore": "{preview} and {count} more",
         "effectsTitle": "Import Effects",
         "effectsDescription": "This screen only states outcomes that are contract-safe for the current import flow. It does not promise extra runtime guarantees.",
+        "noAutoDeploy": "Import registers the inspected workspace and opens the project detail. It does not deploy or start containers automatically.",
         "effects": {
           "registerProject": "Create and register one Graft project record from the current inspection snapshot",
           "useInspection": "Reuse the current inspection discovery for Compose, services, networks, and volumes",
@@ -642,15 +639,20 @@
       }
     },
     "create": {
-      "eyebrow": "Source Boundaries",
-      "title": "Project Source Boundaries",
-      "description": "Inspect Managed, Git, Template, and Remote Host source boundaries. Import and Managed Create remain the real user entrypoints.",
+      "eyebrow": "Create Blank Project",
+      "title": "Create Blank Project",
+      "description": "Create a new Compose workspace in the managed directory.",
+      "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the project. Create never deploys automatically.",
       "actions": {
         "backToList": "Back to List",
         "refreshAuthority": "Refresh Authority",
         "validate": "Validate Create Input",
         "create": "Create and Open Project",
-        "reset": "Reset Form"
+        "reset": "Reset Form",
+        "back": "Back",
+        "continue": "Continue",
+        "review": "Review",
+        "cancel": "Cancel"
       },
       "root": {
         "status": {
@@ -711,47 +713,119 @@
         "exitFullscreen": "Exit Fullscreen",
         "resize": "Resize Editor Height"
       },
+      "steps": {
+        "identity": "Identity and Root",
+        "workspace": "Workspace",
+        "lifecycle": "Lifecycle",
+        "review": "Review"
+      },
+      "workspace": {
+        "hint": "The complete workspace is materialized in the managed root. Only text configuration files are supported.",
+        "filesTitle": "Workspace Files",
+        "addFile": "Add File",
+        "removeFile": "Remove File",
+        "filePath": "Relative File Path",
+        "filePathPlaceholder": "For example nginx/nginx.conf or .env.production",
+        "invalidFilePath": "The file path must be a unique workspace-relative path without absolute or parent directory segments.",
+        "editorAriaLabel": "Edit {path}"
+      },
+      "lifecycle": {
+        "title": "Lifecycle Configuration",
+        "description": "Confirm the Compose lifecycle configuration owned by the project after creation.",
+        "authorityHint": "Create saves lifecycle configuration only; it does not deploy or start containers.",
+        "configurationTitle": "Lifecycle Configuration",
+        "commandPreviewTitle": "Command Preview"
+      },
+      "review": {
+        "title": "Review Creation",
+        "noAutoDeploy": "Create writes the workspace, registers the project, and synchronizes a read-only runtime summary. It does not deploy automatically.",
+        "workingDirectory": "Target Working Directory",
+        "workspaceFiles": "Workspace Files",
+        "deployAfterCreate": "Deploy after the project is created",
+        "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment."
+      },
       "messages": {
         "rootLoadFailed": "Managed Root Authority Could Not Be Loaded.",
         "validateSuccess": "Create Input Validated.",
         "validateFailed": "Create Input Validation Failed.",
         "createSuccess": "Managed Project Created.",
-        "createFailed": "Managed Project Creation Failed."
+        "createFailed": "Managed Project Creation Failed.",
+        "deploySuccess": "Project deployed after creation.",
+        "deployFailed": "Project was created, but deployment failed."
       }
     },
-    "createSource": {
-      "descriptions": {
-        "managed": "Create a managed Compose project in the configured managed root directory.",
-        "git": "Git-based project creation is not available yet.",
-        "template": "Template-based project creation is not available yet.",
-        "remoteHost": "Remote host project creation is not available yet."
+    "creation": {
+      "eyebrow": "Create Project",
+      "title": "Create Project",
+      "description": "Choose how to initialize the project. Every method is managed as one Compose project afterward.",
+      "availability": { "ready": "Available", "blocked": "Unavailable" },
+      "blockedReasons": {
+        "managed_root_unconfigured": "The managed project root is not configured, so blank projects cannot be created yet.",
+        "managed_root_invalid": "The managed project root configuration is invalid. Repair system configuration before creating a blank project.",
+        "managed_root_unknown": "The managed project root status is unknown. Refresh system configuration and try again.",
+        "unknown": "This creation method is currently unavailable."
       },
-      "routePath": "Route Path",
-      "permission": "Permission",
-      "discovery": "Discovery Candidates",
-      "metadataFields": "Metadata Fields",
-      "hostScope": "Host Scope",
-      "status": {
-        "ready": "Ready",
-        "blocked": "Needs Configuration",
-        "planned": "Planned"
+      "actions": { "start": "Start Creating", "unavailable": "Unavailable", "retry": "Retry" },
+      "advanced": { "title": "Advanced Information" },
+      "methods": {
+        "blank": {
+          "title": "Create Blank Project",
+          "description": "Create a new Compose workspace.",
+          "benefits": {
+            "workspace": "Creates a dedicated project workspace",
+            "lifecycle": "Initializes standard lifecycle configuration",
+            "authority": "Keeps subsequent operations under platform management"
+          },
+          "advanced": "Files are materialized under the configured managed project root."
+        },
+        "template": {
+          "title": "Create From Template",
+          "description": "Start quickly from a bundled Compose template.",
+          "benefits": {
+            "workspace": "Initializes from a standard workspace template",
+            "lifecycle": "Retains unified lifecycle management",
+            "authority": "Registers the project for platform management"
+          },
+          "advanced": "Available templates are shipped by the project module."
+        },
+        "import": {
+          "title": "Import Existing Project",
+          "description": "Register an existing Compose workspace.",
+          "benefits": {
+            "detect": "Detects Compose configuration automatically",
+            "preserve": "Preserves the existing directory and project structure",
+            "register": "Registers runtime status under one project record"
+          },
+          "advanced": "Import reviews directory and runtime information before registration."
+        }
       },
-      "statusReason": {
-        "managedUnconfigured": "Managed Root Is Not Configured Yet. Managed Create Is Implemented, but the Current Environment Cannot Create Projects Directly.",
-        "managedInvalid": "Managed Root Configuration Is Invalid. Repair the Upstream System Config Before Using Managed Create.",
-        "managedUnknown": "Managed Root Status Is Unknown. Review System Config and Refresh Authority First.",
-        "planned": "This Source Only Has Contract and Route Boundaries Today. Materialization Will Land in a Later Bounded Batch."
-      },
-      "actions": {
-        "open": "Open Entry",
-        "configure": "Fix Config First",
-        "reviewBoundary": "Review Boundary",
-        "reviewCandidates": "Review Candidates",
-        "openImport": "Go to Import"
-      },
-      "messages": {
-        "loadFailed": "Project Source Catalog Could Not Be Loaded."
-      }
+      "messages": { "loadFailed": "Project Creation Methods Could Not Be Loaded." }
+    },
+    "sourceCreate": {
+      "templateDescription": "Create a managed project from a bundled Compose workspace template.",
+      "displayName": "Display Name",
+      "canonicalName": "Canonical Project Name",
+      "relativeDirectory": "Relative Directory",
+      "repositoryUrl": "Repository URL",
+      "reference": "Reference",
+      "referencePlaceholder": "HEAD",
+      "composeSubpath": "Compose Subpath",
+      "subpathPlaceholder": "Repository root",
+      "template": "Template",
+      "emptyComposeTemplate": "Empty Compose v1",
+      "instanceName": "Template Instance Name",
+      "lifecycleHint": "The standard project lifecycle configuration is initialized on creation. Creation does not deploy or start containers.",
+      "validate": "Validate Source",
+      "create": "Create Project",
+      "validated": "Source and target are valid: {directory}",
+      "validateSuccess": "Source validation completed.",
+      "validateFailed": "Source validation failed.",
+      "createSuccess": "Project created.",
+      "createFailed": "Project creation failed.",
+      "deployAfterCreate": "Deploy after the project is created",
+      "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment.",
+      "deploySuccess": "Project deployed after creation.",
+      "deployFailed": "Project was created, but deployment failed."
     },
     "discovery": {
       "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering projects or changing runtime authority.",
@@ -842,8 +916,7 @@
         "hostScope": "Host Scope",
         "lastRefreshAt": "Last Project Refresh",
         "hostScopeValues": {
-          "local": "Local Host",
-          "remote-host": "Remote Host"
+          "local": "Local Host"
         },
         "nameSourceValues": {
           "explicit": "Explicit",

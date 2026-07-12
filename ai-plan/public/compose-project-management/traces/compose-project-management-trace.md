@@ -351,3 +351,54 @@
   "closeout_status": "drift-repair-in-progress"
 }
 ```
+
+## 2026-07-11 Creation pipeline contract and server foundation
+
+- `project` 新增 source-neutral creation pipeline；Managed materialize 与 Import adopt 在成功解析真实 workspace 后共用 lifecycle-confirmed aggregate、snapshot 与只读 runtime boundary，不自动 deploy。
+- managed create contract 接受完整 text workspace manifest、显式 Compose/Env 引用及 lifecycle configuration；现有 compose/env 字段暂保留给当前 UI 过渡。
+- `compose_projects.source_metadata_json` 成为无密钥来源 provenance 的持久化 owner；列表/详情优先读取持久化 metadata。
+- Managed writer 支持 nested 与 dot text files，拒绝绝对路径、traversal、重复路径、NUL/非 UTF-8 内容；失败时仍只回滚该请求创建的内容。
+- 下一批：`managed-workspace-wizard-and-lifecycle-review`，不改变 Container runtime authority。
+
+## 2026-07-11 Managed workspace wizard and lifecycle review
+
+- Managed Create 已使用 `Identity & Managed Root -> Workspace -> Lifecycle -> Review -> Create` 向导，草稿工作区支持 nested 与 dot text files，并通过 `ProjectMonacoSurface` 和现有语言解析保持编辑体验一致。
+- 生命周期表单与命令预览被抽取为 source-neutral component；Import 仅保留其 inspect refresh 和专属步骤操作包装。
+- 创建请求携带 canonical workspace manifest、Compose/Env references 和 lifecycle configuration；成功后进入配置工作区且不触发 deploy。
+- 下一批：`import-creation-adapter-and-regression`。
+
+## 2026-07-11 Import creation adapter and regression
+
+- Import inspection commit 已确认通过 `CreationCommand` 进入 source-neutral creation pipeline；candidate availability、inspection TTL、file-hash freshness、conflict 与 adopt-without-write 仍由 Import adapter 独占。
+- 回归覆盖 imported/local/external aggregate metadata、workspace files、snapshot、clean drift 与 confirmed lifecycle；既有 stale hash 回归继续保持 `inspection stale` 映射。
+- Import 最终审核复用 source-neutral lifecycle configuration review，并明确 Import 只注册已检查的 workspace、打开项目详情，不会自动 deploy 或启动容器。
+- 验证：focused Go import regressions、focused Vitest import flow/page tests、`bun run lint:i18n`、`git diff --check`；browser QA 由用户明确延期。
+- 剩余 batches：`git-template-source-adapters`、`remote-source-adapter-and-activity-boundary`、`optional-deploy-after-create-and-archive-readiness`；下一批为 `git-template-source-adapters`。
+
+## 2026-07-11 Git and Template source adapters
+
+- Git source now clones only into request-scoped isolated staging with terminal prompts disabled, rejects symlinks/binary or oversized workspace files, and persists only repository URL, resolved reference, and Compose subpath.
+- Template source owns a small module-local `empty-compose v1` text workspace catalog; it has no marketplace, dynamic discovery, or credential persistence.
+- Both source routes validate/materialize under the managed root, parse the actual workspace, and invoke `CreationCommand`; neither source starts Compose services or deploys automatically.
+- `/ops/projects/create/git` and `/ops/projects/create/template` now provide usable source forms and no longer reuse the planned-boundary page. Browser QA remains user-deferred.
+
+## 2026-07-12 Optional deploy after create
+
+- Managed and Template UI now expose an opt-in, default-off post-create deployment choice only when the caller has `ops.project.deploy`.
+- The client first receives the successful create response, then invokes the existing independent Deploy operation. Deploy errors remain separate from creation and preserve the registered `Ready` project.
+- Import and Git stay non-deploying in this batch; Remote is not expanded. User-directed source-surface simplification is the next bounded batch, so this topic is not archive-ready.
+
+## 2026-07-12 Source surface simplification and extension seam
+
+- 用户将可用来源固定为 Managed、Template 与 Import Existing；Import 继续是独立的 runtime-to-workspace 主流程。
+- 移除了 Git 与 Remote Host 的公开 API、OpenAPI schema、catalog entry、路由、页面和 metadata；没有用 planned placeholder 替代。
+- 保留 source-neutral `CreationCommand` / `createProjectFromWorkspace`：未来来源必须先由 adapter 构建或获取 Workspace，再进入统一 lifecycle/review、aggregate/snapshot 和只读 runtime sync。
+- 该范围不包含浏览器验证，按用户要求由用户自行验证。
+- archive-readiness 验证通过：diff、OpenAPI bundle/generation、backend validate、web check、i18n 与 ai-plan structure guard；主题达到 `archive-ready`。
+
+## 2026-07-12 Unified creation entry
+
+- 列表页收敛为唯一的“创建项目”操作；`/ops/projects/create` 是 `blank`、`template` 与 `import` 的统一选择入口。
+- `GET /api/ops/projects/creation-methods` 取代旧 `/sources` 目录。后端仅发布创建方式、可用性和阻塞码；项目已持久化的 `source_kind` 继续描述项目来源。
+- 空白创建、模板创建和导入分别进入 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`，未保留旧路由或旧 API 别名。
+- `ops.project.source.view` 经 RBAC migration 直接更名为 `ops.project.creation-method.view`，保留原 permission ID 与既有角色关联。

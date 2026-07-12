@@ -1,0 +1,27 @@
+type: object
+additionalProperties: false
+required:
+  - display_name
+  - canonical_project_name
+  - relative_project_directory
+properties:
+  display_name:
+    type: string
+    minLength: 1
+  canonical_project_name:
+    type: string
+    minLength: 1
+  relative_project_directory:
+    type: string
+    minLength: 1
+  template_key:
+    type: string
+    description: Explicit bundled template key. Defaults to empty-compose.
+  template_version:
+    type: string
+    description: Explicit bundled template version. Defaults to v1.
+  template_instance_name:
+    type: string
+    description: Safe display provenance for this template instance. Defaults to canonical_project_name.
+  lifecycle_configuration:
+    $ref: ./project-lifecycle-configuration-request.yaml

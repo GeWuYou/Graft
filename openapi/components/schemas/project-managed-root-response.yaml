@@ -10,7 +10,7 @@ properties:
   status:
     $ref: ./project-managed-root-status.yaml
   source_type:
-    $ref: ./project-source-entry-type.yaml
+    $ref: ./project-source-kind.yaml
   config_key:
     type: string
   configured_root_directory:

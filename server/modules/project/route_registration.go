@@ -30,7 +30,8 @@ const minimumProjectListLimit = 1
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
 // registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
-// 当上下文或路由器为空时直接返回；当服务缺失或认证依赖解析失败时返回错误。
+// registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
+// 当上下文或路由器为空时返回 nil；当服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -59,11 +60,13 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
 	group.GET(projectcontract.ProjectImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectorySources)
 	group.GET(projectcontract.ProjectImportDirectoriesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectories)
-	group.GET(projectcontract.ProjectSourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectSourceViewPermission.String(), publisher), routes.handleSources)
+	group.GET(projectcontract.ProjectCreationMethodsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreationMethodViewPermission.String(), publisher), routes.handleCreationMethods)
 	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
+	group.POST(projectcontract.ProjectCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
+	group.POST(projectcontract.ProjectCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreate)
 	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleDetail)
 	group.GET(projectcontract.ProjectOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleOverview)
 	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleServices)
@@ -228,14 +231,14 @@ func (r routeRuntime) handleImportDirectories(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
 }
 
-func (r routeRuntime) handleSources(ginCtx *gin.Context) {
-	projectGeneratedHandler{}.GetProjectSources(bindGetProjectSourcesParams(ginCtx))
-	result, err := r.service.SourceCatalog(ginCtx.Request.Context())
+func (r routeRuntime) handleCreationMethods(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectCreationMethods(bindGetProjectCreationMethodsParams(ginCtx))
+	result, err := r.service.CreationMethodCatalog(ginCtx.Request.Context())
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toSourceCatalogResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toCreationMethodCatalogResponse(result))
 }
 
 func (r routeRuntime) handleDiscoveryCandidates(ginCtx *gin.Context) {
@@ -264,7 +267,12 @@ func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectCreateValidate(bindPostProjectCreateValidateParams(ginCtx), request)
-	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), toManagedCreateRequest(request))
+	managedRequest, err := toManagedCreateRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), managedRequest)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -278,12 +286,77 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectCreate(bindPostProjectCreateParams(ginCtx), request)
-	result, err := r.service.CreateManagedProject(ginCtx.Request.Context(), toManagedCreateExecuteRequest(request), currentUserIDPointer(ginCtx))
+	managedRequest, err := toManagedCreateExecuteRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.CreateManagedProject(ginCtx.Request.Context(), managedRequest, currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
+}
+
+type templateProjectCreateHTTP struct {
+	DisplayName              string                                          `json:"display_name"`
+	CanonicalProjectName     string                                          `json:"canonical_project_name"`
+	RelativeProjectDirectory string                                          `json:"relative_project_directory"`
+	TemplateKey              string                                          `json:"template_key"`
+	TemplateVersion          string                                          `json:"template_version"`
+	TemplateInstanceName     string                                          `json:"template_instance_name"`
+	LifecycleConfiguration   *generated.ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+}
+
+func (r routeRuntime) handleTemplateCreateValidate(ginCtx *gin.Context) {
+	var request templateProjectCreateHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	templateRequest, err := toTemplateProjectCreateRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.ValidateTemplateProject(ginCtx.Request.Context(), templateRequest)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
+}
+
+func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
+	var request templateProjectCreateHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	templateRequest, err := toTemplateProjectCreateRequest(request)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	result, err := r.service.CreateTemplateProject(ginCtx.Request.Context(), templateRequest, currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
+}
+
+// toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
+// It returns an error when the lifecycle configuration cannot use the standard strategy.
+func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (TemplateProjectCreateRequest, error) {
+	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
+	if request.LifecycleConfiguration != nil {
+		config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration)
+		if err != nil {
+			return TemplateProjectCreateRequest{}, err
+		}
+		result.LifecycleConfig = &config
+	}
+	return result, nil
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
@@ -792,8 +865,8 @@ func (r routeRuntime) writeLocalizedActionError(ginCtx *gin.Context, status int,
 
 type projectGeneratedHandler struct{}
 
-func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)             {}
-func (projectGeneratedHandler) GetProjectSources(generated.GetProjectSourcesParams) {}
+func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)                             {}
+func (projectGeneratedHandler) GetProjectCreationMethods(generated.GetProjectCreationMethodsParams) {}
 func (projectGeneratedHandler) GetProjectDiscoveryCandidates(generated.GetProjectDiscoveryCandidatesParams) {
 }
 func (projectGeneratedHandler) GetProjectImportRuntimeCandidates(generated.GetProjectImportRuntimeCandidatesParams) {
@@ -971,17 +1044,16 @@ func bindPostProjectImportParams(ginCtx *gin.Context) generated.PostProjectImpor
 }
 
 // bindPostProjectImportInspectParams 组装项目导入检查请求所需的公共头参数。
-// 它会填充 `XGraftLocale` 和 `XRequestId`。
+// bindPostProjectImportInspectParams 构造项目导入检查请求参数，并填充本地化语言和请求 ID。
 func bindPostProjectImportInspectParams(ginCtx *gin.Context) generated.PostProjectImportInspectParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportInspectParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// bindGetProjectSourcesParams 组装项目来源接口的公共请求参数。
-// 它从请求中提取语言和请求 ID，并填充到生成的参数结构中。
-func bindGetProjectSourcesParams(ginCtx *gin.Context) generated.GetProjectSourcesParams {
+// bindGetProjectCreationMethodsParams assembles common headers for the creation-method catalog.
+func bindGetProjectCreationMethodsParams(ginCtx *gin.Context) generated.GetProjectCreationMethodsParams {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetProjectSourcesParams{XGraftLocale: locale, XRequestId: requestID}
+	return generated.GetProjectCreationMethodsParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetProjectDiscoveryCandidatesParams 构造项目发现候选列表请求参数。

@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
-import { copyText } from '@/shared/observability';
+import { copyText, LogRingBuffer } from '@/shared/observability';
 
 import type { ProjectLifecycleConfigurationSavedResponse } from '../../types/project';
 import ProjectDetailPage from './index.vue';
@@ -824,6 +824,107 @@ vi.mock('@/shared/observability', () => ({
       this.clear();
     }
   },
+  LogRingBuffer: class<T> {
+    #slots: Array<{ seq: number; value: T } | undefined>;
+    #capacity: number;
+    #head = 0;
+    #size = 0;
+    #nextSeq = 1;
+    #version = 0;
+
+    constructor(capacity: number) {
+      this.#capacity = capacity;
+      this.#slots = Array.from({ length: capacity });
+    }
+
+    append(item: T) {
+      const overwrittenSlot = this.#slots[this.#head];
+      const seq = this.#nextSeq;
+
+      this.#slots[this.#head] = { seq, value: item };
+      this.#head = (this.#head + 1) % this.#capacity;
+      this.#nextSeq += 1;
+      this.#version += 1;
+      if (this.#size < this.#capacity) {
+        this.#size += 1;
+      }
+
+      return {
+        overwritten: overwrittenSlot?.value,
+        overwrittenSeq: overwrittenSlot?.seq,
+        seq,
+        version: this.#version,
+      };
+    }
+
+    overwrite(item: T) {
+      return this.append(item);
+    }
+
+    clear() {
+      this.#slots.fill(undefined);
+      this.#head = 0;
+      this.#size = 0;
+      this.#version += 1;
+    }
+
+    size() {
+      return this.#size;
+    }
+
+    capacity() {
+      return this.#capacity;
+    }
+
+    version() {
+      return this.#version;
+    }
+
+    snapshot() {
+      const version = () => this.#version;
+      const size = () => this.#size;
+      const capacity = () => this.#capacity;
+      const oldestSeq = () => (this.#size ? (this.#slotAt(0)?.seq ?? null) : null);
+      const newestSeq = () => (this.#size ? (this.#slotAt(this.#size - 1)?.seq ?? null) : null);
+
+      return Object.freeze({
+        get version() {
+          return version();
+        },
+        get size() {
+          return size();
+        },
+        get capacity() {
+          return capacity();
+        },
+        get oldestSeq() {
+          return oldestSeq();
+        },
+        get newestSeq() {
+          return newestSeq();
+        },
+        at: (index: number) => this.#slotAt(index)?.value,
+        seqAt: (index: number) => this.#slotAt(index)?.seq,
+        toArray: () => {
+          const values: T[] = [];
+          for (let index = 0; index < this.#size; index += 1) {
+            const slot = this.#slotAt(index);
+            if (slot) values.push(slot.value);
+          }
+          return values;
+        },
+      });
+    }
+
+    #slotAt(index: number) {
+      if (!Number.isInteger(index) || index < 0 || index >= this.#size) {
+        return undefined;
+      }
+
+      const start = this.#size === this.#capacity ? this.#head : 0;
+      return this.#slots[(start + index) % this.#capacity];
+    }
+  },
   formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
   formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
   normalizeStructuredLogEntry: (value: { line?: string; occurred_at?: string; stream?: string }) =>
@@ -895,6 +996,30 @@ vi.mock('tdesign-vue-next/es/notification', () => ({
 describe('Project detail service tab', () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('keeps the observability ring-buffer mock sequence-compatible', () => {
+    const buffer = new LogRingBuffer<string>(2);
+    const view = buffer.snapshot();
+
+    expect(buffer.append('first')).toEqual({ overwritten: undefined, overwrittenSeq: undefined, seq: 1, version: 1 });
+    expect(buffer.append('second')).toEqual({ overwritten: undefined, overwrittenSeq: undefined, seq: 2, version: 2 });
+    expect(buffer.append('third')).toEqual({ overwritten: 'first', overwrittenSeq: 1, seq: 3, version: 3 });
+
+    expect(view).toMatchObject({
+      capacity: 2,
+      newestSeq: 3,
+      oldestSeq: 2,
+      size: 2,
+      version: 3,
+    });
+    expect(view.at(0)).toBe('second');
+    expect(view.at(1)).toBe('third');
+    expect(view.at(2)).toBeUndefined();
+    expect(view.seqAt(0)).toBe(2);
+    expect(view.seqAt(1)).toBe(3);
+    expect(view.seqAt(-1)).toBeUndefined();
+    expect(view.toArray()).toEqual(['second', 'third']);
   });
 
   beforeEach(() => {

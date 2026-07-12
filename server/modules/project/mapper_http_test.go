@@ -1,6 +1,43 @@
 package project
 
-import "testing"
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"graft/server/internal/contract/openapi/generated"
+)
+
+func TestManagedCreateRequestMappersRejectUnsupportedLifecycleStrategy(t *testing.T) {
+	t.Parallel()
+
+	invalidLifecycle := &generated.ProjectLifecycleConfigurationRequest{
+		StrategyKind: generated.ProjectLifecycleStrategyKind("unsupported"),
+	}
+	if _, err := toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody{
+		LifecycleConfiguration: invalidLifecycle,
+	}); !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid lifecycle strategy error from validate mapper, got %v", err)
+	}
+	if _, err := toManagedCreateExecuteRequest(generated.PostProjectCreateJSONRequestBody{
+		LifecycleConfiguration: invalidLifecycle,
+	}); !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid lifecycle strategy error from create mapper, got %v", err)
+	}
+}
+
+func TestTemplateProjectCreateRequestRejectsUnsupportedLifecycleStrategy(t *testing.T) {
+	t.Parallel()
+
+	_, err := toTemplateProjectCreateRequest(templateProjectCreateHTTP{
+		LifecycleConfiguration: &generated.ProjectLifecycleConfigurationRequest{
+			StrategyKind: generated.ProjectLifecycleStrategyKind("unsupported"),
+		},
+	})
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid lifecycle strategy error from template mapper, got %v", err)
+	}
+}
 
 func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	t.Parallel()
@@ -10,6 +47,7 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	local := "local"
 	result := RuntimeImportInspectResult{
 		InspectionID:               "inspect-1",
+		ExpiresAt:                  time.Date(2026, time.July, 11, 8, 5, 0, 0, time.UTC),
 		CandidateKey:               "runtime:demo",
 		ResolvedWorkingDirectory:   "/srv/demo",
 		CanonicalProjectName:       "demo",
@@ -54,6 +92,9 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	}
 
 	response := toRuntimeImportInspectResponse(result)
+	if !response.ExpiresAt.Equal(result.ExpiresAt) {
+		t.Fatalf("expected inspection expiry %s, got %s", result.ExpiresAt, response.ExpiresAt)
+	}
 	if response.LifecycleConfiguration.Profiles == nil {
 		t.Fatal("expected lifecycle profiles to serialize as an empty array")
 	}

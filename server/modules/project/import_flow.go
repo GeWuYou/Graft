@@ -227,6 +227,7 @@ type RuntimeImportVolumeResource struct {
 // RuntimeImportInspectResult returns the inspect preview for one runtime candidate.
 type RuntimeImportInspectResult struct {
 	InspectionID               string                         `json:"inspection_id"`
+	ExpiresAt                  time.Time                      `json:"expires_at"`
 	CandidateKey               string                         `json:"candidate_key"`
 	ResolvedWorkingDirectory   string                         `json:"resolved_working_directory"`
 	CanonicalProjectName       string                         `json:"canonical_project_name"`

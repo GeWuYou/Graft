@@ -1,0 +1,13 @@
+type: object
+required:
+  - method
+  - availability
+properties:
+  method:
+    $ref: ./project-creation-method-type.yaml
+  availability:
+    $ref: ./project-creation-method-availability.yaml
+  blocked_reason:
+    type: string
+    nullable: true
+    description: Stable reason code when the creation method is blocked.

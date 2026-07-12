@@ -1,0 +1,6 @@
+type: string
+enum: [blank, template, import]
+x-enum-varnames:
+  - ProjectCreationMethodTypeBlank
+  - ProjectCreationMethodTypeTemplate
+  - ProjectCreationMethodTypeImport

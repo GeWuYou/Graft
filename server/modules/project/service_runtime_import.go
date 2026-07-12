@@ -383,6 +383,7 @@ func runtimeImportInspectResultFromSession(
 	members := append([]RuntimeImportMember(nil), runtimeMembers...)
 	return RuntimeImportInspectResult{
 		InspectionID:               preview.inspectionID,
+		ExpiresAt:                  session.ExpiresAt,
 		CandidateKey:               candidateKey,
 		ResolvedWorkingDirectory:   preview.resolvedWorkingDirectory,
 		CanonicalProjectName:       preview.canonicalProjectName,

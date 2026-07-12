@@ -12,79 +12,28 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// SourceCatalog returns the bounded Phase 3 source entrypoints without executing source-specific provisioning.
-func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error) {
+// CreationMethodCatalog returns creation methods without executing a method-specific workflow.
+func (s *Service) CreationMethodCatalog(ctx context.Context) (CreationMethodCatalogResult, error) {
 	managedRoot, err := s.ManagedRoot(ctx)
 	if err != nil {
-		return SourceCatalogResult{}, err
+		return CreationMethodCatalogResult{}, err
 	}
-	items := []generated.ProjectSourceEntry{
+	items := []generated.ProjectCreationMethod{
 		{
-			Type:            generated.ProjectSourceEntryType("managed"),
-			Status:          generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
-			DisplayName:     "Managed Project",
-			TitleKey:        "project.list.sourceKinds.managed",
-			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:       projectcontract.ProjectManagedCreateMenuPath,
-			RouteName:       "ProjectManagedCreate",
-			Permission:      projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:       projectcontract.ProjectMenuPath,
-			Description:     "Create a managed Compose project under the canonical managed root owned by project authority.",
-			DescriptionKey:  "project.createSource.descriptions.managed",
-			MetadataFields:  []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
-			StatusReason:    managedRoot.StatusReason,
-			StatusReasonKey: managedRootStatusReasonKey(managedRoot.Status),
+			Method:        generated.ProjectCreationMethodTypeBlank,
+			Availability:  generated.ProjectCreationMethodAvailability(mapManagedCreationMethodAvailability(managedRoot.Status)),
+			BlockedReason: managedRootCreationBlockedReason(managedRoot.Status),
 		},
 		{
-			Type:            generated.ProjectSourceEntryType("git"),
-			Status:          generated.ProjectSourceEntryStatus("planned"),
-			DisplayName:     "Git Project",
-			TitleKey:        "project.list.sourceKinds.git",
-			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:       projectcontract.ProjectGitCreateMenuPath,
-			RouteName:       "ProjectGitCreate",
-			Permission:      projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:       projectcontract.ProjectMenuPath,
-			Description:     "Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.",
-			DescriptionKey:  "project.createSource.descriptions.git",
-			MetadataFields:  []string{"git_repository_url", "git_reference", "git_compose_subpath"},
-			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
-			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+			Method:       generated.ProjectCreationMethodTypeTemplate,
+			Availability: generated.ProjectCreationMethodAvailabilityReady,
 		},
 		{
-			Type:            generated.ProjectSourceEntryType("template"),
-			Status:          generated.ProjectSourceEntryStatus("planned"),
-			DisplayName:     "Template Project",
-			TitleKey:        "project.list.sourceKinds.template",
-			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:       projectcontract.ProjectTemplateCreateMenuPath,
-			RouteName:       "ProjectTemplateCreate",
-			Permission:      projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:       projectcontract.ProjectMenuPath,
-			Description:     "Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.",
-			DescriptionKey:  "project.createSource.descriptions.template",
-			MetadataFields:  []string{"template_key", "template_version", "template_instance_name"},
-			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
-			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
-		},
-		{
-			Type:            generated.ProjectSourceEntryType("remote-host"),
-			Status:          generated.ProjectSourceEntryStatus("planned"),
-			DisplayName:     "Remote Host Project",
-			TitleKey:        "project.list.sourceKinds.remote-host",
-			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeRemote),
-			RoutePath:       projectcontract.ProjectRemoteHostCreateMenuPath,
-			RouteName:       "ProjectRemoteHostCreate",
-			Permission:      projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:       projectcontract.ProjectMenuPath,
-			Description:     "Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch.",
-			DescriptionKey:  "project.createSource.descriptions.remoteHost",
-			MetadataFields:  []string{"remote_host_key", "remote_compose_path", "activity_authority", "activity_rollup_scope"},
-			StatusReason:    stringPointer("This source remains planned. Remote execution and backend activity aggregation are still out of scope."),
-			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+			Method:       generated.ProjectCreationMethodTypeImport,
+			Availability: generated.ProjectCreationMethodAvailabilityReady,
 		},
 	}
-	return SourceCatalogResult{Items: items}, nil
+	return CreationMethodCatalogResult{Items: items}, nil
 }
 
 // DiscoveryCandidates returns bounded local discovery candidates without auto-registering projects.
@@ -94,7 +43,7 @@ func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesR
 		return DiscoveryCandidatesResult{}, err
 	}
 	result := DiscoveryCandidatesResult{
-		SourceType:            string(generated.ProjectSourceEntryTypeManaged),
+		SourceType:            projectcontract.SourceKindManaged.String(),
 		SupportsScan:          false,
 		SupportsAutoDiscovery: false,
 		StatusReason:          managedRoot.StatusReason,
@@ -305,10 +254,6 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 
 // ImportByInspection validates inspection freshness and persists the inspected project.
 func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
-	repository, err := s.repositoryOrErr()
-	if err != nil {
-		return generated.ProjectImportResponse{}, err
-	}
 	if s.inspectCache == nil {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
@@ -316,7 +261,7 @@ func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteR
 	if !ok {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
-	response, importErr := s.importInspectionSession(ctx, repository, session, importInspectionCommitInput{
+	response, importErr := s.importInspectionSession(ctx, session, importInspectionCommitInput{
 		DisplayName:       request.DisplayName,
 		CanonicalOverride: request.CanonicalProjectNameOverride,
 		LifecycleConfig:   request.LifecycleConfiguration,

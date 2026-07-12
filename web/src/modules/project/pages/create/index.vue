@@ -2,181 +2,113 @@
   <div class="project-create-page" data-page-type="editor">
     <management-page-content>
       <management-page-header
-        title-key="project.create.title"
-        description-key="project.create.description"
-        :source="{ labelKey: 'project.create.eyebrow', fallback: t('project.create.eyebrow') }"
+        title-key="project.route.createBlank.title"
+        description-key="project.create.wizardDescription"
       >
-        <template #meta>
-          <t-space break-line size="small">
-            <t-tag :theme="managedRootStatusTheme" variant="light-outline">
-              {{ managedRootStatusLabel }}
-            </t-tag>
-            <t-tag theme="default" variant="light-outline">
-              {{ managedRoot?.ownership_mode || '-' }}
-            </t-tag>
-          </t-space>
-        </template>
-        <template #actions>
-          <t-space size="small" break-line>
-            <t-button theme="default" variant="outline" @click="goToList">
-              {{ t('project.create.actions.backToList') }}
-            </t-button>
-            <t-button theme="default" :loading="rootLoading" @click="loadManagedRoot">
-              {{ t('project.create.actions.refreshAuthority') }}
-            </t-button>
-          </t-space>
-        </template>
+        <template #meta
+          ><t-tag :theme="managedRootStatusTheme" variant="light-outline">{{ managedRootStatusLabel }}</t-tag></template
+        >
+        <template #actions
+          ><t-space size="small"
+            ><t-button theme="default" variant="outline" @click="goToList">{{
+              t('project.create.actions.backToList')
+            }}</t-button
+            ><t-button theme="default" :loading="rootLoading" @click="loadManagedRoot">{{
+              t('project.create.actions.refreshAuthority')
+            }}</t-button></t-space
+          ></template
+        >
       </management-page-header>
-
-      <t-alert
-        v-if="managedRootNotice"
-        :theme="managedRootNoticeTheme"
-        :message="managedRootNotice"
-        class="project-create-page__notice"
-      />
-
-      <div class="project-create-layout">
-        <section class="project-create-main">
-          <t-card :bordered="true" :title="t('project.create.form.title')">
-            <t-form
-              ref="formRef"
-              :data="formData"
-              :rules="formRules"
-              label-align="top"
-              scroll-to-first-error="smooth"
-              @submit="handleSubmit"
-            >
-              <div class="project-create-form-grid">
-                <t-form-item :label="t('project.create.form.displayName')" name="display_name">
-                  <t-input
-                    v-model="formData.display_name"
-                    :placeholder="t('project.create.form.displayNamePlaceholder')"
-                  />
-                </t-form-item>
-                <t-form-item :label="t('project.create.form.canonicalProjectName')" name="canonical_project_name">
-                  <t-input
-                    v-model="formData.canonical_project_name"
-                    :placeholder="t('project.create.form.canonicalProjectNamePlaceholder')"
-                  />
-                </t-form-item>
-                <t-form-item
-                  :label="t('project.create.form.relativeProjectDirectory')"
-                  name="relative_project_directory"
-                >
-                  <t-input
-                    v-model="formData.relative_project_directory"
-                    :placeholder="t('project.create.form.relativeProjectDirectoryPlaceholder')"
-                  />
-                </t-form-item>
-                <t-form-item :label="t('project.create.form.composeFileName')" name="compose_file_name">
-                  <t-input
-                    v-model="formData.compose_file_name"
-                    :placeholder="t('project.create.form.composeFileNamePlaceholder')"
-                  />
-                </t-form-item>
-                <t-form-item :label="t('project.create.form.envFileName')" name="env_file_name">
-                  <t-input v-model="envFileNameModel" :placeholder="t('project.create.form.envFileNamePlaceholder')" />
-                </t-form-item>
-              </div>
-
-              <div class="project-create-form-actions">
-                <t-button
-                  theme="primary"
-                  variant="outline"
-                  type="button"
-                  :disabled="!managedCreateEnabled"
-                  :loading="validating"
-                  @click="runValidate"
-                >
-                  {{ t('project.create.actions.validate') }}
-                </t-button>
-                <t-button theme="primary" type="submit" :disabled="!managedCreateEnabled" :loading="creating">
-                  {{ t('project.create.actions.create') }}
-                </t-button>
-                <t-button theme="default" variant="text" type="button" @click="resetForm">
-                  {{ t('project.create.actions.reset') }}
-                </t-button>
-              </div>
-            </t-form>
-          </t-card>
-
-          <t-card :bordered="true" :title="t('project.create.validation.title')">
-            <t-descriptions size="small" :column="1" bordered>
-              <t-descriptions-item :label="t('project.create.validation.rootDirectory')">
-                <code>{{ managedRoot?.configured_root_directory || '-' }}</code>
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.create.validation.configKey')">
-                <code>{{ managedRoot?.config_key || '-' }}</code>
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.create.validation.createPermission')">
-                <code>{{ managedRoot?.create_permission || '-' }}</code>
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.create.validation.workingDirectory')">
-                <code>{{ validationResult?.working_directory || '-' }}</code>
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.create.validation.composePath')">
-                <code>{{ validationResult?.compose_file_absolute_path || '-' }}</code>
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.create.validation.envPath')">
-                <code>{{ validationResult?.env_file_absolute_path || '-' }}</code>
-              </t-descriptions-item>
-            </t-descriptions>
-
-            <div class="project-create-warnings">
-              <t-alert
-                v-for="(warning, index) in validationWarnings"
-                :key="`${index}-${warning}`"
-                theme="warning"
-                :message="warning"
-              />
-              <t-empty v-if="!validationWarnings.length" :description="t('project.create.validation.noWarnings')" />
+      <t-alert v-if="managedRootNotice" :theme="managedRootNoticeTheme" :message="managedRootNotice" />
+      <t-steps :current="step" readonly :options="stepOptions" />
+      <t-card bordered class="project-create-page__card">
+        <section v-if="step === 0">
+          <t-form ref="formRef" :data="formData" :rules="formRules" label-align="top" @submit="nextFromIdentity">
+            <div class="project-create-page__form-grid">
+              <t-form-item :label="t('project.create.form.displayName')" name="display_name"
+                ><t-input
+                  v-model="formData.display_name"
+                  :placeholder="t('project.create.form.displayNamePlaceholder')"
+              /></t-form-item>
+              <t-form-item :label="t('project.create.form.canonicalProjectName')" name="canonical_project_name"
+                ><t-input
+                  v-model="formData.canonical_project_name"
+                  :placeholder="t('project.create.form.canonicalProjectNamePlaceholder')"
+                  @change="syncDefaultDirectory"
+              /></t-form-item>
+              <t-form-item :label="t('project.create.form.relativeProjectDirectory')" name="relative_project_directory"
+                ><t-input
+                  v-model="formData.relative_project_directory"
+                  :placeholder="t('project.create.form.relativeProjectDirectoryPlaceholder')"
+              /></t-form-item>
             </div>
-          </t-card>
+            <t-descriptions bordered size="small" :column="1"
+              ><t-descriptions-item :label="t('project.create.validation.rootDirectory')"
+                ><code>{{ managedRoot?.configured_root_directory || '-' }}</code></t-descriptions-item
+              ><t-descriptions-item :label="t('project.create.validation.createPermission')"
+                ><code>{{ managedRoot?.create_permission || '-' }}</code></t-descriptions-item
+              ></t-descriptions
+            >
+            <div class="project-create-page__actions">
+              <t-button theme="primary" type="submit" :disabled="!managedCreateEnabled">{{
+                t('project.create.actions.continue')
+              }}</t-button>
+            </div>
+          </t-form>
         </section>
-
-        <section class="project-create-editors">
-          <t-card :bordered="true" :title="t('project.create.editors.title')">
-            <t-tabs v-model:value="activeEditorTab">
-              <t-tab-panel value="compose" :label="t('project.create.editors.composeTab')">
-                <project-file-editor
-                  v-model="formData.compose_file_content"
-                  v-model:mode="composeEditorMode"
-                  :title="t('project.create.editors.composeTitle')"
-                  :description="t('project.create.editors.composeDescription')"
-                  :placeholder="t('project.create.editors.composePlaceholder')"
-                  :empty-label="t('project.create.editors.composeEmpty')"
-                  :edit-label="t('project.create.editors.backToEditor')"
-                  :preview-label="t('project.create.editors.preview')"
-                  :format-label="t('project.create.editors.format')"
-                  :fullscreen-label="t('project.create.editors.fullscreen')"
-                  :exit-fullscreen-label="t('project.create.editors.exitFullscreen')"
-                  :resize-handle-label="t('project.create.editors.resize')"
-                  storage-key="graft.project.create.compose.editor.height"
-                  @format="formatComposeContent"
-                />
-              </t-tab-panel>
-              <t-tab-panel value="env" :label="t('project.create.editors.envTab')">
-                <project-file-editor
-                  v-model="envEditorContent"
-                  v-model:mode="envEditorMode"
-                  :title="t('project.create.editors.envTitle')"
-                  :description="t('project.create.editors.envDescription')"
-                  :placeholder="t('project.create.editors.envPlaceholder')"
-                  :empty-label="t('project.create.editors.envEmpty')"
-                  :edit-label="t('project.create.editors.backToEditor')"
-                  :preview-label="t('project.create.editors.preview')"
-                  :format-label="t('project.create.editors.format')"
-                  :fullscreen-label="t('project.create.editors.fullscreen')"
-                  :exit-fullscreen-label="t('project.create.editors.exitFullscreen')"
-                  :resize-handle-label="t('project.create.editors.resize')"
-                  storage-key="graft.project.create.env.editor.height"
-                  @format="formatEnvContent"
-                />
-              </t-tab-panel>
-            </t-tabs>
-          </t-card>
+        <section v-else-if="step === 1">
+          <project-create-workspace-editor v-model:files="workspaceFiles" />
+          <div class="project-create-page__actions">
+            <t-button theme="default" variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
+            ><t-button theme="primary" @click="step++">{{ t('project.create.actions.continue') }}</t-button>
+          </div>
         </section>
-      </div>
+        <section v-else-if="step === 2">
+          <project-lifecycle-configuration-review
+            v-model:draft="lifecycleDraft"
+            :title="t('project.create.lifecycle.title')"
+            :description="t('project.create.lifecycle.description')"
+            :authority-message="t('project.create.lifecycle.authorityHint')"
+            :configuration-title="t('project.create.lifecycle.configurationTitle')"
+            :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
+          />
+          <div class="project-create-page__actions">
+            <t-button theme="default" variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
+            ><t-button theme="primary" @click="nextFromLifecycle">{{ t('project.create.actions.review') }}</t-button>
+          </div>
+        </section>
+        <section v-else>
+          <h2>{{ t('project.create.review.title') }}</h2>
+          <p>{{ t('project.create.review.noAutoDeploy') }}</p>
+          <t-descriptions bordered size="small" :column="1"
+            ><t-descriptions-item :label="t('project.create.form.displayName')">{{
+              formData.display_name
+            }}</t-descriptions-item
+            ><t-descriptions-item :label="t('project.create.form.canonicalProjectName')"
+              ><code>{{ formData.canonical_project_name }}</code></t-descriptions-item
+            ><t-descriptions-item :label="t('project.create.review.workingDirectory')"
+              ><code>{{ validationResult?.working_directory || resolvedDirectory }}</code></t-descriptions-item
+            ><t-descriptions-item :label="t('project.create.review.workspaceFiles')">{{
+              workspaceFiles.map((file) => file.path).join(', ')
+            }}</t-descriptions-item></t-descriptions
+          >
+          <t-alert v-for="warning in validationWarnings" :key="warning" theme="warning" :message="warning" />
+          <t-checkbox v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
+            {{ t('project.create.review.deployAfterCreate') }}
+          </t-checkbox>
+          <t-alert
+            v-if="!canDeployAfterCreate"
+            theme="info"
+            :message="t('project.create.review.deployPermissionRequired')"
+          />
+          <div class="project-create-page__actions">
+            <t-button theme="default" variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
+            ><t-button theme="primary" :loading="creating" :disabled="!managedCreateEnabled" @click="createProject">{{
+              t('project.create.actions.create')
+            }}</t-button>
+          </div>
+        </section>
+      </t-card>
     </management-page-content>
   </div>
 </template>
@@ -187,12 +119,21 @@ import { computed, reactive, ref } from 'vue';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { usePermissionStore } from '@/store';
 
-import { getProjectManagedRoot, postProjectCreate, postProjectCreateValidate } from '../../api/project';
-import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
+import {
+  getProjectManagedRoot,
+  postProjectCreate,
+  postProjectCreateValidate,
+  postProjectDeploy,
+} from '../../api/project';
+import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
+import ProjectLifecycleConfigurationReview from '../../components/ProjectLifecycleConfigurationReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { PROJECT_PERMISSION_CODE } from '../../contract/permissions';
 import { isValidProjectCanonicalName } from '../../shared/canonical-name';
-import { normalizeTextBlock } from '../../shared/configuration-workspace';
+import { createWithOptionalDeploy } from '../../shared/create-with-optional-deploy';
+import { buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import type {
@@ -200,38 +141,44 @@ import type {
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
   ProjectCreateValidateResponse,
+  ProjectLifecycleConfigurationDraft,
   ProjectManagedRootResponse,
+  ProjectWorkspaceManifestFile,
 } from '../../types/project';
-
-defineOptions({
-  name: 'ProjectManagedCreateIndex',
-});
-
-type EditorTab = 'compose' | 'env';
-type EditorMode = 'edit' | 'preview';
-
+defineOptions({ name: 'ProjectManagedCreateIndex' });
 const { router, tabsRouterStore, t } = useProjectPageContext();
-
+const permissionStore = usePermissionStore();
 const formRef = ref<FormInstanceFunctions | null>(null);
 const rootLoading = ref(false);
-const validating = ref(false);
 const creating = ref(false);
+const step = ref(0);
+const deployAfterCreate = ref(false);
 const managedRoot = ref<ProjectManagedRootResponse | null>(null);
 const validationResult = ref<ProjectCreateValidateResponse | null>(null);
-const activeEditorTab = ref<EditorTab>('compose');
-const composeEditorMode = ref<EditorMode>('edit');
-const envEditorMode = ref<EditorMode>('edit');
-
-const formData = reactive<ProjectCreateRequest>({
-  display_name: '',
+const formData = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
+const workspaceFiles = ref<ProjectWorkspaceManifestFile[]>([
+  { path: 'compose.yaml', content: defaultComposeContent() },
+  { path: '.env', content: '' },
+]);
+const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
+  strategy_kind: 'standard',
+  working_directory: '',
+  compose_files: ['compose.yaml'],
   canonical_project_name: '',
-  relative_project_directory: '',
-  compose_file_name: 'compose.yaml',
-  compose_file_content: defaultComposeContent(),
-  env_file_name: '.env',
-  env_file_content: '',
+  profiles: [],
+  down_before_redeploy: true,
+  pull_before_redeploy: false,
+  build_before_up: false,
+  force_recreate: false,
+  remove_orphans: true,
+  wait_after_up: false,
+  wait_timeout_seconds: 120,
+  renew_anon_volumes: false,
+  prune_images_after_redeploy: false,
+  additional_args: '',
+  review_status: 'confirmed',
+  generated_commands: null,
 });
-
 const formRules: FormProps['rules'] = {
   display_name: [{ required: true, message: t('project.create.validation.displayNameRequired') }],
   canonical_project_name: [
@@ -245,71 +192,41 @@ const formRules: FormProps['rules'] = {
     { required: true, message: t('project.create.validation.relativeDirectoryRequired') },
     {
       validator: (value) => {
-        const normalized = String(value ?? '').trim();
-        return Boolean(normalized) && !normalized.startsWith('/') && !normalized.includes('..');
+        const path = String(value ?? '').trim();
+        return (
+          Boolean(path) &&
+          !path.startsWith('/') &&
+          !path.split('/').some((part) => !part || part === '.' || part === '..')
+        );
       },
       message: t('project.create.validation.relativeDirectoryPattern'),
     },
   ],
-  compose_file_name: [{ required: true, message: t('project.create.validation.composeFileNameRequired') }],
-  env_file_name: [
-    {
-      validator: (value) => {
-        const normalized = String(value ?? '').trim();
-        return !normalized || (!normalized.includes('/') && !normalized.includes('\\'));
-      },
-      message: t('project.create.validation.envFileNamePattern'),
-    },
-  ],
 };
-
+const stepOptions = computed(() =>
+  ['identity', 'workspace', 'lifecycle', 'review'].map((key) => ({ title: t(`project.create.steps.${key}`) })),
+);
 const managedCreateEnabled = computed(
   () => managedRoot.value?.supports_managed_create && managedRoot.value.status === 'ready',
 );
-const managedRootStatusLabel = computed(() => {
-  const status = managedRoot.value?.status;
-  if (status === 'ready') return t('project.create.root.status.ready');
-  if (status === 'invalid') return t('project.create.root.status.invalid');
-  if (status === 'unconfigured') return t('project.create.root.status.unconfigured');
-  return t('project.create.root.status.unknown');
-});
-const managedRootStatusTheme = computed(() => {
-  const status = managedRoot.value?.status;
-  if (status === 'ready') return 'success';
-  if (status === 'invalid') return 'danger';
-  return 'warning';
-});
-const managedRootNotice = computed(() => {
-  if (!managedRoot.value) {
-    return '';
-  }
-  if (managedRoot.value.status === 'ready') {
-    return t('project.create.root.readyHint', {
-      directory: managedRoot.value.configured_root_directory || '-',
-    });
-  }
-  return managedRoot.value.status_reason || t('project.create.root.unavailableHint');
-});
-const managedRootNoticeTheme = computed(() => (managedRoot.value?.status === 'invalid' ? 'error' : 'warning'));
+const canDeployAfterCreate = computed(() => permissionStore.hasPermission(PROJECT_PERMISSION_CODE.DEPLOY));
 const validationWarnings = computed(() => validationResult.value?.warnings || []);
-const envFileNameModel = computed({
-  get: () => String(formData.env_file_name || ''),
-  set: (value: string) => {
-    formData.env_file_name = value;
-  },
-});
-const envEditorContent = computed({
-  get: () => formData.env_file_content || '',
-  set: (value: string) => {
-    formData.env_file_content = value;
-    if (!value.trim() && !String(formData.env_file_name || '').trim()) {
-      formData.env_file_content = '';
-    }
-  },
-});
-
+const resolvedDirectory = computed(
+  () => `${managedRoot.value?.configured_root_directory || '-'}/${formData.relative_project_directory}`,
+);
+const managedRootStatusLabel = computed(() =>
+  t(`project.create.root.status.${managedRoot.value?.status || 'unknown'}`),
+);
+const managedRootStatusTheme = computed(() =>
+  managedRoot.value?.status === 'ready' ? 'success' : managedRoot.value?.status === 'invalid' ? 'danger' : 'warning',
+);
+const managedRootNotice = computed(() =>
+  managedRoot.value?.status === 'ready'
+    ? t('project.create.root.readyHint', { directory: managedRoot.value.configured_root_directory || '-' })
+    : managedRoot.value?.status_reason || t('project.create.root.unavailableHint'),
+);
+const managedRootNoticeTheme = computed(() => (managedRoot.value?.status === 'invalid' ? 'error' : 'warning'));
 void loadManagedRoot();
-
 async function loadManagedRoot() {
   rootLoading.value = true;
   try {
@@ -321,42 +238,80 @@ async function loadManagedRoot() {
     rootLoading.value = false;
   }
 }
-
-async function runValidate() {
-  const validateResult = await formRef.value?.validate();
-  if (validateResult !== true) {
-    return false;
-  }
-
-  validating.value = true;
+function syncDefaultDirectory() {
+  if (
+    !formData.relative_project_directory ||
+    formData.relative_project_directory === lifecycleDraft.canonical_project_name
+  )
+    formData.relative_project_directory = formData.canonical_project_name;
+  lifecycleDraft.canonical_project_name = formData.canonical_project_name;
+}
+async function nextFromIdentity() {
+  const valid = await formRef.value?.validate();
+  if (valid !== true) return;
+  lifecycleDraft.canonical_project_name = formData.canonical_project_name.trim();
+  lifecycleDraft.working_directory = resolvedDirectory.value;
+  lifecycleDraft.compose_files = [composePath.value];
+  step.value++;
+}
+const composePath = computed(
+  () =>
+    workspaceFiles.value.find((file) => /(^|\/)(compose|docker-compose)(\..+)?\.ya?ml$/i.test(file.path))?.path ||
+    'compose.yaml',
+);
+const envPaths = computed(() =>
+  workspaceFiles.value.filter((file) => /^\.env(?:\.|$)/.test(file.path)).map((file) => file.path),
+);
+function requestBase() {
+  const compose = workspaceFiles.value.find((file) => file.path === composePath.value);
+  const env = workspaceFiles.value.find((file) => file.path === envPaths.value[0]);
+  return {
+    display_name: formData.display_name.trim(),
+    canonical_project_name: formData.canonical_project_name.trim(),
+    relative_project_directory: formData.relative_project_directory.trim(),
+    compose_file_name: composePath.value,
+    compose_file_content: compose?.content || '',
+    ...(env ? { env_file_name: env.path, env_file_content: env.content } : {}),
+    workspace_files: workspaceFiles.value,
+    compose_file_path: composePath.value,
+    ...(envPaths.value.length ? { env_file_paths: envPaths.value } : {}),
+    lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft),
+  };
+}
+async function validateRequest() {
+  validationResult.value = await postProjectCreateValidate(requestBase() as ProjectCreateValidateRequest);
+}
+async function nextFromLifecycle() {
   try {
-    validationResult.value = await postProjectCreateValidate(toValidateRequest());
-    MessagePlugin.success(t('project.create.messages.validateSuccess'));
-    return true;
+    await validateRequest();
+    step.value++;
   } catch (error) {
-    validationResult.value = null;
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.validateFailed')));
-    return false;
-  } finally {
-    validating.value = false;
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));
   }
 }
-
-async function handleSubmit() {
+async function createProject() {
   if (!managedCreateEnabled.value) {
-    MessagePlugin.warning(managedRootNotice.value || t('project.create.root.unavailableHint'));
+    MessagePlugin.warning(managedRootNotice.value);
     return;
   }
-
-  const valid = await runValidate();
-  if (!valid) {
-    return;
-  }
-
   creating.value = true;
   try {
-    const response = await postProjectCreate(toCreateRequest());
+    await validateRequest();
+    const result = await createWithOptionalDeploy({
+      create: () => postProjectCreate(requestBase() as ProjectCreateRequest),
+      deploy: postProjectDeploy,
+      deployAfterCreate: deployAfterCreate.value && canDeployAfterCreate.value,
+    });
+    const response = result.created;
     MessagePlugin.success(response.message || t('project.create.messages.createSuccess'));
+    if (result.deployment.status === 'succeeded') {
+      MessagePlugin.success(t('project.create.messages.deploySuccess'));
+    }
+    if (result.deployment.status === 'failed') {
+      MessagePlugin.error(
+        resolveLocalizedErrorMessage(t, result.deployment.error, t('project.create.messages.deployFailed')),
+      );
+    }
     openCreatedProject(response);
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));
@@ -364,62 +319,9 @@ async function handleSubmit() {
     creating.value = false;
   }
 }
-
-function resetForm() {
-  formData.display_name = '';
-  formData.canonical_project_name = '';
-  formData.relative_project_directory = '';
-  formData.compose_file_name = 'compose.yaml';
-  formData.compose_file_content = defaultComposeContent();
-  formData.env_file_name = '.env';
-  formData.env_file_content = '';
-  validationResult.value = null;
-  activeEditorTab.value = 'compose';
-  composeEditorMode.value = 'edit';
-  envEditorMode.value = 'edit';
-  formRef.value?.reset({ type: 'initial' });
-}
-
 function goToList() {
   void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
 }
-
-function toValidateRequest(): ProjectCreateValidateRequest {
-  return {
-    display_name: formData.display_name.trim(),
-    canonical_project_name: formData.canonical_project_name.trim(),
-    relative_project_directory: formData.relative_project_directory.trim(),
-    compose_file_name: formData.compose_file_name.trim(),
-    ...(normalizedEnvFileName.value ? { env_file_name: normalizedEnvFileName.value } : {}),
-  };
-}
-
-function toCreateRequest(): ProjectCreateRequest {
-  return {
-    ...toValidateRequest(),
-    compose_file_content: normalizeTextBlock(formData.compose_file_content),
-    ...(normalizedEnvFileName.value
-      ? {
-          env_file_name: normalizedEnvFileName.value,
-          env_file_content: normalizeTextBlock(formData.env_file_content || ''),
-        }
-      : {}),
-  };
-}
-
-const normalizedEnvFileName = computed(() => {
-  const normalized = String(formData.env_file_name || '').trim();
-  return normalized || null;
-});
-
-function formatComposeContent() {
-  formData.compose_file_content = normalizeTextBlock(formData.compose_file_content);
-}
-
-function formatEnvContent() {
-  formData.env_file_content = normalizeTextBlock(formData.env_file_content || '');
-}
-
 function openCreatedProject(response: ProjectCreateResponse) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
@@ -434,82 +336,44 @@ function openCreatedProject(response: ProjectCreateResponse) {
   );
   void router.push(target);
 }
-
 function defaultComposeContent() {
-  return ['services:', '  app:', '    image: nginx:alpine', '    ports:', "      - '8080:80'"].join('\n');
+  return ['services:', '  app:', '    image: nginx:alpine'].join('\n');
 }
 </script>
-<style scoped lang="less">
-.project-create-page,
-.project-create-layout,
-.project-create-main,
-.project-create-editors,
-.project-create-form-actions,
-.project-create-form-grid,
-.project-create-warnings {
-  display: flex;
-}
-
+<style scoped>
 .project-create-page {
+  display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
 }
 
-.project-create-page__notice {
-  margin-top: calc(var(--graft-density-gap-12) * -1);
+.project-create-page__card {
+  margin-top: var(--graft-density-gap-16);
 }
 
-.project-create-layout {
-  align-items: flex-start;
-  gap: var(--graft-density-gap-16);
-}
-
-.project-create-main,
-.project-create-editors,
-.project-create-warnings {
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
-}
-
-.project-create-main {
-  max-width: 520px;
-}
-
-.project-create-form-grid {
+.project-create-page__form-grid {
   display: grid;
-  gap: var(--graft-density-gap-12) var(--graft-density-gap-16);
+  gap: var(--graft-density-gap-16);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.project-create-form-grid :deep(.t-form__item:last-child) {
-  grid-column: 1 / -1;
+.project-create-page__form-grid :last-child {
+  grid-column: 1/-1;
 }
 
-.project-create-form-actions {
+.project-create-page__actions {
+  display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
-  margin-top: var(--graft-density-gap-8);
+  margin-top: var(--graft-density-gap-16);
 }
 
-.project-create-warnings {
-  min-height: 140px;
-}
-
-@media (width <= 1200px) {
-  .project-create-layout {
-    flex-direction: column;
-  }
-
-  .project-create-main {
-    max-width: none;
-    width: 100%;
-  }
+h2 {
+  margin-top: 0;
 }
 
 @media (width <= 768px) {
-  .project-create-form-grid {
+  .project-create-page__form-grid {
     grid-template-columns: 1fr;
   }
 }

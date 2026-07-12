@@ -24,11 +24,11 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+		working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 		last_observed_config_hash, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "demo", "demo", projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
-		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(),
+		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(), `{}`,
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), completeLifecycleConfigJSON,
 		"hash-demo", `{}`, projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
@@ -209,6 +209,7 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		host_scope TEXT NOT NULL,
 		working_directory TEXT NOT NULL,
 		ownership_mode TEXT NOT NULL,
+		source_metadata_json TEXT NOT NULL DEFAULT '{}',
 		lifecycle_strategy_kind TEXT NOT NULL,
 		lifecycle_review_status TEXT NOT NULL,
 		lifecycle_config_json TEXT NOT NULL DEFAULT '{}',
@@ -249,11 +250,11 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 	t.Helper()
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+		working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 		last_observed_config_hash, workspace_annotations_json, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, name, name, projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
-		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(),
+		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(), `{}`,
 		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), completeLifecycleConfigJSON,
 		"hash-"+name, `{}`, projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
 	)

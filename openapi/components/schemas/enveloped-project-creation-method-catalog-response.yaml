@@ -5,4 +5,4 @@ allOf:
       - data
     properties:
       data:
-        $ref: ./project-source-catalog-response.yaml
+        $ref: ./project-creation-method-catalog-response.yaml

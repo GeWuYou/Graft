@@ -25,7 +25,9 @@ func sameWorkingDirectory(left string, right string) bool {
 }
 
 // toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
-// 结果包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
+// toProjectListItemWithManagedRoot 将项目聚合及运行时信息转换为项目列表项。
+//
+// 结果包含项目标识、名称、来源元数据、工作目录、声明服务数、容器数量、运行时状态和漂移状态。
 func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -45,7 +47,7 @@ func toProjectListItemWithManagedRoot(
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		LifecycleReviewStatus:      generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		SourceMetadata:             buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority()),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
@@ -68,6 +70,8 @@ func toProjectDetailResponse(
 	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary, runtimeErr)
 }
 
+// toProjectDetailResponseWithManagedRoot builds a detailed project response, including
+// lifecycle configuration, file metadata, runtime information, and managed-root source metadata.
 func toProjectDetailResponseWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -92,7 +96,7 @@ func toProjectDetailResponseWithManagedRoot(
 		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority()),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 	}
 	if aggregate.Project.LastObservedConfigHash != "" {
@@ -472,11 +476,8 @@ func stringValue(value *string) string {
 	return *value
 }
 
-// mapManagedSourceCatalogStatus 将托管根状态映射为来源目录状态。
-//
-// @param status 托管根状态字符串。
-// @returns 目录状态值；当状态为 ready 时返回 "ready"，其余情况返回 "blocked"。
-func mapManagedSourceCatalogStatus(status string) string {
+// mapManagedCreationMethodAvailability maps managed-root status to creation-method availability.
+func mapManagedCreationMethodAvailability(status string) string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
 		return "ready"
@@ -487,24 +488,24 @@ func mapManagedSourceCatalogStatus(status string) string {
 	}
 }
 
-// managedRootStatusReasonKey 将托管根状态映射为状态原因键。
-// 返回与给定托管根状态对应的原因键；当状态为就绪时返回 nil。
-func managedRootStatusReasonKey(status string) *string {
+// managedRootCreationBlockedReason 将托管根状态映射为稳定的创建方式阻塞原因代码。
+// 就绪状态返回 nil；未配置、无效或未知状态分别返回对应的原因代码指针。
+func managedRootCreationBlockedReason(status string) *string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
 		return nil
 	case projectcontract.ManagedRootStatusUnconfigured.String():
-		return stringPointer("project.createSource.statusReason.managedUnconfigured")
+		return stringPointer("managed_root_unconfigured")
 	case projectcontract.ManagedRootStatusInvalid.String():
-		return stringPointer("project.createSource.statusReason.managedInvalid")
+		return stringPointer("managed_root_invalid")
 	default:
-		return stringPointer("project.createSource.statusReason.managedUnknown")
+		return stringPointer("managed_root_unknown")
 	}
 }
 
 // toGeneratedSourceMetadata 将源元数据映射为生成的项目来源元数据。
 //
-// 仅在至少有一个已知字段可映射时返回结果；否则返回 nil。
+// toGeneratedSourceMetadata 将已知来源元数据字段转换为生成的来源元数据；没有可映射的字段时返回 nil。
 func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
 	if len(metadata) == 0 {
 		return nil
@@ -514,9 +515,6 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSou
 	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
 	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
 	assignSourceMetadataField(metadata, "managed_env_file_name", &result.ManagedEnvFileName)
-	assignSourceMetadataField(metadata, "git_repository_url", &result.GitRepositoryUrl)
-	assignSourceMetadataField(metadata, "git_reference", &result.GitReference)
-	assignSourceMetadataField(metadata, "git_compose_subpath", &result.GitComposeSubpath)
 	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
 	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
 	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
@@ -537,33 +535,38 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 }
 
 // buildListSourceMetadataWithManagedRoot 为项目列表构建来源元数据。
-// 当来源类型为受托管根或远程主机时返回对应的来源元数据；其他来源类型返回 nil。
+// buildListSourceMetadataWithManagedRoot 构建项目列表中的来源元数据；优先使用项目已存储的可映射元数据，托管来源在缺少该元数据时根据托管根目录生成，否则返回 nil。
 func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
+		return metadata
+	}
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
-	case projectcontract.SourceKindRemoteHost.String():
-		return buildRemoteHostSourceMetadata(aggregate)
 	default:
 		return nil
 	}
 }
 
 // buildDetailSourceMetadataWithManagedRoot 返回项目详情来源元数据。
-// 如果没有可映射的来源信息，则返回 nil。
+// buildDetailSourceMetadataWithManagedRoot 构建项目详情的来源元数据；优先使用项目中可映射的来源信息，并为托管来源补充托管根目录元数据。
+// 如果无法生成来源元数据，则返回 nil。
 func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
+		return metadata
+	}
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
-	case projectcontract.SourceKindRemoteHost.String():
-		return buildRemoteHostSourceMetadata(aggregate)
 	default:
 		return nil
 	}
 }
 
 // buildManagedSourceMetadata 生成托管项目的来源元数据。
-// 结果包含托管根标识、相对目录，以及已登记的 Compose 和环境文件名。
+// buildManagedSourceMetadata 构建托管项目的来源元数据，包含托管根标识、相对目录以及已登记的 Compose 和环境文件名。// @param aggregate 项目聚合数据。
+// @param managedRootDirectory 托管根目录。
+// @returns 托管项目的来源元数据。
 func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
@@ -582,23 +585,8 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managed
 	return toGeneratedSourceMetadata(metadata)
 }
 
-// buildRemoteHostSourceMetadata 构建远程主机来源元数据。
-// 元数据包含活动权威和汇总范围。
-func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
-	activityAuthority := string(resolveActivityAuthority(aggregate))
-	rollupScope := "planned-remote-summary"
-	return &generated.ProjectSourceMetadata{
-		ActivityAuthority:   &activityAuthority,
-		ActivityRollupScope: &rollupScope,
-	}
-}
-
-// resolveActivityAuthority 根据项目主机范围确定活动执行方式。
-// 当项目的 HostScope 为 remote 时返回 `ProjectActivityAuthorityBackendPlanned`，否则返回 `ProjectActivityAuthorityFrontendFanout`。
-func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityAuthority {
-	if strings.TrimSpace(aggregate.Project.HostScope) == projectcontract.HostScopeRemote.String() {
-		return ProjectActivityAuthorityBackendPlanned
-	}
+// resolveActivityAuthority 返回项目活动使用的权威路径，固定为容器所有者前端扇出路径。
+func resolveActivityAuthority() ActivityAuthority {
 	return ProjectActivityAuthorityFrontendFanout
 }
 

@@ -32,4 +32,14 @@ describe('project bootstrap route registrations', () => {
       }),
     );
   });
+
+  it('exposes the three supported project creation routes', () => {
+    const paths = projectGlobalRouteRegistrations.map((route) => route.path);
+
+    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_IMPORT);
+    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_BLANK);
+    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_TEMPLATE);
+    expect(paths).not.toContain('/ops/projects/create/git');
+    expect(paths).not.toContain('/ops/projects/create/remote-host');
+  });
 });

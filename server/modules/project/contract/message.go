@@ -43,8 +43,6 @@ const (
 const (
 	// ProjectMenuTitle identifies the project-management menu title.
 	ProjectMenuTitle MessageKey = "menu.ops.project.title"
-	// ProjectSourceMenuTitle identifies the hidden source-selector route title.
-	ProjectSourceMenuTitle MessageKey = "menu.ops.project.source.title"
 	// ProjectInvalidID identifies path or payload project identifiers that fail validation.
 	ProjectInvalidID ErrorCode = "ops.project.error.invalidProjectId"
 	// ProjectInvalidFileID identifies path file identifiers that fail validation.
@@ -106,8 +104,6 @@ const (
 	ProjectManagedCreateAccepted MessageKey = "ops.project.create.accepted"
 	// ProjectDeployCompleted identifies a successful managed configuration deploy response.
 	ProjectDeployCompleted MessageKey = "ops.project.deploy.completed"
-	// ProjectSourceCatalogReady identifies a successful project source catalog response.
-	ProjectSourceCatalogReady MessageKey = "ops.project.source.catalog.ready"
 	// ProjectDiscoveryCandidatesReady identifies a successful discovery-candidate preview response.
 	ProjectDiscoveryCandidatesReady MessageKey = "ops.project.discovery.candidates.ready"
 	// ProjectDirectorySourcesReady identifies a successful import directory-source listing response.
@@ -116,14 +112,6 @@ const (
 	ProjectDirectoryBrowseReady MessageKey = "ops.project.import.directories.ready"
 	// ProjectImportInspected identifies a successful import inspection response.
 	ProjectImportInspected MessageKey = "ops.project.import.inspected"
-	// ProjectSourceManagedDescription identifies the managed source catalog description key.
-	ProjectSourceManagedDescription MessageKey = "ops.project.source.managed.description"
-	// ProjectSourceGitDescription identifies the git source catalog description key.
-	ProjectSourceGitDescription MessageKey = "ops.project.source.git.description"
-	// ProjectSourceTemplateDescription identifies the template source catalog description key.
-	ProjectSourceTemplateDescription MessageKey = "ops.project.source.template.description"
-	// ProjectSourceRemoteHostDescription identifies the remote-host source catalog description key.
-	ProjectSourceRemoteHostDescription MessageKey = "ops.project.source.remoteHost.description"
 )
 
 const (
@@ -139,8 +127,8 @@ const (
 	ProjectDestroyPermission PermissionCode = "ops.project.destroy"
 	// ProjectCreatePermission identifies managed-create contract and future create execution access.
 	ProjectCreatePermission PermissionCode = "ops.project.create"
-	// ProjectSourceViewPermission identifies access to the Phase 3 source selector and source catalog boundary.
-	ProjectSourceViewPermission PermissionCode = "ops.project.source.view"
+	// ProjectCreationMethodViewPermission identifies access to the project creation-method catalog.
+	ProjectCreationMethodViewPermission PermissionCode = "ops.project.creation-method.view"
 	// ProjectDiscoveryViewPermission identifies access to bounded directory scan and auto-discovery candidate previews.
 	ProjectDiscoveryViewPermission PermissionCode = "ops.project.discovery.view"
 	// ProjectDeployPermission identifies managed configuration diff, validate, and deploy access.

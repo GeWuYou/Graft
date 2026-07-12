@@ -16,7 +16,7 @@ properties:
   managed_root:
     $ref: ./project-managed-root-response.yaml
   source_type:
-    $ref: ./project-source-entry-type.yaml
+    $ref: ./project-source-kind.yaml
   project_id:
     type: integer
     format: int64

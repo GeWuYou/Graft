@@ -1,0 +1,36 @@
+post:
+  tags: [project]
+  summary: Validate a bundled template project source
+  operationId: postProjectCreateTemplateValidate
+  description: Validates the selected bundled template and eventual managed-root target without writing it.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/project-template-create-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Template source validation result.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-create-validate-response.yaml
+    '400':
+      description: Invalid template create validation request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml

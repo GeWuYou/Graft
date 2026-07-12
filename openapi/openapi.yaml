@@ -254,8 +254,8 @@ paths:
     $ref: ./paths/ops-projects.import-directory-sources.yaml
   /api/ops/projects/import/directories:
     $ref: ./paths/ops-projects.import-directories.yaml
-  /api/ops/projects/sources:
-    $ref: ./paths/ops-projects.sources.yaml
+  /api/ops/projects/creation-methods:
+    $ref: ./paths/ops-projects.creation-methods.yaml
   /api/ops/projects/discovery-candidates:
     $ref: ./paths/ops-projects.discovery-candidates.yaml
   /api/ops/projects/managed/root:
@@ -264,6 +264,10 @@ paths:
     $ref: ./paths/ops-projects.create-validate.yaml
   /api/ops/projects/create/managed:
     $ref: ./paths/ops-projects.create.yaml
+  /api/ops/projects/create/template/validate:
+    $ref: ./paths/ops-projects.create-template-validate.yaml
+  /api/ops/projects/create/template:
+    $ref: ./paths/ops-projects.create-template.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
   /api/ops/projects/{id}/overview:
@@ -786,14 +790,14 @@ components:
       $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
     ProjectSourceKind:
       $ref: ./components/schemas/project-source-kind.yaml
-    ProjectSourceEntryType:
-      $ref: ./components/schemas/project-source-entry-type.yaml
-    ProjectSourceEntryStatus:
-      $ref: ./components/schemas/project-source-entry-status.yaml
-    ProjectSourceEntry:
-      $ref: ./components/schemas/project-source-entry.yaml
-    ProjectSourceCatalogResponse:
-      $ref: ./components/schemas/project-source-catalog-response.yaml
+    ProjectCreationMethodType:
+      $ref: ./components/schemas/project-creation-method-type.yaml
+    ProjectCreationMethodAvailability:
+      $ref: ./components/schemas/project-creation-method-availability.yaml
+    ProjectCreationMethod:
+      $ref: ./components/schemas/project-creation-method.yaml
+    ProjectCreationMethodCatalogResponse:
+      $ref: ./components/schemas/project-creation-method-catalog-response.yaml
     ProjectSourceMetadata:
       $ref: ./components/schemas/project-source-metadata.yaml
     ProjectHostScope:
@@ -856,6 +860,8 @@ components:
       $ref: ./components/schemas/project-services-response.yaml
     ProjectCreateRequest:
       $ref: ./components/schemas/project-create-request.yaml
+    ProjectWorkspaceManifestFile:
+      $ref: ./components/schemas/project-workspace-manifest-file.yaml
     ProjectImportValidateRequest:
       $ref: ./components/schemas/project-import-validate-request.yaml
     ProjectImportValidateResponse:
@@ -912,8 +918,8 @@ components:
       $ref: ./components/schemas/project-batch-action-response.yaml
     EnvelopedProjectListResponse:
       $ref: ./components/schemas/enveloped-project-list-response.yaml
-    EnvelopedProjectSourceCatalogResponse:
-      $ref: ./components/schemas/enveloped-project-source-catalog-response.yaml
+    EnvelopedProjectCreationMethodCatalogResponse:
+      $ref: ./components/schemas/enveloped-project-creation-method-catalog-response.yaml
     EnvelopedProjectDetailResponse:
       $ref: ./components/schemas/enveloped-project-detail-response.yaml
     EnvelopedProjectLogResponse:

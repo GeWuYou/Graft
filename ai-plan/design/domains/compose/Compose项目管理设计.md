@@ -1452,6 +1452,17 @@ Phase 1 处理：
 | Remote Host                          | `partial`        | 需在 `host_scope` 与连接配置上再扩展，但 registry 模型可保留 |
 | Project Activity backend aggregation | `future yes`     | 需要单独定义 observability authority，Phase 1 不做           |
 
+### 15.1 Creation Pipeline
+
+所有来源在解析出真实 workspace 后必须进入同一条 project creation pipeline：确认 lifecycle configuration、写入 project aggregate 与来源元数据、生成 compose snapshot，并仅做只读 runtime observation。该 pipeline 不执行 `docker compose up`、pull 或 build。
+
+受支持的创建页面可以在最终 Review 中提供默认关闭、且受 `ops.project.deploy` 权限约束的“创建后部署”选项。该选项必须在项目已成功注册为 `Ready` 后，单独调用既有 Deploy action；Deploy 失败不得回滚创建结果，也不得改变 creation pipeline 的无运行时副作用约束。
+
+- Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
+- Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
+- `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。
+- `source_metadata_json` 持久化来源专属、无密钥 provenance；当前 Template adapter 与未来来源 adapter 都只负责解析/物化 workspace 后调用同一 pipeline。
+
 ## 16. 分阶段实施路线
 
 后续路线图建议按 `Management`、`Observability`、`Configuration` 三类能力组织，而不是按 `Read/Write` 组织。
@@ -1629,11 +1640,11 @@ Configuration：
 - Project module owner：`server/modules/project/**`
   - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
   - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
-  - git/template 仅返回 `planned` entry，不执行 clone、模板实例化、目录扫描、remote host 或 backend activity aggregation
+  - Git/Template adapter 已落地：Git 仅在隔离临时目录 clone/checkout 无凭据来源，Template 仅允许显式模块内置 text workspace；二者都不扩展到目录扫描、remote host 或 backend activity aggregation
 - Web module owner：`web/src/modules/project/**`
   - `/ops/projects/create` 固定为 source selector
   - `/ops/projects/create/managed` 承接现有 managed create 页面
-  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 只保留 planned boundary 占位页
+  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 承接 source adapter 创建页；两者都必须在真实 workspace 解析后进入同一 creation pipeline，且不得自动 deploy
 
 IA guardrail:
 
@@ -1721,3 +1732,15 @@ IA guardrail:
 - `Project` 聚合 Runtime，而不是复制 Runtime
 - `Snapshot` 是最近一次成功解析结果，而不是运行时缓存
 - `Overview` 是 Summary，而不是 Dashboard
+
+## 18. 当前来源范围与扩展口
+
+当前公开且可执行的项目创建方式只有：
+
+- `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
+- `Template`：模块内置模板生成 Workspace。
+- `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
+
+`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。统一入口是 `/ops/projects/create`，三个向导路径分别为 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
+
+未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Creation Method -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

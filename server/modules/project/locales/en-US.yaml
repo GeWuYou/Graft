@@ -26,16 +26,12 @@ rbac.permissionCatalog.projectDestroy.display: Unregister Or Destroy Compose Pro
 rbac.permissionCatalog.projectDestroy.description: Run unregister and guarded destroy actions for project records.
 rbac.permissionCatalog.projectCreate.display: Create Managed Compose Projects
 rbac.permissionCatalog.projectCreate.description: View managed root settings and create managed Compose projects.
-rbac.permissionCatalog.projectSourceView.display: View Project Source Catalog
-rbac.permissionCatalog.projectSourceView.description: View available project sources and the entry routes for managed, Git, and template workflows.
+rbac.permissionCatalog.projectCreationMethodView.display: View Project Creation Methods
+rbac.permissionCatalog.projectCreationMethodView.description: View supported Compose project creation methods and their availability.
 rbac.permissionCatalog.projectDiscoveryView.display: View Project Discovery Candidates
 rbac.permissionCatalog.projectDiscoveryView.description: Preview discovered local Compose directories without registering a project.
 rbac.permissionCatalog.projectDeploy.display: Deploy Managed Compose Project Drafts
 rbac.permissionCatalog.projectDeploy.description: Diff, validate, and deploy managed project configuration drafts.
-ops.project.source.managed.description: Create a managed Compose project in the configured managed root directory.
-ops.project.source.git.description: Git-based project creation is not available yet.
-ops.project.source.template.description: Template-based project creation is not available yet.
-ops.project.source.remoteHost.description: Remote host project creation is not available yet.
 ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
 systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
 systemConfig.project.ops.project.managed.root_directory.description: Root directory used for managed Compose project creation. Leave empty to keep managed creation unavailable.

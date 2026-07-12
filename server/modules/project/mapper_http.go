@@ -60,6 +60,7 @@ func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) gen
 	}
 }
 
+// toRuntimeImportMembers 将运行时导入成员转换为 API 响应中的成员列表。
 func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImportRuntimeMember {
 	members := make([]generated.ProjectImportRuntimeMember, 0, len(items))
 	for _, item := range items {
@@ -73,17 +74,15 @@ func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImpo
 	return members
 }
 
-// toSourceCatalogResponse 将源目录结果转换为源目录响应，并复制条目列表。
-//
-// @return Items 复制后的源目录条目列表。
-func toSourceCatalogResponse(result SourceCatalogResult) generated.ProjectSourceCatalogResponse {
-	return generated.ProjectSourceCatalogResponse{
-		Items: append([]generated.ProjectSourceEntry(nil), result.Items...),
+// toCreationMethodCatalogResponse converts creation-method availability into an OpenAPI response.
+func toCreationMethodCatalogResponse(result CreationMethodCatalogResult) generated.ProjectCreationMethodCatalogResponse {
+	return generated.ProjectCreationMethodCatalogResponse{
+		Items: append([]generated.ProjectCreationMethod(nil), result.Items...),
 	}
 }
 
 // toDiscoveryCandidatesResponse 将内部发现候选结果转换为 OpenAPI 响应。
-// 它会复制候选项及其切片字段，并在对应值存在时写入可选的来源信息、状态原因和结果级字段。
+// toDiscoveryCandidatesResponse 将发现候选结果转换为 OpenAPI 发现候选响应，并保留候选项及结果级的可选字段。
 func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.ProjectDiscoveryCandidatesResponse {
 	items := make([]generated.ProjectDiscoveryCandidate, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -111,7 +110,7 @@ func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.P
 			candidate.SourceMetadata = metadata
 		}
 		if item.SourceType != "" {
-			sourceType := generated.ProjectSourceEntryType(item.SourceType)
+			sourceType := generated.ProjectSourceKind(item.SourceType)
 			candidate.SourceType = &sourceType
 		}
 		if item.StatusReason != nil {
@@ -120,7 +119,7 @@ func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.P
 		items = append(items, candidate)
 	}
 	response := generated.ProjectDiscoveryCandidatesResponse{
-		SourceType:            generated.ProjectSourceEntryType(result.SourceType),
+		SourceType:            generated.ProjectSourceKind(result.SourceType),
 		SupportsScan:          result.SupportsScan,
 		SupportsAutoDiscovery: result.SupportsAutoDiscovery,
 		Items:                 items,
@@ -159,10 +158,11 @@ func toImportValidateResponse(result ImportValidationResult) generated.ProjectIm
 	return response
 }
 
-// toRuntimeImportInspectResponse converts runtime import inspection results into an OpenAPI response. It includes project metadata, files, services, resources, runtime members, validation details, and lifecycle configuration.
+// toRuntimeImportInspectResponse 将运行时导入检查结果转换为 OpenAPI 响应。
 func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ProjectImportRuntimeInspectResponse {
 	return generated.ProjectImportRuntimeInspectResponse{
 		InspectionId:               result.InspectionID,
+		ExpiresAt:                  result.ExpiresAt,
 		CandidateKey:               result.CandidateKey,
 		ResolvedWorkingDirectory:   result.ResolvedWorkingDirectory,
 		CanonicalProjectName:       result.CanonicalProjectName,
@@ -483,10 +483,11 @@ func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult
 
 // toManagedRootResponse 将托管根信息转换为项目托管根响应。
 //
-// toManagedRootResponse 将托管根目录信息映射为 OpenAPI 响应，并在可用时附加可配置根目录和状态原因。
+// toManagedRootResponse 将托管根目录信息转换为 OpenAPI 响应。
+// 可用时包含已配置的根目录和状态原因。
 func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
 	response := generated.ProjectManagedRootResponse{
-		SourceType:            generated.ProjectSourceEntryType(info.SourceType),
+		SourceType:            generated.ProjectSourceKind(info.SourceType),
 		Status:                generated.ProjectManagedRootStatus(info.Status),
 		ConfigKey:             info.ConfigKey,
 		OwnershipMode:         generated.ProjectOwnershipMode(info.OwnershipMode),
@@ -504,11 +505,11 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 
 // toManagedCreateValidateResponse 将托管项目创建校验结果映射为创建校验响应。
 // toManagedCreateValidateResponse 将托管项目创建校验结果转换为生成的创建校验响应。
-// 它包含托管根信息、源类型、显示名、规范项目名、所有权模式、工作目录以及 compose 文件信息，并在存在时附带环境文件路径、源元数据和警告列表。
+// toManagedCreateValidateResponse 将托管项目创建校验结果转换为项目创建校验响应，并附带可选的环境文件信息、源元数据和警告列表。
 func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
 	response := generated.ProjectCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
-		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
+		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		DisplayName:             result.DisplayName,
 		CanonicalProjectName:    result.CanonicalProjectName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
@@ -533,11 +534,13 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 }
 
 // toManagedCreateResponse 将托管项目创建结果转换为创建响应。
-// toManagedCreateResponse 将托管项目创建结果转换为创建响应，包含托管根状态、项目信息、快照摘要以及可选的环境文件信息、源元数据和警告。
+// toManagedCreateResponse 将托管项目创建结果转换为创建响应，并包含项目快照摘要及可选的环境文件、源元数据和警告。
+// @param result 托管项目创建结果。
+// @return 托管项目创建响应。
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
-		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
+		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		ProjectId:               mustGeneratedID(result.ProjectID),
 		DisplayName:             result.Validation.DisplayName,
 		CanonicalProjectName:    result.Validation.CanonicalProjectName,
@@ -579,24 +582,55 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 }
 
 // toManagedCreateRequest 将项目创建校验请求转换为内部创建请求。
-// 它复制显示名称、规范项目名、相对目录、Compose 文件名，并在提供环境文件名时创建独立副本。
-func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) ManagedProjectCreateRequest {
+// toManagedCreateRequest 将项目创建校验请求转换为内部托管项目创建请求，并保留工作区文件、Compose/环境文件路径及生命周期配置等可选信息。
+// 返回转换后的托管项目创建请求。
+func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	var envFileName *string
 	if request.EnvFileName != nil {
 		value := *request.EnvFileName
 		envFileName = &value
 	}
-	return ManagedProjectCreateRequest{
-		DisplayName:              request.DisplayName,
-		CanonicalProjectName:     request.CanonicalProjectName,
-		RelativeProjectDirectory: request.RelativeProjectDirectory,
-		ComposeFileName:          request.ComposeFileName,
-		EnvFileName:              envFileName,
+	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, canonicalName: request.CanonicalProjectName, relativeDirectory: request.RelativeProjectDirectory, composeFileName: request.ComposeFileName, envFileName: envFileName, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+}
+
+type managedCreateHTTPParts struct {
+	displayName, canonicalName, relativeDirectory, composeFileName, composeFileContent string
+	envFileName, envFileContent                                                        *string
+	workspaceFiles                                                                     *[]generated.ProjectWorkspaceManifestFile
+	composeFilePath                                                                    *string
+	envFilePaths                                                                       *[]string
+	lifecycle                                                                          *generated.ProjectLifecycleConfigurationRequest
+}
+
+// managedCreateRequestFromParts 将托管项目创建 HTTP 请求的各部分组装为内部请求。
+// 它会复制工作区文件、Compose 和环境文件路径，并校验生命周期配置采用标准策略。
+func managedCreateRequestFromParts(parts managedCreateHTTPParts) (ManagedProjectCreateRequest, error) {
+	request := ManagedProjectCreateRequest{
+		DisplayName: parts.displayName, CanonicalProjectName: parts.canonicalName, RelativeProjectDirectory: parts.relativeDirectory, ComposeFileName: parts.composeFileName, ComposeFileContent: parts.composeFileContent, EnvFileName: parts.envFileName, EnvFileContent: parts.envFileContent,
 	}
+	if parts.workspaceFiles != nil {
+		for _, item := range *parts.workspaceFiles {
+			request.WorkspaceFiles = append(request.WorkspaceFiles, ManagedWorkspaceFile{Path: item.Path, Content: item.Content})
+		}
+	}
+	if parts.composeFilePath != nil {
+		request.ComposeFilePath = *parts.composeFilePath
+	}
+	if parts.envFilePaths != nil {
+		request.EnvFilePaths = append([]string(nil), (*parts.envFilePaths)...)
+	}
+	if parts.lifecycle != nil {
+		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
+		if err != nil {
+			return ManagedProjectCreateRequest{}, err
+		}
+		request.LifecycleConfig = &config
+	}
+	return request, nil
 }
 
 // toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求。
-func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) ManagedProjectCreateRequest {
+func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	var envFileName *string
 	if request.EnvFileName != nil {
 		value := *request.EnvFileName
@@ -607,17 +641,11 @@ func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONReques
 		value := *request.EnvFileContent
 		envFileContent = &value
 	}
-	return ManagedProjectCreateRequest{
-		DisplayName:              request.DisplayName,
-		CanonicalProjectName:     request.CanonicalProjectName,
-		RelativeProjectDirectory: request.RelativeProjectDirectory,
-		ComposeFileName:          request.ComposeFileName,
-		ComposeFileContent:       request.ComposeFileContent,
-		EnvFileName:              envFileName,
-		EnvFileContent:           envFileContent,
-	}
+	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, canonicalName: request.CanonicalProjectName, relativeDirectory: request.RelativeProjectDirectory, composeFileName: request.ComposeFileName, composeFileContent: request.ComposeFileContent, envFileName: envFileName, envFileContent: envFileContent, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
 }
 
+// toProjectOverviewServiceItem 将服务投影和运行时资源摘要转换为项目概览服务项。
+// 返回服务概览项及其是否处于健康状态的标志。
 func toProjectOverviewServiceItem(
 	item projectcompose.ServiceProjection,
 	runtime moduleapi.ContainerProjectServiceResourceSummary,

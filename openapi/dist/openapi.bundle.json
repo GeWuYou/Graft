@@ -11591,14 +11591,14 @@
         }
       }
     },
-    "/api/ops/projects/sources": {
+    "/api/ops/projects/creation-methods": {
       "get": {
         "tags": [
           "project"
         ],
-        "summary": "List Compose project source entrypoints",
-        "operationId": "getProjectSources",
-        "description": "Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.",
+        "summary": "List Compose project creation methods",
+        "operationId": "getProjectCreationMethods",
+        "description": "Returns the currently supported ways to create a Compose project. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11614,7 +11614,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Project source catalog.",
+            "description": "Project creation method catalog.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -11623,7 +11623,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-source-catalog-response"
+                  "$ref": "#/components/schemas/enveloped-project-creation-method-catalog-response"
                 }
               }
             }
@@ -11912,6 +11912,114 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/template/validate": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Validate a bundled template project source",
+        "operationId": "postProjectCreateTemplateValidate",
+        "description": "Validates the selected bundled template and eventual managed-root target without writing it.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-template-create-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template source validation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-validate-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/template": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Create a managed Compose project from a bundled template",
+        "operationId": "postProjectCreateTemplate",
+        "description": "Materializes one explicit bundled text workspace template under the managed root, then registers it without running Compose lifecycle commands.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-template-create-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Template workspace materialized and project registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           }
         }
       }
@@ -14453,17 +14561,17 @@
       "ProjectSourceKind": {
         "$ref": "#/components/schemas/project-source-kind"
       },
-      "ProjectSourceEntryType": {
-        "$ref": "#/components/schemas/project-source-entry-type"
+      "ProjectCreationMethodType": {
+        "$ref": "#/components/schemas/project-creation-method-type"
       },
-      "ProjectSourceEntryStatus": {
-        "$ref": "#/components/schemas/project-source-entry-status"
+      "ProjectCreationMethodAvailability": {
+        "$ref": "#/components/schemas/project-creation-method-availability"
       },
-      "ProjectSourceEntry": {
-        "$ref": "#/components/schemas/project-source-entry"
+      "ProjectCreationMethod": {
+        "$ref": "#/components/schemas/project-creation-method"
       },
-      "ProjectSourceCatalogResponse": {
-        "$ref": "#/components/schemas/project-source-catalog-response"
+      "ProjectCreationMethodCatalogResponse": {
+        "$ref": "#/components/schemas/project-creation-method-catalog-response"
       },
       "ProjectSourceMetadata": {
         "$ref": "#/components/schemas/project-source-metadata"
@@ -14558,6 +14666,9 @@
       "ProjectCreateRequest": {
         "$ref": "#/components/schemas/project-create-request"
       },
+      "ProjectWorkspaceManifestFile": {
+        "$ref": "#/components/schemas/project-workspace-manifest-file"
+      },
       "ProjectImportValidateRequest": {
         "$ref": "#/components/schemas/project-import-validate-request"
       },
@@ -14642,8 +14753,8 @@
       "EnvelopedProjectListResponse": {
         "$ref": "#/components/schemas/enveloped-project-list-response"
       },
-      "EnvelopedProjectSourceCatalogResponse": {
-        "$ref": "#/components/schemas/enveloped-project-source-catalog-response"
+      "EnvelopedProjectCreationMethodCatalogResponse": {
+        "$ref": "#/components/schemas/enveloped-project-creation-method-catalog-response"
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
@@ -22942,13 +23053,11 @@
         "enum": [
           "imported",
           "managed",
-          "git",
           "template"
         ],
         "x-enum-varnames": [
           "ProjectSourceKindImported",
           "ProjectSourceKindManaged",
-          "ProjectSourceKindGit",
           "ProjectSourceKindTemplate"
         ]
       },
@@ -23011,18 +23120,6 @@
             "nullable": true,
             "description": "Optional managed env file name tracked by project authority."
           },
-          "git_repository_url": {
-            "type": "string",
-            "description": "Planned canonical git repository URL for a future git-backed project source."
-          },
-          "git_reference": {
-            "type": "string",
-            "description": "Planned git branch, tag, or commit ref for a future git-backed project source."
-          },
-          "git_compose_subpath": {
-            "type": "string",
-            "description": "Planned repository-relative compose working directory or file subpath."
-          },
           "template_key": {
             "type": "string",
             "description": "Planned stable template identifier for a future template-backed project source."
@@ -23034,22 +23131,6 @@
           "template_instance_name": {
             "type": "string",
             "description": "Planned template instance name used to derive a managed working directory."
-          },
-          "remote_host_key": {
-            "type": "string",
-            "description": "Planned stable remote host connection identifier owned by future remote-host project authority."
-          },
-          "remote_compose_path": {
-            "type": "string",
-            "description": "Planned remote compose working directory or entry compose file path under the remote-host boundary."
-          },
-          "activity_authority": {
-            "type": "string",
-            "description": "Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner."
-          },
-          "activity_rollup_scope": {
-            "type": "string",
-            "description": "Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary."
           }
         }
       },
@@ -23067,12 +23148,10 @@
       "project-host-scope": {
         "type": "string",
         "enum": [
-          "local",
-          "remote"
+          "local"
         ],
         "x-enum-varnames": [
-          "ProjectHostScopeLocal",
-          "ProjectHostScopeRemote"
+          "ProjectHostScopeLocal"
         ]
       },
       "project-ownership-mode": {
@@ -23887,6 +23966,7 @@
         "type": "object",
         "required": [
           "inspection_id",
+          "expires_at",
           "candidate_key",
           "resolved_working_directory",
           "canonical_project_name",
@@ -23907,6 +23987,11 @@
         "properties": {
           "inspection_id": {
             "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Absolute UTC expiration time for this short-lived inspection session."
           },
           "candidate_key": {
             "type": "string"
@@ -24607,101 +24692,51 @@
           }
         ]
       },
-      "project-source-entry-type": {
+      "project-creation-method-type": {
         "type": "string",
         "enum": [
-          "managed",
-          "git",
+          "blank",
           "template",
-          "remote-host"
+          "import"
         ],
         "x-enum-varnames": [
-          "ProjectSourceEntryTypeManaged",
-          "ProjectSourceEntryTypeGit",
-          "ProjectSourceEntryTypeTemplate",
-          "ProjectSourceEntryTypeRemoteHost"
+          "ProjectCreationMethodTypeBlank",
+          "ProjectCreationMethodTypeTemplate",
+          "ProjectCreationMethodTypeImport"
         ]
       },
-      "project-source-entry-status": {
+      "project-creation-method-availability": {
         "type": "string",
         "enum": [
           "ready",
-          "blocked",
-          "planned"
+          "blocked"
         ],
         "x-enum-varnames": [
-          "ProjectSourceEntryStatusReady",
-          "ProjectSourceEntryStatusBlocked",
-          "ProjectSourceEntryStatusPlanned"
+          "ProjectCreationMethodAvailabilityReady",
+          "ProjectCreationMethodAvailabilityBlocked"
         ]
       },
-      "project-source-entry": {
+      "project-creation-method": {
         "type": "object",
         "required": [
-          "type",
-          "status",
-          "display_name",
-          "title_key",
-          "route_path",
-          "route_name",
-          "permission",
-          "menu_group",
-          "description",
-          "description_key",
-          "metadata_fields",
-          "host_scope"
+          "method",
+          "availability"
         ],
         "properties": {
-          "type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+          "method": {
+            "$ref": "#/components/schemas/project-creation-method-type"
           },
-          "status": {
-            "$ref": "#/components/schemas/project-source-entry-status"
+          "availability": {
+            "$ref": "#/components/schemas/project-creation-method-availability"
           },
-          "display_name": {
-            "type": "string"
-          },
-          "title_key": {
-            "type": "string"
-          },
-          "route_path": {
-            "type": "string"
-          },
-          "route_name": {
-            "type": "string"
-          },
-          "permission": {
-            "type": "string"
-          },
-          "menu_group": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "description_key": {
-            "type": "string"
-          },
-          "metadata_fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "host_scope": {
-            "$ref": "#/components/schemas/project-host-scope"
-          },
-          "status_reason": {
+          "blocked_reason": {
             "type": "string",
-            "nullable": true
-          },
-          "status_reason_key": {
-            "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Stable reason code when the creation method is blocked."
           }
         }
       },
-      "project-source-catalog-response": {
+      "project-creation-method-catalog-response": {
         "type": "object",
         "required": [
           "items"
@@ -24710,12 +24745,12 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/project-source-entry"
+              "$ref": "#/components/schemas/project-creation-method"
             }
           }
         }
       },
-      "enveloped-project-source-catalog-response": {
+      "enveloped-project-creation-method-catalog-response": {
         "allOf": [
           {
             "$ref": "#/components/schemas/api-envelope"
@@ -24727,7 +24762,7 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/project-source-catalog-response"
+                "$ref": "#/components/schemas/project-creation-method-catalog-response"
               }
             }
           }
@@ -24790,7 +24825,7 @@
             "$ref": "#/components/schemas/project-source-kind"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "source_metadata": {
             "$ref": "#/components/schemas/project-source-metadata"
@@ -24881,7 +24916,7 @@
         ],
         "properties": {
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "authority_root": {
             "type": "string",
@@ -24951,7 +24986,7 @@
             "$ref": "#/components/schemas/project-managed-root-status"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "config_key": {
             "type": "string"
@@ -24993,6 +25028,26 @@
           }
         ]
       },
+      "project-workspace-manifest-file": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Relative text-file path within the managed workspace. Absolute paths and traversal are rejected."
+          },
+          "content": {
+            "type": "string",
+            "description": "UTF-8 text content to materialize for the file."
+          }
+        }
+      },
       "project-create-validate-request": {
         "type": "object",
         "required": [
@@ -25032,6 +25087,28 @@
             "maxLength": 255,
             "pattern": "^[^/\\\\\\\\]+$",
             "nullable": true
+          },
+          "workspace_files": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Complete managed workspace text manifest to validate without materializing.",
+            "items": {
+              "$ref": "#/components/schemas/project-workspace-manifest-file"
+            }
+          },
+          "compose_file_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "env_file_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
       },
@@ -25052,7 +25129,7 @@
             "$ref": "#/components/schemas/project-managed-root-response"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "display_name": {
             "type": "string"
@@ -25159,6 +25236,30 @@
             "type": "string",
             "nullable": true,
             "description": "Optional initial env file content. It is ignored when env_file_name is omitted."
+          },
+          "workspace_files": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.",
+            "items": {
+              "$ref": "#/components/schemas/project-workspace-manifest-file"
+            }
+          },
+          "compose_file_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Explicit workspace-relative primary Compose file reference. Defaults to compose_file_name during compatibility transition."
+          },
+          "env_file_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Explicit workspace-relative env file references."
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
       },
@@ -25183,7 +25284,7 @@
             "$ref": "#/components/schemas/project-managed-root-response"
           },
           "source_type": {
-            "$ref": "#/components/schemas/project-source-entry-type"
+            "$ref": "#/components/schemas/project-source-kind"
           },
           "project_id": {
             "type": "integer",
@@ -25290,6 +25391,44 @@
             }
           }
         ]
+      },
+      "project-template-create-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "display_name",
+          "canonical_project_name",
+          "relative_project_directory"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical_project_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relative_project_directory": {
+            "type": "string",
+            "minLength": 1
+          },
+          "template_key": {
+            "type": "string",
+            "description": "Explicit bundled template key. Defaults to empty-compose."
+          },
+          "template_version": {
+            "type": "string",
+            "description": "Explicit bundled template version. Defaults to v1."
+          },
+          "template_instance_name": {
+            "type": "string",
+            "description": "Safe display provenance for this template instance. Defaults to canonical_project_name."
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
+          }
+        }
       },
       "enveloped-project-detail-response": {
         "allOf": [
