@@ -1,6 +1,7 @@
 export const CONTAINER_ROUTE_PATH = {
   LIST: '/containers',
   DETAIL: '/containers/:id',
+  RESOURCES: '/containers/resources',
 } as const;
 
 export const CONTAINER_API_PATH = {
@@ -18,6 +19,10 @@ export const CONTAINER_API_PATH = {
   RESTART: '/api/ops/containers/{id}/restart',
   REMOVE: '/api/ops/containers/{id}/remove',
   BATCH_ACTIONS: '/api/ops/containers/batch-actions',
+  DOCKER_IMAGES: '/api/ops/docker/images',
+  DOCKER_NETWORKS: '/api/ops/docker/networks',
+  DOCKER_VOLUMES: '/api/ops/docker/volumes',
+  DOCKER_SYSTEM: '/api/ops/docker/system',
 } as const;
 
 export function buildContainerDetailApiPath(containerId: string) {

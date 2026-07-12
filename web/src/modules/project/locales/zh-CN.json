@@ -985,6 +985,9 @@
       "overview": {
         "lastUpdated": "最后刷新",
         "resourceTitle": "资源使用",
+        "runtimeTargetTitle": "运行目标",
+        "runtimeTargetDescription": "尚未从运行时资源确认目标",
+        "runtimeTargetUnavailable": "暂未发现绑定的运行目标",
         "networkTitle": "网络 I/O",
         "containerSnapshotTitle": "容器快照",
         "diagnosticsTitle": "诊断摘要",

@@ -91,3 +91,9 @@
   "closeout_status": "batch-4-complete"
 }
 ```
+
+## 2026-07-12 Docker Resources And Compose Integration
+
+- Added read-only Docker Images, Networks, Volumes, and System contract surfaces under the Container module; every resource read uses the Local Docker Runtime Target server-side.
+- Docker navigation remains page-local within the existing Infrastructure Docker menu. No sidebar mode or Provider placeholder was added.
+- Project remains the sole owner of Compose lifecycle; resource pages only provide read context and canonical Project navigation.

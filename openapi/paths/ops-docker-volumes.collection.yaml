@@ -1,0 +1,10 @@
+get:
+  tags: [container]
+  summary: List Docker volumes
+  operationId: getDockerVolumes
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200': { description: Docker volume list., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-volume-list-response.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

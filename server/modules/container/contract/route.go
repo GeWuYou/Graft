@@ -31,6 +31,15 @@ const (
 	ContainerRemoveRoute = "/:id/remove"
 	// ContainerBatchActionsRoute is the batch action route fragment.
 	ContainerBatchActionsRoute = "/batch-actions"
+	// DockerAPIGroup is the read-only Docker-native resource API route group.
+	DockerAPIGroup      = "/ops/docker"
+	DockerImagesRoute   = "/images"
+	DockerImageRoute    = "/images/:id"
+	DockerNetworksRoute = "/networks"
+	DockerNetworkRoute  = "/networks/:id"
+	DockerVolumesRoute  = "/volumes"
+	DockerVolumeRoute   = "/volumes/:id"
+	DockerSystemRoute   = "/system"
 	// ContainerMenuRootPath is the web menu root path for operations.
 	ContainerMenuRootPath = "/containers"
 	// ContainerMenuPath is the web menu path for container management.

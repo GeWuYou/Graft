@@ -240,6 +240,20 @@ paths:
     $ref: ./paths/ops-containers.restart.yaml
   /api/ops/containers/{id}/remove:
     $ref: ./paths/ops-containers.remove.yaml
+  /api/ops/docker/images:
+    $ref: ./paths/ops-docker-images.collection.yaml
+  /api/ops/docker/images/{id}:
+    $ref: ./paths/ops-docker-images.detail.yaml
+  /api/ops/docker/networks:
+    $ref: ./paths/ops-docker-networks.collection.yaml
+  /api/ops/docker/networks/{id}:
+    $ref: ./paths/ops-docker-networks.detail.yaml
+  /api/ops/docker/volumes:
+    $ref: ./paths/ops-docker-volumes.collection.yaml
+  /api/ops/docker/volumes/{id}:
+    $ref: ./paths/ops-docker-volumes.detail.yaml
+  /api/ops/docker/system:
+    $ref: ./paths/ops-docker-system.yaml
   /api/ops/projects:
     $ref: ./paths/ops-projects.collection.yaml
   /api/runtime-targets:
@@ -798,6 +812,32 @@ components:
       $ref: ./components/schemas/enveloped-container-action-response.yaml
     EnvelopedContainerBatchActionResponse:
       $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
+    DockerImage:
+      $ref: ./components/schemas/docker-image.yaml
+    DockerImageListResponse:
+      $ref: ./components/schemas/docker-image-list-response.yaml
+    DockerNetwork:
+      $ref: ./components/schemas/docker-network.yaml
+    DockerNetworkListResponse:
+      $ref: ./components/schemas/docker-network-list-response.yaml
+    DockerVolume:
+      $ref: ./components/schemas/docker-volume.yaml
+    DockerVolumeListResponse:
+      $ref: ./components/schemas/docker-volume-list-response.yaml
+    EnvelopedDockerImage:
+      $ref: ./components/schemas/enveloped-docker-image.yaml
+    EnvelopedDockerImageListResponse:
+      $ref: ./components/schemas/enveloped-docker-image-list-response.yaml
+    EnvelopedDockerNetwork:
+      $ref: ./components/schemas/enveloped-docker-network.yaml
+    EnvelopedDockerNetworkListResponse:
+      $ref: ./components/schemas/enveloped-docker-network-list-response.yaml
+    EnvelopedDockerVolume:
+      $ref: ./components/schemas/enveloped-docker-volume.yaml
+    EnvelopedDockerVolumeListResponse:
+      $ref: ./components/schemas/enveloped-docker-volume-list-response.yaml
+    EnvelopedContainerRuntimeInfo:
+      $ref: ./components/schemas/enveloped-container-runtime-info.yaml
     ProjectSourceKind:
       $ref: ./components/schemas/project-source-kind.yaml
     ProjectCreationMethodType:

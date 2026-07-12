@@ -352,6 +352,80 @@ func (s *service) DashboardSummary(ctx context.Context, _ dashboardSummaryQuery)
 	return buildContainerDashboardSummary(items), nil
 }
 
+func (s *service) DockerSystem(ctx context.Context) (RuntimeInfo, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return RuntimeInfo{}, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return RuntimeInfo{}, err
+	}
+	return runtime.Info(ctx)
+}
+
+func (s *service) dockerResources(ctx context.Context) (DockerResourceReader, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return nil, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	reader, ok := runtime.(DockerResourceReader)
+	if !ok {
+		return nil, errUnsupportedContainerRuntime
+	}
+	return reader, nil
+}
+
+func (s *service) DockerImages(ctx context.Context) ([]DockerImage, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reader.ListDockerImages(ctx)
+}
+
+func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerImage{}, err
+	}
+	return reader.ReadDockerImage(ctx, id)
+}
+
+func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reader.ListDockerNetworks(ctx)
+}
+
+func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetwork, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerNetwork{}, err
+	}
+	return reader.ReadDockerNetwork(ctx, id)
+}
+
+func (s *service) DockerVolumes(ctx context.Context) ([]DockerVolume, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reader.ListDockerVolumes(ctx)
+}
+
+func (s *service) DockerVolume(ctx context.Context, id string) (DockerVolume, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerVolume{}, err
+	}
+	return reader.ReadDockerVolume(ctx, id)
+}
+
 func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return Detail{}, err

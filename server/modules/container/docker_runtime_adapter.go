@@ -12,6 +12,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/volume"
 	mobyclient "github.com/moby/moby/client"
 )
 
@@ -53,6 +56,54 @@ func (d dockerClientAdapter) ContainerList(ctx context.Context, options mobyclie
 		return nil, err
 	}
 	return result.Items, nil
+}
+
+func (d dockerClientAdapter) ImageList(ctx context.Context, options mobyclient.ImageListOptions) ([]image.Summary, error) {
+	result, err := d.Client.ImageList(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return result.Items, nil
+}
+
+func (d dockerClientAdapter) ImageInspect(ctx context.Context, imageID string) (image.InspectResponse, error) {
+	result, err := d.Client.ImageInspect(ctx, imageID)
+	if err != nil {
+		return image.InspectResponse{}, err
+	}
+	return result.InspectResponse, nil
+}
+
+func (d dockerClientAdapter) NetworkList(ctx context.Context, options mobyclient.NetworkListOptions) ([]network.Summary, error) {
+	result, err := d.Client.NetworkList(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return result.Items, nil
+}
+
+func (d dockerClientAdapter) NetworkInspect(ctx context.Context, networkID string, options mobyclient.NetworkInspectOptions) (network.Inspect, error) {
+	result, err := d.Client.NetworkInspect(ctx, networkID, options)
+	if err != nil {
+		return network.Inspect{}, err
+	}
+	return result.Network, nil
+}
+
+func (d dockerClientAdapter) VolumeList(ctx context.Context, options mobyclient.VolumeListOptions) ([]volume.Volume, error) {
+	result, err := d.Client.VolumeList(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return result.Items, nil
+}
+
+func (d dockerClientAdapter) VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error) {
+	result, err := d.Client.VolumeInspect(ctx, volumeID, mobyclient.VolumeInspectOptions{})
+	if err != nil {
+		return volume.Volume{}, err
+	}
+	return result.Volume, nil
 }
 
 func (d dockerClientAdapter) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {

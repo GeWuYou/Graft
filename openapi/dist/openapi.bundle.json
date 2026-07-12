@@ -10961,6 +10961,275 @@
         }
       }
     },
+    "/api/ops/docker/images": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List Docker images",
+        "operationId": "getDockerImages",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker image list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/images/{id}": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker image",
+        "operationId": "getDockerImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker image.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Image not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/networks": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List Docker networks",
+        "operationId": "getDockerNetworks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker network list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-network-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/networks/{id}": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker network",
+        "operationId": "getDockerNetwork",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker network.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-network"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Network not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List Docker volumes",
+        "operationId": "getDockerVolumes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker volume list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-volume-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes/{id}": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker volume",
+        "operationId": "getDockerVolume",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker volume.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-volume"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Volume not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/system": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker system information",
+        "operationId": "getDockerSystem",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized Docker runtime information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-runtime-info"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects": {
       "get": {
         "tags": [
@@ -14732,6 +15001,45 @@
       },
       "EnvelopedContainerBatchActionResponse": {
         "$ref": "#/components/schemas/enveloped-container-batch-action-response"
+      },
+      "DockerImage": {
+        "$ref": "#/components/schemas/docker-image"
+      },
+      "DockerImageListResponse": {
+        "$ref": "#/components/schemas/docker-image-list-response"
+      },
+      "DockerNetwork": {
+        "$ref": "#/components/schemas/docker-network"
+      },
+      "DockerNetworkListResponse": {
+        "$ref": "#/components/schemas/docker-network-list-response"
+      },
+      "DockerVolume": {
+        "$ref": "#/components/schemas/docker-volume"
+      },
+      "DockerVolumeListResponse": {
+        "$ref": "#/components/schemas/docker-volume-list-response"
+      },
+      "EnvelopedDockerImage": {
+        "$ref": "#/components/schemas/enveloped-docker-image"
+      },
+      "EnvelopedDockerImageListResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-image-list-response"
+      },
+      "EnvelopedDockerNetwork": {
+        "$ref": "#/components/schemas/enveloped-docker-network"
+      },
+      "EnvelopedDockerNetworkListResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-network-list-response"
+      },
+      "EnvelopedDockerVolume": {
+        "$ref": "#/components/schemas/enveloped-docker-volume"
+      },
+      "EnvelopedDockerVolumeListResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-volume-list-response"
+      },
+      "EnvelopedContainerRuntimeInfo": {
+        "$ref": "#/components/schemas/enveloped-container-runtime-info"
       },
       "ProjectSourceKind": {
         "$ref": "#/components/schemas/project-source-kind"
@@ -23201,6 +23509,314 @@
           }
         },
         "additionalProperties": false
+      },
+      "docker-image": {
+        "type": "object",
+        "required": [
+          "id",
+          "repository_tags",
+          "repository_digests",
+          "created_at",
+          "size_bytes",
+          "containers"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "repository_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repository_digests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "containers": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "architecture": {
+            "type": "string"
+          },
+          "operating_system": {
+            "type": "string"
+          }
+        }
+      },
+      "docker-image-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-image"
+            }
+          }
+        }
+      },
+      "enveloped-docker-image-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-image": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image"
+              }
+            }
+          }
+        ]
+      },
+      "docker-network": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "driver",
+          "scope",
+          "created_at",
+          "internal",
+          "attachable",
+          "ingress",
+          "container_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "internal": {
+            "type": "boolean"
+          },
+          "attachable": {
+            "type": "boolean"
+          },
+          "ingress": {
+            "type": "boolean"
+          },
+          "container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "docker-network-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-network"
+            }
+          }
+        }
+      },
+      "enveloped-docker-network-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-network-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-network": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-network"
+              }
+            }
+          }
+        ]
+      },
+      "docker-volume": {
+        "type": "object",
+        "required": [
+          "name",
+          "driver",
+          "scope",
+          "created_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "reference_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "docker-volume-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-volume"
+            }
+          }
+        }
+      },
+      "enveloped-docker-volume-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-volume": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-container-runtime-info": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-runtime-info"
+              }
+            }
+          }
+        ]
       },
       "project-source-kind": {
         "type": "string",

@@ -2259,13 +2259,13 @@ func (e PostContainerStop404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerStop409JSONResponseBodySuccess.
 const (
-	False PostContainerStop409JSONResponseBodySuccess = false
+	PostContainerStop409JSONResponseBodySuccessFalse PostContainerStop409JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostContainerStop409JSONResponseBodySuccess enum.
 func (e PostContainerStop409JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostContainerStop409JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2281,6 +2281,342 @@ const (
 func (e PostContainerStop500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case ContainerStopErrorResponseSuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImages401JSONResponseBodySuccess.
+const (
+	GetDockerImages401JSONResponseBodySuccessFalse GetDockerImages401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImages401JSONResponseBodySuccess enum.
+func (e GetDockerImages401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImages401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImages403JSONResponseBodySuccess.
+const (
+	GetDockerImages403JSONResponseBodySuccessFalse GetDockerImages403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImages403JSONResponseBodySuccess enum.
+func (e GetDockerImages403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImages403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImages500JSONResponseBodySuccess.
+const (
+	GetDockerImages500JSONResponseBodySuccessFalse GetDockerImages500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImages500JSONResponseBodySuccess enum.
+func (e GetDockerImages500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImages500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImage401JSONResponseBodySuccess.
+const (
+	GetDockerImage401JSONResponseBodySuccessFalse GetDockerImage401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImage401JSONResponseBodySuccess enum.
+func (e GetDockerImage401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImage401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImage403JSONResponseBodySuccess.
+const (
+	GetDockerImage403JSONResponseBodySuccessFalse GetDockerImage403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImage403JSONResponseBodySuccess enum.
+func (e GetDockerImage403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImage403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImage500JSONResponseBodySuccess.
+const (
+	GetDockerImage500JSONResponseBodySuccessFalse GetDockerImage500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImage500JSONResponseBodySuccess enum.
+func (e GetDockerImage500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImage500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworks401JSONResponseBodySuccess.
+const (
+	GetDockerNetworks401JSONResponseBodySuccessFalse GetDockerNetworks401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks401JSONResponseBodySuccess enum.
+func (e GetDockerNetworks401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetworks401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworks403JSONResponseBodySuccess.
+const (
+	GetDockerNetworks403JSONResponseBodySuccessFalse GetDockerNetworks403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks403JSONResponseBodySuccess enum.
+func (e GetDockerNetworks403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetworks403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworks500JSONResponseBodySuccess.
+const (
+	GetDockerNetworks500JSONResponseBodySuccessFalse GetDockerNetworks500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks500JSONResponseBodySuccess enum.
+func (e GetDockerNetworks500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetworks500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetwork401JSONResponseBodySuccess.
+const (
+	GetDockerNetwork401JSONResponseBodySuccessFalse GetDockerNetwork401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetwork401JSONResponseBodySuccess enum.
+func (e GetDockerNetwork401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetwork401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetwork403JSONResponseBodySuccess.
+const (
+	GetDockerNetwork403JSONResponseBodySuccessFalse GetDockerNetwork403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetwork403JSONResponseBodySuccess enum.
+func (e GetDockerNetwork403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetwork403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetwork500JSONResponseBodySuccess.
+const (
+	GetDockerNetwork500JSONResponseBodySuccessFalse GetDockerNetwork500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetwork500JSONResponseBodySuccess enum.
+func (e GetDockerNetwork500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetwork500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerSystem200JSONResponseBodyDataStatus.
+const (
+	ContainerRuntimeInfoStatusDisabled    GetDockerSystem200JSONResponseBodyDataStatus = "disabled"
+	ContainerRuntimeInfoStatusEnabled     GetDockerSystem200JSONResponseBodyDataStatus = "enabled"
+	ContainerRuntimeInfoStatusUnavailable GetDockerSystem200JSONResponseBodyDataStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerSystem200JSONResponseBodyDataStatus enum.
+func (e GetDockerSystem200JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case ContainerRuntimeInfoStatusDisabled:
+		return true
+	case ContainerRuntimeInfoStatusEnabled:
+		return true
+	case ContainerRuntimeInfoStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerSystem401JSONResponseBodySuccess.
+const (
+	GetDockerSystem401JSONResponseBodySuccessFalse GetDockerSystem401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerSystem401JSONResponseBodySuccess enum.
+func (e GetDockerSystem401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerSystem401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerSystem403JSONResponseBodySuccess.
+const (
+	GetDockerSystem403JSONResponseBodySuccessFalse GetDockerSystem403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerSystem403JSONResponseBodySuccess enum.
+func (e GetDockerSystem403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerSystem403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerSystem500JSONResponseBodySuccess.
+const (
+	GetDockerSystem500JSONResponseBodySuccessFalse GetDockerSystem500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerSystem500JSONResponseBodySuccess enum.
+func (e GetDockerSystem500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerSystem500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumes401JSONResponseBodySuccess.
+const (
+	GetDockerVolumes401JSONResponseBodySuccessFalse GetDockerVolumes401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumes401JSONResponseBodySuccess enum.
+func (e GetDockerVolumes401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolumes401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumes403JSONResponseBodySuccess.
+const (
+	GetDockerVolumes403JSONResponseBodySuccessFalse GetDockerVolumes403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumes403JSONResponseBodySuccess enum.
+func (e GetDockerVolumes403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolumes403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumes500JSONResponseBodySuccess.
+const (
+	GetDockerVolumes500JSONResponseBodySuccessFalse GetDockerVolumes500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumes500JSONResponseBodySuccess enum.
+func (e GetDockerVolumes500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolumes500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolume401JSONResponseBodySuccess.
+const (
+	GetDockerVolume401JSONResponseBodySuccessFalse GetDockerVolume401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume401JSONResponseBodySuccess enum.
+func (e GetDockerVolume401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolume401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolume403JSONResponseBodySuccess.
+const (
+	GetDockerVolume403JSONResponseBodySuccessFalse GetDockerVolume403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume403JSONResponseBodySuccess enum.
+func (e GetDockerVolume403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolume403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolume500JSONResponseBodySuccess.
+const (
+	GetDockerVolume500JSONResponseBodySuccessFalse GetDockerVolume500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume500JSONResponseBodySuccess enum.
+func (e GetDockerVolume500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolume500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2855,6 +3191,72 @@ type PostContainerStop409JSONResponseBodySuccess bool
 
 // PostContainerStop500JSONResponseBodySuccess defines parameters for PostContainerStop.
 type PostContainerStop500JSONResponseBodySuccess bool
+
+// GetDockerImages401JSONResponseBodySuccess defines parameters for GetDockerImages.
+type GetDockerImages401JSONResponseBodySuccess bool
+
+// GetDockerImages403JSONResponseBodySuccess defines parameters for GetDockerImages.
+type GetDockerImages403JSONResponseBodySuccess bool
+
+// GetDockerImages500JSONResponseBodySuccess defines parameters for GetDockerImages.
+type GetDockerImages500JSONResponseBodySuccess bool
+
+// GetDockerImage401JSONResponseBodySuccess defines parameters for GetDockerImage.
+type GetDockerImage401JSONResponseBodySuccess bool
+
+// GetDockerImage403JSONResponseBodySuccess defines parameters for GetDockerImage.
+type GetDockerImage403JSONResponseBodySuccess bool
+
+// GetDockerImage500JSONResponseBodySuccess defines parameters for GetDockerImage.
+type GetDockerImage500JSONResponseBodySuccess bool
+
+// GetDockerNetworks401JSONResponseBodySuccess defines parameters for GetDockerNetworks.
+type GetDockerNetworks401JSONResponseBodySuccess bool
+
+// GetDockerNetworks403JSONResponseBodySuccess defines parameters for GetDockerNetworks.
+type GetDockerNetworks403JSONResponseBodySuccess bool
+
+// GetDockerNetworks500JSONResponseBodySuccess defines parameters for GetDockerNetworks.
+type GetDockerNetworks500JSONResponseBodySuccess bool
+
+// GetDockerNetwork401JSONResponseBodySuccess defines parameters for GetDockerNetwork.
+type GetDockerNetwork401JSONResponseBodySuccess bool
+
+// GetDockerNetwork403JSONResponseBodySuccess defines parameters for GetDockerNetwork.
+type GetDockerNetwork403JSONResponseBodySuccess bool
+
+// GetDockerNetwork500JSONResponseBodySuccess defines parameters for GetDockerNetwork.
+type GetDockerNetwork500JSONResponseBodySuccess bool
+
+// GetDockerSystem200JSONResponseBodyDataStatus defines parameters for GetDockerSystem.
+type GetDockerSystem200JSONResponseBodyDataStatus string
+
+// GetDockerSystem401JSONResponseBodySuccess defines parameters for GetDockerSystem.
+type GetDockerSystem401JSONResponseBodySuccess bool
+
+// GetDockerSystem403JSONResponseBodySuccess defines parameters for GetDockerSystem.
+type GetDockerSystem403JSONResponseBodySuccess bool
+
+// GetDockerSystem500JSONResponseBodySuccess defines parameters for GetDockerSystem.
+type GetDockerSystem500JSONResponseBodySuccess bool
+
+// GetDockerVolumes401JSONResponseBodySuccess defines parameters for GetDockerVolumes.
+type GetDockerVolumes401JSONResponseBodySuccess bool
+
+// GetDockerVolumes403JSONResponseBodySuccess defines parameters for GetDockerVolumes.
+type GetDockerVolumes403JSONResponseBodySuccess bool
+
+// GetDockerVolumes500JSONResponseBodySuccess defines parameters for GetDockerVolumes.
+type GetDockerVolumes500JSONResponseBodySuccess bool
+
+// GetDockerVolume401JSONResponseBodySuccess defines parameters for GetDockerVolume.
+type GetDockerVolume401JSONResponseBodySuccess bool
+
+// GetDockerVolume403JSONResponseBodySuccess defines parameters for GetDockerVolume.
+type GetDockerVolume403JSONResponseBodySuccess bool
+
+// GetDockerVolume500JSONResponseBodySuccess defines parameters for GetDockerVolume.
+type GetDockerVolume500JSONResponseBodySuccess bool
 
 // PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
 type PostContainerBatchActionsJSONRequestBody PostContainerBatchActionsJSONBody

@@ -1,4 +1,17 @@
 {
+  "container.resources.title": "Docker 资源",
+  "container.resources.description": "查看当前 Local Docker 运行目标的只读资源。",
+  "container.resources.openContainers": "查看容器",
+  "container.resources.tabs.containers": "容器",
+  "container.resources.tabs.images": "镜像",
+  "container.resources.tabs.networks": "网络",
+  "container.resources.tabs.volumes": "数据卷",
+  "container.resources.tabs.system": "系统",
+  "container.resources.columns.tags": "标签",
+  "container.resources.columns.size": "大小",
+  "container.resources.columns.name": "名称",
+  "container.resources.columns.driver": "驱动",
+  "container.resources.columns.scope": "范围",
   "menu": {
     "docker": {
       "title": "Docker"
@@ -93,7 +106,7 @@
         "status": "状态",
         "name": "容器",
         "image": "镜像",
-        "source": "来源",
+        "deployment": "部署上下文",
         "cpu": "CPU",
         "memory": "内存",
         "ports": "端口",
@@ -135,6 +148,9 @@
         "standalone": "独立容器",
         "compose": "Compose",
         "unknown": "未知部署"
+      },
+      "deploymentContext": {
+        "project": "Compose 项目"
       },
       "sourceKinds": {
         "compose_project": "项目",
@@ -269,6 +285,7 @@
     },
     "detail": {
       "title": "容器详情",
+      "viewComposeProject": "查看 Compose 项目",
       "description": "查看容器运行时详情、资源、日志、配置、网络和挂载信息。",
       "back": "返回",
       "refresh": "刷新",

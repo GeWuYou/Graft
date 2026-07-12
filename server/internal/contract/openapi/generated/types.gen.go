@@ -5693,6 +5693,59 @@ type DashboardWidgetStatus string
 // DashboardWidgetType defines model for dashboard-widget-type.
 type DashboardWidgetType string
 
+// DockerImage defines model for docker-image.
+type DockerImage struct {
+	Architecture      *string            `json:"architecture,omitempty"`
+	Containers        int64              `json:"containers"`
+	CreatedAt         string             `json:"created_at"`
+	Id                string             `json:"id"`
+	Labels            *map[string]string `json:"labels,omitempty"`
+	OperatingSystem   *string            `json:"operating_system,omitempty"`
+	RepositoryDigests []string           `json:"repository_digests"`
+	RepositoryTags    []string           `json:"repository_tags"`
+	SizeBytes         int64              `json:"size_bytes"`
+}
+
+// DockerImageListResponse defines model for docker-image-list-response.
+type DockerImageListResponse struct {
+	Items []DockerImage `json:"items"`
+}
+
+// DockerNetwork defines model for docker-network.
+type DockerNetwork struct {
+	Attachable     bool               `json:"attachable"`
+	ContainerCount int                `json:"container_count"`
+	CreatedAt      string             `json:"created_at"`
+	Driver         string             `json:"driver"`
+	Id             string             `json:"id"`
+	Ingress        bool               `json:"ingress"`
+	Internal       bool               `json:"internal"`
+	Labels         *map[string]string `json:"labels,omitempty"`
+	Name           string             `json:"name"`
+	Scope          string             `json:"scope"`
+}
+
+// DockerNetworkListResponse defines model for docker-network-list-response.
+type DockerNetworkListResponse struct {
+	Items []DockerNetwork `json:"items"`
+}
+
+// DockerVolume defines model for docker-volume.
+type DockerVolume struct {
+	CreatedAt      string             `json:"created_at"`
+	Driver         string             `json:"driver"`
+	Labels         *map[string]string `json:"labels,omitempty"`
+	Name           string             `json:"name"`
+	ReferenceCount *int64             `json:"reference_count,omitempty"`
+	Scope          string             `json:"scope"`
+	SizeBytes      *int64             `json:"size_bytes,omitempty"`
+}
+
+// DockerVolumeListResponse defines model for docker-volume-list-response.
+type DockerVolumeListResponse struct {
+	Items []DockerVolume `json:"items"`
+}
+
 // DrilldownScopeProjection defines model for drilldown-scope-projection.
 type DrilldownScopeProjection struct {
 	Description *string                         `json:"description,omitempty"`
@@ -6202,6 +6255,26 @@ type EnvelopedContainerRuntimeEventsResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedContainerRuntimeInfo defines model for enveloped-container-runtime-info.
+type EnvelopedContainerRuntimeInfo struct {
+	// Code Existing canonical response code.
+	Code string               `json:"code"`
+	Data ContainerRuntimeInfo `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedContainerShellSessionResponse defines model for enveloped-container-shell-session-response.
 type EnvelopedContainerShellSessionResponse struct {
 	// Code Existing canonical response code.
@@ -6247,6 +6320,126 @@ type EnvelopedDashboardWidget struct {
 	// Code Existing canonical response code.
 	Code string          `json:"code"`
 	Data DashboardWidget `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerImage defines model for enveloped-docker-image.
+type EnvelopedDockerImage struct {
+	// Code Existing canonical response code.
+	Code string      `json:"code"`
+	Data DockerImage `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerImageListResponse defines model for enveloped-docker-image-list-response.
+type EnvelopedDockerImageListResponse struct {
+	// Code Existing canonical response code.
+	Code string                  `json:"code"`
+	Data DockerImageListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerNetwork defines model for enveloped-docker-network.
+type EnvelopedDockerNetwork struct {
+	// Code Existing canonical response code.
+	Code string        `json:"code"`
+	Data DockerNetwork `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerNetworkListResponse defines model for enveloped-docker-network-list-response.
+type EnvelopedDockerNetworkListResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data DockerNetworkListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerVolume defines model for enveloped-docker-volume.
+type EnvelopedDockerVolume struct {
+	// Code Existing canonical response code.
+	Code string       `json:"code"`
+	Data DockerVolume `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerVolumeListResponse defines model for enveloped-docker-volume-list-response.
+type EnvelopedDockerVolumeListResponse struct {
+	// Code Existing canonical response code.
+	Code string                   `json:"code"`
+	Data DockerVolumeListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`

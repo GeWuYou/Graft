@@ -40,7 +40,7 @@ export const CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS = [
   'state',
   'name',
   'image',
-  'source',
+  'deployment',
   'cpu',
   'memory',
   'ports',
@@ -55,7 +55,7 @@ export const CONTAINER_RESOURCE_ALL_COLUMN_KEYS = [
   'state',
   'name',
   'image',
-  'source',
+  'deployment',
   'cpu',
   'memory',
   'ports',
@@ -86,7 +86,7 @@ export function buildContainerResourceColumns(t: Translate): NonNullable<TdPrima
       minWidth: 280,
       ellipsis: { theme: 'default', placement: 'top-left' },
     },
-    { title: t('container.list.columns.source'), colKey: 'source', width: 188, ellipsis: false },
+    { title: t('container.list.columns.deployment'), colKey: 'deployment', width: 208, ellipsis: false },
     { title: t('container.list.columns.cpu'), colKey: 'cpu', width: 132, align: 'center', ellipsis: false },
     { title: t('container.list.columns.memory'), colKey: 'memory', width: 180, align: 'center', ellipsis: false },
     { title: t('container.list.columns.ports'), colKey: 'ports', width: 220, ellipsis: false },
@@ -130,7 +130,7 @@ export function buildContainerResourceColumnSettingOptions(t: Translate) {
     { label: t('container.list.columns.status'), value: 'state' },
     { label: t('container.list.columns.name'), value: 'name' },
     { label: t('container.list.columns.image'), value: 'image' },
-    { label: t('container.list.columns.source'), value: 'source' },
+    { label: t('container.list.columns.deployment'), value: 'deployment' },
     { label: t('container.list.columns.cpu'), value: 'cpu' },
     { label: t('container.list.columns.memory'), value: 'memory' },
     { label: t('container.list.columns.ports'), value: 'ports' },
@@ -155,7 +155,7 @@ export function shortContainerId(id: string) {
 }
 
 export function readContainerOrchestratorType(row: ContainerSummaryRecord): ContainerOrchestratorType {
-  return row.deployment?.type || 'standalone';
+  return row.deployment?.type || row.orchestrator?.type || 'standalone';
 }
 
 export function createContainerSourceQuickFilter(

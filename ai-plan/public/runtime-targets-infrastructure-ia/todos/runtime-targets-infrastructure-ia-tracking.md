@@ -37,7 +37,7 @@ closeout:
 - [x] menu-section-contract-and-sidebar-rendering
 - [x] runtime-target-foundation
 - [x] container-deployment-type-and-target-filter
-- [ ] docker-resources-and-application-integration
+- [x] docker-resources-and-application-integration
 - [ ] cross-boundary-acceptance-and-archive-readiness
 
 ## Acceptance Conditions
@@ -55,11 +55,16 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter"],
   "pending_batches": ["docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
-  "current_batch": "container-deployment-type-and-target-filter",
-  "next_batch": "docker-resources-and-application-integration",
-  "closeout_status": "batch-4-complete"
+  "current_batch": "docker-resources-and-application-integration",
+  "next_batch": "cross-boundary-acceptance-and-archive-readiness",
+  "closeout_status": "batch-5-complete"
 }
 ```
+
+## Batch 5 Completion
+
+- Docker Resources exposes read-only Images, Networks, Volumes, and System APIs plus page-local Docker tabs; no provider selector, writes, cache, Registry, or credential persistence was introduced.
+- Project remains the Compose lifecycle authority. Container and Project views only expose deployment context, target facts, and canonical Project navigation.
 
 ## Batch 4 Completion
 

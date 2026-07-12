@@ -2090,6 +2090,125 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/images': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Docker images */
+    get: operations['getDockerImages'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/images/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker image */
+    get: operations['getDockerImage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/networks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Docker networks */
+    get: operations['getDockerNetworks'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/networks/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker network */
+    get: operations['getDockerNetwork'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/volumes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Docker volumes */
+    get: operations['getDockerVolumes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/volumes/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker volume */
+    get: operations['getDockerVolume'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/system': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker system information */
+    get: operations['getDockerSystem'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects': {
     parameters: {
       query?: never;
@@ -3043,6 +3162,19 @@ export interface components {
     EnvelopedContainerShellSessionResponse: components['schemas']['enveloped-container-shell-session-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
+    DockerImage: components['schemas']['docker-image'];
+    DockerImageListResponse: components['schemas']['docker-image-list-response'];
+    DockerNetwork: components['schemas']['docker-network'];
+    DockerNetworkListResponse: components['schemas']['docker-network-list-response'];
+    DockerVolume: components['schemas']['docker-volume'];
+    DockerVolumeListResponse: components['schemas']['docker-volume-list-response'];
+    EnvelopedDockerImage: components['schemas']['enveloped-docker-image'];
+    EnvelopedDockerImageListResponse: components['schemas']['enveloped-docker-image-list-response'];
+    EnvelopedDockerNetwork: components['schemas']['enveloped-docker-network'];
+    EnvelopedDockerNetworkListResponse: components['schemas']['enveloped-docker-network-list-response'];
+    EnvelopedDockerVolume: components['schemas']['enveloped-docker-volume'];
+    EnvelopedDockerVolumeListResponse: components['schemas']['enveloped-docker-volume-list-response'];
+    EnvelopedContainerRuntimeInfo: components['schemas']['enveloped-container-runtime-info'];
     ProjectSourceKind: components['schemas']['project-source-kind'];
     ProjectCreationMethodType: components['schemas']['project-creation-method-type'];
     ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
@@ -5741,6 +5873,78 @@ export interface components {
        * @default false
        */
       force: boolean;
+    };
+    'docker-image': {
+      id: string;
+      repository_tags: string[];
+      repository_digests: string[];
+      created_at: string;
+      /** Format: int64 */
+      size_bytes: number;
+      /** Format: int64 */
+      containers: number;
+      labels?: {
+        [key: string]: string;
+      };
+      architecture?: string;
+      operating_system?: string;
+    };
+    'docker-image-list-response': {
+      items: components['schemas']['docker-image'][];
+    };
+    'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image-list-response'];
+    };
+    'enveloped-docker-image': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image'];
+    };
+    'docker-network': {
+      id: string;
+      name: string;
+      driver: string;
+      scope: string;
+      created_at: string;
+      internal: boolean;
+      attachable: boolean;
+      ingress: boolean;
+      container_count: number;
+      labels?: {
+        [key: string]: string;
+      };
+    };
+    'docker-network-list-response': {
+      items: components['schemas']['docker-network'][];
+    };
+    'enveloped-docker-network-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network-list-response'];
+    };
+    'enveloped-docker-network': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network'];
+    };
+    'docker-volume': {
+      name: string;
+      driver: string;
+      scope: string;
+      created_at: string;
+      labels?: {
+        [key: string]: string;
+      };
+      /** Format: int64 */
+      reference_count?: number | null;
+      /** Format: int64 */
+      size_bytes?: number | null;
+    };
+    'docker-volume-list-response': {
+      items: components['schemas']['docker-volume'][];
+    };
+    'enveloped-docker-volume-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume-list-response'];
+    };
+    'enveloped-docker-volume': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume'];
+    };
+    'enveloped-container-runtime-info': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-runtime-info'];
     };
     /** @enum {string} */
     'project-source-kind': 'imported' | 'managed' | 'template';
@@ -12652,6 +12856,197 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerImages: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker image list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker image. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Image not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerNetworks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker network list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-network-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerNetwork: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker network. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-network'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Network not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerVolumes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker volume list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-volume-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerVolume: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker volume. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-volume'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Volume not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerSystem: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized Docker runtime information. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-runtime-info'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

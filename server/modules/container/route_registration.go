@@ -122,7 +122,91 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher),
 		routes.handleBatchAction,
 	)
+	docker := ctx.Router.Group(containercontract.DockerAPIGroup)
+	docker.Use(httpx.RequestIDMiddleware())
+	docker.GET(containercontract.DockerImagesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerImages)
+	docker.GET(containercontract.DockerImageRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerImage)
+	docker.GET(containercontract.DockerNetworksRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerNetworks)
+	docker.GET(containercontract.DockerNetworkRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerNetwork)
+	docker.GET(containercontract.DockerVolumesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerVolumes)
+	docker.GET(containercontract.DockerVolumeRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerVolume)
+	docker.GET(containercontract.DockerSystemRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerSystem)
 	return nil
+}
+
+func (r routeRuntime) handleDockerImages(c *gin.Context) {
+	items, err := r.service.DockerImages(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageList(items))
+}
+
+func (r routeRuntime) handleDockerImage(c *gin.Context) {
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	item, err := r.service.DockerImage(c.Request.Context(), ref.Value)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImage(item))
+}
+
+func (r routeRuntime) handleDockerNetworks(c *gin.Context) {
+	items, err := r.service.DockerNetworks(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkList(items))
+}
+
+func (r routeRuntime) handleDockerNetwork(c *gin.Context) {
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	item, err := r.service.DockerNetwork(c.Request.Context(), ref.Value)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetwork(item))
+}
+
+func (r routeRuntime) handleDockerVolumes(c *gin.Context) {
+	items, err := r.service.DockerVolumes(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeList(items))
+}
+
+func (r routeRuntime) handleDockerVolume(c *gin.Context) {
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	item, err := r.service.DockerVolume(c.Request.Context(), ref.Value)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolume(item))
+}
+
+func (r routeRuntime) handleDockerSystem(c *gin.Context) {
+	item, err := r.service.DockerSystem(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toRuntimeInfo(item))
 }
 
 func (r routeRuntime) handleList(ginCtx *gin.Context) {

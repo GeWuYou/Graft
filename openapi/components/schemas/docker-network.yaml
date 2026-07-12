@@ -1,0 +1,13 @@
+type: object
+required: [id, name, driver, scope, created_at, internal, attachable, ingress, container_count]
+properties:
+  id: { type: string }
+  name: { type: string }
+  driver: { type: string }
+  scope: { type: string }
+  created_at: { type: string }
+  internal: { type: boolean }
+  attachable: { type: boolean }
+  ingress: { type: boolean }
+  container_count: { type: integer, minimum: 0 }
+  labels: { type: object, additionalProperties: { type: string } }

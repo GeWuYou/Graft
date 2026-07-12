@@ -117,6 +117,7 @@
       :visible-column-keys="visibleColumnKeys"
       @action="handleTableAction"
       @page-change="handlePageChange"
+      @project-context="openComposeProjectContext"
       @select-change="handleSelectChange"
     >
       <template #toolbar>
@@ -242,6 +243,7 @@ import { useRouter } from 'vue-router';
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { ManagementPageHeader, ManagementToolbar, TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
@@ -633,6 +635,13 @@ function openDetail(row: ContainerSummaryRecord) {
 
 function openAuditLogs(row: ContainerSummaryRecord) {
   void router.push(buildAuditResourceLocation('container', row.id, displayContainerName(row)));
+}
+
+function openComposeProjectContext(projectName: string) {
+  const keyword = projectName.trim();
+  if (keyword) {
+    void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName, query: { keyword } });
+  }
 }
 
 async function copyContainerId(row: ContainerSummaryRecord) {
@@ -1250,8 +1259,8 @@ function buildDetailTabTitle(name: string): LocalizedTitle {
 }
 
 function orchestratorActionLevel(row: ContainerSummaryRecord): ContainerActionLevel {
-  if (row.orchestrator?.action_level) {
-    return row.orchestrator.action_level;
+  if (row.deployment?.action_level) {
+    return row.deployment.action_level;
   }
 
   return row.can_start || row.can_stop || row.can_restart || row.can_remove ? 'allow' : 'readonly';
@@ -1260,7 +1269,7 @@ function orchestratorActionLevel(row: ContainerSummaryRecord): ContainerActionLe
 function rowActionRiskText(row: ContainerSummaryRecord) {
   return orchestratorActionLevel(row) === 'warn'
     ? t('container.list.actions.sourceRisk', {
-        source: t(`container.list.orchestrators.${row.orchestrator?.type || 'standalone'}`),
+        source: t(`container.list.deployments.${row.deployment?.type || 'standalone'}`),
       })
     : '';
 }
@@ -1282,7 +1291,7 @@ function canRunAnyDangerousAction(row: ContainerSummaryRecord) {
 }
 
 function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousContainerAction) {
-  return !isDangerousActionDisabled(row, action) && (row.orchestrator?.batch_action_allowed ?? true);
+  return !isDangerousActionDisabled(row, action) && (row.deployment?.batch_action_allowed ?? true);
 }
 
 function toggleTableDensity() {

@@ -26,6 +26,42 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 	}
 }
 
+func toDockerImage(item DockerImage) containergen.DockerImage {
+	return containergen.DockerImage{Id: item.ID, RepositoryTags: append([]string(nil), item.RepositoryTags...), RepositoryDigests: append([]string(nil), item.RepositoryDigests...), CreatedAt: item.CreatedAt, SizeBytes: item.SizeBytes, Containers: item.Containers, Labels: optionalStringMap(item.Labels), Architecture: optionalString(item.Architecture), OperatingSystem: optionalString(item.OperatingSystem)}
+}
+
+func toDockerImageList(items []DockerImage) containergen.DockerImageListResponse {
+	mapped := make([]containergen.DockerImage, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, toDockerImage(item))
+	}
+	return containergen.DockerImageListResponse{Items: mapped}
+}
+
+func toDockerNetwork(item DockerNetwork) containergen.DockerNetwork {
+	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Labels: optionalStringMap(item.Labels)}
+}
+
+func toDockerNetworkList(items []DockerNetwork) containergen.DockerNetworkListResponse {
+	mapped := make([]containergen.DockerNetwork, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, toDockerNetwork(item))
+	}
+	return containergen.DockerNetworkListResponse{Items: mapped}
+}
+
+func toDockerVolume(item DockerVolume) containergen.DockerVolume {
+	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes}
+}
+
+func toDockerVolumeList(items []DockerVolume) containergen.DockerVolumeListResponse {
+	mapped := make([]containergen.DockerVolume, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, toDockerVolume(item))
+	}
+	return containergen.DockerVolumeListResponse{Items: mapped}
+}
+
 // toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应。
 // toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应，并映射收集时间、Overview、Hotspots 和 Anomalies。
 func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containerDashboardSummaryResponse {
