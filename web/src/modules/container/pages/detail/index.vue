@@ -7,6 +7,16 @@
     >
       <template #actions>
         <t-button
+          v-if="composeProjectName"
+          data-testid="container-detail-compose-project"
+          theme="default"
+          variant="outline"
+          size="small"
+          @click="openComposeProjectContext"
+        >
+          {{ t('container.detail.viewComposeProject') }}
+        </t-button>
+        <t-button
           v-if="safeDetail && permissionStore.hasPermission(auditPermissionCodes.READ)"
           data-testid="container-detail-view-audit"
           theme="default"
@@ -1472,6 +1482,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
 import { routeLoading } from '@/router/route-loading';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
@@ -2047,6 +2058,12 @@ const currentDetailStatsKey = computed(() => detail.value?.id || containerId.val
 const safeDetail = computed(() =>
   normalizeDetail(materializeDetailWithManagedStats(detail.value, currentDetailStatsKey.value)),
 );
+const composeProjectName = computed(() => {
+  const current = safeDetail.value;
+  return current?.deployment?.type === 'compose'
+    ? current.deployment.project?.trim() || current.orchestrator?.group_value?.trim() || ''
+    : '';
+});
 const activeTabRoute = computed(() =>
   tabsRouterStore.tabRouterList.find(
     (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
@@ -2280,6 +2297,12 @@ function openAuditLogs() {
   }
 
   void router.push(buildAuditResourceLocation('container', safeDetail.value.id, displayName(safeDetail.value)));
+}
+
+function openComposeProjectContext() {
+  if (composeProjectName.value) {
+    void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName, query: { keyword: composeProjectName.value } });
+  }
 }
 
 const runtimeStability = computed(() => {

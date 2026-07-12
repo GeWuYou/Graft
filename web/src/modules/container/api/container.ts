@@ -114,6 +114,28 @@ type PostContainerBatchActionsRequest = NonNullable<
 
 export type ContainerListResponse = GetContainersData;
 
+type DockerImagesData = NonNullable<
+  paths['/api/ops/docker/images']['get']['responses'][200]['content']['application/json']['data']
+>;
+type DockerNetworksData = NonNullable<
+  paths['/api/ops/docker/networks']['get']['responses'][200]['content']['application/json']['data']
+>;
+type DockerVolumesData = NonNullable<
+  paths['/api/ops/docker/volumes']['get']['responses'][200]['content']['application/json']['data']
+>;
+type DockerSystemData = NonNullable<
+  paths['/api/ops/docker/system']['get']['responses'][200]['content']['application/json']['data']
+>;
+
+export const getDockerImages = () =>
+  request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES }) as Promise<DockerImagesData>;
+export const getDockerNetworks = () =>
+  request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
+export const getDockerVolumes = () =>
+  request.get<DockerVolumesData>({ url: CONTAINER_API_PATH.DOCKER_VOLUMES }) as Promise<DockerVolumesData>;
+export const getDockerSystem = () =>
+  request.get<DockerSystemData>({ url: CONTAINER_API_PATH.DOCKER_SYSTEM }) as Promise<DockerSystemData>;
+
 /**
  * Retrieves a list of containers.
  *

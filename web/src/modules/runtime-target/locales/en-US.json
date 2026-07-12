@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "route": { "list": { "title": "Runtime Targets" } },
+    "list": {
+      "title": "Runtime Targets",
+      "description": "Manage discovered runtime connections and capability state.",
+      "refresh": "Refresh target",
+      "reload": "Reload"
+    },
+    "detail": { "title": "Runtime target detail" },
+    "columns": {
+      "name": "Name",
+      "provider": "Provider",
+      "endpoint": "Endpoint",
+      "capabilities": "Capabilities",
+      "connectionKind": "Connection kind",
+      "status": "Availability",
+      "checkedAt": "Last checked",
+      "error": "Latest error"
+    },
+    "status": { "available": "Available", "unavailable": "Unavailable" }
+  }
+}

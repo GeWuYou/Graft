@@ -19,6 +19,10 @@ const apiMocks = vi.hoisted(() => ({
   stopContainer: vi.fn(),
 }));
 
+const runtimeTargetMocks = vi.hoisted(() => ({
+  listRuntimeTargets: vi.fn(),
+}));
+
 const dialogMocks = vi.hoisted(() => ({
   alert: vi.fn(),
   confirm: vi.fn(),
@@ -219,14 +223,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.fields.state': '状态码',
   'container.list.fields.status': '状态',
   'container.list.filters.allStatuses': '全部状态',
-  'container.list.filters.allOrchestrators': '全部来源',
+  'container.list.filters.allDeploymentTypes': '全部部署类型',
+  'container.list.filters.allRuntimeTargets': '全部运行目标',
   'container.list.filters.allHealth': '全部健康状态',
   'container.list.filters.health': '健康状态',
-  'container.list.filters.orchestrator': '来源',
-  'container.list.filters.sourceScopeKind': '来源范围',
-  'container.list.filters.allSourceScopeKinds': '全部范围',
-  'container.list.filters.sourceScopePlaceholder': '输入{kind}名称精确筛选',
-  'container.list.filters.sourceScopePlaceholderDisabled': '先选择来源范围',
+  'container.list.filters.deploymentType': '部署类型',
+  'container.list.filters.runtimeTarget': '运行目标',
   'container.list.filters.query': '查询',
   'container.list.filters.reset': '重置',
   'container.list.filters.searchPlaceholder': '搜索名称、镜像、ID 或端口',
@@ -279,11 +281,10 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.states.restarting': '重启中',
   'container.list.states.running': '运行中',
   'container.list.states.unknown': '未知',
-  'container.list.orchestrators.compose': 'Compose',
-  'container.list.orchestrators.kubernetes': 'Kubernetes',
-  'container.list.orchestrators.standalone': '独立容器',
-  'container.list.orchestrators.swarm': 'Swarm',
-  'container.list.orchestrators.unknown': '未知来源',
+  'container.list.deployments.compose': 'Compose',
+  'container.list.deployments.standalone': '独立容器',
+  'container.list.deployments.unknown': '未知部署',
+  'container.list.deploymentContext.project': '项目',
   'container.list.sourceKinds.compose_project': '项目',
   'container.list.sourceKinds.compose_service': '服务',
   'container.list.sourceKinds.swarm_stack': 'Stack',
@@ -329,6 +330,10 @@ vi.mock('../../api/container', () => ({
   restartContainer: apiMocks.restartContainer,
   startContainer: apiMocks.startContainer,
   stopContainer: apiMocks.stopContainer,
+}));
+
+vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
+  listRuntimeTargets: runtimeTargetMocks.listRuntimeTargets,
 }));
 
 vi.mock('tdesign-vue-next/es/dialog', () => ({
@@ -455,6 +460,19 @@ describe('container list page', () => {
       },
       total: 25,
     }));
+    runtimeTargetMocks.listRuntimeTargets.mockResolvedValue([
+      {
+        id: 7,
+        provider: 'docker',
+        displayName: 'Local Docker',
+        endpointLabel: 'unix:///var/run/docker.sock',
+        connectionKind: 'unix_socket',
+        capabilities: ['containers'],
+        availability: true,
+        lastCheckedAt: '2026-07-12T01:00:00Z',
+        lastError: '',
+      },
+    ]);
     apiMocks.getContainer.mockResolvedValue({
       id: 'container-1',
       short_id: 'container-1',
@@ -587,10 +605,12 @@ describe('container list page', () => {
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainers).toHaveBeenCalledWith({
+      deployment_type: undefined,
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
+      runtime_target_id: undefined,
       state: undefined,
     });
     expect(wrapper.text()).toContain('基础设施');
@@ -1191,7 +1211,7 @@ describe('container list page', () => {
       'state',
       'name',
       'image',
-      'source',
+      'deployment',
       'cpu',
       'memory',
       'ports',
@@ -1210,7 +1230,7 @@ describe('container list page', () => {
       'state',
       'name',
       'image',
-      'source',
+      'deployment',
       'cpu',
       'memory',
       'ports',
@@ -1269,7 +1289,7 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="pagination-next"]').trigger('click');
     await flushPromises();
 
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+    expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
       limit: 20,
@@ -1283,100 +1303,73 @@ describe('container list page', () => {
     );
   });
 
-  it('applies source quick filters for group and member entry points', async () => {
+  it('renders deployment presentation from the canonical deployment field', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const groupFilters = wrapper.findAll('[data-testid="container-source-group-filter"]');
-    expect(groupFilters.length).toBeGreaterThan(0);
-    await groupFilters[0].trigger('click');
-    await flushPromises();
-
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      health: undefined,
-      keyword: undefined,
-      limit: 20,
-      offset: 0,
-      orchestrator: 'compose',
-      source_scope: 'graft',
-      source_scope_kind: 'compose_project',
-      state: undefined,
-    });
-
-    const memberFilters = wrapper.findAll('[data-testid="container-source-member-filter"]');
-    expect(memberFilters.length).toBeGreaterThan(0);
-    await memberFilters[0].trigger('click');
-    await flushPromises();
-
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      health: undefined,
-      keyword: undefined,
-      limit: 20,
-      offset: 0,
-      orchestrator: 'compose',
-      source_scope: 'web',
-      source_scope_kind: 'compose_service',
-      state: undefined,
-    });
+    expect(wrapper.text()).toContain('Compose');
+    expect(wrapper.text()).toContain('graft');
+    expect(wrapper.text()).toContain('独立容器');
+    expect(wrapper.text()).toContain('未知部署');
   });
 
-  it('supports explicit toolbar source scope filtering for compose projects', async () => {
+  it('serializes deployment type and runtime target independently without a provider filter', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="container-filter-orchestrator"]').setValue('compose');
-    expect((wrapper.get('[data-testid="container-filter-source-scope-kind"]').element as HTMLSelectElement).value).toBe(
-      'compose_project',
-    );
-    await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('graft');
+    expect(runtimeTargetMocks.listRuntimeTargets).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('Local Docker');
+    expect(wrapper.find('[data-testid="container-filter-orchestrator"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="container-filter-source-scope-kind"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="container-filter-source-scope"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('compose');
+    await wrapper.get('[data-testid="container-filter-runtime-target"]').setValue('7');
     await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      deployment_type: 'compose',
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
-      orchestrator: 'compose',
-      source_scope: 'graft',
-      source_scope_kind: 'compose_project',
+      runtime_target_id: 7,
       state: undefined,
     });
   });
 
-  it('keeps the submitted source scope query stable until filters are applied again', async () => {
+  it('keeps submitted deployment and runtime target filters stable until applied again', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="container-filter-orchestrator"]').setValue('compose');
-    await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('graft');
+    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('compose');
+    await wrapper.get('[data-testid="container-filter-runtime-target"]').setValue('7');
     await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      deployment_type: 'compose',
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
-      orchestrator: 'compose',
-      source_scope: 'graft',
-      source_scope_kind: 'compose_project',
+      runtime_target_id: 7,
       state: undefined,
     });
 
-    await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('draft-change');
+    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('standalone');
     await nextTick();
     await wrapper.get('[data-testid="table-refresh"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      deployment_type: 'compose',
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
-      orchestrator: 'compose',
-      source_scope: 'graft',
-      source_scope_kind: 'compose_project',
+      runtime_target_id: 7,
       state: undefined,
     });
 
@@ -1385,13 +1378,12 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      deployment_type: 'standalone',
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
-      orchestrator: 'compose',
-      source_scope: 'draft-change',
-      source_scope_kind: 'compose_project',
+      runtime_target_id: 7,
       state: undefined,
     });
   });
@@ -1440,26 +1432,25 @@ describe('container list page', () => {
     apiMocks.getContainers.mockReset();
   });
 
-  it('clears incompatible toolbar source scope kinds when orchestrator changes', async () => {
+  it('keeps the runtime target selector usable when target loading fails', async () => {
+    runtimeTargetMocks.listRuntimeTargets.mockRejectedValueOnce(new Error('runtime targets unavailable'));
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="container-filter-source-scope-kind"]').setValue('compose_project');
-    await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('graft');
-    await wrapper.get('[data-testid="container-filter-orchestrator"]').setValue('swarm');
-    expect((wrapper.get('[data-testid="container-filter-source-scope-kind"]').element as HTMLSelectElement).value).toBe(
-      'swarm_stack',
-    );
+    const targetFilter = wrapper.get('[data-testid="container-filter-runtime-target"]');
+    expect((targetFilter.element as HTMLSelectElement).disabled).toBe(false);
+    expect(wrapper.text()).not.toContain('Local Docker');
+    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('standalone');
     await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
     await flushPromises();
 
-    expect((wrapper.get('[data-testid="container-filter-source-scope"]').element as HTMLInputElement).value).toBe('');
     expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      deployment_type: 'standalone',
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
-      orchestrator: 'swarm',
+      runtime_target_id: undefined,
       state: undefined,
     });
   });
@@ -1931,23 +1922,35 @@ function createContainerRows(count: number, startOrdinal = 1) {
               memory_percent: 50,
               memory_usage_bytes: 134217728,
             },
-      orchestrator:
+      deployment:
         ordinal === 1
           ? {
               type: 'compose' as const,
               managed: true,
               confidence: 'high' as const,
-              group_scope_kind: 'compose_project' as const,
-              group_value: 'graft',
-              group_display_name: 'graft',
-              member_scope_kind: 'compose_service' as const,
-              member_value: 'web',
-              member_display_name: 'web',
+              project: 'graft',
+              service: 'web',
               warnings: [],
               action_level: 'allow' as const,
               batch_action_allowed: true,
             }
-          : undefined,
+          : ordinal === 2
+            ? {
+                type: 'unknown' as const,
+                managed: false,
+                confidence: 'low' as const,
+                warnings: [],
+                action_level: 'allow' as const,
+                batch_action_allowed: true,
+              }
+            : {
+                type: 'standalone' as const,
+                managed: false,
+                confidence: 'high' as const,
+                warnings: [],
+                action_level: 'allow' as const,
+                batch_action_allowed: true,
+              },
       can_start: ordinal !== 1,
       can_stop: ordinal === 1,
       can_restart: true,
@@ -2314,7 +2317,7 @@ function mountPage(component: object = ContainerListPage) {
                           slots.state?.({ row }),
                           slots.name?.({ row }),
                           slots.image?.({ row }),
-                          slots.source?.({ row }),
+                          slots.deployment?.({ row }),
                           slots.cpu?.({ row }),
                           slots.memory?.({ row }),
                           slots.ports?.({ row }),

@@ -49,6 +49,7 @@ type service struct {
 	realtimeHub             realtime.Hub
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
+	runtimeTargets          moduleapi.RuntimeTargetReader
 	statsCollector          *statsCollector
 	runtimeEventManagerMu   sync.RWMutex
 	runtimeEventManager     *runtimeEventManager
@@ -80,11 +81,13 @@ type containerServiceOptions struct {
 	realtimeHub                          realtime.Hub
 	topicIssuers                         realtime.TopicIssuerRegistry
 	authorizer                           moduleapi.Authorizer
+	runtimeTargets                       moduleapi.RuntimeTargetReader
 	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
 // newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
-// 解析任一必需依赖失败时返回错误。
+// newContainerService 根据模块上下文解析配置和依赖，并创建容器服务。
+// 解析必需依赖失败时返回错误。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	systemConfig := resolveSystemConfigResolver(ctx)
@@ -110,6 +113,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	if err != nil {
 		return nil, err
 	}
+	runtimeTargets, _ := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
 		runtimeOptions:          options,
@@ -129,11 +133,13 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		realtimeHub:             realtimeHub,
 		topicIssuers:            topicIssuers,
 		authorizer:              authorizer,
+		runtimeTargets:          runtimeTargets,
 	})
 }
 
 // newService 初始化容器服务实例，并应用默认值与归一化配置。
-// realtimeTickets 不能为空，否则返回错误。
+// newService 根据给定选项创建并初始化容器服务。
+// 如果未提供实时票据服务，则返回错误。
 func newService(options containerServiceOptions) (*service, error) {
 	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {
@@ -182,6 +188,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		realtimeHub:             options.realtimeHub,
 		topicIssuers:            options.topicIssuers,
 		authorizer:              options.authorizer,
+		runtimeTargets:          options.runtimeTargets,
 		logTopicStreamerFactory: options.logTopicStreamerFactory,
 	}, nil
 }
@@ -296,6 +303,15 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if err != nil {
 		return ListResult{}, err
 	}
+	target := moduleapi.RuntimeTargetSummary{ID: 1, DisplayName: "Local Docker", Provider: runtimeNameDocker}
+	if s.runtimeTargets != nil {
+		target, err = s.runtimeTargets.ReadDockerTarget(ctx, normalized.RuntimeTargetID)
+		if err != nil {
+			return ListResult{}, err
+		}
+	} else if normalized.RuntimeTargetID != nil {
+		return ListResult{}, errInvalidListQuery
+	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
 		return ListResult{}, err
@@ -312,12 +328,13 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	paged := pageContainerSummaries(filtered, normalized)
 	paged = applyActionAvailability(paged, s.effectiveActionPolicy(ctx))
 	return ListResult{
-		Runtime: info,
-		Items:   paged,
-		Total:   len(filtered),
-		Limit:   normalized.Limit,
-		Offset:  normalized.Offset,
-		Summary: summarizeContainers(filtered),
+		Runtime:       info,
+		RuntimeTarget: target,
+		Items:         paged,
+		Total:         len(filtered),
+		Limit:         normalized.Limit,
+		Offset:        normalized.Offset,
+		Summary:       summarizeContainers(filtered),
 	}, nil
 }
 
@@ -335,6 +352,80 @@ func (s *service) DashboardSummary(ctx context.Context, _ dashboardSummaryQuery)
 	}
 	items = applyActionAvailability(items, s.effectiveActionPolicy(ctx))
 	return buildContainerDashboardSummary(items), nil
+}
+
+func (s *service) DockerSystem(ctx context.Context) (RuntimeInfo, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return RuntimeInfo{}, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return RuntimeInfo{}, err
+	}
+	return runtime.Info(ctx)
+}
+
+func (s *service) dockerResources(ctx context.Context) (DockerResourceReader, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return nil, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	reader, ok := runtime.(DockerResourceReader)
+	if !ok {
+		return nil, errUnsupportedContainerRuntime
+	}
+	return reader, nil
+}
+
+func (s *service) DockerImages(ctx context.Context) ([]DockerImage, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reader.ListDockerImages(ctx)
+}
+
+func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerImage{}, err
+	}
+	return reader.ReadDockerImage(ctx, id)
+}
+
+func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reader.ListDockerNetworks(ctx)
+}
+
+func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetwork, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerNetwork{}, err
+	}
+	return reader.ReadDockerNetwork(ctx, id)
+}
+
+func (s *service) DockerVolumes(ctx context.Context) ([]DockerVolume, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reader.ListDockerVolumes(ctx)
+}
+
+func (s *service) DockerVolume(ctx context.Context, id string) (DockerVolume, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerVolume{}, err
+	}
+	return reader.ReadDockerVolume(ctx, id)
 }
 
 func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {

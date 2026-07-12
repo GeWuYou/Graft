@@ -116,6 +116,16 @@
               </div>
 
               <div class="project-overview-grid">
+                <t-card size="small" :title="t('project.detail.overview.runtimeTargetTitle')">
+                  <div class="project-runtime-target-card" data-testid="project-detail-runtime-target">
+                    <strong>{{
+                      projectRuntimeTarget?.display_name || t('project.detail.overview.runtimeTargetUnavailable')
+                    }}</strong>
+                    <span>{{
+                      projectRuntimeTarget?.provider || t('project.detail.overview.runtimeTargetDescription')
+                    }}</span>
+                  </div>
+                </t-card>
                 <t-card size="small" :title="t('project.detail.overview.resourceTitle')">
                   <div class="project-overview-resource-card">
                     <article
@@ -927,6 +937,7 @@ const serviceActionKey = ref('');
 const serviceBatchActionLoading = ref<ProjectContainerAction | ''>('');
 const serviceLoading = ref(false);
 const serviceRuntimePortSummaries = ref<Record<string, string>>({});
+const projectRuntimeTarget = ref<ProjectContainerSummary['runtime_target'] | null>(null);
 const serviceRuntimePortsRequestId = ref(0);
 const serviceTableCurrent = ref(1);
 const serviceTablePageSize = ref(20);
@@ -1573,6 +1584,7 @@ async function loadProjectServices(forceRefresh = false) {
   if (!Number.isFinite(projectId.value)) {
     serviceRows.value = [];
     serviceRuntimePortSummaries.value = {};
+    projectRuntimeTarget.value = null;
     servicesLoaded.value = false;
     return [];
   }
@@ -1592,6 +1604,7 @@ async function loadProjectServices(forceRefresh = false) {
     logger.error('failed to load project services', error);
     serviceRows.value = [];
     serviceRuntimePortSummaries.value = {};
+    projectRuntimeTarget.value = null;
     servicesLoaded.value = false;
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.loadFailed')));
     return [];
@@ -2414,6 +2427,7 @@ async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
   if (!canonicalProjectName || services.length === 0) {
     if (requestId === serviceRuntimePortsRequestId.value) {
       serviceRuntimePortSummaries.value = {};
+      projectRuntimeTarget.value = null;
     }
     return;
   }
@@ -2424,10 +2438,12 @@ async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
       return;
     }
     serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, containers);
+    projectRuntimeTarget.value = containers.find((container) => container.runtime_target)?.runtime_target ?? null;
   } catch (error) {
     logger.warn('failed to load runtime ports for project services', error);
     if (requestId === serviceRuntimePortsRequestId.value) {
       serviceRuntimePortSummaries.value = {};
+      projectRuntimeTarget.value = null;
     }
   }
 }

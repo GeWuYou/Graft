@@ -20,7 +20,7 @@
           />
         </span>
       </template>
-      <menu-content :nav-data="menu" />
+      <menu-content :nav-data="menu" :show-sections="!renderCompact" />
     </t-menu>
     <div :class="`${prefix}-side-nav-placeholder${isCompact ? '-hidden' : ''}`"></div>
   </div>

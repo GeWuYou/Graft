@@ -56,43 +56,28 @@
           <t-option v-for="status in statusOptions" :key="status" :value="status" :label="stateLabel(status)" />
         </t-select>
         <t-select
-          v-model="filters.orchestrator"
+          v-model="filters.deploymentType"
           class="management-toolbar__select"
-          data-testid="container-filter-orchestrator"
-          :placeholder="t('container.list.filters.orchestrator')"
+          data-testid="container-filter-deployment-type"
+          :placeholder="t('container.list.filters.deploymentType')"
         >
-          <t-option value="all" :label="t('container.list.filters.allOrchestrators')" />
+          <t-option value="all" :label="t('container.list.filters.allDeploymentTypes')" />
           <t-option
-            v-for="orchestrator in orchestratorOptions"
-            :key="orchestrator"
-            :value="orchestrator"
-            :label="orchestratorLabel(orchestrator)"
+            v-for="deploymentType in deploymentTypeOptions"
+            :key="deploymentType"
+            :value="deploymentType"
+            :label="deploymentTypeLabel(deploymentType)"
           />
         </t-select>
         <t-select
-          v-model="filters.sourceScopeKind"
+          v-model="filters.runtimeTargetId"
           class="management-toolbar__select"
-          data-testid="container-filter-source-scope-kind"
-          :disabled="!availableSourceScopeKinds.length"
-          :placeholder="t('container.list.filters.sourceScopeKind')"
+          data-testid="container-filter-runtime-target"
+          :placeholder="t('container.list.filters.runtimeTarget')"
         >
-          <t-option value="all" :label="t('container.list.filters.allSourceScopeKinds')" />
-          <t-option
-            v-for="scopeKind in availableSourceScopeKinds"
-            :key="scopeKind"
-            :value="scopeKind"
-            :label="t(`container.list.sourceKinds.${scopeKind}`)"
-          />
+          <t-option value="all" :label="t('container.list.filters.allRuntimeTargets')" />
+          <t-option v-for="target in runtimeTargets" :key="target.id" :value="target.id" :label="target.displayName" />
         </t-select>
-        <t-input
-          v-model="filters.sourceScope"
-          class="management-toolbar__select management-toolbar__scope-input"
-          clearable
-          data-testid="container-filter-source-scope"
-          :disabled="filters.sourceScopeKind === 'all'"
-          :placeholder="sourceScopePlaceholder"
-          @enter="applyFilters"
-        />
         <t-select
           v-model="filters.health"
           class="management-toolbar__select"
@@ -132,8 +117,8 @@
       :visible-column-keys="visibleColumnKeys"
       @action="handleTableAction"
       @page-change="handlePageChange"
+      @project-context="openComposeProjectContext"
       @select-change="handleSelectChange"
-      @source-filter="applySourceQuickFilter"
     >
       <template #toolbar>
         <div class="container-toolbar-row">
@@ -258,6 +243,8 @@ import { useRouter } from 'vue-router';
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
+import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { ManagementPageHeader, ManagementToolbar, TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -283,7 +270,6 @@ import {
   CONTAINER_RESOURCE_COLUMN_STORAGE_KEY,
   CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS,
   type ContainerResourceRowAction,
-  type ContainerSourceQuickFilter,
   displayContainerName,
 } from '../../shared/resource-table';
 import {
@@ -300,7 +286,6 @@ import type {
   ContainerBatchActionResponse,
   ContainerFilters,
   ContainerListQueryWithOrchestrator,
-  ContainerListSourceScopeQuery,
   ContainerListSummary,
   ContainerRuntimeInfo,
   ContainerState,
@@ -331,7 +316,7 @@ const statusOptions: ContainerState[] = [
   'unknown',
 ];
 const healthOptions = ['healthy', 'unhealthy', 'starting', 'none', 'unavailable'] as const;
-const orchestratorOptions = ['standalone', 'compose', 'swarm', 'kubernetes', 'unknown'] as const;
+const deploymentTypeOptions = ['standalone', 'compose'] as const;
 const CONTAINER_RUNTIME_DISABLED_MESSAGE_KEY = 'ops.container.error.runtimeDisabled';
 const CONTAINER_DEFAULT_PAGE_SIZE = 20;
 type ListErrorState = {
@@ -346,6 +331,7 @@ const listError = ref<ListErrorState>({ title: '', hint: '' });
 const runtime = ref<ContainerRuntimeInfo | null>(null);
 const listSummary = ref<ContainerListSummary | null>(null);
 const listTotal = ref(0);
+const runtimeTargets = ref<RuntimeTarget[]>([]);
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
 const tableDensity = ref<'medium' | 'small'>('medium');
@@ -354,20 +340,17 @@ const selectedRowRecords = ref<ContainerSummaryRecord[]>([]);
 const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
-const pendingSourceScopeFilter = ref<ContainerSourceQuickFilter | null>(null);
 const filters = reactive<ContainerFilters>({
   keyword: '',
-  orchestrator: 'all',
-  sourceScopeKind: 'all',
-  sourceScope: '',
+  deploymentType: 'all',
+  runtimeTargetId: 'all',
   status: 'all',
   health: 'all',
 });
 const submittedFilters = ref<ContainerFilters>({
   keyword: '',
-  orchestrator: 'all',
-  sourceScopeKind: 'all',
-  sourceScope: '',
+  deploymentType: 'all',
+  runtimeTargetId: 'all',
   status: 'all',
   health: 'all',
 });
@@ -378,52 +361,17 @@ const pagination = reactive({
 const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
 let listRealtimeSubscribed = false;
-const orchestratorSourceScopeKinds = computed<
-  Record<(typeof orchestratorOptions)[number], Array<ContainerSourceQuickFilter['kind']>>
->(() => ({
-  standalone: [],
-  compose: ['compose_project', 'compose_service'],
-  swarm: ['swarm_stack', 'swarm_task'],
-  kubernetes: ['kubernetes_namespace', 'kubernetes_pod'],
-  unknown: [],
-}));
-const availableSourceScopeKinds = computed<Array<ContainerSourceQuickFilter['kind']>>(() => {
-  if (filters.orchestrator === 'all') {
-    return [
-      'compose_project',
-      'compose_service',
-      'swarm_stack',
-      'swarm_task',
-      'kubernetes_namespace',
-      'kubernetes_pod',
-    ];
-  }
-
-  return orchestratorSourceScopeKinds.value[filters.orchestrator] ?? [];
-});
-const sourceScopePlaceholder = computed(() => {
-  if (filters.sourceScopeKind === 'all') {
-    return t('container.list.filters.sourceScopePlaceholderDisabled');
-  }
-
-  return t('container.list.filters.sourceScopePlaceholder', {
-    kind: t(`container.list.sourceKinds.${filters.sourceScopeKind}`),
-  });
-});
 function hasCommittedFilters(activeFilters: ContainerFilters) {
   return (
     Boolean(activeFilters.keyword.trim()) ||
-    activeFilters.orchestrator !== 'all' ||
-    activeFilters.sourceScopeKind !== 'all' ||
-    Boolean(activeFilters.sourceScope.trim()) ||
+    activeFilters.deploymentType !== 'all' ||
+    activeFilters.runtimeTargetId !== 'all' ||
     activeFilters.status !== 'all' ||
     activeFilters.health !== 'all'
   );
 }
 
-const hasActiveFilters = computed(
-  () => hasCommittedFilters(submittedFilters.value) || Boolean(pendingSourceScopeFilter.value),
-);
+const hasActiveFilters = computed(() => hasCommittedFilters(submittedFilters.value));
 const totalCount = computed(() => listSummary.value?.total ?? listTotal.value);
 const runningCount = computed(() => listSummary.value?.running ?? 0);
 const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
@@ -489,8 +437,17 @@ let refreshRequestSeq = 0;
 
 onMounted(() => {
   listRealtimeActive.value = true;
+  void loadRuntimeTargets();
   void refreshContainers();
 });
+
+async function loadRuntimeTargets() {
+  try {
+    runtimeTargets.value = (await listRuntimeTargets()).filter((target) => target.provider === 'docker');
+  } catch {
+    runtimeTargets.value = [];
+  }
+}
 
 onUnmounted(() => {
   listRealtimeActive.value = false;
@@ -523,32 +480,6 @@ watch(
 watch(
   () => [pagination.current, pagination.pageSize],
   () => void refreshContainers(),
-);
-
-watch(
-  () => filters.orchestrator,
-  (nextOrchestrator) => {
-    if (nextOrchestrator === 'all') {
-      filters.sourceScopeKind = 'all';
-      filters.sourceScope = '';
-      return;
-    }
-    if (availableSourceScopeKinds.value.includes(filters.sourceScopeKind as ContainerSourceQuickFilter['kind'])) {
-      return;
-    }
-    filters.sourceScopeKind = defaultSourceScopeKind(nextOrchestrator);
-    filters.sourceScope = '';
-  },
-);
-
-watch(
-  () => filters.sourceScopeKind,
-  (nextKind) => {
-    if (nextKind !== 'all') {
-      return;
-    }
-    filters.sourceScope = '';
-  },
 );
 
 async function refreshContainers() {
@@ -649,7 +580,6 @@ function isApiRequestErrorShape(error: unknown): error is { isApiRequestError: t
 
 function applyFilters() {
   filters.keyword = filters.keyword.trim();
-  filters.sourceScope = filters.sourceScope.trim();
   commitSubmittedFilters();
   clearSelection();
   requestFirstPage();
@@ -657,9 +587,8 @@ function applyFilters() {
 
 function resetFilters() {
   filters.keyword = '';
-  filters.orchestrator = 'all';
-  filters.sourceScopeKind = 'all';
-  filters.sourceScope = '';
+  filters.deploymentType = 'all';
+  filters.runtimeTargetId = 'all';
   filters.status = 'all';
   filters.health = 'all';
   commitSubmittedFilters();
@@ -681,60 +610,24 @@ function buildListQuery(): ContainerListQueryWithOrchestrator {
     limit: pagination.pageSize,
     offset: (pagination.current - 1) * pagination.pageSize,
     keyword: activeFilters.keyword.trim() || undefined,
-    orchestrator: activeFilters.orchestrator === 'all' ? undefined : activeFilters.orchestrator,
+    deployment_type: activeFilters.deploymentType === 'all' ? undefined : activeFilters.deploymentType,
+    runtime_target_id: activeFilters.runtimeTargetId === 'all' ? undefined : Number(activeFilters.runtimeTargetId),
     state: activeFilters.status === 'all' ? undefined : activeFilters.status,
     health: activeFilters.health === 'all' ? undefined : activeFilters.health,
-    ...buildSourceScopeQuery(),
-  };
-}
-
-function buildSourceScopeQuery(): ContainerListSourceScopeQuery {
-  const sourceScopeFilter = pendingSourceScopeFilter.value;
-  if (!sourceScopeFilter) {
-    return {};
-  }
-
-  return {
-    source_scope_kind: sourceScopeFilter.kind,
-    source_scope: sourceScopeFilter.value,
   };
 }
 
 function commitSubmittedFilters() {
   submittedFilters.value = {
     keyword: filters.keyword,
-    orchestrator: filters.orchestrator,
-    sourceScopeKind: filters.sourceScopeKind,
-    sourceScope: filters.sourceScope,
+    deploymentType: filters.deploymentType,
+    runtimeTargetId: filters.runtimeTargetId,
     status: filters.status,
     health: filters.health,
   };
-  syncPendingSourceScopeFilter(submittedFilters.value);
 }
 
-function syncPendingSourceScopeFilter(activeFilters: ContainerFilters) {
-  pendingSourceScopeFilter.value =
-    activeFilters.sourceScopeKind !== 'all' && activeFilters.sourceScope
-      ? {
-          kind: activeFilters.sourceScopeKind,
-          orchestrator: activeFilters.orchestrator === 'all' ? 'standalone' : activeFilters.orchestrator,
-          value: activeFilters.sourceScope,
-        }
-      : null;
-}
-
-function defaultSourceScopeKind(orchestrator: (typeof orchestratorOptions)[number] | 'all') {
-  if (orchestrator === 'compose') {
-    return 'compose_project';
-  }
-  if (orchestrator === 'swarm') {
-    return 'swarm_stack';
-  }
-  if (orchestrator === 'kubernetes') {
-    return 'kubernetes_namespace';
-  }
-  return 'all';
-}
+const deploymentTypeLabel = (type: (typeof deploymentTypeOptions)[number]) => t(`container.list.deployments.${type}`);
 
 function openDetail(row: ContainerSummaryRecord) {
   void navigateToDetail(row, 'overview');
@@ -742,6 +635,13 @@ function openDetail(row: ContainerSummaryRecord) {
 
 function openAuditLogs(row: ContainerSummaryRecord) {
   void router.push(buildAuditResourceLocation('container', row.id, displayContainerName(row)));
+}
+
+function openComposeProjectContext(projectName: string) {
+  const keyword = projectName.trim();
+  if (keyword) {
+    void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName, query: { keyword } });
+  }
 }
 
 async function copyContainerId(row: ContainerSummaryRecord) {
@@ -853,9 +753,6 @@ function buildRowActions(row: ContainerSummaryRecord): ContainerResourceRowActio
 }
 
 const stateLabel = (state: ContainerState) => t(`container.list.states.${state}`);
-
-const orchestratorLabel = (orchestrator: (typeof orchestratorOptions)[number]) =>
-  t(`container.list.orchestrators.${orchestrator}`);
 
 const healthLabel = (health: (typeof healthOptions)[number]) => t(`container.list.health.${health || 'unavailable'}`);
 
@@ -1362,27 +1259,17 @@ function buildDetailTabTitle(name: string): LocalizedTitle {
 }
 
 function orchestratorActionLevel(row: ContainerSummaryRecord): ContainerActionLevel {
-  if (row.orchestrator?.action_level) {
-    return row.orchestrator.action_level;
+  if (row.deployment?.action_level) {
+    return row.deployment.action_level;
   }
 
   return row.can_start || row.can_stop || row.can_restart || row.can_remove ? 'allow' : 'readonly';
 }
 
-function applySourceQuickFilter(sourceFilter: ContainerSourceQuickFilter) {
-  filters.orchestrator = sourceFilter.orchestrator;
-  filters.keyword = '';
-  filters.sourceScopeKind = sourceFilter.kind;
-  filters.sourceScope = sourceFilter.value;
-  commitSubmittedFilters();
-  clearSelection();
-  requestFirstPage();
-}
-
 function rowActionRiskText(row: ContainerSummaryRecord) {
   return orchestratorActionLevel(row) === 'warn'
     ? t('container.list.actions.sourceRisk', {
-        source: t(`container.list.orchestrators.${row.orchestrator?.type || 'standalone'}`),
+        source: t(`container.list.deployments.${row.deployment?.type || 'standalone'}`),
       })
     : '';
 }
@@ -1404,7 +1291,7 @@ function canRunAnyDangerousAction(row: ContainerSummaryRecord) {
 }
 
 function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousContainerAction) {
-  return !isDangerousActionDisabled(row, action) && (row.orchestrator?.batch_action_allowed ?? true);
+  return !isDangerousActionDisabled(row, action) && (row.deployment?.batch_action_allowed ?? true);
 }
 
 function toggleTableDensity() {

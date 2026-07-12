@@ -56,14 +56,14 @@ describe('runtime-containers', () => {
     expect(mockedGetContainers).toHaveBeenNthCalledWith(1, {
       limit: PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
       offset: 0,
-      orchestrator: 'compose',
+      deployment_type: 'compose',
       source_scope: 'compose-demo',
       source_scope_kind: 'compose_project',
     });
     expect(mockedGetContainers).toHaveBeenNthCalledWith(2, {
       limit: PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
       offset: 2,
-      orchestrator: 'compose',
+      deployment_type: 'compose',
       source_scope: 'compose-demo',
       source_scope_kind: 'compose_project',
     });

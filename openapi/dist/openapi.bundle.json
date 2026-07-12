@@ -69,6 +69,10 @@
     {
       "name": "project",
       "description": "Compose 项目管理"
+    },
+    {
+      "name": "runtime-target",
+      "description": "运行目标管理"
     }
   ],
   "paths": {
@@ -9726,13 +9730,10 @@
             "$ref": "#/components/parameters/container-list-health"
           },
           {
-            "$ref": "#/components/parameters/container-list-orchestrator"
+            "$ref": "#/components/parameters/container-list-deployment-type"
           },
           {
-            "$ref": "#/components/parameters/container-list-source-scope-kind"
-          },
-          {
-            "$ref": "#/components/parameters/container-list-source-scope"
+            "$ref": "#/components/parameters/container-list-runtime-target-id"
           }
         ],
         "security": [
@@ -10960,6 +10961,275 @@
         }
       }
     },
+    "/api/ops/docker/images": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List Docker images",
+        "operationId": "getDockerImages",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker image list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/images/{id}": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker image",
+        "operationId": "getDockerImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker image.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Image not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/networks": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List Docker networks",
+        "operationId": "getDockerNetworks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker network list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-network-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/networks/{id}": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker network",
+        "operationId": "getDockerNetwork",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker network.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-network"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Network not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List Docker volumes",
+        "operationId": "getDockerVolumes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker volume list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-volume-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes/{id}": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker volume",
+        "operationId": "getDockerVolume",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Docker volume.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-volume"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Volume not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/system": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read Docker system information",
+        "operationId": "getDockerSystem",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized Docker runtime information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-runtime-info"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects": {
       "get": {
         "tags": [
@@ -11014,6 +11284,153 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "List runtime targets",
+        "operationId": "getRuntimeTargets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime target list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Read runtime target",
+        "operationId": "getRuntimeTarget",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime target detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid target id"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/refresh": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Refresh runtime target availability",
+        "operationId": "postRuntimeTargetRefresh",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refreshed runtime target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid target id"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -14525,8 +14942,11 @@
       "ContainerRuntimeInfo": {
         "$ref": "#/components/schemas/container-runtime-info"
       },
-      "ContainerOrchestratorInfo": {
-        "$ref": "#/components/schemas/container-orchestrator-info"
+      "ContainerDeploymentInfo": {
+        "$ref": "#/components/schemas/container-deployment-info"
+      },
+      "ContainerRuntimeTargetSummary": {
+        "$ref": "#/components/schemas/container-runtime-target-summary"
       },
       "ContainerResourceSummary": {
         "$ref": "#/components/schemas/container-resource-summary"
@@ -14581,6 +15001,45 @@
       },
       "EnvelopedContainerBatchActionResponse": {
         "$ref": "#/components/schemas/enveloped-container-batch-action-response"
+      },
+      "DockerImage": {
+        "$ref": "#/components/schemas/docker-image"
+      },
+      "DockerImageListResponse": {
+        "$ref": "#/components/schemas/docker-image-list-response"
+      },
+      "DockerNetwork": {
+        "$ref": "#/components/schemas/docker-network"
+      },
+      "DockerNetworkListResponse": {
+        "$ref": "#/components/schemas/docker-network-list-response"
+      },
+      "DockerVolume": {
+        "$ref": "#/components/schemas/docker-volume"
+      },
+      "DockerVolumeListResponse": {
+        "$ref": "#/components/schemas/docker-volume-list-response"
+      },
+      "EnvelopedDockerImage": {
+        "$ref": "#/components/schemas/enveloped-docker-image"
+      },
+      "EnvelopedDockerImageListResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-image-list-response"
+      },
+      "EnvelopedDockerNetwork": {
+        "$ref": "#/components/schemas/enveloped-docker-network"
+      },
+      "EnvelopedDockerNetworkListResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-network-list-response"
+      },
+      "EnvelopedDockerVolume": {
+        "$ref": "#/components/schemas/enveloped-docker-volume"
+      },
+      "EnvelopedDockerVolumeListResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-volume-list-response"
+      },
+      "EnvelopedContainerRuntimeInfo": {
+        "$ref": "#/components/schemas/enveloped-container-runtime-info"
       },
       "ProjectSourceKind": {
         "$ref": "#/components/schemas/project-source-kind"
@@ -14833,6 +15292,18 @@
       },
       "EnvelopedProjectBatchActionResponse": {
         "$ref": "#/components/schemas/enveloped-project-batch-action-response"
+      },
+      "RuntimeTarget": {
+        "$ref": "#/components/schemas/runtime-target"
+      },
+      "RuntimeTargetListResponse": {
+        "$ref": "#/components/schemas/runtime-target-list-response"
+      },
+      "EnvelopedRuntimeTargetListResponse": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-list-response"
+      },
+      "EnvelopedRuntimeTargetResponse": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-response"
       },
       "health-response": {
         "type": "object",
@@ -21347,7 +21818,7 @@
           }
         }
       },
-      "container-orchestrator-info": {
+      "container-deployment-info": {
         "type": "object",
         "required": [
           "type",
@@ -21363,98 +21834,28 @@
             "enum": [
               "standalone",
               "compose",
-              "swarm",
-              "kubernetes",
               "unknown"
             ],
             "x-enum-varnames": [
-              "ContainerOrchestratorInfoTypeStandalone",
-              "ContainerOrchestratorInfoTypeCompose",
-              "ContainerOrchestratorInfoTypeSwarm",
-              "ContainerOrchestratorInfoTypeKubernetes",
-              "ContainerOrchestratorInfoTypeUnknown"
+              "ContainerDeploymentInfoTypeStandalone",
+              "ContainerDeploymentInfoTypeCompose",
+              "ContainerDeploymentInfoTypeUnknown"
             ]
           },
           "managed": {
-            "type": "boolean",
-            "description": "Whether the container belongs to an upper-level orchestrator or control plane."
+            "type": "boolean"
           },
-          "display_name": {
+          "project": {
             "type": "string",
-            "nullable": true,
-            "description": "Optional fallback source label. Visible UI should still localize by type first."
+            "nullable": true
           },
-          "group_scope_kind": {
-            "type": "string",
-            "nullable": true,
-            "enum": [
-              "compose_project",
-              "swarm_stack",
-              "kubernetes_namespace"
-            ],
-            "x-enum-varnames": [
-              "ContainerOrchestratorInfoGroupScopeKindComposeProject",
-              "ContainerOrchestratorInfoGroupScopeKindSwarmStack",
-              "ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace"
-            ],
-            "description": "Stable normalized group scope kind for list/detail consumers."
-          },
-          "group_value": {
-            "type": "string",
-            "nullable": true,
-            "description": "Canonical group scope value for exact filtering and grouping."
-          },
-          "group_display_name": {
-            "type": "string",
-            "nullable": true,
-            "description": "Human-readable group scope label derived from runtime metadata."
-          },
-          "member_scope_kind": {
-            "type": "string",
-            "nullable": true,
-            "enum": [
-              "compose_service",
-              "swarm_task",
-              "kubernetes_pod"
-            ],
-            "x-enum-varnames": [
-              "ContainerOrchestratorInfoMemberScopeKindComposeService",
-              "ContainerOrchestratorInfoMemberScopeKindSwarmTask",
-              "ContainerOrchestratorInfoMemberScopeKindKubernetesPod"
-            ],
-            "description": "Stable normalized member scope kind for list/detail consumers."
-          },
-          "member_value": {
-            "type": "string",
-            "nullable": true,
-            "description": "Canonical member scope value for exact filtering and grouping."
-          },
-          "member_display_name": {
-            "type": "string",
-            "nullable": true,
-            "description": "Human-readable member scope label derived from runtime metadata."
-          },
-          "confidence": {
-            "type": "string",
-            "enum": [
-              "high",
-              "medium",
-              "low"
-            ],
-            "x-enum-varnames": [
-              "ContainerOrchestratorInfoConfidenceHigh",
-              "ContainerOrchestratorInfoConfidenceMedium",
-              "ContainerOrchestratorInfoConfidenceLow"
-            ]
-          },
-          "container": {
+          "service": {
             "type": "string",
             "nullable": true
           },
           "working_dir": {
             "type": "string",
-            "nullable": true,
-            "description": "Compose project working directory metadata, not the runtime container working_dir field."
+            "nullable": true
           },
           "config_files": {
             "type": "array",
@@ -21462,17 +21863,23 @@
               "type": "string"
             }
           },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
           "warnings": {
             "type": "array",
-            "description": "Stable warning codes without embedded visible copy.",
             "items": {
               "type": "string"
             }
           },
           "recommended_action": {
             "type": "string",
-            "nullable": true,
-            "description": "Stable recommended action code without embedded visible copy."
+            "nullable": true
           },
           "action_level": {
             "type": "string",
@@ -21480,16 +21887,35 @@
               "readonly",
               "warn",
               "allow"
-            ],
-            "x-enum-varnames": [
-              "ContainerOrchestratorInfoActionLevelReadonly",
-              "ContainerOrchestratorInfoActionLevelWarn",
-              "ContainerOrchestratorInfoActionLevelAllow"
             ]
           },
           "batch_action_allowed": {
-            "type": "boolean",
-            "description": "Whether the current orchestrator source may participate in batch dangerous actions under the effective policy."
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "container-runtime-target-summary": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "docker"
+            ]
           }
         },
         "additionalProperties": false
@@ -21631,8 +22057,11 @@
           "restart_policy": {
             "type": "string"
           },
-          "orchestrator": {
-            "$ref": "#/components/schemas/container-orchestrator-info"
+          "deployment": {
+            "$ref": "#/components/schemas/container-deployment-info"
+          },
+          "runtime_target": {
+            "$ref": "#/components/schemas/container-runtime-target-summary"
           },
           "can_start": {
             "type": "boolean"
@@ -22522,9 +22951,6 @@
                   "$ref": "#/components/schemas/container-network"
                 }
               },
-              "orchestrator": {
-                "$ref": "#/components/schemas/container-orchestrator-info"
-              },
               "runtime_info": {
                 "$ref": "#/components/schemas/container-runtime-info"
               },
@@ -23084,6 +23510,314 @@
         },
         "additionalProperties": false
       },
+      "docker-image": {
+        "type": "object",
+        "required": [
+          "id",
+          "repository_tags",
+          "repository_digests",
+          "created_at",
+          "size_bytes",
+          "containers"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "repository_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repository_digests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "containers": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "architecture": {
+            "type": "string"
+          },
+          "operating_system": {
+            "type": "string"
+          }
+        }
+      },
+      "docker-image-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-image"
+            }
+          }
+        }
+      },
+      "enveloped-docker-image-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-image": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image"
+              }
+            }
+          }
+        ]
+      },
+      "docker-network": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "driver",
+          "scope",
+          "created_at",
+          "internal",
+          "attachable",
+          "ingress",
+          "container_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "internal": {
+            "type": "boolean"
+          },
+          "attachable": {
+            "type": "boolean"
+          },
+          "ingress": {
+            "type": "boolean"
+          },
+          "container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "docker-network-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-network"
+            }
+          }
+        }
+      },
+      "enveloped-docker-network-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-network-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-network": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-network"
+              }
+            }
+          }
+        ]
+      },
+      "docker-volume": {
+        "type": "object",
+        "required": [
+          "name",
+          "driver",
+          "scope",
+          "created_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "reference_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "docker-volume-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-volume"
+            }
+          }
+        }
+      },
+      "enveloped-docker-volume-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-docker-volume": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-container-runtime-info": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-runtime-info"
+              }
+            }
+          }
+        ]
+      },
       "project-source-kind": {
         "type": "string",
         "enum": [
@@ -23363,6 +24097,108 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/project-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "displayName",
+          "endpointLabel",
+          "connectionKind",
+          "capabilities",
+          "availability",
+          "lastError"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "provider": {
+            "type": "string",
+            "example": "docker"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "endpointLabel": {
+            "type": "string",
+            "description": "Masked connection endpoint label. It never contains credentials."
+          },
+          "connectionKind": {
+            "type": "string",
+            "example": "unix_socket"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "availability": {
+            "type": "boolean"
+          },
+          "lastCheckedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastError": {
+            "type": "string",
+            "description": "Sanitized latest probe diagnostic."
+          }
+        }
+      },
+      "runtime-target-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target"
+            }
+          }
+        }
+      },
+      "enveloped-runtime-target-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-runtime-target-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target"
               }
             }
           }
@@ -27525,61 +28361,34 @@
           ]
         }
       },
-      "container-list-orchestrator": {
-        "name": "orchestrator",
+      "container-list-deployment-type": {
+        "name": "deployment_type",
         "in": "query",
         "required": false,
-        "description": "Optional orchestrator source filter resolved by the backend from runtime metadata.",
+        "description": "Optional deployment type filter. Docker containers are standalone, Compose-managed, or conservatively unknown when runtime labels are ambiguous.",
         "schema": {
           "type": "string",
           "enum": [
             "standalone",
             "compose",
-            "swarm",
-            "kubernetes",
             "unknown"
           ],
           "x-enum-varnames": [
-            "ContainerListOrchestratorStandalone",
-            "ContainerListOrchestratorCompose",
-            "ContainerListOrchestratorSwarm",
-            "ContainerListOrchestratorKubernetes",
-            "ContainerListOrchestratorUnknown"
+            "ContainerListDeploymentTypeStandalone",
+            "ContainerListDeploymentTypeCompose",
+            "ContainerListDeploymentTypeUnknown"
           ]
         }
       },
-      "container-list-source-scope-kind": {
-        "name": "source_scope_kind",
+      "container-list-runtime-target-id": {
+        "name": "runtime_target_id",
         "in": "query",
         "required": false,
-        "description": "Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.",
+        "description": "Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.",
         "schema": {
-          "type": "string",
-          "enum": [
-            "compose_project",
-            "compose_service",
-            "swarm_stack",
-            "swarm_task",
-            "kubernetes_namespace",
-            "kubernetes_pod"
-          ],
-          "x-enum-varnames": [
-            "ContainerListSourceScopeKindComposeProject",
-            "ContainerListSourceScopeKindComposeService",
-            "ContainerListSourceScopeKindSwarmStack",
-            "ContainerListSourceScopeKindSwarmTask",
-            "ContainerListSourceScopeKindKubernetesNamespace",
-            "ContainerListSourceScopeKindKubernetesPod"
-          ]
-        }
-      },
-      "container-list-source-scope": {
-        "name": "source_scope",
-        "in": "query",
-        "required": false,
-        "description": "Exact orchestrator source scope value. Must be paired with source_scope_kind.",
-        "schema": {
-          "type": "string"
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       },
       "container-id-path": {
@@ -27600,6 +28409,17 @@
             "summary": "Encoded container name",
             "value": "web%2Dapi"
           }
+        }
+      },
+      "runtime-target-id-path": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Runtime target numeric identifier.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       },
       "container-mount-id-path": {

@@ -9,7 +9,7 @@ export const PROJECT_RUNTIME_CONTAINER_PAGE_SIZE = 100;
  * @returns 去除首尾空白的分组值；缺少有效值时返回空字符串
  */
 export function readProjectContainerSourceGroup(container: ProjectContainerSummary): string {
-  return normalizeProjectContainerSourceValue(container.orchestrator?.group_value);
+  return normalizeProjectContainerSourceValue(container.deployment?.project ?? container.orchestrator?.group_value);
 }
 
 /**
@@ -19,7 +19,7 @@ export function readProjectContainerSourceGroup(container: ProjectContainerSumma
  * @returns 裁剪空白后的来源成员值；缺失或为空时返回空字符串
  */
 export function readProjectContainerSourceMember(container: ProjectContainerSummary): string {
-  return normalizeProjectContainerSourceValue(container.orchestrator?.member_value);
+  return normalizeProjectContainerSourceValue(container.deployment?.service ?? container.orchestrator?.member_value);
 }
 
 /**
@@ -42,7 +42,7 @@ export async function fetchProjectRuntimeContainers(canonicalProjectName: string
     const payload = await getContainers({
       limit: PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
       offset,
-      orchestrator: 'compose',
+      deployment_type: 'compose',
       source_scope: projectName,
       source_scope_kind: 'compose_project',
     });

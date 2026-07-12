@@ -52,6 +52,20 @@ func (fakeAuthorizer) Authorize(context.Context, moduleapi.RequestAuthContext, s
 	return nil
 }
 
+type runtimeTargetReaderStub struct {
+	target      moduleapi.RuntimeTargetSummary
+	err         error
+	requestedID *int64
+}
+
+func (r *runtimeTargetReaderStub) ReadDockerTarget(_ context.Context, id *int64) (moduleapi.RuntimeTargetSummary, error) {
+	if id != nil {
+		value := *id
+		r.requestedID = &value
+	}
+	return r.target, r.err
+}
+
 type rejectingAuthorizer struct {
 	err error
 }
@@ -636,6 +650,44 @@ func TestServiceListAppliesPaginationFiltersAndActionAvailability(t *testing.T) 
 	}
 }
 
+func TestServiceListResolvesDockerRuntimeTargetAndDeploymentType(t *testing.T) {
+	t.Parallel()
+
+	targetID := int64(7)
+	reader := &runtimeTargetReaderStub{target: moduleapi.RuntimeTargetSummary{
+		ID:          targetID,
+		DisplayName: "Local Docker",
+		Provider:    runtimeNameDocker,
+	}}
+	service, err := newTestService(containerServiceOptions{
+		runtime:        fakeRuntime{},
+		runtimeTargets: reader,
+		enabled:        true,
+		defaultTail:    defaultContainerLogsDefaultTail,
+		maxTail:        defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.List(context.Background(), ListQuery{
+		DeploymentType: containerOrchestratorStandalone,
+		RuntimeTargetID: &targetID,
+	})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if reader.requestedID == nil || *reader.requestedID != targetID {
+		t.Fatalf("expected runtime target reader to receive %d, got %#v", targetID, reader.requestedID)
+	}
+	if result.RuntimeTarget != reader.target {
+		t.Fatalf("expected resolved runtime target %#v, got %#v", reader.target, result.RuntimeTarget)
+	}
+	if result.Total != 1 || result.Items[0].Orchestrator.Type != containerOrchestratorStandalone {
+		t.Fatalf("expected standalone deployment filter result, got %#v", result)
+	}
+}
+
 func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -1115,6 +1167,11 @@ func TestServiceListRejectsInvalidQuery(t *testing.T) {
 	_, err = service.List(context.Background(), ListQuery{Limit: maxContainerListLimit + 1})
 	if !errors.Is(err, errInvalidListQuery) {
 		t.Fatalf("expected invalid list query, got %v", err)
+	}
+	invalidTargetID := int64(0)
+	_, err = service.List(context.Background(), ListQuery{RuntimeTargetID: &invalidTargetID})
+	if !errors.Is(err, errInvalidListQuery) {
+		t.Fatalf("expected invalid runtime target query, got %v", err)
 	}
 }
 

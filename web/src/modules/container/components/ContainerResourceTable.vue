@@ -87,46 +87,32 @@
       </div>
     </template>
 
-    <template #source="{ row }">
+    <template #deployment="{ row }">
       <div class="container-source-cell">
         <div class="container-source-cell__header">
           <t-tag :theme="orchestratorTheme(row)" size="small" variant="light-outline">
             {{ orchestratorLabel(readContainerOrchestratorType(row)) }}
           </t-tag>
         </div>
-        <div v-if="sourceGroupFilter(row)" class="container-source-cell__line">
-          <span class="container-source-cell__label">{{
-            t(`container.list.sourceKinds.${sourceGroupFilter(row)?.kind}`)
-          }}</span>
+        <div v-if="composeProjectName(row)" class="container-source-cell__line">
+          <span class="container-source-cell__label">{{ t('container.list.deploymentContext.project') }}</span>
           <t-button
-            v-if="!props.readonlyMode"
-            data-testid="container-source-group-filter"
+            data-testid="container-compose-project-context"
             size="small"
             theme="primary"
             variant="text"
-            @click="handleSourceFilterClick($event, row, 'group')"
+            @click="emitProjectContext($event, row)"
           >
-            {{ sourceGroupFilter(row)?.value }}
+            {{ composeProjectName(row) }}
           </t-button>
-          <span v-else>{{ sourceGroupFilter(row)?.value }}</span>
         </div>
         <div v-if="sourceMemberFilter(row)" class="container-source-cell__line">
           <span class="container-source-cell__label">{{
             t(`container.list.sourceKinds.${sourceMemberFilter(row)?.kind}`)
           }}</span>
-          <t-button
-            v-if="!props.readonlyMode"
-            data-testid="container-source-member-filter"
-            size="small"
-            theme="default"
-            variant="text"
-            @click="handleSourceFilterClick($event, row, 'member')"
-          >
-            {{ sourceMemberFilter(row)?.value }}
-          </t-button>
-          <span v-else>{{ sourceMemberFilter(row)?.value }}</span>
+          <span>{{ sourceMemberFilter(row)?.value }}</span>
         </div>
-        <span v-if="!sourceGroupFilter(row) && !sourceMemberFilter(row)" class="container-muted">
+        <span v-if="!composeProjectName(row) && !sourceMemberFilter(row)" class="container-muted">
           {{ orchestratorSummary(row) }}
         </span>
       </div>
@@ -189,8 +175,6 @@ import {
   buildContainerResourceColumns,
   type ContainerResourceMetric,
   type ContainerResourceRowAction,
-  type ContainerSourceQuickFilter,
-  type ContainerSourceQuickFilterTarget,
   createContainerSourceQuickFilter,
   displayContainerName,
   readContainerOrchestratorType,
@@ -251,7 +235,7 @@ const emit = defineEmits<{
   (e: 'row-click', row: ContainerSummaryRecord): void;
   (e: 'select-change', rowKeys: Array<string | number>): void;
   (e: 'sort-change', sort: TableSort): void;
-  (e: 'source-filter', filter: ContainerSourceQuickFilter): void;
+  (e: 'project-context', projectName: string): void;
 }>();
 
 const current = defineModel<number>('current', { required: true });
@@ -265,7 +249,7 @@ const cellSlotNames = [
   'ports',
   'runtime_status',
   'network',
-  'source',
+  'deployment',
   'cpu',
   'memory',
   'resource',
@@ -325,7 +309,7 @@ function healthTheme(health?: ContainerHealth | null) {
 }
 
 function orchestratorLabel(type: ContainerOrchestratorType) {
-  return t(`container.list.orchestrators.${type}`);
+  return t(`container.list.deployments.${type}`);
 }
 
 function orchestratorTheme(row: ContainerSummaryRecord) {
@@ -336,18 +320,20 @@ function orchestratorTheme(row: ContainerSummaryRecord) {
   return 'default';
 }
 
-function sourceGroupFilter(row: ContainerSummaryRecord) {
-  return createContainerSourceQuickFilter(row, 'group');
-}
-
 function sourceMemberFilter(row: ContainerSummaryRecord) {
   return createContainerSourceQuickFilter(row, 'member');
 }
 
+function composeProjectName(row: ContainerSummaryRecord) {
+  return readContainerOrchestratorType(row) === 'compose'
+    ? row.deployment?.project?.trim() || row.orchestrator?.group_value?.trim() || ''
+    : '';
+}
+
 function orchestratorSummary(row: ContainerSummaryRecord) {
-  const group = sourceGroupFilter(row);
-  if (group) {
-    return group.value;
+  const projectName = composeProjectName(row);
+  if (projectName) {
+    return projectName;
   }
 
   const member = sourceMemberFilter(row);
@@ -355,23 +341,15 @@ function orchestratorSummary(row: ContainerSummaryRecord) {
     return member.value;
   }
 
-  return row.orchestrator?.display_name || t('container.list.sourceUnknownSummary');
+  return row.deployment?.project || row.deployment?.service || t('container.list.sourceUnknownSummary');
 }
 
-function emitSourceFilter(row: ContainerSummaryRecord, target: ContainerSourceQuickFilterTarget) {
-  const filter = createContainerSourceQuickFilter(row, target);
-  if (filter) {
-    emit('source-filter', filter);
-  }
-}
-
-function handleSourceFilterClick(
-  event: MouseEvent | undefined,
-  row: ContainerSummaryRecord,
-  target: ContainerSourceQuickFilterTarget,
-) {
+function emitProjectContext(event: MouseEvent | undefined, row: ContainerSummaryRecord) {
   event?.stopPropagation?.();
-  emitSourceFilter(row, target);
+  const projectName = composeProjectName(row);
+  if (projectName) {
+    emit('project-context', projectName);
+  }
 }
 
 function cpuMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { summaryValue: string } {

@@ -1,0 +1,14 @@
+get:
+  tags: [container]
+  summary: List Docker images
+  operationId: getDockerImages
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200':
+      description: Docker image list.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-docker-image-list-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

@@ -1,0 +1,12 @@
+type: object
+required: [id, repository_tags, repository_digests, created_at, size_bytes, containers]
+properties:
+  id: { type: string }
+  repository_tags: { type: array, items: { type: string } }
+  repository_digests: { type: array, items: { type: string } }
+  created_at: { type: string }
+  size_bytes: { type: integer, format: int64 }
+  containers: { type: integer, format: int64 }
+  labels: { type: object, additionalProperties: { type: string } }
+  architecture: { type: string }
+  operating_system: { type: string }

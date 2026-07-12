@@ -2090,6 +2090,125 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/images': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Docker images */
+    get: operations['getDockerImages'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/images/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker image */
+    get: operations['getDockerImage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/networks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Docker networks */
+    get: operations['getDockerNetworks'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/networks/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker network */
+    get: operations['getDockerNetwork'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/volumes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Docker volumes */
+    get: operations['getDockerVolumes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/volumes/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker volume */
+    get: operations['getDockerVolume'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/system': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Docker system information */
+    get: operations['getDockerSystem'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects': {
     parameters: {
       query?: never;
@@ -2104,6 +2223,57 @@ export interface paths {
     get: operations['getProjects'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List runtime targets */
+    get: operations['getRuntimeTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read runtime target */
+    get: operations['getRuntimeTarget'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Refresh runtime target availability */
+    post: operations['postRuntimeTargetRefresh'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2972,7 +3142,8 @@ export interface components {
     ContainerBatchActionItem: components['schemas']['container-batch-action-item'];
     ContainerBatchActionResponse: components['schemas']['container-batch-action-response'];
     ContainerRuntimeInfo: components['schemas']['container-runtime-info'];
-    ContainerOrchestratorInfo: components['schemas']['container-orchestrator-info'];
+    ContainerDeploymentInfo: components['schemas']['container-deployment-info'];
+    ContainerRuntimeTargetSummary: components['schemas']['container-runtime-target-summary'];
     ContainerResourceSummary: components['schemas']['container-resource-summary'];
     ContainerDashboardTopItem: components['schemas']['container-dashboard-top-item'];
     ContainerDashboardAnomalyItem: components['schemas']['container-dashboard-anomaly-item'];
@@ -2991,6 +3162,19 @@ export interface components {
     EnvelopedContainerShellSessionResponse: components['schemas']['enveloped-container-shell-session-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
+    DockerImage: components['schemas']['docker-image'];
+    DockerImageListResponse: components['schemas']['docker-image-list-response'];
+    DockerNetwork: components['schemas']['docker-network'];
+    DockerNetworkListResponse: components['schemas']['docker-network-list-response'];
+    DockerVolume: components['schemas']['docker-volume'];
+    DockerVolumeListResponse: components['schemas']['docker-volume-list-response'];
+    EnvelopedDockerImage: components['schemas']['enveloped-docker-image'];
+    EnvelopedDockerImageListResponse: components['schemas']['enveloped-docker-image-list-response'];
+    EnvelopedDockerNetwork: components['schemas']['enveloped-docker-network'];
+    EnvelopedDockerNetworkListResponse: components['schemas']['enveloped-docker-network-list-response'];
+    EnvelopedDockerVolume: components['schemas']['enveloped-docker-volume'];
+    EnvelopedDockerVolumeListResponse: components['schemas']['enveloped-docker-volume-list-response'];
+    EnvelopedContainerRuntimeInfo: components['schemas']['enveloped-container-runtime-info'];
     ProjectSourceKind: components['schemas']['project-source-kind'];
     ProjectCreationMethodType: components['schemas']['project-creation-method-type'];
     ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
@@ -3075,6 +3259,10 @@ export interface components {
     EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
+    RuntimeTarget: components['schemas']['runtime-target'];
+    RuntimeTargetListResponse: components['schemas']['runtime-target-list-response'];
+    EnvelopedRuntimeTargetListResponse: components['schemas']['enveloped-runtime-target-list-response'];
+    EnvelopedRuntimeTargetResponse: components['schemas']['enveloped-runtime-target-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -5202,45 +5390,28 @@ export interface components {
       /** Format: int64 */
       pids_limit?: number;
     };
-    'container-orchestrator-info': {
+    'container-deployment-info': {
       /** @enum {string} */
-      type: 'standalone' | 'compose' | 'swarm' | 'kubernetes' | 'unknown';
-      /** @description Whether the container belongs to an upper-level orchestrator or control plane. */
+      type: 'standalone' | 'compose' | 'unknown';
       managed: boolean;
-      /** @description Optional fallback source label. Visible UI should still localize by type first. */
-      display_name?: string | null;
-      /**
-       * @description Stable normalized group scope kind for list/detail consumers.
-       * @enum {string|null}
-       */
-      group_scope_kind?: 'compose_project' | 'swarm_stack' | 'kubernetes_namespace' | null;
-      /** @description Canonical group scope value for exact filtering and grouping. */
-      group_value?: string | null;
-      /** @description Human-readable group scope label derived from runtime metadata. */
-      group_display_name?: string | null;
-      /**
-       * @description Stable normalized member scope kind for list/detail consumers.
-       * @enum {string|null}
-       */
-      member_scope_kind?: 'compose_service' | 'swarm_task' | 'kubernetes_pod' | null;
-      /** @description Canonical member scope value for exact filtering and grouping. */
-      member_value?: string | null;
-      /** @description Human-readable member scope label derived from runtime metadata. */
-      member_display_name?: string | null;
-      /** @enum {string} */
-      confidence: 'high' | 'medium' | 'low';
-      container?: string | null;
-      /** @description Compose project working directory metadata, not the runtime container working_dir field. */
+      project?: string | null;
+      service?: string | null;
       working_dir?: string | null;
       config_files?: string[];
-      /** @description Stable warning codes without embedded visible copy. */
+      /** @enum {string} */
+      confidence: 'high' | 'medium' | 'low';
       warnings: string[];
-      /** @description Stable recommended action code without embedded visible copy. */
       recommended_action?: string | null;
       /** @enum {string} */
       action_level: 'readonly' | 'warn' | 'allow';
-      /** @description Whether the current orchestrator source may participate in batch dangerous actions under the effective policy. */
       batch_action_allowed: boolean;
+    };
+    'container-runtime-target-summary': {
+      /** Format: int64 */
+      id: number;
+      display_name: string;
+      /** @enum {string} */
+      provider: 'docker';
     };
     'container-summary': {
       id: string;
@@ -5280,7 +5451,8 @@ export interface components {
       /** @description Nullable when the runtime list path does not expose restart count without inspect. */
       restart_count?: number | null;
       restart_policy?: string;
-      orchestrator?: components['schemas']['container-orchestrator-info'];
+      deployment?: components['schemas']['container-deployment-info'];
+      runtime_target?: components['schemas']['container-runtime-target-summary'];
       can_start?: boolean;
       can_stop?: boolean;
       can_restart?: boolean;
@@ -5526,7 +5698,6 @@ export interface components {
       oom_killed?: boolean | null;
       mounts: components['schemas']['container-mount'][];
       networks: components['schemas']['container-network'][];
-      orchestrator?: components['schemas']['container-orchestrator-info'];
       runtime_info: components['schemas']['container-runtime-info'];
       /** Format: date-time */
       inspect_updated_at?: string;
@@ -5703,6 +5874,78 @@ export interface components {
        */
       force: boolean;
     };
+    'docker-image': {
+      id: string;
+      repository_tags: string[];
+      repository_digests: string[];
+      created_at: string;
+      /** Format: int64 */
+      size_bytes: number;
+      /** Format: int64 */
+      containers: number;
+      labels?: {
+        [key: string]: string;
+      };
+      architecture?: string;
+      operating_system?: string;
+    };
+    'docker-image-list-response': {
+      items: components['schemas']['docker-image'][];
+    };
+    'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image-list-response'];
+    };
+    'enveloped-docker-image': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image'];
+    };
+    'docker-network': {
+      id: string;
+      name: string;
+      driver: string;
+      scope: string;
+      created_at: string;
+      internal: boolean;
+      attachable: boolean;
+      ingress: boolean;
+      container_count: number;
+      labels?: {
+        [key: string]: string;
+      };
+    };
+    'docker-network-list-response': {
+      items: components['schemas']['docker-network'][];
+    };
+    'enveloped-docker-network-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network-list-response'];
+    };
+    'enveloped-docker-network': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network'];
+    };
+    'docker-volume': {
+      name: string;
+      driver: string;
+      scope: string;
+      created_at: string;
+      labels?: {
+        [key: string]: string;
+      };
+      /** Format: int64 */
+      reference_count?: number | null;
+      /** Format: int64 */
+      size_bytes?: number | null;
+    };
+    'docker-volume-list-response': {
+      items: components['schemas']['docker-volume'][];
+    };
+    'enveloped-docker-volume-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume-list-response'];
+    };
+    'enveloped-docker-volume': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume'];
+    };
+    'enveloped-container-runtime-info': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-runtime-info'];
+    };
     /** @enum {string} */
     'project-source-kind': 'imported' | 'managed' | 'template';
     /** @enum {string} */
@@ -5775,6 +6018,32 @@ export interface components {
     };
     'enveloped-project-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-list-response'];
+    };
+    'runtime-target': {
+      /** Format: int64 */
+      id: number;
+      /** @example docker */
+      provider: string;
+      displayName: string;
+      /** @description Masked connection endpoint label. It never contains credentials. */
+      endpointLabel: string;
+      /** @example unix_socket */
+      connectionKind: string;
+      capabilities: string[];
+      availability: boolean;
+      /** Format: date-time */
+      lastCheckedAt?: string | null;
+      /** @description Sanitized latest probe diagnostic. */
+      lastError: string;
+    };
+    'runtime-target-list-response': {
+      items: components['schemas']['runtime-target'][];
+    };
+    'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-list-response'];
+    };
+    'enveloped-runtime-target-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target'];
     };
     'project-import-validate-request': {
       working_directory: string;
@@ -6753,15 +7022,14 @@ export interface components {
       'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
     /** @description Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided. */
     'container-list-health': 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable';
-    /** @description Optional orchestrator source filter resolved by the backend from runtime metadata. */
-    'container-list-orchestrator': 'standalone' | 'compose' | 'swarm' | 'kubernetes' | 'unknown';
-    /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
-    'container-list-source-scope-kind':
-      'compose_project' | 'compose_service' | 'swarm_stack' | 'swarm_task' | 'kubernetes_namespace' | 'kubernetes_pod';
-    /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
-    'container-list-source-scope': string;
+    /** @description Optional deployment type filter. Docker containers are standalone, Compose-managed, or conservatively unknown when runtime labels are ambiguous. */
+    'container-list-deployment-type': 'standalone' | 'compose' | 'unknown';
+    /** @description Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope. */
+    'container-list-runtime-target-id': number;
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
     'container-id-path': string;
+    /** @description Runtime target numeric identifier. */
+    'runtime-target-id-path': number;
     /** @description Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path. */
     'container-mount-id-path': string;
     /** @description Optional maximum number of projects to return. The runtime accepts values from 1 to 100. */
@@ -11757,12 +12025,10 @@ export interface operations {
         state?: components['parameters']['container-list-state'];
         /** @description Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided. */
         health?: components['parameters']['container-list-health'];
-        /** @description Optional orchestrator source filter resolved by the backend from runtime metadata. */
-        orchestrator?: components['parameters']['container-list-orchestrator'];
-        /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
-        source_scope_kind?: components['parameters']['container-list-source-scope-kind'];
-        /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
-        source_scope?: components['parameters']['container-list-source-scope'];
+        /** @description Optional deployment type filter. Docker containers are standalone, Compose-managed, or conservatively unknown when runtime labels are ambiguous. */
+        deployment_type?: components['parameters']['container-list-deployment-type'];
+        /** @description Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope. */
+        runtime_target_id?: components['parameters']['container-list-runtime-target-id'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -12593,6 +12859,197 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getDockerImages: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker image list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker image. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Image not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerNetworks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker network list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-network-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerNetwork: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker network. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-network'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Network not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerVolumes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker volume list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-volume-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerVolume: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Docker volume. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-volume'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Volume not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerSystem: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized Docker runtime information. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-runtime-info'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getProjects: {
     parameters: {
       query?: {
@@ -12631,6 +13088,133 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTargets: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime target list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTarget: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime target detail. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-response'];
+        };
+      };
+      /** @description Invalid target id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetRefresh: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Refreshed runtime target. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-response'];
+        };
+      };
+      /** @description Invalid target id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };

@@ -290,6 +290,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		code:                     "container.list",
 		title:                    "",
 		titleKey:                 containercontract.ContainerMenuTitle.String(),
+		sectionKey:               "runtime",
 		path:                     "/containers",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
@@ -305,6 +306,7 @@ type expectedMenuItem struct {
 	code                     string
 	title                    string
 	titleKey                 string
+	sectionKey               string
 	path                     string
 	permission               string
 	visibleWhenConfigEnabled string
@@ -315,6 +317,7 @@ func assertMenuItem(t *testing.T, items []menu.Item, expected expectedMenuItem) 
 
 	if !slices.ContainsFunc(items, func(item menu.Item) bool {
 		return item.Code == expected.code && item.Title == expected.title && item.TitleKey == expected.titleKey &&
+			item.SectionKey == expected.sectionKey &&
 			item.Path == expected.path && item.Permission == expected.permission &&
 			item.VisibleWhenConfigEnabled == expected.visibleWhenConfigEnabled && item.Module == moduleID
 	}) {
@@ -327,6 +330,7 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 
 	for _, key := range []string{
 		containercontract.ContainerMenuTitle.String(),
+		containercontract.ContainerMenuSectionTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),
 		containercontract.ContainerShellInvalidSize.String(),

@@ -13,7 +13,7 @@ func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 
 	mapped := toDetail(detailWithHealthcheckAndRuntimeStability())
 	assertMappedHealthcheck(t, mapped.Healthcheck)
-	assertMappedOrchestrator(t, mapped.Orchestrator)
+	assertMappedDeployment(t, mapped.Deployment)
 	assertIntPtr(t, mapped.LastExitCode, 137, "mapped last exit code")
 	if mapped.OomKilled == nil || !*mapped.OomKilled {
 		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
@@ -110,35 +110,24 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 	}
 }
 
-func assertMappedOrchestrator(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+func assertMappedDeployment(t *testing.T, info *containergen.ContainerDeploymentInfo) {
 	t.Helper()
 
 	if info == nil {
 		t.Fatalf("expected mapped orchestrator info")
 	}
-	assertMappedOrchestratorIdentity(t, info)
-	assertMappedOrchestratorScopeFields(t, info)
-	assertMappedOrchestratorPolicy(t, info)
+	assertMappedDeploymentIdentity(t, info)
+	assertMappedDeploymentPolicy(t, info)
 }
 
-func assertMappedOrchestratorIdentity(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+func assertMappedDeploymentIdentity(t *testing.T, info *containergen.ContainerDeploymentInfo) {
 	t.Helper()
 	if string(info.Type) != containerOrchestratorCompose || !info.Managed {
 		t.Fatalf("unexpected orchestrator identity %#v", info)
 	}
 }
 
-func assertMappedOrchestratorScopeFields(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
-	t.Helper()
-	if info.GroupScopeKind == nil || *info.GroupScopeKind != composeProjectScopeKind || info.GroupValue == nil || *info.GroupValue != "graft" {
-		t.Fatalf("unexpected orchestrator group scope %#v", info)
-	}
-	if info.MemberScopeKind == nil || *info.MemberScopeKind != composeServiceScopeKind || info.MemberValue == nil || *info.MemberValue != "web" {
-		t.Fatalf("unexpected orchestrator member scope %#v", info)
-	}
-}
-
-func assertMappedOrchestratorPolicy(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+func assertMappedDeploymentPolicy(t *testing.T, info *containergen.ContainerDeploymentInfo) {
 	t.Helper()
 	if string(info.ActionLevel) != containercontract.ContainerOrchestratorActionLevelWarn.String() || info.BatchActionAllowed {
 		t.Fatalf("unexpected orchestrator policy %#v", info)
@@ -149,22 +138,19 @@ func assertMappedOrchestratorPolicy(t *testing.T, info *containergen.ContainerOr
 	}
 }
 
-func TestToOrchestratorInfoNormalizesInvalidScopeKinds(t *testing.T) {
+func TestToDeploymentInfoMapsComposeMetadata(t *testing.T) {
 	t.Parallel()
 
-	mapped := toOrchestratorInfo(OrchestratorInfo{
-		Type:            containerOrchestratorCompose,
-		Managed:         true,
-		GroupScopeKind:  " bad-group ",
-		GroupValue:      "graft",
-		MemberScopeKind: "bad-member",
-		MemberValue:     "web",
+	mapped := toDeploymentInfo(OrchestratorInfo{
+		Type:    containerOrchestratorCompose,
+		Managed: true,
+		Project: "graft", Service: "web",
 	})
 	if mapped == nil {
 		t.Fatalf("expected mapped orchestrator info")
 	}
-	if mapped.GroupScopeKind != nil || mapped.MemberScopeKind != nil {
-		t.Fatalf("expected invalid scope kinds to be dropped, got %#v", mapped)
+	if mapped.Project == nil || *mapped.Project != "graft" || mapped.Service == nil || *mapped.Service != "web" {
+		t.Fatalf("expected compose metadata, got %#v", mapped)
 	}
 }
 
@@ -199,10 +185,12 @@ func TestToSummaryOmitsLegacyComposeFields(t *testing.T) {
 		},
 	})
 
-	if mapped.Orchestrator == nil {
+	if mapped.Deployment == nil {
 		t.Fatalf("expected mapped orchestrator")
 	}
-	assertMappedOrchestratorScopeFields(t, mapped.Orchestrator)
+	if mapped.Deployment == nil || mapped.Deployment.Project == nil || *mapped.Deployment.Project != "graft" || mapped.Deployment.Service == nil || *mapped.Deployment.Service != "web" {
+		t.Fatalf("expected mapped Compose deployment context, got %#v", mapped.Deployment)
+	}
 }
 
 func assertMappedHealthcheck(t *testing.T, healthcheck *containergen.ContainerHealthcheck) {

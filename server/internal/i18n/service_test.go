@@ -70,13 +70,19 @@ func newTestServiceWithModuleLocales(t *testing.T) *Service {
 			Namespace: "container",
 			Locale:    LocaleZHCN,
 			Source:    "container/zh-CN.yaml",
-			Data:      []byte("menu.container.title: 容器管理\n"),
+			Data: []byte(strings.Join([]string{
+				"menu.docker.title: Docker",
+				"menu.section.runtime: 运行时",
+			}, "\n")),
 		},
 		{
 			Namespace: "container",
 			Locale:    LocaleENUS,
 			Source:    "container/en-US.yaml",
-			Data:      []byte("menu.container.title: Containers\n"),
+			Data: []byte(strings.Join([]string{
+				"menu.docker.title: Docker",
+				"menu.section.runtime: Runtime",
+			}, "\n")),
 		},
 		{
 			Namespace: "monitor",
@@ -363,7 +369,8 @@ func TestEmbeddedLocaleResourcesIncludePhase4DisplayKeys(t *testing.T) {
 		"menu.notification.title",
 		"menu.audit.title",
 		"menu.scheduled_task.title",
-		"menu.container.title",
+		"menu.docker.title",
+		"menu.section.runtime",
 		"menu.logCenter.title",
 		"menu.accessLog.title",
 		"menu.appLog.title",

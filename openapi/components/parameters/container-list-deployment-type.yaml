@@ -1,0 +1,11 @@
+name: deployment_type
+in: query
+required: false
+description: Optional deployment type filter. Docker containers are standalone, Compose-managed, or conservatively unknown when runtime labels are ambiguous.
+schema:
+  type: string
+  enum: [standalone, compose, unknown]
+  x-enum-varnames:
+    - ContainerListDeploymentTypeStandalone
+    - ContainerListDeploymentTypeCompose
+    - ContainerListDeploymentTypeUnknown

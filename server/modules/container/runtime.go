@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"graft/server/internal/moduleapi"
 	"graft/server/modules/container/terminal"
 )
 
@@ -187,6 +188,9 @@ type ListQuery struct {
 	Keyword         string
 	State           string
 	Health          string
+	DeploymentType  string
+	RuntimeTargetID *int64
+	// Internal legacy selectors remain for Project's bounded Compose reader; they are not HTTP contract fields.
 	Orchestrator    string
 	SourceScopeKind string
 	SourceScope     string
@@ -194,12 +198,13 @@ type ListQuery struct {
 
 // ListResult is the service-owned list response model.
 type ListResult struct {
-	Runtime RuntimeInfo
-	Items   []Summary
-	Total   int
-	Limit   int
-	Offset  int
-	Summary ListSummary
+	Runtime       RuntimeInfo
+	RuntimeTarget moduleapi.RuntimeTargetSummary
+	Items         []Summary
+	Total         int
+	Limit         int
+	Offset        int
+	Summary       ListSummary
 }
 
 type dashboardSummaryQuery struct{}
@@ -578,7 +583,9 @@ func normalizeListKeyword(query *ListQuery) error {
 	return nil
 }
 
-// normalizeListEnums normalizes and validates enumerated filter fields in a list query.
+// normalizeListEnums 规范化并校验列表查询中的枚举筛选字段及运行时目标 ID。
+//
+// 空值枚举字段保持为空；无效枚举值或小于 1 的运行时目标 ID 会返回 errInvalidListQuery。
 func normalizeListEnums(query *ListQuery) error {
 	if query == nil {
 		return errInvalidListQuery
@@ -592,12 +599,22 @@ func normalizeListEnums(query *ListQuery) error {
 	if err != nil {
 		return err
 	}
+	query.DeploymentType, err = normalizeOptionalListEnum(query.DeploymentType, isValidContainerDeploymentType)
+	if err != nil {
+		return err
+	}
 	query.Orchestrator, err = normalizeOptionalListEnum(query.Orchestrator, isValidContainerOrchestrator)
 	if err != nil {
 		return err
 	}
 	query.SourceScopeKind, err = normalizeOptionalListEnum(query.SourceScopeKind, isValidContainerSourceScopeKind)
-	return err
+	if err != nil {
+		return err
+	}
+	if query.RuntimeTargetID != nil && *query.RuntimeTargetID < 1 {
+		return errInvalidListQuery
+	}
+	return nil
 }
 
 // normalizeListSourceScope validates source scope constraints in a list query.
@@ -648,6 +665,11 @@ func isValidContainerHealth(health string) bool {
 // isValidContainerOrchestrator 报告给定的值是否为有效的容器编排器。
 func isValidContainerOrchestrator(value string) bool {
 	return slices.Contains(validContainerOrchestrators, value)
+}
+
+// isValidContainerDeploymentType reports whether value is a supported container deployment type.
+func isValidContainerDeploymentType(value string) bool {
+	return slices.Contains([]string{containerOrchestratorStandalone, containerOrchestratorCompose, containerOrchestratorUnknown}, value)
 }
 
 // isValidContainerSourceScopeKind reports whether value is a valid container source scope kind.

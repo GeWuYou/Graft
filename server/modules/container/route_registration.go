@@ -27,7 +27,8 @@ type routeRuntime struct {
 }
 
 // RegisterRoutes registers HTTP API endpoints for container operations with permission-based access control.
-// 当 ctx 或其路由器为空时直接返回 nil；当 service 为空或依赖解析失败时返回错误。
+// registerRoutes 注册容器及 Docker 相关 HTTP 路由，并配置请求标识与权限中间件。
+// 当上下文或路由器为空时跳过注册并返回 nil；服务为空或依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -122,7 +123,97 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher),
 		routes.handleBatchAction,
 	)
+	registerDockerRoutes(ctx, authService, authorizer, publisher, routes)
 	return nil
+}
+
+// registerDockerRoutes 注册 Docker 相关路由，并为其应用容器查看权限校验。
+func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, routes routeRuntime) {
+	docker := ctx.Router.Group(containercontract.DockerAPIGroup)
+	docker.Use(httpx.RequestIDMiddleware())
+	requireView := httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher)
+	docker.GET(containercontract.DockerImagesRoute, requireView, routes.handleDockerImages)
+	docker.GET(containercontract.DockerImageRoute, requireView, routes.handleDockerImage)
+	docker.GET(containercontract.DockerNetworksRoute, requireView, routes.handleDockerNetworks)
+	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
+	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
+	docker.GET(containercontract.DockerVolumeRoute, requireView, routes.handleDockerVolume)
+	docker.GET(containercontract.DockerSystemRoute, requireView, routes.handleDockerSystem)
+}
+
+func (r routeRuntime) handleDockerImages(c *gin.Context) {
+	items, err := r.service.DockerImages(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageList(items))
+}
+
+func (r routeRuntime) handleDockerImage(c *gin.Context) {
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	item, err := r.service.DockerImage(c.Request.Context(), ref.Value)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImage(item))
+}
+
+func (r routeRuntime) handleDockerNetworks(c *gin.Context) {
+	items, err := r.service.DockerNetworks(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkList(items))
+}
+
+func (r routeRuntime) handleDockerNetwork(c *gin.Context) {
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	item, err := r.service.DockerNetwork(c.Request.Context(), ref.Value)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetwork(item))
+}
+
+func (r routeRuntime) handleDockerVolumes(c *gin.Context) {
+	items, err := r.service.DockerVolumes(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeList(items))
+}
+
+func (r routeRuntime) handleDockerVolume(c *gin.Context) {
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	item, err := r.service.DockerVolume(c.Request.Context(), ref.Value)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolume(item))
+}
+
+func (r routeRuntime) handleDockerSystem(c *gin.Context) {
+	item, err := r.service.DockerSystem(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toRuntimeInfo(item))
 }
 
 func (r routeRuntime) handleList(ginCtx *gin.Context) {
@@ -455,7 +546,7 @@ func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containe
 	return params, true
 }
 
-// bindContainerListStateFilters validates and binds state, health, and orchestrator filters for container list queries, and validates source scope consistency. It returns true if all validations succeed, false otherwise.
+// bindContainerListStateFilters validates and binds optional state, health, deployment type, and runtime target ID filters for container list queries. It returns true if all supplied filters are valid, false otherwise.
 func bindContainerListStateFilters(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -479,48 +570,22 @@ func bindContainerListStateFilters(
 		params.Health = &value
 	}
 
-	orchestrator, ok := optionalEnumQueryValue(ginCtx, ctx, "orchestrator", isValidContainerOrchestrator)
+	deploymentType, ok := optionalEnumQueryValue(ginCtx, ctx, "deployment_type", isValidContainerDeploymentType)
 	if !ok {
 		return false
 	}
-	if orchestrator != "" {
-		value := containeropenapi.GetContainersParamsOrchestrator(orchestrator)
-		params.Orchestrator = &value
+	if deploymentType != "" {
+		value := containeropenapi.GetContainersParamsDeploymentType(deploymentType)
+		params.DeploymentType = &value
 	}
-	if !bindContainerListSourceScopeFilters(ginCtx, ctx, params, orchestrator) {
-		return false
+	if targetID := strings.TrimSpace(ginCtx.Query("runtime_target_id")); targetID != "" {
+		value, err := strconv.ParseInt(targetID, 10, 64)
+		if err != nil || value < 1 {
+			writeInvalidContainerQuery(ginCtx, ctx, "runtime_target_id")
+			return false
+		}
+		params.RuntimeTargetId = &value
 	}
-	return true
-}
-
-// bindContainerListSourceScopeFilters validates and binds the source_scope_kind and source_scope query parameters.
-// Both parameters must be provided together and source_scope_kind must be compatible with the given orchestrator.
-// Returns true if validation succeeds, false otherwise.
-func bindContainerListSourceScopeFilters(
-	ginCtx *gin.Context,
-	ctx *module.Context,
-	params *containeropenapi.GetContainersParams,
-	orchestrator string,
-) bool {
-	sourceScopeKind, ok := optionalEnumQueryValue(ginCtx, ctx, "source_scope_kind", isValidContainerSourceScopeKind)
-	if !ok {
-		return false
-	}
-	sourceScope := strings.TrimSpace(ginCtx.Query("source_scope"))
-	if (sourceScopeKind == "") != (sourceScope == "") {
-		writeInvalidContainerQuery(ginCtx, ctx, "source_scope")
-		return false
-	}
-	if sourceScopeKind == "" {
-		return true
-	}
-	if !sourceScopeKindCompatibleWithOrchestrator(orchestrator, sourceScopeKind) {
-		writeInvalidContainerQuery(ginCtx, ctx, "source_scope_kind")
-		return false
-	}
-	value := containeropenapi.GetContainersParamsSourceScopeKind(sourceScopeKind)
-	params.SourceScopeKind = &value
-	params.SourceScope = &sourceScope
 	return true
 }
 
@@ -685,14 +750,11 @@ func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery 
 	if params.Health != nil {
 		query.Health = string(*params.Health)
 	}
-	if params.Orchestrator != nil {
-		query.Orchestrator = string(*params.Orchestrator)
+	if params.DeploymentType != nil {
+		query.DeploymentType = string(*params.DeploymentType)
 	}
-	if params.SourceScopeKind != nil {
-		query.SourceScopeKind = string(*params.SourceScopeKind)
-	}
-	if params.SourceScope != nil {
-		query.SourceScope = *params.SourceScope
+	if params.RuntimeTargetId != nil {
+		query.RuntimeTargetID = params.RuntimeTargetId
 	}
 	return query
 }

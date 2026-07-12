@@ -31,13 +31,24 @@ export type ContainerHealth = NonNullable<ContainerSummary['health']>;
 export type ContainerAction = ContainerActionResponse['action'];
 export type ContainerMountUsageStatus = ContainerMountUsage['status'];
 
-export type ContainerOrchestratorInfo = components['schemas']['ContainerOrchestratorInfo'];
-export type ContainerOrchestratorType = ContainerOrchestratorInfo['type'];
+export type ContainerDeploymentInfo = components['schemas']['ContainerDeploymentInfo'];
+type LegacyDeploymentContext = {
+  display_name?: string | null;
+  group_scope_kind?: ContainerListSourceScopeKind | null;
+  group_value?: string | null;
+  group_display_name?: string | null;
+  member_scope_kind?: ContainerListSourceScopeKind | null;
+  member_value?: string | null;
+  member_display_name?: string | null;
+};
+// Runtime actions retain the same policy shape; presentation uses deployment terminology.
+export type ContainerOrchestratorInfo = ContainerDeploymentInfo & LegacyDeploymentContext;
+export type ContainerOrchestratorType = ContainerDeploymentInfo['type'];
 export type ContainerActionLevel = 'readonly' | 'warn' | 'allow';
 export type ContainerOrchestratorWarningCode = string;
 export type ContainerOrchestratorRecommendedAction = string;
-export type ContainerSummaryRecord = ContainerSummary;
-export type ContainerDetailRecord = ContainerDetail;
+export type ContainerSummaryRecord = ContainerSummary & { orchestrator?: ContainerOrchestratorInfo };
+export type ContainerDetailRecord = ContainerDetail & { orchestrator?: ContainerOrchestratorInfo };
 
 type ContainerListPath = (typeof CONTAINER_API_PATH)['LIST'];
 type GetContainersOperation = paths[ContainerListPath]['get'];
@@ -57,12 +68,11 @@ type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshP
 export type ContainerListQuery = NonNullable<GetContainersOperation['parameters']['query']>;
 export type ContainerListQueryWithOrchestrator = ContainerListQuery & {
   orchestrator?: ContainerOrchestratorType;
+  source_scope_kind?: ContainerListSourceScopeKind;
+  source_scope?: string;
 };
-export type ContainerListSourceScopeKind = NonNullable<ContainerListQuery['source_scope_kind']>;
-export type ContainerListSourceScopeQuery = Pick<
-  ContainerListQuery,
-  Extract<'source_scope_kind' | 'source_scope', keyof ContainerListQuery>
->;
+export type ContainerListSourceScopeKind =
+  'compose_project' | 'compose_service' | 'swarm_stack' | 'swarm_task' | 'kubernetes_namespace' | 'kubernetes_pod';
 export type ContainerLogQuery = NonNullable<GetContainerLogsOperation['parameters']['query']>;
 export type ContainerRuntimeEventsPathParams = GetContainerEventsOperation['parameters']['path'];
 export type ContainerMountUsagePathParams = GetContainerMountUsageOperation['parameters']['path'];
@@ -78,9 +88,8 @@ export type ContainerSourceMemberKind = Extract<
 >;
 export type ContainerFilters = {
   keyword: string;
-  orchestrator: ContainerOrchestratorType | 'all';
-  sourceScopeKind: ContainerListSourceScopeKind | 'all';
-  sourceScope: string;
+  deploymentType: ContainerOrchestratorType | 'all';
+  runtimeTargetId: number | 'all';
   status: ContainerState | 'all';
   health: ContainerHealth | 'all';
 };

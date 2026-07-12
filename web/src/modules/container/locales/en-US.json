@@ -1,7 +1,23 @@
 {
+  "container.resources.title": "Docker resources",
+  "container.resources.description": "Read-only resources for the current Local Docker runtime target.",
+  "container.resources.openContainers": "View containers",
+  "container.resources.tabs.containers": "Containers",
+  "container.resources.tabs.images": "Images",
+  "container.resources.tabs.networks": "Networks",
+  "container.resources.tabs.volumes": "Volumes",
+  "container.resources.tabs.system": "System",
+  "container.resources.columns.tags": "Tags",
+  "container.resources.columns.size": "Size",
+  "container.resources.columns.name": "Name",
+  "container.resources.columns.driver": "Driver",
+  "container.resources.columns.scope": "Scope",
   "menu": {
-    "container": {
-      "title": "Containers"
+    "docker": {
+      "title": "Docker"
+    },
+    "section": {
+      "runtime": "Runtime"
     }
   },
   "container": {
@@ -69,6 +85,10 @@
       "filters": {
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",
+        "deploymentType": "Deployment type",
+        "allDeploymentTypes": "All deployment types",
+        "runtimeTarget": "Runtime target",
+        "allRuntimeTargets": "All runtime targets",
         "orchestrator": "Source",
         "sourceScopeKind": "Source Scope",
         "allSourceScopeKinds": "All Scopes",
@@ -86,7 +106,7 @@
         "status": "Status",
         "name": "Container",
         "image": "Image",
-        "source": "Source",
+        "deployment": "Deployment Context",
         "cpu": "CPU",
         "memory": "Memory",
         "ports": "Ports",
@@ -123,6 +143,14 @@
         "swarm": "Swarm",
         "kubernetes": "Kubernetes",
         "unknown": "Unknown Source"
+      },
+      "deployments": {
+        "standalone": "Standalone",
+        "compose": "Compose",
+        "unknown": "Unknown deployment"
+      },
+      "deploymentContext": {
+        "project": "Compose Project"
       },
       "sourceKinds": {
         "compose_project": "Project",
@@ -257,6 +285,7 @@
     },
     "detail": {
       "title": "Container Detail",
+      "viewComposeProject": "View Compose Project",
       "description": "Review Container Runtime Details, Resources, Logs, Configuration, Network, and Mounts.",
       "back": "Back",
       "refresh": "Refresh",
@@ -489,7 +518,7 @@
         "time": "Time",
         "level": "Level",
         "stream": "Stream",
-        "source": "Source",
+        "source": "Deployment type",
         "viewDetail": "View Details",
         "collapseDetail": "Collapse Detail",
         "metadata": "Metadata",

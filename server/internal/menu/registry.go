@@ -37,6 +37,9 @@ type Item struct {
 	Kind       NodeKind
 	Title      string
 	TitleKey   string
+	// SectionKey optionally assigns an entry to a visual-only sidebar section.
+	// It is display metadata, never a menu node, route, permission, or identity.
+	SectionKey string
 	Path       string
 	Icon       string
 	// Order 是后端声明的 canonical 导航排序值；数值越小越靠前。
@@ -99,7 +102,7 @@ func (r *Registry) Validate() error {
 	return validateCycles(byCode)
 }
 
-// validateItem 验证菜单项的代码、类型及路径配置是否有效，并检查代码是否重复。
+// validateItem 验证菜单项的代码唯一性、节点类型及路径配置，并检查分组项的专属约束。
 func validateItem(item Item, existing map[string]Item) error {
 	code := strings.TrimSpace(item.Code)
 	if code == "" {
@@ -112,14 +115,26 @@ func validateItem(item Item, existing map[string]Item) error {
 	if kind == "" {
 		kind = NodeKindEntry
 	}
-	if kind == NodeKindGroup && strings.TrimSpace(item.Path) != "" {
+	switch kind {
+	case NodeKindGroup:
+		return validateGroupItem(code, item)
+	case NodeKindEntry:
+		if strings.TrimSpace(item.Path) == "" {
+			return fmt.Errorf("menu entry %q must declare a path", code)
+		}
+		return nil
+	default:
+		return fmt.Errorf("menu item %q has invalid kind %q", code, kind)
+	}
+}
+
+// validateGroupItem validates that a menu group does not declare a path or section key.
+func validateGroupItem(code string, item Item) error {
+	if strings.TrimSpace(item.Path) != "" {
 		return fmt.Errorf("menu group %q must not declare a path", code)
 	}
-	if kind == NodeKindEntry && strings.TrimSpace(item.Path) == "" {
-		return fmt.Errorf("menu entry %q must declare a path", code)
-	}
-	if kind != NodeKindGroup && kind != NodeKindEntry {
-		return fmt.Errorf("menu item %q has invalid kind %q", code, kind)
+	if strings.TrimSpace(item.SectionKey) != "" {
+		return fmt.Errorf("menu group %q must not declare a section key", code)
 	}
 	return nil
 }

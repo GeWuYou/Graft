@@ -1,0 +1,10 @@
+get:
+  tags: [container]
+  summary: Read Docker system information
+  operationId: getDockerSystem
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200': { description: Sanitized Docker runtime information., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-container-runtime-info.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

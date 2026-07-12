@@ -443,6 +443,18 @@
       "notificationManage": {
         "display": "Manage Notifications",
         "description": "Allows managing global notification delivery and settings."
+      },
+      "runtimeTargetView": {
+        "display": "View Runtime Targets",
+        "description": "Allows reading runtime target connection and capability state."
+      },
+      "runtimeTargetManage": {
+        "display": "Manage Runtime Targets",
+        "description": "Reserved for future runtime target configuration management."
+      },
+      "runtimeTargetRefresh": {
+        "display": "Refresh Runtime Targets",
+        "description": "Allows refreshing runtime target availability and capabilities."
       }
     },
     "roles": {

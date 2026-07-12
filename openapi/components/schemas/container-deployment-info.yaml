@@ -1,0 +1,36 @@
+type: object
+required: [type, managed, confidence, warnings, action_level, batch_action_allowed]
+properties:
+  type:
+    type: string
+    enum: [standalone, compose, unknown]
+    x-enum-varnames: [ContainerDeploymentInfoTypeStandalone, ContainerDeploymentInfoTypeCompose, ContainerDeploymentInfoTypeUnknown]
+  managed:
+    type: boolean
+  project:
+    type: string
+    nullable: true
+  service:
+    type: string
+    nullable: true
+  working_dir:
+    type: string
+    nullable: true
+  config_files:
+    type: array
+    items: { type: string }
+  confidence:
+    type: string
+    enum: [high, medium, low]
+  warnings:
+    type: array
+    items: { type: string }
+  recommended_action:
+    type: string
+    nullable: true
+  action_level:
+    type: string
+    enum: [readonly, warn, allow]
+  batch_action_allowed:
+    type: boolean
+additionalProperties: false

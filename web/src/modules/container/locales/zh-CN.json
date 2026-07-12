@@ -1,7 +1,23 @@
 {
+  "container.resources.title": "Docker 资源",
+  "container.resources.description": "查看当前 Local Docker 运行目标的只读资源。",
+  "container.resources.openContainers": "查看容器",
+  "container.resources.tabs.containers": "容器",
+  "container.resources.tabs.images": "镜像",
+  "container.resources.tabs.networks": "网络",
+  "container.resources.tabs.volumes": "数据卷",
+  "container.resources.tabs.system": "系统",
+  "container.resources.columns.tags": "标签",
+  "container.resources.columns.size": "大小",
+  "container.resources.columns.name": "名称",
+  "container.resources.columns.driver": "驱动",
+  "container.resources.columns.scope": "范围",
   "menu": {
-    "container": {
-      "title": "容器管理"
+    "docker": {
+      "title": "Docker"
+    },
+    "section": {
+      "runtime": "运行时"
     }
   },
   "container": {
@@ -69,6 +85,10 @@
       "filters": {
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
+        "deploymentType": "部署类型",
+        "allDeploymentTypes": "全部部署类型",
+        "runtimeTarget": "运行目标",
+        "allRuntimeTargets": "全部运行目标",
         "orchestrator": "来源",
         "sourceScopeKind": "来源范围",
         "allSourceScopeKinds": "全部范围",
@@ -86,7 +106,7 @@
         "status": "状态",
         "name": "容器",
         "image": "镜像",
-        "source": "来源",
+        "deployment": "部署上下文",
         "cpu": "CPU",
         "memory": "内存",
         "ports": "端口",
@@ -123,6 +143,14 @@
         "swarm": "Swarm",
         "kubernetes": "Kubernetes",
         "unknown": "未知来源"
+      },
+      "deployments": {
+        "standalone": "独立容器",
+        "compose": "Compose",
+        "unknown": "未知部署"
+      },
+      "deploymentContext": {
+        "project": "Compose 项目"
       },
       "sourceKinds": {
         "compose_project": "项目",
@@ -257,6 +285,7 @@
     },
     "detail": {
       "title": "容器详情",
+      "viewComposeProject": "查看 Compose 项目",
       "description": "查看容器运行时详情、资源、日志、配置、网络和挂载信息。",
       "back": "返回",
       "refresh": "刷新",
@@ -489,7 +518,7 @@
         "time": "时间",
         "level": "级别",
         "stream": "输出流",
-        "source": "来源",
+        "source": "部署类型",
         "viewDetail": "查看详情",
         "collapseDetail": "收起详情",
         "metadata": "元数据",

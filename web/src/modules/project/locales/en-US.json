@@ -990,6 +990,9 @@
       "overview": {
         "lastUpdated": "Last Updated",
         "resourceTitle": "Resource Usage",
+        "runtimeTargetTitle": "Runtime Target",
+        "runtimeTargetDescription": "Not yet confirmed from runtime resources",
+        "runtimeTargetUnavailable": "No bound runtime target found",
         "networkTitle": "Network I/O",
         "containerSnapshotTitle": "Container Snapshot",
         "diagnosticsTitle": "Diagnostics",

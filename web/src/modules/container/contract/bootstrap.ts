@@ -10,6 +10,11 @@ export const CONTAINER_BOOTSTRAP_ROUTE = {
     pageRouteName: 'ContainerDetailIndex',
     routeName: 'ContainerDetail',
   },
+  RESOURCES: {
+    path: CONTAINER_ROUTE_PATH.RESOURCES,
+    pageRouteName: 'DockerResourcesIndex',
+    routeName: 'DockerResources',
+  },
 } as const;
 
 export type ContainerBootstrapRouteName =

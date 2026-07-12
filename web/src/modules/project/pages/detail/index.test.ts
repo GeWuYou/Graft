@@ -1469,7 +1469,7 @@ describe('Project detail service tab', () => {
     expect(containerApiMocks.getContainers).toHaveBeenCalledWith({
       limit: 100,
       offset: 0,
-      orchestrator: 'compose',
+      deployment_type: 'compose',
       source_scope: 'compose-demo',
       source_scope_kind: 'compose_project',
     });

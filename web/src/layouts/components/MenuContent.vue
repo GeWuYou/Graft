@@ -1,6 +1,9 @@
 <template>
   <div>
-    <template v-for="item in list" :key="item.path">
+    <template v-for="(item, index) in list" :key="item.path">
+      <div v-if="shouldRenderSectionLabel(item, index)" class="graft-menu-section-label" role="presentation">
+        {{ renderMenuTitle(item.meta?.navigationSection?.title) }}
+      </div>
       <template v-if="!item.children || !item.children.length || item.meta?.single">
         <t-menu-item
           v-if="getHref(item)"
@@ -37,7 +40,7 @@
         <template #icon>
           <component :is="menuIcon(item)" class="t-icon"></component>
         </template>
-        <menu-content v-if="item.children" :nav-data="item.children" :depth="depth + 1" />
+        <menu-content v-if="item.children" :nav-data="item.children" :depth="depth + 1" :show-sections="showSections" />
       </t-submenu>
     </template>
   </div>
@@ -55,7 +58,7 @@ import type { MenuRoute } from '@/utils/types';
 
 type ListItemType = MenuRoute;
 
-const { navData, depth } = defineProps({
+const { navData, depth, showSections } = defineProps({
   navData: {
     type: Array as PropType<MenuRoute[]>,
     default: () => [],
@@ -63,6 +66,10 @@ const { navData, depth } = defineProps({
   depth: {
     type: Number,
     default: 1,
+  },
+  showSections: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -87,6 +94,13 @@ const menuIcon = (item: ListItemType) => {
 const renderMenuTitle = (title?: LocalizedTitle) => {
   if (!title) return '';
   return title[locale.value as keyof LocalizedTitle] || '';
+};
+
+const shouldRenderSectionLabel = (item: ListItemType, index: number) => {
+  if (!showSections) return false;
+  const section = item.meta?.navigationSection;
+  if (!section?.key) return false;
+  return list.value[index - 1]?.meta?.navigationSection?.key !== section.key;
 };
 
 function getMenuList(list: MenuRoute[]): MenuRoute[] {
@@ -137,3 +151,13 @@ const handleMenuItemClick = (item: MenuRoute) => {
   void router.push(targetPath);
 };
 </script>
+<style scoped lang="less">
+.graft-menu-section-label {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-s);
+  line-height: var(--td-line-height-body-medium);
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-l) var(--td-comp-paddingTB-xs);
+  pointer-events: none;
+  user-select: none;
+}
+</style>

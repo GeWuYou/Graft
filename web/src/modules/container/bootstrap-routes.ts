@@ -5,6 +5,7 @@ import { CONTAINER_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const listRouteTitle = localizeRouteTitleKey('container.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('container.route.list.breadcrumb');
+const runtimeSectionTitle = localizeRouteTitleKey('menu.section.runtime');
 const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
 
@@ -14,6 +15,10 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
     loadPage: () => import('./pages/list/index.vue'),
     meta: {
       tabGroup: 'infrastructure',
+      navigationSection: {
+        key: 'runtime',
+        title: runtimeSectionTitle,
+      },
       pageKind: 'list',
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
@@ -23,6 +28,12 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
 ];
 
 export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.RESOURCES,
+    navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.LIST.menuPath,
+    loadPage: () => import('./pages/resources/index.vue'),
+    meta: { hidden: true, hiddenMenu: true, pageKind: 'list', tabGroup: 'infrastructure', title: listRouteTitle },
+  },
   {
     ...CONTAINER_BOOTSTRAP_ROUTE.DETAIL,
     navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.LIST.menuPath,

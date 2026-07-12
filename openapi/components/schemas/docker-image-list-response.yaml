@@ -1,0 +1,4 @@
+type: object
+required: [items]
+properties:
+  items: { type: array, items: { $ref: ./docker-image.yaml } }

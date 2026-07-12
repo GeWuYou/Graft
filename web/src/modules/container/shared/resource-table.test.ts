@@ -15,16 +15,12 @@ function buildRow(overrides: Partial<ContainerSummaryRecord> = {}): ContainerSum
     runtime: 'docker',
     created_at: '2026-06-14T00:00:00Z',
     ports: [],
-    orchestrator: {
+    deployment: {
       type: 'compose',
       managed: true,
       confidence: 'high',
-      group_scope_kind: 'compose_project',
-      group_value: 'graft',
-      group_display_name: 'graft',
-      member_scope_kind: 'compose_service',
-      member_value: 'web',
-      member_display_name: 'web',
+      project: 'graft',
+      service: 'web',
       warnings: [],
       action_level: 'allow',
       batch_action_allowed: true,
@@ -34,7 +30,7 @@ function buildRow(overrides: Partial<ContainerSummaryRecord> = {}): ContainerSum
 }
 
 describe('createContainerSourceQuickFilter', () => {
-  it('uses canonical orchestrator scope fields for group and member filters', () => {
+  it('uses Compose deployment metadata for project and service filters', () => {
     const row = buildRow();
 
     expect(createContainerSourceQuickFilter(row, 'group')).toEqual({
@@ -51,7 +47,7 @@ describe('createContainerSourceQuickFilter', () => {
 
   it('does not synthesize quick filters when canonical scope fields are absent', () => {
     const row = buildRow({
-      orchestrator: {
+      deployment: {
         type: 'compose',
         managed: true,
         confidence: 'high',

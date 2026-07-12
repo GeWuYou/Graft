@@ -4,11 +4,12 @@ import "graft/server/internal/module"
 
 const moduleID = "container"
 
-// NewModuleSpec exposes the container module's stable compile-time metadata and builder.
+// NewModuleSpec 提供 container 模块的标识符、依赖模块列表和构建器。
+// 构建器创建并返回 container 模块实例。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:           moduleID,
-		Dependencies: []string{"user", "auth", "rbac", "system-config"},
+		Dependencies: []string{"user", "auth", "rbac", "system-config", "runtime-target"},
 		Builder: module.BuilderFunc(func(module.BuildContext) (module.Module, error) {
 			return NewModule(), nil
 		}),
