@@ -184,7 +184,8 @@ func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[s
 	return filterBootstrapMenus(ctx, r.menuRegistry, granted, r.systemConfig)
 }
 
-// filterBootstrapMenus 根据授予的权限和系统配置的可见性门控对菜单项进行过滤、去重和排序，同时移除没有可见子菜单的父菜单。如果 registry 为 nil，返回空切片。
+// filterBootstrapMenus 根据授予的权限和系统配置可见性过滤菜单项，去重并排序，同时移除没有可见子项的菜单组。
+// registry 为空或验证失败时返回空切片。
 func filterBootstrapMenus(
 	ctx context.Context,
 	registry *menu.Registry,
@@ -245,6 +246,7 @@ func filterBootstrapMenus(
 	return menus
 }
 
+// pruneEmptyBootstrapGroups removes group menu items that have no visible children.
 func pruneEmptyBootstrapGroups(menus []bootstrapMenuResponse) []bootstrapMenuResponse {
 	visible := make(map[string]bootstrapMenuResponse, len(menus))
 	for _, item := range menus {
@@ -274,6 +276,8 @@ func pruneEmptyBootstrapGroups(menus []bootstrapMenuResponse) []bootstrapMenuRes
 	return pruned
 }
 
+// resolveBootstrapSystemConfig resolves the system configuration service from resolver.
+// It returns nil when the resolver is unavailable, resolution fails, or the resolved value has an incompatible type.
 func resolveBootstrapSystemConfig(resolver servicecontainer.Resolver) moduleapi.SystemConfigResolver {
 	if resolver == nil {
 		return nil
@@ -313,6 +317,7 @@ func bootstrapMenuIdentity(item bootstrapMenuResponse) string {
 	return "path:" + strings.TrimSpace(item.Path)
 }
 
+// mergeBootstrapMenu 合并具有相同标识的菜单项，补充缺失字段并保留较小的排序值。
 func mergeBootstrapMenu(existing, next bootstrapMenuResponse) bootstrapMenuResponse {
 	merged := existing
 	if merged.Title == "" {

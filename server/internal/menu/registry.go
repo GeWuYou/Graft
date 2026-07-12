@@ -96,6 +96,7 @@ func (r *Registry) Validate() error {
 	return validateCycles(byCode)
 }
 
+// validateItem 验证菜单项的代码、类型及路径配置是否有效，并检查代码是否重复。
 func validateItem(item Item, existing map[string]Item) error {
 	code := strings.TrimSpace(item.Code)
 	if code == "" {
@@ -120,6 +121,7 @@ func validateItem(item Item, existing map[string]Item) error {
 	return nil
 }
 
+// validateParents verifies that each menu item's parent exists and is a group.
 func validateParents(items map[string]Item) error {
 	for code, item := range items {
 		parent := strings.TrimSpace(item.ParentCode)
@@ -137,6 +139,8 @@ func validateParents(items map[string]Item) error {
 	return nil
 }
 
+// validateCycles checks the menu hierarchy for cycles and returns an error identifying the
+// node where the first detected cycle occurs.
 func validateCycles(items map[string]Item) error {
 	state := make(map[string]uint8, len(items))
 	var visit func(string) error
@@ -169,7 +173,8 @@ func validateCycles(items map[string]Item) error {
 	return nil
 }
 
-// RegisterDomainGroups declares the stable top-level navigation taxonomy.
+// RegisterDomainGroups registers the stable top-level navigation domain groups in r.
+// A nil registry is ignored.
 func RegisterDomainGroups(r *Registry) {
 	if r == nil {
 		return

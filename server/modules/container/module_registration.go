@@ -187,6 +187,8 @@ func permissionItems(moduleName string) []permission.Item {
 	}
 }
 
+// registerMenu registers the container list menu item with the specified module name.
+// It returns an error when the menu registry is unavailable.
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")

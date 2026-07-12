@@ -103,6 +103,7 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	})
 }
 
+// registerAppLogExplorerMenu registers the App Log Explorer list menu item.
 func registerAppLogExplorerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return

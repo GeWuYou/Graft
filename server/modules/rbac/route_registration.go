@@ -31,12 +31,14 @@ const (
 	accessControlMenuOrderPermissions = 4
 )
 
+// registerRBACPermissions registers the RBAC permission definitions for a module.
 func registerRBACPermissions(registry *permission.Registry, moduleName string) {
 	for _, item := range rbacPermissionItems(moduleName) {
 		registry.Register(item)
 	}
 }
 
+// registerRBACMenu registers the role-based access control entries in the menu registry.
 func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:       "access-control.overview",

@@ -17,10 +17,11 @@ type QuickActionRouteMeta = AppRouteMeta & {
 };
 
 /**
- * Builds a sorted list of dashboard quick action links from Vue Router routes.
+ * 根据路由构建并排序仪表盘快速操作链接。
  *
- * @param routes - The array of Vue Router route records to extract quick action links from.
- * @returns An array of DashboardQuickActionLink objects sorted by order (ascending), then by id (lexicographically).
+ * @param routes - 用于提取快速操作链接的路由记录。
+ * @param locale - 用于生成本地化标题的语言环境。
+ * @returns 按顺序升序排列、顺序相同时按标识符字典序排列的快速操作链接。
  */
 export function buildDashboardQuickActionLinks(
   routes: Array<QuickActionSource | RouteRecordRaw>,
@@ -30,9 +31,13 @@ export function buildDashboardQuickActionLinks(
 }
 
 /**
- * Recursively collects visible leaf routes and transforms them into dashboard quick action links.
+ * 递归收集可见的叶子路由，并将其转换为仪表盘快速操作链接。
  *
- * @returns An array of dashboard quick action links for visible leaf routes
+ * @param routes - 待处理的路由列表
+ * @param locale - 用于生成本地化标题的区域设置
+ * @param parentPath - 父级路由路径
+ * @param parent - 传递给子路由的分组信息
+ * @returns 可见叶子路由对应的仪表盘快速操作链接
  */
 function collectLeafLinks(
   routes: QuickActionSource[],

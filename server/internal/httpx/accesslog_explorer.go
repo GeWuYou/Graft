@@ -56,6 +56,7 @@ func registerAccessLogExplorerPermissions(registry *permission.Registry) {
 	})
 }
 
+// registerAccessLogExplorerMenu registers the access-log explorer entry under the observability menu.
 func registerAccessLogExplorerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return

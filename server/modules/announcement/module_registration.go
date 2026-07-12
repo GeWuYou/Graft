@@ -83,6 +83,7 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 	return nil
 }
 
+// registerAnnouncementMenu 将公告列表菜单项注册到应用菜单中；注册表不可用时返回错误。
 func registerAnnouncementMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
