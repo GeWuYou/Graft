@@ -11,16 +11,17 @@ import (
 	"graft/server/internal/module"
 	auditcontract "graft/server/modules/audit/contract"
 	auditstore "graft/server/modules/audit/store"
+	securitycontract "graft/server/modules/security/contract"
 )
 
 const (
-	auditRiskEventsWidgetID     = "audit.risk-events"
-	auditRiskEventsWidgetOrder  = 100
-	auditRiskEventsItemCap      = 3
-	auditLogsQueryPreset        = "preset"
-	auditLogsQueryBusiness      = "business_category"
-	auditLogsQueryResults       = "results"
-	auditLogsQueryRiskLevels    = "risk_levels"
+	auditRiskEventsWidgetID    = "audit.risk-events"
+	auditRiskEventsWidgetOrder = 100
+	auditRiskEventsItemCap     = 3
+	auditLogsQueryPreset       = "preset"
+	auditLogsQueryBusiness     = "business_category"
+	auditLogsQueryResults      = "results"
+	auditLogsQueryRiskLevels   = "risk_levels"
 )
 
 // Registers an audit risk events dashboard widget.
@@ -41,10 +42,10 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 		Category:       dashboard.WidgetCategorySecurity,
 		Priority:       dashboard.WidgetPriorityWarning,
 		Order:          auditRiskEventsWidgetOrder,
-		RouteLocation:  auditcontract.AuditOverviewMenuPath,
+		RouteLocation:  securitycontract.OverviewMenuPath,
 		Action: dashboard.WidgetAction{
 			LabelKey: "dashboard.actions.details",
-			Route:    auditcontract.AuditOverviewMenuPath,
+			Route:    securitycontract.OverviewMenuPath,
 		},
 		RequiredPermissions: []string{auditcontract.AuditReadPermission.String()},
 		Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
@@ -56,6 +57,7 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 
 	return nil
 }
+
 // LoadAuditRiskEventsWidget builds the audit risk events dashboard widget payload for the last 24 hours, including alert items for high-risk events, failed operations, and failed authentications.
 func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.WidgetPayload, error) {
 	overview, err := reader.Overview(ctx, auditstore.AuditTimePresetLast24Hours)

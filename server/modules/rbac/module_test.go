@@ -474,19 +474,10 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 
 	menus := ctx.MenuRegistry.Items()
-	if len(menus) != 3 {
-		t.Fatalf("expected 3 registered menus, got %d", len(menus))
+	if len(menus) != 2 {
+		t.Fatalf("expected 2 registered menus, got %d", len(menus))
 	}
 	assertRBACMenuItem(t, menus[0], expectedRBACMenuItem{
-		code:       "access-control.overview",
-		parentCode: "domain.security",
-		kind:       menu.NodeKindEntry,
-		path:       "/access-control/overview",
-		titleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
-		icon:       "dashboard",
-		order:      1,
-	})
-	assertRBACMenuItem(t, menus[1], expectedRBACMenuItem{
 		code:       "role.list",
 		parentCode: "domain.security",
 		kind:       menu.NodeKindEntry,
@@ -496,7 +487,7 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		order:      3,
 		permission: rbaccontract.RoleReadPermission.String(),
 	})
-	assertRBACMenuItem(t, menus[2], expectedRBACMenuItem{
+	assertRBACMenuItem(t, menus[1], expectedRBACMenuItem{
 		code:       "permission.list",
 		parentCode: "domain.security",
 		kind:       menu.NodeKindEntry,

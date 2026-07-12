@@ -805,7 +805,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/audit/overview': {
+  '/api/security/overview': {
     parameters: {
       query?: never;
       header?: never;
@@ -813,10 +813,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Read audit overview
-     * @description Returns real aggregated audit-overview data for the selected window.
+     * Read security overview
+     * @description Returns one bounded snapshot of access-control posture and audit security signals.
      */
-    get: operations['getAuditOverview'];
+    get: operations['getSecurityOverview'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2968,14 +2968,12 @@ export interface components {
     AuditLogDetailResponse: components['schemas']['audit-log-detail-response'];
     EnvelopedAuditLogListResponse: components['schemas']['enveloped-audit-log-list-response'];
     EnvelopedAuditLogDetailResponse: components['schemas']['enveloped-audit-log-detail-response'];
-    AuditOverviewItem: components['schemas']['audit-overview-item'];
-    AuditOverviewSummary: components['schemas']['audit-overview-summary'];
     AuditEvidenceContext: components['schemas']['audit-evidence-context'];
     AuditTarget: components['schemas']['audit-target'];
     EvidenceLinkTimeWindow: components['schemas']['evidence-link-time-window'];
     EvidenceLink: components['schemas']['evidence-link'];
-    AuditOverviewResponse: components['schemas']['audit-overview-response'];
-    EnvelopedAuditOverviewResponse: components['schemas']['enveloped-audit-overview-response'];
+    SecurityOverviewResponse: components['schemas']['security-overview-response'];
+    EnvelopedSecurityOverviewResponse: components['schemas']['enveloped-security-overview-response'];
     AuditIncidentResponse: components['schemas']['audit-incident-response'];
     AuditIncidentMonitorEvidence: components['schemas']['audit-incident-monitor-evidence'];
     EnvelopedAuditIncidentResponse: components['schemas']['enveloped-audit-incident-response'];
@@ -3678,90 +3676,55 @@ export interface components {
     'enveloped-audit-log-detail-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-log-detail-response'];
     };
-    'audit-overview-summary': {
-      total_logs: number;
-      failed_operations: number;
-      high_risk_events: number;
-      sensitive_operations: number;
-    };
-    'audit-overview-item': {
-      /** Format: int64 */
-      id: number;
-      /** Format: int64 */
-      actor_user_id?: number | null;
-      actor_username?: string;
-      actor_display_name?: string;
-      /** @enum {string} */
-      source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
-      action: string;
-      resource_type?: string;
-      resource_id?: string;
-      resource_name?: string;
-      success: boolean;
-      request_id: string;
-      message: string;
-      metadata: {
-        [key: string]: unknown;
-      };
-      /** Format: date-time */
-      created_at: string;
-    };
-    'audit-overview-response': {
+    'security-overview-response': {
       /** @enum {string} */
       time_preset: 'last_24h' | 'last_7d' | 'last_30d';
-      summary: components['schemas']['audit-overview-summary'];
-      risk_groups: {
-        key: string;
-        label_key: string;
-        count: number;
+      access_control: {
+        total_users: number;
+        disabled_users: number;
+        role_count: number;
+        builtin_role_count: number;
+        custom_role_count: number;
+        permission_count: number;
+        role_assignment_count: number;
+        unassigned_user_count: number;
+        empty_custom_role_count: number;
+      };
+      audit: {
         /** @enum {string} */
-        risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-      }[];
-      trend: {
-        /** @enum {string} */
-        bucket_unit: 'hour' | 'day';
-        bucket_size: number;
-        points: {
+        time_preset: 'last_24h' | 'last_7d' | 'last_30d';
+        total_logs: number;
+        failed_operations: number;
+        high_risk_events: number;
+        sensitive_operations: number;
+        risk_groups: {
+          key: string;
+          label_key: string;
+          count: number;
+          /** @enum {string} */
+          risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        }[];
+        recent_events: {
+          /** Format: int64 */
+          id: number;
           /** Format: date-time */
-          bucket_start: string;
-          /** Format: date-time */
-          bucket_end: string;
-          total: number;
-          failed: number;
-          high_risk: number;
-          security_events: number;
+          created_at: string;
+          action: string;
+          resource: string;
+          /** @enum {string} */
+          risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+          /** @enum {string} */
+          result: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+          request_id: string;
+          /** Format: int64 */
+          incident_id: number;
         }[];
       };
-      security_timeline: {
-        /** Format: int64 */
-        id: number;
-        incident_seed: {
-          /** Format: int64 */
-          event_id: number;
-        };
-        /** Format: date-time */
-        created_at: string;
-        /** @enum {string} */
-        source: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
-        /** @enum {string} */
-        risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-        action: string;
-        /** @enum {string} */
-        result: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
-        request_id: string;
-        actor_display_name?: string;
-        actor_username?: string;
-        resource_name?: string;
-        resource_type?: string;
-      }[];
-      failed_auth: components['schemas']['audit-overview-item'][];
-      permission_denied: components['schemas']['audit-overview-item'][];
-      sensitive_operations: components['schemas']['audit-overview-item'][];
     };
-    'enveloped-audit-overview-response': {
+    'enveloped-security-overview-response': {
       /** @enum {boolean} */
       success: true;
-      data: components['schemas']['audit-overview-response'];
+      data: components['schemas']['security-overview-response'];
     };
     'evidence-link-time-window': {
       /** Format: date-time */
@@ -9263,7 +9226,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getAuditOverview: {
+  getSecurityOverview: {
     parameters: {
       query?: {
         preset?: 'last_24h' | 'last_7d' | 'last_30d';
@@ -9282,14 +9245,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Audit overview snapshot. */
+      /** @description Security overview snapshot. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-audit-overview-response'];
+          'application/json': components['schemas']['enveloped-security-overview-response'];
         };
       };
       401: components['responses']['unauthorized'];

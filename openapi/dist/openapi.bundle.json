@@ -32,6 +32,9 @@
       "name": "audit"
     },
     {
+      "name": "security"
+    },
+    {
       "name": "monitor"
     },
     {
@@ -4740,14 +4743,14 @@
         }
       }
     },
-    "/api/audit/overview": {
+    "/api/security/overview": {
       "get": {
         "tags": [
-          "audit"
+          "security"
         ],
-        "summary": "Read audit overview",
-        "operationId": "getAuditOverview",
-        "description": "Returns real aggregated audit-overview data for the selected window.",
+        "summary": "Read security overview",
+        "operationId": "getSecurityOverview",
+        "description": "Returns one bounded snapshot of access-control posture and audit security signals.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -4777,7 +4780,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Audit overview snapshot.",
+            "description": "Security overview snapshot.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -4786,7 +4789,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-audit-overview-response"
+                  "$ref": "#/components/schemas/enveloped-security-overview-response"
                 }
               }
             }
@@ -14420,12 +14423,6 @@
       "EnvelopedAuditLogDetailResponse": {
         "$ref": "#/components/schemas/enveloped-audit-log-detail-response"
       },
-      "AuditOverviewItem": {
-        "$ref": "#/components/schemas/audit-overview-item"
-      },
-      "AuditOverviewSummary": {
-        "$ref": "#/components/schemas/audit-overview-summary"
-      },
       "AuditEvidenceContext": {
         "$ref": "#/components/schemas/audit-evidence-context"
       },
@@ -14438,11 +14435,11 @@
       "EvidenceLink": {
         "$ref": "#/components/schemas/evidence-link"
       },
-      "AuditOverviewResponse": {
-        "$ref": "#/components/schemas/audit-overview-response"
+      "SecurityOverviewResponse": {
+        "$ref": "#/components/schemas/security-overview-response"
       },
-      "EnvelopedAuditOverviewResponse": {
-        "$ref": "#/components/schemas/enveloped-audit-overview-response"
+      "EnvelopedSecurityOverviewResponse": {
+        "$ref": "#/components/schemas/enveloped-security-overview-response"
       },
       "AuditIncidentResponse": {
         "$ref": "#/components/schemas/audit-incident-response"
@@ -16720,110 +16717,12 @@
           }
         ]
       },
-      "audit-overview-summary": {
-        "type": "object",
-        "required": [
-          "total_logs",
-          "failed_operations",
-          "high_risk_events",
-          "sensitive_operations"
-        ],
-        "properties": {
-          "total_logs": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "failed_operations": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "high_risk_events": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "sensitive_operations": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
-      "audit-overview-item": {
-        "type": "object",
-        "required": [
-          "id",
-          "action",
-          "success",
-          "request_id",
-          "message",
-          "metadata",
-          "created_at"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "actor_user_id": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "actor_username": {
-            "type": "string"
-          },
-          "actor_display_name": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string",
-            "enum": [
-              "REQUEST",
-              "SECURITY_EVENT",
-              "DOMAIN_EVENT"
-            ]
-          },
-          "action": {
-            "type": "string"
-          },
-          "resource_type": {
-            "type": "string"
-          },
-          "resource_id": {
-            "type": "string"
-          },
-          "resource_name": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
-          },
-          "request_id": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "audit-overview-response": {
+      "security-overview-response": {
         "type": "object",
         "required": [
           "time_preset",
-          "summary",
-          "risk_groups",
-          "trend",
-          "security_timeline",
-          "failed_auth",
-          "permission_denied",
-          "sensitive_operations"
+          "access_control",
+          "audit"
         ],
         "properties": {
           "time_preset": {
@@ -16834,206 +16733,189 @@
               "last_30d"
             ]
           },
-          "summary": {
-            "$ref": "#/components/schemas/audit-overview-summary"
-          },
-          "risk_groups": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "key",
-                "label_key",
-                "count",
-                "risk_level"
-              ],
-              "properties": {
-                "key": {
-                  "type": "string"
-                },
-                "label_key": {
-                  "type": "string"
-                },
-                "count": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "risk_level": {
-                  "type": "string",
-                  "enum": [
-                    "LOW",
-                    "MEDIUM",
-                    "HIGH",
-                    "CRITICAL"
-                  ]
-                }
+          "access_control": {
+            "type": "object",
+            "required": [
+              "total_users",
+              "disabled_users",
+              "role_count",
+              "builtin_role_count",
+              "custom_role_count",
+              "permission_count",
+              "role_assignment_count",
+              "unassigned_user_count",
+              "empty_custom_role_count"
+            ],
+            "properties": {
+              "total_users": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "disabled_users": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "role_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "builtin_role_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "custom_role_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "permission_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "role_assignment_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unassigned_user_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "empty_custom_role_count": {
+                "type": "integer",
+                "minimum": 0
               }
             }
           },
-          "trend": {
+          "audit": {
             "type": "object",
             "required": [
-              "bucket_unit",
-              "bucket_size",
-              "points"
+              "time_preset",
+              "total_logs",
+              "failed_operations",
+              "high_risk_events",
+              "sensitive_operations",
+              "risk_groups",
+              "recent_events"
             ],
             "properties": {
-              "bucket_unit": {
+              "time_preset": {
                 "type": "string",
                 "enum": [
-                  "hour",
-                  "day"
+                  "last_24h",
+                  "last_7d",
+                  "last_30d"
                 ]
               },
-              "bucket_size": {
+              "total_logs": {
                 "type": "integer",
-                "minimum": 1
+                "minimum": 0
               },
-              "points": {
+              "failed_operations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "high_risk_events": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sensitive_operations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "risk_groups": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "required": [
-                    "bucket_start",
-                    "bucket_end",
-                    "total",
-                    "failed",
-                    "high_risk",
-                    "security_events"
+                    "key",
+                    "label_key",
+                    "count",
+                    "risk_level"
                   ],
                   "properties": {
-                    "bucket_start": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "label_key": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "risk_level": {
                       "type": "string",
-                      "format": "date-time"
-                    },
-                    "bucket_end": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "total": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "failed": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "high_risk": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "security_events": {
-                      "type": "integer",
-                      "minimum": 0
+                      "enum": [
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        "CRITICAL"
+                      ]
                     }
                   }
                 }
-              }
-            }
-          },
-          "security_timeline": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "id",
-                "incident_seed",
-                "created_at",
-                "source",
-                "risk_level",
-                "action",
-                "result",
-                "request_id"
-              ],
-              "properties": {
-                "id": {
-                  "type": "integer",
-                  "format": "int64"
-                },
-                "incident_seed": {
+              },
+              "recent_events": {
+                "type": "array",
+                "items": {
                   "type": "object",
                   "required": [
-                    "event_id"
+                    "id",
+                    "created_at",
+                    "action",
+                    "resource",
+                    "risk_level",
+                    "result",
+                    "request_id",
+                    "incident_id"
                   ],
                   "properties": {
-                    "event_id": {
+                    "id": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "action": {
+                      "type": "string"
+                    },
+                    "resource": {
+                      "type": "string"
+                    },
+                    "risk_level": {
+                      "type": "string",
+                      "enum": [
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        "CRITICAL"
+                      ]
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCESS",
+                        "FAILED",
+                        "DENIED",
+                        "ERROR"
+                      ]
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "incident_id": {
                       "type": "integer",
                       "format": "int64"
                     }
                   }
-                },
-                "created_at": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "source": {
-                  "type": "string",
-                  "enum": [
-                    "REQUEST",
-                    "SECURITY_EVENT",
-                    "DOMAIN_EVENT"
-                  ]
-                },
-                "risk_level": {
-                  "type": "string",
-                  "enum": [
-                    "LOW",
-                    "MEDIUM",
-                    "HIGH",
-                    "CRITICAL"
-                  ]
-                },
-                "action": {
-                  "type": "string"
-                },
-                "result": {
-                  "type": "string",
-                  "enum": [
-                    "SUCCESS",
-                    "FAILED",
-                    "DENIED",
-                    "ERROR"
-                  ]
-                },
-                "request_id": {
-                  "type": "string"
-                },
-                "actor_display_name": {
-                  "type": "string"
-                },
-                "actor_username": {
-                  "type": "string"
-                },
-                "resource_name": {
-                  "type": "string"
-                },
-                "resource_type": {
-                  "type": "string"
                 }
               }
-            }
-          },
-          "failed_auth": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/audit-overview-item"
-            }
-          },
-          "permission_denied": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/audit-overview-item"
-            }
-          },
-          "sensitive_operations": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/audit-overview-item"
             }
           }
         }
       },
-      "enveloped-audit-overview-response": {
+      "enveloped-security-overview-response": {
         "type": "object",
         "required": [
           "success",
@@ -17047,7 +16929,7 @@
             ]
           },
           "data": {
-            "$ref": "#/components/schemas/audit-overview-response"
+            "$ref": "#/components/schemas/security-overview-response"
           }
         }
       },

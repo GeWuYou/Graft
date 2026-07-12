@@ -14,10 +14,7 @@ import (
 	auditcontract "graft/server/modules/audit/contract"
 )
 
-const (
-	auditMenuOrderOverview = 201
-	auditMenuOrderLogs     = 202
-)
+const auditMenuOrderLogs = 202
 
 // registerAuditPermissions 注册审计模块的权限条目。
 func registerAuditPermissions(registry *permission.Registry, moduleName string) {
@@ -44,18 +41,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
 	}
-
-	registry.Register(menu.Item{
-		Code:       "audit.overview",
-		ParentCode: "domain.security",
-		Kind:       menu.NodeKindEntry,
-		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
-		Path:       auditcontract.AuditOverviewMenuPath,
-		Icon:       "dashboard",
-		Order:      auditMenuOrderOverview,
-		Permission: auditcontract.AuditReadPermission.String(),
-		Module:     moduleName,
-	})
 
 	registry.Register(menu.Item{
 		Code:       "audit.logs",
@@ -90,7 +75,6 @@ func registerAuditMessages(localizer *i18n.Service) error {
 func auditMessageKeys() []string {
 	return []string{
 		auditcontract.AuditRootMenuTitle.String(),
-		auditcontract.AuditOverviewMenuTitle.String(),
 		auditcontract.AuditLogMenuTitle.String(),
 		auditcontract.AuditTargetLabelUser.String(),
 		auditcontract.AuditTargetLabelRole.String(),
@@ -139,7 +123,12 @@ func registerAuditService(ctx *module.Context, reader *Service) error {
 		return errors.New("audit service is unavailable")
 	}
 
-	return ctx.Services.RegisterSingleton((*auditReader)(nil), func(_ container.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*auditReader)(nil), func(_ container.Resolver) (any, error) {
 		return reader, nil
+	}); err != nil {
+		return err
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.AuditSecurityReader)(nil), func(_ container.Resolver) (any, error) {
+		return auditSecurityReader{reader: reader}, nil
 	})
 }

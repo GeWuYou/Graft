@@ -16,6 +16,7 @@ tags:
   - name: users
   - name: rbac
   - name: audit
+  - name: security
   - name: monitor
   - name: modules
   - name: scheduled-tasks
@@ -114,8 +115,8 @@ paths:
     $ref: ./paths/audit.logs.yaml
   /api/audit/logs/{id}:
     $ref: ./paths/audit.logs.detail.yaml
-  /api/audit/overview:
-    $ref: ./paths/audit.overview.yaml
+  /api/security/overview:
+    $ref: ./paths/security.overview.yaml
   /api/audit/incidents/{event_id}:
     $ref: ./paths/audit.incident.yaml
   /api/audit/policies/visibility:
@@ -424,10 +425,6 @@ components:
       $ref: ./components/schemas/enveloped-audit-log-list-response.yaml
     EnvelopedAuditLogDetailResponse:
       $ref: ./components/schemas/enveloped-audit-log-detail-response.yaml
-    AuditOverviewItem:
-      $ref: ./components/schemas/audit-overview-item.yaml
-    AuditOverviewSummary:
-      $ref: ./components/schemas/audit-overview-summary.yaml
     AuditEvidenceContext:
       $ref: ./components/schemas/audit-evidence-context.yaml
     AuditTarget:
@@ -436,10 +433,10 @@ components:
       $ref: ./components/schemas/evidence-link-time-window.yaml
     EvidenceLink:
       $ref: ./components/schemas/evidence-link.yaml
-    AuditOverviewResponse:
-      $ref: ./components/schemas/audit-overview-response.yaml
-    EnvelopedAuditOverviewResponse:
-      $ref: ./components/schemas/enveloped-audit-overview-response.yaml
+    SecurityOverviewResponse:
+      $ref: ./components/schemas/security-overview-response.yaml
+    EnvelopedSecurityOverviewResponse:
+      $ref: ./components/schemas/enveloped-security-overview-response.yaml
     AuditIncidentResponse:
       $ref: ./components/schemas/audit-incident-response.yaml
     AuditIncidentMonitorEvidence:

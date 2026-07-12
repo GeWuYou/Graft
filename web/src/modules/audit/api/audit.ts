@@ -7,8 +7,6 @@ import type {
   AuditLogDetailResponse,
   AuditLogListResponse,
   AuditLogQuery,
-  AuditOverviewQuery,
-  AuditOverviewResponse,
   AuditVisibilityDefaultResponse,
   AuditVisibilityDefaultUpdateRequest,
   AuditVisibilityOverrideResponse,
@@ -26,11 +24,6 @@ type GetAuditLogDetailOperation = paths[AuditLogDetailPath]['get'];
 type GetAuditLogDetailResponse = GetAuditLogDetailOperation['responses'][200]['content']['application/json'];
 type GetAuditLogDetailResponseData = NonNullable<GetAuditLogDetailResponse['data']>;
 
-type AuditOverviewPath = (typeof AUDIT_API_PATH)['OVERVIEW'];
-type GetAuditOverviewOperation = paths[AuditOverviewPath]['get'];
-type GetAuditOverviewResponse = GetAuditOverviewOperation['responses'][200]['content']['application/json'];
-type GetAuditOverviewResponseData = NonNullable<GetAuditOverviewResponse['data']>;
-
 type AuditIncidentPath = (typeof AUDIT_API_PATH)['INCIDENT_DETAIL'];
 type GetAuditIncidentOperation = paths[AuditIncidentPath]['get'];
 type GetAuditIncidentResponse = GetAuditIncidentOperation['responses'][200]['content']['application/json'];
@@ -47,13 +40,6 @@ export function getAuditLogDetail(id: number) {
   return request.get<GetAuditLogDetailResponseData>({
     url: AUDIT_API_PATH.DETAIL.replace('{id}', String(id)),
   }) as Promise<AuditLogDetailResponse>;
-}
-
-export function getAuditOverview(query: AuditOverviewQuery) {
-  return request.get<GetAuditOverviewResponseData>({
-    url: AUDIT_API_PATH.OVERVIEW,
-    params: query,
-  }) as Promise<AuditOverviewResponse>;
 }
 
 /**

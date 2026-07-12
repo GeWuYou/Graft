@@ -7,12 +7,12 @@ describe('resolveRuntimeHomePath', () => {
   it('uses the shell workbench as the runtime home when bootstrap routes exist', () => {
     const routes: RouteRecordRaw[] = [
       {
-        path: '/access-control',
-        redirect: '/access-control/overview',
+        path: '/security',
+        redirect: '/security/overview',
         children: [
           {
             path: 'overview',
-            name: 'AccessControlOverviewIndex',
+            name: 'SecurityOverviewIndex',
             component: async () => ({ default: {} }),
           },
         ],

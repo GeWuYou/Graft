@@ -1,0 +1,81 @@
+{
+  "menu": {
+    "security": {
+      "overview": { "title": "概览" }
+    }
+  },
+  "security": {
+    "route": {
+      "overview": {
+        "title": "概览",
+        "breadcrumb": "概览"
+      }
+    },
+    "overview": {
+      "title": "安全概览",
+      "navHint": "安全",
+      "description": "汇总访问控制健康度与近期安全审计信号，帮助快速定位需处理的风险。",
+      "refresh": "刷新",
+      "retry": "重试",
+      "loadFailed": "无法加载安全概览。",
+      "errorTitle": "安全概览加载失败",
+      "timeRanges": { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天" },
+      "stats": {
+        "users": "账号总数",
+        "usersDescription": "当前访问控制账号基数",
+        "unassigned": "待分配账号",
+        "unassignedDescription": "尚未关联任何角色",
+        "highRisk": "高风险事件",
+        "highRiskDescription": "所选窗口内的高风险信号",
+        "denied": "失败或拒绝操作",
+        "deniedDescription": "需要审计日志进一步确认"
+      },
+      "sections": {
+        "access": "访问控制摘要",
+        "accessDescription": "账号、角色、权限与授权关系的当前状态。",
+        "audit": "安全审计摘要",
+        "auditDescription": "所选时间范围内的审计活动与风险信号。",
+        "events": "最近安全事件",
+        "eventsDescription": "仅展示有限的近期事件；完整证据请进入审计日志。",
+        "pending": "待处理安全事项",
+        "pendingDescription": "当前需要由管理员跟进的访问控制或审计风险。"
+      },
+      "access": {
+        "roles": "角色",
+        "rolesDescription": "其中自定义角色 {custom} 个",
+        "permissions": "权限点",
+        "permissionsDescription": "已注册的系统权限",
+        "bindings": "角色分配",
+        "bindingsDescription": "账号与角色的授权关系",
+        "disabled": "已禁用账号",
+        "disabledDescription": "当前不可登录的账号",
+        "usersAction": "管理用户",
+        "rolesAction": "管理角色"
+      },
+      "audit": {
+        "total": "审计事件",
+        "totalDescription": "所选窗口内已记录的事件",
+        "sensitive": "敏感操作",
+        "sensitiveDescription": "需要审计关注的权限操作",
+        "riskGroups": "风险分组",
+        "riskGroupsDescription": "已聚合的活动风险类型"
+      },
+      "risk": { "viewLogs": "查看审计日志" },
+      "events": {
+        "unknownResource": "未知资源",
+        "emptyTitle": "暂无安全事件",
+        "emptyDescription": "所选时间范围内没有安全事件。"
+      },
+      "pending": {
+        "unassigned": "账号授权待处理",
+        "unassignedDescription": "这些账号尚未关联角色。",
+        "emptyRoles": "空自定义角色",
+        "emptyRolesDescription": "这些自定义角色尚未配置权限。",
+        "highRisk": "高风险审计事件",
+        "highRiskDescription": "请在审计日志中核查这些高风险信号。",
+        "emptyTitle": "暂无待处理安全事项",
+        "emptyDescription": "当前访问控制与审计信号没有需要跟进的项目。"
+      }
+    }
+  }
+}

@@ -1,5 +1,4 @@
 menu.audit.title: Security Audit
-menu.audit.overview.title: Overview
 menu.audit.logs.title: Audit Logs
 audit.target.user: User
 audit.target.role: Role

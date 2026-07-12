@@ -2,9 +2,6 @@
   "menu": {
     "audit": {
       "title": "Security Audit",
-      "overview": {
-        "title": "Overview"
-      },
       "logs": {
         "title": "Audit Logs"
       },
@@ -15,10 +12,6 @@
   },
   "audit": {
     "route": {
-      "overview": {
-        "title": "Security Audit - Overview",
-        "breadcrumb": "Overview"
-      },
       "logList": {
         "title": "Security Audit - Audit Logs",
         "breadcrumb": "Audit Logs"
@@ -65,102 +58,11 @@
       }
     },
     "overview": {
-      "title": "Security Audit Overview",
-      "description": "Focus on security-audit events tied to authentication, authorization, and sensitive operations, excluding health checks, monitor polling, and page-load noise.",
-      "refresh": "Refresh",
-      "retry": "Retry",
-      "errorTitle": "Audit overview is temporarily unavailable",
-      "loadFailed": "Failed to load audit overview",
-      "timeRanges": {
-        "24h": "Last 24h",
-        "7d": "Last 7d",
-        "30d": "Last 30d"
-      },
-      "itemResult": {
-        "failed": "Failed",
-        "denied": "Denied",
-        "sensitive": "Review"
-      },
-      "sections": {
-        "failedAuth": "Recent Authentication Failures",
-        "permissionDenied": "Recent Permission Denials",
-        "sensitiveOps": "Recent Sensitive Audit Events",
-        "trend": "Risk Trend",
-        "securityTimeline": "Security Event Timeline",
-        "shortcuts": "Quick Links",
-        "riskWatch": "Recent Risk"
-      },
       "riskGroups": {
         "authFailures": "Authentication Failures",
         "criticalSecurity": "Critical Security",
-        "highRiskOperations": "High-risk Operations",
-        "permissionDenials": "Permission Denials",
-        "meta": "{count} events in the current window",
-        "action": "View related events"
-      },
-      "trend": {
-        "emptyTitle": "Not enough risk events yet",
-        "emptyDescription": "Trend analysis will appear after more audit events are collected.",
-        "totalMetric": "Total events",
-        "highRiskMetric": "High risk",
-        "securityMetric": "Security events"
-      },
-      "timeline": {
-        "openEvent": "Open Event"
-      },
-      "empty": {
-        "failedAuth": {
-          "title": "No authentication failures",
-          "description": "No failed sign-ins or authentication audit events were found in the selected window."
-        },
-        "permissionDenied": {
-          "title": "No permission denials",
-          "description": "No authorization denials were found in the selected window."
-        },
-        "sensitiveOps": {
-          "title": "No sensitive audit events",
-          "description": "No export, delete, reset, grant, or other privileged write events were found in the selected window."
-        },
-        "riskGroups": {
-          "title": "No active risk groups",
-          "description": "No grouped audit risks need attention in the selected window."
-        },
-        "securityTimeline": {
-          "title": "No security timeline events",
-          "description": "No security events were found in the selected window."
-        }
-      },
-      "stats": {
-        "totalLogs": {
-          "title": "Audit Log Count",
-          "unit": "events"
-        },
-        "failedWindow": {
-          "title": "Security Failure Count",
-          "unit": "events"
-        },
-        "highRisk": {
-          "title": "High-Risk Event Count",
-          "unit": "items"
-        },
-        "sensitiveOps": {
-          "title": "Sensitive Operation Count",
-          "unit": "actions"
-        }
-      },
-      "shortcuts": {
-        "failedAuth": {
-          "title": "Open Failed Authentication",
-          "description": "Review failed sign-ins, token failures, and other authentication audit events"
-        },
-        "rbacChanges": {
-          "title": "Open Permission Configuration Changes",
-          "description": "Review role, permission, resource, and menu configuration changes"
-        },
-        "sensitiveOps": {
-          "title": "Open Sensitive Operations",
-          "description": "Locate export, delete, and other privileged write audit events"
-        }
+        "highRiskOperations": "High-Risk Operations",
+        "permissionDenials": "Permission Denials"
       }
     },
     "incident": {

@@ -16,6 +16,7 @@ import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/uti
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
 const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
+const REMOVED_OVERVIEW_TAB_KEYS = new Set(['/access-control/overview', '/audit/overview']);
 const MAX_CLOSED_TABS = 20;
 const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
 const logger = createLogger('store.tabsRouter');
@@ -72,7 +73,14 @@ function readPinnedTabKeys() {
       return new Set<string>();
     }
 
-    return new Set(parsed.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())));
+    const keys = parsed.filter(
+      (item): item is string =>
+        typeof item === 'string' && Boolean(item.trim()) && !REMOVED_OVERVIEW_TAB_KEYS.has(item),
+    );
+    if (keys.length !== parsed.length) {
+      writePinnedTabKeys(keys);
+    }
+    return new Set(keys);
   } catch {
     return new Set<string>();
   }

@@ -31,3 +31,21 @@ type RBACAccessService interface {
 type RBACBootstrapService interface {
 	EnsureDefaultAdminAccess(ctx context.Context, userID uint64, permissions []PermissionSeed) error
 }
+
+// SecurityPosture contains RBAC-owned security posture counters.
+type SecurityPosture struct {
+	TotalUsers           int `json:"total_users"`
+	DisabledUsers        int `json:"disabled_users"`
+	RoleCount            int `json:"role_count"`
+	BuiltinRoleCount     int `json:"builtin_role_count"`
+	CustomRoleCount      int `json:"custom_role_count"`
+	PermissionCount      int `json:"permission_count"`
+	RoleAssignmentCount  int `json:"role_assignment_count"`
+	UnassignedUserCount  int `json:"unassigned_user_count"`
+	EmptyCustomRoleCount int `json:"empty_custom_role_count"`
+}
+
+// RBACSecurityPostureService exposes the aggregate authorization posture without leaking repositories.
+type RBACSecurityPostureService interface {
+	ReadSecurityPosture(ctx context.Context) (SecurityPosture, error)
+}

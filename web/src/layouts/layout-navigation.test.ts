@@ -31,12 +31,8 @@ describe('layout navigation helpers', () => {
   it('follows redirected child groups until the first visible leaf page', () => {
     const monitorMenu: MenuRoute = {
       path: '/audit',
-      redirect: '/audit/overview',
+      redirect: '/audit/logs',
       children: [
-        {
-          path: 'overview',
-          meta: { titleKey: 'menu.audit.overview.title' },
-        },
         {
           path: 'logs',
           meta: { titleKey: 'menu.audit.logs.title' },
@@ -44,7 +40,7 @@ describe('layout navigation helpers', () => {
       ],
     };
 
-    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/audit/overview');
+    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/audit/logs');
   });
 
   it('flattens mix header menus into direct leaf navigation targets', () => {

@@ -2,69 +2,18 @@ package audit
 
 import (
 	"context"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
 	httpheader "graft/server/internal/contract/httpheader"
-	messagecontract "graft/server/internal/contract/message"
 	auditopenapi "graft/server/internal/contract/openapi/audit"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	auditstore "graft/server/modules/audit/store"
 	"graft/server/modules/audit/storeent"
 )
-
-// handleReadAuditOverview 生成用于读取审计概览的 Gin 处理器。
-// 处理请求中的概览参数，校验并归一化时间预设，按请求语言环境读取审计概览结果，
-// 再将结果映射为接口响应并写回成功响应；参数非法或处理失败时返回相应错误。
-func handleReadAuditOverview(
-	ctx *module.Context,
-	moduleName string,
-	reader auditReader,
-) gin.HandlerFunc {
-	logger := zap.NewNop()
-	if ctx != nil && ctx.Logger != nil {
-		logger = ctx.Logger
-	}
-
-	return func(ginCtx *gin.Context) {
-		params, invalidField := bindGeneratedAuditOverviewParams(ginCtx)
-		if invalidField != "" {
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-				"field": invalidField,
-			})
-			return
-		}
-		preset := normalizeAuditOverviewPreset(params.Preset)
-
-		result, err := reader.Overview(withAuditRequestLocale(ginCtx, ctx), preset)
-		if err != nil {
-			logger.Error("read audit overview failed",
-				zap.String("module", moduleName),
-				zap.Error(err),
-			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
-			return
-		}
-
-		payload, mapErr := toAuditOverviewResponse(result)
-		if mapErr != nil {
-			logger.Error("map audit overview response failed",
-				zap.String("module", moduleName),
-				zap.Error(mapErr),
-			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
-			return
-		}
-
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
-	}
-}
 
 type auditReadGeneratedHandler struct{}
 type auditListBinder func(*gin.Context, *auditopenapi.GetAuditLogsParams, *ListQuery) string
@@ -125,8 +74,6 @@ func withAuditRequestLocale(ginCtx *gin.Context, ctx *module.Context) context.Co
 func (auditReadGeneratedHandler) GetAuditLogs(auditopenapi.GetAuditLogsParams) {}
 
 func (auditReadGeneratedHandler) GetAuditLogDetail(int64, auditopenapi.GetAuditLogDetailParams) {}
-
-func (auditReadGeneratedHandler) GetAuditOverview(auditopenapi.GetAuditOverviewParams) {}
 
 func (auditReadGeneratedHandler) GetAuditIncident(auditopenapi.GetAuditIncidentParams) {}
 
@@ -710,41 +657,6 @@ func bindAuditPresetValue[T interface {
 		return nil, "preset"
 	}
 	return &value, ""
-}
-
-// bindGeneratedAuditOverviewParams 绑定审计概览的请求参数。
-// 它会读取语言和请求 ID 头，并校验可选的 preset 参数。
-// @returns 解析后的审计概览参数；如果 preset 无效，则返回对应的字段名。
-func bindGeneratedAuditOverviewParams(ginCtx *gin.Context) (auditopenapi.GetAuditOverviewParams, string) {
-	locale, requestID := bindGeneratedAuditReadHeaders(ginCtx)
-	params := auditopenapi.GetAuditOverviewParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-
-	value, invalidField := bindAuditPresetValue[auditopenapi.GetAuditOverviewParamsPreset](ginCtx)
-	if invalidField != "" {
-		return params, invalidField
-	}
-	if value != nil {
-		params.Preset = value
-	}
-
-	return params, ""
-}
-
-// normalizeAuditOverviewPreset 将概览预设规范化为存储层时间预设。
-// 当值为空、为空白或不受支持时，返回默认的最近 24 小时预设。
-//
-// normalizeAuditOverviewPreset 将概览参数中的预设转换为审计时间预设。
-// 当未提供预设时，返回默认的最近 24 小时预设。
-//
-// 返回对应的审计时间预设。
-func normalizeAuditOverviewPreset(value *auditopenapi.GetAuditOverviewParamsPreset) auditstore.AuditTimePreset {
-	if value == nil {
-		return auditstore.AuditTimePresetLast24Hours
-	}
-	return normalizeAuditOverviewTimePreset(auditstore.AuditTimePreset(strings.TrimSpace(string(*value))))
 }
 
 // auditHeaderPointer 将空白字符串转换为 nil，否则返回其指针。

@@ -21,6 +21,12 @@ type UserSummary struct {
 	ProtectedDefaultAdmin bool
 }
 
+// UserSecuritySummary is the narrow user-state projection needed by security posture readers.
+type UserSecuritySummary struct {
+	ID     uint64
+	Status string
+}
+
 // UserService 暴露其他模块可依赖的最小用户能力接口。
 //
 // 该接口的稳定性高于单个模块内部仓储；一旦签名或错误语义发生变化，需要同步评估所有依赖方。
@@ -31,4 +37,9 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id uint64) (UserSummary, error)
 	// CountUsers 返回当前可管理用户总数，供跨模块摘要类只读能力使用。
 	CountUsers(ctx context.Context) (int, error)
+}
+
+// UserSecurityReader exposes the narrow account-state projection needed by security posture aggregation.
+type UserSecurityReader interface {
+	ListSecuritySummaries(ctx context.Context) ([]UserSecuritySummary, error)
 }

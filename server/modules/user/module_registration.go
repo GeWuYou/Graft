@@ -141,6 +141,11 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	}); err != nil {
 		return registeredServices{}, err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.UserSecurityReader)(nil), func(_ container.Resolver) (any, error) {
+		return userSvc, nil
+	}); err != nil {
+		return registeredServices{}, err
+	}
 
 	identity := userIdentityProvider{users: userRepo}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.UserIdentityProvider)(nil), func(_ container.Resolver) (any, error) {
