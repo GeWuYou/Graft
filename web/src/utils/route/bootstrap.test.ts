@@ -52,6 +52,79 @@ const graph = [
 ] as const;
 
 describe('bootstrap navigation graph', () => {
+  it('preserves section metadata and nested provider groups without making them routes', () => {
+    const navigation = buildBootstrapNavigationTree([
+      {
+        code: 'domain.infrastructure',
+        kind: 'group',
+        order: 20,
+        title: 'Infrastructure',
+        icon: 'infrastructure',
+        permission: '',
+      },
+      {
+        code: 'docker',
+        parent_code: 'domain.infrastructure',
+        kind: 'group',
+        order: 50,
+        title: 'Docker',
+        title_key: 'menu.docker.title',
+        section_key: 'runtime',
+        section_title_key: 'menu.section.runtime',
+        icon: 'docker',
+        permission: '',
+      },
+      {
+        code: 'container.list',
+        parent_code: 'docker',
+        kind: 'entry',
+        order: 51,
+        title: 'Containers',
+        title_key: 'menu.container.title',
+        path: '/infrastructure/docker/containers',
+        icon: 'container',
+        permission: 'container.view',
+      },
+    ]);
+
+    expect(navigation[0]?.children?.[0]?.meta?.navigationSection?.key).toBe('runtime');
+    expect(navigation[0]?.children?.[0]?.children?.[0]?.path).toBe('container.list');
+    const routes = transformBootstrapMenusToRoutes([
+      {
+        code: 'domain.infrastructure',
+        kind: 'group',
+        order: 20,
+        title: 'Infrastructure',
+        icon: 'infrastructure',
+        permission: '',
+      },
+      {
+        code: 'docker',
+        parent_code: 'domain.infrastructure',
+        kind: 'group',
+        order: 50,
+        title: 'Docker',
+        icon: 'docker',
+        permission: '',
+      },
+      {
+        code: 'container.list',
+        parent_code: 'docker',
+        kind: 'entry',
+        order: 51,
+        title: 'Containers',
+        path: '/infrastructure/docker/containers',
+        icon: 'container',
+        permission: 'container.view',
+      },
+    ]);
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual([
+      'domain.infrastructure',
+      'docker',
+    ]);
+  });
+
   it('builds visible navigation by explicit parent code and prunes empty groups', () => {
     const navigation = buildBootstrapNavigationTree(graph.map((item) => ({ ...item })));
     expect(navigation).toHaveLength(1);

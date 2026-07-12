@@ -1,5 +1,5 @@
-menu.security.roles.title: 角色管理
-menu.security.permissions.title: 权限管理
+menu.security.roles.title: 角色
+menu.security.permissions.title: 权限
 rbac.permissionCatalog.accessLogRead.display: 访问日志读取
 rbac.permissionCatalog.accessLogRead.description: 允许读取规范化访问日志查询数据。
 rbac.permissionCatalog.appLogRead.display: 应用日志读取

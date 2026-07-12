@@ -123,7 +123,7 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerAPIGroup != "/ops/containers" {
 		t.Fatalf("unexpected API group %q", containercontract.ContainerAPIGroup)
 	}
-	if containercontract.ContainerMenuPath != "/infrastructure/containers" {
+	if containercontract.ContainerMenuPath != "/infrastructure/docker/containers" {
 		t.Fatalf("unexpected menu path %q", containercontract.ContainerMenuPath)
 	}
 	if containercontract.ContainerDockerEndpointConfig.String() != "ops.container.docker.endpoint" {
@@ -283,22 +283,34 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 1 {
-		t.Fatalf("expected container menu item, got %#v", items)
+	if len(items) != 2 {
+		t.Fatalf("expected Docker group and container menu item, got %#v", items)
 	}
+	assertMenuItem(t, items, expectedMenuItem{
+		code:                     "docker",
+		title:                    "",
+		titleKey:                 containercontract.ContainerMenuTitle.String(),
+		sectionKey:               menu.RuntimeSectionKey,
+		sectionTitleKey:          containercontract.ContainerMenuSectionTitle.String(),
+		path:                     "",
+		icon:                     "docker",
+		permission:               "",
+		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+	})
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "container.list",
 		title:                    "",
-		titleKey:                 containercontract.ContainerMenuTitle.String(),
-		sectionKey:               "runtime",
-		path:                     "/infrastructure/containers",
+		titleKey:                 containercontract.ContainerListMenuTitle.String(),
+		path:                     "/infrastructure/docker/containers",
+		icon:                     "container",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
-	for _, item := range items {
-		if item.ParentCode != "domain.infrastructure" || item.Kind != menu.NodeKindEntry {
-			t.Fatalf("container menu must use infrastructure navigation metadata, got %#v", item)
-		}
+	if items[0].ParentCode != "domain.infrastructure" || items[0].Kind != menu.NodeKindGroup {
+		t.Fatalf("Docker must be a non-navigable infrastructure group, got %#v", items[0])
+	}
+	if items[1].ParentCode != "docker" || items[1].Kind != menu.NodeKindEntry {
+		t.Fatalf("container list must be a Docker child entry, got %#v", items[1])
 	}
 }
 
@@ -307,7 +319,9 @@ type expectedMenuItem struct {
 	title                    string
 	titleKey                 string
 	sectionKey               string
+	sectionTitleKey          string
 	path                     string
+	icon                     string
 	permission               string
 	visibleWhenConfigEnabled string
 }
@@ -317,8 +331,8 @@ func assertMenuItem(t *testing.T, items []menu.Item, expected expectedMenuItem) 
 
 	if !slices.ContainsFunc(items, func(item menu.Item) bool {
 		return item.Code == expected.code && item.Title == expected.title && item.TitleKey == expected.titleKey &&
-			item.SectionKey == expected.sectionKey &&
-			item.Path == expected.path && item.Permission == expected.permission &&
+			item.SectionKey == expected.sectionKey && item.SectionTitleKey == expected.sectionTitleKey &&
+			item.Path == expected.path && item.Icon == expected.icon && item.Permission == expected.permission &&
 			item.VisibleWhenConfigEnabled == expected.visibleWhenConfigEnabled && item.Module == moduleID
 	}) {
 		t.Fatalf("expected menu item %s in %#v", expected.code, items)
@@ -330,6 +344,7 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 
 	for _, key := range []string{
 		containercontract.ContainerMenuTitle.String(),
+		containercontract.ContainerListMenuTitle.String(),
 		containercontract.ContainerMenuSectionTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),

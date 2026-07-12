@@ -8,11 +8,11 @@ import AppLayout from './index.vue';
 const routeState = vi.hoisted(
   () =>
     ({
-      fullPath: '/infrastructure/containers/container-1?tab=overview',
+      fullPath: '/infrastructure/docker/containers/container-1?tab=overview',
       meta: {},
       name: 'ContainerDetail',
       params: { id: 'container-1' },
-      path: '/infrastructure/containers/container-1',
+      path: '/infrastructure/docker/containers/container-1',
       query: { tab: 'overview' },
     }) as Partial<RouteLocationNormalizedLoaded> & {
       fullPath: string;
@@ -149,8 +149,8 @@ describe('App layout route effects', () => {
     settingStoreProxy.value.isSidebarCompact = false;
     settingStoreProxy.value.layout = { value: 'side' };
     settingStoreProxy.value.showSidebar = true;
-    routeProxy.value!.fullPath = '/infrastructure/containers/container-1?tab=overview';
-    routeProxy.value!.path = '/infrastructure/containers/container-1';
+    routeProxy.value!.fullPath = '/infrastructure/docker/containers/container-1?tab=overview';
+    routeProxy.value!.path = '/infrastructure/docker/containers/container-1';
     routeProxy.value!.name = 'ContainerDetail';
     routeProxy.value!.params = { id: 'container-1' };
     routeProxy.value!.query = { tab: 'overview' };
@@ -174,16 +174,16 @@ describe('App layout route effects', () => {
   it('updates tab route state without scrolling for same-page query changes', async () => {
     const wrapper = mountAppLayout();
 
-    routeProxy.value!.fullPath = '/infrastructure/containers/container-1?tab=health';
+    routeProxy.value!.fullPath = '/infrastructure/docker/containers/container-1?tab=health';
     routeProxy.value!.query = { tab: 'health' };
     await wrapper.vm.$nextTick();
 
     expect(storeState.tabsRouterStore.appendTabRouterList).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        fullPath: '/infrastructure/containers/container-1?tab=health',
-        path: '/infrastructure/containers/container-1',
+        fullPath: '/infrastructure/docker/containers/container-1?tab=health',
+        path: '/infrastructure/docker/containers/container-1',
         query: { tab: 'health' },
-        tabKey: '/infrastructure/containers/container-1',
+        tabKey: '/infrastructure/docker/containers/container-1',
       }),
     );
     expect(scrollToMock).not.toHaveBeenCalled();
@@ -212,7 +212,7 @@ describe('App layout route effects', () => {
 
   it('exposes the sidebar compact state on the shell surface', async () => {
     settingStoreProxy.value!.isSidebarCompact = false;
-    routeProxy.value!.path = '/infrastructure/containers';
+    routeProxy.value!.path = '/infrastructure/docker/containers';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
@@ -266,7 +266,7 @@ describe('App layout route effects', () => {
 
   it('runs the reverse sidebar motion when expanding back out', async () => {
     settingStoreProxy.value!.isSidebarCompact = true;
-    routeProxy.value!.path = '/infrastructure/containers';
+    routeProxy.value!.path = '/infrastructure/docker/containers';
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');

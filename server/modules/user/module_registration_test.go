@@ -27,8 +27,8 @@ func TestRegisterMessagesUsesEmbeddedLocaleResources(t *testing.T) {
 		t.Fatalf("register user messages: %v", err)
 	}
 
-	assertRegisteredUserMessage(t, localizer, i18n.LocaleZHCN, usercontract.UserListMenuTitle.String(), "用户管理")
-	assertRegisteredUserMessage(t, localizer, i18n.LocaleENUS, usercontract.UserListMenuTitle.String(), "User Management")
+	assertRegisteredUserMessage(t, localizer, i18n.LocaleZHCN, usercontract.UserListMenuTitle.String(), "用户")
+	assertRegisteredUserMessage(t, localizer, i18n.LocaleENUS, usercontract.UserListMenuTitle.String(), "Users")
 }
 
 func assertRegisteredUserMessage(

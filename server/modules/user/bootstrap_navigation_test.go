@@ -37,6 +37,27 @@ func TestCompareBootstrapMenusUsesParentCodeForEqualOrder(t *testing.T) {
 	}
 }
 
+func TestFilterBootstrapMenusPreservesVisualSectionMetadata(t *testing.T) {
+	registry := menu.NewRegistry()
+	menu.RegisterDomainGroups(registry)
+	registry.Register(menu.Item{
+		Code:            "user.list",
+		ParentCode:      "domain.security",
+		Kind:            menu.NodeKindEntry,
+		Path:            "/security/users",
+		Permission:      "user.read",
+		SectionKey:      menu.AccessControlSectionKey,
+		SectionTitleKey: menu.AccessControlSectionTitleKey,
+	})
+
+	menus := filterBootstrapMenus(context.Background(), registry, map[string]struct{}{"user.read": {}}, nil)
+	for _, item := range menus {
+		if item.Code == "user.list" && (item.SectionKey != menu.AccessControlSectionKey || item.SectionTitleKey != menu.AccessControlSectionTitleKey) {
+			t.Fatalf("expected access-control metadata, got %#v", item)
+		}
+	}
+}
+
 func TestBootstrapReaderReadReturnsInvalidMenuGraph(t *testing.T) {
 	registry := menu.NewRegistry()
 	registry.Register(menu.Item{Code: "invalid-group", Kind: menu.NodeKindGroup, Path: "/unexpected"})

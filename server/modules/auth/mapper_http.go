@@ -30,15 +30,17 @@ func toBootstrapResponse(payload moduleapi.AuthBootstrapPayload) (generated.Boot
 	menus := make([]generated.BootstrapMenu, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
 		menus = append(menus, generated.BootstrapMenu{
-			Code:       item.Code,
-			ParentCode: optionalStringPointer(item.ParentCode),
-			Kind:       generated.BootstrapMenuKind(item.Kind),
-			Title:      item.Title,
-			TitleKey:   optionalStringPointer(item.TitleKey),
-			Path:       optionalStringPointer(item.Path),
-			Icon:       item.Icon,
-			Order:      optionalIntPointer(item.Order),
-			Permission: item.Permission,
+			Code:            item.Code,
+			ParentCode:      optionalStringPointer(item.ParentCode),
+			Kind:            generated.BootstrapMenuKind(item.Kind),
+			Title:           item.Title,
+			TitleKey:        optionalStringPointer(item.TitleKey),
+			SectionKey:      optionalStringPointer(item.SectionKey),
+			SectionTitleKey: optionalStringPointer(item.SectionTitleKey),
+			Path:            optionalStringPointer(item.Path),
+			Icon:            item.Icon,
+			Order:           optionalIntPointer(item.Order),
+			Permission:      item.Permission,
 		})
 	}
 

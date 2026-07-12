@@ -27,4 +27,5 @@ menu.domain.build.title: Build
 menu.domain.resources.title: Resources
 menu.domain.observability.title: Observability
 menu.domain.security.title: Security
+menu.section.access_control: Access Control
 menu.domain.platform.title: Platform

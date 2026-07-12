@@ -44,15 +44,17 @@ type bootstrapUserResponse struct {
 }
 
 type bootstrapMenuResponse struct {
-	Code       string `json:"code"`
-	ParentCode string `json:"parent_code,omitempty"`
-	Kind       string `json:"kind"`
-	Title      string `json:"title"`
-	TitleKey   string `json:"title_key,omitempty"`
-	Path       string `json:"path"`
-	Icon       string `json:"icon"`
-	Order      int    `json:"order"`
-	Permission string `json:"permission"`
+	Code            string `json:"code"`
+	ParentCode      string `json:"parent_code,omitempty"`
+	Kind            string `json:"kind"`
+	Title           string `json:"title"`
+	TitleKey        string `json:"title_key,omitempty"`
+	SectionKey      string `json:"section_key,omitempty"`
+	SectionTitleKey string `json:"section_title_key,omitempty"`
+	Path            string `json:"path"`
+	Icon            string `json:"icon"`
+	Order           int    `json:"order"`
+	Permission      string `json:"permission"`
 }
 
 type bootstrapLocaleSnapshot struct {
@@ -121,7 +123,7 @@ func (r bootstrapReader) ReadBootstrap(ctx context.Context, request *http.Reques
 	}
 	menus := make([]moduleapi.AuthBootstrapMenuItem, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
-		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, ParentCode: item.ParentCode, Kind: item.Kind, Title: item.Title, TitleKey: item.TitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
+		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, ParentCode: item.ParentCode, Kind: item.Kind, Title: item.Title, TitleKey: item.TitleKey, SectionKey: item.SectionKey, SectionTitleKey: item.SectionTitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
 	}
 	return moduleapi.AuthBootstrapPayload{
 		User: moduleapi.CurrentUser{
@@ -210,15 +212,17 @@ func filterBootstrapMenus(
 		}
 
 		response := bootstrapMenuResponse{
-			Code:       item.Code,
-			ParentCode: item.ParentCode,
-			Kind:       string(item.Kind),
-			Title:      item.Title,
-			TitleKey:   item.TitleKey,
-			Path:       item.Path,
-			Icon:       item.Icon,
-			Order:      item.Order,
-			Permission: item.Permission,
+			Code:            item.Code,
+			ParentCode:      item.ParentCode,
+			Kind:            string(item.Kind),
+			Title:           item.Title,
+			TitleKey:        item.TitleKey,
+			SectionKey:      item.SectionKey,
+			SectionTitleKey: item.SectionTitleKey,
+			Path:            item.Path,
+			Icon:            item.Icon,
+			Order:           item.Order,
+			Permission:      item.Permission,
 		}
 		key := bootstrapMenuIdentity(response)
 		if existing, ok := menusByKey[key]; ok {
@@ -326,6 +330,9 @@ func mergeBootstrapMenu(existing, next bootstrapMenuResponse) bootstrapMenuRespo
 	}
 	if merged.TitleKey == "" {
 		merged.TitleKey = next.TitleKey
+	}
+	if merged.SectionKey == "" {
+		merged.SectionKey, merged.SectionTitleKey = next.SectionKey, next.SectionTitleKey
 	}
 	if merged.Path == "" {
 		merged.Path = next.Path

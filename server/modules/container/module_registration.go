@@ -32,18 +32,12 @@ func registerMessages(localizer *i18n.Service) error {
 }
 
 func containerLocaleBackedMessageKeys() []string {
-	keys := make([]string, 0, len(containerMessageKeys))
-	for _, key := range containerMessageKeys {
-		if key == containercontract.ContainerMenuTitle.String() {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	return keys
+	return append([]string(nil), containerMessageKeys...)
 }
 
 var containerMessageKeys = []string{
 	containercontract.ContainerMenuTitle.String(),
+	containercontract.ContainerListMenuTitle.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),
 	containercontract.ContainerRuntimePermissionDenied.String(),
@@ -197,14 +191,26 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 	}
 
 	registry.Register(menu.Item{
-		Code:                     "container.list",
+		Code:                     "docker",
 		ParentCode:               "domain.infrastructure",
-		Kind:                     menu.NodeKindEntry,
+		Kind:                     menu.NodeKindGroup,
 		Title:                    "",
 		TitleKey:                 containercontract.ContainerMenuTitle.String(),
-		SectionKey:               "runtime",
-		Path:                     containercontract.ContainerMenuPath,
+		SectionKey:               menu.RuntimeSectionKey,
+		SectionTitleKey:          containercontract.ContainerMenuSectionTitle.String(),
 		Icon:                     "docker",
+		Order:                    operationsMenuOrderRoot,
+		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+		Module:                   moduleName,
+	})
+	registry.Register(menu.Item{
+		Code:                     "container.list",
+		ParentCode:               "docker",
+		Kind:                     menu.NodeKindEntry,
+		Title:                    "",
+		TitleKey:                 containercontract.ContainerListMenuTitle.String(),
+		Path:                     containercontract.ContainerMenuPath,
+		Icon:                     "container",
 		Order:                    containerMenuOrderList,
 		Permission:               containercontract.ContainerViewPermission.String(),
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),

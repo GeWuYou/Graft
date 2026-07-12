@@ -175,8 +175,15 @@ function buildRouteMeta(
   metaPatch?: Partial<AppRouteMeta>,
   navigationAncestors?: NavigationAncestor[],
 ): AppRouteMeta {
+  const sectionKey = menu.section_key?.trim();
+  const sectionTitleKey = menu.section_title_key?.trim();
+  const navigationSection =
+    sectionKey && sectionTitleKey
+      ? { navigationSection: { key: sectionKey, title: localizeRouteTitle('', sectionTitleKey) } }
+      : {};
   return {
     ...withNavigationContext(metaPatch, navigationAncestors, localizeRouteTitle(menu.title, menu.title_key)),
+    ...navigationSection,
     title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,

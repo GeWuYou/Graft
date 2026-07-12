@@ -25,7 +25,7 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 			path:       "/security/roles",
 			titleKey:   rbaccontract.RoleListMenuTitle.String(),
 			icon:       "roles",
-			order:      3,
+			order:      4,
 			permission: rbaccontract.RoleReadPermission.String(),
 		},
 	)
@@ -39,7 +39,7 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 			path:       "/security/permissions",
 			titleKey:   rbaccontract.PermissionListMenuTitle.String(),
 			icon:       "permissions",
-			order:      4,
+			order:      5,
 			permission: rbaccontract.PermissionReadPermission.String(),
 		},
 	)

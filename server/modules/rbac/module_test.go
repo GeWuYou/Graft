@@ -77,8 +77,8 @@ func TestRegisterMessagesIncludesRolePermissionAuditKeys(t *testing.T) {
 		t.Fatalf("register rbac messages: %v", err)
 	}
 
-	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.RoleListMenuTitle.String(), "角色管理")
-	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.PermissionListMenuTitle.String(), "Permission Management")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.RoleListMenuTitle.String(), "角色")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.PermissionListMenuTitle.String(), "Permissions")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsAdded.String(), "角色权限已追加")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsRemoved.String(), "角色权限已移除")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.AuditRolePermissionsAdded.String(), "Role permissions added")
@@ -484,7 +484,7 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		path:       "/security/roles",
 		titleKey:   rbaccontract.RoleListMenuTitle.String(),
 		icon:       "roles",
-		order:      3,
+		order:      4,
 		permission: rbaccontract.RoleReadPermission.String(),
 	})
 	assertRBACMenuItem(t, menus[1], expectedRBACMenuItem{
@@ -494,7 +494,7 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		path:       "/security/permissions",
 		titleKey:   rbaccontract.PermissionListMenuTitle.String(),
 		icon:       "permissions",
-		order:      4,
+		order:      5,
 		permission: rbaccontract.PermissionReadPermission.String(),
 	})
 

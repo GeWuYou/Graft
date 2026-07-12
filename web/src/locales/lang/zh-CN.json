@@ -328,14 +328,17 @@
     },
     "security": {
       "users": {
-        "title": "用户管理"
+        "title": "用户"
       },
       "roles": {
-        "title": "角色管理"
+        "title": "角色"
       },
       "permissions": {
-        "title": "权限管理"
+        "title": "权限"
       }
+    },
+    "section": {
+      "access_control": "访问控制"
     },
     "role_list": {
       "title": "角色管理"

@@ -16,6 +16,9 @@
     "docker": {
       "title": "Docker"
     },
+    "container": {
+      "title": "容器"
+    },
     "section": {
       "runtime": "运行时"
     }

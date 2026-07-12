@@ -1,4 +1,5 @@
 menu.docker.title: Docker
+menu.container.title: 容器
 menu.section.runtime: 运行时
 ops.container.error.runtimeDisabled: 容器运行时访问未启用
 ops.container.error.runtimeSocketMissing: 容器运行时 socket 不存在

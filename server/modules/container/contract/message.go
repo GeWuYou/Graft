@@ -11,6 +11,8 @@ func (k MessageKey) String() string {
 const (
 	// ContainerMenuTitle identifies the Docker provider navigation title.
 	ContainerMenuTitle MessageKey = "menu.docker.title"
+	// ContainerListMenuTitle identifies the shortened container-list navigation title.
+	ContainerListMenuTitle MessageKey = "menu.container.title"
 	// ContainerMenuSectionTitle identifies the visual-only runtime sidebar section title.
 	ContainerMenuSectionTitle MessageKey = "menu.section.runtime"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.

@@ -1572,7 +1572,7 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("expected 1 audit menu item, got %#v", items)
 	}
-	assertAuditMenuItem(t, items[0], "audit.logs", "/security/audit", "menu.audit.logs.title", 202)
+	assertAuditMenuItem(t, items[0], "audit.logs", "/security/audit", "menu.audit.logs.title", 2)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs", nil)
 	request.Header.Set("Authorization", "Bearer token")

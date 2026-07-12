@@ -5,7 +5,6 @@ import { CONTAINER_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const listRouteTitle = localizeRouteTitleKey('container.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('container.route.list.breadcrumb');
-const runtimeSectionTitle = localizeRouteTitleKey('menu.section.runtime');
 const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
 
@@ -15,10 +14,6 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
     loadPage: () => import('./pages/list/index.vue'),
     meta: {
       tabGroup: 'infrastructure',
-      navigationSection: {
-        key: 'runtime',
-        title: runtimeSectionTitle,
-      },
       pageKind: 'list',
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
