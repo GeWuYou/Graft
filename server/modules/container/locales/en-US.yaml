@@ -1,4 +1,5 @@
 menu.docker.title: Docker
+menu.container.title: Containers
 menu.section.runtime: Runtime
 ops.container.error.runtimeDisabled: Container runtime access is not enabled
 ops.container.error.runtimeSocketMissing: Container runtime socket is missing

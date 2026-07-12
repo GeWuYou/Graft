@@ -14,7 +14,7 @@ Classify the proposed capability before editing any menu or UI route:
 1. Identify the user-managed object and its lifecycle owner.
 2. Classify it as exactly one of: domain object, shared resource, platform capability, object-detail capability, or global page.
 3. For a navigable domain object or platform capability, choose one canonical domain: Application, Infrastructure, Build, Resources, Observability, Security, or Platform.
-4. Choose a resource-oriented UI URL that describes the stable object, never the navigation group, Runtime technology, or creation source.
+4. Choose a `/<domain>/<resource>` UI URL for visible navigation entries. The resource must be stable; Runtime technology and creation source must not become URL hierarchy.
 5. Record the menu parent, route owner, permission owner, and whether it is a visible entry, an object-detail tab/action, or a global entry.
 
 Do not render an empty domain group. Build and Resources remain canonical domains even when they have no current authorized visible entries.
@@ -32,6 +32,8 @@ Apply these rules in order:
 - Terminal, files, logs, exec, shell, and console are object capabilities. Place them in the owning Host, Project, or Container detail instead of creating a first-level menu.
 - Notification Center is a global page, not a visible navigation domain entry.
 - Docker, Compose, Kubernetes, Helm, OCI, Git, SSH, and creation sources are implementation or pipeline attributes. They must not become navigation domains or URL hierarchy.
+
+Visible entry URLs use these domain slugs: `applications`, `infrastructure`, `build`, `resources`, `observability`, `security`, and `platform`. Domain groups themselves remain graph-only and have no route. Menu-external global pages may use their own dedicated URLs.
 
 ## Unresolved Placement
 

@@ -14,7 +14,7 @@ import (
 	auditcontract "graft/server/modules/audit/contract"
 )
 
-const auditMenuOrderLogs = 202
+const auditMenuOrderLogs = 2
 
 // registerAuditPermissions 注册审计模块的读取和管理权限条目。
 func registerAuditPermissions(registry *permission.Registry, moduleName string) {

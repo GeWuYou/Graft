@@ -1,5 +1,5 @@
 menu.monitor.overview.title: Overview
-menu.monitor.runtime.title: Runtime
+menu.monitor.serviceStatus.title: Service Status
 menu.monitor.dependencies.title: Dependencies
 monitor.evidence.auditUnavailable.title: Audit evidence is unavailable
 dashboard.widget.monitorSystemHealth.title: System Health

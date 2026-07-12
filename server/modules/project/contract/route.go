@@ -78,17 +78,17 @@ const (
 	// ProjectDeployRoute identifies the managed configuration deploy route fragment.
 	ProjectDeployRoute = "/:id/deploy"
 	// ProjectMenuRootPath identifies the web menu root path for operations.
-	ProjectMenuRootPath = "/projects"
+	ProjectMenuRootPath = "/applications/projects"
 	// ProjectMenuPath identifies the canonical web menu path for Compose project management.
-	ProjectMenuPath = "/projects"
+	ProjectMenuPath = ProjectMenuRootPath
 	// ProjectCreationMenuPath identifies the global creation-method selector route path.
-	ProjectCreationMenuPath = "/projects/create"
+	ProjectCreationMenuPath = ProjectMenuRootPath + "/create"
 	// ProjectBlankCreateMenuPath identifies the blank-project create route path.
-	ProjectBlankCreateMenuPath = "/projects/create/blank"
+	ProjectBlankCreateMenuPath = ProjectCreationMenuPath + "/blank"
 	// ProjectTemplateCreateMenuPath identifies the template source create route path.
-	ProjectTemplateCreateMenuPath = "/projects/create/template"
+	ProjectTemplateCreateMenuPath = ProjectCreationMenuPath + "/template"
 	// ProjectImportCreateMenuPath identifies the import-project create route path.
-	ProjectImportCreateMenuPath = "/projects/create/import"
+	ProjectImportCreateMenuPath = ProjectCreationMenuPath + "/import"
 	// ProjectDiscoveryCandidatesMenuPath identifies the hidden discovery-candidate preview route path.
-	ProjectDiscoveryCandidatesMenuPath = "/projects/create/discovery"
+	ProjectDiscoveryCandidatesMenuPath = ProjectCreationMenuPath + "/discovery"
 )

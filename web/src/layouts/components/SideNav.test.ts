@@ -351,8 +351,8 @@ describe('SideNav', () => {
   });
 
   it('expands bootstrap menu codes without normalizing their submenu values as URLs', async () => {
-    activePathState.value = '/scheduled-tasks';
-    routeState.fullPath = '/scheduled-tasks';
+    activePathState.value = '/platform/scheduled-tasks';
+    routeState.fullPath = '/platform/scheduled-tasks';
     const wrapper = mount(SideNav, {
       props: {
         isCompact: false,
@@ -362,7 +362,7 @@ describe('SideNav', () => {
           {
             path: 'domain.platform',
             meta: {
-              navigationTargetPath: '/scheduled-tasks',
+              navigationTargetPath: '/platform/scheduled-tasks',
               title: {
                 'zh-CN': '平台',
                 'en-US': 'Platform',
@@ -372,7 +372,7 @@ describe('SideNav', () => {
               {
                 path: 'scheduled-task.list',
                 meta: {
-                  navigationTargetPath: '/scheduled-tasks',
+                  navigationTargetPath: '/platform/scheduled-tasks',
                   title: {
                     'zh-CN': '定时任务',
                     'en-US': 'Scheduled Tasks',

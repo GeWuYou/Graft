@@ -48,7 +48,7 @@ const (
 	// DockerSystemRoute is the Docker system information route fragment.
 	DockerSystemRoute = "/system"
 	// ContainerMenuRootPath is the web menu root path for operations.
-	ContainerMenuRootPath = "/containers"
+	ContainerMenuRootPath = "/infrastructure/docker/containers"
 	// ContainerMenuPath is the web menu path for container management.
-	ContainerMenuPath = "/containers"
+	ContainerMenuPath = "/infrastructure/docker/containers"
 )

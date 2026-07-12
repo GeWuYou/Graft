@@ -3,7 +3,7 @@
  *
  */
 export const USER_ROUTE_PATH = {
-  LIST: '/users',
+  LIST: '/security/users',
 } as const;
 
 /**

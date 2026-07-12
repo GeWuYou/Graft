@@ -356,7 +356,7 @@ describe('LayoutContent', () => {
     storeState.tabsRouterStore.tabRouters = [
       createTab('/', 'RootEntry', true),
       createTab('/server/runtime', 'ServerRuntime'),
-      createTab('/audit/logs', 'AuditLogs'),
+      createTab('/security/audit', 'AuditLogs'),
     ];
     storeState.tabsRouterStore.closeAllClosableTabs.mockImplementation(() => {
       storeState.tabsRouterStore.tabRouters = storeState.tabsRouterStore.tabRouters.filter(
@@ -558,12 +558,12 @@ describe('LayoutContent', () => {
   it('navigates to the selected route when a tab changes', async () => {
     const wrapper = mountLayoutContent();
 
-    wrapper.findComponent(TTabsStub).vm.$emit('change', '/audit/logs');
+    wrapper.findComponent(TTabsStub).vm.$emit('change', '/security/audit');
     await nextTick();
 
-    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith('/audit/logs');
+    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith('/security/audit');
     expect(routerMock.push).toHaveBeenCalledWith({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: undefined,
     });
   });
@@ -591,12 +591,12 @@ describe('LayoutContent', () => {
     await flushPromises();
     await nextTick();
 
-    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith('/audit/logs');
+    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith('/security/audit');
     expect(routerMock.push).toHaveBeenCalledWith({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: undefined,
     });
-    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith('/audit/logs');
-    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith('/audit/logs');
+    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith('/security/audit');
+    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith('/security/audit');
   });
 });

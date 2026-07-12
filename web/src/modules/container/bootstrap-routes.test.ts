@@ -6,7 +6,7 @@ describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
     expect(containerBootstrapRouteRegistrations).toHaveLength(1);
     expect(containerBootstrapRouteRegistrations[0]).toMatchObject({
-      menuPath: '/containers',
+      menuPath: '/infrastructure/docker/containers',
       routeName: 'ContainerList',
     });
   });
@@ -14,13 +14,6 @@ describe('container bootstrap route registrations', () => {
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
     expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
       tabGroup: 'infrastructure',
-      navigationSection: {
-        key: 'runtime',
-        title: {
-          'zh-CN': '运行时',
-          'en-US': 'Runtime',
-        },
-      },
       semanticTitle: {
         'zh-CN': '容器管理',
         'en-US': 'Containers',
@@ -43,7 +36,7 @@ describe('container bootstrap route registrations', () => {
 
     expect(containerGlobalRouteRegistrations).toHaveLength(2);
     expect(containerGlobalRouteRegistrations[1]).toMatchObject({
-      path: '/containers/:id',
+      path: '/infrastructure/docker/containers/:id',
       pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
       meta: {

@@ -344,7 +344,7 @@ describe('request auth handling', () => {
       registerAuthSessionBridge(mockUserStore);
       const callUrls: string[] = [];
       Object.assign(window.location, {
-        pathname: '/users',
+        pathname: '/security/users',
         search: '?tab=active',
         hash: '#detail',
       });
@@ -365,7 +365,7 @@ describe('request auth handling', () => {
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
       expect(callUrls).toEqual([USERS_API_PATH]);
       expect(callUrls).not.toContain(AUTH_API_PATH.REFRESH);
-      expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers%3Ftab%3Dactive%23detail');
+      expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fsecurity%2Fusers%3Ftab%3Dactive%23detail');
     },
   );
 
@@ -399,7 +399,7 @@ describe('request auth handling', () => {
     const { setAccessToken } = await import('@/utils/auth-state');
     registerAuthSessionBridge(mockUserStore);
     Object.assign(window.location, {
-      pathname: '/users',
+      pathname: '/security/users',
       search: '',
       hash: '',
     });
@@ -420,7 +420,7 @@ describe('request auth handling', () => {
 
     setAccessToken('stale-token');
     localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
-    window.history.pushState({}, '', '/users');
+    window.history.pushState({}, '', '/security/users');
 
     await expect(request.get({ url: USERS_API_PATH })).rejects.toMatchObject({
       code: API_CODE.AUTH_TOKEN_EXPIRED,
@@ -429,7 +429,7 @@ describe('request auth handling', () => {
 
     expect(callUrls).toEqual([USERS_API_PATH, AUTH_API_PATH.REFRESH]);
     expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
-    expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers');
+    expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fsecurity%2Fusers');
   });
 
   it('preserves the restricted session when refresh is rejected during forced password change', async () => {
@@ -525,7 +525,7 @@ describe('request auth handling', () => {
       const { setAccessToken } = await import('@/utils/auth-state');
       registerAuthSessionBridge(mockUserStore);
       Object.assign(window.location, {
-        pathname: '/users',
+        pathname: '/security/users',
         search: '',
         hash: '',
       });
@@ -546,7 +546,7 @@ describe('request auth handling', () => {
 
       setAccessToken('stale-token');
       localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
-      window.history.pushState({}, '', '/users');
+      window.history.pushState({}, '', '/security/users');
 
       await expect(request.get({ url: USERS_API_PATH })).rejects.toMatchObject({
         code,
@@ -555,7 +555,7 @@ describe('request auth handling', () => {
 
       expect(callUrls).toEqual([USERS_API_PATH, AUTH_API_PATH.REFRESH]);
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
-      expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers');
+      expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fsecurity%2Fusers');
     },
   );
 });

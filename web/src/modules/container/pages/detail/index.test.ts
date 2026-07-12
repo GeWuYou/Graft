@@ -1211,7 +1211,7 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         resource_id: 'ff007d095ed9faafdf39957cf4e2134dc9644a935c0e8d94bc3e599bcc518edb',
         resource_name: 'graft-web',

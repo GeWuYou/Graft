@@ -25,21 +25,21 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      path: '/users',
+      path: '/security/users',
       name: 'UserList',
       meta: {
         keepAlive: true,
       },
     });
 
-    tabsRouterStore.startTabRefresh('/users');
-    tabsRouterStore.setPageSnapshot('/users', { filters: { keyword: 'alice' } });
+    tabsRouterStore.startTabRefresh('/security/users');
+    tabsRouterStore.setPageSnapshot('/security/users', { filters: { keyword: 'alice' } });
     expect(tabsRouterStore.refreshing).toBe(true);
-    expect(tabsRouterStore.refreshingTabKey).toBe('/users');
-    expect(tabsRouterStore.refreshNonceByTabKey['/users']).toBe(1);
+    expect(tabsRouterStore.refreshingTabKey).toBe('/security/users');
+    expect(tabsRouterStore.refreshNonceByTabKey['/security/users']).toBe(1);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(false);
 
-    tabsRouterStore.finishTabRefresh('/users');
+    tabsRouterStore.finishTabRefresh('/security/users');
     expect(tabsRouterStore.refreshing).toBe(false);
     expect(tabsRouterStore.refreshingTabKey).toBeUndefined();
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
@@ -49,29 +49,29 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/users',
-      path: '/users',
+      tabKey: '/security/users',
+      path: '/security/users',
       name: 'UserList',
     });
-    tabsRouterStore.setPageSnapshot('/users', { filters: { keyword: 'alice' } });
+    tabsRouterStore.setPageSnapshot('/security/users', { filters: { keyword: 'alice' } });
 
-    tabsRouterStore.startTabRefresh('/users');
+    tabsRouterStore.startTabRefresh('/security/users');
 
-    expect(tabsRouterStore.getPageSnapshot('/users')).toBeUndefined();
+    expect(tabsRouterStore.getPageSnapshot('/security/users')).toBeUndefined();
   });
 
   it('heals persisted refresh residue on startup', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      path: '/users',
+      path: '/security/users',
       name: 'UserList',
       meta: {
         keepAlive: true,
       },
     });
 
-    tabsRouterStore.startTabRefresh('/users');
+    tabsRouterStore.startTabRefresh('/security/users');
     expect(tabsRouterStore.refreshing).toBe(true);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(false);
 
@@ -86,16 +86,16 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/users',
-      path: '/users',
+      tabKey: '/security/users',
+      path: '/security/users',
       name: 'UserList',
     });
 
-    tabsRouterStore.startTabRefresh('/users');
-    tabsRouterStore.subtractCurrentTabRouter({ tabKey: '/users', path: '', routeIdx: 1 });
+    tabsRouterStore.startTabRefresh('/security/users');
+    tabsRouterStore.subtractCurrentTabRouter({ tabKey: '/security/users', path: '', routeIdx: 1 });
     tabsRouterStore.healPersistedState();
 
-    expect(tabsRouterStore.refreshNonceByTabKey['/users']).toBeUndefined();
+    expect(tabsRouterStore.refreshNonceByTabKey['/security/users']).toBeUndefined();
     expect(tabsRouterStore.refreshingTabKey).toBeUndefined();
   });
 
@@ -120,12 +120,12 @@ describe('useTabsRouterStore', () => {
       title: { 'en-US': 'Access Control / Permissions', 'zh-CN': '安全 / 访问控制 - 权限管理' },
     });
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/permissions',
-      path: '/permissions',
+      tabKey: '/security/permissions',
+      path: '/security/permissions',
       name: 'PermissionList',
       title: { 'en-US': 'Access Control / Permissions', 'zh-CN': '安全 / 访问控制 - 权限管理' },
     });
-    tabsRouterStore.setActiveTabKey('/permissions');
+    tabsRouterStore.setActiveTabKey('/security/permissions');
 
     tabsRouterStore.healPersistedState();
 
@@ -236,8 +236,8 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
+      tabKey: '/security/audit',
+      path: '/security/audit',
       name: 'AuditLogs',
     });
     tabsRouterStore.appendTabRouterList({
@@ -248,7 +248,7 @@ describe('useTabsRouterStore', () => {
 
     tabsRouterStore.togglePinnedTab('/audit/overview');
 
-    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview', '/audit/logs']);
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview', '/security/audit']);
     expect(tabsRouterStore.tabRouters[1]?.isPinned).toBe(true);
     expect(localStorage.getItem('tabs:pinned')).toBe(JSON.stringify(['/audit/overview']));
   });
@@ -390,8 +390,8 @@ describe('useTabsRouterStore', () => {
       name: 'AuditOverview',
     });
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
+      tabKey: '/security/audit',
+      path: '/security/audit',
       name: 'AuditLogs',
     });
     tabsRouterStore.appendTabRouterList({
@@ -404,7 +404,7 @@ describe('useTabsRouterStore', () => {
     tabsRouterStore.closeAllClosableTabs();
 
     expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview']);
-    expect(tabsRouterStore.closedTabs.map((route) => route.path)).toEqual(['/audit/logs', '/access/logs']);
+    expect(tabsRouterStore.closedTabs.map((route) => route.path)).toEqual(['/security/audit', '/access/logs']);
   });
 
   it('resolves the preserved home tab after closing every unpinned business tab', () => {
@@ -438,8 +438,8 @@ describe('useTabsRouterStore', () => {
       name: 'AuditOverview',
     });
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
+      tabKey: '/security/audit',
+      path: '/security/audit',
       name: 'AuditLogs',
     });
     tabsRouterStore.appendTabRouterList({
@@ -449,9 +449,9 @@ describe('useTabsRouterStore', () => {
     });
     tabsRouterStore.togglePinnedTab('/audit/overview');
 
-    tabsRouterStore.subtractTabRouterOther({ path: '/audit/logs', routeIdx: 2 });
+    tabsRouterStore.subtractTabRouterOther({ path: '/security/audit', routeIdx: 2 });
 
-    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview', '/audit/logs']);
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/audit/overview', '/security/audit']);
   });
 
   it('reopens the most recently closed tab with route state', () => {
@@ -484,7 +484,7 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     Array.from({ length: 22 }).forEach((_, index) => {
-      const tabPath = `/audit/logs/${index}`;
+      const tabPath = `/security/audit/${index}`;
       tabsRouterStore.appendTabRouterList({
         tabKey: tabPath,
         path: tabPath,
@@ -494,17 +494,17 @@ describe('useTabsRouterStore', () => {
     });
 
     expect(tabsRouterStore.closedTabs).toHaveLength(20);
-    expect(tabsRouterStore.closedTabs[0]?.path).toBe('/audit/logs/2');
-    expect(tabsRouterStore.closedTabs[19]?.path).toBe('/audit/logs/21');
+    expect(tabsRouterStore.closedTabs[0]?.path).toBe('/security/audit/2');
+    expect(tabsRouterStore.closedTabs[19]?.path).toBe('/security/audit/21');
   });
 
   it('duplicates a tab with a distinct tab key and copied route state', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
-      fullPath: '/audit/logs?scope=failed-auth',
+      tabKey: '/security/audit',
+      path: '/security/audit',
+      fullPath: '/security/audit?scope=failed-auth',
       name: 'AuditLogs',
       query: {
         scope: 'failed-auth',
@@ -515,10 +515,10 @@ describe('useTabsRouterStore', () => {
       },
     });
 
-    const duplicated = tabsRouterStore.duplicateTab('/audit/logs');
+    const duplicated = tabsRouterStore.duplicateTab('/security/audit');
 
-    expect(duplicated?.path).toBe('/audit/logs');
-    expect(duplicated?.tabKey).not.toBe('/audit/logs');
+    expect(duplicated?.path).toBe('/security/audit');
+    expect(duplicated?.tabKey).not.toBe('/security/audit');
     expect(duplicated?.query).toEqual({ scope: 'failed-auth' });
     expect(duplicated?.title?.[LOCALE.ZH_CN]).toBe('审计日志(2)');
     expect(tabsRouterStore.tabRouters).toHaveLength(3);
@@ -528,11 +528,11 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
+      tabKey: '/security/audit',
+      path: '/security/audit',
       name: 'AuditLogs',
     });
-    tabsRouterStore.setPageSnapshot('/audit/logs', {
+    tabsRouterStore.setPageSnapshot('/security/audit', {
       filters: {
         keyword: 'failed-auth',
       },
@@ -542,7 +542,7 @@ describe('useTabsRouterStore', () => {
       },
     });
 
-    const duplicated = tabsRouterStore.duplicateTab('/audit/logs');
+    const duplicated = tabsRouterStore.duplicateTab('/security/audit');
     const duplicatedSnapshot = tabsRouterStore.getPageSnapshot<{
       filters: { keyword: string };
       pagination: { current: number; pageSize: number };
@@ -558,7 +558,7 @@ describe('useTabsRouterStore', () => {
       },
     });
 
-    tabsRouterStore.setPageSnapshot('/audit/logs', {
+    tabsRouterStore.setPageSnapshot('/security/audit', {
       filters: {
         keyword: 'source-only',
       },
@@ -571,8 +571,8 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
+      tabKey: '/security/audit',
+      path: '/security/audit',
       name: 'AuditLogs',
     });
     tabsRouterStore.appendTabRouterList({
@@ -580,12 +580,12 @@ describe('useTabsRouterStore', () => {
       path: '/access/logs',
       name: 'AccessLogs',
     });
-    tabsRouterStore.setPageSnapshot('/audit/logs', { filters: { keyword: 'audit' } });
+    tabsRouterStore.setPageSnapshot('/security/audit', { filters: { keyword: 'audit' } });
     tabsRouterStore.setPageSnapshot('/access/logs', { filters: { keyword: 'access' } });
 
-    tabsRouterStore.subtractCurrentTabRouter({ tabKey: '/audit/logs', path: '/audit/logs', routeIdx: 1 });
+    tabsRouterStore.subtractCurrentTabRouter({ tabKey: '/security/audit', path: '/security/audit', routeIdx: 1 });
 
-    expect(tabsRouterStore.getPageSnapshot('/audit/logs')).toBeUndefined();
+    expect(tabsRouterStore.getPageSnapshot('/security/audit')).toBeUndefined();
     expect(tabsRouterStore.getPageSnapshot('/access/logs')).toEqual({ filters: { keyword: 'access' } });
   });
 
@@ -614,17 +614,17 @@ describe('useTabsRouterStore', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
-      tabKey: '/audit/logs',
-      path: '/audit/logs',
-      fullPath: '/audit/logs?scope=failed-auth',
+      tabKey: '/security/audit',
+      path: '/security/audit',
+      fullPath: '/security/audit?scope=failed-auth',
       name: 'AuditLogs',
     });
 
-    const duplicated = tabsRouterStore.duplicateTab('/audit/logs');
+    const duplicated = tabsRouterStore.duplicateTab('/security/audit');
     tabsRouterStore.setActiveTabKey(duplicated?.tabKey ?? '');
     tabsRouterStore.setActiveRoute({
-      path: '/audit/logs',
-      fullPath: '/audit/logs?scope=failed-auth',
+      path: '/security/audit',
+      fullPath: '/security/audit?scope=failed-auth',
     } as never);
 
     expect(tabsRouterStore.activeTabKey).toBe(duplicated?.tabKey);

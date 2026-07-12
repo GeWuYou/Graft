@@ -10,9 +10,9 @@ const searchItems = [
   {
     key: 'announcement-center',
     module: 'announcement',
-    navigationPath: '/announcements',
+    navigationPath: '/platform/announcements',
     parentTitles: ['Operations'],
-    path: '/announcements',
+    path: '/platform/announcements',
     routeName: 'AnnouncementCenterIndex',
     title: 'Announcement Center',
     titleKey: 'announcement.center.title',
@@ -195,7 +195,7 @@ describe('GlobalMenuSearch', () => {
     result!.click();
     await nextTick();
 
-    expect(pushMock).toHaveBeenCalledWith('/announcements');
+    expect(pushMock).toHaveBeenCalledWith('/platform/announcements');
     expect(document.body.querySelector('.global-menu-search__panel-layer')).toBeNull();
 
     wrapper.unmount();

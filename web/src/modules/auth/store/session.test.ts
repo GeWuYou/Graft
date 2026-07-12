@@ -255,9 +255,9 @@ describe('useAuthSessionStore password change state', () => {
     const { useAuthSessionStore } = await loadAuthSessionStore();
     const store = useAuthSessionStore();
 
-    store.setPendingRestrictedRedirect('/users?tab=active');
+    store.setPendingRestrictedRedirect('/security/users?tab=active');
 
-    expect(store.consumePendingRestrictedRedirect('/dashboard')).toBe('/users?tab=active');
+    expect(store.consumePendingRestrictedRedirect('/dashboard')).toBe('/security/users?tab=active');
     expect(store.consumePendingRestrictedRedirect('/dashboard')).toBe('/dashboard');
   });
 });

@@ -19,41 +19,47 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 		t,
 		menus[0],
 		expectedRBACMenuItem{
-			code:       "role.list",
-			parentCode: "domain.security",
-			kind:       menu.NodeKindEntry,
-			path:       "/roles",
-			titleKey:   rbaccontract.RoleListMenuTitle.String(),
-			icon:       "roles",
-			order:      3,
-			permission: rbaccontract.RoleReadPermission.String(),
+			code:            "role.list",
+			parentCode:      "domain.security",
+			kind:            menu.NodeKindEntry,
+			path:            "/security/roles",
+			titleKey:        rbaccontract.RoleListMenuTitle.String(),
+			icon:            "roles",
+			order:           4,
+			permission:      rbaccontract.RoleReadPermission.String(),
+			sectionKey:      menu.AccessControlSectionKey,
+			sectionTitleKey: menu.AccessControlSectionTitleKey,
 		},
 	)
 	assertRBACMenuItem(
 		t,
 		menus[1],
 		expectedRBACMenuItem{
-			code:       "permission.list",
-			parentCode: "domain.security",
-			kind:       menu.NodeKindEntry,
-			path:       "/permissions",
-			titleKey:   rbaccontract.PermissionListMenuTitle.String(),
-			icon:       "permissions",
-			order:      4,
-			permission: rbaccontract.PermissionReadPermission.String(),
+			code:            "permission.list",
+			parentCode:      "domain.security",
+			kind:            menu.NodeKindEntry,
+			path:            "/security/permissions",
+			titleKey:        rbaccontract.PermissionListMenuTitle.String(),
+			icon:            "permissions",
+			order:           5,
+			permission:      rbaccontract.PermissionReadPermission.String(),
+			sectionKey:      menu.AccessControlSectionKey,
+			sectionTitleKey: menu.AccessControlSectionTitleKey,
 		},
 	)
 }
 
 type expectedRBACMenuItem struct {
-	code       string
-	parentCode string
-	kind       menu.NodeKind
-	path       string
-	titleKey   string
-	icon       string
-	order      int
-	permission string
+	code            string
+	parentCode      string
+	kind            menu.NodeKind
+	path            string
+	titleKey        string
+	icon            string
+	order           int
+	permission      string
+	sectionKey      string
+	sectionTitleKey string
 }
 
 func assertRBACMenuItem(t *testing.T, item menu.Item, expected expectedRBACMenuItem) {
@@ -76,5 +82,8 @@ func assertRBACMenuItem(t *testing.T, item menu.Item, expected expectedRBACMenuI
 	}
 	if item.Permission != expected.permission {
 		t.Fatalf("unexpected menu permission: %#v", item)
+	}
+	if item.SectionKey != expected.sectionKey || item.SectionTitleKey != expected.sectionTitleKey {
+		t.Fatalf("unexpected menu section metadata: %#v", item)
 	}
 }

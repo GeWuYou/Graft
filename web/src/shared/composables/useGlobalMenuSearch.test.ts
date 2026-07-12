@@ -21,21 +21,29 @@ describe('useGlobalMenuSearch helpers', () => {
         },
         children: [
           createRoute({
-            name: 'ContainerListIndex',
-            path: 'containers',
+            path: 'docker',
             meta: {
-              title: { 'zh-CN': '容器管理', 'en-US': 'Containers' },
-              titleKey: 'container.list.title',
+              title: { 'zh-CN': 'Docker', 'en-US': 'Docker' },
             },
-          }),
-          createRoute({
-            name: 'ContainerDetailIndex',
-            path: 'containers/:id',
-            meta: {
-              hidden: true,
-              title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
-              titleKey: 'container.detail.title',
-            },
+            children: [
+              createRoute({
+                name: 'ContainerListIndex',
+                path: 'containers',
+                meta: {
+                  title: { 'zh-CN': '容器管理', 'en-US': 'Containers' },
+                  titleKey: 'container.list.title',
+                },
+              }),
+              createRoute({
+                name: 'ContainerDetailIndex',
+                path: 'containers/:id',
+                meta: {
+                  hidden: true,
+                  title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
+                  titleKey: 'container.detail.title',
+                },
+              }),
+            ],
           }),
         ],
       }),
@@ -45,9 +53,9 @@ describe('useGlobalMenuSearch helpers', () => {
 
     expect(index).toEqual([
       expect.objectContaining({
-        navigationPath: '/infrastructure/containers',
-        parentTitles: ['基础设施'],
-        path: '/infrastructure/containers',
+        navigationPath: '/infrastructure/docker/containers',
+        parentTitles: ['基础设施', 'Docker'],
+        path: '/infrastructure/docker/containers',
         title: '容器管理',
       }),
     ]);

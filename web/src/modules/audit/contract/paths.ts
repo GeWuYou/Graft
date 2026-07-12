@@ -1,6 +1,6 @@
 export const AUDIT_ROUTE_PATH = {
-  LOGS: '/audit/logs',
-  INCIDENT_DETAIL: '/audit/incidents/:event_id',
+  LOGS: '/security/audit',
+  INCIDENT_DETAIL: '/security/audit/incidents/:event_id',
 } as const;
 
 export const AUDIT_API_PATH = {

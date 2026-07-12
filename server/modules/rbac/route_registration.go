@@ -24,8 +24,8 @@ type managementGuards struct {
 }
 
 const (
-	accessControlMenuOrderRoles       = 3
-	accessControlMenuOrderPermissions = 4
+	accessControlMenuOrderRoles       = 4
+	accessControlMenuOrderPermissions = 5
 )
 
 // registerRBACPermissions registers the RBAC permission definitions for a module.
@@ -38,28 +38,32 @@ func registerRBACPermissions(registry *permission.Registry, moduleName string) {
 // registerRBACMenu registers role and permission management entries in the menu registry.
 func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
-		Code:       "role.list",
-		ParentCode: "domain.security",
-		Kind:       menu.NodeKindEntry,
-		Title:      "",
-		TitleKey:   rbaccontract.RoleListMenuTitle.String(),
-		Path:       "/roles",
-		Icon:       "roles",
-		Order:      accessControlMenuOrderRoles,
-		Permission: rbaccontract.RoleReadPermission.String(),
-		Module:     moduleName,
+		Code:            "role.list",
+		ParentCode:      "domain.security",
+		Kind:            menu.NodeKindEntry,
+		Title:           "",
+		TitleKey:        rbaccontract.RoleListMenuTitle.String(),
+		SectionKey:      menu.AccessControlSectionKey,
+		SectionTitleKey: menu.AccessControlSectionTitleKey,
+		Path:            rbaccontract.RoleListMenuPath,
+		Icon:            "roles",
+		Order:           accessControlMenuOrderRoles,
+		Permission:      rbaccontract.RoleReadPermission.String(),
+		Module:          moduleName,
 	})
 	registry.Register(menu.Item{
-		Code:       "permission.list",
-		ParentCode: "domain.security",
-		Kind:       menu.NodeKindEntry,
-		Title:      "",
-		TitleKey:   rbaccontract.PermissionListMenuTitle.String(),
-		Path:       "/permissions",
-		Icon:       "permissions",
-		Order:      accessControlMenuOrderPermissions,
-		Permission: rbaccontract.PermissionReadPermission.String(),
-		Module:     moduleName,
+		Code:            "permission.list",
+		ParentCode:      "domain.security",
+		Kind:            menu.NodeKindEntry,
+		Title:           "",
+		TitleKey:        rbaccontract.PermissionListMenuTitle.String(),
+		SectionKey:      menu.AccessControlSectionKey,
+		SectionTitleKey: menu.AccessControlSectionTitleKey,
+		Path:            rbaccontract.PermissionListMenuPath,
+		Icon:            "permissions",
+		Order:           accessControlMenuOrderPermissions,
+		Permission:      rbaccontract.PermissionReadPermission.String(),
+		Module:          moduleName,
 	})
 }
 

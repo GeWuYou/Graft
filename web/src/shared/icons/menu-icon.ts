@@ -1,6 +1,7 @@
 import activity from '@iconify-icons/lucide/activity';
 import roles from '@iconify-icons/lucide/badge-check';
 import bell from '@iconify-icons/lucide/bell';
+import box from '@iconify-icons/lucide/box';
 import scheduledTasks from '@iconify-icons/lucide/calendar-clock';
 import clock from '@iconify-icons/lucide/clock';
 import database from '@iconify-icons/lucide/database';
@@ -30,6 +31,7 @@ const menuIcons = {
   announcements: bell,
   audit: history,
   build: terminal,
+  container: box,
   'cloud-computing': cloudComputing,
   config: settings,
   dashboard,

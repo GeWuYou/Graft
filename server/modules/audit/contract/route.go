@@ -29,11 +29,11 @@ const (
 	// AuditIncidentItem identifies the audit incident route fragment.
 	AuditIncidentItem = "/incidents/:" + AuditIncidentParam
 
-	// AuditMenuPath identifies the canonical audit root menu path.
-	AuditMenuPath = AuditGroup
+	// AuditMenuPath identifies the canonical audit UI menu path.
+	AuditMenuPath = "/security/audit"
 
 	// AuditLogsMenuPath identifies the canonical audit logs menu path.
-	AuditLogsMenuPath = AuditGroup + AuditCollection
+	AuditLogsMenuPath = AuditMenuPath
 
 	// AuditLogDetailAPIPath identifies the canonical audit log detail API path template.
 	AuditLogDetailAPIPath = AuditGroup + AuditCollection + "/{" + AuditLogParam + "}"

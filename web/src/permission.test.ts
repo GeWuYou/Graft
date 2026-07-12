@@ -36,7 +36,7 @@ const storeState = vi.hoisted(() => ({
     routesInitialized: true,
     asyncRoutes: [
       {
-        path: '/users',
+        path: '/security/users',
         name: 'UserList',
       },
     ] as RouteRecordRaw[],
@@ -160,14 +160,14 @@ describe('permission restricted session guard', () => {
     const next = vi.fn();
 
     await beforeEach(
-      { path: '/users', fullPath: '/users?tab=active', name: 'UserList', query: { tab: 'active' } },
+      { path: '/security/users', fullPath: '/security/users?tab=active', name: 'UserList', query: { tab: 'active' } },
       { path: '/', fullPath: '/', query: {} },
       next,
     );
 
     expect(startRouteLoading).toHaveBeenCalledTimes(1);
     expect(storeState.userStore.ensureBootstrap).toHaveBeenCalledTimes(1);
-    expect(storeState.userStore.setPendingRestrictedRedirect).toHaveBeenCalledWith('/users?tab=active');
+    expect(storeState.userStore.setPendingRestrictedRedirect).toHaveBeenCalledWith('/security/users?tab=active');
     expect(storeState.userStore.clearSessionState).not.toHaveBeenCalled();
     expect(storeState.permissionStore.restoreRoutes).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith({
@@ -252,7 +252,7 @@ describe('permission restricted session guard', () => {
         name: 'RestrictedSession',
         query: {},
       },
-      { path: '/users', fullPath: '/users', query: {} },
+      { path: '/security/users', fullPath: '/security/users', query: {} },
       next,
     );
 
@@ -263,7 +263,7 @@ describe('permission restricted session guard', () => {
   it('removes mounted bootstrap routes when the session returns to login', async () => {
     storeState.permissionStore.asyncRoutes = [
       {
-        path: '/users',
+        path: '/security/users',
         name: 'UserList',
         children: [
           {

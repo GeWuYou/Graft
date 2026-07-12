@@ -44,15 +44,17 @@ type bootstrapUserResponse struct {
 }
 
 type bootstrapMenuResponse struct {
-	Code       string `json:"code"`
-	ParentCode string `json:"parent_code,omitempty"`
-	Kind       string `json:"kind"`
-	Title      string `json:"title"`
-	TitleKey   string `json:"title_key,omitempty"`
-	Path       string `json:"path"`
-	Icon       string `json:"icon"`
-	Order      int    `json:"order"`
-	Permission string `json:"permission"`
+	Code            string `json:"code"`
+	ParentCode      string `json:"parent_code,omitempty"`
+	Kind            string `json:"kind"`
+	Title           string `json:"title"`
+	TitleKey        string `json:"title_key,omitempty"`
+	SectionKey      string `json:"section_key,omitempty"`
+	SectionTitleKey string `json:"section_title_key,omitempty"`
+	Path            string `json:"path"`
+	Icon            string `json:"icon"`
+	Order           int    `json:"order"`
+	Permission      string `json:"permission"`
 }
 
 type bootstrapLocaleSnapshot struct {
@@ -121,7 +123,7 @@ func (r bootstrapReader) ReadBootstrap(ctx context.Context, request *http.Reques
 	}
 	menus := make([]moduleapi.AuthBootstrapMenuItem, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
-		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, ParentCode: item.ParentCode, Kind: item.Kind, Title: item.Title, TitleKey: item.TitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
+		menus = append(menus, moduleapi.AuthBootstrapMenuItem{Code: item.Code, ParentCode: item.ParentCode, Kind: item.Kind, Title: item.Title, TitleKey: item.TitleKey, SectionKey: item.SectionKey, SectionTitleKey: item.SectionTitleKey, Path: item.Path, Icon: item.Icon, Order: item.Order, Permission: item.Permission})
 	}
 	return moduleapi.AuthBootstrapPayload{
 		User: moduleapi.CurrentUser{
@@ -184,7 +186,8 @@ func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[s
 }
 
 // filterBootstrapMenus 根据授予的权限和系统配置可见性过滤菜单项，去重并排序，同时移除没有可见子项的菜单组。
-// registry 为空时返回空切片；调用方在进入该过滤阶段前验证导航图。
+// filterBootstrapMenus 根据用户权限和配置开关筛选菜单，去重并移除没有可见子项的菜单组后排序返回。
+// registry 为 nil 时返回空切片。
 func filterBootstrapMenus(
 	ctx context.Context,
 	registry *menu.Registry,
@@ -210,15 +213,17 @@ func filterBootstrapMenus(
 		}
 
 		response := bootstrapMenuResponse{
-			Code:       item.Code,
-			ParentCode: item.ParentCode,
-			Kind:       string(item.Kind),
-			Title:      item.Title,
-			TitleKey:   item.TitleKey,
-			Path:       item.Path,
-			Icon:       item.Icon,
-			Order:      item.Order,
-			Permission: item.Permission,
+			Code:            item.Code,
+			ParentCode:      item.ParentCode,
+			Kind:            string(item.Kind),
+			Title:           item.Title,
+			TitleKey:        item.TitleKey,
+			SectionKey:      item.SectionKey,
+			SectionTitleKey: item.SectionTitleKey,
+			Path:            item.Path,
+			Icon:            item.Icon,
+			Order:           item.Order,
+			Permission:      item.Permission,
 		}
 		key := bootstrapMenuIdentity(response)
 		if existing, ok := menusByKey[key]; ok {
@@ -326,6 +331,9 @@ func mergeBootstrapMenu(existing, next bootstrapMenuResponse) bootstrapMenuRespo
 	}
 	if merged.TitleKey == "" {
 		merged.TitleKey = next.TitleKey
+	}
+	if merged.SectionKey == "" {
+		merged.SectionKey, merged.SectionTitleKey = next.SectionKey, next.SectionTitleKey
 	}
 	if merged.Path == "" {
 		merged.Path = next.Path

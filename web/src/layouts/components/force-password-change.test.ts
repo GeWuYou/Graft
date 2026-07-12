@@ -34,7 +34,7 @@ describe('completeRestrictedPasswordChange', () => {
     const callLog: string[] = [];
     const asyncRoutes: RouteRecordRaw[] = [
       {
-        path: '/users',
+        path: '/security/users',
         name: 'UserList',
         component: DummyPage,
       },
@@ -55,7 +55,7 @@ describe('completeRestrictedPasswordChange', () => {
       },
       consumePendingRestrictedRedirect: (fallbackPath) => {
         callLog.push(`consume:${fallbackPath}`);
-        return '/users?tab=active';
+        return '/security/users?tab=active';
       },
       replace: async (path) => {
         callLog.push(`replace:${path}`);
@@ -67,7 +67,7 @@ describe('completeRestrictedPasswordChange', () => {
       'bootstrap:true',
       'buildAsyncRoutes',
       'consume:/',
-      'replace:/users?tab=active',
+      'replace:/security/users?tab=active',
     ]);
     expect(authApiMocks.completeRequiredPasswordChange).toHaveBeenCalledWith({
       new_password: 'Password12345',
@@ -85,7 +85,7 @@ describe('completeRestrictedPasswordChange', () => {
       bootstrap: vi.fn(async () => undefined),
       buildAsyncRoutes: vi.fn(async () => [
         {
-          path: '/users',
+          path: '/security/users',
           name: 'UserList',
           component: DummyPage,
         },

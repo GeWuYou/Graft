@@ -85,15 +85,17 @@ type AuthRefreshResult struct {
 
 // AuthBootstrapMenuItem 描述 bootstrap 响应中的单个菜单快照。
 type AuthBootstrapMenuItem struct {
-	Code       string
-	ParentCode string
-	Kind       string
-	Title      string
-	TitleKey   string
-	Path       string
-	Icon       string
-	Order      int
-	Permission string
+	Code            string
+	ParentCode      string
+	Kind            string
+	Title           string
+	TitleKey        string
+	SectionKey      string
+	SectionTitleKey string
+	Path            string
+	Icon            string
+	Order           int
+	Permission      string
 }
 
 // AuthBootstrapLocaleSnapshot 描述 bootstrap 响应中的 locale 快照。

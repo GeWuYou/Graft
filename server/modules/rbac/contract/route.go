@@ -1,11 +1,16 @@
 package contract
 
-// JoinRoute combines a route group path with a route fragment.
+// JoinRoute 拼接路由组路径和路由片段，并返回组合后的路径。
 func JoinRoute(group, fragment string) string {
 	return group + fragment
 }
 
 const (
+	// RoleListMenuPath identifies the canonical role-management UI menu path.
+	RoleListMenuPath = "/security/roles"
+	// PermissionListMenuPath identifies the canonical permission-management UI menu path.
+	PermissionListMenuPath = "/security/permissions"
+
 	// RolesGroup identifies the role-management route group.
 	RolesGroup = "/roles"
 	// RoleCollection identifies the collection endpoint route fragment on the roles group.

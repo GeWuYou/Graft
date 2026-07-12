@@ -12,17 +12,21 @@ import type { WebModuleRegistration } from './types';
 describe('module registration aggregation', () => {
   it('exposes the actual module bootstrap registration map', () => {
     expect(getBootstrapRouteRegistration('/security/overview')?.routeName).toBe('SecurityOverview');
-    expect(getBootstrapRouteRegistration('/users')?.routeName).toBe('UserList');
-    expect(getBootstrapRouteRegistration('/roles')?.routeName).toBe('RoleList');
-    expect(getBootstrapRouteRegistration('/permissions')?.routeName).toBe('PermissionList');
-    expect(getBootstrapRouteRegistration('/system/overview')?.routeName).toBe('MonitorServerStatusOverview');
-    expect(getBootstrapRouteRegistration('/system/runtime')?.routeName).toBe('MonitorServerStatusRuntime');
-    expect(getBootstrapRouteRegistration('/system/dependencies')?.routeName).toBe('MonitorServerStatusDependencies');
-    expect(getBootstrapRouteRegistration('/system/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
-    expect(getBootstrapRouteRegistration('/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
-    expect(getBootstrapRouteRegistration('/system-config')?.routeName).toBe('SystemConfigList');
+    expect(getBootstrapRouteRegistration('/security/users')?.routeName).toBe('UserList');
+    expect(getBootstrapRouteRegistration('/security/roles')?.routeName).toBe('RoleList');
+    expect(getBootstrapRouteRegistration('/security/permissions')?.routeName).toBe('PermissionList');
+    expect(getBootstrapRouteRegistration('/observability/overview')?.routeName).toBe('MonitorServerStatusOverview');
+    expect(getBootstrapRouteRegistration('/observability/service-status')?.routeName).toBe(
+      'MonitorServerStatusRuntime',
+    );
+    expect(getBootstrapRouteRegistration('/observability/dependencies')?.routeName).toBe(
+      'MonitorServerStatusDependencies',
+    );
+    expect(getBootstrapRouteRegistration('/observability/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
+    expect(getBootstrapRouteRegistration('/platform/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
+    expect(getBootstrapRouteRegistration('/platform/system-config')?.routeName).toBe('SystemConfigList');
     expect(getBootstrapRouteRegistration('/audit/overview')).toBeUndefined();
-    expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
+    expect(getBootstrapRouteRegistration('/security/audit')?.routeName).toBe('AuditLogList');
     expect(getBootstrapRouteRegistration('/notifications')).toBeUndefined();
     expect(getGlobalRouteRegistrations().find((route) => route.path === '/notifications')?.routeName).toBe(
       'NotificationList',
@@ -35,7 +39,7 @@ describe('module registration aggregation', () => {
         moduleId: 'user',
         bootstrapRoutes: [
           {
-            menuPath: '/users',
+            menuPath: '/security/users',
             routeName: 'UserList',
             loadPage: async () => ({}),
           },
@@ -45,7 +49,7 @@ describe('module registration aggregation', () => {
         moduleId: 'audit',
         bootstrapRoutes: [
           {
-            menuPath: '/users',
+            menuPath: '/security/users',
             routeName: 'AuditList',
             loadPage: async () => ({}),
           },
@@ -62,7 +66,7 @@ describe('module registration aggregation', () => {
         moduleId: 'user',
         bootstrapRoutes: [
           {
-            menuPath: '/users',
+            menuPath: '/security/users',
             routeName: 'List',
             loadPage: async () => ({}),
           },
@@ -72,7 +76,7 @@ describe('module registration aggregation', () => {
         moduleId: 'rbac',
         bootstrapRoutes: [
           {
-            menuPath: '/roles',
+            menuPath: '/security/roles',
             routeName: 'List',
             loadPage: async () => ({}),
           },
@@ -89,7 +93,7 @@ describe('module registration aggregation', () => {
         moduleId: 'user',
         bootstrapRoutes: [
           {
-            menuPath: '/users',
+            menuPath: '/security/users',
             routeName: 'RoleIndex',
             loadPage: async () => ({}),
           },
@@ -99,7 +103,7 @@ describe('module registration aggregation', () => {
         moduleId: 'rbac',
         bootstrapRoutes: [
           {
-            menuPath: '/roles',
+            menuPath: '/security/roles',
             routeName: 'Role',
             loadPage: async () => ({}),
           },

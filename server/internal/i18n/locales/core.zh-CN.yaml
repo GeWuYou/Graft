@@ -27,4 +27,5 @@ menu.domain.build.title: 构建
 menu.domain.resources.title: 资源
 menu.domain.observability.title: 可观测性
 menu.domain.security.title: 安全
+menu.section.access_control: 访问控制
 menu.domain.platform.title: 平台

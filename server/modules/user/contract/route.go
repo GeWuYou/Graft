@@ -7,6 +7,9 @@ func JoinRoute(group, fragment string) string {
 
 //nolint:gosec // Route fragments are API contracts, not credentials.
 const (
+	// UserListMenuPath identifies the canonical user-management UI menu path.
+	UserListMenuPath = "/security/users"
+
 	// UsersGroup identifies the user-management route group.
 	UsersGroup = "/users"
 

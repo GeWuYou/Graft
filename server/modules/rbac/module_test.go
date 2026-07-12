@@ -77,8 +77,8 @@ func TestRegisterMessagesIncludesRolePermissionAuditKeys(t *testing.T) {
 		t.Fatalf("register rbac messages: %v", err)
 	}
 
-	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.RoleListMenuTitle.String(), "角色管理")
-	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.PermissionListMenuTitle.String(), "Permission Management")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.RoleListMenuTitle.String(), "角色")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.PermissionListMenuTitle.String(), "Permissions")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsAdded.String(), "角色权限已追加")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsRemoved.String(), "角色权限已移除")
 	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.AuditRolePermissionsAdded.String(), "Role permissions added")
@@ -478,24 +478,28 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		t.Fatalf("expected 2 registered menus, got %d", len(menus))
 	}
 	assertRBACMenuItem(t, menus[0], expectedRBACMenuItem{
-		code:       "role.list",
-		parentCode: "domain.security",
-		kind:       menu.NodeKindEntry,
-		path:       "/roles",
-		titleKey:   rbaccontract.RoleListMenuTitle.String(),
-		icon:       "roles",
-		order:      3,
-		permission: rbaccontract.RoleReadPermission.String(),
+		code:            "role.list",
+		parentCode:      "domain.security",
+		kind:            menu.NodeKindEntry,
+		path:            "/security/roles",
+		titleKey:        rbaccontract.RoleListMenuTitle.String(),
+		icon:            "roles",
+		order:           4,
+		permission:      rbaccontract.RoleReadPermission.String(),
+		sectionKey:      menu.AccessControlSectionKey,
+		sectionTitleKey: menu.AccessControlSectionTitleKey,
 	})
 	assertRBACMenuItem(t, menus[1], expectedRBACMenuItem{
-		code:       "permission.list",
-		parentCode: "domain.security",
-		kind:       menu.NodeKindEntry,
-		path:       "/permissions",
-		titleKey:   rbaccontract.PermissionListMenuTitle.String(),
-		icon:       "permissions",
-		order:      4,
-		permission: rbaccontract.PermissionReadPermission.String(),
+		code:            "permission.list",
+		parentCode:      "domain.security",
+		kind:            menu.NodeKindEntry,
+		path:            "/security/permissions",
+		titleKey:        rbaccontract.PermissionListMenuTitle.String(),
+		icon:            "permissions",
+		order:           5,
+		permission:      rbaccontract.PermissionReadPermission.String(),
+		sectionKey:      menu.AccessControlSectionKey,
+		sectionTitleKey: menu.AccessControlSectionTitleKey,
 	})
 
 	resolved, err := ctx.Services.Resolve((*moduleapi.Authorizer)(nil))

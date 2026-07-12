@@ -16,6 +16,9 @@
     "docker": {
       "title": "Docker"
     },
+    "container": {
+      "title": "Containers"
+    },
     "section": {
       "runtime": "Runtime"
     }

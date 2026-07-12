@@ -163,20 +163,27 @@ function buildNavigationNode(
 }
 
 /**
- * 根据菜单信息构建路由元数据。
+ * 根据菜单信息构建路由元数据，并补充导航上下文及可用的导航分区信息。
  *
- * @param menu - 用于生成标题、图标和排序信息的菜单
+ * @param menu - 用于生成标题、图标、排序和导航分区信息的菜单
  * @param metaPatch - 覆盖或补充默认路由元数据的内容
  * @param navigationAncestors - 菜单对应的导航祖先信息
- * @returns 包含菜单基础信息和导航上下文的路由元数据
+ * @returns 包含菜单基础信息、导航上下文和可选导航分区的路由元数据
  */
 function buildRouteMeta(
   menu: BootstrapMenu,
   metaPatch?: Partial<AppRouteMeta>,
   navigationAncestors?: NavigationAncestor[],
 ): AppRouteMeta {
+  const sectionKey = menu.section_key?.trim();
+  const sectionTitleKey = menu.section_title_key?.trim();
+  const navigationSection =
+    sectionKey && sectionTitleKey
+      ? { navigationSection: { key: sectionKey, title: localizeRouteTitle('', sectionTitleKey) } }
+      : {};
   return {
     ...withNavigationContext(metaPatch, navigationAncestors, localizeRouteTitle(menu.title, menu.title_key)),
+    ...navigationSection,
     title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,

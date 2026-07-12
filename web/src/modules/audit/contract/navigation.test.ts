@@ -15,7 +15,7 @@ describe('audit navigation context', () => {
         { view: 'overview', trendRange: '10m', anomalyKey: 'cpu_pressure', scopeRef: 'runtime:cpu' },
       ),
     ).toEqual({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         request_id: 'req-1',
         monitorView: 'overview',
@@ -43,7 +43,7 @@ describe('audit navigation context', () => {
     });
 
     expect(buildMonitorReturnLocation(query)).toEqual({
-      path: '/system/dependencies',
+      path: '/observability/dependencies',
       query: {
         monitorView: 'dependencies',
         monitorTrendRange: '30m',
@@ -62,7 +62,7 @@ describe('audit navigation context', () => {
         scopeRef: 'runtime:cpu',
       }),
     ).toEqual({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         actor: 'alice',
         monitorView: 'overview',
@@ -80,7 +80,7 @@ describe('audit navigation context', () => {
         { view: 'overview', trendRange: '10m', anomalyKey: 'cpu_pressure', scopeRef: 'runtime:cpu' },
       ),
     ).toEqual({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         audit_log_id: '33',
         monitorView: 'overview',

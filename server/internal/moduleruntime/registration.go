@@ -24,7 +24,7 @@ const (
 	routeModuleKeyParam = "module_key"
 
 	menuCodeRuntime  = "module-runtime.list"
-	menuRuntimePath  = "/system/modules"
+	menuRuntimePath  = "/observability/modules"
 	menuRuntimeOrder = 104
 
 	menuModulesRuntimeTitleKey = "menu.modulesRuntime.title"

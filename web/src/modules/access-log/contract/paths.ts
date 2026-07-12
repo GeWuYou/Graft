@@ -1,7 +1,7 @@
 export const ACCESS_LOG_ROUTE_PATH = {
-  ROOT: '/logs',
-  LIST: '/logs/access',
-  DETAIL: '/logs/access/:id',
+  ROOT: '/observability',
+  LIST: '/observability/access-logs',
+  DETAIL: '/observability/access-logs/:id',
 } as const;
 
 export const ACCESS_LOG_API_PATH = {

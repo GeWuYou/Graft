@@ -38,18 +38,18 @@ describe('router static runtime surface', () => {
 
   it('selects the canonical navigation target for hidden detail routes', async () => {
     const removeRoute = router.addRoute({
-      path: '/projects/:id/configuration',
+      path: '/applications/projects/:id/configuration',
       name: 'ProjectConfigurationSelection',
       component: () => Promise.resolve({ template: '<div />' }),
       meta: {
         hiddenMenu: true,
-        navigationTargetPath: '/projects',
+        navigationTargetPath: '/applications/projects',
       },
     });
 
     try {
-      await router.push('/projects/42/configuration');
-      expect(getActive()).toBe('/projects');
+      await router.push('/applications/projects/42/configuration');
+      expect(getActive()).toBe('/applications/projects');
     } finally {
       removeRoute();
     }

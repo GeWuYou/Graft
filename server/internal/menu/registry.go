@@ -27,6 +27,13 @@ const (
 	domainOrderObservability  = 50
 	domainOrderSecurity       = 60
 	domainOrderPlatform       = 70
+
+	// RuntimeSectionKey identifies the visual-only runtime sidebar section.
+	RuntimeSectionKey = "runtime"
+	// AccessControlSectionKey identifies the visual-only access-control sidebar section.
+	AccessControlSectionKey = "access-control"
+	// AccessControlSectionTitleKey identifies the localized access-control section title.
+	AccessControlSectionTitleKey = "menu.section.access_control"
 )
 
 // Item 表示一个由后端声明的菜单项。
@@ -37,11 +44,13 @@ type Item struct {
 	Kind       NodeKind
 	Title      string
 	TitleKey   string
-	// SectionKey optionally assigns an entry to a visual-only sidebar section.
+	// SectionKey optionally assigns an item to a visual-only sidebar section.
 	// It is display metadata, never a menu node, route, permission, or identity.
 	SectionKey string
-	Path       string
-	Icon       string
+	// SectionTitleKey is the stable localization key for SectionKey.
+	SectionTitleKey string
+	Path            string
+	Icon            string
 	// Order 是后端声明的 canonical 导航排序值；数值越小越靠前。
 	Order int
 	// Permission 记录访问该菜单所需的后端权限编码；留空表示暂不做权限门控。
@@ -102,7 +111,7 @@ func (r *Registry) Validate() error {
 	return validateCycles(byCode)
 }
 
-// validateItem 验证菜单项的代码唯一性、节点类型及路径配置，并检查分组项的专属约束。
+// validateItem 验证菜单项的代码唯一性、节点类型、路径及分区元数据配置。
 func validateItem(item Item, existing map[string]Item) error {
 	code := strings.TrimSpace(item.Code)
 	if code == "" {
@@ -122,19 +131,27 @@ func validateItem(item Item, existing map[string]Item) error {
 		if strings.TrimSpace(item.Path) == "" {
 			return fmt.Errorf("menu entry %q must declare a path", code)
 		}
-		return nil
+		return validateSectionMetadata(code, item)
 	default:
 		return fmt.Errorf("menu item %q has invalid kind %q", code, kind)
 	}
 }
 
-// validateGroupItem validates that a menu group does not declare a path or section key.
+// validateGroupItem validates that a menu group does not declare a path and has consistent section metadata.
 func validateGroupItem(code string, item Item) error {
 	if strings.TrimSpace(item.Path) != "" {
 		return fmt.Errorf("menu group %q must not declare a path", code)
 	}
-	if strings.TrimSpace(item.SectionKey) != "" {
-		return fmt.Errorf("menu group %q must not declare a section key", code)
+	return validateSectionMetadata(code, item)
+}
+
+// validateSectionMetadata 校验菜单项的侧边栏分区键和分区标题本地化键是否同时声明。
+// 两者仅声明其一时返回错误，否则返回 nil。
+func validateSectionMetadata(code string, item Item) error {
+	sectionKey := strings.TrimSpace(item.SectionKey)
+	titleKey := strings.TrimSpace(item.SectionTitleKey)
+	if (sectionKey == "") != (titleKey == "") {
+		return fmt.Errorf("menu item %q must declare both section key and section title key", code)
 	}
 	return nil
 }

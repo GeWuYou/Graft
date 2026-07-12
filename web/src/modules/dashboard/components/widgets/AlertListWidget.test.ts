@@ -100,7 +100,7 @@ describe('AlertListWidget', () => {
               count: 4,
               id: 'audit.auth-failures',
               level: 'warning',
-              route_location: '/audit/logs?preset=last_24h&business_category=auth_failures',
+              route_location: '/security/audit?preset=last_24h&business_category=auth_failures',
               action_label: 'View authentication failures',
               action_label_key: 'dashboard.widget.auditRiskEvents.authFailures.action',
               description: 'auth.token_expired',
@@ -113,7 +113,7 @@ describe('AlertListWidget', () => {
               count: 2,
               id: 'audit.permission-denials',
               level: 'warning',
-              route_location: '/audit/logs?preset=last_24h&scope=permission_denials',
+              route_location: '/security/audit?preset=last_24h&scope=permission_denials',
               description: 'auth.token_expired',
               description_key: 'dashboard.widget.auditRiskEvents.permissionDenials.description',
               title: 'Permission denials',
@@ -155,7 +155,7 @@ describe('AlertListWidget', () => {
     wrapper.findAllComponents(buttonStub)[1].vm.$emit('click');
     await wrapper.vm.$nextTick();
 
-    expect(routerMocks.push).toHaveBeenCalledWith('/audit/logs?preset=last_24h&scope=permission_denials');
+    expect(routerMocks.push).toHaveBeenCalledWith('/security/audit?preset=last_24h&scope=permission_denials');
   });
 
   it('opens explicit audit-log filters from security dashboard entries', async () => {
@@ -169,7 +169,7 @@ describe('AlertListWidget', () => {
               count: 3,
               id: 'audit.high-risk',
               level: 'error',
-              route_location: '/audit/logs?preset=last_24h&risk_levels=HIGH%2CCRITICAL',
+              route_location: '/security/audit?preset=last_24h&risk_levels=HIGH%2CCRITICAL',
               title: 'High-risk audit events',
               title_key: 'dashboard.widget.auditRiskEvents.highRisk.title',
             },
@@ -179,7 +179,7 @@ describe('AlertListWidget', () => {
               count: 5,
               id: 'audit.failed-operations',
               level: 'warning',
-              route_location: '/audit/logs?preset=last_24h&results=FAILED%2CDENIED%2CERROR',
+              route_location: '/security/audit?preset=last_24h&results=FAILED%2CDENIED%2CERROR',
               title: 'Failed operations',
               title_key: 'dashboard.widget.auditRiskEvents.failedOperations.title',
             },
@@ -205,7 +205,10 @@ describe('AlertListWidget', () => {
     wrapper.findAllComponents(buttonStub)[1].vm.$emit('click');
     await wrapper.vm.$nextTick();
 
-    expect(routerMocks.push).toHaveBeenNthCalledWith(1, '/audit/logs?preset=last_24h&risk_levels=HIGH%2CCRITICAL');
-    expect(routerMocks.push).toHaveBeenNthCalledWith(2, '/audit/logs?preset=last_24h&results=FAILED%2CDENIED%2CERROR');
+    expect(routerMocks.push).toHaveBeenNthCalledWith(1, '/security/audit?preset=last_24h&risk_levels=HIGH%2CCRITICAL');
+    expect(routerMocks.push).toHaveBeenNthCalledWith(
+      2,
+      '/security/audit?preset=last_24h&results=FAILED%2CDENIED%2CERROR',
+    );
   });
 });

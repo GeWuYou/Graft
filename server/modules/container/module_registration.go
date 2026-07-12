@@ -15,6 +15,8 @@ const (
 	containerMenuOrderList  = 51
 )
 
+// registerMessages verifies that all required container module messages are registered for the supported locales.
+// It returns an error when the localizer is unavailable or any required locale resource is missing.
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
@@ -31,19 +33,14 @@ func registerMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// containerLocaleBackedMessageKeys returns the message keys backed by localized resources.
 func containerLocaleBackedMessageKeys() []string {
-	keys := make([]string, 0, len(containerMessageKeys))
-	for _, key := range containerMessageKeys {
-		if key == containercontract.ContainerMenuTitle.String() {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	return keys
+	return append([]string(nil), containerMessageKeys...)
 }
 
 var containerMessageKeys = []string{
 	containercontract.ContainerMenuTitle.String(),
+	containercontract.ContainerListMenuTitle.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),
 	containercontract.ContainerRuntimePermissionDenied.String(),
@@ -190,21 +187,34 @@ func permissionItems(moduleName string) []permission.Item {
 // registerMenu 注册容器列表菜单项。
 // @param moduleName 菜单项所属的模块名称。
 // registerMenu 注册容器列表菜单项。
-// 注册成功时返回 nil；菜单注册器不可用时返回错误。
+// registerMenu 注册容器运行时菜单组及其容器列表入口。
+// 当菜单注册器不可用时返回错误，注册成功时返回 nil。
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
 
 	registry.Register(menu.Item{
-		Code:                     "container.list",
+		Code:                     "docker",
 		ParentCode:               "domain.infrastructure",
-		Kind:                     menu.NodeKindEntry,
+		Kind:                     menu.NodeKindGroup,
 		Title:                    "",
 		TitleKey:                 containercontract.ContainerMenuTitle.String(),
-		SectionKey:               "runtime",
-		Path:                     containercontract.ContainerMenuPath,
+		SectionKey:               menu.RuntimeSectionKey,
+		SectionTitleKey:          containercontract.ContainerMenuSectionTitle.String(),
 		Icon:                     "docker",
+		Order:                    operationsMenuOrderRoot,
+		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+		Module:                   moduleName,
+	})
+	registry.Register(menu.Item{
+		Code:                     "container.list",
+		ParentCode:               "docker",
+		Kind:                     menu.NodeKindEntry,
+		Title:                    "",
+		TitleKey:                 containercontract.ContainerListMenuTitle.String(),
+		Path:                     containercontract.ContainerMenuPath,
+		Icon:                     "container",
 		Order:                    containerMenuOrderList,
 		Permission:               containercontract.ContainerViewPermission.String(),
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),

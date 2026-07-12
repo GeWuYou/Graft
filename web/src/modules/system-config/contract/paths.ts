@@ -1,5 +1,5 @@
 export const SYSTEM_CONFIG_ROUTE_PATH = {
-  LIST: '/system-config',
+  LIST: '/platform/system-config',
 } as const;
 
 export const SYSTEM_CONFIG_API_PATH = {

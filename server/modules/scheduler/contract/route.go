@@ -24,5 +24,5 @@ const (
 	// ScheduledTaskRunDetailRoute identifies one run-history detail route fragment.
 	ScheduledTaskRunDetailRoute = "/runs/:runID"
 	// ScheduledTaskMenuPath identifies the canonical scheduled task menu path.
-	ScheduledTaskMenuPath = "/scheduled-tasks"
+	ScheduledTaskMenuPath = "/platform/scheduled-tasks"
 )

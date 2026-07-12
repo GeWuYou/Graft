@@ -2,7 +2,7 @@
   "menu": {
     "monitor": {
       "overview": { "title": "概览" },
-      "runtime": { "title": "运行时" },
+      "serviceStatus": { "title": "服务状态" },
       "dependencies": { "title": "依赖服务" }
     }
   },
@@ -13,16 +13,16 @@
         "breadcrumb": "概览"
       },
       "runtime": {
-        "title": "运行时",
-        "breadcrumb": "运行时"
+        "title": "服务状态",
+        "breadcrumb": "服务状态"
       },
       "dependencies": {
         "title": "依赖服务",
         "breadcrumb": "依赖服务"
       },
       "moduleRuntime": {
-        "title": "模块运行时",
-        "breadcrumb": "模块运行时"
+        "title": "模块",
+        "breadcrumb": "模块"
       }
     },
     "sectionTitle": "可观测性",

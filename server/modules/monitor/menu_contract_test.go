@@ -31,8 +31,8 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 	runtimeMenu := menus[1]
 	assertMenuItem(t, runtimeMenu, expectedMenuItem{
 		code:       "monitor.server-status.runtime",
-		titleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
-		path:       monitorcontract.ServerStatusRuntimeMenuPath,
+		titleKey:   monitorcontract.ServerStatusServiceStatusMenuTitle.String(),
+		path:       monitorcontract.ServerStatusServiceStatusMenuPath,
 		icon:       "runtime-overview",
 		order:      102,
 		permission: monitorcontract.ServerStatusReadPermission.String(),

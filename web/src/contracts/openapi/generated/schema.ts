@@ -3378,6 +3378,10 @@ export interface components {
       title: string;
       /** @description Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only. */
       title_key?: string;
+      /** @description Optional visual-only sidebar section identity. It never creates a route, permission, tab, breadcrumb, or menu node. */
+      section_key?: string;
+      /** @description Stable localization key for section_key. Required when section_key is present. */
+      section_title_key?: string;
       /** @description Required for entry nodes and absent for group nodes. */
       path?: string;
       icon: string;

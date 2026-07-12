@@ -279,7 +279,7 @@ describe('AuditIncidentPage', () => {
 
     await buttons[0]!.trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/system/overview',
+      path: '/observability/overview',
       query: {
         monitorView: 'overview',
         monitorTrendRange: '10m',
@@ -290,7 +290,7 @@ describe('AuditIncidentPage', () => {
 
     await buttons[1]!.trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/logs/access',
+      path: '/observability/access-logs',
       query: {
         request_id: 'req-42',
         monitorView: 'overview',
@@ -304,7 +304,7 @@ describe('AuditIncidentPage', () => {
     expect(evidenceButton).toBeTruthy();
     await evidenceButton!.trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         action_prefix: 'auth.',
         source: 'SECURITY_EVENT',

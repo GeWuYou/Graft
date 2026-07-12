@@ -13,8 +13,8 @@ const (
 	MonitorSectionTitle MessageKey = "monitor.sectionTitle"
 	// ServerStatusOverviewMenuTitle identifies the localized title for the monitor overview menu.
 	ServerStatusOverviewMenuTitle MessageKey = "menu.monitor.overview.title"
-	// ServerStatusRuntimeMenuTitle identifies the localized title for the monitor runtime menu.
-	ServerStatusRuntimeMenuTitle MessageKey = "menu.monitor.runtime.title"
+	// ServerStatusServiceStatusMenuTitle identifies the localized title for the service-status menu.
+	ServerStatusServiceStatusMenuTitle MessageKey = "menu.monitor.serviceStatus.title"
 	// ServerStatusDependenciesMenuTitle identifies the localized title for the monitor dependencies menu.
 	ServerStatusDependenciesMenuTitle MessageKey = "menu.monitor.dependencies.title"
 	// AuditEvidenceUnavailableTitle identifies unavailable audit evidence link titles.

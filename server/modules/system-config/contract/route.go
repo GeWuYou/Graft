@@ -10,5 +10,5 @@ const (
 	// SystemConfigResetRoute is the reset route fragment.
 	SystemConfigResetRoute = "/:key/reset"
 	// SystemConfigMenuPath is the web menu path for the system configuration page.
-	SystemConfigMenuPath = "/system-config"
+	SystemConfigMenuPath = "/platform/system-config"
 )

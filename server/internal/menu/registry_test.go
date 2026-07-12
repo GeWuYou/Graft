@@ -8,7 +8,8 @@ func TestRegistryValidateRejectsMalformedNavigationGraph(t *testing.T) {
 		items []Item
 	}{
 		{"group path", []Item{{Code: "group", Kind: NodeKindGroup, Path: "/unexpected"}}},
-		{"group section", []Item{{Code: "group", Kind: NodeKindGroup, SectionKey: "runtime"}}},
+		{"group incomplete section", []Item{{Code: "group", Kind: NodeKindGroup, SectionKey: "runtime"}}},
+		{"entry incomplete section", []Item{{Code: "entry", Kind: NodeKindEntry, Path: "/entries", SectionTitleKey: "menu.section.runtime"}}},
 		{"entry missing path", []Item{{Code: "entry", Kind: NodeKindEntry}}},
 		{"unknown parent", []Item{{Code: "entry", Kind: NodeKindEntry, Path: "/entries", ParentCode: "missing"}}},
 		{"entry parent", []Item{{Code: "entry", Kind: NodeKindEntry, Path: "/entries"}, {Code: "child", Kind: NodeKindEntry, Path: "/children", ParentCode: "entry"}}},
@@ -31,6 +32,22 @@ func TestRegistryValidateAcceptsExplicitDomainGraph(t *testing.T) {
 	registry := NewRegistry()
 	RegisterDomainGroups(registry)
 	registry.Register(Item{Code: "project.list", ParentCode: "domain.application", Kind: NodeKindEntry, Path: "/projects"})
+	if err := registry.Validate(); err != nil {
+		t.Fatalf("validate graph: %v", err)
+	}
+}
+
+func TestRegistryValidateAcceptsSectionedNestedGroup(t *testing.T) {
+	registry := NewRegistry()
+	RegisterDomainGroups(registry)
+	registry.Register(Item{
+		Code:            "docker",
+		ParentCode:      "domain.infrastructure",
+		Kind:            NodeKindGroup,
+		SectionKey:      RuntimeSectionKey,
+		SectionTitleKey: "menu.section.runtime",
+	})
+	registry.Register(Item{Code: "container.list", ParentCode: "docker", Kind: NodeKindEntry, Path: "/infrastructure/docker/containers"})
 	if err := registry.Validate(); err != nil {
 		t.Fatalf("validate graph: %v", err)
 	}

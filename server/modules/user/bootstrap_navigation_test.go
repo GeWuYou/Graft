@@ -12,7 +12,7 @@ import (
 func TestFilterBootstrapMenusPrunesUnauthorizedAndEmptyDomainGroups(t *testing.T) {
 	registry := menu.NewRegistry()
 	menu.RegisterDomainGroups(registry)
-	registry.Register(menu.Item{Code: "project.list", ParentCode: "domain.application", Kind: menu.NodeKindEntry, Path: "/projects", Permission: "project.read"})
+	registry.Register(menu.Item{Code: "project.list", ParentCode: "domain.application", Kind: menu.NodeKindEntry, Path: "/applications/projects", Permission: "project.read"})
 	menus := filterBootstrapMenus(context.Background(), registry, map[string]struct{}{}, nil)
 	if len(menus) != 0 {
 		t.Fatalf("expected all empty or unauthorized groups pruned, got %#v", menus)
@@ -34,6 +34,27 @@ func TestCompareBootstrapMenusUsesParentCodeForEqualOrder(t *testing.T) {
 	}
 	if compareBootstrapMenus(otherChild, child) >= 0 {
 		t.Fatalf("expected parent code to order equal-order entries")
+	}
+}
+
+func TestFilterBootstrapMenusPreservesVisualSectionMetadata(t *testing.T) {
+	registry := menu.NewRegistry()
+	menu.RegisterDomainGroups(registry)
+	registry.Register(menu.Item{
+		Code:            "user.list",
+		ParentCode:      "domain.security",
+		Kind:            menu.NodeKindEntry,
+		Path:            "/security/users",
+		Permission:      "user.read",
+		SectionKey:      menu.AccessControlSectionKey,
+		SectionTitleKey: menu.AccessControlSectionTitleKey,
+	})
+
+	menus := filterBootstrapMenus(context.Background(), registry, map[string]struct{}{"user.read": {}}, nil)
+	for _, item := range menus {
+		if item.Code == "user.list" && (item.SectionKey != menu.AccessControlSectionKey || item.SectionTitleKey != menu.AccessControlSectionTitleKey) {
+			t.Fatalf("expected access-control metadata, got %#v", item)
+		}
 	}
 }
 

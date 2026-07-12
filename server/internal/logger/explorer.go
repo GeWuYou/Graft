@@ -56,7 +56,7 @@ const (
 	AppLogReadPermission = "app_log.read"
 	// AppLogDeletePermission constrains explicit manual deletion of retained App Log rows.
 	AppLogDeletePermission   = "app_log.delete"
-	appLogMenuListPath       = "/logs/app"
+	appLogMenuListPath       = "/observability/application-logs"
 	appLogMenuCodeList       = "app-log.list"
 	appLogModuleOwner        = "core.logger"
 	appLogRouteGroup         = "/app-log"

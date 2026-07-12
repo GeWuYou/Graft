@@ -1,5 +1,5 @@
 export const ANNOUNCEMENT_ROUTE_PATH = {
-  MANAGEMENT: '/announcements',
+  MANAGEMENT: '/platform/announcements',
   USER_LIST: '/my-announcements',
 } as const;
 

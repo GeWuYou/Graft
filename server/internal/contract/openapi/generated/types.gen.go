@@ -4826,6 +4826,12 @@ type BootstrapMenu struct {
 	Path       *string `json:"path,omitempty"`
 	Permission string  `json:"permission"`
 
+	// SectionKey Optional visual-only sidebar section identity. It never creates a route, permission, tab, breadcrumb, or menu node.
+	SectionKey *string `json:"section_key,omitempty"`
+
+	// SectionTitleKey Stable localization key for section_key. Required when section_key is present.
+	SectionTitleKey *string `json:"section_title_key,omitempty"`
+
 	// Title Existing menu-title fallback text. Consumers should prefer title_key when present.
 	Title string `json:"title"`
 
@@ -7119,8 +7125,8 @@ type EnvelopedProjectSavedView struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedProjectSavedViewList defines model for enveloped-project-saved-view-list.
-type EnvelopedProjectSavedViewList struct {
+// EnvelopedProjectSavedViewListResponse defines model for enveloped-project-saved-view-list-response.
+type EnvelopedProjectSavedViewListResponse struct {
 	// Code Existing canonical response code.
 	Code string                       `json:"code"`
 	Data ProjectSavedViewListResponse `json:"data"`

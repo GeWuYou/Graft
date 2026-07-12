@@ -12,6 +12,10 @@ describe('localizeRouteTitle', () => {
       'zh-CN': '可观测性',
       'en-US': 'Observability',
     });
+    expect(localizeRouteTitle('', 'menu.monitor.serviceStatus.title')).toEqual({
+      'zh-CN': '服务状态',
+      'en-US': 'Service Status',
+    });
   });
 
   it('falls back to bootstrap title when title_key is missing or untranslated', () => {

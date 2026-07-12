@@ -30,7 +30,7 @@ describe('audit bootstrap route registrations', () => {
     expect(auditBootstrapRouteRegistrations[0]?.meta?.tabGroup).not.toBe(
       auditBootstrapRouteRegistrations[1]?.meta?.tabGroup,
     );
-    expect(auditBootstrapRouteRegistrations[0]?.menuPath).toBe('/audit/logs');
-    expect(auditBootstrapRouteRegistrations[1]?.menuPath).toBe('/audit/incidents/:event_id');
+    expect(auditBootstrapRouteRegistrations[0]?.menuPath).toBe('/security/audit');
+    expect(auditBootstrapRouteRegistrations[1]?.menuPath).toBe('/security/audit/incidents/:event_id');
   });
 });

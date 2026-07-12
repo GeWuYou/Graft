@@ -18,8 +18,9 @@ import (
 	usercontract "graft/server/modules/user/contract"
 )
 
-const userMenuOrderList = 2
+const userMenuOrderList = 3
 
+// registerUserPermissions 将用户模块的权限项注册到指定的权限注册表中。
 func registerUserPermissions(registry *permission.Registry, moduleName string) {
 	for _, item := range userPermissionItems(moduleName) {
 		registry.Register(item)
@@ -29,16 +30,18 @@ func registerUserPermissions(registry *permission.Registry, moduleName string) {
 // registerUserMenu registers the user list menu entry under the security domain.
 func registerUserMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
-		Code:       "user.list",
-		ParentCode: "domain.security",
-		Kind:       menu.NodeKindEntry,
-		Title:      "",
-		TitleKey:   usercontract.UserListMenuTitle.String(),
-		Path:       "/users",
-		Icon:       "users",
-		Order:      userMenuOrderList,
-		Permission: usercontract.UserReadPermission.String(),
-		Module:     moduleName,
+		Code:            "user.list",
+		ParentCode:      "domain.security",
+		Kind:            menu.NodeKindEntry,
+		Title:           "",
+		TitleKey:        usercontract.UserListMenuTitle.String(),
+		SectionKey:      menu.AccessControlSectionKey,
+		SectionTitleKey: menu.AccessControlSectionTitleKey,
+		Path:            usercontract.UserListMenuPath,
+		Icon:            "users",
+		Order:           userMenuOrderList,
+		Permission:      usercontract.UserReadPermission.String(),
+		Module:          moduleName,
 	})
 }
 
