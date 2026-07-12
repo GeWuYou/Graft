@@ -217,7 +217,7 @@ describe('App layout route effects', () => {
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('true');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-mode')).toBe('wide-table');
 
     settingStoreProxy.value!.isSidebarCompact = true;
     await wrapper.vm.$nextTick();
@@ -240,11 +240,21 @@ describe('App layout route effects', () => {
     expect(storeState.realtimeSchedulerStore.freeze).toHaveBeenCalledWith('shell-sidebar-motion');
   });
 
-  it('keeps overlay mode disabled outside the container list route', () => {
+  it.each(['/observability/application-logs', '/observability/access-logs', '/security/audit'])(
+    'uses wide-table motion for log list route %s',
+    (path) => {
+      routeProxy.value!.path = path;
+      const wrapper = mountAppLayout();
+
+      expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-mode')).toBe('wide-table');
+    },
+  );
+
+  it('uses default motion outside wide-table list routes', () => {
     routeProxy.value!.path = '/observability/service-status';
     const wrapper = mountAppLayout();
 
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('false');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-mode')).toBe('default');
   });
 
   it('hides the mixed-layout sidebar while the home route is active', async () => {

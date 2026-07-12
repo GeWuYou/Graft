@@ -46,7 +46,6 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
-import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
 import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
@@ -56,7 +55,7 @@ import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vu
 import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
-import type { SidebarMotionPhase } from './layout-navigation';
+import { resolveSidebarMotionMode, type SidebarMotionPhase } from './layout-navigation';
 
 const SIDEBAR_WIDTH_TRANSITION_MS = 320;
 const SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS = 124;
@@ -84,7 +83,7 @@ const shellSurfaceAttrs = computed(() => ({
   'data-page-type': 'shell',
   'data-sidebar-compact': String(sidebarWidthCompact.value),
   'data-sidebar-motion-phase': sidebarMotionPhase.value,
-  'data-sidebar-overlay-mode': String(route.path === CONTAINER_ROUTE_PATH.LIST),
+  'data-sidebar-motion-mode': resolveSidebarMotionMode(route.path),
   'data-sidebar-render-compact': String(sidebarRenderCompact.value),
   'data-sidebar-width-compact': String(sidebarWidthCompact.value),
   'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
@@ -354,23 +353,23 @@ watch(
   --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width-compact);
 }
 
-.app-shell[data-sidebar-overlay-mode='true'] {
+.app-shell[data-sidebar-motion-mode='wide-table'] {
   --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-width);
 }
 
-.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-width-compact='true'] {
+.app-shell[data-sidebar-motion-mode='wide-table'][data-sidebar-width-compact='true'] {
   --graft-shell-sidebar-translate-x: calc(var(--graft-shell-sidebar-width-compact) - var(--graft-shell-sidebar-width));
 }
 
-.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='compact'] {
+.app-shell[data-sidebar-motion-mode='wide-table'][data-sidebar-motion-phase='compact'] {
   --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-width-compact);
   --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-width-compact);
   --graft-shell-sidebar-translate-x: 0;
 }
 
-.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='expanding-width'],
-.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='expanding-topmenu'],
-.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='expanding-submenu'] {
+.app-shell[data-sidebar-motion-mode='wide-table'][data-sidebar-motion-phase='expanding-width'],
+.app-shell[data-sidebar-motion-mode='wide-table'][data-sidebar-motion-phase='expanding-topmenu'],
+.app-shell[data-sidebar-motion-mode='wide-table'][data-sidebar-motion-phase='expanding-submenu'] {
   --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-width-compact);
 }
 
@@ -412,7 +411,7 @@ watch(
   will-change: flex-basis, max-width, min-width, width;
 }
 
-.app-shell[data-layout-mode='side'][data-sidebar-overlay-mode='true'] :deep(.t-layout__sider) {
+.app-shell[data-layout-mode='side'][data-sidebar-motion-mode='wide-table'] :deep(.t-layout__sider) {
   transition: none;
   will-change: auto;
 }

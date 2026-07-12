@@ -1,4 +1,10 @@
+import { ACCESS_LOG_ROUTE_PATH } from '@/modules/access-log/contract/paths';
+import { APP_LOG_ROUTE_PATH } from '@/modules/app-log/contract/paths';
+import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
+import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import type { MenuRoute } from '@/utils/types';
+
+export type SidebarMotionMode = 'default' | 'wide-table';
 
 export type SidebarMotionPhase =
   | 'expanded'
@@ -9,6 +15,17 @@ export type SidebarMotionPhase =
   | 'expanding-width'
   | 'expanding-topmenu'
   | 'expanding-submenu';
+
+const WIDE_TABLE_SIDEBAR_ROUTE_PATHS = new Set<string>([
+  CONTAINER_ROUTE_PATH.LIST,
+  APP_LOG_ROUTE_PATH.LIST,
+  ACCESS_LOG_ROUTE_PATH.LIST,
+  AUDIT_ROUTE_PATH.LOGS,
+]);
+
+export function resolveSidebarMotionMode(routePath: string): SidebarMotionMode {
+  return WIDE_TABLE_SIDEBAR_ROUTE_PATHS.has(routePath) ? 'wide-table' : 'default';
+}
 
 /**
  * 将混合布局的顶级菜单转换为扁平化导航菜单。

@@ -2,9 +2,26 @@ import { describe, expect, it } from 'vitest';
 
 import type { MenuRoute } from '@/utils/types';
 
-import { findExpandedMenuPaths, flattenMixHeaderMenus, resolveMenuNavigationPath } from './layout-navigation';
+import {
+  findExpandedMenuPaths,
+  flattenMixHeaderMenus,
+  resolveMenuNavigationPath,
+  resolveSidebarMotionMode,
+} from './layout-navigation';
 
 describe('layout navigation helpers', () => {
+  it('uses the wide-table sidebar motion for container and log list routes', () => {
+    expect(resolveSidebarMotionMode('/infrastructure/docker/containers')).toBe('wide-table');
+    expect(resolveSidebarMotionMode('/observability/application-logs')).toBe('wide-table');
+    expect(resolveSidebarMotionMode('/observability/access-logs')).toBe('wide-table');
+    expect(resolveSidebarMotionMode('/security/audit')).toBe('wide-table');
+  });
+
+  it('uses the default sidebar motion outside wide-table list routes', () => {
+    expect(resolveSidebarMotionMode('/infrastructure/docker/containers/container-1')).toBe('default');
+    expect(resolveSidebarMotionMode('/observability/service-status')).toBe('default');
+  });
+
   it('resolves a grouped monitor menu to the first visible leaf page', () => {
     const monitorMenu: MenuRoute = {
       path: '/server',
