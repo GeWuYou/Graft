@@ -2110,6 +2110,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/runtime-targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List runtime targets */
+    get: operations['getRuntimeTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read runtime target */
+    get: operations['getRuntimeTarget'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Refresh runtime target availability */
+    post: operations['postRuntimeTargetRefresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/import/validate': {
     parameters: {
       query?: never;
@@ -3075,6 +3126,10 @@ export interface components {
     EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
+    RuntimeTarget: components['schemas']['runtime-target'];
+    RuntimeTargetListResponse: components['schemas']['runtime-target-list-response'];
+    EnvelopedRuntimeTargetListResponse: components['schemas']['enveloped-runtime-target-list-response'];
+    EnvelopedRuntimeTargetResponse: components['schemas']['enveloped-runtime-target-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -5776,6 +5831,32 @@ export interface components {
     'enveloped-project-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-list-response'];
     };
+    'runtime-target': {
+      /** Format: int64 */
+      id: number;
+      /** @example docker */
+      provider: string;
+      displayName: string;
+      /** @description Masked connection endpoint label. It never contains credentials. */
+      endpointLabel: string;
+      /** @example unix_socket */
+      connectionKind: string;
+      capabilities: string[];
+      availability: boolean;
+      /** Format: date-time */
+      lastCheckedAt?: string | null;
+      /** @description Sanitized latest probe diagnostic. */
+      lastError: string;
+    };
+    'runtime-target-list-response': {
+      items: components['schemas']['runtime-target'][];
+    };
+    'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-list-response'];
+    };
+    'enveloped-runtime-target-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target'];
+    };
     'project-import-validate-request': {
       working_directory: string;
       /** @description Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file. */
@@ -6762,6 +6843,8 @@ export interface components {
     'container-list-source-scope': string;
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
     'container-id-path': string;
+    /** @description Runtime target numeric identifier. */
+    'runtime-target-id-path': number;
     /** @description Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path. */
     'container-mount-id-path': string;
     /** @description Optional maximum number of projects to return. The runtime accepts values from 1 to 100. */
@@ -12631,6 +12714,133 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTargets: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime target list. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTarget: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime target detail. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-response'];
+        };
+      };
+      /** @description Invalid target id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetRefresh: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Refreshed runtime target. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-response'];
+        };
+      };
+      /** @description Invalid target id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };

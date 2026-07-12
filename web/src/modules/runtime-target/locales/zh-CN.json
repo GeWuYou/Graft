@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "route": { "list": { "title": "运行目标" } },
+    "list": {
+      "title": "运行目标",
+      "description": "管理已发现的运行时连接与能力状态。",
+      "refresh": "刷新目标",
+      "reload": "重新加载"
+    },
+    "detail": { "title": "运行目标详情" },
+    "columns": {
+      "name": "名称",
+      "provider": "提供方",
+      "endpoint": "连接端点",
+      "capabilities": "能力",
+      "connectionKind": "连接方式",
+      "status": "可用性",
+      "checkedAt": "最后检查",
+      "error": "最近错误"
+    },
+    "status": { "available": "可用", "unavailable": "不可用" }
+  }
+}

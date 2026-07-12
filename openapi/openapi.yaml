@@ -31,6 +31,8 @@ tags:
     description: 容器管理
   - name: project
     description: Compose 项目管理
+  - name: runtime-target
+    description: 运行目标管理
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -240,6 +242,12 @@ paths:
     $ref: ./paths/ops-containers.remove.yaml
   /api/ops/projects:
     $ref: ./paths/ops-projects.collection.yaml
+  /api/runtime-targets:
+    $ref: ./paths/runtime-targets.collection.yaml
+  /api/runtime-targets/{id}:
+    $ref: ./paths/runtime-targets.detail.yaml
+  /api/runtime-targets/{id}/refresh:
+    $ref: ./paths/runtime-targets.refresh.yaml
   /api/ops/projects/import/validate:
     $ref: ./paths/ops-projects.import-validate.yaml
   /api/ops/projects/import/runtime-candidates:
@@ -956,6 +964,14 @@ components:
       $ref: ./components/schemas/enveloped-project-action-response.yaml
     EnvelopedProjectBatchActionResponse:
       $ref: ./components/schemas/enveloped-project-batch-action-response.yaml
+    RuntimeTarget:
+      $ref: ./components/schemas/runtime-target.yaml
+    RuntimeTargetListResponse:
+      $ref: ./components/schemas/runtime-target-list-response.yaml
+    EnvelopedRuntimeTargetListResponse:
+      $ref: ./components/schemas/enveloped-runtime-target-list-response.yaml
+    EnvelopedRuntimeTargetResponse:
+      $ref: ./components/schemas/enveloped-runtime-target-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml
@@ -1006,6 +1022,8 @@ components:
       $ref: ./components/parameters/container-list-source-scope.yaml
     container-id-path:
       $ref: ./components/parameters/container-id-path.yaml
+    runtime-target-id-path:
+      $ref: ./components/parameters/runtime-target-id-path.yaml
     container-mount-id-path:
       $ref: ./components/parameters/container-mount-id-path.yaml
     project-list-limit:

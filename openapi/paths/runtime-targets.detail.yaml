@@ -1,0 +1,21 @@
+get:
+  tags: [runtime-target]
+  summary: Read runtime target
+  operationId: getRuntimeTarget
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+  responses:
+    '200':
+      description: Runtime target detail.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-runtime-target-response.yaml
+    '400': {description: Invalid target id}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Runtime target not found}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

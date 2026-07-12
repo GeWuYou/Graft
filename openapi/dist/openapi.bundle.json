@@ -69,6 +69,10 @@
     {
       "name": "project",
       "description": "Compose 项目管理"
+    },
+    {
+      "name": "runtime-target",
+      "description": "运行目标管理"
     }
   ],
   "paths": {
@@ -11021,6 +11025,153 @@
         }
       }
     },
+    "/api/runtime-targets": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "List runtime targets",
+        "operationId": "getRuntimeTargets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime target list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Read runtime target",
+        "operationId": "getRuntimeTarget",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime target detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid target id"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/refresh": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Refresh runtime target availability",
+        "operationId": "postRuntimeTargetRefresh",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refreshed runtime target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid target id"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/import/validate": {
       "post": {
         "tags": [
@@ -14833,6 +14984,18 @@
       },
       "EnvelopedProjectBatchActionResponse": {
         "$ref": "#/components/schemas/enveloped-project-batch-action-response"
+      },
+      "RuntimeTarget": {
+        "$ref": "#/components/schemas/runtime-target"
+      },
+      "RuntimeTargetListResponse": {
+        "$ref": "#/components/schemas/runtime-target-list-response"
+      },
+      "EnvelopedRuntimeTargetListResponse": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-list-response"
+      },
+      "EnvelopedRuntimeTargetResponse": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-response"
       },
       "health-response": {
         "type": "object",
@@ -23368,6 +23531,108 @@
           }
         ]
       },
+      "runtime-target": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "displayName",
+          "endpointLabel",
+          "connectionKind",
+          "capabilities",
+          "availability",
+          "lastError"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "provider": {
+            "type": "string",
+            "example": "docker"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "endpointLabel": {
+            "type": "string",
+            "description": "Masked connection endpoint label. It never contains credentials."
+          },
+          "connectionKind": {
+            "type": "string",
+            "example": "unix_socket"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "availability": {
+            "type": "boolean"
+          },
+          "lastCheckedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastError": {
+            "type": "string",
+            "description": "Sanitized latest probe diagnostic."
+          }
+        }
+      },
+      "runtime-target-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target"
+            }
+          }
+        }
+      },
+      "enveloped-runtime-target-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-runtime-target-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target"
+              }
+            }
+          }
+        ]
+      },
       "project-import-validate-request": {
         "type": "object",
         "required": [
@@ -27600,6 +27865,17 @@
             "summary": "Encoded container name",
             "value": "web%2Dapi"
           }
+        }
+      },
+      "runtime-target-id-path": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Runtime target numeric identifier.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       },
       "container-mount-id-path": {

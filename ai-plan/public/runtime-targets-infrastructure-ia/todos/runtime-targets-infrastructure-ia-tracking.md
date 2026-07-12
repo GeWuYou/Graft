@@ -35,7 +35,7 @@ closeout:
 
 - [x] work-intake-and-authority-foundation
 - [x] menu-section-contract-and-sidebar-rendering
-- [ ] runtime-target-foundation
+- [x] runtime-target-foundation
 - [ ] container-deployment-type-and-target-filter
 - [ ] docker-resources-and-application-integration
 - [ ] cross-boundary-acceptance-and-archive-readiness
@@ -53,10 +53,15 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering"],
-  "pending_batches": ["runtime-target-foundation", "container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
-  "current_batch": "menu-section-contract-and-sidebar-rendering",
-  "next_batch": "runtime-target-foundation",
-  "closeout_status": "batch-2-complete"
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation"],
+  "pending_batches": ["container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "current_batch": "runtime-target-foundation",
+  "next_batch": "container-deployment-type-and-target-filter",
+  "closeout_status": "batch-3-complete"
 }
 ```
+
+## Batch 3 Completion
+
+- Runtime Target contract and Local Docker persisted discovery are complete.
+- Remote mTLS needs a future credential-vault authority; no remote credential storage is introduced in this topic batch.

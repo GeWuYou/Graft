@@ -7158,6 +7158,46 @@ type EnvelopedRolePermissionBindingResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRuntimeTargetListResponse defines model for enveloped-runtime-target-list-response.
+type EnvelopedRuntimeTargetListResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data RuntimeTargetListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRuntimeTargetResponse defines model for enveloped-runtime-target-response.
+type EnvelopedRuntimeTargetResponse struct {
+	// Code Existing canonical response code.
+	Code string        `json:"code"`
+	Data RuntimeTarget `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedScheduledTaskActionResult defines model for enveloped-scheduled-task-action-result.
 type EnvelopedScheduledTaskActionResult struct {
 	// Code Existing canonical response code.
@@ -8949,6 +8989,28 @@ type RolePermissionBindingResponse struct {
 	PermissionIds []int64 `json:"permission_ids"`
 }
 
+// RuntimeTarget defines model for runtime-target.
+type RuntimeTarget struct {
+	Availability   bool     `json:"availability"`
+	Capabilities   []string `json:"capabilities"`
+	ConnectionKind string   `json:"connectionKind"`
+	DisplayName    string   `json:"displayName"`
+
+	// EndpointLabel Masked connection endpoint label. It never contains credentials.
+	EndpointLabel string     `json:"endpointLabel"`
+	Id            int64      `json:"id"`
+	LastCheckedAt *time.Time `json:"lastCheckedAt,omitempty"`
+
+	// LastError Sanitized latest probe diagnostic.
+	LastError string `json:"lastError"`
+	Provider  string `json:"provider"`
+}
+
+// RuntimeTargetListResponse defines model for runtime-target-list-response.
+type RuntimeTargetListResponse struct {
+	Items []RuntimeTarget `json:"items"`
+}
+
 // ScheduledTaskActionRequest defines model for scheduled-task-action-request.
 type ScheduledTaskActionRequest struct {
 	// ConfigJson JSON object merged into the action effective config.
@@ -9830,6 +9892,9 @@ type RealtimeTopicQuery = string
 
 // RequestIdHeader defines model for request-id-header.
 type RequestIdHeader = string
+
+// RuntimeTargetIdPath defines model for runtime-target-id-path.
+type RuntimeTargetIdPath = int64
 
 // ScheduledTaskActionKey defines model for scheduled-task-action-key.
 type ScheduledTaskActionKey = string
@@ -11248,6 +11313,36 @@ type PostRoleStatusParams struct {
 
 // PostRoleUpdateParams defines parameters for PostRoleUpdate.
 type PostRoleUpdateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRuntimeTargetsParams defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRuntimeTargetParams defines parameters for GetRuntimeTarget.
+type GetRuntimeTargetParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRuntimeTargetRefreshParams defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefreshParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

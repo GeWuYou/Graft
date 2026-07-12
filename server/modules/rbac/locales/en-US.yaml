@@ -98,5 +98,11 @@ rbac.permissionCatalog.scheduledTaskRun.display: Scheduled Task Run
 rbac.permissionCatalog.scheduledTaskRun.description: Allows manually running scheduled task runtime jobs.
 rbac.permissionCatalog.scheduledTaskEnable.display: Scheduled Task Enable
 rbac.permissionCatalog.scheduledTaskEnable.description: Allows enabling and disabling scheduled tasks.
+rbac.permissionCatalog.runtimeTargetView.display: Runtime Target View
+rbac.permissionCatalog.runtimeTargetView.description: Allows reading runtime target connection and capability state.
+rbac.permissionCatalog.runtimeTargetManage.display: Runtime Target Manage
+rbac.permissionCatalog.runtimeTargetManage.description: Reserved for future runtime target configuration management.
+rbac.permissionCatalog.runtimeTargetRefresh.display: Runtime Target Refresh
+rbac.permissionCatalog.runtimeTargetRefresh.description: Allows refreshing runtime target availability and capabilities.
 rbac.audit.rolePermissionsAdded: Role permissions added
 rbac.audit.rolePermissionsRemoved: Role permissions removed

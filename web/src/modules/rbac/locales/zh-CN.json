@@ -443,6 +443,18 @@
       "notificationManage": {
         "display": "管理通知",
         "description": "允许管理全局通知投递与配置。"
+      },
+      "runtimeTargetView": {
+        "display": "查看运行目标",
+        "description": "允许读取运行目标连接与能力状态。"
+      },
+      "runtimeTargetManage": {
+        "display": "管理运行目标",
+        "description": "预留给后续运行目标配置管理能力。"
+      },
+      "runtimeTargetRefresh": {
+        "display": "刷新运行目标",
+        "description": "允许重新探测运行目标可用性与能力。"
       }
     },
     "roles": {

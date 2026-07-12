@@ -17,6 +17,7 @@ import (
 	monitorlocales "graft/server/modules/monitor/locales"
 	projectlocales "graft/server/modules/project/locales"
 	rbaclocales "graft/server/modules/rbac/locales"
+	runtimetargetlocales "graft/server/modules/runtime-target/locales"
 	schedulerlocales "graft/server/modules/scheduler/locales"
 	systemconfiglocales "graft/server/modules/system-config/locales"
 	userlocales "graft/server/modules/user/locales"
@@ -57,6 +58,7 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "monitor", load: monitorlocales.EmbeddedLocaleResources},
 		{name: "project", load: projectlocales.EmbeddedLocaleResources},
 		{name: "rbac", load: rbaclocales.EmbeddedLocaleResources},
+		{name: "runtime-target", load: runtimetargetlocales.EmbeddedLocaleResources},
 		{name: "scheduler", load: schedulerlocales.EmbeddedLocaleResources},
 		{name: "system-config", load: systemconfiglocales.EmbeddedLocaleResources},
 		{name: "user", load: userlocales.EmbeddedLocaleResources},
