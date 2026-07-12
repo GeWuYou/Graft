@@ -1020,7 +1020,7 @@ describe('MonitorPage', () => {
     await actionButtons[0]!.trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/audit/incidents/42',
+      path: '/security/audit/incidents/42',
       query: {
         monitorView: 'overview',
         monitorTrendRange: '10m',
@@ -1040,7 +1040,7 @@ describe('MonitorPage', () => {
     await wrapper.get('[data-anomaly-key="resource_cpu_pressure"] button').trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/audit/incidents/42',
+      path: '/security/audit/incidents/42',
       query: {
         monitorView: 'overview',
         monitorTrendRange: '10m',

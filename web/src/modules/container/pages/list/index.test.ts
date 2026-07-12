@@ -1116,7 +1116,7 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="container-action-audit"]').trigger('click');
     await flushPromises();
     expect(routerMocks.push).toHaveBeenLastCalledWith({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         resource_id: 'container-1',
         resource_name: 'graft-web',

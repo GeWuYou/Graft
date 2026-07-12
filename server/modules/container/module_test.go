@@ -123,7 +123,7 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerAPIGroup != "/ops/containers" {
 		t.Fatalf("unexpected API group %q", containercontract.ContainerAPIGroup)
 	}
-	if containercontract.ContainerMenuPath != "/containers" {
+	if containercontract.ContainerMenuPath != "/infrastructure/containers" {
 		t.Fatalf("unexpected menu path %q", containercontract.ContainerMenuPath)
 	}
 	if containercontract.ContainerDockerEndpointConfig.String() != "ops.container.docker.endpoint" {
@@ -291,7 +291,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		title:                    "",
 		titleKey:                 containercontract.ContainerMenuTitle.String(),
 		sectionKey:               "runtime",
-		path:                     "/containers",
+		path:                     "/infrastructure/containers",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})

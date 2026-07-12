@@ -56,7 +56,7 @@ describe('MenuContent', () => {
         showSections: true,
         navData: [
           {
-            path: '/containers',
+            path: '/infrastructure/containers',
             meta: {
               title: { 'zh-CN': 'Docker', 'en-US': 'Docker' },
               navigationSection: {
@@ -96,7 +96,7 @@ describe('MenuContent', () => {
       props: {
         navData: [
           {
-            path: '/containers',
+            path: '/infrastructure/containers',
             meta: {
               title: { 'zh-CN': 'Docker', 'en-US': 'Docker' },
               navigationSection: {
@@ -124,7 +124,10 @@ describe('MenuContent', () => {
         navData: [
           { path: '/applications', meta: { icon: 'application', title: { 'en-US': 'Applications', 'zh-CN': '应用' } } },
           { path: '/targets', meta: { icon: 'runtime-target', title: { 'en-US': 'Targets', 'zh-CN': '目标' } } },
-          { path: '/containers', meta: { icon: 'docker', title: { 'en-US': 'Docker', 'zh-CN': 'Docker' } } },
+          {
+            path: '/infrastructure/containers',
+            meta: { icon: 'docker', title: { 'en-US': 'Docker', 'zh-CN': 'Docker' } },
+          },
         ],
       },
       global: {

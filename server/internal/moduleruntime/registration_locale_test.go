@@ -15,8 +15,8 @@ func TestRegisterMessagesUsesEmbeddedLocaleResources(t *testing.T) {
 		t.Fatalf("register module runtime messages: %v", err)
 	}
 
-	assertRegisteredRuntimeMessage(t, localizer, i18n.LocaleZHCN, menuModulesRuntimeTitleKey, "模块运行时")
-	assertRegisteredRuntimeMessage(t, localizer, i18n.LocaleENUS, menuModulesRuntimeTitleKey, "Module Runtime")
+	assertRegisteredRuntimeMessage(t, localizer, i18n.LocaleZHCN, menuModulesRuntimeTitleKey, "模块")
+	assertRegisteredRuntimeMessage(t, localizer, i18n.LocaleENUS, menuModulesRuntimeTitleKey, "Modules")
 }
 
 func assertRegisteredRuntimeMessage(

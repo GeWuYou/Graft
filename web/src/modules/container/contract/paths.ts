@@ -1,7 +1,7 @@
 export const CONTAINER_ROUTE_PATH = {
-  LIST: '/containers',
-  DETAIL: '/containers/:id',
-  RESOURCES: '/containers/resources',
+  LIST: '/infrastructure/containers',
+  DETAIL: '/infrastructure/containers/:id',
+  RESOURCES: '/infrastructure/containers/resources',
 } as const;
 
 export const CONTAINER_API_PATH = {

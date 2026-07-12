@@ -240,14 +240,14 @@ describe('DashboardRenderer', () => {
         action: {
           label: 'View details',
           label_key: 'dashboard.actions.details',
-          route: '/audit/logs?preset=last_24h&scope=high_risk_operations',
+          route: '/security/audit?preset=last_24h&scope=high_risk_operations',
         },
       }),
     ]);
 
     await wrapper.find('button').trigger('click');
 
-    expect(routerMocks.push).toHaveBeenCalledWith('/audit/logs?preset=last_24h&scope=high_risk_operations');
+    expect(routerMocks.push).toHaveBeenCalledWith('/security/audit?preset=last_24h&scope=high_risk_operations');
   });
 
   it('renders healthy summary text instead of an empty state when health payload has no items', () => {

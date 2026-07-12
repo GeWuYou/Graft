@@ -4,7 +4,7 @@ package contract
 // Stable module contract identifiers.
 const (
 	MenuTitle         = "menu.runtimeTargets.title"
-	MenuPath          = "/runtime-targets"
+	MenuPath          = "/infrastructure/runtime-targets"
 	ViewPermission    = "runtime_target.view"
 	ManagePermission  = "runtime_target.manage"
 	RefreshPermission = "runtime_target.refresh"

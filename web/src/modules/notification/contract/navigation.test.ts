@@ -10,7 +10,7 @@ describe('notification navigation resolver', () => {
         payload: { incident_id: '101' },
       }),
     ).toEqual({
-      path: '/audit/incidents/101',
+      path: '/security/audit/incidents/101',
     });
   });
 
@@ -21,7 +21,7 @@ describe('notification navigation resolver', () => {
         payload: { audit_log_id: '12', request_id: 'req-1' },
       }),
     ).toEqual({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         audit_log_id: '12',
       },
@@ -35,7 +35,7 @@ describe('notification navigation resolver', () => {
         payload: { task_id: 'audit.retention', run_id: '7' },
       }),
     ).toEqual({
-      path: '/scheduled-tasks',
+      path: '/platform/scheduled-tasks',
       query: {
         task_key: 'audit.retention',
         run_id: '7',

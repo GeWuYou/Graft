@@ -181,7 +181,7 @@ describe('createLogger', () => {
 
     const { createLogger, patchGlobalLoggerContext } = await loadLoggerModule();
     patchGlobalLoggerContext({
-      route: '/roles',
+      route: '/security/roles',
       requestId: 'req-7',
     });
 
@@ -196,7 +196,7 @@ describe('createLogger', () => {
     expect(transportLog).toHaveBeenCalledWith(
       expect.objectContaining({
         meta: {
-          route: '/roles',
+          route: '/security/roles',
           requestId: 'req-local',
           traceId: 'trace-7',
         },

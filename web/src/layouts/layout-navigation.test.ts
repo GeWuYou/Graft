@@ -21,17 +21,17 @@ describe('layout navigation helpers', () => {
 
   it('prefers the route redirect when a menu entry already defines one', () => {
     const userMenu: MenuRoute = {
-      path: '/users',
-      redirect: '/users/index',
+      path: '/security/users',
+      redirect: '/security/users/index',
     };
 
-    expect(resolveMenuNavigationPath(userMenu)).toBe('/users/index');
+    expect(resolveMenuNavigationPath(userMenu)).toBe('/security/users/index');
   });
 
   it('follows redirected child groups until the first visible leaf page', () => {
     const monitorMenu: MenuRoute = {
-      path: '/audit',
-      redirect: '/audit/logs',
+      path: '/security',
+      redirect: '/security/audit',
       children: [
         {
           path: 'logs',
@@ -40,7 +40,7 @@ describe('layout navigation helpers', () => {
       ],
     };
 
-    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/audit/logs');
+    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/security/audit');
   });
 
   it('flattens mix header menus into direct leaf navigation targets', () => {
@@ -69,10 +69,10 @@ describe('layout navigation helpers', () => {
     const expanded = findExpandedMenuPaths(
       [
         {
-          path: '/audit',
+          path: '/security',
           children: [
             {
-              path: 'logs',
+              path: 'audit',
               children: [
                 {
                   path: 'access',
@@ -83,10 +83,10 @@ describe('layout navigation helpers', () => {
           ],
         },
       ],
-      '/audit/logs/access',
+      '/security/audit/access',
     );
 
-    expect(expanded).toEqual(['/audit', 'logs']);
+    expect(expanded).toEqual(['/security', 'audit']);
   });
 
   it('keeps grouped parent menus expanded for descendant detail routes', () => {
@@ -113,16 +113,16 @@ describe('layout navigation helpers', () => {
       [
         {
           path: 'domain.platform',
-          meta: { navigationTargetPath: '/scheduled-tasks' },
+          meta: { navigationTargetPath: '/platform/scheduled-tasks' },
           children: [
             {
               path: 'scheduled-task.list',
-              meta: { navigationTargetPath: '/scheduled-tasks' },
+              meta: { navigationTargetPath: '/platform/scheduled-tasks' },
             },
           ],
         },
       ],
-      '/scheduled-tasks',
+      '/platform/scheduled-tasks',
     );
 
     expect(expanded).toEqual(['domain.platform']);

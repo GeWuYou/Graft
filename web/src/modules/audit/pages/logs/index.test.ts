@@ -502,15 +502,15 @@ describe('AuditLogsPage', () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/audit/logs', component: AuditLogsPage },
-        { path: '/logs/access', component: passthroughStub },
-        { path: '/logs/app', component: passthroughStub },
+        { path: '/security/audit', component: AuditLogsPage },
+        { path: '/observability/access-logs', component: passthroughStub },
+        { path: '/observability/application-logs', component: passthroughStub },
         { path: '/audit/overview', component: passthroughStub },
       ],
     });
 
     await router.push({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: initialQuery,
     });
     await router.isReady();
@@ -557,13 +557,13 @@ describe('AuditLogsPage', () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/audit/logs', name: 'AuditLogList', component: AuditLogsPage },
-        { path: '/users', name: 'UsersIndex', component: OtherPage },
+        { path: '/security/audit', name: 'AuditLogList', component: AuditLogsPage },
+        { path: '/security/users', name: 'UsersIndex', component: OtherPage },
       ],
     });
 
     await router.push({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: initialQuery,
     });
     await router.isReady();
@@ -710,7 +710,7 @@ describe('AuditLogsPage', () => {
 
     expect(replaceSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/audit/logs',
+        path: '/security/audit',
         query: expect.objectContaining({
           monitorView: 'overview',
           monitorTrendRange: '10m',
@@ -1006,7 +1006,7 @@ describe('AuditLogsPage', () => {
 
     expect(replaceSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/audit/logs',
+        path: '/security/audit',
         query: expect.objectContaining({
           actor: 'route-admin',
           created_from: expectedCreatedFrom,
@@ -1127,15 +1127,15 @@ describe('AuditLogsPage', () => {
     getAuditLogsMock.mockClear();
     replaceSpy.mockClear();
 
-    await router.push({ path: '/users', query: { tab: 'active' } });
+    await router.push({ path: '/security/users', query: { tab: 'active' } });
     await flushPromises();
 
-    expect(router.currentRoute.value.path).toBe('/users');
+    expect(router.currentRoute.value.path).toBe('/security/users');
     expect(router.currentRoute.value.query).toMatchObject({ tab: 'active' });
     expect(wrapper.get('[data-testid="other-page"]').text()).toBe('other');
     expect(replaceSpy).not.toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/audit/logs',
+        path: '/security/audit',
       }),
     );
     expect(getAuditLogsMock).not.toHaveBeenCalled();
@@ -1148,13 +1148,13 @@ describe('AuditLogsPage', () => {
       results: 'DENIED',
     });
 
-    await router.push({ path: '/users', query: { tab: 'active' } });
+    await router.push({ path: '/security/users', query: { tab: 'active' } });
     await flushPromises();
 
     getAuditLogsMock.mockClear();
 
     await router.push({
-      path: '/audit/logs',
+      path: '/security/audit',
       query: {
         resource_type: 'user',
         resource_name: 'Graft',
@@ -1163,7 +1163,7 @@ describe('AuditLogsPage', () => {
     });
     await flushPromises();
 
-    expect(router.currentRoute.value.path).toBe('/audit/logs');
+    expect(router.currentRoute.value.path).toBe('/security/audit');
     expect(router.currentRoute.value.query).toMatchObject({
       resource_type: 'user',
       resource_name: 'Graft',
@@ -1189,25 +1189,25 @@ describe('AuditLogsPage', () => {
     await wrapper.get('[data-testid="audit-view-access-log"]').trigger('click');
     await flushPromises();
 
-    expect(router.currentRoute.value.path).toBe('/logs/access');
+    expect(router.currentRoute.value.path).toBe('/observability/access-logs');
     expect(router.currentRoute.value.query).toMatchObject({ request_id: 'req-1' });
 
-    await router.push('/audit/logs');
+    await router.push('/security/audit');
     await flushPromises();
 
     await wrapper.get('[data-testid="audit-view-app-log"]').trigger('click');
     await flushPromises();
 
-    expect(router.currentRoute.value.path).toBe('/logs/app');
+    expect(router.currentRoute.value.path).toBe('/observability/application-logs');
     expect(router.currentRoute.value.query).toMatchObject({ request_id: 'req-1' });
 
-    await router.push('/audit/logs');
+    await router.push('/security/audit');
     await flushPromises();
 
     await wrapper.get('[data-testid="audit-view-security-event"]').trigger('click');
     await flushPromises();
 
-    expect(router.currentRoute.value.path).toBe('/audit/logs');
+    expect(router.currentRoute.value.path).toBe('/security/audit');
     expect(router.currentRoute.value.query).toMatchObject({ audit_log_id: '1' });
 
     await wrapper.get('[data-testid="audit-detail"]').trigger('click');

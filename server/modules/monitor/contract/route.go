@@ -24,8 +24,8 @@ const (
 	// DependenciesRoute identifies the dependencies route fragment under server-status.
 	DependenciesRoute = "/dependencies"
 
-	// ServerStatusMenuPath identifies the second-level server management menu path.
-	ServerStatusMenuPath = "/system"
+	// ServerStatusMenuPath identifies the Observability UI route prefix.
+	ServerStatusMenuPath = "/observability"
 
 	// ServerStatusOverviewMenuPath identifies the canonical overview menu path.
 	ServerStatusOverviewMenuPath = ServerStatusMenuPath + OverviewRoute

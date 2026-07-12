@@ -630,13 +630,13 @@ func TestAuditRiskEventsDashboardWidgetLoadsRiskPayload(t *testing.T) {
 		id, _ := item["id"].(string)
 		itemsByID[id] = item
 	}
-	if itemsByID["audit.high-risk"]["route_location"] != "/audit/logs?preset=last_24h&risk_levels=HIGH%2CCRITICAL" {
+	if itemsByID["audit.high-risk"]["route_location"] != "/security/audit?preset=last_24h&risk_levels=HIGH%2CCRITICAL" {
 		t.Fatalf("expected high risk item to drill into audit logs, got %#v", itemsByID["audit.high-risk"])
 	}
-	if itemsByID["audit.failed-operations"]["route_location"] != "/audit/logs?preset=last_24h&results=FAILED%2CDENIED%2CERROR" {
+	if itemsByID["audit.failed-operations"]["route_location"] != "/security/audit?preset=last_24h&results=FAILED%2CDENIED%2CERROR" {
 		t.Fatalf("expected failed operations item to drill into audit logs, got %#v", itemsByID["audit.failed-operations"])
 	}
-	if itemsByID["audit.failed-auth"]["route_location"] != "/audit/logs?business_category=auth_failures&preset=last_24h" {
+	if itemsByID["audit.failed-auth"]["route_location"] != "/security/audit?business_category=auth_failures&preset=last_24h" {
 		t.Fatalf("expected failed auth item to drill into audit scope, got %#v", itemsByID["audit.failed-auth"])
 	}
 	if itemsByID["audit.high-risk"]["count"] != 2 {
@@ -1572,7 +1572,7 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("expected 1 audit menu item, got %#v", items)
 	}
-	assertAuditMenuItem(t, items[0], "audit.logs", "/audit/logs", "menu.audit.logs.title", 202)
+	assertAuditMenuItem(t, items[0], "audit.logs", "/security/audit", "menu.audit.logs.title", 202)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs", nil)
 	request.Header.Set("Authorization", "Bearer token")

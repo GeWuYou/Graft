@@ -38,9 +38,7 @@ closeout:
 
 ## Current Recovery Point
 
-- All implementation batches are committed. Archive readiness is blocked by the final full Web validation retry: `src/modules/project/shared/project-monaco.test.ts > project-monaco relayout bridge > resolves relayout after the scheduled animation frame runs` timed out after 20 seconds.
-- The retry result was `1 failed | 192 passed (193)` test files and `1 failed | 1271 passed (1272)` tests; all preceding `bun run check` stages passed before `test:run` stopped the chain.
-- This batch owns neither the Monaco bridge nor its test. Do not archive or modify unrelated runtime code in this topic-closeout batch; the next owner must resolve or formally reclassify the full-Web-check blocker, then rerun archive readiness.
+- The previous resource-oriented UI route migration is superseded by the approved IA-aligned mapping. This topic now owns a replacement cross-boundary migration of all visible menu paths, including detail paths, deep links and persisted-tab validation, without aliases or redirects.
 
 ## Task Checklist
 
@@ -49,6 +47,10 @@ closeout:
 - [x] frontend-navigation-route-migration
 - [x] cross-boundary-validation-closeout
 - [x] web-hygiene-and-final-validation
+- [x] ia-aligned-route-authority-and-skill
+- [x] ia-aligned-server-menu-contract
+- [x] ia-aligned-web-route-migration
+- [ ] ia-aligned-cross-boundary-validation
 
 ## Acceptance Conditions
 
@@ -61,10 +63,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation"],
-  "pending_batches": [],
-  "current_batch": "navigation-final-validation-and-archive",
-  "next_batch": null,
-  "closeout_status": "blocked-validation-failed"
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation", "ia-aligned-route-authority-and-skill", "ia-aligned-server-menu-contract", "ia-aligned-web-route-migration"],
+  "pending_batches": ["ia-aligned-cross-boundary-validation"],
+  "current_batch": "ia-aligned-cross-boundary-validation",
+  "next_batch": "ia-aligned-cross-boundary-validation",
+  "closeout_status": "web-validation-retry-required"
 }
 ```

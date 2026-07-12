@@ -136,7 +136,7 @@ describe('Breadcrumb', () => {
     routeState.meta.navigationAncestors = [
       {
         code: 'domain.infrastructure',
-        path: '/containers',
+        path: '/infrastructure/containers',
         title: { 'zh-CN': '基础设施', 'en-US': 'Infrastructure' },
       },
     ];
@@ -155,6 +155,6 @@ describe('Breadcrumb', () => {
 
     const items = wrapper.findAll('a');
     expect(items.map((item) => item.text())).toEqual(['基础设施', '容器管理', '容器详情']);
-    expect(items[0]?.attributes('data-to')).toBe('/containers');
+    expect(items[0]?.attributes('data-to')).toBe('/infrastructure/containers');
   });
 });

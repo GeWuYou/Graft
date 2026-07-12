@@ -6,6 +6,11 @@ func JoinRoute(group, fragment string) string {
 }
 
 const (
+	// RoleListMenuPath identifies the canonical role-management UI menu path.
+	RoleListMenuPath = "/security/roles"
+	// PermissionListMenuPath identifies the canonical permission-management UI menu path.
+	PermissionListMenuPath = "/security/permissions"
+
 	// RolesGroup identifies the role-management route group.
 	RolesGroup = "/roles"
 	// RoleCollection identifies the collection endpoint route fragment on the roles group.

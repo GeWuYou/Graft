@@ -25,7 +25,7 @@ const graph = [
     order: 1,
     title_key: 'menu.user_list.title',
     title: 'Users',
-    path: '/users',
+    path: '/security/users',
     icon: 'usergroup',
     permission: 'user.read',
   },
@@ -36,7 +36,7 @@ const graph = [
     order: 2,
     title_key: 'menu.role_list.title',
     title: 'Roles',
-    path: '/roles',
+    path: '/security/roles',
     icon: 'secured',
     permission: 'role.read',
   },
@@ -56,7 +56,7 @@ describe('bootstrap navigation graph', () => {
     const navigation = buildBootstrapNavigationTree(graph.map((item) => ({ ...item })));
     expect(navigation).toHaveLength(1);
     expect(navigation[0]?.path).toBe('domain.security');
-    expect(navigation[0]?.meta?.navigationTargetPath).toBe('/users');
+    expect(navigation[0]?.meta?.navigationTargetPath).toBe('/security/users');
     expect(navigation[0]?.children?.map((item) => item.path)).toEqual(['user.list', 'role.list']);
     expect(navigation[0]?.children?.[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual([
       'domain.security',
@@ -65,13 +65,13 @@ describe('bootstrap navigation graph', () => {
 
   it('creates router records only for registered entry resources', () => {
     const routes = transformBootstrapMenusToRoutes(graph.map((item) => ({ ...item })));
-    expect(routes.map((route) => route.path)).toEqual(['/users', '/roles']);
+    expect(routes.map((route) => route.path)).toEqual(['/security/users', '/security/roles']);
     expect(routes.every((route) => route.name && !String(route.name).startsWith('BootstrapGroup'))).toBe(true);
     expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / Users');
   });
 
   it('keeps bootstrap-owned menu display metadata ahead of registration patches', () => {
-    const registration = getBootstrapRouteRegistration('/users');
+    const registration = getBootstrapRouteRegistration('/security/users');
     const originalMeta = registration?.meta;
     const overriddenTitle = { 'zh-CN': '错误标题', 'en-US': 'Incorrect Title' };
 
@@ -117,9 +117,9 @@ describe('bootstrap navigation graph', () => {
     const routes = transformGlobalRegistrationsToRoutes(
       [
         {
-          path: '/users/42',
+          path: '/security/users/42',
           routeName: 'UserDetail',
-          navigationParentPath: '/users',
+          navigationParentPath: '/security/users',
           loadPage: () => import('@/modules/user/pages/index.vue'),
           meta: { title: { 'zh-CN': '用户详情', 'en-US': 'User Detail' } },
         },
@@ -128,6 +128,6 @@ describe('bootstrap navigation graph', () => {
     );
     expect(routes[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual(['domain.security']);
     expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / User Detail');
-    expect(routes[0]?.meta?.navigationTargetPath).toBe('/users');
+    expect(routes[0]?.meta?.navigationTargetPath).toBe('/security/users');
   });
 });

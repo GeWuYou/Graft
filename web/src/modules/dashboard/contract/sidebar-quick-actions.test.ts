@@ -55,7 +55,7 @@ describe('buildDashboardQuickActionLinks', () => {
         ],
       }),
       asRouteRecordRaw({
-        path: '/containers',
+        path: '/infrastructure/containers',
         name: 'ContainerList',
         meta: {
           icon: 'layers',
@@ -151,7 +151,7 @@ describe('buildDashboardQuickActionLinks', () => {
         id: 'ContainerList',
         module_key: 'container',
         order: 10,
-        route_location: '/containers',
+        route_location: '/infrastructure/containers',
         title: '容器管理',
         title_key: 'container.route.list.title',
       },
@@ -222,7 +222,7 @@ describe('buildDashboardQuickActionLinks', () => {
   it('derives split title and group from a single top-level route without string splitting', () => {
     const routes = [
       asRouteRecordRaw({
-        path: '/containers',
+        path: '/infrastructure/containers',
         name: 'ContainerList',
         meta: {
           icon: 'layers',
@@ -254,7 +254,7 @@ describe('buildDashboardQuickActionLinks', () => {
         id: 'ContainerList',
         module_key: 'container',
         order: 10,
-        route_location: '/containers',
+        route_location: '/infrastructure/containers',
         title: 'Containers',
         title_key: 'container.route.list.title',
       },
@@ -264,7 +264,7 @@ describe('buildDashboardQuickActionLinks', () => {
   it('keeps a single route as the quick action even when it has visible child routes', () => {
     const routes = [
       asRouteRecordRaw({
-        path: '/containers',
+        path: '/infrastructure/containers',
         name: 'ContainerList',
         meta: {
           icon: 'layers',
@@ -316,7 +316,7 @@ describe('buildDashboardQuickActionLinks', () => {
         module_key: 'container',
         order: 10,
         required_permissions: ['container.read'],
-        route_location: '/containers',
+        route_location: '/infrastructure/containers',
         title: 'Containers',
         title_key: 'container.route.list.title',
       },

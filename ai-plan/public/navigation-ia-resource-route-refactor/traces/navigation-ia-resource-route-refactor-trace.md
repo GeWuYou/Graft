@@ -1,5 +1,17 @@
 # Navigation IA And Resource Route Refactor Trace
 
+## 2026-07-12 IA-Aligned UI Route Policy
+
+- Product decision superseded the previous resource-oriented UI route policy: all visible menu URLs now mirror their IA domain using `/<domain>/<resource>`.
+- HTTP API paths remain domain-resource contracts and are not migrated.
+- The Runtime page is renamed to Service Status and the Module Runtime menu is renamed to Modules; technical module-runtime snapshot contracts remain unchanged.
+
+## 2026-07-12 IA-Aligned Route Migration
+
+- Updated the navigation authority and `graft-navigation-route-governance` so every visible menu entry uses its canonical IA prefix.
+- Migrated server menu/bootstrap values and web route, deep-link, tab, breadcrumb, authentication-return and dashboard fixtures to `/applications/**`, `/infrastructure/**`, `/observability/**`, `/security/**`, and `/platform/**`; no UI aliases or redirects were added.
+- `cd server && go run ./cmd/graft validate backend` passed. `cd web && bun run check` passed all static gates and 1,270 tests, but one unrelated container-detail mount-copy test failed once; its isolated 101-test retry passed. Keep the topic active until a stable full-Web retry completes.
+
 ## 2026-07-12 Navigation Design, Topic, And Skill
 
 - Work Intake classified the navigation refactor as long-running, with a design and active topic but no roadmap or ADR.

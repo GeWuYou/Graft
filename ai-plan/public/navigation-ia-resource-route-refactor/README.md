@@ -3,12 +3,12 @@
 ## Current Status Summary
 
 - Topic objective: establish navigation and resource-route authority, then migrate menu contracts and Web UI routes.
-- Current status: `active`, blocked on the final full Web validation retry.
+- Current status: `active`; the previous migration is superseded by the approved IA-aligned UI route migration.
 - Task class: `cross-boundary`.
 - Intake summary: long-running refactor dispatched through `$graft-multi-agent-loop`.
 - Canonical authority: `ai-plan/design/architecture/导航与资源路由信息架构规范.md`.
-- Completed so far: navigation design, backend graph contract, frontend route migration, and cross-boundary validation closeout.
-- Archive-readiness is blocked: the final `cd web && bun run check` retry repeated the known Monaco RAF timeout. The topic remains active until that validation passes or the owning Web scope resolves the test instability.
+- Completed so far: navigation graph contract and the prior resource-oriented route migration.
+- Current direction: revise the authority to make visible UI routes mirror IA, migrate all visible menu paths without aliases, then rerun cross-boundary validation.
 
 ## Recovery Receipt
 
@@ -30,13 +30,12 @@ Out of scope:
 
 ## Locked Decisions
 
-1. Navigation domains and resource-oriented UI URLs are independent; UI URLs do not encode navigation names, Runtime, or Source.
+1. Visible menu UI URLs mirror the canonical IA domain with `/<domain>/<resource>`; Runtime technology and Source do not become URL hierarchy.
 2. No empty visible groups, no UI route aliases or redirects, and no menu placement without a resolved owner and stable resource boundary.
 
 ## Current Recovery Point
 
-- Batch 4 verified the complete contract and repaired explicit navigation ancestry for breadcrumbs and tab titles.
-- Final Web validation retry failed only at `src/modules/project/shared/project-monaco.test.ts > project-monaco relayout bridge > resolves relayout after the scheduled animation frame runs`, which timed out after 20 seconds. Preserve this topic as active and resolve or explicitly reclassify that validation blocker before archive review.
+- The prior resource-oriented path migration is no longer canonical. Migrate menu contracts, bootstrap routes, deep links, persisted-tab validation and tests to the approved IA-aligned mapping before archive review.
 
 ## Validation Targets
 
