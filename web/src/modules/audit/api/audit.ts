@@ -36,6 +36,12 @@ export function getAuditLogs(query: AuditLogQuery) {
   }) as Promise<AuditLogListResponse>;
 }
 
+/**
+ * 获取指定审计日志的详细信息。
+ *
+ * @param id - 审计日志的标识
+ * @returns 审计日志详情
+ */
 export function getAuditLogDetail(id: number) {
   return request.get<GetAuditLogDetailResponseData>({
     url: AUDIT_API_PATH.DETAIL.replace('{id}', String(id)),

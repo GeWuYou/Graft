@@ -69,6 +69,11 @@ function isBrowserStorageAvailable() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
+/**
+ * 读取并清理持久化的置顶标签键。
+ *
+ * @returns 有效置顶标签键的集合；存储不可用、数据格式无效或读取失败时返回空集合
+ */
 function readPinnedTabKeys() {
   if (!isBrowserStorageAvailable()) {
     return new Set<string>();
@@ -111,10 +116,22 @@ function normalizeTabKey(value?: string) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/**
+ * 获取标签页的唯一标识。
+ *
+ * @param route - 包含标签标识或路径的路由信息
+ * @returns 规范化后的标签标识；两者均为空时返回根路径 `/`
+ */
 function getTabKey(route: Pick<TRouterInfo, 'path' | 'tabKey'>) {
   return normalizeTabKey(route.tabKey) || normalizeTabKey(route.path) || '/';
 }
 
+/**
+ * 判断标签是否属于需要移除的旧版遗留标签。
+ *
+ * @param route - 要检查的标签路由
+ * @returns 如果标签标识符或标题包含旧版遗留标记则为 `true`，否则为 `false`
+ */
 function isRemovedLegacyTab(route: TRouterInfo) {
   const identifiers = [route.tabKey, route.path, route.fullPath, route.duplicatedFrom]
     .map(normalizeTabKey)
@@ -128,10 +145,22 @@ function isRemovedLegacyTab(route: TRouterInfo) {
   );
 }
 
+/**
+ * 移除已废弃的旧版标签页。
+ *
+ * @param routes - 待清理的标签页路由列表
+ * @returns 不包含已废弃旧版标签页的路由列表
+ */
 function removeLegacyTabs(routes: TRouterInfo[]) {
   return routes.filter((route) => !isRemovedLegacyTab(route));
 }
 
+/**
+ * 创建标签路由的浅克隆副本，并复制其查询参数、路径参数、元数据和标题。
+ *
+ * @param route - 要克隆的标签路由
+ * @returns 克隆后的标签路由
+ */
 function cloneTab(route: TRouterInfo): TRouterInfo {
   return {
     ...route,

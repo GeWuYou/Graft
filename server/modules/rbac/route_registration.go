@@ -35,7 +35,7 @@ func registerRBACPermissions(registry *permission.Registry, moduleName string) {
 	}
 }
 
-// registerRBACMenu registers the role-based access control entries in the menu registry.
+// registerRBACMenu registers role and permission management entries in the menu registry.
 func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:       "role.list",

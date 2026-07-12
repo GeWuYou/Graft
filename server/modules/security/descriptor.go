@@ -4,7 +4,7 @@ import "graft/server/internal/module"
 
 const moduleID = "security"
 
-// NewModuleSpec exposes the security overview module's compile-time metadata.
+// NewModuleSpec 返回 security 模块的标识、依赖关系和构建器元数据。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:           moduleID,

@@ -97,6 +97,9 @@ func (p *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
+// resolveUserServices resolves the required user service and the optional user security reader.
+// It returns a nil security reader when that service is not registered, and an error when
+// resolution fails or a resolved service has an unexpected type.
 func resolveUserServices(ctx *module.Context) (moduleapi.UserService, moduleapi.UserSecurityReader, error) {
 	resolvedUserService, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
 	if err != nil {
@@ -121,6 +124,8 @@ func resolveUserServices(ctx *module.Context) (moduleapi.UserService, moduleapi.
 	return userService, securityReader, nil
 }
 
+// registerModuleServices registers RBAC access, bootstrap, and authorization services.
+// It registers the security posture service only when a user security reader is available.
 func registerModuleServices(ctx *module.Context, repository rbacstore.Repository, users moduleapi.UserSecurityReader) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
 		return accessService{rbac: repository}, nil
@@ -164,6 +169,7 @@ func registerMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// rbacMessageKeys 返回 RBAC 模块注册所需的消息键列表。
 func rbacMessageKeys() []rbaccontract.MessageKey {
 	return []rbaccontract.MessageKey{
 		rbaccontract.RoleListMenuTitle,

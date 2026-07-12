@@ -47,7 +47,7 @@ type EmbeddedMigrationDir struct {
 }
 
 // EmbeddedLocaleResources 返回按固定模块顺序聚合后的编译期本地化资源。
-// EmbeddedLocaleResources 按固定模块顺序聚合嵌入式区域资源；任一模块资源加载失败时会触发 panic。
+// EmbeddedLocaleResources 按固定模块顺序聚合嵌入式区域资源；任一模块资源加载失败时触发 panic。
 func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 	providers := []struct {
 		name string

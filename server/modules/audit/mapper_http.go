@@ -123,6 +123,7 @@ func toConvertibleFiltersMap(filters *drilldown.ConvertibleFilters) map[string]a
 	return converted
 }
 
+// addStringSliceField adds a copy of a non-empty string slice to target under key.
 func addStringSliceField(target map[string]any, key string, values []string) {
 	if len(values) == 0 {
 		return
@@ -130,6 +131,7 @@ func addStringSliceField(target map[string]any, key string, values []string) {
 	target[key] = append([]string(nil), values...)
 }
 
+// 返回转换后的事件响应；任一嵌套数据转换失败时返回错误。
 func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error) {
 	seedEvent, err := toAuditLogListItem(result.SeedEvent)
 	if err != nil {
@@ -579,6 +581,8 @@ func appendAuditLogActorUserID(converted *generated.AuditLogListItem, actorUserI
 	return nil
 }
 
+// appendAuditLogMetadata decodes raw audit metadata and assigns it to the converted audit log item.
+// It returns an error when the metadata is not valid JSON.
 func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata json.RawMessage) error {
 	if len(rawMetadata) == 0 {
 		return nil
@@ -592,6 +596,8 @@ func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata j
 	return nil
 }
 
+// mustConvertAuditGeneratedID converts an unsigned identifier to int64 when it fits.
+// It returns an error if the identifier exceeds the maximum int64 value.
 func mustConvertAuditGeneratedID(id uint64, label string) (int64, error) {
 	if id > math.MaxInt64 {
 		return 0, fmt.Errorf("%s exceeds int64: %d", label, id)

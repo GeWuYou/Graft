@@ -16,7 +16,7 @@ import (
 
 const auditMenuOrderLogs = 202
 
-// registerAuditPermissions 注册审计模块的权限条目。
+// registerAuditPermissions 注册审计模块的读取和管理权限条目。
 func registerAuditPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -36,7 +36,7 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 	})
 }
 
-// registerAuditMenu 注册审计概览和日志菜单项，并为其配置审计读取权限。
+// registerAuditMenu 注册审计日志菜单项，并为其配置审计读取权限。
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -72,6 +72,7 @@ func registerAuditMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// auditMessageKeys 返回审计模块所需的本地化消息键。
 func auditMessageKeys() []string {
 	return []string{
 		auditcontract.AuditRootMenuTitle.String(),
@@ -115,6 +116,7 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 	}, nil
 }
 
+// registerAuditService registers the audit service and its security reader with the module service container.
 func registerAuditService(ctx *module.Context, reader *Service) error {
 	if ctx == nil || ctx.Services == nil {
 		return errors.New("module context services are unavailable")

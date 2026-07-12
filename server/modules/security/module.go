@@ -73,6 +73,7 @@ func (m *Module) Boot(_ *module.Context) error { return nil }
 // Shutdown has no owned runtime resources.
 func (m *Module) Shutdown(_ *module.Context) error { return nil }
 
+// registerPermissions 将 Security Overview 的读取权限注册到权限注册表中。
 func registerPermissions(registry *permission.Registry) {
 	if registry == nil {
 		return
@@ -85,6 +86,7 @@ func registerPermissions(registry *permission.Registry) {
 	})
 }
 
+// registerMenu registers the Security Overview menu entry when a menu registry is available.
 func registerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return
@@ -103,6 +105,8 @@ func registerMenu(registry *menu.Registry) {
 	})
 }
 
+// registerMessages 验证安全模块所需的中英文国际化消息资源是否已注册。
+// 如果本地化服务不可用或任一语言缺少所需消息资源，则返回错误。
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
@@ -127,6 +131,11 @@ type overviewResponse struct {
 	Audit         moduleapi.AuditSecuritySnapshot `json:"audit"`
 }
 
+// handleOverview 创建用于返回安全概览数据的 Gin 处理函数。
+// @param ctx 模块上下文，用于本地化错误响应。
+// @param rbacPosture 读取访问控制安全态势的服务。
+// @param auditReader 读取指定时间范围安全审计快照的服务。
+// @return 处理安全概览请求并返回统一响应的 Gin 处理函数。
 func handleOverview(
 	ctx *module.Context,
 	rbacPosture moduleapi.RBACSecurityPostureService,
@@ -153,6 +162,8 @@ func handleOverview(
 	}
 }
 
+// parseOverviewPreset 将审计概览时间参数解析为受支持的时间范围。
+// 返回规范化的时间范围及其是否有效。
 func parseOverviewPreset(value string) (moduleapi.AuditOverviewPreset, bool) {
 	switch moduleapi.AuditOverviewPreset(strings.TrimSpace(value)) {
 	case "", moduleapi.AuditOverviewPresetLast24Hours:

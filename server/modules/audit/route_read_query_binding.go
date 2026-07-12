@@ -642,7 +642,8 @@ func bindGeneratedAuditReadHeaders(ginCtx *gin.Context) (locale *string, request
 // bindAuditPresetValue 解析并校验 `preset` 查询参数。
 // 当参数为空时返回 `nil`；当参数值无效时返回字段名 `"preset"`。
 //
-// @return 符合类型约束且通过 `Valid()` 校验的值指针，以及表示无效字段名的字符串。
+// bindAuditPresetValue 解析并校验 preset 查询参数。
+// 返回通过 Valid 校验的值指针及错误字段名；参数为空时返回 nil 和空字符串，参数无效时返回 nil 和 "preset"。
 func bindAuditPresetValue[T interface {
 	~string
 	Valid() bool
@@ -659,7 +660,7 @@ func bindAuditPresetValue[T interface {
 	return &value, ""
 }
 
-// auditHeaderPointer 将空白字符串转换为 nil，否则返回其指针。
+// auditHeaderPointer 将空白字符串转换为 nil，否则返回去除首尾空白后的字符串指针。
 func auditHeaderPointer(value string) *string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
