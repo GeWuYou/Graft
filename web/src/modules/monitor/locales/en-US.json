@@ -1,4 +1,11 @@
 {
+  "menu": {
+    "monitor": {
+      "overview": { "title": "Overview" },
+      "runtime": { "title": "Runtime" },
+      "dependencies": { "title": "Dependencies" }
+    }
+  },
   "monitor": {
     "route": {
       "overview": {
@@ -18,7 +25,7 @@
         "breadcrumb": "Modules"
       }
     },
-    "sectionTitle": "Service Management",
+    "sectionTitle": "Observability",
     "serverStatus": {
       "overviewTitle": "Server Status Overview",
       "overviewHint": "Review overall server resources, dependency health, and the current Go process runtime summary.",

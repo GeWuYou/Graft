@@ -670,7 +670,7 @@ func TestNewRuntimeCorePreregistersOwnerLocaleResources(t *testing.T) {
 	got := runtime.i18n.Lookup(i18n.LookupRequest{
 		Namespace: "system-config",
 		Locale:    i18n.LocaleENUS,
-		Key:       "menu.server.system_config.title",
+		Key:       "menu.system_config.title",
 	})
 	if got != "System Configuration" {
 		t.Fatalf("expected pre-registered system-config title, got %q", got)
@@ -690,14 +690,14 @@ func TestRuntimeLocalePreregistrationIsOneTime(t *testing.T) {
 	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
 		t.Fatalf("first pre-register owner locales: %v", err)
 	}
-	idsBefore := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey("menu.server.system_config.title"))
-	if len(idsBefore) != 1 || idsBefore[0] != "system-config.menu.server.system_config.title" {
+	idsBefore := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey("menu.system_config.title"))
+	if len(idsBefore) != 1 || idsBefore[0] != "system-config.menu.system_config.title" {
 		t.Fatalf("expected one system-config title key after first pre-registration, got %#v", idsBefore)
 	}
 	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
 		t.Fatalf("second pre-register owner locales: %v", err)
 	}
-	idsAfter := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey("menu.server.system_config.title"))
+	idsAfter := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey("menu.system_config.title"))
 	if !slices.Equal(idsBefore, idsAfter) {
 		t.Fatalf("expected second pre-registration to be a no-op, got before=%#v after=%#v", idsBefore, idsAfter)
 	}

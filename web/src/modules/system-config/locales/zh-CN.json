@@ -1,20 +1,18 @@
 {
   "menu": {
-    "server": {
-      "system_config": {
-        "title": "系统配置"
-      }
+    "system_config": {
+      "title": "系统配置"
     }
   },
   "systemConfig": {
     "route": {
       "list": {
-        "title": "服务管理 - 系统配置",
+        "title": "系统配置",
         "breadcrumb": "系统配置"
       }
     },
     "list": {
-      "eyebrow": "服务管理",
+      "eyebrow": "平台",
       "title": "系统配置",
       "description": "管理模块注册的系统级默认配置与用户覆盖值。",
       "refresh": "刷新",
@@ -390,7 +388,8 @@
   "systemConfig.groups.notification.delivery.description": "控制站内投递与批量 fan-out 限制。",
   "systemConfig.groups.notification.display": "展示",
   "systemConfig.groups.notification.display.description": "控制通知中心的展示默认值。",
-  "systemConfig.domains.ops": "运维管理",
+  "systemConfig.domains.application": "应用",
+  "systemConfig.domains.ops": "基础设施",
   "systemConfig.groups.ops.container.general": "容器管理",
   "systemConfig.groups.ops.container.general.description": "控制容器管理能力的基础开关。",
   "systemConfig.groups.ops.container.runtime": "运行时",

@@ -1,4 +1,4 @@
-menu.ops.project.title: Compose 项目管理
+menu.project.title: 项目管理
 ops.project.error.invalidProjectId: 项目标识不合法。
 ops.project.error.invalidFileId: 项目文件标识不合法。
 ops.project.error.invalidArgument: 项目请求参数不合法。

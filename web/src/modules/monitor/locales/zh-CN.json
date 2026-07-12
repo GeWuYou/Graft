@@ -1,24 +1,31 @@
 {
+  "menu": {
+    "monitor": {
+      "overview": { "title": "概览" },
+      "runtime": { "title": "运行时" },
+      "dependencies": { "title": "依赖服务" }
+    }
+  },
   "monitor": {
     "route": {
       "overview": {
-        "title": "服务管理 - 概览",
+        "title": "概览",
         "breadcrumb": "概览"
       },
       "runtime": {
-        "title": "服务管理 - 运行时",
+        "title": "运行时",
         "breadcrumb": "运行时"
       },
       "dependencies": {
-        "title": "服务管理 - 依赖服务",
+        "title": "依赖服务",
         "breadcrumb": "依赖服务"
       },
       "moduleRuntime": {
-        "title": "服务管理 - 模块运行时",
+        "title": "模块运行时",
         "breadcrumb": "模块运行时"
       }
     },
-    "sectionTitle": "服务管理",
+    "sectionTitle": "可观测性",
     "serverStatus": {
       "overviewTitle": "服务器状态总览",
       "overviewHint": "查看服务器整体资源、依赖健康状态与 Go 进程运行摘要。",

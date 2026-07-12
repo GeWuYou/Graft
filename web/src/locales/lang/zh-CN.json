@@ -347,18 +347,6 @@
     "user_list": {
       "title": "用户管理"
     },
-    "server": {
-      "title": "服务管理",
-      "overview": {
-        "title": "概览"
-      },
-      "runtime": {
-        "title": "运行时"
-      },
-      "dependencies": {
-        "title": "依赖服务"
-      }
-    },
     "modulesRuntime": {
       "title": "模块运行时"
     },

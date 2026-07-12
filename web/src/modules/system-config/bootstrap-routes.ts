@@ -11,7 +11,7 @@ export const systemConfigBootstrapRouteRegistrations: BootstrapRouteRegistration
     ...SYSTEM_CONFIG_BOOTSTRAP_ROUTE.LIST,
     loadPage: () => import('./pages/list/index.vue'),
     meta: {
-      tabGroup: 'server',
+      tabGroup: 'platform',
       pageKind: 'list',
       pageSurface: 'form-detail',
       semanticTitle: listRouteTitle,

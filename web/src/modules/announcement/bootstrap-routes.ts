@@ -16,7 +16,7 @@ export const announcementBootstrapRouteRegistrations: BootstrapRouteRegistration
       pageKind: 'list',
       semanticTitle: managementRouteTitle,
       breadcrumbTitle: managementBreadcrumbTitle,
-      tabGroup: 'server',
+      tabGroup: 'platform',
     },
   },
 ];

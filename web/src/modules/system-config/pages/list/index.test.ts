@@ -22,7 +22,6 @@ const observabilityMocks = vi.hoisted(() => ({
 }));
 
 const translations = vi.hoisted((): Record<string, string> => ({
-  'menu.server.title': '服务管理',
   'systemConfig.fields.batchSize.description': '单次清理最多删除的日志行数。',
   'systemConfig.fields.batchSize.title': '批量大小',
   'systemConfig.fields.retentionDays.description': '删除早于指定天数的日志。',
@@ -30,7 +29,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.domains.dashboard': '工作台配置',
   'systemConfig.domains.logs': '日志配置',
   'systemConfig.domains.notification': '站内通知',
-  'systemConfig.domains.ops': '运维管理',
+  'systemConfig.domains.application': '应用',
+  'systemConfig.domains.ops': '基础设施',
   'systemConfig.groupDescriptions.dashboardQuickActions': '管理首页快捷入口的显示与排序策略。',
   'systemConfig.groupDescriptions.coreLoggerLogRetention': '管理应用日志清理的保留周期与批量策略。',
   'systemConfig.groupDescriptions.coreHttpxLogRetention': '管理访问日志清理的保留周期与批量策略。',
@@ -112,7 +112,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.list.emptyDescription': '模块注册的 ConfigDefinition 会显示在这里。',
   'systemConfig.list.emptyTitle': '暂无系统配置',
   'systemConfig.list.emptyValue': '无数据',
-  'systemConfig.list.eyebrow': '服务管理',
+  'systemConfig.list.eyebrow': '平台',
   'systemConfig.list.defaultGroup': '默认分组',
   'systemConfig.list.groupConfigCount': '{count} 个配置项',
   'systemConfig.list.groupLabel': '{module} / {group}',
@@ -301,7 +301,7 @@ describe('system config list page', () => {
     await flushPromises();
 
     expect(wrapper.find('.page-header').exists()).toBe(true);
-    expect(wrapper.find('.page-header').text()).toContain('服务管理');
+    expect(wrapper.find('.page-header').text()).toContain('平台');
     expect(wrapper.find('.page-header').text()).toContain('系统配置');
     expect(wrapper.text()).toContain('工作台配置');
     expect(wrapper.text()).toContain('工作台快捷入口');
@@ -649,7 +649,7 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('运维管理');
+    expect(wrapper.text()).toContain('基础设施');
     expect(wrapper.text()).toContain('容器管理');
     expect(wrapper.text()).toContain('控制容器管理能力的基础开关。');
     expect(wrapper.text()).toContain('启用容器运行时访问');
@@ -847,7 +847,7 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('运维管理');
+    expect(wrapper.text()).toContain('应用');
     expect(wrapper.text()).toContain('项目创建');
     expect(wrapper.text()).toContain('项目导入');
     expect(wrapper.text()).toContain('项目工作台');
@@ -1737,7 +1737,7 @@ function containerConfigItem(input: {
     module: 'container',
     domain: 'ops',
     domain_key: 'systemConfig.domains.ops',
-    domain_label: 'Operations',
+    domain_label: 'Infrastructure',
     group: 'ops.container.general',
     group_key: 'systemConfig.groups.ops.container.general',
     group_label: 'Container Management',
@@ -1782,9 +1782,9 @@ function projectConfigItem(input: {
   return {
     key: input.key,
     module: 'project',
-    domain: 'ops',
-    domain_key: 'systemConfig.domains.ops',
-    domain_label: 'Operations',
+    domain: 'application',
+    domain_key: 'systemConfig.domains.application',
+    domain_label: 'Application',
     group: input.group ?? 'ops.project.workspace',
     group_key: input.groupKey,
     group_label: input.groupLabel,

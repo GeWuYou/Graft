@@ -62,9 +62,6 @@ const (
 	// CommonCopyright identifies the shared copyright footer label used by runtime UI copy.
 	CommonCopyright Key = "common.copyright"
 
-	// MenuServerTitle identifies the shared service-management root menu title.
-	MenuServerTitle Key = "menu.server.title"
-
 	// RbacCannotRemoveOwnAdminRole identifies self-lockout prevention failures for builtin admin role replacement.
 	RbacCannotRemoveOwnAdminRole Key = "rbac.cannot_remove_own_admin_role"
 

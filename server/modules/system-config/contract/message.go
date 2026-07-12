@@ -10,7 +10,7 @@ func (k MessageKey) String() string {
 
 const (
 	// SystemConfigMenuTitle identifies the system configuration menu title.
-	SystemConfigMenuTitle MessageKey = "menu.server.system_config.title"
+	SystemConfigMenuTitle MessageKey = "menu.system_config.title"
 	// SystemConfigNotFound identifies the not-found error message.
 	SystemConfigNotFound MessageKey = "system_config.not_found"
 	// SystemConfigInvalidRequest identifies the invalid-request error message.

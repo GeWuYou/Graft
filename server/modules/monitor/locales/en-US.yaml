@@ -1,7 +1,6 @@
-menu.server.title: Server Management
-menu.server.overview.title: Overview
-menu.server.runtime.title: Runtime
-menu.server.dependencies.title: Dependencies
+menu.monitor.overview.title: Overview
+menu.monitor.runtime.title: Runtime
+menu.monitor.dependencies.title: Dependencies
 monitor.evidence.auditUnavailable.title: Audit evidence is unavailable
 dashboard.widget.monitorSystemHealth.title: System Health
 dashboard.widget.monitorSystemHealth.description: Current service health, dependency state, and active anomalies.

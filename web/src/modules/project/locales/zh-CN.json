@@ -19,10 +19,8 @@
     }
   },
   "menu": {
-    "ops": {
-      "project": {
-        "title": "项目管理"
-      }
+    "project": {
+      "title": "项目管理"
     }
   },
   "project": {
@@ -34,7 +32,7 @@
     },
     "route": {
       "list": {
-        "title": "运维管理 - 项目管理",
+        "title": "项目管理",
         "breadcrumb": "项目管理"
       },
       "createImport": {
@@ -157,7 +155,7 @@
       }
     },
     "list": {
-      "eyebrow": "运维管理",
+      "eyebrow": "应用",
       "title": "Compose 项目管理",
       "description": "管理已导入的 Compose 项目，同时保持容器运行时 authority 不被复制。",
       "refresh": "刷新",

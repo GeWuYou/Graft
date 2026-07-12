@@ -161,7 +161,6 @@ func registerMessages(localizer *i18n.Service) error {
 
 	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
 		for _, key := range []monitorcontract.MessageKey{
-			monitorcontract.ServerStatusMenuTitle,
 			monitorcontract.ServerStatusOverviewMenuTitle,
 			monitorcontract.ServerStatusRuntimeMenuTitle,
 			monitorcontract.ServerStatusDependenciesMenuTitle,

@@ -129,8 +129,8 @@ function mountSideNav() {
           path: '/server',
           meta: {
             title: {
-              'zh-CN': '服务管理',
-              'en-US': 'Server',
+              'zh-CN': '可观测性',
+              'en-US': 'Observability',
             },
           },
           children: [

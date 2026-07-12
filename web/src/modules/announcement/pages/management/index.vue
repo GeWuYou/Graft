@@ -4,7 +4,7 @@
       <management-page-header
         title-key="announcement.management.title"
         description-key="announcement.management.description"
-        :source="{ labelKey: 'menu.server.title', fallback: t('menu.server.title') }"
+        :source="{ labelKey: 'announcement.management.eyebrow', fallback: t('announcement.management.eyebrow') }"
       >
         <template #actions>
           <div class="announcement-management-page__header-actions">

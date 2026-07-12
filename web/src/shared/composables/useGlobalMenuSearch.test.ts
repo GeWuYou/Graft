@@ -15,9 +15,9 @@ describe('useGlobalMenuSearch helpers', () => {
   it('flattens visible menu leaves and excludes hidden routes', () => {
     const routes = [
       createRoute({
-        path: '/ops',
+        path: '/infrastructure',
         meta: {
-          title: { 'zh-CN': '运维管理', 'en-US': 'Operations' },
+          title: { 'zh-CN': '基础设施', 'en-US': 'Infrastructure' },
         },
         children: [
           createRoute({
@@ -45,9 +45,9 @@ describe('useGlobalMenuSearch helpers', () => {
 
     expect(index).toEqual([
       expect.objectContaining({
-        navigationPath: '/ops/containers',
-        parentTitles: ['运维管理'],
-        path: '/ops/containers',
+        navigationPath: '/infrastructure/containers',
+        parentTitles: ['基础设施'],
+        path: '/infrastructure/containers',
         title: '容器管理',
       }),
     ]);
@@ -114,9 +114,9 @@ describe('useGlobalMenuSearch helpers', () => {
   it('matches title, parent title, and path with stable ranking', () => {
     const routes = [
       createRoute({
-        path: '/ops',
+        path: '/infrastructure',
         meta: {
-          title: { 'zh-CN': '运维管理', 'en-US': 'Operations' },
+          title: { 'zh-CN': '基础设施', 'en-US': 'Infrastructure' },
         },
         children: [
           createRoute({
@@ -158,7 +158,7 @@ describe('useGlobalMenuSearch helpers', () => {
     const index = buildGlobalMenuSearchIndex(routes, { locale: 'zh-CN' });
 
     expect(searchGlobalMenuItems(index, '容器').map((item) => item.title)).toEqual(['容器管理']);
-    expect(searchGlobalMenuItems(index, '运维').map((item) => item.title)).toEqual(['容器管理']);
+    expect(searchGlobalMenuItems(index, '基础设施').map((item) => item.title)).toEqual(['容器管理']);
     expect(searchGlobalMenuItems(index, 'application').map((item) => item.title)).toEqual(['应用日志']);
     expect(searchGlobalMenuItems(index, 'log').map((item) => item.title)).toEqual(['访问日志', '应用日志']);
   });

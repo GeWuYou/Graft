@@ -557,7 +557,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.detail.networkEmpty': '暂无网络信息。',
   'container.list.detail.portEmpty': '暂无端口映射。',
   'container.list.detail.workingDir': '工作目录',
-  'container.list.eyebrow': '运维管理',
+  'container.list.eyebrow': '基础设施',
   'container.list.fields.createdAt': '创建时间',
   'container.list.fields.id': 'ID',
   'container.list.fields.image': '镜像',

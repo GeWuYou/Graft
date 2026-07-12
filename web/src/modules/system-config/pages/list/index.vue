@@ -2,7 +2,7 @@
   <section class="system-config-page" data-page-type="settings">
     <page-header
       :source="{
-        labelKey: 'menu.server.title',
+        labelKey: 'systemConfig.list.eyebrow',
         fallback: t('systemConfig.list.eyebrow'),
         color: 'var(--td-brand-color-6)',
       }"

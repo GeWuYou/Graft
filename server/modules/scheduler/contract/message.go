@@ -10,7 +10,7 @@ func (k MessageKey) String() string {
 
 const (
 	// ScheduledTaskMenuTitle identifies the localized title for the scheduled task menu.
-	ScheduledTaskMenuTitle MessageKey = "menu.server.scheduled_tasks.title"
+	ScheduledTaskMenuTitle MessageKey = "menu.scheduled_task.title"
 	// ScheduledTaskNotFound identifies missing scheduled task failures.
 	ScheduledTaskNotFound MessageKey = "scheduled_task.not_found"
 	// ScheduledTaskAlreadyRunning identifies duplicate manual run failures.

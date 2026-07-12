@@ -33,26 +33,26 @@ const (
 )
 
 const (
-	defaultContainerEnabled                 = false
-	defaultContainerRuntime                 = "first-adapter"
-	defaultContainerDockerEndpoint          = "unix:///var/run/docker.sock"
-	defaultContainerLogsDefaultTail         = 200
-	defaultContainerLogsMaxTail             = 2000
-	defaultContainerResourceStatsCacheTTL      = 2
-	defaultContainerResourceStatsStaleWindow   = 8
+	defaultContainerEnabled                      = false
+	defaultContainerRuntime                      = "first-adapter"
+	defaultContainerDockerEndpoint               = "unix:///var/run/docker.sock"
+	defaultContainerLogsDefaultTail              = 200
+	defaultContainerLogsMaxTail                  = 2000
+	defaultContainerResourceStatsCacheTTL        = 2
+	defaultContainerResourceStatsStaleWindow     = 8
 	defaultContainerResourceStatsCollectInterval = 1
-	maxContainerResourceStatsCacheTTL          = 60
-	maxContainerResourceStatsStaleWindow       = 300
-	maxContainerResourceStatsCollectInterval   = 60
-	defaultContainerDangerousActionsEnabled = false
-	defaultContainerComposeActionLevel      = containercontract.ContainerOrchestratorActionLevelWarn
-	defaultContainerSwarmActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
-	defaultContainerKubernetesActionLevel   = containercontract.ContainerOrchestratorActionLevelReadonly
-	defaultContainerUnknownActionLevel      = containercontract.ContainerOrchestratorActionLevelReadonly
-	defaultContainerShellEnabled            = false
-	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
-	defaultContainerEnvironmentMaskedCopy   = false
-	containerConfigEstimatedKeysPerItem     = 8
+	maxContainerResourceStatsCacheTTL            = 60
+	maxContainerResourceStatsStaleWindow         = 300
+	maxContainerResourceStatsCollectInterval     = 60
+	defaultContainerDangerousActionsEnabled      = false
+	defaultContainerComposeActionLevel           = containercontract.ContainerOrchestratorActionLevelWarn
+	defaultContainerSwarmActionLevel             = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerKubernetesActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerUnknownActionLevel           = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerShellEnabled                 = false
+	defaultContainerEnvironmentPolicy            = containercontract.ContainerEnvironmentPolicyMasked
+	defaultContainerEnvironmentMaskedCopy        = false
+	containerConfigEstimatedKeysPerItem          = 8
 )
 
 // registerConfig registers container configuration definitions and i18n messages.
@@ -334,7 +334,7 @@ func baseContainerDefinition(spec containerDefinitionSpec) configregistry.Defini
 		TitleKey:            containerConfigTitleKey(spec.key),
 		Description:         spec.fallbackDescription,
 		DescriptionKey:      containerConfigDescriptionKey(spec.key),
-		Tags:                []string{"ops", "container", spec.group},
+		Tags:                []string{containerConfigDomain, "container", spec.group},
 		Type:                spec.valueType,
 		Schema:              spec.schema,
 		DefaultValue:        spec.defaultValue,

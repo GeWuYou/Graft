@@ -55,7 +55,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.refreshInterval10Seconds': 'Every 10 sec',
   'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
   'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
-  'monitor.sectionTitle': 'Service Management',
+  'monitor.sectionTitle': 'Observability',
   'monitor.moduleRuntime.title': 'Modules',
   'monitor.moduleRuntime.subtitle': 'Review compile-time module status.',
   'monitor.moduleRuntime.errorTitle': 'Module snapshot request failed',

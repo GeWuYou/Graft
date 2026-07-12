@@ -347,18 +347,6 @@
     "user_list": {
       "title": "Users"
     },
-    "server": {
-      "title": "Service Management",
-      "overview": {
-        "title": "Overview"
-      },
-      "runtime": {
-        "title": "Runtime"
-      },
-      "dependencies": {
-        "title": "Dependencies"
-      }
-    },
     "modulesRuntime": {
       "title": "Modules"
     },

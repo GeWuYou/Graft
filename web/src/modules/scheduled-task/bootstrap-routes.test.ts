@@ -9,7 +9,7 @@ describe('scheduled task bootstrap route registrations', () => {
     expect(scheduledTaskBootstrapRouteRegistrations[0]).toMatchObject({
       ...SCHEDULED_TASK_BOOTSTRAP_ROUTE.LIST,
       meta: expect.objectContaining({
-        tabGroup: 'server',
+        tabGroup: 'platform',
         pageKind: 'list',
       }),
     });

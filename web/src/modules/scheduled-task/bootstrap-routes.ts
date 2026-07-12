@@ -11,7 +11,7 @@ export const scheduledTaskBootstrapRouteRegistrations: BootstrapRouteRegistratio
     ...SCHEDULED_TASK_BOOTSTRAP_ROUTE.LIST,
     loadPage: () => import('./pages/list/index.vue'),
     meta: {
-      tabGroup: 'server',
+      tabGroup: 'platform',
       pageKind: 'list',
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,

@@ -148,7 +148,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'announcement.visibility.scheduled': 'Not Started',
   'announcement.visibility.visible': 'Visible',
   'components.commonTable.more': 'More',
-  'menu.server.title': 'Server',
+  'announcement.management.eyebrow': 'Platform',
 }));
 
 vi.mock('vue-i18n', () => ({

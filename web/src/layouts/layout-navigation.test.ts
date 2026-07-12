@@ -11,7 +11,7 @@ describe('layout navigation helpers', () => {
       children: [
         {
           path: 'overview',
-          meta: { titleKey: 'menu.server.overview.title' },
+          meta: { titleKey: 'menu.monitor.overview.title' },
         },
       ],
     };
@@ -57,7 +57,7 @@ describe('layout navigation helpers', () => {
           },
         ],
         meta: {
-          titleKey: 'menu.server.title',
+          titleKey: 'menu.domain.observability.title',
         },
       },
     ]);

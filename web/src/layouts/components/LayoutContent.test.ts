@@ -22,8 +22,8 @@ const routeState = vi.hoisted(() => ({
     {
       meta: {
         breadcrumbTitle: {
-          'zh-CN': '服务管理',
-          'en-US': 'Service Management',
+          'zh-CN': '可观测性',
+          'en-US': 'Observability',
         },
       },
       path: '/server',
@@ -329,8 +329,8 @@ describe('LayoutContent', () => {
       {
         meta: {
           breadcrumbTitle: {
-            'zh-CN': '服务管理',
-            'en-US': 'Service Management',
+            'zh-CN': '可观测性',
+            'en-US': 'Observability',
           },
         },
         path: '/server',

@@ -13,3 +13,11 @@ func TestProjectManagedRootDefinitionSchemaRegisters(t *testing.T) {
 		t.Fatalf("register project managed root definition: %v", err)
 	}
 }
+
+func TestProjectConfigDefinitionsPreserveOpsDomainContract(t *testing.T) {
+	for _, definition := range configDefinitions() {
+		if definition.Domain != "ops" || definition.DomainKey != "systemConfig.domains.ops" {
+			t.Fatalf("expected stable ops config domain metadata, got %#v", definition)
+		}
+	}
+}

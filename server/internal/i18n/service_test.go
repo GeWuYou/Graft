@@ -53,7 +53,7 @@ func newTestServiceWithModuleLocales(t *testing.T) *Service {
 			Locale:    LocaleZHCN,
 			Source:    "scheduler/zh-CN.yaml",
 			Data: []byte(strings.Join([]string{
-				"menu.server.scheduled_tasks.title: 定时任务",
+				"menu.scheduled_task.title: 定时任务",
 				"dashboard.widget.schedulerTaskAttention.title: 定时任务关注项",
 			}, "\n")),
 		},
@@ -62,7 +62,7 @@ func newTestServiceWithModuleLocales(t *testing.T) *Service {
 			Locale:    LocaleENUS,
 			Source:    "scheduler/en-US.yaml",
 			Data: []byte(strings.Join([]string{
-				"menu.server.scheduled_tasks.title: Scheduled Tasks",
+				"menu.scheduled_task.title: Scheduled Tasks",
 				"dashboard.widget.schedulerTaskAttention.title: Scheduled Task Attention",
 			}, "\n")),
 		},
@@ -70,13 +70,13 @@ func newTestServiceWithModuleLocales(t *testing.T) *Service {
 			Namespace: "container",
 			Locale:    LocaleZHCN,
 			Source:    "container/zh-CN.yaml",
-			Data:      []byte("menu.ops.title: 运维管理\nmenu.ops.container.title: 容器管理\n"),
+			Data:      []byte("menu.container.title: 容器管理\n"),
 		},
 		{
 			Namespace: "container",
 			Locale:    LocaleENUS,
 			Source:    "container/en-US.yaml",
-			Data:      []byte("menu.ops.title: Operations\nmenu.ops.container.title: Container Management\n"),
+			Data:      []byte("menu.container.title: Containers\n"),
 		},
 		{
 			Namespace: "monitor",
@@ -188,9 +188,6 @@ func TestMessageFallsBackToConfiguredLocalesAndKey(t *testing.T) {
 	}
 	if message := service.Message("zh-CN", "common.copyright"); message != "Copyright (C) 2021-2026 Tencent. All Rights Reserved" {
 		t.Fatalf("expected zh-CN shared copyright message, got %q", message)
-	}
-	if message := service.Message("en-US", "menu.server.title"); message != "Service Management" {
-		t.Fatalf("expected en-US shared server menu title, got %q", message)
 	}
 	if message := service.Message("en-US", "missing.key"); message != "missing.key" {
 		t.Fatalf("expected missing key fallback, got %q", message)
@@ -365,9 +362,8 @@ func TestEmbeddedLocaleResourcesIncludePhase4DisplayKeys(t *testing.T) {
 	keys := []string{
 		"menu.notification.title",
 		"menu.audit.title",
-		"menu.server.scheduled_tasks.title",
-		"menu.ops.title",
-		"menu.ops.container.title",
+		"menu.scheduled_task.title",
+		"menu.container.title",
 		"menu.logCenter.title",
 		"menu.accessLog.title",
 		"menu.appLog.title",
@@ -441,7 +437,6 @@ func TestEmbeddedCoreLocaleResourcesProvideDefaultCatalogMessages(t *testing.T) 
 		"core.common.copyright",
 		"core.common.internal_error",
 		"core.common.invalid_argument",
-		"core.menu.server.title",
 		"core.rbac.cannot_remove_own_admin_role",
 		"core.rbac.builtin_admin_permissions_immutable",
 		"core.permission.not_found",

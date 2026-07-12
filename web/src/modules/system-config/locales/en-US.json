@@ -1,20 +1,18 @@
 {
   "menu": {
-    "server": {
-      "system_config": {
-        "title": "System Configuration"
-      }
+    "system_config": {
+      "title": "System Configuration"
     }
   },
   "systemConfig": {
     "route": {
       "list": {
-        "title": "Service Management - System Configuration",
+        "title": "System Configuration",
         "breadcrumb": "System Configuration"
       }
     },
     "list": {
-      "eyebrow": "Service Management",
+      "eyebrow": "Platform",
       "title": "System Configuration",
       "description": "Manage Module-Registered System Defaults and User Overrides.",
       "refresh": "Refresh",
@@ -390,7 +388,8 @@
   "systemConfig.groups.notification.delivery.description": "Control in-app delivery and fan-out limits.",
   "systemConfig.groups.notification.display": "Display",
   "systemConfig.groups.notification.display.description": "Control Notification Center display defaults.",
-  "systemConfig.domains.ops": "Operations",
+  "systemConfig.domains.application": "Application",
+  "systemConfig.domains.ops": "Infrastructure",
   "systemConfig.groups.ops.container.general": "Container Management",
   "systemConfig.groups.ops.container.general.description": "Control the container management baseline.",
   "systemConfig.groups.ops.container.runtime": "Runtime",

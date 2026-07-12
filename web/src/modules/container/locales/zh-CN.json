@@ -1,16 +1,13 @@
 {
   "menu": {
-    "ops": {
-      "title": "运维管理",
-      "container": {
-        "title": "容器管理"
-      }
+    "container": {
+      "title": "容器管理"
     }
   },
   "container": {
     "route": {
       "list": {
-        "title": "运维管理 - 容器管理",
+        "title": "容器管理",
         "breadcrumb": "容器管理"
       },
       "detail": {
@@ -19,7 +16,7 @@
       }
     },
     "list": {
-      "eyebrow": "运维管理",
+      "eyebrow": "基础设施",
       "title": "容器管理",
       "description": "查看本机容器运行时中的容器状态、详情和有界日志。",
       "refresh": "刷新",

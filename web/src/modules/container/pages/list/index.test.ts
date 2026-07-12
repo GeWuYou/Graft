@@ -203,7 +203,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.emptyFilteredDescription': '没有符合筛选条件的容器。',
   'container.list.emptyTitle': '暂无容器',
   'container.list.errorCount': '异常 {count}',
-  'container.list.eyebrow': '运维管理',
+  'container.list.eyebrow': '基础设施',
   'container.list.fields.apiVersion': 'API 版本',
   'container.list.fields.architecture': '架构',
   'container.list.fields.createdAt': '创建时间',
@@ -593,6 +593,7 @@ describe('container list page', () => {
       offset: 0,
       state: undefined,
     });
+    expect(wrapper.text()).toContain('基础设施');
     expect(wrapper.text()).toContain('容器管理');
     expect(wrapper.text()).toContain('总数 25');
     expect(wrapper.text()).toContain('不健康 0');
@@ -1963,11 +1964,12 @@ function mountPage(component: object = ContainerListPage) {
       },
       stubs: {
         'management-page-header': defineComponent({
-          props: ['title', 'description'],
+          props: ['title', 'description', 'source'],
           setup:
             (props, { slots }) =>
             () =>
               h('header', [
+                h('span', (props.source as { fallback?: string } | undefined)?.fallback ?? ''),
                 h('h1', props.title as string),
                 h('p', props.description as string),
                 slots.meta?.(),

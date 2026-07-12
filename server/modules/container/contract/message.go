@@ -9,10 +9,8 @@ func (k MessageKey) String() string {
 }
 
 const (
-	// OperationsMenuTitle identifies the operations menu title.
-	OperationsMenuTitle MessageKey = "menu.ops.title"
 	// ContainerMenuTitle identifies the container management menu title.
-	ContainerMenuTitle MessageKey = "menu.ops.container.title"
+	ContainerMenuTitle MessageKey = "menu.container.title"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.
 	ContainerRuntimeDisabled MessageKey = "ops.container.error.runtimeDisabled"
 	// ContainerRuntimeSocketMissing identifies missing runtime socket errors.

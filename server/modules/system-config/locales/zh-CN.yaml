@@ -1,4 +1,4 @@
-menu.server.system_config.title: 系统配置
+menu.system_config.title: 系统配置
 system_config.not_found: 系统配置不存在
 system_config.invalid_request: 系统配置请求无效
 systemConfig.domains.dashboard: 工作台配置
@@ -20,7 +20,8 @@ systemConfig.options.dashboardQuickActionStrategy.hybrid: 综合推荐
 systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid: 根据最近访问、使用频率和系统推荐结果综合排序。
 systemConfig.domains.logs: 日志配置
 systemConfig.domains.notification: 站内通知
-systemConfig.domains.ops: 运维管理
+systemConfig.domains.application: 应用
+systemConfig.domains.ops: 基础设施
 systemConfig.domains.audit: 安全审计
 systemConfig.groups.coreHttpxLogRetention: 访问日志保留
 systemConfig.groupDescriptions.coreHttpxLogRetention: 管理访问日志清理的保留周期与批量策略。

@@ -569,13 +569,13 @@ function buildSidebarRoutes() {
         orderNo: 15,
         single: true,
         title: {
-          'zh-CN': '运维管理',
-          'en-US': 'Operations',
+          'zh-CN': '基础设施',
+          'en-US': 'Infrastructure',
         },
         titleKey: 'container.route.list.title',
         tabTitle: {
-          'zh-CN': '运维管理 - 容器管理',
-          'en-US': 'Operations - Container Management',
+          'zh-CN': '基础设施 / 容器管理',
+          'en-US': 'Infrastructure / Containers',
         },
         breadcrumbTitle: {
           'zh-CN': '容器管理',
@@ -673,7 +673,7 @@ describe('DashboardHomePage', () => {
     expect(wrapper.text()).toContain('Events');
     expect(wrapper.text()).toContain('Security Audit');
     expect(wrapper.text()).toContain('Container Management');
-    expect(wrapper.text()).toContain('Operations');
+    expect(wrapper.text()).toContain('Infrastructure');
     expect(wrapper.text()).toContain('Role Management');
     expect(wrapper.text()).toContain('Access Control');
     expect(wrapper.text()).not.toContain('Access Control - Permissions');
