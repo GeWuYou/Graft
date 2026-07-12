@@ -1,9 +1,7 @@
 {
   "menu": {
-    "server": {
-      "announcements": {
-        "title": "Announcements"
-      }
+    "announcement": {
+      "title": "Announcements"
     }
   },
   "announcement": {
@@ -58,6 +56,7 @@
       "markAllReadFailed": "Failed to Mark All Read"
     },
     "management": {
+      "eyebrow": "Platform",
       "title": "Announcement Management",
       "description": "Manage long-running platform announcements, effective time, and visibility status for all users.",
       "refresh": "Refresh",

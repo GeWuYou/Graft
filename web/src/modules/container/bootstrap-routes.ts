@@ -13,7 +13,7 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
     ...CONTAINER_BOOTSTRAP_ROUTE.LIST,
     loadPage: () => import('./pages/list/index.vue'),
     meta: {
-      tabGroup: 'ops',
+      tabGroup: 'infrastructure',
       pageKind: 'list',
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
@@ -36,7 +36,7 @@ export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       semanticTitle: detailRouteTitle,
       breadcrumbTitle: detailBreadcrumbTitle,
       domainTitle: listRouteTitle,
-      tabGroup: 'ops',
+      tabGroup: 'infrastructure',
       tabTitle: detailRouteTitle,
       title: detailRouteTitle,
       titleKey: 'container.route.detail.title',

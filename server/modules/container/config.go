@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	containerConfigDomain            = "ops"
-	containerConfigDomainKey         = "systemConfig.domains.ops"
+	containerConfigDomain            = "infrastructure"
+	containerConfigDomainKey         = "systemConfig.domains.infrastructure"
 	containerConfigGeneralGroup      = "ops.container.general"
 	containerConfigGeneralGroupKey   = "systemConfig.groups.ops.container.general"
 	containerConfigGeneralDescKey    = "systemConfig.groups.ops.container.general.description"
@@ -33,26 +33,26 @@ const (
 )
 
 const (
-	defaultContainerEnabled                 = false
-	defaultContainerRuntime                 = "first-adapter"
-	defaultContainerDockerEndpoint          = "unix:///var/run/docker.sock"
-	defaultContainerLogsDefaultTail         = 200
-	defaultContainerLogsMaxTail             = 2000
-	defaultContainerResourceStatsCacheTTL      = 2
-	defaultContainerResourceStatsStaleWindow   = 8
+	defaultContainerEnabled                      = false
+	defaultContainerRuntime                      = "first-adapter"
+	defaultContainerDockerEndpoint               = "unix:///var/run/docker.sock"
+	defaultContainerLogsDefaultTail              = 200
+	defaultContainerLogsMaxTail                  = 2000
+	defaultContainerResourceStatsCacheTTL        = 2
+	defaultContainerResourceStatsStaleWindow     = 8
 	defaultContainerResourceStatsCollectInterval = 1
-	maxContainerResourceStatsCacheTTL          = 60
-	maxContainerResourceStatsStaleWindow       = 300
-	maxContainerResourceStatsCollectInterval   = 60
-	defaultContainerDangerousActionsEnabled = false
-	defaultContainerComposeActionLevel      = containercontract.ContainerOrchestratorActionLevelWarn
-	defaultContainerSwarmActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
-	defaultContainerKubernetesActionLevel   = containercontract.ContainerOrchestratorActionLevelReadonly
-	defaultContainerUnknownActionLevel      = containercontract.ContainerOrchestratorActionLevelReadonly
-	defaultContainerShellEnabled            = false
-	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
-	defaultContainerEnvironmentMaskedCopy   = false
-	containerConfigEstimatedKeysPerItem     = 8
+	maxContainerResourceStatsCacheTTL            = 60
+	maxContainerResourceStatsStaleWindow         = 300
+	maxContainerResourceStatsCollectInterval     = 60
+	defaultContainerDangerousActionsEnabled      = false
+	defaultContainerComposeActionLevel           = containercontract.ContainerOrchestratorActionLevelWarn
+	defaultContainerSwarmActionLevel             = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerKubernetesActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerUnknownActionLevel           = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerShellEnabled                 = false
+	defaultContainerEnvironmentPolicy            = containercontract.ContainerEnvironmentPolicyMasked
+	defaultContainerEnvironmentMaskedCopy        = false
+	containerConfigEstimatedKeysPerItem          = 8
 )
 
 // registerConfig registers container configuration definitions and i18n messages.

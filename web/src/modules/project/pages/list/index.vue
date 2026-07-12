@@ -4,7 +4,7 @@
       <management-page-header
         title-key="project.list.title"
         description-key="project.list.description"
-        :source="{ labelKey: 'menu.ops.title', fallback: t('project.list.eyebrow') }"
+        :source="{ labelKey: 'project.list.eyebrow', fallback: t('project.list.eyebrow') }"
       >
         <template #meta>
           <div class="project-header-summary">

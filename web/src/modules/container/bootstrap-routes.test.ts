@@ -14,11 +14,11 @@ describe('container bootstrap route registrations', () => {
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
     expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
       semanticTitle: {
-        'zh-CN': '运维管理 - 容器管理',
+        'zh-CN': '容器管理',
         'en-US': 'Containers',
       },
       tabTitle: {
-        'zh-CN': '运维管理 - 容器管理',
+        'zh-CN': '容器管理',
         'en-US': 'Containers',
       },
       breadcrumbTitle: {

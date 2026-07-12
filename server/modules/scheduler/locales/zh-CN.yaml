@@ -1,4 +1,4 @@
-menu.server.scheduled_tasks.title: 定时任务
+menu.scheduled_task.title: 定时任务
 scheduled_task.not_found: 定时任务不存在
 scheduled_task.already_running: 定时任务正在运行
 scheduled_task.invalid_request: 定时任务请求无效

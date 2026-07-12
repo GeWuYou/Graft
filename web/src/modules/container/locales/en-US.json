@@ -1,10 +1,7 @@
 {
   "menu": {
-    "ops": {
-      "title": "Operations",
-      "container": {
-        "title": "Containers"
-      }
+    "container": {
+      "title": "Containers"
     }
   },
   "container": {
@@ -19,7 +16,7 @@
       }
     },
     "list": {
-      "eyebrow": "Operations",
+      "eyebrow": "Infrastructure",
       "title": "Containers",
       "description": "Review Local Container Runtime State, Details, and Truncated Logs.",
       "refresh": "Refresh",

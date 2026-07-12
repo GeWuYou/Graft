@@ -14,7 +14,7 @@ vi.mock('@/locales', () => ({
 
     const translations: Record<string, string> = {
       'dashboard.module.audit': 'Security Audit',
-      'dashboard.module.core': 'Service Management',
+      'dashboard.module.core': 'Platform',
       'dashboard.quickActions.description': '当前权限可用入口',
       'dashboard.quickActions.drawerTitle': '全部快捷入口',
       'dashboard.quickActions.empty': '暂无可用快捷入口',
@@ -35,12 +35,12 @@ vi.mock('@/modules', () => ({
   getBootstrapRouteRegistration: (menuPath: string) => {
     const registrations = new Map([
       [
-        '/server/overview',
+        '/monitor/overview',
         {
           meta: {
             tabTitle: {
-              'zh-CN': '服务管理 - 概览',
-              'en-US': 'Service Management - Overview',
+              'zh-CN': '可观测性 / 概览',
+              'en-US': 'Observability / Overview',
             },
           },
         },
@@ -139,11 +139,11 @@ function quickLink(index: number, partial: Partial<DashboardQuickActionLink> = {
   return {
     id: `link-${index}`,
     module_key: index % 2 === 0 ? 'core' : 'audit',
-    group: index % 2 === 0 ? 'Service Management' : 'Security Audit',
+    group: index % 2 === 0 ? 'Platform' : 'Security Audit',
     order: index,
     route_location: `/route-${index}`,
     title: `Link ${index}`,
-    full_label: `${index % 2 === 0 ? 'Service Management' : 'Security Audit'} - Link ${index}`,
+    full_label: `${index % 2 === 0 ? 'Platform' : 'Security Audit'} / Link ${index}`,
     ...partial,
   };
 }
@@ -181,7 +181,7 @@ describe('DashboardQuickActions', () => {
     expect(wrapper.findAll('.dashboard-quick-actions__item')).toHaveLength(4);
     expect(wrapper.text()).toContain('查看全部 10 个');
     expect(wrapper.text()).toContain('Security Audit');
-    expect(wrapper.text()).toContain('Service Management');
+    expect(wrapper.text()).toContain('Platform');
     expect(wrapper.text()).not.toContain('Link 5');
 
     await wrapper.findAll('button').at(-1)?.trigger('click');
@@ -233,10 +233,10 @@ describe('DashboardQuickActions', () => {
     const wrapper = mountQuickActions(
       [
         quickLink(1, {
-          route_location: '/server/overview',
+          route_location: '/monitor/overview',
           title: 'Overview',
-          group: 'Service Management',
-          full_label: 'Service Management - Overview',
+          group: 'Observability',
+          full_label: 'Observability / Overview',
         }),
         quickLink(2, {
           route_location: '/access-control/users',
@@ -259,8 +259,8 @@ describe('DashboardQuickActions', () => {
     const fullLabels = wrapper.findAll('.dashboard-quick-actions__item').map((item) => item.attributes('title'));
 
     expect(titles).toEqual(['Overview', 'User Management']);
-    expect(groups).toEqual(['Service Management', 'Access Control']);
-    expect(fullLabels).toEqual(['Service Management - Overview', 'Access Control - User Management']);
+    expect(groups).toEqual(['Observability', 'Access Control']);
+    expect(fullLabels).toEqual(['Observability / Overview', 'Access Control - User Management']);
 
     await wrapper.findAll('button').at(-1)?.trigger('click');
 
@@ -285,9 +285,9 @@ describe('DashboardQuickActions', () => {
     mountQuickActions([
       quickLink(1, {
         module_key: 'container',
-        group: '运维管理',
+        group: '基础设施',
         title: '容器管理',
-        full_label: '运维管理 - 容器管理',
+        full_label: '基础设施 / 容器管理',
       }),
     ]);
 

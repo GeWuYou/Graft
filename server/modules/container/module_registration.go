@@ -34,7 +34,7 @@ func registerMessages(localizer *i18n.Service) error {
 func containerLocaleBackedMessageKeys() []string {
 	keys := make([]string, 0, len(containerMessageKeys))
 	for _, key := range containerMessageKeys {
-		if key == containercontract.OperationsMenuTitle.String() || key == containercontract.ContainerMenuTitle.String() {
+		if key == containercontract.ContainerMenuTitle.String() {
 			continue
 		}
 		keys = append(keys, key)
@@ -43,7 +43,6 @@ func containerLocaleBackedMessageKeys() []string {
 }
 
 var containerMessageKeys = []string{
-	containercontract.OperationsMenuTitle.String(),
 	containercontract.ContainerMenuTitle.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),

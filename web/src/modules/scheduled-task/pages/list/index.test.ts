@@ -87,7 +87,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'scheduledTask.list.disable': '停用',
   'scheduledTask.list.edit': '编辑',
   'scheduledTask.list.enable': '启用',
-  'scheduledTask.list.eyebrow': '服务管理',
+  'scheduledTask.list.eyebrow': '平台',
   'scheduledTask.list.filters.allJobs': '全部执行定义',
   'scheduledTask.list.filters.allStatuses': '全部状态',
   'scheduledTask.list.filters.job': '执行定义',

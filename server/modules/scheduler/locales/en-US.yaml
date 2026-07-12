@@ -1,4 +1,4 @@
-menu.server.scheduled_tasks.title: Scheduled Tasks
+menu.scheduled_task.title: Scheduled Tasks
 scheduled_task.not_found: Scheduled task not found
 scheduled_task.already_running: Scheduled task is already running
 scheduled_task.invalid_request: Invalid scheduled task request

@@ -1,9 +1,7 @@
 {
   "menu": {
-    "server": {
-      "scheduled_tasks": {
-        "title": "定时任务"
-      }
+    "scheduled_task": {
+      "title": "定时任务"
     }
   },
   "scheduler": {
@@ -36,7 +34,7 @@
   "scheduledTask": {
     "route": {
       "list": {
-        "title": "服务管理 - 定时任务",
+        "title": "定时任务",
         "breadcrumb": "定时任务"
       }
     },
@@ -187,7 +185,7 @@
       }
     },
     "list": {
-      "eyebrow": "服务管理",
+      "eyebrow": "平台",
       "title": "定时任务",
       "description": "管理系统后台任务的调度规则、启停状态和运行记录。",
       "refresh": "刷新",

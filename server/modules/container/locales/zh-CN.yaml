@@ -1,5 +1,4 @@
-menu.ops.title: 运维管理
-menu.ops.container.title: 容器管理
+menu.container.title: 容器管理
 ops.container.error.runtimeDisabled: 容器运行时访问未启用
 ops.container.error.runtimeSocketMissing: 容器运行时 socket 不存在
 ops.container.error.runtimePermissionDenied: 当前进程无权访问容器运行时

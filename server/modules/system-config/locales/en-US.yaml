@@ -1,4 +1,4 @@
-menu.server.system_config.title: System Configuration
+menu.system_config.title: System Configuration
 system_config.not_found: System Configuration Not Found
 system_config.invalid_request: Invalid System Configuration Request
 systemConfig.domains.dashboard: Dashboard Configuration
@@ -20,7 +20,8 @@ systemConfig.options.dashboardQuickActionStrategy.hybrid: Hybrid
 systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid: Rank by recent visits, usage frequency, and system recommendations.
 systemConfig.domains.logs: Logs
 systemConfig.domains.notification: Notification
-systemConfig.domains.ops: Operations
+systemConfig.domains.application: Application
+systemConfig.domains.infrastructure: Infrastructure
 systemConfig.domains.audit: Security Audit
 systemConfig.groups.coreHttpxLogRetention: Access Log Retention
 systemConfig.groupDescriptions.coreHttpxLogRetention: Manage access log cleanup retention and batch policy.

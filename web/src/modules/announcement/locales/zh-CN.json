@@ -1,9 +1,7 @@
 {
   "menu": {
-    "server": {
-      "announcements": {
-        "title": "公告管理"
-      }
+    "announcement": {
+      "title": "公告管理"
     }
   },
   "announcement": {
@@ -58,6 +56,7 @@
       "markAllReadFailed": "全部已读失败"
     },
     "management": {
+      "eyebrow": "平台",
       "title": "公告管理",
       "description": "维护面向全体用户的长期平台公告、生效时间和可见状态。",
       "refresh": "刷新",

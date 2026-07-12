@@ -55,23 +55,23 @@ describe('buildDashboardQuickActionLinks', () => {
         ],
       }),
       asRouteRecordRaw({
-        path: '/ops/containers',
+        path: '/containers',
         name: 'ContainerList',
         meta: {
           icon: 'layers',
           orderNo: 10,
           single: true,
           title: {
-            'zh-CN': '运维管理',
-            'en-US': 'Operations',
+            'zh-CN': '基础设施',
+            'en-US': 'Infrastructure',
           },
           breadcrumbTitle: {
             'zh-CN': '容器管理',
-            'en-US': 'Container Management',
+            'en-US': 'Containers',
           },
           tabTitle: {
-            'zh-CN': '运维管理 - 容器管理',
-            'en-US': 'Operations - Container Management',
+            'zh-CN': '基础设施 / 容器管理',
+            'en-US': 'Infrastructure / Containers',
           },
           titleKey: 'container.route.list.title',
         },
@@ -90,11 +90,11 @@ describe('buildDashboardQuickActionLinks', () => {
         path: '/monitor',
         name: 'BootstrapGroupMonitor',
         meta: {
-          titleKey: 'menu.server.title',
+          titleKey: 'menu.domain.observability.title',
           orderNo: 5,
           title: {
-            'zh-CN': '服务管理',
-            'en-US': 'Service Management',
+            'zh-CN': '可观测性',
+            'en-US': 'Observability',
           },
         },
         children: [
@@ -108,8 +108,8 @@ describe('buildDashboardQuickActionLinks', () => {
                 'en-US': 'Overview',
               },
               tabTitle: {
-                'zh-CN': '服务管理 - 概览',
-                'en-US': 'Service Management - Overview',
+                'zh-CN': '可观测性 / 概览',
+                'en-US': 'Observability / Overview',
               },
               titleKey: 'monitor.route.overview.title',
             },
@@ -132,9 +132,9 @@ describe('buildDashboardQuickActionLinks', () => {
 
     expect(buildDashboardQuickActionLinks(routes, 'zh-CN')).toEqual([
       {
-        full_label: '服务管理 - 概览',
-        group: '服务管理',
-        group_key: 'menu.server.title',
+        full_label: '可观测性 / 概览',
+        group: '可观测性',
+        group_key: 'menu.domain.observability.title',
         icon: undefined,
         id: 'MonitorOverviewIndex',
         module_key: 'monitor',
@@ -144,14 +144,14 @@ describe('buildDashboardQuickActionLinks', () => {
         title_key: 'monitor.route.overview.title',
       },
       {
-        full_label: '运维管理 - 容器管理',
-        group: '运维管理',
+        full_label: '基础设施 / 容器管理',
+        group: '基础设施',
         group_key: 'container.route.list.title',
         icon: 'layers',
         id: 'ContainerList',
         module_key: 'container',
         order: 10,
-        route_location: '/ops/containers',
+        route_location: '/containers',
         title: '容器管理',
         title_key: 'container.route.list.title',
       },
@@ -177,10 +177,10 @@ describe('buildDashboardQuickActionLinks', () => {
         path: '/monitor',
         name: 'BootstrapGroupMonitor',
         meta: {
-          titleKey: 'menu.server.title',
+          titleKey: 'menu.domain.observability.title',
           title: {
-            'zh-CN': '服务管理',
-            'en-US': 'Service Management',
+            'zh-CN': '可观测性',
+            'en-US': 'Observability',
           },
         },
         children: [
@@ -193,8 +193,8 @@ describe('buildDashboardQuickActionLinks', () => {
                 'en-US': 'Overview',
               },
               tabTitle: {
-                'zh-CN': '服务管理 - 概览',
-                'en-US': 'Service Management - Overview',
+                'zh-CN': '可观测性 / 概览',
+                'en-US': 'Observability / Overview',
               },
               titleKey: 'monitor.route.overview.title',
             },
@@ -205,9 +205,9 @@ describe('buildDashboardQuickActionLinks', () => {
 
     expect(buildDashboardQuickActionLinks(routes, 'en-US')).toEqual([
       {
-        full_label: 'Service Management - Overview',
-        group: 'Service Management',
-        group_key: 'menu.server.title',
+        full_label: 'Observability / Overview',
+        group: 'Observability',
+        group_key: 'menu.domain.observability.title',
         icon: undefined,
         id: 'MonitorOverviewIndex',
         module_key: 'monitor',
@@ -222,23 +222,23 @@ describe('buildDashboardQuickActionLinks', () => {
   it('derives split title and group from a single top-level route without string splitting', () => {
     const routes = [
       asRouteRecordRaw({
-        path: '/ops/containers',
+        path: '/containers',
         name: 'ContainerList',
         meta: {
           icon: 'layers',
           orderNo: 10,
           single: true,
           title: {
-            'zh-CN': '运维管理',
-            'en-US': 'Operations',
+            'zh-CN': '基础设施',
+            'en-US': 'Infrastructure',
           },
           breadcrumbTitle: {
             'zh-CN': '容器管理',
-            'en-US': 'Container Management',
+            'en-US': 'Containers',
           },
           tabTitle: {
-            'zh-CN': '运维管理 - 容器管理',
-            'en-US': 'Operations - Container Management',
+            'zh-CN': '基础设施 / 容器管理',
+            'en-US': 'Infrastructure / Containers',
           },
           titleKey: 'container.route.list.title',
         },
@@ -247,15 +247,15 @@ describe('buildDashboardQuickActionLinks', () => {
 
     expect(buildDashboardQuickActionLinks(routes, 'en-US')).toEqual([
       {
-        full_label: 'Operations - Container Management',
-        group: 'Operations',
+        full_label: 'Infrastructure / Containers',
+        group: 'Infrastructure',
         group_key: 'container.route.list.title',
         icon: 'layers',
         id: 'ContainerList',
         module_key: 'container',
         order: 10,
-        route_location: '/ops/containers',
-        title: 'Container Management',
+        route_location: '/containers',
+        title: 'Containers',
         title_key: 'container.route.list.title',
       },
     ]);
@@ -264,23 +264,23 @@ describe('buildDashboardQuickActionLinks', () => {
   it('keeps a single route as the quick action even when it has visible child routes', () => {
     const routes = [
       asRouteRecordRaw({
-        path: '/ops/containers',
+        path: '/containers',
         name: 'ContainerList',
         meta: {
           icon: 'layers',
           orderNo: 10,
           single: true,
           title: {
-            'zh-CN': '运维管理',
-            'en-US': 'Operations',
+            'zh-CN': '基础设施',
+            'en-US': 'Infrastructure',
           },
           breadcrumbTitle: {
             'zh-CN': '容器管理',
-            'en-US': 'Container Management',
+            'en-US': 'Containers',
           },
           tabTitle: {
-            'zh-CN': '运维管理 - 容器管理',
-            'en-US': 'Operations - Container Management',
+            'zh-CN': '基础设施 / 容器管理',
+            'en-US': 'Infrastructure / Containers',
           },
           titleKey: 'container.route.list.title',
           permission: 'container.read',
@@ -296,8 +296,8 @@ describe('buildDashboardQuickActionLinks', () => {
                 'en-US': 'Runtime',
               },
               tabTitle: {
-                'zh-CN': '运维管理 - 运行时',
-                'en-US': 'Operations - Runtime',
+                'zh-CN': '基础设施 / 运行时',
+                'en-US': 'Infrastructure / Runtime',
               },
               titleKey: 'container.route.runtime.title',
             },
@@ -308,16 +308,16 @@ describe('buildDashboardQuickActionLinks', () => {
 
     expect(buildDashboardQuickActionLinks(routes, 'en-US')).toEqual([
       {
-        full_label: 'Operations - Container Management',
-        group: 'Operations',
+        full_label: 'Infrastructure / Containers',
+        group: 'Infrastructure',
         group_key: 'container.route.list.title',
         icon: 'layers',
         id: 'ContainerList',
         module_key: 'container',
         order: 10,
         required_permissions: ['container.read'],
-        route_location: '/ops/containers',
-        title: 'Container Management',
+        route_location: '/containers',
+        title: 'Containers',
         title_key: 'container.route.list.title',
       },
     ]);

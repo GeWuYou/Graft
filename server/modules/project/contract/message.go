@@ -42,7 +42,7 @@ const (
 
 const (
 	// ProjectMenuTitle identifies the project-management menu title.
-	ProjectMenuTitle MessageKey = "menu.ops.project.title"
+	ProjectMenuTitle MessageKey = "menu.project.title"
 	// ProjectInvalidID identifies path or payload project identifiers that fail validation.
 	ProjectInvalidID ErrorCode = "ops.project.error.invalidProjectId"
 	// ProjectInvalidFileID identifies path file identifiers that fail validation.

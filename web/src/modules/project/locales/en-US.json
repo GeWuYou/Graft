@@ -19,10 +19,8 @@
     }
   },
   "menu": {
-    "ops": {
-      "project": {
-        "title": "Projects"
-      }
+    "project": {
+      "title": "Projects"
     }
   },
   "project": {
@@ -34,7 +32,7 @@
     },
     "route": {
       "list": {
-        "title": "Operations - Projects",
+        "title": "Projects",
         "breadcrumb": "Projects"
       },
       "createImport": {
@@ -157,7 +155,7 @@
       }
     },
     "list": {
-      "eyebrow": "Operations",
+      "eyebrow": "Application",
       "title": "Compose Projects",
       "description": "Manage Imported Compose Projects Without Duplicating Runtime Authority.",
       "refresh": "Refresh",

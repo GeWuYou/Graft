@@ -73,7 +73,7 @@ const props = withDefaults(
 
 const domainSourceKeyMap: Record<NonNullable<typeof props.domain>, string> = {
   audit: 'menu.audit.title',
-  monitor: 'menu.server.title',
+  monitor: 'monitor.sectionTitle',
   rbac: 'menu.access_control.title',
   'access-control': 'menu.access_control.title',
   neutral: '',

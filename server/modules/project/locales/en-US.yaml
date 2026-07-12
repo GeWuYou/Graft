@@ -1,4 +1,4 @@
-menu.ops.project.title: Compose Projects
+menu.project.title: Projects
 ops.project.error.invalidProjectId: Invalid project id.
 ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.

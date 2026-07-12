@@ -203,7 +203,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.emptyFilteredDescription': '没有符合筛选条件的容器。',
   'container.list.emptyTitle': '暂无容器',
   'container.list.errorCount': '异常 {count}',
-  'container.list.eyebrow': '运维管理',
+  'container.list.eyebrow': '基础设施',
   'container.list.fields.apiVersion': 'API 版本',
   'container.list.fields.architecture': '架构',
   'container.list.fields.createdAt': '创建时间',

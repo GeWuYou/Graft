@@ -326,7 +326,6 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 	t.Helper()
 
 	for _, key := range []string{
-		containercontract.OperationsMenuTitle.String(),
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),

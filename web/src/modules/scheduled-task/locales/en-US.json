@@ -1,9 +1,7 @@
 {
   "menu": {
-    "server": {
-      "scheduled_tasks": {
-        "title": "Scheduled Tasks"
-      }
+    "scheduled_task": {
+      "title": "Scheduled Tasks"
     }
   },
   "scheduler": {
@@ -36,7 +34,7 @@
   "scheduledTask": {
     "route": {
       "list": {
-        "title": "Service Management - Scheduled Tasks",
+        "title": "Scheduled Tasks",
         "breadcrumb": "Scheduled Tasks"
       }
     },
@@ -187,7 +185,7 @@
       }
     },
     "list": {
-      "eyebrow": "Service Management",
+      "eyebrow": "Platform",
       "title": "Scheduled Tasks",
       "description": "Manage background task schedules, enabled state, and run records.",
       "refresh": "Refresh",
