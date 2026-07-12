@@ -97,3 +97,37 @@
 - Added read-only Docker Images, Networks, Volumes, and System contract surfaces under the Container module; every resource read uses the Local Docker Runtime Target server-side.
 - Docker navigation remains page-local within the existing Infrastructure Docker menu. No sidebar mode or Provider placeholder was added.
 - Project remains the sole owner of Compose lifecycle; resource pages only provide read context and canonical Project navigation.
+
+## 2026-07-12 Final Archive-Readiness Decision
+
+- Repaired generated OpenAPI runtime-asset freshness by regenerating `server/internal/app/zz_openapi_bundle_generated.go` from the canonical bundle.
+- Repaired directly related Docker resource lint findings and synchronized container, project-runtime, and navigation test expectations with the new deployment/target contract.
+- Stabilized the Monaco relayout test by moving its heavy Monaco import into collection setup and restoring its browser-global stub after the file completes; the full frontend test wave now passes without a timing failure.
+- Final validation passed:
+  - `git diff --check`
+  - `python3 scripts/validate_ai_plan_structure.py`
+  - `python3 scripts/validate_sql_migrations.py`
+  - `cd server && go run ./cmd/graft validate openapi`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check` component gates, including `1276` passing Vitest tests
+- Authenticated browser evidence was captured with `graft-web-browser-agent` at `/containers`. The page shows the deployment-type and runtime-target filters plus deployment context, and does not change the sidebar mode.
+- Acceptance review confirmed:
+  - Section Labels are visual-only and the sidebar/menu contract is unchanged.
+  - Runtime Target alone owns connection/capability facts.
+  - Docker provides normal-menu, page-local resources without redundant Provider filtering.
+  - Project retains Compose lifecycle authority.
+  - No placeholder K8s/Podman, Registry credentials, plaintext/mTLS remote Docker, cache, or Docker write resource operations were added.
+- Terminal decision: `archive-ready`.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
+}
+```

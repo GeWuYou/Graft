@@ -23,8 +23,6 @@ Overlay note:
   - Recovery entry: `ai-plan/public/rbac-further-development/todos/rbac-further-development-tracking.md`
 - `navigation-ia-resource-route-refactor`
   - Recovery entry: `ai-plan/public/navigation-ia-resource-route-refactor/README.md`
-- `runtime-targets-infrastructure-ia`
-  - Recovery entry: `ai-plan/public/runtime-targets-infrastructure-ia/README.md`
 
 ## Archive Location
 

@@ -38,7 +38,7 @@ closeout:
 - [x] runtime-target-foundation
 - [x] container-deployment-type-and-target-filter
 - [x] docker-resources-and-application-integration
-- [ ] cross-boundary-acceptance-and-archive-readiness
+- [x] cross-boundary-acceptance-and-archive-readiness
 
 ## Acceptance Conditions
 
@@ -53,11 +53,11 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter"],
-  "pending_batches": ["docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
-  "current_batch": "docker-resources-and-application-integration",
-  "next_batch": "cross-boundary-acceptance-and-archive-readiness",
-  "closeout_status": "batch-5-complete"
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
 
@@ -65,6 +65,15 @@ closeout:
 
 - Docker Resources exposes read-only Images, Networks, Volumes, and System APIs plus page-local Docker tabs; no provider selector, writes, cache, Registry, or credential persistence was introduced.
 - Project remains the Compose lifecycle authority. Container and Project views only expose deployment context, target facts, and canonical Project navigation.
+
+## Final Acceptance
+
+- Topic status: `archive-ready`.
+- Final validation passed: `git diff --check`, AI plan structure and SQL migration guards, OpenAPI validation, `graft validate backend`, frontend format/type/OpenAPI/i18n/lint/style/hygiene/test/build gates, and focused container/runtime-target coverage.
+- Browser evidence confirmed authenticated `/containers` rendering at desktop size: deployment type and runtime target filters are present, deployment context is rendered, and the existing sidebar mode remains in use.
+- Section Labels remain visual-only; no menu identity, route, permission, breadcrumb, or tab was introduced for them. Docker remains the normal Infrastructure menu and its resources are page-local tabs.
+- Kubernetes/Podman placeholders, Registry credential persistence, plaintext/mTLS remote Docker configuration, caching, and Docker resource writes remain out of scope.
+- Experience capture: `none`; the user-corrected IA pattern is already recorded in the canonical navigation, runtime-target, and container design authorities.
 
 ## Batch 4 Completion
 

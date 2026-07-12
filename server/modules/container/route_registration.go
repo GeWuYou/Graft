@@ -122,16 +122,21 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher),
 		routes.handleBatchAction,
 	)
+	registerDockerRoutes(ctx, authService, authorizer, publisher, routes)
+	return nil
+}
+
+func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, routes routeRuntime) {
 	docker := ctx.Router.Group(containercontract.DockerAPIGroup)
 	docker.Use(httpx.RequestIDMiddleware())
-	docker.GET(containercontract.DockerImagesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerImages)
-	docker.GET(containercontract.DockerImageRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerImage)
-	docker.GET(containercontract.DockerNetworksRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerNetworks)
-	docker.GET(containercontract.DockerNetworkRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerNetwork)
-	docker.GET(containercontract.DockerVolumesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerVolumes)
-	docker.GET(containercontract.DockerVolumeRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerVolume)
-	docker.GET(containercontract.DockerSystemRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher), routes.handleDockerSystem)
-	return nil
+	requireView := httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher)
+	docker.GET(containercontract.DockerImagesRoute, requireView, routes.handleDockerImages)
+	docker.GET(containercontract.DockerImageRoute, requireView, routes.handleDockerImage)
+	docker.GET(containercontract.DockerNetworksRoute, requireView, routes.handleDockerNetworks)
+	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
+	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
+	docker.GET(containercontract.DockerVolumeRoute, requireView, routes.handleDockerVolume)
+	docker.GET(containercontract.DockerSystemRoute, requireView, routes.handleDockerSystem)
 }
 
 func (r routeRuntime) handleDockerImages(c *gin.Context) {

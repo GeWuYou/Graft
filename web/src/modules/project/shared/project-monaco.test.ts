@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useDebugStore } from '@/store/modules/debug';
 import { store } from '@/store/pinia';
@@ -6,6 +6,10 @@ import { store } from '@/store/pinia';
 import { toMonacoColor } from './project-monaco-color';
 import { isProjectMonacoDebugEnabled } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
+
+const originalQueryCommandSupported = document.queryCommandSupported;
+document.queryCommandSupported = vi.fn(() => false);
+const { createProjectMonacoRelayoutBridge } = await import('./project-monaco');
 
 function resetProjectMonacoDebugState() {
   const debugStore = useDebugStore(store);
@@ -16,6 +20,14 @@ function resetProjectMonacoDebugState() {
 beforeEach(() => {
   vi.unstubAllEnvs();
   resetProjectMonacoDebugState();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+afterAll(() => {
+  document.queryCommandSupported = originalQueryCommandSupported;
 });
 
 describe('project-monaco color normalization', () => {
@@ -120,8 +132,6 @@ describe('project-monaco debug toggle', () => {
 describe('project-monaco relayout bridge', () => {
   it('resolves relayout after the scheduled animation frame runs', async () => {
     const rafCallbacks: FrameRequestCallback[] = [];
-    document.queryCommandSupported = vi.fn(() => false);
-    vi.resetModules();
     vi.stubGlobal(
       'requestAnimationFrame',
       vi.fn((callback: FrameRequestCallback) => {
@@ -129,15 +139,7 @@ describe('project-monaco relayout bridge', () => {
         return rafCallbacks.length;
       }),
     );
-    vi.doMock('vue', async () => {
-      const actual = await vi.importActual<typeof import('vue')>('vue');
-      return {
-        ...actual,
-        nextTick: () => Promise.resolve(),
-      };
-    });
 
-    const { createProjectMonacoRelayoutBridge } = await import('./project-monaco');
     const container = document.createElement('div');
     Object.defineProperties(container, {
       clientHeight: { configurable: true, value: 240 },

@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: establish Runtime Target authority and evolve Infrastructure navigation, Docker resources, and Application/Compose integration without changing the existing sidebar mode.
-- Current status: `active`.
+- Current status: `archive-ready`.
 - Task class: `cross-boundary`.
 - Intake summary: long-running feature dispatched through `$graft-multi-agent-loop`.
 - Canonical authority:
@@ -11,8 +11,8 @@
   - `ai-plan/design/architecture/运行目标与基础设施信息架构设计.md`
   - `ai-plan/design/domains/container/容器管理设计.md`
   - `ai-plan/design/domains/compose/Compose项目管理设计.md`
-- Completed so far: Work Intake and authority foundation.
-- Not started yet: menu contract, runtime-target implementation, and container-contract migration.
+- Completed: Section Label navigation, Local Docker Runtime Target authority, container deployment/target contract migration, read-only Docker resources, Application/Compose boundary verification, and final cross-boundary acceptance.
+- Remaining work: none in this topic.
 
 ## Recovery Receipt
 
@@ -39,22 +39,21 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 1 established the Work Contract, repository design authority, roadmap position, and active-topic recovery materials.
-- Next step: `menu-section-contract-and-sidebar-rendering`.
+- All six loop batches are complete. The topic is archived after final validation and authority review.
 
 ## Pending Batch Direction
 
-- menu-section-contract-and-sidebar-rendering
-- runtime-target-foundation
-- container-deployment-type-and-target-filter
-- docker-resources-and-application-integration
-- cross-boundary-acceptance-and-archive-readiness
+- None. Future Kubernetes, Podman, Registry credential, remote mTLS, build, and write-operation work requires a new bounded topic.
 
 ## Validation Targets
 
 ```bash
 git diff --check
 python3 scripts/validate_ai_plan_structure.py
+python3 scripts/validate_sql_migrations.py
+cd server && go run ./cmd/graft validate openapi
+cd server && go run ./cmd/graft validate backend
+cd web && bun run check
 ```
 
 ## Loop Entry

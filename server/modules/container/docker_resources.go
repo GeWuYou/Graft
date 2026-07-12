@@ -72,6 +72,7 @@ type DockerResourceReader interface {
 	ReadDockerVolume(context.Context, string) (DockerVolume, error)
 }
 
+// ListDockerImages returns sanitized Docker images from the configured runtime.
 func (r *DockerRuntime) ListDockerImages(ctx context.Context) ([]DockerImage, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -88,6 +89,7 @@ func (r *DockerRuntime) ListDockerImages(ctx context.Context) ([]DockerImage, er
 	return result, nil
 }
 
+// ReadDockerImage returns one sanitized Docker image by ID.
 func (r *DockerRuntime) ReadDockerImage(ctx context.Context, id string) (DockerImage, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -100,6 +102,7 @@ func (r *DockerRuntime) ReadDockerImage(ctx context.Context, id string) (DockerI
 	return DockerImage{ID: strings.TrimSpace(item.ID), RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: strings.TrimSpace(item.Created), SizeBytes: item.Size, Labels: cloneLabels(imageLabels(item)), Architecture: strings.TrimSpace(item.Architecture), OperatingSystem: strings.TrimSpace(item.Os)}, nil
 }
 
+// ListDockerNetworks returns sanitized Docker networks from the configured runtime.
 func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -116,6 +119,7 @@ func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork
 	return result, nil
 }
 
+// ReadDockerNetwork returns one sanitized Docker network by ID.
 func (r *DockerRuntime) ReadDockerNetwork(ctx context.Context, id string) (DockerNetwork, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -128,6 +132,7 @@ func (r *DockerRuntime) ReadDockerNetwork(ctx context.Context, id string) (Docke
 	return dockerNetwork(item.Network, len(item.Containers)), nil
 }
 
+// ListDockerVolumes returns sanitized Docker volumes from the configured runtime.
 func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -144,6 +149,7 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 	return items, nil
 }
 
+// ReadDockerVolume returns one sanitized Docker volume by ID.
 func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (DockerVolume, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {

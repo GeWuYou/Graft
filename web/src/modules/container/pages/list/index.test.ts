@@ -284,6 +284,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.deployments.compose': 'Compose',
   'container.list.deployments.standalone': '独立容器',
   'container.list.deployments.unknown': '未知部署',
+  'container.list.deploymentContext.project': '项目',
   'container.list.sourceKinds.compose_project': '项目',
   'container.list.sourceKinds.compose_service': '服务',
   'container.list.sourceKinds.swarm_stack': 'Stack',
@@ -604,10 +605,12 @@ describe('container list page', () => {
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainers).toHaveBeenCalledWith({
+      deployment_type: undefined,
       health: undefined,
       keyword: undefined,
       limit: 20,
       offset: 0,
+      runtime_target_id: undefined,
       state: undefined,
     });
     expect(wrapper.text()).toContain('基础设施');
@@ -1286,7 +1289,7 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="pagination-next"]').trigger('click');
     await flushPromises();
 
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+    expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
       limit: 20,
@@ -2314,7 +2317,7 @@ function mountPage(component: object = ContainerListPage) {
                           slots.state?.({ row }),
                           slots.name?.({ row }),
                           slots.image?.({ row }),
-                          slots.source?.({ row }),
+                          slots.deployment?.({ row }),
                           slots.cpu?.({ row }),
                           slots.memory?.({ row }),
                           slots.ports?.({ row }),

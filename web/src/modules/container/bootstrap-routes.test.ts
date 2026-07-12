@@ -41,8 +41,8 @@ describe('container bootstrap route registrations', () => {
   it('registers the detail page as a menu-hidden global route', async () => {
     const { containerGlobalRouteRegistrations } = await import('./bootstrap-routes');
 
-    expect(containerGlobalRouteRegistrations).toHaveLength(1);
-    expect(containerGlobalRouteRegistrations[0]).toMatchObject({
+    expect(containerGlobalRouteRegistrations).toHaveLength(2);
+    expect(containerGlobalRouteRegistrations[1]).toMatchObject({
       path: '/containers/:id',
       pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
