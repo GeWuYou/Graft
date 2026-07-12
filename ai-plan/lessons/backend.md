@@ -1,5 +1,34 @@
 # Backend Lessons
 
+## LESSON-BACKEND-SAVED-VIEW-001：分页保存视图必须分离通用存储与消费页面语义
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `server/modules/saved-view/**`
+  - `server/internal/moduleapi/**`
+  - 任何需要保存快捷筛选、每页大小和可见列的分页列表模块
+- Source:
+  - 2026-07-12 用户将 project 专用筛选偏好要求纠正为可供访问日志、审计、应用日志等复用的保存视图能力
+- Problem:
+  把快捷筛选存成某个业务模块的专用偏好表会复制用户隔离、名称唯一性、软删除与列表状态持久化；反过来暴露不带消费模块授权的 generic HTTP API，又会让通用层错误承担领域权限和筛选语义。
+- Correct pattern:
+  `saved-view` 只提供按 `(owner_user_id, surface_key)` 隔离的存储 capability，持久化 consumer-validated query JSON、`page_size` 和 visible column keys，并用 live-name 部分唯一索引保证名称唯一。消费模块在自己的授权路由上固定并校验 `surface_key`、筛选字段和列键；应用视图时从第一页开始，不保存当前页，也不默认共享。
+- Anti-pattern:
+  新建 project、audit 或 access-log 专用筛选偏好表；将 query/filter 语义解析进 generic service；或新增没有消费域授权的通用 saved-view HTTP endpoint。
+- Enforcement:
+  新 consumer 必须通过 `moduleapi.SavedViewService` 使用存储能力，并在其 module-owned route/service 测试中覆盖 owner/surface 隔离、live 名称冲突、非法筛选/列键和当前页不持久化。迁移需包含 `deleted_at = 0` 查询语义、部分唯一索引和用户/页面列表索引。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `server/internal/moduleapi/saved_view.go`
+  - `server/modules/saved-view/**`
+  - `server/modules/project/saved_views.go`
+  - `ai-plan/design/domains/compose/Compose项目管理设计.md`
+- Updated at:
+  2026-07-12
+
 ## LESSON-BACKEND-MODULE-LIFECYCLE-001：Builder 不应解析 Register 才暴露的跨模块服务
 
 - Status: active
