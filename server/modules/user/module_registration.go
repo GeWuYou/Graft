@@ -20,6 +20,7 @@ import (
 
 const userMenuOrderList = 3
 
+// registerUserPermissions 将用户模块的权限项注册到指定的权限注册表中。
 func registerUserPermissions(registry *permission.Registry, moduleName string) {
 	for _, item := range userPermissionItems(moduleName) {
 		registry.Register(item)

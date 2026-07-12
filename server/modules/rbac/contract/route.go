@@ -1,6 +1,6 @@
 package contract
 
-// JoinRoute combines a route group path with a route fragment.
+// JoinRoute 拼接路由组路径和路由片段，并返回组合后的路径。
 func JoinRoute(group, fragment string) string {
 	return group + fragment
 }

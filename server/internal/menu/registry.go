@@ -111,7 +111,7 @@ func (r *Registry) Validate() error {
 	return validateCycles(byCode)
 }
 
-// validateItem 验证菜单项的代码唯一性、节点类型及路径配置，并检查分组项的专属约束。
+// validateItem 验证菜单项的代码唯一性、节点类型、路径及分区元数据配置。
 func validateItem(item Item, existing map[string]Item) error {
 	code := strings.TrimSpace(item.Code)
 	if code == "" {
@@ -137,7 +137,7 @@ func validateItem(item Item, existing map[string]Item) error {
 	}
 }
 
-// validateGroupItem validates that a menu group does not declare a path.
+// validateGroupItem validates that a menu group does not declare a path and has consistent section metadata.
 func validateGroupItem(code string, item Item) error {
 	if strings.TrimSpace(item.Path) != "" {
 		return fmt.Errorf("menu group %q must not declare a path", code)
@@ -145,6 +145,8 @@ func validateGroupItem(code string, item Item) error {
 	return validateSectionMetadata(code, item)
 }
 
+// validateSectionMetadata 校验菜单项的侧边栏分区键和分区标题本地化键是否同时声明。
+// 两者仅声明其一时返回错误，否则返回 nil。
 func validateSectionMetadata(code string, item Item) error {
 	sectionKey := strings.TrimSpace(item.SectionKey)
 	titleKey := strings.TrimSpace(item.SectionTitleKey)

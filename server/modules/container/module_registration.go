@@ -15,6 +15,8 @@ const (
 	containerMenuOrderList  = 51
 )
 
+// registerMessages verifies that all required container module messages are registered for the supported locales.
+// It returns an error when the localizer is unavailable or any required locale resource is missing.
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
@@ -31,6 +33,7 @@ func registerMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// containerLocaleBackedMessageKeys returns the message keys backed by localized resources.
 func containerLocaleBackedMessageKeys() []string {
 	return append([]string(nil), containerMessageKeys...)
 }
@@ -184,7 +187,8 @@ func permissionItems(moduleName string) []permission.Item {
 // registerMenu 注册容器列表菜单项。
 // @param moduleName 菜单项所属的模块名称。
 // registerMenu 注册容器列表菜单项。
-// 注册成功时返回 nil；菜单注册器不可用时返回错误。
+// registerMenu 注册容器运行时菜单组及其容器列表入口。
+// 当菜单注册器不可用时返回错误，注册成功时返回 nil。
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")

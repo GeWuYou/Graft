@@ -186,7 +186,8 @@ func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[s
 }
 
 // filterBootstrapMenus 根据授予的权限和系统配置可见性过滤菜单项，去重并排序，同时移除没有可见子项的菜单组。
-// registry 为空时返回空切片；调用方在进入该过滤阶段前验证导航图。
+// filterBootstrapMenus 根据用户权限和配置开关筛选菜单，去重并移除没有可见子项的菜单组后排序返回。
+// registry 为 nil 时返回空切片。
 func filterBootstrapMenus(
 	ctx context.Context,
 	registry *menu.Registry,
