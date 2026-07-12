@@ -3,12 +3,12 @@
 ## Current Status Summary
 
 - Topic objective: establish navigation and resource-route authority, then migrate menu contracts and Web UI routes.
-- Current status: `active`.
+- Current status: `active`, pending outer-loop archive-readiness review.
 - Task class: `cross-boundary`.
 - Intake summary: long-running refactor dispatched through `$graft-multi-agent-loop`.
 - Canonical authority: `ai-plan/design/architecture/导航与资源路由信息架构规范.md`.
-- Completed so far: `navigation-design-topic-and-skill`.
-- Not started yet: backend navigation contract, frontend navigation route migration, cross-boundary validation closeout.
+- Completed so far: navigation design, backend graph contract, frontend route migration, and cross-boundary validation closeout.
+- Not started yet: outer-loop archive-readiness review only.
 
 ## Recovery Receipt
 
@@ -35,8 +35,8 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 1 created the design authority, active topic, discovery skill, and minimum routers.
-- Next step: `backend-navigation-contract`.
+- Batch 4 verified the complete contract and repaired explicit navigation ancestry for breadcrumbs and tab titles.
+- Next step: outer loop runs the archive-readiness review; no implementation batch remains.
 
 ## Validation Targets
 

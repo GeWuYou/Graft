@@ -61,4 +61,26 @@
   "closeout_status": "batch-3-complete"
 }
 ```
+
+## 2026-07-12 Cross-Boundary Validation Closeout
+
+- Verified the backend bootstrap/OpenAPI/Web schema contract for `code`, `parent_code`, `kind`, group nodes without paths, and entry nodes with canonical resource paths.
+- Repaired the Web shell gap: bootstrap routes now carry explicit localized navigation ancestors; breadcrumbs and tab titles consume that graph context without path-based ancestry inference. Global Project, Container, and announcement detail routes declare their bootstrap parent resource explicitly; Notification Center remains menu-external.
+- Updated affected route contract assertions to canonical `/containers`, `/system/**`, `/scheduled-tasks`, `/system-config`, and `/my-announcements` paths. Active registration code has no `/ops` or `/server` UI hierarchy.
+- Validation passed: `cd server && go run ./cmd/graft validate backend`; focused Web navigation suite (28 tests); Web typecheck, ESLint, Stylelint, OpenAPI frontend governance, i18n governance, production Vite build; `git diff --check`; and AI plan/governance checks.
+- Browser evidence: authenticated shell bootstrap at `http://172.21.235.129:3002` rendered Application, Infrastructure, Observability, Security, and Platform only; Build and Resources were absent because empty. Artifacts: `.ai/artifacts/browser/navigation-ia-auth-closeout`.
+- Known unrelated baseline blockers: `bun run hygiene:check` reports unused `BLANK_LAYOUT` in `src/utils/route/constant.ts`; full Web suite retains intermittent Monaco RAF timeout and container log-stream disconnect assertion failures. The route-contract failures discovered during this batch were repaired and pass in the focused suite.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout"],
+  "pending_batches": [],
+  "current_batch": "cross-boundary-validation-closeout",
+  "next_batch": null,
+  "closeout_status": "batch-4-complete-pending-archive-readiness"
+}
+```
 ```

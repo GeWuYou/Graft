@@ -56,12 +56,16 @@ describe('bootstrap navigation graph', () => {
     expect(navigation[0]?.path).toBe('domain.security');
     expect(navigation[0]?.meta?.navigationTargetPath).toBe('/users');
     expect(navigation[0]?.children?.map((item) => item.path)).toEqual(['user.list', 'role.list']);
+    expect(navigation[0]?.children?.[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual([
+      'domain.security',
+    ]);
   });
 
   it('creates router records only for registered entry resources', () => {
     const routes = transformBootstrapMenusToRoutes(graph.map((item) => ({ ...item })));
     expect(routes.map((route) => route.path)).toEqual(['/users', '/roles']);
     expect(routes.every((route) => route.name && !String(route.name).startsWith('BootstrapGroup'))).toBe(true);
+    expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / Users');
   });
 
   it('keeps global routes out of menu navigation and preserves their breadcrumb policy', () => {
@@ -76,5 +80,22 @@ describe('bootstrap navigation graph', () => {
     expect(routes[0]?.path).toBe('/notifications');
     expect(routes[0]?.children?.[0]?.meta?.hiddenMenu).toBe(true);
     expect(routes[0]?.children?.[0]?.meta?.hiddenBreadcrumb).toBe(true);
+  });
+
+  it('attaches an explicitly declared parent resource trail to global detail routes', () => {
+    const routes = transformGlobalRegistrationsToRoutes(
+      [
+        {
+          path: '/users/42',
+          routeName: 'UserDetail',
+          navigationParentPath: '/users',
+          loadPage: () => import('@/modules/user/pages/index.vue'),
+          meta: { title: { 'zh-CN': '用户详情', 'en-US': 'User Detail' } },
+        },
+      ],
+      graph.map((item) => ({ ...item })),
+    );
+    expect(routes[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual(['domain.security']);
+    expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / User Detail');
   });
 });

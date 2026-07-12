@@ -25,6 +25,7 @@ export const announcementGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     path: ANNOUNCEMENT_ROUTE_PATH.USER_LIST,
     routeName: ANNOUNCEMENT_BOOTSTRAP_ROUTE.USER_LIST.routeName,
+    navigationParentPath: ANNOUNCEMENT_BOOTSTRAP_ROUTE.MANAGEMENT.menuPath,
     loadPage: () => import('./pages/user-list/index.vue'),
     meta: {
       hiddenMenu: true,

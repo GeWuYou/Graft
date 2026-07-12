@@ -40,7 +40,10 @@ export const usePermissionStore = defineStore('permission', {
     },
     async buildAsyncRoutes() {
       this.asyncRoutes = transformBootstrapMenusToRoutes(this.bootstrapSnapshot?.menus ?? []);
-      this.globalRoutes = transformGlobalRegistrationsToRoutes(getGlobalRouteRegistrations());
+      this.globalRoutes = transformGlobalRegistrationsToRoutes(
+        getGlobalRouteRegistrations(),
+        this.bootstrapSnapshot?.menus ?? [],
+      );
       await this.initRoutes();
       this.routesInitialized = true;
       return [...this.asyncRoutes, ...this.globalRoutes];

@@ -1,10 +1,11 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { getBootstrapRouteRegistration } from '@/modules';
 import type { BootstrapMenu } from '@/modules/auth/contract/types';
 import type { GlobalRouteRegistration } from '@/modules/types';
 import { LAYOUT } from '@/utils/route/constant';
-import type { AppRouteMeta, MenuRoute } from '@/utils/types';
+import type { AppRouteMeta, MenuRoute, NavigationAncestor } from '@/utils/types';
 
 import { localizeRouteTitle } from './title';
 
@@ -12,17 +13,19 @@ type BootstrapMenuNode = { menu: BootstrapMenu; children: BootstrapMenuNode[] };
 
 // The explicit bootstrap graph owns visible navigation. Groups never become router records.
 export function buildBootstrapNavigationTree(menus: BootstrapMenu[]): MenuRoute[] {
+  const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
   return buildBootstrapMenuTree(menus)
-    .map(buildNavigationNode)
+    .map((node) => buildNavigationNode(node, ancestorsByEntryPath))
     .filter((node): node is MenuRoute => Boolean(node));
 }
 
 export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRecordRaw[] {
+  const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
   return menus.flatMap((menu) => {
     if (menu.kind !== 'entry' || !menu.path) return [];
     const registration = getBootstrapRouteRegistration(menu.path);
     if (!registration) return [];
-    const routeMeta = buildRouteMeta(menu, registration.meta);
+    const routeMeta = buildRouteMeta(menu, registration.meta, ancestorsByEntryPath.get(menu.path));
     return [
       toRouteRecordRaw({
         path: menu.path,
@@ -42,22 +45,34 @@ export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRe
   });
 }
 
-export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteRegistration[]): RouteRecordRaw[] {
+export function transformGlobalRegistrationsToRoutes(
+  registrations: GlobalRouteRegistration[],
+  menus: BootstrapMenu[] = [],
+): RouteRecordRaw[] {
+  const ancestorsByEntryPath = buildNavigationAncestorsByEntryPath(menus);
   return registrations.map((registration) =>
     toRouteRecordRaw({
       path: registration.path,
       name: registration.routeName,
       component: LAYOUT,
-      meta: { ...registration.meta, hiddenMenu: true, single: true },
+      meta: {
+        ...withNavigationContext(registration.meta, ancestorsByEntryPath.get(registration.navigationParentPath ?? '')),
+        hiddenMenu: true,
+        single: true,
+      },
       children: [
         toRouteRecordRaw({
           path: '',
           name: `${registration.routeName}Index`,
           component: registration.loadPage,
           meta: {
-            ...registration.meta,
+            ...withNavigationContext(
+              registration.meta,
+              ancestorsByEntryPath.get(registration.navigationParentPath ?? ''),
+            ),
             hiddenMenu: true,
-            hiddenBreadcrumb: !registration.meta?.domainTitle,
+            hiddenBreadcrumb:
+              !registration.meta?.domainTitle && !ancestorsByEntryPath.has(registration.navigationParentPath ?? ''),
           },
         }),
       ],
@@ -83,8 +98,13 @@ function buildBootstrapMenuTree(menus: BootstrapMenu[]): BootstrapMenuNode[] {
   return roots;
 }
 
-function buildNavigationNode(node: BootstrapMenuNode): MenuRoute | null {
-  const children = node.children.map(buildNavigationNode).filter((child): child is MenuRoute => Boolean(child));
+function buildNavigationNode(
+  node: BootstrapMenuNode,
+  ancestorsByEntryPath: Map<string, NavigationAncestor[]>,
+): MenuRoute | null {
+  const children = node.children
+    .map((child) => buildNavigationNode(child, ancestorsByEntryPath))
+    .filter((child): child is MenuRoute => Boolean(child));
   const registration =
     node.menu.kind === 'entry' && node.menu.path ? getBootstrapRouteRegistration(node.menu.path) : undefined;
   if (node.menu.kind === 'entry' && !registration) return null;
@@ -96,7 +116,11 @@ function buildNavigationNode(node: BootstrapMenuNode): MenuRoute | null {
     name: registration?.routeName ?? node.menu.code,
     title: localizeRouteTitle(node.menu.title, node.menu.title_key),
     meta: {
-      ...buildRouteMeta(node.menu, registration?.meta),
+      ...buildRouteMeta(
+        node.menu,
+        registration?.meta,
+        node.menu.path ? ancestorsByEntryPath.get(node.menu.path) : undefined,
+      ),
       navigationCode: node.menu.code,
       navigationKind: node.menu.kind,
       navigationTargetPath: targetPath,
@@ -105,14 +129,71 @@ function buildNavigationNode(node: BootstrapMenuNode): MenuRoute | null {
   } as MenuRoute;
 }
 
-function buildRouteMeta(menu: BootstrapMenu, metaPatch?: Partial<AppRouteMeta>): AppRouteMeta {
+function buildRouteMeta(
+  menu: BootstrapMenu,
+  metaPatch?: Partial<AppRouteMeta>,
+  navigationAncestors?: NavigationAncestor[],
+): AppRouteMeta {
   return {
     title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,
     orderNo: menu.order ?? 0,
-    ...metaPatch,
+    ...withNavigationContext(metaPatch, navigationAncestors, localizeRouteTitle(menu.title, menu.title_key)),
   };
+}
+
+function withNavigationContext(
+  metaPatch: Partial<AppRouteMeta> | undefined,
+  navigationAncestors: NavigationAncestor[] | undefined,
+  currentTitle?: LocalizedTitle,
+): Partial<AppRouteMeta> {
+  const context = navigationAncestors?.length
+    ? {
+        navigationAncestors,
+        navigationTitle: joinLocalizedTitles([
+          ...navigationAncestors.map((ancestor) => ancestor.title),
+          metaPatch?.tabTitle ?? metaPatch?.semanticTitle ?? metaPatch?.title ?? currentTitle,
+        ]),
+      }
+    : {};
+  return { ...metaPatch, ...context };
+}
+
+function buildNavigationAncestorsByEntryPath(menus: BootstrapMenu[]) {
+  const nodeMap = new Map(menus.map((menu) => [menu.code, menu]));
+  const ancestorsByEntryPath = new Map<string, NavigationAncestor[]>();
+  for (const menu of menus) {
+    if (menu.kind !== 'entry' || !menu.path) continue;
+    const ancestors: NavigationAncestor[] = [];
+    let parentCode = menu.parent_code;
+    while (parentCode) {
+      const parent = nodeMap.get(parentCode);
+      if (!parent) break;
+      ancestors.unshift({
+        code: parent.code,
+        path: parent.path ?? menu.path,
+        title: localizeRouteTitle(parent.title, parent.title_key),
+      });
+      parentCode = parent.parent_code;
+    }
+    ancestorsByEntryPath.set(menu.path, ancestors);
+  }
+  return ancestorsByEntryPath;
+}
+
+function joinLocalizedTitles(titles: Array<LocalizedTitle | undefined>): LocalizedTitle | undefined {
+  const resolved = titles.filter((title): title is LocalizedTitle => Boolean(title));
+  if (resolved.length === 0) return undefined;
+  return Object.fromEntries(
+    Object.keys(resolved[0]).map((locale) => [
+      locale,
+      resolved
+        .map((title) => title[locale as keyof LocalizedTitle])
+        .filter(Boolean)
+        .join(' / '),
+    ]),
+  ) as LocalizedTitle;
 }
 
 function toRouteRecordRaw(route: object): RouteRecordRaw {

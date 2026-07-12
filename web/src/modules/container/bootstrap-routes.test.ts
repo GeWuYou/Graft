@@ -6,7 +6,7 @@ describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
     expect(containerBootstrapRouteRegistrations).toHaveLength(1);
     expect(containerBootstrapRouteRegistrations[0]).toMatchObject({
-      menuPath: '/ops/containers',
+      menuPath: '/containers',
       routeName: 'ContainerList',
     });
   });
@@ -35,7 +35,7 @@ describe('container bootstrap route registrations', () => {
 
     expect(containerGlobalRouteRegistrations).toHaveLength(1);
     expect(containerGlobalRouteRegistrations[0]).toMatchObject({
-      path: '/ops/containers/:id',
+      path: '/containers/:id',
       pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
       meta: {

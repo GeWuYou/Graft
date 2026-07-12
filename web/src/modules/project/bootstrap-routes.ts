@@ -37,6 +37,7 @@ export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
 export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_IMPORT,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/import/index.vue'),
     meta: {
       hidden: false,
@@ -55,6 +56,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/create/source-index.vue'),
     meta: {
       hidden: false,
@@ -73,6 +75,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_DISCOVERY,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/create/discovery-index.vue'),
     meta: {
       hidden: false,
@@ -91,6 +94,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/create/index.vue'),
     meta: {
       hidden: false,
@@ -109,6 +113,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/create/source-create.vue'),
     meta: {
       hidden: false,
@@ -127,6 +132,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.DETAIL,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/detail/index.vue'),
     meta: {
       hidden: false,
@@ -145,6 +151,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/configuration-workspace/index.vue'),
     meta: {
       hidden: false,

@@ -35,7 +35,7 @@ describe('notification navigation resolver', () => {
         payload: { task_id: 'audit.retention', run_id: '7' },
       }),
     ).toEqual({
-      path: '/server/scheduled-tasks',
+      path: '/scheduled-tasks',
       query: {
         task_key: 'audit.retention',
         run_id: '7',

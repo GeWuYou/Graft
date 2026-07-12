@@ -154,7 +154,7 @@ describe('AnnouncementHeaderEntry', () => {
     expect((panel.props('announcement') as { title?: string }).title).toBe('header announcement');
 
     await panel.vm.$emit('open-center');
-    expect(pushMock).toHaveBeenCalledWith('/announcements');
+    expect(pushMock).toHaveBeenCalledWith('/my-announcements');
   });
 
   it('keeps the announcement trigger inside the standard header entry layout', async () => {
