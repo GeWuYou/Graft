@@ -11,7 +11,7 @@ import (
 
 const moduleID = "runtime-target"
 
-// NewModuleSpec returns the compile-time runtime-target module descriptor.
+// NewModuleSpec 返回 runtime-target 模块的编译期描述符。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

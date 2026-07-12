@@ -162,10 +162,12 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	return dockerVolume(item), nil
 }
 
+// dockerImageSummary converts a Docker image summary into a sanitized DockerImage projection.
 func dockerImageSummary(item image.Summary) DockerImage {
 	return DockerImage{ID: strings.TrimSpace(item.ID), RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: time.Unix(item.Created, 0).UTC().Format(time.RFC3339), SizeBytes: item.Size, Containers: item.Containers, Labels: cloneLabels(item.Labels)}
 }
 
+// imageLabels 返回镜像检查结果中的标签；配置为空时返回 nil。
 func imageLabels(item image.InspectResponse) map[string]string {
 	if item.Config == nil {
 		return nil
@@ -173,10 +175,12 @@ func imageLabels(item image.InspectResponse) map[string]string {
 	return item.Config.Labels
 }
 
+// dockerNetwork converts Docker network data into a normalized DockerNetwork value.
 func dockerNetwork(item network.Network, containerCount int) DockerNetwork {
 	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Labels: cloneLabels(item.Labels)}
 }
 
+// dockerVolume converts a Docker volume into a normalized DockerVolume projection, preserving usage metrics when available.
 func dockerVolume(item volume.Volume) DockerVolume {
 	var referenceCount, sizeBytes *int64
 	if item.UsageData != nil {
@@ -186,6 +190,7 @@ func dockerVolume(item volume.Volume) DockerVolume {
 	return DockerVolume{Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes}
 }
 
+// dockerInt64Ptr returns a pointer to the provided integer value.
 func dockerInt64Ptr(value int64) *int64 { return &value }
 
 var _ DockerResourceReader = (*DockerRuntime)(nil)

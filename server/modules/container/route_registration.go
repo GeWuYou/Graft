@@ -27,7 +27,8 @@ type routeRuntime struct {
 }
 
 // RegisterRoutes registers HTTP API endpoints for container operations with permission-based access control.
-// 当 ctx 或其路由器为空时直接返回 nil；当 service 为空或依赖解析失败时返回错误。
+// registerRoutes 注册容器及 Docker 相关 HTTP 路由，并配置请求标识与权限中间件。
+// 当上下文或路由器为空时跳过注册并返回 nil；服务为空或依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -126,6 +127,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 	return nil
 }
 
+// registerDockerRoutes 注册 Docker 相关路由，并为其应用容器查看权限校验。
 func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, routes routeRuntime) {
 	docker := ctx.Router.Group(containercontract.DockerAPIGroup)
 	docker.Use(httpx.RequestIDMiddleware())
@@ -544,7 +546,7 @@ func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containe
 	return params, true
 }
 
-// bindContainerListStateFilters validates and binds state, health, and orchestrator filters for container list queries, and validates source scope consistency. It returns true if all validations succeed, false otherwise.
+// bindContainerListStateFilters validates and binds optional state, health, deployment type, and runtime target ID filters for container list queries. It returns true if all supplied filters are valid, false otherwise.
 func bindContainerListStateFilters(
 	ginCtx *gin.Context,
 	ctx *module.Context,

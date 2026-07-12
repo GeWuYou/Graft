@@ -86,7 +86,8 @@ type containerServiceOptions struct {
 }
 
 // newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
-// 解析任一必需依赖失败时返回错误。
+// newContainerService 根据模块上下文解析配置和依赖，并创建容器服务。
+// 解析必需依赖失败时返回错误。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	systemConfig := resolveSystemConfigResolver(ctx)
@@ -137,7 +138,8 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 }
 
 // newService 初始化容器服务实例，并应用默认值与归一化配置。
-// realtimeTickets 不能为空，否则返回错误。
+// newService 根据给定选项创建并初始化容器服务。
+// 如果未提供实时票据服务，则返回错误。
 func newService(options containerServiceOptions) (*service, error) {
 	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {

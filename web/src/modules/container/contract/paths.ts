@@ -25,6 +25,12 @@ export const CONTAINER_API_PATH = {
   DOCKER_SYSTEM: '/api/ops/docker/system',
 } as const;
 
+/**
+ * 构建容器详情接口的请求路径。
+ *
+ * @param containerId - 容器标识符
+ * @returns 包含编码后容器标识符的容器详情接口路径
+ */
 export function buildContainerDetailApiPath(containerId: string) {
   return CONTAINER_API_PATH.DETAIL.replace('{id}', encodeContainerPathParam(containerId));
 }

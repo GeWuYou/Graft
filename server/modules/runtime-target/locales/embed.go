@@ -10,7 +10,7 @@ import (
 //go:embed *.yaml
 var files embed.FS
 
-// EmbeddedLocaleResources exposes runtime-target locale resources to the central i18n facade.
+// EmbeddedLocaleResources 加载 runtime-target 命名空间的嵌入式本地化资源。
 func EmbeddedLocaleResources() ([]i18n.EmbeddedLocaleResource, error) {
 	resources, err := i18n.EmbeddedLocaleResourcesFromFS(files, i18n.Namespace("runtime-target"))
 	if err != nil {

@@ -102,7 +102,7 @@ func (r *Registry) Validate() error {
 	return validateCycles(byCode)
 }
 
-// validateItem 验证菜单项的代码、类型及路径配置是否有效，并检查代码是否重复。
+// validateItem 验证菜单项的代码唯一性、节点类型及路径配置，并检查分组项的专属约束。
 func validateItem(item Item, existing map[string]Item) error {
 	code := strings.TrimSpace(item.Code)
 	if code == "" {
@@ -128,6 +128,7 @@ func validateItem(item Item, existing map[string]Item) error {
 	}
 }
 
+// validateGroupItem validates that a menu group does not declare a path or section key.
 func validateGroupItem(code string, item Item) error {
 	if strings.TrimSpace(item.Path) != "" {
 		return fmt.Errorf("menu group %q must not declare a path", code)

@@ -87,6 +87,7 @@ func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (m
 	return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 }
 
+// dockerTargetSummary converts a Docker target with a representable identifier into a runtime target summary.
 func dockerTargetSummary(target store.Target) (moduleapi.RuntimeTargetSummary, bool) {
 	if target.ID > maxRuntimeTargetID || target.Provider != "docker" {
 		return moduleapi.RuntimeTargetSummary{}, false
@@ -160,6 +161,8 @@ func (m *Module) readTarget(c *gin.Context) (store.Target, bool) {
 	return target, true
 }
 
+// toHTTP converts a stored runtime target to its HTTP response representation.
+// It returns an empty response when the target ID cannot be represented safely.
 func toHTTP(target store.Target) generated.RuntimeTarget {
 	if target.ID > maxRuntimeTargetID {
 		return generated.RuntimeTarget{}

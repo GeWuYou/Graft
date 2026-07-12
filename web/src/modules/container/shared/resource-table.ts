@@ -70,6 +70,12 @@ export const CONTAINER_RESOURCE_ALL_COLUMN_KEYS = [
   'operation',
 ];
 
+/**
+ * 构建容器资源表格的列配置。
+ *
+ * @param t - 用于生成列标题的翻译函数
+ * @returns 容器资源表格的列定义
+ */
 export function buildContainerResourceColumns(t: Translate): NonNullable<TdPrimaryTableProps['columns']> {
   return [
     { colKey: 'row-select', fixed: 'left', type: 'multiple' as const, width: 48, align: 'center' },
@@ -124,6 +130,12 @@ export function buildContainerResourceColumns(t: Translate): NonNullable<TdPrima
   ];
 }
 
+/**
+ * 构建容器资源表的列设置选项。
+ *
+ * @param t - 用于生成列显示名称的翻译函数
+ * @returns 可供选择的列设置选项列表
+ */
 export function buildContainerResourceColumnSettingOptions(t: Translate) {
   return [
     { label: t('container.list.columns.selection'), value: 'row-select' },
@@ -150,14 +162,33 @@ export function displayContainerName(row: Pick<ContainerSummaryRecord, 'id' | 'n
   return row.name || row.names?.[0] || row.id;
 }
 
+/**
+ * 缩短容器 ID，保留其前 12 个字符。
+ *
+ * @param id - 容器 ID
+ * @returns 长度超过 12 个字符时的 ID 前缀，否则返回原始 ID
+ */
 export function shortContainerId(id: string) {
   return id.length > 12 ? id.slice(0, 12) : id;
 }
 
+/**
+ * 读取容器使用的编排器类型。
+ *
+ * @param row - 容器摘要记录
+ * @returns 部署类型、编排器类型或 `standalone`
+ */
 export function readContainerOrchestratorType(row: ContainerSummaryRecord): ContainerOrchestratorType {
   return row.deployment?.type || row.orchestrator?.type || 'standalone';
 }
 
+/**
+ * 为容器创建来源快速筛选条件。
+ *
+ * @param row - 容器摘要记录
+ * @param target - 快速筛选目标，表示群组或成员
+ * @returns 包含筛选类型、值和编排器类型的条件；无法生成有效条件时返回 `null`
+ */
 export function createContainerSourceQuickFilter(
   row: ContainerSummaryRecord,
   target: ContainerSourceQuickFilterTarget,
@@ -187,10 +218,10 @@ function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQui
 }
 
 /**
- * 从容器编排器信息中创建成员范围筛选条件。
+ * 创建容器的成员范围快速筛选条件。
  *
- * @param row - 包含编排器成员范围信息的容器记录
- * @returns 有效的成员范围筛选条件；缺少成员范围类型或值时返回 `null`
+ * @param row - 容器记录
+ * @returns Compose 服务的成员范围筛选条件；容器不属于 Compose 部署或缺少有效服务名称时返回 `null`
  */
 function sourceMemberFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(

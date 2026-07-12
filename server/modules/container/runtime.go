@@ -583,7 +583,9 @@ func normalizeListKeyword(query *ListQuery) error {
 	return nil
 }
 
-// normalizeListEnums normalizes and validates enumerated filter fields in a list query.
+// normalizeListEnums 规范化并校验列表查询中的枚举筛选字段及运行时目标 ID。
+//
+// 空值枚举字段保持为空；无效枚举值或小于 1 的运行时目标 ID 会返回 errInvalidListQuery。
 func normalizeListEnums(query *ListQuery) error {
 	if query == nil {
 		return errInvalidListQuery
@@ -665,6 +667,7 @@ func isValidContainerOrchestrator(value string) bool {
 	return slices.Contains(validContainerOrchestrators, value)
 }
 
+// isValidContainerDeploymentType reports whether value is a supported container deployment type.
 func isValidContainerDeploymentType(value string) bool {
 	return slices.Contains([]string{containerOrchestratorStandalone, containerOrchestratorCompose, containerOrchestratorUnknown}, value)
 }
