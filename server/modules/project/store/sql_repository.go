@@ -478,8 +478,8 @@ func buildListWhere(query ListQuery) ([]string, []any) {
 		args = append(args, query.DriftStatus)
 	}
 	if query.Keyword != "" {
-		where = append(where, "(LOWER(display_name) LIKE LOWER(?) OR LOWER(canonical_project_name) LIKE LOWER(?) OR LOWER(working_directory) LIKE LOWER(?))")
-		keyword := "%" + query.Keyword + "%"
+		where = append(where, "(LOWER(display_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(canonical_project_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(working_directory) LIKE LOWER(?) ESCAPE '\\')")
+		keyword := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(query.Keyword) + "%"
 		args = append(args, keyword, keyword, keyword)
 	}
 	if query.RuntimeTargetID != nil {

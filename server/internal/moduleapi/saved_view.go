@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	// ErrSavedViewNotFound means the requested live view is not owned by the caller.
+	// ErrSavedViewNotFound means the requested saved view is not owned by the caller.
 	ErrSavedViewNotFound = errors.New("saved view not found")
-	// ErrSavedViewConflict means a live view name already exists for an owner and surface.
+	// ErrSavedViewConflict means a saved view name already exists for an owner and surface.
 	ErrSavedViewConflict = errors.New("saved view conflict")
 	// ErrSavedViewInvalidInput means generic saved-view state is structurally invalid.
 	ErrSavedViewInvalidInput = errors.New("saved view invalid input")

@@ -16,6 +16,16 @@ var projectListSavedViewColumns = map[string]struct{}{
 	"name": {}, "application_type": {}, "runtime_target": {}, "provider": {}, "source_kind": {}, "runtime_status": {}, "resources": {}, "drift_status": {}, "updated_at": {},
 }
 
+type projectListQueryState struct {
+	Keyword         *string `json:"keyword"`
+	ApplicationType *string `json:"application_type"`
+	RuntimeTargetID *int64  `json:"runtime_target_id"`
+	Provider        *string `json:"provider"`
+	SourceKind      *string `json:"source_kind"`
+	RuntimeStatus   *string `json:"runtime_status"`
+	DriftStatus     *string `json:"drift_status"`
+}
+
 // savedViewRequest is the project-owned, consumer-specific state accepted by its saved-view routes.
 type savedViewRequest struct {
 	Name           string          `json:"name"`
@@ -32,6 +42,9 @@ func (s *Service) listSavedViews(ctx context.Context, ownerUserID uint64) ([]mod
 }
 
 func (s *Service) createSavedView(ctx context.Context, ownerUserID uint64, request savedViewRequest) (moduleapi.SavedView, error) {
+	if s == nil || s.savedViews == nil || ownerUserID == 0 {
+		return moduleapi.SavedView{}, errProjectInvalidArgument
+	}
 	if err := validateProjectListSavedView(request); err != nil {
 		return moduleapi.SavedView{}, err
 	}
@@ -40,6 +53,9 @@ func (s *Service) createSavedView(ctx context.Context, ownerUserID uint64, reque
 }
 
 func (s *Service) updateSavedView(ctx context.Context, ownerUserID, id uint64, request savedViewRequest) (moduleapi.SavedView, error) {
+	if s == nil || s.savedViews == nil || ownerUserID == 0 || id == 0 {
+		return moduleapi.SavedView{}, errProjectInvalidArgument
+	}
 	if err := validateProjectListSavedView(request); err != nil {
 		return moduleapi.SavedView{}, err
 	}
@@ -68,51 +84,79 @@ func validateProjectListSavedView(request savedViewRequest) error {
 
 // validateProjectListQueryState 校验项目列表已保存视图查询状态中的字段和值。
 func validateProjectListQueryState(queryState json.RawMessage) error {
-	var state struct {
-		Keyword         *string `json:"keyword"`
-		ApplicationType *string `json:"application_type"`
-		RuntimeTargetID *int64  `json:"runtime_target_id"`
-		Provider        *string `json:"provider"`
-		SourceKind      *string `json:"source_kind"`
-		RuntimeStatus   *string `json:"runtime_status"`
-		DriftStatus     *string `json:"drift_status"`
-	}
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(queryState, &raw); err != nil || raw == nil {
 		return errProjectInvalidArgument
 	}
-	for key := range raw {
-		if key != "keyword" && key != "application_type" && key != "runtime_target_id" && key != "provider" && key != "source_kind" && key != "runtime_status" && key != "drift_status" {
-			return errProjectInvalidArgument
-		}
+	if !validProjectListQueryStateFields(raw) {
+		return errProjectInvalidArgument
 	}
+	var state projectListQueryState
 	if err := json.Unmarshal(queryState, &state); err != nil {
 		return errProjectInvalidArgument
 	}
-	for _, value := range []*string{state.Keyword, state.ApplicationType, state.Provider, state.SourceKind, state.RuntimeStatus, state.DriftStatus} {
-		if value != nil && strings.TrimSpace(*value) == "" {
-			return errProjectInvalidArgument
+	return validateProjectListQueryStateValues(state)
+}
+
+func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
+	for key := range raw {
+		switch key {
+		case "keyword", "application_type", "runtime_target_id", "provider", "source_kind", "runtime_status", "drift_status":
+		default:
+			return false
 		}
 	}
-	if state.RuntimeTargetID != nil && *state.RuntimeTargetID < 1 {
+	return true
+}
+
+func validateProjectListQueryStateValues(state projectListQueryState) error {
+	if !validProjectListQueryStateStrings(state) {
 		return errProjectInvalidArgument
 	}
-	if state.ApplicationType != nil && *state.ApplicationType != "compose" {
+	if !validProjectListQueryStateTarget(state) {
 		return errProjectInvalidArgument
 	}
-	if state.Provider != nil && *state.Provider != "docker" {
-		return errProjectInvalidArgument
-	}
-	if state.SourceKind != nil && !generated.ProjectSourceKind(*state.SourceKind).Valid() {
-		return errProjectInvalidArgument
-	}
-	if state.RuntimeStatus != nil && !generated.ProjectRuntimeStatus(*state.RuntimeStatus).Valid() {
-		return errProjectInvalidArgument
-	}
-	if state.DriftStatus != nil && !generated.ProjectDriftStatus(*state.DriftStatus).Valid() {
+	if !validProjectListQueryStateEnums(state) {
 		return errProjectInvalidArgument
 	}
 	return nil
+}
+
+func validProjectListQueryStateEnums(state projectListQueryState) bool {
+	if !validProjectListStaticEnums(state) {
+		return false
+	}
+	return validProjectListGeneratedEnums(state)
+}
+
+func validProjectListStaticEnums(state projectListQueryState) bool {
+	return (state.ApplicationType == nil || *state.ApplicationType == "compose") && (state.Provider == nil || *state.Provider == "docker")
+}
+
+func validProjectListGeneratedEnums(state projectListQueryState) bool {
+	if state.SourceKind != nil && !generated.ProjectSourceKind(*state.SourceKind).Valid() {
+		return false
+	}
+	if state.RuntimeStatus != nil && !generated.ProjectRuntimeStatus(*state.RuntimeStatus).Valid() {
+		return false
+	}
+	if state.DriftStatus != nil && !generated.ProjectDriftStatus(*state.DriftStatus).Valid() {
+		return false
+	}
+	return true
+}
+
+func validProjectListQueryStateStrings(state projectListQueryState) bool {
+	for _, value := range []*string{state.Keyword, state.ApplicationType, state.Provider, state.SourceKind, state.RuntimeStatus, state.DriftStatus} {
+		if value != nil && strings.TrimSpace(*value) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func validProjectListQueryStateTarget(state projectListQueryState) bool {
+	return state.RuntimeTargetID == nil || *state.RuntimeTargetID > 0
 }
 
 // validateProjectListVisibleColumns 验证项目列表已保存视图的可见列是否均受支持。
@@ -136,7 +180,7 @@ func mapSavedViewError(err error) error {
 	case errors.Is(err, moduleapi.ErrSavedViewNotFound):
 		return errProjectNotFound
 	default:
-		return errProjectInvalidArgument
+		return err
 	}
 }
 

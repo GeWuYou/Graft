@@ -7,6 +7,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/mattn/go-sqlite3"
 
 	"graft/server/internal/moduleapi"
@@ -61,9 +62,86 @@ func TestSQLRepositoryRejectsCurrentPageAndDuplicateColumnsOnlyThroughConsumerSt
 	}
 }
 
+func TestSQLRepositoryUpdateReplacesOwnedViewAndRejectsConflicts(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestRepository(t)
+	ctx := context.Background()
+	first, err := repository.Create(ctx, createInput(7, "project.list", "first"))
+	if err != nil {
+		t.Fatalf("create first view: %v", err)
+	}
+	second, err := repository.Create(ctx, createInput(7, "project.list", "second"))
+	if err != nil {
+		t.Fatalf("create second view: %v", err)
+	}
+
+	input := updateInput(second, "renamed")
+	updated, err := repository.Update(ctx, input)
+	if err != nil {
+		t.Fatalf("update view: %v", err)
+	}
+	if updated.ID != second.ID || updated.Name != input.Name || updated.PageSize != input.PageSize || string(updated.QueryState) != string(input.QueryState) || len(updated.VisibleColumns) != len(input.VisibleColumns) || updated.VisibleColumns[0] != input.VisibleColumns[0] {
+		t.Fatalf("updated view mismatch: %#v", updated)
+	}
+
+	conflict := updateInput(second, first.Name)
+	if _, err := repository.Update(ctx, conflict); !errors.Is(err, moduleapi.ErrSavedViewConflict) {
+		t.Fatalf("expected rename conflict, got %v", err)
+	}
+	foreign := updateInput(second, "foreign")
+	foreign.OwnerUserID = 8
+	if _, err := repository.Update(ctx, foreign); !errors.Is(err, moduleapi.ErrSavedViewNotFound) {
+		t.Fatalf("expected foreign update not found, got %v", err)
+	}
+}
+
+func TestColumnsValueScanAcceptsDatabaseJSONValues(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		value any
+		want  []string
+	}{
+		{name: "bytes", value: []byte(`["name"]`), want: []string{"name"}},
+		{name: "string", value: `["runtime_status"]`, want: []string{"runtime_status"}},
+		{name: "nil", value: nil, want: nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			columns := []string{"previous"}
+			if err := columnScanner(&columns).Scan(tc.value); err != nil {
+				t.Fatalf("scan columns: %v", err)
+			}
+			if len(columns) != len(tc.want) {
+				t.Fatalf("columns length = %d, want %d", len(columns), len(tc.want))
+			}
+			for index := range columns {
+				if columns[index] != tc.want[index] {
+					t.Fatalf("columns[%d] = %q, want %q", index, columns[index], tc.want[index])
+				}
+			}
+		})
+	}
+	if err := columnScanner(new([]string)).Scan(1); err == nil {
+		t.Fatal("expected unsupported database value error")
+	}
+}
+
+func TestMapWriteErrorRecognizesPostgresUniqueViolation(t *testing.T) {
+	t.Parallel()
+	err := mapWriteError(&pgconn.PgError{Code: "23505"})
+	if !errors.Is(err, moduleapi.ErrSavedViewConflict) {
+		t.Fatalf("expected saved view conflict, got %v", err)
+	}
+}
+
 func createInput(owner uint64, surface, name string) moduleapi.SavedViewCreateInput {
 	state, _ := json.Marshal(map[string]string{"source_kind": "managed"})
 	return moduleapi.SavedViewCreateInput{OwnerUserID: owner, SurfaceKey: surface, Name: name, QueryState: state, PageSize: 20, VisibleColumns: []string{"name", "runtime_status"}}
+}
+
+func updateInput(view moduleapi.SavedView, name string) moduleapi.SavedViewUpdateInput {
+	return moduleapi.SavedViewUpdateInput{ID: view.ID, OwnerUserID: view.OwnerUserID, SurfaceKey: view.SurfaceKey, Name: name, QueryState: view.QueryState, PageSize: 50, VisibleColumns: []string{"name"}}
 }
 
 func newTestRepository(t *testing.T) (*SQLRepository, *sql.DB) {

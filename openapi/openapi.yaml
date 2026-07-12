@@ -1015,8 +1015,8 @@ components:
       $ref: ./components/schemas/enveloped-project-batch-action-response.yaml
     EnvelopedProjectSavedView:
       $ref: ./components/schemas/enveloped-project-saved-view.yaml
-    EnvelopedProjectSavedViewList:
-      $ref: ./components/schemas/enveloped-project-saved-view-list.yaml
+    EnvelopedProjectSavedViewListResponse:
+      $ref: ./components/schemas/enveloped-project-saved-view-list-response.yaml
     RuntimeTarget:
       $ref: ./components/schemas/runtime-target.yaml
     RuntimeTargetListResponse:
@@ -1087,7 +1087,7 @@ components:
       $ref: ./components/parameters/project-list-drift-status.yaml
     project-id-path:
       $ref: ./components/parameters/project-id-path.yaml
-    project-saved-view-id:
+    project-saved-view-id-path:
       $ref: ./components/parameters/project-saved-view-id.yaml
     project-workspace-path-query:
       $ref: ./components/parameters/project-workspace-path-query.yaml

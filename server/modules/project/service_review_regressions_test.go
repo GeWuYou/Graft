@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	projectcompose "graft/server/modules/project/compose"
@@ -122,6 +123,30 @@ func TestListProjectConflictScanItemsPaginatesBeyondFirstPage(t *testing.T) {
 	}
 	if repo.listCalls[1] != (projectstore.ListQuery{Limit: projectConflictScanSize, Offset: projectConflictScanSize}) {
 		t.Fatalf("unexpected second query %#v", repo.listCalls[1])
+	}
+}
+
+func TestListRuntimeStatusPaginatesFilteredItems(t *testing.T) {
+	t.Parallel()
+
+	repository := &pagedConflictRepository{total: maxProjectListLimit + 1}
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := service.List(context.Background(), ListQuery{
+		Limit:         1,
+		Offset:        maxProjectListLimit,
+		RuntimeStatus: string(generated.ProjectRuntimeStatusUnknown),
+	})
+	if err != nil {
+		t.Fatalf("list runtime-filtered projects: %v", err)
+	}
+	if result.Total != maxProjectListLimit+1 || len(result.Items) != 1 {
+		t.Fatalf("expected final filtered item and total %d, got %#v", maxProjectListLimit+1, result)
+	}
+	if len(repository.listCalls) != 2 {
+		t.Fatalf("expected complete scan before pagination, got %#v", repository.listCalls)
 	}
 }
 

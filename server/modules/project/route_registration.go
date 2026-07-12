@@ -126,6 +126,7 @@ func (r routeRuntime) handleSavedViewList(ginCtx *gin.Context) {
 		r.writeInvalidArgumentError(ginCtx)
 		return
 	}
+	projectGeneratedHandler{}.GetProjectSavedViews(generated.GetProjectSavedViewsParams{})
 	items, err := r.service.listSavedViews(ginCtx.Request.Context(), ownerID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -140,7 +141,6 @@ func (r routeRuntime) handleSavedViewList(ginCtx *gin.Context) {
 		}
 		mapped = append(mapped, view)
 	}
-	projectGeneratedHandler{}.GetProjectSavedViews(generated.GetProjectSavedViewsParams{})
 	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ProjectSavedViewListResponse{Items: mapped})
 }
 
@@ -1053,11 +1053,45 @@ func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDe
 // 参数无效时中止请求并返回 false；否则返回解析后的参数和 true.
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
-	query := ginCtx.Request.URL.Query()
 	params := generated.GetProjectsParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}
+	filters, ok := bindListFilterParams(ginCtx, ctx)
+	if !ok {
+		return generated.GetProjectsParams{}, false
+	}
+	params.SourceKind = filters.SourceKind
+	params.DriftStatus = filters.DriftStatus
+	params.ApplicationType = filters.ApplicationType
+	params.Provider = filters.Provider
+	params.RuntimeStatus = filters.RuntimeStatus
+	query := ginCtx.Request.URL.Query()
+	if keyword := strings.TrimSpace(query.Get("keyword")); keyword != "" {
+		params.Keyword = &keyword
+	}
+	if value := strings.TrimSpace(query.Get("runtime_target_id")); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || parsed < 1 {
+			abortInvalidQuery(ginCtx, ctx)
+			return generated.GetProjectsParams{}, false
+		}
+		params.RuntimeTargetId = &parsed
+	}
+	if params.Limit, ok = optionalIntQuery[generated.ProjectListLimit](query.Get("limit"), minimumProjectListLimit, maxProjectListLimit); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	if params.Offset, ok = optionalIntQuery[generated.ProjectListOffset](query.Get("offset"), 0, 0); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	return params, true
+}
+
+func bindListFilterParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
+	query := ginCtx.Request.URL.Query()
+	params := generated.GetProjectsParams{}
 	sourceKind, ok := optionalValidatedEnumQuery(query.Get("source_kind"), generated.ProjectSourceKind.Valid)
 	if !ok {
 		abortInvalidQuery(ginCtx, ctx)
@@ -1070,9 +1104,6 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	}
 	params.SourceKind = sourceKind
 	params.DriftStatus = driftStatus
-	if keyword := strings.TrimSpace(query.Get("keyword")); keyword != "" {
-		params.Keyword = &keyword
-	}
 	applicationType, ok := optionalValidatedEnumQuery(query.Get("application_type"), generated.GetProjectsParamsApplicationType.Valid)
 	if !ok {
 		abortInvalidQuery(ginCtx, ctx)
@@ -1091,22 +1122,6 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 		return generated.GetProjectsParams{}, false
 	}
 	params.RuntimeStatus = runtimeStatus
-	if value := strings.TrimSpace(query.Get("runtime_target_id")); value != "" {
-		parsed, err := strconv.ParseInt(value, 10, 64)
-		if err != nil || parsed < 1 {
-			abortInvalidQuery(ginCtx, ctx)
-			return generated.GetProjectsParams{}, false
-		}
-		params.RuntimeTargetId = &parsed
-	}
-	if params.Limit, ok = optionalIntQuery[generated.ProjectListLimit](query.Get("limit"), minimumProjectListLimit, maxProjectListLimit); !ok {
-		abortInvalidQuery(ginCtx, ctx)
-		return generated.GetProjectsParams{}, false
-	}
-	if params.Offset, ok = optionalIntQuery[generated.ProjectListOffset](query.Get("offset"), 0, 0); !ok {
-		abortInvalidQuery(ginCtx, ctx)
-		return generated.GetProjectsParams{}, false
-	}
 	return params, true
 }
 

@@ -11335,7 +11335,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-saved-view-list"
+                  "$ref": "#/components/schemas/enveloped-project-saved-view-list-response"
                 }
               }
             }
@@ -15552,8 +15552,8 @@
       "EnvelopedProjectSavedView": {
         "$ref": "#/components/schemas/enveloped-project-saved-view"
       },
-      "EnvelopedProjectSavedViewList": {
-        "$ref": "#/components/schemas/enveloped-project-saved-view-list"
+      "EnvelopedProjectSavedViewListResponse": {
+        "$ref": "#/components/schemas/enveloped-project-saved-view-list-response"
       },
       "RuntimeTarget": {
         "$ref": "#/components/schemas/runtime-target"
@@ -24344,7 +24344,7 @@
           }
         }
       },
-      "enveloped-project-saved-view-list": {
+      "enveloped-project-saved-view-list-response": {
         "allOf": [
           {
             "$ref": "#/components/schemas/api-envelope"
@@ -24421,6 +24421,7 @@
           },
           "visible_columns": {
             "type": "array",
+            "maxItems": 10,
             "items": {
               "type": "string",
               "minLength": 1,
@@ -28857,16 +28858,8 @@
           }
         }
       },
-      "project-saved-view-id": {
-        "name": "viewId",
-        "in": "path",
-        "required": true,
-        "description": "Private saved-view identifier.",
-        "schema": {
-          "type": "integer",
-          "format": "int64",
-          "minimum": 1
-        }
+      "project-saved-view-id-path": {
+        "$ref": "#/components/parameters/project-saved-view-id"
       },
       "project-workspace-path-query": {
         "name": "path",
@@ -29067,6 +29060,17 @@
         "description": "Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.",
         "schema": {
           "$ref": "#/components/schemas/project-runtime-status"
+        }
+      },
+      "project-saved-view-id": {
+        "name": "viewId",
+        "in": "path",
+        "required": true,
+        "description": "Private saved-view identifier.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       },
       "project-import-runtime-candidate-list-keyword": {

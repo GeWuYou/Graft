@@ -1,7 +1,8 @@
+-- atlas:txmode none
 ALTER TABLE compose_projects
   ADD COLUMN IF NOT EXISTS runtime_target_id bigint NULL;
 
-CREATE INDEX IF NOT EXISTS compose_projects_runtime_target_live
+CREATE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_runtime_target_live
   ON compose_projects (runtime_target_id, updated_at DESC, id DESC)
   WHERE deleted_at = 0;
 

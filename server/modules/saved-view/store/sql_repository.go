@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"graft/server/internal/moduleapi"
 )
 
@@ -205,19 +207,35 @@ type columnsValue struct{ target *[]string }
 // columnScanner 创建用于将数据库中的可见列 JSON 扫描到目标字符串切片的值。
 func columnScanner(target *[]string) *columnsValue { return &columnsValue{target: target} }
 func (v *columnsValue) Scan(value any) error {
-	raw, ok := value.([]byte)
-	if !ok {
+	switch raw := value.(type) {
+	case []byte:
+		return json.Unmarshal(raw, v.target)
+	case string:
+		return json.Unmarshal([]byte(raw), v.target)
+	case nil:
+		*v.target = nil
+		return nil
+	default:
 		return errors.New("saved view visible columns must be json")
 	}
-	return json.Unmarshal(raw, v.target)
 }
+
 // mapWriteError maps duplicate or unique-constraint errors to the saved-view conflict error and wraps other errors with creation context.
 func mapWriteError(err error) error {
-	if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
+	if isUniqueViolation(err) {
 		return moduleapi.ErrSavedViewConflict
 	}
 	return fmt.Errorf("create saved view: %w", err)
 }
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return true
+	}
+	return isSQLiteUniqueViolation(err)
+}
+
 // mapReadError maps missing-row errors to the saved-view not-found error and wraps other errors with write-operation context.
 func mapReadError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {

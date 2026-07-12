@@ -36,6 +36,7 @@ properties:
     maximum: 500
   visible_columns:
     type: array
+    maxItems: 10
     items:
       type: string
       minLength: 1

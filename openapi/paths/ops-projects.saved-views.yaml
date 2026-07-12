@@ -13,7 +13,7 @@ get:
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-saved-view-list.yaml
+            $ref: ../components/schemas/enveloped-project-saved-view-list-response.yaml
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
 post:

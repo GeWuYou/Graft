@@ -1,4 +1,4 @@
-menu.project.title: Projects
+menu.project.title: Application Management
 ops.project.error.invalidProjectId: Invalid project id.
 ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.

@@ -34,12 +34,18 @@ func (s *Service) Update(ctx context.Context, input moduleapi.SavedViewUpdateInp
 	if s == nil || s.repository == nil {
 		return moduleapi.SavedView{}, moduleapi.ErrSavedViewInvalidInput
 	}
+	if input.ID == 0 || input.OwnerUserID == 0 || input.SurfaceKey == "" {
+		return moduleapi.SavedView{}, moduleapi.ErrSavedViewInvalidInput
+	}
 	return s.repository.Update(ctx, input)
 }
 
 // Delete soft-deletes one owned saved view.
 func (s *Service) Delete(ctx context.Context, ownerUserID uint64, surfaceKey string, id uint64) error {
 	if s == nil || s.repository == nil {
+		return moduleapi.ErrSavedViewInvalidInput
+	}
+	if ownerUserID == 0 || surfaceKey == "" || id == 0 {
 		return moduleapi.ErrSavedViewInvalidInput
 	}
 	return s.repository.Delete(ctx, ownerUserID, surfaceKey, id)

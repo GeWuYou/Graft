@@ -3297,7 +3297,7 @@ export interface components {
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
     EnvelopedProjectSavedView: components['schemas']['enveloped-project-saved-view'];
-    EnvelopedProjectSavedViewList: components['schemas']['enveloped-project-saved-view-list'];
+    EnvelopedProjectSavedViewListResponse: components['schemas']['enveloped-project-saved-view-list-response'];
     RuntimeTarget: components['schemas']['runtime-target'];
     RuntimeTargetListResponse: components['schemas']['runtime-target-list-response'];
     EnvelopedRuntimeTargetListResponse: components['schemas']['enveloped-runtime-target-list-response'];
@@ -6049,7 +6049,7 @@ export interface components {
     'project-saved-view-list-response': {
       items: components['schemas']['project-saved-view'][];
     };
-    'enveloped-project-saved-view-list': components['schemas']['api-envelope'] & {
+    'enveloped-project-saved-view-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-saved-view-list-response'];
     };
     'project-saved-view-request': {
@@ -7096,8 +7096,7 @@ export interface components {
     'project-list-drift-status': components['schemas']['project-drift-status'];
     /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
     'project-id-path': number;
-    /** @description Private saved-view identifier. */
-    'project-saved-view-id': number;
+    'project-saved-view-id-path': string;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
     'project-workspace-path-query': string;
     /** @description Whether the workspace should include directories and dot entries hidden by default. */
@@ -7130,6 +7129,8 @@ export interface components {
     'project-list-provider': 'docker';
     /** @description Optional derived Compose runtime status filter, evaluated by the server before it returns the list page. */
     'project-list-runtime-status': components['schemas']['project-runtime-status'];
+    /** @description Private saved-view identifier. */
+    'project-saved-view-id': number;
     /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
     'project-import-runtime-candidate-list-keyword': string;
     /** @description Optional runtime import availability filter. */
@@ -13190,7 +13191,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-saved-view-list'];
+          'application/json': components['schemas']['enveloped-project-saved-view-list-response'];
         };
       };
       401: components['responses']['unauthorized'];

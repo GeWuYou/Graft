@@ -54,7 +54,6 @@
           <t-select
             v-model="filters.provider"
             class="management-toolbar__select"
-            clearable
             :placeholder="t('project.list.filters.provider')"
           >
             <t-option value="all" :label="t('project.list.filters.allProviders')" />
@@ -962,6 +961,7 @@ async function loadRuntimeTargets() {
   } catch (error) {
     logger.error('failed to load runtime targets', error);
     runtimeTargets.value = [];
+    MessagePlugin.error(t('project.list.runtimeTargetsLoadFailed'));
   }
 }
 
@@ -971,6 +971,7 @@ async function loadSavedViews() {
   } catch (error) {
     logger.error('failed to load project saved views', error);
     savedViews.value = [];
+    MessagePlugin.error(t('project.list.savedViews.loadFailed'));
   }
 }
 
@@ -1325,14 +1326,27 @@ async function removeSelectedSavedView() {
   const view = selectedSavedView.value;
   if (!view) return;
 
-  try {
-    await deleteProjectSavedView(view.id);
-    selectedSavedViewId.value = undefined;
-    await loadSavedViews();
-    MessagePlugin.success(t('project.list.savedViews.deleted'));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.savedViews.deleteFailed')));
-  }
+  let dialog: DialogInstance;
+  dialog = DialogPlugin.confirm({
+    header: t('project.list.savedViews.deleteConfirmTitle'),
+    body: t('project.list.savedViews.deleteConfirmDescription', { name: view.name }),
+    theme: 'warning',
+    confirmBtn: { content: t('project.list.savedViews.delete'), theme: 'danger' },
+    cancelBtn: t('project.list.savedViews.cancel'),
+    onCancel: () => dialog.destroy(),
+    onClose: () => dialog.destroy(),
+    onConfirm: async () => {
+      dialog.destroy();
+      try {
+        await deleteProjectSavedView(view.id);
+        selectedSavedViewId.value = undefined;
+        await loadSavedViews();
+        MessagePlugin.success(t('project.list.savedViews.deleted'));
+      } catch (error) {
+        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.savedViews.deleteFailed')));
+      }
+    },
+  });
 }
 
 function applySelectedSavedView(value: unknown) {

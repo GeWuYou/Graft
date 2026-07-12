@@ -157,11 +157,11 @@
     "list": {
       "eyebrow": "应用",
       "title": "应用管理",
-      "description": "统一查看应用、运行目标和提供者，同时保持运行时 authority 不被复制。",
+      "description": "统一查看应用、运行目标和提供者，运行时信息仍由对应运行时系统提供。",
       "refresh": "刷新",
       "retry": "重试",
       "tableSummary": "共 {count} 个项目",
-      "tableHint": "项目注册拥有文件与生命周期；运行时事实仍由容器 authority 提供。",
+      "tableHint": "项目注册管理文件与生命周期；运行时事实仍由容器运行时提供。",
       "emptyTitle": "暂无项目",
       "emptyDescription": "先导入现有 Compose 项目，再查看 Overview、Services、Configuration 和 Activity。",
       "emptyFilteredDescription": "当前筛选条件下没有匹配的项目。",
@@ -173,6 +173,7 @@
       "runningProjects": "运行中 {count}",
       "stoppedProjects": "已停止 {count}",
       "runtimeTargetUnavailable": "未关联运行目标",
+      "runtimeTargetsLoadFailed": "加载运行目标失败。",
       "applicationType": { "compose": "Compose" },
       "provider": { "docker": "Docker" },
       "savedViews": {
@@ -187,6 +188,9 @@
         "saved": "筛选已保存。",
         "deleted": "筛选已删除。",
         "deleteFailed": "删除筛选失败。",
+        "deleteConfirmTitle": "删除筛选",
+        "deleteConfirmDescription": "确定删除筛选“{name}”吗？此操作无法撤销。",
+        "loadFailed": "加载已保存筛选失败。",
         "conflict": "该筛选名称已存在，请使用其他名称。"
       },
       "filters": {

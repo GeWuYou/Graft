@@ -90,7 +90,7 @@ func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (m
 // ListDockerTargets exposes target identity only. Consumers must not receive endpoint or credential fields.
 func (r runtimeTargetReader) ListDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
 	if r.repository == nil {
-		return nil, store.ErrNotFound
+		return []moduleapi.RuntimeTargetSummary{}, nil
 	}
 	items, err := r.repository.List(ctx)
 	if err != nil {

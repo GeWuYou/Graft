@@ -15,6 +15,10 @@ func TestValidateProjectListSavedViewRejectsUnknownConsumerFields(t *testing.T) 
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Paging", QueryState: invalid, PageSize: 20, VisibleColumns: []string{"name"}}); err == nil {
 		t.Fatal("current page must not be persisted")
 	}
+	unsupportedFilter, _ := json.Marshal(map[string]string{"unsupported_filter": "x"})
+	if err := validateProjectListSavedView(savedViewRequest{Name: "Filter", QueryState: unsupportedFilter, PageSize: 20, VisibleColumns: []string{"name"}}); err == nil {
+		t.Fatal("unknown project-list filter must be rejected")
+	}
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Columns", QueryState: valid, PageSize: 20, VisibleColumns: []string{"unknown"}}); err == nil {
 		t.Fatal("unknown project-list column must be rejected")
 	}
