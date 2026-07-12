@@ -39,6 +39,16 @@ const settingStoreProxy = vi.hoisted(() => ({
   },
 }));
 
+const tabsRouterStoreProxy = vi.hoisted(() => ({
+  value: null as null | {
+    appendTabRouterList: ReturnType<typeof vi.fn>;
+    hasOnlyHomeTab: boolean;
+    healPersistedRoutes: ReturnType<typeof vi.fn>;
+    healPersistedState: ReturnType<typeof vi.fn>;
+    setActiveRoute: ReturnType<typeof vi.fn>;
+  },
+}));
+
 const storeState = vi.hoisted(() => ({
   realtimeSchedulerStore: {
     freeze: vi.fn(() => 1),
@@ -52,6 +62,7 @@ const storeState = vi.hoisted(() => ({
   },
   tabsRouterStore: {
     appendTabRouterList: vi.fn(),
+    hasOnlyHomeTab: false,
     healPersistedRoutes: vi.fn(),
     healPersistedState: vi.fn(),
     setActiveRoute: vi.fn(),
@@ -85,7 +96,7 @@ vi.mock('./components/LayoutHeader.vue', () => ({
 }));
 
 vi.mock('./components/LayoutSideNav.vue', () => ({
-  default: { name: 'LayoutSideNav', template: '<div />' },
+  default: { name: 'LayoutSideNav', template: '<div data-test-id="layout-side-nav" />' },
 }));
 
 vi.mock('pinia', async (importOriginal) => ({
@@ -101,7 +112,12 @@ vi.mock('@/store', () => ({
     }
     return settingStoreProxy.value;
   },
-  useTabsRouterStore: () => storeState.tabsRouterStore,
+  useTabsRouterStore: () => {
+    if (!tabsRouterStoreProxy.value) {
+      tabsRouterStoreProxy.value = reactive(storeState.tabsRouterStore);
+    }
+    return tabsRouterStoreProxy.value;
+  },
 }));
 
 vi.mock('@/utils/logger', () => ({
@@ -132,7 +148,6 @@ function mountAppLayout() {
         ForcePasswordChangeDialog: true,
         LayoutContent: true,
         LayoutHeader: true,
-        LayoutSideNav: true,
         TAside: PlainStub,
         TContent: PlainStub,
         THeader: PlainStub,
@@ -150,6 +165,8 @@ describe('App layout route effects', () => {
     settingStoreProxy.value.isSidebarCompact = false;
     settingStoreProxy.value.layout = { value: 'side' };
     settingStoreProxy.value.showSidebar = true;
+    tabsRouterStoreProxy.value ??= reactive(storeState.tabsRouterStore);
+    tabsRouterStoreProxy.value.hasOnlyHomeTab = false;
     routeProxy.value!.fullPath = '/containers/container-1?tab=overview';
     routeProxy.value!.path = '/containers/container-1';
     routeProxy.value!.name = 'ContainerDetail';
@@ -246,6 +263,21 @@ describe('App layout route effects', () => {
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-overlay-mode')).toBe('false');
+  });
+
+  it('hides the mixed-layout sidebar while only the home tab remains', async () => {
+    settingStoreProxy.value!.layout = { value: 'mix' };
+    tabsRouterStoreProxy.value!.hasOnlyHomeTab = true;
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(false);
+    expect(wrapper.get('.app-shell__main').classes()).not.toContain('t-layout--with-sider');
+
+    tabsRouterStoreProxy.value!.hasOnlyHomeTab = false;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(true);
+    expect(wrapper.get('.app-shell__main').classes()).toContain('t-layout--with-sider');
   });
 
   it('runs the reverse sidebar motion when expanding back out', async () => {
