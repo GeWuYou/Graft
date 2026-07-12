@@ -5,9 +5,12 @@
 该能力的核心定位必须保持稳定：
 
 - `Project` 是 Compose Project 的管理与聚合层，不是新的 Runtime。
+- Application/Project 是 Compose 的唯一业务入口和生命周期 authority；`up`、`down`、`restart`、`redeploy` 不得迁入 Docker Provider 菜单。
 - `Container` 始终是 Runtime Authority。
 - `Project` 只负责项目注册、配置解析、生命周期管理和聚合入口。
 - `Project` 不得复制、替代或持久化容器运行时真相。
+
+Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用目标，不能自行维护另一套 Docker endpoint 或凭据目录。Project 详情可以跳转到关联 Docker Container 资源，但跳转不得改变上述 authority。
 
 ## 1. 启动治理与 Authority
 

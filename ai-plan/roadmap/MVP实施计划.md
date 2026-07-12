@@ -34,6 +34,10 @@
 * 定时任务最小版
 * Vue 3 + TDesign 管理后台壳的真实契约接入
 
+### 已批准的后续基础设施演进
+
+在 MVP 核心闭环稳定后，运行时能力按 `runtime-targets-infrastructure-ia` 主题分批推进：先建立 Runtime Target 作为连接与 capability authority，再实现基础设施侧栏的 Section Label 与 Docker Provider 入口，随后迁移 Container 的 `deployment_type` / `runtime_target` 契约，并扩展 Docker 资源和 Application/Compose 跳转。Kubernetes、Podman、Registry、Certificates、Build 与 Secrets 仅在各自权威契约、可用 Target 和真实能力具备后公开，不能预先以占位菜单替代实现。
+
 ### 不包含
 
 * 运维类模块
