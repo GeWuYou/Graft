@@ -49,6 +49,7 @@ type service struct {
 	realtimeHub             realtime.Hub
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
+	runtimeTargets          moduleapi.RuntimeTargetReader
 	statsCollector          *statsCollector
 	runtimeEventManagerMu   sync.RWMutex
 	runtimeEventManager     *runtimeEventManager
@@ -80,6 +81,7 @@ type containerServiceOptions struct {
 	realtimeHub                          realtime.Hub
 	topicIssuers                         realtime.TopicIssuerRegistry
 	authorizer                           moduleapi.Authorizer
+	runtimeTargets                       moduleapi.RuntimeTargetReader
 	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
@@ -110,6 +112,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	if err != nil {
 		return nil, err
 	}
+	runtimeTargets, _ := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
 		runtimeOptions:          options,
@@ -129,6 +132,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		realtimeHub:             realtimeHub,
 		topicIssuers:            topicIssuers,
 		authorizer:              authorizer,
+		runtimeTargets:          runtimeTargets,
 	})
 }
 
@@ -182,6 +186,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		realtimeHub:             options.realtimeHub,
 		topicIssuers:            options.topicIssuers,
 		authorizer:              options.authorizer,
+		runtimeTargets:          options.runtimeTargets,
 		logTopicStreamerFactory: options.logTopicStreamerFactory,
 	}, nil
 }
@@ -296,6 +301,15 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if err != nil {
 		return ListResult{}, err
 	}
+	target := moduleapi.RuntimeTargetSummary{ID: 1, DisplayName: "Local Docker", Provider: runtimeNameDocker}
+	if s.runtimeTargets != nil {
+		target, err = s.runtimeTargets.ReadDockerTarget(ctx, normalized.RuntimeTargetID)
+		if err != nil {
+			return ListResult{}, err
+		}
+	} else if normalized.RuntimeTargetID != nil {
+		return ListResult{}, errInvalidListQuery
+	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
 		return ListResult{}, err
@@ -312,12 +326,13 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	paged := pageContainerSummaries(filtered, normalized)
 	paged = applyActionAvailability(paged, s.effectiveActionPolicy(ctx))
 	return ListResult{
-		Runtime: info,
-		Items:   paged,
-		Total:   len(filtered),
-		Limit:   normalized.Limit,
-		Offset:  normalized.Offset,
-		Summary: summarizeContainers(filtered),
+		Runtime:       info,
+		RuntimeTarget: target,
+		Items:         paged,
+		Total:         len(filtered),
+		Limit:         normalized.Limit,
+		Offset:        normalized.Offset,
+		Summary:       summarizeContainers(filtered),
 	}, nil
 }
 

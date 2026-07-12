@@ -5,6 +5,7 @@ import (
 	"time"
 
 	containergen "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/moduleapi"
 )
 
 // toContainerListResponse 将容器列表结果转换为 OpenAPI 容器列表响应。
@@ -13,7 +14,7 @@ import (
 func toContainerListResponse(result ListResult) containergen.ContainerListResponse {
 	mapped := make([]containergen.ContainerSummary, 0, len(result.Items))
 	for _, item := range result.Items {
-		mapped = append(mapped, toSummary(item))
+		mapped = append(mapped, toSummary(item, result.RuntimeTarget))
 	}
 	return containergen.ContainerListResponse{
 		Items:   mapped,
@@ -38,7 +39,11 @@ func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containe
 
 // toSummary 将 Summary 域对象转换为 ContainerSummary 响应。
 // toSummary 将容器概要映射为对应的 OpenAPI 类型，包括标识、状态、健康状态、端口、网络、资源、编排信息及可选字段。
-func toSummary(item Summary) containergen.ContainerSummary {
+func toSummary(item Summary, targets ...moduleapi.RuntimeTargetSummary) containergen.ContainerSummary {
+	var target *containergen.ContainerRuntimeTargetSummary
+	if len(targets) > 0 && targets[0].ID > 0 {
+		target = &containergen.ContainerRuntimeTargetSummary{Id: targets[0].ID, DisplayName: targets[0].DisplayName, Provider: containergen.ContainerRuntimeTargetSummaryProvider(targets[0].Provider)}
+	}
 	return containergen.ContainerSummary{
 		CanRemove:      optionalBool(item.CanRemove),
 		CanRestart:     optionalBool(item.CanRestart),
@@ -54,7 +59,8 @@ func toSummary(item Summary) containergen.ContainerSummary {
 		Health:         optionalSummaryHealth(item.Health),
 		Ports:          toPorts(item.Ports),
 		PrimaryIp:      optionalString(item.PrimaryIP),
-		Orchestrator:   toOrchestratorInfo(item.Orchestrator),
+		Deployment:     toDeploymentInfo(item.Orchestrator),
+		RuntimeTarget:  target,
 		Networks:       optionalNetworks(item.Networks),
 		NetworkSummary: optionalString(item.NetworkSummary),
 		Resource:       toResourceSummary(item.Resource),
@@ -95,7 +101,7 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		NetworkSummary:               optionalString(detail.NetworkSummary),
 		Networks:                     toNetworks(detail.Networks),
 		OomKilled:                    detail.OOMKilled,
-		Orchestrator:                 toOrchestratorInfo(detail.Orchestrator),
+		Deployment:                   toDeploymentInfo(detail.Orchestrator),
 		Ports:                        toPorts(detail.Ports),
 		PrimaryIp:                    optionalString(detail.PrimaryIP),
 		Resource:                     toResourceSummary(detail.Resource),
@@ -461,48 +467,28 @@ func toRuntimeInfo(info RuntimeInfo) containergen.ContainerRuntimeInfo {
 }
 
 // toOrchestratorInfo 将编排器信息转换为 OpenAPI 容器编排器响应类型。
-func toOrchestratorInfo(info OrchestratorInfo) *containergen.ContainerOrchestratorInfo {
+func toDeploymentInfo(info OrchestratorInfo) *containergen.ContainerDeploymentInfo {
 	info = normalizedOrchestratorInfo(info)
-	return &containergen.ContainerOrchestratorInfo{
-		ActionLevel:        containergen.ContainerOrchestratorInfoActionLevel(info.ActionLevel),
+	typeValue := info.Type
+	if typeValue != containerOrchestratorStandalone && typeValue != containerOrchestratorCompose {
+		typeValue = containerOrchestratorUnknown
+	}
+	return &containergen.ContainerDeploymentInfo{
+		ActionLevel:        containergen.ContainerDeploymentInfoActionLevel(info.ActionLevel),
 		BatchActionAllowed: info.BatchActionAllowed,
-		Confidence:         containergen.ContainerOrchestratorInfoConfidence(info.Confidence),
+		Confidence:         containergen.ContainerDeploymentInfoConfidence(info.Confidence),
 		ConfigFiles:        optionalStringSlice(info.ConfigFiles),
-		Container:          optionalString(info.Container),
-		DisplayName:        optionalString(info.DisplayName),
-		GroupDisplayName:   optionalString(info.GroupDisplayName),
-		GroupScopeKind:     optionalOrchestratorGroupScopeKind(info.GroupScopeKind),
-		GroupValue:         optionalString(info.GroupValue),
 		Managed:            info.Managed,
-		MemberDisplayName:  optionalString(info.MemberDisplayName),
-		MemberScopeKind:    optionalOrchestratorMemberScopeKind(info.MemberScopeKind),
-		MemberValue:        optionalString(info.MemberValue),
+		Project:            optionalString(info.Project),
 		RecommendedAction:  optionalString(info.RecommendedAction),
-		Type:               containergen.ContainerOrchestratorInfoType(info.Type),
+		Service:            optionalString(info.Service),
+		Type:               containergen.ContainerDeploymentInfoType(typeValue),
 		Warnings:           append([]string(nil), info.Warnings...),
 		WorkingDir:         optionalString(info.WorkingDir),
 	}
 }
 
 // optionalOrchestratorGroupScopeKind 将字符串转换为编排器组作用域类型的可选值，去除空白后若为空则返回 nil，否则返回指向转换后枚举值的指针。
-func optionalOrchestratorGroupScopeKind(value string) *containergen.ContainerOrchestratorInfoGroupScopeKind {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	mapped := containergen.ContainerOrchestratorInfoGroupScopeKind(value)
-	return &mapped
-}
-
-// optionalOrchestratorMemberScopeKind converts the given string to a ContainerOrchestratorInfoMemberScopeKind enum value, returning a pointer to the enum or nil if the string is empty after trimming whitespace.
-func optionalOrchestratorMemberScopeKind(value string) *containergen.ContainerOrchestratorInfoMemberScopeKind {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	mapped := containergen.ContainerOrchestratorInfoMemberScopeKind(value)
-	return &mapped
-}
 
 // toPorts 将端口信息转换为容器端口响应。
 func toPorts(ports []Port) []containergen.ContainerPort {

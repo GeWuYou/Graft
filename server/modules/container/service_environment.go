@@ -389,7 +389,7 @@ func filterContainerSummaries(items []Summary, query ListQuery) []Summary {
 func summaryMatchesListQuery(item Summary, query ListQuery, keyword string) bool {
 	return summaryMatchesState(item, query.State) &&
 		summaryMatchesHealth(item, query.Health) &&
-		summaryMatchesOrchestrator(item, query.Orchestrator) &&
+		summaryMatchesOrchestrator(item, firstNonEmpty(query.DeploymentType, query.Orchestrator)) &&
 		summaryMatchesSourceScopeFilter(item, query.SourceScopeKind, query.SourceScope) &&
 		summaryMatchesKeywordFilter(item, keyword)
 }

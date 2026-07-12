@@ -11,9 +11,8 @@ get:
     - $ref: ../components/parameters/container-list-keyword.yaml
     - $ref: ../components/parameters/container-list-state.yaml
     - $ref: ../components/parameters/container-list-health.yaml
-    - $ref: ../components/parameters/container-list-orchestrator.yaml
-    - $ref: ../components/parameters/container-list-source-scope-kind.yaml
-    - $ref: ../components/parameters/container-list-source-scope.yaml
+    - $ref: ../components/parameters/container-list-deployment-type.yaml
+    - $ref: ../components/parameters/container-list-runtime-target-id.yaml
   security:
     - bearerAuth: []
   responses:

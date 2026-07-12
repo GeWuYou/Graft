@@ -325,7 +325,7 @@ function healthTheme(health?: ContainerHealth | null) {
 }
 
 function orchestratorLabel(type: ContainerOrchestratorType) {
-  return t(`container.list.orchestrators.${type}`);
+  return t(`container.list.deployments.${type}`);
 }
 
 function orchestratorTheme(row: ContainerSummaryRecord) {
@@ -355,7 +355,7 @@ function orchestratorSummary(row: ContainerSummaryRecord) {
     return member.value;
   }
 
-  return row.orchestrator?.display_name || t('container.list.sourceUnknownSummary');
+  return row.deployment?.project || row.deployment?.service || t('container.list.sourceUnknownSummary');
 }
 
 function emitSourceFilter(row: ContainerSummaryRecord, target: ContainerSourceQuickFilterTarget) {

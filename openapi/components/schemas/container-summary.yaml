@@ -94,8 +94,10 @@ properties:
     description: Nullable when the runtime list path does not expose restart count without inspect.
   restart_policy:
     type: string
-  orchestrator:
-    $ref: ./container-orchestrator-info.yaml
+  deployment:
+    $ref: ./container-deployment-info.yaml
+  runtime_target:
+    $ref: ./container-runtime-target-summary.yaml
   can_start:
     type: boolean
   can_stop:

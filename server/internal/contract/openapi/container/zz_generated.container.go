@@ -70,57 +70,84 @@ func (e GetContainersParamsHealth) Valid() bool {
 	}
 }
 
-// Defines values for GetContainersParamsOrchestrator.
+// Defines values for GetContainersParamsDeploymentType.
 const (
-	ContainerListOrchestratorCompose    GetContainersParamsOrchestrator = "compose"
-	ContainerListOrchestratorKubernetes GetContainersParamsOrchestrator = "kubernetes"
-	ContainerListOrchestratorStandalone GetContainersParamsOrchestrator = "standalone"
-	ContainerListOrchestratorSwarm      GetContainersParamsOrchestrator = "swarm"
-	ContainerListOrchestratorUnknown    GetContainersParamsOrchestrator = "unknown"
+	ContainerListDeploymentTypeCompose    GetContainersParamsDeploymentType = "compose"
+	ContainerListDeploymentTypeStandalone GetContainersParamsDeploymentType = "standalone"
+	ContainerListDeploymentTypeUnknown    GetContainersParamsDeploymentType = "unknown"
 )
 
-// Valid indicates whether the value is a known member of the GetContainersParamsOrchestrator enum.
-func (e GetContainersParamsOrchestrator) Valid() bool {
+// Valid indicates whether the value is a known member of the GetContainersParamsDeploymentType enum.
+func (e GetContainersParamsDeploymentType) Valid() bool {
 	switch e {
-	case ContainerListOrchestratorCompose:
+	case ContainerListDeploymentTypeCompose:
 		return true
-	case ContainerListOrchestratorKubernetes:
+	case ContainerListDeploymentTypeStandalone:
 		return true
-	case ContainerListOrchestratorStandalone:
-		return true
-	case ContainerListOrchestratorSwarm:
-		return true
-	case ContainerListOrchestratorUnknown:
+	case ContainerListDeploymentTypeUnknown:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for GetContainersParamsSourceScopeKind.
+// Defines values for GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel.
 const (
-	ContainerListSourceScopeKindComposeProject      GetContainersParamsSourceScopeKind = "compose_project"
-	ContainerListSourceScopeKindComposeService      GetContainersParamsSourceScopeKind = "compose_service"
-	ContainerListSourceScopeKindKubernetesNamespace GetContainersParamsSourceScopeKind = "kubernetes_namespace"
-	ContainerListSourceScopeKindKubernetesPod       GetContainersParamsSourceScopeKind = "kubernetes_pod"
-	ContainerListSourceScopeKindSwarmStack          GetContainersParamsSourceScopeKind = "swarm_stack"
-	ContainerListSourceScopeKindSwarmTask           GetContainersParamsSourceScopeKind = "swarm_task"
+	GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelAllow    GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel = "allow"
+	GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelReadonly GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel = "readonly"
+	GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelWarn     GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel = "warn"
 )
 
-// Valid indicates whether the value is a known member of the GetContainersParamsSourceScopeKind enum.
-func (e GetContainersParamsSourceScopeKind) Valid() bool {
+// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel enum.
+func (e GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel) Valid() bool {
 	switch e {
-	case ContainerListSourceScopeKindComposeProject:
+	case GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelAllow:
 		return true
-	case ContainerListSourceScopeKindComposeService:
+	case GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelReadonly:
 		return true
-	case ContainerListSourceScopeKindKubernetesNamespace:
+	case GetContainers200JSONResponseBodyDataItemsDeploymentActionLevelWarn:
 		return true
-	case ContainerListSourceScopeKindKubernetesPod:
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainers200JSONResponseBodyDataItemsDeploymentConfidence.
+const (
+	GetContainers200JSONResponseBodyDataItemsDeploymentConfidenceHigh   GetContainers200JSONResponseBodyDataItemsDeploymentConfidence = "high"
+	GetContainers200JSONResponseBodyDataItemsDeploymentConfidenceLow    GetContainers200JSONResponseBodyDataItemsDeploymentConfidence = "low"
+	GetContainers200JSONResponseBodyDataItemsDeploymentConfidenceMedium GetContainers200JSONResponseBodyDataItemsDeploymentConfidence = "medium"
+)
+
+// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsDeploymentConfidence enum.
+func (e GetContainers200JSONResponseBodyDataItemsDeploymentConfidence) Valid() bool {
+	switch e {
+	case GetContainers200JSONResponseBodyDataItemsDeploymentConfidenceHigh:
 		return true
-	case ContainerListSourceScopeKindSwarmStack:
+	case GetContainers200JSONResponseBodyDataItemsDeploymentConfidenceLow:
 		return true
-	case ContainerListSourceScopeKindSwarmTask:
+	case GetContainers200JSONResponseBodyDataItemsDeploymentConfidenceMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainers200JSONResponseBodyDataItemsDeploymentType.
+const (
+	GetContainers200JSONResponseBodyDataItemsDeploymentTypeContainerDeploymentInfoTypeCompose    GetContainers200JSONResponseBodyDataItemsDeploymentType = "compose"
+	GetContainers200JSONResponseBodyDataItemsDeploymentTypeContainerDeploymentInfoTypeStandalone GetContainers200JSONResponseBodyDataItemsDeploymentType = "standalone"
+	GetContainers200JSONResponseBodyDataItemsDeploymentTypeContainerDeploymentInfoTypeUnknown    GetContainers200JSONResponseBodyDataItemsDeploymentType = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsDeploymentType enum.
+func (e GetContainers200JSONResponseBodyDataItemsDeploymentType) Valid() bool {
+	switch e {
+	case GetContainers200JSONResponseBodyDataItemsDeploymentTypeContainerDeploymentInfoTypeCompose:
+		return true
+	case GetContainers200JSONResponseBodyDataItemsDeploymentTypeContainerDeploymentInfoTypeStandalone:
+		return true
+	case GetContainers200JSONResponseBodyDataItemsDeploymentTypeContainerDeploymentInfoTypeUnknown:
 		return true
 	default:
 		return false
@@ -154,117 +181,6 @@ func (e GetContainers200JSONResponseBodyDataItemsHealth) Valid() bool {
 	}
 }
 
-// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel.
-const (
-	GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevelContainerOrchestratorInfoActionLevelAllow    GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel = "allow"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevelContainerOrchestratorInfoActionLevelReadonly GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel = "readonly"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevelContainerOrchestratorInfoActionLevelWarn     GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel = "warn"
-)
-
-// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel enum.
-func (e GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel) Valid() bool {
-	switch e {
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevelContainerOrchestratorInfoActionLevelAllow:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevelContainerOrchestratorInfoActionLevelReadonly:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevelContainerOrchestratorInfoActionLevelWarn:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence.
-const (
-	GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceHigh   GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence = "high"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceLow    GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence = "low"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceMedium GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence = "medium"
-)
-
-// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence enum.
-func (e GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence) Valid() bool {
-	switch e {
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceHigh:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceLow:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceMedium:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind.
-const (
-	GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject      GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind = "compose_project"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind = "kubernetes_namespace"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack          GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind = "swarm_stack"
-)
-
-// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind enum.
-func (e GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind) Valid() bool {
-	switch e {
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind.
-const (
-	GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind = "compose_service"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod  GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind = "kubernetes_pod"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask      GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind = "swarm_task"
-)
-
-// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind enum.
-func (e GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind) Valid() bool {
-	switch e {
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorType.
-const (
-	GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeCompose    GetContainers200JSONResponseBodyDataItemsOrchestratorType = "compose"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeKubernetes GetContainers200JSONResponseBodyDataItemsOrchestratorType = "kubernetes"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeStandalone GetContainers200JSONResponseBodyDataItemsOrchestratorType = "standalone"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeSwarm      GetContainers200JSONResponseBodyDataItemsOrchestratorType = "swarm"
-	GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeUnknown    GetContainers200JSONResponseBodyDataItemsOrchestratorType = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorType enum.
-func (e GetContainers200JSONResponseBodyDataItemsOrchestratorType) Valid() bool {
-	switch e {
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeCompose:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeKubernetes:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeStandalone:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeSwarm:
-		return true
-	case GetContainers200JSONResponseBodyDataItemsOrchestratorTypeContainerOrchestratorInfoTypeUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for GetContainers200JSONResponseBodyDataItemsPortsType.
 const (
 	GetContainers200JSONResponseBodyDataItemsPortsTypeContainerPortTypeValueSCTP GetContainers200JSONResponseBodyDataItemsPortsType = "sctp"
@@ -280,6 +196,21 @@ func (e GetContainers200JSONResponseBodyDataItemsPortsType) Valid() bool {
 	case GetContainers200JSONResponseBodyDataItemsPortsTypeContainerPortTypeValueTCP:
 		return true
 	case GetContainers200JSONResponseBodyDataItemsPortsTypeContainerPortTypeValueUDP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider.
+const (
+	GetContainers200JSONResponseBodyDataItemsRuntimeTargetProviderDocker GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider enum.
+func (e GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider) Valid() bool {
+	switch e {
+	case GetContainers200JSONResponseBodyDataItemsRuntimeTargetProviderDocker:
 		return true
 	default:
 		return false
@@ -772,6 +703,69 @@ func (e GetContainerDashboardSummary500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetContainer200JSONResponseBodyDataDeploymentActionLevel.
+const (
+	GetContainer200JSONResponseBodyDataDeploymentActionLevelAllow    GetContainer200JSONResponseBodyDataDeploymentActionLevel = "allow"
+	GetContainer200JSONResponseBodyDataDeploymentActionLevelReadonly GetContainer200JSONResponseBodyDataDeploymentActionLevel = "readonly"
+	GetContainer200JSONResponseBodyDataDeploymentActionLevelWarn     GetContainer200JSONResponseBodyDataDeploymentActionLevel = "warn"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataDeploymentActionLevel enum.
+func (e GetContainer200JSONResponseBodyDataDeploymentActionLevel) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataDeploymentActionLevelAllow:
+		return true
+	case GetContainer200JSONResponseBodyDataDeploymentActionLevelReadonly:
+		return true
+	case GetContainer200JSONResponseBodyDataDeploymentActionLevelWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainer200JSONResponseBodyDataDeploymentConfidence.
+const (
+	GetContainer200JSONResponseBodyDataDeploymentConfidenceHigh   GetContainer200JSONResponseBodyDataDeploymentConfidence = "high"
+	GetContainer200JSONResponseBodyDataDeploymentConfidenceLow    GetContainer200JSONResponseBodyDataDeploymentConfidence = "low"
+	GetContainer200JSONResponseBodyDataDeploymentConfidenceMedium GetContainer200JSONResponseBodyDataDeploymentConfidence = "medium"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataDeploymentConfidence enum.
+func (e GetContainer200JSONResponseBodyDataDeploymentConfidence) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataDeploymentConfidenceHigh:
+		return true
+	case GetContainer200JSONResponseBodyDataDeploymentConfidenceLow:
+		return true
+	case GetContainer200JSONResponseBodyDataDeploymentConfidenceMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainer200JSONResponseBodyDataDeploymentType.
+const (
+	GetContainer200JSONResponseBodyDataDeploymentTypeContainerDeploymentInfoTypeCompose    GetContainer200JSONResponseBodyDataDeploymentType = "compose"
+	GetContainer200JSONResponseBodyDataDeploymentTypeContainerDeploymentInfoTypeStandalone GetContainer200JSONResponseBodyDataDeploymentType = "standalone"
+	GetContainer200JSONResponseBodyDataDeploymentTypeContainerDeploymentInfoTypeUnknown    GetContainer200JSONResponseBodyDataDeploymentType = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataDeploymentType enum.
+func (e GetContainer200JSONResponseBodyDataDeploymentType) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataDeploymentTypeContainerDeploymentInfoTypeCompose:
+		return true
+	case GetContainer200JSONResponseBodyDataDeploymentTypeContainerDeploymentInfoTypeStandalone:
+		return true
+	case GetContainer200JSONResponseBodyDataDeploymentTypeContainerDeploymentInfoTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainer200JSONResponseBodyDataEnvironmentSource.
 const (
 	ContainerEnvironmentEntrySourceDocker GetContainer200JSONResponseBodyDataEnvironmentSource = "docker"
@@ -898,117 +892,6 @@ func (e GetContainer200JSONResponseBodyDataMountsUsageStatus) Valid() bool {
 	}
 }
 
-// Defines values for GetContainer200JSONResponseBodyDataOrchestratorActionLevel.
-const (
-	GetContainer200JSONResponseBodyDataOrchestratorActionLevelContainerOrchestratorInfoActionLevelAllow    GetContainer200JSONResponseBodyDataOrchestratorActionLevel = "allow"
-	GetContainer200JSONResponseBodyDataOrchestratorActionLevelContainerOrchestratorInfoActionLevelReadonly GetContainer200JSONResponseBodyDataOrchestratorActionLevel = "readonly"
-	GetContainer200JSONResponseBodyDataOrchestratorActionLevelContainerOrchestratorInfoActionLevelWarn     GetContainer200JSONResponseBodyDataOrchestratorActionLevel = "warn"
-)
-
-// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorActionLevel enum.
-func (e GetContainer200JSONResponseBodyDataOrchestratorActionLevel) Valid() bool {
-	switch e {
-	case GetContainer200JSONResponseBodyDataOrchestratorActionLevelContainerOrchestratorInfoActionLevelAllow:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorActionLevelContainerOrchestratorInfoActionLevelReadonly:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorActionLevelContainerOrchestratorInfoActionLevelWarn:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainer200JSONResponseBodyDataOrchestratorConfidence.
-const (
-	GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceHigh   GetContainer200JSONResponseBodyDataOrchestratorConfidence = "high"
-	GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceLow    GetContainer200JSONResponseBodyDataOrchestratorConfidence = "low"
-	GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceMedium GetContainer200JSONResponseBodyDataOrchestratorConfidence = "medium"
-)
-
-// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorConfidence enum.
-func (e GetContainer200JSONResponseBodyDataOrchestratorConfidence) Valid() bool {
-	switch e {
-	case GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceHigh:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceLow:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceMedium:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind.
-const (
-	GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject      GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind = "compose_project"
-	GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind = "kubernetes_namespace"
-	GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack          GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind = "swarm_stack"
-)
-
-// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind enum.
-func (e GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind) Valid() bool {
-	switch e {
-	case GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind.
-const (
-	GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind = "compose_service"
-	GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod  GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind = "kubernetes_pod"
-	GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask      GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind = "swarm_task"
-)
-
-// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind enum.
-func (e GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind) Valid() bool {
-	switch e {
-	case GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainer200JSONResponseBodyDataOrchestratorType.
-const (
-	GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeCompose    GetContainer200JSONResponseBodyDataOrchestratorType = "compose"
-	GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeKubernetes GetContainer200JSONResponseBodyDataOrchestratorType = "kubernetes"
-	GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeStandalone GetContainer200JSONResponseBodyDataOrchestratorType = "standalone"
-	GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeSwarm      GetContainer200JSONResponseBodyDataOrchestratorType = "swarm"
-	GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeUnknown    GetContainer200JSONResponseBodyDataOrchestratorType = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorType enum.
-func (e GetContainer200JSONResponseBodyDataOrchestratorType) Valid() bool {
-	switch e {
-	case GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeCompose:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeKubernetes:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeStandalone:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeSwarm:
-		return true
-	case GetContainer200JSONResponseBodyDataOrchestratorTypeContainerOrchestratorInfoTypeUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for GetContainer200JSONResponseBodyDataPortsType.
 const (
 	GetContainer200JSONResponseBodyDataPortsTypeContainerPortTypeValueSCTP GetContainer200JSONResponseBodyDataPortsType = "sctp"
@@ -1045,6 +928,21 @@ func (e GetContainer200JSONResponseBodyDataRuntimeInfoStatus) Valid() bool {
 	case GetContainer200JSONResponseBodyDataRuntimeInfoStatusContainerRuntimeInfoStatusEnabled:
 		return true
 	case GetContainer200JSONResponseBodyDataRuntimeInfoStatusContainerRuntimeInfoStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainer200JSONResponseBodyDataRuntimeTargetProvider.
+const (
+	GetContainer200JSONResponseBodyDataRuntimeTargetProviderDocker GetContainer200JSONResponseBodyDataRuntimeTargetProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataRuntimeTargetProvider enum.
+func (e GetContainer200JSONResponseBodyDataRuntimeTargetProvider) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataRuntimeTargetProviderDocker:
 		return true
 	default:
 		return false
@@ -2412,14 +2310,11 @@ type GetContainersParams struct {
 	// Health Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided.
 	Health *GetContainersParamsHealth `form:"health,omitempty" json:"health,omitempty"`
 
-	// Orchestrator Optional orchestrator source filter resolved by the backend from runtime metadata.
-	Orchestrator *GetContainersParamsOrchestrator `form:"orchestrator,omitempty" json:"orchestrator,omitempty"`
+	// DeploymentType Optional deployment type filter. Docker containers are standalone, Compose-managed, or conservatively unknown when runtime labels are ambiguous.
+	DeploymentType *GetContainersParamsDeploymentType `form:"deployment_type,omitempty" json:"deployment_type,omitempty"`
 
-	// SourceScopeKind Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
-	SourceScopeKind *GetContainersParamsSourceScopeKind `form:"source_scope_kind,omitempty" json:"source_scope_kind,omitempty"`
-
-	// SourceScope Exact orchestrator source scope value. Must be paired with source_scope_kind.
-	SourceScope *string `form:"source_scope,omitempty" json:"source_scope,omitempty"`
+	// RuntimeTargetId Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.
+	RuntimeTargetId *int64 `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
@@ -2435,32 +2330,26 @@ type GetContainersParamsState string
 // GetContainersParamsHealth defines parameters for GetContainers.
 type GetContainersParamsHealth string
 
-// GetContainersParamsOrchestrator defines parameters for GetContainers.
-type GetContainersParamsOrchestrator string
+// GetContainersParamsDeploymentType defines parameters for GetContainers.
+type GetContainersParamsDeploymentType string
 
-// GetContainersParamsSourceScopeKind defines parameters for GetContainers.
-type GetContainersParamsSourceScopeKind string
+// GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel defines parameters for GetContainers.
+type GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel string
+
+// GetContainers200JSONResponseBodyDataItemsDeploymentConfidence defines parameters for GetContainers.
+type GetContainers200JSONResponseBodyDataItemsDeploymentConfidence string
+
+// GetContainers200JSONResponseBodyDataItemsDeploymentType defines parameters for GetContainers.
+type GetContainers200JSONResponseBodyDataItemsDeploymentType string
 
 // GetContainers200JSONResponseBodyDataItemsHealth defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsHealth string
 
-// GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel defines parameters for GetContainers.
-type GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel string
-
-// GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence defines parameters for GetContainers.
-type GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence string
-
-// GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind defines parameters for GetContainers.
-type GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind string
-
-// GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind defines parameters for GetContainers.
-type GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind string
-
-// GetContainers200JSONResponseBodyDataItemsOrchestratorType defines parameters for GetContainers.
-type GetContainers200JSONResponseBodyDataItemsOrchestratorType string
-
 // GetContainers200JSONResponseBodyDataItemsPortsType defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsPortsType string
+
+// GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider defines parameters for GetContainers.
+type GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider string
 
 // GetContainers200JSONResponseBodyDataItemsState defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsState string
@@ -2567,6 +2456,15 @@ type GetContainerParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetContainer200JSONResponseBodyDataDeploymentActionLevel defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataDeploymentActionLevel string
+
+// GetContainer200JSONResponseBodyDataDeploymentConfidence defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataDeploymentConfidence string
+
+// GetContainer200JSONResponseBodyDataDeploymentType defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataDeploymentType string
+
 // GetContainer200JSONResponseBodyDataEnvironmentSource defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataEnvironmentSource string
 
@@ -2582,26 +2480,14 @@ type GetContainer200JSONResponseBodyDataHealthcheckStatus string
 // GetContainer200JSONResponseBodyDataMountsUsageStatus defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataMountsUsageStatus string
 
-// GetContainer200JSONResponseBodyDataOrchestratorActionLevel defines parameters for GetContainer.
-type GetContainer200JSONResponseBodyDataOrchestratorActionLevel string
-
-// GetContainer200JSONResponseBodyDataOrchestratorConfidence defines parameters for GetContainer.
-type GetContainer200JSONResponseBodyDataOrchestratorConfidence string
-
-// GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind defines parameters for GetContainer.
-type GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind string
-
-// GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind defines parameters for GetContainer.
-type GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind string
-
-// GetContainer200JSONResponseBodyDataOrchestratorType defines parameters for GetContainer.
-type GetContainer200JSONResponseBodyDataOrchestratorType string
-
 // GetContainer200JSONResponseBodyDataPortsType defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataPortsType string
 
 // GetContainer200JSONResponseBodyDataRuntimeInfoStatus defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataRuntimeInfoStatus string
+
+// GetContainer200JSONResponseBodyDataRuntimeTargetProvider defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataRuntimeTargetProvider string
 
 // GetContainer200JSONResponseBodyDataState defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataState string

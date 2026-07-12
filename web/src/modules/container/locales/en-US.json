@@ -72,6 +72,10 @@
       "filters": {
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",
+        "deploymentType": "Deployment type",
+        "allDeploymentTypes": "All deployment types",
+        "runtimeTarget": "Runtime target",
+        "allRuntimeTargets": "All runtime targets",
         "orchestrator": "Source",
         "sourceScopeKind": "Source Scope",
         "allSourceScopeKinds": "All Scopes",
@@ -126,6 +130,11 @@
         "swarm": "Swarm",
         "kubernetes": "Kubernetes",
         "unknown": "Unknown Source"
+      },
+      "deployments": {
+        "standalone": "Standalone",
+        "compose": "Compose",
+        "unknown": "Unknown deployment"
       },
       "sourceKinds": {
         "compose_project": "Project",
@@ -492,7 +501,7 @@
         "time": "Time",
         "level": "Level",
         "stream": "Stream",
-        "source": "Source",
+        "source": "Deployment type",
         "viewDetail": "View Details",
         "collapseDetail": "Collapse Detail",
         "metadata": "Metadata",

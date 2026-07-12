@@ -758,8 +758,10 @@ components:
       $ref: ./components/schemas/container-batch-action-response.yaml
     ContainerRuntimeInfo:
       $ref: ./components/schemas/container-runtime-info.yaml
-    ContainerOrchestratorInfo:
-      $ref: ./components/schemas/container-orchestrator-info.yaml
+    ContainerDeploymentInfo:
+      $ref: ./components/schemas/container-deployment-info.yaml
+    ContainerRuntimeTargetSummary:
+      $ref: ./components/schemas/container-runtime-target-summary.yaml
     ContainerResourceSummary:
       $ref: ./components/schemas/container-resource-summary.yaml
     ContainerDashboardTopItem:
@@ -1014,12 +1016,10 @@ components:
       $ref: ./components/parameters/container-list-state.yaml
     container-list-health:
       $ref: ./components/parameters/container-list-health.yaml
-    container-list-orchestrator:
-      $ref: ./components/parameters/container-list-orchestrator.yaml
-    container-list-source-scope-kind:
-      $ref: ./components/parameters/container-list-source-scope-kind.yaml
-    container-list-source-scope:
-      $ref: ./components/parameters/container-list-source-scope.yaml
+    container-list-deployment-type:
+      $ref: ./components/parameters/container-list-deployment-type.yaml
+    container-list-runtime-target-id:
+      $ref: ./components/parameters/container-list-runtime-target-id.yaml
     container-id-path:
       $ref: ./components/parameters/container-id-path.yaml
     runtime-target-id-path:

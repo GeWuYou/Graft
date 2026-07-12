@@ -70,3 +70,24 @@
   "closeout_status": "batch-2-complete"
 }
 ```
+
+## 2026-07-12 Container Deployment Type And Runtime Target Filter
+
+- Replaced the Container list's user-facing "source" filter set with independent OpenAPI-owned `deployment_type` and `runtime_target_id` query fields. The public deployment taxonomy is deliberately limited to `standalone`, `compose`, and `unknown`; Swarm and Kubernetes remain future provider-specific semantics rather than ambiguous filters.
+- Container service resolves Docker target identity through the narrow `moduleapi.RuntimeTargetReader`, so Container does not own target connections, endpoints, credentials, or a duplicate target list. The reader validates provider and integer boundaries before exposing a target summary.
+- The Docker container page loads Docker Runtime Targets for the target selector, does not render a redundant Provider filter, and presents Compose project/service context separately from Standalone and Unknown deployment badges.
+- Cache decision: deferred with reason. Container reads remain runtime-backed while target metadata is persisted; no new cache is justified until measured list-read latency or target fan-out identifies a hotspot. The future trigger is an observed performance regression under authorized multi-target reads.
+- Validation passed: `go run ./cmd/graft validate openapi`, focused Go container/runtime-target tests, focused container Vitest suites, `go run ./cmd/graft validate backend`, frontend format/type/i18n/lint/style/hygiene/build gates, and `git diff --check`. The full `bun run check` test wave exposed two unrelated timing failures in permission and Monaco tests; both passed on direct retry.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter"],
+  "pending_batches": ["docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "current_batch": "container-deployment-type-and-target-filter",
+  "next_batch": "docker-resources-and-application-integration",
+  "closeout_status": "batch-4-complete"
+}
+```

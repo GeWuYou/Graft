@@ -27,16 +27,16 @@ closeout:
 
 ## Current Recovery Point
 
-- Batch 1 completed Work Intake and repaired the repository authority that formerly prohibited Docker/Kubernetes/Podman Provider menus.
-- The current design preserves the existing side navigation and defines Section Labels as visual-only metadata.
-- No server, web, OpenAPI, generated artifact, skill, or script change was made in this batch.
+- Batch 4 replaced the container-list user-facing "source" filters with independent `deployment_type` and `runtime_target_id` contract fields.
+- The Docker container page has no redundant Provider selector: deployment type is `Standalone` or `Compose`, and runtime target comes from the Runtime Target authority.
+- The next bounded batch is Docker resource pages and Application/Compose integration; it must preserve Project ownership of Compose lifecycle.
 
 ## Task Checklist
 
 - [x] work-intake-and-authority-foundation
 - [x] menu-section-contract-and-sidebar-rendering
 - [x] runtime-target-foundation
-- [ ] container-deployment-type-and-target-filter
+- [x] container-deployment-type-and-target-filter
 - [ ] docker-resources-and-application-integration
 - [ ] cross-boundary-acceptance-and-archive-readiness
 
@@ -53,15 +53,17 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation"],
-  "pending_batches": ["container-deployment-type-and-target-filter", "docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
-  "current_batch": "runtime-target-foundation",
-  "next_batch": "container-deployment-type-and-target-filter",
-  "closeout_status": "batch-3-complete"
+  "completed_batches": ["work-intake-and-authority-foundation", "menu-section-contract-and-sidebar-rendering", "runtime-target-foundation", "container-deployment-type-and-target-filter"],
+  "pending_batches": ["docker-resources-and-application-integration", "cross-boundary-acceptance-and-archive-readiness"],
+  "current_batch": "container-deployment-type-and-target-filter",
+  "next_batch": "docker-resources-and-application-integration",
+  "closeout_status": "batch-4-complete"
 }
 ```
 
-## Batch 3 Completion
+## Batch 4 Completion
 
-- Runtime Target contract and Local Docker persisted discovery are complete.
-- Remote mTLS needs a future credential-vault authority; no remote credential storage is introduced in this topic batch.
+- OpenAPI, generated server/web contracts, service mapping, and container UI now expose `deployment` plus `runtime_target` without retaining user-facing source-scope controls.
+- Container filters serialize only deployment type, runtime target, status, health, and keyword. Compose, standalone, and unknown deployment presentation are covered by focused tests.
+- Cache decision: no cache. The container list remains a live Docker runtime read; Runtime Target selection resolves persisted target identity through the narrow reader interface. Reconsider caching only after measured list-read latency or fan-out makes this path a hotspot.
+- Validation: OpenAPI drift checks, focused Go and Vitest suites, `cd server && go run ./cmd/graft validate backend`, frontend format/type/i18n/lint/style/hygiene/build gates, and `git diff --check`. The full `bun run check` test wave had two unrelated timing failures; both files passed when retried directly.

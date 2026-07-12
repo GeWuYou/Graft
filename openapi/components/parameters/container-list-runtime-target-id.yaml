@@ -1,0 +1,8 @@
+name: runtime_target_id
+in: query
+required: false
+description: Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.
+schema:
+  type: integer
+  format: int64
+  minimum: 1

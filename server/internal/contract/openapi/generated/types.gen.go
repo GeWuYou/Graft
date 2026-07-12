@@ -1125,6 +1125,69 @@ func (e ContainerDashboardTopItemState) Valid() bool {
 	}
 }
 
+// Defines values for ContainerDeploymentInfoActionLevel.
+const (
+	ContainerDeploymentInfoActionLevelAllow    ContainerDeploymentInfoActionLevel = "allow"
+	ContainerDeploymentInfoActionLevelReadonly ContainerDeploymentInfoActionLevel = "readonly"
+	ContainerDeploymentInfoActionLevelWarn     ContainerDeploymentInfoActionLevel = "warn"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDeploymentInfoActionLevel enum.
+func (e ContainerDeploymentInfoActionLevel) Valid() bool {
+	switch e {
+	case ContainerDeploymentInfoActionLevelAllow:
+		return true
+	case ContainerDeploymentInfoActionLevelReadonly:
+		return true
+	case ContainerDeploymentInfoActionLevelWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDeploymentInfoConfidence.
+const (
+	ContainerDeploymentInfoConfidenceHigh   ContainerDeploymentInfoConfidence = "high"
+	ContainerDeploymentInfoConfidenceLow    ContainerDeploymentInfoConfidence = "low"
+	ContainerDeploymentInfoConfidenceMedium ContainerDeploymentInfoConfidence = "medium"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDeploymentInfoConfidence enum.
+func (e ContainerDeploymentInfoConfidence) Valid() bool {
+	switch e {
+	case ContainerDeploymentInfoConfidenceHigh:
+		return true
+	case ContainerDeploymentInfoConfidenceLow:
+		return true
+	case ContainerDeploymentInfoConfidenceMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDeploymentInfoType.
+const (
+	ContainerDeploymentInfoTypeCompose    ContainerDeploymentInfoType = "compose"
+	ContainerDeploymentInfoTypeStandalone ContainerDeploymentInfoType = "standalone"
+	ContainerDeploymentInfoTypeUnknown    ContainerDeploymentInfoType = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDeploymentInfoType enum.
+func (e ContainerDeploymentInfoType) Valid() bool {
+	switch e {
+	case ContainerDeploymentInfoTypeCompose:
+		return true
+	case ContainerDeploymentInfoTypeStandalone:
+		return true
+	case ContainerDeploymentInfoTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerDetailEnvironmentPolicy.
 const (
 	ContainerDetailEnvironmentPolicyHidden ContainerDetailEnvironmentPolicy = "hidden"
@@ -1305,117 +1368,6 @@ func (e ContainerMountUsageStatus) Valid() bool {
 	}
 }
 
-// Defines values for ContainerOrchestratorInfoActionLevel.
-const (
-	ContainerOrchestratorInfoActionLevelAllow    ContainerOrchestratorInfoActionLevel = "allow"
-	ContainerOrchestratorInfoActionLevelReadonly ContainerOrchestratorInfoActionLevel = "readonly"
-	ContainerOrchestratorInfoActionLevelWarn     ContainerOrchestratorInfoActionLevel = "warn"
-)
-
-// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoActionLevel enum.
-func (e ContainerOrchestratorInfoActionLevel) Valid() bool {
-	switch e {
-	case ContainerOrchestratorInfoActionLevelAllow:
-		return true
-	case ContainerOrchestratorInfoActionLevelReadonly:
-		return true
-	case ContainerOrchestratorInfoActionLevelWarn:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerOrchestratorInfoConfidence.
-const (
-	ContainerOrchestratorInfoConfidenceHigh   ContainerOrchestratorInfoConfidence = "high"
-	ContainerOrchestratorInfoConfidenceLow    ContainerOrchestratorInfoConfidence = "low"
-	ContainerOrchestratorInfoConfidenceMedium ContainerOrchestratorInfoConfidence = "medium"
-)
-
-// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoConfidence enum.
-func (e ContainerOrchestratorInfoConfidence) Valid() bool {
-	switch e {
-	case ContainerOrchestratorInfoConfidenceHigh:
-		return true
-	case ContainerOrchestratorInfoConfidenceLow:
-		return true
-	case ContainerOrchestratorInfoConfidenceMedium:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerOrchestratorInfoGroupScopeKind.
-const (
-	ContainerOrchestratorInfoGroupScopeKindComposeProject      ContainerOrchestratorInfoGroupScopeKind = "compose_project"
-	ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace ContainerOrchestratorInfoGroupScopeKind = "kubernetes_namespace"
-	ContainerOrchestratorInfoGroupScopeKindSwarmStack          ContainerOrchestratorInfoGroupScopeKind = "swarm_stack"
-)
-
-// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoGroupScopeKind enum.
-func (e ContainerOrchestratorInfoGroupScopeKind) Valid() bool {
-	switch e {
-	case ContainerOrchestratorInfoGroupScopeKindComposeProject:
-		return true
-	case ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace:
-		return true
-	case ContainerOrchestratorInfoGroupScopeKindSwarmStack:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerOrchestratorInfoMemberScopeKind.
-const (
-	ContainerOrchestratorInfoMemberScopeKindComposeService ContainerOrchestratorInfoMemberScopeKind = "compose_service"
-	ContainerOrchestratorInfoMemberScopeKindKubernetesPod  ContainerOrchestratorInfoMemberScopeKind = "kubernetes_pod"
-	ContainerOrchestratorInfoMemberScopeKindSwarmTask      ContainerOrchestratorInfoMemberScopeKind = "swarm_task"
-)
-
-// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoMemberScopeKind enum.
-func (e ContainerOrchestratorInfoMemberScopeKind) Valid() bool {
-	switch e {
-	case ContainerOrchestratorInfoMemberScopeKindComposeService:
-		return true
-	case ContainerOrchestratorInfoMemberScopeKindKubernetesPod:
-		return true
-	case ContainerOrchestratorInfoMemberScopeKindSwarmTask:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerOrchestratorInfoType.
-const (
-	ContainerOrchestratorInfoTypeCompose    ContainerOrchestratorInfoType = "compose"
-	ContainerOrchestratorInfoTypeKubernetes ContainerOrchestratorInfoType = "kubernetes"
-	ContainerOrchestratorInfoTypeStandalone ContainerOrchestratorInfoType = "standalone"
-	ContainerOrchestratorInfoTypeSwarm      ContainerOrchestratorInfoType = "swarm"
-	ContainerOrchestratorInfoTypeUnknown    ContainerOrchestratorInfoType = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoType enum.
-func (e ContainerOrchestratorInfoType) Valid() bool {
-	switch e {
-	case ContainerOrchestratorInfoTypeCompose:
-		return true
-	case ContainerOrchestratorInfoTypeKubernetes:
-		return true
-	case ContainerOrchestratorInfoTypeStandalone:
-		return true
-	case ContainerOrchestratorInfoTypeSwarm:
-		return true
-	case ContainerOrchestratorInfoTypeUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ContainerPortType.
 const (
 	ContainerPortTypeValueSCTP ContainerPortType = "sctp"
@@ -1527,6 +1479,21 @@ func (e ContainerRuntimeInfoStatus) Valid() bool {
 	case ContainerRuntimeInfoStatusEnabled:
 		return true
 	case ContainerRuntimeInfoStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerRuntimeTargetSummaryProvider.
+const (
+	Docker ContainerRuntimeTargetSummaryProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ContainerRuntimeTargetSummaryProvider enum.
+func (e ContainerRuntimeTargetSummaryProvider) Valid() bool {
+	switch e {
+	case Docker:
 		return true
 	default:
 		return false
@@ -1703,19 +1670,19 @@ func (e DashboardWidgetPriority) Valid() bool {
 
 // Defines values for DashboardWidgetSize.
 const (
-	Large  DashboardWidgetSize = "large"
-	Medium DashboardWidgetSize = "medium"
-	Small  DashboardWidgetSize = "small"
+	DashboardWidgetSizeLarge  DashboardWidgetSize = "large"
+	DashboardWidgetSizeMedium DashboardWidgetSize = "medium"
+	DashboardWidgetSizeSmall  DashboardWidgetSize = "small"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetSize enum.
 func (e DashboardWidgetSize) Valid() bool {
 	switch e {
-	case Large:
+	case DashboardWidgetSizeLarge:
 		return true
-	case Medium:
+	case DashboardWidgetSizeMedium:
 		return true
-	case Small:
+	case DashboardWidgetSizeSmall:
 		return true
 	default:
 		return false
@@ -3678,6 +3645,27 @@ func (e UpdateUserStatusRequestStatus) Valid() bool {
 	}
 }
 
+// Defines values for ContainerListDeploymentType.
+const (
+	ContainerListDeploymentTypeContainerListDeploymentTypeCompose    ContainerListDeploymentType = "compose"
+	ContainerListDeploymentTypeContainerListDeploymentTypeStandalone ContainerListDeploymentType = "standalone"
+	ContainerListDeploymentTypeContainerListDeploymentTypeUnknown    ContainerListDeploymentType = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerListDeploymentType enum.
+func (e ContainerListDeploymentType) Valid() bool {
+	switch e {
+	case ContainerListDeploymentTypeContainerListDeploymentTypeCompose:
+		return true
+	case ContainerListDeploymentTypeContainerListDeploymentTypeStandalone:
+		return true
+	case ContainerListDeploymentTypeContainerListDeploymentTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerListHealth.
 const (
 	ContainerListHealthContainerListHealthHealthy     ContainerListHealth = "healthy"
@@ -3699,63 +3687,6 @@ func (e ContainerListHealth) Valid() bool {
 	case ContainerListHealthContainerListHealthUnavailable:
 		return true
 	case ContainerListHealthContainerListHealthUnhealthy:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerListOrchestrator.
-const (
-	ContainerListOrchestratorContainerListOrchestratorCompose    ContainerListOrchestrator = "compose"
-	ContainerListOrchestratorContainerListOrchestratorKubernetes ContainerListOrchestrator = "kubernetes"
-	ContainerListOrchestratorContainerListOrchestratorStandalone ContainerListOrchestrator = "standalone"
-	ContainerListOrchestratorContainerListOrchestratorSwarm      ContainerListOrchestrator = "swarm"
-	ContainerListOrchestratorContainerListOrchestratorUnknown    ContainerListOrchestrator = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the ContainerListOrchestrator enum.
-func (e ContainerListOrchestrator) Valid() bool {
-	switch e {
-	case ContainerListOrchestratorContainerListOrchestratorCompose:
-		return true
-	case ContainerListOrchestratorContainerListOrchestratorKubernetes:
-		return true
-	case ContainerListOrchestratorContainerListOrchestratorStandalone:
-		return true
-	case ContainerListOrchestratorContainerListOrchestratorSwarm:
-		return true
-	case ContainerListOrchestratorContainerListOrchestratorUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ContainerListSourceScopeKind.
-const (
-	ContainerListSourceScopeKindContainerListSourceScopeKindComposeProject      ContainerListSourceScopeKind = "compose_project"
-	ContainerListSourceScopeKindContainerListSourceScopeKindComposeService      ContainerListSourceScopeKind = "compose_service"
-	ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesNamespace ContainerListSourceScopeKind = "kubernetes_namespace"
-	ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesPod       ContainerListSourceScopeKind = "kubernetes_pod"
-	ContainerListSourceScopeKindContainerListSourceScopeKindSwarmStack          ContainerListSourceScopeKind = "swarm_stack"
-	ContainerListSourceScopeKindContainerListSourceScopeKindSwarmTask           ContainerListSourceScopeKind = "swarm_task"
-)
-
-// Valid indicates whether the value is a known member of the ContainerListSourceScopeKind enum.
-func (e ContainerListSourceScopeKind) Valid() bool {
-	switch e {
-	case ContainerListSourceScopeKindContainerListSourceScopeKindComposeProject:
-		return true
-	case ContainerListSourceScopeKindContainerListSourceScopeKindComposeService:
-		return true
-	case ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesNamespace:
-		return true
-	case ContainerListSourceScopeKindContainerListSourceScopeKindKubernetesPod:
-		return true
-	case ContainerListSourceScopeKindContainerListSourceScopeKindSwarmStack:
-		return true
-	case ContainerListSourceScopeKindContainerListSourceScopeKindSwarmTask:
 		return true
 	default:
 		return false
@@ -3878,22 +3809,22 @@ func (e GetAnnouncementsParamsSort) Valid() bool {
 
 // Defines values for GetAppLogsParamsSeverity.
 const (
-	GetAppLogsParamsSeverityDebug GetAppLogsParamsSeverity = "debug"
-	GetAppLogsParamsSeverityError GetAppLogsParamsSeverity = "error"
-	GetAppLogsParamsSeverityInfo  GetAppLogsParamsSeverity = "info"
-	GetAppLogsParamsSeverityWarn  GetAppLogsParamsSeverity = "warn"
+	Debug GetAppLogsParamsSeverity = "debug"
+	Error GetAppLogsParamsSeverity = "error"
+	Info  GetAppLogsParamsSeverity = "info"
+	Warn  GetAppLogsParamsSeverity = "warn"
 )
 
 // Valid indicates whether the value is a known member of the GetAppLogsParamsSeverity enum.
 func (e GetAppLogsParamsSeverity) Valid() bool {
 	switch e {
-	case GetAppLogsParamsSeverityDebug:
+	case Debug:
 		return true
-	case GetAppLogsParamsSeverityError:
+	case Error:
 		return true
-	case GetAppLogsParamsSeverityInfo:
+	case Info:
 		return true
-	case GetAppLogsParamsSeverityWarn:
+	case Warn:
 		return true
 	default:
 		return false
@@ -4236,57 +4167,21 @@ func (e GetContainersParamsHealth) Valid() bool {
 	}
 }
 
-// Defines values for GetContainersParamsOrchestrator.
+// Defines values for GetContainersParamsDeploymentType.
 const (
-	GetContainersParamsOrchestratorContainerListOrchestratorCompose    GetContainersParamsOrchestrator = "compose"
-	GetContainersParamsOrchestratorContainerListOrchestratorKubernetes GetContainersParamsOrchestrator = "kubernetes"
-	GetContainersParamsOrchestratorContainerListOrchestratorStandalone GetContainersParamsOrchestrator = "standalone"
-	GetContainersParamsOrchestratorContainerListOrchestratorSwarm      GetContainersParamsOrchestrator = "swarm"
-	GetContainersParamsOrchestratorContainerListOrchestratorUnknown    GetContainersParamsOrchestrator = "unknown"
+	GetContainersParamsDeploymentTypeContainerListDeploymentTypeCompose    GetContainersParamsDeploymentType = "compose"
+	GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone GetContainersParamsDeploymentType = "standalone"
+	GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown    GetContainersParamsDeploymentType = "unknown"
 )
 
-// Valid indicates whether the value is a known member of the GetContainersParamsOrchestrator enum.
-func (e GetContainersParamsOrchestrator) Valid() bool {
+// Valid indicates whether the value is a known member of the GetContainersParamsDeploymentType enum.
+func (e GetContainersParamsDeploymentType) Valid() bool {
 	switch e {
-	case GetContainersParamsOrchestratorContainerListOrchestratorCompose:
+	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeCompose:
 		return true
-	case GetContainersParamsOrchestratorContainerListOrchestratorKubernetes:
+	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
-	case GetContainersParamsOrchestratorContainerListOrchestratorStandalone:
-		return true
-	case GetContainersParamsOrchestratorContainerListOrchestratorSwarm:
-		return true
-	case GetContainersParamsOrchestratorContainerListOrchestratorUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainersParamsSourceScopeKind.
-const (
-	GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeProject      GetContainersParamsSourceScopeKind = "compose_project"
-	GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeService      GetContainersParamsSourceScopeKind = "compose_service"
-	GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesNamespace GetContainersParamsSourceScopeKind = "kubernetes_namespace"
-	GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesPod       GetContainersParamsSourceScopeKind = "kubernetes_pod"
-	GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack          GetContainersParamsSourceScopeKind = "swarm_stack"
-	GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask           GetContainersParamsSourceScopeKind = "swarm_task"
-)
-
-// Valid indicates whether the value is a known member of the GetContainersParamsSourceScopeKind enum.
-func (e GetContainersParamsSourceScopeKind) Valid() bool {
-	switch e {
-	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeProject:
-		return true
-	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindComposeService:
-		return true
-	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesNamespace:
-		return true
-	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindKubernetesPod:
-		return true
-	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack:
-		return true
-	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask:
+	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
 		return true
 	default:
 		return false
@@ -5084,6 +4979,30 @@ type ContainerDashboardTopItemHealth string
 // ContainerDashboardTopItemState defines model for ContainerDashboardTopItem.State.
 type ContainerDashboardTopItemState string
 
+// ContainerDeploymentInfo defines model for container-deployment-info.
+type ContainerDeploymentInfo struct {
+	ActionLevel        ContainerDeploymentInfoActionLevel `json:"action_level"`
+	BatchActionAllowed bool                               `json:"batch_action_allowed"`
+	Confidence         ContainerDeploymentInfoConfidence  `json:"confidence"`
+	ConfigFiles        *[]string                          `json:"config_files,omitempty"`
+	Managed            bool                               `json:"managed"`
+	Project            *string                            `json:"project,omitempty"`
+	RecommendedAction  *string                            `json:"recommended_action,omitempty"`
+	Service            *string                            `json:"service,omitempty"`
+	Type               ContainerDeploymentInfoType        `json:"type"`
+	Warnings           []string                           `json:"warnings"`
+	WorkingDir         *string                            `json:"working_dir,omitempty"`
+}
+
+// ContainerDeploymentInfoActionLevel defines model for ContainerDeploymentInfo.ActionLevel.
+type ContainerDeploymentInfoActionLevel string
+
+// ContainerDeploymentInfoConfidence defines model for ContainerDeploymentInfo.Confidence.
+type ContainerDeploymentInfoConfidence string
+
+// ContainerDeploymentInfoType defines model for ContainerDeploymentInfo.Type.
+type ContainerDeploymentInfoType string
+
 // ContainerDetail defines model for container-detail.
 type ContainerDetail struct {
 	CanRemove   *bool                        `json:"can_remove,omitempty"`
@@ -5092,6 +5011,7 @@ type ContainerDetail struct {
 	CanStop     *bool                        `json:"can_stop,omitempty"`
 	Command     *[]string                    `json:"command,omitempty"`
 	CreatedAt   time.Time                    `json:"created_at"`
+	Deployment  *ContainerDeploymentInfo     `json:"deployment,omitempty"`
 	Entrypoint  *[]string                    `json:"entrypoint,omitempty"`
 	Environment *[]ContainerEnvironmentEntry `json:"environment,omitempty"`
 
@@ -5123,9 +5043,8 @@ type ContainerDetail struct {
 	Networks       []ContainerNetwork `json:"networks"`
 
 	// OomKilled Whether Docker inspect reports the container was killed by the OOM killer.
-	OomKilled    *bool                      `json:"oom_killed,omitempty"`
-	Orchestrator *ContainerOrchestratorInfo `json:"orchestrator,omitempty"`
-	Ports        []ContainerPort            `json:"ports"`
+	OomKilled *bool           `json:"oom_killed,omitempty"`
+	Ports     []ContainerPort `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
 	PrimaryIp *string `json:"primary_ip,omitempty"`
@@ -5138,8 +5057,9 @@ type ContainerDetail struct {
 	RestartPolicy *string `json:"restart_policy,omitempty"`
 
 	// Runtime Container runtime adapter key.
-	Runtime     string               `json:"runtime"`
-	RuntimeInfo ContainerRuntimeInfo `json:"runtime_info"`
+	Runtime       string                         `json:"runtime"`
+	RuntimeInfo   ContainerRuntimeInfo           `json:"runtime_info"`
+	RuntimeTarget *ContainerRuntimeTargetSummary `json:"runtime_target,omitempty"`
 
 	// ShortId Runtime id prefix suitable for list display.
 	ShortId   string               `json:"short_id"`
@@ -5358,66 +5278,6 @@ type ContainerNetwork struct {
 	NetworkId *string `json:"network_id,omitempty"`
 }
 
-// ContainerOrchestratorInfo defines model for container-orchestrator-info.
-type ContainerOrchestratorInfo struct {
-	ActionLevel ContainerOrchestratorInfoActionLevel `json:"action_level"`
-
-	// BatchActionAllowed Whether the current orchestrator source may participate in batch dangerous actions under the effective policy.
-	BatchActionAllowed bool                                `json:"batch_action_allowed"`
-	Confidence         ContainerOrchestratorInfoConfidence `json:"confidence"`
-	ConfigFiles        *[]string                           `json:"config_files,omitempty"`
-	Container          *string                             `json:"container,omitempty"`
-
-	// DisplayName Optional fallback source label. Visible UI should still localize by type first.
-	DisplayName *string `json:"display_name,omitempty"`
-
-	// GroupDisplayName Human-readable group scope label derived from runtime metadata.
-	GroupDisplayName *string `json:"group_display_name,omitempty"`
-
-	// GroupScopeKind Stable normalized group scope kind for list/detail consumers.
-	GroupScopeKind *ContainerOrchestratorInfoGroupScopeKind `json:"group_scope_kind,omitempty"`
-
-	// GroupValue Canonical group scope value for exact filtering and grouping.
-	GroupValue *string `json:"group_value,omitempty"`
-
-	// Managed Whether the container belongs to an upper-level orchestrator or control plane.
-	Managed bool `json:"managed"`
-
-	// MemberDisplayName Human-readable member scope label derived from runtime metadata.
-	MemberDisplayName *string `json:"member_display_name,omitempty"`
-
-	// MemberScopeKind Stable normalized member scope kind for list/detail consumers.
-	MemberScopeKind *ContainerOrchestratorInfoMemberScopeKind `json:"member_scope_kind,omitempty"`
-
-	// MemberValue Canonical member scope value for exact filtering and grouping.
-	MemberValue *string `json:"member_value,omitempty"`
-
-	// RecommendedAction Stable recommended action code without embedded visible copy.
-	RecommendedAction *string                       `json:"recommended_action,omitempty"`
-	Type              ContainerOrchestratorInfoType `json:"type"`
-
-	// Warnings Stable warning codes without embedded visible copy.
-	Warnings []string `json:"warnings"`
-
-	// WorkingDir Compose project working directory metadata, not the runtime container working_dir field.
-	WorkingDir *string `json:"working_dir,omitempty"`
-}
-
-// ContainerOrchestratorInfoActionLevel defines model for ContainerOrchestratorInfo.ActionLevel.
-type ContainerOrchestratorInfoActionLevel string
-
-// ContainerOrchestratorInfoConfidence defines model for ContainerOrchestratorInfo.Confidence.
-type ContainerOrchestratorInfoConfidence string
-
-// ContainerOrchestratorInfoGroupScopeKind Stable normalized group scope kind for list/detail consumers.
-type ContainerOrchestratorInfoGroupScopeKind string
-
-// ContainerOrchestratorInfoMemberScopeKind Stable normalized member scope kind for list/detail consumers.
-type ContainerOrchestratorInfoMemberScopeKind string
-
-// ContainerOrchestratorInfoType defines model for ContainerOrchestratorInfo.Type.
-type ContainerOrchestratorInfoType string
-
 // ContainerPort defines model for container-port.
 type ContainerPort struct {
 	Ip          *string           `json:"ip,omitempty"`
@@ -5558,6 +5418,16 @@ type ContainerRuntimeInfo struct {
 // ContainerRuntimeInfoStatus defines model for ContainerRuntimeInfo.Status.
 type ContainerRuntimeInfoStatus string
 
+// ContainerRuntimeTargetSummary defines model for container-runtime-target-summary.
+type ContainerRuntimeTargetSummary struct {
+	DisplayName string                                `json:"display_name"`
+	Id          int64                                 `json:"id"`
+	Provider    ContainerRuntimeTargetSummaryProvider `json:"provider"`
+}
+
+// ContainerRuntimeTargetSummaryProvider defines model for ContainerRuntimeTargetSummary.Provider.
+type ContainerRuntimeTargetSummaryProvider string
+
 // ContainerShellSessionRequest defines model for container-shell-session-request.
 type ContainerShellSessionRequest struct {
 	// Cols Initial terminal column count bound to the issued shell session ticket.
@@ -5617,11 +5487,12 @@ type ContainerStopErrorResponseSuccess bool
 
 // ContainerSummary defines model for container-summary.
 type ContainerSummary struct {
-	CanRemove  *bool     `json:"can_remove,omitempty"`
-	CanRestart *bool     `json:"can_restart,omitempty"`
-	CanStart   *bool     `json:"can_start,omitempty"`
-	CanStop    *bool     `json:"can_stop,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	CanRemove  *bool                    `json:"can_remove,omitempty"`
+	CanRestart *bool                    `json:"can_restart,omitempty"`
+	CanStart   *bool                    `json:"can_start,omitempty"`
+	CanStop    *bool                    `json:"can_stop,omitempty"`
+	CreatedAt  time.Time                `json:"created_at"`
+	Deployment *ContainerDeploymentInfo `json:"deployment,omitempty"`
 
 	// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
 	Health  *ContainerSummaryHealth `json:"health,omitempty"`
@@ -5636,9 +5507,8 @@ type ContainerSummary struct {
 	NetworkSummary *string  `json:"network_summary,omitempty"`
 
 	// Networks Low-cost network attachment summary from the runtime list path.
-	Networks     *[]ContainerNetwork        `json:"networks,omitempty"`
-	Orchestrator *ContainerOrchestratorInfo `json:"orchestrator,omitempty"`
-	Ports        []ContainerPort            `json:"ports"`
+	Networks *[]ContainerNetwork `json:"networks,omitempty"`
+	Ports    []ContainerPort     `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
 	PrimaryIp *string `json:"primary_ip,omitempty"`
@@ -5651,7 +5521,8 @@ type ContainerSummary struct {
 	RestartPolicy *string `json:"restart_policy,omitempty"`
 
 	// Runtime Container runtime adapter key.
-	Runtime string `json:"runtime"`
+	Runtime       string                         `json:"runtime"`
+	RuntimeTarget *ContainerRuntimeTargetSummary `json:"runtime_target,omitempty"`
 
 	// ShortId Runtime id prefix suitable for list display.
 	ShortId   string                `json:"short_id"`
@@ -9800,6 +9671,9 @@ type AnnouncementIdPath = int64
 // ContainerIdPath defines model for container-id-path.
 type ContainerIdPath = string
 
+// ContainerListDeploymentType defines model for container-list-deployment-type.
+type ContainerListDeploymentType string
+
 // ContainerListHealth defines model for container-list-health.
 type ContainerListHealth string
 
@@ -9812,14 +9686,8 @@ type ContainerListLimit = int
 // ContainerListOffset defines model for container-list-offset.
 type ContainerListOffset = int
 
-// ContainerListOrchestrator defines model for container-list-orchestrator.
-type ContainerListOrchestrator string
-
-// ContainerListSourceScope defines model for container-list-source-scope.
-type ContainerListSourceScope = string
-
-// ContainerListSourceScopeKind defines model for container-list-source-scope-kind.
-type ContainerListSourceScopeKind string
+// ContainerListRuntimeTargetId defines model for container-list-runtime-target-id.
+type ContainerListRuntimeTargetId = int64
 
 // ContainerListState defines model for container-list-state.
 type ContainerListState string
@@ -10586,14 +10454,11 @@ type GetContainersParams struct {
 	// Health Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided.
 	Health *GetContainersParamsHealth `form:"health,omitempty" json:"health,omitempty"`
 
-	// Orchestrator Optional orchestrator source filter resolved by the backend from runtime metadata.
-	Orchestrator *GetContainersParamsOrchestrator `form:"orchestrator,omitempty" json:"orchestrator,omitempty"`
+	// DeploymentType Optional deployment type filter. Docker containers are standalone, Compose-managed, or conservatively unknown when runtime labels are ambiguous.
+	DeploymentType *GetContainersParamsDeploymentType `form:"deployment_type,omitempty" json:"deployment_type,omitempty"`
 
-	// SourceScopeKind Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
-	SourceScopeKind *GetContainersParamsSourceScopeKind `form:"source_scope_kind,omitempty" json:"source_scope_kind,omitempty"`
-
-	// SourceScope Exact orchestrator source scope value. Must be paired with source_scope_kind.
-	SourceScope *ContainerListSourceScope `form:"source_scope,omitempty" json:"source_scope,omitempty"`
+	// RuntimeTargetId Optional stable Runtime Target identifier. The server enforces target authorization and Docker provider scope.
+	RuntimeTargetId *ContainerListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -10609,11 +10474,8 @@ type GetContainersParamsState string
 // GetContainersParamsHealth defines parameters for GetContainers.
 type GetContainersParamsHealth string
 
-// GetContainersParamsOrchestrator defines parameters for GetContainers.
-type GetContainersParamsOrchestrator string
-
-// GetContainersParamsSourceScopeKind defines parameters for GetContainers.
-type GetContainersParamsSourceScopeKind string
+// GetContainersParamsDeploymentType defines parameters for GetContainers.
+type GetContainersParamsDeploymentType string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {

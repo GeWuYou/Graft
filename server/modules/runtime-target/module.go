@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	containerdi "graft/server/internal/container"
 
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
@@ -45,10 +46,52 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
+		return err
+	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
 	return nil
+}
+
+type runtimeTargetReader struct{ repository *store.SQLRepository }
+
+func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (moduleapi.RuntimeTargetSummary, error) {
+	if r.repository == nil {
+		return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+	}
+	if id != nil {
+		if *id < 1 {
+			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+		}
+		target, err := r.repository.Get(ctx, uint64(*id))
+		if err != nil {
+			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+		}
+		summary, ok := dockerTargetSummary(target)
+		if !ok {
+			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+		}
+		return summary, nil
+	}
+	items, err := r.repository.List(ctx)
+	if err != nil {
+		return moduleapi.RuntimeTargetSummary{}, err
+	}
+	for _, target := range items {
+		if summary, ok := dockerTargetSummary(target); ok {
+			return summary, nil
+		}
+	}
+	return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+}
+
+func dockerTargetSummary(target store.Target) (moduleapi.RuntimeTargetSummary, bool) {
+	if target.ID > maxRuntimeTargetID || target.Provider != "docker" {
+		return moduleapi.RuntimeTargetSummary{}, false
+	}
+	return moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider}, true
 }
 
 // Boot records the currently usable local Docker endpoint without making application boot depend on Docker.

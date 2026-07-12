@@ -479,48 +479,22 @@ func bindContainerListStateFilters(
 		params.Health = &value
 	}
 
-	orchestrator, ok := optionalEnumQueryValue(ginCtx, ctx, "orchestrator", isValidContainerOrchestrator)
+	deploymentType, ok := optionalEnumQueryValue(ginCtx, ctx, "deployment_type", isValidContainerDeploymentType)
 	if !ok {
 		return false
 	}
-	if orchestrator != "" {
-		value := containeropenapi.GetContainersParamsOrchestrator(orchestrator)
-		params.Orchestrator = &value
+	if deploymentType != "" {
+		value := containeropenapi.GetContainersParamsDeploymentType(deploymentType)
+		params.DeploymentType = &value
 	}
-	if !bindContainerListSourceScopeFilters(ginCtx, ctx, params, orchestrator) {
-		return false
+	if targetID := strings.TrimSpace(ginCtx.Query("runtime_target_id")); targetID != "" {
+		value, err := strconv.ParseInt(targetID, 10, 64)
+		if err != nil || value < 1 {
+			writeInvalidContainerQuery(ginCtx, ctx, "runtime_target_id")
+			return false
+		}
+		params.RuntimeTargetId = &value
 	}
-	return true
-}
-
-// bindContainerListSourceScopeFilters validates and binds the source_scope_kind and source_scope query parameters.
-// Both parameters must be provided together and source_scope_kind must be compatible with the given orchestrator.
-// Returns true if validation succeeds, false otherwise.
-func bindContainerListSourceScopeFilters(
-	ginCtx *gin.Context,
-	ctx *module.Context,
-	params *containeropenapi.GetContainersParams,
-	orchestrator string,
-) bool {
-	sourceScopeKind, ok := optionalEnumQueryValue(ginCtx, ctx, "source_scope_kind", isValidContainerSourceScopeKind)
-	if !ok {
-		return false
-	}
-	sourceScope := strings.TrimSpace(ginCtx.Query("source_scope"))
-	if (sourceScopeKind == "") != (sourceScope == "") {
-		writeInvalidContainerQuery(ginCtx, ctx, "source_scope")
-		return false
-	}
-	if sourceScopeKind == "" {
-		return true
-	}
-	if !sourceScopeKindCompatibleWithOrchestrator(orchestrator, sourceScopeKind) {
-		writeInvalidContainerQuery(ginCtx, ctx, "source_scope_kind")
-		return false
-	}
-	value := containeropenapi.GetContainersParamsSourceScopeKind(sourceScopeKind)
-	params.SourceScopeKind = &value
-	params.SourceScope = &sourceScope
 	return true
 }
 
@@ -685,14 +659,11 @@ func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery 
 	if params.Health != nil {
 		query.Health = string(*params.Health)
 	}
-	if params.Orchestrator != nil {
-		query.Orchestrator = string(*params.Orchestrator)
+	if params.DeploymentType != nil {
+		query.DeploymentType = string(*params.DeploymentType)
 	}
-	if params.SourceScopeKind != nil {
-		query.SourceScopeKind = string(*params.SourceScopeKind)
-	}
-	if params.SourceScope != nil {
-		query.SourceScope = *params.SourceScope
+	if params.RuntimeTargetId != nil {
+		query.RuntimeTargetID = params.RuntimeTargetId
 	}
 	return query
 }

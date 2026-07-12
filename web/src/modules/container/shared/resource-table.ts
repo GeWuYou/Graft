@@ -155,7 +155,7 @@ export function shortContainerId(id: string) {
 }
 
 export function readContainerOrchestratorType(row: ContainerSummaryRecord): ContainerOrchestratorType {
-  return row.orchestrator?.type || 'standalone';
+  return row.deployment?.type || 'standalone';
 }
 
 export function createContainerSourceQuickFilter(
@@ -181,8 +181,8 @@ export function createContainerSourceQuickFilter(
  */
 function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
-    row.orchestrator?.group_scope_kind,
-    row.orchestrator?.group_value || row.orchestrator?.group_display_name,
+    row.deployment?.type === 'compose' ? 'compose_project' : undefined,
+    row.deployment?.project,
   );
 }
 
@@ -194,8 +194,8 @@ function sourceGroupFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQui
  */
 function sourceMemberFilter(row: ContainerSummaryRecord): Omit<ContainerSourceQuickFilter, 'orchestrator'> | null {
   return toQuickFilterValue(
-    row.orchestrator?.member_scope_kind,
-    row.orchestrator?.member_value || row.orchestrator?.member_display_name,
+    row.deployment?.type === 'compose' ? 'compose_service' : undefined,
+    row.deployment?.service,
   );
 }
 

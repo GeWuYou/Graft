@@ -72,6 +72,10 @@
       "filters": {
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
+        "deploymentType": "部署类型",
+        "allDeploymentTypes": "全部部署类型",
+        "runtimeTarget": "运行目标",
+        "allRuntimeTargets": "全部运行目标",
         "orchestrator": "来源",
         "sourceScopeKind": "来源范围",
         "allSourceScopeKinds": "全部范围",
@@ -126,6 +130,11 @@
         "swarm": "Swarm",
         "kubernetes": "Kubernetes",
         "unknown": "未知来源"
+      },
+      "deployments": {
+        "standalone": "独立容器",
+        "compose": "Compose",
+        "unknown": "未知部署"
       },
       "sourceKinds": {
         "compose_project": "项目",
@@ -492,7 +501,7 @@
         "time": "时间",
         "level": "级别",
         "stream": "输出流",
-        "source": "来源",
+        "source": "部署类型",
         "viewDetail": "查看详情",
         "collapseDetail": "收起详情",
         "metadata": "元数据",
