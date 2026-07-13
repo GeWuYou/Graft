@@ -50,18 +50,30 @@ export async function listRuntimeTargetPage(params: { limit: number; offset: num
   });
 }
 /**
- * 探测当前服务器的 Local Docker；服务端负责幂等创建或恢复系统管理目标。
+ * 探测当前服务器上的 Local Docker，并由服务端幂等创建或恢复系统管理目标。
+ *
+ * @returns 发现的运行时目标，未发现时返回 `null`
  */
 export async function discoverLocalDocker(): Promise<RuntimeTargetDiscoverLocal | null> {
   return request.post<RuntimeTargetDiscoverLocal | null>({ url: RUNTIME_TARGET_API_PATH.DISCOVER_LOCAL_DOCKER });
 }
 
-/** Gets one runtime target with its provider-owned detail projection. */
+/**
+ * 获取指定运行时目标的 provider-owned 详情投影。
+ *
+ * @param id - 运行时目标的唯一标识
+ * @returns 运行时目标详情
+ */
 export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail> {
   return request.get<RuntimeTargetDetail>({ url: runtimeTargetDetailApiPath(id) });
 }
 
-/** Refreshes one runtime target and returns its provider-owned detail projection. */
+/**
+ * 刷新指定的运行时目标。
+ *
+ * @param id - 运行时目标的标识符
+ * @returns 刷新后的 provider-owned 运行时目标详情
+ */
 export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRefresh> {
   return request.post<RuntimeTargetRefresh>({ url: runtimeTargetRefreshApiPath(id) });
 }

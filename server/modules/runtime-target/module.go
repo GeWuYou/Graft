@@ -347,14 +347,17 @@ func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.Runt
 	return response
 }
 
+// toHTTPCountMetric 将目标计数指标转换为 HTTP 响应中的运行时目标计数指标。
 func toHTTPCountMetric(metric targetCountMetric) generated.RuntimeTargetCountMetric {
 	return generated.RuntimeTargetCountMetric{Available: metric.Available, Total: metric.Total, Active: metric.Active, UnavailableReason: metric.UnavailableReason}
 }
 
+// toHTTPProviderCountMetric converts an image metric to its HTTP response representation.
 func toHTTPProviderCountMetric(metric targetImageMetric) generated.RuntimeTargetImageMetric {
 	return generated.RuntimeTargetImageMetric{Available: metric.Available, Total: metric.Total, UnavailableReason: metric.UnavailableReason}
 }
 
+// toHTTPUsageMetric 将运行时使用量指标转换为 HTTP 响应中的使用量指标。
 func toHTTPUsageMetric(metric targetUsageMetric) generated.RuntimeTargetUsageMetric {
 	return generated.RuntimeTargetUsageMetric{Available: metric.Available, UsedBytes: metric.UsedBytes, TotalBytes: metric.TotalBytes, UsagePercent: metric.UsagePercent, UnavailableReason: metric.UnavailableReason}
 }

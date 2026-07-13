@@ -105,15 +105,23 @@ export function resolveMenuNavigationPath(menu: MenuRoute, parentPath = ''): str
   return fullPath;
 }
 
+/**
+ * 查找与当前路径匹配的菜单展开路径。
+ *
+ * @param menus - 要搜索的菜单列表
+ * @param activePath - 当前激活路径
+ * @param parentPath - 菜单列表的父级路径
+ * @returns 需要展开的菜单路径列表
+ */
 export function findExpandedMenuPaths(menus: MenuRoute[], activePath: string, parentPath = ''): string[] {
   return findExpandedMenuMatch(menus, activePath, parentPath).expandedPaths;
 }
 
 /**
- * 返回菜单树中所有实际渲染为子菜单的可见节点值。
+ * 收集菜单树中可渲染为子菜单的可见节点路径。
  *
  * @param menus - 待遍历的菜单列表
- * @returns 可用于受控展开的子菜单值
+ * @returns 可用于控制子菜单展开状态的节点路径
  */
 export function findAllExpandedMenuPaths(menus: MenuRoute[]): string[] {
   return menus.flatMap((menu) => {
@@ -126,6 +134,12 @@ export function findAllExpandedMenuPaths(menus: MenuRoute[]): string[] {
   });
 }
 
+/**
+ * 获取可作为可展开子菜单渲染的可见子项。
+ *
+ * @param menu - 要检查的菜单项
+ * @returns 包含可见子项的数组；菜单项不可展开或没有可见子项时返回 `null`
+ */
 function getExpandableMenuChildren(menu: MenuRoute): MenuRoute[] | null {
   if (menu.meta?.hidden === true || menu.meta?.single === true) {
     return null;
