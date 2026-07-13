@@ -4,7 +4,7 @@ properties:
   items:
     type: array
     items:
-      $ref: ./runtime-target.yaml
+      $ref: ./runtime-target-summary.yaml
   total:
     type: integer
     format: int64

@@ -14,13 +14,13 @@ import (
 const runtimeTargetSummaryCollectInterval = time.Second
 
 type runtimeTargetSummaryPublished struct {
-	Topic string                    `json:"topic"`
-	Items []generated.RuntimeTarget `json:"items"`
+	Topic string                           `json:"topic"`
+	Items []generated.RuntimeTargetSummary `json:"items"`
 }
 
 // runtimeTargetSummaryCollector publishes fresh target snapshots only while the topic has subscribers.
 type runtimeTargetSummaryCollector struct {
-	collect func(context.Context) []generated.RuntimeTarget
+	collect func(context.Context) []generated.RuntimeTargetSummary
 	hub     realtime.Hub
 
 	mu       sync.Mutex
@@ -31,7 +31,7 @@ type runtimeTargetSummaryCollector struct {
 }
 
 // newRuntimeTargetSummaryCollector 创建运行时目标摘要收集器，并配置其实时发布中心和摘要收集函数。
-func newRuntimeTargetSummaryCollector(hub realtime.Hub, collect func(context.Context) []generated.RuntimeTarget) *runtimeTargetSummaryCollector {
+func newRuntimeTargetSummaryCollector(hub realtime.Hub, collect func(context.Context) []generated.RuntimeTargetSummary) *runtimeTargetSummaryCollector {
 	return &runtimeTargetSummaryCollector{hub: hub, collect: collect}
 }
 
@@ -130,7 +130,7 @@ func (c *runtimeTargetSummaryCollector) run(ctx context.Context, done chan struc
 	}
 }
 
-func (m *Module) collectRealtimeSummaries(ctx context.Context) []generated.RuntimeTarget {
+func (m *Module) collectRealtimeSummaries(ctx context.Context) []generated.RuntimeTargetSummary {
 	if m == nil || m.repository == nil {
 		return nil
 	}
@@ -138,9 +138,9 @@ func (m *Module) collectRealtimeSummaries(ctx context.Context) []generated.Runti
 	if err != nil {
 		return nil
 	}
-	mapped := make([]generated.RuntimeTarget, 0, len(items))
+	mapped := make([]generated.RuntimeTargetSummary, 0, len(items))
 	for _, item := range items {
-		mapped = append(mapped, m.toHTTP(ctx, item))
+		mapped = append(mapped, m.toHTTPSummary(ctx, item))
 	}
 	return mapped
 }

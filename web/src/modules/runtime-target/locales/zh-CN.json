@@ -1,42 +1,51 @@
 {
   "menu": { "runtimeTargets": { "title": "运行目标" } },
   "runtimeTarget": {
-    "route": { "list": { "title": "运行目标" } },
+    "route": { "list": { "title": "运行目标" }, "detail": { "title": "运行目标详情" } },
     "list": {
       "eyebrow": "基础设施",
       "title": "运行目标",
-      "description": "查看已发现运行目标的容器、镜像与资源使用摘要。",
-      "refresh": "刷新目标",
+      "description": "对比已发现运行目标的健康状态与资源容量。",
       "reload": "重新加载",
-      "discoverLocal": "扫描本机 Docker",
-      "discoverSuccess": "本机 Docker 扫描完成。",
+      "discoverLocalDocker": "发现本机 Docker",
+      "discoverSuccess": "本机 Docker 发现完成。",
+      "discoverError": "本机 Docker 发现失败。",
+      "loadError": "无法加载运行目标。",
       "summary": "共 {count} 个运行目标",
       "emptyTitle": "暂无运行目标",
-      "emptyDescription": "扫描本机 Docker，或在 Docker 可用后重新扫描。"
+      "emptyDescription": "本机 Docker Socket 可用后，可发现本机 Docker。"
     },
-    "detail": { "title": "运行目标详情" },
-    "columns": {
-      "name": "名称",
+    "detail": {
+      "title": "运行目标详情",
+      "description": "查看通用运行时健康、容量和提供方扩展信息。",
+      "refresh": "刷新目标",
+      "loadError": "无法加载运行目标。",
+      "refreshError": "刷新运行目标失败。",
+      "notFound": "运行目标不可用",
+      "runtimeInformation": "运行时信息",
+      "resourceOverview": "资源概览",
+      "providerDetails": "提供方详情",
       "provider": "提供方",
-      "endpoint": "连接端点",
-      "capabilities": "能力",
+      "runtimeType": "运行时类型",
+      "endpoint": "端点",
       "connectionKind": "连接方式",
-      "status": "可用性",
-      "error": "最近错误"
+      "version": "版本",
+      "apiVersion": "API 版本",
+      "health": "健康状态",
+      "lastCheckedAt": "最后检查时间"
     },
-    "status": { "available": "可用", "unavailable": "不可用" },
+    "columns": { "name": "名称", "provider": "提供方", "health": "健康状态" },
+    "status": { "healthy": "健康", "unavailable": "不可用" },
     "metrics": {
-      "containers": "容器",
-      "images": "镜像",
-      "running": "运行中",
-      "stopped": "已停止",
-      "used": "在使用",
-      "unused": "未使用",
-      "cpu": "CPU 使用率",
-      "memory": "内存使用率",
-      "disk": "磁盘使用率",
+      "workloads": "工作负载",
+      "active": "活跃",
+      "activeCount": "活跃 {count} 个",
+      "cpu": "CPU",
+      "memory": "内存",
+      "storage": "存储",
       "unavailable": "暂不可用",
       "unavailableHint": "当前无法采集此指标。"
-    }
+    },
+    "providerDetails": { "images": "镜像", "volumes": "卷", "networks": "网络" }
   }
 }

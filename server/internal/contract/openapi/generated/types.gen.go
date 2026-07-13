@@ -2910,6 +2910,147 @@ func (e RoleListItemStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeTargetConnectionKind.
+const (
+	RuntimeTargetConnectionKindUnixSocket RuntimeTargetConnectionKind = "unix_socket"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetConnectionKind enum.
+func (e RuntimeTargetConnectionKind) Valid() bool {
+	switch e {
+	case RuntimeTargetConnectionKindUnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetHealthStatus.
+const (
+	RuntimeTargetHealthStatusHealthy     RuntimeTargetHealthStatus = "healthy"
+	RuntimeTargetHealthStatusUnavailable RuntimeTargetHealthStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetHealthStatus enum.
+func (e RuntimeTargetHealthStatus) Valid() bool {
+	switch e {
+	case RuntimeTargetHealthStatusHealthy:
+		return true
+	case RuntimeTargetHealthStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetProviderDetailsProvider.
+const (
+	RuntimeTargetProviderDetailsProviderDocker RuntimeTargetProviderDetailsProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetProviderDetailsProvider enum.
+func (e RuntimeTargetProviderDetailsProvider) Valid() bool {
+	switch e {
+	case RuntimeTargetProviderDetailsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetRuntimeProvider.
+const (
+	RuntimeTargetRuntimeProviderDocker RuntimeTargetRuntimeProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetRuntimeProvider enum.
+func (e RuntimeTargetRuntimeProvider) Valid() bool {
+	switch e {
+	case RuntimeTargetRuntimeProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetRuntimeType.
+const (
+	RuntimeTargetRuntimeTypeContainerRuntime RuntimeTargetRuntimeType = "container_runtime"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetRuntimeType enum.
+func (e RuntimeTargetRuntimeType) Valid() bool {
+	switch e {
+	case RuntimeTargetRuntimeTypeContainerRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetSummaryConnectionKind.
+const (
+	RuntimeTargetSummaryConnectionKindUnixSocket RuntimeTargetSummaryConnectionKind = "unix_socket"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetSummaryConnectionKind enum.
+func (e RuntimeTargetSummaryConnectionKind) Valid() bool {
+	switch e {
+	case RuntimeTargetSummaryConnectionKindUnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetSummaryHealthStatus.
+const (
+	RuntimeTargetSummaryHealthStatusHealthy     RuntimeTargetSummaryHealthStatus = "healthy"
+	RuntimeTargetSummaryHealthStatusUnavailable RuntimeTargetSummaryHealthStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetSummaryHealthStatus enum.
+func (e RuntimeTargetSummaryHealthStatus) Valid() bool {
+	switch e {
+	case RuntimeTargetSummaryHealthStatusHealthy:
+		return true
+	case RuntimeTargetSummaryHealthStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetSummaryRuntimeProvider.
+const (
+	RuntimeTargetSummaryRuntimeProviderDocker RuntimeTargetSummaryRuntimeProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetSummaryRuntimeProvider enum.
+func (e RuntimeTargetSummaryRuntimeProvider) Valid() bool {
+	switch e {
+	case RuntimeTargetSummaryRuntimeProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeTargetSummaryRuntimeType.
+const (
+	RuntimeTargetSummaryRuntimeTypeContainerRuntime RuntimeTargetSummaryRuntimeType = "container_runtime"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetSummaryRuntimeType enum.
+func (e RuntimeTargetSummaryRuntimeType) Valid() bool {
+	switch e {
+	case RuntimeTargetSummaryRuntimeTypeContainerRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ScheduledTaskItemConfigSource.
 const (
 	ScheduledTaskItemConfigSourceSystem ScheduledTaskItemConfigSource = "system"
@@ -4250,13 +4391,13 @@ func (e GetProjectsParamsApplicationType) Valid() bool {
 
 // Defines values for GetProjectsParamsProvider.
 const (
-	Docker GetProjectsParamsProvider = "docker"
+	GetProjectsParamsProviderDocker GetProjectsParamsProvider = "docker"
 )
 
 // Valid indicates whether the value is a known member of the GetProjectsParamsProvider enum.
 func (e GetProjectsParamsProvider) Valid() bool {
 	switch e {
-	case Docker:
+	case GetProjectsParamsProviderDocker:
 		return true
 	default:
 		return false
@@ -9195,27 +9336,62 @@ type RolePermissionBindingResponse struct {
 
 // RuntimeTarget defines model for runtime-target.
 type RuntimeTarget struct {
-	Availability   bool     `json:"availability"`
-	Capabilities   []string `json:"capabilities"`
-	ConnectionKind string   `json:"connectionKind"`
-	DisplayName    string   `json:"displayName"`
+	Connection struct {
+		// Endpoint Masked connection endpoint. It never contains credentials.
+		Endpoint string                      `json:"endpoint"`
+		Kind     RuntimeTargetConnectionKind `json:"kind"`
+	} `json:"connection"`
+	DisplayName string `json:"displayName"`
+	Health      struct {
+		// Diagnostic Sanitized connection diagnostic; empty when healthy.
+		Diagnostic    string                    `json:"diagnostic"`
+		LastCheckedAt *time.Time                `json:"lastCheckedAt"`
+		Status        RuntimeTargetHealthStatus `json:"status"`
+	} `json:"health"`
+	Id int64 `json:"id"`
 
-	// EndpointLabel Masked connection endpoint label. It never contains credentials.
-	EndpointLabel string     `json:"endpointLabel"`
-	Id            int64      `json:"id"`
-	LastCheckedAt *time.Time `json:"lastCheckedAt,omitempty"`
-
-	// LastError Sanitized latest probe diagnostic.
-	LastError string               `json:"lastError"`
-	Provider  string               `json:"provider"`
-	Summary   RuntimeTargetSummary `json:"summary"`
+	// ProviderDetails Provider-specific typed extension selected by the provider discriminator.
+	ProviderDetails struct {
+		Docker struct {
+			Images   RuntimeTargetImageMetric `json:"images"`
+			Networks RuntimeTargetImageMetric `json:"networks"`
+			Volumes  RuntimeTargetImageMetric `json:"volumes"`
+		} `json:"docker"`
+		Provider RuntimeTargetProviderDetailsProvider `json:"provider"`
+	} `json:"providerDetails"`
+	Resources struct {
+		Cpu       RuntimeTargetUsageMetric `json:"cpu"`
+		Memory    RuntimeTargetUsageMetric `json:"memory"`
+		Storage   RuntimeTargetUsageMetric `json:"storage"`
+		Workloads RuntimeTargetCountMetric `json:"workloads"`
+	} `json:"resources"`
+	Runtime struct {
+		ApiVersion string                       `json:"apiVersion"`
+		Provider   RuntimeTargetRuntimeProvider `json:"provider"`
+		Type       RuntimeTargetRuntimeType     `json:"type"`
+		Version    string                       `json:"version"`
+	} `json:"runtime"`
 }
+
+// RuntimeTargetConnectionKind defines model for RuntimeTarget.Connection.Kind.
+type RuntimeTargetConnectionKind string
+
+// RuntimeTargetHealthStatus defines model for RuntimeTarget.Health.Status.
+type RuntimeTargetHealthStatus string
+
+// RuntimeTargetProviderDetailsProvider defines model for RuntimeTarget.ProviderDetails.Provider.
+type RuntimeTargetProviderDetailsProvider string
+
+// RuntimeTargetRuntimeProvider defines model for RuntimeTarget.Runtime.Provider.
+type RuntimeTargetRuntimeProvider string
+
+// RuntimeTargetRuntimeType defines model for RuntimeTarget.Runtime.Type.
+type RuntimeTargetRuntimeType string
 
 // RuntimeTargetCountMetric defines model for runtime-target-count-metric.
 type RuntimeTargetCountMetric struct {
+	Active            int64  `json:"active"`
 	Available         bool   `json:"available"`
-	Running           int64  `json:"running"`
-	Stopped           int64  `json:"stopped"`
 	Total             int64  `json:"total"`
 	UnavailableReason string `json:"unavailableReason"`
 }
@@ -9225,34 +9401,73 @@ type RuntimeTargetImageMetric struct {
 	Available         bool   `json:"available"`
 	Total             int64  `json:"total"`
 	UnavailableReason string `json:"unavailableReason"`
-	Unused            int64  `json:"unused"`
-	Used              int64  `json:"used"`
 }
 
 // RuntimeTargetListResponse defines model for runtime-target-list-response.
 type RuntimeTargetListResponse struct {
-	Items  []RuntimeTarget `json:"items"`
-	Limit  int             `json:"limit"`
-	Offset int             `json:"offset"`
-	Total  int64           `json:"total"`
+	Items  []RuntimeTargetSummary `json:"items"`
+	Limit  int                    `json:"limit"`
+	Offset int                    `json:"offset"`
+	Total  int64                  `json:"total"`
 }
 
 // RuntimeTargetSummary defines model for runtime-target-summary.
 type RuntimeTargetSummary struct {
-	Containers RuntimeTargetCountMetric `json:"containers"`
-	Cpu        RuntimeTargetUsageMetric `json:"cpu"`
-	Disk       RuntimeTargetUsageMetric `json:"disk"`
-	Images     RuntimeTargetImageMetric `json:"images"`
-	Memory     RuntimeTargetUsageMetric `json:"memory"`
+	Connection struct {
+		// Endpoint Masked connection endpoint. It never contains credentials.
+		Endpoint string                             `json:"endpoint"`
+		Kind     RuntimeTargetSummaryConnectionKind `json:"kind"`
+	} `json:"connection"`
+	DisplayName string `json:"displayName"`
+	Health      struct {
+		// Diagnostic Sanitized connection diagnostic; empty when healthy.
+		Diagnostic    string                           `json:"diagnostic"`
+		LastCheckedAt *time.Time                       `json:"lastCheckedAt"`
+		Status        RuntimeTargetSummaryHealthStatus `json:"status"`
+	} `json:"health"`
+	Id        int64 `json:"id"`
+	Resources struct {
+		Cpu       RuntimeTargetUsageMetric `json:"cpu"`
+		Memory    RuntimeTargetUsageMetric `json:"memory"`
+		Storage   RuntimeTargetUsageMetric `json:"storage"`
+		Workloads RuntimeTargetCountMetric `json:"workloads"`
+	} `json:"resources"`
+	Runtime struct {
+		ApiVersion string                              `json:"apiVersion"`
+		Provider   RuntimeTargetSummaryRuntimeProvider `json:"provider"`
+		Type       RuntimeTargetSummaryRuntimeType     `json:"type"`
+		Version    string                              `json:"version"`
+	} `json:"runtime"`
 }
+
+// RuntimeTargetSummaryConnectionKind defines model for RuntimeTargetSummary.Connection.Kind.
+type RuntimeTargetSummaryConnectionKind string
+
+// RuntimeTargetSummaryHealthStatus defines model for RuntimeTargetSummary.Health.Status.
+type RuntimeTargetSummaryHealthStatus string
+
+// RuntimeTargetSummaryRuntimeProvider defines model for RuntimeTargetSummary.Runtime.Provider.
+type RuntimeTargetSummaryRuntimeProvider string
+
+// RuntimeTargetSummaryRuntimeType defines model for RuntimeTargetSummary.Runtime.Type.
+type RuntimeTargetSummaryRuntimeType string
 
 // RuntimeTargetUsageMetric defines model for runtime-target-usage-metric.
 type RuntimeTargetUsageMetric struct {
-	Available         bool    `json:"available"`
-	TotalBytes        int64   `json:"totalBytes"`
-	UnavailableReason string  `json:"unavailableReason"`
-	UsagePercent      float64 `json:"usagePercent"`
-	UsedBytes         int64   `json:"usedBytes"`
+	// Available Whether this resource metric is available.
+	Available bool `json:"available"`
+
+	// TotalBytes Total bytes available to the resource.
+	TotalBytes int64 `json:"totalBytes"`
+
+	// UnavailableReason Reason the metric is unavailable; empty when it is available.
+	UnavailableReason string `json:"unavailableReason"`
+
+	// UsagePercent Resource usage as a percentage from 0 through 100.
+	UsagePercent float64 `json:"usagePercent"`
+
+	// UsedBytes Bytes currently used by the resource.
+	UsedBytes int64 `json:"usedBytes"`
 }
 
 // ScheduledTaskActionRequest defines model for scheduled-task-action-request.
@@ -11689,8 +11904,8 @@ type GetRuntimeTargetsParams struct {
 // GetRuntimeTargetsParamsLimit defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParamsLimit int
 
-// PostRuntimeTargetsDiscoverLocalParams defines parameters for PostRuntimeTargetsDiscoverLocal.
-type PostRuntimeTargetsDiscoverLocalParams struct {
+// PostRuntimeTargetsDiscoverLocalDockerParams defines parameters for PostRuntimeTargetsDiscoverLocalDocker.
+type PostRuntimeTargetsDiscoverLocalDockerParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

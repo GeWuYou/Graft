@@ -1,5 +1,5 @@
 <template>
-  <section :class="containerClasses">
+  <section :class="containerClasses" @scroll="emit('scroll', $event)">
     <main :class="mainClasses">
       <div :class="`${prefix}-page-container__content`">
         <breadcrumb />
@@ -24,6 +24,10 @@ const props = defineProps<{
   showFooter?: boolean;
   footerText?: string;
   surface?: PageSurfaceType;
+}>();
+
+const emit = defineEmits<{
+  scroll: [event: Event];
 }>();
 
 const containerClasses = computed(() => [

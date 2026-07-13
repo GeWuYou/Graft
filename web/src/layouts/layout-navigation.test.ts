@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { MenuRoute } from '@/utils/types';
 
 import {
+  findAllExpandedMenuPaths,
   findExpandedMenuPaths,
   flattenMixHeaderMenus,
   resolveMenuNavigationPath,
@@ -202,5 +203,31 @@ describe('layout navigation helpers', () => {
     );
 
     expect(expanded).toEqual(['domain.platform']);
+  });
+
+  it('collects every visible submenu and ignores hidden or single menu branches', () => {
+    const menus: MenuRoute[] = [
+      {
+        path: 'domain.infrastructure',
+        children: [
+          {
+            path: 'docker',
+            children: [{ path: 'container.list' }],
+          },
+          {
+            path: 'hidden-group',
+            meta: { hidden: true },
+            children: [{ path: 'hidden-child' }],
+          },
+          {
+            path: 'direct-route',
+            meta: { single: true },
+            children: [{ path: 'not-rendered' }],
+          },
+        ],
+      },
+    ];
+
+    expect(findAllExpandedMenuPaths(menus)).toEqual(['domain.infrastructure', 'docker']);
   });
 });

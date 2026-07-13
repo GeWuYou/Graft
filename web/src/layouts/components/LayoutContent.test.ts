@@ -419,6 +419,14 @@ describe('LayoutContent', () => {
     );
   });
 
+  it('forwards page container scroll events to the shell', async () => {
+    const wrapper = mountLayoutContent();
+
+    await wrapper.get('.tdesign-starter-page-container').trigger('scroll');
+
+    expect(wrapper.emitted('page-scroll')).toHaveLength(1);
+  });
+
   it('renders non-cached route tabs even when their page instance is not alive', () => {
     storeState.tabsRouterStore.tabRouters = [
       createTab('/', 'RootEntry', true),

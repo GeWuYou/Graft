@@ -463,14 +463,16 @@ describe('container list page', () => {
     runtimeTargetMocks.listRuntimeTargets.mockResolvedValue([
       {
         id: 7,
-        provider: 'docker',
         displayName: 'Local Docker',
-        endpointLabel: 'unix:///var/run/docker.sock',
-        connectionKind: 'unix_socket',
-        capabilities: ['containers'],
-        availability: true,
-        lastCheckedAt: '2026-07-12T01:00:00Z',
-        lastError: '',
+        runtime: { provider: 'docker', type: 'container_runtime', version: '27.0', apiVersion: '1.46' },
+        connection: { endpoint: 'unix:///var/run/docker.sock', kind: 'unix_socket' },
+        health: { status: 'healthy', lastCheckedAt: '2026-07-12T01:00:00Z', diagnostic: '' },
+        resources: {
+          workloads: { available: true, total: 1, active: 1, unavailableReason: '' },
+          cpu: { available: true, usagePercent: 1, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+          memory: { available: true, usagePercent: 1, usedBytes: 1, totalBytes: 2, unavailableReason: '' },
+          storage: { available: true, usagePercent: 1, usedBytes: 1, totalBytes: 2, unavailableReason: '' },
+        },
       },
     ]);
     apiMocks.getContainer.mockResolvedValue({

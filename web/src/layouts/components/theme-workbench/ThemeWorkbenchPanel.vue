@@ -330,6 +330,19 @@
                     @update:model-value="(value) => settingStore.updateConfig({ menuAutoCollapsed: value })"
                   />
                 </div>
+                <div class="switch-item">
+                  <div class="switch-item__content">
+                    <div class="switch-item__label">{{ t('layout.setting.element.menuAlwaysExpanded') }}</div>
+                    <div class="switch-item__hint">
+                      {{ menuAlwaysExpandedHint }}
+                    </div>
+                  </div>
+                  <t-switch
+                    :model-value="settingStore.menuAlwaysExpanded"
+                    :disabled="!menuAlwaysExpandedAvailable"
+                    @update:model-value="(value) => settingStore.updateConfig({ menuAlwaysExpanded: value })"
+                  />
+                </div>
               </div>
             </div>
 
@@ -950,7 +963,22 @@ const fixedSidebarAvailable = computed(() => settingStore.layout !== 'top');
 const fixedSidebarHint = computed(() =>
   fixedSidebarAvailable.value
     ? t('layout.setting.workbench.layout.fixedSidebarHint')
-    : t('layout.setting.workbench.layout.notIntegrated'),
+    : t('layout.setting.workbench.layout.onlySideOrMix'),
+);
+const menuAlwaysExpandedAvailable = computed(() => settingStore.layout !== 'top');
+const menuAlwaysExpandedHint = computed(() =>
+  menuAlwaysExpandedAvailable.value
+    ? t('layout.setting.workbench.layout.menuAlwaysExpandedHint')
+    : t('layout.setting.workbench.layout.onlySideOrMix'),
+);
+watch(
+  menuAlwaysExpandedAvailable,
+  (available) => {
+    if (!available && settingStore.menuAlwaysExpanded) {
+      settingStore.updateConfig({ menuAlwaysExpanded: false });
+    }
+  },
+  { immediate: true },
 );
 const footerOptionVisible = computed(() => route.meta.footer !== false);
 const activeTokenEditorMode = ref<ModeType>(settingStore.displayMode);

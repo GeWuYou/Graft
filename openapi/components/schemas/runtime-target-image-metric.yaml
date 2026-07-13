@@ -1,8 +1,6 @@
 type: object
-required: [available, total, used, unused, unavailableReason]
+required: [available, total, unavailableReason]
 properties:
   available: {type: boolean}
   total: {type: integer, format: int64}
-  used: {type: integer, format: int64}
-  unused: {type: integer, format: int64}
   unavailableReason: {type: string}

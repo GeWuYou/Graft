@@ -14,18 +14,19 @@
             data-testid="runtime-target-discover-local"
             @click="discoverLocal"
           >
-            <template #icon><search-icon /></template>{{ t('runtimeTarget.list.discoverLocal') }}
+            <template #icon><search-icon /></template>{{ t('runtimeTarget.list.discoverLocalDocker') }}
           </t-button>
           <t-button theme="primary" variant="outline" :loading="loading" @click="load">
             <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
           </t-button>
         </template>
       </management-page-header>
+      <t-alert v-if="errorMessage" theme="error" :message="errorMessage" class="runtime-target-feedback" />
       <management-table-card :description="t('runtimeTarget.list.summary', { count: total })">
         <template #toolbar>
-          <t-button theme="default" variant="text" :loading="loading" @click="load"
-            ><template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}</t-button
-          >
+          <t-button theme="default" variant="text" :loading="loading" @click="load">
+            <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
+          </t-button>
         </template>
         <t-table row-key="id" :data="items" :columns="tableColumns" :loading="loading">
           <template #empty>
@@ -33,11 +34,11 @@
               :title="t('runtimeTarget.list.emptyTitle')"
               :description="t('runtimeTarget.list.emptyDescription')"
             >
-              <template #action
-                ><t-button theme="primary" :loading="discovering" @click="discoverLocal">{{
-                  t('runtimeTarget.list.discoverLocal')
-                }}</t-button></template
-              >
+              <template #action>
+                <t-button theme="primary" :loading="discovering" @click="discoverLocal">
+                  {{ t('runtimeTarget.list.discoverLocalDocker') }}
+                </t-button>
+              </template>
             </t-empty>
           </template>
         </t-table>
@@ -78,15 +79,17 @@ import {
   discoverLocalDocker,
   listRuntimeTargetPage,
   type RuntimeTarget,
-  type RuntimeTargetMetric,
+  type RuntimeTargetUsageMetric,
 } from '../../api/runtime-target';
+import { runtimeTargetDetailPath } from '../../contract/paths';
 import { parseRuntimeTargetSummaryPayload, RUNTIME_TARGET_REALTIME_TOPIC } from '../../contract/realtime';
 
 type Change = 'up' | 'down' | 'none';
-type MetricChanges = Record<'cpu' | 'memory' | 'disk', Change>;
+type MetricChanges = Record<'cpu' | 'memory' | 'storage', Change>;
 const { t } = useI18n();
 const loading = ref(false);
 const discovering = ref(false);
+const errorMessage = ref('');
 const items = ref<RuntimeTarget[]>([]);
 const total = ref(0);
 const pagination = reactive({ current: 1, pageSize: 10 });
@@ -95,7 +98,7 @@ const active = ref(false);
 let realtimeController: RealtimeTopicSocketController | null = null;
 const changeTimers = new Map<number, number>();
 
-function metricText(metric: RuntimeTargetMetric) {
+function metricText(metric: RuntimeTargetUsageMetric) {
   if (!metric.available) return t('runtimeTarget.metrics.unavailable');
   const percent = `${metric.usagePercent.toFixed(1)}%`;
   return metric.totalBytes > 0
@@ -105,7 +108,7 @@ function metricText(metric: RuntimeTargetMetric) {
 function changeFor(id: number, metric: keyof MetricChanges) {
   return changes.value[id]?.[metric] ?? 'none';
 }
-function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTargetMetric) {
+function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTargetUsageMetric) {
   const percentage = Math.max(0, Math.min(100, value.usagePercent));
   return h(RealtimeResourceMetricCell, {
     available: value.available,
@@ -117,10 +120,12 @@ function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTarge
     value: value.available ? `${percentage.toFixed(1)}%` : t('runtimeTarget.metrics.unavailable'),
   });
 }
-function countCell(totalValue: number, details: Array<[string, number]>) {
+function workloadCell(row: RuntimeTarget) {
+  const workloads = row.resources.workloads;
+  if (!workloads.available) return t('runtimeTarget.metrics.unavailable');
   return h('div', { class: 'runtime-target-counts' }, [
-    h('strong', totalValue),
-    ...details.map(([label, value]) => h('span', [h('small', label), h('b', value)])),
+    h('strong', workloads.total),
+    h('span', [h('small', t('runtimeTarget.metrics.active')), h('b', workloads.active)]),
   ]);
 }
 const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
@@ -129,58 +134,54 @@ const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
     title: t('runtimeTarget.columns.name'),
     minWidth: 230,
     cell: (_h, { row }) =>
-      h('div', { class: 'runtime-target-identity' }, [h('strong', row.displayName), h('small', row.endpointLabel)]),
+      h('div', { class: 'runtime-target-identity' }, [
+        h(resolveComponent('router-link'), { to: runtimeTargetDetailPath(row.id) }, () => row.displayName),
+        h('small', row.connection.endpoint),
+      ]),
   },
   {
-    colKey: 'availability',
-    title: t('runtimeTarget.columns.status'),
-    width: 110,
+    colKey: 'provider',
+    title: t('runtimeTarget.columns.provider'),
+    width: 140,
+    cell: (_h, { row }) => row.runtime.provider,
+  },
+  {
+    colKey: 'health',
+    title: t('runtimeTarget.columns.health'),
+    width: 120,
     cell: (_h, { row }) =>
-      h(resolveComponent('t-tag'), { theme: row.availability ? 'success' : 'danger', variant: 'light' }, () =>
-        row.availability ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable'),
+      h(
+        resolveComponent('t-tag'),
+        { theme: row.health.status === 'healthy' ? 'success' : 'danger', variant: 'light' },
+        () =>
+          row.health.status === 'healthy' ? t('runtimeTarget.status.healthy') : t('runtimeTarget.status.unavailable'),
       ),
   },
   {
-    colKey: 'containers',
-    title: t('runtimeTarget.metrics.containers'),
-    width: 150,
-    cell: (_h, { row }) =>
-      countCell(row.summary.containers.total, [
-        [t('runtimeTarget.metrics.running'), row.summary.containers.running],
-        [t('runtimeTarget.metrics.stopped'), row.summary.containers.stopped],
-      ]),
-  },
-  {
-    colKey: 'images',
-    title: t('runtimeTarget.metrics.images'),
-    width: 150,
-    cell: (_h, { row }) =>
-      countCell(row.summary.images.total, [
-        [t('runtimeTarget.metrics.used'), row.summary.images.used],
-        [t('runtimeTarget.metrics.unused'), row.summary.images.unused],
-      ]),
+    colKey: 'workloads',
+    title: t('runtimeTarget.metrics.workloads'),
+    width: 130,
+    cell: (_h, { row }) => workloadCell(row),
   },
   {
     colKey: 'cpu',
     title: t('runtimeTarget.metrics.cpu'),
     width: 142,
-    cell: (_h, { row }) => metricCell(row.id, 'cpu', row.summary.cpu),
+    cell: (_h, { row }) => metricCell(row.id, 'cpu', row.resources.cpu),
   },
   {
     colKey: 'memory',
     title: t('runtimeTarget.metrics.memory'),
     width: 142,
-    cell: (_h, { row }) => metricCell(row.id, 'memory', row.summary.memory),
+    cell: (_h, { row }) => metricCell(row.id, 'memory', row.resources.memory),
   },
   {
-    colKey: 'disk',
-    title: t('runtimeTarget.metrics.disk'),
+    colKey: 'storage',
+    title: t('runtimeTarget.metrics.storage'),
     width: 142,
-    cell: (_h, { row }) => metricCell(row.id, 'disk', row.summary.disk),
+    cell: (_h, { row }) => metricCell(row.id, 'storage', row.resources.storage),
   },
 ]);
-
-// TDesign's template component defaults its row generic to TableRowData.
 const tableColumns = columns as unknown as PrimaryTableCol[];
 
 function compare(previous: number, next: number): Change {
@@ -192,9 +193,9 @@ function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
     const current = items.value.find((item) => item.id === next.id);
     if (!current) return next;
     const nextChanges: MetricChanges = {
-      cpu: compare(current.summary.cpu.usagePercent, next.summary.cpu.usagePercent),
-      memory: compare(current.summary.memory.usagePercent, next.summary.memory.usagePercent),
-      disk: compare(current.summary.disk.usagePercent, next.summary.disk.usagePercent),
+      cpu: compare(current.resources.cpu.usagePercent, next.resources.cpu.usagePercent),
+      memory: compare(current.resources.memory.usagePercent, next.resources.memory.usagePercent),
+      storage: compare(current.resources.storage.usagePercent, next.resources.storage.usagePercent),
     };
     if (Object.values(nextChanges).some((value) => value !== 'none')) {
       changes.value = { ...changes.value, [current.id]: nextChanges };
@@ -234,6 +235,7 @@ function stopRealtime() {
 }
 async function load() {
   loading.value = true;
+  errorMessage.value = '';
   try {
     const page = await listRuntimeTargetPage({
       limit: pagination.pageSize,
@@ -242,17 +244,22 @@ async function load() {
     items.value = page.items;
     total.value = page.total;
     startRealtime();
+  } catch {
+    errorMessage.value = t('runtimeTarget.list.loadError');
   } finally {
     loading.value = false;
   }
 }
 async function discoverLocal() {
   discovering.value = true;
+  errorMessage.value = '';
   try {
     await discoverLocalDocker();
     pagination.current = 1;
     await load();
     MessagePlugin.success(t('runtimeTarget.list.discoverSuccess'));
+  } catch {
+    errorMessage.value = t('runtimeTarget.list.discoverError');
   } finally {
     discovering.value = false;
   }
@@ -275,6 +282,10 @@ onUnmounted(() => {
 });
 </script>
 <style scoped lang="less">
+.runtime-target-feedback {
+  margin-bottom: var(--td-comp-margin-l);
+}
+
 :deep(.runtime-target-identity),
 :deep(.runtime-target-counts) {
   display: flex;
@@ -282,7 +293,7 @@ onUnmounted(() => {
   gap: var(--graft-density-gap-4);
 }
 
-:deep(.runtime-target-identity strong),
+:deep(.runtime-target-identity a),
 :deep(.runtime-target-counts strong) {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-medium);

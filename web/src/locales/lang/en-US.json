@@ -80,7 +80,8 @@
         "showBreadcrumb": "Show Breadcrumbs",
         "showFooter": "Show Footer",
         "useTagTabs": "Show multi-tab pages",
-        "menuAutoCollapsed": "Menu Auto Collapsed"
+        "menuAutoCollapsed": "Menu Auto Collapsed",
+        "menuAlwaysExpanded": "Always Expand All Menus"
       },
       "workbench": {
         "title": "Personalization",
@@ -110,13 +111,15 @@
           "behaviorDescription": "Adjust navigation structure and page element visibility.",
           "elementsDescription": "Toggle Header, Breadcrumbs, Footer, and multi-tab pages.",
           "splitMenuHint": "Updates mixed-layout navigation immediately.",
-          "fixedSidebarHint": "Switch between fixed and scrolling sidebar behavior.",
+          "fixedSidebarHint": "Keep the sidebar visible while page content scrolls.",
           "menuAutoCollapsedHint": "Collapse other menu groups when one group expands.",
+          "menuAlwaysExpandedHint": "Expand every available menu level and disable menu auto collapse.",
           "showHeaderHint": "Show top navigation and account actions.",
           "showBreadcrumbHint": "Show the current location path.",
           "showFooterHint": "Show page footer information.",
           "useTagTabsHint": "Enable multi-page tab switching.",
           "onlyMix": "Only available in mixed layout",
+          "onlySideOrMix": "Only available in side or mixed layouts",
           "notIntegrated": "Not integrated yet"
         },
         "presets": {

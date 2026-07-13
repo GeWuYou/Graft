@@ -1,32 +1,27 @@
-type: object
-required: [id, provider, displayName, endpointLabel, connectionKind, capabilities, availability, lastError, summary]
-properties:
-  id:
-    type: integer
-    format: int64
-  provider:
-    type: string
-    example: docker
-  displayName:
-    type: string
-  endpointLabel:
-    type: string
-    description: Masked connection endpoint label. It never contains credentials.
-  connectionKind:
-    type: string
-    example: unix_socket
-  capabilities:
-    type: array
-    items:
-      type: string
-  availability:
-    type: boolean
-  lastCheckedAt:
-    type: string
-    format: date-time
-    nullable: true
-  lastError:
-    type: string
-    description: Sanitized latest probe diagnostic.
-  summary:
-    $ref: ./runtime-target-summary.yaml
+allOf:
+  - $ref: ./runtime-target-summary.yaml
+  - type: object
+    required: [providerDetails]
+    properties:
+      providerDetails:
+        type: object
+        description: Provider-specific typed extension selected by the provider discriminator.
+        required: [provider, docker]
+        properties:
+          provider:
+            type: string
+            enum: [docker]
+          docker:
+            type: object
+            required: [images, volumes, networks]
+            properties:
+              images:
+                $ref: ./runtime-target-image-metric.yaml
+              volumes:
+                $ref: ./runtime-target-image-metric.yaml
+              networks:
+                $ref: ./runtime-target-image-metric.yaml
+        discriminator:
+          propertyName: provider
+          mapping:
+            docker: ./runtime-target.yaml

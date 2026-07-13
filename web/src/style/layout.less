@@ -287,6 +287,11 @@
 
     &-no-fixed {
       position: relative;
+      transform: translate3d(
+        var(--graft-shell-sidebar-translate-x, 0),
+        var(--graft-shell-sidebar-scroll-translate-y, 0),
+        0
+      );
       z-index: 1;
     }
 

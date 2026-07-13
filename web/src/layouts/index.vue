@@ -13,7 +13,7 @@
           <t-header class="app-shell__header">
             <layout-header :render-compact="sidebarWidthCompact" />
           </t-header>
-          <t-content class="app-shell__content"><layout-content /></t-content>
+          <t-content class="app-shell__content"><layout-content @page-scroll="handlePageScroll" /></t-content>
         </t-layout>
       </t-layout>
     </template>
@@ -30,7 +30,7 @@
             :width-compact="sidebarWidthCompact"
             :motion-phase="sidebarMotionPhase"
           />
-          <layout-content />
+          <layout-content @page-scroll="handlePageScroll" />
         </t-layout>
       </t-layout>
     </template>
@@ -74,20 +74,27 @@ const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
 const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
 const sidebarMotionTimers = new Set<number>();
 const sidebarMotionFrameIds = new Set<number>();
+const pageScrollTop = ref(0);
 let sidebarFreezeToken: number | null = null;
 let sidebarResumeFrameId: number | null = null;
 let sidebarResumeNestedFrameId: number | null = null;
+let pageScrollFrameId: number | null = null;
+let pendingPageScrollTop = 0;
 
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
   'data-page-type': 'shell',
   'data-sidebar-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-fixed': String(settingStore.isSidebarFixed),
   'data-sidebar-motion-phase': sidebarMotionPhase.value,
   'data-sidebar-motion-mode': resolveSidebarMotionMode(route.meta as AppRouteMeta),
   'data-sidebar-render-compact': String(sidebarRenderCompact.value),
   'data-sidebar-width-compact': String(sidebarWidthCompact.value),
   'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
   'data-theme-mode': settingStore.displayMode,
+  style: {
+    '--graft-shell-sidebar-scroll-translate-y': settingStore.isSidebarFixed ? '0px' : `-${pageScrollTop.value}px`,
+  },
 }));
 
 const shouldRenderSidebar = computed(
@@ -158,6 +165,20 @@ const scheduleSidebarMotion = (callback: () => void, delay: number) => {
     callback();
   }, delay);
   sidebarMotionTimers.add(timerId);
+};
+
+const handlePageScroll = (event: Event) => {
+  const target = event.target;
+  if (target instanceof HTMLElement) {
+    pendingPageScrollTop = target.scrollTop;
+    if (pageScrollFrameId !== null) {
+      return;
+    }
+    pageScrollFrameId = window.requestAnimationFrame(() => {
+      pageScrollFrameId = null;
+      pageScrollTop.value = pendingPageScrollTop;
+    });
+  }
 };
 
 const formatLayoutTabsSummary = () =>
@@ -306,6 +327,10 @@ onBeforeUnmount(() => {
   clearSidebarMotionTimers();
   clearSidebarMotionFrames();
   clearSidebarResumeFrames();
+  if (pageScrollFrameId !== null) {
+    window.cancelAnimationFrame(pageScrollFrameId);
+    pageScrollFrameId = null;
+  }
   releaseSidebarFreeze();
 });
 
@@ -315,7 +340,8 @@ watch(
     const previousPath = previousFullPath ? router.resolve(previousFullPath).path : '';
     appendNewRoute();
     if (previousPath && previousPath !== route.path) {
-      document.querySelector(`.${prefix}-layout`)?.scrollTo({ top: 0, behavior: 'smooth' });
+      pageScrollTop.value = 0;
+      document.querySelector(`.${prefix}-page-container`)?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   },
 );

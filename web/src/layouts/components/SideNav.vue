@@ -35,7 +35,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { prefix } from '@/config/global';
-import { findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
+import { findAllExpandedMenuPaths, findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { getActive } from '@/router';
@@ -89,7 +89,9 @@ const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motion
 const MIN_POINT = 992 - 1;
 
 const collapsed = computed(() => renderCompact);
-const menuAutoCollapsed = computed(() => useSettingStore().menuAutoCollapsed);
+const settingStore = useSettingStore();
+const menuAutoCollapsed = computed(() => settingStore.menuAutoCollapsed);
+const menuAlwaysExpanded = computed(() => settingStore.menuAlwaysExpanded);
 const route = useRoute();
 
 const currentNavigationPath = computed(() => {
@@ -110,6 +112,11 @@ const buildExpandedFromActive = () => {
 };
 
 const getExpanded = () => {
+  if (menuAlwaysExpanded.value) {
+    expanded.value = findAllExpandedMenuPaths(menu);
+    return;
+  }
+
   const result = buildExpandedFromActive();
 
   expanded.value = menuAutoCollapsed.value ? result : union(result, expanded.value);
@@ -137,6 +144,8 @@ watch(currentNavigationPath, syncExpandedForCurrentRoute, { flush: 'post' });
 
 watch(() => menu, syncExpandedForCurrentRoute, { deep: true });
 
+watch(menuAlwaysExpanded, syncExpandedForCurrentRoute);
+
 watch(
   () => motionPhase,
   (nextPhase, previousPhase) => {
@@ -157,7 +166,11 @@ watch(
 
     if (nextPhase === 'expanding-submenu') {
       const routeExpanded = buildExpandedFromActive();
-      expanded.value = menuAutoCollapsed.value ? routeExpanded : union(routeExpanded, expandedBeforeCompact.value);
+      expanded.value = menuAlwaysExpanded.value
+        ? findAllExpandedMenuPaths(menu)
+        : menuAutoCollapsed.value
+          ? routeExpanded
+          : union(routeExpanded, expandedBeforeCompact.value);
       pendingExpandedSync.value = false;
       return;
     }
@@ -169,6 +182,11 @@ watch(
 );
 
 const onExpanded = (value: MenuValue[]) => {
+  if (menuAlwaysExpanded.value) {
+    expanded.value = findAllExpandedMenuPaths(menu);
+    return;
+  }
+
   const requiredExpanded = buildExpandedFromActive();
   const currentOperationMenu = difference(expanded.value, value);
   const allExpanded = union(value, expanded.value, requiredExpanded);
@@ -220,7 +238,6 @@ const menuCls = computed(() => {
   ];
 });
 
-const settingStore = useSettingStore();
 const shellNavigation = useShellNavigation();
 
 const autoCollapsed = () => {

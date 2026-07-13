@@ -35,9 +35,9 @@ func (h *runtimeTargetRealtimeHubStub) RegisterTopicObserver(_ string, onActive 
 func TestRuntimeTargetSummaryCollectorPublishesOnlyAfterTopicActivation(t *testing.T) {
 	hub := &runtimeTargetRealtimeHubStub{published: make(chan realtime.Event, 1)}
 	var calls atomic.Int32
-	collector := newRuntimeTargetSummaryCollector(hub, func(context.Context) []generated.RuntimeTarget {
+	collector := newRuntimeTargetSummaryCollector(hub, func(context.Context) []generated.RuntimeTargetSummary {
 		calls.Add(1)
-		return []generated.RuntimeTarget{{Id: 7}}
+		return []generated.RuntimeTargetSummary{{Id: 7}}
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
