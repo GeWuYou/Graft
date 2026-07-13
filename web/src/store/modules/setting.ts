@@ -537,6 +537,9 @@ export const useSettingStore = defineStore('setting', {
       this.selectedThemePresetId = resolvePresetId(this.selectedThemePresetId);
       this.themeTokenOverrides = cloneThemeModeTokenState(this.themeTokenOverrides);
       this.themeResolvedTokens = cloneThemeModeTokenState(this.themeResolvedTokens);
+      if (this.layout === 'top') {
+        this.menuAlwaysExpanded = false;
+      }
       this.changeMode(this.mode as ModeType | 'auto');
       this.changeSideMode(this.sideMode as ModeType);
       this.themeWorkbenchRuntimeReady = true;
@@ -548,6 +551,9 @@ export const useSettingStore = defineStore('setting', {
         normalizedPayload.menuAutoCollapsed = false;
       }
       if (normalizedPayload.menuAutoCollapsed === true) {
+        normalizedPayload.menuAlwaysExpanded = false;
+      }
+      if (normalizedPayload.layout === 'top') {
         normalizedPayload.menuAlwaysExpanded = false;
       }
 

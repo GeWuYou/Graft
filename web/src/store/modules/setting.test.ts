@@ -88,6 +88,21 @@ describe('setting store theme authority', () => {
 
     expect(store.menuAlwaysExpanded).toBe(false);
     expect(store.menuAutoCollapsed).toBe(true);
+
+    store.updateConfig({ menuAlwaysExpanded: true });
+    store.updateConfig({ layout: 'top' });
+
+    expect(store.menuAlwaysExpanded).toBe(false);
+  });
+
+  it('clears persisted always-expanded navigation when the restored layout is top', () => {
+    const store = useSettingStore();
+    store.layout = 'top';
+    store.menuAlwaysExpanded = true;
+
+    store.initializeThemeWorkbenchRuntime();
+
+    expect(store.menuAlwaysExpanded).toBe(false);
   });
 
   it('resolves font size preset into TDesign font tokens', () => {

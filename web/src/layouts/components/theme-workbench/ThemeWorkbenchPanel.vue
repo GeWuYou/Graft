@@ -334,11 +334,12 @@
                   <div class="switch-item__content">
                     <div class="switch-item__label">{{ t('layout.setting.element.menuAlwaysExpanded') }}</div>
                     <div class="switch-item__hint">
-                      {{ t('layout.setting.workbench.layout.menuAlwaysExpandedHint') }}
+                      {{ menuAlwaysExpandedHint }}
                     </div>
                   </div>
                   <t-switch
                     :model-value="settingStore.menuAlwaysExpanded"
+                    :disabled="!menuAlwaysExpandedAvailable"
                     @update:model-value="(value) => settingStore.updateConfig({ menuAlwaysExpanded: value })"
                   />
                 </div>
@@ -963,6 +964,21 @@ const fixedSidebarHint = computed(() =>
   fixedSidebarAvailable.value
     ? t('layout.setting.workbench.layout.fixedSidebarHint')
     : t('layout.setting.workbench.layout.notIntegrated'),
+);
+const menuAlwaysExpandedAvailable = computed(() => settingStore.layout !== 'top');
+const menuAlwaysExpandedHint = computed(() =>
+  menuAlwaysExpandedAvailable.value
+    ? t('layout.setting.workbench.layout.menuAlwaysExpandedHint')
+    : t('layout.setting.workbench.layout.onlySideOrMix'),
+);
+watch(
+  menuAlwaysExpandedAvailable,
+  (available) => {
+    if (!available && settingStore.menuAlwaysExpanded) {
+      settingStore.updateConfig({ menuAlwaysExpanded: false });
+    }
+  },
+  { immediate: true },
 );
 const footerOptionVisible = computed(() => route.meta.footer !== false);
 const activeTokenEditorMode = ref<ModeType>(settingStore.displayMode);

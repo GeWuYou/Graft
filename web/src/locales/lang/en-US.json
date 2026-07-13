@@ -119,6 +119,7 @@
           "showFooterHint": "Show page footer information.",
           "useTagTabsHint": "Enable multi-page tab switching.",
           "onlyMix": "Only available in mixed layout",
+          "onlySideOrMix": "Only available in side or mixed layouts",
           "notIntegrated": "Not integrated yet"
         },
         "presets": {

@@ -4,7 +4,6 @@ import type { MenuRoute } from '@/utils/types';
 
 import {
   findAllExpandedMenuPaths,
-  findExpandedMenuBranchPaths,
   findExpandedMenuPaths,
   flattenMixHeaderMenus,
   resolveMenuNavigationPath,
@@ -230,30 +229,5 @@ describe('layout navigation helpers', () => {
     ];
 
     expect(findAllExpandedMenuPaths(menus)).toEqual(['domain.infrastructure', 'docker']);
-  });
-
-  it('completes only the expanded header menu branch', () => {
-    const menus: MenuRoute[] = [
-      {
-        path: 'infrastructure',
-        children: [
-          {
-            path: 'docker',
-            children: [{ path: 'containers' }],
-          },
-        ],
-      },
-      {
-        path: 'security',
-        children: [
-          {
-            path: 'audit',
-            children: [{ path: 'access' }],
-          },
-        ],
-      },
-    ];
-
-    expect(findExpandedMenuBranchPaths(menus, ['infrastructure'])).toEqual(['infrastructure', 'docker']);
   });
 });
