@@ -2,9 +2,11 @@ package project
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
+	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -48,6 +50,9 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	if err != nil {
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
+	if err := s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, command.CanonicalProjectName); err != nil {
+		return projectstore.ProjectAggregate{}, time.Time{}, err
+	}
 	strictCreate := command.SourceKind == projectcontract.SourceKindManaged.String() || command.SourceKind == projectcontract.SourceKindTemplate.String()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
 		ApplicationID:              newApplicationID(),
@@ -85,6 +90,36 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		return projectstore.ProjectAggregate{}, time.Time{}, mapStoreError(err)
 	}
 	return aggregate, now, nil
+}
+
+// ensureComposeProjectNameAvailableForCreate prevents a managed workspace from
+// claiming a runtime name already owned by another Compose project. An
+// unavailable target is intentionally non-blocking so users can prepare a
+// workspace before the target recovers.
+func (s *Service) ensureComposeProjectNameAvailableForCreate(ctx context.Context, targetID uint64, name string) error {
+	state := s.composeProjectNameState(ctx, targetID, name)
+	switch state {
+	case moduleapi.ComposeProjectNameStateOccupied:
+		return errors.Join(errProjectConflict, errProjectComposeNameOccupied)
+	case moduleapi.ComposeProjectNameStateAvailable, moduleapi.ComposeProjectNameStateUnavailable:
+		return nil
+	default:
+		return errProjectRuntimeUnavailable
+	}
+}
+
+func (s *Service) composeProjectNameState(ctx context.Context, targetID uint64, name string) moduleapi.ComposeProjectNameState {
+	if s == nil || s.runtimeTargets == nil {
+		return moduleapi.ComposeProjectNameStateUnavailable
+	}
+	if targetID == 0 || targetID > uint64(^uint64(0)>>1) || strings.TrimSpace(name) == "" {
+		return moduleapi.ComposeProjectNameStateError
+	}
+	availability, err := s.runtimeTargets.CheckComposeProjectName(ctx, int64(targetID), strings.TrimSpace(name))
+	if err != nil {
+		return moduleapi.ComposeProjectNameStateError
+	}
+	return availability.State
 }
 
 func composeProjectNameSource(value string) string {

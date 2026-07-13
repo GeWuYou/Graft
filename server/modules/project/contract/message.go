@@ -53,6 +53,8 @@ const (
 	ProjectInvalidCanonicalProjectName ErrorCode = "ops.project.error.invalidCanonicalProjectName"
 	// ProjectConflict identifies project-registration uniqueness conflicts.
 	ProjectConflict ErrorCode = "ops.project.error.conflict"
+	// ProjectComposeProjectNameOccupied identifies a runtime-local Compose name collision.
+	ProjectComposeProjectNameOccupied ErrorCode = "ops.project.error.composeProjectNameOccupied"
 	// ProjectNotFound identifies unknown project records.
 	ProjectNotFound ErrorCode = "ops.project.error.notFound"
 	// ProjectUnsupportedLifecycle identifies lifecycle requests blocked by project ownership or phase scope.

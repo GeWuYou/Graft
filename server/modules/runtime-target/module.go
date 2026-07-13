@@ -100,7 +100,10 @@ func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Aut
 	return m.topicIssuers.Register(contract.SummaryTopic, m)
 }
 
-type runtimeTargetReader struct{ repository *store.SQLRepository }
+type runtimeTargetReader struct {
+	repository              *store.SQLRepository
+	composeProjectNameProbe dockerComposeProjectNameProbe
+}
 
 func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (moduleapi.RuntimeTargetSummary, error) {
 	if r.repository == nil {

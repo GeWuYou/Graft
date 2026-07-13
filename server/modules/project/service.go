@@ -38,6 +38,7 @@ var (
 	errProjectInspectionStale      = errors.New("project inspection stale")
 	errProjectFileHashMismatch     = errors.New("project file hash mismatch")
 	errProjectRuntimeUnavailable   = errors.New("project runtime is unavailable")
+	errProjectComposeNameOccupied  = errors.New("compose project name is already occupied on runtime target")
 	errProjectActorAttribution     = errors.New("project actor attribution required")
 )
 
@@ -594,6 +595,13 @@ func (s *Service) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetRe
 	}
 }
 
+// WithRuntimeTargetReader injects the capability-scoped Compose Runtime Target authority.
+func WithRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.runtimeTargets = reader
+	})
+}
+
 // SetAuthorizer injects the authorizer after module registration.
 func (s *Service) SetAuthorizer(authorizer moduleapi.Authorizer) {
 	if s == nil {
@@ -1021,6 +1029,9 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
+	if err := s.ensureManagedCreateRuntimeNameAvailable(ctx, normalized.RuntimeTargetID, composeName); err != nil {
+		return ManagedProjectCreateValidationResult{}, err
+	}
 	normalized.ComposeFileContent = composeContent
 	composeFileAbsolutePath := filepath.Join(workingDirectory, normalized.ComposeFileName)
 	envFileAbsolutePath := managedCreateEnvAbsolutePath(workingDirectory, normalized.EnvFileName)
@@ -1052,6 +1063,17 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		},
 		Warnings: warnings,
 	}, nil
+}
+
+func (s *Service) ensureManagedCreateRuntimeNameAvailable(ctx context.Context, runtimeTargetID uint64, composeName string) error {
+	if s.runtimeTargets == nil {
+		return nil
+	}
+	targetID, err := s.resolveComposeRuntimeTarget(ctx, runtimeTargetID)
+	if err != nil {
+		return err
+	}
+	return s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, composeName)
 }
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.

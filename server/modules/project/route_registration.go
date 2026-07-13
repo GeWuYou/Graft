@@ -984,6 +984,8 @@ func (r routeRuntime) writeProjectConflictError(ginCtx *gin.Context, err error) 
 	switch {
 	case errors.Is(err, errProjectNotFound):
 		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectNotFound.String())
+	case errors.Is(err, errProjectComposeNameOccupied):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectComposeProjectNameOccupied.String())
 	case errors.Is(err, errProjectConflict):
 		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String())
 	case errors.Is(err, errProjectDirectoryForbidden):

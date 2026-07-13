@@ -366,7 +366,21 @@ func (s *Service) ensureComposeTargetAvailable(ctx context.Context, aggregate pr
 	if err != nil || !target.Available {
 		return errProjectRuntimeUnavailable
 	}
-	return nil
+	name := nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName)
+	return s.ensureComposeProjectNameAvailableForLifecycle(ctx, *aggregate.Project.RuntimeTargetID, name)
+}
+
+func (s *Service) ensureComposeProjectNameAvailableForLifecycle(ctx context.Context, targetID uint64, name string) error {
+	switch s.composeProjectNameState(ctx, targetID, name) {
+	case moduleapi.ComposeProjectNameStateAvailable:
+		return nil
+	case moduleapi.ComposeProjectNameStateOccupied:
+		return errors.Join(errProjectConflict, errProjectComposeNameOccupied)
+	case moduleapi.ComposeProjectNameStateUnavailable:
+		return errProjectRuntimeUnavailable
+	default:
+		return errProjectRuntimeUnavailable
+	}
 }
 
 func (s *Service) runDockerCommand(ctx context.Context, workingDirectory string, args []string) (string, error) {

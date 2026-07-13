@@ -4,6 +4,7 @@ ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.
 ops.project.error.invalidCanonicalProjectName: Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.
 ops.project.error.conflict: Project action is blocked by a conflicting project state.
+ops.project.error.composeProjectNameOccupied: The Compose project name is already in use on the selected Runtime Target.
 ops.project.error.notFound: Project was not found.
 ops.project.error.unsupportedLifecycle: Project lifecycle action is not available for the current project state.
 ops.project.error.runtimeUnavailable: The selected Runtime Target is unavailable. The workspace remains registered and can be deployed after the target recovers.

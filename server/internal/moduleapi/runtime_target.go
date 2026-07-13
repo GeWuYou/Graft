@@ -25,8 +25,29 @@ type ComposeRuntimeTargetSummary struct {
 	Available    bool
 }
 
+// ComposeProjectNameState is the provider-neutral result of checking a Compose
+// project name against one Runtime Target.
+type ComposeProjectNameState string
+
+const (
+	// ComposeProjectNameStateAvailable means the target is reachable and does not own the name.
+	ComposeProjectNameStateAvailable ComposeProjectNameState = "available"
+	// ComposeProjectNameStateOccupied means the target already has Compose resources with the name.
+	ComposeProjectNameStateOccupied ComposeProjectNameState = "occupied"
+	// ComposeProjectNameStateUnavailable means the target cannot currently be queried.
+	ComposeProjectNameStateUnavailable ComposeProjectNameState = "unavailable"
+	// ComposeProjectNameStateError means the provider query failed unexpectedly.
+	ComposeProjectNameStateError ComposeProjectNameState = "error"
+)
+
+// ComposeProjectNameAvailability is a provider-neutral occupancy result.
+type ComposeProjectNameAvailability struct {
+	State ComposeProjectNameState
+}
+
 // ComposeRuntimeTargetReader resolves Runtime Targets that can execute Compose and access workspaces.
 type ComposeRuntimeTargetReader interface {
 	ReadComposeTarget(context.Context, *int64) (ComposeRuntimeTargetSummary, error)
 	ListComposeTargets(context.Context) ([]ComposeRuntimeTargetSummary, error)
+	CheckComposeProjectName(context.Context, int64, string) (ComposeProjectNameAvailability, error)
 }

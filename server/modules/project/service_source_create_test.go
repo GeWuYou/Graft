@@ -2,12 +2,36 @@ package project
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
+	projectstore "graft/server/modules/project/store"
 )
+
+type stubComposeRuntimeTargetReader struct {
+	target moduleapi.ComposeRuntimeTargetSummary
+	state  moduleapi.ComposeProjectNameState
+}
+
+func (s stubComposeRuntimeTargetReader) ReadComposeTarget(_ context.Context, _ *int64) (moduleapi.ComposeRuntimeTargetSummary, error) {
+	return s.target, nil
+}
+
+func (s stubComposeRuntimeTargetReader) ListComposeTargets(context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	return []moduleapi.ComposeRuntimeTargetSummary{s.target}, nil
+}
+
+func (s stubComposeRuntimeTargetReader) CheckComposeProjectName(context.Context, int64, string) (moduleapi.ComposeProjectNameAvailability, error) {
+	return moduleapi.ComposeProjectNameAvailability{State: s.state}, nil
+}
+
+func composeTargetReader(state moduleapi.ComposeProjectNameState) stubComposeRuntimeTargetReader {
+	return stubComposeRuntimeTargetReader{target: moduleapi.ComposeRuntimeTargetSummary{ID: 7, Available: state != moduleapi.ComposeProjectNameStateUnavailable}, state: state}
+}
 
 func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	managedRoot := t.TempDir()
@@ -34,5 +58,62 @@ func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(managedRoot, "template-project", "compose.yaml")); err != nil {
 		t.Fatalf("expected template compose workspace: %v", err)
+	}
+}
+
+func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorkspace(t *testing.T) {
+	managedRoot := t.TempDir()
+	repository := &stubProjectRepository{}
+	service, err := NewService(repository,
+		WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}),
+		WithRuntimeTargetReader(composeTargetReader(moduleapi.ComposeProjectNameStateOccupied)),
+	)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n",
+	}, nil)
+	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
+		t.Fatalf("expected compose name conflict, got %v", err)
+	}
+	if repository.importInput != nil {
+		t.Fatalf("unexpected registry import: %#v", repository.importInput)
+	}
+	if _, statErr := os.Stat(filepath.Join(managedRoot, "demo")); !os.IsNotExist(statErr) {
+		t.Fatalf("workspace should be cleaned after collision, stat error = %v", statErr)
+	}
+}
+
+func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
+	managedRoot := t.TempDir()
+	repository := &stubProjectRepository{}
+	service, err := NewService(repository,
+		WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}),
+		WithRuntimeTargetReader(composeTargetReader(moduleapi.ComposeProjectNameStateUnavailable)),
+	)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n",
+	}, nil)
+	if err != nil {
+		t.Fatalf("create managed project: %v", err)
+	}
+	if repository.importInput == nil {
+		t.Fatal("expected registry import for unavailable target")
+	}
+}
+
+func TestEnsureComposeTargetAvailableBlocksOccupiedProjectName(t *testing.T) {
+	service, err := NewService(&stubProjectRepository{}, WithRuntimeTargetReader(composeTargetReader(moduleapi.ComposeProjectNameStateOccupied)))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	targetID := uint64(7)
+	err = service.ensureComposeTargetAvailable(context.Background(), projectstore.ProjectAggregate{Project: projectstore.Project{RuntimeTargetID: &targetID, ComposeProjectName: "demo"}})
+	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
+		t.Fatalf("expected occupied project name to block deployment, got %v", err)
 	}
 }
