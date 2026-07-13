@@ -99,6 +99,7 @@ func validateProjectListQueryState(queryState json.RawMessage) error {
 	return validateProjectListQueryStateValues(state)
 }
 
+// validProjectListQueryStateFields reports whether all query-state fields are supported.
 func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
 	for key := range raw {
 		switch key {
@@ -110,6 +111,7 @@ func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
 	return true
 }
 
+// validateProjectListQueryStateValues validates the values in a project list query state.
 func validateProjectListQueryStateValues(state projectListQueryState) error {
 	if !validProjectListQueryStateStrings(state) {
 		return errProjectInvalidArgument
@@ -126,6 +128,9 @@ func validateProjectListQueryStateValues(state projectListQueryState) error {
 	return nil
 }
 
+// validProjectListQueryStateSort 检查项目列表查询状态中的排序条件是否有效。
+//
+// 排序条件最多包含一个值，且该值必须是受支持的排序选项。
 func validProjectListQueryStateSort(state projectListQueryState) bool {
 	if len(state.Sort) > 1 {
 		return false
@@ -138,6 +143,7 @@ func validProjectListQueryStateSort(state projectListQueryState) bool {
 	return true
 }
 
+// validProjectListQueryStateEnums 验证项目列表查询状态中的枚举值是否有效。
 func validProjectListQueryStateEnums(state projectListQueryState) bool {
 	if !validProjectListStaticEnums(state) {
 		return false
@@ -201,7 +207,9 @@ func mapSavedViewError(err error) error {
 }
 
 // projectSavedViewRequestFromGenerated converts a generated saved-view request into the internal request format.
-// It serializes the query state and copies the visible columns. It returns an invalid-argument error if serialization fails.
+// projectSavedViewRequestFromGenerated converts a generated saved-view request into the internal request format.
+// It serializes the query state and preserves the order of visible columns. It returns an invalid-argument
+// error if the query state cannot be serialized.
 func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequest) (savedViewRequest, error) {
 	queryState, err := json.Marshal(request.QueryState)
 	if err != nil {

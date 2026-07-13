@@ -328,6 +328,7 @@ func validateAppConfig(c *Config) error {
 	return nil
 }
 
+// validateHTTPConfig validates that the HTTP server address is configured.
 func validateHTTPConfig(c *Config) error {
 	if strings.TrimSpace(c.HTTP.Addr) == "" {
 		return errors.New("GRAFT_HTTP_ADDR is required")
@@ -336,7 +337,7 @@ func validateHTTPConfig(c *Config) error {
 	return nil
 }
 
-// validateHTTPXConfig validates core HTTP runtime configuration.
+// 验证访问日志控制台策略、慢请求阈值和 WebSocket 允许来源列表。
 func validateHTTPXConfig(c *Config) error {
 	c.HTTPX.AccessLogConsole = AccessLogConsolePolicy(strings.ToLower(strings.TrimSpace(string(c.HTTPX.AccessLogConsole))))
 	if c.HTTPX.AccessLogConsole == "" {
@@ -358,10 +359,12 @@ func validateHTTPXConfig(c *Config) error {
 	return nil
 }
 
+// validateAuditConfig validates audit configuration and always succeeds.
 func validateAuditConfig(_ *Config) error {
 	return nil
 }
 
+// 如果配置值无效，则返回错误。
 func validateLogConfig(c *Config) error {
 	c.Log.Format = LogFormat(strings.ToLower(strings.TrimSpace(string(c.Log.Format))))
 	if c.Log.Format == "" {
@@ -544,7 +547,8 @@ func validateAuthConfig(c *Config) error {
 }
 
 // validateContainerConfig validates container configuration fields.
-// Returns nil if the configuration is valid, or an error describing the validation failure.
+// validateContainerConfig validates and normalizes the container runtime and Docker endpoint configuration.
+// It returns an error when the runtime is unsupported or the Docker endpoint is empty.
 func validateContainerConfig(c *Config) error {
 	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
 	if c.Container.Runtime == "" {
@@ -578,7 +582,8 @@ func validateRefreshCookiePolicy(cfg AuthConfig) error {
 }
 
 // defaultDocsEnabledForEnv 根据应用环境判断是否启用文档页面。
-// @returns 在本地类环境或测试环境下返回 true，其他环境返回 false。
+// defaultDocsEnabledForEnv 根据应用环境判断是否启用文档。
+// 返回 true 表示应启用文档，false 表示不应启用文档。
 func defaultDocsEnabledForEnv(env string) bool {
 	switch classifyAppEnv(env) {
 	case appEnvLocalLike, appEnvTest:
@@ -588,7 +593,7 @@ func defaultDocsEnabledForEnv(env string) bool {
 	}
 }
 
-// ResolveLogFormat returns the concrete zap encoder format for the app environment and requested policy.
+// An explicit console or JSON format is preserved; automatic selection uses console for local-like environments and JSON otherwise.
 func ResolveLogFormat(appEnv string, format LogFormat) LogFormat {
 	switch normalizeLogFormat(format) {
 	case LogFormatConsole:
@@ -707,7 +712,7 @@ const (
 // normalizeIndexedStringList 规范化字符串列表并返回去重索引集。
 //
 // @param items 待规范化的字符串列表。
-// @returns 规范化后的字符串列表，以及以规范化值为键的集合。
+// normalizeIndexedStringList 规范化字符串列表，并构建以规范化值为键的集合。返回规范化后的列表及其集合。
 func normalizeIndexedStringList(items []string) ([]string, map[string]struct{}) {
 	normalized := normalizeStringList(items)
 	seen := make(map[string]struct{}, len(normalized))

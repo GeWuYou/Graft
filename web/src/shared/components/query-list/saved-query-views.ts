@@ -22,7 +22,12 @@ export type PersistedSavedQueryView<TId extends SavedQueryViewId = SavedQueryVie
   visible_columns: string[];
 };
 
-/** Normalizes an owner response into the shared query-view controller state. */
+/**
+ * 将持久化查询视图转换为共享的查询视图状态。
+ *
+ * @param view - 持久化的查询视图数据
+ * @returns 包含标识、名称以及分页大小、查询状态和可见列的标准化视图
+ */
 export function normalizeSavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId>(
   view: PersistedSavedQueryView<TId>,
 ): SavedQueryView<{ pageSize: number; queryState: TState; visibleColumns: string[] }, TId> {
@@ -37,7 +42,13 @@ export function normalizeSavedQueryView<TState, TId extends SavedQueryViewId = S
   };
 }
 
-/** Filters persisted column keys against the current list's supported columns. */
+/**
+ * 根据当前列表支持的列筛选已保存的列键。
+ *
+ * @param visibleColumns - 已保存的可见列键
+ * @param supportedColumns - 当前列表支持的列键
+ * @returns 仅包含当前列表支持的列键
+ */
 export function resolveSavedQueryViewColumns(visibleColumns: string[], supportedColumns: Iterable<string>) {
   const supported = new Set(supportedColumns);
   return visibleColumns.filter((key) => supported.has(key));
@@ -49,7 +60,12 @@ export type SavedQueryViewPresentationTarget = {
   visibleColumnKeys: Ref<string[]>;
 };
 
-/** Restores page-size and supported column preferences without restoring the current page. */
+/**
+ * 应用保存的分页大小和可见列偏好，并将当前页重置为第一页。
+ *
+ * @param state - 保存的分页大小和可见列配置
+ * @param target - 接收展示配置的目标对象
+ */
 export function applySavedQueryViewPresentation(
   state: { pageSize: number; visibleColumns: string[] },
   target: SavedQueryViewPresentationTarget,
@@ -98,8 +114,10 @@ export type SavedQueryViewController<TState, TId extends SavedQueryViewId = Save
 };
 
 /**
- * Manages private, server-persisted query views while keeping a page's filter
- * serialization and error presentation in that page's ownership.
+ * 管理服务端持久化的私有查询视图及其选择、应用、保存和删除操作。
+ *
+ * @param options - 配置视图适配器、当前状态序列化方式、视图应用行为及操作回调
+ * @returns 用于管理查询视图、选中状态和异步操作状态的控制器
  */
 export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQueryViewId>(
   options: UseSavedQueryViewsOptions<TState, TId>,
@@ -115,6 +133,11 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
   const hasSelectedView = computed(() => selectedView.value !== undefined);
   const isBusy = computed(() => loading.value || submitting.value || deleting.value || applying.value);
 
+  /**
+   * 加载并更新已保存的查询视图列表。
+   *
+   * @returns 成功加载时为 `true`，发生错误时为 `false`。
+   */
   async function load() {
     loading.value = true;
     try {
@@ -133,6 +156,12 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
     }
   }
 
+  /**
+   * 选择并应用指定的已保存查询视图。
+   *
+   * @param id - 要选择的视图标识；传入 `undefined` 可清除当前选择
+   * @returns `true` 表示选择或应用成功，`false` 表示视图不存在或应用失败
+   */
   async function select(id: SavedQueryViewId | undefined) {
     if (id === undefined) {
       selectedId.value = undefined;
@@ -159,6 +188,13 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
     }
   }
 
+  /**
+   * 创建或更新当前查询视图。
+   *
+   * @param name - 查询视图名称，首尾空白会被移除
+   * @param mode - 保存模式，创建新视图或更新当前选中的视图
+   * @returns `true` if 保存成功，`false` otherwise
+   */
   async function save(name: string, mode: 'create' | 'update') {
     const normalizedName = name.trim();
     if (!normalizedName || (mode === 'update' && !selectedView.value)) {
@@ -193,6 +229,11 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
     }
   }
 
+  /**
+   * 删除当前选中的查询视图。
+   *
+   * @returns 删除成功时为 `true`，未选中视图或删除失败时为 `false`
+   */
   async function removeSelected() {
     const view = selectedView.value;
     if (!view) {

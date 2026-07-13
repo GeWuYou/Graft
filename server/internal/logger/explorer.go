@@ -101,6 +101,7 @@ type appLogExplorerRouteDependencies struct {
 	savedViews  moduleapi.SavedViewService
 }
 
+// registerAppLogExplorerPermissions registers the application log read and delete permissions.
 func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	if registry == nil {
 		return
@@ -139,6 +140,8 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 	})
 }
 
+// registerAppLogExplorerRoutes 注册应用日志浏览器的权限守卫、列表、已保存视图、详情及删除路由。
+// 当必需依赖缺失时返回错误；路由注册成功时返回 nil。
 func registerAppLogExplorerRoutes(router gin.IRouter, dependencies appLogExplorerRouteDependencies) error {
 	if router == nil {
 		return errors.New("app log explorer router is required")
@@ -170,7 +173,7 @@ func registerAppLogExplorerRoutes(router gin.IRouter, dependencies appLogExplore
 	return nil
 }
 
-// RegisterAppLogExplorer registers the logger-owned App Log Explorer messages, permission, menu, and routes.
+// It returns an error if route registration fails.
 func RegisterAppLogExplorer(
 	ctx AppLogExplorerRegistration,
 	router gin.IRouter,

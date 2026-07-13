@@ -57,6 +57,8 @@ type appLogRetentionCleaner struct {
 	now    func() time.Time
 }
 
+// newAppLogRetentionCleaner creates an application log retention cleaner with the
+// provided logging and repository dependencies. It returns an error when repo is nil.
 func newAppLogRetentionCleaner(
 	logger *zap.Logger,
 	appLogger AppLogger,
@@ -215,6 +217,7 @@ func (c *appLogRetentionCleaner) retentionDuration(config appLogRetentionJobConf
 	return time.Duration(appLogRetentionDefaultDays) * hoursPerDay * time.Hour
 }
 
+// normalizedAppLogRetentionBatchSize 返回配置中的批量大小；未配置有效值时返回默认批量大小。
 func normalizedAppLogRetentionBatchSize(config appLogRetentionJobConfig) int {
 	if config.BatchSize > 0 {
 		return config.BatchSize
@@ -332,7 +335,10 @@ func RegisterAppLogRetentionConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-// RegisterAppLogRetentionCleanupJob registers the logger-owned app-log cleanup job.
+// RegisterAppLogRetentionCleanupJob 注册应用日志保留清理任务及其试运行估算操作。
+// @param registry 用于注册任务的定时任务注册表。
+// @param repo 用于查询和删除应用日志的存储库。
+// @return 注册成功时返回 nil；注册表为空或清理器创建失败时返回错误。
 func RegisterAppLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,

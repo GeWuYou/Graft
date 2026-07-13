@@ -87,7 +87,8 @@ type containerServiceOptions struct {
 
 // newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
 // newContainerService 根据模块上下文解析配置和依赖，并创建容器服务。
-// 解析必需依赖失败时返回错误。
+// newContainerService 根据模块上下文创建容器服务并解析其必需依赖。
+// 必需依赖解析失败时返回错误；运行时目标读取失败不会阻止服务创建。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	systemConfig := resolveSystemConfigResolver(ctx)

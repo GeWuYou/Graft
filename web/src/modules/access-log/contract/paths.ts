@@ -11,6 +11,12 @@ export const ACCESS_LOG_API_PATH = {
   SAVED_VIEW: '/api/access-log/saved-views/{viewId}',
 } as const;
 
+/**
+ * 构建指定已保存视图的访问日志 API 路径。
+ *
+ * @param viewId - 已保存视图的数字 ID
+ * @returns 替换视图 ID 后的 API 路径
+ */
 export function buildAccessLogSavedViewApiPath(viewId: number) {
   return ACCESS_LOG_API_PATH.SAVED_VIEW.replace('{viewId}', String(viewId));
 }

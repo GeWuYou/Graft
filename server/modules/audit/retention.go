@@ -53,6 +53,8 @@ type auditLogRetentionCleaner struct {
 	now     func() time.Time
 }
 
+// newAuditLogRetentionCleaner creates an audit log retention cleaner for the specified service.
+// A nil logger is replaced with a no-op logger.
 func newAuditLogRetentionCleaner(
 	logger *zap.Logger,
 	service *Service,
@@ -257,6 +259,7 @@ func registerAuditLogRetentionConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// registerAuditLogRetentionCleanupJob registers the audit log retention cleanup job and its dry-run action.
 func registerAuditLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,

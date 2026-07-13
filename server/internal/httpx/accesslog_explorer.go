@@ -81,6 +81,7 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 	})
 }
 
+// registerAccessLogExplorerRoutes registers the access-log explorer routes and returns an error when a required dependency is missing.
 func registerAccessLogExplorerRoutes(router gin.IRouter, dependencies accessLogExplorerRouteDependencies) error {
 	if router == nil || dependencies.repo == nil || dependencies.authService == nil || dependencies.authorizer == nil || dependencies.savedViews == nil {
 		return errors.New("access-log explorer dependencies are required")
@@ -98,7 +99,7 @@ func registerAccessLogExplorerRoutes(router gin.IRouter, dependencies accessLogE
 	return nil
 }
 
-// RegisterAccessLogExplorer 把 access-log explorer 的消息、权限、菜单和路由注册到 core runtime。
+// RegisterAccessLogExplorer 将访问日志浏览器的权限、菜单和 HTTP 路由注册到核心运行时，并返回路由注册过程中发生的错误。
 func RegisterAccessLogExplorer(
 	ctx AccessLogExplorerRegistration,
 	router gin.IRouter,
@@ -119,6 +120,8 @@ func RegisterAccessLogExplorer(
 	})
 }
 
+// handleListAccessLogs 创建访问日志列表请求处理器。
+// 请求参数无效时返回 400，查询失败时返回 500，查询成功时返回访问日志列表。
 func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		query, invalidField := bindAccessLogListQuery(ctx)

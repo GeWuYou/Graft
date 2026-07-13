@@ -48,6 +48,8 @@ type accessLogRetentionJobConfig struct {
 	BatchSize     int `json:"batchSize"`
 }
 
+// accessLogRetentionCutoff calculates the UTC timestamp before which access logs are eligible for retention cleanup.
+// It returns an error when the retention duration is not positive, the current time is zero, or the calculated cutoff is not earlier than the current time.
 func accessLogRetentionCutoff(now time.Time, retention time.Duration) (time.Time, error) {
 	if retention <= 0 {
 		return time.Time{}, errors.New("access log retention must be greater than zero")
@@ -70,6 +72,8 @@ type accessLogRetentionCleaner struct {
 	now    func() time.Time
 }
 
+// newAccessLogRetentionCleaner creates an access log retention cleaner with the specified logger and repository.
+// A nil logger is replaced with a no-op logger; a nil repository produces an error.
 func newAccessLogRetentionCleaner(
 	logger *zap.Logger,
 	repo AccessLogRepository,
@@ -191,6 +195,7 @@ func (c *accessLogRetentionCleaner) retentionDuration(config accessLogRetentionJ
 	return time.Duration(accessLogRetentionDefaultDays) * hoursPerDay * time.Hour
 }
 
+// normalizedAccessLogRetentionBatchSize returns the configured batch size or the default batch size when the configured value is zero or negative.
 func normalizedAccessLogRetentionBatchSize(config accessLogRetentionJobConfig) int {
 	if config.BatchSize > 0 {
 		return config.BatchSize
@@ -303,7 +308,7 @@ func RegisterAccessLogRetentionConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-// RegisterAccessLogRetentionCleanupJob registers the bounded httpx-owned access-log cleanup job.
+// RegisterAccessLogRetentionCleanupJob registers the scheduled access-log retention cleanup job and its dry-run action.
 func RegisterAccessLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,

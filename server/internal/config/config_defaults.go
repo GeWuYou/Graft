@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// 它会为应用标识、HTTP、WebSocket、模块开关、数据库、Redis、日志、Gin 模式、i18n、鉴权以及容器运维相关配置设置默认值。
+// setDefaults 为应用及其依赖服务注册默认配置值。
 func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)

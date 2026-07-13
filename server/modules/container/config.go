@@ -72,7 +72,7 @@ func registerConfigDefinitions(registry *configregistry.Registry) error {
 	return nil
 }
 
-// configDefinitions 按注册顺序构建所有容器配置定义，并在末尾追加资源统计相关定义。
+// configDefinitions 按注册顺序构建所有容器配置定义，并追加资源统计相关配置定义。
 func configDefinitions() []configregistry.Definition {
 	definitions := []configregistry.Definition{
 		containerBooleanDefinition(containerDefinitionSpec{
@@ -150,7 +150,7 @@ func configDefinitions() []configregistry.Definition {
 }
 
 // containerResourceStatsDefinitions 返回资源统计缓存相关的容器配置定义。
-// 这些定义包括缓存 TTL、缓存失效窗口和采集间隔。
+// containerResourceStatsDefinitions 返回容器资源统计所需的缓存 TTL、缓存失效窗口和采集间隔配置定义。
 func containerResourceStatsDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
 		containerIntegerDefinition(containerIntegerDefinitionSpec{
@@ -192,7 +192,7 @@ func containerResourceStatsDefinitions() []configregistry.Definition {
 	}
 }
 
-// containerEnvironmentPolicyDefinition builds a configuration definition for the container environment policy.
+// containerEnvironmentPolicyDefinition builds the hot-reloadable configuration definition for the container environment policy.
 func containerEnvironmentPolicyDefinition() configregistry.Definition {
 	definition := baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerEnvironmentPolicyConfig.String(),
@@ -346,7 +346,7 @@ func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 }
 
 // containerEnvironmentPolicySchema 生成环境策略配置的 JSON schema。
-// 返回值包含 hidden、masked、plain 三个枚举选项及其国际化元数据。
+// containerEnvironmentPolicySchema 构造包含 hidden、masked 和 plain 枚举选项及其国际化元数据的 JSON Schema。
 func containerEnvironmentPolicySchema() json.RawMessage {
 	key := containercontract.ContainerEnvironmentPolicyConfig.String()
 	hiddenPolicy := containercontract.ContainerEnvironmentPolicyHidden.String()
@@ -418,7 +418,7 @@ func containerIntegerSchema(key string, defaultValue int, minimum int, maximum i
 }
 
 // containerIntegerUnitKey 返回容器整数配置对应的单位键。
-// 资源统计缓存 TTL 和陈旧窗口使用秒单位，其它整数配置使用行单位。
+// containerIntegerUnitKey 返回配置项整数值对应的单位消息键。对于资源统计缓存 TTL、陈旧窗口和采集间隔返回秒单位键；对于其他整数配置返回行单位键。
 func containerIntegerUnitKey(key string) string {
 	switch key {
 	case containercontract.ContainerResourceStatsCacheTTLConfig.String(),
@@ -430,6 +430,7 @@ func containerIntegerUnitKey(key string) string {
 	}
 }
 
+// containerConfigTitleKey returns the localization key for a container configuration title.
 func containerConfigTitleKey(key string) string {
 	return "systemConfig.container." + key + ".title"
 }

@@ -1052,7 +1052,7 @@ func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDe
 // 它解析 source_kind、drift_status、limit 和 offset，并在分页参数无效时中止请求。
 //
 // bindListParams 解析并校验项目列表查询参数。
-// 参数无效时中止请求并返回 false；否则返回解析后的参数和 true.
+// bindListParams 解析项目列表查询参数；参数无效时中止请求并返回 false，否则返回解析后的参数和 true。
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := generated.GetProjectsParams{
@@ -1095,13 +1095,14 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	return params, true
 }
 
-// projectListSortValues returns repeated sort values from either canonical or bracketed query keys.
+// projectListSortValues returns the sort values provided through canonical or bracketed query keys.
 func projectListSortValues(query url.Values) []string {
 	values := append([]string(nil), query["sort"]...)
 	values = append(values, query["sort[]"]...)
 	return values
 }
 
+// 查询中未提供排序值时返回 nil；排序值无效或存在多个值时返回 false。
 func bindProjectListSort(query url.Values) (*generated.ProjectListSort, bool) {
 	rawSorts := projectListSortValues(query)
 	if len(rawSorts) == 0 {
@@ -1118,6 +1119,7 @@ func bindProjectListSort(query url.Values) (*generated.ProjectListSort, bool) {
 	return &sorts, true
 }
 
+// projectListSortParamValue returns the first sort value, or an empty string when no sort value is provided.
 func projectListSortParamValue(values *generated.ProjectListSort) string {
 	if values == nil || len(*values) == 0 {
 		return ""
@@ -1125,6 +1127,7 @@ func projectListSortParamValue(values *generated.ProjectListSort) string {
 	return string((*values)[0])
 }
 
+// 返回包含有效筛选条件的参数；任一参数无效时中止请求并返回 false。
 func bindListFilterParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	query := ginCtx.Request.URL.Query()
 	params := generated.GetProjectsParams{}

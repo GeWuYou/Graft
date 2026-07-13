@@ -87,6 +87,11 @@ export function useAdvancedQuerySorterControlsForModel<
   });
 }
 
+/**
+ * 创建高级查询构建器事件监听器映射。
+ *
+ * @returns 按事件名称映射的构建器事件处理函数
+ */
 export function createAdvancedQueryBuilderListeners<TPreset extends string, TFieldKey extends string, TTimeValue>(
   config: BuilderListenerConfig<TPreset, TFieldKey, TTimeValue>,
 ) {
@@ -185,6 +190,12 @@ function buildAdvancedQueryFilterBuilderFrame(
   };
 }
 
+/**
+ * 创建包含筛选、排序和时间范围信息的高级查询构建器框架状态。
+ *
+ * @param config - 提供查询构建器各项状态、选项和事件监听器的配置
+ * @returns 聚合后的高级查询构建器框架状态
+ */
 function createAdvancedQueryFilterBuilderFrameState(config: {
   activePreset: () => string;
   fieldValues: () => Record<string, string | string[]>;
@@ -223,6 +234,12 @@ function createAdvancedQueryFilterBuilderFrameState(config: {
   );
 }
 
+/**
+ * 将查询构建器的数据源适配为框架状态。
+ *
+ * @param config - 提供筛选字段、监听器、排序器状态及查询数据源的配置
+ * @returns 聚合后的高级查询筛选构建器框架状态
+ */
 export function createAdvancedQueryFilterBuilderFrameStateFromSource(config: {
   fieldValues: () => Record<string, string | string[]>;
   fields: () => AdvancedQueryFilterFieldDefinition[];

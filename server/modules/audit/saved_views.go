@@ -31,6 +31,8 @@ var auditLogSavedViewQueryFields = map[string]httpx.SavedViewQueryValueKind{
 	"created_to": httpx.SavedViewQueryString, "sort": httpx.SavedViewQueryStringSlice,
 }
 
+// validateAuditLogSavedView validates the name, page size, query state, and visible columns in an audit-log saved-view request.
+// It returns moduleapi.ErrSavedViewInvalidInput when any field is invalid.
 func validateAuditLogSavedView(request httpx.SavedViewRequest) error {
 	if strings.TrimSpace(request.Name) == "" || request.PageSize < 1 || request.PageSize > maxPageSize || !json.Valid(request.QueryState) {
 		return moduleapi.ErrSavedViewInvalidInput
@@ -49,6 +51,7 @@ func validateAuditLogSavedView(request httpx.SavedViewRequest) error {
 	return nil
 }
 
+// registerAuditSavedViewRoutes registers the audit-log saved-view CRUD routes on the provided router group.
 func registerAuditSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, guard gin.HandlerFunc, service moduleapi.SavedViewService) {
 	group.GET("/logs/saved-views", guard, handleListAuditSavedViews(ctx.I18n, service))
 	group.POST("/logs/saved-views", guard, handleCreateAuditSavedView(ctx.I18n, service))
@@ -56,6 +59,8 @@ func registerAuditSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, g
 	group.DELETE("/logs/saved-views/:viewId", guard, handleDeleteAuditSavedView(ctx.I18n, service))
 }
 
+// handleListAuditSavedViews creates a handler that lists audit-log saved views for the current owner.
+// It writes an invalid-input error when the owner or service is unavailable and propagates service errors.
 func handleListAuditSavedViews(localizer *i18n.Service, service moduleapi.SavedViewService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		owner, ok := httpx.SavedViewOwnerID(ctx)
@@ -72,6 +77,7 @@ func handleListAuditSavedViews(localizer *i18n.Service, service moduleapi.SavedV
 	}
 }
 
+// handleCreateAuditSavedView creates a saved view for the current owner and writes the created view in the response.
 func handleCreateAuditSavedView(localizer *i18n.Service, service moduleapi.SavedViewService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		owner, ownerOK := httpx.SavedViewOwnerID(ctx)
@@ -96,6 +102,7 @@ func handleCreateAuditSavedView(localizer *i18n.Service, service moduleapi.Saved
 	}
 }
 
+// handleUpdateAuditSavedView returns a handler that validates and updates an audit-log saved view for the current owner.
 func handleUpdateAuditSavedView(localizer *i18n.Service, service moduleapi.SavedViewService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		owner, ownerOK := httpx.SavedViewOwnerID(ctx)
@@ -121,6 +128,8 @@ func handleUpdateAuditSavedView(localizer *i18n.Service, service moduleapi.Saved
 	}
 }
 
+// handleDeleteAuditSavedView 返回删除审计日志保存视图的 HTTP 处理器。
+// 删除成功时返回 204 No Content；输入无效或服务删除失败时返回相应错误。
 func handleDeleteAuditSavedView(localizer *i18n.Service, service moduleapi.SavedViewService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		owner, ownerOK := httpx.SavedViewOwnerID(ctx)
@@ -137,6 +146,8 @@ func handleDeleteAuditSavedView(localizer *i18n.Service, service moduleapi.Saved
 	}
 }
 
+// writeAuditSavedViewList 将保存的审计日志视图列表写入成功响应。
+// 如果视图转换失败，则写入相应的错误响应。
 func writeAuditSavedViewList(ctx *gin.Context, localizer *i18n.Service, views []moduleapi.SavedView) {
 	items := make([]httpx.SavedViewResponse, 0, len(views))
 	for _, view := range views {
@@ -150,6 +161,7 @@ func writeAuditSavedViewList(ctx *gin.Context, localizer *i18n.Service, views []
 	httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{"items": items})
 }
 
+// writeAuditSavedView 将保存视图转换为响应格式，并写入成功或错误响应。
 func writeAuditSavedView(ctx *gin.Context, localizer *i18n.Service, status int, view moduleapi.SavedView) {
 	mapped, err := httpx.ToSavedViewResponse(view)
 	if err != nil {

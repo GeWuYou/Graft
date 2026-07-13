@@ -63,11 +63,22 @@ export function getAuditLogDetail(id: number) {
   }) as Promise<AuditLogDetailResponse>;
 }
 
+/**
+ * 获取审计保存视图列表。
+ *
+ * @returns 审计保存视图数组
+ */
 export async function getAuditSavedViews(): Promise<AuditSavedView[]> {
   const data = await request.get<GetAuditSavedViewsResponseData>({ url: AUDIT_API_PATH.SAVED_VIEWS });
   return data.items;
 }
 
+/**
+ * 创建审计保存视图。
+ *
+ * @param payload - 保存视图的请求数据
+ * @returns 创建的审计保存视图
+ */
 export function postAuditSavedView(payload: AuditSavedViewRequest) {
   return request.post<PostAuditSavedViewResponseData>({
     url: AUDIT_API_PATH.SAVED_VIEWS,
@@ -75,6 +86,13 @@ export function postAuditSavedView(payload: AuditSavedViewRequest) {
   }) as Promise<AuditSavedView>;
 }
 
+/**
+ * 更新指定的审计保存视图。
+ *
+ * @param viewId - 要更新的保存视图标识
+ * @param payload - 保存视图的更新内容
+ * @returns 更新后的审计保存视图
+ */
 export function putAuditSavedView(viewId: number, payload: AuditSavedViewRequest) {
   return request.put<PutAuditSavedViewResponseData>({
     url: buildAuditSavedViewApiPath(viewId),
@@ -82,6 +100,11 @@ export function putAuditSavedView(viewId: number, payload: AuditSavedViewRequest
   }) as Promise<AuditSavedView>;
 }
 
+/**
+ * 删除指定的审计保存视图。
+ *
+ * @param viewId - 要删除的保存视图 ID
+ */
 export function deleteAuditSavedView(viewId: number) {
   return request.delete({ url: buildAuditSavedViewApiPath(viewId) });
 }

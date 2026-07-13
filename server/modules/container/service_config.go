@@ -32,7 +32,8 @@ type containerRuntimeOptions struct {
 type configIntSetter func(int)
 type configValueLoader[T any] func(*module.Context, string) (T, bool)
 
-// containerOptionsFromConfig builds deployment runtime options and System Config policy defaults.
+// containerOptionsFromConfig 根据默认值和上下文配置构建容器运行时选项。
+// 当上下文或配置值不可用时，使用对应的默认值。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
 		enabled:                              defaultContainerEnabled,
@@ -111,6 +112,7 @@ func applyContainerEnvironmentPolicyDefault(ctx *module.Context, key string, tar
 	}
 }
 
+// applyContainerBoolDefault 将配置中的布尔默认值应用到目标变量；目标为空或默认值缺失、无效时不作修改。
 func applyContainerBoolDefault(ctx *module.Context, key string, target *bool) {
 	if target != nil {
 		applyContainerLoadedDefault(ctx, key, containerDefaultJSONValue[bool], func(value bool) {
@@ -141,6 +143,8 @@ func applyContainerIntDefaultWithSetter(ctx *module.Context, key string, set con
 	set(value)
 }
 
+// applyContainerLoadedDefault 在成功加载配置值时将其应用到目标设置函数。
+// 配置值加载失败或加载器、设置函数为空时不执行任何操作。
 func applyContainerLoadedDefault[T any](
 	ctx *module.Context,
 	key string,
@@ -157,7 +161,8 @@ func applyContainerLoadedDefault[T any](
 	set(value)
 }
 
-// containerDefaultValue 从模块上下文的配置注册表中检索指定配置项的默认值，返回对应的 JSON 消息及该值是否存在的标志。
+// containerDefaultValue 从配置注册表中获取指定配置项的默认 JSON 值。
+// 如果上下文、配置注册表、配置项或默认值不存在，则返回 false。
 func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bool) {
 	if ctx == nil || ctx.ConfigRegistry == nil {
 		return nil, false
@@ -169,7 +174,7 @@ func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bo
 	return definition.DefaultValue, true
 }
 
-// resolveSystemConfigResolver resolves the system config resolver from the module context's services, returning nil if unavailable or unresolved.
+// resolveSystemConfigResolver 从模块上下文的服务中解析系统配置解析器；服务不可用或解析结果无效时返回 nil。
 func resolveSystemConfigResolver(ctx *module.Context) moduleapi.SystemConfigResolver {
 	if ctx == nil || ctx.Services == nil {
 		return nil
