@@ -106,14 +106,26 @@ func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
 	}
 }
 
-func TestEnsureComposeTargetAvailableBlocksOccupiedProjectName(t *testing.T) {
+func TestEnsureLifecycleRuntimeTargetAvailableAllowsRegisteredComposeName(t *testing.T) {
 	service, err := NewService(&stubProjectRepository{}, WithRuntimeTargetReader(composeTargetReader(moduleapi.ComposeProjectNameStateOccupied)))
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
 	targetID := uint64(7)
-	err = service.ensureComposeTargetAvailable(context.Background(), projectstore.ProjectAggregate{Project: projectstore.Project{RuntimeTargetID: &targetID, ComposeProjectName: "demo"}})
-	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
-		t.Fatalf("expected occupied project name to block deployment, got %v", err)
+	err = service.ensureLifecycleRuntimeTargetAvailable(context.Background(), projectstore.ProjectAggregate{Project: projectstore.Project{RuntimeTargetID: &targetID, ComposeProjectName: "demo"}})
+	if err != nil {
+		t.Fatalf("expected registered project lifecycle to ignore its occupied Compose name, got %v", err)
+	}
+}
+
+func TestEnsureLifecycleRuntimeTargetAvailableRejectsUnavailableTarget(t *testing.T) {
+	service, err := NewService(&stubProjectRepository{}, WithRuntimeTargetReader(composeTargetReader(moduleapi.ComposeProjectNameStateUnavailable)))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	targetID := uint64(7)
+	err = service.ensureLifecycleRuntimeTargetAvailable(context.Background(), projectstore.ProjectAggregate{Project: projectstore.Project{RuntimeTargetID: &targetID}})
+	if !errors.Is(err, errProjectRuntimeUnavailable) {
+		t.Fatalf("expected unavailable runtime target to block lifecycle, got %v", err)
 	}
 }

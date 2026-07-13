@@ -202,7 +202,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	if err := s.ensureComposeTargetAvailable(ctx, aggregate); err != nil {
+	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
@@ -319,7 +319,7 @@ func (s *Service) executeLifecycleActionWithAggregate(
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		return lifecycleBlockedResult(aggregate, action, err), err
 	}
-	if err := s.ensureComposeTargetAvailable(ctx, aggregate); err != nil {
+	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
 		return lifecycleBlockedResult(aggregate, action, err), err
 	}
 	if err := ensureLifecycleCommandArgs(args); err != nil {
@@ -348,10 +348,11 @@ func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.
 	return s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, args)
 }
 
-// ensureComposeTargetAvailable performs the dynamic readiness check immediately before
-// a lifecycle command is submitted or executed. Creation intentionally permits an
-// unavailable target so the workspace can be prepared ahead of runtime recovery.
-func (s *Service) ensureComposeTargetAvailable(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
+// ensureLifecycleRuntimeTargetAvailable verifies the selected Runtime Target is
+// reachable before a registered project submits or executes lifecycle work.
+// Compose-name occupancy is intentionally a creation-only guard: the registered
+// project normally owns runtime resources carrying its own Compose name.
+func (s *Service) ensureLifecycleRuntimeTargetAvailable(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
 	if s == nil || s.runtimeTargets == nil {
 		return nil
 	}
@@ -366,21 +367,7 @@ func (s *Service) ensureComposeTargetAvailable(ctx context.Context, aggregate pr
 	if err != nil || !target.Available {
 		return errProjectRuntimeUnavailable
 	}
-	name := nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName)
-	return s.ensureComposeProjectNameAvailableForLifecycle(ctx, *aggregate.Project.RuntimeTargetID, name)
-}
-
-func (s *Service) ensureComposeProjectNameAvailableForLifecycle(ctx context.Context, targetID uint64, name string) error {
-	switch s.composeProjectNameState(ctx, targetID, name) {
-	case moduleapi.ComposeProjectNameStateAvailable:
-		return nil
-	case moduleapi.ComposeProjectNameStateOccupied:
-		return errors.Join(errProjectConflict, errProjectComposeNameOccupied)
-	case moduleapi.ComposeProjectNameStateUnavailable:
-		return errProjectRuntimeUnavailable
-	default:
-		return errProjectRuntimeUnavailable
-	}
+	return nil
 }
 
 func (s *Service) runDockerCommand(ctx context.Context, workingDirectory string, args []string) (string, error) {
@@ -536,7 +523,7 @@ func (s *Service) ensureRedeployReady(ctx context.Context, aggregate projectstor
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		return err
 	}
-	return s.ensureComposeTargetAvailable(ctx, aggregate)
+	return s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate)
 }
 
 func (s *Service) runRedeployComposeStep(
@@ -815,7 +802,7 @@ func (s *Service) batchLifecycleItem(
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
 	}
-	if err := s.ensureComposeTargetAvailable(ctx, aggregate); err != nil {
+	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
 		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
 	}
 	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)

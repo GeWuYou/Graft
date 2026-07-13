@@ -5,6 +5,7 @@
         "invalidArgument": "Invalid project request.",
         "invalidCanonicalProjectName": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
         "conflict": "Project action is blocked by a conflicting project state.",
+        "composeProjectNameOccupied": "The Compose project name is already in use on the selected Runtime Target.",
         "notFound": "Project was not found.",
         "unsupportedLifecycle": "Project lifecycle action is not available for the current project state.",
         "importValidationFailed": "Project import inspection failed validation.",

@@ -2046,6 +2046,14 @@ async function handleRowAction(action: string, row: ProjectListItemWithLifecycle
   gap: var(--graft-density-gap-16);
 }
 
+.project-page :deep(.t-table__body > tr:not(.t-table__row--active)) {
+  background-color: var(--td-bg-color-container);
+}
+
+.project-page :deep(.t-table__body > tr:not(.t-table__row--active):hover) {
+  background-color: var(--td-bg-color-container-hover);
+}
+
 .project-table-head {
   align-items: center;
   gap: var(--graft-density-gap-16);
