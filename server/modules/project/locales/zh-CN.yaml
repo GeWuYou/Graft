@@ -36,10 +36,10 @@ rbac.permissionCatalog.projectDiscoveryView.description: 预览本机发现到�
 rbac.permissionCatalog.projectDeploy.display: 部署受管 Compose 项目草稿
 rbac.permissionCatalog.projectDeploy.description: 对受管项目配置草稿执行 diff、validate 和 deploy。
 ops.project.discovery.candidates.ready: 项目发现候选预览已就绪。
-systemConfig.project.ops.project.managed.root_directory.title: 受管项目根目录
-systemConfig.project.ops.project.managed.root_directory.description: 受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。
-systemConfig.groups.ops.project.create: 项目创建
-systemConfig.groups.ops.project.create.description: 管理受管项目创建流程的 authority 和根目录入口。
+systemConfig.project.ops.application.root_directory.title: 应用根目录
+systemConfig.project.ops.application.root_directory.description: 受管 Docker Compose 应用创建使用的根目录。留空表示禁用受管创建。
+systemConfig.groups.ops.application.create: 应用创建
+systemConfig.groups.ops.application.create.description: 管理受管应用创建流程的 authority 和根目录入口。
 systemConfig.project.ops.project.import.allowed_roots.title: 导入允许根目录
 systemConfig.project.ops.project.import.allowed_roots.description: 配置项目导入流程允许浏览的根目录 JSON 数组字符串。
 systemConfig.project.ops.project.workspace.hidden_directories.title: 工作台默认隐藏目录

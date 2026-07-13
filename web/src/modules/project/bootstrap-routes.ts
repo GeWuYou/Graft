@@ -9,6 +9,8 @@ const importRouteTitle = localizeRouteTitleKey('project.route.createImport.title
 const importBreadcrumbTitle = localizeRouteTitleKey('project.route.createImport.breadcrumb');
 const createRouteTitle = localizeRouteTitleKey('project.route.create.title');
 const createBreadcrumbTitle = localizeRouteTitleKey('project.route.create.breadcrumb');
+const createSourceRouteTitle = localizeRouteTitleKey('project.route.createSource.title');
+const createSourceBreadcrumbTitle = localizeRouteTitleKey('project.route.createSource.breadcrumb');
 const createDiscoveryRouteTitle = localizeRouteTitleKey('project.route.createDiscovery.title');
 const createDiscoveryBreadcrumbTitle = localizeRouteTitleKey('project.route.createDiscovery.breadcrumb');
 const createBlankRouteTitle = localizeRouteTitleKey('project.route.createBlank.title');
@@ -57,7 +59,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE,
     navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
-    loadPage: () => import('./pages/create/source-index.vue'),
+    loadPage: () => import('./pages/create/runtime-index.vue'),
     meta: {
       hidden: false,
       hiddenMenu: true,
@@ -71,6 +73,25 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createRouteTitle,
       title: createRouteTitle,
       titleKey: 'project.route.create.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
+    loadPage: () => import('./pages/create/source-index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: createSourceRouteTitle,
+      breadcrumbTitle: createSourceBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'application',
+      tabTitle: createSourceRouteTitle,
+      title: createSourceRouteTitle,
+      titleKey: 'project.route.createSource.title',
     },
   },
   {

@@ -1720,8 +1720,8 @@ func TestImportDirectorySourcesIncludeManagedRootAndAllowlistedRoot(t *testing.T
 	managedRoot := t.TempDir()
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			"ops.project.managed.root_directory": `"` + managedRoot + `"`,
-			"ops.project.import.allowed_roots":   `[{"id":"srv","label":"Srv","path":"/srv"}]`,
+			"ops.application.root_directory":   `"` + managedRoot + `"`,
+			"ops.project.import.allowed_roots": `[{"id":"srv","label":"Srv","path":"/srv"}]`,
 		},
 	}))
 	if err != nil {

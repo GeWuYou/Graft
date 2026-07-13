@@ -1,10 +1,10 @@
 # Compose项目管理设计
 
-本文档定义 `Graft` 对 Docker Compose Project 的产品 IA、模块边界、数据模型、导入语义、API 方向、风险边界与阶段路线。
+本文档定义 `Graft` 对 Docker Compose Application 的产品 IA、模块边界、数据模型、导入语义、API 方向、风险边界与阶段路线。
 
 该能力的核心定位必须保持稳定：
 
-- `Project` 是 Compose Project 的管理与聚合层，不是新的 Runtime。
+- `Application` 是用户可见的产品对象；当前 `Project` module 是 Docker Compose Application 的注册、聚合与生命周期实现 owner，不是新的 Runtime。
 - Application/Project 是 Compose 的唯一业务入口和生命周期 authority；`up`、`down`、`restart`、`redeploy` 不得迁入 Docker Provider 菜单。
 - `Container` 始终是 Runtime Authority。
 - `Project` 只负责项目注册、配置解析、生命周期管理和聚合入口。
@@ -69,8 +69,18 @@ Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用�
 
 ## 2.3 术语
 
+- `Application`
+  - 用户创建、查看和管理的业务资产；当前首期由 Compose Project registry 实现，不能把底层 `Project` module 名称当作 Runtime 或产品入口。
 - `Project`
-  - `Graft` 中的 Compose Project 注册与聚合对象。
+  - `Graft` 中 Docker Compose Application 的注册与聚合对象；是当前实现和持久化边界，不是通用 Runtime 抽象。
+- `Application Runtime`
+  - 应用的部署与生命周期语义，例如 `docker-compose`、`docker-swarm`、`kubernetes`、`podman-compose`、`nomad`。Docker Compose 与 Docker Swarm 是独立 Runtime，不能先选择 Docker 再进行二级分流。
+- `Application Source`
+  - 在已选择 Runtime 后，取得或构建 Application Workspace 的方式；首期 Docker Compose 支持 `blank`、`template`、`import`。它不是 Runtime、Provider 或菜单对象。
+- `Runtime Target`
+  - 应用实际绑定的运行目标，拥有连接与能力发现；当前 Compose Application 绑定 Docker Target。
+- `Runtime Provider`
+  - Target 的底层接入实现，例如 Docker；它属于 Infrastructure，不得替代 Application Runtime。
 - `Imported`
   - 指项目文件本来就存在于宿主机某个路径，`Graft` 只登记并管理它，不复制、不移动、不重写其布局。
 - `Managed`
@@ -83,6 +93,34 @@ Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用�
   - 最近一次成功解析的静态配置结果，不是运行时缓存。
 - `Drift`
   - 当前文件签名与最近一次成功刷新快照不一致的状态。
+
+## 2.4 Application 创建决策与 IA
+
+创建流程必须按两个正交决策组织，首屏只要求用户决定 Application 运行在哪里：
+
+```text
+Application list
+  -> Create Application
+  -> Application Runtime
+  -> Application Source
+  -> Docker Compose workspace / registry creation
+```
+
+首期 Runtime 选择页展示 `Docker Compose`、`Docker Swarm`、`Kubernetes`、`Podman Compose` 与 `Nomad`。仅 `Docker Compose` 是已实现且可点击的卡片；其余是不可点击、不可键盘触发的 disabled placeholder，hover/focus 必须说明“暂不支持，敬请期待”。disabled placeholder 是产品路线图，不得生成菜单、OpenAPI runtime catalog、provider contract、持久化枚举值或空实现 API。
+
+Docker Compose 之后才进入 `Application Source`：`blank`、`template`、`import`。来源只负责取得或物化 Workspace，随后进入同一 Compose Project creation pipeline；未来 Git、OCI Bundle 或 Helm Chart 等来源也不得反向改变 Runtime 选择页。
+
+UI route 的 canonical 语义固定为：
+
+| UI route | 页面和约束 |
+| --- | --- |
+| `/applications/projects/create` | Application Runtime picker；不在 URL 中暴露 Docker/Compose hierarchy |
+| `/applications/projects/create/source?runtime=docker-compose` | Docker Compose Application Source picker；无效或缺失 runtime 回到 Runtime picker |
+| `/applications/projects/create/blank?runtime=docker-compose` | Docker Compose 空白 Workspace 向导 |
+| `/applications/projects/create/template?runtime=docker-compose` | Docker Compose 模板向导 |
+| `/applications/projects/create/import?runtime=docker-compose` | Docker Compose 导入向导 |
+
+`/applications/projects/**` 保持 Application 领域 URL，`projects` 是当前 Compose registry 的稳定资源名；不得引入 `/docker/**`、`/compose/**` 或 `/kubernetes/**` 的创建层级。实现前尚未发版，不保留旧 `/create` 来源选择语义的 alias 或兼容 redirect。
 
 ## 3. 架构分析
 
@@ -980,10 +1018,11 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 managed root authority 约束：
 
-- canonical config key 固定为 `ops.project.managed.root_directory`
+- canonical config key 固定为 `ops.application.root_directory`
 - config owner 固定为 `server/modules/project/**`
-- root directory 必须是绝对路径
-- empty string 表示 managed create 尚未配置，不允许把“未配置”降级成 request payload fallback
+- 产品显示名为 `Application Root Directory` / `应用根目录`，默认值为 `/opt/graft/apps`
+- root directory 必须是 server container 内可见的绝对路径；它的宿主机 bind mount、预创建和运行用户写权限属于部署配置，不得由 System Config 伪造
+- empty string 是显式 override，表示禁用 managed creation；不得把它或“未配置”降级成 request payload fallback。此功能未发版，不保留 `ops.project.managed.root_directory` legacy key、alias 或双读。
 - Phase 2 真实 create 只能在该 managed root 下创建 `managed-root-dedicated` 目录
 
 managed create request 建议至少包含：
@@ -993,6 +1032,10 @@ managed create request 建议至少包含：
 - `relative_project_directory`
 - `compose_file_name`
 - `env_file_name?`
+
+`relative_project_directory` 的默认值由 Application 名称推导。例如 `halo` 默认生成 `/opt/graft/apps/halo`，UI 必须展示最终目录而无需用户先输入路径；用户可修改相对目录，但最终绝对路径始终由服务端以 `Application Root Directory + relative_project_directory` 生成。服务端必须拒绝绝对路径、`..` 逃逸、根目录自身作为项目目录、符号链接逃逸、冲突和不可写根目录。用户手工修改目录后不再被名称改写，并应可恢复默认推导值。
+
+采用受管默认目录符合主流自托管产品的共同策略：集中工作目录使权限、备份、迁移、冲突检测和受控销毁的边界可审计，同时仍为高级操作者保留受约束的子目录选择。公开部署材料可作为实现前复核依据：Portainer 的 Stack 文档将 Compose/Swarm/Kubernetes 按独立部署方式管理；[Dockge](https://github.com/louislam/dockge) 公开 `DOCKGE_STACKS_DIR` 工作目录配置；[Coolify](https://coolify.io/docs/installation) 安装到平台受管数据目录；[Dokploy](https://docs.dokploy.com/docs/core/installation) 以平台安装与数据目录管理其工作负载。Graft 不依赖这些产品的精确路径或内部实现，只采用“平台默认受管根目录、用户可在安全边界内覆盖”的产品原则。
 
 本批次明确不做：
 
@@ -1168,8 +1211,8 @@ Configuration workspace 的 authority 需要拆成两层：
   - 新增 managed-root config key contract
   - 新增 create route fragments
 - Project module config-definition owner：`server/modules/project/config.go`
-  - `ops.project.managed.root_directory` 成为 managed create 的 canonical system-config authority
-  - empty string 表示未配置，而不是隐式回退到仓库路径或用户 home
+  - `ops.application.root_directory` 成为 managed create 的 canonical system-config authority，显示为 `Application Root Directory` / `应用根目录`，默认 `/opt/graft/apps`
+  - empty string 是禁用 managed creation 的显式 override，而不是隐式回退到仓库路径或用户 home
 
 本批次仍明确不做：
 
@@ -1753,12 +1796,14 @@ IA guardrail:
 
 ## 18. 当前来源范围与扩展口
 
-当前公开且可执行的项目创建方式只有：
+当前公开且可执行的 Application Runtime 只有 `docker-compose`；它不是 Docker Provider 的同义词。Application Runtime picker 只为其提供可点击入口，Docker Swarm、Kubernetes、Podman Compose 与 Nomad 在各自真实 Target、Provider capability、lifecycle 和 Source adapter 落地前保持 disabled placeholder。
+
+当前公开且可执行的 Docker Compose Application Source 只有：
 
 - `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
 - `Template`：模块内置模板生成 Workspace。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
-`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。统一入口是 `/ops/projects/create`，三个向导路径分别为 `/ops/projects/create/blank`、`/ops/projects/create/template` 与 `/ops/projects/create/import`。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
+MVP 不新增 runtime catalog OpenAPI/schema。既有 managed-root 与相对目录 create contract 继续服务 Docker Compose；`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，来源页是 `/applications/projects/create/source?runtime=docker-compose`，三个向导路径分别为 `/applications/projects/create/blank?runtime=docker-compose`、`/applications/projects/create/template?runtime=docker-compose` 与 `/applications/projects/create/import?runtime=docker-compose`。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
 
-未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Creation Method -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。
+未来真实 Runtime 必须先由 canonical OpenAPI 定义 Runtime kind、Target capability、可用性和 stable reason code，再同时交付生命周期与 Source adapter；不得用本 MVP 的 disabled 卡片提前建立 wire model。未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Application Runtime -> Application Source -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

@@ -40,8 +40,12 @@
         "breadcrumb": "Import Existing Project"
       },
       "create": {
-        "title": "Create Project",
-        "breadcrumb": "Create Project"
+        "title": "Create Application",
+        "breadcrumb": "Create Application"
+      },
+      "createSource": {
+        "title": "Choose Application Source",
+        "breadcrumb": "Choose Application Source"
       },
       "createBlank": {
         "title": "Create Blank Project",
@@ -285,7 +289,7 @@
         "detail": "Detail",
         "operationMenu": "Actions",
         "import": "Import Existing Project",
-        "create": "Create Project",
+        "create": "Create Application",
         "refresh": "Refresh",
         "up": "Up",
         "stop": "Stop",
@@ -687,6 +691,7 @@
       "actions": {
         "backToList": "Back to List",
         "refreshAuthority": "Refresh Authority",
+        "resetDefaultDirectory": "Reset to Default Directory",
         "validate": "Validate Create Input",
         "create": "Create and Open Project",
         "reset": "Reset Form",
@@ -713,6 +718,7 @@
         "canonicalProjectNamePlaceholder": "Example: orders-dev",
         "relativeProjectDirectory": "Relative Project Directory",
         "relativeProjectDirectoryPlaceholder": "Example: orders/dev",
+        "resolvedDirectory": "Application Directory",
         "composeFileName": "Compose File Name",
         "composeFileNamePlaceholder": "Example: compose.yaml",
         "envFileName": "Env File Name",
@@ -796,9 +802,9 @@
       }
     },
     "creation": {
-      "eyebrow": "Create Project",
-      "title": "Create Project",
-      "description": "Choose how to initialize the project. Every method is managed as one Compose project afterward.",
+      "eyebrow": "Docker Compose",
+      "title": "Choose Application Source",
+      "description": "Choose how to initialize this Docker Compose application.",
       "availability": { "ready": "Available", "blocked": "Unavailable" },
       "blockedReasons": {
         "managed_root_unconfigured": "The managed project root is not configured, so blank projects cannot be created yet.",
@@ -842,11 +848,34 @@
       },
       "messages": { "loadFailed": "Project Creation Methods Could Not Be Loaded." }
     },
+    "runtime": {
+      "eyebrow": "Create Application",
+      "description": "Choose how this application runs.",
+      "status": { "supported": "Supported", "comingSoon": "Coming Soon" },
+      "unsupported": "Unavailable",
+      "unsupportedTooltip": "Not supported yet. Coming soon.",
+      "actions": { "select": "Select Runtime" },
+      "items": {
+        "dockerCompose": {
+          "title": "Docker Compose",
+          "description": "Manage a single-host application with Docker Compose."
+        },
+        "dockerSwarm": {
+          "title": "Docker Swarm",
+          "description": "Deploy a Swarm cluster application with Docker Stack."
+        },
+        "kubernetes": { "title": "Kubernetes", "description": "Manage Kubernetes workloads." },
+        "podmanCompose": { "title": "Podman Compose", "description": "Manage an application with Podman Compose." },
+        "nomad": { "title": "Nomad", "description": "Schedule application workloads with Nomad." }
+      }
+    },
     "sourceCreate": {
-      "templateDescription": "Create a managed project from a bundled Compose workspace template.",
+      "templateDescription": "Create a managed application from a bundled Compose workspace template.",
       "displayName": "Display Name",
       "canonicalName": "Canonical Project Name",
       "relativeDirectory": "Relative Directory",
+      "resolvedDirectory": "Application Directory",
+      "resetDefaultDirectory": "Reset to Default Directory",
       "repositoryUrl": "Repository URL",
       "reference": "Reference",
       "referencePlaceholder": "HEAD",
@@ -857,12 +886,12 @@
       "instanceName": "Template Instance Name",
       "lifecycleHint": "The standard project lifecycle configuration is initialized on creation. Creation does not deploy or start containers.",
       "validate": "Validate Source",
-      "create": "Create Project",
+      "create": "Create Application",
       "validated": "Source and target are valid: {directory}",
       "validateSuccess": "Source validation completed.",
       "validateFailed": "Source validation failed.",
-      "createSuccess": "Project created.",
-      "createFailed": "Project creation failed.",
+      "createSuccess": "Application created.",
+      "createFailed": "Application creation failed.",
       "deployAfterCreate": "Deploy after the project is created",
       "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment.",
       "deploySuccess": "Project deployed after creation.",

@@ -13,10 +13,10 @@
             <t-input v-model="form.display_name" />
           </t-form-item>
           <t-form-item :label="t('project.sourceCreate.canonicalName')" name="canonical_project_name">
-            <t-input v-model="form.canonical_project_name" />
+            <t-input v-model="form.canonical_project_name" @change="syncDefaultDirectory" />
           </t-form-item>
           <t-form-item :label="t('project.sourceCreate.relativeDirectory')" name="relative_project_directory">
-            <t-input v-model="form.relative_project_directory" />
+            <t-input v-model="form.relative_project_directory" @change="markDirectoryCustomized" />
           </t-form-item>
           <t-form-item :label="t('project.sourceCreate.template')" name="template_key">
             <t-select v-model="templateForm.template_key" :options="templateOptions" />
@@ -25,6 +25,15 @@
             <t-input v-model="templateForm.template_instance_name" :placeholder="form.canonical_project_name" />
           </t-form-item>
         </div>
+
+        <t-descriptions bordered size="small" :column="1" class="source-create__directory-preview">
+          <t-descriptions-item :label="t('project.sourceCreate.resolvedDirectory')">
+            <code>{{ resolvedDirectory }}</code>
+            <t-button size="small" variant="text" @click="resetDefaultDirectory">
+              {{ t('project.sourceCreate.resetDefaultDirectory') }}
+            </t-button>
+          </t-descriptions-item>
+        </t-descriptions>
 
         <t-alert theme="info" :message="t('project.sourceCreate.lifecycleHint')" class="source-create__notice" />
         <t-checkbox v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
@@ -55,7 +64,7 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -63,10 +72,19 @@ import { ManagementPageContent, ManagementPageHeader } from '@/shared/components
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore } from '@/store';
 
-import { postProjectCreateTemplate, postProjectCreateTemplateValidate, postProjectDeploy } from '../../api/project';
+import {
+  getProjectManagedRoot,
+  postProjectCreateTemplate,
+  postProjectCreateTemplateValidate,
+  postProjectDeploy,
+} from '../../api/project';
 import { PROJECT_PERMISSION_CODE } from '../../contract/permissions';
 import { createWithOptionalDeploy } from '../../shared/create-with-optional-deploy';
-import type { ProjectCreateValidateResponse, ProjectTemplateCreateRequest } from '../../types/project';
+import type {
+  ProjectCreateValidateResponse,
+  ProjectManagedRootResponse,
+  ProjectTemplateCreateRequest,
+} from '../../types/project';
 
 defineOptions({ name: 'ProjectSourceCreate' });
 
@@ -78,11 +96,42 @@ const creating = ref(false);
 const deployAfterCreate = ref(false);
 const validation = ref<ProjectCreateValidateResponse | null>(null);
 const form = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
+const managedRoot = ref<ProjectManagedRootResponse | null>(null);
+const directoryCustomized = ref(false);
 const templateForm = reactive({ template_key: 'empty-compose', template_version: 'v1', template_instance_name: '' });
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
 ]);
 const canDeployAfterCreate = computed(() => permissionStore.hasPermission(PROJECT_PERMISSION_CODE.DEPLOY));
+const resolvedDirectory = computed(() => {
+  const root = managedRoot.value?.configured_root_directory || '-';
+  return `${root}/${form.relative_project_directory || form.canonical_project_name || '-'}`;
+});
+
+onMounted(() => {
+  void loadManagedRoot();
+});
+
+async function loadManagedRoot() {
+  try {
+    managedRoot.value = await getProjectManagedRoot();
+  } catch {
+    managedRoot.value = null;
+  }
+}
+
+function syncDefaultDirectory() {
+  if (!directoryCustomized.value) form.relative_project_directory = form.canonical_project_name;
+}
+
+function markDirectoryCustomized() {
+  directoryCustomized.value = true;
+}
+
+function resetDefaultDirectory() {
+  directoryCustomized.value = false;
+  form.relative_project_directory = form.canonical_project_name;
+}
 
 function templatePayload(): ProjectTemplateCreateRequest {
   return { ...form, ...templateForm };
@@ -133,6 +182,10 @@ async function onCreate() {
 }
 
 .source-create__notice {
+  margin-top: var(--graft-density-gap-16);
+}
+
+.source-create__directory-preview {
   margin-top: var(--graft-density-gap-16);
 }
 

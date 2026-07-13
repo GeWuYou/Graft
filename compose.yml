@@ -58,6 +58,18 @@ services:
       GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
       GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-80},http://localhost:${GRAFT_WEB_HOST_PORT:-80}}
 
+  application-root-init:
+    image: ${GRAFT_SERVER_IMAGE}:${GRAFT_IMAGE_TAG}
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command: |
+      mkdir -p /opt/graft/apps
+      chown graft:graft /opt/graft/apps
+      chmod 0750 /opt/graft/apps
+    volumes:
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+
   server:
     image: ${GRAFT_SERVER_IMAGE}:${GRAFT_IMAGE_TAG}
     restart: unless-stopped
@@ -65,6 +77,8 @@ services:
       - .env
     depends_on:
       bootstrap:
+        condition: service_completed_successfully
+      application-root-init:
         condition: service_completed_successfully
     environment:
       GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
@@ -79,6 +93,7 @@ services:
       - "${GRAFT_SERVER_EXPOSE_PORT:-8080}"
     volumes:
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
+      - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
 
   web:
     image: ${GRAFT_WEB_IMAGE}:${GRAFT_IMAGE_TAG}

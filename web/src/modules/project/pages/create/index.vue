@@ -40,11 +40,17 @@
                 ><t-input
                   v-model="formData.relative_project_directory"
                   :placeholder="t('project.create.form.relativeProjectDirectoryPlaceholder')"
+                  @change="markDirectoryCustomized"
               /></t-form-item>
             </div>
             <t-descriptions bordered size="small" :column="1"
               ><t-descriptions-item :label="t('project.create.validation.rootDirectory')"
                 ><code>{{ managedRoot?.configured_root_directory || '-' }}</code></t-descriptions-item
+              ><t-descriptions-item :label="t('project.create.form.resolvedDirectory')"
+                ><code>{{ resolvedDirectory }}</code>
+                <t-button size="small" variant="text" @click="resetDefaultDirectory">{{
+                  t('project.create.actions.resetDefaultDirectory')
+                }}</t-button></t-descriptions-item
               ><t-descriptions-item :label="t('project.create.validation.createPermission')"
                 ><code>{{ managedRoot?.create_permission || '-' }}</code></t-descriptions-item
               ></t-descriptions
@@ -156,6 +162,7 @@ const deployAfterCreate = ref(false);
 const managedRoot = ref<ProjectManagedRootResponse | null>(null);
 const validationResult = ref<ProjectCreateValidateResponse | null>(null);
 const formData = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
+const directoryCustomized = ref(false);
 const workspaceFiles = ref<ProjectWorkspaceManifestFile[]>([
   { path: 'compose.yaml', content: defaultComposeContent() },
   { path: '.env', content: '' },
@@ -239,12 +246,15 @@ async function loadManagedRoot() {
   }
 }
 function syncDefaultDirectory() {
-  if (
-    !formData.relative_project_directory ||
-    formData.relative_project_directory === lifecycleDraft.canonical_project_name
-  )
-    formData.relative_project_directory = formData.canonical_project_name;
+  if (!directoryCustomized.value) formData.relative_project_directory = formData.canonical_project_name;
   lifecycleDraft.canonical_project_name = formData.canonical_project_name;
+}
+function markDirectoryCustomized() {
+  directoryCustomized.value = true;
+}
+function resetDefaultDirectory() {
+  directoryCustomized.value = false;
+  formData.relative_project_directory = formData.canonical_project_name;
 }
 async function nextFromIdentity() {
   const valid = await formRef.value?.validate();

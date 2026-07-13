@@ -39,6 +39,7 @@ describe('project bootstrap route registrations', () => {
     expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_IMPORT);
     expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_BLANK);
     expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_TEMPLATE);
+    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_SOURCE);
     expect(paths).not.toContain('/ops/projects/create/git');
     expect(paths).not.toContain('/ops/projects/create/remote-host');
   });

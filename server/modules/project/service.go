@@ -937,7 +937,7 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 
 // ManagedRoot reports the canonical managed-root authority for future managed-create flows.
 func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
-	definitionKey := projectcontract.ProjectManagedRootConfig.String()
+	definitionKey := projectcontract.ApplicationRootDirectoryConfig.String()
 	info := ManagedRootInfo{
 		SourceType:            "managed",
 		Status:                projectcontract.ManagedRootStatusUnconfigured.String(),

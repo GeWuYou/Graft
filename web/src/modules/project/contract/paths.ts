@@ -2,6 +2,7 @@ export const PROJECT_ROUTE_PATH = {
   LIST: '/applications/projects',
   CREATE_IMPORT: '/applications/projects/create/import',
   CREATE: '/applications/projects/create',
+  CREATE_SOURCE: '/applications/projects/create/source',
   CREATE_DISCOVERY: '/applications/projects/create/discovery',
   CREATE_BLANK: '/applications/projects/create/blank',
   CREATE_TEMPLATE: '/applications/projects/create/template',

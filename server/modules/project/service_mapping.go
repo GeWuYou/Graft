@@ -571,7 +571,7 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managed
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
 	metadata := map[string]string{
-		"managed_root_key": projectcontract.ProjectManagedRootConfig.String(),
+		"managed_root_key": projectcontract.ApplicationRootDirectoryConfig.String(),
 	}
 	if relativePath := deriveManagedRelativeDirectory(managedRootDirectory, aggregate.Project.WorkingDirectory); relativePath != "" {
 		metadata["managed_relative_directory"] = relativePath

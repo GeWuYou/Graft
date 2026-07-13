@@ -15,7 +15,7 @@
         </template>
       </t-alert>
 
-      <div class="project-creation-page__grid" :aria-busy="loading">
+      <div v-if="isDockerCompose" class="project-creation-page__grid" :aria-busy="loading">
         <t-card v-for="method in creationMethods" :key="method.method" :bordered="true" class="project-creation-card">
           <template #header>
             <div class="project-creation-card__header">
@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -138,11 +138,13 @@ const routeTitleKeys: Record<ProjectCreationMethodType, string> = {
 };
 
 const router = useRouter();
+const route = useRoute();
 const tabsRouterStore = useTabsRouterStore();
 const { t } = useI18n();
 const entries = ref<ProjectCreationMethod[]>([]);
 const loadError = ref('');
 const loading = ref(false);
+const isDockerCompose = computed(() => route.query.runtime === 'docker-compose');
 
 const creationMethods = computed(() =>
   entries.value.map((entry) => ({
@@ -152,6 +154,10 @@ const creationMethods = computed(() =>
 );
 
 onMounted(() => {
+  if (!isDockerCompose.value) {
+    void router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName });
+    return;
+  }
   void loadCreationMethods();
 });
 
@@ -180,7 +186,7 @@ function blockedReasonLabel(reason?: string | null) {
 }
 
 function openMethod(method: ProjectCreationMethodType) {
-  const target = { name: routeNames[method] };
+  const target = { name: routeNames[method], query: { runtime: 'docker-compose' } };
   const resolved = router.resolve(target);
   appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey(routeTitleKeys[method]));
   void router.push(target);
