@@ -84,12 +84,8 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertEqual(t, "default refresh cookie secure", cfg.Auth.RefreshCookieSecure, false)
 	assertEqual(t, "default refresh cookie same site", cfg.Auth.RefreshCookieSameSite, defaultRefreshCookieSameSite)
 	assertEqual(t, "default refresh cookie path", cfg.Auth.RefreshCookiePath, defaultRefreshCookiePath)
-	assertEqual(t, "default container runtime enabled", cfg.Container.RuntimeEnabled, false)
 	assertEqual(t, "default container runtime", cfg.Container.Runtime, "first-adapter")
 	assertEqual(t, "default container endpoint", cfg.Container.DockerEndpoint, "unix:///var/run/docker.sock")
-	assertEqual(t, "default container logs tail", cfg.Container.LogsDefaultTail, 200)
-	assertEqual(t, "default container logs max tail", cfg.Container.LogsMaxTail, 2000)
-	assertEqual(t, "default container dangerous actions", cfg.Container.DangerousActionsEnabled, false)
 }
 
 func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
@@ -98,13 +94,8 @@ func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
 	chdir(t, t.TempDir())
 
 	t.Setenv("GRAFT_AUTH_JWT_SECRET", "container-config-secret")
-	t.Setenv("GRAFT_OPS_CONTAINER_RUNTIME_ENABLED", "true")
 	t.Setenv("GRAFT_OPS_CONTAINER_RUNTIME", "docker")
 	t.Setenv("GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT", "unix:///tmp/docker.sock")
-	t.Setenv("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL", "50")
-	t.Setenv("GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL", "500")
-	t.Setenv("GRAFT_OPS_CONTAINER_ACTIONS_DANGEROUS_ENABLED", "true")
-	t.Setenv("GRAFT_OPS_CONTAINER_SHELL_ENABLED", "true")
 	t.Setenv("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS", "http://localhost:3002, http://127.0.0.1:3002")
 
 	cfg, err := Load()
@@ -112,13 +103,8 @@ func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
 		t.Fatalf("load config: %v", err)
 	}
 
-	assertEqual(t, "container runtime enabled", cfg.Container.RuntimeEnabled, true)
 	assertEqual(t, "container runtime", cfg.Container.Runtime, "docker")
 	assertEqual(t, "container endpoint", cfg.Container.DockerEndpoint, "unix:///tmp/docker.sock")
-	assertEqual(t, "container logs default tail", cfg.Container.LogsDefaultTail, 50)
-	assertEqual(t, "container logs max tail", cfg.Container.LogsMaxTail, 500)
-	assertEqual(t, "container dangerous actions enabled", cfg.Container.DangerousActionsEnabled, true)
-	assertEqual(t, "container shell enabled", cfg.Container.ShellEnabled, true)
 	assertStringSliceEqual(
 		t,
 		"websocket allowed origins",
@@ -133,7 +119,6 @@ func TestLoadRejectsInvalidWebSocketAllowedOrigin(t *testing.T) {
 	chdir(t, t.TempDir())
 
 	t.Setenv("GRAFT_AUTH_JWT_SECRET", "container-config-secret")
-	t.Setenv("GRAFT_OPS_CONTAINER_SHELL_ENABLED", "true")
 	t.Setenv("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS", "http://localhost:3002/shell")
 
 	_, err := Load()
@@ -709,13 +694,6 @@ func TestValidateNormalizesEnabledModules(t *testing.T) {
 	assertStringSliceEqual(t, "normalized enabled modules", cfg.Modules.Enabled, []string{"user", "auth"})
 }
 
-func TestValidateRejectsNonPositiveAccessLogRetention(t *testing.T) {
-	cfg := validConfigForValidateTests()
-	cfg.HTTPX.AccessLogRetention = 0
-
-	assertValidateError(t, cfg, "GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
-}
-
 func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -746,21 +724,6 @@ func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) 
 			assertValidateError(t, cfg, testCase.wantErr)
 		})
 	}
-}
-
-func TestValidateRejectsNonPositiveAuditLogRetention(t *testing.T) {
-	cfg := validConfigForValidateTests()
-	cfg.Audit.LogRetention = 0
-
-	assertValidateError(t, cfg, "GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
-}
-
-func TestValidateRejectsNonPositiveAppLogRetention(t *testing.T) {
-	cfg := validConfigForValidateTests()
-	cfg.Log.AppLogPersist = true
-	cfg.Log.AppLogRetention = 0
-
-	assertValidateError(t, cfg, "GRAFT_LOG_APP_LOG_RETENTION must be greater than zero")
 }
 
 func TestValidateRejectsInvalidLogAndGinEnums(t *testing.T) {
@@ -802,33 +765,11 @@ func TestValidateRejectsInvalidLogAndGinEnums(t *testing.T) {
 	}
 }
 
-func TestValidateAllowsNonPositiveAppLogRetentionWhenPersistenceDisabled(t *testing.T) {
-	cfg := validConfigForValidateTests()
-	cfg.Log.AppLogPersist = false
-	cfg.Log.AppLogRetention = 0
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate config with disabled app log persistence: %v", err)
-	}
-}
-
 func TestValidateRejectsMissingContainerDockerEndpoint(t *testing.T) {
 	cfg := validConfigForValidateTests()
 	cfg.Container.DockerEndpoint = ""
 
 	assertValidateError(t, cfg, "GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT is required")
-}
-
-func TestValidateRejectsEnabledContainerShellWithoutWebSocketAllowedOrigins(t *testing.T) {
-	cfg := validConfigForValidateTests()
-	cfg.Container.ShellEnabled = true
-	cfg.HTTPX.WebSocketAllowedOrigins = nil
-
-	assertValidateError(
-		t,
-		cfg,
-		"GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS is required when GRAFT_OPS_CONTAINER_SHELL_ENABLED is true",
-	)
 }
 
 func TestResolveLogFormatColorAndGinMode(t *testing.T) {
@@ -925,32 +866,6 @@ func TestResolveAccessLogConsolePolicy(t *testing.T) {
 	}
 }
 
-func TestDefaultLogRetentionForEnv(t *testing.T) {
-	testCases := []struct {
-		env        string
-		wantAccess time.Duration
-		wantAudit  time.Duration
-		wantApp    time.Duration
-	}{
-		{env: "development", wantAccess: 3 * 24 * time.Hour, wantAudit: 30 * 24 * time.Hour, wantApp: 3 * 24 * time.Hour},
-		{env: "staging", wantAccess: 7 * 24 * time.Hour, wantAudit: 90 * 24 * time.Hour, wantApp: 7 * 24 * time.Hour},
-		{env: "production", wantAccess: 30 * 24 * time.Hour, wantAudit: 180 * 24 * time.Hour, wantApp: 14 * 24 * time.Hour},
-		{env: "local", wantAccess: 3 * 24 * time.Hour, wantAudit: 30 * 24 * time.Hour, wantApp: 3 * 24 * time.Hour},
-	}
-
-	for _, testCase := range testCases {
-		if got := defaultAccessLogRetentionForEnv(testCase.env); got != testCase.wantAccess {
-			t.Fatalf("env %q: expected access retention %s, got %s", testCase.env, testCase.wantAccess, got)
-		}
-		if got := defaultAuditLogRetentionForEnv(testCase.env); got != testCase.wantAudit {
-			t.Fatalf("env %q: expected audit retention %s, got %s", testCase.env, testCase.wantAudit, got)
-		}
-		if got := defaultAppLogRetentionForEnv(testCase.env); got != testCase.wantApp {
-			t.Fatalf("env %q: expected app retention %s, got %s", testCase.env, testCase.wantApp, got)
-		}
-	}
-}
-
 // TestValidateRejectsUnsafeCookieMode 验证 SameSite=None 时必须同时开启安全 cookie。
 func TestValidateRejectsUnsafeCookieMode(t *testing.T) {
 	cfg := validConfigForValidateTests()
@@ -1004,19 +919,15 @@ func validConfigForValidateTests() *Config {
 			Addr: ":8080",
 		},
 		HTTPX: HTTPXConfig{
-			AccessLogRetention:       3 * 24 * time.Hour,
 			AccessLogConsole:         AccessLogConsoleAuto,
 			AccessLogSlowThresholdMS: 1000,
 		},
-		Audit: AuditConfig{
-			LogRetention: 30 * 24 * time.Hour,
-		},
+		Audit: AuditConfig{},
 		Log: LogConfig{
-			Level:           "info",
-			Format:          LogFormatAuto,
-			Color:           LogColorAuto,
-			AppLogPersist:   true,
-			AppLogRetention: 3 * 24 * time.Hour,
+			Level:         "info",
+			Format:        LogFormatAuto,
+			Color:         LogColorAuto,
+			AppLogPersist: true,
 		},
 		Runtime: RuntimeConfig{
 			GinMode:                         GinModeAuto,
@@ -1056,13 +967,8 @@ func validConfigForValidateTests() *Config {
 			RefreshCookiePath:     defaultRefreshCookiePath,
 		},
 		Container: ContainerConfig{
-			Runtime:                 "first-adapter",
-			DockerEndpoint:          "unix:///var/run/docker.sock",
-			LogsDefaultTail:         200,
-			LogsMaxTail:             2000,
-			RuntimeEnabled:          false,
-			DangerousActionsEnabled: false,
-			ShellEnabled:            false,
+			Runtime:        "first-adapter",
+			DockerEndpoint: "unix:///var/run/docker.sock",
 		},
 	}
 }

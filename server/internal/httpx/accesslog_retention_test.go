@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
@@ -68,21 +67,9 @@ func (r *retentionRepoRecorder) GetAccessLogByID(context.Context, uint64) (Acces
 	return AccessLog{}, ErrAccessLogNotFound
 }
 
-func TestNewAccessLogRetentionPolicyRejectsNonPositiveRetention(t *testing.T) {
-	_, err := newAccessLogRetentionPolicy(config.HTTPXConfig{})
-	if err == nil {
-		t.Fatal("expected invalid retention policy error")
-	}
-}
-
-func TestAccessLogRetentionPolicyCutoff(t *testing.T) {
-	policy, err := newAccessLogRetentionPolicy(config.HTTPXConfig{AccessLogRetention: 7 * 24 * time.Hour})
-	if err != nil {
-		t.Fatalf("new policy: %v", err)
-	}
-
+func TestAccessLogRetentionCutoff(t *testing.T) {
 	now := time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC)
-	cutoff, err := accessLogRetentionCutoff(now, policy.retention)
+	cutoff, err := accessLogRetentionCutoff(now, 7*24*time.Hour)
 	if err != nil {
 		t.Fatalf("cutoff: %v", err)
 	}
@@ -98,7 +85,6 @@ func TestAccessLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	cleaner, err := newAccessLogRetentionCleaner(
 		zap.NewNop(),
 		repo,
-		config.HTTPXConfig{AccessLogRetention: 3 * 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -138,7 +124,6 @@ func TestAccessLogRetentionCleanerEstimateDoesNotDelete(t *testing.T) {
 	cleaner, err := newAccessLogRetentionCleaner(
 		zap.NewNop(),
 		repo,
-		config.HTTPXConfig{AccessLogRetention: 30 * 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -189,7 +174,6 @@ func TestAccessLogRetentionCleanerLogsFailure(t *testing.T) {
 	cleaner, err := newAccessLogRetentionCleaner(
 		logger,
 		repo,
-		config.HTTPXConfig{AccessLogRetention: 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -382,7 +366,6 @@ func registeredAccessLogRetentionCleanupJobForTest(t *testing.T) ([]cronx.Job, *
 		registry,
 		zap.NewNop(),
 		repo,
-		config.HTTPXConfig{AccessLogRetention: 30 * 24 * time.Hour},
 	); err != nil {
 		t.Fatalf("register retention job: %v", err)
 	}

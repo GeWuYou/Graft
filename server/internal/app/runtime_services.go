@@ -199,7 +199,6 @@ func (r *Runtime) registerAccessLogRetentionJob() error {
 		r.cronRegistry,
 		r.logger,
 		r.server.AccessLogRepository(),
-		r.config.HTTPX,
 	); err != nil {
 		return fmt.Errorf("register access-log retention cleanup job: %w", err)
 	}
@@ -225,7 +224,6 @@ func (r *Runtime) registerAppLogRetentionJob() error {
 		r.logger,
 		r.injectedAppLogger(),
 		r.appLogRepository,
-		r.config.Log,
 	); err != nil {
 		return fmt.Errorf("register app-log retention cleanup job: %w", err)
 	}

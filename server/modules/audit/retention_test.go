@@ -10,26 +10,13 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
-func TestNewAuditLogRetentionPolicyRejectsNonPositiveRetention(t *testing.T) {
-	_, err := newAuditLogRetentionPolicy(config.AuditConfig{})
-	if err == nil {
-		t.Fatal("expected invalid retention policy error")
-	}
-}
-
-func TestAuditLogRetentionPolicyCutoff(t *testing.T) {
-	policy, err := newAuditLogRetentionPolicy(config.AuditConfig{LogRetention: 30 * 24 * time.Hour})
-	if err != nil {
-		t.Fatalf("new policy: %v", err)
-	}
-
+func TestAuditLogRetentionCutoff(t *testing.T) {
 	now := time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
-	cutoff, err := auditLogRetentionCutoff(now, policy.retention)
+	cutoff, err := auditLogRetentionCutoff(now, 30*24*time.Hour)
 	if err != nil {
 		t.Fatalf("cutoff: %v", err)
 	}
@@ -49,7 +36,6 @@ func TestAuditLogRetentionCleanerInvokesServiceWithCutoff(t *testing.T) {
 	cleaner, err := newAuditLogRetentionCleaner(
 		zap.NewNop(),
 		service,
-		config.AuditConfig{LogRetention: 7 * 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -88,7 +74,6 @@ func TestAuditLogRetentionCleanerLogsFailure(t *testing.T) {
 	cleaner, err := newAuditLogRetentionCleaner(
 		zap.New(core),
 		service,
-		config.AuditConfig{LogRetention: 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -123,7 +108,6 @@ func TestRegisterAuditLogRetentionCleanupJob(t *testing.T) {
 		registry,
 		zap.NewNop(),
 		service,
-		config.AuditConfig{LogRetention: 30 * 24 * time.Hour},
 	); err != nil {
 		t.Fatalf("register retention job: %v", err)
 	}

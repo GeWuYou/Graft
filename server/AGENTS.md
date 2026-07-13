@@ -45,6 +45,7 @@ authority-first overlay：
 按任务类型追加读取：
 
 - 改动稳定契约、魔法值、shared semantics 时，读 `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- 改动环境变量、Compose 参数、功能开关、System Config 定义或配置 owner 时，读 `ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
 - 新增、移动、重命名或删除可复用后端 / 跨模块资产时，读 `ai-plan/design/governance/platform/共享资产复用治理规范.md`，并按
   `.agents/skills/graft-shared-asset-reuse/SKILL.md` 执行 Shared Asset Reuse Preflight
 - 改动注释、包文档、模块 README 或 AI 文档行为时，读 `ai-plan/design/governance/ai/代码注释与模块文档规范.md`

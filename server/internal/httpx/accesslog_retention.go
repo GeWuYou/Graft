@@ -9,7 +9,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -49,19 +48,6 @@ type accessLogRetentionJobConfig struct {
 	BatchSize     int `json:"batchSize"`
 }
 
-type accessLogRetentionPolicy struct {
-	retention time.Duration
-}
-
-func newAccessLogRetentionPolicy(cfg config.HTTPXConfig) (accessLogRetentionPolicy, error) {
-	retention := cfg.AccessLogRetention
-	if retention <= 0 {
-		return accessLogRetentionPolicy{}, errors.New("access log retention must be greater than zero")
-	}
-
-	return accessLogRetentionPolicy{retention: retention}, nil
-}
-
 func accessLogRetentionCutoff(now time.Time, retention time.Duration) (time.Time, error) {
 	if retention <= 0 {
 		return time.Time{}, errors.New("access log retention must be greater than zero")
@@ -81,19 +67,13 @@ func accessLogRetentionCutoff(now time.Time, retention time.Duration) (time.Time
 type accessLogRetentionCleaner struct {
 	logger func() *zap.Logger
 	repo   AccessLogRepository
-	policy accessLogRetentionPolicy
 	now    func() time.Time
 }
 
 func newAccessLogRetentionCleaner(
 	logger *zap.Logger,
 	repo AccessLogRepository,
-	cfg config.HTTPXConfig,
 ) (*accessLogRetentionCleaner, error) {
-	policy, err := newAccessLogRetentionPolicy(cfg)
-	if err != nil {
-		return nil, err
-	}
 	if repo == nil {
 		return nil, errors.New("access log retention cleaner requires a repository")
 	}
@@ -105,8 +85,7 @@ func newAccessLogRetentionCleaner(
 			}
 			return logger
 		},
-		repo:   repo,
-		policy: policy,
+		repo: repo,
 		now: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -209,7 +188,7 @@ func (c *accessLogRetentionCleaner) retentionDuration(config accessLogRetentionJ
 	if config.RetentionDays > 0 {
 		return time.Duration(config.RetentionDays) * hoursPerDay * time.Hour
 	}
-	return c.policy.retention
+	return time.Duration(accessLogRetentionDefaultDays) * hoursPerDay * time.Hour
 }
 
 func normalizedAccessLogRetentionBatchSize(config accessLogRetentionJobConfig) int {
@@ -329,13 +308,12 @@ func RegisterAccessLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,
 	repo AccessLogRepository,
-	cfg config.HTTPXConfig,
 ) error {
 	if registry == nil {
 		return errors.New("cron registry is required")
 	}
 
-	cleaner, err := newAccessLogRetentionCleaner(logger, repo, cfg)
+	cleaner, err := newAccessLogRetentionCleaner(logger, repo)
 	if err != nil {
 		return err
 	}

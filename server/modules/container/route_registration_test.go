@@ -30,6 +30,9 @@ import (
 )
 
 func newRouteTestService(options containerServiceOptions) (*service, error) {
+	if options.shellEnabled && len(options.websocketAllowedOrigins) == 0 {
+		options.websocketAllowedOrigins = []string{"https://console.example.com"}
+	}
 	if options.realtimeTickets == nil {
 		options.realtimeTickets = realtimeauth.NewMemoryService()
 	}

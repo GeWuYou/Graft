@@ -105,7 +105,7 @@
 * storage owner：`server/internal/logger/**`
 * durable table：PostgreSQL `app_logs`
 * retention owner：`server_internal_logger`
-* default retention policy：通过 `GRAFT_LOG_APP_LOG_RETENTION` 配置；默认 local/test/dev 为 3 天、staging 为 7 天、production 为 14 天
+* default retention policy：通过 `logger.app-log-retention-cleanup` System Config 配置，默认保留 30 天
 * runtime switch：`GRAFT_LOG_APP_LOG_PERSIST` 控制 repository sink 是否启用，默认启用
 * archive/export：`not-ready`，当前没有第二 durable archive authority
 

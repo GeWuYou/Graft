@@ -443,8 +443,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 			Addr: "localhost:6379",
 		},
 		Log: config.LogConfig{
-			Level:           "info",
-			AppLogRetention: 3 * 24 * time.Hour,
+			Level: "info",
 		},
 		I18n: config.I18nConfig{
 			DefaultLocale:    "zh-CN",
@@ -621,11 +620,10 @@ func runtimeTestConfig() *config.Config {
 			Addr: "127.0.0.1:6379",
 		},
 		Log: config.LogConfig{
-			Level:           "info",
-			Format:          config.LogFormatAuto,
-			Color:           config.LogColorAuto,
-			AppLogPersist:   true,
-			AppLogRetention: 3 * 24 * time.Hour,
+			Level:         "info",
+			Format:        config.LogFormatAuto,
+			Color:         config.LogColorAuto,
+			AppLogPersist: true,
 		},
 		Runtime: config.RuntimeConfig{
 			GinMode: config.GinModeAuto,
@@ -1369,13 +1367,13 @@ func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *te
 	runtime, err := newRuntimeCoreWithDeps(context.Background(), &config.Config{
 		App:   config.AppConfig{Name: "graft", Env: "test"},
 		HTTP:  config.HTTPConfig{Addr: ":8080"},
-		HTTPX: config.HTTPXConfig{AccessLogRetention: 3 * 24 * time.Hour},
+		HTTPX: config.HTTPXConfig{},
 		Database: config.DatabaseConfig{
 			Driver: "postgres",
 			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
 		},
 		Redis: config.RedisConfig{Addr: "localhost:6379"},
-		Log:   config.LogConfig{Level: "info", AppLogPersist: true, AppLogRetention: 3 * 24 * time.Hour},
+		Log:   config.LogConfig{Level: "info", AppLogPersist: true},
 		I18n:  config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}},
 		Auth: config.AuthConfig{
 			AccessTokenTTL:        time.Minute,

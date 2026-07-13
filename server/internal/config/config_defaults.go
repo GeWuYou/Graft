@@ -11,11 +11,9 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)
 	reader.SetDefault("http.addr", defaultHTTPAddr)
-	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("access_log.console", string(AccessLogConsoleAuto))
 	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
 	reader.SetDefault("httpx.websocket.allowed_origins", defaultRealtimeAllowedOrigins)
-	reader.SetDefault("audit.log_retention", defaultAuditLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
 	reader.SetDefault("database.url", defaultDatabaseURL)
@@ -37,7 +35,6 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("log.format", string(LogFormatAuto))
 	reader.SetDefault("log.color", string(LogColorAuto))
 	reader.SetDefault("log.app_log_persist", defaultAppLogPersistence)
-	reader.SetDefault("log.app_log_retention", defaultAppLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("gin.mode", string(GinModeAuto))
 	reader.SetDefault("runtime.dev_allow_dirty_migration_bootstrap", defaultDevAllowDirtyMigrationBootstrapForEnv(reader.GetString("app.env")))
 	reader.SetDefault("i18n.default_locale", defaultLocale)
@@ -49,13 +46,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("auth.refresh_cookie_secure", false)
 	reader.SetDefault("auth.refresh_cookie_same_site", defaultRefreshCookieSameSite)
 	reader.SetDefault("auth.refresh_cookie_path", defaultRefreshCookiePath)
-	reader.SetDefault("ops.container.runtime.enabled", false)
 	reader.SetDefault("ops.container.runtime", defaultContainerRuntime)
 	reader.SetDefault("ops.container.docker.endpoint", defaultContainerDockerEndpoint)
-	reader.SetDefault("ops.container.logs.default_tail", defaultContainerLogsDefaultTail)
-	reader.SetDefault("ops.container.logs.max_tail", defaultContainerLogsMaxTail)
-	reader.SetDefault("ops.container.actions.dangerous_enabled", false)
-	reader.SetDefault("ops.container.shell.enabled", false)
 }
 
 // resolveDocsEnabled 根据显式配置或环境默认值确定是否启用文档。

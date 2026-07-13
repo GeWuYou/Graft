@@ -9,7 +9,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -51,24 +50,10 @@ type appLogRetentionJobConfig struct {
 	BatchSize     int  `json:"batchSize"`
 }
 
-type appLogRetentionPolicy struct {
-	retention time.Duration
-}
-
-func newAppLogRetentionPolicy(cfg config.LogConfig) (appLogRetentionPolicy, error) {
-	retention := cfg.AppLogRetention
-	if retention <= 0 {
-		return appLogRetentionPolicy{}, errors.New("app log retention must be greater than zero")
-	}
-
-	return appLogRetentionPolicy{retention: retention}, nil
-}
-
 type appLogRetentionCleaner struct {
 	logger func() *zap.Logger
 	appLog func() AppLogger
 	repo   AppLogRepository
-	policy appLogRetentionPolicy
 	now    func() time.Time
 }
 
@@ -76,12 +61,7 @@ func newAppLogRetentionCleaner(
 	logger *zap.Logger,
 	appLogger AppLogger,
 	repo AppLogRepository,
-	cfg config.LogConfig,
 ) (*appLogRetentionCleaner, error) {
-	policy, err := newAppLogRetentionPolicy(cfg)
-	if err != nil {
-		return nil, err
-	}
 	if repo == nil {
 		return nil, errors.New("app log retention cleaner requires a repository")
 	}
@@ -99,8 +79,7 @@ func newAppLogRetentionCleaner(
 			}
 			return NewAppLogger(logger).Named("internal.logger.retention")
 		},
-		repo:   repo,
-		policy: policy,
+		repo: repo,
 		now: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -233,7 +212,7 @@ func (c *appLogRetentionCleaner) retentionDuration(config appLogRetentionJobConf
 	if config.RetentionDays > 0 {
 		return time.Duration(config.RetentionDays) * hoursPerDay * time.Hour
 	}
-	return c.policy.retention
+	return time.Duration(appLogRetentionDefaultDays) * hoursPerDay * time.Hour
 }
 
 func normalizedAppLogRetentionBatchSize(config appLogRetentionJobConfig) int {
@@ -359,13 +338,12 @@ func RegisterAppLogRetentionCleanupJob(
 	logger *zap.Logger,
 	appLogger AppLogger,
 	repo AppLogRepository,
-	cfg config.LogConfig,
 ) error {
 	if registry == nil {
 		return errors.New("cron registry is required")
 	}
 
-	cleaner, err := newAppLogRetentionCleaner(logger, appLogger, repo, cfg)
+	cleaner, err := newAppLogRetentionCleaner(logger, appLogger, repo)
 	if err != nil {
 		return err
 	}

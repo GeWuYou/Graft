@@ -146,7 +146,8 @@ var generatedEmbeddedMigrationDirs = []EmbeddedMigrationDir{
 		Path: "modules/system-config/migrations",
 		Files: []EmbeddedMigrationFile{
 			{Name: "202606070001_system_config_baseline.sql", Contents: []byte("-- system_config_values stores user overrides only.\n-- ConfigDefinition metadata and defaults remain module-registered runtime authority.\n\nCREATE TABLE system_config_values (\n    key TEXT PRIMARY KEY,\n    override_value JSONB NOT NULL,\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    created_by BIGINT NULL,\n    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    updated_by BIGINT NULL\n);\n\nCOMMENT ON TABLE system_config_values IS '用户提供的系统配置覆盖值表';\nCOMMENT ON COLUMN system_config_values.key IS '模块注册的稳定配置定义键';\nCOMMENT ON COLUMN system_config_values.override_value IS '用户覆盖 JSON；模块默认值不会复制到此表';\nCOMMENT ON COLUMN system_config_values.created_at IS '覆盖值首次写入时间';\nCOMMENT ON COLUMN system_config_values.created_by IS '首次写入覆盖值的用户 ID；为空表示请求上下文未提供用户';\nCOMMENT ON COLUMN system_config_values.updated_at IS '最近一次覆盖值写入时间';\nCOMMENT ON COLUMN system_config_values.updated_by IS '最近一次写入覆盖值的用户 ID；为空表示请求上下文未提供用户';\n")},
-			{Name: "atlas.sum", Contents: []byte("h1:CdUAo4C9CGQvxZ2qe2sbHl5VK0NuyLZiMYhbtMtFMyo=\n202606070001_system_config_baseline.sql h1:2AAvZtsPSZaZMQpJuyNpi8qwzv/r4SkEgVZB3bYlpRc=\n")},
+			{Name: "202607130002_remove_deployment_config_overrides.sql", Contents: []byte("-- 删除已改由部署环境拥有的容器运行时配置覆盖值，避免遗留覆盖值成为第二配置来源。\nDELETE FROM system_config_values\nWHERE key IN ('ops.container.runtime', 'ops.container.docker.endpoint');\n")},
+			{Name: "atlas.sum", Contents: []byte("h1:oDMNBk3WAzVNzEpOvRsMWfFR08nP3rWVDbGzCx+nc3s=\n202606070001_system_config_baseline.sql h1:2AAvZtsPSZaZMQpJuyNpi8qwzv/r4SkEgVZB3bYlpRc=\n202607130002_remove_deployment_config_overrides.sql h1:ChhUSwcv3re/NGN1FEFcBtk53+CmeYOSa9DiFRoVSSk=\n")},
 		},
 	},
 	{

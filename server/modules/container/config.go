@@ -16,9 +16,6 @@ const (
 	containerConfigGeneralGroup      = "ops.container.general"
 	containerConfigGeneralGroupKey   = "systemConfig.groups.ops.container.general"
 	containerConfigGeneralDescKey    = "systemConfig.groups.ops.container.general.description"
-	containerConfigRuntimeGroup      = "ops.container.runtime"
-	containerConfigRuntimeGroupKey   = "systemConfig.groups.ops.container.runtime"
-	containerConfigRuntimeDescKey    = "systemConfig.groups.ops.container.runtime.description"
 	containerConfigLogsGroup         = "ops.container.logs"
 	containerConfigLogsGroupKey      = "systemConfig.groups.ops.container.logs"
 	containerConfigLogsDescKey       = "systemConfig.groups.ops.container.logs.description"
@@ -29,7 +26,6 @@ const (
 	containerConfigShellGroupKey     = "systemConfig.groups.ops.container.shell"
 	containerConfigShellDescKey      = "systemConfig.groups.ops.container.shell.description"
 	containerConfigDefinitionBaseOrd = 6200
-	maxDockerEndpointLength          = 512
 )
 
 const (
@@ -86,8 +82,6 @@ func configDefinitions() []configregistry.Definition {
 			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerEnabled),
 		}),
-		containerRuntimeDefinition(),
-		containerEndpointDefinition(),
 		containerIntegerDefinition(containerIntegerDefinitionSpec{
 			containerDefinitionSpec: containerDefinitionSpec{
 				key:                 containercontract.ContainerLogsDefaultTailConfig.String(),
@@ -196,38 +190,6 @@ func containerResourceStatsDefinitions() []configregistry.Definition {
 			maximum:       maxContainerResourceStatsCollectInterval,
 		}),
 	}
-}
-
-// containerRuntimeDefinition 为容器运行时适配器构建配置定义，标记为需要服务重启才能生效。
-func containerRuntimeDefinition() configregistry.Definition {
-	definition := baseContainerDefinition(containerDefinitionSpec{
-		key:                 containercontract.ContainerRuntimeConfig.String(),
-		group:               containerConfigRuntimeGroup,
-		fallbackTitle:       "",
-		fallbackDescription: "",
-		valueType:           configregistry.ValueTypeString,
-		defaultValue:        mustRawJSON(defaultContainerRuntime),
-		schema:              containerRuntimeSchema(),
-	})
-	definition.RestartRequired = true
-	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRestartRequired
-	return definition
-}
-
-// containerEndpointDefinition 构造Docker端点的配置定义，标记该设置需要重启系统才能生效。
-func containerEndpointDefinition() configregistry.Definition {
-	definition := baseContainerDefinition(containerDefinitionSpec{
-		key:                 containercontract.ContainerDockerEndpointConfig.String(),
-		group:               containerConfigRuntimeGroup,
-		fallbackTitle:       "",
-		fallbackDescription: "",
-		valueType:           configregistry.ValueTypeString,
-		defaultValue:        mustRawJSON(defaultContainerDockerEndpoint),
-		schema:              containerStringSchema(containercontract.ContainerDockerEndpointConfig.String(), 1, maxDockerEndpointLength),
-	})
-	definition.RestartRequired = true
-	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRestartRequired
-	return definition
 }
 
 // containerEnvironmentPolicyDefinition builds a configuration definition for the container environment policy.
@@ -352,13 +314,6 @@ type containerConfigGroupInfo struct {
 // containerConfigGroupMetadata returns the configuration group metadata including the group key and description i18n key for the given group. If the group is not recognized, the general group metadata is returned.
 func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 	switch group {
-	case containerConfigRuntimeGroup:
-		return containerConfigGroupInfo{
-			key:            containerConfigRuntimeGroupKey,
-			label:          "",
-			descriptionKey: containerConfigRuntimeDescKey,
-			description:    "",
-		}
 	case containerConfigLogsGroup:
 		return containerConfigGroupInfo{
 			key:            containerConfigLogsGroupKey,
@@ -388,15 +343,6 @@ func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 			description:    "",
 		}
 	}
-}
-
-func containerRuntimeSchema() json.RawMessage {
-	return json.RawMessage(fmt.Sprintf(
-		`{"type":"string","enum":["first-adapter"],"default":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
-		defaultContainerRuntime,
-		containerConfigTitleKey(containercontract.ContainerRuntimeConfig.String()),
-		containerConfigDescriptionKey(containercontract.ContainerRuntimeConfig.String()),
-	))
 }
 
 // containerEnvironmentPolicySchema 生成环境策略配置的 JSON schema。
@@ -482,18 +428,6 @@ func containerIntegerUnitKey(key string) string {
 	default:
 		return "systemConfig.units.rows"
 	}
-}
-
-// containerStringSchema 生成字符串类型配置项的 JSON Schema。
-// @returns 包含类型、长度限制以及标题和描述 i18n 键的 JSON Schema。
-func containerStringSchema(key string, minimumLength int, maximumLength int) json.RawMessage {
-	return json.RawMessage(fmt.Sprintf(
-		`{"type":"string","minLength":%d,"maxLength":%d,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
-		minimumLength,
-		maximumLength,
-		containerConfigTitleKey(key),
-		containerConfigDescriptionKey(key),
-	))
 }
 
 func containerConfigTitleKey(key string) string {

@@ -82,18 +82,12 @@ systemConfig.notification.display.popupLimit.title: Popup Limit
 systemConfig.notification.display.popupLimit.description: Maximum notifications displayed by the notification bell popup.
 systemConfig.groups.ops.container.general: Container Management
 systemConfig.groups.ops.container.general.description: Control the container management baseline.
-systemConfig.groups.ops.container.runtime: Runtime
-systemConfig.groups.ops.container.runtime.description: Control the local container runtime adapter.
 systemConfig.groups.ops.container.logs: Logs
 systemConfig.groups.ops.container.logs.description: Control bounded container log reads.
 systemConfig.groups.ops.container.actions: Dangerous Actions
 systemConfig.groups.ops.container.actions.description: Control container start, stop, and restart actions.
 systemConfig.container.ops.container.runtime.enabled.title: Container Runtime Access Enabled
 systemConfig.container.ops.container.runtime.enabled.description: Whether container management may access the configured runtime.
-systemConfig.container.ops.container.runtime.title: Container Runtime
-systemConfig.container.ops.container.runtime.description: Runtime adapter used by container management.
-systemConfig.container.ops.container.docker.endpoint.title: Container Runtime Endpoint
-systemConfig.container.ops.container.docker.endpoint.description: Local runtime endpoint used by the first container adapter.
 systemConfig.container.ops.container.logs.default_tail.title: Default Log Tail
 systemConfig.container.ops.container.logs.default_tail.description: Default number of log lines returned by container log reads.
 systemConfig.container.ops.container.logs.max_tail.title: Maximum Log Tail

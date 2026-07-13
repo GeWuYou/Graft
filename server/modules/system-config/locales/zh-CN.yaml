@@ -82,18 +82,12 @@ systemConfig.notification.display.popupLimit.title: 铃铛弹层数量
 systemConfig.notification.display.popupLimit.description: 通知铃铛弹层最多展示条数。
 systemConfig.groups.ops.container.general: 容器管理
 systemConfig.groups.ops.container.general.description: 控制容器管理能力的基础开关。
-systemConfig.groups.ops.container.runtime: 运行时
-systemConfig.groups.ops.container.runtime.description: 控制本地容器运行时适配器。
 systemConfig.groups.ops.container.logs: 日志
 systemConfig.groups.ops.container.logs.description: 控制容器日志读取上限。
 systemConfig.groups.ops.container.actions: 高危操作
 systemConfig.groups.ops.container.actions.description: 控制容器启停和重启操作。
 systemConfig.container.ops.container.runtime.enabled.title: 启用容器运行时访问
 systemConfig.container.ops.container.runtime.enabled.description: 是否允许容器管理访问已配置的容器运行时。
-systemConfig.container.ops.container.runtime.title: 容器运行时
-systemConfig.container.ops.container.runtime.description: 容器管理使用的运行时适配器。
-systemConfig.container.ops.container.docker.endpoint.title: 容器运行时 endpoint
-systemConfig.container.ops.container.docker.endpoint.description: 首个本地容器运行时适配器使用的 endpoint。
 systemConfig.container.ops.container.logs.default_tail.title: 默认日志行数
 systemConfig.container.ops.container.logs.default_tail.description: 容器日志读取的默认返回行数。
 systemConfig.container.ops.container.logs.max_tail.title: 最大日志行数

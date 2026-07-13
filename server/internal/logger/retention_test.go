@@ -10,7 +10,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
@@ -82,20 +81,12 @@ func (r *appLogRetentionRepoRecorder) GetAppLogByID(context.Context, uint64) (Ap
 	return AppLogRecord{}, ErrAppLogNotFound
 }
 
-func TestNewAppLogRetentionPolicyRejectsNonPositiveRetention(t *testing.T) {
-	_, err := newAppLogRetentionPolicy(config.LogConfig{})
-	if err == nil {
-		t.Fatal("expected invalid retention policy error")
-	}
-}
-
 func TestAppLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	repo := &appLogRetentionRepoRecorder{deleted: 3}
 	cleaner, err := newAppLogRetentionCleaner(
 		zap.NewNop(),
 		nil,
 		repo,
-		config.LogConfig{AppLogRetention: 72 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -138,7 +129,6 @@ func TestAppLogRetentionCleanerWritesCompletedAppLog(t *testing.T) {
 		zap.NewNop(),
 		appLog,
 		repo,
-		config.LogConfig{AppLogRetention: 72 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -167,7 +157,6 @@ func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
 		zap.NewNop(),
 		appLog,
 		repo,
-		config.LogConfig{AppLogRetention: 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)
@@ -199,7 +188,6 @@ func TestRegisterAppLogRetentionCleanupJob(t *testing.T) {
 		zap.NewNop(),
 		nil,
 		repo,
-		config.LogConfig{AppLogRetention: 7 * 24 * time.Hour},
 	); err != nil {
 		t.Fatalf("register retention job: %v", err)
 	}
@@ -350,7 +338,6 @@ func TestAppLogRetentionDryRunClampsEstimatedDeleteCountToBatchSize(t *testing.T
 		zap.NewNop(),
 		nil,
 		repo,
-		config.LogConfig{AppLogRetention: 7 * 24 * time.Hour},
 	)
 	if err != nil {
 		t.Fatalf("new cleaner: %v", err)

@@ -409,8 +409,8 @@ Important deployment notes:
   data stays beside the compose file instead of in an anonymous Docker-managed location.
 - `.env` must exist at the repository root next to `compose.yml` before `docker compose up`; compose will fail fast if
   the file is missing.
-- Optional runtime overrides belong in `.env`. Leave the commented defaults untouched unless you need to override the
-  image defaults or the server's built-in runtime defaults.
+- Optional deployment and core startup overrides belong in `.env`. Administrator runtime policies are managed in
+  System Config after startup; do not duplicate them in the compose environment file.
 - The root `compose.yml` is a container deployment entrypoint, not a local Vite development entrypoint. Keep
   `VITE_*` variables in `web/.env.*`; they remain development-only and do not belong in the root compose template.
 - If `GRAFT_DATABASE_URL` is left unset, `bootstrap` and `server` default to the bundled `postgres` service. Set

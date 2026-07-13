@@ -29,11 +29,10 @@ type containerRuntimeOptions struct {
 	logger                               *zap.Logger
 }
 
-type configStringSetter func(string)
 type configIntSetter func(int)
 type configValueLoader[T any] func(*module.Context, string) (T, bool)
 
-// containerOptionsFromConfig 从模块上下文构建容器运行时选项，并按默认值、配置注册表和显式模块配置的顺序应用覆盖。
+// containerOptionsFromConfig builds deployment runtime options and System Config policy defaults.
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
 		enabled:                              defaultContainerEnabled,
@@ -57,10 +56,6 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		return options
 	}
 	applyContainerBoolDefault(ctx, containercontract.ContainerRuntimeEnabledConfig.String(), &options.enabled)
-	applyContainerStringDefaults(ctx,
-		stringDefaultBinding{key: containercontract.ContainerRuntimeConfig.String(), set: func(value string) { options.runtime = value }},
-		stringDefaultBinding{key: containercontract.ContainerDockerEndpointConfig.String(), set: func(value string) { options.endpoint = value }},
-	)
 	applyContainerIntDefaults(ctx,
 		intDefaultBinding{key: containercontract.ContainerLogsDefaultTailConfig.String(), set: func(value int) { options.defaultTail = value }},
 		intDefaultBinding{key: containercontract.ContainerLogsMaxTailConfig.String(), set: func(value int) { options.maxTail = value }},
@@ -77,12 +72,8 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		orchestratorActionLevelBinding{key: containercontract.ContainerUnknownActionLevelConfig.String(), target: &options.orchestratorPolicies.Unknown},
 	)
 	if ctx.Config != nil {
-		options.enabled = ctx.Config.Container.RuntimeEnabled
 		options.runtime = ctx.Config.Container.Runtime
 		options.endpoint = ctx.Config.Container.DockerEndpoint
-		options.defaultTail = ctx.Config.Container.LogsDefaultTail
-		options.maxTail = ctx.Config.Container.LogsMaxTail
-		options.dangerousActionsEnabled = ctx.Config.Container.DangerousActionsEnabled
 	}
 	return options
 }
@@ -128,28 +119,6 @@ func applyContainerBoolDefault(ctx *module.Context, key string, target *bool) {
 	}
 }
 
-type stringDefaultBinding struct {
-	key string
-	set configStringSetter
-}
-
-func applyContainerStringDefaults(ctx *module.Context, bindings ...stringDefaultBinding) {
-	for _, binding := range bindings {
-		applyContainerStringDefaultWithSetter(ctx, binding.key, binding.set)
-	}
-}
-
-func applyContainerStringDefaultWithSetter(ctx *module.Context, key string, set configStringSetter) {
-	if set == nil {
-		return
-	}
-	value, ok := containerDefaultStringValue(ctx, key)
-	if !ok {
-		return
-	}
-	set(value)
-}
-
 type intDefaultBinding struct {
 	key string
 	set configIntSetter
@@ -188,27 +157,6 @@ func applyContainerLoadedDefault[T any](
 	set(value)
 }
 
-// systemConfigReadContext selects an appropriate context for system configuration operations.
-// systemConfigReadContext returns the module's lifecycle context if available,
-// otherwise a background context.
-func systemConfigReadContext(ctx *module.Context) context.Context {
-	if ctx != nil && ctx.LifecycleContext != nil {
-		return ctx.LifecycleContext
-	}
-	return context.Background()
-}
-
-// resolveStartupRuntimeOptions updates the provided container runtime options by resolving runtime and endpoint configuration from system config, using the provided values as fallbacks.
-func resolveStartupRuntimeOptions(
-	ctx context.Context,
-	resolver moduleapi.SystemConfigResolver,
-	options containerRuntimeOptions,
-) containerRuntimeOptions {
-	options.runtime = resolveStringConfigValue(ctx, resolver, containercontract.ContainerRuntimeConfig.String(), options.runtime)
-	options.endpoint = resolveStringConfigValue(ctx, resolver, containercontract.ContainerDockerEndpointConfig.String(), options.endpoint)
-	return options
-}
-
 // containerDefaultValue 从模块上下文的配置注册表中检索指定配置项的默认值，返回对应的 JSON 消息及该值是否存在的标志。
 func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bool) {
 	if ctx == nil || ctx.ConfigRegistry == nil {
@@ -238,19 +186,6 @@ func resolveSystemConfigResolver(ctx *module.Context) moduleapi.SystemConfigReso
 }
 
 // resolveStringConfigValue resolves a string configuration value by key, trimmed of whitespace. If resolution fails or the resolved value is blank, the trimmed fallback is returned.
-func resolveStringConfigValue(
-	ctx context.Context,
-	resolver moduleapi.SystemConfigResolver,
-	key string,
-	fallback string,
-) string {
-	value, ok := resolveSystemConfigStringValue(ctx, resolver, key)
-	if !ok {
-		return strings.TrimSpace(fallback)
-	}
-	return value
-}
-
 func (s *service) resolveIntegerConfig(ctx context.Context, key string, fallback int) int {
 	value, ok := resolveSystemConfigPositiveIntValue(ctx, systemConfigResolverOfService(s), key)
 	if !ok {
@@ -556,6 +491,9 @@ func positiveIntValue(load func() (int, bool)) (int, bool) {
 
 func (s *service) shellAllowed(ctx context.Context) bool {
 	if s == nil {
+		return false
+	}
+	if len(s.websocketAllowedOrigins) == 0 {
 		return false
 	}
 	return s.boolConfigEnabled(

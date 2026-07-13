@@ -91,7 +91,6 @@ type containerServiceOptions struct {
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	systemConfig := resolveSystemConfigResolver(ctx)
-	options = resolveStartupRuntimeOptions(systemConfigReadContext(ctx), systemConfig, options)
 	runtime := Runtime(disabledRuntime{})
 	allowedOrigins := []string{}
 	if ctx != nil && ctx.Config != nil {

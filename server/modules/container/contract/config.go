@@ -27,10 +27,6 @@ func (l OrchestratorActionLevel) String() string {
 const (
 	// ContainerRuntimeEnabledConfig enables access to the configured container runtime.
 	ContainerRuntimeEnabledConfig ConfigKey = "ops.container.runtime.enabled"
-	// ContainerRuntimeConfig selects the runtime adapter.
-	ContainerRuntimeConfig ConfigKey = "ops.container.runtime"
-	// ContainerDockerEndpointConfig stores the first local runtime endpoint.
-	ContainerDockerEndpointConfig ConfigKey = "ops.container.docker.endpoint"
 	// ContainerLogsDefaultTailConfig stores the default log tail size.
 	ContainerLogsDefaultTailConfig ConfigKey = "ops.container.logs.default_tail"
 	// ContainerLogsMaxTailConfig stores the maximum log tail size.
