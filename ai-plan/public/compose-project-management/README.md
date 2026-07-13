@@ -3,7 +3,7 @@
 ## 当前状态摘要
 
 - 当前主题目标是在 `Graft` 增加以 Compose Specification 为首个部署模型的 Application 管理能力。
-- 当前状态：`active`；应用管理与运行目标关联已完成验收，当前进入 Application ID、稳定 Workspace 与三步创建流程的 authority repair。
+- 当前状态：`active`；Application ID、稳定 Workspace 与三步创建流程的 authority repair 已完成验收。远程来源与 Provider 扩展仍保留为后续独立工作。
 - 任务分类为 `cross-boundary`，涉及 `ai-plan/design`、future OpenAPI、future `server/modules/project/**`、future `web/src/modules/project/**`，并与现有 `container` runtime authority 协作。
 - Canonical design：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
 - 当前已完成 Phase 0、Phase 1、Phase 2 的主要实现，但主题仍处于 `active`，因为产品入口、lifecycle authority 和 topic 完成口径出现了 drift repair 待修复项。
@@ -78,7 +78,7 @@
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
   - Application Management 已稳定消费 Runtime Target 的摘要；Compose 是当前唯一可执行 Deployment Type，Container 保持 runtime authority。
   - 用户私有 Saved View 是可复用分页列表基础能力，保存筛选、每页大小和可见列，不保存当前页；同一用户和 surface 下名称唯一。
-- 当前下一步：先完成 Application ID、Workspace 和创建流程的 cross-boundary authority repair；Remote Host、Git 与 Provider 扩展不在当前公开 surface。
+- 当前下一步：Remote Host、Git 与 Provider 扩展不在当前公开 surface；继续前必须重新经 Work Intake 和启动预检确定范围。
 
 ## Completion Scope
 

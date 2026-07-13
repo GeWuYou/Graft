@@ -103,9 +103,9 @@ Compose Project Management
 - [x] git-template-source-adapters：Git/Template 均已通过 source adapter 进入同一 CreationCommand pipeline；Git 仅在隔离暂存目录解析无凭据仓库，Template 使用模块内置的 explicit empty-compose v1 catalog
 - [x] saved-view-foundation-and-project-contract：新增无菜单 `saved-view` module，提供用户私有、surface-scoped 的分页保存视图；Project 通过自身 view 权限提供 `/api/ops/projects/saved-views`，保存筛选、每页大小和可见列，不保存当前页。
 - [x] application-model-docs：设计 authority 收敛为 `Deployment Type -> Runtime Target -> Source`，并固定 Application ID、Workspace 与 Compose deployment identity 的正交边界。
-- [ ] application-identity-backend：迁移 public Application ID、Workspace Key/Path、Compose Project Name 与 capability-aware Target 选择契约。
-- [ ] create-workflow-web：三步创建 UI、可用 Target 卡片、来源收敛与返回/刷新列表行为。
-- [ ] validation-and-closeout：OpenAPI、server、web、浏览器路径与主题 archive-readiness 验收。
+- [x] application-identity-backend：迁移 public Application ID、Workspace Key/Path、Compose Project Name 与 capability-aware Target 选择契约。
+- [x] create-workflow-web：三步创建 UI、可用 Target 卡片、来源收敛与返回/刷新列表行为。
+- [x] validation-and-closeout：OpenAPI、server、web 与主题验收；浏览器路径因本机缺少 `chrome-for-testing` 未执行。
 
 ## Creation Pipeline Follow-up
 
@@ -245,6 +245,30 @@ Compose Project Management
   "current_batch": "optional-deploy-after-create-and-archive-readiness",
   "next_batch": "source-surface-simplification-and-extension-seam",
   "closeout_status": "optional-deploy-after-create-complete"
+}
+```
+
+## 2026-07-14 Application Creation Authority Repair Closeout
+
+- [x] `application-identity-backend`：公开路由与批量操作切换为 `app_<ULID>`；受管创建使用 `runtime_target_id` 和可选 `workspace_key`，并由 Compose 顶层 `name:` 作为 deployment identity。
+- [x] `create-workflow-web`：实现 `Deployment Type -> Runtime Target -> Source`，仅 Compose 可用；Swarm、Kubernetes、Nomad 和 Git 都以本地化禁用提示呈现。返回列表使用“返回”，列表刷新使用“刷新”。
+- [x] `validation-and-closeout`：`validate_sql_migrations.py`、OpenAPI 类型检查、`graft validate backend`、`bun run lint:i18n`、`bun run check` 与 `git diff --check` 均通过。浏览器 QA 未执行，因为 Playwright 环境没有 `chrome-for-testing`。
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "application-model-docs",
+    "application-model-docs-correction",
+    "git-source-roadmap-card-documentation",
+    "application-identity-backend",
+    "create-workflow-web",
+    "validation-and-closeout"
+  ],
+  "pending_batches": [],
+  "current_batch": "validation-and-closeout",
+  "next_batch": null,
+  "closeout_status": "application-creation-authority-repair-complete"
 }
 ```
 

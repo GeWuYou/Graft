@@ -445,3 +445,10 @@
 - 用户要求 Source 阶段视觉上完整呈现 Blank、Template、Git、Import Existing；Git 采用禁用卡片，不可点击或键盘触发，并以本地化 tooltip 显示“暂不支持”。
 - Git 的可见路线图不构成当前 source capability：不新增 URL、OpenAPI、创建方式目录项、菜单、`source_kind`、持久化 metadata 或后端 placeholder model。
 - 设计与导航 IA 已同步该边界。后续 `create-workflow-web` 只负责实现来源页的禁用 Git 卡片与既有三种可执行来源，不得扩大到 Git adapter。
+
+## 2026-07-14 Application creation authority repair accepted
+
+- 服务端已将公开 Application ID、Workspace Key/Path 与 Compose Project Name 分离；Workspace 仅按 Application 管理，不编码 Runtime Provider 或 Deployment Type。Compose 创建会验证顶层 `name:` 和运行目标内的名称占用，包含已停止容器。
+- Web 创建流程已落地为 `Deployment Type -> Runtime Target -> Source`。当前只展示真实具备 Compose capability 的 Local Docker；未支持的部署模型和 Git 使用本地化禁用提示，不建立占位 API 或路由。
+- 列表、详情、配置和导入页面已同步公开 Application contract；技术目录与 Canonical Project Name 不再作为新建表单输入。返回列表与刷新动作均使用已本地化的明确文案。
+- 验证通过：`git diff --check`、`python3 scripts/validate_sql_migrations.py`、`cd web && bun run openapi:types:check`、`cd web && bun run lint:i18n`、`cd web && bun run check`、`cd server && go run ./cmd/graft validate backend`。浏览器 QA 未执行，因为本机缺少 Playwright 的 `chrome-for-testing`。
