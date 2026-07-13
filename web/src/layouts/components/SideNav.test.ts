@@ -10,6 +10,7 @@ const settingStoreProxy = {
   value: null as null | {
     isSidebarCompact: boolean;
     menuAutoCollapsed: boolean;
+    menuAlwaysExpanded: boolean;
     updateConfig: typeof updateConfigMock;
   },
 };
@@ -17,6 +18,7 @@ const settingStoreProxy = {
 const settingStoreState = {
   isSidebarCompact: false,
   menuAutoCollapsed: false,
+  menuAlwaysExpanded: false,
 };
 
 vi.mock('@/store', () => ({
@@ -230,6 +232,7 @@ describe('SideNav', () => {
     });
     settingStoreProxy.value.isSidebarCompact = false;
     settingStoreProxy.value.menuAutoCollapsed = false;
+    settingStoreProxy.value.menuAlwaysExpanded = false;
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
       value: 1280,
@@ -298,6 +301,48 @@ describe('SideNav', () => {
     await nextTick();
 
     expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
+  });
+
+  it('keeps every visible sidebar group expanded while always-expanded navigation is enabled', async () => {
+    settingStoreProxy.value!.menuAlwaysExpanded = true;
+    const wrapper = mount(SideNav, {
+      props: {
+        isCompact: false,
+        isFixed: true,
+        layout: 'side',
+        menu: [
+          {
+            path: '/server',
+            children: [
+              {
+                path: 'runtime',
+                children: [{ path: 'target.list' }],
+              },
+            ],
+          },
+          {
+            path: '/security',
+            children: [{ path: 'overview' }],
+          },
+        ],
+        motionPhase: 'expanded',
+        showLogo: true,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    await nextTick();
+    expectExpandedMenus(wrapper, ['/server', 'runtime', '/security']);
+
+    wrapper.findComponent(menuStub).vm.$emit('expand', []);
+    await nextTick();
+
+    expectExpandedMenus(wrapper, ['/server', 'runtime', '/security']);
   });
 
   it('expands the active sidebar branch after switching routes through a tab', async () => {

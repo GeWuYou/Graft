@@ -66,7 +66,28 @@ describe('setting store theme authority', () => {
     const store = useSettingStore();
 
     expect(store.fontSizePreset).toBe('standard');
+    expect(store.menuAlwaysExpanded).toBe(false);
     expect(store.createThemeAuthoritySnapshot().fontSizePreset).toBe('standard');
+  });
+
+  it('keeps always-expanded and auto-collapse preferences mutually exclusive', () => {
+    const store = useSettingStore();
+
+    store.updateConfig({ menuAutoCollapsed: true });
+    store.updateConfig({ menuAlwaysExpanded: true });
+
+    expect(store.menuAlwaysExpanded).toBe(true);
+    expect(store.menuAutoCollapsed).toBe(false);
+
+    store.updateConfig({ menuAlwaysExpanded: false });
+
+    expect(store.menuAlwaysExpanded).toBe(false);
+    expect(store.menuAutoCollapsed).toBe(false);
+
+    store.updateConfig({ menuAutoCollapsed: true });
+
+    expect(store.menuAlwaysExpanded).toBe(false);
+    expect(store.menuAutoCollapsed).toBe(true);
   });
 
   it('resolves font size preset into TDesign font tokens', () => {
@@ -201,6 +222,22 @@ describe('setting store theme authority', () => {
     expect(store.layout).toBe('side');
     expect(store.fontSizePreset).toBe('standard');
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
+  });
+
+  it('rolls back previewed always-expanded navigation changes when the workbench is canceled', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('layout');
+    store.updateConfig({ menuAutoCollapsed: true });
+    store.updateConfig({ menuAlwaysExpanded: true });
+
+    expect(store.menuAlwaysExpanded).toBe(true);
+    expect(store.menuAutoCollapsed).toBe(false);
+
+    store.cancelThemeDraft();
+
+    expect(store.menuAlwaysExpanded).toBe(false);
+    expect(store.menuAutoCollapsed).toBe(false);
   });
 
   it('includes advanced token overrides in draft diff tracking', () => {
@@ -453,6 +490,7 @@ describe('setting store theme authority', () => {
     const store = useSettingStore();
 
     store.openThemeWorkbench('overview');
+    store.updateConfig({ menuAlwaysExpanded: true });
 
     store.selectThemePreset('graphite-slate');
     expect(store.selectedThemePresetId).toBe('graphite-slate');
@@ -466,6 +504,7 @@ describe('setting store theme authority', () => {
     expect(store.layout).toBe('side');
     expect(store.isUseTabsRouter).toBe(true);
     expect(store.menuAutoCollapsed).toBe(true);
+    expect(store.menuAlwaysExpanded).toBe(false);
     expect(store.splitMenu).toBe(false);
 
     store.selectThemePreset('sunset-amber');

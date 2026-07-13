@@ -1,6 +1,13 @@
 <template>
   <div :class="layoutCls">
-    <t-head-menu :class="menuCls" :theme="menuTheme" expand-type="popup" :value="active">
+    <t-head-menu
+      :class="menuCls"
+      :theme="menuTheme"
+      expand-type="popup"
+      :value="active"
+      :expanded="expanded"
+      @expand="onExpanded"
+    >
       <template #logo>
         <span v-if="showLogo" class="header-logo-container" @click="goHome">
           <brand-identity class="t-logo" :label="t('common.appName')" />
@@ -82,11 +89,13 @@
 </template>
 <script setup lang="ts">
 import { ChevronDownIcon, PoweroffIcon, SettingIcon, UserCircleIcon } from 'tdesign-icons-vue-next';
+import type { MenuValue } from 'tdesign-vue-next';
 import type { PropType } from 'vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
+import { findExpandedMenuBranchPaths } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
@@ -143,6 +152,20 @@ const toggleSettingPanel = () => {
 };
 
 const active = computed(() => getActive());
+const expanded = ref<MenuValue[]>([]);
+
+const onExpanded = (value: MenuValue[]) => {
+  expanded.value = settingStore.menuAlwaysExpanded ? findExpandedMenuBranchPaths(menu, value) : value;
+};
+
+watch(
+  () => settingStore.menuAlwaysExpanded,
+  (enabled) => {
+    if (enabled) {
+      expanded.value = findExpandedMenuBranchPaths(menu, expanded.value);
+    }
+  },
+);
 
 const layoutCls = computed(() => [`${prefix}-header-layout`]);
 

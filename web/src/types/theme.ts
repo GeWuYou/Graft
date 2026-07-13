@@ -29,6 +29,7 @@ export type ThemeWorkbenchStylePatch = Partial<
     | 'showHeader'
     | 'showBreadcrumb'
     | 'menuAutoCollapsed'
+    | 'menuAlwaysExpanded'
   >
 >;
 

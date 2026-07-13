@@ -110,6 +110,59 @@ export function findExpandedMenuPaths(menus: MenuRoute[], activePath: string, pa
 }
 
 /**
+ * 返回菜单树中所有实际渲染为子菜单的可见节点值。
+ *
+ * @param menus - 待遍历的菜单列表
+ * @returns 可用于受控展开的子菜单值
+ */
+export function findAllExpandedMenuPaths(menus: MenuRoute[]): string[] {
+  return menus.flatMap((menu) => {
+    const visibleChildren = getExpandableMenuChildren(menu);
+    if (!visibleChildren) {
+      return [];
+    }
+
+    return [menu.path, ...findAllExpandedMenuPaths(visibleChildren)];
+  });
+}
+
+/**
+ * 基于当前已展开的顶层值，补全对应分支中全部可展开的后代。
+ *
+ * @param menus - 待遍历的菜单列表
+ * @param expandedPaths - 菜单组件当前报告的展开值
+ * @returns 当前分支及其可见后代的完整展开值
+ */
+export function findExpandedMenuBranchPaths(
+  menus: MenuRoute[],
+  expandedPaths: ReadonlyArray<string | number>,
+): string[] {
+  const expandedPathSet = new Set(expandedPaths);
+
+  return menus.flatMap((menu) => {
+    const visibleChildren = getExpandableMenuChildren(menu);
+    if (!visibleChildren) {
+      return [];
+    }
+
+    if (expandedPathSet.has(menu.path)) {
+      return [menu.path, ...findAllExpandedMenuPaths(visibleChildren)];
+    }
+
+    return findExpandedMenuBranchPaths(visibleChildren, expandedPaths);
+  });
+}
+
+function getExpandableMenuChildren(menu: MenuRoute): MenuRoute[] | null {
+  if (menu.meta?.hidden === true || menu.meta?.single === true) {
+    return null;
+  }
+
+  const visibleChildren = (menu.children ?? []).filter((child) => child.meta?.hidden !== true);
+  return visibleChildren.length > 0 ? visibleChildren : null;
+}
+
+/**
  * 查找与当前路径匹配的菜单，并确定需要展开的菜单路径。
  *
  * @param menus - 要搜索的菜单列表

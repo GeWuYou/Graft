@@ -80,7 +80,8 @@
         "showBreadcrumb": "显示 Breadcrumbs",
         "showFooter": "显示 Footer",
         "useTagTabs": "显示多标签 Tab 页",
-        "menuAutoCollapsed": "菜单自动折叠"
+        "menuAutoCollapsed": "菜单自动折叠",
+        "menuAlwaysExpanded": "始终展开所有菜单"
       },
       "workbench": {
         "title": "个性化",
@@ -112,6 +113,7 @@
           "splitMenuHint": "切换后立即更新当前混合布局导航。",
           "fixedSidebarHint": "切换侧边栏固定与随内容滚动。",
           "menuAutoCollapsedHint": "同级菜单展开时自动收起其他分组。",
+          "menuAlwaysExpandedHint": "展开所有可展开的菜单层级，并关闭菜单自动折叠。",
           "showHeaderHint": "显示顶部导航与账号操作区。",
           "showBreadcrumbHint": "显示当前位置路径。",
           "showFooterHint": "显示页面底部信息。",

@@ -542,25 +542,34 @@ export const useSettingStore = defineStore('setting', {
       this.themeWorkbenchRuntimeReady = true;
     },
     updateConfig(payload: Partial<TState>) {
-      for (const key in payload) {
+      const normalizedPayload = { ...payload };
+
+      if (normalizedPayload.menuAlwaysExpanded === true) {
+        normalizedPayload.menuAutoCollapsed = false;
+      }
+      if (normalizedPayload.menuAutoCollapsed === true) {
+        normalizedPayload.menuAlwaysExpanded = false;
+      }
+
+      for (const key in normalizedPayload) {
         const stateKey = key as TStateKey;
 
-        if (payload[stateKey] !== undefined) {
+        if (normalizedPayload[stateKey] !== undefined) {
           if (stateKey === 'showSettingPanel' || stateKey === 'showThemeWorkbench') {
-            this.setThemeWorkbenchVisible(Boolean(payload[stateKey]));
+            this.setThemeWorkbenchVisible(Boolean(normalizedPayload[stateKey]));
             continue;
           }
 
-          this[stateKey] = payload[stateKey] as never;
+          this[stateKey] = normalizedPayload[stateKey] as never;
         }
         if (key === 'mode') {
-          this.changeMode(payload[stateKey] as ModeType);
+          this.changeMode(normalizedPayload[stateKey] as ModeType);
         }
         if (key === 'sideMode') {
-          this.changeSideMode(payload[stateKey] as ModeType);
+          this.changeSideMode(normalizedPayload[stateKey] as ModeType);
         }
         if (key === 'brandTheme') {
-          this.changeBrandTheme(payload[stateKey] as string);
+          this.changeBrandTheme(normalizedPayload[stateKey] as string);
         }
       }
     },

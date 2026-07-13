@@ -330,6 +330,18 @@
                     @update:model-value="(value) => settingStore.updateConfig({ menuAutoCollapsed: value })"
                   />
                 </div>
+                <div class="switch-item">
+                  <div class="switch-item__content">
+                    <div class="switch-item__label">{{ t('layout.setting.element.menuAlwaysExpanded') }}</div>
+                    <div class="switch-item__hint">
+                      {{ t('layout.setting.workbench.layout.menuAlwaysExpandedHint') }}
+                    </div>
+                  </div>
+                  <t-switch
+                    :model-value="settingStore.menuAlwaysExpanded"
+                    @update:model-value="(value) => settingStore.updateConfig({ menuAlwaysExpanded: value })"
+                  />
+                </div>
               </div>
             </div>
 

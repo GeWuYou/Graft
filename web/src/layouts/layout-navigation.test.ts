@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { MenuRoute } from '@/utils/types';
 
 import {
+  findAllExpandedMenuPaths,
+  findExpandedMenuBranchPaths,
   findExpandedMenuPaths,
   flattenMixHeaderMenus,
   resolveMenuNavigationPath,
@@ -202,5 +204,56 @@ describe('layout navigation helpers', () => {
     );
 
     expect(expanded).toEqual(['domain.platform']);
+  });
+
+  it('collects every visible submenu and ignores hidden or single menu branches', () => {
+    const menus: MenuRoute[] = [
+      {
+        path: 'domain.infrastructure',
+        children: [
+          {
+            path: 'docker',
+            children: [{ path: 'container.list' }],
+          },
+          {
+            path: 'hidden-group',
+            meta: { hidden: true },
+            children: [{ path: 'hidden-child' }],
+          },
+          {
+            path: 'direct-route',
+            meta: { single: true },
+            children: [{ path: 'not-rendered' }],
+          },
+        ],
+      },
+    ];
+
+    expect(findAllExpandedMenuPaths(menus)).toEqual(['domain.infrastructure', 'docker']);
+  });
+
+  it('completes only the expanded header menu branch', () => {
+    const menus: MenuRoute[] = [
+      {
+        path: 'infrastructure',
+        children: [
+          {
+            path: 'docker',
+            children: [{ path: 'containers' }],
+          },
+        ],
+      },
+      {
+        path: 'security',
+        children: [
+          {
+            path: 'audit',
+            children: [{ path: 'access' }],
+          },
+        ],
+      },
+    ];
+
+    expect(findExpandedMenuBranchPaths(menus, ['infrastructure'])).toEqual(['infrastructure', 'docker']);
   });
 });
