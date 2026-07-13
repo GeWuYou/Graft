@@ -15,6 +15,7 @@ describe('monitor bootstrap route registrations', () => {
         dashboard: true,
         pageKind: 'overview',
         pageSurface: 'paged-table',
+        sidebarMotion: 'wide-table',
       }),
     });
   });

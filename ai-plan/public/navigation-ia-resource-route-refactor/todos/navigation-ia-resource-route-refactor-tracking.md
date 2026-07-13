@@ -50,6 +50,7 @@ closeout:
 - [x] ia-aligned-route-authority-and-skill
 - [x] ia-aligned-server-menu-contract
 - [x] ia-aligned-web-route-migration
+- [x] metadata-driven-sidebar-navigation-refinement
 - [ ] ia-aligned-cross-boundary-validation
 
 ## Acceptance Conditions

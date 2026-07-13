@@ -107,7 +107,7 @@ export function normalizeGlobalMenuSearchKeyword(keyword: string) {
 /**
  * Recursively collects searchable menu items from a route hierarchy.
  *
- * Filters out hidden routes, computes full paths, derives titles and title keys, and builds hierarchical metadata. Returns a flattened array of leaf items with associated keywords, module information, and parent context. Uses the `orderRef` object to maintain consistent global ordering across recursive calls.
+ * Filters out hidden routes, resolves canonical navigation targets, derives titles and title keys, and builds hierarchical metadata. Returns a flattened array of leaf items with associated keywords, module information, and parent context. Uses the `orderRef` object to maintain consistent global ordering across recursive calls.
  *
  * @param routes - The routes to process
  * @param locale - The locale for resolving localized titles
@@ -143,6 +143,7 @@ function collectGlobalMenuSearchItems(
         typeof meta?.titleKey === 'string' && meta.titleKey.trim() ? meta.titleKey.trim() : undefined;
       const nextParentTitles = routeTitle ? [...parentTitles, routeTitle] : [...parentTitles];
       const nextParentTitleKeys = routeTitleKey ? [...parentTitleKeys, routeTitleKey] : [...parentTitleKeys];
+      const navigationPath = resolveSearchNavigationPath(route, fullPath);
       const currentItem: GlobalMenuSearchInternalItem[] = isSearchableMenuLeaf(route, fullPath, visibleChildren)
         ? [
             {
@@ -151,11 +152,11 @@ function collectGlobalMenuSearchItems(
               key: routeTitleKey || String(route.name ?? fullPath),
               keywords: extractSearchKeywords(route, meta),
               module: inferSearchModuleKey(route, meta, fullPath),
-              navigationPath: resolveSearchNavigationPath(route, fullPath),
+              navigationPath,
               order: orderRef.value++,
               parentTitleKeys,
               parentTitles,
-              path: fullPath,
+              path: navigationPath,
               routeName: typeof route.name === 'string' ? route.name : undefined,
               title: routeTitle,
               titleKey: routeTitleKey,
@@ -365,6 +366,11 @@ function normalizeSearchModuleKey(value: string) {
  * @returns The navigation path to use
  */
 function resolveSearchNavigationPath(route: MenuRoute, fullPath: string): string {
+  const navigationTargetPath = route.meta?.navigationTargetPath?.trim();
+  if (navigationTargetPath) {
+    return navigationTargetPath;
+  }
+
   if (typeof route.redirect === 'string' && route.redirect.trim()) {
     const redirectedPath = normalizeJoinedMenuPath(fullPath, route.redirect);
     const redirectedChild = (route.children ?? []).find((child) => {

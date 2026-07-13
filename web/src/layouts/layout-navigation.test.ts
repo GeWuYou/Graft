@@ -11,16 +11,16 @@ import {
 } from './layout-navigation';
 
 describe('layout navigation helpers', () => {
-  it('uses the wide-table sidebar motion for container and log list routes', () => {
-    expect(resolveSidebarMotionMode('/infrastructure/docker/containers')).toBe('wide-table');
-    expect(resolveSidebarMotionMode('/observability/application-logs')).toBe('wide-table');
-    expect(resolveSidebarMotionMode('/observability/access-logs')).toBe('wide-table');
-    expect(resolveSidebarMotionMode('/security/audit')).toBe('wide-table');
+  it('uses wide-table motion for paged list routes', () => {
+    expect(resolveSidebarMotionMode({ pageKind: 'list' })).toBe('wide-table');
+    expect(resolveSidebarMotionMode({ pageKind: 'list', pageSurface: 'paged-table' })).toBe('wide-table');
   });
 
-  it('uses the default sidebar motion outside wide-table list routes', () => {
-    expect(resolveSidebarMotionMode('/infrastructure/docker/containers/container-1')).toBe('default');
-    expect(resolveSidebarMotionMode('/observability/service-status')).toBe('default');
+  it('uses explicit motion overrides and preserves default motion for non-paged surfaces', () => {
+    expect(resolveSidebarMotionMode({ pageKind: 'overview', pageSurface: 'paged-table' })).toBe('default');
+    expect(resolveSidebarMotionMode({ pageKind: 'overview', sidebarMotion: 'wide-table' })).toBe('wide-table');
+    expect(resolveSidebarMotionMode({ pageKind: 'list', pageSurface: 'form-detail' })).toBe('default');
+    expect(resolveSidebarMotionMode({ pageKind: 'list', sidebarMotion: 'default' })).toBe('default');
   });
 
   it('resolves a grouped monitor menu to the first visible leaf page', () => {

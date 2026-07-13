@@ -83,7 +83,7 @@ const shellSurfaceAttrs = computed(() => ({
   'data-page-type': 'shell',
   'data-sidebar-compact': String(sidebarWidthCompact.value),
   'data-sidebar-motion-phase': sidebarMotionPhase.value,
-  'data-sidebar-motion-mode': resolveSidebarMotionMode(route.path),
+  'data-sidebar-motion-mode': resolveSidebarMotionMode(route.meta as AppRouteMeta),
   'data-sidebar-render-compact': String(sidebarRenderCompact.value),
   'data-sidebar-width-compact': String(sidebarWidthCompact.value),
   'data-sidebar-target-compact': String(settingStore.isSidebarCompact),

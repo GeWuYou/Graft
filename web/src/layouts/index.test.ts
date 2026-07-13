@@ -152,6 +152,7 @@ describe('App layout route effects', () => {
     routeProxy.value!.fullPath = '/infrastructure/docker/containers/container-1?tab=overview';
     routeProxy.value!.path = '/infrastructure/docker/containers/container-1';
     routeProxy.value!.name = 'ContainerDetail';
+    routeProxy.value!.meta = {};
     routeProxy.value!.params = { id: 'container-1' };
     routeProxy.value!.query = { tab: 'overview' };
     storeState.tabsRouterStore.appendTabRouterList.mockClear();
@@ -213,6 +214,7 @@ describe('App layout route effects', () => {
   it('exposes the sidebar compact state on the shell surface', async () => {
     settingStoreProxy.value!.isSidebarCompact = false;
     routeProxy.value!.path = '/infrastructure/docker/containers';
+    routeProxy.value!.meta = { pageKind: 'list' };
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
@@ -240,18 +242,17 @@ describe('App layout route effects', () => {
     expect(storeState.realtimeSchedulerStore.freeze).toHaveBeenCalledWith('shell-sidebar-motion');
   });
 
-  it.each(['/observability/application-logs', '/observability/access-logs', '/security/audit'])(
-    'uses wide-table motion for log list route %s',
-    (path) => {
-      routeProxy.value!.path = path;
-      const wrapper = mountAppLayout();
+  it('uses wide-table motion for an explicitly marked non-list table route', () => {
+    routeProxy.value!.path = '/observability/modules';
+    routeProxy.value!.meta = { pageKind: 'overview', pageSurface: 'paged-table', sidebarMotion: 'wide-table' };
+    const wrapper = mountAppLayout();
 
-      expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-mode')).toBe('wide-table');
-    },
-  );
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-mode')).toBe('wide-table');
+  });
 
-  it('uses default motion outside wide-table list routes', () => {
+  it('uses default motion outside paged list and explicitly dense table routes', () => {
     routeProxy.value!.path = '/observability/service-status';
+    routeProxy.value!.meta = { pageKind: 'runtime' };
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-mode')).toBe('default');
@@ -277,6 +278,7 @@ describe('App layout route effects', () => {
   it('runs the reverse sidebar motion when expanding back out', async () => {
     settingStoreProxy.value!.isSidebarCompact = true;
     routeProxy.value!.path = '/infrastructure/docker/containers';
+    routeProxy.value!.meta = { pageKind: 'list' };
     const wrapper = mountAppLayout();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
