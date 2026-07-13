@@ -7,6 +7,7 @@ import {
   flattenMixHeaderMenus,
   resolveMenuNavigationPath,
   resolveSidebarMotionMode,
+  selectMixSidebarMenu,
 } from './layout-navigation';
 
 describe('layout navigation helpers', () => {
@@ -80,6 +81,64 @@ describe('layout navigation helpers', () => {
     expect(menus[0]?.children).toEqual([]);
     expect(menus[0]?.redirect).toBeUndefined();
     expect(menus[0]?.meta?.single).toBe(true);
+  });
+
+  it('selects the owning mixed-layout sidebar branch for nested menu routes', () => {
+    const menus: MenuRoute[] = [
+      {
+        path: 'domain.application',
+        meta: { navigationTargetPath: '/applications/projects' },
+        children: [
+          {
+            path: 'application.list',
+            meta: { navigationTargetPath: '/applications/projects' },
+          },
+        ],
+      },
+      {
+        path: 'domain.infrastructure',
+        meta: { navigationTargetPath: '/infrastructure/runtime-targets' },
+        children: [
+          {
+            path: 'runtime-target.list',
+            meta: { navigationTargetPath: '/infrastructure/runtime-targets' },
+          },
+          {
+            path: 'docker',
+            children: [
+              {
+                path: 'container.list',
+                meta: { navigationTargetPath: '/infrastructure/docker/containers' },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const sidebarMenu = selectMixSidebarMenu(menus, '/infrastructure/docker/containers/container-1');
+
+    expect(sidebarMenu).toHaveLength(1);
+    expect(sidebarMenu[0]?.path).toBe('domain.infrastructure');
+    expect(sidebarMenu[0]?.meta?.expanded).toBe(true);
+    expect(sidebarMenu[0]?.children).toEqual(menus[1]?.children);
+  });
+
+  it('keeps the full mixed-layout sidebar menu when no branch owns the route', () => {
+    const menus: MenuRoute[] = [
+      {
+        path: 'domain.platform',
+        meta: { navigationTargetPath: '/platform/scheduled-tasks' },
+        children: [
+          {
+            path: 'scheduled-task.list',
+            meta: { navigationTargetPath: '/platform/scheduled-tasks' },
+          },
+        ],
+      },
+    ];
+
+    expect(selectMixSidebarMenu(menus, '/platforms/scheduled-tasks')).toBe(menus);
   });
 
   it('derives expanded submenu ancestors from the menu tree', () => {

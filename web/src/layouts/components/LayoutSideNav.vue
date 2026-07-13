@@ -16,7 +16,7 @@ import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
-import type { SidebarMotionPhase } from '@/layouts/layout-navigation';
+import { selectMixSidebarMenu, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
 
@@ -35,22 +35,9 @@ const { routers: menuRouters } = storeToRefs(permissionStore);
 
 const sideMenu = computed(() => {
   const { layout, splitMenu } = settingStore;
-  let newMenuRouters = menuRouters.value as Array<MenuRoute>;
+  const newMenuRouters = menuRouters.value as Array<MenuRoute>;
   if (layout === 'mix' && splitMenu) {
-    newMenuRouters.forEach((menu) => {
-      const targetPath = menu.meta?.navigationTargetPath ?? menu.path;
-      if (route.path.indexOf(targetPath) === 0 && menu.children?.length) {
-        newMenuRouters = [
-          {
-            ...menu,
-            meta: {
-              ...menu.meta,
-              expanded: true,
-            },
-          },
-        ];
-      }
-    });
+    return selectMixSidebarMenu(newMenuRouters, route.path);
   }
   return newMenuRouters;
 });

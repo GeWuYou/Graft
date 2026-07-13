@@ -47,6 +47,30 @@ export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
 }
 
 /**
+ * Selects the top-level menu branch that owns the current route for the mixed-layout sidebar.
+ *
+ * A group navigation target points to its first visible leaf, so ownership must be resolved from
+ * the complete menu tree rather than from that single target path.
+ */
+export function selectMixSidebarMenu(menus: MenuRoute[], activePath: string): MenuRoute[] {
+  const activeMenu = menus.find((menu) => menu.children?.length && menuContainsActivePath(menu, activePath));
+
+  if (!activeMenu) {
+    return menus;
+  }
+
+  return [
+    {
+      ...activeMenu,
+      meta: {
+        ...activeMenu.meta,
+        expanded: true,
+      },
+    },
+  ];
+}
+
+/**
  * 确定菜单项用于导航的路径。
  *
  * @param menu - 要解析导航路径的菜单项
@@ -132,6 +156,22 @@ function findExpandedMenuMatch(
   }
 
   return { matched: false, expandedPaths: [] };
+}
+
+function menuContainsActivePath(menu: MenuRoute, activePath: string, parentPath = ''): boolean {
+  if (!activePath || menu.meta?.hidden === true) {
+    return false;
+  }
+
+  const fullPath = normalizeMenuPath(parentPath, menu.path);
+  const visibleChildren = (menu.children ?? []).filter((child) => child.meta?.hidden !== true);
+
+  if (visibleChildren.some((child) => menuContainsActivePath(child, activePath, fullPath))) {
+    return true;
+  }
+
+  const targetPath = resolveMenuNavigationPath(menu, parentPath);
+  return activePath === targetPath || activePath.startsWith(`${targetPath}/`);
 }
 
 function normalizeMenuPath(parentPath: string, routePath: string) {
