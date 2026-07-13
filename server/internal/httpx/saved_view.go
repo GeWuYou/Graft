@@ -50,7 +50,7 @@ const (
 	SavedViewQueryStringSlice
 )
 
-// 绑定失败时返回本地化的 400 错误响应。
+// BindSavedViewRequest 将请求体绑定为已保存视图请求；绑定失败时返回本地化的 400 错误响应。
 func BindSavedViewRequest(ctx *gin.Context, localizer *i18n.Service) (SavedViewRequest, bool) {
 	var request SavedViewRequest
 	if ctx == nil || ctx.ShouldBindJSON(&request) != nil {

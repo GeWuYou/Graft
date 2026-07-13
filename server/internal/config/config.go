@@ -593,7 +593,7 @@ func defaultDocsEnabledForEnv(env string) bool {
 	}
 }
 
-// An explicit console or JSON format is preserved; automatic selection uses console for local-like environments and JSON otherwise.
+// ResolveLogFormat 保留显式指定的 console 或 JSON 格式；自动选择时，本地类环境使用 console，其它环境使用 JSON。
 func ResolveLogFormat(appEnv string, format LogFormat) LogFormat {
 	switch normalizeLogFormat(format) {
 	case LogFormatConsole:

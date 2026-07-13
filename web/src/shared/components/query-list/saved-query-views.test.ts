@@ -22,6 +22,69 @@ const initialView: SavedQueryView<QueryState, number> = {
 };
 
 describe('useSavedQueryViews', () => {
+  it('blocks busy re-entry while preserving select(undefined) clearing behavior', async () => {
+    let resolveList!: (views: SavedQueryView<QueryState, number>[]) => void;
+    const list = vi.fn(
+      () =>
+        new Promise<SavedQueryView<QueryState, number>[]>((resolve) => {
+          resolveList = resolve;
+        }),
+    );
+    const adapter = {
+      list,
+      create: vi.fn().mockResolvedValue({ id: 2, name: 'Pending applications', state: initialView.state }),
+      update: vi.fn().mockResolvedValue(initialView),
+      remove: vi.fn().mockResolvedValue(undefined),
+    };
+    const controller = useSavedQueryViews({
+      adapter,
+      applyView: vi.fn(),
+      serializeCurrentState: () => initialView.state,
+    });
+
+    const firstLoad = controller.load();
+    await expect(controller.load()).resolves.toBe(false);
+    await expect(controller.save('Pending applications', 'create')).resolves.toBe(false);
+    await expect(controller.removeSelected()).resolves.toBe(false);
+    expect(list).toHaveBeenCalledTimes(1);
+
+    await expect(controller.select(undefined)).resolves.toBe(true);
+    expect(controller.selectedId.value).toBeUndefined();
+
+    resolveList([initialView]);
+    await expect(firstLoad).resolves.toBe(true);
+
+    let resolveApply!: () => void;
+    const applyView = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValueOnce()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveApply = resolve;
+          }),
+      );
+    const selectController = useSavedQueryViews({
+      adapter: { ...adapter, list: vi.fn().mockResolvedValue([initialView]) },
+      applyView,
+      serializeCurrentState: () => initialView.state,
+    });
+    await selectController.load();
+    await selectController.select(initialView.id);
+    const firstSelect = selectController.select(initialView.id);
+    await expect(selectController.select(initialView.id)).resolves.toBe(false);
+    await expect(selectController.load()).resolves.toBe(false);
+    await expect(selectController.save('Pending applications', 'update')).resolves.toBe(false);
+    await expect(selectController.removeSelected()).resolves.toBe(false);
+    expect(applyView).toHaveBeenCalledTimes(2);
+    expect(selectController.isBusy.value).toBe(true);
+
+    await expect(selectController.select(undefined)).resolves.toBe(true);
+    expect(selectController.selectedId.value).toBeUndefined();
+    resolveApply();
+    await expect(firstSelect).resolves.toBe(true);
+  });
+
   it('drops persisted columns that the current list does not support', () => {
     expect(resolveSavedQueryViewColumns(['action', 'removed', 'result'], ['action', 'result'])).toEqual([
       'action',

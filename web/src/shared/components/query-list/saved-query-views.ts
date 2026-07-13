@@ -139,6 +139,10 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    * @returns 成功加载时为 `true`，发生错误时为 `false`。
    */
   async function load() {
+    if (isBusy.value) {
+      return false;
+    }
+
     loading.value = true;
     try {
       const nextViews = await options.adapter.list();
@@ -166,6 +170,10 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
     if (id === undefined) {
       selectedId.value = undefined;
       return true;
+    }
+
+    if (isBusy.value) {
+      return false;
     }
 
     const view = views.value.find((candidate) => candidate.id === id);
@@ -197,7 +205,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    */
   async function save(name: string, mode: 'create' | 'update') {
     const normalizedName = name.trim();
-    if (!normalizedName || (mode === 'update' && !selectedView.value)) {
+    if (!normalizedName || (mode === 'update' && !selectedView.value) || isBusy.value) {
       return false;
     }
 
@@ -236,7 +244,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    */
   async function removeSelected() {
     const view = selectedView.value;
-    if (!view) {
+    if (!view || isBusy.value) {
       return false;
     }
 

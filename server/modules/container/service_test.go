@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
@@ -156,6 +158,33 @@ func TestServiceNormalizesLogQuery(t *testing.T) {
 	_, err = service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{Since: "not-a-time"})
 	if !errors.Is(err, errInvalidLogQuery) {
 		t.Fatalf("expected invalid log query, got %v", err)
+	}
+}
+
+func TestShellAllowedWarnsWhenEnabledWithoutWebSocketOrigins(t *testing.T) {
+	t.Parallel()
+
+	core, observed := observer.New(zapcore.WarnLevel)
+	service := &service{
+		logger:       zap.New(core),
+		moduleName:   moduleID,
+		shellEnabled: true,
+	}
+
+	if service.shellAllowed(context.Background()) {
+		t.Fatal("expected shell to remain disabled without WebSocket allowed origins")
+	}
+
+	entries := observed.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one warning entry, got %d", len(entries))
+	}
+	if entries[0].Message != "container shell disabled because WebSocket allowed origins are not configured" {
+		t.Fatalf("unexpected warning message %q", entries[0].Message)
+	}
+	fields := entries[0].ContextMap()
+	if fields["module"] != moduleID || fields["config_key"] != containercontract.ContainerShellEnabledConfig.String() || fields["reason"] != "websocket_allowed_origins_empty" {
+		t.Fatalf("unexpected structured warning fields: %#v", fields)
 	}
 }
 

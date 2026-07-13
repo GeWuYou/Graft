@@ -173,7 +173,7 @@ func registerAppLogExplorerRoutes(router gin.IRouter, dependencies appLogExplore
 	return nil
 }
 
-// It returns an error if route registration fails.
+// RegisterAppLogExplorer 将应用日志浏览器的权限、菜单和 HTTP 路由注册到核心运行时，并返回路由注册过程中的错误。
 func RegisterAppLogExplorer(
 	ctx AppLogExplorerRegistration,
 	router gin.IRouter,

@@ -8,8 +8,7 @@ import (
 	auditcontract "graft/server/modules/audit/contract"
 )
 
-// registerAuditRoutes 为审计相关接口注册路由，并挂载请求 ID 中间件。
-// registerAuditRoutes 注册审计日志、审计事件、可见性策略、可见性覆盖及可选已保存视图的相关路由。
+// registerAuditRoutes 为审计相关接口注册路由，挂载请求 ID 中间件，并注册审计日志、审计事件、可见性策略、可见性覆盖及可选已保存视图的相关路由。
 func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditReader, guard auditGuard, savedViews moduleapi.SavedViewService) {
 	group := ctx.Router.Group(auditcontract.AuditGroup)
 	group.Use(httpx.RequestIDMiddleware())

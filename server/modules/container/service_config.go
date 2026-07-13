@@ -498,14 +498,25 @@ func (s *service) shellAllowed(ctx context.Context) bool {
 	if s == nil {
 		return false
 	}
-	if len(s.websocketAllowedOrigins) == 0 {
-		return false
-	}
-	return s.boolConfigEnabled(
+	if !s.boolConfigEnabled(
 		ctx,
 		containercontract.ContainerShellEnabledConfig.String(),
 		s.shellEnabled,
-	)
+	) {
+		return false
+	}
+	if len(s.websocketAllowedOrigins) == 0 {
+		if s.logger != nil {
+			s.logger.Warn(
+				"container shell disabled because WebSocket allowed origins are not configured",
+				zap.String("module", firstNonEmpty(s.moduleName, moduleID)),
+				zap.String("config_key", containercontract.ContainerShellEnabledConfig.String()),
+				zap.String("reason", "websocket_allowed_origins_empty"),
+			)
+		}
+		return false
+	}
+	return true
 }
 
 func (s *service) maskedEnvironmentCopyEnabled(ctx context.Context) bool {

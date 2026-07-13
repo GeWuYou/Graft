@@ -81,11 +81,15 @@ func handleListAuditSavedViews(localizer *i18n.Service, service moduleapi.SavedV
 func handleCreateAuditSavedView(localizer *i18n.Service, service moduleapi.SavedViewService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		owner, ownerOK := httpx.SavedViewOwnerID(ctx)
+		if !ownerOK {
+			httpx.WriteSavedViewError(ctx, localizer, moduleapi.ErrSavedViewInvalidInput)
+			return
+		}
 		request, requestOK := httpx.BindSavedViewRequest(ctx, localizer)
-		if !ownerOK || !requestOK || service == nil {
-			if ownerOK && !requestOK {
-				return
-			}
+		if !requestOK {
+			return
+		}
+		if service == nil {
 			httpx.WriteSavedViewError(ctx, localizer, moduleapi.ErrSavedViewInvalidInput)
 			return
 		}
@@ -107,11 +111,15 @@ func handleUpdateAuditSavedView(localizer *i18n.Service, service moduleapi.Saved
 	return func(ctx *gin.Context) {
 		owner, ownerOK := httpx.SavedViewOwnerID(ctx)
 		id, idOK := httpx.SavedViewID(ctx)
+		if !ownerOK || !idOK {
+			httpx.WriteSavedViewError(ctx, localizer, moduleapi.ErrSavedViewInvalidInput)
+			return
+		}
 		request, requestOK := httpx.BindSavedViewRequest(ctx, localizer)
-		if !ownerOK || !idOK || !requestOK || service == nil {
-			if ownerOK && idOK && !requestOK {
-				return
-			}
+		if !requestOK {
+			return
+		}
+		if service == nil {
 			httpx.WriteSavedViewError(ctx, localizer, moduleapi.ErrSavedViewInvalidInput)
 			return
 		}
