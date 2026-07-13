@@ -8416,8 +8416,6 @@ type ProjectContainerCounts struct {
 
 // ProjectCreateRequest defines model for project-create-request.
 type ProjectCreateRequest struct {
-	CanonicalProjectName string `json:"canonical_project_name"`
-
 	// ComposeFileContent Initial Compose YAML content to materialize in the managed project directory.
 	ComposeFileContent string `json:"compose_file_content"`
 	ComposeFileName    string `json:"compose_file_name"`
@@ -8433,20 +8431,22 @@ type ProjectCreateRequest struct {
 	// EnvFilePaths Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
 	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-
-	// RelativeProjectDirectory Relative project directory under the canonical managed root.
-	RelativeProjectDirectory string `json:"relative_project_directory"`
+	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
 
 	// WorkspaceFiles Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.
 	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
+
+	// WorkspaceKey Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
+	WorkspaceKey *string `json:"workspace_key,omitempty"`
 }
 
 // ProjectCreateResponse defines model for project-create-response.
 type ProjectCreateResponse struct {
 	Action                  ProjectCreateResponseAction `json:"action"`
-	CanonicalProjectName    string                      `json:"canonical_project_name"`
+	ApplicationId           string                      `json:"application_id"`
 	ComposeFileAbsolutePath string                      `json:"compose_file_absolute_path"`
 	ComposeFileName         string                      `json:"compose_file_name"`
+	ComposeProjectName      string                      `json:"compose_project_name"`
 	DisplayName             string                      `json:"display_name"`
 	EnvFileAbsolutePath     *string                     `json:"env_file_absolute_path,omitempty"`
 	EnvFileName             *string                     `json:"env_file_name,omitempty"`
@@ -8454,17 +8454,17 @@ type ProjectCreateResponse struct {
 	Message                 *string                     `json:"message,omitempty"`
 	MessageKey              *string                     `json:"message_key,omitempty"`
 	OwnershipMode           ProjectOwnershipMode        `json:"ownership_mode"`
-	ProjectId               int64                       `json:"project_id"`
 	Result                  ProjectCreateResponseResult `json:"result"`
 	SnapshotSummary         struct {
 		ConfigHash           string    `json:"config_hash"`
 		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
 		RefreshedAt          time.Time `json:"refreshed_at"`
 	} `json:"snapshot_summary"`
-	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
-	SourceType       ProjectSourceKind      `json:"source_type"`
-	Warnings         *[]string              `json:"warnings,omitempty"`
-	WorkingDirectory string                 `json:"working_directory"`
+	SourceMetadata *ProjectSourceMetadata `json:"source_metadata,omitempty"`
+	SourceType     ProjectSourceKind      `json:"source_type"`
+	Warnings       *[]string              `json:"warnings,omitempty"`
+	WorkspaceKey   *string                `json:"workspace_key,omitempty"`
+	WorkspacePath  string                 `json:"workspace_path"`
 }
 
 // ProjectCreateResponseAction defines model for ProjectCreateResponse.Action.
@@ -8475,8 +8475,7 @@ type ProjectCreateResponseResult string
 
 // ProjectCreateValidateRequest defines model for project-create-validate-request.
 type ProjectCreateValidateRequest struct {
-	CanonicalProjectName string `json:"canonical_project_name"`
-	ComposeFileName      string `json:"compose_file_name"`
+	ComposeFileName string `json:"compose_file_name"`
 
 	// ComposeFilePath Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
 	ComposeFilePath *string `json:"compose_file_path,omitempty"`
@@ -8486,19 +8485,20 @@ type ProjectCreateValidateRequest struct {
 	// EnvFilePaths Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
 	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-
-	// RelativeProjectDirectory Relative project directory under the canonical managed root.
-	RelativeProjectDirectory string `json:"relative_project_directory"`
+	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
 
 	// WorkspaceFiles Complete managed workspace text manifest to validate without materializing.
 	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
+
+	// WorkspaceKey Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
+	WorkspaceKey *string `json:"workspace_key,omitempty"`
 }
 
 // ProjectCreateValidateResponse defines model for project-create-validate-response.
 type ProjectCreateValidateResponse struct {
-	CanonicalProjectName    string                     `json:"canonical_project_name"`
 	ComposeFileAbsolutePath string                     `json:"compose_file_absolute_path"`
 	ComposeFileName         string                     `json:"compose_file_name"`
+	ComposeProjectName      string                     `json:"compose_project_name"`
 	DisplayName             string                     `json:"display_name"`
 	EnvFileAbsolutePath     *string                    `json:"env_file_absolute_path,omitempty"`
 	EnvFileName             *string                    `json:"env_file_name,omitempty"`
@@ -8507,7 +8507,8 @@ type ProjectCreateValidateResponse struct {
 	SourceMetadata          *ProjectSourceMetadata     `json:"source_metadata,omitempty"`
 	SourceType              ProjectSourceKind          `json:"source_type"`
 	Warnings                *[]string                  `json:"warnings,omitempty"`
-	WorkingDirectory        string                     `json:"working_directory"`
+	WorkspaceKey            *string                    `json:"workspace_key,omitempty"`
+	WorkspacePath           string                     `json:"workspace_path"`
 }
 
 // ProjectCreationMethod defines model for project-creation-method.
@@ -8553,41 +8554,42 @@ type ProjectDeployResponseResult string
 
 // ProjectDestroyRequest defines model for project-destroy-request.
 type ProjectDestroyRequest struct {
-	AutoUnregister              *bool  `json:"auto_unregister,omitempty"`
-	ConfirmCanonicalProjectName string `json:"confirm_canonical_project_name"`
-	DeleteWorkingDirectory      bool   `json:"delete_working_directory"`
-	ImagePrune                  *bool  `json:"image_prune,omitempty"`
-	RemoveNamedVolumes          bool   `json:"remove_named_volumes"`
+	AutoUnregister       *bool  `json:"auto_unregister,omitempty"`
+	ConfirmApplicationId string `json:"confirm_application_id"`
+	DeleteWorkspace      bool   `json:"delete_workspace"`
+	ImagePrune           *bool  `json:"image_prune,omitempty"`
+	RemoveNamedVolumes   bool   `json:"remove_named_volumes"`
 }
 
 // ProjectDetailResponse defines model for project-detail-response.
 type ProjectDetailResponse struct {
-	ActivityAuthority          ProjectActivityAuthority             `json:"activity_authority"`
-	ApplicationType            ProjectDetailResponseApplicationType `json:"application_type"`
-	CanonicalProjectName       string                               `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource           `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectFileItem                    `json:"compose_files"`
-	ContainerCounts            ProjectContainerCounts               `json:"container_counts"`
-	DisplayName                string                               `json:"display_name"`
-	DriftStatus                ProjectDriftStatus                   `json:"drift_status"`
-	EnvFiles                   []ProjectFileItem                    `json:"env_files"`
-	HostScope                  ProjectHostScope                     `json:"host_scope"`
-	Id                         int64                                `json:"id"`
-	LastDriftCheckedAt         *time.Time                           `json:"last_drift_checked_at,omitempty"`
-	LastObservedConfigHash     *string                              `json:"last_observed_config_hash,omitempty"`
-	LifecycleConfiguration     ProjectLifecycleConfiguration        `json:"lifecycle_configuration"`
+	ActivityAuthority        ProjectActivityAuthority             `json:"activity_authority"`
+	ApplicationId            string                               `json:"application_id"`
+	ApplicationType          ProjectDetailResponseApplicationType `json:"application_type"`
+	ComposeFiles             []ProjectFileItem                    `json:"compose_files"`
+	ComposeProjectName       string                               `json:"compose_project_name"`
+	ComposeProjectNameSource ProjectCanonicalNameSource           `json:"compose_project_name_source"`
+	ContainerCounts          ProjectContainerCounts               `json:"container_counts"`
+	DisplayName              string                               `json:"display_name"`
+	DriftStatus              ProjectDriftStatus                   `json:"drift_status"`
+	EnvFiles                 []ProjectFileItem                    `json:"env_files"`
+	HostScope                ProjectHostScope                     `json:"host_scope"`
+	LastDriftCheckedAt       *time.Time                           `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash   *string                              `json:"last_observed_config_hash,omitempty"`
+	LifecycleConfiguration   ProjectLifecycleConfiguration        `json:"lifecycle_configuration"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
 	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
-	RuntimeTarget    *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
-	ServiceCount     int                          `json:"service_count"`
-	SourceKind       ProjectSourceKind            `json:"source_kind"`
-	SourceMetadata   *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
-	WorkingDirectory string                       `json:"working_directory"`
+	RuntimeStatus  *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
+	RuntimeTarget  *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
+	ServiceCount   int                          `json:"service_count"`
+	SourceKind     ProjectSourceKind            `json:"source_kind"`
+	SourceMetadata *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
+	WorkspaceKey   *string                      `json:"workspace_key,omitempty"`
+	WorkspacePath  string                       `json:"workspace_path"`
 }
 
 // ProjectDetailResponseApplicationType defines model for ProjectDetailResponse.ApplicationType.
@@ -9079,27 +9081,28 @@ type ProjectLifecycleStrategyKind string
 
 // ProjectListItem defines model for project-list-item.
 type ProjectListItem struct {
-	ActivityAuthority          ProjectActivityAuthority       `json:"activity_authority"`
-	ApplicationType            ProjectListItemApplicationType `json:"application_type"`
-	CanonicalProjectName       string                         `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource     `json:"canonical_project_name_source"`
-	ContainerCounts            ProjectContainerCounts         `json:"container_counts"`
-	DisplayName                string                         `json:"display_name"`
-	DriftStatus                ProjectDriftStatus             `json:"drift_status"`
-	HostScope                  ProjectHostScope               `json:"host_scope"`
-	Id                         int64                          `json:"id"`
+	ActivityAuthority        ProjectActivityAuthority       `json:"activity_authority"`
+	ApplicationId            string                         `json:"application_id"`
+	ApplicationType          ProjectListItemApplicationType `json:"application_type"`
+	ComposeProjectName       string                         `json:"compose_project_name"`
+	ComposeProjectNameSource ProjectCanonicalNameSource     `json:"compose_project_name_source"`
+	ContainerCounts          ProjectContainerCounts         `json:"container_counts"`
+	DisplayName              string                         `json:"display_name"`
+	DriftStatus              ProjectDriftStatus             `json:"drift_status"`
+	HostScope                ProjectHostScope               `json:"host_scope"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
 	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
 	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
-	RuntimeTarget    *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
-	ServiceCount     int                          `json:"service_count"`
-	SourceKind       ProjectSourceKind            `json:"source_kind"`
-	SourceMetadata   *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
-	WorkingDirectory string                       `json:"working_directory"`
+	RuntimeStatus  *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
+	RuntimeTarget  *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
+	ServiceCount   int                          `json:"service_count"`
+	SourceKind     ProjectSourceKind            `json:"source_kind"`
+	SourceMetadata *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
+	WorkspaceKey   *string                      `json:"workspace_key,omitempty"`
+	WorkspacePath  string                       `json:"workspace_path"`
 }
 
 // ProjectListItemApplicationType defines model for ProjectListItem.ApplicationType.
@@ -9190,12 +9193,12 @@ type ProjectOverviewResourceSummary struct {
 
 // ProjectOverviewResponse defines model for project-overview-response.
 type ProjectOverviewResponse struct {
-	CanonicalProjectName string                         `json:"canonical_project_name"`
-	CollectedAt          *time.Time                     `json:"collected_at,omitempty"`
-	Health               ProjectOverviewHealthSummary   `json:"health"`
-	ProjectId            int64                          `json:"project_id"`
-	Resources            ProjectOverviewResourceSummary `json:"resources"`
-	Services             []ProjectOverviewServiceItem   `json:"services"`
+	ApplicationId      string                         `json:"application_id"`
+	CollectedAt        *time.Time                     `json:"collected_at,omitempty"`
+	ComposeProjectName string                         `json:"compose_project_name"`
+	Health             ProjectOverviewHealthSummary   `json:"health"`
+	Resources          ProjectOverviewResourceSummary `json:"resources"`
+	Services           []ProjectOverviewServiceItem   `json:"services"`
 }
 
 // ProjectOverviewServiceItem defines model for project-overview-service-item.
@@ -9348,12 +9351,11 @@ type ProjectSourceMetadata struct {
 
 // ProjectTemplateCreateRequest defines model for project-template-create-request.
 type ProjectTemplateCreateRequest struct {
-	CanonicalProjectName     string                                `json:"canonical_project_name"`
-	DisplayName              string                                `json:"display_name"`
-	LifecycleConfiguration   *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-	RelativeProjectDirectory string                                `json:"relative_project_directory"`
+	DisplayName            string                                `json:"display_name"`
+	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
 
-	// TemplateInstanceName Safe display provenance for this template instance. Defaults to canonical_project_name.
+	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the generated workspace key.
 	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
 
 	// TemplateKey Explicit bundled template key. Defaults to empty-compose.
@@ -9361,6 +9363,7 @@ type ProjectTemplateCreateRequest struct {
 
 	// TemplateVersion Explicit bundled template version. Defaults to v1.
 	TemplateVersion *string `json:"template_version,omitempty"`
+	WorkspaceKey    *string `json:"workspace_key,omitempty"`
 }
 
 // ProjectWorkspaceFileKind defines model for project-workspace-file-kind.

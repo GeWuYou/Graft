@@ -2308,7 +2308,7 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import by inspection: %v", err)
 	}
-	if imported.Project.CanonicalProjectName != "orders" {
+	if imported.Project.ComposeProjectName != "orders" {
 		t.Fatalf("unexpected imported project: %#v", imported.Project)
 	}
 	assertImportedCreationPipelinePersisted(t, repo.importInput, projectDir)

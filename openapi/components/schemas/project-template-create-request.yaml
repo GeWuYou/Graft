@@ -2,18 +2,18 @@ type: object
 additionalProperties: false
 required:
   - display_name
-  - canonical_project_name
-  - relative_project_directory
+  - runtime_target_id
 properties:
   display_name:
     type: string
     minLength: 1
-  canonical_project_name:
+  runtime_target_id:
+    type: integer
+    format: int64
+    minimum: 1
+  workspace_key:
     type: string
-    minLength: 1
-  relative_project_directory:
-    type: string
-    minLength: 1
+    pattern: '^[a-z0-9][a-z0-9-]*$'
   template_key:
     type: string
     description: Explicit bundled template key. Defaults to empty-compose.
@@ -22,6 +22,6 @@ properties:
     description: Explicit bundled template version. Defaults to v1.
   template_instance_name:
     type: string
-    description: Safe display provenance for this template instance. Defaults to canonical_project_name.
+    description: Safe display provenance for this template instance. Defaults to the generated workspace key.
   lifecycle_configuration:
     $ref: ./project-lifecycle-configuration-request.yaml

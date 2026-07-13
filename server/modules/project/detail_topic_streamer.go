@@ -314,7 +314,7 @@ func (s *Service) buildProjectListSummaryRealtimePayload(
 				runtimeStatus = *item.RuntimeStatus
 			}
 			items = append(items, projectListSummaryRealtimeItem{
-				ProjectID:       item.Id,
+				ApplicationID:   item.ApplicationId,
 				RuntimeStatus:   runtimeStatus,
 				ServiceCount:    item.ServiceCount,
 				ContainerCounts: item.ContainerCounts,

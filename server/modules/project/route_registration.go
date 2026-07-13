@@ -428,13 +428,13 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 }
 
 type templateProjectCreateHTTP struct {
-	DisplayName              string                                          `json:"display_name"`
-	CanonicalProjectName     string                                          `json:"canonical_project_name"`
-	RelativeProjectDirectory string                                          `json:"relative_project_directory"`
-	TemplateKey              string                                          `json:"template_key"`
-	TemplateVersion          string                                          `json:"template_version"`
-	TemplateInstanceName     string                                          `json:"template_instance_name"`
-	LifecycleConfiguration   *generated.ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+	DisplayName            string                                          `json:"display_name"`
+	RuntimeTargetID        uint64                                          `json:"runtime_target_id"`
+	WorkspaceKey           *string                                         `json:"workspace_key"`
+	TemplateKey            string                                          `json:"template_key"`
+	TemplateVersion        string                                          `json:"template_version"`
+	TemplateInstanceName   string                                          `json:"template_instance_name"`
+	LifecycleConfiguration *generated.ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
 }
 
 func (r routeRuntime) handleTemplateCreateValidate(ginCtx *gin.Context) {
@@ -476,7 +476,7 @@ func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
 // toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
 // It returns an error when the lifecycle configuration cannot use the standard strategy.
 func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (TemplateProjectCreateRequest, error) {
-	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
+	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
 	if request.LifecycleConfiguration != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration)
 		if err != nil {
@@ -909,8 +909,8 @@ func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
 		RemoveNamedVolumes:          request.RemoveNamedVolumes,
 		AutoUnregister:              boolValue(request.AutoUnregister),
 		ImagePrune:                  boolValue(request.ImagePrune),
-		DeleteWorkingDirectory:      request.DeleteWorkingDirectory,
-		ConfirmCanonicalProjectName: request.ConfirmCanonicalProjectName,
+		DeleteWorkingDirectory:      request.DeleteWorkspace,
+		ConfirmCanonicalProjectName: request.ConfirmApplicationId,
 		ActorID:                     currentUserIDPointer(ginCtx),
 	})
 	if err != nil {

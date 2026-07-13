@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	projectcompose "graft/server/modules/project/compose"
 )
+
+var workspaceKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
 func (s *Service) CreateManagedProject(
@@ -41,7 +45,7 @@ func (s *Service) CreateManagedProject(
 	}()
 
 	parseResult, err := projectcompose.Load(projectcompose.Input{
-		WorkingDirectory: validation.WorkingDirectory,
+		WorkingDirectory: validation.WorkspacePath,
 		ComposeFiles:     []string{validation.ComposeFileAbsolutePath},
 		EnvFiles:         managedCreateEnvFileList(validation.EnvFileAbsolutePath),
 	})
@@ -58,6 +62,7 @@ func (s *Service) CreateManagedProject(
 		Validation:           validation,
 		SourceType:           "managed",
 		ProjectID:            aggregate.Project.ID,
+		ApplicationID:        aggregate.Project.ApplicationID,
 		ConfigHash:           parseResult.ConfigHash,
 		DeclaredServiceCount: len(parseResult.ServiceNames),
 		RefreshedAt:          now,
@@ -66,17 +71,18 @@ func (s *Service) CreateManagedProject(
 }
 
 type normalizedManagedCreateRequest struct {
-	DisplayName              string
-	CanonicalProjectName     string
-	RelativeProjectDirectory string
-	ComposeFileName          string
-	ComposeFileContent       string
-	EnvFileName              *string
-	EnvFileContent           *string
-	WorkspaceFiles           []ManagedWorkspaceFile
-	ComposeFilePath          string
-	EnvFilePaths             []string
-	LifecycleConfig          *LifecycleStandardConfig
+	DisplayName          string
+	RuntimeTargetID      uint64
+	WorkspaceKey         *string
+	CanonicalProjectName string
+	ComposeFileName      string
+	ComposeFileContent   string
+	EnvFileName          *string
+	EnvFileContent       *string
+	WorkspaceFiles       []ManagedWorkspaceFile
+	ComposeFilePath      string
+	EnvFilePaths         []string
+	LifecycleConfig      *LifecycleStandardConfig
 }
 
 type normalizedManagedWorkspaceFile struct {
@@ -88,25 +94,32 @@ type normalizedManagedWorkspaceFile struct {
 // 它会校验项目名称、目录、Compose 文件、可选环境文件及工作区文件，并保留生命周期配置和环境文件路径。
 // 返回规范化后的请求数据及验证错误。
 //
-//nolint:cyclop // The coupled request fields must be normalized together before any managed-root write.
+//nolint:cyclop,gocognit,gocyclo // The coupled request fields must be normalized together before any managed-root write.
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
-	canonicalName := strings.TrimSpace(request.CanonicalProjectName)
 	composeFileContent := strings.TrimSpace(request.ComposeFileContent)
-	relativeDir, err := normalizeManagedRelativeDirectory(request.RelativeProjectDirectory)
+	workspaceKey, err := normalizeOrDeriveWorkspaceKey(request.DisplayName, request.WorkspaceKey)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
+	}
+	if strings.TrimSpace(request.CanonicalProjectName) != "" {
+		if _, err := validateExplicitCanonicalProjectName(request.CanonicalProjectName); err != nil {
+			return normalizedManagedCreateRequest{}, err
+		}
+	}
+	if strings.TrimSpace(request.RelativeProjectDirectory) != "" {
+		legacyKey, err := normalizeManagedRelativeDirectory(request.RelativeProjectDirectory)
+		if err != nil {
+			return normalizedManagedCreateRequest{}, err
+		}
+		workspaceKey = &legacyKey
 	}
 	composeFileName, err := normalizeManagedFileName(request.ComposeFileName, "compose")
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	if displayName == "" || canonicalName == "" || composeFileContent == "" {
+	if displayName == "" || composeFileContent == "" {
 		return normalizedManagedCreateRequest{}, fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
-	}
-	canonicalName, err = validateExplicitCanonicalProjectName(canonicalName)
-	if err != nil {
-		return normalizedManagedCreateRequest{}, err
 	}
 	envFileName, err := normalizeManagedOptionalFileName(request.EnvFileName, "env")
 	if err != nil {
@@ -123,22 +136,102 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 			return normalizedManagedCreateRequest{}, err
 		}
 	}
-	if _, err := normalizeManagedWorkspaceFiles(request.WorkspaceFiles, composeFilePath, composeFileContent, envFileName, envFileContent); err != nil {
+	composeName, composeFileContent, err := ensureComposeProjectName(composeFileContent, displayName)
+	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
+	if err := rejectComposeProjectNameOverride(envFileContent, composeName); err != nil {
+		return normalizedManagedCreateRequest{}, err
+	}
+	workspaceFiles, err := normalizeManagedWorkspaceFiles(request.WorkspaceFiles, composeFilePath, composeFileContent, envFileName, envFileContent)
+	if err != nil {
+		return normalizedManagedCreateRequest{}, err
+	}
+	materializedFiles := make([]ManagedWorkspaceFile, 0, len(workspaceFiles))
+	for _, item := range workspaceFiles {
+		content := item.Content
+		if item.Path == composeFilePath {
+			content = composeFileContent
+		}
+		materializedFiles = append(materializedFiles, ManagedWorkspaceFile{Path: item.Path, Content: content})
+	}
 	return normalizedManagedCreateRequest{
-		DisplayName:              displayName,
-		CanonicalProjectName:     canonicalName,
-		RelativeProjectDirectory: relativeDir,
-		ComposeFileName:          composeFilePath,
-		ComposeFileContent:       composeFileContent,
-		EnvFileName:              envFileName,
-		EnvFileContent:           envFileContent,
-		WorkspaceFiles:           request.WorkspaceFiles,
-		ComposeFilePath:          request.ComposeFilePath,
-		EnvFilePaths:             append([]string(nil), request.EnvFilePaths...),
-		LifecycleConfig:          request.LifecycleConfig,
+		DisplayName:          displayName,
+		RuntimeTargetID:      request.RuntimeTargetID,
+		WorkspaceKey:         workspaceKey,
+		CanonicalProjectName: "",
+		ComposeFileName:      composeFilePath,
+		ComposeFileContent:   composeFileContent,
+		EnvFileName:          envFileName,
+		EnvFileContent:       envFileContent,
+		WorkspaceFiles:       materializedFiles,
+		ComposeFilePath:      request.ComposeFilePath,
+		EnvFilePaths:         append([]string(nil), request.EnvFilePaths...),
+		LifecycleConfig:      request.LifecycleConfig,
 	}, nil
+}
+
+func rejectComposeProjectNameOverride(content *string, composeName string) error {
+	if content == nil {
+		return nil
+	}
+	for _, line := range strings.Split(*content, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "COMPOSE_PROJECT_NAME=") {
+			continue
+		}
+		value := strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "COMPOSE_PROJECT_NAME=")), "\"'")
+		if value != composeName {
+			return fmt.Errorf("%w: COMPOSE_PROJECT_NAME conflicts with compose name", errProjectInvalidArgument)
+		}
+	}
+	return nil
+}
+
+func normalizeOrDeriveWorkspaceKey(displayName string, requested *string) (*string, error) {
+	key := ""
+	if requested != nil {
+		key = strings.TrimSpace(*requested)
+	}
+	if key == "" {
+		key = strings.ToLower(strings.TrimSpace(displayName))
+		key = strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+				return r
+			}
+			return '-'
+		}, key)
+		key = strings.Trim(key, "-")
+	}
+	if key == "" || !workspaceKeyPattern.MatchString(key) {
+		return nil, fmt.Errorf("%w: invalid workspace key", errProjectInvalidArgument)
+	}
+	return &key, nil
+}
+
+func chooseWorkspacePath(root string, requested *string, explicit bool) (string, *string, error) {
+	if requested == nil {
+		return "", nil, errProjectInvalidArgument
+	}
+	base := *requested
+	for suffix := 1; suffix < 10000; suffix++ {
+		key := base
+		if suffix > 1 {
+			key = fmt.Sprintf("%s-%d", base, suffix)
+		}
+		path := filepath.Join(root, key)
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			return path, &key, nil
+		}
+		if err != nil {
+			return "", nil, fmt.Errorf("%w: workspace path unavailable", errProjectInvalidArgument)
+		}
+		if explicit {
+			return "", nil, fmt.Errorf("%w: workspace key already exists; suggested=%s-%d", errProjectConflict, base, suffix)
+		}
+	}
+	return "", nil, errProjectConflict
 }
 
 // normalizeManagedWorkspaceFiles validates and normalizes workspace files, supplying default compose and environment files when none are provided.

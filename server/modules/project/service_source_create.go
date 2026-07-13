@@ -18,6 +18,8 @@ const (
 // TemplateProjectCreateRequest selects one bundled, module-owned template.
 type TemplateProjectCreateRequest struct {
 	DisplayName              string
+	RuntimeTargetID          uint64
+	WorkspaceKey             *string
 	CanonicalProjectName     string
 	RelativeProjectDirectory string
 	TemplateKey              string
@@ -81,12 +83,12 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 	if err != nil {
 		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: normalized.CanonicalProjectName, CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceOverride.String(), SourceKind: sourceType, HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkingDirectory, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: metadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID})
+	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: sourceType, HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: metadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, WorkspaceKey: validation.WorkspaceKey})
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
 	}
 	cleanup = false
-	return ManagedProjectCreateResult{Validation: validation, SourceType: sourceType, ProjectID: aggregate.Project.ID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
+	return ManagedProjectCreateResult{Validation: validation, SourceType: sourceType, ProjectID: aggregate.Project.ID, ApplicationID: aggregate.Project.ApplicationID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
 }
 
 // resolveTemplateWorkspace resolves a template request into a materialization workspace and its template metadata.
@@ -106,7 +108,7 @@ func resolveTemplateWorkspace(request TemplateProjectCreateRequest) (ManagedProj
 	}
 	instance := strings.TrimSpace(request.TemplateInstanceName)
 	if instance == "" {
-		instance = request.CanonicalProjectName
+		instance = stringValue(request.WorkspaceKey)
 	}
-	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, CanonicalProjectName: request.CanonicalProjectName, RelativeProjectDirectory: request.RelativeProjectDirectory, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", EnvFileName: stringPointer(".env"), EnvFileContent: stringPointer("\n"), WorkspaceFiles: []ManagedWorkspaceFile{{Path: "compose.yaml", Content: "services: {}\n"}, {Path: ".env", Content: "\n"}}, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
+	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", EnvFileName: stringPointer(".env"), EnvFileContent: stringPointer("\n"), WorkspaceFiles: []ManagedWorkspaceFile{{Path: "compose.yaml", Content: "services: {}\n"}, {Path: ".env", Content: "\n"}}, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
 }

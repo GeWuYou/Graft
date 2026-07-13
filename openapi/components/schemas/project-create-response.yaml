@@ -2,13 +2,13 @@ type: object
 required:
   - managed_root
   - source_type
-  - project_id
+  - application_id
   - action
   - result
   - display_name
-  - canonical_project_name
+  - compose_project_name
   - ownership_mode
-  - working_directory
+  - workspace_path
   - compose_file_name
   - compose_file_absolute_path
   - snapshot_summary
@@ -17,10 +17,8 @@ properties:
     $ref: ./project-managed-root-response.yaml
   source_type:
     $ref: ./project-source-kind.yaml
-  project_id:
-    type: integer
-    format: int64
-    minimum: 1
+  application_id:
+    type: string
   action:
     type: string
     enum: [create]
@@ -33,11 +31,14 @@ properties:
       - ProjectCreateResponseResultCreated
   display_name:
     type: string
-  canonical_project_name:
+  compose_project_name:
     type: string
+  workspace_key:
+    type: string
+    nullable: true
   ownership_mode:
     $ref: ./project-ownership-mode.yaml
-  working_directory:
+  workspace_path:
     type: string
   compose_file_name:
     type: string

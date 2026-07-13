@@ -6170,21 +6170,21 @@ export interface components {
       total: number;
     };
     'project-list-item': {
-      /** Format: int64 */
-      id: number;
+      application_id: string;
       display_name: string;
       /** @enum {string} */
       application_type: 'compose';
       runtime_target?: components['schemas']['project-runtime-target-summary'];
-      canonical_project_name: string;
-      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      compose_project_name: string;
+      compose_project_name_source: components['schemas']['project-canonical-name-source'];
+      workspace_key?: string | null;
       lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
       source_kind: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
       activity_authority: components['schemas']['project-activity-authority'];
       host_scope: components['schemas']['project-host-scope'];
       ownership_mode: components['schemas']['project-ownership-mode'];
-      working_directory: string;
+      workspace_path: string;
       /** @description Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority. */
       runtime_status?: components['schemas']['project-runtime-status'];
       service_count: number;
@@ -6729,9 +6729,10 @@ export interface components {
     };
     'project-create-validate-request': {
       display_name: string;
-      canonical_project_name: string;
-      /** @description Relative project directory under the canonical managed root. */
-      relative_project_directory: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
+      workspace_key?: string;
       compose_file_name: string;
       env_file_name?: string | null;
       /** @description Complete managed workspace text manifest to validate without materializing. */
@@ -6746,9 +6747,10 @@ export interface components {
       managed_root: components['schemas']['project-managed-root-response'];
       source_type: components['schemas']['project-source-kind'];
       display_name: string;
-      canonical_project_name: string;
+      compose_project_name: string;
+      workspace_key?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
-      working_directory: string;
+      workspace_path: string;
       compose_file_name: string;
       env_file_name?: string | null;
       compose_file_absolute_path: string;
@@ -6761,9 +6763,10 @@ export interface components {
     };
     'project-create-request': {
       display_name: string;
-      canonical_project_name: string;
-      /** @description Relative project directory under the canonical managed root. */
-      relative_project_directory: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
+      workspace_key?: string;
       compose_file_name: string;
       /** @description Initial Compose YAML content to materialize in the managed project directory. */
       compose_file_content: string;
@@ -6781,16 +6784,16 @@ export interface components {
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];
       source_type: components['schemas']['project-source-kind'];
-      /** Format: int64 */
-      project_id: number;
+      application_id: string;
       /** @enum {string} */
       action: 'create';
       /** @enum {string} */
       result: 'created';
       display_name: string;
-      canonical_project_name: string;
+      compose_project_name: string;
+      workspace_key?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
-      working_directory: string;
+      workspace_path: string;
       compose_file_name: string;
       compose_file_absolute_path: string;
       env_file_name?: string | null;
@@ -6811,13 +6814,14 @@ export interface components {
     };
     'project-template-create-request': {
       display_name: string;
-      canonical_project_name: string;
-      relative_project_directory: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      workspace_key?: string;
       /** @description Explicit bundled template key. Defaults to empty-compose. */
       template_key?: string;
       /** @description Explicit bundled template version. Defaults to v1. */
       template_version?: string;
-      /** @description Safe display provenance for this template instance. Defaults to canonical_project_name. */
+      /** @description Safe display provenance for this template instance. Defaults to the generated workspace key. */
       template_instance_name?: string;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
@@ -6874,9 +6878,8 @@ export interface components {
       memory_limit_bytes: number;
     };
     'project-overview-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
+      application_id: string;
+      compose_project_name: string;
       /** Format: date-time */
       collected_at?: string | null;
       health: components['schemas']['project-overview-health-summary'];
@@ -7154,8 +7157,8 @@ export interface components {
       /** @default false */
       image_prune: boolean;
       /** @default false */
-      delete_working_directory: boolean;
-      confirm_canonical_project_name: string;
+      delete_workspace: boolean;
+      confirm_application_id: string;
     };
     'dashboard-stat-group-payload': {
       items: {

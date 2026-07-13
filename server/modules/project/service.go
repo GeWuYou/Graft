@@ -385,7 +385,10 @@ type ManagedRootInfo struct {
 
 // ManagedProjectCreateRequest describes Phase 2 managed-create contract payloads.
 type ManagedProjectCreateRequest struct {
-	DisplayName              string
+	DisplayName     string
+	RuntimeTargetID uint64
+	WorkspaceKey    *string
+	// Internal source adapters retain these fields while public HTTP contracts use workspace_key.
 	CanonicalProjectName     string
 	RelativeProjectDirectory string
 	ComposeFileName          string
@@ -409,9 +412,12 @@ type ManagedProjectCreateValidationResult struct {
 	ManagedRoot             ManagedRootInfo
 	SourceType              string
 	DisplayName             string
-	CanonicalProjectName    string
+	ComposeProjectName      string
+	WorkspaceKey            *string
 	OwnershipMode           string
+	WorkspacePath           string
 	WorkingDirectory        string
+	CanonicalProjectName    string
 	ComposeFileName         string
 	EnvFileName             *string
 	ComposeFileAbsolutePath string
@@ -425,6 +431,7 @@ type ManagedProjectCreateResult struct {
 	Validation           ManagedProjectCreateValidationResult
 	SourceType           string
 	ProjectID            uint64
+	ApplicationID        string
 	ConfigHash           string
 	DeclaredServiceCount int
 	RefreshedAt          time.Time
@@ -910,9 +917,9 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 		items = append(items, generatedItem)
 	}
 	return generated.ProjectOverviewResponse{
-		ProjectId:            mustGeneratedID(projectID),
-		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
-		CollectedAt:          optionalRFC3339Time(resourceSummary.CollectedAt),
+		ApplicationId:      aggregate.Project.ApplicationID,
+		ComposeProjectName: nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
+		CollectedAt:        optionalRFC3339Time(resourceSummary.CollectedAt),
 		Health: generated.ProjectOverviewHealthSummary{
 			HealthyServiceCount:     healthyServiceCount,
 			HealthyContainerCount:   resourceSummary.HealthyContainerCount,
@@ -1001,7 +1008,15 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
-	workingDirectory := filepath.Join(*rootInfo.ConfiguredRootDirectory, normalized.RelativeProjectDirectory)
+	workingDirectory, workspaceKey, err := chooseWorkspacePath(*rootInfo.ConfiguredRootDirectory, normalized.WorkspaceKey, request.WorkspaceKey != nil && strings.TrimSpace(*request.WorkspaceKey) != "")
+	if err != nil {
+		return ManagedProjectCreateValidationResult{}, err
+	}
+	composeName, composeContent, err := ensureComposeProjectName(normalized.ComposeFileContent, normalized.DisplayName)
+	if err != nil {
+		return ManagedProjectCreateValidationResult{}, err
+	}
+	normalized.ComposeFileContent = composeContent
 	composeFileAbsolutePath := filepath.Join(workingDirectory, normalized.ComposeFileName)
 	envFileAbsolutePath := managedCreateEnvAbsolutePath(workingDirectory, normalized.EnvFileName)
 	warnings := make([]string, 0, managedCreateWarningsCap)
@@ -1014,18 +1029,21 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		ManagedRoot:             rootInfo,
 		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
-		CanonicalProjectName:    normalized.CanonicalProjectName,
+		ComposeProjectName:      composeName,
+		WorkspaceKey:            workspaceKey,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
+		WorkspacePath:           workingDirectory,
 		WorkingDirectory:        workingDirectory,
+		CanonicalProjectName:    composeName,
 		ComposeFileName:         normalized.ComposeFileName,
 		EnvFileName:             normalized.EnvFileName,
 		ComposeFileAbsolutePath: composeFileAbsolutePath,
 		EnvFileAbsolutePath:     envFileAbsolutePath,
 		SourceMetadata: map[string]string{
-			"managed_root_key":           rootInfo.ConfigKey,
-			"managed_relative_directory": normalized.RelativeProjectDirectory,
-			"managed_compose_file_name":  normalized.ComposeFileName,
-			"managed_env_file_name":      stringValue(normalized.EnvFileName),
+			"managed_root_key":          rootInfo.ConfigKey,
+			"workspace_key":             *workspaceKey,
+			"managed_compose_file_name": normalized.ComposeFileName,
+			"managed_env_file_name":     stringValue(normalized.EnvFileName),
 		},
 		Warnings: warnings,
 	}, nil

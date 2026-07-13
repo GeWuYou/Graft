@@ -17774,6 +17774,7 @@
           },
           "visible_columns": {
             "type": "array",
+            "maxItems": 100,
             "items": {
               "type": "string"
             }
@@ -24971,26 +24972,24 @@
       "project-list-item": {
         "type": "object",
         "required": [
-          "id",
+          "application_id",
           "display_name",
           "application_type",
-          "canonical_project_name",
-          "canonical_project_name_source",
+          "compose_project_name",
+          "compose_project_name_source",
           "lifecycle_review_status",
           "source_kind",
           "activity_authority",
           "host_scope",
           "ownership_mode",
-          "working_directory",
+          "workspace_path",
           "drift_status",
           "service_count",
           "container_counts"
         ],
         "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
+          "application_id": {
+            "type": "string"
           },
           "display_name": {
             "type": "string"
@@ -25005,11 +25004,15 @@
             "$ref": "#/components/schemas/project-runtime-target-summary",
             "nullable": true
           },
-          "canonical_project_name": {
+          "compose_project_name": {
             "type": "string"
           },
-          "canonical_project_name_source": {
+          "compose_project_name_source": {
             "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "workspace_key": {
+            "type": "string",
+            "nullable": true
           },
           "lifecycle_review_status": {
             "$ref": "#/components/schemas/project-lifecycle-review-status"
@@ -25029,7 +25032,7 @@
           "ownership_mode": {
             "$ref": "#/components/schemas/project-ownership-mode"
           },
-          "working_directory": {
+          "workspace_path": {
             "type": "string"
           },
           "runtime_status": {
@@ -27329,8 +27332,7 @@
         "type": "object",
         "required": [
           "display_name",
-          "canonical_project_name",
-          "relative_project_directory",
+          "runtime_target_id",
           "compose_file_name"
         ],
         "properties": {
@@ -27339,18 +27341,16 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "canonical_project_name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120,
-            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           },
-          "relative_project_directory": {
+          "workspace_key": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 255,
-            "pattern": "^[^./\\\\\\\\][^\\\\\\\\]*(/[^./\\\\\\\\][^\\\\\\\\]*)*$",
-            "description": "Relative project directory under the canonical managed root."
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Optional single-segment managed workspace key. The server derives and reserves a key when omitted."
           },
           "compose_file_name": {
             "type": "string",
@@ -27401,9 +27401,9 @@
           "managed_root",
           "source_type",
           "display_name",
-          "canonical_project_name",
+          "compose_project_name",
           "ownership_mode",
-          "working_directory",
+          "workspace_path",
           "compose_file_name",
           "compose_file_absolute_path"
         ],
@@ -27417,13 +27417,17 @@
           "display_name": {
             "type": "string"
           },
-          "canonical_project_name": {
+          "compose_project_name": {
             "type": "string"
+          },
+          "workspace_key": {
+            "type": "string",
+            "nullable": true
           },
           "ownership_mode": {
             "$ref": "#/components/schemas/project-ownership-mode"
           },
-          "working_directory": {
+          "workspace_path": {
             "type": "string"
           },
           "compose_file_name": {
@@ -27473,8 +27477,7 @@
         "type": "object",
         "required": [
           "display_name",
-          "canonical_project_name",
-          "relative_project_directory",
+          "runtime_target_id",
           "compose_file_name",
           "compose_file_content"
         ],
@@ -27484,18 +27487,16 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "canonical_project_name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120,
-            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           },
-          "relative_project_directory": {
+          "workspace_key": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 255,
-            "pattern": "^[^./\\\\\\\\][^\\\\\\\\]*(/[^./\\\\\\\\][^\\\\\\\\]*)*$",
-            "description": "Relative project directory under the canonical managed root."
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Optional single-segment managed workspace key. The server derives and reserves a key when omitted."
           },
           "compose_file_name": {
             "type": "string",
@@ -27555,13 +27556,13 @@
         "required": [
           "managed_root",
           "source_type",
-          "project_id",
+          "application_id",
           "action",
           "result",
           "display_name",
-          "canonical_project_name",
+          "compose_project_name",
           "ownership_mode",
-          "working_directory",
+          "workspace_path",
           "compose_file_name",
           "compose_file_absolute_path",
           "snapshot_summary"
@@ -27573,10 +27574,8 @@
           "source_type": {
             "$ref": "#/components/schemas/project-source-kind"
           },
-          "project_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
+          "application_id": {
+            "type": "string"
           },
           "action": {
             "type": "string",
@@ -27599,13 +27598,17 @@
           "display_name": {
             "type": "string"
           },
-          "canonical_project_name": {
+          "compose_project_name": {
             "type": "string"
+          },
+          "workspace_key": {
+            "type": "string",
+            "nullable": true
           },
           "ownership_mode": {
             "$ref": "#/components/schemas/project-ownership-mode"
           },
-          "working_directory": {
+          "workspace_path": {
             "type": "string"
           },
           "compose_file_name": {
@@ -27684,21 +27687,21 @@
         "additionalProperties": false,
         "required": [
           "display_name",
-          "canonical_project_name",
-          "relative_project_directory"
+          "runtime_target_id"
         ],
         "properties": {
           "display_name": {
             "type": "string",
             "minLength": 1
           },
-          "canonical_project_name": {
-            "type": "string",
-            "minLength": 1
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           },
-          "relative_project_directory": {
+          "workspace_key": {
             "type": "string",
-            "minLength": 1
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "template_key": {
             "type": "string",
@@ -27710,7 +27713,7 @@
           },
           "template_instance_name": {
             "type": "string",
-            "description": "Safe display provenance for this template instance. Defaults to canonical_project_name."
+            "description": "Safe display provenance for this template instance. Defaults to the generated workspace key."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"
@@ -27932,19 +27935,17 @@
       "project-overview-response": {
         "type": "object",
         "required": [
-          "project_id",
-          "canonical_project_name",
+          "application_id",
+          "compose_project_name",
           "health",
           "resources",
           "services"
         ],
         "properties": {
-          "project_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
+          "application_id": {
+            "type": "string"
           },
-          "canonical_project_name": {
+          "compose_project_name": {
             "type": "string"
           },
           "collected_at": {
@@ -29088,8 +29089,8 @@
         "type": "object",
         "required": [
           "remove_named_volumes",
-          "delete_working_directory",
-          "confirm_canonical_project_name"
+          "delete_workspace",
+          "confirm_application_id"
         ],
         "properties": {
           "remove_named_volumes": {
@@ -29104,11 +29105,11 @@
             "type": "boolean",
             "default": false
           },
-          "delete_working_directory": {
+          "delete_workspace": {
             "type": "boolean",
             "default": false
           },
-          "confirm_canonical_project_name": {
+          "confirm_application_id": {
             "type": "string",
             "minLength": 1
           }
