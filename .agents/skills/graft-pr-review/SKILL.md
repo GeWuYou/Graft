@@ -57,6 +57,9 @@ Fail-closed rule for this skill:
    - compare each folded-section declared count against the parsed item count; if `Nitpick comments (N)` or another folded section under-parses, keep drilling with `--section`, saved JSON, or raw review-body inspection until the missing findings are enumerated or an exact extraction blocker is recorded
    - when the run produces a disposition report, append it to one managed PR issue comment ledger instead of scattering
      ad-hoc tracking notes; the ledger comment is append-only and keyed by a fixed marker
+   - before creating or updating the ledger, pass the proposed entry through the helper's ledger validator; the final
+     managed comment payload must be validated after metadata, marker, and append separators are assembled and before
+     any GitHub API write
    - prefer writing the full JSON payload to a file and then narrowing with `jq`
 5. Build one exhaustive finding inventory before making any fix decision:
    - include unresolved latest-head review threads
@@ -181,6 +184,10 @@ Fail-closed rule for this skill:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --ledger-body-file /tmp/pr-review-ledger.md --ledger-dry-run`
 - Append one run summary to the managed PR issue-comment ledger:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --ledger-body-file /tmp/pr-review-ledger.md`
+- Validate one proposed ledger entry body offline before syncing:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --ledger-validate-body-file /tmp/pr-review-ledger.md`
+- Validate a complete downloaded managed ledger document offline:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --ledger-validate-file /tmp/graft-pr-review-ledger.md`
 - Inspect only a high-signal section:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads`
 - Inspect grouped CodeRabbit severity comments from the latest review body:
@@ -214,6 +221,9 @@ The script should produce:
 - Detailed failed-test rows from GitHub Test Reporter or CTRF comments when available
 - CLI support for writing full JSON to a file and printing only narrowed text sections to stdout
 - Managed PR issue-comment ledger support keyed by one fixed marker, with append-only run blocks and dry-run preview
+- Ledger writes reject empty content, literal `\\n` / `\\r` escapes, missing required inventory fields, missing marker/title/run headings,
+  and any final payload that fails validation after append assembly; legacy existing comments with literal newline escapes
+  are normalized before the final payload check
 - Human review closeout that records each verified finding as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
 - Exhaustive coverage confirmation that no latest-review finding section was left unclassified
 - Closeout counts for `coderabbit_handled`, `coderabbit_outside_diff_range`, `coderabbit_nitpick`, `open_suggestions`, and `greptile_suggestions`

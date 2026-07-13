@@ -908,6 +908,56 @@ class ReviewReplyTests(unittest.TestCase):
 class ManagedIssueCommentTests(unittest.TestCase):
     """Cover append-only PR review ledger issue-comment management."""
 
+    VALID_ENTRY_BODY = """- `coderabbit_handled`: fixed 1, delegated 0, blocked 0, stale 0, noise 0.
+- `coderabbit_outside_diff_range`: declared 0, handled 0.
+- `coderabbit_nitpick`: declared 0, handled 0.
+- `open_suggestions`: 0 unresolved, 0 remaining.
+- `greptile_suggestions`: 0 verified.
+"""
+
+    def test_validate_review_ledger_body_rejects_literal_escapes_and_missing_fields(self) -> None:
+        """Ledger input must contain real newlines and the required inventory summary."""
+        with self.assertRaisesRegex(RuntimeError, "literal"):
+            MODULE.validate_review_ledger_body("coderabbit_handled: 1\\n")
+        with self.assertRaisesRegex(RuntimeError, "missing required inventory fields"):
+            MODULE.validate_review_ledger_body("coderabbit_handled: 1\n")
+
+    def test_validate_managed_ledger_document_requires_marker_and_run(self) -> None:
+        """The final managed comment must have its marker, title, and run heading."""
+        document = (
+            f"{MODULE.PR_REVIEW_LEDGER_MARKER}\n\n# Graft PR Review Ledger\n\n"
+            "## Run 2026-07-13T00:00:00Z\n\n"
+            f"{self.VALID_ENTRY_BODY}"
+        )
+        self.assertEqual(MODULE.validate_managed_ledger_document(document), document.strip())
+
+    def test_managed_sync_rejects_invalid_entry_before_github_write(self) -> None:
+        """Invalid final ledger content must fail before any GitHub API write."""
+        result = {
+            "pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": "abc123"},
+        }
+        with mock.patch.object(MODULE, "resolve_github_token", return_value="repo-token"), mock.patch.object(
+            MODULE,
+            "post_json",
+        ) as post_json:
+            with self.assertRaisesRegex(RuntimeError, "literal"):
+                MODULE.perform_managed_issue_comment_append(136, [], result, "bad\\ncontent")
+
+        post_json.assert_not_called()
+
+    def test_build_managed_issue_comment_body_normalizes_legacy_escaped_newlines(self) -> None:
+        """Legacy literal newline escapes are repaired before the final payload is validated."""
+        existing = f"{MODULE.PR_REVIEW_LEDGER_MARKER}\\n\\n# Graft PR Review Ledger\\n\\nExisting entry"
+        result = MODULE.build_managed_issue_comment_body(
+            existing,
+            MODULE.build_review_ledger_entry(
+                {"pull_request": {"number": 136, "head_branch": "feat/test", "head_sha": "abc123"}},
+                self.VALID_ENTRY_BODY,
+            ),
+        )
+        self.assertNotIn("\\n", result)
+        self.assertIn("# Graft PR Review Ledger\n", result)
+
     def test_perform_managed_issue_comment_append_supports_create_dry_run(self) -> None:
         """Dry-run ledger sync should build a create payload when no managed comment exists."""
         result = {
@@ -919,14 +969,14 @@ class ManagedIssueCommentTests(unittest.TestCase):
                 136,
                 [],
                 result,
-                "coderabbit_handled: 7",
+                self.VALID_ENTRY_BODY,
                 dry_run=True,
             )
 
         self.assertTrue(action["dry_run"])
         self.assertEqual(action["operation"], "create")
         self.assertIn(MODULE.PR_REVIEW_LEDGER_MARKER, action["request_payload"]["body"])
-        self.assertIn("coderabbit_handled: 7", action["request_payload"]["body"])
+        self.assertIn("coderabbit_handled", action["request_payload"]["body"])
 
     def test_perform_managed_issue_comment_append_supports_update_dry_run(self) -> None:
         """Dry-run ledger sync should append to the existing managed comment."""
@@ -947,7 +997,7 @@ class ManagedIssueCommentTests(unittest.TestCase):
                 136,
                 existing_comments,
                 result,
-                "coderabbit_nitpick: declared=6 handled=6",
+                self.VALID_ENTRY_BODY,
                 dry_run=True,
             )
 
@@ -955,7 +1005,7 @@ class ManagedIssueCommentTests(unittest.TestCase):
         self.assertEqual(action["operation"], "update")
         self.assertEqual(action["comment_id"], 55)
         self.assertIn("Existing entry", action["request_payload"]["body"])
-        self.assertIn("coderabbit_nitpick: declared=6 handled=6", action["request_payload"]["body"])
+        self.assertIn("coderabbit_nitpick", action["request_payload"]["body"])
 
 
 if __name__ == "__main__":

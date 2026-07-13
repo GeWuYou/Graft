@@ -39,6 +39,14 @@ GITHUB_ACTIONS_LOGIN = "github-actions[bot]"
 GITHUB_ADVANCED_SECURITY_LOGIN = "github-advanced-security[bot]"
 REVIEW_COMMENT_ADDRESSED_MARKER = "<!-- <review_comment_addressed> -->"
 PR_REVIEW_LEDGER_MARKER = "<!-- graft-pr-review-ledger -->"
+PR_REVIEW_LEDGER_TITLE = "# Graft PR Review Ledger"
+PR_REVIEW_LEDGER_REQUIRED_FIELDS = (
+    "coderabbit_handled",
+    "coderabbit_outside_diff_range",
+    "coderabbit_nitpick",
+    "open_suggestions",
+    "greptile_suggestions",
+)
 VISIBLE_ADDRESSED_IN_COMMIT_PATTERN = re.compile(r"✅\s*Addressed in commit\s+[0-9a-f]{7,40}", re.I)
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
 REQUEST_TIMEOUT_ENVIRONMENT_KEY = "GRAFT_PR_REVIEW_TIMEOUT_SECONDS"
@@ -676,10 +684,43 @@ def resolve_ledger_body(args: argparse.Namespace) -> str:
     return str(args.ledger_body or "").strip()
 
 
+def validate_review_ledger_body(body: str, *, require_summary: bool = True) -> str:
+    """Validate one ledger entry or document before it reaches GitHub."""
+    normalized = str(body or "").strip()
+    if not normalized:
+        raise RuntimeError("A non-empty ledger body is required.")
+    if "\\n" in normalized or "\\r" in normalized:
+        raise RuntimeError("Ledger body contains literal \\n or \\r escapes; use real newline characters.")
+    if "\x00" in normalized:
+        raise RuntimeError("Ledger body contains a NUL character.")
+    if require_summary:
+        missing_fields = [field for field in PR_REVIEW_LEDGER_REQUIRED_FIELDS if field not in normalized]
+        if missing_fields:
+            missing = ", ".join(missing_fields)
+            raise RuntimeError(f"Ledger body is missing required inventory fields: {missing}.")
+    return normalized
+
+
+def normalize_legacy_ledger_body(body: str) -> str:
+    """Normalize legacy ledger comments that stored escaped line breaks literally."""
+    return body.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
+
+
+def validate_managed_ledger_document(document: str, *, marker: str = PR_REVIEW_LEDGER_MARKER) -> str:
+    """Validate the complete managed ledger document structure."""
+    normalized = validate_review_ledger_body(document, require_summary=False)
+    if marker not in normalized:
+        raise RuntimeError("Managed ledger is missing its fixed marker.")
+    if PR_REVIEW_LEDGER_TITLE not in normalized:
+        raise RuntimeError(f"Managed ledger is missing {PR_REVIEW_LEDGER_TITLE!r}.")
+    if not re.search(r"(?m)^## Run \S+", normalized):
+        raise RuntimeError("Managed ledger must contain at least one '## Run <timestamp>' heading.")
+    return normalized
+
+
 def build_review_ledger_entry(result: dict[str, Any], body: str) -> str:
     """Wrap one append-only review-ledger entry with stable run metadata."""
-    if not body:
-        raise RuntimeError("A non-empty ledger body is required.")
+    body = validate_review_ledger_body(body)
 
     pull_request = result.get("pull_request", {})
     timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -701,9 +742,9 @@ def build_managed_issue_comment_body(
     marker: str = PR_REVIEW_LEDGER_MARKER,
 ) -> str:
     """Append one review-ledger entry to the managed issue comment body."""
-    normalized_existing = existing_body.strip()
+    normalized_existing = normalize_legacy_ledger_body(existing_body).strip()
     if not normalized_existing:
-        return "\n".join(
+        candidate = "\n".join(
             [
                 marker,
                 "",
@@ -714,9 +755,11 @@ def build_managed_issue_comment_body(
                 entry,
             ]
         ).strip()
+        return validate_managed_ledger_document(candidate, marker=marker)
 
     separator = "\n\n---\n\n" if not normalized_existing.endswith("---") else "\n\n"
-    return f"{normalized_existing.rstrip()}{separator}{entry}".strip()
+    candidate = f"{normalized_existing.rstrip()}{separator}{entry}".strip()
+    return validate_managed_ledger_document(candidate, marker=marker)
 
 
 def perform_managed_issue_comment_append(
@@ -734,13 +777,12 @@ def perform_managed_issue_comment_append(
 
     existing_comment = find_managed_issue_comment(issue_comments, marker=marker)
     entry = build_review_ledger_entry(result, entry_body)
-    request_payload = {
-        "body": build_managed_issue_comment_body(
+    request_body = build_managed_issue_comment_body(
             html.unescape(str(existing_comment.get("body") or "")) if existing_comment else "",
             entry,
             marker=marker,
         )
-    }
+    request_payload = {"body": validate_managed_ledger_document(request_body, marker=marker)}
 
     if dry_run:
         return {
@@ -2168,12 +2210,34 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Validate and print the managed PR review ledger payload without sending it to GitHub.",
     )
+    parser.add_argument(
+        "--ledger-validate-body-file",
+        help="Validate one proposed ledger entry body offline without contacting GitHub.",
+    )
+    parser.add_argument(
+        "--ledger-validate-file",
+        help="Validate a complete managed PR review ledger document offline without contacting GitHub.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     """Run the CLI entry point."""
     args = parse_args()
+    ledger_validate_body_file = getattr(args, "ledger_validate_body_file", None)
+    ledger_validate_file = getattr(args, "ledger_validate_file", None)
+    if ledger_validate_body_file and ledger_validate_file:
+        raise RuntimeError("Use only one of --ledger-validate-body-file or --ledger-validate-file.")
+    if ledger_validate_body_file:
+        body = Path(ledger_validate_body_file).read_text(encoding="utf-8")
+        validate_review_ledger_body(body)
+        print("Ledger entry body format: ok")
+        return
+    if ledger_validate_file:
+        document = Path(ledger_validate_file).read_text(encoding="utf-8")
+        validate_managed_ledger_document(document)
+        print("Managed ledger format: ok")
+        return
     if args.pr is not None:
         pr_number = args.pr
         branch = args.branch or ""
