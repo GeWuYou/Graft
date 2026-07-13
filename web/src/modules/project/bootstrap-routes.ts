@@ -9,6 +9,8 @@ const importRouteTitle = localizeRouteTitleKey('project.route.createImport.title
 const importBreadcrumbTitle = localizeRouteTitleKey('project.route.createImport.breadcrumb');
 const createRouteTitle = localizeRouteTitleKey('project.route.create.title');
 const createBreadcrumbTitle = localizeRouteTitleKey('project.route.create.breadcrumb');
+const createRuntimeTargetRouteTitle = localizeRouteTitleKey('project.route.createRuntimeTarget.title');
+const createRuntimeTargetBreadcrumbTitle = localizeRouteTitleKey('project.route.createRuntimeTarget.breadcrumb');
 const createSourceRouteTitle = localizeRouteTitleKey('project.route.createSource.title');
 const createSourceBreadcrumbTitle = localizeRouteTitleKey('project.route.createSource.breadcrumb');
 const createDiscoveryRouteTitle = localizeRouteTitleKey('project.route.createDiscovery.title');
@@ -73,6 +75,25 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createRouteTitle,
       title: createRouteTitle,
       titleKey: 'project.route.create.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_RUNTIME_TARGET,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
+    loadPage: () => import('./pages/create/runtime-target-index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: createRuntimeTargetRouteTitle,
+      breadcrumbTitle: createRuntimeTargetBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'application',
+      tabTitle: createRuntimeTargetRouteTitle,
+      title: createRuntimeTargetRouteTitle,
+      titleKey: 'project.route.createRuntimeTarget.title',
     },
   },
   {

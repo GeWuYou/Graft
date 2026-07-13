@@ -15,6 +15,11 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     pageRouteName: 'ProjectCreateMethodIndex',
     routeName: 'ProjectCreateMethod',
   },
+  CREATE_RUNTIME_TARGET: {
+    path: PROJECT_ROUTE_PATH.CREATE_RUNTIME_TARGET,
+    pageRouteName: 'ProjectCreateRuntimeTargetIndex',
+    routeName: 'ProjectCreateRuntimeTarget',
+  },
   CREATE_SOURCE: {
     path: PROJECT_ROUTE_PATH.CREATE_SOURCE,
     pageRouteName: 'ProjectCreateSourceIndex',

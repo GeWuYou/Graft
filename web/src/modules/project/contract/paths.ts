@@ -2,6 +2,7 @@ export const PROJECT_ROUTE_PATH = {
   LIST: '/applications/projects',
   CREATE_IMPORT: '/applications/projects/create/import',
   CREATE: '/applications/projects/create',
+  CREATE_RUNTIME_TARGET: '/applications/projects/create/runtime-target',
   CREATE_SOURCE: '/applications/projects/create/source',
   CREATE_DISCOVERY: '/applications/projects/create/discovery',
   CREATE_BLANK: '/applications/projects/create/blank',
@@ -23,6 +24,7 @@ export const PROJECT_API_PATH = {
   IMPORT_VALIDATE: '/api/ops/projects/import/validate',
   IMPORT: '/api/ops/projects/import',
   CREATION_METHODS: '/api/ops/projects/creation-methods',
+  COMPOSE_RUNTIME_TARGETS: '/api/ops/projects/create/runtime-targets',
   DISCOVERY_CANDIDATES: '/api/ops/projects/discovery-candidates',
   MANAGED_ROOT: '/api/ops/projects/managed/root',
   CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
@@ -76,15 +78,15 @@ export function buildProjectSavedViewApiPath(viewId: number) {
  * @param id - 项目 ID
  * @returns 替换 `id` 占位符后的项目详情 API 路径
  */
-export function buildProjectDetailApiPath(id: number) {
+export function buildProjectDetailApiPath(id: string | number) {
   return PROJECT_API_PATH.DETAIL.replace('{id}', encodeProjectPathParam(id));
 }
 
-export function buildProjectOverviewApiPath(id: number) {
+export function buildProjectOverviewApiPath(id: string | number) {
   return PROJECT_API_PATH.OVERVIEW.replace('{id}', encodeProjectPathParam(id));
 }
 
-export function buildProjectLogsApiPath(id: number) {
+export function buildProjectLogsApiPath(id: string | number) {
   return PROJECT_API_PATH.LOGS.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -94,7 +96,7 @@ export function buildProjectLogsApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的项目服务接口路径
  */
-export function buildProjectServicesApiPath(id: number) {
+export function buildProjectServicesApiPath(id: string | number) {
   return PROJECT_API_PATH.SERVICES.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -104,7 +106,7 @@ export function buildProjectServicesApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 项目配置 API 路径
  */
-export function buildProjectConfigurationApiPath(id: number) {
+export function buildProjectConfigurationApiPath(id: string | number) {
   return PROJECT_API_PATH.CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -114,19 +116,19 @@ export function buildProjectConfigurationApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `{id}` 占位符的文件接口路径
  */
-export function buildProjectFilesApiPath(id: number) {
+export function buildProjectFilesApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
 }
 
-export function buildProjectFilesContentApiPath(id: number) {
+export function buildProjectFilesContentApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_CONTENT.replace('{id}', encodeProjectPathParam(id));
 }
 
-export function buildProjectFilesAnnotationApiPath(id: number) {
+export function buildProjectFilesAnnotationApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_ANNOTATION.replace('{id}', encodeProjectPathParam(id));
 }
 
-export function buildProjectLifecycleConfigurationApiPath(id: number) {
+export function buildProjectLifecycleConfigurationApiPath(id: string | number) {
   return PROJECT_API_PATH.LIFECYCLE_CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -136,7 +138,7 @@ export function buildProjectLifecycleConfigurationApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 项目部署接口 URL
  */
-export function buildProjectDeployApiPath(id: number) {
+export function buildProjectDeployApiPath(id: string | number) {
   return PROJECT_API_PATH.DEPLOY.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -146,7 +148,7 @@ export function buildProjectDeployApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的项目上线 API 路径
  */
-export function buildProjectUpApiPath(id: number) {
+export function buildProjectUpApiPath(id: string | number) {
   return PROJECT_API_PATH.UP.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -156,7 +158,7 @@ export function buildProjectUpApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的下线 API 路径
  */
-export function buildProjectStopApiPath(id: number) {
+export function buildProjectStopApiPath(id: string | number) {
   return PROJECT_API_PATH.STOP.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -166,7 +168,7 @@ export function buildProjectStopApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `{id}` 占位符的重启接口路径
  */
-export function buildProjectRestartApiPath(id: number) {
+export function buildProjectRestartApiPath(id: string | number) {
   return PROJECT_API_PATH.RESTART.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -176,7 +178,7 @@ export function buildProjectRestartApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的重新部署接口路径
  */
-export function buildProjectRedeployApiPath(id: number) {
+export function buildProjectRedeployApiPath(id: string | number) {
   return PROJECT_API_PATH.REDEPLOY.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -186,7 +188,7 @@ export function buildProjectRedeployApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的项目注销接口路径
  */
-export function buildProjectUnregisterApiPath(id: number) {
+export function buildProjectUnregisterApiPath(id: string | number) {
   return PROJECT_API_PATH.UNREGISTER.replace('{id}', encodeProjectPathParam(id));
 }
 
@@ -196,7 +198,7 @@ export function buildProjectUnregisterApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的项目销毁接口路径
  */
-export function buildProjectDestroyApiPath(id: number) {
+export function buildProjectDestroyApiPath(id: string | number) {
   return PROJECT_API_PATH.DESTROY.replace('{id}', encodeProjectPathParam(id));
 }
 

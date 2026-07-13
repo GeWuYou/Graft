@@ -17,6 +17,9 @@ export type ProjectCreationMethodType = components['schemas']['ProjectCreationMe
 export type ProjectCreationMethodAvailability = components['schemas']['ProjectCreationMethodAvailability'];
 export type ProjectCreationMethod = components['schemas']['ProjectCreationMethod'];
 export type ProjectCreationMethodCatalogResponse = components['schemas']['ProjectCreationMethodCatalogResponse'];
+export type ProjectComposeRuntimeTarget = components['schemas']['ProjectComposeRuntimeTarget'];
+export type ProjectComposeRuntimeTargetCatalogResponse =
+  components['schemas']['ProjectComposeRuntimeTargetCatalogResponse'];
 export type ProjectImportValidateRequest = components['schemas']['ProjectImportValidateRequest'];
 export type ProjectImportValidateResponse = components['schemas']['ProjectImportValidateResponse'];
 export type ProjectImportResponse = components['schemas']['ProjectImportResponse'];

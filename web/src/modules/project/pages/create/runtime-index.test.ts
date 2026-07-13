@@ -14,7 +14,7 @@ vi.mock('vue-i18n', () => ({
 }));
 
 describe('ProjectRuntimeIndex', () => {
-  it('makes only Docker Compose actionable', async () => {
+  it('makes only Compose actionable and routes to runtime target selection', async () => {
     const wrapper = mount(ProjectRuntimeIndex, {
       global: {
         stubs: {
@@ -26,19 +26,17 @@ describe('ProjectRuntimeIndex', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('project.runtime.items.dockerCompose.title');
-    expect(wrapper.text()).toContain('project.runtime.items.dockerSwarm.title');
-    expect(wrapper.findAll('.project-runtime-card__icon')).toHaveLength(5);
+    expect(wrapper.text()).toContain('project.deployment.items.compose.title');
+    expect(wrapper.text()).toContain('project.deployment.items.swarm.title');
     expect(wrapper.findAll('[role="button"]')).toHaveLength(1);
-    expect(wrapper.findAll('.project-runtime-card--disabled')).toHaveLength(4);
-    expect(wrapper.get('[data-testid="project-runtime-docker-swarm"]').attributes('aria-disabled')).toBe('true');
-    expect(wrapper.get('[data-testid="project-runtime-docker-swarm"]').attributes('tabindex')).toBe('-1');
+    expect(wrapper.findAll('.project-deployment-card--disabled')).toHaveLength(3);
+    expect(wrapper.get('[data-testid="project-deployment-swarm"]').attributes('aria-disabled')).toBe('true');
 
-    await wrapper.get('[data-testid="project-runtime-docker-compose"]').trigger('click');
+    await wrapper.get('[data-testid="project-deployment-compose"]').trigger('click');
 
-    expect(push).toHaveBeenCalledWith({ name: 'ProjectCreateSourceIndex', query: { runtime: 'docker-compose' } });
+    expect(push).toHaveBeenCalledWith({ name: 'ProjectCreateRuntimeTargetIndex', query: { deployment: 'compose' } });
 
-    await wrapper.get('[data-testid="project-runtime-docker-compose"]').trigger('keydown.space');
+    await wrapper.get('[data-testid="project-deployment-compose"]').trigger('keydown.space');
 
     expect(push).toHaveBeenCalledTimes(2);
   });

@@ -89,7 +89,7 @@
             {{ detailRecord ? runtimeStatusLabel(detailRecord.runtime_status) : '-' }}
           </t-tag>
           <t-tag theme="default" variant="light-outline">
-            {{ detailRecord?.canonical_project_name || fallbackCanonicalName }}
+            {{ detailRecord?.compose_project_name || fallbackCanonicalName }}
           </t-tag>
         </t-space>
       </template>
@@ -1029,10 +1029,8 @@ const projectLifecycleConfigRealtimeGate = createRealtimeSnapshotGate({
   },
 });
 
-const projectId = computed(() => Number(route.params.id));
-const projectTaskOwnerId = computed(() =>
-  Number.isSafeInteger(projectId.value) && projectId.value > 0 ? String(projectId.value) : '',
-);
+const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''));
+const projectTaskOwnerId = computed(() => projectId.value);
 const activeTabRoute = computed(() => {
   if (route.name !== PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName) {
     return undefined;
@@ -1482,7 +1480,7 @@ function syncLifecycleState(
 }
 
 async function refreshDetail() {
-  if (!Number.isFinite(projectId.value)) {
+  if (!projectId.value) {
     detailError.value = t('project.list.retry');
     return;
   }
@@ -1513,7 +1511,7 @@ async function refreshDetail() {
 }
 
 async function loadConfigurationSummary() {
-  if (!Number.isFinite(projectId.value)) return;
+  if (!projectId.value) return;
   try {
     configurationMetadata.value = await getProjectConfiguration(projectId.value);
   } catch (error) {
@@ -1524,7 +1522,7 @@ async function loadConfigurationSummary() {
 }
 
 async function loadProjectLogs() {
-  if (!Number.isFinite(projectId.value)) return;
+  if (!projectId.value) return;
   const requestSequence = ++projectLogsLoadSequence;
   const currentProjectId = projectId.value;
   projectLogRealtimeBatcher.beginSnapshot(projectLogTail.value);
@@ -1581,7 +1579,7 @@ async function loadProjectLogs() {
 }
 
 async function loadProjectServices(forceRefresh = false) {
-  if (!Number.isFinite(projectId.value)) {
+  if (!projectId.value) {
     serviceRows.value = [];
     serviceRuntimePortSummaries.value = {};
     projectRuntimeTarget.value = null;
@@ -1614,7 +1612,7 @@ async function loadProjectServices(forceRefresh = false) {
 }
 
 async function loadProjectOverview(forceRefresh = false) {
-  if (!Number.isFinite(projectId.value)) {
+  if (!projectId.value) {
     projectOverview.value = null;
     projectOverviewLoaded.value = false;
     return null;
@@ -1687,7 +1685,7 @@ function applyProjectLifecycleConfigRealtimeSnapshot(payload: { detail: ProjectD
 }
 
 function syncProjectRuntimeRealtimeSubscription() {
-  const nextTopic = Number.isFinite(projectId.value) ? buildProjectRuntimeTopicName(projectId.value) : '';
+  const nextTopic = projectId.value ? buildProjectRuntimeTopicName(projectId.value) : '';
   if (!nextTopic) {
     releaseProjectRuntimeRealtimeSubscription();
     return;
@@ -1721,7 +1719,7 @@ function releaseProjectRuntimeRealtimeSubscription() {
 
 function syncProjectLifecycleConfigRealtimeSubscription() {
   const nextTopic =
-    Number.isFinite(projectId.value) && activeDetailTab.value === 'lifecycle'
+    projectId.value && activeDetailTab.value === 'lifecycle'
       ? buildProjectLifecycleConfigTopicName(projectId.value)
       : '';
   if (!nextTopic) {
@@ -1757,9 +1755,7 @@ function releaseProjectLifecycleConfigRealtimeSubscription() {
 
 function syncProjectLogsRealtimeSubscription() {
   const nextTopic =
-    Number.isFinite(projectId.value) && activeDetailTab.value === 'logs'
-      ? buildProjectLogsTopicName(projectId.value)
-      : '';
+    projectId.value && activeDetailTab.value === 'logs' ? buildProjectLogsTopicName(projectId.value) : '';
   if (!nextTopic) {
     emitProjectLogDebug('subscription-not-required', { activeTab: activeDetailTab.value });
     releaseProjectLogsRealtimeSubscription();
@@ -2052,7 +2048,7 @@ function capitalizeAction(action: ProjectContainerAction) {
 }
 
 async function refreshProjectRuntimeSurface() {
-  if (!Number.isFinite(projectId.value)) {
+  if (!projectId.value) {
     return;
   }
 
@@ -2152,7 +2148,7 @@ function resolveMetricDirection(previous?: number | null, next?: number | null):
 }
 
 async function runLifecycleAction(action: 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister') {
-  if (!Number.isFinite(projectId.value)) return;
+  if (!projectId.value) return;
   if (action === 'unregister' && !(await confirmDangerousAction('unregister'))) {
     return;
   }
@@ -2283,8 +2279,8 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
 
         await runDestroy({
           auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
-          confirm_canonical_project_name: row.canonical_project_name,
-          delete_working_directory: deleteWorkingDirectory.value,
+          confirm_application_id: row.application_id,
+          delete_workspace: deleteWorkingDirectory.value,
           image_prune: false,
           remove_named_volumes: removeNamedVolumes.value,
         });
@@ -2295,7 +2291,7 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
 }
 
 async function runDestroy(payload: ProjectDestroyRequest) {
-  if (!Number.isFinite(projectId.value)) {
+  if (!projectId.value) {
     return;
   }
 
@@ -2315,7 +2311,7 @@ async function runDestroyAction() {
 }
 
 async function saveLifecycleConfiguration() {
-  if (!Number.isFinite(projectId.value) || !detailRecord.value) {
+  if (!projectId.value || !detailRecord.value) {
     return;
   }
   if (
@@ -2335,8 +2331,8 @@ async function saveLifecycleConfiguration() {
       ...detailRecord.value,
       lifecycle_review_status: response.lifecycle_review_status,
       lifecycle_configuration: response.lifecycle_configuration,
-      working_directory: response.working_directory,
-      canonical_project_name: response.canonical_project_name,
+      workspace_path: response.working_directory,
+      compose_project_name: response.canonical_project_name,
       compose_files: response.compose_files,
     };
     syncLifecycleState(detailRecord.value, { preserveDirtyDraft: false });
@@ -2423,7 +2419,7 @@ async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
   const requestId = serviceRuntimePortsRequestId.value + 1;
   serviceRuntimePortsRequestId.value = requestId;
 
-  const canonicalProjectName = (detailRecord.value?.canonical_project_name || fallbackCanonicalName.value).trim();
+  const canonicalProjectName = (detailRecord.value?.compose_project_name || fallbackCanonicalName.value).trim();
   if (!canonicalProjectName || services.length === 0) {
     if (requestId === serviceRuntimePortsRequestId.value) {
       serviceRuntimePortSummaries.value = {};
@@ -2484,7 +2480,7 @@ function updateCurrentTabTitle(title: LocalizedTitle) {
 function openConfigurationWorkspace() {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-    params: { id: String(projectId.value) },
+    params: { id: projectId.value },
     query: fallbackDisplayName.value ? { name: fallbackDisplayName.value } : undefined,
   };
   const resolved = router.resolve(target);

@@ -1,5 +1,5 @@
 <template>
-  <div class="project-creation-page" data-page-type="list-form-detail">
+  <div class="project-creation-page" data-page-type="workflow">
     <management-page-content>
       <management-page-header
         title-key="project.creation.title"
@@ -15,7 +15,7 @@
         </template>
       </t-alert>
 
-      <div v-if="isDockerCompose" class="project-creation-page__grid" :aria-busy="loading">
+      <div v-if="hasComposeTarget" class="project-creation-page__grid" :aria-busy="loading">
         <t-card v-for="method in creationMethods" :key="method.method" :bordered="true" class="project-creation-card">
           <template #header>
             <div class="project-creation-card__header">
@@ -47,21 +47,36 @@
             </t-collapse>
 
             <t-button
+              v-if="method.availability === 'ready'"
               :data-testid="`project-creation-method-${method.method}`"
               theme="primary"
-              :disabled="method.availability !== 'ready'"
               @click="openMethod(method.method)"
+              >{{ t('project.creation.actions.start') }}</t-button
             >
-              {{
-                t(
-                  method.availability === 'ready'
-                    ? 'project.creation.actions.start'
-                    : 'project.creation.actions.unavailable',
-                )
-              }}
-            </t-button>
+            <t-tooltip v-else :content="t('project.workflow.unsupportedTooltip')" placement="top"
+              ><span tabindex="0"
+                ><t-button :data-testid="`project-creation-method-${method.method}`" theme="primary" disabled>{{
+                  t('project.creation.actions.unavailable')
+                }}</t-button></span
+              ></t-tooltip
+            >
           </t-space>
         </t-card>
+        <t-tooltip :content="t('project.workflow.unsupportedTooltip')" placement="top">
+          <div class="project-creation-card project-creation-card--disabled" tabindex="0" aria-disabled="true">
+            <t-card :bordered="true">
+              <template #header
+                ><div class="project-creation-card__header">
+                  <div>
+                    <h2>{{ t('project.creation.methods.git.title') }}</h2>
+                    <p>{{ t('project.creation.methods.git.description') }}</p>
+                  </div>
+                </div></template
+              >
+              <t-button disabled>{{ t('project.creation.actions.unavailable') }}</t-button>
+            </t-card>
+          </div>
+        </t-tooltip>
       </div>
     </management-page-content>
   </div>
@@ -144,7 +159,9 @@ const { t } = useI18n();
 const entries = ref<ProjectCreationMethod[]>([]);
 const loadError = ref('');
 const loading = ref(false);
-const isDockerCompose = computed(() => route.query.runtime === 'docker-compose');
+const hasComposeTarget = computed(
+  () => route.query.deployment === 'compose' && /^\d+$/.test(String(route.query.runtime_target_id || '')),
+);
 
 const creationMethods = computed(() =>
   entries.value.map((entry) => ({
@@ -154,7 +171,7 @@ const creationMethods = computed(() =>
 );
 
 onMounted(() => {
-  if (!isDockerCompose.value) {
+  if (!hasComposeTarget.value) {
     void router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName });
     return;
   }
@@ -186,7 +203,10 @@ function blockedReasonLabel(reason?: string | null) {
 }
 
 function openMethod(method: ProjectCreationMethodType) {
-  const target = { name: routeNames[method], query: { runtime: 'docker-compose' } };
+  const target = {
+    name: routeNames[method],
+    query: { deployment: 'compose', runtime_target_id: String(route.query.runtime_target_id) },
+  };
   const resolved = router.resolve(target);
   appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey(routeTitleKeys[method]));
   void router.push(target);
@@ -211,6 +231,15 @@ function openMethod(method: ProjectCreationMethodType) {
 
 .project-creation-card {
   min-height: 100%;
+}
+
+.project-creation-card--disabled {
+  opacity: 0.62;
+}
+
+.project-creation-card--disabled:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
 }
 
 .project-creation-card__header {

@@ -43,6 +43,10 @@
         "title": "创建应用",
         "breadcrumb": "创建应用"
       },
+      "createRuntimeTarget": {
+        "title": "选择运行目标",
+        "breadcrumb": "选择运行目标"
+      },
       "createSource": {
         "title": "选择应用来源",
         "breadcrumb": "选择应用来源"
@@ -689,6 +693,7 @@
       "description": "在受管目录中创建新的 Compose 工作区。",
       "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册项目。创建不会自动部署。",
       "actions": {
+        "refresh": "刷新",
         "backToList": "返回列表",
         "refreshAuthority": "刷新 authority",
         "resetDefaultDirectory": "恢复默认目录",
@@ -711,6 +716,8 @@
         "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建项目。"
       },
       "form": {
+        "workspaceKey": "工作区名称",
+        "workspaceKeyPlaceholder": "例如：orders-dev",
         "title": "项目基础信息",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
@@ -725,6 +732,7 @@
         "envFileNamePlaceholder": "留空表示本次不写入 Env 文件"
       },
       "validation": {
+        "workspaceKeyPattern": "工作区名称只能包含小写字母、数字和中横线。",
         "title": "Authority 与路径预览",
         "rootDirectory": "Managed Root",
         "configKey": "系统配置键",
@@ -762,6 +770,7 @@
       },
       "steps": { "identity": "项目与根目录", "workspace": "工作区", "lifecycle": "生命周期", "review": "审核" },
       "workspace": {
+        "defaultCompose": { "unit": "services:\n  app:\n    image: nginx:alpine" },
         "hint": "工作区会作为项目目录完整写入受管根目录。仅支持文本配置文件。",
         "filesTitle": "工作区文件",
         "addFile": "新增文件",
@@ -839,9 +848,30 @@
             "register": "登记后统一查看运行状态"
           },
           "advanced": "导入会先检查目录与运行时信息，再登记项目。"
+        },
+        "git": {
+          "title": "Git",
+          "description": "从 Git 仓库创建应用。"
         }
       },
       "messages": { "loadFailed": "项目创建方式加载失败。" }
+    },
+    "workflow": { "unsupportedTooltip": "暂不支持" },
+    "deployment": {
+      "eyebrow": "创建应用",
+      "description": "选择应用的部署模型。",
+      "items": {
+        "compose": { "title": "Compose", "description": "基于 Compose Specification" },
+        "swarm": { "title": "Swarm", "description": "Docker Stack" },
+        "kubernetes": { "title": "Kubernetes", "description": "Deployment/Pod" },
+        "nomad": { "title": "Nomad", "description": "Job" }
+      }
+    },
+    "runtimeTarget": {
+      "eyebrow": "Compose",
+      "description": "选择运行目标。",
+      "loadFailed": "运行目标加载失败。",
+      "unavailableTooltip": "运行目标当前不可用"
     },
     "runtime": {
       "eyebrow": "创建应用",
@@ -858,6 +888,8 @@
     "sourceCreate": {
       "templateDescription": "从内置 Compose 工作区模板创建托管应用。",
       "displayName": "显示名称",
+      "workspaceKey": "工作区名称",
+      "workspaceKeyPlaceholder": "例如：orders-dev",
       "canonicalName": "规范项目名称",
       "relativeDirectory": "相对目录",
       "resolvedDirectory": "应用目录",

@@ -25,6 +25,7 @@ import type {
   ProjectActionResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
+  ProjectComposeRuntimeTargetCatalogResponse,
   ProjectConfigurationMetadataResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
@@ -105,6 +106,12 @@ type GetProjectCreationMethodsOperation = paths[ProjectCreationMethodsPath]['get
 type GetProjectCreationMethodsEnvelope =
   GetProjectCreationMethodsOperation['responses'][200]['content']['application/json'];
 type GetProjectCreationMethodsData = NonNullable<GetProjectCreationMethodsEnvelope['data']>;
+
+type ProjectComposeRuntimeTargetsPath = (typeof PROJECT_API_PATH)['COMPOSE_RUNTIME_TARGETS'];
+type GetProjectComposeRuntimeTargetsOperation = paths[ProjectComposeRuntimeTargetsPath]['get'];
+type GetProjectComposeRuntimeTargetsData = NonNullable<
+  GetProjectComposeRuntimeTargetsOperation['responses'][200]['content']['application/json']['data']
+>;
 
 type ProjectDiscoveryCandidatesPath = (typeof PROJECT_API_PATH)['DISCOVERY_CANDIDATES'];
 type GetProjectDiscoveryCandidatesOperation = paths[ProjectDiscoveryCandidatesPath]['get'];
@@ -318,14 +325,14 @@ export function getProjectConfiguration(id: GetProjectConfigurationPathParams['i
  * @param query - 文件列表查询条件
  * @returns 项目工作区文件列表响应
  */
-export function getProjectFiles(id: number, query?: ProjectWorkspaceFilesQuery) {
+export function getProjectFiles(id: string, query?: ProjectWorkspaceFilesQuery) {
   return request.get<ProjectWorkspaceFilesResponse>({
     url: buildProjectFilesApiPath(id),
     params: query,
   }) as Promise<ProjectWorkspaceFilesResponse>;
 }
 
-export function getProjectFileContent(id: number, query: ProjectWorkspaceFileContentQuery) {
+export function getProjectFileContent(id: string, query: ProjectWorkspaceFileContentQuery) {
   return request.get<ProjectWorkspaceFileContentResponse>({
     url: buildProjectFilesContentApiPath(id),
     params: query,
@@ -333,7 +340,7 @@ export function getProjectFileContent(id: number, query: ProjectWorkspaceFileCon
 }
 
 export function putProjectFileContent(
-  id: number,
+  id: string,
   query: ProjectWorkspaceFileContentQuery,
   payload: ProjectWorkspaceFileSaveRequest,
 ) {
@@ -353,7 +360,7 @@ export function putProjectFileContent(
  * @returns 保存后的文件注释信息
  */
 export function putProjectFileAnnotation(
-  id: number,
+  id: string,
   query: ProjectWorkspaceFileContentQuery,
   payload: ProjectWorkspaceFileAnnotationRequest,
 ) {
@@ -384,6 +391,13 @@ export function getProjectCreationMethods() {
   return request.get<GetProjectCreationMethodsData>({
     url: PROJECT_API_PATH.CREATION_METHODS,
   }) as Promise<ProjectCreationMethodCatalogResponse>;
+}
+
+/** Returns runtime targets eligible for Compose workspaces. */
+export function getProjectComposeRuntimeTargets() {
+  return request.get<GetProjectComposeRuntimeTargetsData>({
+    url: PROJECT_API_PATH.COMPOSE_RUNTIME_TARGETS,
+  }) as Promise<ProjectComposeRuntimeTargetCatalogResponse>;
 }
 
 /**
@@ -520,7 +534,7 @@ export function postProjectRedeploy(id: ProjectRedeployPathParams['id']) {
  * @param payload - 要保存的生命周期配置
  * @returns 保存后的项目生命周期配置响应
  */
-export function putProjectLifecycleConfiguration(id: number, payload: ProjectLifecycleConfigurationUpdateRequest) {
+export function putProjectLifecycleConfiguration(id: string, payload: ProjectLifecycleConfigurationUpdateRequest) {
   return request.put<ProjectLifecycleConfigurationSavedResponse>({
     url: buildProjectLifecycleConfigurationApiPath(id),
     data: payload,
