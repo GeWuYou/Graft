@@ -4,6 +4,8 @@ import type { QuerySorter } from '@/shared/observability';
 export type AccessLogItem = components['schemas']['access-log-detail-response'];
 export type AccessLogListResponse = components['schemas']['access-log-list-response'];
 export type AccessLogDetailResponse = components['schemas']['AccessLogDetailResponse'];
+export type AccessLogSavedView = components['schemas']['saved-view'];
+export type AccessLogSavedViewRequest = components['schemas']['saved-view-request'];
 
 export type AccessLogSortBy = 'started_at' | 'occurred_at' | 'duration_ms' | 'status_code';
 export type AccessLogSortOrder = 'asc' | 'desc';

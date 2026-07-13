@@ -20,6 +20,7 @@
         :active-preset="activePreset"
         :loading="loading"
         :presets="presetViews"
+        :saved-view-controller="accessLogSavedViews"
         @apply-preset="applyPreset"
         @reset="resetFilters"
         @search="handleSearch"
@@ -69,7 +70,8 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { MessagePlugin } from 'tdesign-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -77,7 +79,13 @@ import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { TableViewToolbar } from '@/shared/components/management';
-import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
+import {
+  AdvancedQueryColumnDrawer,
+  AdvancedQueryListPage,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/shared/localized-api-error';
 import {
   assignEncodedSorters,
@@ -97,13 +105,25 @@ import {
 } from '@/shared/observability';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
-import { getAccessLogDetail, getAccessLogs } from '../../api/access-log';
+import {
+  deleteAccessLogSavedView,
+  getAccessLogDetail,
+  getAccessLogs,
+  getAccessLogSavedViews,
+  postAccessLogSavedView,
+  putAccessLogSavedView,
+} from '../../api/access-log';
 import AccessLogDetailDrawer from '../../components/AccessLogDetailDrawer.vue';
 import AccessLogFilters from '../../components/AccessLogFilters.vue';
 import AccessLogTable from '../../components/AccessLogTable.vue';
 import { buildAccessLogLocation, parseAccessLogRouteQuery } from '../../contract/deep-link';
 import { buildAccessLogSortOptions } from '../../shared/presentation';
-import type { AccessLogFilterState, AccessLogItem, AccessLogQuery } from '../../types/access-log';
+import type {
+  AccessLogFilterState,
+  AccessLogItem,
+  AccessLogQuery,
+  AccessLogSavedViewRequest,
+} from '../../types/access-log';
 
 defineOptions({
   name: 'AccessLogListIndex',
@@ -111,6 +131,14 @@ defineOptions({
 
 type AccessLogPresetKey =
   'all' | 'todayErrors' | 'status4xx' | 'status5xx' | 'slowRequests' | 'currentUser' | 'lastHour';
+type AccessLogSavedQueryState = Omit<AccessLogQuery, 'page' | 'page_size' | 'status_group'> & {
+  status_group?: string[];
+};
+type AccessLogSavedQueryViewState = {
+  pageSize: number;
+  queryState: AccessLogSavedQueryState;
+  visibleColumns: string[];
+};
 const DEFAULT_VISIBLE_COLUMNS = ['started_at', 'method', 'path', 'status_code', 'duration_ms', 'user'];
 const TROUBLESHOOTING_VISIBLE_COLUMNS = [
   'started_at',
@@ -215,6 +243,36 @@ const reportDetailLoadError = createLogDetailErrorReporter({
   fallbackMessage: () => t('accessLog.page.loadFailed'),
   resolveMessage: (cause, fallback) => resolveAccessLogErrorMessage(t, cause, fallback),
 });
+const accessLogSavedViews = useSavedQueryViews<AccessLogSavedQueryViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getAccessLogSavedViews()).map((view) => normalizeSavedQueryView<AccessLogSavedQueryState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<AccessLogSavedQueryState, number>(
+        await postAccessLogSavedView(toAccessLogSavedViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<AccessLogSavedQueryState, number>(
+        await putAccessLogSavedView(id, toAccessLogSavedViewRequest(input)),
+      ),
+    remove: async (id) => {
+      await deleteAccessLogSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    applyAccessLogSavedQueryView(view.state);
+    await updateRouteQuery();
+  },
+  onError: (error) => {
+    logger.error('failed to manage access-log saved view', error);
+    MessagePlugin.error(resolveAccessLogErrorMessage(t, error, t('accessLog.page.loadFailed')));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: currentAccessLogSavedViewQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 
 function createDefaultFilters(): AccessLogFilterState {
   return {
@@ -297,6 +355,7 @@ function viewRelatedAuditEvents(row: AccessLogItem) {
 
 function resetFilters() {
   filters.value = createDefaultFilters();
+  accessLogSavedViews.selectedId.value = undefined;
   restartQuery();
 }
 
@@ -555,4 +614,62 @@ function normalizeSortBy(value: string) {
 function normalizeSortOrder(value: string) {
   return value === 'asc' ? 'asc' : 'desc';
 }
+
+function currentAccessLogSavedViewQueryState(): AccessLogSavedQueryState {
+  const { page: _page, page_size: _pageSize, status_group, ...query } = buildQuery();
+  return {
+    ...query,
+    ...(status_group ? { status_group: [status_group] } : {}),
+  };
+}
+
+function toAccessLogSavedViewRequest(input: {
+  name: string;
+  state: AccessLogSavedQueryViewState;
+}): AccessLogSavedViewRequest {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState as unknown as Record<string, unknown>,
+    visible_columns: input.state.visibleColumns,
+  };
+}
+
+function applyAccessLogSavedQueryView(savedState: AccessLogSavedQueryViewState) {
+  const state = savedState.queryState;
+  const statusGroup = state.status_group?.[0];
+  const normalizedSorters = normalizeSorters(
+    decodeSorters(state.sort ?? [], normalizeSortBy, normalizeSortOrder),
+    sortOptions.value,
+  );
+  filters.value = {
+    ...createDefaultFilters(),
+    keyword: state.keyword ?? '',
+    requestId: state.request_id ?? '',
+    userId: state.user_id === undefined ? '' : String(state.user_id),
+    username: state.username ?? '',
+    method: state.method ?? '',
+    path: state.path ?? '',
+    pathMatch: state.path_match === 'prefix' ? 'prefix' : 'exact',
+    route: state.route ?? '',
+    statusCode:
+      statusGroup === '4xx' || statusGroup === '5xx' ? statusGroup : state.status_code ? String(state.status_code) : '',
+    durationMinMs: state.duration_min_ms === undefined ? '' : String(state.duration_min_ms),
+    durationMaxMs: state.duration_max_ms === undefined ? '' : String(state.duration_max_ms),
+    startedRange: normalizeRouteRangeForPageState([state.started_from ?? '', state.started_to ?? '']),
+    occurredRange: normalizeRouteRangeForPageState([state.occurred_from ?? '', state.occurred_to ?? '']),
+    sorters: normalizedSorters.length ? normalizedSorters : createSingleSorter('started_at', 'desc'),
+  };
+  activePreset.value = 'all';
+  deepLinkCorrelation.value = filters.value.requestId ? 'requestId' : null;
+  applySavedQueryViewPresentation(savedState, {
+    pagination: pagination.value,
+    supportedColumns: columnSettingOptions.value.map((column) => column.value),
+    visibleColumnKeys,
+  });
+}
+
+onMounted(() => {
+  void accessLogSavedViews.load();
+});
 </script>

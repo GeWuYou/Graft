@@ -430,7 +430,7 @@ func newModuleTestContextWithAuthorizer(
 	}
 	ctx := &module.Context{
 		Logger:             logger,
-		Config:             &config.Config{Audit: config.AuditConfig{LogRetention: 30 * 24 * time.Hour}},
+		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
 		Router:             engine.Group("/api"),
@@ -495,7 +495,7 @@ func newModuleTestContextWithDrilldown(
 	}
 	ctx := &module.Context{
 		Logger:             zap.NewNop(),
-		Config:             &config.Config{Audit: config.AuditConfig{LogRetention: 30 * 24 * time.Hour}},
+		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
 		Router:             engine.Group("/api"),

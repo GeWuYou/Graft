@@ -80,16 +80,23 @@ func (r *SQLRepository) ensureReady() error {
 }
 
 // normalizeListQuery 规范化列表查询参数。
-// normalizeListQuery 规范化列表查询条件并将分页参数限制在允许范围内；无效筛选值、过长关键字或小于 1 的运行目标 ID 会返回 ErrInvalidInput。
+// normalizeListQuery 规范化项目列表查询条件，并将分页参数限制在允许范围内。
+// 无效的排序、筛选值、关键字或运行目标 ID 会返回 ErrInvalidInput；缺省或超出范围的分页参数会被调整为允许值。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
-	var err error
-	query.SourceKind, err = normalizeOptionalContractValue(query.SourceKind, isValidSourceKind)
+	normalizedSort, err := normalizeProjectListSort(query.Sort)
 	if err != nil {
-		return ListQuery{}, err
+		return ListQuery{}, ErrInvalidInput
 	}
-	query.DriftStatus, err = normalizeOptionalContractValue(query.DriftStatus, isValidDriftStatus)
-	if err != nil {
-		return ListQuery{}, err
+	query.Sort = normalizedSort
+
+	var normalizeErr error
+	query.SourceKind, normalizeErr = normalizeOptionalContractValue(query.SourceKind, isValidSourceKind)
+	if normalizeErr != nil {
+		return ListQuery{}, normalizeErr
+	}
+	query.DriftStatus, normalizeErr = normalizeOptionalContractValue(query.DriftStatus, isValidDriftStatus)
+	if normalizeErr != nil {
+		return ListQuery{}, normalizeErr
 	}
 	query.Keyword = strings.TrimSpace(query.Keyword)
 	if len(query.Keyword) > 128 || (query.RuntimeTargetID != nil && *query.RuntimeTargetID < 1) {
@@ -105,6 +112,28 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 		query.Offset = 0
 	}
 	return query, nil
+}
+
+// normalizeProjectListSort trims and validates a project list sort expression.
+// It returns the normalized sort expression or ErrInvalidInput for unsupported values.
+func normalizeProjectListSort(raw string) (string, error) {
+	switch strings.TrimSpace(raw) {
+	case "", ProjectListSortCreatedAtDesc:
+		return ProjectListSortCreatedAtDesc, nil
+	case ProjectListSortCreatedAtAsc:
+		return ProjectListSortCreatedAtAsc, nil
+	default:
+		return "", ErrInvalidInput
+	}
+}
+
+// buildListOrderBy maps the validated project-list sort expression to a fixed SQL fragment.
+// buildListOrderBy 根据排序表达式生成项目列表的固定 SQL 排序子句，并使用 ID 降序作为并列排序。
+func buildListOrderBy(sortExpression string) string {
+	if sortExpression == ProjectListSortCreatedAtAsc {
+		return "created_at ASC, id DESC"
+	}
+	return "created_at DESC, id DESC"
 }
 
 // validateImportInput 规范化并校验导入项目输入，返回可直接使用的输入值。

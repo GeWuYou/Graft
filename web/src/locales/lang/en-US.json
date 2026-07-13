@@ -382,6 +382,26 @@
     "request": {
       "failed": "Request Failed"
     },
+    "savedQueryViews": {
+      "label": "Saved Filters",
+      "placeholder": "Select a saved filter",
+      "noResults": "No matching saved filters",
+      "namePlaceholder": "Enter a filter name",
+      "nameRequired": "Enter a filter name.",
+      "actions": {
+        "saveAs": "Save Filter",
+        "save": "Save",
+        "update": "Update Filter",
+        "delete": "Delete Filter",
+        "cancel": "Cancel"
+      },
+      "dialog": {
+        "createTitle": "Save Filter",
+        "updateTitle": "Update Filter",
+        "deleteTitle": "Delete Filter",
+        "deleteDescription": "Delete filter \"{name}\"? This cannot be undone."
+      }
+    },
     "auth": {
       "login": {
         "title": "Log in",

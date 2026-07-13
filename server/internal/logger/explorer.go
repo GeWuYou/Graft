@@ -30,6 +30,17 @@ func (h appLogGeneratedHandler) GetAppLogs(params applogopenapi.GetAppLogsParams
 	_ = params
 }
 
+func (appLogGeneratedHandler) GetAppLogSavedViews(applogopenapi.GetAppLogSavedViewsParams) {}
+
+func (appLogGeneratedHandler) PostAppLogSavedView(applogopenapi.PostAppLogSavedViewParams, applogopenapi.PostAppLogSavedViewJSONRequestBody) {
+}
+
+func (appLogGeneratedHandler) PutAppLogSavedView(int64, applogopenapi.PutAppLogSavedViewParams, applogopenapi.PutAppLogSavedViewJSONRequestBody) {
+}
+
+func (appLogGeneratedHandler) DeleteAppLogSavedView(int64, applogopenapi.DeleteAppLogSavedViewParams) {
+}
+
 func (h appLogGeneratedHandler) GetAppLogDetail(id int64, params applogopenapi.GetAppLogDetailParams) {
 	_ = h
 	_ = id
@@ -81,6 +92,16 @@ type appLogReadGuard struct {
 	delete gin.HandlerFunc
 }
 
+type appLogExplorerRouteDependencies struct {
+	localizer   *i18n.Service
+	repo        AppLogRepository
+	authService moduleapi.AuthService
+	authorizer  moduleapi.Authorizer
+	bus         eventbus.Bus
+	savedViews  moduleapi.SavedViewService
+}
+
+// registerAppLogExplorerPermissions registers the application log read and delete permissions.
 func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	if registry == nil {
 		return
@@ -119,51 +140,58 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 	})
 }
 
-func registerAppLogExplorerRoutes(
-	router gin.IRouter,
-	localizer *i18n.Service,
-	repo AppLogRepository,
-	authService moduleapi.AuthService,
-	authorizer moduleapi.Authorizer,
-	bus eventbus.Bus,
-) error {
+// registerAppLogExplorerRoutes 注册应用日志浏览器的权限守卫、列表、已保存视图、详情及删除路由。
+// 当必需依赖缺失时返回错误；路由注册成功时返回 nil。
+func registerAppLogExplorerRoutes(router gin.IRouter, dependencies appLogExplorerRouteDependencies) error {
 	if router == nil {
 		return errors.New("app log explorer router is required")
 	}
-	if repo == nil {
+	if dependencies.repo == nil {
 		return errors.New("app log explorer repository is required")
 	}
-	if authService == nil {
+	if dependencies.authService == nil {
 		return errors.New("app log explorer auth service is required")
 	}
-	if authorizer == nil {
+	if dependencies.authorizer == nil {
 		return errors.New("app log explorer authorizer is required")
 	}
+	if dependencies.savedViews == nil {
+		return errors.New("app log explorer saved-view service is required")
+	}
 
-	publisher := httpx.NewSecurityAuditPublisher(bus, nil, appLogModuleOwner)
+	publisher := httpx.NewSecurityAuditPublisher(dependencies.bus, nil, appLogModuleOwner)
 	guard := appLogReadGuard{
-		read:   httpx.RequirePermission(localizer, authService, authorizer, AppLogReadPermission, publisher),
-		delete: httpx.RequirePermission(localizer, authService, authorizer, AppLogDeletePermission, publisher),
+		read:   httpx.RequirePermission(dependencies.localizer, dependencies.authService, dependencies.authorizer, AppLogReadPermission, publisher),
+		delete: httpx.RequirePermission(dependencies.localizer, dependencies.authService, dependencies.authorizer, AppLogDeletePermission, publisher),
 	}
 	group := router.Group(appLogRouteGroup)
-	group.GET("", guard.read, handleListAppLogs(localizer, repo))
-	group.POST(appLogBatchDeleteRoute, guard.delete, handleBatchDeleteAppLogs(localizer, repo, bus))
-	group.GET("/:"+appLogRouteItemParam, guard.read, handleGetAppLogDetail(localizer, repo))
-	group.DELETE("/:"+appLogRouteItemParam, guard.delete, handleDeleteAppLog(localizer, repo, bus))
+	group.GET("", guard.read, handleListAppLogs(dependencies.localizer, dependencies.repo))
+	registerAppLogSavedViewRoutes(group, dependencies.localizer, guard.read, dependencies.savedViews)
+	group.POST(appLogBatchDeleteRoute, guard.delete, handleBatchDeleteAppLogs(dependencies.localizer, dependencies.repo, dependencies.bus))
+	group.GET("/:"+appLogRouteItemParam, guard.read, handleGetAppLogDetail(dependencies.localizer, dependencies.repo))
+	group.DELETE("/:"+appLogRouteItemParam, guard.delete, handleDeleteAppLog(dependencies.localizer, dependencies.repo, dependencies.bus))
 	return nil
 }
 
-// RegisterAppLogExplorer registers the logger-owned App Log Explorer messages, permission, menu, and routes.
+// RegisterAppLogExplorer 将应用日志浏览器的权限、菜单和 HTTP 路由注册到核心运行时，并返回路由注册过程中的错误。
 func RegisterAppLogExplorer(
 	ctx AppLogExplorerRegistration,
 	router gin.IRouter,
 	repo AppLogRepository,
 	authService moduleapi.AuthService,
 	authorizer moduleapi.Authorizer,
+	savedViews moduleapi.SavedViewService,
 ) error {
 	registerAppLogExplorerPermissions(ctx.PermissionRegistry)
 	registerAppLogExplorerMenu(ctx.MenuRegistry)
-	if err := registerAppLogExplorerRoutes(router, ctx.I18n, repo, authService, authorizer, ctx.EventBus); err != nil {
+	if err := registerAppLogExplorerRoutes(router, appLogExplorerRouteDependencies{
+		localizer:   ctx.I18n,
+		repo:        repo,
+		authService: authService,
+		authorizer:  authorizer,
+		bus:         ctx.EventBus,
+		savedViews:  savedViews,
+	}); err != nil {
 		return fmt.Errorf("register app log explorer routes: %w", err)
 	}
 	return nil

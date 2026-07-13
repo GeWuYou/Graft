@@ -67,9 +67,11 @@ const (
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit           int
-	Offset          int
-	Keyword         string
+	Limit   int
+	Offset  int
+	Keyword string
+	// Sort accepts the restricted project-list sort expressions; an empty value uses created_at:desc.
+	Sort            string
 	ApplicationType string
 	RuntimeTargetID *int64
 	Provider        string
@@ -636,6 +638,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Limit:           query.Limit,
 		Offset:          query.Offset,
 		Keyword:         strings.TrimSpace(query.Keyword),
+		Sort:            strings.TrimSpace(query.Sort),
 		RuntimeTargetID: query.RuntimeTargetID,
 		SourceKind:      strings.TrimSpace(query.SourceKind),
 		DriftStatus:     strings.TrimSpace(query.DriftStatus),

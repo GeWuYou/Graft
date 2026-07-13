@@ -132,6 +132,19 @@ const listMessages = {
   'project.list.savedViews.deleteConfirmDescription': 'Delete filter "{name}"? This cannot be undone.',
   'project.list.savedViews.deleteConfirmTitle': 'Delete Filter',
   'project.list.savedViews.loadFailed': 'Failed to load saved filters.',
+  'app.savedQueryViews.actions.cancel': 'Cancel',
+  'app.savedQueryViews.actions.delete': 'Delete Filter',
+  'app.savedQueryViews.actions.save': 'Save',
+  'app.savedQueryViews.actions.saveAs': 'Save Filter',
+  'app.savedQueryViews.actions.update': 'Update Filter',
+  'app.savedQueryViews.dialog.createTitle': 'Save Filter',
+  'app.savedQueryViews.dialog.deleteDescription': 'Delete filter "{name}"? This cannot be undone.',
+  'app.savedQueryViews.dialog.deleteTitle': 'Delete Filter',
+  'app.savedQueryViews.dialog.updateTitle': 'Update Filter',
+  'app.savedQueryViews.label': 'Saved Filters',
+  'app.savedQueryViews.namePlaceholder': 'Enter a filter name',
+  'app.savedQueryViews.nameRequired': 'Enter a filter name.',
+  'app.savedQueryViews.placeholder': 'Select a saved filter',
 } as const;
 
 function slotStub(name: string) {
@@ -632,18 +645,18 @@ describe('Project list page', () => {
     expect(wrapper.get('[data-testid="project-table-summary"]').text()).toBe('Total 42');
   });
 
-  it('opens the saved-view dialog from the compact list toolbar', async () => {
+  it('opens the shared saved-view dialog from the query builder', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.save');
+    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'Save Filter');
     expect(saveButton).toBeDefined();
 
     await saveButton?.trigger('click');
     expect(wrapper.find('[data-stub="TDialog"]').exists()).toBe(true);
   });
 
-  it('creates and updates saved views from the list toolbar', async () => {
+  it('creates saved views from the query builder', async () => {
     const initialView = {
       created_at: '2026-07-12T00:00:00Z',
       id: 8,
@@ -660,33 +673,30 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.save');
+    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'Save Filter');
     await saveButton?.trigger('click');
     await wrapper.findAllComponents(TInputStub).at(-1)?.setValue('Production');
     wrapper.getComponent(TDialogStub).vm.$emit('confirm');
     await flushPromises();
 
     expect(projectApiMocks.postProjectSavedView).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Production', page_size: 20 }),
-    );
-
-    const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
-    if (!savedViewSelect) {
-      throw new Error('saved view select not found');
-    }
-    savedViewSelect.vm.$emit('update:modelValue', initialView.id);
-    savedViewSelect.vm.$emit('change', initialView.id);
-    await nextTick();
-
-    const updateButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.update');
-    await updateButton?.trigger('click');
-    await wrapper.findAllComponents(TInputStub).at(-1)?.setValue('Operations Updated');
-    wrapper.getComponent(TDialogStub).vm.$emit('confirm');
-    await flushPromises();
-
-    expect(projectApiMocks.putProjectSavedView).toHaveBeenCalledWith(
-      initialView.id,
-      expect.objectContaining({ name: 'Operations Updated' }),
+      expect.objectContaining({
+        name: 'Production',
+        page_size: 20,
+        query_state: { sort: ['created_at:desc'] },
+        visible_columns: [
+          'row-select',
+          'name',
+          'applicationType',
+          'runtimeTarget',
+          'provider',
+          'source',
+          'runtime',
+          'resources',
+          'drift',
+          'operation',
+        ],
+      }),
     );
   });
 
@@ -709,7 +719,6 @@ describe('Project list page', () => {
       throw new Error('saved view select not found');
     }
     savedViewSelect.vm.$emit('update:modelValue', view.id);
-    savedViewSelect.vm.$emit('change', view.id);
     await flushPromises();
 
     expect(projectApiMocks.getProjects).toHaveBeenLastCalledWith(
@@ -729,13 +738,6 @@ describe('Project list page', () => {
       visible_columns: ['name'],
     };
     projectApiMocks.getProjectSavedViews.mockResolvedValue([view]);
-    const dialog = { destroy: vi.fn() };
-    let confirmOptions: Record<string, (...args: never[]) => void> | undefined;
-    dialogConfirmMock.mockImplementation((options: Record<string, (...args: never[]) => void>) => {
-      confirmOptions = options;
-      return dialog;
-    });
-
     const wrapper = mountPage();
     await flushPromises();
     const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
@@ -743,22 +745,20 @@ describe('Project list page', () => {
       throw new Error('saved view select not found');
     }
     savedViewSelect.vm.$emit('update:modelValue', view.id);
-    savedViewSelect.vm.$emit('change', view.id);
+    await flushPromises();
+
+    const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'Delete Filter');
+    await deleteButton?.trigger('click');
     await nextTick();
 
-    const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'project.list.savedViews.delete');
-    await deleteButton?.trigger('click');
-
-    expect(dialogConfirmMock).toHaveBeenCalledWith(
-      expect.objectContaining({ header: 'Delete Filter', theme: 'warning' }),
-    );
+    expect(wrapper.find('[data-stub="TDialog"]').exists()).toBe(true);
     expect(projectApiMocks.deleteProjectSavedView).not.toHaveBeenCalled();
 
-    await confirmOptions?.onConfirm?.();
+    const deleteDialog = wrapper.findAllComponents(TDialogStub).find((dialog) => dialog.isVisible());
+    deleteDialog?.vm.$emit('confirm');
     await flushPromises();
 
     expect(projectApiMocks.deleteProjectSavedView).toHaveBeenCalledWith(view.id);
-    expect(dialog.destroy).toHaveBeenCalledTimes(1);
   });
 
   it('renders dynamic container resource badges with four-way semantics', async () => {

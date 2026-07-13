@@ -1001,6 +1001,126 @@ func (e GetAuditLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogSavedViews401JSONResponseBodySuccess.
+const (
+	GetAuditLogSavedViews401JSONResponseBodySuccessFalse GetAuditLogSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogSavedViews401JSONResponseBodySuccess enum.
+func (e GetAuditLogSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditLogSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogSavedViews403JSONResponseBodySuccess.
+const (
+	GetAuditLogSavedViews403JSONResponseBodySuccessFalse GetAuditLogSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogSavedViews403JSONResponseBodySuccess enum.
+func (e GetAuditLogSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditLogSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogSavedView401JSONResponseBodySuccess.
+const (
+	PostAuditLogSavedView401JSONResponseBodySuccessFalse PostAuditLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogSavedView401JSONResponseBodySuccess enum.
+func (e PostAuditLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuditLogSavedView403JSONResponseBodySuccess.
+const (
+	PostAuditLogSavedView403JSONResponseBodySuccessFalse PostAuditLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuditLogSavedView403JSONResponseBodySuccess enum.
+func (e PostAuditLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuditLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditLogSavedView401JSONResponseBodySuccess.
+const (
+	DeleteAuditLogSavedView401JSONResponseBodySuccessFalse DeleteAuditLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditLogSavedView401JSONResponseBodySuccess enum.
+func (e DeleteAuditLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAuditLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditLogSavedView403JSONResponseBodySuccess.
+const (
+	DeleteAuditLogSavedView403JSONResponseBodySuccessFalse DeleteAuditLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditLogSavedView403JSONResponseBodySuccess enum.
+func (e DeleteAuditLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAuditLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditLogSavedView401JSONResponseBodySuccess.
+const (
+	PutAuditLogSavedView401JSONResponseBodySuccessFalse PutAuditLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditLogSavedView401JSONResponseBodySuccess enum.
+func (e PutAuditLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditLogSavedView403JSONResponseBodySuccess.
+const (
+	PutAuditLogSavedView403JSONResponseBodySuccessFalse PutAuditLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditLogSavedView403JSONResponseBodySuccess enum.
+func (e PutAuditLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogDetail200JSONResponseBodyDataResult.
 const (
 	GetAuditLogDetail200JSONResponseBodyDataResultDENIED  GetAuditLogDetail200JSONResponseBodyDataResult = "DENIED"
@@ -1854,6 +1974,86 @@ type GetAuditLogs403JSONResponseBodySuccess bool
 // GetAuditLogs500JSONResponseBodySuccess defines parameters for GetAuditLogs.
 type GetAuditLogs500JSONResponseBodySuccess bool
 
+// GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
+type GetAuditLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetAuditLogSavedViews401JSONResponseBodySuccess defines parameters for GetAuditLogSavedViews.
+type GetAuditLogSavedViews401JSONResponseBodySuccess bool
+
+// GetAuditLogSavedViews403JSONResponseBodySuccess defines parameters for GetAuditLogSavedViews.
+type GetAuditLogSavedViews403JSONResponseBodySuccess bool
+
+// PostAuditLogSavedViewJSONBody defines parameters for PostAuditLogSavedView.
+type PostAuditLogSavedViewJSONBody struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostAuditLogSavedViewParams defines parameters for PostAuditLogSavedView.
+type PostAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuditLogSavedView401JSONResponseBodySuccess defines parameters for PostAuditLogSavedView.
+type PostAuditLogSavedView401JSONResponseBodySuccess bool
+
+// PostAuditLogSavedView403JSONResponseBodySuccess defines parameters for PostAuditLogSavedView.
+type PostAuditLogSavedView403JSONResponseBodySuccess bool
+
+// DeleteAuditLogSavedViewParams defines parameters for DeleteAuditLogSavedView.
+type DeleteAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAuditLogSavedView401JSONResponseBodySuccess defines parameters for DeleteAuditLogSavedView.
+type DeleteAuditLogSavedView401JSONResponseBodySuccess bool
+
+// DeleteAuditLogSavedView403JSONResponseBodySuccess defines parameters for DeleteAuditLogSavedView.
+type DeleteAuditLogSavedView403JSONResponseBodySuccess bool
+
+// PutAuditLogSavedViewJSONBody defines parameters for PutAuditLogSavedView.
+type PutAuditLogSavedViewJSONBody struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutAuditLogSavedViewParams defines parameters for PutAuditLogSavedView.
+type PutAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutAuditLogSavedView401JSONResponseBodySuccess defines parameters for PutAuditLogSavedView.
+type PutAuditLogSavedView401JSONResponseBodySuccess bool
+
+// PutAuditLogSavedView403JSONResponseBodySuccess defines parameters for PutAuditLogSavedView.
+type PutAuditLogSavedView403JSONResponseBodySuccess bool
+
 // GetAuditLogDetailParams defines parameters for GetAuditLogDetail.
 type GetAuditLogDetailParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -2030,6 +2230,12 @@ type PutAuditVisibilityOverride403JSONResponseBodySuccess bool
 
 // PutAuditVisibilityOverride500JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverride.
 type PutAuditVisibilityOverride500JSONResponseBodySuccess bool
+
+// PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
+type PostAuditLogSavedViewJSONRequestBody PostAuditLogSavedViewJSONBody
+
+// PutAuditLogSavedViewJSONRequestBody defines body for PutAuditLogSavedView for application/json ContentType.
+type PutAuditLogSavedViewJSONRequestBody PutAuditLogSavedViewJSONBody
 
 // PutAuditVisibilityPolicyJSONRequestBody defines body for PutAuditVisibilityPolicy for application/json ContentType.
 type PutAuditVisibilityPolicyJSONRequestBody PutAuditVisibilityPolicyJSONBody

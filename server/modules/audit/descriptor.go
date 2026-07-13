@@ -14,11 +14,12 @@ const (
 	moduleID = "audit"
 )
 
-// NewModuleSpec exposes the audit module's stable compile-time metadata and builder.
+// NewModuleSpec 定义审计模块的标识、依赖、迁移路径及构建器。
+// 返回包含审计模块元数据和实例构建逻辑的模块规范。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  []string{"user", "rbac"},
+		Dependencies:  []string{"user", "rbac", "saved-view"},
 		MigrationPath: []string{"modules/audit/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			sqlDB, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

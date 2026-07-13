@@ -2820,6 +2820,66 @@ func (e ProjectSavedViewRequestQueryStateProvider) Valid() bool {
 	}
 }
 
+// Defines values for ProjectSavedViewRequestQueryStateSort.
+const (
+	ProjectSavedViewRequestQueryStateSortCreatedAtAsc  ProjectSavedViewRequestQueryStateSort = "created_at:asc"
+	ProjectSavedViewRequestQueryStateSortCreatedAtDesc ProjectSavedViewRequestQueryStateSort = "created_at:desc"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateSort enum.
+func (e ProjectSavedViewRequestQueryStateSort) Valid() bool {
+	switch e {
+	case ProjectSavedViewRequestQueryStateSortCreatedAtAsc:
+		return true
+	case ProjectSavedViewRequestQueryStateSortCreatedAtDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectSavedViewRequestVisibleColumns.
+const (
+	ProjectSavedViewRequestVisibleColumnsApplicationType ProjectSavedViewRequestVisibleColumns = "applicationType"
+	ProjectSavedViewRequestVisibleColumnsDrift           ProjectSavedViewRequestVisibleColumns = "drift"
+	ProjectSavedViewRequestVisibleColumnsName            ProjectSavedViewRequestVisibleColumns = "name"
+	ProjectSavedViewRequestVisibleColumnsOperation       ProjectSavedViewRequestVisibleColumns = "operation"
+	ProjectSavedViewRequestVisibleColumnsProvider        ProjectSavedViewRequestVisibleColumns = "provider"
+	ProjectSavedViewRequestVisibleColumnsResources       ProjectSavedViewRequestVisibleColumns = "resources"
+	ProjectSavedViewRequestVisibleColumnsRowSelect       ProjectSavedViewRequestVisibleColumns = "row-select"
+	ProjectSavedViewRequestVisibleColumnsRuntime         ProjectSavedViewRequestVisibleColumns = "runtime"
+	ProjectSavedViewRequestVisibleColumnsRuntimeTarget   ProjectSavedViewRequestVisibleColumns = "runtimeTarget"
+	ProjectSavedViewRequestVisibleColumnsSource          ProjectSavedViewRequestVisibleColumns = "source"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSavedViewRequestVisibleColumns enum.
+func (e ProjectSavedViewRequestVisibleColumns) Valid() bool {
+	switch e {
+	case ProjectSavedViewRequestVisibleColumnsApplicationType:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsDrift:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsName:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsOperation:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsProvider:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsResources:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsRowSelect:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsRuntime:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsRuntimeTarget:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsSource:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectSourceKind.
 const (
 	ProjectSourceKindImported ProjectSourceKind = "imported"
@@ -3683,19 +3743,19 @@ func (e TaskLogEntryLevel) Valid() bool {
 
 // Defines values for TaskLogEntryStream.
 const (
-	Stderr TaskLogEntryStream = "stderr"
-	Stdout TaskLogEntryStream = "stdout"
-	System TaskLogEntryStream = "system"
+	TaskLogEntryStreamStderr TaskLogEntryStream = "stderr"
+	TaskLogEntryStreamStdout TaskLogEntryStream = "stdout"
+	TaskLogEntryStreamSystem TaskLogEntryStream = "system"
 )
 
 // Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
 func (e TaskLogEntryStream) Valid() bool {
 	switch e {
-	case Stderr:
+	case TaskLogEntryStreamStderr:
 		return true
-	case Stdout:
+	case TaskLogEntryStreamStdout:
 		return true
-	case System:
+	case TaskLogEntryStreamSystem:
 		return true
 	default:
 		return false
@@ -4398,6 +4458,24 @@ const (
 func (e GetProjectsParamsProvider) Valid() bool {
 	switch e {
 	case GetProjectsParamsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectsParamsSort.
+const (
+	GetProjectsParamsSortCreatedAtAsc  GetProjectsParamsSort = "created_at:asc"
+	GetProjectsParamsSortCreatedAtDesc GetProjectsParamsSort = "created_at:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectsParamsSort enum.
+func (e GetProjectsParamsSort) Valid() bool {
+	switch e {
+	case GetProjectsParamsSortCreatedAtAsc:
+		return true
+	case GetProjectsParamsSortCreatedAtDesc:
 		return true
 	default:
 		return false
@@ -7470,6 +7548,46 @@ type EnvelopedRuntimeTargetResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedSavedView defines model for enveloped-saved-view.
+type EnvelopedSavedView struct {
+	// Code Existing canonical response code.
+	Code string    `json:"code"`
+	Data SavedView `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedSavedViewListResponse defines model for enveloped-saved-view-list-response.
+type EnvelopedSavedViewListResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data SavedViewListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedScheduledTaskActionResult defines model for enveloped-scheduled-task-action-result.
 type EnvelopedScheduledTaskActionResult struct {
 	// Code Existing canonical response code.
@@ -9157,9 +9275,12 @@ type ProjectSavedViewRequest struct {
 		// RuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 		RuntimeStatus   *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
 		RuntimeTargetId *int64                `json:"runtime_target_id,omitempty"`
-		SourceKind      *ProjectSourceKind    `json:"source_kind,omitempty"`
+
+		// Sort Optional project-list sort expression; omitted values use created_at:desc.
+		Sort       *[]ProjectSavedViewRequestQueryStateSort `json:"sort,omitempty"`
+		SourceKind *ProjectSourceKind                       `json:"source_kind,omitempty"`
 	} `json:"query_state"`
-	VisibleColumns []string `json:"visible_columns"`
+	VisibleColumns []ProjectSavedViewRequestVisibleColumns `json:"visible_columns"`
 }
 
 // ProjectSavedViewRequestQueryStateApplicationType defines model for ProjectSavedViewRequest.QueryState.ApplicationType.
@@ -9167,6 +9288,12 @@ type ProjectSavedViewRequestQueryStateApplicationType string
 
 // ProjectSavedViewRequestQueryStateProvider defines model for ProjectSavedViewRequest.QueryState.Provider.
 type ProjectSavedViewRequestQueryStateProvider string
+
+// ProjectSavedViewRequestQueryStateSort defines model for ProjectSavedViewRequest.QueryState.Sort.
+type ProjectSavedViewRequestQueryStateSort string
+
+// ProjectSavedViewRequestVisibleColumns defines model for ProjectSavedViewRequest.VisibleColumns.
+type ProjectSavedViewRequestVisibleColumns string
 
 // ProjectServiceItem defines model for project-service-item.
 type ProjectServiceItem struct {
@@ -9468,6 +9595,30 @@ type RuntimeTargetUsageMetric struct {
 
 	// UsedBytes Bytes currently used by the resource.
 	UsedBytes int64 `json:"usedBytes"`
+}
+
+// SavedView defines model for saved-view.
+type SavedView struct {
+	CreatedAt      time.Time              `json:"created_at"`
+	Id             int64                  `json:"id"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// SavedViewListResponse defines model for saved-view-list-response.
+type SavedViewListResponse struct {
+	Items []SavedView `json:"items"`
+}
+
+// SavedViewRequest defines model for saved-view-request.
+type SavedViewRequest struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
 }
 
 // ScheduledTaskActionRequest defines model for scheduled-task-action-request.
@@ -10396,6 +10547,9 @@ type ProjectListRuntimeStatus = ProjectRuntimeStatus
 // ProjectListRuntimeTargetId defines model for project-list-runtime-target-id.
 type ProjectListRuntimeTargetId = int64
 
+// ProjectListSort defines model for project-list-sort.
+type ProjectListSort = []string
+
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
 
@@ -10422,6 +10576,9 @@ type RequestIdHeader = string
 
 // RuntimeTargetIdPath defines model for runtime-target-id-path.
 type RuntimeTargetIdPath = int64
+
+// SavedViewId defines model for saved-view-id.
+type SavedViewId = int64
 
 // ScheduledTaskActionKey defines model for scheduled-task-action-key.
 type ScheduledTaskActionKey = string
@@ -10517,6 +10674,46 @@ type GetAccessLogsParamsPathMatch string
 
 // GetAccessLogsParamsStatusGroup defines parameters for GetAccessLogs.
 type GetAccessLogsParamsStatusGroup string
+
+// GetAccessLogSavedViewsParams defines parameters for GetAccessLogSavedViews.
+type GetAccessLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAccessLogSavedViewParams defines parameters for PostAccessLogSavedView.
+type PostAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAccessLogSavedViewParams defines parameters for DeleteAccessLogSavedView.
+type DeleteAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAccessLogSavedViewParams defines parameters for PutAccessLogSavedView.
+type PutAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAccessLogDetailParams defines parameters for GetAccessLogDetail.
 type GetAccessLogDetailParams struct {
@@ -10661,6 +10858,46 @@ type PostAppLogBatchDeleteParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetAppLogSavedViewsParams defines parameters for GetAppLogSavedViews.
+type GetAppLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAppLogSavedViewParams defines parameters for PostAppLogSavedView.
+type PostAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAppLogSavedViewParams defines parameters for DeleteAppLogSavedView.
+type DeleteAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAppLogSavedViewParams defines parameters for PutAppLogSavedView.
+type PutAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // DeleteAppLogParams defines parameters for DeleteAppLog.
 type DeleteAppLogParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10759,6 +10996,46 @@ type GetAuditLogsParamsRiskLevel string
 
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
+
+// GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
+type GetAuditLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuditLogSavedViewParams defines parameters for PostAuditLogSavedView.
+type PostAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAuditLogSavedViewParams defines parameters for DeleteAuditLogSavedView.
+type DeleteAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAuditLogSavedViewParams defines parameters for PutAuditLogSavedView.
+type PutAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuditLogDetailParams defines parameters for GetAuditLogDetail.
 type GetAuditLogDetailParams struct {
@@ -11295,6 +11572,9 @@ type GetProjectsParams struct {
 	// DriftStatus Optional project drift-status filter.
 	DriftStatus *ProjectListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
 
+	// Sort Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc.
+	Sort *ProjectListSort `form:"sort,omitempty" json:"sort,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11308,6 +11588,9 @@ type GetProjectsParamsApplicationType string
 
 // GetProjectsParamsProvider defines parameters for GetProjects.
 type GetProjectsParamsProvider string
+
+// GetProjectsParamsSort defines parameters for GetProjects.
+type GetProjectsParamsSort string
 
 // PostProjectBatchActionsParams defines parameters for PostProjectBatchActions.
 type PostProjectBatchActionsParams struct {
@@ -12399,6 +12682,12 @@ type GetRealtimeWebSocketParams struct {
 	Topic RealtimeTopicQuery `form:"topic" json:"topic"`
 }
 
+// PostAccessLogSavedViewJSONRequestBody defines body for PostAccessLogSavedView for application/json ContentType.
+type PostAccessLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAccessLogSavedViewJSONRequestBody defines body for PutAccessLogSavedView for application/json ContentType.
+type PutAccessLogSavedViewJSONRequestBody = SavedViewRequest
+
 // PostAnnouncementsJSONRequestBody defines body for PostAnnouncements for application/json ContentType.
 type PostAnnouncementsJSONRequestBody = CreateAnnouncementRequest
 
@@ -12410,6 +12699,18 @@ type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
 
 // PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
 type PostAppLogBatchDeleteJSONRequestBody = AppLogBatchDeleteRequest
+
+// PostAppLogSavedViewJSONRequestBody defines body for PostAppLogSavedView for application/json ContentType.
+type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAppLogSavedViewJSONRequestBody defines body for PutAppLogSavedView for application/json ContentType.
+type PutAppLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
+type PostAuditLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAuditLogSavedViewJSONRequestBody defines body for PutAuditLogSavedView for application/json ContentType.
+type PutAuditLogSavedViewJSONRequestBody = SavedViewRequest
 
 // PutAuditVisibilityPolicyJSONRequestBody defines body for PutAuditVisibilityPolicy for application/json ContentType.
 type PutAuditVisibilityPolicyJSONRequestBody = AuditVisibilityDefaultUpdateRequest

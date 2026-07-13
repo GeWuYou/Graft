@@ -15,6 +15,7 @@ get:
     - $ref: ../components/parameters/project-list-source-kind.yaml
     - $ref: ../components/parameters/project-list-runtime-status.yaml
     - $ref: ../components/parameters/project-list-drift-status.yaml
+    - $ref: ../components/parameters/project-list-sort.yaml
   security:
     - bearerAuth: []
   responses:

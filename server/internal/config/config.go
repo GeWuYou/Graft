@@ -148,16 +148,13 @@ type HTTPConfig struct {
 
 // HTTPXConfig 描述 core-owned httpx 运行时配置。
 type HTTPXConfig struct {
-	AccessLogRetention       time.Duration
 	AccessLogConsole         AccessLogConsolePolicy
 	AccessLogSlowThresholdMS int64
 	WebSocketAllowedOrigins  []string
 }
 
-// AuditConfig describes audit-module-owned runtime policy configuration.
-type AuditConfig struct {
-	LogRetention time.Duration
-}
+// AuditConfig reserves core-provided audit startup settings.
+type AuditConfig struct{}
 
 // DocsConfig 控制 OpenAPI 文档与文档页面的公开策略。
 type DocsConfig struct {
@@ -197,11 +194,10 @@ type RedisConfig struct {
 
 // LogConfig 描述日志核心服务接入后的日志行为配置。
 type LogConfig struct {
-	Level           string
-	Format          LogFormat
-	Color           LogColor
-	AppLogPersist   bool
-	AppLogRetention time.Duration
+	Level         string
+	Format        LogFormat
+	Color         LogColor
+	AppLogPersist bool
 }
 
 // RuntimeConfig 描述 core runtime 启动前必须冻结的进程级框架行为。
@@ -231,18 +227,12 @@ type AuthConfig struct {
 	RefreshCookiePath     string
 }
 
-// ContainerConfig 描述容器管理模块的启动期进程配置。
+// ContainerConfig 描述容器管理模块的部署配置。
 //
-// 运行期系统配置仍拥有 feature gate 的有效值；这些字段只提供无法通过当前
-// SystemConfigResolver 表达的 adapter、endpoint 和日志上限启动默认值。
+// Provider 和 endpoint 由部署环境决定；管理员运行时策略由 System Config 拥有。
 type ContainerConfig struct {
-	Runtime                 string
-	DockerEndpoint          string
-	LogsDefaultTail         int
-	LogsMaxTail             int
-	RuntimeEnabled          bool
-	DangerousActionsEnabled bool
-	ShellEnabled            bool
+	Runtime        string
+	DockerEndpoint string
 }
 
 // Load 按“真实环境变量优先、.env 兜底”的顺序加载配置并返回校验后的快照。
@@ -338,6 +328,7 @@ func validateAppConfig(c *Config) error {
 	return nil
 }
 
+// validateHTTPConfig validates that the HTTP server address is configured.
 func validateHTTPConfig(c *Config) error {
 	if strings.TrimSpace(c.HTTP.Addr) == "" {
 		return errors.New("GRAFT_HTTP_ADDR is required")
@@ -346,11 +337,8 @@ func validateHTTPConfig(c *Config) error {
 	return nil
 }
 
-// validateHTTPXConfig 验证 HTTPX 配置。检查访问日志保留时间和慢查询阈值大于零，规范化并验证访问日志控制台策略为支持的值之一，并规范化 WebSocket 允许来源列表。
+// 验证访问日志控制台策略、慢请求阈值和 WebSocket 允许来源列表。
 func validateHTTPXConfig(c *Config) error {
-	if c.HTTPX.AccessLogRetention <= 0 {
-		return errors.New("GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
-	}
 	c.HTTPX.AccessLogConsole = AccessLogConsolePolicy(strings.ToLower(strings.TrimSpace(string(c.HTTPX.AccessLogConsole))))
 	if c.HTTPX.AccessLogConsole == "" {
 		c.HTTPX.AccessLogConsole = AccessLogConsoleAuto
@@ -371,17 +359,12 @@ func validateHTTPXConfig(c *Config) error {
 	return nil
 }
 
-// validateAuditConfig 校验审计日志保留时长配置。
-// 当 GRAFT_AUDIT_LOG_RETENTION 小于或等于 0 时返回错误；否则返回 nil。
-// @returns 校验失败时返回错误，校验通过时返回 nil。
-func validateAuditConfig(c *Config) error {
-	if c.Audit.LogRetention <= 0 {
-		return errors.New("GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
-	}
-
+// validateAuditConfig validates audit configuration and always succeeds.
+func validateAuditConfig(_ *Config) error {
 	return nil
 }
 
+// 如果配置值无效，则返回错误。
 func validateLogConfig(c *Config) error {
 	c.Log.Format = LogFormat(strings.ToLower(strings.TrimSpace(string(c.Log.Format))))
 	if c.Log.Format == "" {
@@ -401,13 +384,6 @@ func validateLogConfig(c *Config) error {
 	case LogColorAuto, LogColorAlways, LogColorNever:
 	default:
 		return fmt.Errorf("unsupported GRAFT_LOG_COLOR value %q", c.Log.Color)
-	}
-
-	if !c.Log.AppLogPersist {
-		return nil
-	}
-	if c.Log.AppLogRetention <= 0 {
-		return errors.New("GRAFT_LOG_APP_LOG_RETENTION must be greater than zero")
 	}
 
 	return nil
@@ -571,7 +547,8 @@ func validateAuthConfig(c *Config) error {
 }
 
 // validateContainerConfig validates container configuration fields.
-// Returns nil if the configuration is valid, or an error describing the validation failure.
+// validateContainerConfig validates and normalizes the container runtime and Docker endpoint configuration.
+// It returns an error when the runtime is unsupported or the Docker endpoint is empty.
 func validateContainerConfig(c *Config) error {
 	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
 	if c.Container.Runtime == "" {
@@ -584,18 +561,6 @@ func validateContainerConfig(c *Config) error {
 	}
 	if strings.TrimSpace(c.Container.DockerEndpoint) == "" {
 		return errors.New("GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT is required")
-	}
-	if c.Container.LogsDefaultTail <= 0 {
-		return errors.New("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL must be greater than zero")
-	}
-	if c.Container.LogsMaxTail <= 0 {
-		return errors.New("GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL must be greater than zero")
-	}
-	if c.Container.LogsDefaultTail > c.Container.LogsMaxTail {
-		return errors.New("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL must be less than or equal to GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL")
-	}
-	if c.Container.ShellEnabled && len(c.HTTPX.WebSocketAllowedOrigins) == 0 {
-		return errors.New("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS is required when GRAFT_OPS_CONTAINER_SHELL_ENABLED is true")
 	}
 	return nil
 }
@@ -617,7 +582,8 @@ func validateRefreshCookiePolicy(cfg AuthConfig) error {
 }
 
 // defaultDocsEnabledForEnv 根据应用环境判断是否启用文档页面。
-// @returns 在本地类环境或测试环境下返回 true，其他环境返回 false。
+// defaultDocsEnabledForEnv 根据应用环境判断是否启用文档。
+// 返回 true 表示应启用文档，false 表示不应启用文档。
 func defaultDocsEnabledForEnv(env string) bool {
 	switch classifyAppEnv(env) {
 	case appEnvLocalLike, appEnvTest:
@@ -627,26 +593,7 @@ func defaultDocsEnabledForEnv(env string) bool {
 	}
 }
 
-// defaultAccessLogRetentionForEnv 根据应用环境返回默认的访问日志保留时长。
-// 本地类和测试环境返回 3 天，预发布环境返回 7 天，生产环境返回 30 天，其余环境返回 7 天。
-func defaultAccessLogRetentionForEnv(env string) time.Duration {
-	return durationByAppEnv(env, 3*24*time.Hour, 7*24*time.Hour, 30*24*time.Hour, 7*24*time.Hour)
-}
-
-// defaultAuditLogRetentionForEnv 根据应用环境返回审计日志的默认保留时长。
-// 本地/测试环境为 30 天，预发布环境为 90 天，生产环境为 180 天，其它环境为 90 天。
-func defaultAuditLogRetentionForEnv(env string) time.Duration {
-	return durationByAppEnv(env, 30*24*time.Hour, 90*24*time.Hour, 180*24*time.Hour, 90*24*time.Hour)
-}
-
-// defaultAppLogRetentionForEnv 返回给定应用环境下的应用日志保留时长。
-// 本地类和测试环境为 3 天，预发环境为 7 天，生产环境为 14 天，其它环境为 7 天。
-// 返回对应环境的应用日志保留时长。
-func defaultAppLogRetentionForEnv(env string) time.Duration {
-	return durationByAppEnv(env, 3*24*time.Hour, 7*24*time.Hour, 14*24*time.Hour, 7*24*time.Hour)
-}
-
-// ResolveLogFormat returns the concrete zap encoder format for the app environment and requested policy.
+// ResolveLogFormat 保留显式指定的 console 或 JSON 格式；自动选择时，本地类环境使用 console，其它环境使用 JSON。
 func ResolveLogFormat(appEnv string, format LogFormat) LogFormat {
 	switch normalizeLogFormat(format) {
 	case LogFormatConsole:
@@ -765,7 +712,7 @@ const (
 // normalizeIndexedStringList 规范化字符串列表并返回去重索引集。
 //
 // @param items 待规范化的字符串列表。
-// @returns 规范化后的字符串列表，以及以规范化值为键的集合。
+// normalizeIndexedStringList 规范化字符串列表，并构建以规范化值为键的集合。返回规范化后的列表及其集合。
 func normalizeIndexedStringList(items []string) ([]string, map[string]struct{}) {
 	normalized := normalizeStringList(items)
 	seen := make(map[string]struct{}, len(normalized))
@@ -773,21 +720,6 @@ func normalizeIndexedStringList(items []string) ([]string, map[string]struct{}) 
 		seen[item] = struct{}{}
 	}
 	return normalized, seen
-}
-
-// durationByAppEnv 根据应用环境分类返回对应的时长。
-// 本地类和测试环境返回 localLike，预发环境返回 staging，生产环境返回 production，其它环境返回 fallback。
-func durationByAppEnv(env string, localLike, staging, production, fallback time.Duration) time.Duration {
-	switch classifyAppEnv(env) {
-	case appEnvLocalLike, appEnvTest:
-		return localLike
-	case appEnvStaging:
-		return staging
-	case appEnvProduction:
-		return production
-	default:
-		return fallback
-	}
 }
 
 // classifyAppEnv 将应用环境归类为本地类、测试、预发布、生产或其他类别。

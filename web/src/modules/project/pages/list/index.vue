@@ -34,95 +34,55 @@
         </template>
       </management-page-header>
 
-      <management-toolbar>
-        <template #filters>
-          <t-input
-            v-model="filters.keyword"
-            class="management-list-search"
-            clearable
-            :placeholder="t('project.list.filters.searchPlaceholder')"
-            @enter="handleFilterQuery"
-          />
-          <t-select
-            v-model="filters.applicationType"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.applicationType')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allApplicationTypes')" />
-            <t-option value="compose" :label="t('project.list.applicationType.compose')" />
-          </t-select>
-          <t-select
-            v-model="filters.provider"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.provider')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allProviders')" />
-            <t-option
-              v-for="provider in providerOptions"
-              :key="provider"
-              :value="provider"
-              :label="providerLabel(provider)"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.runtimeTargetId"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('project.list.filters.runtimeTarget')"
-          >
-            <t-option :value="0" :label="t('project.list.filters.allRuntimeTargets')" />
-            <t-option
-              v-for="target in filteredRuntimeTargets"
-              :key="target.id"
-              :value="target.id"
-              :label="target.displayName"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.sourceKind"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.sourceKind')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allSourceKinds')" />
-            <t-option
-              v-for="option in sourceKindOptions"
-              :key="option"
-              :value="option"
-              :label="sourceKindLabel(option)"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.driftStatus"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.driftStatus')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allDriftStatuses')" />
-            <t-option
-              v-for="option in driftStatusOptions"
-              :key="option"
-              :value="option"
-              :label="driftStatusLabel(option)"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.runtimeStatus"
-            class="management-toolbar__select"
-            :placeholder="t('project.list.filters.runtimeStatus')"
-          >
-            <t-option value="all" :label="t('project.list.filters.allRuntimeStatuses')" />
-            <t-option
-              v-for="option in runtimeStatusOptions"
-              :key="option"
-              :value="option"
-              :label="runtimeStatusLabel(option)"
-            />
-          </t-select>
-          <t-button theme="primary" @click="handleFilterQuery">{{ t('project.list.filters.query') }}</t-button>
-          <t-button theme="default" variant="text" @click="resetFilters">{{
-            t('project.list.filters.reset')
-          }}</t-button>
+      <advanced-query-filter-builder
+        active-preset="all"
+        :add-filter-label="`+ ${t('project.list.filters.query')}`"
+        :add-sorter-label="t('project.list.filters.sortAdd')"
+        :builder-hint="t('project.list.description')"
+        :builder-title="t('project.list.filters.query')"
+        :field-values="projectFilterFieldValues"
+        :fields="projectFilterDefinitions"
+        :filters-group-label="t('project.list.filters.query')"
+        :keyword="filters.keyword"
+        :keyword-placeholder="t('project.list.filters.searchPlaceholder')"
+        :loading="tableLoading"
+        :move-down-label="t('project.list.filters.sortMoveDown')"
+        :move-up-label="t('project.list.filters.sortMoveUp')"
+        :preset-label="t('project.list.filters.query')"
+        :presets="[]"
+        :remove-sorter-label="t('project.list.filters.sortRemove')"
+        :reset-label="t('project.list.filters.reset')"
+        :search-label="t('project.list.filters.query')"
+        :selected-field-key="selectedProjectFilterField"
+        :show-sorter-builder="true"
+        :sort-add-disabled="sortAddDisabled"
+        :sort-direction-options="projectSortDirectionOptions"
+        :sort-direction-placeholder="t('project.list.filters.sortDirectionPlaceholder')"
+        sort-field-key="sorterBuilder"
+        :sort-field-options-by-index="sortFieldOptionsByIndex"
+        :sort-field-placeholder="t('project.list.filters.sortFieldPlaceholder')"
+        :sort-move-down-disabled="sortMoveDownDisabled"
+        :sort-move-up-disabled="sortMoveUpDisabled"
+        :sorters="normalizedSorters"
+        :tags="projectFilterTags"
+        time-field-key="timeRange"
+        :time-fields="[]"
+        @reset="resetFilters"
+        @search="handleFilterQuery"
+        @add-sorter="addProjectSorter"
+        @move-sorter-down="moveProjectSorterDown"
+        @move-sorter-up="moveProjectSorterUp"
+        @remove-sorter="removeProjectSorter"
+        @update:field="updateProjectFilterField"
+        @update:keyword="filters.keyword = $event"
+        @update:selected-field-key="updateSelectedProjectFilterField"
+        @update:sort-direction="updateProjectSortDirection"
+        @update:sort-field="updateProjectSortField"
+      >
+        <template #saved-query-views>
+          <saved-query-view-control :controller="projectSavedViews" />
         </template>
-      </management-toolbar>
+      </advanced-query-filter-builder>
 
       <management-paged-table
         v-model:current="pagination.current"
@@ -154,30 +114,6 @@
         </template>
         <template #toolbar>
           <div class="project-list-toolbar">
-            <t-select
-              v-model="selectedSavedViewId"
-              class="project-list-toolbar__views"
-              clearable
-              :placeholder="t('project.list.savedViews.placeholder')"
-              @change="applySelectedSavedView"
-            >
-              <t-option v-for="view in savedViews" :key="view.id" :value="view.id" :label="view.name" />
-            </t-select>
-            <t-button size="small" variant="text" @click="openSavedViewDialog('create')">
-              {{ t('project.list.savedViews.save') }}
-            </t-button>
-            <t-button size="small" variant="text" :disabled="!selectedSavedView" @click="openSavedViewDialog('update')">
-              {{ t('project.list.savedViews.update') }}
-            </t-button>
-            <t-button
-              size="small"
-              theme="danger"
-              variant="text"
-              :disabled="!selectedSavedView"
-              @click="removeSelectedSavedView"
-            >
-              {{ t('project.list.savedViews.delete') }}
-            </t-button>
             <table-view-toolbar
               :column-settings-label="t('project.list.columnSettings')"
               @column-settings="columnDrawerVisible = true"
@@ -452,23 +388,6 @@
           </t-checkbox-group>
         </div>
       </t-drawer>
-      <t-dialog
-        v-model:visible="savedViewDialogVisible"
-        :header="
-          savedViewDialogMode === 'create' ? t('project.list.savedViews.save') : t('project.list.savedViews.update')
-        "
-        :confirm-btn="t('project.list.savedViews.confirm')"
-        :cancel-btn="t('project.list.savedViews.cancel')"
-        :confirm-loading="savedViewSubmitting"
-        @confirm="submitSavedView"
-      >
-        <t-input
-          v-model="savedViewName"
-          clearable
-          :maxlength="120"
-          :placeholder="t('project.list.savedViews.namePlaceholder')"
-        />
-      </t-dialog>
     </management-page-content>
     <task-detail-drawer
       v-model:visible="taskDrawerVisible"
@@ -494,11 +413,32 @@ import {
   ManagementPageContent,
   ManagementPagedTable,
   ManagementPageHeader,
-  ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import {
+  AdvancedQueryFilterBuilder,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterTag,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  useAdvancedQuerySorterUiState,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import {
+  assignEncodedSorters,
+  createSingleSorter,
+  decodeSorters,
+  encodeSorters,
+  moveSorterInState,
+  normalizeSorters,
+  prependSorterTags,
+  removeSorterFromState,
+  withSorterDirectionFromInput,
+  withSorterFieldFromInput,
+} from '@/shared/observability';
 import { useRealtimeSchedulerStore } from '@/store';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
@@ -544,9 +484,9 @@ import type {
   ProjectDriftStatus,
   ProjectFilters,
   ProjectListItemWithLifecycle,
+  ProjectListQuery,
   ProjectProvider,
   ProjectRuntimeStatus,
-  ProjectSavedView,
   ProjectSavedViewQueryState,
   ProjectSavedViewRequest,
   ProjectSourceKind,
@@ -585,6 +525,18 @@ type ProjectResourceBadge = {
   label: string;
   icon: string;
 };
+type ProjectFilterFieldKey =
+  'applicationType' | 'provider' | 'runtimeTargetId' | 'sourceKind' | 'driftStatus' | 'runtimeStatus';
+type ProjectBuilderFieldKey = 'sorterBuilder' | ProjectFilterFieldKey;
+type ProjectSortBy = 'created_at';
+type ProjectFilterState = ProjectFilters & {
+  sorters: Array<{ field: ProjectSortBy; direction?: 'asc' | 'desc' }>;
+};
+type ProjectSavedQueryViewState = {
+  pageSize: number;
+  queryState: ProjectSavedViewQueryState;
+  visibleColumns: string[];
+};
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -595,27 +547,26 @@ const pagination = ref({
   pageSize: 20,
   total: 0,
 });
-const filters = ref<ProjectFilters>({
-  keyword: '',
-  applicationType: 'all',
-  runtimeTargetId: undefined,
-  provider: 'all',
-  sourceKind: 'all',
-  runtimeStatus: 'all',
-  driftStatus: 'all',
-});
+const filters = ref<ProjectFilterState>(createDefaultFilters());
 const runtimeTargets = ref<RuntimeTarget[]>([]);
-const savedViews = ref<ProjectSavedView[]>([]);
-const selectedSavedViewId = ref<number | undefined>(undefined);
-const savedViewDialogVisible = ref(false);
-const savedViewDialogMode = ref<'create' | 'update'>('create');
-const savedViewName = ref('');
-const savedViewSubmitting = ref(false);
 const columnDrawerVisible = ref(false);
+const selectedProjectFilterField = ref<ProjectBuilderFieldKey>('applicationType');
 
 const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
 const runtimeStatusOptions: ProjectRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
+const projectSortOptions = computed(() => [
+  { label: t('project.list.filters.sortCreatedAt'), value: 'created_at' as const },
+]);
+const projectSortDirectionOptions = computed(() => [
+  { label: t('project.list.filters.sortDesc'), value: 'desc' as const },
+  { label: t('project.list.filters.sortAsc'), value: 'asc' as const },
+]);
+const { normalizedSorters, sortFieldOptionsByIndex, sortAddDisabled, sortMoveUpDisabled, sortMoveDownDisabled } =
+  useAdvancedQuerySorterUiState<ProjectSortBy>(
+    () => filters.value.sorters,
+    () => projectSortOptions.value,
+  );
 const providerOptions = computed(() =>
   [...new Set(runtimeTargets.value.map((target) => target.runtime.provider))].filter(
     (provider): provider is ProjectProvider => provider === 'docker',
@@ -626,9 +577,96 @@ const filteredRuntimeTargets = computed(() =>
     ? runtimeTargets.value
     : runtimeTargets.value.filter((target) => target.runtime.provider === filters.value.provider),
 );
-const selectedSavedView = computed(
-  () => savedViews.value.find((view) => view.id === selectedSavedViewId.value) ?? null,
-);
+const projectFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
+  { key: 'sorterBuilder', kind: 'special', label: t('project.list.filters.sorterBuilder') },
+  {
+    key: 'applicationType',
+    kind: 'select',
+    label: t('project.list.filters.applicationType'),
+    options: [
+      { label: t('project.list.filters.allApplicationTypes'), value: 'all' },
+      { label: t('project.list.applicationType.compose'), value: 'compose' },
+    ],
+    placeholder: t('project.list.filters.applicationType'),
+  },
+  {
+    key: 'provider',
+    kind: 'select',
+    label: t('project.list.filters.provider'),
+    options: [
+      { label: t('project.list.filters.allProviders'), value: 'all' },
+      ...providerOptions.value.map((value) => ({ label: providerLabel(value), value })),
+    ],
+    placeholder: t('project.list.filters.provider'),
+  },
+  {
+    key: 'runtimeTargetId',
+    kind: 'select',
+    label: t('project.list.filters.runtimeTarget'),
+    options: [
+      { label: t('project.list.filters.allRuntimeTargets'), value: '' },
+      ...filteredRuntimeTargets.value.map((target) => ({ label: target.displayName, value: String(target.id) })),
+    ],
+    placeholder: t('project.list.filters.runtimeTarget'),
+  },
+  {
+    key: 'sourceKind',
+    kind: 'select',
+    label: t('project.list.filters.sourceKind'),
+    options: [
+      { label: t('project.list.filters.allSourceKinds'), value: 'all' },
+      ...sourceKindOptions.map((value) => ({ label: sourceKindLabel(value), value })),
+    ],
+    placeholder: t('project.list.filters.sourceKind'),
+  },
+  {
+    key: 'driftStatus',
+    kind: 'select',
+    label: t('project.list.filters.driftStatus'),
+    options: [
+      { label: t('project.list.filters.allDriftStatuses'), value: 'all' },
+      ...driftStatusOptions.map((value) => ({ label: driftStatusLabel(value), value })),
+    ],
+    placeholder: t('project.list.filters.driftStatus'),
+  },
+  {
+    key: 'runtimeStatus',
+    kind: 'select',
+    label: t('project.list.filters.runtimeStatus'),
+    options: [
+      { label: t('project.list.filters.allRuntimeStatuses'), value: 'all' },
+      ...runtimeStatusOptions.map((value) => ({ label: runtimeStatusLabel(value), value: value ?? 'unknown' })),
+    ],
+    placeholder: t('project.list.filters.runtimeStatus'),
+  },
+]);
+const projectFilterFieldValues = computed<Record<ProjectFilterFieldKey, string>>(() => ({
+  applicationType: filters.value.applicationType,
+  provider: filters.value.provider,
+  runtimeTargetId: filters.value.runtimeTargetId ? String(filters.value.runtimeTargetId) : '',
+  sourceKind: filters.value.sourceKind,
+  driftStatus: filters.value.driftStatus,
+  runtimeStatus: filters.value.runtimeStatus ?? 'unknown',
+}));
+const projectFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const fieldMap = new Map(projectFilterDefinitions.value.map((field) => [field.key, field]));
+  const tags = (Object.entries(projectFilterFieldValues.value) as Array<[ProjectFilterFieldKey, string]>).reduce<
+    AdvancedQueryFilterTag[]
+  >((tags, [key, value]) => {
+    if (!value || value === 'all') return tags;
+    const field = fieldMap.get(key);
+    const label = field?.options?.find((option) => option.value === value)?.label ?? value;
+    tags.push({ key, label: `${field?.label ?? key}: ${label}` });
+    return tags;
+  }, []);
+
+  return prependSorterTags(
+    tags,
+    normalizedSorters.value,
+    projectSortOptions.value,
+    t('project.list.filters.sortTagPrefix'),
+  );
+});
 
 const configurableColumns = computed<TableProps['columns']>(() => [
   {
@@ -664,6 +702,37 @@ const visibleColumnKeys = ref([
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
+const projectSavedViews = useSavedQueryViews<ProjectSavedQueryViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getProjectSavedViews()).map((view) => normalizeSavedQueryView<ProjectSavedViewQueryState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<ProjectSavedViewQueryState, number>(
+        await postProjectSavedView(toProjectSavedViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<ProjectSavedViewQueryState, number>(
+        await putProjectSavedView(id, toProjectSavedViewRequest(input)),
+      ),
+    remove: async (id) => {
+      await deleteProjectSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    applyProjectSavedQueryView(view.state);
+    await fetchProjects();
+  },
+  onError: (error, operation) => {
+    const fallback =
+      operation === 'delete' ? t('project.list.savedViews.deleteFailed') : t('project.list.savedViews.conflict');
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, fallback));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: currentSavedViewQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 const confirmDialogOpen = ref(false);
 const realtimeActive = ref(false);
 const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
@@ -918,19 +987,21 @@ async function fetchProjects() {
   }
   errorMessage.value = '';
   try {
-    const response = await getProjects({
+    const query: ProjectListQuery = {
       limit: pagination.value.pageSize,
       offset: (pagination.value.current - 1) * pagination.value.pageSize,
-      ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
-      ...(filters.value.applicationType !== 'all' ? { application_type: filters.value.applicationType } : {}),
-      ...(filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0
-        ? { runtime_target_id: filters.value.runtimeTargetId }
-        : {}),
-      ...(filters.value.provider !== 'all' ? { provider: filters.value.provider } : {}),
-      ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
-      ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
-      ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
-    });
+    };
+    assignEncodedSorters(query, filters.value.sorters, projectSortOptions.value);
+    if (filters.value.keyword.trim()) query.keyword = filters.value.keyword.trim();
+    if (filters.value.applicationType !== 'all') query.application_type = filters.value.applicationType;
+    if (filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0) {
+      query.runtime_target_id = filters.value.runtimeTargetId;
+    }
+    if (filters.value.provider !== 'all') query.provider = filters.value.provider;
+    if (filters.value.sourceKind !== 'all') query.source_kind = filters.value.sourceKind;
+    if (filters.value.runtimeStatus !== 'all') query.runtime_status = filters.value.runtimeStatus;
+    if (filters.value.driftStatus !== 'all') query.drift_status = filters.value.driftStatus;
+    const response = await getProjects(query);
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
@@ -966,11 +1037,9 @@ async function loadRuntimeTargets() {
 }
 
 async function loadSavedViews() {
-  try {
-    savedViews.value = await getProjectSavedViews();
-  } catch (error) {
-    logger.error('failed to load project saved views', error);
-    savedViews.value = [];
+  const loaded = await projectSavedViews.load();
+  if (!loaded) {
+    logger.error('failed to load project saved views');
     MessagePlugin.error(t('project.list.savedViews.loadFailed'));
   }
 }
@@ -1245,7 +1314,14 @@ function handleSelectChange(rowKeys: Array<string | number>) {
 }
 
 function resetFilters() {
-  filters.value = {
+  filters.value = createDefaultFilters();
+  projectSavedViews.selectedId.value = undefined;
+  pagination.value.current = 1;
+  void fetchProjects();
+}
+
+function createDefaultFilters(): ProjectFilterState {
+  return {
     keyword: '',
     applicationType: 'all',
     runtimeTargetId: undefined,
@@ -1253,10 +1329,8 @@ function resetFilters() {
     sourceKind: 'all',
     runtimeStatus: 'all',
     driftStatus: 'all',
+    sorters: createSingleSorter('created_at', 'desc'),
   };
-  selectedSavedViewId.value = undefined;
-  pagination.value.current = 1;
-  void fetchProjects();
 }
 
 function handleFilterQuery() {
@@ -1270,21 +1344,6 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
   void fetchProjects();
 }
 
-function openSavedViewDialog(mode: 'create' | 'update') {
-  savedViewDialogMode.value = mode;
-  savedViewName.value = mode === 'update' ? (selectedSavedView.value?.name ?? '') : '';
-  savedViewDialogVisible.value = true;
-}
-
-function buildSavedViewRequest(): ProjectSavedViewRequest {
-  return {
-    name: savedViewName.value.trim(),
-    query_state: currentSavedViewQueryState(),
-    page_size: pagination.value.pageSize,
-    visible_columns: [...visibleColumnKeys.value],
-  };
-}
-
 function currentSavedViewQueryState(): ProjectSavedViewQueryState {
   return {
     ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
@@ -1296,65 +1355,30 @@ function currentSavedViewQueryState(): ProjectSavedViewQueryState {
     ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
     ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
     ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
+    sort: encodeSorters(normalizedSorters.value, projectSortOptions.value) as NonNullable<
+      ProjectSavedViewQueryState['sort']
+    >,
   };
 }
 
-async function submitSavedView() {
-  if (!savedViewName.value.trim()) {
-    MessagePlugin.error(t('project.list.savedViews.nameRequired'));
-    return;
-  }
-
-  savedViewSubmitting.value = true;
-  try {
-    const view =
-      savedViewDialogMode.value === 'update' && selectedSavedView.value
-        ? await putProjectSavedView(selectedSavedView.value.id, buildSavedViewRequest())
-        : await postProjectSavedView(buildSavedViewRequest());
-    await loadSavedViews();
-    selectedSavedViewId.value = view.id;
-    savedViewDialogVisible.value = false;
-    MessagePlugin.success(t('project.list.savedViews.saved'));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.savedViews.conflict')));
-  } finally {
-    savedViewSubmitting.value = false;
-  }
+function toProjectSavedViewRequest(input: {
+  name: string;
+  state: ProjectSavedQueryViewState;
+}): ProjectSavedViewRequest {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState,
+    visible_columns: input.state.visibleColumns as ProjectSavedViewRequest['visible_columns'],
+  };
 }
 
-async function removeSelectedSavedView() {
-  const view = selectedSavedView.value;
-  if (!view) return;
-
-  let dialog: DialogInstance;
-  dialog = DialogPlugin.confirm({
-    header: t('project.list.savedViews.deleteConfirmTitle'),
-    body: t('project.list.savedViews.deleteConfirmDescription', { name: view.name }),
-    theme: 'warning',
-    confirmBtn: { content: t('project.list.savedViews.delete'), theme: 'danger' },
-    cancelBtn: t('project.list.savedViews.cancel'),
-    onCancel: () => dialog.destroy(),
-    onClose: () => dialog.destroy(),
-    onConfirm: async () => {
-      dialog.destroy();
-      try {
-        await deleteProjectSavedView(view.id);
-        selectedSavedViewId.value = undefined;
-        await loadSavedViews();
-        MessagePlugin.success(t('project.list.savedViews.deleted'));
-      } catch (error) {
-        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.savedViews.deleteFailed')));
-      }
-    },
-  });
-}
-
-function applySelectedSavedView(value: unknown) {
-  const view = savedViews.value.find((item) => item.id === Number(value));
-  selectedSavedViewId.value = view?.id;
-  if (!view) return;
-
-  const state = view.query_state as ProjectSavedViewQueryState;
+function applyProjectSavedQueryView(savedState: ProjectSavedQueryViewState) {
+  const state = savedState.queryState;
+  const restoredSorters = normalizeSorters(
+    decodeSorters(state.sort ?? [], normalizeProjectSortField, normalizeProjectSortDirection),
+    projectSortOptions.value,
+  );
   filters.value = {
     keyword: state.keyword ?? '',
     applicationType: state.application_type ?? 'all',
@@ -1363,13 +1387,99 @@ function applySelectedSavedView(value: unknown) {
     sourceKind: state.source_kind ?? 'all',
     runtimeStatus: state.runtime_status ?? 'all',
     driftStatus: state.drift_status ?? 'all',
+    sorters: restoredSorters.length ? restoredSorters : createSingleSorter('created_at', 'desc'),
   };
-  pagination.value.pageSize = view.page_size;
-  visibleColumnKeys.value = view.visible_columns.filter((key) =>
-    (configurableColumns.value ?? []).some((column) => String(column.colKey) === key),
+  applySavedQueryViewPresentation(savedState, {
+    pagination: pagination.value,
+    supportedColumns: (configurableColumns.value ?? []).map((column) => String(column.colKey)),
+    visibleColumnKeys,
+  });
+}
+
+function updateProjectFilterField(payload: { key: string; value: string | string[] }) {
+  const value = Array.isArray(payload.value) ? (payload.value[0] ?? '') : payload.value;
+  const key = payload.key as ProjectFilterFieldKey;
+  if (key === 'runtimeTargetId') {
+    const parsed = Number(value);
+    filters.value.runtimeTargetId = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+    return;
+  }
+  if (key === 'applicationType') filters.value.applicationType = value === 'compose' ? 'compose' : 'all';
+  if (key === 'provider') filters.value.provider = value === 'docker' ? 'docker' : 'all';
+  if (key === 'sourceKind') {
+    filters.value.sourceKind = sourceKindOptions.includes(value as ProjectSourceKind)
+      ? (value as ProjectSourceKind)
+      : 'all';
+  }
+  if (key === 'driftStatus') {
+    filters.value.driftStatus = driftStatusOptions.includes(value as ProjectDriftStatus)
+      ? (value as ProjectDriftStatus)
+      : 'all';
+  }
+  if (key === 'runtimeStatus') {
+    filters.value.runtimeStatus = runtimeStatusOptions.includes(value as ProjectRuntimeStatus)
+      ? (value as ProjectRuntimeStatus)
+      : 'all';
+  }
+}
+
+function addProjectSorter() {
+  filters.value = {
+    ...filters.value,
+    sorters: filters.value.sorters.length ? filters.value.sorters : createSingleSorter('created_at', 'desc'),
+  };
+}
+
+function removeProjectSorter(index: number) {
+  filters.value = removeSorterFromState(filters.value, index, projectSortOptions.value);
+}
+
+function moveProjectSorterUp(index: number) {
+  filters.value = moveSorterInState(filters.value, index, -1, projectSortOptions.value);
+}
+
+function moveProjectSorterDown(index: number) {
+  filters.value = moveSorterInState(filters.value, index, 1, projectSortOptions.value);
+}
+
+function normalizeProjectSortField(value: string): ProjectSortBy | '' {
+  return value === 'created_at' ? 'created_at' : '';
+}
+
+function normalizeProjectSortDirection(value: string) {
+  return value === 'asc' ? 'asc' : 'desc';
+}
+
+function updateProjectSortField(payload: {
+  index: number;
+  value: string | number | Array<string | number> | undefined;
+}) {
+  filters.value = withSorterFieldFromInput(
+    filters.value,
+    payload.index,
+    payload.value,
+    normalizeProjectSortField,
+    projectSortOptions.value,
   );
-  pagination.value.current = 1;
-  void fetchProjects();
+}
+
+function updateProjectSortDirection(payload: {
+  index: number;
+  value: string | number | Array<string | number> | undefined;
+}) {
+  filters.value = withSorterDirectionFromInput(
+    filters.value,
+    payload.index,
+    payload.value,
+    normalizeProjectSortDirection,
+    projectSortOptions.value,
+  );
+}
+
+function updateSelectedProjectFilterField(value: string) {
+  if (projectFilterDefinitions.value.some((field) => field.key === value)) {
+    selectedProjectFilterField.value = value as ProjectBuilderFieldKey;
+  }
 }
 
 watch(

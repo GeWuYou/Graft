@@ -126,9 +126,6 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerMenuPath != "/infrastructure/docker/containers" {
 		t.Fatalf("unexpected menu path %q", containercontract.ContainerMenuPath)
 	}
-	if containercontract.ContainerDockerEndpointConfig.String() != "ops.container.docker.endpoint" {
-		t.Fatalf("unexpected docker endpoint config key")
-	}
 	if containercontract.ContainerRuntimeEnabledConfig.String() != "ops.container.runtime.enabled" {
 		t.Fatalf("unexpected runtime access config key")
 	}
@@ -374,23 +371,8 @@ func assertConfigDefinitions(t *testing.T, registry *configregistry.Registry, lo
 		assertConfigDefinitionMetadata(t, definition, localizer)
 	}
 
-	endpoint, _ := registry.Get(containercontract.ContainerDockerEndpointConfig.String())
-	if !endpoint.RestartRequired {
-		t.Fatalf("container runtime endpoint must be restart-required")
-	}
-	if endpoint.RuntimeApplyMode != configregistry.RuntimeApplyModeRestartRequired {
-		t.Fatalf("container runtime endpoint must expose restart-required apply mode, got %#v", endpoint.RuntimeApplyMode)
-	}
-	runtime, _ := registry.Get(containercontract.ContainerRuntimeConfig.String())
-	if !runtime.RestartRequired {
-		t.Fatalf("container runtime type must be restart-required")
-	}
-	if runtime.RuntimeApplyMode != configregistry.RuntimeApplyModeRestartRequired {
-		t.Fatalf("container runtime type must expose restart-required apply mode, got %#v", runtime.RuntimeApplyMode)
-	}
 	assertContainerRuntimeHotConfigModes(t, registry)
 
-	assertRuntimeConfigSchema(t, registry)
 	assertMaxTailConfigSchema(t, registry)
 	assertEnvironmentPolicyConfigSchema(t, registry, localizer)
 }
@@ -416,22 +398,6 @@ func assertContainerRuntimeHotConfigModes(t *testing.T, registry *configregistry
 		if definition.RuntimeApplyMode != configregistry.RuntimeApplyModeRuntimeHot {
 			t.Fatalf("expected runtime-hot apply mode for %s, got %#v", key, definition.RuntimeApplyMode)
 		}
-	}
-}
-
-func assertRuntimeConfigSchema(t *testing.T, registry *configregistry.Registry) {
-	t.Helper()
-
-	runtime, _ := registry.Get(containercontract.ContainerRuntimeConfig.String())
-	var runtimeSchema struct {
-		Type string   `json:"type"`
-		Enum []string `json:"enum"`
-	}
-	if err := json.Unmarshal(runtime.Schema, &runtimeSchema); err != nil {
-		t.Fatalf("decode runtime schema: %v", err)
-	}
-	if runtimeSchema.Type != "string" || !slices.Contains(runtimeSchema.Enum, defaultContainerRuntime) {
-		t.Fatalf("expected runtime enum schema, got %#v", runtimeSchema)
 	}
 }
 
@@ -518,8 +484,6 @@ func assertEnvironmentPolicyConfigSchema(t *testing.T, registry *configregistry.
 func expectedConfigKeys() []string {
 	return []string{
 		containercontract.ContainerRuntimeEnabledConfig.String(),
-		containercontract.ContainerRuntimeConfig.String(),
-		containercontract.ContainerDockerEndpointConfig.String(),
 		containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
 		containercontract.ContainerResourceStatsCacheTTLConfig.String(),

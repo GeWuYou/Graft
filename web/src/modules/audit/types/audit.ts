@@ -6,6 +6,8 @@ import type { AuditTimePreset } from '../contract/time-presets';
 export type AuditLogListItem = components['schemas']['audit-log-list-item'];
 export type AuditLogDetailResponse = components['schemas']['audit-log-detail-response'];
 export type AuditLogListResponse = components['schemas']['audit-log-list-response'];
+export type AuditSavedView = components['schemas']['saved-view'];
+export type AuditSavedViewRequest = components['schemas']['saved-view-request'];
 export type AuditIncidentResponse = components['schemas']['AuditIncidentResponse'];
 export type AuditIncidentSummary = AuditIncidentResponse['incident'];
 export type AuditIncidentActor = AuditIncidentResponse['related_actors'][number];

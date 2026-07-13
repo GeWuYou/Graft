@@ -210,7 +210,18 @@
         "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
         "query": "Query",
-        "reset": "Reset"
+        "reset": "Reset",
+        "sorterBuilder": "Sort By",
+        "sortCreatedAt": "Created At",
+        "sortTagPrefix": "Sort",
+        "sortAdd": "Add Sorter",
+        "sortRemove": "Remove Sorter",
+        "sortMoveUp": "Move Up",
+        "sortMoveDown": "Move Down",
+        "sortFieldPlaceholder": "Sort Field",
+        "sortDirectionPlaceholder": "Sort Direction",
+        "sortAsc": "Ascending",
+        "sortDesc": "Descending"
       },
       "columns": {
         "selection": "Select",

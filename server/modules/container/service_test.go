@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
@@ -156,6 +158,33 @@ func TestServiceNormalizesLogQuery(t *testing.T) {
 	_, err = service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{Since: "not-a-time"})
 	if !errors.Is(err, errInvalidLogQuery) {
 		t.Fatalf("expected invalid log query, got %v", err)
+	}
+}
+
+func TestShellAllowedWarnsWhenEnabledWithoutWebSocketOrigins(t *testing.T) {
+	t.Parallel()
+
+	core, observed := observer.New(zapcore.WarnLevel)
+	service := &service{
+		logger:       zap.New(core),
+		moduleName:   moduleID,
+		shellEnabled: true,
+	}
+
+	if service.shellAllowed(context.Background()) {
+		t.Fatal("expected shell to remain disabled without WebSocket allowed origins")
+	}
+
+	entries := observed.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one warning entry, got %d", len(entries))
+	}
+	if entries[0].Message != "container shell disabled because WebSocket allowed origins are not configured" {
+		t.Fatalf("unexpected warning message %q", entries[0].Message)
+	}
+	fields := entries[0].ContextMap()
+	if fields["module"] != moduleID || fields["config_key"] != containercontract.ContainerShellEnabledConfig.String() || fields["reason"] != "websocket_allowed_origins_empty" {
+		t.Fatalf("unexpected structured warning fields: %#v", fields)
 	}
 }
 
@@ -1562,8 +1591,8 @@ func TestContainerOptionsFromConfigUsesRegisteredDefaults(t *testing.T) {
 	if options.runtime != defaultContainerRuntime {
 		t.Fatalf("expected runtime %q, got %q", defaultContainerRuntime, options.runtime)
 	}
-	if options.endpoint != "unix:///tmp/docker.sock" {
-		t.Fatalf("expected configured endpoint, got %q", options.endpoint)
+	if options.endpoint != defaultContainerDockerEndpoint {
+		t.Fatalf("expected deployment default endpoint, got %q", options.endpoint)
 	}
 	if options.defaultTail != 50 || options.maxTail != 500 {
 		t.Fatalf("expected configured tail limits, got default=%d max=%d", options.defaultTail, options.maxTail)
@@ -1580,24 +1609,14 @@ func TestContainerOptionsFromConfigPrefersProcessConfig(t *testing.T) {
 		ConfigRegistry: newContainerConfigRegistry(t),
 		Config: &config.Config{
 			Container: config.ContainerConfig{
-				RuntimeEnabled:          true,
-				Runtime:                 runtimeNameDocker,
-				DockerEndpoint:          "unix:///process/docker.sock",
-				LogsDefaultTail:         25,
-				LogsMaxTail:             250,
-				DangerousActionsEnabled: true,
+				Runtime:        runtimeNameDocker,
+				DockerEndpoint: "unix:///process/docker.sock",
 			},
 		},
 	})
 
-	if !options.enabled || !options.dangerousActionsEnabled {
-		t.Fatalf("expected process config booleans, got %#v", options)
-	}
 	if options.runtime != runtimeNameDocker || options.endpoint != "unix:///process/docker.sock" {
 		t.Fatalf("expected process runtime config, got %#v", options)
-	}
-	if options.defaultTail != 25 || options.maxTail != 250 {
-		t.Fatalf("expected process tail limits, got %#v", options)
 	}
 }
 
@@ -1605,12 +1624,7 @@ func TestNewContainerServiceUsesEffectiveStartupRuntimeConfig(t *testing.T) {
 	t.Parallel()
 
 	services := containerdi.New()
-	resolver := serviceTestPolicyConfig{
-		values: map[string]string{
-			containercontract.ContainerRuntimeConfig.String():        string(mustRawJSON(runtimeNameDocker)),
-			containercontract.ContainerDockerEndpointConfig.String(): string(mustRawJSON("unix:///effective/docker.sock")),
-		},
-	}
+	resolver := serviceTestPolicyConfig{}
 	if err := services.RegisterSingleton((*moduleapi.SystemConfigResolver)(nil), func(containerdi.Resolver) (any, error) {
 		return resolver, nil
 	}); err != nil {
@@ -1642,8 +1656,8 @@ func TestNewContainerServiceUsesEffectiveStartupRuntimeConfig(t *testing.T) {
 		ConfigRegistry:   newContainerConfigRegistry(t),
 		Config: &config.Config{
 			Container: config.ContainerConfig{
-				Runtime:        "ignored-runtime",
-				DockerEndpoint: "unix:///ignored/docker.sock",
+				Runtime:        runtimeNameDocker,
+				DockerEndpoint: "unix:///deployment/docker.sock",
 			},
 		},
 	}, moduleID)
@@ -1651,10 +1665,10 @@ func TestNewContainerServiceUsesEffectiveStartupRuntimeConfig(t *testing.T) {
 		t.Fatalf("new container service: %v", err)
 	}
 	if service.runtimeOptions.runtime != runtimeNameDocker {
-		t.Fatalf("expected effective startup runtime, got %q", service.runtimeOptions.runtime)
+		t.Fatalf("expected deployment runtime, got %q", service.runtimeOptions.runtime)
 	}
-	if service.runtimeOptions.endpoint != "unix:///effective/docker.sock" {
-		t.Fatalf("expected effective startup endpoint, got %q", service.runtimeOptions.endpoint)
+	if service.runtimeOptions.endpoint != "unix:///deployment/docker.sock" {
+		t.Fatalf("expected deployment endpoint, got %q", service.runtimeOptions.endpoint)
 	}
 }
 
@@ -1666,10 +1680,6 @@ func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
 		switch definition.Key {
 		case containercontract.ContainerRuntimeEnabledConfig.String():
 			definition.DefaultValue = mustRawJSON(true)
-		case containercontract.ContainerRuntimeConfig.String():
-			definition.DefaultValue = mustRawJSON(defaultContainerRuntime)
-		case containercontract.ContainerDockerEndpointConfig.String():
-			definition.DefaultValue = mustRawJSON("unix:///tmp/docker.sock")
 		case containercontract.ContainerLogsDefaultTailConfig.String():
 			definition.DefaultValue = mustRawJSON(50)
 		case containercontract.ContainerLogsMaxTailConfig.String():

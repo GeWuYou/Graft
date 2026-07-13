@@ -10,6 +10,7 @@
             :placeholder="keywordPlaceholder"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
+          <slot name="saved-query-views" />
           <div class="query-filter-builder__actions">
             <t-button theme="primary" :loading="loading" @click="$emit('search')">
               {{ searchLabel }}
@@ -20,7 +21,7 @@
           </div>
         </div>
 
-        <section class="query-filter-builder__group">
+        <section v-if="availableFields.length" class="query-filter-builder__group">
           <div class="query-filter-builder__group-header">
             <span class="query-filter-builder__group-title">{{ filtersGroupLabel }}</span>
           </div>
@@ -41,7 +42,7 @@
 
                   <div class="query-filter-builder__field-list">
                     <button
-                      v-for="definition in fields"
+                      v-for="definition in availableFields"
                       :key="definition.key"
                       :class="[
                         'query-filter-builder__field-button',
@@ -223,7 +224,7 @@
             size="small"
             theme="primary"
             variant="light-outline"
-            @close="$emit('close-tag', tag.key)"
+            @close="$emit('reset')"
           >
             {{ tag.label }}
           </t-tag>
@@ -275,6 +276,7 @@ const props = defineProps<{
   sortMoveDownDisabled?: boolean[];
   sortMoveUpDisabled?: boolean[];
   sorters: AdvancedQuerySortItem[];
+  showSorterBuilder?: boolean;
   tags: AdvancedQueryFilterTag[];
   timeFieldKey: string;
   timeFields: AdvancedQueryTimeRangeField[];
@@ -305,7 +307,21 @@ defineEmits<{
 
 const builderVisible = ref(false);
 
-const selectedField = computed(() => props.fields.find((field) => field.key === props.selectedFieldKey) ?? null);
+const availableFields = computed(() =>
+  props.fields.filter((field) => {
+    if (field.key === props.timeFieldKey) {
+      return props.timeFields.length > 0;
+    }
+    if (field.key === props.sortFieldKey) {
+      return props.showSorterBuilder !== false;
+    }
+    return true;
+  }),
+);
+
+const selectedField = computed(
+  () => availableFields.value.find((field) => field.key === props.selectedFieldKey) ?? null,
+);
 
 function fieldValue(key: string) {
   return props.fieldValues[key] ?? '';
@@ -360,7 +376,6 @@ function normalizeRange(value: string[] | undefined) {
 .query-filter-builder__actions {
   display: flex;
   gap: var(--graft-density-gap-12);
-  margin-left: auto;
 }
 
 .query-filter-builder__group {

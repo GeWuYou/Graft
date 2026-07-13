@@ -224,6 +224,126 @@ func (e PostAppLogBatchDelete500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAppLogSavedViews401JSONResponseBodySuccess.
+const (
+	GetAppLogSavedViews401JSONResponseBodySuccessFalse GetAppLogSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAppLogSavedViews401JSONResponseBodySuccess enum.
+func (e GetAppLogSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAppLogSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAppLogSavedViews403JSONResponseBodySuccess.
+const (
+	GetAppLogSavedViews403JSONResponseBodySuccessFalse GetAppLogSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAppLogSavedViews403JSONResponseBodySuccess enum.
+func (e GetAppLogSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAppLogSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAppLogSavedView401JSONResponseBodySuccess.
+const (
+	PostAppLogSavedView401JSONResponseBodySuccessFalse PostAppLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAppLogSavedView401JSONResponseBodySuccess enum.
+func (e PostAppLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAppLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAppLogSavedView403JSONResponseBodySuccess.
+const (
+	PostAppLogSavedView403JSONResponseBodySuccessFalse PostAppLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAppLogSavedView403JSONResponseBodySuccess enum.
+func (e PostAppLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAppLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAppLogSavedView401JSONResponseBodySuccess.
+const (
+	DeleteAppLogSavedView401JSONResponseBodySuccessFalse DeleteAppLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAppLogSavedView401JSONResponseBodySuccess enum.
+func (e DeleteAppLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAppLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAppLogSavedView403JSONResponseBodySuccess.
+const (
+	DeleteAppLogSavedView403JSONResponseBodySuccessFalse DeleteAppLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAppLogSavedView403JSONResponseBodySuccess enum.
+func (e DeleteAppLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAppLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAppLogSavedView401JSONResponseBodySuccess.
+const (
+	PutAppLogSavedView401JSONResponseBodySuccessFalse PutAppLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAppLogSavedView401JSONResponseBodySuccess enum.
+func (e PutAppLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAppLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAppLogSavedView403JSONResponseBodySuccess.
+const (
+	PutAppLogSavedView403JSONResponseBodySuccessFalse PutAppLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAppLogSavedView403JSONResponseBodySuccess enum.
+func (e PutAppLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAppLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeleteAppLog400JSONResponseBodySuccess.
 const (
 	DeleteAppLog400JSONResponseBodySuccessFalse DeleteAppLog400JSONResponseBodySuccess = false
@@ -491,6 +611,86 @@ type PostAppLogBatchDelete404JSONResponseBodySuccess bool
 // PostAppLogBatchDelete500JSONResponseBodySuccess defines parameters for PostAppLogBatchDelete.
 type PostAppLogBatchDelete500JSONResponseBodySuccess bool
 
+// GetAppLogSavedViewsParams defines parameters for GetAppLogSavedViews.
+type GetAppLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetAppLogSavedViews401JSONResponseBodySuccess defines parameters for GetAppLogSavedViews.
+type GetAppLogSavedViews401JSONResponseBodySuccess bool
+
+// GetAppLogSavedViews403JSONResponseBodySuccess defines parameters for GetAppLogSavedViews.
+type GetAppLogSavedViews403JSONResponseBodySuccess bool
+
+// PostAppLogSavedViewJSONBody defines parameters for PostAppLogSavedView.
+type PostAppLogSavedViewJSONBody struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostAppLogSavedViewParams defines parameters for PostAppLogSavedView.
+type PostAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostAppLogSavedView401JSONResponseBodySuccess defines parameters for PostAppLogSavedView.
+type PostAppLogSavedView401JSONResponseBodySuccess bool
+
+// PostAppLogSavedView403JSONResponseBodySuccess defines parameters for PostAppLogSavedView.
+type PostAppLogSavedView403JSONResponseBodySuccess bool
+
+// DeleteAppLogSavedViewParams defines parameters for DeleteAppLogSavedView.
+type DeleteAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAppLogSavedView401JSONResponseBodySuccess defines parameters for DeleteAppLogSavedView.
+type DeleteAppLogSavedView401JSONResponseBodySuccess bool
+
+// DeleteAppLogSavedView403JSONResponseBodySuccess defines parameters for DeleteAppLogSavedView.
+type DeleteAppLogSavedView403JSONResponseBodySuccess bool
+
+// PutAppLogSavedViewJSONBody defines parameters for PutAppLogSavedView.
+type PutAppLogSavedViewJSONBody struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutAppLogSavedViewParams defines parameters for PutAppLogSavedView.
+type PutAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutAppLogSavedView401JSONResponseBodySuccess defines parameters for PutAppLogSavedView.
+type PutAppLogSavedView401JSONResponseBodySuccess bool
+
+// PutAppLogSavedView403JSONResponseBodySuccess defines parameters for PutAppLogSavedView.
+type PutAppLogSavedView403JSONResponseBodySuccess bool
+
 // DeleteAppLogParams defines parameters for DeleteAppLog.
 type DeleteAppLogParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -546,3 +746,9 @@ type GetAppLogDetail500JSONResponseBodySuccess bool
 
 // PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
 type PostAppLogBatchDeleteJSONRequestBody PostAppLogBatchDeleteJSONBody
+
+// PostAppLogSavedViewJSONRequestBody defines body for PostAppLogSavedView for application/json ContentType.
+type PostAppLogSavedViewJSONRequestBody PostAppLogSavedViewJSONBody
+
+// PutAppLogSavedViewJSONRequestBody defines body for PutAppLogSavedView for application/json ContentType.
+type PutAppLogSavedViewJSONRequestBody PutAppLogSavedViewJSONBody

@@ -28,11 +28,16 @@
     :sort-move-down-disabled="frame.sortMoveDownDisabled"
     :sort-move-up-disabled="frame.sortMoveUpDisabled"
     :sorters="frame.sorters"
+    :show-sorter-builder="frame.showSorterBuilder"
     :tags="frame.tags"
     :time-field-key="frame.timeFieldKey"
     :time-fields="frame.timeFields"
     v-on="frame.listeners"
-  />
+  >
+    <template #saved-query-views>
+      <slot name="saved-query-views" />
+    </template>
+  </advanced-query-filter-builder>
 </template>
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
@@ -63,6 +68,7 @@ export type AdvancedQueryFilterBuilderFrameState = {
   sortMoveDownDisabled: boolean[];
   sortMoveUpDisabled: boolean[];
   sorters: QuerySorter<string>[];
+  showSorterBuilder?: boolean;
   tags: AdvancedQueryFilterTag[];
   timeFieldKey: string;
   timeFields: AdvancedQueryTimeRangeField[];

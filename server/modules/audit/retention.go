@@ -9,7 +9,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -48,35 +47,18 @@ type retentionJobConfig struct {
 	BatchSize     int  `json:"batchSize"`
 }
 
-type auditLogRetentionPolicy struct {
-	retention time.Duration
-}
-
-func newAuditLogRetentionPolicy(cfg config.AuditConfig) (auditLogRetentionPolicy, error) {
-	retention := cfg.LogRetention
-	if retention <= 0 {
-		return auditLogRetentionPolicy{}, errors.New("audit log retention must be greater than zero")
-	}
-
-	return auditLogRetentionPolicy{retention: retention}, nil
-}
-
 type auditLogRetentionCleaner struct {
 	logger  func() *zap.Logger
 	service *Service
-	policy  auditLogRetentionPolicy
 	now     func() time.Time
 }
 
+// newAuditLogRetentionCleaner creates an audit log retention cleaner for the specified service.
+// A nil logger is replaced with a no-op logger.
 func newAuditLogRetentionCleaner(
 	logger *zap.Logger,
 	service *Service,
-	cfg config.AuditConfig,
 ) (*auditLogRetentionCleaner, error) {
-	policy, err := newAuditLogRetentionPolicy(cfg)
-	if err != nil {
-		return nil, err
-	}
 	if service == nil {
 		return nil, errors.New("audit log retention cleaner requires a service")
 	}
@@ -89,7 +71,6 @@ func newAuditLogRetentionCleaner(
 			return logger
 		},
 		service: service,
-		policy:  policy,
 		now: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -177,7 +158,7 @@ func (c *auditLogRetentionCleaner) retentionDuration(config retentionJobConfig) 
 	if config.RetentionDays > 0 {
 		return time.Duration(config.RetentionDays) * hoursPerDay * time.Hour
 	}
-	return c.policy.retention
+	return time.Duration(auditLogRetentionDefaultDays) * hoursPerDay * time.Hour
 }
 
 type cleanupSuccessInput struct {
@@ -278,17 +259,17 @@ func registerAuditLogRetentionConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
+// registerAuditLogRetentionCleanupJob registers the audit log retention cleanup job and its dry-run action.
 func registerAuditLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,
 	service *Service,
-	cfg config.AuditConfig,
 ) error {
 	if registry == nil {
 		return errors.New("cron registry is required")
 	}
 
-	cleaner, err := newAuditLogRetentionCleaner(logger, service, cfg)
+	cleaner, err := newAuditLogRetentionCleaner(logger, service)
 	if err != nil {
 		return err
 	}

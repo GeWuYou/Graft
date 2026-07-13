@@ -9,7 +9,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -51,37 +50,20 @@ type appLogRetentionJobConfig struct {
 	BatchSize     int  `json:"batchSize"`
 }
 
-type appLogRetentionPolicy struct {
-	retention time.Duration
-}
-
-func newAppLogRetentionPolicy(cfg config.LogConfig) (appLogRetentionPolicy, error) {
-	retention := cfg.AppLogRetention
-	if retention <= 0 {
-		return appLogRetentionPolicy{}, errors.New("app log retention must be greater than zero")
-	}
-
-	return appLogRetentionPolicy{retention: retention}, nil
-}
-
 type appLogRetentionCleaner struct {
 	logger func() *zap.Logger
 	appLog func() AppLogger
 	repo   AppLogRepository
-	policy appLogRetentionPolicy
 	now    func() time.Time
 }
 
+// newAppLogRetentionCleaner creates an application log retention cleaner with the
+// provided logging and repository dependencies. It returns an error when repo is nil.
 func newAppLogRetentionCleaner(
 	logger *zap.Logger,
 	appLogger AppLogger,
 	repo AppLogRepository,
-	cfg config.LogConfig,
 ) (*appLogRetentionCleaner, error) {
-	policy, err := newAppLogRetentionPolicy(cfg)
-	if err != nil {
-		return nil, err
-	}
 	if repo == nil {
 		return nil, errors.New("app log retention cleaner requires a repository")
 	}
@@ -99,8 +81,7 @@ func newAppLogRetentionCleaner(
 			}
 			return NewAppLogger(logger).Named("internal.logger.retention")
 		},
-		repo:   repo,
-		policy: policy,
+		repo: repo,
 		now: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -233,9 +214,10 @@ func (c *appLogRetentionCleaner) retentionDuration(config appLogRetentionJobConf
 	if config.RetentionDays > 0 {
 		return time.Duration(config.RetentionDays) * hoursPerDay * time.Hour
 	}
-	return c.policy.retention
+	return time.Duration(appLogRetentionDefaultDays) * hoursPerDay * time.Hour
 }
 
+// normalizedAppLogRetentionBatchSize 返回配置中的批量大小；未配置有效值时返回默认批量大小。
 func normalizedAppLogRetentionBatchSize(config appLogRetentionJobConfig) int {
 	if config.BatchSize > 0 {
 		return config.BatchSize
@@ -353,19 +335,21 @@ func RegisterAppLogRetentionConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-// RegisterAppLogRetentionCleanupJob registers the logger-owned app-log cleanup job.
+// RegisterAppLogRetentionCleanupJob 注册应用日志保留清理任务及其试运行估算操作。
+// @param registry 用于注册任务的定时任务注册表。
+// @param repo 用于查询和删除应用日志的存储库。
+// @return 注册成功时返回 nil；注册表为空或清理器创建失败时返回错误。
 func RegisterAppLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,
 	appLogger AppLogger,
 	repo AppLogRepository,
-	cfg config.LogConfig,
 ) error {
 	if registry == nil {
 		return errors.New("cron registry is required")
 	}
 
-	cleaner, err := newAppLogRetentionCleaner(logger, appLogger, repo, cfg)
+	cleaner, err := newAppLogRetentionCleaner(logger, appLogger, repo)
 	if err != nil {
 		return err
 	}

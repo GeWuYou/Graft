@@ -32,6 +32,8 @@ authority-first overlay：
 - `../ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
 - `../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
   - 当任务涉及路由名、路径、权限码、存储键、请求头、认证方案、错误码、稳定状态枚举或跨模块 typed contract 时必须读取
+- `../ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
+  - 当任务涉及 `VITE_*`、System Config 消费、功能开关或配置 ownership 时必须读取
 
 如代码与文档分叉，先更新文档或在同一改动中一起更新。
 

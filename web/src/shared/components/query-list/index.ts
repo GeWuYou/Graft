@@ -25,3 +25,17 @@ export {
   useAdvancedQuerySorterControlsForModel,
   useAdvancedQuerySorterUiState,
 } from './query-filter-builder-helpers';
+export type {
+  PersistedSavedQueryView,
+  SavedQueryView,
+  SavedQueryViewAdapter,
+  SavedQueryViewController,
+  SavedQueryViewId,
+  SavedQueryViewInput,
+  SavedQueryViewOperation,
+  SavedQueryViewPresentationTarget,
+  SavedQueryViewSuccess,
+  UseSavedQueryViewsOptions,
+} from './saved-query-views';
+export { applySavedQueryViewPresentation, normalizeSavedQueryView, useSavedQueryViews } from './saved-query-views';
+export { default as SavedQueryViewControl } from './SavedQueryViewControl.vue';

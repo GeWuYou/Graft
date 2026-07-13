@@ -27,6 +27,7 @@ import (
 
 type stubProjectRepository struct {
 	aggregate        projectstore.ProjectAggregate
+	listInput        *projectstore.ListQuery
 	unregisterCalled bool
 	unregisterInput  *projectstore.UnregisterProjectInput
 	unregisterErr    error
@@ -37,7 +38,9 @@ type stubProjectRepository struct {
 	getCalls         int
 }
 
-func (s *stubProjectRepository) List(context.Context, projectstore.ListQuery) (projectstore.ListResult, error) {
+func (s *stubProjectRepository) List(_ context.Context, query projectstore.ListQuery) (projectstore.ListResult, error) {
+	recorded := query
+	s.listInput = &recorded
 	return projectstore.ListResult{Items: []projectstore.ProjectAggregate{s.aggregate}, Total: 1}, nil
 }
 

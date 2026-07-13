@@ -186,7 +186,7 @@ describe('AuditFilters', () => {
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('风险等级集合：高风险、严重');
   });
 
-  it('removes sorter through shared builder tag close event', async () => {
+  it('resets all filters through the shared builder tag close event', async () => {
     const wrapper = mount(AuditFilters, {
       props: {
         activePreset: 'all',
@@ -226,9 +226,7 @@ describe('AuditFilters', () => {
 
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
 
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
-      sorters: [],
-    });
+    expect(wrapper.emitted('reset')).toHaveLength(1);
   });
 
   it('normalizes duplicate created_at sorters and hard-disables add and move controls', () => {

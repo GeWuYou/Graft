@@ -1,0 +1,14 @@
+name: sort
+in: query
+required: false
+description: Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc.
+style: form
+explode: true
+schema:
+  type: array
+  maxItems: 1
+  items:
+    type: string
+    enum:
+      - created_at:desc
+      - created_at:asc

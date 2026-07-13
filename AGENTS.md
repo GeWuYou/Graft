@@ -36,6 +36,8 @@ Authoritative repository documents:
 - [ai-plan/design/governance/platform/契约治理与魔法值治理规范.md](ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) when the task changes
   typed contracts, magic-value governance, contract lifecycle, ownership, compatibility, drift handling, or shared
   `server` / `web` semantics
+- [ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md](ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md) when the task changes
+  environment variables, Compose configuration, feature switches, System Config definitions, or configuration ownership
 - [ai-plan/design/governance/ai/代码注释与模块文档规范.md](ai-plan/design/governance/ai/代码注释与模块文档规范.md) when the task changes
   code comments, package docs, module README rules, or AI documentation behavior
 - [ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md](ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md) when the task changes

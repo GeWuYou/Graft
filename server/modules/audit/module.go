@@ -111,7 +111,7 @@ func (p *Module) registerRetention(ctx *module.Context, logger *zap.Logger) erro
 	if err := registerAuditLogRetentionConfigDefinition(ctx.ConfigRegistry); err != nil {
 		return fmt.Errorf("register audit log retention config definition: %w", err)
 	}
-	if err := registerAuditLogRetentionCleanupJob(ctx.CronRegistry, logger, p.recorder, ctx.Config.Audit); err != nil {
+	if err := registerAuditLogRetentionCleanupJob(ctx.CronRegistry, logger, p.recorder); err != nil {
 		return fmt.Errorf("register audit log retention cleanup job: %w", err)
 	}
 
@@ -130,7 +130,11 @@ func (p *Module) registerHTTP(ctx *module.Context, logger *zap.Logger) error {
 	if err != nil {
 		return err
 	}
-	registerAuditRoutes(ctx, moduleID, p.recorder, guard)
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil && !errors.Is(err, container.ErrServiceNotRegistered) {
+		return fmt.Errorf("resolve saved-view service: %w", err)
+	}
+	registerAuditRoutes(ctx, moduleID, p.recorder, guard, savedViews)
 
 	return nil
 }

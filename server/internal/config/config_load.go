@@ -6,7 +6,9 @@ import "github.com/spf13/viper"
 //
 // 它会填充应用、HTTP、HTTPX、审计、文档、模块、数据库、Redis、日志、运行时、i18n、鉴权和容器相关配置。
 //
-// @returns 读取并组装后的 Config 指针。
+// readConfig 从 Viper 实例读取配置并组装为 Config。
+// @param reader 提供配置值的 Viper 实例。
+// @return 组装后的 Config 指针。
 func readConfig(reader *viper.Viper) *Config {
 	return &Config{
 		App: AppConfig{
@@ -17,14 +19,11 @@ func readConfig(reader *viper.Viper) *Config {
 			Addr: reader.GetString("http.addr"),
 		},
 		HTTPX: HTTPXConfig{
-			AccessLogRetention:       reader.GetDuration("httpx.access_log_retention"),
 			AccessLogConsole:         AccessLogConsolePolicy(reader.GetString("access_log.console")),
 			AccessLogSlowThresholdMS: reader.GetInt64("access_log.slow_threshold_ms"),
 			WebSocketAllowedOrigins:  parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
 		},
-		Audit: AuditConfig{
-			LogRetention: reader.GetDuration("audit.log_retention"),
-		},
+		Audit: AuditConfig{},
 		Docs: DocsConfig{
 			Enabled: resolveDocsEnabled(reader),
 		},
@@ -52,11 +51,10 @@ func readConfig(reader *viper.Viper) *Config {
 			ConnMaxLifetime: reader.GetDuration("redis.conn_max_lifetime"),
 		},
 		Log: LogConfig{
-			Level:           reader.GetString("log.level"),
-			Format:          LogFormat(reader.GetString("log.format")),
-			Color:           LogColor(reader.GetString("log.color")),
-			AppLogPersist:   reader.GetBool("log.app_log_persist"),
-			AppLogRetention: reader.GetDuration("log.app_log_retention"),
+			Level:         reader.GetString("log.level"),
+			Format:        LogFormat(reader.GetString("log.format")),
+			Color:         LogColor(reader.GetString("log.color")),
+			AppLogPersist: reader.GetBool("log.app_log_persist"),
 		},
 		Runtime: RuntimeConfig{
 			GinMode:                         GinMode(reader.GetString("gin.mode")),
@@ -78,13 +76,8 @@ func readConfig(reader *viper.Viper) *Config {
 			RefreshCookiePath:     reader.GetString("auth.refresh_cookie_path"),
 		},
 		Container: ContainerConfig{
-			Runtime:                 reader.GetString("ops.container.runtime"),
-			DockerEndpoint:          reader.GetString("ops.container.docker.endpoint"),
-			LogsDefaultTail:         reader.GetInt("ops.container.logs.default_tail"),
-			LogsMaxTail:             reader.GetInt("ops.container.logs.max_tail"),
-			RuntimeEnabled:          reader.GetBool("ops.container.runtime.enabled"),
-			DangerousActionsEnabled: reader.GetBool("ops.container.actions.dangerous_enabled"),
-			ShellEnabled:            reader.GetBool("ops.container.shell.enabled"),
+			Runtime:        reader.GetString("ops.container.runtime"),
+			DockerEndpoint: reader.GetString("ops.container.docker.endpoint"),
 		},
 	}
 }
