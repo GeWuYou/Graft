@@ -208,7 +208,7 @@ describe('AccessLogFilters', () => {
     ]);
   });
 
-  it('clears one sorter when the shared builder closes sorter tag', async () => {
+  it('resets all filters when the shared builder closes a sorter tag', async () => {
     const wrapper = mount(AccessLogFilters, {
       props: {
         activePreset: 'all',
@@ -240,8 +240,6 @@ describe('AccessLogFilters', () => {
 
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
 
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
-      sorters: [],
-    });
+    expect(wrapper.emitted('reset')).toHaveLength(1);
   });
 });

@@ -37,7 +37,7 @@
       <advanced-query-filter-builder
         active-preset="all"
         :add-filter-label="`+ ${t('project.list.filters.query')}`"
-        :add-sorter-label="t('project.list.filters.query')"
+        :add-sorter-label="t('project.list.filters.sortAdd')"
         :builder-hint="t('project.list.description')"
         :builder-title="t('project.list.filters.query')"
         :field-values="projectFilterFieldValues"
@@ -46,32 +46,38 @@
         :keyword="filters.keyword"
         :keyword-placeholder="t('project.list.filters.searchPlaceholder')"
         :loading="tableLoading"
-        :move-down-label="t('project.list.filters.query')"
-        :move-up-label="t('project.list.filters.query')"
+        :move-down-label="t('project.list.filters.sortMoveDown')"
+        :move-up-label="t('project.list.filters.sortMoveUp')"
         :preset-label="t('project.list.filters.query')"
         :presets="[]"
-        :remove-sorter-label="t('project.list.filters.reset')"
+        :remove-sorter-label="t('project.list.filters.sortRemove')"
         :reset-label="t('project.list.filters.reset')"
         :search-label="t('project.list.filters.query')"
         :selected-field-key="selectedProjectFilterField"
-        :show-sorter-builder="false"
-        :sort-add-disabled="true"
-        :sort-direction-options="[]"
-        sort-direction-placeholder=""
+        :show-sorter-builder="true"
+        :sort-add-disabled="sortAddDisabled"
+        :sort-direction-options="projectSortDirectionOptions"
+        :sort-direction-placeholder="t('project.list.filters.sortDirectionPlaceholder')"
         sort-field-key="sorterBuilder"
-        :sort-field-options-by-index="[]"
-        sort-field-placeholder=""
-        :sort-move-down-disabled="[]"
-        :sort-move-up-disabled="[]"
-        :sorters="[]"
+        :sort-field-options-by-index="sortFieldOptionsByIndex"
+        :sort-field-placeholder="t('project.list.filters.sortFieldPlaceholder')"
+        :sort-move-down-disabled="sortMoveDownDisabled"
+        :sort-move-up-disabled="sortMoveUpDisabled"
+        :sorters="normalizedSorters"
         :tags="projectFilterTags"
         time-field-key="timeRange"
         :time-fields="[]"
         @reset="resetFilters"
         @search="handleFilterQuery"
+        @add-sorter="addProjectSorter"
+        @move-sorter-down="moveProjectSorterDown"
+        @move-sorter-up="moveProjectSorterUp"
+        @remove-sorter="removeProjectSorter"
         @update:field="updateProjectFilterField"
         @update:keyword="filters.keyword = $event"
         @update:selected-field-key="updateSelectedProjectFilterField"
+        @update:sort-direction="updateProjectSortDirection"
+        @update:sort-field="updateProjectSortField"
       >
         <template #saved-query-views>
           <saved-query-view-control :controller="projectSavedViews" />
@@ -417,9 +423,22 @@ import {
   applySavedQueryViewPresentation,
   normalizeSavedQueryView,
   SavedQueryViewControl,
+  useAdvancedQuerySorterUiState,
   useSavedQueryViews,
 } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import {
+  assignEncodedSorters,
+  createSingleSorter,
+  decodeSorters,
+  encodeSorters,
+  moveSorterInState,
+  normalizeSorters,
+  prependSorterTags,
+  removeSorterFromState,
+  withSorterDirectionFromInput,
+  withSorterFieldFromInput,
+} from '@/shared/observability';
 import { useRealtimeSchedulerStore } from '@/store';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
@@ -465,6 +484,7 @@ import type {
   ProjectDriftStatus,
   ProjectFilters,
   ProjectListItemWithLifecycle,
+  ProjectListQuery,
   ProjectProvider,
   ProjectRuntimeStatus,
   ProjectSavedViewQueryState,
@@ -507,6 +527,11 @@ type ProjectResourceBadge = {
 };
 type ProjectFilterFieldKey =
   'applicationType' | 'provider' | 'runtimeTargetId' | 'sourceKind' | 'driftStatus' | 'runtimeStatus';
+type ProjectBuilderFieldKey = 'sorterBuilder' | ProjectFilterFieldKey;
+type ProjectSortBy = 'created_at';
+type ProjectFilterState = ProjectFilters & {
+  sorters: Array<{ field: ProjectSortBy; direction?: 'asc' | 'desc' }>;
+};
 type ProjectSavedQueryViewState = {
   pageSize: number;
   queryState: ProjectSavedViewQueryState;
@@ -522,22 +547,26 @@ const pagination = ref({
   pageSize: 20,
   total: 0,
 });
-const filters = ref<ProjectFilters>({
-  keyword: '',
-  applicationType: 'all',
-  runtimeTargetId: undefined,
-  provider: 'all',
-  sourceKind: 'all',
-  runtimeStatus: 'all',
-  driftStatus: 'all',
-});
+const filters = ref<ProjectFilterState>(createDefaultFilters());
 const runtimeTargets = ref<RuntimeTarget[]>([]);
 const columnDrawerVisible = ref(false);
-const selectedProjectFilterField = ref<ProjectFilterFieldKey>('applicationType');
+const selectedProjectFilterField = ref<ProjectBuilderFieldKey>('applicationType');
 
 const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
 const runtimeStatusOptions: ProjectRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
+const projectSortOptions = computed(() => [
+  { label: t('project.list.filters.sortCreatedAt'), value: 'created_at' as const },
+]);
+const projectSortDirectionOptions = computed(() => [
+  { label: t('project.list.filters.sortDesc'), value: 'desc' as const },
+  { label: t('project.list.filters.sortAsc'), value: 'asc' as const },
+]);
+const { normalizedSorters, sortFieldOptionsByIndex, sortAddDisabled, sortMoveUpDisabled, sortMoveDownDisabled } =
+  useAdvancedQuerySorterUiState<ProjectSortBy>(
+    () => filters.value.sorters,
+    () => projectSortOptions.value,
+  );
 const providerOptions = computed(() =>
   [...new Set(runtimeTargets.value.map((target) => target.runtime.provider))].filter(
     (provider): provider is ProjectProvider => provider === 'docker',
@@ -549,6 +578,7 @@ const filteredRuntimeTargets = computed(() =>
     : runtimeTargets.value.filter((target) => target.runtime.provider === filters.value.provider),
 );
 const projectFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
+  { key: 'sorterBuilder', kind: 'special', label: t('project.list.filters.sorterBuilder') },
   {
     key: 'applicationType',
     kind: 'select',
@@ -620,7 +650,7 @@ const projectFilterFieldValues = computed<Record<ProjectFilterFieldKey, string>>
 }));
 const projectFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
   const fieldMap = new Map(projectFilterDefinitions.value.map((field) => [field.key, field]));
-  return (Object.entries(projectFilterFieldValues.value) as Array<[ProjectFilterFieldKey, string]>).reduce<
+  const tags = (Object.entries(projectFilterFieldValues.value) as Array<[ProjectFilterFieldKey, string]>).reduce<
     AdvancedQueryFilterTag[]
   >((tags, [key, value]) => {
     if (!value || value === 'all') return tags;
@@ -629,6 +659,13 @@ const projectFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
     tags.push({ key, label: `${field?.label ?? key}: ${label}` });
     return tags;
   }, []);
+
+  return prependSorterTags(
+    tags,
+    normalizedSorters.value,
+    projectSortOptions.value,
+    t('project.list.filters.sortTagPrefix'),
+  );
 });
 
 const configurableColumns = computed<TableProps['columns']>(() => [
@@ -950,19 +987,21 @@ async function fetchProjects() {
   }
   errorMessage.value = '';
   try {
-    const response = await getProjects({
+    const query: ProjectListQuery = {
       limit: pagination.value.pageSize,
       offset: (pagination.value.current - 1) * pagination.value.pageSize,
-      ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
-      ...(filters.value.applicationType !== 'all' ? { application_type: filters.value.applicationType } : {}),
-      ...(filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0
-        ? { runtime_target_id: filters.value.runtimeTargetId }
-        : {}),
-      ...(filters.value.provider !== 'all' ? { provider: filters.value.provider } : {}),
-      ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
-      ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
-      ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
-    });
+    };
+    assignEncodedSorters(query, filters.value.sorters, projectSortOptions.value);
+    if (filters.value.keyword.trim()) query.keyword = filters.value.keyword.trim();
+    if (filters.value.applicationType !== 'all') query.application_type = filters.value.applicationType;
+    if (filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0) {
+      query.runtime_target_id = filters.value.runtimeTargetId;
+    }
+    if (filters.value.provider !== 'all') query.provider = filters.value.provider;
+    if (filters.value.sourceKind !== 'all') query.source_kind = filters.value.sourceKind;
+    if (filters.value.runtimeStatus !== 'all') query.runtime_status = filters.value.runtimeStatus;
+    if (filters.value.driftStatus !== 'all') query.drift_status = filters.value.driftStatus;
+    const response = await getProjects(query);
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
@@ -1275,7 +1314,14 @@ function handleSelectChange(rowKeys: Array<string | number>) {
 }
 
 function resetFilters() {
-  filters.value = {
+  filters.value = createDefaultFilters();
+  projectSavedViews.selectedId.value = undefined;
+  pagination.value.current = 1;
+  void fetchProjects();
+}
+
+function createDefaultFilters(): ProjectFilterState {
+  return {
     keyword: '',
     applicationType: 'all',
     runtimeTargetId: undefined,
@@ -1283,10 +1329,8 @@ function resetFilters() {
     sourceKind: 'all',
     runtimeStatus: 'all',
     driftStatus: 'all',
+    sorters: createSingleSorter('created_at', 'desc'),
   };
-  projectSavedViews.selectedId.value = undefined;
-  pagination.value.current = 1;
-  void fetchProjects();
 }
 
 function handleFilterQuery() {
@@ -1311,6 +1355,9 @@ function currentSavedViewQueryState(): ProjectSavedViewQueryState {
     ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
     ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
     ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
+    sort: encodeSorters(normalizedSorters.value, projectSortOptions.value) as NonNullable<
+      ProjectSavedViewQueryState['sort']
+    >,
   };
 }
 
@@ -1322,12 +1369,16 @@ function toProjectSavedViewRequest(input: {
     name: input.name,
     page_size: input.state.pageSize,
     query_state: input.state.queryState,
-    visible_columns: input.state.visibleColumns,
+    visible_columns: input.state.visibleColumns as ProjectSavedViewRequest['visible_columns'],
   };
 }
 
 function applyProjectSavedQueryView(savedState: ProjectSavedQueryViewState) {
   const state = savedState.queryState;
+  const restoredSorters = normalizeSorters(
+    decodeSorters(state.sort ?? [], normalizeProjectSortField, normalizeProjectSortDirection),
+    projectSortOptions.value,
+  );
   filters.value = {
     keyword: state.keyword ?? '',
     applicationType: state.application_type ?? 'all',
@@ -1336,6 +1387,7 @@ function applyProjectSavedQueryView(savedState: ProjectSavedQueryViewState) {
     sourceKind: state.source_kind ?? 'all',
     runtimeStatus: state.runtime_status ?? 'all',
     driftStatus: state.drift_status ?? 'all',
+    sorters: restoredSorters.length ? restoredSorters : createSingleSorter('created_at', 'desc'),
   };
   applySavedQueryViewPresentation(savedState, {
     pagination: pagination.value,
@@ -1371,9 +1423,62 @@ function updateProjectFilterField(payload: { key: string; value: string | string
   }
 }
 
+function addProjectSorter() {
+  filters.value = {
+    ...filters.value,
+    sorters: filters.value.sorters.length ? filters.value.sorters : createSingleSorter('created_at', 'desc'),
+  };
+}
+
+function removeProjectSorter(index: number) {
+  filters.value = removeSorterFromState(filters.value, index, projectSortOptions.value);
+}
+
+function moveProjectSorterUp(index: number) {
+  filters.value = moveSorterInState(filters.value, index, -1, projectSortOptions.value);
+}
+
+function moveProjectSorterDown(index: number) {
+  filters.value = moveSorterInState(filters.value, index, 1, projectSortOptions.value);
+}
+
+function normalizeProjectSortField(value: string): ProjectSortBy | '' {
+  return value === 'created_at' ? 'created_at' : '';
+}
+
+function normalizeProjectSortDirection(value: string) {
+  return value === 'asc' ? 'asc' : 'desc';
+}
+
+function updateProjectSortField(payload: {
+  index: number;
+  value: string | number | Array<string | number> | undefined;
+}) {
+  filters.value = withSorterFieldFromInput(
+    filters.value,
+    payload.index,
+    payload.value,
+    normalizeProjectSortField,
+    projectSortOptions.value,
+  );
+}
+
+function updateProjectSortDirection(payload: {
+  index: number;
+  value: string | number | Array<string | number> | undefined;
+}) {
+  filters.value = withSorterDirectionFromInput(
+    filters.value,
+    payload.index,
+    payload.value,
+    normalizeProjectSortDirection,
+    projectSortOptions.value,
+  );
+}
+
 function updateSelectedProjectFilterField(value: string) {
   if (projectFilterDefinitions.value.some((field) => field.key === value)) {
-    selectedProjectFilterField.value = value as ProjectFilterFieldKey;
+    selectedProjectFilterField.value = value as ProjectBuilderFieldKey;
   }
 }
 

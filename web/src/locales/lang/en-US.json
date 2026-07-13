@@ -385,6 +385,7 @@
     "savedQueryViews": {
       "label": "Saved Filters",
       "placeholder": "Select a saved filter",
+      "noResults": "No matching saved filters",
       "namePlaceholder": "Enter a filter name",
       "nameRequired": "Enter a filter name.",
       "actions": {

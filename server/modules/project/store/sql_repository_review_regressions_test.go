@@ -1,10 +1,12 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestComposeProjectsUpsertSQLPlaceholderCountMatchesColumns(t *testing.T) {
@@ -35,6 +37,73 @@ func TestBuildListWhereEscapesKeywordLikeMetacharacters(t *testing.T) {
 		if got, ok := arg.(string); !ok || got != `%50\%\_\\%` {
 			t.Fatalf("expected escaped LIKE pattern, got %#v", arg)
 		}
+	}
+}
+
+func TestNormalizeListQuerySortDefaultsAndRejectsUnknownValues(t *testing.T) {
+	t.Parallel()
+
+	defaulted, err := normalizeListQuery(ListQuery{})
+	if err != nil {
+		t.Fatalf("normalize default list query: %v", err)
+	}
+	if defaulted.Sort != ProjectListSortCreatedAtDesc {
+		t.Fatalf("expected default sort %q, got %q", ProjectListSortCreatedAtDesc, defaulted.Sort)
+	}
+	for _, sortExpression := range []string{ProjectListSortCreatedAtAsc, ProjectListSortCreatedAtDesc} {
+		normalized, normalizeErr := normalizeListQuery(ListQuery{Sort: sortExpression})
+		if normalizeErr != nil || normalized.Sort != sortExpression {
+			t.Fatalf("expected valid sort %q, got %#v, err=%v", sortExpression, normalized, normalizeErr)
+		}
+	}
+	if _, err := normalizeListQuery(ListQuery{Sort: "updated_at:desc"}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid sort to return ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestSQLRepositoryListSortsByCreatedAtAndStableID(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newTestSQLRepository(t)
+	createdAt := time.Date(2026, time.July, 13, 12, 0, 0, 0, time.UTC)
+	insertProjectRow(t, db, 1, "older", createdAt.Add(-time.Minute), 0)
+	insertProjectRow(t, db, 2, "same-a", createdAt, 0)
+	insertProjectRow(t, db, 3, "same-b", createdAt, 0)
+
+	for _, testCase := range []struct {
+		name string
+		sort string
+		want []uint64
+	}{
+		{name: "default descending", want: []uint64{3, 2, 1}},
+		{name: "explicit descending", sort: ProjectListSortCreatedAtDesc, want: []uint64{3, 2, 1}},
+		{name: "ascending", sort: ProjectListSortCreatedAtAsc, want: []uint64{1, 3, 2}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			result, err := repo.List(context.Background(), ListQuery{Limit: 10, Sort: testCase.sort})
+			if err != nil {
+				t.Fatalf("list projects: %v", err)
+			}
+			if len(result.Items) != len(testCase.want) {
+				t.Fatalf("expected %d items, got %d", len(testCase.want), len(result.Items))
+			}
+			for index, wantID := range testCase.want {
+				if got := result.Items[index].Project.ID; got != wantID {
+					t.Fatalf("item %d: expected id %d, got %d", index, wantID, got)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildListOrderByUsesWhitelistedExpressions(t *testing.T) {
+	t.Parallel()
+
+	if got := buildListOrderBy(ProjectListSortCreatedAtDesc); got != "created_at DESC, id DESC" {
+		t.Fatalf("unexpected descending order clause %q", got)
+	}
+	if got := buildListOrderBy(ProjectListSortCreatedAtAsc); got != "created_at ASC, id DESC" {
+		t.Fatalf("unexpected ascending order clause %q", got)
 	}
 }
 

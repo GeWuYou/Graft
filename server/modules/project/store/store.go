@@ -11,6 +11,11 @@ const (
 	defaultLifecycleWaitTimeoutSeconds = 120
 	minLifecycleWaitTimeoutSeconds     = 1
 	maxLifecycleWaitTimeoutSeconds     = 3600
+
+	// ProjectListSortCreatedAtDesc orders projects from newest to oldest.
+	ProjectListSortCreatedAtDesc = "created_at:desc"
+	// ProjectListSortCreatedAtAsc orders projects from oldest to newest.
+	ProjectListSortCreatedAtAsc = "created_at:asc"
 )
 
 var (
@@ -99,9 +104,11 @@ type ProjectAggregate struct {
 
 // ListQuery describes project list filters.
 type ListQuery struct {
-	Limit           int
-	Offset          int
-	Keyword         string
+	Limit   int
+	Offset  int
+	Keyword string
+	// Sort accepts the restricted project-list sort expressions; an empty value uses ProjectListSortCreatedAtDesc.
+	Sort            string
 	RuntimeTargetID *int64
 	SourceKind      string
 	DriftStatus     string

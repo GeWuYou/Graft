@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -106,6 +107,7 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 		Limit:           intPtrValue(params.Limit),
 		Offset:          intPtrValue(params.Offset),
 		Keyword:         stringPtrValue(params.Keyword),
+		Sort:            projectListSortParamValue(params.Sort),
 		ApplicationType: stringPtrValue(params.ApplicationType),
 		RuntimeTargetID: params.RuntimeTargetId,
 		Provider:        stringPtrValue(params.Provider),
@@ -1067,6 +1069,10 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	params.Provider = filters.Provider
 	params.RuntimeStatus = filters.RuntimeStatus
 	query := ginCtx.Request.URL.Query()
+	if params.Sort, ok = bindProjectListSort(query); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
 	if keyword := strings.TrimSpace(query.Get("keyword")); keyword != "" {
 		params.Keyword = &keyword
 	}
@@ -1087,6 +1093,36 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 		return generated.GetProjectsParams{}, false
 	}
 	return params, true
+}
+
+// projectListSortValues returns repeated sort values from either canonical or bracketed query keys.
+func projectListSortValues(query url.Values) []string {
+	values := append([]string(nil), query["sort"]...)
+	values = append(values, query["sort[]"]...)
+	return values
+}
+
+func bindProjectListSort(query url.Values) (*generated.ProjectListSort, bool) {
+	rawSorts := projectListSortValues(query)
+	if len(rawSorts) == 0 {
+		return nil, true
+	}
+	if len(rawSorts) > 1 {
+		return nil, false
+	}
+	value := generated.GetProjectsParamsSort(strings.TrimSpace(rawSorts[0]))
+	if !value.Valid() {
+		return nil, false
+	}
+	sorts := generated.ProjectListSort{string(value)}
+	return &sorts, true
+}
+
+func projectListSortParamValue(values *generated.ProjectListSort) string {
+	if values == nil || len(*values) == 0 {
+		return ""
+	}
+	return string((*values)[0])
 }
 
 func bindListFilterParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {

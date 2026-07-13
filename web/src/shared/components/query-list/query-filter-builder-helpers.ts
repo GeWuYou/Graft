@@ -93,7 +93,9 @@ export function createAdvancedQueryBuilderListeners<TPreset extends string, TFie
   return {
     'add-sorter': config.addSorter,
     'apply-preset': (preset: string) => config.emitApplyPreset(preset as TPreset),
-    'close-tag': (key: string) => config.clearTag(key),
+    // Closing any active condition resets the page to its complete default state.
+    // Keep the legacy event listener for custom builder stubs during migration.
+    'close-tag': () => config.emitReset(),
     'move-sorter-down': config.moveSorterDown,
     'move-sorter-up': config.moveSorterUp,
     'remove-sorter': config.removeSorter,

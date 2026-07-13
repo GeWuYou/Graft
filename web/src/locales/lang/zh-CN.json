@@ -385,6 +385,7 @@
     "savedQueryViews": {
       "label": "已保存筛选",
       "placeholder": "选择已保存筛选",
+      "noResults": "没有匹配的已保存筛选",
       "namePlaceholder": "输入筛选名称",
       "nameRequired": "请输入筛选名称。",
       "actions": {

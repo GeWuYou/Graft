@@ -142,7 +142,7 @@ describe('AppLogFilters', () => {
     expect(timeFields[0].label).toBe('发生时间');
   });
 
-  it('normalizes duplicate sorters and emits sorter removal', async () => {
+  it('normalizes duplicate sorters and resets all filters when a sorter tag closes', async () => {
     const wrapper = mount(AppLogFilters, {
       props: {
         activePreset: 'all',
@@ -169,11 +169,6 @@ describe('AppLogFilters', () => {
     ]);
 
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
-      sorters: [
-        { field: 'severity', direction: 'asc' },
-        { field: 'component', direction: 'desc' },
-      ],
-    });
+    expect(wrapper.emitted('reset')).toHaveLength(1);
   });
 });

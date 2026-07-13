@@ -150,6 +150,22 @@ func TestListRuntimeStatusPaginatesFilteredItems(t *testing.T) {
 	}
 }
 
+func TestProjectServiceListPassesExplicitSortToRepository(t *testing.T) {
+	t.Parallel()
+
+	repository := &stubProjectRepository{aggregate: projectstore.ProjectAggregate{Project: projectstore.Project{ID: 1}}}
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if _, err := service.List(context.Background(), ListQuery{Limit: 10, Sort: projectstore.ProjectListSortCreatedAtAsc}); err != nil {
+		t.Fatalf("list projects: %v", err)
+	}
+	if repository.listInput == nil || repository.listInput.Sort != projectstore.ProjectListSortCreatedAtAsc {
+		t.Fatalf("expected explicit sort to reach repository, got %#v", repository.listInput)
+	}
+}
+
 func TestListRuntimeImportCandidatesMarksAlreadyImportedBeyondFirstPage(t *testing.T) {
 	t.Parallel()
 

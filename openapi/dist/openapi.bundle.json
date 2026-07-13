@@ -11853,6 +11853,9 @@
           },
           {
             "$ref": "#/components/parameters/project-list-drift-status"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-sort"
           }
         ],
         "security": [
@@ -25224,6 +25227,18 @@
               },
               "drift_status": {
                 "$ref": "#/components/schemas/project-drift-status"
+              },
+              "sort": {
+                "type": "array",
+                "maxItems": 1,
+                "description": "Optional project-list sort expression; omitted values use created_at:desc.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "created_at:desc",
+                    "created_at:asc"
+                  ]
+                }
               }
             }
           },
@@ -25237,8 +25252,19 @@
             "maxItems": 10,
             "items": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 120
+              "enum": [
+                "row-select",
+                "name",
+                "applicationType",
+                "runtimeTarget",
+                "provider",
+                "source",
+                "runtime",
+                "resources",
+                "drift",
+                "operation"
+              ],
+              "minLength": 1
             }
           }
         }
@@ -30106,6 +30132,25 @@
         "description": "Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.",
         "schema": {
           "$ref": "#/components/schemas/project-runtime-status"
+        }
+      },
+      "project-list-sort": {
+        "name": "sort",
+        "in": "query",
+        "required": false,
+        "description": "Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc.",
+        "style": "form",
+        "explode": true,
+        "schema": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "created_at:desc",
+              "created_at:asc"
+            ]
+          }
         }
       },
       "project-saved-view-id": {

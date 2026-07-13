@@ -2820,6 +2820,66 @@ func (e ProjectSavedViewRequestQueryStateProvider) Valid() bool {
 	}
 }
 
+// Defines values for ProjectSavedViewRequestQueryStateSort.
+const (
+	ProjectSavedViewRequestQueryStateSortCreatedAtAsc  ProjectSavedViewRequestQueryStateSort = "created_at:asc"
+	ProjectSavedViewRequestQueryStateSortCreatedAtDesc ProjectSavedViewRequestQueryStateSort = "created_at:desc"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateSort enum.
+func (e ProjectSavedViewRequestQueryStateSort) Valid() bool {
+	switch e {
+	case ProjectSavedViewRequestQueryStateSortCreatedAtAsc:
+		return true
+	case ProjectSavedViewRequestQueryStateSortCreatedAtDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectSavedViewRequestVisibleColumns.
+const (
+	ProjectSavedViewRequestVisibleColumnsApplicationType ProjectSavedViewRequestVisibleColumns = "applicationType"
+	ProjectSavedViewRequestVisibleColumnsDrift           ProjectSavedViewRequestVisibleColumns = "drift"
+	ProjectSavedViewRequestVisibleColumnsName            ProjectSavedViewRequestVisibleColumns = "name"
+	ProjectSavedViewRequestVisibleColumnsOperation       ProjectSavedViewRequestVisibleColumns = "operation"
+	ProjectSavedViewRequestVisibleColumnsProvider        ProjectSavedViewRequestVisibleColumns = "provider"
+	ProjectSavedViewRequestVisibleColumnsResources       ProjectSavedViewRequestVisibleColumns = "resources"
+	ProjectSavedViewRequestVisibleColumnsRowSelect       ProjectSavedViewRequestVisibleColumns = "row-select"
+	ProjectSavedViewRequestVisibleColumnsRuntime         ProjectSavedViewRequestVisibleColumns = "runtime"
+	ProjectSavedViewRequestVisibleColumnsRuntimeTarget   ProjectSavedViewRequestVisibleColumns = "runtimeTarget"
+	ProjectSavedViewRequestVisibleColumnsSource          ProjectSavedViewRequestVisibleColumns = "source"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSavedViewRequestVisibleColumns enum.
+func (e ProjectSavedViewRequestVisibleColumns) Valid() bool {
+	switch e {
+	case ProjectSavedViewRequestVisibleColumnsApplicationType:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsDrift:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsName:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsOperation:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsProvider:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsResources:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsRowSelect:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsRuntime:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsRuntimeTarget:
+		return true
+	case ProjectSavedViewRequestVisibleColumnsSource:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectSourceKind.
 const (
 	ProjectSourceKindImported ProjectSourceKind = "imported"
@@ -3683,19 +3743,19 @@ func (e TaskLogEntryLevel) Valid() bool {
 
 // Defines values for TaskLogEntryStream.
 const (
-	Stderr TaskLogEntryStream = "stderr"
-	Stdout TaskLogEntryStream = "stdout"
-	System TaskLogEntryStream = "system"
+	TaskLogEntryStreamStderr TaskLogEntryStream = "stderr"
+	TaskLogEntryStreamStdout TaskLogEntryStream = "stdout"
+	TaskLogEntryStreamSystem TaskLogEntryStream = "system"
 )
 
 // Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
 func (e TaskLogEntryStream) Valid() bool {
 	switch e {
-	case Stderr:
+	case TaskLogEntryStreamStderr:
 		return true
-	case Stdout:
+	case TaskLogEntryStreamStdout:
 		return true
-	case System:
+	case TaskLogEntryStreamSystem:
 		return true
 	default:
 		return false
@@ -4398,6 +4458,24 @@ const (
 func (e GetProjectsParamsProvider) Valid() bool {
 	switch e {
 	case GetProjectsParamsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectsParamsSort.
+const (
+	GetProjectsParamsSortCreatedAtAsc  GetProjectsParamsSort = "created_at:asc"
+	GetProjectsParamsSortCreatedAtDesc GetProjectsParamsSort = "created_at:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectsParamsSort enum.
+func (e GetProjectsParamsSort) Valid() bool {
+	switch e {
+	case GetProjectsParamsSortCreatedAtAsc:
+		return true
+	case GetProjectsParamsSortCreatedAtDesc:
 		return true
 	default:
 		return false
@@ -9197,9 +9275,12 @@ type ProjectSavedViewRequest struct {
 		// RuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 		RuntimeStatus   *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
 		RuntimeTargetId *int64                `json:"runtime_target_id,omitempty"`
-		SourceKind      *ProjectSourceKind    `json:"source_kind,omitempty"`
+
+		// Sort Optional project-list sort expression; omitted values use created_at:desc.
+		Sort       *[]ProjectSavedViewRequestQueryStateSort `json:"sort,omitempty"`
+		SourceKind *ProjectSourceKind                       `json:"source_kind,omitempty"`
 	} `json:"query_state"`
-	VisibleColumns []string `json:"visible_columns"`
+	VisibleColumns []ProjectSavedViewRequestVisibleColumns `json:"visible_columns"`
 }
 
 // ProjectSavedViewRequestQueryStateApplicationType defines model for ProjectSavedViewRequest.QueryState.ApplicationType.
@@ -9207,6 +9288,12 @@ type ProjectSavedViewRequestQueryStateApplicationType string
 
 // ProjectSavedViewRequestQueryStateProvider defines model for ProjectSavedViewRequest.QueryState.Provider.
 type ProjectSavedViewRequestQueryStateProvider string
+
+// ProjectSavedViewRequestQueryStateSort defines model for ProjectSavedViewRequest.QueryState.Sort.
+type ProjectSavedViewRequestQueryStateSort string
+
+// ProjectSavedViewRequestVisibleColumns defines model for ProjectSavedViewRequest.VisibleColumns.
+type ProjectSavedViewRequestVisibleColumns string
 
 // ProjectServiceItem defines model for project-service-item.
 type ProjectServiceItem struct {
@@ -10460,6 +10547,9 @@ type ProjectListRuntimeStatus = ProjectRuntimeStatus
 // ProjectListRuntimeTargetId defines model for project-list-runtime-target-id.
 type ProjectListRuntimeTargetId = int64
 
+// ProjectListSort defines model for project-list-sort.
+type ProjectListSort = []string
+
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
 
@@ -11482,6 +11572,9 @@ type GetProjectsParams struct {
 	// DriftStatus Optional project drift-status filter.
 	DriftStatus *ProjectListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
 
+	// Sort Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc.
+	Sort *ProjectListSort `form:"sort,omitempty" json:"sort,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11495,6 +11588,9 @@ type GetProjectsParamsApplicationType string
 
 // GetProjectsParamsProvider defines parameters for GetProjects.
 type GetProjectsParamsProvider string
+
+// GetProjectsParamsSort defines parameters for GetProjects.
+type GetProjectsParamsSort string
 
 // PostProjectBatchActionsParams defines parameters for PostProjectBatchActions.
 type PostProjectBatchActionsParams struct {

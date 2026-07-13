@@ -30,6 +30,13 @@ properties:
         $ref: ./project-runtime-status.yaml
       drift_status:
         $ref: ./project-drift-status.yaml
+      sort:
+        type: array
+        maxItems: 1
+        description: Optional project-list sort expression; omitted values use created_at:desc.
+        items:
+          type: string
+          enum: [created_at:desc, created_at:asc]
   page_size:
     type: integer
     minimum: 1
@@ -39,5 +46,15 @@ properties:
     maxItems: 10
     items:
       type: string
+      enum:
+        - row-select
+        - name
+        - applicationType
+        - runtimeTarget
+        - provider
+        - source
+        - runtime
+        - resources
+        - drift
+        - operation
       minLength: 1
-      maxLength: 120

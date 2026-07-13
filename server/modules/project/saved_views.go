@@ -13,17 +13,18 @@ import (
 const projectListSavedViewSurface = "project.list"
 
 var projectListSavedViewColumns = map[string]struct{}{
-	"name": {}, "application_type": {}, "runtime_target": {}, "provider": {}, "source_kind": {}, "runtime_status": {}, "resources": {}, "drift_status": {}, "updated_at": {},
+	"row-select": {}, "name": {}, "applicationType": {}, "runtimeTarget": {}, "provider": {}, "source": {}, "runtime": {}, "resources": {}, "drift": {}, "operation": {},
 }
 
 type projectListQueryState struct {
-	Keyword         *string `json:"keyword"`
-	ApplicationType *string `json:"application_type"`
-	RuntimeTargetID *int64  `json:"runtime_target_id"`
-	Provider        *string `json:"provider"`
-	SourceKind      *string `json:"source_kind"`
-	RuntimeStatus   *string `json:"runtime_status"`
-	DriftStatus     *string `json:"drift_status"`
+	Keyword         *string  `json:"keyword"`
+	ApplicationType *string  `json:"application_type"`
+	RuntimeTargetID *int64   `json:"runtime_target_id"`
+	Provider        *string  `json:"provider"`
+	SourceKind      *string  `json:"source_kind"`
+	RuntimeStatus   *string  `json:"runtime_status"`
+	DriftStatus     *string  `json:"drift_status"`
+	Sort            []string `json:"sort"`
 }
 
 // savedViewRequest is the project-owned, consumer-specific state accepted by its saved-view routes.
@@ -101,7 +102,7 @@ func validateProjectListQueryState(queryState json.RawMessage) error {
 func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
 	for key := range raw {
 		switch key {
-		case "keyword", "application_type", "runtime_target_id", "provider", "source_kind", "runtime_status", "drift_status":
+		case "keyword", "application_type", "runtime_target_id", "provider", "source_kind", "runtime_status", "drift_status", "sort":
 		default:
 			return false
 		}
@@ -119,7 +120,22 @@ func validateProjectListQueryStateValues(state projectListQueryState) error {
 	if !validProjectListQueryStateEnums(state) {
 		return errProjectInvalidArgument
 	}
+	if !validProjectListQueryStateSort(state) {
+		return errProjectInvalidArgument
+	}
 	return nil
+}
+
+func validProjectListQueryStateSort(state projectListQueryState) bool {
+	if len(state.Sort) > 1 {
+		return false
+	}
+	for _, raw := range state.Sort {
+		if !generated.GetProjectsParamsSort(strings.TrimSpace(raw)).Valid() {
+			return false
+		}
+	}
+	return true
 }
 
 func validProjectListQueryStateEnums(state projectListQueryState) bool {
@@ -191,7 +207,11 @@ func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequ
 	if err != nil {
 		return savedViewRequest{}, errProjectInvalidArgument
 	}
-	return savedViewRequest{Name: request.Name, QueryState: queryState, PageSize: request.PageSize, VisibleColumns: append([]string(nil), request.VisibleColumns...)}, nil
+	visibleColumns := make([]string, len(request.VisibleColumns))
+	for index, column := range request.VisibleColumns {
+		visibleColumns[index] = string(column)
+	}
+	return savedViewRequest{Name: request.Name, QueryState: queryState, PageSize: request.PageSize, VisibleColumns: visibleColumns}, nil
 }
 
 // toGeneratedProjectSavedView 将已保存视图转换为生成的项目视图模型。

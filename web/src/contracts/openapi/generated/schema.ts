@@ -6235,9 +6235,22 @@ export interface components {
         source_kind?: components['schemas']['project-source-kind'];
         runtime_status?: components['schemas']['project-runtime-status'];
         drift_status?: components['schemas']['project-drift-status'];
+        /** @description Optional project-list sort expression; omitted values use created_at:desc. */
+        sort?: ('created_at:desc' | 'created_at:asc')[];
       };
       page_size: number;
-      visible_columns: string[];
+      visible_columns: (
+        | 'row-select'
+        | 'name'
+        | 'applicationType'
+        | 'runtimeTarget'
+        | 'provider'
+        | 'source'
+        | 'runtime'
+        | 'resources'
+        | 'drift'
+        | 'operation'
+      )[];
     };
     'enveloped-project-saved-view': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-saved-view'];
@@ -7368,6 +7381,8 @@ export interface components {
     'project-list-provider': 'docker';
     /** @description Optional derived Compose runtime status filter, evaluated by the server before it returns the list page. */
     'project-list-runtime-status': components['schemas']['project-runtime-status'];
+    /** @description Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc. */
+    'project-list-sort': ('created_at:desc' | 'created_at:asc')[];
     /** @description Private saved-view identifier. */
     'project-saved-view-id': number;
     /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
@@ -13899,6 +13914,8 @@ export interface operations {
         runtime_status?: components['parameters']['project-list-runtime-status'];
         /** @description Optional project drift-status filter. */
         drift_status?: components['parameters']['project-list-drift-status'];
+        /** @description Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc. */
+        sort?: components['parameters']['project-list-sort'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

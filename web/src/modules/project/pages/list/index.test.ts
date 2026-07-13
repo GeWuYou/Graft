@@ -680,7 +680,23 @@ describe('Project list page', () => {
     await flushPromises();
 
     expect(projectApiMocks.postProjectSavedView).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Production', page_size: 20 }),
+      expect.objectContaining({
+        name: 'Production',
+        page_size: 20,
+        query_state: { sort: ['created_at:desc'] },
+        visible_columns: [
+          'row-select',
+          'name',
+          'applicationType',
+          'runtimeTarget',
+          'provider',
+          'source',
+          'runtime',
+          'resources',
+          'drift',
+          'operation',
+        ],
+      }),
     );
   });
 

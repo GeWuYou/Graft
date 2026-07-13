@@ -224,7 +224,7 @@
             size="small"
             theme="primary"
             variant="light-outline"
-            @close="$emit('close-tag', tag.key)"
+            @close="$emit('reset')"
           >
             {{ tag.label }}
           </t-tag>

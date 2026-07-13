@@ -5,11 +5,16 @@
       class="saved-query-view-control__select"
       clearable
       :disabled="controller.isBusy.value"
+      :empty="t('app.savedQueryViews.noResults')"
+      filterable
+      :filter="() => true"
       :loading="controller.loading.value"
       :placeholder="t('app.savedQueryViews.placeholder')"
+      :input-value="viewSearchText"
+      @update:input-value="viewSearchText = normalizeSearchValue($event)"
       @update:model-value="selectView"
     >
-      <t-option v-for="view in controller.views.value" :key="view.id" :value="view.id" :label="view.name" />
+      <t-option v-for="view in displayedViews" :key="view.id" :value="view.id" :label="view.name" />
     </t-select>
     <div class="saved-query-view-control__actions">
       <t-button size="small" variant="text" :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
@@ -88,8 +93,23 @@ const deleteDialogVisible = ref(false);
 const saveDialogMode = ref<'create' | 'update'>('create');
 const draftName = ref('');
 const nameError = ref('');
+const viewSearchText = ref('');
 
 const selectedId = computed(() => props.controller.selectedId.value);
+const displayedViews = computed(() => {
+  const search = viewSearchText.value.trim().toLowerCase();
+  const matchingViews = props.controller.views.value.filter((view) =>
+    search ? view.name.toLowerCase().includes(search) : true,
+  );
+  const selectedView = props.controller.selectedView.value;
+  const firstViews = matchingViews.slice(0, 10);
+
+  if (search || !selectedView || firstViews.some((view) => view.id === selectedView.id)) {
+    return firstViews;
+  }
+
+  return [...firstViews.slice(0, 9), selectedView];
+});
 
 function openSaveDialog(mode: 'create' | 'update') {
   saveDialogMode.value = mode;
@@ -116,11 +136,16 @@ async function deleteView() {
 }
 
 function selectView(value: string | number | Array<string | number> | undefined) {
+  viewSearchText.value = '';
   if (Array.isArray(value) || (typeof value !== 'string' && typeof value !== 'number')) {
     void props.controller.select(undefined);
     return;
   }
   void props.controller.select(value);
+}
+
+function normalizeSearchValue(value: string | number | undefined) {
+  return typeof value === 'string' ? value : '';
 }
 </script>
 <style scoped lang="less">

@@ -81,7 +81,7 @@ func (r *SQLRepository) listProjectsPage(
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
 		FROM compose_projects
 		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY updated_at DESC, id DESC
+		ORDER BY `+buildListOrderBy(query.Sort)+`
 		LIMIT ? OFFSET ?`),
 		argsWithPage...,
 	)
