@@ -1,18 +1,18 @@
 # Compose项目管理设计
 
-本文档定义 `Graft` 对 Docker Compose Application 的产品 IA、模块边界、数据模型、导入语义、API 方向、风险边界与阶段路线。
+本文档定义 `Graft` 对 Compose Application 的产品 IA、模块边界、数据模型、导入语义、API 方向、风险边界与阶段路线。
 
 该能力的核心定位必须保持稳定：
 
-- `Application` 是用户可见的产品对象；当前 `Project` module 是 Docker Compose Application 的注册、聚合与生命周期实现 owner，不是新的 Runtime。
+- `Application` 是用户可见的产品对象；当前 `Project` module 是 Compose Application 的注册、聚合与生命周期实现 owner，不是新的 Runtime。
 - Application/Project 是 Compose 的唯一业务入口和生命周期 authority；`up`、`down`、`restart`、`redeploy` 不得迁入 Docker Provider 菜单。
 - `Container` 始终是 Runtime Authority。
 - `Project` 只负责项目注册、配置解析、生命周期管理和聚合入口。
 - `Project` 不得复制、替代或持久化容器运行时真相。
 
-Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用目标，不能自行维护另一套 Docker endpoint 或凭据目录。Project 详情可以跳转到关联 Docker Container 资源，但跳转不得改变上述 authority。
+Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只绑定并引用目标，不能自行维护另一套 Docker、Podman 或 containerd endpoint 与凭据目录。Project 详情可以跳转到关联 Provider 资源，但跳转不得改变上述 authority。
 
-每个 Compose Application 绑定一个 Docker `runtime_target_id`。新建、导入和受管来源创建在写入注册前必须解析该 Target；非 Docker 或未知 Target 不能进入当前 Compose 生命周期。`compose_projects.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史 `host_scope=local` 行。该桥的 authority 是 Runtime Target，影响者是 Project 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
+每个 Compose Application 绑定一个具备 Compose 执行和 Workspace 访问能力的 `runtime_target_id`。当前实现只允许 Local Docker；未来 Local/Remote Docker、Local/Remote Podman 或 Containerd target 只有在对应 Provider adapter 报告真实能力后才可选择。`compose_projects.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史 `host_scope=local` 行。该桥的 authority 是 Runtime Target，影响者是 Project 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
 
 `/projects` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `application_type=compose` 的实现和生命周期能力；列表必须首先展示应用类型、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
 
@@ -48,7 +48,7 @@ Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用�
 
 ## 2.1 目标
 
-- 支持把本机现有 Docker Compose Project 导入 `Graft` 管理。
+- 支持把本机现有 Compose Project 导入 `Graft` 管理。
 - 支持保存项目注册信息、工作目录、Compose 文件选择、环境文件选择与最近一次成功解析快照。
 - 支持项目级 `Overview`、`Services`、`Configuration`、`Lifecycle`、`Logs` 五类信息架构。
 - 支持项目级 `Refresh`、`Up`、`Stop`、`Restart`、`Unregister`、`Destroy` 管理动作。
@@ -72,21 +72,25 @@ Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用�
 - `Application`
   - 用户创建、查看和管理的业务资产；当前首期由 Compose Project registry 实现，不能把底层 `Project` module 名称当作 Runtime 或产品入口。
 - `Project`
-  - `Graft` 中 Docker Compose Application 的注册与聚合对象；是当前实现和持久化边界，不是通用 Runtime 抽象。
-- `Application Runtime`
-  - 应用的部署与生命周期语义，例如 `docker-compose`、`docker-swarm`、`kubernetes`、`podman-compose`、`nomad`。Docker Compose 与 Docker Swarm 是独立 Runtime，不能先选择 Docker 再进行二级分流。
+  - `Graft` 中 Compose Application 的注册与聚合对象；是当前实现和持久化边界，不是通用 Runtime 抽象。
+- `Deployment Type`
+  - 应用模型与文件/生命周期语义，例如 `compose`、`swarm`、`kubernetes`、`nomad`。Compose 基于 Compose Specification；Docker 和 Podman 不是 Deployment Type，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
 - `Application Source`
-  - 在已选择 Runtime 后，取得或构建 Application Workspace 的方式；首期 Docker Compose 支持 `blank`、`template`、`import`。它不是 Runtime、Provider 或菜单对象。
+  - 在已选择 Deployment Type 和 Runtime Target 后，取得或构建 Application Workspace 的方式；当前 Compose 支持 `blank`、`template`、`import`。它不是 Deployment Type、Provider 或菜单对象。
 - `Runtime Target`
-  - 应用实际绑定的运行目标，拥有连接与能力发现；当前 Compose Application 绑定 Docker Target。
+  - 应用实际绑定的运行目标，拥有连接与能力发现，例如 Local Docker、Remote Docker、Local Podman。当前只有已登记且报告 Compose capability 的 Target 可选。
 - `Runtime Provider`
-  - Target 的底层接入实现，例如 Docker；它属于 Infrastructure，不得替代 Application Runtime。
+  - Target 的底层接入实现，例如 Docker、Podman、containerd；它属于 Infrastructure，不得替代 Deployment Type。
 - `Imported`
   - 指项目文件本来就存在于宿主机某个路径，`Graft` 只登记并管理它，不复制、不移动、不重写其布局。
 - `Managed`
   - 指未来由 `Graft` 在受管根目录下创建的项目；它是 Source 概念，不自动等价于“允许销毁目录”。
-- `Canonical Project Name`
-  - Compose Runtime Identity；CLI 执行、容器归属匹配和项目成员识别都以它为准；默认只读。
+- `Application ID`
+  - 对外稳定标识，格式为 `app_<ULID>`；不因显示名、工作区或运行目标变化而改变。
+- `Workspace Key` / `Workspace Path`
+  - 受管应用的稳定单层安全 key 与实际工作区路径。Graft 生成并唯一化为 `<application-root>/<workspace-key>`；用户不填写目录，也不按 Provider 或 Deployment Type 分层。导入的外部工作区只记录其既有路径。
+- `Compose Project Name`
+  - Compose deployment identity；优先由顶层 `name:` 取得，缺失时由服务端生成并写入受管 Compose 文件。CLI 执行、容器归属匹配和项目成员识别都以它为准；不是 Application ID、显示名或目录名。
 - `Display Name`
   - `Graft` UI 展示名称；允许独立修改；不影响 Docker Runtime。
 - `Snapshot`
@@ -96,31 +100,33 @@ Runtime Target 统一拥有 Docker 连接；Compose Project 只绑定并引用�
 
 ## 2.4 Application 创建决策与 IA
 
-创建流程必须按两个正交决策组织，首屏只要求用户决定 Application 运行在哪里：
+创建流程必须按三个正交决策组织：
 
 ```text
 Application list
   -> Create Application
-  -> Application Runtime
+  -> Deployment Type
+  -> Runtime Target
   -> Application Source
-  -> Docker Compose workspace / registry creation
+  -> Workspace / registry creation
 ```
 
-首期 Runtime 选择页展示 `Docker Compose`、`Docker Swarm`、`Kubernetes`、`Podman Compose` 与 `Nomad`。仅 `Docker Compose` 是已实现且可点击的卡片；其余是不可点击、不可键盘触发的 disabled placeholder，hover/focus 必须说明“暂不支持，敬请期待”。disabled placeholder 是产品路线图，不得生成菜单、OpenAPI runtime catalog、provider contract、持久化枚举值或空实现 API。
+首期 Deployment Type 页展示 `Compose`（基于 Compose Specification）、`Swarm`（Docker Stack）、`Kubernetes`（Deployment/Pod）与 `Nomad`（Job）。仅 `Compose` 可点击；其它卡片必须禁用、不可键盘触发，并在 hover/focus 说明“暂不支持”。它们是产品路线图，不得生成菜单、OpenAPI catalog、Provider contract、持久化枚举值或空实现 API。
 
-Docker Compose 之后才进入 `Application Source`：`blank`、`template`、`import`。来源只负责取得或物化 Workspace，随后进入同一 Compose Project creation pipeline；未来 Git、OCI Bundle 或 Helm Chart 等来源也不得反向改变 Runtime 选择页。
+选择 Compose 后进入 Runtime Target 页，只列出已登记、健康且具备 `compose_execution` 与 `workspace_access` capability 的 Target；当前是 Local Docker。该页复用运行目标卡片的 Provider 标识与交互，不虚构 Remote Docker、Podman 或 Containerd 卡片。随后才进入 Source：`blank`、`template`、`import`。来源只负责取得或物化 Workspace，随后进入同一 Compose Project creation pipeline；当前不公开 Git 入口或占位项。
 
 UI route 的 canonical 语义固定为：
 
 | UI route | 页面和约束 |
 | --- | --- |
-| `/applications/projects/create` | Application Runtime picker；不在 URL 中暴露 Docker/Compose hierarchy |
-| `/applications/projects/create/source?runtime=docker-compose` | Docker Compose Application Source picker；无效或缺失 runtime 回到 Runtime picker |
-| `/applications/projects/create/blank?runtime=docker-compose` | Docker Compose 空白 Workspace 向导 |
-| `/applications/projects/create/template?runtime=docker-compose` | Docker Compose 模板向导 |
-| `/applications/projects/create/import?runtime=docker-compose` | Docker Compose 导入向导 |
+| `/applications/projects/create` | Deployment Type picker；不在 URL 中暴露 Provider hierarchy |
+| `/applications/projects/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Type picker |
+| `/applications/projects/create/source?deployment=compose&target=<application-id>` | Compose Source picker；无效或缺失选择回到上一步 |
+| `/applications/projects/create/blank?deployment=compose&target=<application-id>` | Compose 空白 Workspace 向导 |
+| `/applications/projects/create/template?deployment=compose&target=<application-id>` | Compose 模板向导 |
+| `/applications/projects/create/import?deployment=compose&target=<application-id>` | Compose 导入向导 |
 
-`/applications/projects/**` 保持 Application 领域 URL，`projects` 是当前 Compose registry 的稳定资源名；不得引入 `/docker/**`、`/compose/**` 或 `/kubernetes/**` 的创建层级。实现前尚未发版，不保留旧 `/create` 来源选择语义的 alias 或兼容 redirect。
+`/applications/projects/**` 保持 Application 领域 URL，`projects` 是当前 Compose registry 的稳定资源名；不得引入 `/docker/**`、`/compose/**` 或 `/kubernetes/**` 的创建层级。实现前尚未发版，不保留旧 `runtime=docker-compose`、旧来源选择或别名 redirect。
 
 ## 3. 架构分析
 
@@ -380,16 +386,18 @@ web Project Activity tab
 
 ### Project
 
-- `id`
+- `id`（内部数值主键）
+- `application_id`（对外 `app_<ULID>`，不可变且唯一）
 - `display_name`
-- `canonical_project_name`
-- `canonical_project_name_source`
-  - `computed | override`
+- `compose_project_name`
+- `compose_project_name_source`
+  - `declared | generated | derived`
 - `source_kind`
   - `imported | managed | git | template`
 - `host_scope`
   - Phase 1 固定 `local`
-- `working_directory`
+- `workspace_key`（受管项目必填）
+- `workspace_path`
 - `ownership_mode`
   - `external | managed-root-dedicated`
 - `last_observed_config_hash`
@@ -408,6 +416,8 @@ web Project Activity tab
   - `force_recreate`
   - `wait_after_up`
   - `prune_images_after_redeploy`
+
+上述 `application_id`、`workspace_key`、`workspace_path` 与 `compose_project_name` 是后续实现的 canonical 字段。本文其余历史实现段落中的 `canonical_project_name`、`working_directory` 与 `relative_project_directory` 仅描述现存代码/迁移事实，不得作为新契约、UI 或兼容层 authority；`application-identity-backend` 必须删除或迁移它们。
 
 ### ProjectFile
 
@@ -493,9 +503,10 @@ Phase 1 推荐三张模块自有表：
 
 ## 7.3 推荐索引与唯一性
 
-- `compose_projects(canonical_project_name, host_scope)` 唯一
-  - 防止同一主机重复导入同一个 runtime identity
-- `compose_projects(working_directory)` 普通索引
+- `compose_projects(application_id)` 唯一
+- `compose_projects(runtime_target_id, compose_project_name)` 唯一
+  - 防止同一目标重复注册同一个 Compose deployment identity
+- live `compose_projects(workspace_path)` 唯一
 - `compose_project_files(project_id, order_index)` 唯一
 - `compose_project_files(project_id, absolute_path)` 唯一
 - `compose_project_snapshots(project_id)` 唯一
@@ -504,11 +515,11 @@ Phase 1 推荐三张模块自有表：
 
 - Source：`Imported` / future `Managed`
 - Ownership 模式
-- Working Directory
+- Workspace Key / Workspace Path
 - Compose 文件有序列表
 - Env 文件有序列表
 - Display Name
-- Canonical Project Name 及来源
+- Compose Project Name 及来源
 - 最近一次成功解析快照
 - Hash 与 Drift 状态
 - 最近一次刷新时间与错误摘要
@@ -1028,12 +1039,14 @@ managed root authority 约束：
 managed create request 建议至少包含：
 
 - `display_name`
-- `canonical_project_name`
-- `relative_project_directory`
+- `runtime_target_id`
+- `workspace_key?`
 - `compose_file_name`
 - `env_file_name?`
 
-`relative_project_directory` 的默认值由 Application 名称推导。例如 `halo` 默认生成 `/opt/graft/apps/halo`，UI 必须展示最终目录而无需用户先输入路径；用户可修改相对目录，但最终绝对路径始终由服务端以 `Application Root Directory + relative_project_directory` 生成。服务端必须拒绝绝对路径、`..` 逃逸、根目录自身作为项目目录、符号链接逃逸、冲突和不可写根目录。用户手工修改目录后不再被名称改写，并应可恢复默认推导值。
+服务端从 `workspace_key` 生成唯一的单层 Workspace Path：`Application Root Directory + workspace_key`。默认 key 由显示名生成；冲突时自动附加 `-2`、`-3` 等后缀。用户若显式填写 key，只能填写安全 slug，冲突时返回本地化错误与建议值。不得接受 `relative_project_directory`、绝对路径、路径分隔符或 `..`；用户界面不展示目录、受管根目录、权限或 Compose runtime identity。
+
+受管工作区是 Application 的文件载体，不按 Docker、Podman、Compose 或 Kubernetes 分层。Runtime 切换或未来 Deployment Type 演进不移动 Workspace；runtime 自身的存储仍由 Provider 管理。数据库 registry 是元数据真相，实际 Workspace 是文件内容真相；本切片不引入 `graft.yaml`。
 
 采用受管默认目录符合主流自托管产品的共同策略：集中工作目录使权限、备份、迁移、冲突检测和受控销毁的边界可审计，同时仍为高级操作者保留受约束的子目录选择。公开部署材料可作为实现前复核依据：Portainer 的 Stack 文档将 Compose/Swarm/Kubernetes 按独立部署方式管理；[Dockge](https://github.com/louislam/dockge) 公开 `DOCKGE_STACKS_DIR` 工作目录配置；[Coolify](https://coolify.io/docs/installation) 安装到平台受管数据目录；[Dokploy](https://docs.dokploy.com/docs/core/installation) 以平台安装与数据目录管理其工作负载。Graft 不依赖这些产品的精确路径或内部实现，只采用“平台默认受管根目录、用户可在安全边界内覆盖”的产品原则。
 
@@ -1796,14 +1809,14 @@ IA guardrail:
 
 ## 18. 当前来源范围与扩展口
 
-当前公开且可执行的 Application Runtime 只有 `docker-compose`；它不是 Docker Provider 的同义词。Application Runtime picker 只为其提供可点击入口，Docker Swarm、Kubernetes、Podman Compose 与 Nomad 在各自真实 Target、Provider capability、lifecycle 和 Source adapter 落地前保持 disabled placeholder。
+当前公开且可执行的 Deployment Type 只有 `compose`，它基于 Compose Specification，不是 Docker Provider 的同义词。Deployment Type picker 只为它提供可点击入口；Swarm、Kubernetes 与 Nomad 在各自真实 Target、Provider capability、lifecycle 和 Source adapter 落地前保持 disabled placeholder。Podman 不是 Deployment Type；它在未来作为 Compose Runtime Target Provider 接入。
 
-当前公开且可执行的 Docker Compose Application Source 只有：
+当前公开且可执行的 Compose Application Source 只有：
 
 - `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
 - `Template`：模块内置模板生成 Workspace。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
-MVP 不新增 runtime catalog OpenAPI/schema。既有 managed-root 与相对目录 create contract 继续服务 Docker Compose；`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，来源页是 `/applications/projects/create/source?runtime=docker-compose`，三个向导路径分别为 `/applications/projects/create/blank?runtime=docker-compose`、`/applications/projects/create/template?runtime=docker-compose` 与 `/applications/projects/create/import?runtime=docker-compose`。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
+MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，依次进入 deployment、target、source 与向导。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
 
-未来真实 Runtime 必须先由 canonical OpenAPI 定义 Runtime kind、Target capability、可用性和 stable reason code，再同时交付生命周期与 Source adapter；不得用本 MVP 的 disabled 卡片提前建立 wire model。未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Application Runtime -> Application Source -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。
+未来 Deployment Type 或 Runtime Target Provider 必须先由 canonical OpenAPI 定义 kind、capability、可用性和 stable reason code，再同时交付生命周期与 Source adapter；不得用占位卡片提前建立 wire model。未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Deployment Type -> Runtime Target -> Application Source -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

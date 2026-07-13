@@ -430,3 +430,11 @@
 - Accepted the Application Management UI and icon boundary: `/projects` supports saved-view CRUD and target/provider filtering; menu rendering has one static Iconify resolver, with Lucide defaults and Tabler's outline Docker logo.
 - Validation passed: `git diff --check`, `python3 scripts/validate_sql_migrations.py`, `node scripts/openapi-bundle.mjs`, `cd web && bun run openapi:types:check`, targeted Go/Vitest suites, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `python3 scripts/validate_shared_asset_registries.py`, and `python3 scripts/validate_ai_plan_structure.py`.
 - Archive-readiness remains false. The previously deferred `remote-source-adapter-and-activity-boundary` is independent Phase 3 work; it must not be represented by a placeholder route, API, or source catalog entry.
+
+## 2026-07-14 Application model authority repair
+
+- 创建 IA 固定为 `Deployment Type -> Runtime Target -> Source`。Compose 是基于 Compose Specification 的 Deployment Type；Docker、Podman、containerd 是 Runtime Provider，不能再产生 Docker Compose / Podman Compose 两个一级应用模型。
+- 第一步保留 Compose 可点击卡片，并将 Swarm、Kubernetes、Nomad 作为禁用且带“暂不支持”提示的路线图；第二步只列出有真实 Compose capability 的 Runtime Target，当前为 Local Docker；第三步只公开 Blank、Template、Import Existing。
+- Application 的公开稳定标识改为 `app_<ULID>`。`Display Name`、唯一 Workspace Key/Path 与 Compose Project Name 分离：受管 Workspace 由服务端创建在 Application Root 下，Compose `name:` 是 deployment identity，用户不填目录或 Compose 名称。
+- Workspace 不按 Deployment Type 或 Provider 分层；Runtime 变更不移动 Workspace。数据库 registry 是元数据真相，实际 Workspace 是文件内容真相；本主题不引入 `graft.yaml`。
+- 下一批为 `application-identity-backend`：由 OpenAPI 与 `server/modules/project/**` 修复 public ID、受管 Workspace、Compose identity 和 capability-aware target authority；不得以旧 `canonical_project_name` 或相对目录作兼容入口。
