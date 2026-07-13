@@ -7113,7 +7113,7 @@ export interface components {
     'project-batch-action-request': {
       /** @enum {string} */
       action: 'start' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy';
-      project_ids: number[];
+      application_ids: string[];
       /** @default false */
       remove_named_volumes: boolean;
       /** @default false */
@@ -7343,8 +7343,8 @@ export interface components {
     'project-list-source-kind': components['schemas']['project-source-kind'];
     /** @description Optional project drift-status filter. */
     'project-list-drift-status': components['schemas']['project-drift-status'];
-    /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
-    'project-id-path': number;
+    /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
+    'project-id-path': string;
     'project-saved-view-id-path': string;
     'saved-view-id-path': string;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
@@ -14931,7 +14931,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -14986,7 +14986,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15052,7 +15052,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15107,7 +15107,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15176,7 +15176,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15231,7 +15231,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15286,7 +15286,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15346,7 +15346,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15404,7 +15404,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15462,7 +15462,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15524,7 +15524,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15583,7 +15583,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15648,7 +15648,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15703,7 +15703,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15768,7 +15768,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15833,7 +15833,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15898,7 +15898,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -16019,7 +16019,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -16074,7 +16074,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;

@@ -488,7 +488,7 @@ func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (Template
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -502,7 +502,7 @@ func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleOverview(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -516,7 +516,7 @@ func (r routeRuntime) handleOverview(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleServices(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -530,7 +530,7 @@ func (r routeRuntime) handleServices(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -554,7 +554,7 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleConfiguration(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -568,7 +568,7 @@ func (r routeRuntime) handleConfiguration(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleConfigurationPreview(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -582,7 +582,7 @@ func (r routeRuntime) handleConfigurationPreview(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleProjectWorkspaceFiles(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -600,7 +600,7 @@ func (r routeRuntime) handleProjectWorkspaceFiles(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleProjectWorkspaceFileContent(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -618,7 +618,7 @@ func (r routeRuntime) handleProjectWorkspaceFileContent(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -642,7 +642,7 @@ func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context)
 }
 
 func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -683,7 +683,7 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 }
 
 func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -697,7 +697,7 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDeploy(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -715,7 +715,7 @@ func (r routeRuntime) handleDeploy(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleUp(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -729,7 +729,7 @@ func (r routeRuntime) handleUp(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleStop(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -743,7 +743,7 @@ func (r routeRuntime) handleStop(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -757,7 +757,7 @@ func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -771,7 +771,7 @@ func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleLifecycleConfiguration(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -806,13 +806,14 @@ func (r routeRuntime) handleBatchActions(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectBatchActions(bindPostProjectBatchActionsParams(ginCtx), request)
-	projectIDs := make([]uint64, 0, len(request.ProjectIds))
-	for _, item := range request.ProjectIds {
-		if item <= 0 {
+	projectIDs := make([]uint64, 0, len(request.ApplicationIds))
+	for _, applicationID := range request.ApplicationIds {
+		projectID, err := r.service.ResolveApplicationID(ginCtx.Request.Context(), applicationID)
+		if err != nil {
 			r.writeRouteError(ginCtx, errProjectInvalidArgument)
 			return
 		}
-		projectIDs = append(projectIDs, uint64(item))
+		projectIDs = append(projectIDs, projectID)
 	}
 	result, err := r.service.BatchAction(ginCtx.Request.Context(), BatchActionRequest{
 		Action:                      request.Action,
@@ -881,7 +882,7 @@ func batchActionPermission(action generated.ProjectBatchActionRequestAction) (st
 }
 
 func (r routeRuntime) handleUnregister(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -895,7 +896,7 @@ func (r routeRuntime) handleUnregister(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
 		return
 	}
@@ -1019,33 +1020,33 @@ func (projectGeneratedHandler) PostProjectCreateValidate(generated.PostProjectCr
 }
 func (projectGeneratedHandler) PostProjectCreate(generated.PostProjectCreateParams, generated.PostProjectCreateJSONRequestBody) {
 }
-func (projectGeneratedHandler) GetProject(int64, generated.GetProjectParams)                 {}
-func (projectGeneratedHandler) GetProjectOverview(int64, generated.GetProjectOverviewParams) {}
-func (projectGeneratedHandler) GetProjectServices(int64, generated.GetProjectServicesParams) {}
-func (projectGeneratedHandler) GetProjectLogs(int64, generated.GetProjectLogsParams)         {}
-func (projectGeneratedHandler) GetProjectConfiguration(int64, generated.GetProjectConfigurationParams) {
+func (projectGeneratedHandler) GetProject(string, generated.GetProjectParams)                 {}
+func (projectGeneratedHandler) GetProjectOverview(string, generated.GetProjectOverviewParams) {}
+func (projectGeneratedHandler) GetProjectServices(string, generated.GetProjectServicesParams) {}
+func (projectGeneratedHandler) GetProjectLogs(string, generated.GetProjectLogsParams)         {}
+func (projectGeneratedHandler) GetProjectConfiguration(string, generated.GetProjectConfigurationParams) {
 }
-func (projectGeneratedHandler) GetProjectConfigurationPreview(int64, generated.GetProjectConfigurationPreviewParams) {
+func (projectGeneratedHandler) GetProjectConfigurationPreview(string, generated.GetProjectConfigurationPreviewParams) {
 }
-func (projectGeneratedHandler) GetProjectFiles(int64, generated.GetProjectFilesParams)             {}
-func (projectGeneratedHandler) GetProjectFileContent(int64, generated.GetProjectFileContentParams) {}
-func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProjectFileContentParams, generated.PutProjectFileContentJSONRequestBody) {
+func (projectGeneratedHandler) GetProjectFiles(string, generated.GetProjectFilesParams)             {}
+func (projectGeneratedHandler) GetProjectFileContent(string, generated.GetProjectFileContentParams) {}
+func (projectGeneratedHandler) PutProjectFileContent(string, generated.PutProjectFileContentParams, generated.PutProjectFileContentJSONRequestBody) {
 }
-func (projectGeneratedHandler) PutProjectFileAnnotation(int64, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
+func (projectGeneratedHandler) PutProjectFileAnnotation(string, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams)   {}
-func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams)     {}
-func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)             {}
-func (projectGeneratedHandler) PostProjectStop(int64, generated.PostProjectStopParams)         {}
-func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams)   {}
-func (projectGeneratedHandler) PostProjectRedeploy(int64, generated.PostProjectRedeployParams) {}
-func (projectGeneratedHandler) PutProjectLifecycleConfiguration(int64, generated.PutProjectLifecycleConfigurationParams, generated.ProjectLifecycleConfigurationRequest) {
+func (projectGeneratedHandler) PostProjectRefresh(string, generated.PostProjectRefreshParams)   {}
+func (projectGeneratedHandler) PostProjectDeploy(string, generated.PostProjectDeployParams)     {}
+func (projectGeneratedHandler) PostProjectUp(string, generated.PostProjectUpParams)             {}
+func (projectGeneratedHandler) PostProjectStop(string, generated.PostProjectStopParams)         {}
+func (projectGeneratedHandler) PostProjectRestart(string, generated.PostProjectRestartParams)   {}
+func (projectGeneratedHandler) PostProjectRedeploy(string, generated.PostProjectRedeployParams) {}
+func (projectGeneratedHandler) PutProjectLifecycleConfiguration(string, generated.PutProjectLifecycleConfigurationParams, generated.ProjectLifecycleConfigurationRequest) {
 }
 func (projectGeneratedHandler) PostProjectBatchActions(generated.PostProjectBatchActionsParams, generated.ProjectBatchActionRequest) {
 }
-func (projectGeneratedHandler) PostProjectUnregister(int64, generated.PostProjectUnregisterParams) {
+func (projectGeneratedHandler) PostProjectUnregister(string, generated.PostProjectUnregisterParams) {
 }
-func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDestroyParams, generated.PostProjectDestroyJSONRequestBody) {
+func (projectGeneratedHandler) PostProjectDestroy(string, generated.PostProjectDestroyParams, generated.PostProjectDestroyJSONRequestBody) {
 }
 
 // bindListParams 绑定项目列表查询参数和公共请求头。
@@ -1231,22 +1232,26 @@ func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	return true
 }
 
-// bindProjectID 解析并校验项目路由参数 id。
-// 解析失败、值为 0 或超出 int64 范围时，会返回本地化的参数错误并中止请求。
-func bindProjectID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, bool) {
+// bindProjectID resolves the public Application ID in a project route to the
+// private numeric key used by project-owned storage and tasks.
+func (r routeRuntime) bindProjectID(ginCtx *gin.Context) (uint64, string, bool) {
 	raw := strings.TrimSpace(ginCtx.Param("id"))
-	value, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || value == 0 {
-		httpx.WriteLocalizedErrorCode(ginCtx, ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidID.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "id", "code": projectcontract.ProjectInvalidID.String()})
+	if !isApplicationID(raw) {
+		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidID.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "id", "code": projectcontract.ProjectInvalidID.String()})
 		ginCtx.Abort()
-		return 0, 0, false
+		return 0, "", false
 	}
-	if value > math.MaxInt64 {
-		httpx.WriteLocalizedErrorCode(ginCtx, ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidID.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "id", "code": projectcontract.ProjectInvalidID.String()})
+	projectID, err := r.service.ResolveApplicationID(ginCtx.Request.Context(), raw)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return 0, "", false
+	}
+	if projectID == 0 {
+		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidID.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "id", "code": projectcontract.ProjectInvalidID.String()})
 		ginCtx.Abort()
-		return 0, 0, false
+		return 0, "", false
 	}
-	return value, int64(value), true
+	return projectID, raw, true
 }
 
 // bindImportValidateParams 组装导入校验接口的请求参数，包含请求语言和请求 ID。

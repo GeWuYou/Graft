@@ -1104,6 +1104,27 @@ func (s *Service) repositoryOrErr() (projectstore.Repository, error) {
 	return s.repository, nil
 }
 
+// ResolveApplicationID resolves the only public Project HTTP identifier to the
+// module-private key used by project-owned tables and task records.
+func (s *Service) ResolveApplicationID(ctx context.Context, applicationID string) (uint64, error) {
+	if !isApplicationID(applicationID) {
+		return 0, errProjectInvalidArgument
+	}
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return 0, err
+	}
+	lookup, ok := repository.(projectstore.ApplicationLookupRepository)
+	if !ok {
+		return 0, errProjectServiceUnavailable
+	}
+	aggregate, err := lookup.GetByApplicationID(ctx, applicationID)
+	if err != nil {
+		return 0, mapStoreError(err)
+	}
+	return aggregate.Project.ID, nil
+}
+
 func (s *Service) getAggregate(ctx context.Context, projectID uint64) (projectstore.ProjectAggregate, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {

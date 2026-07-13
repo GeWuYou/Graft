@@ -8361,11 +8361,11 @@ type ProjectBatchActionItemResult string
 // ProjectBatchActionRequest defines model for project-batch-action-request.
 type ProjectBatchActionRequest struct {
 	Action                      ProjectBatchActionRequestAction `json:"action"`
+	ApplicationIds              []string                        `json:"application_ids"`
 	AutoUnregister              *bool                           `json:"auto_unregister,omitempty"`
 	ConfirmCanonicalProjectName *string                         `json:"confirm_canonical_project_name,omitempty"`
 	DeleteWorkingDirectory      *bool                           `json:"delete_working_directory,omitempty"`
 	ImagePrune                  *bool                           `json:"image_prune,omitempty"`
-	ProjectIds                  []int64                         `json:"project_ids"`
 	RemoveNamedVolumes          *bool                           `json:"remove_named_volumes,omitempty"`
 }
 
@@ -10509,7 +10509,7 @@ type ContainerShellTicketQuery = string
 type LocaleHeader = string
 
 // ProjectIdPath defines model for project-id-path.
-type ProjectIdPath = int64
+type ProjectIdPath = string
 
 // ProjectImportRuntimeCandidateListAvailability defines model for project-import-runtime-candidate-list-availability.
 type ProjectImportRuntimeCandidateListAvailability = ProjectImportRuntimeCandidateAvailability

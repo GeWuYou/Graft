@@ -3,6 +3,7 @@ package project
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"strings"
 	"time"
 )
 
@@ -41,4 +42,17 @@ func newApplicationID() string {
 		encoded[group] = crockfordBase32[digit]
 	}
 	return "app_" + string(encoded)
+}
+
+func isApplicationID(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) != len("app_")+applicationIDEncodedLength || !strings.HasPrefix(value, "app_") {
+		return false
+	}
+	for _, character := range value[len("app_"):] {
+		if !strings.ContainsRune(crockfordBase32, character) {
+			return false
+		}
+	}
+	return true
 }

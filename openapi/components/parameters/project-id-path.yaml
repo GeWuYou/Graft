@@ -1,13 +1,11 @@
 name: id
 in: path
 required: true
-description: >
-  Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name.
+description: Public Graft application identifier. The internal project registry key is never accepted on HTTP routes.
 schema:
-  type: integer
-  format: int64
-  minimum: 1
+  type: string
+  pattern: '^app_[0-9A-HJKMNP-TV-Z]{26}$'
 examples:
-  projectId:
-    summary: Imported project id
-    value: 42
+  applicationId:
+    summary: Imported application id
+    value: app_01JZ5R6M7N8P9Q0R1S2T3V4W5X

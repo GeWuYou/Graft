@@ -174,6 +174,30 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 	return aggregate, nil
 }
 
+// GetByApplicationID resolves the public Application ID without exposing the
+// private database key in a caller-visible contract.
+func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error) {
+	if err := r.ensureReady(); err != nil {
+		return ProjectAggregate{}, err
+	}
+	applicationID = strings.TrimSpace(applicationID)
+	if applicationID == "" {
+		return ProjectAggregate{}, ErrInvalidInput
+	}
+	var projectID int64
+	err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT id FROM compose_projects WHERE application_id = ? AND deleted_at = 0`), applicationID).Scan(&projectID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ProjectAggregate{}, ErrProjectNotFound
+		}
+		return ProjectAggregate{}, fmt.Errorf("get project by application id: %w", err)
+	}
+	if projectID < 1 {
+		return ProjectAggregate{}, ErrProjectNotFound
+	}
+	return r.Get(ctx, uint64(projectID)) // #nosec G115 -- positivity is checked above.
+}
+
 // GetFile returns one file within the requested project scope.
 func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID uint64) (ProjectFile, error) {
 	if err := r.ensureReady(); err != nil {

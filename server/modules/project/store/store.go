@@ -199,3 +199,11 @@ type Repository interface {
 	UnregisterProject(ctx context.Context, input UnregisterProjectInput) error
 	BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error
 }
+
+// ApplicationLookupRepository resolves the external Application ID to the
+// module-private numeric registry key. It is deliberately narrow so existing
+// test stores and repository adapters do not gain an accidental public lookup
+// obligation.
+type ApplicationLookupRepository interface {
+	GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error)
+}
