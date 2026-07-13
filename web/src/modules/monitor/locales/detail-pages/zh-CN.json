@@ -7,7 +7,7 @@
       "notReported": "暂未提供"
     },
     "runtimePage": {
-      "title": "运行时",
+      "title": "服务状态",
       "subtitle": "查看当前 Go 进程运行时快照、进程构建信息与服务器环境，并明确区分服务器内存和 Go Runtime 内存。",
       "snapshotReady": "快照已就绪",
       "snapshotPending": "等待快照",

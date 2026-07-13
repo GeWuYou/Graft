@@ -62,7 +62,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.nextRefreshPending': 'Preparing the next refresh',
   'monitor.serverStatus.nextRefreshIn': 'Next refresh in {seconds}s',
   'monitor.serverStatus.nextRefreshRetryIn': 'Retry in {seconds}s · base interval {interval}',
-  'monitor.runtimePage.title': 'Runtime',
+  'monitor.runtimePage.title': 'Service Status',
   'monitor.runtimePage.subtitle':
     'Inspect the current Go process snapshot, build details, and server environment while keeping server memory separate from Go Runtime memory.',
   'monitor.runtimePage.snapshotReady': 'Snapshot ready',
@@ -305,7 +305,7 @@ describe('monitor runtime page', () => {
     await flushPromises();
 
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
-    expect(wrapper.text()).toContain('Runtime');
+    expect(wrapper.text()).toContain('Service Status');
     expect(wrapper.text()).toContain('Go Runtime Memory');
     expect(wrapper.text()).toContain('Server Environment');
     expect(wrapper.text()).toContain('Server memory');

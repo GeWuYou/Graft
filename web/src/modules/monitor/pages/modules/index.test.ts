@@ -56,7 +56,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
   'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
   'monitor.sectionTitle': 'Observability',
-  'monitor.moduleRuntime.title': 'Modules',
+  'monitor.moduleRuntime.title': 'Module Status',
   'monitor.moduleRuntime.subtitle': 'Review compile-time module status.',
   'monitor.moduleRuntime.errorTitle': 'Module snapshot request failed',
   'monitor.moduleRuntime.errorFallback': 'Failed to load module runtime snapshot',
@@ -534,7 +534,7 @@ describe('monitor module runtime page', () => {
     await flushPromises();
 
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
-    expect(wrapper.text()).toContain('Modules');
+    expect(wrapper.text()).toContain('Module Status');
     expect(wrapper.text()).toContain('Needs attention');
     expect(wrapper.text()).toContain('Every 5 sec');
     expect(wrapper.text()).toContain('5s 后刷新');

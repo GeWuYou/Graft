@@ -173,7 +173,7 @@
       }
     },
     "moduleRuntime": {
-      "title": "Modules",
+      "title": "Module Status",
       "subtitle": "Review compile-time module registration, enablement, dependency, migration, schema, and config status.",
       "errorTitle": "Module snapshot request failed",
       "errorFallback": "Failed to load module runtime snapshot",
