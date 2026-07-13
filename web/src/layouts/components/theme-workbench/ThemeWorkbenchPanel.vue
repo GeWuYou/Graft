@@ -963,7 +963,7 @@ const fixedSidebarAvailable = computed(() => settingStore.layout !== 'top');
 const fixedSidebarHint = computed(() =>
   fixedSidebarAvailable.value
     ? t('layout.setting.workbench.layout.fixedSidebarHint')
-    : t('layout.setting.workbench.layout.notIntegrated'),
+    : t('layout.setting.workbench.layout.onlySideOrMix'),
 );
 const menuAlwaysExpandedAvailable = computed(() => settingStore.layout !== 'top');
 const menuAlwaysExpandedHint = computed(() =>

@@ -34,6 +34,7 @@ const settingStoreProxy = vi.hoisted(() => ({
   value: null as null | {
     displayMode: string;
     isSidebarCompact: boolean;
+    isSidebarFixed: boolean;
     layout: { value: string };
     showSidebar: boolean;
   },
@@ -47,6 +48,7 @@ const storeState = vi.hoisted(() => ({
   settingStore: {
     displayMode: 'light',
     isSidebarCompact: false,
+    isSidebarFixed: true,
     layout: { value: 'side' },
     showSidebar: true,
   },
@@ -77,7 +79,11 @@ vi.mock('./components/ForcePasswordChangeDialog.vue', () => ({
 }));
 
 vi.mock('./components/LayoutContent.vue', () => ({
-  default: { name: 'LayoutContent', template: '<div />' },
+  default: {
+    name: 'LayoutContent',
+    emits: ['page-scroll'],
+    template: '<div data-test-id="layout-content" @scroll="$emit(\'page-scroll\', $event)" />',
+  },
 }));
 
 vi.mock('./components/LayoutHeader.vue', () => ({
@@ -130,7 +136,6 @@ function mountAppLayout() {
     global: {
       stubs: {
         ForcePasswordChangeDialog: true,
-        LayoutContent: true,
         LayoutHeader: true,
         TAside: PlainStub,
         TContent: PlainStub,
@@ -147,6 +152,7 @@ describe('App layout route effects', () => {
     settingStoreProxy.value ??= reactive(storeState.settingStore);
     settingStoreProxy.value.displayMode = 'light';
     settingStoreProxy.value.isSidebarCompact = false;
+    settingStoreProxy.value.isSidebarFixed = true;
     settingStoreProxy.value.layout = { value: 'side' };
     settingStoreProxy.value.showSidebar = true;
     routeProxy.value!.fullPath = '/infrastructure/docker/containers/container-1?tab=overview';
@@ -240,6 +246,24 @@ describe('App layout route effects', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
     expect(storeState.realtimeSchedulerStore.freeze).toHaveBeenCalledWith('shell-sidebar-motion');
+  });
+
+  it('moves an unfixed sidebar with the page scroll while keeping a fixed sidebar in place', async () => {
+    const wrapper = mountAppLayout();
+    const content = wrapper.get('[data-test-id="layout-content"]');
+
+    Object.defineProperty(content.element, 'scrollTop', { configurable: true, value: 240 });
+    await content.trigger('scroll');
+
+    const shell = wrapper.get('.app-shell');
+    expect(shell.attributes('data-sidebar-fixed')).toBe('true');
+    expect(shell.attributes('style')).toContain('--graft-shell-sidebar-scroll-translate-y: 0px');
+
+    settingStoreProxy.value!.isSidebarFixed = false;
+    await wrapper.vm.$nextTick();
+
+    expect(shell.attributes('data-sidebar-fixed')).toBe('false');
+    expect(shell.attributes('style')).toContain('--graft-shell-sidebar-scroll-translate-y: -240px');
   });
 
   it('uses wide-table motion for an explicitly marked non-list table route', () => {

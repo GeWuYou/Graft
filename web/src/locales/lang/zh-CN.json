@@ -111,7 +111,7 @@
           "behaviorDescription": "调整导航结构与页面元素显示。",
           "elementsDescription": "切换 Header、Breadcrumbs、Footer 和多标签页显示。",
           "splitMenuHint": "切换后立即更新当前混合布局导航。",
-          "fixedSidebarHint": "切换侧边栏固定与随内容滚动。",
+          "fixedSidebarHint": "开启后，滚动内容时侧边栏保持在视口内。",
           "menuAutoCollapsedHint": "同级菜单展开时自动收起其他分组。",
           "menuAlwaysExpandedHint": "展开所有可展开的菜单层级，并关闭菜单自动折叠。",
           "showHeaderHint": "显示顶部导航与账号操作区。",

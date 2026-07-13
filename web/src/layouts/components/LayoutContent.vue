@@ -101,7 +101,12 @@
     </t-tabs>
     <t-content :class="`${prefix}-content-layout`">
       <div :class="`${prefix}-content-layout__body`">
-        <page-container :show-footer="showFooter" :footer-text="footerText" :surface="pageSurfaceType">
+        <page-container
+          :show-footer="showFooter"
+          :footer-text="footerText"
+          :surface="pageSurfaceType"
+          @scroll="emit('page-scroll', $event)"
+        >
           <l-content @page-surface-ready="handlePageSurfaceReady" />
         </page-container>
       </div>
@@ -144,6 +149,9 @@ import PageContainer from './PageContainer.vue';
 
 const route = useRoute();
 const router = useRouter();
+const emit = defineEmits<{
+  'page-scroll': [event: Event];
+}>();
 
 const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();

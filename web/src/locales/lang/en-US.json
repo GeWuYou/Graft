@@ -111,7 +111,7 @@
           "behaviorDescription": "Adjust navigation structure and page element visibility.",
           "elementsDescription": "Toggle Header, Breadcrumbs, Footer, and multi-tab pages.",
           "splitMenuHint": "Updates mixed-layout navigation immediately.",
-          "fixedSidebarHint": "Switch between fixed and scrolling sidebar behavior.",
+          "fixedSidebarHint": "Keep the sidebar visible while page content scrolls.",
           "menuAutoCollapsedHint": "Collapse other menu groups when one group expands.",
           "menuAlwaysExpandedHint": "Expand every available menu level and disable menu auto collapse.",
           "showHeaderHint": "Show top navigation and account actions.",
