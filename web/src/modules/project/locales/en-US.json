@@ -851,10 +851,7 @@
     "runtime": {
       "eyebrow": "Create Application",
       "description": "Choose how this application runs.",
-      "status": { "supported": "Supported", "comingSoon": "Coming Soon" },
-      "unsupported": "Unavailable",
-      "unsupportedTooltip": "Not supported yet. Coming soon.",
-      "actions": { "select": "Select Runtime" },
+      "unsupportedTooltip": "Not Supported Yet",
       "items": {
         "dockerCompose": {
           "title": "Docker Compose",

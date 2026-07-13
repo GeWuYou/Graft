@@ -14,26 +14,32 @@ vi.mock('vue-i18n', () => ({
 }));
 
 describe('ProjectRuntimeIndex', () => {
-  it('offers only Docker Compose as an actionable runtime', async () => {
+  it('makes only Docker Compose actionable', async () => {
     const wrapper = mount(ProjectRuntimeIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
           'management-page-header': { template: '<header><slot /></header>' },
-          't-card': { template: '<section><slot /></section>' },
-          't-tag': { template: '<span><slot /></span>' },
+          't-card': { inheritAttrs: false, template: '<section v-bind="$attrs"><slot /></section>' },
           't-tooltip': { template: '<div><slot /></div>' },
-          't-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
         },
       },
     });
 
     expect(wrapper.text()).toContain('project.runtime.items.dockerCompose.title');
     expect(wrapper.text()).toContain('project.runtime.items.dockerSwarm.title');
-    expect(wrapper.findAll('button')).toHaveLength(1);
+    expect(wrapper.findAll('.project-runtime-card__icon')).toHaveLength(5);
+    expect(wrapper.findAll('[role="button"]')).toHaveLength(1);
+    expect(wrapper.findAll('.project-runtime-card--disabled')).toHaveLength(4);
+    expect(wrapper.get('[data-testid="project-runtime-docker-swarm"]').attributes('aria-disabled')).toBe('true');
+    expect(wrapper.get('[data-testid="project-runtime-docker-swarm"]').attributes('tabindex')).toBe('-1');
 
     await wrapper.get('[data-testid="project-runtime-docker-compose"]').trigger('click');
 
     expect(push).toHaveBeenCalledWith({ name: 'ProjectCreateSourceIndex', query: { runtime: 'docker-compose' } });
+
+    await wrapper.get('[data-testid="project-runtime-docker-compose"]').trigger('keydown.space');
+
+    expect(push).toHaveBeenCalledTimes(2);
   });
 });

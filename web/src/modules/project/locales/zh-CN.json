@@ -846,10 +846,7 @@
     "runtime": {
       "eyebrow": "创建应用",
       "description": "选择应用的运行方式。",
-      "status": { "supported": "当前支持", "comingSoon": "即将支持" },
-      "unsupported": "暂不可用",
-      "unsupportedTooltip": "暂不支持，敬请期待",
-      "actions": { "select": "选择运行方式" },
+      "unsupportedTooltip": "暂未支持",
       "items": {
         "dockerCompose": { "title": "Docker Compose", "description": "使用 Docker Compose 管理单机应用。" },
         "dockerSwarm": { "title": "Docker Swarm", "description": "使用 Docker Stack 部署 Swarm 集群应用。" },
