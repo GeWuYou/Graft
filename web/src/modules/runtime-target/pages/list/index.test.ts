@@ -47,14 +47,14 @@ function target(id: number) {
   return {
     id,
     displayName: `Target ${id}`,
-    endpointLabel: `unix:///target-${id}.sock`,
-    availability: true,
-    summary: {
-      containers: { available: true, total: id, running: id, stopped: 0, unavailableReason: '' },
-      images: { available: true, total: id, used: id, unused: 0, unavailableReason: '' },
+    runtime: { provider: 'docker', type: 'container_runtime', version: '27.5.0', apiVersion: '1.46' },
+    connection: { endpoint: `unix:///target-${id}.sock`, kind: 'unix_socket' },
+    health: { status: 'healthy', lastCheckedAt: '2026-07-13T00:00:00Z', diagnostic: '' },
+    resources: {
+      workloads: { available: true, total: id, active: id, unavailableReason: '' },
       cpu: { available: true, usagePercent: id, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
       memory: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
-      disk: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
+      storage: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
     },
   };
 }
@@ -105,27 +105,7 @@ describe('RuntimeTargetListPage', () => {
 
   it('loads paged target overview cards with the shared page-size choices', async () => {
     apiMocks.listRuntimeTargetPage.mockResolvedValue({
-      items: [
-        {
-          id: 7,
-          displayName: 'Local Docker',
-          endpointLabel: 'unix:///var/run/docker.sock',
-          availability: true,
-          summary: {
-            containers: { available: true, total: 12, running: 11, stopped: 1, unavailableReason: '' },
-            images: { available: true, total: 21, used: 10, unused: 11, unavailableReason: '' },
-            cpu: { available: true, usagePercent: 0.5, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
-            memory: {
-              available: false,
-              usagePercent: 0,
-              usedBytes: 0,
-              totalBytes: 0,
-              unavailableReason: 'not supported',
-            },
-            disk: { available: true, usagePercent: 7, usedBytes: 1_024, totalBytes: 2_048, unavailableReason: '' },
-          },
-        },
-      ],
+      items: [target(7)],
       total: 21,
       limit: 10,
       offset: 0,
@@ -155,21 +135,7 @@ describe('RuntimeTargetListPage', () => {
 
   it('patches the current page from a realtime snapshot without reloading the table', async () => {
     apiMocks.listRuntimeTargetPage.mockResolvedValue({
-      items: [
-        {
-          id: 7,
-          displayName: 'Local Docker',
-          endpointLabel: 'unix:///var/run/docker.sock',
-          availability: true,
-          summary: {
-            containers: { available: true, total: 1, running: 1, stopped: 0, unavailableReason: '' },
-            images: { available: true, total: 1, used: 1, unused: 0, unavailableReason: '' },
-            cpu: { available: true, usagePercent: 10, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
-            memory: { available: true, usagePercent: 20, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
-            disk: { available: true, usagePercent: 30, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
-          },
-        },
-      ],
+      items: [target(7)],
       total: 1,
       limit: 10,
       offset: 0,
@@ -181,22 +147,7 @@ describe('RuntimeTargetListPage', () => {
     expect(options?.topic).toBe('runtime-target.summary.list');
     options?.onMessage({
       topic: 'runtime-target.summary.list',
-      items: [
-        {
-          ...apiMocks.listRuntimeTargetPage.mock.results[0]?.value,
-          id: 7,
-          displayName: 'Local Docker',
-          endpointLabel: 'unix:///var/run/docker.sock',
-          availability: true,
-          summary: {
-            containers: { available: true, total: 2, running: 2, stopped: 0, unavailableReason: '' },
-            images: { available: true, total: 1, used: 1, unused: 0, unavailableReason: '' },
-            cpu: { available: true, usagePercent: 25, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
-            memory: { available: true, usagePercent: 40, usedBytes: 40, totalBytes: 100, unavailableReason: '' },
-            disk: { available: true, usagePercent: 30, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
-          },
-        },
-      ],
+      items: [target(7)],
     });
     await flushPromises();
 

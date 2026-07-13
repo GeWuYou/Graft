@@ -617,14 +617,14 @@ const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'template
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
 const runtimeStatusOptions: ProjectRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
 const providerOptions = computed(() =>
-  [...new Set(runtimeTargets.value.map((target) => target.provider))].filter(
+  [...new Set(runtimeTargets.value.map((target) => target.runtime.provider))].filter(
     (provider): provider is ProjectProvider => provider === 'docker',
   ),
 );
 const filteredRuntimeTargets = computed(() =>
   filters.value.provider === 'all'
     ? runtimeTargets.value
-    : runtimeTargets.value.filter((target) => target.provider === filters.value.provider),
+    : runtimeTargets.value.filter((target) => target.runtime.provider === filters.value.provider),
 );
 const selectedSavedView = computed(
   () => savedViews.value.find((view) => view.id === selectedSavedViewId.value) ?? null,
@@ -1376,8 +1376,8 @@ watch(
   () => filters.value.runtimeTargetId,
   (targetId) => {
     const target = runtimeTargets.value.find((item) => item.id === targetId);
-    if (target?.provider === 'docker') {
-      filters.value.provider = target.provider;
+    if (target?.runtime.provider === 'docker') {
+      filters.value.provider = target.runtime.provider;
     }
   },
 );
@@ -1387,7 +1387,7 @@ watch(
   (provider) => {
     if (provider === 'all') return;
     const target = runtimeTargets.value.find((item) => item.id === filters.value.runtimeTargetId);
-    if (target && target.provider !== provider) {
+    if (target && target.runtime.provider !== provider) {
       filters.value.runtimeTargetId = undefined;
     }
   },

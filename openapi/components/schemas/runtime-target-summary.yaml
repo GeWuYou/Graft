@@ -1,13 +1,58 @@
 type: object
-required: [containers, images, cpu, memory, disk]
+required: [id, displayName, runtime, connection, health, resources]
 properties:
-  containers:
-    $ref: ./runtime-target-count-metric.yaml
-  images:
-    $ref: ./runtime-target-image-metric.yaml
-  cpu:
-    $ref: ./runtime-target-usage-metric.yaml
-  memory:
-    $ref: ./runtime-target-usage-metric.yaml
-  disk:
-    $ref: ./runtime-target-usage-metric.yaml
+  id:
+    type: integer
+    format: int64
+  displayName:
+    type: string
+  runtime:
+    type: object
+    required: [provider, type, version, apiVersion]
+    properties:
+      provider:
+        type: string
+        enum: [docker]
+      type:
+        type: string
+        enum: [container_runtime]
+      version:
+        type: string
+      apiVersion:
+        type: string
+  connection:
+    type: object
+    required: [endpoint, kind]
+    properties:
+      endpoint:
+        type: string
+        description: Masked connection endpoint. It never contains credentials.
+      kind:
+        type: string
+        enum: [unix_socket]
+  health:
+    type: object
+    required: [status, lastCheckedAt, diagnostic]
+    properties:
+      status:
+        type: string
+        enum: [healthy, unavailable]
+      lastCheckedAt:
+        type: string
+        format: date-time
+        nullable: true
+      diagnostic:
+        type: string
+        description: Sanitized connection diagnostic; empty when healthy.
+  resources:
+    type: object
+    required: [workloads, cpu, memory, storage]
+    properties:
+      workloads:
+        $ref: ./runtime-target-count-metric.yaml
+      cpu:
+        $ref: ./runtime-target-usage-metric.yaml
+      memory:
+        $ref: ./runtime-target-usage-metric.yaml
+      storage:
+        $ref: ./runtime-target-usage-metric.yaml

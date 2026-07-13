@@ -1,8 +1,7 @@
 type: object
-required: [available, total, running, stopped, unavailableReason]
+required: [available, total, active, unavailableReason]
 properties:
   available: {type: boolean}
   total: {type: integer, format: int64}
-  running: {type: integer, format: int64}
-  stopped: {type: integer, format: int64}
+  active: {type: integer, format: int64}
   unavailableReason: {type: string}

@@ -1,42 +1,51 @@
 {
   "menu": { "runtimeTargets": { "title": "Runtime Targets" } },
   "runtimeTarget": {
-    "route": { "list": { "title": "Runtime Targets" } },
+    "route": { "list": { "title": "Runtime Targets" }, "detail": { "title": "Runtime Target Detail" } },
     "list": {
       "eyebrow": "Infrastructure",
       "title": "Runtime Targets",
-      "description": "Review container, image, and resource summaries for discovered runtime targets.",
-      "refresh": "Refresh Target",
+      "description": "Compare the health and resource capacity of discovered runtime targets.",
       "reload": "Reload",
-      "discoverLocal": "Scan Local Docker",
-      "discoverSuccess": "Local Docker scan completed.",
+      "discoverLocalDocker": "Discover Local Docker",
+      "discoverSuccess": "Local Docker discovery completed.",
+      "discoverError": "Local Docker discovery failed.",
+      "loadError": "Runtime targets could not be loaded.",
       "summary": "{count} Runtime Targets",
       "emptyTitle": "No Runtime Targets",
-      "emptyDescription": "Scan Local Docker, or scan again after Docker becomes available."
+      "emptyDescription": "Discover Local Docker when a local Docker socket is available."
     },
-    "detail": { "title": "Runtime target detail" },
-    "columns": {
-      "name": "Name",
+    "detail": {
+      "title": "Runtime Target Detail",
+      "description": "Review common runtime health, capacity, and provider-specific details.",
+      "refresh": "Refresh Target",
+      "loadError": "Runtime target could not be loaded.",
+      "refreshError": "Runtime target refresh failed.",
+      "notFound": "Runtime target unavailable",
+      "runtimeInformation": "Runtime Information",
+      "resourceOverview": "Resource Overview",
+      "providerDetails": "Provider Details",
       "provider": "Provider",
+      "runtimeType": "Runtime Type",
       "endpoint": "Endpoint",
-      "capabilities": "Capabilities",
-      "connectionKind": "Connection kind",
-      "status": "Availability",
-      "error": "Latest error"
+      "connectionKind": "Connection Kind",
+      "version": "Version",
+      "apiVersion": "API Version",
+      "health": "Health",
+      "lastCheckedAt": "Last Checked"
     },
-    "status": { "available": "Available", "unavailable": "Unavailable" },
+    "columns": { "name": "Name", "provider": "Provider", "health": "Health" },
+    "status": { "healthy": "Healthy", "unavailable": "Unavailable" },
     "metrics": {
-      "containers": "Containers",
-      "images": "Images",
-      "running": "Running",
-      "stopped": "Stopped",
-      "used": "In Use",
-      "unused": "Unused",
-      "cpu": "CPU Usage",
-      "memory": "Memory Usage",
-      "disk": "Disk Usage",
+      "workloads": "Workloads",
+      "active": "Active",
+      "activeCount": "{count} active",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "storage": "Storage",
       "unavailable": "Unavailable",
       "unavailableHint": "This metric cannot be collected right now."
-    }
+    },
+    "providerDetails": { "images": "Images", "volumes": "Volumes", "networks": "Networks" }
   }
 }

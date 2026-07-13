@@ -1,7 +1,8 @@
 import type { WebModuleRegistration } from '@/modules/types';
 
-import { runtimeTargetBootstrapRouteRegistrations } from './bootstrap-routes';
+import { runtimeTargetBootstrapRouteRegistrations, runtimeTargetGlobalRouteRegistrations } from './bootstrap-routes';
 export default {
   moduleId: 'runtime-target',
   bootstrapRoutes: runtimeTargetBootstrapRouteRegistrations,
+  globalRoutes: runtimeTargetGlobalRouteRegistrations,
 } satisfies WebModuleRegistration;

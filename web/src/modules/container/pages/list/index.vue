@@ -443,7 +443,7 @@ onMounted(() => {
 
 async function loadRuntimeTargets() {
   try {
-    runtimeTargets.value = (await listRuntimeTargets()).filter((target) => target.provider === 'docker');
+    runtimeTargets.value = (await listRuntimeTargets()).filter((target) => target.runtime.provider === 'docker');
   } catch {
     runtimeTargets.value = [];
   }

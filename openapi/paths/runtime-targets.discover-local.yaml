@@ -1,7 +1,7 @@
 post:
   tags: [runtime-target]
   summary: Discover or recover Local Docker
-  operationId: postRuntimeTargetsDiscoverLocal
+  operationId: postRuntimeTargetsDiscoverLocalDocker
   security: [{bearerAuth: []}]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

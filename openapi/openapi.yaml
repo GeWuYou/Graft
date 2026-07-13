@@ -263,7 +263,7 @@ paths:
     $ref: ./paths/ops-projects.saved-view.yaml
   /api/runtime-targets:
     $ref: ./paths/runtime-targets.collection.yaml
-  /api/runtime-targets/discover-local:
+  /api/runtime-targets/discover-local-docker:
     $ref: ./paths/runtime-targets.discover-local.yaml
   /api/runtime-targets/{id}:
     $ref: ./paths/runtime-targets.detail.yaml

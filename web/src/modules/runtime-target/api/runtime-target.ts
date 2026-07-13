@@ -1,18 +1,22 @@
 import type { components, paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { RUNTIME_TARGET_API_PATH } from '../contract/paths';
+import { RUNTIME_TARGET_API_PATH, runtimeTargetDetailApiPath, runtimeTargetRefreshApiPath } from '../contract/paths';
 
 type ListOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['LIST']]['get'];
-type DiscoverLocalOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DISCOVER_LOCAL']]['post'];
+type DetailOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DETAIL']]['get'];
+type RefreshOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['REFRESH']]['post'];
+type DiscoverLocalOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DISCOVER_LOCAL_DOCKER']]['post'];
 export type RuntimeTarget = NonNullable<
   ListOperation['responses'][200]['content']['application/json']['data']
 >['items'][number];
 type RuntimeTargetList = NonNullable<ListOperation['responses'][200]['content']['application/json']['data']>;
+export type RuntimeTargetDetail = NonNullable<DetailOperation['responses'][200]['content']['application/json']['data']>;
+type RuntimeTargetRefresh = NonNullable<RefreshOperation['responses'][200]['content']['application/json']['data']>;
 type RuntimeTargetDiscoverLocal = NonNullable<
   DiscoverLocalOperation['responses'][200]['content']['application/json']['data']
 >;
-export type RuntimeTargetMetric = components['schemas']['runtime-target-usage-metric'];
+export type RuntimeTargetUsageMetric = components['schemas']['runtime-target-usage-metric'];
 export type RuntimeTargetPage = RuntimeTargetList;
 
 const runtimeTargetSelectorPageLimit = 100;
@@ -49,5 +53,15 @@ export async function listRuntimeTargetPage(params: { limit: number; offset: num
  * 探测当前服务器的 Local Docker；服务端负责幂等创建或恢复系统管理目标。
  */
 export async function discoverLocalDocker(): Promise<RuntimeTargetDiscoverLocal | null> {
-  return request.post<RuntimeTargetDiscoverLocal | null>({ url: RUNTIME_TARGET_API_PATH.DISCOVER_LOCAL });
+  return request.post<RuntimeTargetDiscoverLocal | null>({ url: RUNTIME_TARGET_API_PATH.DISCOVER_LOCAL_DOCKER });
+}
+
+/** Gets one runtime target with its provider-owned detail projection. */
+export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail> {
+  return request.get<RuntimeTargetDetail>({ url: runtimeTargetDetailApiPath(id) });
+}
+
+/** Refreshes one runtime target and returns its provider-owned detail projection. */
+export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRefresh> {
+  return request.post<RuntimeTargetRefresh>({ url: runtimeTargetRefreshApiPath(id) });
 }

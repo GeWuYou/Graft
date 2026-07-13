@@ -2282,7 +2282,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/runtime-targets/discover-local': {
+  '/api/runtime-targets/discover-local-docker': {
     parameters: {
       query?: never;
       header?: never;
@@ -2292,7 +2292,7 @@ export interface paths {
     get?: never;
     put?: never;
     /** Discover or recover Local Docker */
-    post: operations['postRuntimeTargetsDiscoverLocal'];
+    post: operations['postRuntimeTargetsDiscoverLocalDocker'];
     delete?: never;
     options?: never;
     head?: never;
@@ -6103,19 +6103,7 @@ export interface components {
       /** Format: int64 */
       total: number;
       /** Format: int64 */
-      running: number;
-      /** Format: int64 */
-      stopped: number;
-      unavailableReason: string;
-    };
-    'runtime-target-image-metric': {
-      available: boolean;
-      /** Format: int64 */
-      total: number;
-      /** Format: int64 */
-      used: number;
-      /** Format: int64 */
-      unused: number;
+      active: number;
       unavailableReason: string;
     };
     'runtime-target-usage-metric': {
@@ -6140,32 +6128,40 @@ export interface components {
       unavailableReason: string;
     };
     'runtime-target-summary': {
-      containers: components['schemas']['runtime-target-count-metric'];
-      images: components['schemas']['runtime-target-image-metric'];
-      cpu: components['schemas']['runtime-target-usage-metric'];
-      memory: components['schemas']['runtime-target-usage-metric'];
-      disk: components['schemas']['runtime-target-usage-metric'];
-    };
-    'runtime-target': {
       /** Format: int64 */
       id: number;
-      /** @example docker */
-      provider: string;
       displayName: string;
-      /** @description Masked connection endpoint label. It never contains credentials. */
-      endpointLabel: string;
-      /** @example unix_socket */
-      connectionKind: string;
-      capabilities: string[];
-      availability: boolean;
-      /** Format: date-time */
-      lastCheckedAt?: string | null;
-      /** @description Sanitized latest probe diagnostic. */
-      lastError: string;
-      summary: components['schemas']['runtime-target-summary'];
+      runtime: {
+        /** @enum {string} */
+        provider: 'docker';
+        /** @enum {string} */
+        type: 'container_runtime';
+        version: string;
+        apiVersion: string;
+      };
+      connection: {
+        /** @description Masked connection endpoint. It never contains credentials. */
+        endpoint: string;
+        /** @enum {string} */
+        kind: 'unix_socket';
+      };
+      health: {
+        /** @enum {string} */
+        status: 'healthy' | 'unavailable';
+        /** Format: date-time */
+        lastCheckedAt: string | null;
+        /** @description Sanitized connection diagnostic; empty when healthy. */
+        diagnostic: string;
+      };
+      resources: {
+        workloads: components['schemas']['runtime-target-count-metric'];
+        cpu: components['schemas']['runtime-target-usage-metric'];
+        memory: components['schemas']['runtime-target-usage-metric'];
+        storage: components['schemas']['runtime-target-usage-metric'];
+      };
     };
     'runtime-target-list-response': {
-      items: components['schemas']['runtime-target'][];
+      items: components['schemas']['runtime-target-summary'][];
       /** Format: int64 */
       total: number;
       limit: number;
@@ -6173,6 +6169,24 @@ export interface components {
     };
     'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-list-response'];
+    };
+    'runtime-target': components['schemas']['runtime-target-summary'] & {
+      /** @description Provider-specific typed extension selected by the provider discriminator. */
+      providerDetails: {
+        /** @enum {string} */
+        provider: 'docker';
+        docker: {
+          images: components['schemas']['runtime-target-image-metric'];
+          volumes: components['schemas']['runtime-target-image-metric'];
+          networks: components['schemas']['runtime-target-image-metric'];
+        };
+      };
+    };
+    'runtime-target-image-metric': {
+      available: boolean;
+      /** Format: int64 */
+      total: number;
+      unavailableReason: string;
     };
     'enveloped-runtime-target-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target'];
@@ -13466,7 +13480,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postRuntimeTargetsDiscoverLocal: {
+  postRuntimeTargetsDiscoverLocalDocker: {
     parameters: {
       query?: never;
       header?: {

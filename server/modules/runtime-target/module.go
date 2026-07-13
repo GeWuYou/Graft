@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	containerdi "graft/server/internal/container"
@@ -64,7 +65,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
-	ctx.Router.POST("/runtime-targets/discover-local", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
+	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
 	return nil
@@ -187,9 +188,9 @@ func (m *Module) handleList(c *gin.Context) {
 		httpx.AbortLocalizedError(c, nil, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return
 	}
-	mapped := make([]generated.RuntimeTarget, 0, len(page.Items))
+	mapped := make([]generated.RuntimeTargetSummary, 0, len(page.Items))
 	for _, item := range page.Items {
-		mapped = append(mapped, m.toHTTP(c.Request.Context(), item))
+		mapped = append(mapped, m.toHTTPSummary(c.Request.Context(), item))
 	}
 	httpx.WriteSuccess(c, http.StatusOK, generated.RuntimeTargetListResponse{Items: mapped, Total: page.Total, Limit: limit, Offset: offset})
 }
@@ -283,58 +284,79 @@ func (m *Module) readTarget(c *gin.Context) (store.Target, bool) {
 	return target, true
 }
 
-// toHTTP converts a stored runtime target to its HTTP response representation.
-// It returns an empty response when the target ID cannot be represented safely.
+func (m *Module) snapshot(ctx context.Context, target store.Target) targetRuntimeSummary {
+	if m == nil || m.summaries == nil {
+		return unavailableTargetSummary("Runtime target is unavailable", time.Now().UTC())
+	}
+	return m.summaries.get(ctx, target)
+}
+
+func (m *Module) toHTTPSummary(ctx context.Context, target store.Target) generated.RuntimeTargetSummary {
+	if target.ID > maxRuntimeTargetID {
+		return generated.RuntimeTargetSummary{}
+	}
+	snapshot := m.snapshot(ctx, target)
+	checkedAt := snapshot.CheckedAt
+	response := generated.RuntimeTargetSummary{Id: int64(target.ID), DisplayName: target.DisplayName}
+	response.Runtime.Provider = generated.RuntimeTargetSummaryRuntimeProviderDocker
+	response.Runtime.Type = generated.RuntimeTargetSummaryRuntimeTypeContainerRuntime
+	response.Runtime.Version = snapshot.Version
+	response.Runtime.ApiVersion = snapshot.APIVersion
+	response.Connection.Endpoint = target.EndpointLabel
+	response.Connection.Kind = generated.RuntimeTargetSummaryConnectionKindUnixSocket
+	response.Health.LastCheckedAt = &checkedAt
+	response.Health.Diagnostic = snapshot.Diagnostic
+	response.Health.Status = generated.RuntimeTargetSummaryHealthStatusUnavailable
+	if snapshot.Healthy {
+		response.Health.Status = generated.RuntimeTargetSummaryHealthStatusHealthy
+	}
+	response.Resources.Workloads = toHTTPCountMetric(snapshot.Workloads)
+	response.Resources.Cpu = toHTTPUsageMetric(snapshot.CPU)
+	response.Resources.Memory = toHTTPUsageMetric(snapshot.Memory)
+	response.Resources.Storage = toHTTPUsageMetric(snapshot.Disk)
+	return response
+}
+
 func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.RuntimeTarget {
 	if target.ID > maxRuntimeTargetID {
 		return generated.RuntimeTarget{}
 	}
-	summary := unavailableTargetSummary("Docker target is unavailable")
-	if m != nil && m.summaries != nil {
-		summary = m.summaries.get(ctx, target)
+	snapshot := m.snapshot(ctx, target)
+	checkedAt := snapshot.CheckedAt
+	response := generated.RuntimeTarget{Id: int64(target.ID), DisplayName: target.DisplayName}
+	response.Runtime.Provider = generated.RuntimeTargetRuntimeProviderDocker
+	response.Runtime.Type = generated.RuntimeTargetRuntimeTypeContainerRuntime
+	response.Runtime.Version = snapshot.Version
+	response.Runtime.ApiVersion = snapshot.APIVersion
+	response.Connection.Endpoint = target.EndpointLabel
+	response.Connection.Kind = generated.RuntimeTargetConnectionKindUnixSocket
+	response.Health.LastCheckedAt = &checkedAt
+	response.Health.Diagnostic = snapshot.Diagnostic
+	response.Health.Status = generated.RuntimeTargetHealthStatusUnavailable
+	if snapshot.Healthy {
+		response.Health.Status = generated.RuntimeTargetHealthStatusHealthy
 	}
-	return generated.RuntimeTarget{Id: int64(target.ID), Provider: target.Provider, DisplayName: target.DisplayName, EndpointLabel: target.EndpointLabel, ConnectionKind: target.ConnectionKind, Capabilities: target.Capabilities, Availability: target.Availability, LastError: target.LastError, LastCheckedAt: target.CheckedAt, Summary: toHTTPSummary(summary)}
+	response.Resources.Workloads = toHTTPCountMetric(snapshot.Workloads)
+	response.Resources.Cpu = toHTTPUsageMetric(snapshot.CPU)
+	response.Resources.Memory = toHTTPUsageMetric(snapshot.Memory)
+	response.Resources.Storage = toHTTPUsageMetric(snapshot.Disk)
+	response.ProviderDetails.Provider = generated.RuntimeTargetProviderDetailsProviderDocker
+	response.ProviderDetails.Docker.Images = toHTTPProviderCountMetric(snapshot.Images)
+	response.ProviderDetails.Docker.Volumes = toHTTPProviderCountMetric(snapshot.Volumes)
+	response.ProviderDetails.Docker.Networks = toHTTPProviderCountMetric(snapshot.Networks)
+	return response
 }
 
-// toHTTPSummary converts a runtime target summary to its HTTP response representation.
-func toHTTPSummary(summary targetRuntimeSummary) generated.RuntimeTargetSummary {
-	return generated.RuntimeTargetSummary{
-		Containers: generated.RuntimeTargetCountMetric{
-			Available:         summary.Containers.Available,
-			Total:             summary.Containers.Total,
-			Running:           summary.Containers.Running,
-			Stopped:           summary.Containers.Stopped,
-			UnavailableReason: summary.Containers.UnavailableReason,
-		},
-		Images: generated.RuntimeTargetImageMetric{
-			Available:         summary.Images.Available,
-			Total:             summary.Images.Total,
-			Used:              summary.Images.Used,
-			Unused:            summary.Images.Unused,
-			UnavailableReason: summary.Images.UnavailableReason,
-		},
-		Cpu: generated.RuntimeTargetUsageMetric{
-			Available:         summary.CPU.Available,
-			UsedBytes:         summary.CPU.UsedBytes,
-			TotalBytes:        summary.CPU.TotalBytes,
-			UsagePercent:      summary.CPU.UsagePercent,
-			UnavailableReason: summary.CPU.UnavailableReason,
-		},
-		Memory: generated.RuntimeTargetUsageMetric{
-			Available:         summary.Memory.Available,
-			UsedBytes:         summary.Memory.UsedBytes,
-			TotalBytes:        summary.Memory.TotalBytes,
-			UsagePercent:      summary.Memory.UsagePercent,
-			UnavailableReason: summary.Memory.UnavailableReason,
-		},
-		Disk: generated.RuntimeTargetUsageMetric{
-			Available:         summary.Disk.Available,
-			UsedBytes:         summary.Disk.UsedBytes,
-			TotalBytes:        summary.Disk.TotalBytes,
-			UsagePercent:      summary.Disk.UsagePercent,
-			UnavailableReason: summary.Disk.UnavailableReason,
-		},
-	}
+func toHTTPCountMetric(metric targetCountMetric) generated.RuntimeTargetCountMetric {
+	return generated.RuntimeTargetCountMetric{Available: metric.Available, Total: metric.Total, Active: metric.Active, UnavailableReason: metric.UnavailableReason}
+}
+
+func toHTTPProviderCountMetric(metric targetImageMetric) generated.RuntimeTargetImageMetric {
+	return generated.RuntimeTargetImageMetric{Available: metric.Available, Total: metric.Total, UnavailableReason: metric.UnavailableReason}
+}
+
+func toHTTPUsageMetric(metric targetUsageMetric) generated.RuntimeTargetUsageMetric {
+	return generated.RuntimeTargetUsageMetric{Available: metric.Available, UsedBytes: metric.UsedBytes, TotalBytes: metric.TotalBytes, UsagePercent: metric.UsagePercent, UnavailableReason: metric.UnavailableReason}
 }
 
 func (m *Module) publishRefreshAudit(ctx context.Context, moduleCtx *module.Context, target store.Target, refreshErr error) {

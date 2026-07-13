@@ -1,4 +1,4 @@
-import type { BootstrapRouteRegistration } from '@/modules/types';
+import type { BootstrapRouteRegistration, GlobalRouteRegistration } from '@/modules/types';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import { RUNTIME_TARGET_BOOTSTRAP_ROUTE } from './contract/bootstrap';
@@ -12,6 +12,28 @@ export const runtimeTargetBootstrapRouteRegistrations: BootstrapRouteRegistratio
       semanticTitle: localizeRouteTitleKey('runtimeTarget.route.list.title'),
       breadcrumbTitle: localizeRouteTitleKey('runtimeTarget.route.list.title'),
       tabGroup: 'infrastructure',
+    },
+  },
+];
+
+export const runtimeTargetGlobalRouteRegistrations: GlobalRouteRegistration[] = [
+  {
+    ...RUNTIME_TARGET_BOOTSTRAP_ROUTE.DETAIL,
+    navigationParentPath: RUNTIME_TARGET_BOOTSTRAP_ROUTE.LIST.menuPath,
+    loadPage: () => import('./pages/detail/index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: false,
+      pageKind: 'detail',
+      pageSurface: 'overview-dashboard',
+      semanticTitle: localizeRouteTitleKey('runtimeTarget.route.detail.title'),
+      breadcrumbTitle: localizeRouteTitleKey('runtimeTarget.route.detail.title'),
+      domainTitle: localizeRouteTitleKey('runtimeTarget.route.list.title'),
+      tabGroup: 'infrastructure',
+      tabTitle: localizeRouteTitleKey('runtimeTarget.route.detail.title'),
+      title: localizeRouteTitleKey('runtimeTarget.route.detail.title'),
+      titleKey: 'runtimeTarget.route.detail.title',
     },
   },
 ];
