@@ -1,15 +1,16 @@
 schema_version: 1
-updated_at: "2026-07-12"
+updated_at: "2026-07-13"
 assets:
   - name: "management-components"
     type: "frontend-component-suite"
     path: "web/src/shared/components/management"
     owner: "web/shared"
-    purpose: "Reusable management page table surfaces, pagination, action menus, column helpers, and compact timestamp helpers."
+    purpose: "Reusable management page table surfaces, pagination, action menus, column helpers, and compact timestamp helpers. Management pagination uses page sizes 10, 20, 50, and 100 only."
     use_when:
       - "Building module management list pages with TDesign tables, actions, or pagination."
     do_not_use_when:
       - "The surface is not a management/list page or carries module-private business semantics."
+      - "Defining a module-private pagination control or inconsistent page-size option array; reuse ManagementTablePagination or ManagementPagedTable."
     examples:
       - "web/src/modules/user/pages/index.vue"
       - "web/src/modules/rbac/pages/index.vue"
@@ -111,7 +112,7 @@ assets:
     type: "frontend-component-suite"
     path: "web/src/shared/components/metrics"
     owner: "web/shared"
-    purpose: "Reusable compact metric cards for resource snapshots and operational status summaries."
+    purpose: "Reusable compact metric cards and realtime resource meters for resource snapshots and operational status summaries."
     use_when:
       - "Building module pages that need token-driven CPU, memory, status, or other compact operational metric summaries."
     do_not_use_when:

@@ -50,6 +50,7 @@ closeout:
 - [x] ia-aligned-route-authority-and-skill
 - [x] ia-aligned-server-menu-contract
 - [x] ia-aligned-web-route-migration
+- [x] metadata-driven-sidebar-navigation-refinement
 - [ ] ia-aligned-cross-boundary-validation
 
 ## Acceptance Conditions
@@ -63,7 +64,7 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation", "ia-aligned-route-authority-and-skill", "ia-aligned-server-menu-contract", "ia-aligned-web-route-migration"],
+  "completed_batches": ["navigation-design-topic-and-skill", "backend-navigation-contract", "frontend-navigation-route-migration", "cross-boundary-validation-closeout", "web-hygiene-and-final-validation", "ia-aligned-route-authority-and-skill", "ia-aligned-server-menu-contract", "ia-aligned-web-route-migration", "metadata-driven-sidebar-navigation-refinement"],
   "pending_batches": ["ia-aligned-cross-boundary-validation"],
   "current_batch": "ia-aligned-cross-boundary-validation",
   "next_batch": "ia-aligned-cross-boundary-validation",

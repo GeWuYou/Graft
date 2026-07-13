@@ -1,4 +1,6 @@
-import type { MenuRoute } from '@/utils/types';
+import type { AppRouteMeta, MenuRoute } from '@/utils/types';
+
+export type SidebarMotionMode = NonNullable<AppRouteMeta['sidebarMotion']>;
 
 export type SidebarMotionPhase =
   | 'expanded'
@@ -9,6 +11,22 @@ export type SidebarMotionPhase =
   | 'expanding-width'
   | 'expanding-topmenu'
   | 'expanding-submenu';
+
+/**
+ * 根据页面元数据解析侧边栏动效模式。
+ *
+ * @param meta - 页面路由元数据
+ * @returns 配置的动效模式；列表页且页面表面类型适用时返回 `wide-table`，否则返回 `default`
+ */
+export function resolveSidebarMotionMode(meta?: AppRouteMeta): SidebarMotionMode {
+  if (meta?.sidebarMotion) {
+    return meta.sidebarMotion;
+  }
+
+  return meta?.pageKind === 'list' && (meta.pageSurface === undefined || meta.pageSurface === 'paged-table')
+    ? 'wide-table'
+    : 'default';
+}
 
 /**
  * 将混合布局的顶级菜单转换为扁平化导航菜单。
@@ -27,6 +45,31 @@ export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
       single: true,
     },
   }));
+}
+
+/**
+ * 选择混合布局侧边栏中包含当前路由的顶级菜单分支。
+ *
+ * @param menus - 顶级菜单列表
+ * @param activePath - 当前激活路由路径
+ * @returns 仅包含匹配分支且将其标记为展开的菜单列表；未找到匹配分支时返回原菜单列表
+ */
+export function selectMixSidebarMenu(menus: MenuRoute[], activePath: string): MenuRoute[] {
+  const activeMenu = menus.find((menu) => menu.children?.length && menuContainsActivePath(menu, activePath));
+
+  if (!activeMenu) {
+    return menus;
+  }
+
+  return [
+    {
+      ...activeMenu,
+      meta: {
+        ...activeMenu.meta,
+        expanded: true,
+      },
+    },
+  ];
 }
 
 /**
@@ -117,6 +160,37 @@ function findExpandedMenuMatch(
   return { matched: false, expandedPaths: [] };
 }
 
+/**
+ * 判断菜单项或其可见子菜单是否包含当前激活路径。
+ *
+ * @param menu - 要检查的菜单项
+ * @param activePath - 当前激活的路由路径
+ * @param parentPath - 父级菜单的路径
+ * @returns 如果激活路径对应菜单项或其子路径则为 `true`，否则为 `false`
+ */
+function menuContainsActivePath(menu: MenuRoute, activePath: string, parentPath = ''): boolean {
+  if (!activePath || menu.meta?.hidden === true) {
+    return false;
+  }
+
+  const fullPath = normalizeMenuPath(parentPath, menu.path);
+  const visibleChildren = (menu.children ?? []).filter((child) => child.meta?.hidden !== true);
+
+  if (visibleChildren.some((child) => menuContainsActivePath(child, activePath, fullPath))) {
+    return true;
+  }
+
+  const targetPath = resolveMenuNavigationPath(menu, parentPath);
+  return activePath === targetPath || activePath.startsWith(`${targetPath}/`);
+}
+
+/**
+ * 根据父级路径和路由路径生成规范化的菜单路径。
+ *
+ * @param parentPath - 父级菜单路径
+ * @param routePath - 当前菜单的路由路径
+ * @returns 规范化后的绝对菜单路径
+ */
 function normalizeMenuPath(parentPath: string, routePath: string) {
   if (!routePath) {
     return parentPath || '/';

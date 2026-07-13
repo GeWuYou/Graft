@@ -61,6 +61,42 @@ describe('useGlobalMenuSearch helpers', () => {
     ]);
   });
 
+  it('uses a bootstrap menu entry canonical target instead of its internal menu code path', () => {
+    const routes = [
+      createRoute({
+        path: 'domain.application',
+        meta: {
+          navigationTargetPath: '/applications/projects',
+          title: { 'zh-CN': '应用', 'en-US': 'Applications' },
+        },
+        children: [
+          createRoute({
+            name: 'ProjectList',
+            path: 'project.list',
+            meta: {
+              navigationTargetPath: '/applications/projects',
+              title: { 'zh-CN': '应用管理', 'en-US': 'Application Management' },
+              titleKey: 'menu.project.title',
+            },
+          }),
+        ],
+      }),
+    ];
+
+    const index = buildGlobalMenuSearchIndex(routes, { locale: 'zh-CN' });
+
+    expect(index).toEqual([
+      expect.objectContaining({
+        navigationPath: '/applications/projects',
+        parentTitles: ['应用'],
+        path: '/applications/projects',
+        title: '应用管理',
+      }),
+    ]);
+    expect(index[0]?.path).not.toContain('domain.application');
+    expect(index[0]?.path).not.toContain('project.list');
+  });
+
   it('filters empty-path groups and hidden menu routes', () => {
     const routes = [
       createRoute({

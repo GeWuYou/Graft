@@ -3,10 +3,16 @@
   "runtimeTarget": {
     "route": { "list": { "title": "运行目标" } },
     "list": {
+      "eyebrow": "基础设施",
       "title": "运行目标",
-      "description": "管理已发现的运行时连接与能力状态。",
+      "description": "查看已发现运行目标的容器、镜像与资源使用摘要。",
       "refresh": "刷新目标",
-      "reload": "重新加载"
+      "reload": "重新加载",
+      "discoverLocal": "扫描本机 Docker",
+      "discoverSuccess": "本机 Docker 扫描完成。",
+      "summary": "共 {count} 个运行目标",
+      "emptyTitle": "暂无运行目标",
+      "emptyDescription": "扫描本机 Docker，或在 Docker 可用后重新扫描。"
     },
     "detail": { "title": "运行目标详情" },
     "columns": {
@@ -16,9 +22,21 @@
       "capabilities": "能力",
       "connectionKind": "连接方式",
       "status": "可用性",
-      "checkedAt": "最后检查",
       "error": "最近错误"
     },
-    "status": { "available": "可用", "unavailable": "不可用" }
+    "status": { "available": "可用", "unavailable": "不可用" },
+    "metrics": {
+      "containers": "容器",
+      "images": "镜像",
+      "running": "运行中",
+      "stopped": "已停止",
+      "used": "在使用",
+      "unused": "未使用",
+      "cpu": "CPU 使用率",
+      "memory": "内存使用率",
+      "disk": "磁盘使用率",
+      "unavailable": "暂不可用",
+      "unavailableHint": "当前无法采集此指标。"
+    }
   }
 }

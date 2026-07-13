@@ -1,24 +1,18 @@
-get:
+post:
   tags: [runtime-target]
-  summary: List runtime targets
-  operationId: getRuntimeTargets
+  summary: Discover or recover Local Docker
+  operationId: postRuntimeTargetsDiscoverLocal
   security: [{bearerAuth: []}]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - name: limit
-      in: query
-      schema: {type: integer, enum: [10, 20, 50, 100], default: 10}
-    - name: offset
-      in: query
-      schema: {type: integer, minimum: 0, default: 0}
   responses:
     '200':
-      description: Runtime target list.
+      description: Local Docker discovery completed. Data is null when no local Docker socket exists.
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-runtime-target-list-response.yaml
+            $ref: ../components/schemas/enveloped-runtime-target-response.yaml
     '401': {$ref: ../components/responses/unauthorized.yaml}
     '403': {$ref: ../components/responses/forbidden.yaml}
     '500': {$ref: ../components/responses/internal-server-error.yaml}

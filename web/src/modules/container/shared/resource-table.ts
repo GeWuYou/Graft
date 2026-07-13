@@ -27,9 +27,9 @@ export type ContainerResourceRowAction = {
 
 export type ContainerResourceMetric = {
   available: boolean;
+  change: 'up' | 'down' | 'none';
   changeClass: Record<string, boolean>;
   percentage: number;
-  progressStatus: 'success' | 'warning' | undefined;
   tooltip: string;
   value: string;
 };

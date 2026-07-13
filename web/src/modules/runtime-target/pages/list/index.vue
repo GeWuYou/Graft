@@ -1,97 +1,309 @@
 <template>
   <div class="runtime-target-page" data-page-type="list-form-detail">
-    <management-page-header :title="t('runtimeTarget.list.title')" :description="t('runtimeTarget.list.description')" />
-    <management-toolbar
-      ><template #filters
-        ><t-button theme="default" :loading="loading" @click="load">{{
-          t('runtimeTarget.list.reload')
-        }}</t-button></template
-      ></management-toolbar
-    >
-    <t-table row-key="id" :data="items" :columns="columns" :loading="loading" @row-click="openDetail" />
-    <t-drawer
-      v-model:visible="drawerVisible"
-      :header="selected?.displayName ?? t('runtimeTarget.detail.title')"
-      size="480px"
-    >
-      <t-descriptions v-if="selected" bordered :column="1">
-        <t-descriptions-item :label="t('runtimeTarget.columns.provider')">{{ selected.provider }}</t-descriptions-item>
-        <t-descriptions-item :label="t('runtimeTarget.columns.endpoint')">{{
-          selected.endpointLabel
-        }}</t-descriptions-item>
-        <t-descriptions-item :label="t('runtimeTarget.columns.capabilities')">{{
-          selected.capabilities.join(', ') || '-'
-        }}</t-descriptions-item>
-        <t-descriptions-item :label="t('runtimeTarget.columns.status')">{{
-          availabilityText(selected.availability)
-        }}</t-descriptions-item>
-        <t-descriptions-item :label="t('runtimeTarget.columns.checkedAt')">{{
-          selected.lastCheckedAt || '-'
-        }}</t-descriptions-item>
-        <t-descriptions-item :label="t('runtimeTarget.columns.error')">{{
-          selected.lastError || '-'
-        }}</t-descriptions-item>
-      </t-descriptions>
-      <template #footer
-        ><t-button theme="primary" :loading="refreshing" @click="refreshSelected">{{
-          t('runtimeTarget.list.refresh')
-        }}</t-button></template
+    <management-page-content>
+      <management-page-header
+        :source="{ labelKey: 'runtimeTarget.list.eyebrow', fallback: t('runtimeTarget.list.eyebrow') }"
+        :title="t('runtimeTarget.list.title')"
+        :description="t('runtimeTarget.list.description')"
       >
-    </t-drawer>
+        <template #actions>
+          <t-button
+            theme="default"
+            variant="outline"
+            :loading="discovering"
+            data-testid="runtime-target-discover-local"
+            @click="discoverLocal"
+          >
+            <template #icon><search-icon /></template>{{ t('runtimeTarget.list.discoverLocal') }}
+          </t-button>
+          <t-button theme="primary" variant="outline" :loading="loading" @click="load">
+            <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
+          </t-button>
+        </template>
+      </management-page-header>
+      <management-table-card :description="t('runtimeTarget.list.summary', { count: total })">
+        <template #toolbar>
+          <t-button theme="default" variant="text" :loading="loading" @click="load"
+            ><template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}</t-button
+          >
+        </template>
+        <t-table row-key="id" :data="items" :columns="tableColumns" :loading="loading">
+          <template #empty>
+            <t-empty
+              :title="t('runtimeTarget.list.emptyTitle')"
+              :description="t('runtimeTarget.list.emptyDescription')"
+            >
+              <template #action
+                ><t-button theme="primary" :loading="discovering" @click="discoverLocal">{{
+                  t('runtimeTarget.list.discoverLocal')
+                }}</t-button></template
+              >
+            </t-empty>
+          </template>
+        </t-table>
+        <template #footer>
+          <management-table-pagination :summary="t('runtimeTarget.list.summary', { count: total })">
+            <t-pagination
+              v-model:current="pagination.current"
+              v-model:page-size="pagination.pageSize"
+              :total="total"
+              :page-size-options="[10, 20, 50, 100]"
+              :show-page-number="true"
+              @change="load"
+            />
+          </management-table-pagination>
+        </template>
+      </management-table-card>
+    </management-page-content>
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import type { PrimaryTableCol } from 'tdesign-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, resolveComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
-  getRuntimeTarget,
-  listRuntimeTargets,
-  refreshRuntimeTarget,
+  ManagementPageContent,
+  ManagementPageHeader,
+  ManagementTableCard,
+  ManagementTablePagination,
+} from '@/shared/components/management';
+import { RealtimeResourceMetricCell } from '@/shared/components/metrics';
+import { formatBytes } from '@/shared/observability';
+import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+
+import {
+  discoverLocalDocker,
+  listRuntimeTargetPage,
   type RuntimeTarget,
+  type RuntimeTargetMetric,
 } from '../../api/runtime-target';
+import { parseRuntimeTargetSummaryPayload, RUNTIME_TARGET_REALTIME_TOPIC } from '../../contract/realtime';
+
+type Change = 'up' | 'down' | 'none';
+type MetricChanges = Record<'cpu' | 'memory' | 'disk', Change>;
 const { t } = useI18n();
 const loading = ref(false);
-const refreshing = ref(false);
+const discovering = ref(false);
 const items = ref<RuntimeTarget[]>([]);
-const selected = ref<RuntimeTarget | null>(null);
-const drawerVisible = ref(false);
-const columns = computed(() => [
-  { colKey: 'displayName', title: t('runtimeTarget.columns.name') },
-  { colKey: 'provider', title: t('runtimeTarget.columns.provider') },
-  { colKey: 'endpointLabel', title: t('runtimeTarget.columns.endpoint') },
-  { colKey: 'connectionKind', title: t('runtimeTarget.columns.connectionKind') },
-  { colKey: 'availability', title: t('runtimeTarget.columns.status') },
-  { colKey: 'lastCheckedAt', title: t('runtimeTarget.columns.checkedAt') },
+const total = ref(0);
+const pagination = reactive({ current: 1, pageSize: 10 });
+const changes = ref<Record<number, MetricChanges>>({});
+const active = ref(false);
+let realtimeController: RealtimeTopicSocketController | null = null;
+const changeTimers = new Map<number, number>();
+
+function metricText(metric: RuntimeTargetMetric) {
+  if (!metric.available) return t('runtimeTarget.metrics.unavailable');
+  const percent = `${metric.usagePercent.toFixed(1)}%`;
+  return metric.totalBytes > 0
+    ? `${percent} · ${formatBytes(metric.usedBytes)} / ${formatBytes(metric.totalBytes)}`
+    : percent;
+}
+function changeFor(id: number, metric: keyof MetricChanges) {
+  return changes.value[id]?.[metric] ?? 'none';
+}
+function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTargetMetric) {
+  const percentage = Math.max(0, Math.min(100, value.usagePercent));
+  return h(RealtimeResourceMetricCell, {
+    available: value.available,
+    change: changeFor(id, metric),
+    percentage,
+    tooltip: value.available
+      ? metricText(value)
+      : value.unavailableReason || t('runtimeTarget.metrics.unavailableHint'),
+    value: value.available ? `${percentage.toFixed(1)}%` : t('runtimeTarget.metrics.unavailable'),
+  });
+}
+function countCell(totalValue: number, details: Array<[string, number]>) {
+  return h('div', { class: 'runtime-target-counts' }, [
+    h('strong', totalValue),
+    ...details.map(([label, value]) => h('span', [h('small', label), h('b', value)])),
+  ]);
+}
+const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
+  {
+    colKey: 'displayName',
+    title: t('runtimeTarget.columns.name'),
+    minWidth: 230,
+    cell: (_h, { row }) =>
+      h('div', { class: 'runtime-target-identity' }, [h('strong', row.displayName), h('small', row.endpointLabel)]),
+  },
+  {
+    colKey: 'availability',
+    title: t('runtimeTarget.columns.status'),
+    width: 110,
+    cell: (_h, { row }) =>
+      h(resolveComponent('t-tag'), { theme: row.availability ? 'success' : 'danger', variant: 'light' }, () =>
+        row.availability ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable'),
+      ),
+  },
+  {
+    colKey: 'containers',
+    title: t('runtimeTarget.metrics.containers'),
+    width: 150,
+    cell: (_h, { row }) =>
+      countCell(row.summary.containers.total, [
+        [t('runtimeTarget.metrics.running'), row.summary.containers.running],
+        [t('runtimeTarget.metrics.stopped'), row.summary.containers.stopped],
+      ]),
+  },
+  {
+    colKey: 'images',
+    title: t('runtimeTarget.metrics.images'),
+    width: 150,
+    cell: (_h, { row }) =>
+      countCell(row.summary.images.total, [
+        [t('runtimeTarget.metrics.used'), row.summary.images.used],
+        [t('runtimeTarget.metrics.unused'), row.summary.images.unused],
+      ]),
+  },
+  {
+    colKey: 'cpu',
+    title: t('runtimeTarget.metrics.cpu'),
+    width: 142,
+    cell: (_h, { row }) => metricCell(row.id, 'cpu', row.summary.cpu),
+  },
+  {
+    colKey: 'memory',
+    title: t('runtimeTarget.metrics.memory'),
+    width: 142,
+    cell: (_h, { row }) => metricCell(row.id, 'memory', row.summary.memory),
+  },
+  {
+    colKey: 'disk',
+    title: t('runtimeTarget.metrics.disk'),
+    width: 142,
+    cell: (_h, { row }) => metricCell(row.id, 'disk', row.summary.disk),
+  },
 ]);
-function availabilityText(value: boolean) {
-  return value ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable');
+
+// TDesign's template component defaults its row generic to TableRowData.
+const tableColumns = columns as unknown as PrimaryTableCol[];
+
+function compare(previous: number, next: number): Change {
+  return next > previous ? 'up' : next < previous ? 'down' : 'none';
+}
+function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
+  const nextByID = new Map(nextItems.map((item) => [item.id, item]));
+  items.value = nextItems.map((next) => {
+    const current = items.value.find((item) => item.id === next.id);
+    if (!current) return next;
+    const nextChanges: MetricChanges = {
+      cpu: compare(current.summary.cpu.usagePercent, next.summary.cpu.usagePercent),
+      memory: compare(current.summary.memory.usagePercent, next.summary.memory.usagePercent),
+      disk: compare(current.summary.disk.usagePercent, next.summary.disk.usagePercent),
+    };
+    if (Object.values(nextChanges).some((value) => value !== 'none')) {
+      changes.value = { ...changes.value, [current.id]: nextChanges };
+      const oldTimer = changeTimers.get(current.id);
+      if (oldTimer) window.clearTimeout(oldTimer);
+      changeTimers.set(
+        current.id,
+        window.setTimeout(() => {
+          const { [current.id]: _, ...rest } = changes.value;
+          changes.value = rest;
+        }, 800),
+      );
+    }
+    return next;
+  });
+  changes.value = Object.fromEntries(
+    Object.entries(changes.value).filter(([id]) => nextByID.has(Number(id))),
+  ) as Record<number, MetricChanges>;
+}
+function applyRealtime(itemsUpdate: RuntimeTarget[]) {
+  const offset = (pagination.current - 1) * pagination.pageSize;
+  if (offset >= itemsUpdate.length) return;
+  total.value = Math.max(total.value, itemsUpdate.length);
+  reconcileRealtimePage(itemsUpdate.slice(offset, offset + pagination.pageSize));
+}
+function startRealtime() {
+  if (!active.value || realtimeController) return;
+  realtimeController = openRealtimeTopicSocket({
+    topic: RUNTIME_TARGET_REALTIME_TOPIC,
+    parseMessage: parseRuntimeTargetSummaryPayload,
+    onMessage: (payload) => applyRealtime(payload.items),
+  });
+}
+function stopRealtime() {
+  realtimeController?.close();
+  realtimeController = null;
 }
 async function load() {
   loading.value = true;
   try {
-    items.value = await listRuntimeTargets();
+    const page = await listRuntimeTargetPage({
+      limit: pagination.pageSize,
+      offset: (pagination.current - 1) * pagination.pageSize,
+    });
+    items.value = page.items;
+    total.value = page.total;
+    startRealtime();
   } finally {
     loading.value = false;
   }
 }
-async function openDetail(context: { row: unknown }) {
-  const row = context.row as RuntimeTarget;
-  selected.value = (await getRuntimeTarget(row.id)) ?? row;
-  drawerVisible.value = true;
-}
-async function refreshSelected() {
-  if (!selected.value) return;
-  refreshing.value = true;
+async function discoverLocal() {
+  discovering.value = true;
   try {
-    const refreshed = await refreshRuntimeTarget(selected.value.id);
-    if (refreshed) {
-      selected.value = refreshed;
-      await load();
-    }
+    await discoverLocalDocker();
+    pagination.current = 1;
+    await load();
+    MessagePlugin.success(t('runtimeTarget.list.discoverSuccess'));
   } finally {
-    refreshing.value = false;
+    discovering.value = false;
   }
 }
-onMounted(load);
+onMounted(() => {
+  active.value = true;
+  void load();
+});
+onActivated(() => {
+  active.value = true;
+  startRealtime();
+});
+onDeactivated(() => {
+  active.value = false;
+  stopRealtime();
+});
+onUnmounted(() => {
+  stopRealtime();
+  changeTimers.forEach((timer) => window.clearTimeout(timer));
+});
 </script>
+<style scoped lang="less">
+:deep(.runtime-target-identity),
+:deep(.runtime-target-counts) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+}
+
+:deep(.runtime-target-identity strong),
+:deep(.runtime-target-counts strong) {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+:deep(.runtime-target-identity small),
+:deep(.runtime-target-counts small) {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  overflow-wrap: anywhere;
+}
+
+:deep(.runtime-target-counts span) {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-6);
+  justify-content: space-between;
+}
+
+:deep(.runtime-target-counts b) {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-small);
+}
+</style>

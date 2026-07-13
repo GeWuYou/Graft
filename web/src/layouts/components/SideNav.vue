@@ -92,14 +92,21 @@ const collapsed = computed(() => renderCompact);
 const menuAutoCollapsed = computed(() => useSettingStore().menuAutoCollapsed);
 const route = useRoute();
 
-const active = computed(() => getActive());
+const currentNavigationPath = computed(() => {
+  if (route.meta?.hiddenMenu) {
+    return route.meta.navigationTargetPath ?? '';
+  }
+
+  return route.path || getActive();
+});
+const active = computed(() => currentNavigationPath.value);
 
 const expanded = ref<MenuValue[]>([]);
 const expandedBeforeCompact = ref<MenuValue[]>([]);
 const pendingExpandedSync = ref(false);
 
 const buildExpandedFromActive = () => {
-  return findExpandedMenuPaths(menu, getActive());
+  return findExpandedMenuPaths(menu, currentNavigationPath.value);
 };
 
 const getExpanded = () => {
@@ -126,7 +133,7 @@ const syncExpandedForCurrentRoute = () => {
   getExpanded();
 };
 
-watch(() => route.fullPath, syncExpandedForCurrentRoute, { flush: 'post' });
+watch(currentNavigationPath, syncExpandedForCurrentRoute, { flush: 'post' });
 
 watch(() => menu, syncExpandedForCurrentRoute, { deep: true });
 

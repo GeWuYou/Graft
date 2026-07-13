@@ -37,6 +37,8 @@ const activePathState = {
 };
 const routeState = reactive({
   fullPath: '/server/runtime',
+  path: '/server/runtime',
+  meta: {},
 });
 
 vi.mock('@/router', () => ({
@@ -109,6 +111,7 @@ const menuStub = defineComponent({
   props: {
     collapsed: { type: Boolean, default: false },
     expanded: { type: Array, default: () => [] },
+    value: { type: String, default: '' },
     width: { type: Array, default: () => [] },
   },
   setup(props, { slots }) {
@@ -118,6 +121,7 @@ const menuStub = defineComponent({
         {
           'data-menu-collapsed': String(props.collapsed),
           'data-menu-expanded': JSON.stringify(props.expanded),
+          'data-menu-value': props.value,
           'data-menu-width': JSON.stringify(props.width),
         },
         [slots.logo?.(), slots.default?.(), slots.operations?.()],
@@ -219,6 +223,7 @@ describe('SideNav', () => {
     updateConfigMock.mockReset();
     activePathState.value = '/server/runtime';
     routeState.fullPath = '/server/runtime';
+    routeState.path = '/server/runtime';
     settingStoreProxy.value ??= reactive({
       ...settingStoreState,
       updateConfig: updateConfigMock,
@@ -315,6 +320,7 @@ describe('SideNav', () => {
 
     activePathState.value = '/security/overview';
     routeState.fullPath = '/security/overview';
+    routeState.path = '/security/overview';
     await nextTick();
 
     expectExpandedMenus(wrapper, ['/server', '/security']);
@@ -341,6 +347,7 @@ describe('SideNav', () => {
     await wrapper.setProps({ motionPhase: 'collapsing-width' });
     activePathState.value = '/security/overview';
     routeState.fullPath = '/security/overview';
+    routeState.path = '/security/overview';
     await nextTick();
 
     expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
@@ -353,6 +360,7 @@ describe('SideNav', () => {
   it('expands bootstrap menu codes without normalizing their submenu values as URLs', async () => {
     activePathState.value = '/platform/scheduled-tasks';
     routeState.fullPath = '/platform/scheduled-tasks';
+    routeState.path = '/platform/scheduled-tasks';
     const wrapper = mount(SideNav, {
       props: {
         isCompact: false,
@@ -398,8 +406,81 @@ describe('SideNav', () => {
     expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["domain.platform"]');
   });
 
+  it('expands the selected mixed-layout branch when a tab activates a nested route', async () => {
+    activePathState.value = '/infrastructure';
+    routeState.fullPath = '/infrastructure/docker/containers';
+    routeState.path = '/infrastructure/docker/containers';
+    const wrapper = mount(SideNav, {
+      props: {
+        isCompact: false,
+        isFixed: true,
+        layout: 'mix',
+        menu: [
+          {
+            path: 'domain.infrastructure',
+            meta: {
+              navigationTargetPath: '/infrastructure/runtime-targets',
+              title: {
+                'zh-CN': '基础设施',
+                'en-US': 'Infrastructure',
+              },
+            },
+            children: [
+              {
+                path: 'runtime-target.list',
+                meta: {
+                  navigationTargetPath: '/infrastructure/runtime-targets',
+                  title: {
+                    'zh-CN': '运行目标',
+                    'en-US': 'Runtime Targets',
+                  },
+                },
+              },
+              {
+                path: 'docker',
+                meta: {
+                  title: {
+                    'zh-CN': 'Docker',
+                    'en-US': 'Docker',
+                  },
+                },
+                children: [
+                  {
+                    path: 'container.list',
+                    meta: {
+                      navigationTargetPath: '/infrastructure/docker/containers',
+                      title: {
+                        'zh-CN': '容器',
+                        'en-US': 'Containers',
+                      },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        motionPhase: 'expanded',
+        showLogo: false,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    await nextTick();
+
+    expectExpandedMenus(wrapper, ['domain.infrastructure', 'docker']);
+    expect(wrapper.get('[data-menu-value]').attributes('data-menu-value')).toBe('/infrastructure/docker/containers');
+  });
+
   it('expands the owning parent menu for descendant routes outside the literal menu path chain', async () => {
     activePathState.value = '/ops/containers/container-1';
+    routeState.fullPath = '/ops/containers/container-1';
+    routeState.path = '/ops/containers/container-1';
     const wrapper = mount(SideNav, {
       props: {
         isCompact: false,

@@ -3,10 +3,16 @@
   "runtimeTarget": {
     "route": { "list": { "title": "Runtime Targets" } },
     "list": {
+      "eyebrow": "Infrastructure",
       "title": "Runtime Targets",
-      "description": "Manage discovered runtime connections and capability state.",
-      "refresh": "Refresh target",
-      "reload": "Reload"
+      "description": "Review container, image, and resource summaries for discovered runtime targets.",
+      "refresh": "Refresh Target",
+      "reload": "Reload",
+      "discoverLocal": "Scan Local Docker",
+      "discoverSuccess": "Local Docker scan completed.",
+      "summary": "{count} Runtime Targets",
+      "emptyTitle": "No Runtime Targets",
+      "emptyDescription": "Scan Local Docker, or scan again after Docker becomes available."
     },
     "detail": { "title": "Runtime target detail" },
     "columns": {
@@ -16,9 +22,21 @@
       "capabilities": "Capabilities",
       "connectionKind": "Connection kind",
       "status": "Availability",
-      "checkedAt": "Last checked",
       "error": "Latest error"
     },
-    "status": { "available": "Available", "unavailable": "Unavailable" }
+    "status": { "available": "Available", "unavailable": "Unavailable" },
+    "metrics": {
+      "containers": "Containers",
+      "images": "Images",
+      "running": "Running",
+      "stopped": "Stopped",
+      "used": "In Use",
+      "unused": "Unused",
+      "cpu": "CPU Usage",
+      "memory": "Memory Usage",
+      "disk": "Disk Usage",
+      "unavailable": "Unavailable",
+      "unavailableHint": "This metric cannot be collected right now."
+    }
   }
 }

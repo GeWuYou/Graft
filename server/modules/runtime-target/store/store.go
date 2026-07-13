@@ -39,6 +39,12 @@ type Target struct {
 	CheckedAt      *time.Time `json:"checkedAt"`
 }
 
+// Page is one stable runtime-target list window.
+type Page struct {
+	Items []Target
+	Total int64
+}
+
 // List returns all live runtime targets in stable display order.
 func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 	if r == nil || r.db == nil {
@@ -48,6 +54,31 @@ func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scanTargets(rows)
+}
+
+// ListPage returns one live runtime-target page and its total.
+func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, error) {
+	if r == nil || r.db == nil {
+		return Page{Items: []Target{}}, nil
+	}
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM runtime_targets WHERE deleted_at = 0`).Scan(&total); err != nil {
+		return Page{}, err
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return Page{}, err
+	}
+	items, err := scanTargets(rows)
+	if err != nil {
+		return Page{}, err
+	}
+	return Page{Items: items, Total: total}, nil
+}
+
+// scanTargets reads the runtime-target list projection and always closes its result set.
+func scanTargets(rows *sql.Rows) ([]Target, error) {
 	defer func() { _ = rows.Close() }()
 	items := []Target{}
 	for rows.Next() {
@@ -61,7 +92,30 @@ func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// FindSystemLocalDocker returns the system-managed local Docker record, if it has been discovered before.
+func (r *SQLRepository) FindSystemLocalDocker(ctx context.Context) (Target, error) {
+	if r == nil || r.db == nil {
+		return Target{}, ErrNotFound
+	}
+	var item Target
+	var capabilities []byte
+	err := r.db.QueryRowContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE provider = 'docker' AND endpoint = 'unix:///var/run/docker.sock' AND system_managed = true AND deleted_at = 0`).Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Target{}, ErrNotFound
+	}
+	if err != nil {
+		return Target{}, err
+	}
+	if err := json.Unmarshal(capabilities, &item.Capabilities); err != nil {
+		return Target{}, err
+	}
+	return item, nil
 }
 
 // Get returns one live runtime target by identifier.

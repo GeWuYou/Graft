@@ -1,5 +1,15 @@
 # Navigation IA And Resource Route Refactor Trace
 
+## 2026-07-13 Batch State Reconciliation
+
+- Reconciled the active tracking file after PR review: `metadata-driven-sidebar-navigation-refinement` is recorded in both the completed checklist and `completed_batches`, preserving the topic's single recovery state.
+
+## 2026-07-13 Metadata-Driven Sidebar Navigation Refinement
+
+- Replaced the shell's path-based wide-table sidebar-motion allowlist with route metadata: paged list routes derive the mode from `pageKind` and `pageSurface`, while exceptional dense non-list tables declare `sidebarMotion: 'wide-table'` at their bootstrap registration.
+- Made global menu search prefer an entry's canonical `navigationTargetPath`, preventing internal bootstrap menu-code paths from becoming a second navigation target.
+- Updated shell, route registration, and menu-search coverage with the corresponding frontend governance rules.
+
 ## 2026-07-12 IA-Aligned UI Route Policy
 
 - Product decision superseded the previous resource-oriented UI route policy: all visible menu URLs now mirror their IA domain using `/<domain>/<resource>`.

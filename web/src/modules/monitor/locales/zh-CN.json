@@ -173,7 +173,7 @@
       }
     },
     "moduleRuntime": {
-      "title": "模块运行时",
+      "title": "模块状态",
       "subtitle": "查看编译期模块的注册、启用、依赖、迁移、Schema 与配置状态。",
       "errorTitle": "模块快照请求失败",
       "errorFallback": "模块运行时快照加载失败",

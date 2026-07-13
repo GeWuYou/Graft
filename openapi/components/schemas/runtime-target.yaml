@@ -1,5 +1,5 @@
 type: object
-required: [id, provider, displayName, endpointLabel, connectionKind, capabilities, availability, lastError]
+required: [id, provider, displayName, endpointLabel, connectionKind, capabilities, availability, lastError, summary]
 properties:
   id:
     type: integer
@@ -28,3 +28,5 @@ properties:
   lastError:
     type: string
     description: Sanitized latest probe diagnostic.
+  summary:
+    $ref: ./runtime-target-summary.yaml

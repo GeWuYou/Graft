@@ -1,26 +1,17 @@
 <template>
-  <t-tooltip :content="metric.tooltip" placement="top">
-    <div
-      class="container-resource-meter"
-      :class="metric.changeClass"
-      :data-available="metric.available"
-      :data-testid="testId"
-    >
-      <t-progress
-        v-if="metric.available"
-        theme="circle"
-        :label="false"
-        :percentage="metric.percentage"
-        :size="36"
-        :status="metric.progressStatus"
-        :stroke-width="4"
-      />
-      <span v-else class="container-resource-meter__empty"></span>
-      <span>{{ metric.value }}</span>
-    </div>
-  </t-tooltip>
+  <realtime-resource-metric-cell
+    :available="metric.available"
+    :class="metric.changeClass"
+    :change="metric.change"
+    :percentage="metric.percentage"
+    :tooltip="metric.tooltip"
+    :value="metric.value"
+    :data-testid="testId"
+  />
 </template>
 <script setup lang="ts">
+import { RealtimeResourceMetricCell } from '@/shared/components/metrics';
+
 import type { ContainerResourceMetric } from '../shared/resource-table';
 
 defineOptions({

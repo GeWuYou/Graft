@@ -8,4 +8,6 @@ const (
 	ViewPermission    = "runtime_target.view"
 	ManagePermission  = "runtime_target.manage"
 	RefreshPermission = "runtime_target.refresh"
+	// SummaryTopic is the realtime topic for target-level resource snapshots.
+	SummaryTopic = "runtime-target.summary.list"
 )

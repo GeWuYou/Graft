@@ -7,7 +7,7 @@
       "notReported": "Not reported"
     },
     "runtimePage": {
-      "title": "Runtime",
+      "title": "Service Status",
       "subtitle": "Inspect the current Go process snapshot, build details, and server environment while keeping server memory separate from Go Runtime memory.",
       "snapshotReady": "Snapshot ready",
       "snapshotPending": "Waiting for snapshot",

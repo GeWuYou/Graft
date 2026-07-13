@@ -8,6 +8,7 @@ export type PageFooterContent = string | LocalizedTitle;
 export type GovernanceDomain = 'rbac' | 'audit' | 'monitor' | 'security';
 export type AppRoutePageKind = 'overview' | 'list' | 'detail' | 'runtime' | 'investigation';
 export type AppRoutePageSurface = 'shell' | 'overview-dashboard' | 'paged-table' | 'form-detail' | 'editor';
+export type AppRouteSidebarMotion = 'default' | 'wide-table';
 
 export interface PageFooterMeta {
   visible?: boolean;
@@ -49,6 +50,8 @@ export interface AppRouteMeta {
   dashboard?: boolean;
   pageKind?: AppRoutePageKind;
   pageSurface?: AppRoutePageSurface;
+  /** Explicit shell animation for non-list pages whose wide table must retain its usable width. */
+  sidebarMotion?: AppRouteSidebarMotion;
   investigationSurface?: boolean;
   icon?: string | Component | FunctionalComponent | (() => VNodeChild);
   orderNo?: number;

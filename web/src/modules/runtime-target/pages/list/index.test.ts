@@ -1,0 +1,235 @@
+import { flushPromises, mount } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent } from 'vue';
+
+import RuntimeTargetListPage from './index.vue';
+
+const apiMocks = vi.hoisted(() => ({
+  discoverLocalDocker: vi.fn(),
+  listRuntimeTargetPage: vi.fn(),
+}));
+
+const messageMocks = vi.hoisted(() => ({ success: vi.fn() }));
+const realtimeMocks = vi.hoisted(() => ({
+  openRealtimeTopicSocket: vi.fn<
+    (options: { topic: string; onMessage: (payload: { topic: string; items: unknown[] }) => void }) => {
+      close: () => void;
+      reconnect: () => void;
+    }
+  >(() => ({ close: vi.fn(), reconnect: vi.fn() })),
+}));
+
+vi.mock('../../api/runtime-target', () => apiMocks);
+vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
+vi.mock('@/shared/realtime', () => ({
+  isRealtimePayloadObject: (value: unknown) => Boolean(value && typeof value === 'object' && !Array.isArray(value)),
+  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
+  parseRealtimeEnvelopeData: (raw: unknown) => {
+    try {
+      const parsed = JSON.parse(String(raw)) as { data?: unknown };
+      return parsed.data;
+    } catch {
+      return null;
+    }
+  },
+}));
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key}:${values?.count ?? ''}` }),
+}));
+
+const passthrough = (name: string) =>
+  defineComponent({
+    name,
+    template: '<div><slot name="actions" /><slot /><slot name="action" /></div>',
+  });
+
+function target(id: number) {
+  return {
+    id,
+    displayName: `Target ${id}`,
+    endpointLabel: `unix:///target-${id}.sock`,
+    availability: true,
+    summary: {
+      containers: { available: true, total: id, running: id, stopped: 0, unavailableReason: '' },
+      images: { available: true, total: id, used: id, unused: 0, unavailableReason: '' },
+      cpu: { available: true, usagePercent: id, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+      memory: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
+      disk: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
+    },
+  };
+}
+
+function mountPage() {
+  return mount(RuntimeTargetListPage, {
+    global: {
+      stubs: {
+        'management-page-content': passthrough('ManagementPageContent'),
+        'management-page-header': passthrough('ManagementPageHeader'),
+        'management-table-pagination': passthrough('ManagementTablePagination'),
+        't-loading': passthrough('TLoading'),
+        't-row': passthrough('TRow'),
+        't-col': passthrough('TCol'),
+        't-empty': passthrough('TEmpty'),
+        't-tag': passthrough('TTag'),
+        't-tooltip': passthrough('TTooltip'),
+        't-table': defineComponent({
+          name: 'TTable',
+          props: {
+            data: { type: Array, default: () => [] },
+            loading: { type: Boolean, default: false },
+          },
+          template:
+            '<div data-testid="runtime-target-table" :data-ids="data.map((row) => row.id).join(\',\')" :data-loading="String(loading)" />',
+        }),
+        't-button': defineComponent({
+          name: 'TButton',
+          emits: ['click'],
+          template: '<button @click="$emit(\'click\')"><slot name="icon" /><slot /></button>',
+        }),
+        't-pagination': defineComponent({
+          name: 'TPagination',
+          props: { pageSizeOptions: { type: Array, default: () => [] } },
+          emits: ['update:current'],
+          template: '<div data-testid="pagination" :data-options="pageSizeOptions.join(\',\')" />',
+        }),
+        't-progress': defineComponent({ name: 'TProgress', template: '<div class="progress" />' }),
+      },
+    },
+  });
+}
+
+describe('RuntimeTargetListPage', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loads paged target overview cards with the shared page-size choices', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          displayName: 'Local Docker',
+          endpointLabel: 'unix:///var/run/docker.sock',
+          availability: true,
+          summary: {
+            containers: { available: true, total: 12, running: 11, stopped: 1, unavailableReason: '' },
+            images: { available: true, total: 21, used: 10, unused: 11, unavailableReason: '' },
+            cpu: { available: true, usagePercent: 0.5, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+            memory: {
+              available: false,
+              usagePercent: 0,
+              usedBytes: 0,
+              totalBytes: 0,
+              unavailableReason: 'not supported',
+            },
+            disk: { available: true, usagePercent: 7, usedBytes: 1_024, totalBytes: 2_048, unavailableReason: '' },
+          },
+        },
+      ],
+      total: 21,
+      limit: 10,
+      offset: 0,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledWith({ limit: 10, offset: 0 });
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('7');
+    expect(wrapper.get('[data-testid="pagination"]').attributes('data-options')).toBe('10,20,50,100');
+  });
+
+  it('scans Local Docker and reloads the first page', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    apiMocks.discoverLocalDocker.mockResolvedValue(null);
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="runtime-target-discover-local"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.discoverLocalDocker).toHaveBeenCalledOnce();
+    expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledTimes(2);
+    expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.discoverSuccess:');
+  });
+
+  it('patches the current page from a realtime snapshot without reloading the table', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          displayName: 'Local Docker',
+          endpointLabel: 'unix:///var/run/docker.sock',
+          availability: true,
+          summary: {
+            containers: { available: true, total: 1, running: 1, stopped: 0, unavailableReason: '' },
+            images: { available: true, total: 1, used: 1, unused: 0, unavailableReason: '' },
+            cpu: { available: true, usagePercent: 10, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+            memory: { available: true, usagePercent: 20, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
+            disk: { available: true, usagePercent: 30, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
+          },
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    expect(options?.topic).toBe('runtime-target.summary.list');
+    options?.onMessage({
+      topic: 'runtime-target.summary.list',
+      items: [
+        {
+          ...apiMocks.listRuntimeTargetPage.mock.results[0]?.value,
+          id: 7,
+          displayName: 'Local Docker',
+          endpointLabel: 'unix:///var/run/docker.sock',
+          availability: true,
+          summary: {
+            containers: { available: true, total: 2, running: 2, stopped: 0, unavailableReason: '' },
+            images: { available: true, total: 1, used: 1, unused: 0, unavailableReason: '' },
+            cpu: { available: true, usagePercent: 25, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+            memory: { available: true, usagePercent: 40, usedBytes: 40, totalBytes: 100, unavailableReason: '' },
+            disk: { available: true, usagePercent: 30, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
+          },
+        },
+      ],
+    });
+    await flushPromises();
+
+    expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledOnce();
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('7');
+  });
+
+  it('subscribes while the initial page is empty and fills it from a realtime snapshot', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    expect(options?.topic).toBe('runtime-target.summary.list');
+
+    options?.onMessage({ topic: 'runtime-target.summary.list', items: [target(1)] });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('1');
+    expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledOnce();
+  });
+
+  it('reconciles a realtime snapshot to the current page window', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [target(11)], total: 11, limit: 10, offset: 10 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    const snapshot = Array.from({ length: 12 }, (_, index) => target(index + 1));
+    wrapper.findComponent({ name: 'TPagination' }).vm.$emit('update:current', 2);
+    options?.onMessage({ topic: 'runtime-target.summary.list', items: snapshot });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('11,12');
+  });
+});
