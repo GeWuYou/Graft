@@ -7470,6 +7470,46 @@ type EnvelopedRuntimeTargetResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedSavedView defines model for enveloped-saved-view.
+type EnvelopedSavedView struct {
+	// Code Existing canonical response code.
+	Code string    `json:"code"`
+	Data SavedView `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedSavedViewListResponse defines model for enveloped-saved-view-list-response.
+type EnvelopedSavedViewListResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data SavedViewListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedScheduledTaskActionResult defines model for enveloped-scheduled-task-action-result.
 type EnvelopedScheduledTaskActionResult struct {
 	// Code Existing canonical response code.
@@ -9470,6 +9510,30 @@ type RuntimeTargetUsageMetric struct {
 	UsedBytes int64 `json:"usedBytes"`
 }
 
+// SavedView defines model for saved-view.
+type SavedView struct {
+	CreatedAt      time.Time              `json:"created_at"`
+	Id             int64                  `json:"id"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// SavedViewListResponse defines model for saved-view-list-response.
+type SavedViewListResponse struct {
+	Items []SavedView `json:"items"`
+}
+
+// SavedViewRequest defines model for saved-view-request.
+type SavedViewRequest struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
 // ScheduledTaskActionRequest defines model for scheduled-task-action-request.
 type ScheduledTaskActionRequest struct {
 	// ConfigJson JSON object merged into the action effective config.
@@ -10423,6 +10487,9 @@ type RequestIdHeader = string
 // RuntimeTargetIdPath defines model for runtime-target-id-path.
 type RuntimeTargetIdPath = int64
 
+// SavedViewId defines model for saved-view-id.
+type SavedViewId = int64
+
 // ScheduledTaskActionKey defines model for scheduled-task-action-key.
 type ScheduledTaskActionKey = string
 
@@ -10517,6 +10584,46 @@ type GetAccessLogsParamsPathMatch string
 
 // GetAccessLogsParamsStatusGroup defines parameters for GetAccessLogs.
 type GetAccessLogsParamsStatusGroup string
+
+// GetAccessLogSavedViewsParams defines parameters for GetAccessLogSavedViews.
+type GetAccessLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAccessLogSavedViewParams defines parameters for PostAccessLogSavedView.
+type PostAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAccessLogSavedViewParams defines parameters for DeleteAccessLogSavedView.
+type DeleteAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAccessLogSavedViewParams defines parameters for PutAccessLogSavedView.
+type PutAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAccessLogDetailParams defines parameters for GetAccessLogDetail.
 type GetAccessLogDetailParams struct {
@@ -10661,6 +10768,46 @@ type PostAppLogBatchDeleteParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetAppLogSavedViewsParams defines parameters for GetAppLogSavedViews.
+type GetAppLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAppLogSavedViewParams defines parameters for PostAppLogSavedView.
+type PostAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAppLogSavedViewParams defines parameters for DeleteAppLogSavedView.
+type DeleteAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAppLogSavedViewParams defines parameters for PutAppLogSavedView.
+type PutAppLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // DeleteAppLogParams defines parameters for DeleteAppLog.
 type DeleteAppLogParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10759,6 +10906,46 @@ type GetAuditLogsParamsRiskLevel string
 
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
+
+// GetAuditLogSavedViewsParams defines parameters for GetAuditLogSavedViews.
+type GetAuditLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuditLogSavedViewParams defines parameters for PostAuditLogSavedView.
+type PostAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAuditLogSavedViewParams defines parameters for DeleteAuditLogSavedView.
+type DeleteAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAuditLogSavedViewParams defines parameters for PutAuditLogSavedView.
+type PutAuditLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuditLogDetailParams defines parameters for GetAuditLogDetail.
 type GetAuditLogDetailParams struct {
@@ -12399,6 +12586,12 @@ type GetRealtimeWebSocketParams struct {
 	Topic RealtimeTopicQuery `form:"topic" json:"topic"`
 }
 
+// PostAccessLogSavedViewJSONRequestBody defines body for PostAccessLogSavedView for application/json ContentType.
+type PostAccessLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAccessLogSavedViewJSONRequestBody defines body for PutAccessLogSavedView for application/json ContentType.
+type PutAccessLogSavedViewJSONRequestBody = SavedViewRequest
+
 // PostAnnouncementsJSONRequestBody defines body for PostAnnouncements for application/json ContentType.
 type PostAnnouncementsJSONRequestBody = CreateAnnouncementRequest
 
@@ -12410,6 +12603,18 @@ type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
 
 // PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
 type PostAppLogBatchDeleteJSONRequestBody = AppLogBatchDeleteRequest
+
+// PostAppLogSavedViewJSONRequestBody defines body for PostAppLogSavedView for application/json ContentType.
+type PostAppLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAppLogSavedViewJSONRequestBody defines body for PutAppLogSavedView for application/json ContentType.
+type PutAppLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PostAuditLogSavedViewJSONRequestBody defines body for PostAuditLogSavedView for application/json ContentType.
+type PostAuditLogSavedViewJSONRequestBody = SavedViewRequest
+
+// PutAuditLogSavedViewJSONRequestBody defines body for PutAuditLogSavedView for application/json ContentType.
+type PutAuditLogSavedViewJSONRequestBody = SavedViewRequest
 
 // PutAuditVisibilityPolicyJSONRequestBody defines body for PutAuditVisibilityPolicy for application/json ContentType.
 type PutAuditVisibilityPolicyJSONRequestBody = AuditVisibilityDefaultUpdateRequest

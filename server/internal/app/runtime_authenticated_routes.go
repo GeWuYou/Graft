@@ -71,6 +71,10 @@ func (r *Runtime) registerAccessLogExplorerWithAuth(
 	authService moduleapi.AuthService,
 	authorizer moduleapi.Authorizer,
 ) error {
+	savedViews, err := r.resolveSavedViewService()
+	if err != nil {
+		return fmt.Errorf("resolve access-log saved-view service: %w", err)
+	}
 	if err := httpx.RegisterAccessLogExplorer(
 		httpx.AccessLogExplorerRegistration{
 			I18n:               r.i18n,
@@ -82,6 +86,7 @@ func (r *Runtime) registerAccessLogExplorerWithAuth(
 		r.server.AccessLogRepository(),
 		authService,
 		authorizer,
+		savedViews,
 	); err != nil {
 		return fmt.Errorf("register access-log explorer: %w", err)
 	}
@@ -97,6 +102,10 @@ func (r *Runtime) registerAppLogExplorerWithAuth(
 		return nil
 	}
 
+	savedViews, err := r.resolveSavedViewService()
+	if err != nil {
+		return fmt.Errorf("resolve app-log saved-view service: %w", err)
+	}
 	if err := logger.RegisterAppLogExplorer(
 		logger.AppLogExplorerRegistration{
 			I18n:               r.i18n,
@@ -108,11 +117,16 @@ func (r *Runtime) registerAppLogExplorerWithAuth(
 		r.appLogRepository,
 		authService,
 		authorizer,
+		savedViews,
 	); err != nil {
 		return fmt.Errorf("register app-log explorer: %w", err)
 	}
 
 	return nil
+}
+
+func (r *Runtime) resolveSavedViewService() (moduleapi.SavedViewService, error) {
+	return resolveRuntimeService[moduleapi.SavedViewService](r.services, (*moduleapi.SavedViewService)(nil), "saved-view service", "saved-view service")
 }
 
 func (r *Runtime) resolveLogExplorerAuth() (moduleapi.AuthService, moduleapi.Authorizer, error) {

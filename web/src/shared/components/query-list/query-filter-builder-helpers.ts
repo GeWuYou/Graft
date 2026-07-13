@@ -194,6 +194,7 @@ function createAdvancedQueryFilterBuilderFrameState(config: {
   selectedFieldKey: Ref<string>;
   sorterUi: ReturnType<typeof useAdvancedQuerySorterUiState<string>>;
   sortDirectionOptions: () => Array<{ label: string; value: string }>;
+  showSorterBuilder?: () => boolean | undefined;
   tags: () => AdvancedQueryFilterTag[];
   timeFields: () => AdvancedQueryTimeRangeField[];
 }) {
@@ -213,6 +214,7 @@ function createAdvancedQueryFilterBuilderFrameState(config: {
       sortMoveDownDisabled: config.sorterUi.sortMoveDownDisabled.value,
       sortMoveUpDisabled: config.sorterUi.sortMoveUpDisabled.value,
       sorters: config.sorterUi.normalizedSorters.value,
+      showSorterBuilder: config.showSorterBuilder?.(),
       tags: config.tags(),
       timeFields: config.timeFields(),
     }),
@@ -230,6 +232,7 @@ export function createAdvancedQueryFilterBuilderFrameStateFromSource(config: {
     activePreset: string;
     loading?: boolean;
     presets: AdvancedQueryFilterPreset[];
+    showSorterBuilder?: boolean;
   };
   keyword: () => string;
   tags: () => AdvancedQueryFilterTag[];
@@ -246,6 +249,7 @@ export function createAdvancedQueryFilterBuilderFrameStateFromSource(config: {
     selectedFieldKey: config.selectedFieldKey,
     sorterUi: config.sorterUi,
     sortDirectionOptions: config.sortDirectionOptions,
+    showSorterBuilder: () => config.source().showSorterBuilder,
     tags: config.tags,
     timeFields: config.timeFields,
   });

@@ -107,6 +107,126 @@ func (e GetAccessLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAccessLogSavedViews401JSONResponseBodySuccess.
+const (
+	GetAccessLogSavedViews401JSONResponseBodySuccessFalse GetAccessLogSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAccessLogSavedViews401JSONResponseBodySuccess enum.
+func (e GetAccessLogSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAccessLogSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAccessLogSavedViews403JSONResponseBodySuccess.
+const (
+	GetAccessLogSavedViews403JSONResponseBodySuccessFalse GetAccessLogSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAccessLogSavedViews403JSONResponseBodySuccess enum.
+func (e GetAccessLogSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAccessLogSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAccessLogSavedView401JSONResponseBodySuccess.
+const (
+	PostAccessLogSavedView401JSONResponseBodySuccessFalse PostAccessLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAccessLogSavedView401JSONResponseBodySuccess enum.
+func (e PostAccessLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAccessLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAccessLogSavedView403JSONResponseBodySuccess.
+const (
+	PostAccessLogSavedView403JSONResponseBodySuccessFalse PostAccessLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAccessLogSavedView403JSONResponseBodySuccess enum.
+func (e PostAccessLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAccessLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAccessLogSavedView401JSONResponseBodySuccess.
+const (
+	DeleteAccessLogSavedView401JSONResponseBodySuccessFalse DeleteAccessLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAccessLogSavedView401JSONResponseBodySuccess enum.
+func (e DeleteAccessLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAccessLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAccessLogSavedView403JSONResponseBodySuccess.
+const (
+	DeleteAccessLogSavedView403JSONResponseBodySuccessFalse DeleteAccessLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAccessLogSavedView403JSONResponseBodySuccess enum.
+func (e DeleteAccessLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAccessLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAccessLogSavedView401JSONResponseBodySuccess.
+const (
+	PutAccessLogSavedView401JSONResponseBodySuccessFalse PutAccessLogSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAccessLogSavedView401JSONResponseBodySuccess enum.
+func (e PutAccessLogSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAccessLogSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAccessLogSavedView403JSONResponseBodySuccess.
+const (
+	PutAccessLogSavedView403JSONResponseBodySuccessFalse PutAccessLogSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAccessLogSavedView403JSONResponseBodySuccess enum.
+func (e PutAccessLogSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAccessLogSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAccessLogDetail400JSONResponseBodySuccess.
 const (
 	GetAccessLogDetail400JSONResponseBodySuccessFalse GetAccessLogDetail400JSONResponseBodySuccess = false
@@ -250,6 +370,86 @@ type GetAccessLogs403JSONResponseBodySuccess bool
 // GetAccessLogs500JSONResponseBodySuccess defines parameters for GetAccessLogs.
 type GetAccessLogs500JSONResponseBodySuccess bool
 
+// GetAccessLogSavedViewsParams defines parameters for GetAccessLogSavedViews.
+type GetAccessLogSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetAccessLogSavedViews401JSONResponseBodySuccess defines parameters for GetAccessLogSavedViews.
+type GetAccessLogSavedViews401JSONResponseBodySuccess bool
+
+// GetAccessLogSavedViews403JSONResponseBodySuccess defines parameters for GetAccessLogSavedViews.
+type GetAccessLogSavedViews403JSONResponseBodySuccess bool
+
+// PostAccessLogSavedViewJSONBody defines parameters for PostAccessLogSavedView.
+type PostAccessLogSavedViewJSONBody struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostAccessLogSavedViewParams defines parameters for PostAccessLogSavedView.
+type PostAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostAccessLogSavedView401JSONResponseBodySuccess defines parameters for PostAccessLogSavedView.
+type PostAccessLogSavedView401JSONResponseBodySuccess bool
+
+// PostAccessLogSavedView403JSONResponseBodySuccess defines parameters for PostAccessLogSavedView.
+type PostAccessLogSavedView403JSONResponseBodySuccess bool
+
+// DeleteAccessLogSavedViewParams defines parameters for DeleteAccessLogSavedView.
+type DeleteAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAccessLogSavedView401JSONResponseBodySuccess defines parameters for DeleteAccessLogSavedView.
+type DeleteAccessLogSavedView401JSONResponseBodySuccess bool
+
+// DeleteAccessLogSavedView403JSONResponseBodySuccess defines parameters for DeleteAccessLogSavedView.
+type DeleteAccessLogSavedView403JSONResponseBodySuccess bool
+
+// PutAccessLogSavedViewJSONBody defines parameters for PutAccessLogSavedView.
+type PutAccessLogSavedViewJSONBody struct {
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutAccessLogSavedViewParams defines parameters for PutAccessLogSavedView.
+type PutAccessLogSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutAccessLogSavedView401JSONResponseBodySuccess defines parameters for PutAccessLogSavedView.
+type PutAccessLogSavedView401JSONResponseBodySuccess bool
+
+// PutAccessLogSavedView403JSONResponseBodySuccess defines parameters for PutAccessLogSavedView.
+type PutAccessLogSavedView403JSONResponseBodySuccess bool
+
 // GetAccessLogDetailParams defines parameters for GetAccessLogDetail.
 type GetAccessLogDetailParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -274,3 +474,9 @@ type GetAccessLogDetail404JSONResponseBodySuccess bool
 
 // GetAccessLogDetail500JSONResponseBodySuccess defines parameters for GetAccessLogDetail.
 type GetAccessLogDetail500JSONResponseBodySuccess bool
+
+// PostAccessLogSavedViewJSONRequestBody defines body for PostAccessLogSavedView for application/json ContentType.
+type PostAccessLogSavedViewJSONRequestBody PostAccessLogSavedViewJSONBody
+
+// PutAccessLogSavedViewJSONRequestBody defines body for PutAccessLogSavedView for application/json ContentType.
+type PutAccessLogSavedViewJSONRequestBody PutAccessLogSavedViewJSONBody

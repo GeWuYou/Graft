@@ -1,0 +1,18 @@
+type: object
+required: [name, query_state, page_size, visible_columns]
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  query_state:
+    type: object
+    additionalProperties: true
+  page_size:
+    type: integer
+    minimum: 1
+    maximum: 200
+  visible_columns:
+    type: array
+    items:
+      type: string

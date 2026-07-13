@@ -32,7 +32,11 @@
     :time-field-key="'timeRange'"
     :time-fields="timeFields"
     v-on="builderListeners"
-  />
+  >
+    <template #saved-query-views>
+      <slot name="saved-query-views" />
+    </template>
+  </advanced-query-filter-builder>
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';

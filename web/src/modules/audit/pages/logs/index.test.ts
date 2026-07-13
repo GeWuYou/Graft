@@ -10,17 +10,25 @@ import type { AuditLogListResponse } from '../../types/audit';
 import AuditLogsPage from './index.vue';
 
 const {
+  deleteAuditSavedViewMock,
   deleteAuditVisibilityOverrideMock,
   getAuditLogDetailMock,
   getAuditLogsMock,
+  getAuditSavedViewsMock,
   getAuditVisibilityPolicyMock,
+  postAuditSavedViewMock,
+  putAuditSavedViewMock,
   updateAuditVisibilityDefaultMock,
   upsertAuditVisibilityOverrideMock,
 } = vi.hoisted(() => ({
+  deleteAuditSavedViewMock: vi.fn(),
   deleteAuditVisibilityOverrideMock: vi.fn(),
   getAuditLogDetailMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
+  getAuditSavedViewsMock: vi.fn(),
   getAuditVisibilityPolicyMock: vi.fn(),
+  postAuditSavedViewMock: vi.fn(),
+  putAuditSavedViewMock: vi.fn(),
   updateAuditVisibilityDefaultMock: vi.fn(),
   upsertAuditVisibilityOverrideMock: vi.fn(),
 }));
@@ -73,10 +81,14 @@ function createAuditLogsResponse(overrides: Partial<AuditLogListResponse> = {}):
 }
 
 vi.mock('../../api/audit', () => ({
+  deleteAuditSavedView: deleteAuditSavedViewMock,
   deleteAuditVisibilityOverride: deleteAuditVisibilityOverrideMock,
   getAuditLogDetail: getAuditLogDetailMock,
   getAuditLogs: getAuditLogsMock,
+  getAuditSavedViews: getAuditSavedViewsMock,
   getAuditVisibilityPolicy: getAuditVisibilityPolicyMock,
+  postAuditSavedView: postAuditSavedViewMock,
+  putAuditSavedView: putAuditSavedViewMock,
   updateAuditVisibilityDefault: updateAuditVisibilityDefaultMock,
   upsertAuditVisibilityOverride: upsertAuditVisibilityOverrideMock,
 }));
@@ -97,7 +109,7 @@ vi.mock('../../components/AuditFilters.vue', () => ({
     name: 'AuditFiltersStub',
     props: ['presets', 'activePreset', 'modelValue'],
     emits: ['search', 'reset', 'apply-preset', 'update:modelValue'],
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
       return () =>
         h('div', [
           h('span', { 'data-testid': 'audit-filter-model' }, JSON.stringify(props.modelValue)),
@@ -144,6 +156,7 @@ vi.mock('../../components/AuditFilters.vue', () => ({
             },
             'sync-route',
           ),
+          slots['saved-query-views']?.(),
         ]);
     },
   }),
@@ -250,6 +263,25 @@ const tagStub = defineComponent({
   name: 'TTagStub',
   setup(_, { slots }) {
     return () => h('span', slots.default?.());
+  },
+});
+
+const savedQueryViewControlStub = defineComponent({
+  name: 'SavedQueryViewControlStub',
+  props: ['controller'],
+  setup(props) {
+    return () =>
+      h('div', [
+        h('span', { 'data-testid': 'audit-saved-view-selected' }, String(props.controller?.selectedId.value ?? '')),
+        h(
+          'button',
+          {
+            'data-testid': 'audit-saved-view-apply',
+            onClick: () => void props.controller?.select(7),
+          },
+          'apply-saved-view',
+        ),
+      ]);
   },
 });
 
@@ -427,12 +459,16 @@ const i18n = createI18n({
 
 describe('AuditLogsPage', () => {
   beforeEach(() => {
+    deleteAuditSavedViewMock.mockReset();
     deleteAuditVisibilityOverrideMock.mockReset();
     getAuditLogsMock.mockReset();
     getAuditLogDetailMock.mockReset();
+    getAuditSavedViewsMock.mockReset();
     getAuditVisibilityPolicyMock.mockReset();
     updateAuditVisibilityDefaultMock.mockReset();
     upsertAuditVisibilityOverrideMock.mockReset();
+    postAuditSavedViewMock.mockReset();
+    putAuditSavedViewMock.mockReset();
     getAuditLogsMock.mockResolvedValue(createAuditLogsResponse());
     getAuditLogDetailMock.mockImplementation(async (id: number) => ({
       ...createAuditLogsResponse().items[0],
@@ -441,6 +477,7 @@ describe('AuditLogsPage', () => {
         detail: true,
       },
     }));
+    getAuditSavedViewsMock.mockResolvedValue([]);
     getAuditVisibilityPolicyMock.mockResolvedValue({
       default: {
         key: 'global',
@@ -530,6 +567,7 @@ describe('AuditLogsPage', () => {
           't-space': passthroughStub,
           't-select': selectStub,
           't-tag': tagStub,
+          SavedQueryViewControl: savedQueryViewControlStub,
         },
       },
     });
@@ -583,6 +621,7 @@ describe('AuditLogsPage', () => {
           't-space': passthroughStub,
           't-select': selectStub,
           't-tag': tagStub,
+          SavedQueryViewControl: savedQueryViewControlStub,
         },
       },
     });
@@ -614,6 +653,62 @@ describe('AuditLogsPage', () => {
       created_to: '2026-05-02T18:30:00.000Z',
       sort: ['created_at:desc'],
     });
+  });
+
+  it('restores a saved query through the route and clears its selection on reset', async () => {
+    getAuditSavedViewsMock.mockResolvedValue([
+      {
+        id: 7,
+        name: 'Denied sessions',
+        page_size: 50,
+        query_state: {
+          actor: 'alice',
+          action_prefixes: ['rbac.'],
+          created_from: '2026-05-01T10:00:00.000Z',
+          created_to: '2026-05-02T18:30:00.000Z',
+          results: ['DENIED', 'FAILED'],
+          session_id: 'session-7',
+          success: false,
+          sort: ['created_at:asc'],
+        },
+        visible_columns: ['action', 'session_id', 'result', 'created_at'],
+      },
+    ]);
+    const { router, wrapper } = await mountPage();
+
+    await wrapper.get('[data-testid="audit-saved-view-apply"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.query).toMatchObject({
+      actor: 'alice',
+      action_prefixes: 'rbac.',
+      created_from: '2026-05-01T10:00:00.000Z',
+      created_to: '2026-05-02T18:30:00.000Z',
+      results: 'DENIED,FAILED',
+      session: 'session-7',
+      success: 'false',
+      sort: ['created_at:asc'],
+    });
+    expect(router.currentRoute.value.query).not.toHaveProperty('scope');
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith({
+      page: 1,
+      page_size: 50,
+      visibility_scope: 'default',
+      actor: 'alice',
+      action_prefixes: ['rbac.'],
+      created_from: '2026-05-01T10:00:00.000Z',
+      created_to: '2026-05-02T18:30:00.000Z',
+      results: ['DENIED', 'FAILED'],
+      session_id: 'session-7',
+      success: false,
+      sort: ['created_at:asc'],
+    });
+    expect(wrapper.get('[data-testid="audit-saved-view-selected"]').text()).toBe('7');
+
+    await wrapper.get('[data-testid="audit-reset"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="audit-saved-view-selected"]').text()).toBe('');
   });
 
   it('loads explicit-range records and opens the detail drawer', async () => {

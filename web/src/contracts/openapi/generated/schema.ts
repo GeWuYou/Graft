@@ -805,6 +805,42 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/logs/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private audit-log saved views */
+    get: operations['getAuditLogSavedViews'];
+    put?: never;
+    /** Create a private audit-log saved view */
+    post: operations['postAuditLogSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/audit/logs/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private audit-log saved view */
+    put: operations['putAuditLogSavedView'];
+    post?: never;
+    /** Delete a private audit-log saved view */
+    delete: operations['deleteAuditLogSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/security/overview': {
     parameters: {
       query?: never;
@@ -1397,6 +1433,42 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/access-log/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private access-log saved views */
+    get: operations['getAccessLogSavedViews'];
+    put?: never;
+    /** Create a private access-log saved view */
+    post: operations['postAccessLogSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/access-log/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private access-log saved view */
+    put: operations['putAccessLogSavedView'];
+    post?: never;
+    /** Delete a private access-log saved view */
+    delete: operations['deleteAccessLogSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/app-log': {
     parameters: {
       query?: never;
@@ -1453,6 +1525,42 @@ export interface paths {
      * @description Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.
      */
     delete: operations['deleteAppLog'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/app-log/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private app-log saved views */
+    get: operations['getAppLogSavedViews'];
+    put?: never;
+    /** Create a private app-log saved view */
+    post: operations['postAppLogSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/app-log/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private app-log saved view */
+    put: operations['putAppLogSavedView'];
+    post?: never;
+    /** Delete a private app-log saved view */
+    delete: operations['deleteAppLogSavedView'];
     options?: never;
     head?: never;
     patch?: never;
@@ -3293,6 +3401,9 @@ export interface components {
     ProjectSavedView: components['schemas']['project-saved-view'];
     ProjectSavedViewRequest: components['schemas']['project-saved-view-request'];
     ProjectSavedViewListResponse: components['schemas']['project-saved-view-list-response'];
+    SavedView: components['schemas']['saved-view'];
+    SavedViewRequest: components['schemas']['saved-view-request'];
+    SavedViewListResponse: components['schemas']['saved-view-list-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
@@ -3315,6 +3426,8 @@ export interface components {
     EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
     EnvelopedProjectSavedView: components['schemas']['enveloped-project-saved-view'];
     EnvelopedProjectSavedViewListResponse: components['schemas']['enveloped-project-saved-view-list-response'];
+    EnvelopedSavedView: components['schemas']['enveloped-saved-view'];
+    EnvelopedSavedViewListResponse: components['schemas']['enveloped-saved-view-list-response'];
     RuntimeTarget: components['schemas']['runtime-target'];
     RuntimeTargetSummary: components['schemas']['runtime-target-summary'];
     RuntimeTargetCountMetric: components['schemas']['runtime-target-count-metric'];
@@ -3741,6 +3854,37 @@ export interface components {
     'audit-log-detail-response': components['schemas']['audit-log-list-item'];
     'enveloped-audit-log-detail-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-log-detail-response'];
+    };
+    'saved-view': {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      query_state: {
+        [key: string]: unknown;
+      };
+      page_size: number;
+      visible_columns: string[];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    'saved-view-list-response': {
+      items: components['schemas']['saved-view'][];
+    };
+    'enveloped-saved-view-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['saved-view-list-response'];
+    };
+    'saved-view-request': {
+      name: string;
+      query_state: {
+        [key: string]: unknown;
+      };
+      page_size: number;
+      visible_columns: string[];
+    };
+    'enveloped-saved-view': components['schemas']['api-envelope'] & {
+      data: components['schemas']['saved-view'];
     };
     'security-overview-response': {
       /** @enum {string} */
@@ -7189,6 +7333,7 @@ export interface components {
     /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
     'project-id-path': number;
     'project-saved-view-id-path': string;
+    'saved-view-id-path': string;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
     'project-workspace-path-query': string;
     /** @description Whether the workspace should include directories and dot entries hidden by default. */
@@ -7211,6 +7356,8 @@ export interface components {
     'realtime-ticket-query': string;
     /** @description Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`. */
     'realtime-topic-query': string;
+    /** @description Private saved-view identifier. */
+    'saved-view-id': number;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
     'project-list-keyword': string;
     /** @description Optional application type. Compose is the only currently supported type. */
@@ -9422,6 +9569,180 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getAuditLogSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's saved audit-log views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postAuditLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putAuditLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteAuditLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getSecurityOverview: {
     parameters: {
       query?: {
@@ -11063,6 +11384,180 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getAccessLogSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's saved access-log views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postAccessLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putAccessLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteAccessLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getAppLogs: {
     parameters: {
       query?: {
@@ -11289,6 +11784,180 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getAppLogSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's saved app-log views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postAppLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putAppLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteAppLogSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getDashboardSummary: {

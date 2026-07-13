@@ -21,6 +21,7 @@
         :active-preset="activePreset"
         :loading="loading"
         :presets="presetViews"
+        :saved-view-controller="appLogSavedViews"
         @apply-preset="applyPreset"
         @reset="resetFilters"
         @search="handleSearch"
@@ -90,12 +91,18 @@
 </template>
 <script setup lang="ts">
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { TableViewToolbar } from '@/shared/components/management';
-import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
+import {
+  AdvancedQueryColumnDrawer,
+  AdvancedQueryListPage,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/shared/localized-api-error';
 import {
   assignEncodedSorters,
@@ -115,13 +122,29 @@ import {
 import { usePermissionStore } from '@/store';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
-import { deleteAppLog, deleteAppLogs, getAppLogDetail, getAppLogs } from '../../api/app-log';
+import {
+  deleteAppLog,
+  deleteAppLogs,
+  deleteAppLogSavedView,
+  getAppLogDetail,
+  getAppLogs,
+  getAppLogSavedViews,
+  postAppLogSavedView,
+  putAppLogSavedView,
+} from '../../api/app-log';
 import AppLogDetailDrawer from '../../components/AppLogDetailDrawer.vue';
 import AppLogFilters from '../../components/AppLogFilters.vue';
 import AppLogTable from '../../components/AppLogTable.vue';
 import { buildAppLogLocation, parseAppLogRouteQuery } from '../../contract/deep-link';
 import { APP_LOG_PERMISSION_CODE } from '../../contract/permissions';
-import type { AppLogFilterState, AppLogItem, AppLogQuery, AppLogSortBy, AppLogSortOrder } from '../../types/app-log';
+import type {
+  AppLogFilterState,
+  AppLogItem,
+  AppLogQuery,
+  AppLogSavedViewRequest,
+  AppLogSortBy,
+  AppLogSortOrder,
+} from '../../types/app-log';
 
 defineOptions({
   name: 'AppLogListIndex',
@@ -134,6 +157,12 @@ const router = useRouter();
 const permissionStore = usePermissionStore();
 
 type AppLogPresetKey = 'all' | 'errors' | 'warnings' | 'lastHour';
+type AppLogSavedQueryState = Omit<AppLogQuery, 'page' | 'page_size'>;
+type AppLogSavedQueryViewState = {
+  pageSize: number;
+  queryState: AppLogSavedQueryState;
+  visibleColumns: string[];
+};
 const DEFAULT_VISIBLE_COLUMNS = ['occurred_at', 'severity', 'component', 'operation', 'message'];
 const TROUBLESHOOTING_VISIBLE_COLUMNS = [
   'occurred_at',
@@ -214,6 +243,36 @@ const reportListLoadError = createLogListErrorReporter<AppLogItem>({
 const reportDetailLoadError = createLogDetailErrorReporter({
   fallbackMessage: () => t('appLog.page.loadFailed'),
   resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),
+});
+const appLogSavedViews = useSavedQueryViews<AppLogSavedQueryViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getAppLogSavedViews()).map((view) => normalizeSavedQueryView<AppLogSavedQueryState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<AppLogSavedQueryState, number>(
+        await postAppLogSavedView(toAppLogSavedViewRequest(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<AppLogSavedQueryState, number>(
+        await putAppLogSavedView(id, toAppLogSavedViewRequest(input)),
+      ),
+    remove: async (id) => {
+      await deleteAppLogSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    applyAppLogSavedQueryView(view.state);
+    await updateRouteQuery();
+  },
+  onError: (error) => {
+    logger.error('failed to manage app-log saved view', error);
+    MessagePlugin.error(resolveAppLogErrorMessage(t, error, t('appLog.page.loadFailed')));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: currentAppLogSavedViewQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
 });
 
 function createDefaultFilters(): AppLogFilterState {
@@ -372,6 +431,7 @@ async function deleteSelected() {
 
 function resetFilters() {
   filters.value = createDefaultFilters();
+  appLogSavedViews.selectedId.value = undefined;
   restartQuery();
 }
 
@@ -504,6 +564,53 @@ function normalizeSortBy(value: string): AppLogSortBy | '' {
 function normalizeSortOrder(value: string): AppLogSortOrder {
   return value === 'asc' ? 'asc' : 'desc';
 }
+
+function currentAppLogSavedViewQueryState(): AppLogSavedQueryState {
+  const { page: _page, page_size: _pageSize, ...query } = buildQuery();
+  return query;
+}
+
+function toAppLogSavedViewRequest(input: { name: string; state: AppLogSavedQueryViewState }): AppLogSavedViewRequest {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState as unknown as Record<string, unknown>,
+    visible_columns: input.state.visibleColumns,
+  };
+}
+
+function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {
+  const state = savedState.queryState;
+  const normalizedSorters = normalizeSorters(
+    decodeSorters(state.sort ?? [], normalizeSortBy, normalizeSortOrder),
+    sortOptions.value,
+  );
+  filters.value = {
+    ...createDefaultFilters(),
+    keyword: state.keyword ?? '',
+    occurredRange: normalizeRouteRangeForPageState([state.occurred_from ?? '', state.occurred_to ?? '']),
+    severity:
+      state.severity === 'debug' || state.severity === 'info' || state.severity === 'warn' || state.severity === 'error'
+        ? state.severity
+        : '',
+    component: state.component ?? '',
+    operation: state.operation ?? '',
+    requestId: state.request_id ?? '',
+    message: state.message ?? '',
+    error: state.error ?? '',
+    sorters: normalizedSorters.length ? normalizedSorters : createSingleSorter('occurred_at', 'desc'),
+  };
+  activePreset.value = 'all';
+  applySavedQueryViewPresentation(savedState, {
+    pagination: pagination.value,
+    supportedColumns: columnSettingOptions.value.map((column) => column.value),
+    visibleColumnKeys,
+  });
+}
+
+onMounted(() => {
+  void appLogSavedViews.load();
+});
 </script>
 <style scoped lang="less">
 .app-log-batch-bar {

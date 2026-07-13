@@ -32,6 +32,15 @@ type accessLogReadGuard struct {
 	read gin.HandlerFunc
 }
 
+type accessLogExplorerRouteDependencies struct {
+	localizer   *i18n.Service
+	repo        AccessLogRepository
+	authService moduleapi.AuthService
+	authorizer  moduleapi.Authorizer
+	bus         eventbus.Bus
+	savedViews  moduleapi.SavedViewService
+}
+
 // AccessLogExplorerRegistration 收口 access-log explorer 所需的 core 注册依赖。
 type AccessLogExplorerRegistration struct {
 	I18n               *i18n.Service
@@ -72,26 +81,21 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 	})
 }
 
-func registerAccessLogExplorerRoutes(
-	router gin.IRouter,
-	localizer *i18n.Service,
-	repo AccessLogRepository,
-	authService moduleapi.AuthService,
-	authorizer moduleapi.Authorizer,
-	bus eventbus.Bus,
-) {
-	if router == nil || repo == nil || authService == nil {
-		return
+func registerAccessLogExplorerRoutes(router gin.IRouter, dependencies accessLogExplorerRouteDependencies) error {
+	if router == nil || dependencies.repo == nil || dependencies.authService == nil || dependencies.authorizer == nil || dependencies.savedViews == nil {
+		return errors.New("access-log explorer dependencies are required")
 	}
 
-	publisher := NewSecurityAuditPublisher(bus, nil, accessLogModuleOwner)
+	publisher := NewSecurityAuditPublisher(dependencies.bus, nil, accessLogModuleOwner)
 
 	guard := accessLogReadGuard{
-		read: RequirePermission(localizer, authService, authorizer, AccessLogReadPermission, publisher),
+		read: RequirePermission(dependencies.localizer, dependencies.authService, dependencies.authorizer, AccessLogReadPermission, publisher),
 	}
 	group := router.Group(accessLogRouteGroup)
-	group.GET("", guard.read, handleListAccessLogs(localizer, repo))
-	group.GET("/:"+accessLogRouteItemParam, guard.read, handleGetAccessLogDetail(localizer, repo))
+	group.GET("", guard.read, handleListAccessLogs(dependencies.localizer, dependencies.repo))
+	registerAccessLogSavedViewRoutes(group, dependencies.localizer, guard.read, dependencies.savedViews)
+	group.GET("/:"+accessLogRouteItemParam, guard.read, handleGetAccessLogDetail(dependencies.localizer, dependencies.repo))
+	return nil
 }
 
 // RegisterAccessLogExplorer 把 access-log explorer 的消息、权限、菜单和路由注册到 core runtime。
@@ -101,11 +105,18 @@ func RegisterAccessLogExplorer(
 	repo AccessLogRepository,
 	authService moduleapi.AuthService,
 	authorizer moduleapi.Authorizer,
+	savedViews moduleapi.SavedViewService,
 ) error {
 	registerAccessLogExplorerPermissions(ctx.PermissionRegistry)
 	registerAccessLogExplorerMenu(ctx.MenuRegistry)
-	registerAccessLogExplorerRoutes(router, ctx.I18n, repo, authService, authorizer, ctx.EventBus)
-	return nil
+	return registerAccessLogExplorerRoutes(router, accessLogExplorerRouteDependencies{
+		localizer:   ctx.I18n,
+		repo:        repo,
+		authService: authService,
+		authorizer:  authorizer,
+		bus:         ctx.EventBus,
+		savedViews:  savedViews,
+	})
 }
 
 func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {

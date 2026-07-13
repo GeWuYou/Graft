@@ -53,7 +53,11 @@
         @apply-preset="applyPreset"
         @reset="resetFilters"
         @search="handleSearch"
-      />
+      >
+        <template #saved-query-views>
+          <saved-query-view-control :controller="auditSavedViews" />
+        </template>
+      </audit-filters>
     </template>
     <template #table>
       <audit-table
@@ -188,7 +192,7 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onActivated, onDeactivated, ref, watch } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { LocationQueryValue } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
@@ -196,7 +200,14 @@ import { useRoute, useRouter } from 'vue-router';
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { TableViewToolbar } from '@/shared/components/management';
-import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
+import {
+  AdvancedQueryColumnDrawer,
+  AdvancedQueryListPage,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  SavedQueryViewControl,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
@@ -214,10 +225,14 @@ import { getPermissionStore } from '@/store/modules/permission';
 import { createLogger } from '@/utils/logger';
 
 import {
+  deleteAuditSavedView,
   deleteAuditVisibilityOverride,
   getAuditLogDetail,
   getAuditLogs,
+  getAuditSavedViews,
   getAuditVisibilityPolicy,
+  postAuditSavedView,
+  putAuditSavedView,
   updateAuditVisibilityDefault,
   upsertAuditVisibilityOverride,
 } from '../../api/audit';
@@ -250,6 +265,7 @@ import type {
   AuditLogListItem,
   AuditLogQuery,
   AuditResult,
+  AuditSavedViewRequest,
   AuditSortBy,
   AuditSource,
   AuditVisibilityOverrideResponse,
@@ -263,6 +279,12 @@ defineOptions({
 });
 
 const logger = createLogger('audit.logs');
+type AuditSavedQueryState = Omit<AuditLogQuery, 'actor_user_id' | 'page' | 'page_size' | 'scope'>;
+type AuditSavedQueryViewState = {
+  pageSize: number;
+  queryState: AuditSavedQueryState;
+  visibleColumns: string[];
+};
 const securityEventPresetResults: AuditResult[] = ['DENIED', 'FAILED', 'ERROR'];
 const DEFAULT_VISIBLE_COLUMNS = ['action', 'actor', 'resource', 'correlation', 'result', 'risk', 'created_at'];
 const TROUBLESHOOTING_VISIBLE_COLUMNS = [
@@ -409,6 +431,34 @@ const footerSummary = computed(() =>
 const reportDetailLoadError = (error: unknown) => {
   MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed')));
 };
+const auditSavedViews = useSavedQueryViews<AuditSavedQueryViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getAuditSavedViews()).map((view) => normalizeSavedQueryView<AuditSavedQueryState, number>(view)),
+    create: async (input) =>
+      normalizeSavedQueryView<AuditSavedQueryState, number>(await postAuditSavedView(toAuditSavedViewRequest(input))),
+    update: async (id, input) =>
+      normalizeSavedQueryView<AuditSavedQueryState, number>(
+        await putAuditSavedView(id, toAuditSavedViewRequest(input)),
+      ),
+    remove: async (id) => {
+      await deleteAuditSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    applyAuditSavedQueryView(view.state);
+    await restoreAuditSavedQueryRoute(view.state.queryState);
+  },
+  onError: (error) => {
+    logger.error('failed to manage audit saved view', error);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed')));
+  },
+  serializeCurrentState: () => ({
+    pageSize: pagination.value.pageSize,
+    queryState: currentAuditSavedViewQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
 
 const isCurrentAuditLogsRoute = computed(
   () => route.path === buildAuditLogsLocation({}).path || route.name === AUDIT_BOOTSTRAP_ROUTE.LOG_LIST.routeName,
@@ -732,6 +782,7 @@ function handleSearch() {
 
 function resetFilters() {
   filters.value = createDefaultFilters();
+  auditSavedViews.selectedId.value = undefined;
   routePreset.value = '';
   routeScope.value = scopeState.value ? routeScope.value : '';
   pagination.value.current = 1;
@@ -914,6 +965,67 @@ function buildRouteQuery() {
   };
 }
 
+function currentAuditSavedViewQueryState(): AuditSavedQueryState {
+  const { actor_user_id: _actorUserID, page: _page, page_size: _pageSize, scope: _scope, ...query } = buildQuery();
+  return query;
+}
+
+function toAuditSavedViewRequest(input: { name: string; state: AuditSavedQueryViewState }): AuditSavedViewRequest {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState as unknown as Record<string, unknown>,
+    visible_columns: input.state.visibleColumns,
+  };
+}
+
+function applyAuditSavedQueryView(savedState: AuditSavedQueryViewState) {
+  applySavedQueryViewPresentation(savedState, {
+    pagination: pagination.value,
+    supportedColumns: columnSettingOptions.value.map((column) => column.value),
+    visibleColumnKeys,
+  });
+}
+
+async function restoreAuditSavedQueryRoute(query: AuditSavedQueryState) {
+  const location = withMonitorOrigin(
+    buildAuditLogsLocation({
+      preset: query.preset,
+      visibility_scope: query.visibility_scope,
+      keyword: query.keyword,
+      actor: query.actor,
+      success: query.success === undefined ? '' : String(query.success),
+      action: query.action,
+      action_prefix: query.action_prefix,
+      action_prefixes: joinRouteList(query.action_prefixes ?? []),
+      action_keywords: joinRouteList(query.action_keywords ?? []),
+      request_path_prefixes: joinRouteList(query.request_path_prefixes ?? []),
+      source: query.source,
+      business_category: query.business_category,
+      created_from: query.created_from,
+      created_to: query.created_to,
+      resource_type: query.resource_type,
+      resource_types: joinRouteList(query.resource_types ?? []),
+      resource_name: query.resource_name,
+      resource_id: query.resource_id,
+      result: query.result,
+      results: joinRouteList(query.results ?? []),
+      risk_level: query.risk_level,
+      risk_levels: joinRouteList(query.risk_levels ?? []),
+      session: query.session_id,
+      request_id: query.request_id,
+      sort: query.sort,
+    }),
+    navigationContext.value.monitorOrigin,
+  );
+  const currentLocation = withMonitorOrigin(buildAuditLogsLocation(route.query), navigationContext.value.monitorOrigin);
+  if (serializeRouteQuery(location.query) === serializeRouteQuery(currentLocation.query)) {
+    await syncFromCurrentRoute('saved-view-apply');
+    return;
+  }
+  await router.replace(location);
+}
+
 async function updateRouteQuery() {
   if (applyingRoute.value) {
     return;
@@ -990,6 +1102,10 @@ watch(
   },
   { immediate: true },
 );
+
+onMounted(() => {
+  void auditSavedViews.load();
+});
 
 onActivated(() => {
   isRouteSyncActive.value = true;

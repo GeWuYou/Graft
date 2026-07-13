@@ -4743,6 +4743,199 @@
         }
       }
     },
+    "/api/audit/logs/saved-views": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List private audit-log saved views",
+        "operationId": "getAuditLogSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's saved audit-log views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Create a private audit-log saved view",
+        "operationId": "postAuditLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/audit/logs/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Update a private audit-log saved view",
+        "operationId": "putAuditLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Delete a private audit-log saved view",
+        "operationId": "deleteAuditLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/security/overview": {
       "get": {
         "tags": [
@@ -7769,6 +7962,199 @@
         }
       }
     },
+    "/api/access-log/saved-views": {
+      "get": {
+        "tags": [
+          "access-log"
+        ],
+        "summary": "List private access-log saved views",
+        "operationId": "getAccessLogSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's saved access-log views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "access-log"
+        ],
+        "summary": "Create a private access-log saved view",
+        "operationId": "postAccessLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/access-log/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "access-log"
+        ],
+        "summary": "Update a private access-log saved view",
+        "operationId": "putAccessLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "access-log"
+        ],
+        "summary": "Delete a private access-log saved view",
+        "operationId": "deleteAccessLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/app-log": {
       "get": {
         "tags": [
@@ -8214,6 +8600,199 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/app-log/saved-views": {
+      "get": {
+        "tags": [
+          "app-log"
+        ],
+        "summary": "List private app-log saved views",
+        "operationId": "getAppLogSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's saved app-log views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "app-log"
+        ],
+        "summary": "Create a private app-log saved view",
+        "operationId": "postAppLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/app-log/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "app-log"
+        ],
+        "summary": "Update a private app-log saved view",
+        "operationId": "putAppLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "app-log"
+        ],
+        "summary": "Delete a private app-log saved view",
+        "operationId": "deleteAppLogSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
           }
         }
       }
@@ -15555,6 +16134,15 @@
       "ProjectSavedViewListResponse": {
         "$ref": "#/components/schemas/project-saved-view-list-response"
       },
+      "SavedView": {
+        "$ref": "#/components/schemas/saved-view"
+      },
+      "SavedViewRequest": {
+        "$ref": "#/components/schemas/saved-view-request"
+      },
+      "SavedViewListResponse": {
+        "$ref": "#/components/schemas/saved-view-list-response"
+      },
       "EnvelopedProjectListResponse": {
         "$ref": "#/components/schemas/enveloped-project-list-response"
       },
@@ -15620,6 +16208,12 @@
       },
       "EnvelopedProjectSavedViewListResponse": {
         "$ref": "#/components/schemas/enveloped-project-saved-view-list-response"
+      },
+      "EnvelopedSavedView": {
+        "$ref": "#/components/schemas/enveloped-saved-view"
+      },
+      "EnvelopedSavedViewListResponse": {
+        "$ref": "#/components/schemas/enveloped-saved-view-list-response"
       },
       "RuntimeTarget": {
         "$ref": "#/components/schemas/runtime-target"
@@ -17068,6 +17662,134 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/audit-log-detail-response"
+              }
+            }
+          }
+        ]
+      },
+      "saved-view": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query_state",
+          "page_size",
+          "visible_columns",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "query_state": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "visible_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "saved-view-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/saved-view"
+            }
+          }
+        }
+      },
+      "enveloped-saved-view-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/saved-view-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "saved-view-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "query_state",
+          "page_size",
+          "visible_columns"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "query_state": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "visible_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-saved-view": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/saved-view"
               }
             }
           }
@@ -29171,6 +29893,9 @@
       "project-saved-view-id-path": {
         "$ref": "#/components/parameters/project-saved-view-id"
       },
+      "saved-view-id-path": {
+        "$ref": "#/components/parameters/saved-view-id"
+      },
       "project-workspace-path-query": {
         "name": "path",
         "in": "query",
@@ -29315,6 +30040,17 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        }
+      },
+      "saved-view-id": {
+        "name": "viewId",
+        "in": "path",
+        "required": true,
+        "description": "Private saved-view identifier.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       },
       "project-list-keyword": {

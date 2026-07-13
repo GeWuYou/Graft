@@ -7,7 +7,7 @@ func TestDescriptorDeclaresCanonicalDependencies(t *testing.T) {
 
 	descriptor := NewModuleSpec()
 	got := descriptor.DependsOn()
-	if len(got) != 2 || got[0] != "user" || got[1] != "rbac" {
-		t.Fatalf("descriptor dependencies = %v, want [user rbac]", got)
+	if len(got) != 3 || got[0] != "user" || got[1] != "rbac" || got[2] != "saved-view" {
+		t.Fatalf("descriptor dependencies = %v, want [user rbac saved-view]", got)
 	}
 }

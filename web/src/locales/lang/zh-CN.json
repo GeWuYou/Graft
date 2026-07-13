@@ -382,6 +382,25 @@
     "request": {
       "failed": "请求失败"
     },
+    "savedQueryViews": {
+      "label": "已保存筛选",
+      "placeholder": "选择已保存筛选",
+      "namePlaceholder": "输入筛选名称",
+      "nameRequired": "请输入筛选名称。",
+      "actions": {
+        "saveAs": "保存筛选",
+        "save": "保存",
+        "update": "更新筛选",
+        "delete": "删除筛选",
+        "cancel": "取消"
+      },
+      "dialog": {
+        "createTitle": "保存筛选",
+        "updateTitle": "更新筛选",
+        "deleteTitle": "删除筛选",
+        "deleteDescription": "确定删除筛选“{name}”吗？此操作无法撤销。"
+      }
+    },
     "auth": {
       "login": {
         "title": "登录到",

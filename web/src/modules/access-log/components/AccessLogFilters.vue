@@ -1,5 +1,10 @@
 <template>
-  <advanced-query-filter-builder-frame :frame="builderFrame" message-prefix="accessLog" />
+  <advanced-query-filter-builder-frame :frame="builderFrame" message-prefix="accessLog">
+    <template #saved-query-views>
+      <saved-query-view-control v-if="savedViewController" :controller="savedViewController" />
+      <slot name="saved-query-views" />
+    </template>
+  </advanced-query-filter-builder-frame>
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';
@@ -14,6 +19,9 @@ import {
   buildAdvancedQueryTimeTag,
   createAdvancedQueryBuilderListeners,
   createAdvancedQueryFilterBuilderFrameStateFromSource,
+  SavedQueryViewControl,
+  type SavedQueryViewController,
+  type SavedQueryViewId,
   updateAdvancedQueryFilterStateField,
   useAdvancedQuerySorterControlsForModel,
 } from '@/shared/components/query-list';
@@ -36,6 +44,7 @@ const props = defineProps<{
   loading?: boolean;
   modelValue: AccessLogFilterState;
   presets: { key: AccessLogPresetKey; title: string }[];
+  savedViewController?: SavedQueryViewController<unknown, SavedQueryViewId>;
 }>();
 
 const emit = defineEmits<{

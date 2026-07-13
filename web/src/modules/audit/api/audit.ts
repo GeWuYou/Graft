@@ -1,12 +1,14 @@
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { AUDIT_API_PATH } from '../contract/paths';
+import { AUDIT_API_PATH, buildAuditSavedViewApiPath } from '../contract/paths';
 import type {
   AuditIncidentResponse,
   AuditLogDetailResponse,
   AuditLogListResponse,
   AuditLogQuery,
+  AuditSavedView,
+  AuditSavedViewRequest,
   AuditVisibilityDefaultResponse,
   AuditVisibilityDefaultUpdateRequest,
   AuditVisibilityOverrideResponse,
@@ -23,6 +25,19 @@ type AuditLogDetailPath = (typeof AUDIT_API_PATH)['DETAIL'];
 type GetAuditLogDetailOperation = paths[AuditLogDetailPath]['get'];
 type GetAuditLogDetailResponse = GetAuditLogDetailOperation['responses'][200]['content']['application/json'];
 type GetAuditLogDetailResponseData = NonNullable<GetAuditLogDetailResponse['data']>;
+
+type AuditSavedViewsPath = (typeof AUDIT_API_PATH)['SAVED_VIEWS'];
+type GetAuditSavedViewsOperation = paths[AuditSavedViewsPath]['get'];
+type GetAuditSavedViewsResponse = GetAuditSavedViewsOperation['responses'][200]['content']['application/json'];
+type GetAuditSavedViewsResponseData = NonNullable<GetAuditSavedViewsResponse['data']>;
+type PostAuditSavedViewOperation = paths[AuditSavedViewsPath]['post'];
+type PostAuditSavedViewResponse = PostAuditSavedViewOperation['responses'][201]['content']['application/json'];
+type PostAuditSavedViewResponseData = NonNullable<PostAuditSavedViewResponse['data']>;
+
+type AuditSavedViewPath = (typeof AUDIT_API_PATH)['SAVED_VIEW'];
+type PutAuditSavedViewOperation = paths[AuditSavedViewPath]['put'];
+type PutAuditSavedViewResponse = PutAuditSavedViewOperation['responses'][200]['content']['application/json'];
+type PutAuditSavedViewResponseData = NonNullable<PutAuditSavedViewResponse['data']>;
 
 type AuditIncidentPath = (typeof AUDIT_API_PATH)['INCIDENT_DETAIL'];
 type GetAuditIncidentOperation = paths[AuditIncidentPath]['get'];
@@ -46,6 +61,29 @@ export function getAuditLogDetail(id: number) {
   return request.get<GetAuditLogDetailResponseData>({
     url: AUDIT_API_PATH.DETAIL.replace('{id}', String(id)),
   }) as Promise<AuditLogDetailResponse>;
+}
+
+export async function getAuditSavedViews(): Promise<AuditSavedView[]> {
+  const data = await request.get<GetAuditSavedViewsResponseData>({ url: AUDIT_API_PATH.SAVED_VIEWS });
+  return data.items;
+}
+
+export function postAuditSavedView(payload: AuditSavedViewRequest) {
+  return request.post<PostAuditSavedViewResponseData>({
+    url: AUDIT_API_PATH.SAVED_VIEWS,
+    data: payload,
+  }) as Promise<AuditSavedView>;
+}
+
+export function putAuditSavedView(viewId: number, payload: AuditSavedViewRequest) {
+  return request.put<PutAuditSavedViewResponseData>({
+    url: buildAuditSavedViewApiPath(viewId),
+    data: payload,
+  }) as Promise<AuditSavedView>;
+}
+
+export function deleteAuditSavedView(viewId: number) {
+  return request.delete({ url: buildAuditSavedViewApiPath(viewId) });
 }
 
 /**

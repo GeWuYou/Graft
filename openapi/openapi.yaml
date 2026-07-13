@@ -115,6 +115,10 @@ paths:
     $ref: ./paths/audit.logs.yaml
   /api/audit/logs/{id}:
     $ref: ./paths/audit.logs.detail.yaml
+  /api/audit/logs/saved-views:
+    $ref: ./paths/audit.logs.saved-views.yaml
+  /api/audit/logs/saved-views/{viewId}:
+    $ref: ./paths/audit.logs.saved-view.yaml
   /api/security/overview:
     $ref: ./paths/security.overview.yaml
   /api/audit/incidents/{event_id}:
@@ -173,12 +177,20 @@ paths:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
     $ref: ./paths/access-log.detail.yaml
+  /api/access-log/saved-views:
+    $ref: ./paths/access-log.saved-views.yaml
+  /api/access-log/saved-views/{viewId}:
+    $ref: ./paths/access-log.saved-view.yaml
   /api/app-log:
     $ref: ./paths/app-log.logs.yaml
   /api/app-log/batch-delete:
     $ref: ./paths/app-log.batch-delete.yaml
   /api/app-log/{id}:
     $ref: ./paths/app-log.detail.yaml
+  /api/app-log/saved-views:
+    $ref: ./paths/app-log.saved-views.yaml
+  /api/app-log/saved-views/{viewId}:
+    $ref: ./paths/app-log.saved-view.yaml
   /api/dashboard/summary:
     $ref: ./paths/dashboard.summary.yaml
   /api/dashboard/widgets/{widget_id}:
@@ -975,6 +987,12 @@ components:
       $ref: ./components/schemas/project-saved-view-request.yaml
     ProjectSavedViewListResponse:
       $ref: ./components/schemas/project-saved-view-list-response.yaml
+    SavedView:
+      $ref: ./components/schemas/saved-view.yaml
+    SavedViewRequest:
+      $ref: ./components/schemas/saved-view-request.yaml
+    SavedViewListResponse:
+      $ref: ./components/schemas/saved-view-list-response.yaml
     EnvelopedProjectListResponse:
       $ref: ./components/schemas/enveloped-project-list-response.yaml
     EnvelopedProjectCreationMethodCatalogResponse:
@@ -1019,6 +1037,10 @@ components:
       $ref: ./components/schemas/enveloped-project-saved-view.yaml
     EnvelopedProjectSavedViewListResponse:
       $ref: ./components/schemas/enveloped-project-saved-view-list-response.yaml
+    EnvelopedSavedView:
+      $ref: ./components/schemas/enveloped-saved-view.yaml
+    EnvelopedSavedViewListResponse:
+      $ref: ./components/schemas/enveloped-saved-view-list-response.yaml
     RuntimeTarget:
       $ref: ./components/schemas/runtime-target.yaml
     RuntimeTargetSummary:
@@ -1099,6 +1121,8 @@ components:
       $ref: ./components/parameters/project-id-path.yaml
     project-saved-view-id-path:
       $ref: ./components/parameters/project-saved-view-id.yaml
+    saved-view-id-path:
+      $ref: ./components/parameters/saved-view-id.yaml
     project-workspace-path-query:
       $ref: ./components/parameters/project-workspace-path-query.yaml
     project-workspace-show-hidden-query:
