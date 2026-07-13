@@ -12,8 +12,6 @@ import (
 // ErrNotFound indicates that no live runtime target matches a lookup.
 var ErrNotFound = errors.New("runtime target not found")
 
-const maxRuntimeTargetListLimit = 100
-
 // LocalDockerProbe records the bounded Local Docker discovery result.
 type LocalDockerProbe struct {
 	Endpoint  string
@@ -49,8 +47,14 @@ type Page struct {
 
 // List returns all live runtime targets in stable display order.
 func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
-	page, err := r.ListPage(ctx, maxRuntimeTargetListLimit, 0)
-	return page.Items, err
+	if r == nil || r.db == nil {
+		return []Target{}, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id`)
+	if err != nil {
+		return nil, err
+	}
+	return scanTargets(rows)
 }
 
 // ListPage returns one live runtime-target page and its total.
@@ -66,23 +70,32 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	if err != nil {
 		return Page{}, err
 	}
+	items, err := scanTargets(rows)
+	if err != nil {
+		return Page{}, err
+	}
+	return Page{Items: items, Total: total}, nil
+}
+
+// scanTargets reads the runtime-target list projection and always closes its result set.
+func scanTargets(rows *sql.Rows) ([]Target, error) {
 	defer func() { _ = rows.Close() }()
 	items := []Target{}
 	for rows.Next() {
 		var item Target
 		var capabilities []byte
 		if err := rows.Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt); err != nil {
-			return Page{}, err
+			return nil, err
 		}
 		if err := json.Unmarshal(capabilities, &item.Capabilities); err != nil {
-			return Page{}, err
+			return nil, err
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return Page{}, err
+		return nil, err
 	}
-	return Page{Items: items, Total: total}, nil
+	return items, nil
 }
 
 // FindSystemLocalDocker returns the system-managed local Docker record, if it has been discovered before.

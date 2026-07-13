@@ -8,7 +8,10 @@ properties:
   total:
     type: integer
     format: int64
+    minimum: 0
   limit:
     type: integer
+    minimum: 1
   offset:
     type: integer
+    minimum: 0

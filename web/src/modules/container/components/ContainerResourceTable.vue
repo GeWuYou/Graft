@@ -181,7 +181,7 @@ import {
   shortContainerId,
 } from '../shared/resource-table';
 import { selectContainerStatsChangeState } from '../shared/stats-manager';
-import { metricChangedClass, metricProgressStatus } from '../shared/stats-visual-state';
+import { metricChangedClass } from '../shared/stats-visual-state';
 import type {
   ContainerHealth,
   ContainerOrchestratorType,
@@ -357,9 +357,9 @@ function cpuMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { sum
   if (row.resource?.cpu_percent === undefined) {
     return {
       available: false,
+      change: change.cpu,
       changeClass: metricChangedClass(change, 'cpu'),
       percentage: 0,
-      progressStatus: metricProgressStatus(change.cpu),
       summaryValue: t('container.list.stats.unavailable'),
       tooltip: resourceUnavailableSummary(row),
       value: t('container.list.stats.unavailable'),
@@ -369,9 +369,9 @@ function cpuMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { sum
   const value = formatPercent(row.resource.cpu_percent);
   return {
     available: true,
+    change: change.cpu,
     changeClass: metricChangedClass(change, 'cpu'),
     percentage: clampPercentage(row.resource.cpu_percent),
-    progressStatus: metricProgressStatus(change.cpu),
     summaryValue: value,
     tooltip: t('container.list.stats.cpuTooltip', { percent: value }),
     value,
@@ -383,9 +383,9 @@ function memoryMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { 
   if (row.resource?.memory_usage_bytes === undefined || row.resource?.memory_percent === undefined) {
     return {
       available: false,
+      change: change.memory,
       changeClass: metricChangedClass(change, 'memory'),
       percentage: 0,
-      progressStatus: metricProgressStatus(change.memory),
       summaryValue: t('container.list.stats.unavailable'),
       tooltip: resourceUnavailableSummary(row),
       value: t('container.list.stats.unavailable'),
@@ -399,9 +399,9 @@ function memoryMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { 
 
   return {
     available: true,
+    change: change.memory,
     changeClass: metricChangedClass(change, 'memory'),
     percentage: clampPercentage(row.resource.memory_percent),
-    progressStatus: metricProgressStatus(change.memory),
     summaryValue: percent,
     tooltip: t('container.list.stats.memoryTooltip', {
       limit: limit || t('container.list.stats.unavailable'),

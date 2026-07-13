@@ -105,46 +105,69 @@ func collectTargetSummary(ctx context.Context, target store.Target) targetRuntim
 	if err != nil {
 		return unavailableTargetSummary("Docker client is unavailable")
 	}
-	containers, err := client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
+	defer closeDockerClient(client)
+	containers, err := collectContainerMetric(ctx, client)
 	if err != nil {
 		return unavailableTargetSummary("Docker container metrics are unavailable")
 	}
 	result := unavailableTargetSummary("Docker metric is unavailable")
-	result.Containers = targetCountMetric{Available: true, Total: int64(len(containers.Items))}
+	result.Containers = containers
+	result.Images = collectImageMetric(ctx, client)
+	result.CPU, result.Memory = collectHostUsage(ctx, collectHostCPUUsage, collectHostMemoryUsage)
+	result.Disk = collectDockerFilesystemUsage(ctx, client)
+	return result
+}
+
+// closeDockerClient releases idle client connections after a collection attempt.
+func closeDockerClient(client *mobyclient.Client) {
+	_ = client.Close()
+}
+
+func collectContainerMetric(ctx context.Context, client *mobyclient.Client) (targetCountMetric, error) {
+	containers, err := client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
+	if err != nil {
+		return targetCountMetric{}, err
+	}
+	metric := targetCountMetric{Available: true, Total: int64(len(containers.Items))}
 	for _, item := range containers.Items {
 		if string(item.State) == "running" {
-			result.Containers.Running++
+			metric.Running++
 		} else {
-			result.Containers.Stopped++
+			metric.Stopped++
 		}
 	}
-	images, imageErr := client.ImageList(ctx, mobyclient.ImageListOptions{All: true})
-	if imageErr == nil {
-		result.Images = targetImageMetric{Available: true, Total: int64(len(images.Items))}
-		for _, image := range images.Items {
-			if image.Containers > 0 {
-				result.Images.Used++
-			}
-		}
-		result.Images.Unused = result.Images.Total - result.Images.Used
-	} else {
-		result.Images.UnavailableReason = "Docker image metrics are unavailable"
+	return metric, nil
+}
+
+func collectImageMetric(ctx context.Context, client *mobyclient.Client) targetImageMetric {
+	images, err := client.ImageList(ctx, mobyclient.ImageListOptions{All: true})
+	if err != nil {
+		return targetImageMetric{UnavailableReason: "Docker image metrics are unavailable"}
 	}
-	result.CPU = collectHostCPUUsage(ctx)
-	result.Memory = collectHostMemoryUsage(ctx)
+	metric := targetImageMetric{Available: true, Total: int64(len(images.Items))}
+	for _, image := range images.Items {
+		if image.Containers > 0 {
+			metric.Used++
+		}
+	}
+	metric.Unused = metric.Total - metric.Used
+	return metric
+}
+
+func collectDockerFilesystemUsage(ctx context.Context, client *mobyclient.Client) targetUsageMetric {
 	info, infoErr := client.Info(ctx, mobyclient.InfoOptions{})
 	var fs syscall.Statfs_t
 	if infoErr == nil && info.Info.DockerRootDir != "" && syscall.Statfs(info.Info.DockerRootDir, &fs) == nil {
-		total := filesystemBytes(fs.Blocks, fs.Bsize)
-		used := total - filesystemBytes(fs.Bfree, fs.Bsize)
-		result.Disk = targetUsageMetric{Available: true, UsedBytes: used, TotalBytes: total}
-		if total > 0 {
-			result.Disk.UsagePercent = float64(used) * percentageScale / float64(total)
-		}
-	} else {
-		result.Disk.UnavailableReason = "Docker data directory filesystem is unavailable"
+		return filesystemUsageMetric(fs.Blocks, fs.Bfree, fs.Bsize)
 	}
-	return result
+	return targetUsageMetric{UnavailableReason: "Docker data directory filesystem is unavailable"}
+}
+
+type hostUsageCollector func(context.Context) targetUsageMetric
+
+// collectHostUsage runs the independent host collectors without letting one unavailable metric affect the other.
+func collectHostUsage(ctx context.Context, collectCPU, collectMemory hostUsageCollector) (targetUsageMetric, targetUsageMetric) {
+	return collectCPU(ctx), collectMemory(ctx)
 }
 
 // collectHostCPUUsage collects the host CPU usage percentage.
@@ -176,11 +199,30 @@ func uint64ToInt64(value uint64) int64 {
 	return int64(value)
 }
 
-// filesystemBytes 将文件系统块数和块大小转换为字节数；当参数无效或计算结果超出 int64 范围时返回 math.MaxInt64。
-func filesystemBytes(blocks uint64, blockSize int64) int64 {
-	if blocks == 0 || blockSize <= 0 || blocks > uint64(math.MaxInt64)/uint64(blockSize) {
-		return math.MaxInt64
+// filesystemUsageMetric calculates filesystem usage while preserving zero free blocks as a valid full filesystem.
+func filesystemUsageMetric(blocks, freeBlocks uint64, blockSize int64) targetUsageMetric {
+	total, valid := filesystemBytes(blocks, blockSize)
+	if !valid || total == 0 {
+		return targetUsageMetric{UnavailableReason: "Docker data directory filesystem is unavailable"}
+	}
+	free, valid := filesystemBytes(freeBlocks, blockSize)
+	if !valid || freeBlocks > blocks {
+		return targetUsageMetric{UnavailableReason: "Docker data directory filesystem is unavailable"}
+	}
+	used := total - free
+	return targetUsageMetric{
+		Available:    true,
+		UsedBytes:    used,
+		TotalBytes:   total,
+		UsagePercent: float64(used) * percentageScale / float64(total),
+	}
+}
+
+// filesystemBytes converts filesystem block counts to bytes and reports whether the value fits in int64.
+func filesystemBytes(blocks uint64, blockSize int64) (int64, bool) {
+	if blockSize <= 0 || blocks > uint64(math.MaxInt64)/uint64(blockSize) {
+		return 0, false
 	}
 	//nolint:gosec // The overflow guard above proves this value fits in int64.
-	return int64(blocks * uint64(blockSize))
+	return int64(blocks * uint64(blockSize)), true
 }

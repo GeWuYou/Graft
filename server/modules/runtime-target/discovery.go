@@ -38,14 +38,19 @@ func discoverLocalDocker(parent context.Context, repository *store.SQLRepository
 		_ = connection.Close()
 	}
 	if err == nil {
-		client, clientErr := mobyclient.New(mobyclient.WithHost(localDockerEndpoint))
-		if clientErr != nil {
-			err = clientErr
-		} else if _, pingErr := client.Ping(ctx, mobyclient.PingOptions{NegotiateAPIVersion: true}); pingErr != nil {
-			err = pingErr
-		}
+		err = pingLocalDocker(ctx)
 	}
 	return repository.UpsertLocalDocker(ctx, store.LocalDockerProbe{Endpoint: localDockerEndpoint, Available: err == nil, Error: probeError(err), CheckedAt: time.Now().UTC()})
+}
+
+func pingLocalDocker(ctx context.Context) error {
+	client, err := mobyclient.New(mobyclient.WithHost(localDockerEndpoint))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = client.Close() }()
+	_, err = client.Ping(ctx, mobyclient.PingOptions{NegotiateAPIVersion: true})
+	return err
 }
 
 // refreshTarget refreshes the local Docker availability record before returning a matching target.

@@ -67,12 +67,19 @@ func TestRuntimeTargetSummaryCollectorPublishesOnlyAfterTopicActivation(t *testi
 }
 
 func TestCollectHostTargetUsageReportsIndependentMetrics(t *testing.T) {
-	cpuUsage := collectHostCPUUsage(context.Background())
-	if !cpuUsage.Available {
-		t.Fatalf("host cpu metric unavailable: %s", cpuUsage.UnavailableReason)
+	cpuUsage, memoryUsage := collectHostUsage(
+		context.Background(),
+		func(context.Context) targetUsageMetric {
+			return targetUsageMetric{UnavailableReason: "CPU probe failed"}
+		},
+		func(context.Context) targetUsageMetric {
+			return targetUsageMetric{Available: true, UsedBytes: 3, TotalBytes: 8, UsagePercent: 37.5}
+		},
+	)
+	if cpuUsage.Available || cpuUsage.UnavailableReason != "CPU probe failed" {
+		t.Fatalf("CPU metric = %#v", cpuUsage)
 	}
-	memoryUsage := collectHostMemoryUsage(context.Background())
-	if !memoryUsage.Available || memoryUsage.TotalBytes <= 0 {
-		t.Fatalf("host memory metric unavailable: %#v", memoryUsage)
+	if !memoryUsage.Available || memoryUsage.UsedBytes != 3 || memoryUsage.TotalBytes != 8 || memoryUsage.UsagePercent != 37.5 {
+		t.Fatalf("memory metric = %#v", memoryUsage)
 	}
 }

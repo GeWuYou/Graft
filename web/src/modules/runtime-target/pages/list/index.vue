@@ -27,7 +27,7 @@
             ><template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}</t-button
           >
         </template>
-        <t-table row-key="id" :data="items" :columns="columns" :loading="loading">
+        <t-table row-key="id" :data="items" :columns="tableColumns" :loading="loading">
           <template #empty>
             <t-empty
               :title="t('runtimeTarget.list.emptyTitle')"
@@ -59,6 +59,7 @@
 </template>
 <script setup lang="ts">
 import { RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, resolveComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -122,19 +123,19 @@ function countCell(totalValue: number, details: Array<[string, number]>) {
     ...details.map(([label, value]) => h('span', [h('small', label), h('b', value)])),
   ]);
 }
-const columns = computed<any[]>(() => [
+const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
   {
     colKey: 'displayName',
     title: t('runtimeTarget.columns.name'),
     minWidth: 230,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+    cell: (_h, { row }) =>
       h('div', { class: 'runtime-target-identity' }, [h('strong', row.displayName), h('small', row.endpointLabel)]),
   },
   {
     colKey: 'availability',
     title: t('runtimeTarget.columns.status'),
     width: 110,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+    cell: (_h, { row }) =>
       h(resolveComponent('t-tag'), { theme: row.availability ? 'success' : 'danger', variant: 'light' }, () =>
         row.availability ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable'),
       ),
@@ -143,7 +144,7 @@ const columns = computed<any[]>(() => [
     colKey: 'containers',
     title: t('runtimeTarget.metrics.containers'),
     width: 150,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+    cell: (_h, { row }) =>
       countCell(row.summary.containers.total, [
         [t('runtimeTarget.metrics.running'), row.summary.containers.running],
         [t('runtimeTarget.metrics.stopped'), row.summary.containers.stopped],
@@ -153,7 +154,7 @@ const columns = computed<any[]>(() => [
     colKey: 'images',
     title: t('runtimeTarget.metrics.images'),
     width: 150,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+    cell: (_h, { row }) =>
       countCell(row.summary.images.total, [
         [t('runtimeTarget.metrics.used'), row.summary.images.used],
         [t('runtimeTarget.metrics.unused'), row.summary.images.unused],
@@ -163,30 +164,33 @@ const columns = computed<any[]>(() => [
     colKey: 'cpu',
     title: t('runtimeTarget.metrics.cpu'),
     width: 142,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.id, 'cpu', row.summary.cpu),
+    cell: (_h, { row }) => metricCell(row.id, 'cpu', row.summary.cpu),
   },
   {
     colKey: 'memory',
     title: t('runtimeTarget.metrics.memory'),
     width: 142,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.id, 'memory', row.summary.memory),
+    cell: (_h, { row }) => metricCell(row.id, 'memory', row.summary.memory),
   },
   {
     colKey: 'disk',
     title: t('runtimeTarget.metrics.disk'),
     width: 142,
-    cell: (_: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.id, 'disk', row.summary.disk),
+    cell: (_h, { row }) => metricCell(row.id, 'disk', row.summary.disk),
   },
 ]);
+
+// TDesign's template component defaults its row generic to TableRowData.
+const tableColumns = columns as unknown as PrimaryTableCol[];
 
 function compare(previous: number, next: number): Change {
   return next > previous ? 'up' : next < previous ? 'down' : 'none';
 }
-function applyRealtime(itemsUpdate: RuntimeTarget[]) {
-  const byID = new Map(itemsUpdate.map((item) => [item.id, item]));
-  items.value = items.value.map((current) => {
-    const next = byID.get(current.id);
-    if (!next) return current;
+function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
+  const nextByID = new Map(nextItems.map((item) => [item.id, item]));
+  items.value = nextItems.map((next) => {
+    const current = items.value.find((item) => item.id === next.id);
+    if (!current) return next;
     const nextChanges: MetricChanges = {
       cpu: compare(current.summary.cpu.usagePercent, next.summary.cpu.usagePercent),
       memory: compare(current.summary.memory.usagePercent, next.summary.memory.usagePercent),
@@ -206,9 +210,18 @@ function applyRealtime(itemsUpdate: RuntimeTarget[]) {
     }
     return next;
   });
+  changes.value = Object.fromEntries(
+    Object.entries(changes.value).filter(([id]) => nextByID.has(Number(id))),
+  ) as Record<number, MetricChanges>;
+}
+function applyRealtime(itemsUpdate: RuntimeTarget[]) {
+  const offset = (pagination.current - 1) * pagination.pageSize;
+  if (offset >= itemsUpdate.length) return;
+  total.value = Math.max(total.value, itemsUpdate.length);
+  reconcileRealtimePage(itemsUpdate.slice(offset, offset + pagination.pageSize));
 }
 function startRealtime() {
-  if (!active.value || realtimeController || items.value.length === 0) return;
+  if (!active.value || realtimeController) return;
   realtimeController = openRealtimeTopicSocket({
     topic: RUNTIME_TARGET_REALTIME_TOPIC,
     parseMessage: parseRuntimeTargetSummaryPayload,

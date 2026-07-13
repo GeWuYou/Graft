@@ -43,6 +43,22 @@ const passthrough = (name: string) =>
     template: '<div><slot name="actions" /><slot /><slot name="action" /></div>',
   });
 
+function target(id: number) {
+  return {
+    id,
+    displayName: `Target ${id}`,
+    endpointLabel: `unix:///target-${id}.sock`,
+    availability: true,
+    summary: {
+      containers: { available: true, total: id, running: id, stopped: 0, unavailableReason: '' },
+      images: { available: true, total: id, used: id, unused: 0, unavailableReason: '' },
+      cpu: { available: true, usagePercent: id, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+      memory: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
+      disk: { available: true, usagePercent: id, usedBytes: id, totalBytes: 100, unavailableReason: '' },
+    },
+  };
+}
+
 function mountPage() {
   return mount(RuntimeTargetListPage, {
     global: {
@@ -56,6 +72,15 @@ function mountPage() {
         't-empty': passthrough('TEmpty'),
         't-tag': passthrough('TTag'),
         't-tooltip': passthrough('TTooltip'),
+        't-table': defineComponent({
+          name: 'TTable',
+          props: {
+            data: { type: Array, default: () => [] },
+            loading: { type: Boolean, default: false },
+          },
+          template:
+            '<div data-testid="runtime-target-table" :data-ids="data.map((row) => row.id).join(\',\')" :data-loading="String(loading)" />',
+        }),
         't-button': defineComponent({
           name: 'TButton',
           emits: ['click'],
@@ -64,6 +89,7 @@ function mountPage() {
         't-pagination': defineComponent({
           name: 'TPagination',
           props: { pageSizeOptions: { type: Array, default: () => [] } },
+          emits: ['update:current'],
           template: '<div data-testid="pagination" :data-options="pageSizeOptions.join(\',\')" />',
         }),
         't-progress': defineComponent({ name: 'TProgress', template: '<div class="progress" />' }),
@@ -109,7 +135,7 @@ describe('RuntimeTargetListPage', () => {
     await flushPromises();
 
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledWith({ limit: 10, offset: 0 });
-    expect(wrapper.find('t-table').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('7');
     expect(wrapper.get('[data-testid="pagination"]').attributes('data-options')).toBe('10,20,50,100');
   });
 
@@ -175,6 +201,35 @@ describe('RuntimeTargetListPage', () => {
     await flushPromises();
 
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledOnce();
-    expect(wrapper.find('t-table').attributes('data-loading')).toBeUndefined();
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('7');
+  });
+
+  it('subscribes while the initial page is empty and fills it from a realtime snapshot', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    expect(options?.topic).toBe('runtime-target.summary.list');
+
+    options?.onMessage({ topic: 'runtime-target.summary.list', items: [target(1)] });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('1');
+    expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledOnce();
+  });
+
+  it('reconciles a realtime snapshot to the current page window', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [target(11)], total: 11, limit: 10, offset: 10 });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    const snapshot = Array.from({ length: 12 }, (_, index) => target(index + 1));
+    wrapper.findComponent({ name: 'TPagination' }).vm.$emit('update:current', 2);
+    options?.onMessage({ topic: 'runtime-target.summary.list', items: snapshot });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('11,12');
   });
 });

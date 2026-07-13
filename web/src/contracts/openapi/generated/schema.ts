@@ -6119,13 +6119,24 @@ export interface components {
       unavailableReason: string;
     };
     'runtime-target-usage-metric': {
+      /** @description Whether this resource metric is available. */
       available: boolean;
-      /** Format: int64 */
+      /**
+       * Format: int64
+       * @description Bytes currently used by the resource.
+       */
       usedBytes: number;
-      /** Format: int64 */
+      /**
+       * Format: int64
+       * @description Total bytes available to the resource.
+       */
       totalBytes: number;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description Resource usage as a percentage from 0 through 100.
+       */
       usagePercent: number;
+      /** @description Reason the metric is unavailable; empty when it is available. */
       unavailableReason: string;
     };
     'runtime-target-summary': {

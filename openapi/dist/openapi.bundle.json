@@ -24610,22 +24610,29 @@
         ],
         "properties": {
           "available": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this resource metric is available."
           },
           "usedBytes": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes currently used by the resource."
           },
           "totalBytes": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total bytes available to the resource."
           },
           "usagePercent": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Resource usage as a percentage from 0 through 100."
           },
           "unavailableReason": {
-            "type": "string"
+            "type": "string",
+            "description": "Reason the metric is unavailable; empty when it is available."
           }
         }
       },
@@ -24729,13 +24736,16 @@
           },
           "total": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "minimum": 0
           },
           "limit": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           },
           "offset": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
