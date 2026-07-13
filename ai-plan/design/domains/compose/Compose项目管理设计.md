@@ -88,7 +88,7 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - `Application ID`
   - 对外稳定标识，格式为 `app_<ULID>`；不因显示名、工作区或运行目标变化而改变。
 - `Workspace Key` / `Workspace Path`
-  - 受管应用的稳定单层安全 key 与实际工作区路径。Graft 生成并唯一化为 `<application-root>/<workspace-key>`；用户不填写目录，也不按 Provider 或 Deployment Type 分层。导入的外部工作区只记录其既有路径。
+  - 受管应用的稳定单层安全 key 与实际工作区路径。Graft 提议可用 key 并生成 `<application-root>/<workspace-key>`；用户可在表单中编辑 key，但不能输入任意相对目录。默认 key 冲突自动加后缀，显式 key 由服务端校验唯一性；不按 Provider 或 Deployment Type 分层。导入的外部工作区只记录其既有路径。
 - `Compose Project Name`
   - Compose deployment identity；优先由顶层 `name:` 取得，缺失时由服务端生成并写入受管 Compose 文件。CLI 执行、容器归属匹配和项目成员识别都以它为准；不是 Application ID、显示名或目录名。
 - `Display Name`
@@ -121,10 +121,10 @@ UI route 的 canonical 语义固定为：
 | --- | --- |
 | `/applications/projects/create` | Deployment Type picker；不在 URL 中暴露 Provider hierarchy |
 | `/applications/projects/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Type picker |
-| `/applications/projects/create/source?deployment=compose&target=<application-id>` | Compose Source picker；无效或缺失选择回到上一步 |
-| `/applications/projects/create/blank?deployment=compose&target=<application-id>` | Compose 空白 Workspace 向导 |
-| `/applications/projects/create/template?deployment=compose&target=<application-id>` | Compose 模板向导 |
-| `/applications/projects/create/import?deployment=compose&target=<application-id>` | Compose 导入向导 |
+| `/applications/projects/create/source?deployment=compose&runtime_target_id=<target-id>` | Compose Source picker；无效或缺失选择回到上一步 |
+| `/applications/projects/create/blank?deployment=compose&runtime_target_id=<target-id>` | Compose 空白 Workspace 向导 |
+| `/applications/projects/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose 模板向导 |
+| `/applications/projects/create/import?deployment=compose&runtime_target_id=<target-id>` | Compose 导入向导 |
 
 `/applications/projects/**` 保持 Application 领域 URL，`projects` 是当前 Compose registry 的稳定资源名；不得引入 `/docker/**`、`/compose/**` 或 `/kubernetes/**` 的创建层级。实现前尚未发版，不保留旧 `runtime=docker-compose`、旧来源选择或别名 redirect。
 
@@ -1044,7 +1044,7 @@ managed create request 建议至少包含：
 - `compose_file_name`
 - `env_file_name?`
 
-服务端从 `workspace_key` 生成唯一的单层 Workspace Path：`Application Root Directory + workspace_key`。默认 key 由显示名生成；冲突时自动附加 `-2`、`-3` 等后缀。用户若显式填写 key，只能填写安全 slug，冲突时返回本地化错误与建议值。不得接受 `relative_project_directory`、绝对路径、路径分隔符或 `..`；用户界面不展示目录、受管根目录、权限或 Compose runtime identity。
+服务端从 `workspace_key` 生成唯一的单层 Workspace Path：`Application Root Directory + workspace_key`。创建表单展示可编辑的 Workspace Key 控制项，初始值为 Graft 按显示名提议的可用 key；默认 key 冲突时服务端自动附加 `-2`、`-3` 等后缀。用户若显式修改 key，只能填写安全 slug，冲突时返回本地化错误与建议值。不得接受 `relative_project_directory`、绝对路径、路径分隔符或 `..`；用户界面不展示完整路径、受管根目录、权限或 Compose runtime identity。
 
 受管工作区是 Application 的文件载体，不按 Docker、Podman、Compose 或 Kubernetes 分层。Runtime 切换或未来 Deployment Type 演进不移动 Workspace；runtime 自身的存储仍由 Provider 管理。数据库 registry 是元数据真相，实际 Workspace 是文件内容真相；本切片不引入 `graft.yaml`。
 

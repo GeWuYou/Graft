@@ -146,7 +146,7 @@ Compose Project Management
 
 - Deployment Type、Runtime Target、Source 三层正交：Compose 是 Deployment Type；Docker、Podman、containerd 是 Runtime Provider。
 - 当前只公开 Compose、具备真实 capability 的 Local Docker，以及 Blank、Template、Import Existing；Swarm/Kubernetes/Nomad 在第一步禁用并提示暂不支持，Git/Remote/Podman 不展示占位入口。
-- 公开标识为 `app_<ULID>`；Workspace Path 由服务端以唯一 Workspace Key 生成，用户不填写目录；Compose `name:` 决定 Compose Project Name，三者都不等同于 Display Name。
+- 公开标识为创建后的 `app_<ULID>`；Workspace Path 由服务端以唯一 Workspace Key 生成，表单展示 Graft 提议且可编辑的安全 key；Compose `name:` 决定 Compose Project Name，三者都不等同于 Display Name。
 - Workspace 是 Application 文件载体，不按 Provider 或 Deployment Type 分目录；数据库 registry 是元数据真相，不新增 `graft.yaml`。
 
 当前 batch-1 已完成的前置条件：
@@ -299,11 +299,12 @@ Compose Project Management
     "application-target-association-and-list-query",
     "web-application-management-and-icon-system",
     "cross-boundary-acceptance-and-topic-closeout",
-    "application-model-docs"
+    "application-model-docs",
+    "application-model-docs-correction"
   ],
   "pending_batches": ["application-identity-backend", "create-workflow-web", "validation-and-closeout"],
-  "current_batch": "application-model-docs",
+  "current_batch": "application-model-docs-correction",
   "next_batch": "application-identity-backend",
-  "closeout_status": "application-model-docs-complete"
+  "closeout_status": "application-model-docs-correction-complete"
 }
 ```
