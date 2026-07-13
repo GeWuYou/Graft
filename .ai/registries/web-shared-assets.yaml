@@ -112,7 +112,7 @@ assets:
     type: "frontend-component-suite"
     path: "web/src/shared/components/metrics"
     owner: "web/shared"
-    purpose: "Reusable compact metric cards for resource snapshots and operational status summaries."
+    purpose: "Reusable compact metric cards and realtime resource meters for resource snapshots and operational status summaries."
     use_when:
       - "Building module pages that need token-driven CPU, memory, status, or other compact operational metric summaries."
     do_not_use_when:

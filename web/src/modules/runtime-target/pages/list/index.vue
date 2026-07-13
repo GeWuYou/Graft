@@ -1,7 +1,11 @@
 <template>
   <div class="runtime-target-page" data-page-type="list-form-detail">
     <management-page-content>
-      <management-page-header :title="t('runtimeTarget.list.title')" :description="t('runtimeTarget.list.description')">
+      <management-page-header
+        :source="{ labelKey: 'runtimeTarget.list.eyebrow', fallback: t('runtimeTarget.list.eyebrow') }"
+        :title="t('runtimeTarget.list.title')"
+        :description="t('runtimeTarget.list.description')"
+      >
         <template #actions>
           <t-button
             theme="default"
@@ -10,22 +14,18 @@
             data-testid="runtime-target-discover-local"
             @click="discoverLocal"
           >
-            <template #icon><search-icon /></template>
-            {{ t('runtimeTarget.list.discoverLocal') }}
+            <template #icon><search-icon /></template>{{ t('runtimeTarget.list.discoverLocal') }}
           </t-button>
           <t-button theme="primary" variant="outline" :loading="loading" @click="load">
-            <template #icon><refresh-icon /></template>
-            {{ t('runtimeTarget.list.reload') }}
+            <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
           </t-button>
         </template>
       </management-page-header>
-
       <management-table-card :description="t('runtimeTarget.list.summary', { count: total })">
         <template #toolbar>
-          <t-button theme="default" variant="text" :loading="loading" @click="load">
-            <template #icon><refresh-icon /></template>
-            {{ t('runtimeTarget.list.reload') }}
-          </t-button>
+          <t-button theme="default" variant="text" :loading="loading" @click="load"
+            ><template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}</t-button
+          >
         </template>
         <t-table row-key="id" :data="items" :columns="columns" :loading="loading">
           <template #empty>
@@ -69,23 +69,30 @@ import {
   ManagementTableCard,
   ManagementTablePagination,
 } from '@/shared/components/management';
+import { RealtimeResourceMetricCell } from '@/shared/components/metrics';
 import { formatBytes } from '@/shared/observability';
+import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import {
   discoverLocalDocker,
   listRuntimeTargetPage,
-  refreshRuntimeTarget,
   type RuntimeTarget,
   type RuntimeTargetMetric,
 } from '../../api/runtime-target';
+import { parseRuntimeTargetSummaryPayload, RUNTIME_TARGET_REALTIME_TOPIC } from '../../contract/realtime';
 
+type Change = 'up' | 'down' | 'none';
+type MetricChanges = Record<'cpu' | 'memory' | 'disk', Change>;
 const { t } = useI18n();
 const loading = ref(false);
 const discovering = ref(false);
-const refreshingId = ref<number | null>(null);
 const items = ref<RuntimeTarget[]>([]);
 const total = ref(0);
 const pagination = reactive({ current: 1, pageSize: 10 });
+const changes = ref<Record<number, MetricChanges>>({});
+const active = ref(false);
+let realtimeController: RealtimeTopicSocketController | null = null;
+const changeTimers = new Map<number, number>();
 
 function metricText(metric: RuntimeTargetMetric) {
   if (!metric.available) return t('runtimeTarget.metrics.unavailable');
@@ -94,91 +101,124 @@ function metricText(metric: RuntimeTargetMetric) {
     ? `${percent} · ${formatBytes(metric.usedBytes)} / ${formatBytes(metric.totalBytes)}`
     : percent;
 }
-
-function metricCell(metric: RuntimeTargetMetric) {
-  const percent = Math.max(0, Math.min(100, metric.usagePercent));
-  const tooltip = metric.available
-    ? metricText(metric)
-    : metric.unavailableReason || t('runtimeTarget.metrics.unavailableHint');
-  return h(resolveComponent('t-tooltip'), { content: tooltip }, () =>
-    h('div', { class: 'runtime-target-meter', 'data-available': metric.available }, [
-      metric.available
-        ? h(resolveComponent('t-progress'), {
-            theme: 'circle',
-            label: false,
-            percentage: percent,
-            size: 36,
-            strokeWidth: 4,
-          })
-        : h('span', { class: 'runtime-target-meter__empty' }),
-      h('span', metric.available ? `${percent.toFixed(1)}%` : t('runtimeTarget.metrics.unavailable')),
-    ]),
-  );
+function changeFor(id: number, metric: keyof MetricChanges) {
+  return changes.value[id]?.[metric] ?? 'none';
 }
-
+function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTargetMetric) {
+  const percentage = Math.max(0, Math.min(100, value.usagePercent));
+  return h(RealtimeResourceMetricCell, {
+    available: value.available,
+    change: changeFor(id, metric),
+    percentage,
+    tooltip: value.available
+      ? metricText(value)
+      : value.unavailableReason || t('runtimeTarget.metrics.unavailableHint'),
+    value: value.available ? `${percentage.toFixed(1)}%` : t('runtimeTarget.metrics.unavailable'),
+  });
+}
+function countCell(totalValue: number, details: Array<[string, number]>) {
+  return h('div', { class: 'runtime-target-counts' }, [
+    h('strong', totalValue),
+    ...details.map(([label, value]) => h('span', [h('small', label), h('b', value)])),
+  ]);
+}
 const columns = computed<any[]>(() => [
   {
     colKey: 'displayName',
     title: t('runtimeTarget.columns.name'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
-      h('div', [h('strong', row.displayName), h('small', row.endpointLabel)]),
+    minWidth: 230,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+      h('div', { class: 'runtime-target-identity' }, [h('strong', row.displayName), h('small', row.endpointLabel)]),
   },
   {
     colKey: 'availability',
     title: t('runtimeTarget.columns.status'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
-      h('t-tag', { theme: row.availability ? 'success' : 'danger', variant: 'light' }, () =>
-        availabilityText(row.availability),
+    width: 110,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+      h(resolveComponent('t-tag'), { theme: row.availability ? 'success' : 'danger', variant: 'light' }, () =>
+        row.availability ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable'),
       ),
   },
   {
     colKey: 'containers',
     title: t('runtimeTarget.metrics.containers'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
-      `${row.summary.containers.total} (${t('runtimeTarget.metrics.running')} ${row.summary.containers.running} · ${t('runtimeTarget.metrics.stopped')} ${row.summary.containers.stopped})`,
+    width: 150,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+      countCell(row.summary.containers.total, [
+        [t('runtimeTarget.metrics.running'), row.summary.containers.running],
+        [t('runtimeTarget.metrics.stopped'), row.summary.containers.stopped],
+      ]),
   },
   {
     colKey: 'images',
     title: t('runtimeTarget.metrics.images'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
-      `${row.summary.images.total} (${t('runtimeTarget.metrics.used')} ${row.summary.images.used} · ${t('runtimeTarget.metrics.unused')} ${row.summary.images.unused})`,
+    width: 150,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) =>
+      countCell(row.summary.images.total, [
+        [t('runtimeTarget.metrics.used'), row.summary.images.used],
+        [t('runtimeTarget.metrics.unused'), row.summary.images.unused],
+      ]),
   },
   {
     colKey: 'cpu',
     title: t('runtimeTarget.metrics.cpu'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.summary.cpu),
+    width: 142,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.id, 'cpu', row.summary.cpu),
   },
   {
     colKey: 'memory',
     title: t('runtimeTarget.metrics.memory'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.summary.memory),
+    width: 142,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.id, 'memory', row.summary.memory),
   },
   {
     colKey: 'disk',
     title: t('runtimeTarget.metrics.disk'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.summary.disk),
-  },
-  {
-    colKey: 'actions',
-    title: t('runtimeTarget.list.refresh'),
-    cell: (_h: unknown, { row }: { row: RuntimeTarget }) =>
-      h(
-        't-button',
-        {
-          theme: 'default',
-          variant: 'text',
-          loading: refreshingId.value === row.id,
-          onClick: () => refreshTarget(row.id),
-        },
-        () => h(RefreshIcon),
-      ),
+    width: 142,
+    cell: (_: unknown, { row }: { row: RuntimeTarget }) => metricCell(row.id, 'disk', row.summary.disk),
   },
 ]);
 
-function availabilityText(value: boolean) {
-  return value ? t('runtimeTarget.status.available') : t('runtimeTarget.status.unavailable');
+function compare(previous: number, next: number): Change {
+  return next > previous ? 'up' : next < previous ? 'down' : 'none';
 }
-
+function applyRealtime(itemsUpdate: RuntimeTarget[]) {
+  const byID = new Map(itemsUpdate.map((item) => [item.id, item]));
+  items.value = items.value.map((current) => {
+    const next = byID.get(current.id);
+    if (!next) return current;
+    const nextChanges: MetricChanges = {
+      cpu: compare(current.summary.cpu.usagePercent, next.summary.cpu.usagePercent),
+      memory: compare(current.summary.memory.usagePercent, next.summary.memory.usagePercent),
+      disk: compare(current.summary.disk.usagePercent, next.summary.disk.usagePercent),
+    };
+    if (Object.values(nextChanges).some((value) => value !== 'none')) {
+      changes.value = { ...changes.value, [current.id]: nextChanges };
+      const oldTimer = changeTimers.get(current.id);
+      if (oldTimer) window.clearTimeout(oldTimer);
+      changeTimers.set(
+        current.id,
+        window.setTimeout(() => {
+          const { [current.id]: _, ...rest } = changes.value;
+          changes.value = rest;
+        }, 800),
+      );
+    }
+    return next;
+  });
+}
+function startRealtime() {
+  if (!active.value || realtimeController || items.value.length === 0) return;
+  realtimeController = openRealtimeTopicSocket({
+    topic: RUNTIME_TARGET_REALTIME_TOPIC,
+    parseMessage: parseRuntimeTargetSummaryPayload,
+    onMessage: (payload) => applyRealtime(payload.items),
+  });
+}
+function stopRealtime() {
+  realtimeController?.close();
+  realtimeController = null;
+}
 async function load() {
   loading.value = true;
   try {
@@ -188,21 +228,11 @@ async function load() {
     });
     items.value = page.items;
     total.value = page.total;
+    startRealtime();
   } finally {
     loading.value = false;
   }
 }
-
-async function refreshTarget(id: number) {
-  refreshingId.value = id;
-  try {
-    await refreshRuntimeTarget(id);
-    await load();
-  } finally {
-    refreshingId.value = null;
-  }
-}
-
 async function discoverLocal() {
   discovering.value = true;
   try {
@@ -214,178 +244,53 @@ async function discoverLocal() {
     discovering.value = false;
   }
 }
-
-const refreshIntervalMs = 5_000;
-let refreshTimer: number | null = null;
-function startRealtimeRefresh() {
-  if (refreshTimer !== null) return;
-  refreshTimer = window.setInterval(() => {
-    if (document.visibilityState === 'visible' && !loading.value) void load();
-  }, refreshIntervalMs);
-}
-function stopRealtimeRefresh() {
-  if (refreshTimer !== null) window.clearInterval(refreshTimer);
-  refreshTimer = null;
-}
 onMounted(() => {
+  active.value = true;
   void load();
-  startRealtimeRefresh();
 });
-onActivated(startRealtimeRefresh);
-onDeactivated(stopRealtimeRefresh);
-onUnmounted(stopRealtimeRefresh);
+onActivated(() => {
+  active.value = true;
+  startRealtime();
+});
+onDeactivated(() => {
+  active.value = false;
+  stopRealtime();
+});
+onUnmounted(() => {
+  stopRealtime();
+  changeTimers.forEach((timer) => window.clearTimeout(timer));
+});
 </script>
 <style scoped lang="less">
-.runtime-target-meter {
-  align-items: center;
-  background: var(--td-bg-color-container-hover);
-  border-radius: 999px;
-  display: inline-flex;
-  gap: var(--graft-density-gap-8);
-  padding: var(--graft-density-gap-2) var(--graft-density-gap-8) var(--graft-density-gap-2) var(--graft-density-gap-2);
-  white-space: nowrap;
-}
-
-.runtime-target-meter > span:last-child {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.runtime-target-meter__empty {
-  border: 1px dashed var(--td-component-stroke);
-  border-radius: 50%;
-  height: 36px;
-  width: 36px;
-}
-
-.runtime-target-page__grid {
-  margin-top: var(--graft-density-gap-4);
-}
-
-.runtime-target-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
+:deep(.runtime-target-identity),
+:deep(.runtime-target-counts) {
   display: flex;
   flex-direction: column;
-  gap: var(--graft-density-gap-18);
-  min-height: 312px;
-  padding: var(--graft-density-gap-20);
+  gap: var(--graft-density-gap-4);
 }
 
-.runtime-target-card__header,
-.runtime-target-card__title-row,
-.runtime-target-metric__head {
-  align-items: center;
-  display: flex;
-}
-
-.runtime-target-card__header {
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.runtime-target-card__identity {
-  min-width: 0;
-}
-
-.runtime-target-card__title-row {
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
-}
-
-.runtime-target-card h2,
-.runtime-target-card p,
-.runtime-target-card section,
-.runtime-target-card small {
-  margin: 0;
-}
-
-.runtime-target-card h2 {
+:deep(.runtime-target-identity strong),
+:deep(.runtime-target-counts strong) {
   color: var(--td-text-color-primary);
-  font: var(--td-font-title-medium);
+  font: var(--td-font-body-medium);
 }
 
-.runtime-target-card p {
+:deep(.runtime-target-identity small),
+:deep(.runtime-target-counts small) {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
-  margin-top: var(--graft-density-gap-6);
   overflow-wrap: anywhere;
 }
 
-.runtime-target-card__counts {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.runtime-target-card__counts section {
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-small);
+:deep(.runtime-target-counts span) {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: var(--graft-density-gap-12);
-}
-
-.runtime-target-card__counts span,
-.runtime-target-metric__head span {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.runtime-target-card__counts strong {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-large);
-  line-height: 1.2;
-  margin-top: var(--graft-density-gap-4);
-}
-
-.runtime-target-card__counts small,
-.runtime-target-metric small {
-  color: var(--td-text-color-placeholder);
-  font: var(--td-font-body-small);
-  margin-top: var(--graft-density-gap-4);
-}
-
-.runtime-target-card__metrics {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-}
-
-.runtime-target-metric__head {
+  gap: var(--graft-density-gap-6);
   justify-content: space-between;
-  margin-bottom: var(--graft-density-gap-6);
 }
 
-.runtime-target-metric__head strong {
+:deep(.runtime-target-counts b) {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-small);
-}
-
-.runtime-target-metric__unavailable,
-.runtime-target-metric__hint {
-  color: var(--td-text-color-placeholder);
-  font: var(--td-font-body-small);
-}
-
-.runtime-target-metric__hint {
-  display: block;
-  min-height: 18px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.runtime-target-page__empty {
-  min-height: 280px;
-}
-
-@media (width <= 640px) {
-  .runtime-target-card {
-    min-height: 0;
-    padding: var(--graft-density-gap-16);
-  }
 }
 </style>

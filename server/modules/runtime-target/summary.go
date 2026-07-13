@@ -2,21 +2,20 @@ package runtimetarget
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	mobyclient "github.com/moby/moby/client"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 	store "graft/server/modules/runtime-target/store"
 )
 
 const (
-	runtimeTargetSummaryTTL   = time.Second
-	runtimeTargetStatsTimeout = 2 * time.Second
-	percentageScale           = 100
+	runtimeTargetSummaryTTL = time.Second
+	percentageScale         = 100
 )
 
 type targetCountMetric struct {
@@ -128,57 +127,11 @@ func collectTargetSummary(ctx context.Context, target store.Target) targetRuntim
 	} else {
 		result.Images.UnavailableReason = "Docker image metrics are unavailable"
 	}
+	result.CPU = collectHostCPUUsage(ctx)
+	result.Memory = collectHostMemoryUsage(ctx)
 	info, infoErr := client.Info(ctx, mobyclient.InfoOptions{})
-	if infoErr != nil {
-		return result
-	}
-	statsCtx, cancelStats := context.WithTimeout(ctx, runtimeTargetStatsTimeout)
-	defer cancelStats()
-	var usedMemory int64
-	var cpu float64
-	statsOK := true
-	for _, item := range containers.Items {
-		if string(item.State) != "running" {
-			continue
-		}
-		stats, err := client.ContainerStats(statsCtx, item.ID, mobyclient.ContainerStatsOptions{IncludePreviousSample: true})
-		if err != nil {
-			statsOK = false
-			break
-		}
-		var sample container.StatsResponse
-		decodeErr := json.NewDecoder(stats.Body).Decode(&sample)
-		_ = stats.Body.Close()
-		if decodeErr != nil {
-			statsOK = false
-			break
-		}
-		usedMemory += uint64ToInt64(sample.MemoryStats.Usage)
-		pre := sample.PreCPUStats.CPUUsage.TotalUsage
-		system := sample.CPUStats.SystemUsage
-		preSystem := sample.PreCPUStats.SystemUsage
-		if system > preSystem && sample.CPUStats.CPUUsage.TotalUsage > pre {
-			cpus := sample.CPUStats.OnlineCPUs
-			if cpus == 0 {
-				cpus = intToUint32(info.Info.NCPU)
-			}
-			cpu += float64(sample.CPUStats.CPUUsage.TotalUsage-pre) / float64(system-preSystem) * float64(cpus) * percentageScale
-		}
-	}
-	if statsOK {
-		result.CPU = targetUsageMetric{Available: true, UsagePercent: cpu}
-		total := info.Info.MemTotal
-		if total > 0 {
-			result.Memory = targetUsageMetric{Available: true, UsedBytes: usedMemory, TotalBytes: total, UsagePercent: float64(usedMemory) * percentageScale / float64(total)}
-		} else {
-			result.Memory.UnavailableReason = "Docker memory total is unavailable"
-		}
-	} else {
-		result.CPU.UnavailableReason = "Docker CPU metrics are unavailable"
-		result.Memory.UnavailableReason = "Docker memory metrics are unavailable"
-	}
 	var fs syscall.Statfs_t
-	if info.Info.DockerRootDir != "" && syscall.Statfs(info.Info.DockerRootDir, &fs) == nil {
+	if infoErr == nil && info.Info.DockerRootDir != "" && syscall.Statfs(info.Info.DockerRootDir, &fs) == nil {
 		total := filesystemBytes(fs.Blocks, fs.Bsize)
 		used := total - filesystemBytes(fs.Bfree, fs.Bsize)
 		result.Disk = targetUsageMetric{Available: true, UsedBytes: used, TotalBytes: total}
@@ -191,21 +144,27 @@ func collectTargetSummary(ctx context.Context, target store.Target) targetRuntim
 	return result
 }
 
+func collectHostCPUUsage(ctx context.Context) targetUsageMetric {
+	values, err := cpu.PercentWithContext(ctx, 0, false)
+	if err != nil || len(values) == 0 {
+		return targetUsageMetric{UnavailableReason: "Host CPU metrics are unavailable"}
+	}
+	return targetUsageMetric{Available: true, UsagePercent: values[0]}
+}
+
+func collectHostMemoryUsage(ctx context.Context) targetUsageMetric {
+	snapshot, err := mem.VirtualMemoryWithContext(ctx)
+	if err != nil || snapshot == nil || snapshot.Total == 0 {
+		return targetUsageMetric{UnavailableReason: "Host memory metrics are unavailable"}
+	}
+	return targetUsageMetric{Available: true, UsedBytes: uint64ToInt64(snapshot.Used), TotalBytes: uint64ToInt64(snapshot.Total), UsagePercent: snapshot.UsedPercent}
+}
+
 func uint64ToInt64(value uint64) int64 {
 	if value > math.MaxInt64 {
 		return math.MaxInt64
 	}
 	return int64(value)
-}
-
-func intToUint32(value int) uint32 {
-	if value <= 0 {
-		return 0
-	}
-	if value > math.MaxUint32 {
-		return math.MaxUint32
-	}
-	return uint32(value)
 }
 
 func filesystemBytes(blocks uint64, blockSize int64) int64 {

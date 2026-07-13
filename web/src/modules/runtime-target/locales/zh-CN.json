@@ -3,6 +3,7 @@
   "runtimeTarget": {
     "route": { "list": { "title": "运行目标" } },
     "list": {
+      "eyebrow": "基础设施",
       "title": "运行目标",
       "description": "查看已发现运行目标的容器、镜像与资源使用摘要。",
       "refresh": "刷新目标",

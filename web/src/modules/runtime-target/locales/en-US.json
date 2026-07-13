@@ -3,6 +3,7 @@
   "runtimeTarget": {
     "route": { "list": { "title": "Runtime Targets" } },
     "list": {
+      "eyebrow": "Infrastructure",
       "title": "Runtime Targets",
       "description": "Review container, image, and resource summaries for discovered runtime targets.",
       "refresh": "Refresh Target",

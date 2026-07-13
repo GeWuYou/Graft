@@ -17,6 +17,8 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
+	"graft/server/internal/realtimeauth"
 	contract "graft/server/modules/runtime-target/contract"
 	store "graft/server/modules/runtime-target/store"
 )
@@ -25,8 +27,12 @@ const maxRuntimeTargetID = uint64(^uint64(0) >> 1)
 
 // Module exposes runtime-target API routes and bounded Local Docker discovery.
 type Module struct {
-	repository *store.SQLRepository
-	summaries  *summaryCache
+	repository      *store.SQLRepository
+	summaries       *summaryCache
+	authorizer      moduleapi.Authorizer
+	realtimeTickets realtimeauth.Service
+	topicIssuers    realtime.TopicIssuerRegistry
+	collector       *runtimeTargetSummaryCollector
 }
 
 // NewModule constructs the runtime-target module.
@@ -50,6 +56,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := m.configureRealtime(ctx, authorizer); err != nil {
+		return err
+	}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
 		return err
@@ -59,6 +68,29 @@ func (m *Module) Register(ctx *module.Context) error {
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
 	return nil
+}
+
+func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Authorizer) error {
+	realtimeTickets, err := module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
+	if err != nil {
+		return err
+	}
+	topicIssuers, err := module.ResolveService[realtime.TopicIssuerRegistry](ctx.Services, (*realtime.TopicIssuerRegistry)(nil))
+	if err != nil {
+		return err
+	}
+	hub := ctx.Realtime
+	if hub == nil {
+		hub, err = module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil))
+		if err != nil {
+			return err
+		}
+	}
+	m.authorizer = authorizer
+	m.realtimeTickets = realtimeTickets
+	m.topicIssuers = topicIssuers
+	m.collector = newRuntimeTargetSummaryCollector(hub, m.collectRealtimeSummaries)
+	return m.topicIssuers.Register(contract.SummaryTopic, m)
 }
 
 type runtimeTargetReader struct{ repository *store.SQLRepository }
@@ -125,11 +157,25 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.repository == nil || ctx == nil {
 		return nil
 	}
-	return discoverLocalDocker(ctx.LifecycleContext, m.repository)
+	if err := discoverLocalDocker(ctx.LifecycleContext, m.repository); err != nil {
+		return err
+	}
+	if m.collector == nil {
+		return nil
+	}
+	return m.collector.Start(ctx.LifecycleContext)
 }
 
-// Shutdown releases no resources because discovery is request-bounded.
-func (m *Module) Shutdown(*module.Context) error { return nil }
+// Shutdown releases the module-owned realtime collector.
+func (m *Module) Shutdown(ctx *module.Context) error {
+	if m == nil || m.collector == nil {
+		return nil
+	}
+	if ctx == nil || ctx.LifecycleContext == nil {
+		return errors.New("runtime target shutdown lifecycle context is required")
+	}
+	return m.collector.Stop(ctx.LifecycleContext)
+}
 
 func (m *Module) handleList(c *gin.Context) {
 	limit, offset, ok := runtimeTargetListWindow(c)

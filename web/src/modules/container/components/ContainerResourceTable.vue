@@ -544,33 +544,4 @@ function localizeResourceUnavailableReason(reason?: string | null) {
   min-width: auto;
   padding: 0;
 }
-
-.container-resource-meter {
-  align-items: center;
-  border-radius: 999px;
-  display: inline-flex;
-  gap: var(--graft-density-gap-8);
-  justify-content: center;
-  min-width: 0;
-  overflow: hidden;
-  padding: var(--graft-density-gap-2) var(--graft-density-gap-8) var(--graft-density-gap-2) var(--graft-density-gap-2);
-  position: relative;
-  transform: translateZ(0);
-}
-
-.container-resource-meter[data-available='true'] {
-  background: var(--td-bg-color-container-hover);
-}
-
-.container-resource-meter :deep(.t-progress) {
-  flex: none;
-}
-
-.container-resource-meter__empty {
-  background: var(--td-bg-color-component-disabled);
-  border-radius: 50%;
-  display: inline-flex;
-  height: 36px;
-  width: 36px;
-}
 </style>

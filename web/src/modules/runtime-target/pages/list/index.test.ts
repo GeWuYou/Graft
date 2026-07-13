@@ -7,13 +7,32 @@ import RuntimeTargetListPage from './index.vue';
 const apiMocks = vi.hoisted(() => ({
   discoverLocalDocker: vi.fn(),
   listRuntimeTargetPage: vi.fn(),
-  refreshRuntimeTarget: vi.fn(),
 }));
 
 const messageMocks = vi.hoisted(() => ({ success: vi.fn() }));
+const realtimeMocks = vi.hoisted(() => ({
+  openRealtimeTopicSocket: vi.fn<
+    (options: { topic: string; onMessage: (payload: { topic: string; items: unknown[] }) => void }) => {
+      close: () => void;
+      reconnect: () => void;
+    }
+  >(() => ({ close: vi.fn(), reconnect: vi.fn() })),
+}));
 
 vi.mock('../../api/runtime-target', () => apiMocks);
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
+vi.mock('@/shared/realtime', () => ({
+  isRealtimePayloadObject: (value: unknown) => Boolean(value && typeof value === 'object' && !Array.isArray(value)),
+  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
+  parseRealtimeEnvelopeData: (raw: unknown) => {
+    try {
+      const parsed = JSON.parse(String(raw)) as { data?: unknown };
+      return parsed.data;
+    } catch {
+      return null;
+    }
+  },
+}));
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key}:${values?.count ?? ''}` }),
 }));
@@ -106,5 +125,56 @@ describe('RuntimeTargetListPage', () => {
     expect(apiMocks.discoverLocalDocker).toHaveBeenCalledOnce();
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledTimes(2);
     expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.discoverSuccess:');
+  });
+
+  it('patches the current page from a realtime snapshot without reloading the table', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          displayName: 'Local Docker',
+          endpointLabel: 'unix:///var/run/docker.sock',
+          availability: true,
+          summary: {
+            containers: { available: true, total: 1, running: 1, stopped: 0, unavailableReason: '' },
+            images: { available: true, total: 1, used: 1, unused: 0, unavailableReason: '' },
+            cpu: { available: true, usagePercent: 10, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+            memory: { available: true, usagePercent: 20, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
+            disk: { available: true, usagePercent: 30, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
+          },
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    expect(options?.topic).toBe('runtime-target.summary.list');
+    options?.onMessage({
+      topic: 'runtime-target.summary.list',
+      items: [
+        {
+          ...apiMocks.listRuntimeTargetPage.mock.results[0]?.value,
+          id: 7,
+          displayName: 'Local Docker',
+          endpointLabel: 'unix:///var/run/docker.sock',
+          availability: true,
+          summary: {
+            containers: { available: true, total: 2, running: 2, stopped: 0, unavailableReason: '' },
+            images: { available: true, total: 1, used: 1, unused: 0, unavailableReason: '' },
+            cpu: { available: true, usagePercent: 25, usedBytes: 0, totalBytes: 0, unavailableReason: '' },
+            memory: { available: true, usagePercent: 40, usedBytes: 40, totalBytes: 100, unavailableReason: '' },
+            disk: { available: true, usagePercent: 30, usedBytes: 10, totalBytes: 100, unavailableReason: '' },
+          },
+        },
+      ],
+    });
+    await flushPromises();
+
+    expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledOnce();
+    expect(wrapper.find('t-table').attributes('data-loading')).toBeUndefined();
   });
 });
