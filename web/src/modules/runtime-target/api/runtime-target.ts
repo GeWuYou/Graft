@@ -15,14 +15,22 @@ type RuntimeTargetDiscoverLocal = NonNullable<
 export type RuntimeTargetMetric = components['schemas']['runtime-target-usage-metric'];
 export type RuntimeTargetPage = RuntimeTargetList;
 
+const runtimeTargetSelectorPageLimit = 100;
+
 /**
  * 获取供现有选择器使用的运行时目标集合。
  *
- * @returns 最多包含 100 个运行时目标的数组
+ * @returns 所有运行时目标的数组
  */
 export async function listRuntimeTargets(): Promise<RuntimeTarget[]> {
-  const page = await listRuntimeTargetPage({ limit: 100, offset: 0 });
-  return page.items;
+  const targets: RuntimeTarget[] = [];
+  for (let offset = 0; ; offset += runtimeTargetSelectorPageLimit) {
+    const page = await listRuntimeTargetPage({ limit: runtimeTargetSelectorPageLimit, offset });
+    targets.push(...page.items);
+    if (targets.length >= page.total || page.items.length === 0) {
+      return targets;
+    }
+  }
 }
 
 /**
