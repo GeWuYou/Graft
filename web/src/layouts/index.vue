@@ -78,6 +78,8 @@ const pageScrollTop = ref(0);
 let sidebarFreezeToken: number | null = null;
 let sidebarResumeFrameId: number | null = null;
 let sidebarResumeNestedFrameId: number | null = null;
+let pageScrollFrameId: number | null = null;
+let pendingPageScrollTop = 0;
 
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
@@ -168,7 +170,14 @@ const scheduleSidebarMotion = (callback: () => void, delay: number) => {
 const handlePageScroll = (event: Event) => {
   const target = event.target;
   if (target instanceof HTMLElement) {
-    pageScrollTop.value = target.scrollTop;
+    pendingPageScrollTop = target.scrollTop;
+    if (pageScrollFrameId !== null) {
+      return;
+    }
+    pageScrollFrameId = window.requestAnimationFrame(() => {
+      pageScrollFrameId = null;
+      pageScrollTop.value = pendingPageScrollTop;
+    });
   }
 };
 
@@ -318,6 +327,10 @@ onBeforeUnmount(() => {
   clearSidebarMotionTimers();
   clearSidebarMotionFrames();
   clearSidebarResumeFrames();
+  if (pageScrollFrameId !== null) {
+    window.cancelAnimationFrame(pageScrollFrameId);
+    pageScrollFrameId = null;
+  }
   releaseSidebarFreeze();
 });
 
@@ -328,7 +341,7 @@ watch(
     appendNewRoute();
     if (previousPath && previousPath !== route.path) {
       pageScrollTop.value = 0;
-      document.querySelector(`.${prefix}-layout`)?.scrollTo({ top: 0, behavior: 'smooth' });
+      document.querySelector(`.${prefix}-page-container`)?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   },
 );

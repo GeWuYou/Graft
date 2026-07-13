@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	runtimeTargetSummaryTTL = time.Second
-	percentageScale         = 100
+	runtimeTargetSummaryTTL     = time.Second
+	runtimeTargetSummaryTimeout = 2 * time.Second
+	percentageScale             = 100
 )
 
 type targetCountMetric struct {
@@ -160,17 +161,19 @@ func (dockerTargetSnapshotCollector) Collect(ctx context.Context, target store.T
 		return unavailableTargetSummary("Docker client is unavailable", checkedAt)
 	}
 	defer closeDockerClient(client)
-	version, err := client.ServerVersion(ctx, mobyclient.ServerVersionOptions{})
+	collectCtx, cancel := context.WithTimeout(ctx, runtimeTargetSummaryTimeout)
+	defer cancel()
+	version, err := client.ServerVersion(collectCtx, mobyclient.ServerVersionOptions{})
 	if err != nil {
 		return unavailableTargetSummary("Docker target is unavailable", checkedAt)
 	}
 	result := targetRuntimeSummary{Healthy: true, CheckedAt: checkedAt, Version: version.Version, APIVersion: version.APIVersion}
-	result.Workloads = collectContainerMetric(ctx, client)
-	result.Images = collectImageMetric(ctx, client)
-	result.Volumes = collectVolumeMetric(ctx, client)
-	result.Networks = collectNetworkMetric(ctx, client)
-	result.CPU, result.Memory = collectHostUsage(ctx, collectHostCPUUsage, collectHostMemoryUsage)
-	result.Disk = collectDockerFilesystemUsage(ctx, client)
+	result.Workloads = collectContainerMetric(collectCtx, client)
+	result.Images = collectImageMetric(collectCtx, client)
+	result.Volumes = collectVolumeMetric(collectCtx, client)
+	result.Networks = collectNetworkMetric(collectCtx, client)
+	result.CPU, result.Memory = collectHostUsage(collectCtx, collectHostCPUUsage, collectHostMemoryUsage)
+	result.Disk = collectDockerFilesystemUsage(collectCtx, client)
 	return result
 }
 
@@ -230,6 +233,9 @@ func collectNetworkMetric(ctx context.Context, client *mobyclient.Client) target
 // collectDockerFilesystemUsage collects usage metrics for Docker's data directory filesystem.
 // It marks the metrics unavailable when Docker information or filesystem statistics cannot be obtained.
 func collectDockerFilesystemUsage(ctx context.Context, client *mobyclient.Client) targetUsageMetric {
+	if err := ctx.Err(); err != nil {
+		return targetUsageMetric{UnavailableReason: "Docker data directory filesystem is unavailable"}
+	}
 	info, infoErr := client.Info(ctx, mobyclient.InfoOptions{})
 	var fs syscall.Statfs_t
 	if infoErr == nil && info.Info.DockerRootDir != "" && syscall.Statfs(info.Info.DockerRootDir, &fs) == nil {

@@ -42,7 +42,9 @@
               }}</t-tag></t-descriptions-item
             >
             <t-descriptions-item :label="t('runtimeTarget.detail.lastCheckedAt')">{{
-              target.health.lastCheckedAt || t('runtimeTarget.metrics.unavailable')
+              target.health.lastCheckedAt
+                ? formatLocaleDateTime(target.health.lastCheckedAt, locale)
+                : t('runtimeTarget.metrics.unavailable')
             }}</t-descriptions-item>
           </t-descriptions>
           <t-alert
@@ -99,8 +101,9 @@ import { computed, defineComponent, h, onMounted, type PropType, ref } from 'vue
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
+import { useLocale } from '@/locales/useLocale';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
-import { formatBytes } from '@/shared/observability';
+import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 
 import {
   getRuntimeTarget,
@@ -110,6 +113,7 @@ import {
 } from '../../api/runtime-target';
 
 const { t } = useI18n();
+const { locale } = useLocale();
 const route = useRoute();
 const target = ref<RuntimeTargetDetail | null>(null);
 const loading = ref(false);
@@ -132,14 +136,14 @@ const DockerProviderDetails = defineComponent({
       ]);
   },
 });
-function countValue(metric: { available: boolean; total: number }) {
-  return metric.available ? metric.total : 0;
+function countValue(metric: { available: boolean; total: number; unavailableReason: string }) {
+  return metric.available ? metric.total : undefined;
 }
 function unavailableReason(reason: string) {
   return reason || t('runtimeTarget.metrics.unavailable');
 }
 function usageValue(metric: RuntimeTargetUsageMetric) {
-  return metric.available ? Number(metric.usagePercent.toFixed(1)) : 0;
+  return metric.available ? Number(metric.usagePercent.toFixed(1)) : undefined;
 }
 function usageExtra(metric: RuntimeTargetUsageMetric) {
   return metric.available
@@ -164,6 +168,10 @@ async function load() {
   }
 }
 async function refresh() {
+  if (!Number.isInteger(targetID.value) || targetID.value <= 0) {
+    errorMessage.value = t('runtimeTarget.detail.refreshError');
+    return;
+  }
   refreshing.value = true;
   errorMessage.value = '';
   try {

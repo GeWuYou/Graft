@@ -169,9 +169,9 @@ describe('App layout route effects', () => {
     storeState.realtimeSchedulerStore.release.mockClear();
     routerMock.resolve.mockClear();
     scrollToMock.mockClear();
-    document.body.innerHTML = '<div class="tdesign-starter-layout"></div>';
-    const layout = document.querySelector('.tdesign-starter-layout') as HTMLDivElement;
-    layout.scrollTo = scrollToMock;
+    document.body.innerHTML = '<div class="tdesign-starter-page-container"></div>';
+    const pageContainer = document.querySelector('.tdesign-starter-page-container') as HTMLDivElement;
+    pageContainer.scrollTo = scrollToMock;
   });
 
   afterEach(() => {
@@ -217,6 +217,24 @@ describe('App layout route effects', () => {
     expect(scrollToMock).toHaveBeenCalledWith({ behavior: 'smooth', top: 0 });
   });
 
+  it('coalesces page scroll updates until the next animation frame', async () => {
+    const wrapper = mountAppLayout();
+    const content = wrapper.get('[data-test-id="layout-content"]');
+
+    Object.defineProperty(content.element, 'scrollTop', { configurable: true, value: 120 });
+    await content.trigger('scroll');
+    Object.defineProperty(content.element, 'scrollTop', { configurable: true, value: 240 });
+    await content.trigger('scroll');
+
+    expect(wrapper.get('.app-shell').attributes('style')).toContain('--graft-shell-sidebar-scroll-translate-y: 0px');
+    vi.advanceTimersToNextFrame();
+    await wrapper.vm.$nextTick();
+
+    settingStoreProxy.value!.isSidebarFixed = false;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('style')).toContain('--graft-shell-sidebar-scroll-translate-y: -240px');
+  });
+
   it('exposes the sidebar compact state on the shell surface', async () => {
     settingStoreProxy.value!.isSidebarCompact = false;
     routeProxy.value!.path = '/infrastructure/docker/containers';
@@ -254,6 +272,8 @@ describe('App layout route effects', () => {
 
     Object.defineProperty(content.element, 'scrollTop', { configurable: true, value: 240 });
     await content.trigger('scroll');
+    vi.advanceTimersToNextFrame();
+    await wrapper.vm.$nextTick();
 
     const shell = wrapper.get('.app-shell');
     expect(shell.attributes('data-sidebar-fixed')).toBe('true');

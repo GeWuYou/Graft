@@ -2,6 +2,7 @@ package runtimetarget
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,5 +47,47 @@ func TestSummaryHealthDoesNotDependOnOptionalMetrics(t *testing.T) {
 	}
 	if !response.Resources.Workloads.Available || response.Resources.Workloads.Active != 2 {
 		t.Fatalf("workload metric = %#v", response.Resources.Workloads)
+	}
+}
+
+func TestMapRuntimeTargetSummariesPreservesOrderAndBoundsConcurrency(t *testing.T) {
+	items := []store.Target{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5}}
+	var active int32
+	var maxActive int32
+	results := mapRuntimeTargetSummaries(context.Background(), items, 2, func(_ context.Context, item store.Target) generated.RuntimeTargetSummary {
+		current := atomic.AddInt32(&active, 1)
+		for {
+			observed := atomic.LoadInt32(&maxActive)
+			if current <= observed || atomic.CompareAndSwapInt32(&maxActive, observed, current) {
+				break
+			}
+		}
+		time.Sleep(time.Millisecond)
+		atomic.AddInt32(&active, -1)
+		return generated.RuntimeTargetSummary{Id: map[uint64]int64{1: 1, 2: 2, 3: 3, 4: 4, 5: 5}[item.ID]}
+	})
+	if got := atomic.LoadInt32(&maxActive); got > 2 {
+		t.Fatalf("maximum concurrency = %d, want at most 2", got)
+	}
+	for index, result := range results {
+		if result.Id != int64(index+1) {
+			t.Fatalf("result[%d].id = %d, want %d", index, result.Id, index+1)
+		}
+	}
+}
+
+func TestMapRuntimeTargetSummariesUsesBoundedChildContext(t *testing.T) {
+	items := []store.Target{{ID: 1}}
+	deadlineOK := false
+	results := mapRuntimeTargetSummaries(context.Background(), items, 1, func(ctx context.Context, _ store.Target) generated.RuntimeTargetSummary {
+		deadline, ok := ctx.Deadline()
+		deadlineOK = ok && time.Until(deadline) > 0 && time.Until(deadline) <= runtimeTargetSummaryTimeout
+		return generated.RuntimeTargetSummary{Id: 1}
+	})
+	if !deadlineOK {
+		t.Fatalf("child context did not have a bounded deadline")
+	}
+	if results[0].Id != 1 {
+		t.Fatalf("result id = %d, want 1", results[0].Id)
 	}
 }

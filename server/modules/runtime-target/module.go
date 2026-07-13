@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,8 @@ import (
 )
 
 const maxRuntimeTargetID = uint64(^uint64(0) >> 1)
+
+const runtimeTargetListSummaryConcurrency = 4
 
 // Module exposes runtime-target API routes and bounded Local Docker discovery.
 type Module struct {
@@ -188,11 +191,42 @@ func (m *Module) handleList(c *gin.Context) {
 		httpx.AbortLocalizedError(c, nil, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return
 	}
-	mapped := make([]generated.RuntimeTargetSummary, 0, len(page.Items))
-	for _, item := range page.Items {
-		mapped = append(mapped, m.toHTTPSummary(c.Request.Context(), item))
-	}
+	mapped := mapRuntimeTargetSummaries(c.Request.Context(), page.Items, runtimeTargetListSummaryConcurrency, func(ctx context.Context, item store.Target) generated.RuntimeTargetSummary {
+		return m.toHTTPSummary(ctx, item)
+	})
 	httpx.WriteSuccess(c, http.StatusOK, generated.RuntimeTargetListResponse{Items: mapped, Total: page.Total, Limit: limit, Offset: offset})
+}
+
+func mapRuntimeTargetSummaries(ctx context.Context, items []store.Target, concurrency int, mapItem func(context.Context, store.Target) generated.RuntimeTargetSummary) []generated.RuntimeTargetSummary {
+	if len(items) == 0 {
+		return []generated.RuntimeTargetSummary{}
+	}
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	if concurrency > len(items) {
+		concurrency = len(items)
+	}
+	mapped := make([]generated.RuntimeTargetSummary, len(items))
+	jobs := make(chan int)
+	var workers sync.WaitGroup
+	workers.Add(concurrency)
+	for worker := 0; worker < concurrency; worker++ {
+		go func() {
+			defer workers.Done()
+			for index := range jobs {
+				itemCtx, cancel := context.WithTimeout(ctx, runtimeTargetSummaryTimeout)
+				mapped[index] = mapItem(itemCtx, items[index])
+				cancel()
+			}
+		}()
+	}
+	for index := range items {
+		jobs <- index
+	}
+	close(jobs)
+	workers.Wait()
+	return mapped
 }
 
 func (m *Module) handleDetail(c *gin.Context) {
