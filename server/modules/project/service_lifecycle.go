@@ -202,6 +202,11 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
+	if err := s.ensureComposeTargetAvailable(ctx, aggregate); err != nil {
+		result := lifecycleBlockedResult(aggregate, action, err)
+		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		return result, err
+	}
 	if s.taskService == nil {
 		err := errors.New("task service is unavailable")
 		result := lifecycleBlockedResult(aggregate, action, err)
@@ -314,6 +319,9 @@ func (s *Service) executeLifecycleActionWithAggregate(
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		return lifecycleBlockedResult(aggregate, action, err), err
 	}
+	if err := s.ensureComposeTargetAvailable(ctx, aggregate); err != nil {
+		return lifecycleBlockedResult(aggregate, action, err), err
+	}
 	if err := ensureLifecycleCommandArgs(args); err != nil {
 		return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", "invalid_command")}), err
 	}
@@ -338,6 +346,27 @@ func (s *Service) executeLifecycleActionWithAggregate(
 
 func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.ProjectAggregate, args []string) (string, error) {
 	return s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, args)
+}
+
+// ensureComposeTargetAvailable performs the dynamic readiness check immediately before
+// a lifecycle command is submitted or executed. Creation intentionally permits an
+// unavailable target so the workspace can be prepared ahead of runtime recovery.
+func (s *Service) ensureComposeTargetAvailable(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
+	if s == nil || s.runtimeTargets == nil {
+		return nil
+	}
+	if aggregate.Project.RuntimeTargetID == nil || *aggregate.Project.RuntimeTargetID == 0 {
+		return errProjectRuntimeUnavailable
+	}
+	if *aggregate.Project.RuntimeTargetID > uint64(^uint64(0)>>1) {
+		return errProjectRuntimeUnavailable
+	}
+	id := int64(*aggregate.Project.RuntimeTargetID) // #nosec G115 -- bounded by max signed int64 immediately above.
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, &id)
+	if err != nil || !target.Available {
+		return errProjectRuntimeUnavailable
+	}
+	return nil
 }
 
 func (s *Service) runDockerCommand(ctx context.Context, workingDirectory string, args []string) (string, error) {
@@ -443,7 +472,7 @@ func (s *Service) redeployWithActor(
 	aggregate projectstore.ProjectAggregate,
 	_ actionActor,
 ) (ActionResult, error) {
-	if err := ensureProjectLifecycleReady(aggregate); err != nil {
+	if err := s.ensureRedeployReady(ctx, aggregate); err != nil {
 		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, err), err
 	}
 	config := lifecycleConfigurationFromAggregate(aggregate)
@@ -487,6 +516,13 @@ func (s *Service) redeployWithActor(
 		Message:      &messageKey,
 		GuardResults: guards,
 	}, nil
+}
+
+func (s *Service) ensureRedeployReady(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
+	if err := ensureProjectLifecycleReady(aggregate); err != nil {
+		return err
+	}
+	return s.ensureComposeTargetAvailable(ctx, aggregate)
 }
 
 func (s *Service) runRedeployComposeStep(
@@ -763,6 +799,9 @@ func (s *Service) batchLifecycleItem(
 	action generated.ProjectActionResponseAction,
 ) (BatchActionItemResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
+		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
+	}
+	if err := s.ensureComposeTargetAvailable(ctx, aggregate); err != nil {
 		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
 	}
 	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)

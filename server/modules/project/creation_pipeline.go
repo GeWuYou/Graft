@@ -44,7 +44,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
 	now := time.Now().UTC()
-	targetID, err := s.resolveDockerRuntimeTarget(ctx, command.RuntimeTargetID)
+	targetID, err := s.resolveComposeRuntimeTarget(ctx, command.RuntimeTargetID)
 	if err != nil {
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
@@ -94,12 +94,12 @@ func composeProjectNameSource(value string) string {
 	return "derived"
 }
 
-func (s *Service) resolveDockerRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {
+func (s *Service) resolveComposeRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {
 	if s == nil || s.runtimeTargets == nil {
 		return 0, nil // Unit tests construct the service without module wiring.
 	}
 	if requested == 0 {
-		targets, err := s.runtimeTargets.ListDockerTargets(ctx)
+		targets, err := s.runtimeTargets.ListComposeTargets(ctx)
 		if err != nil || len(targets) != 1 || targets[0].ID < 1 {
 			return 0, errProjectInvalidArgument
 		}
@@ -111,7 +111,7 @@ func (s *Service) resolveDockerRuntimeTarget(ctx context.Context, requested uint
 	}
 	value := int64(requested)
 	id = &value
-	target, err := s.runtimeTargets.ReadDockerTarget(ctx, id)
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, id)
 	if err != nil || target.ID < 1 {
 		return 0, errProjectInvalidArgument
 	}

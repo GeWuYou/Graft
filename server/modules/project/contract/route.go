@@ -47,6 +47,8 @@ const (
 	ProjectDiscoveryCandidatesRoute = "/discovery-candidates"
 	// ProjectCreationMethodSelectorRoute identifies the creation-method selector route fragment.
 	ProjectCreationMethodSelectorRoute = "/create"
+	// ProjectComposeRuntimeTargetsRoute identifies the selectable runtime-target catalog for Compose creation.
+	ProjectComposeRuntimeTargetsRoute = "/create/runtime-targets"
 	// ProjectManagedRootRoute identifies the managed-root metadata route fragment.
 	ProjectManagedRootRoute = "/managed/root"
 	// ProjectCreateValidateRoute identifies the managed-create validation route fragment.

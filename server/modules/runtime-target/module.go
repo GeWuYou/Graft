@@ -67,6 +67,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ComposeRuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
+		return err
+	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
 	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
@@ -108,28 +111,18 @@ func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (m
 			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 		}
 		target, err := r.repository.Get(ctx, uint64(*id))
-		if err != nil {
+		if err != nil || target.Provider != "docker" || target.ID > maxRuntimeTargetID {
 			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 		}
-		summary, ok := dockerTargetSummary(target)
-		if !ok {
-			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
-		}
-		return summary, nil
+		return moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider}, nil
 	}
-	items, err := r.repository.List(ctx)
-	if err != nil {
-		return moduleapi.RuntimeTargetSummary{}, err
+	target, err := r.repository.FindSystemLocalDocker(ctx)
+	if err != nil || target.ID > maxRuntimeTargetID {
+		return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 	}
-	for _, target := range items {
-		if summary, ok := dockerTargetSummary(target); ok {
-			return summary, nil
-		}
-	}
-	return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+	return moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider}, nil
 }
 
-// ListDockerTargets exposes target identity only. Consumers must not receive endpoint or credential fields.
 func (r runtimeTargetReader) ListDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
 	if r.repository == nil {
 		return []moduleapi.RuntimeTargetSummary{}, nil
@@ -140,20 +133,76 @@ func (r runtimeTargetReader) ListDockerTargets(ctx context.Context) ([]moduleapi
 	}
 	results := make([]moduleapi.RuntimeTargetSummary, 0, len(items))
 	for _, target := range items {
-		if summary, ok := dockerTargetSummary(target); ok {
+		if target.Provider == "docker" && target.ID <= maxRuntimeTargetID {
+			results = append(results, moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider})
+		}
+	}
+	return results, nil
+}
+
+func (r runtimeTargetReader) ReadComposeTarget(ctx context.Context, id *int64) (moduleapi.ComposeRuntimeTargetSummary, error) {
+	if r.repository == nil {
+		return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+	}
+	if id != nil {
+		if *id < 1 {
+			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+		}
+		target, err := r.repository.Get(ctx, uint64(*id))
+		if err != nil {
+			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+		}
+		summary, ok := composeTargetSummary(target)
+		if !ok {
+			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+		}
+		return summary, nil
+	}
+	items, err := r.repository.List(ctx)
+	if err != nil {
+		return moduleapi.ComposeRuntimeTargetSummary{}, err
+	}
+	for _, target := range items {
+		if summary, ok := composeTargetSummary(target); ok {
+			return summary, nil
+		}
+	}
+	return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+}
+
+// ListComposeTargets exposes only targets that can execute Compose and access a managed workspace.
+func (r runtimeTargetReader) ListComposeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	if r.repository == nil {
+		return []moduleapi.ComposeRuntimeTargetSummary{}, nil
+	}
+	items, err := r.repository.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]moduleapi.ComposeRuntimeTargetSummary, 0, len(items))
+	for _, target := range items {
+		if summary, ok := composeTargetSummary(target); ok {
 			results = append(results, summary)
 		}
 	}
 	return results, nil
 }
 
-// dockerTargetSummary 将可表示标识符的 Docker 目标转换为运行时目标摘要。
-// 如果目标不是 Docker 目标或其标识符超出可表示范围，则返回 false。
-func dockerTargetSummary(target store.Target) (moduleapi.RuntimeTargetSummary, bool) {
-	if target.ID > maxRuntimeTargetID || target.Provider != "docker" {
-		return moduleapi.RuntimeTargetSummary{}, false
+// composeTargetSummary validates the provider-neutral capability contract while keeping
+// endpoint and credential data inside the runtime-target module.
+func composeTargetSummary(target store.Target) (moduleapi.ComposeRuntimeTargetSummary, bool) {
+	if target.ID > maxRuntimeTargetID || !hasComposeCapabilities(target.Capabilities) {
+		return moduleapi.ComposeRuntimeTargetSummary{}, false
 	}
-	return moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider}, true
+	return moduleapi.ComposeRuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider, Capabilities: append([]string(nil), target.Capabilities...), Available: target.Availability}, true
+}
+
+func hasComposeCapabilities(capabilities []string) bool {
+	seen := make(map[string]bool, len(capabilities))
+	for _, capability := range capabilities {
+		seen[capability] = true
+	}
+	return seen["compose_execution"] && seen["workspace_access"]
 }
 
 // Boot records the currently usable local Docker endpoint without making application boot depend on Docker.

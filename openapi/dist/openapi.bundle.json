@@ -12958,6 +12958,42 @@
         }
       }
     },
+    "/api/ops/projects/create/runtime-targets": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List selectable Compose runtime targets",
+        "operationId": "getProjectComposeRuntimeTargets",
+        "description": "Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compose runtime target catalog.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-compose-runtime-target-catalog-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/discovery-candidates": {
       "get": {
         "tags": [
@@ -15951,6 +15987,12 @@
       "ProjectCreationMethodCatalogResponse": {
         "$ref": "#/components/schemas/project-creation-method-catalog-response"
       },
+      "ProjectComposeRuntimeTarget": {
+        "$ref": "#/components/schemas/project-compose-runtime-target"
+      },
+      "ProjectComposeRuntimeTargetCatalogResponse": {
+        "$ref": "#/components/schemas/project-compose-runtime-target-catalog-response"
+      },
       "ProjectSourceMetadata": {
         "$ref": "#/components/schemas/project-source-metadata"
       },
@@ -16151,6 +16193,9 @@
       },
       "EnvelopedProjectCreationMethodCatalogResponse": {
         "$ref": "#/components/schemas/enveloped-project-creation-method-catalog-response"
+      },
+      "EnvelopedProjectComposeRuntimeTargetCatalogResponse": {
+        "$ref": "#/components/schemas/enveloped-project-compose-runtime-target-catalog-response"
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
@@ -27042,6 +27087,84 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/project-creation-method-catalog-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-compose-runtime-target": {
+        "type": "object",
+        "required": [
+          "runtime_target_id",
+          "display_name",
+          "provider",
+          "availability",
+          "readiness",
+          "capabilities"
+        ],
+        "properties": {
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "availability": {
+            "type": "boolean"
+          },
+          "readiness": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "runtime_unavailable"
+            ]
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "project-compose-runtime-target-catalog-response": {
+        "type": "object",
+        "required": [
+          "deployment_type",
+          "items"
+        ],
+        "properties": {
+          "deployment_type": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-compose-runtime-target"
+            }
+          }
+        }
+      },
+      "enveloped-project-compose-runtime-target-catalog-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-compose-runtime-target-catalog-response"
               }
             }
           }

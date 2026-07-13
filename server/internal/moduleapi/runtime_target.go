@@ -15,3 +15,18 @@ type RuntimeTargetReader interface {
 	ReadDockerTarget(context.Context, *int64) (RuntimeTargetSummary, error)
 	ListDockerTargets(context.Context) ([]RuntimeTargetSummary, error)
 }
+
+// ComposeRuntimeTargetSummary is the capability-scoped identity projection for Compose applications.
+type ComposeRuntimeTargetSummary struct {
+	ID           int64
+	DisplayName  string
+	Provider     string
+	Capabilities []string
+	Available    bool
+}
+
+// ComposeRuntimeTargetReader resolves Runtime Targets that can execute Compose and access workspaces.
+type ComposeRuntimeTargetReader interface {
+	ReadComposeTarget(context.Context, *int64) (ComposeRuntimeTargetSummary, error)
+	ListComposeTargets(context.Context) ([]ComposeRuntimeTargetSummary, error)
+}

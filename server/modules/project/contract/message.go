@@ -57,6 +57,8 @@ const (
 	ProjectNotFound ErrorCode = "ops.project.error.notFound"
 	// ProjectUnsupportedLifecycle identifies lifecycle requests blocked by project ownership or phase scope.
 	ProjectUnsupportedLifecycle ErrorCode = "ops.project.error.unsupportedLifecycle"
+	// ProjectRuntimeUnavailable identifies Compose lifecycle requests blocked by an unavailable selected Runtime Target.
+	ProjectRuntimeUnavailable ErrorCode = "ops.project.error.runtimeUnavailable"
 	// ProjectImportValidationFailed identifies invalid Compose import payloads or parse failures.
 	ProjectImportValidationFailed ErrorCode = "ops.project.error.importValidationFailed"
 	// ProjectManagedRootUnconfigured identifies managed-create flows blocked by missing managed-root authority.

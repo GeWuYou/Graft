@@ -2145,6 +2145,39 @@ func (e ProjectCanonicalNameSource) Valid() bool {
 	}
 }
 
+// Defines values for ProjectComposeRuntimeTargetReadiness.
+const (
+	ProjectComposeRuntimeTargetReadinessReady              ProjectComposeRuntimeTargetReadiness = "ready"
+	ProjectComposeRuntimeTargetReadinessRuntimeUnavailable ProjectComposeRuntimeTargetReadiness = "runtime_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ProjectComposeRuntimeTargetReadiness enum.
+func (e ProjectComposeRuntimeTargetReadiness) Valid() bool {
+	switch e {
+	case ProjectComposeRuntimeTargetReadinessReady:
+		return true
+	case ProjectComposeRuntimeTargetReadinessRuntimeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectComposeRuntimeTargetCatalogResponseDeploymentType.
+const (
+	ProjectComposeRuntimeTargetCatalogResponseDeploymentTypeCompose ProjectComposeRuntimeTargetCatalogResponseDeploymentType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ProjectComposeRuntimeTargetCatalogResponseDeploymentType enum.
+func (e ProjectComposeRuntimeTargetCatalogResponseDeploymentType) Valid() bool {
+	switch e {
+	case ProjectComposeRuntimeTargetCatalogResponseDeploymentTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectCreateResponseAction.
 const (
 	ProjectCreateResponseActionCreate ProjectCreateResponseAction = "create"
@@ -2513,16 +2546,16 @@ func (e ProjectImportRuntimeCandidateStatus) Valid() bool {
 
 // Defines values for ProjectImportRuntimeInspectResponseValidationStatus.
 const (
-	ProjectImportRuntimeInspectResponseValidationStatusConflict ProjectImportRuntimeInspectResponseValidationStatus = "conflict"
-	ProjectImportRuntimeInspectResponseValidationStatusReady    ProjectImportRuntimeInspectResponseValidationStatus = "ready"
+	Conflict ProjectImportRuntimeInspectResponseValidationStatus = "conflict"
+	Ready    ProjectImportRuntimeInspectResponseValidationStatus = "ready"
 )
 
 // Valid indicates whether the value is a known member of the ProjectImportRuntimeInspectResponseValidationStatus enum.
 func (e ProjectImportRuntimeInspectResponseValidationStatus) Valid() bool {
 	switch e {
-	case ProjectImportRuntimeInspectResponseValidationStatusConflict:
+	case Conflict:
 		return true
-	case ProjectImportRuntimeInspectResponseValidationStatusReady:
+	case Ready:
 		return true
 	default:
 		return false
@@ -4436,13 +4469,13 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 
 // Defines values for GetProjectsParamsApplicationType.
 const (
-	Compose GetProjectsParamsApplicationType = "compose"
+	GetProjectsParamsApplicationTypeCompose GetProjectsParamsApplicationType = "compose"
 )
 
 // Valid indicates whether the value is a known member of the GetProjectsParamsApplicationType enum.
 func (e GetProjectsParamsApplicationType) Valid() bool {
 	switch e {
-	case Compose:
+	case GetProjectsParamsApplicationTypeCompose:
 		return true
 	default:
 		return false
@@ -6941,6 +6974,26 @@ type EnvelopedProjectBatchActionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectComposeRuntimeTargetCatalogResponse defines model for enveloped-project-compose-runtime-target-catalog-response.
+type EnvelopedProjectComposeRuntimeTargetCatalogResponse struct {
+	// Code Existing canonical response code.
+	Code string                                     `json:"code"`
+	Data ProjectComposeRuntimeTargetCatalogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectConfigurationMetadataResponse defines model for enveloped-project-configuration-metadata-response.
 type EnvelopedProjectConfigurationMetadataResponse struct {
 	// Code Existing canonical response code.
@@ -8383,6 +8436,28 @@ type ProjectBatchActionResponse struct {
 
 // ProjectCanonicalNameSource defines model for project-canonical-name-source.
 type ProjectCanonicalNameSource string
+
+// ProjectComposeRuntimeTarget defines model for project-compose-runtime-target.
+type ProjectComposeRuntimeTarget struct {
+	Availability    bool                                 `json:"availability"`
+	Capabilities    []string                             `json:"capabilities"`
+	DisplayName     string                               `json:"display_name"`
+	Provider        string                               `json:"provider"`
+	Readiness       ProjectComposeRuntimeTargetReadiness `json:"readiness"`
+	RuntimeTargetId int64                                `json:"runtime_target_id"`
+}
+
+// ProjectComposeRuntimeTargetReadiness defines model for ProjectComposeRuntimeTarget.Readiness.
+type ProjectComposeRuntimeTargetReadiness string
+
+// ProjectComposeRuntimeTargetCatalogResponse defines model for project-compose-runtime-target-catalog-response.
+type ProjectComposeRuntimeTargetCatalogResponse struct {
+	DeploymentType ProjectComposeRuntimeTargetCatalogResponseDeploymentType `json:"deployment_type"`
+	Items          []ProjectComposeRuntimeTarget                            `json:"items"`
+}
+
+// ProjectComposeRuntimeTargetCatalogResponseDeploymentType defines model for ProjectComposeRuntimeTargetCatalogResponse.DeploymentType.
+type ProjectComposeRuntimeTargetCatalogResponseDeploymentType string
 
 // ProjectConfigurationMetadataResponse defines model for project-configuration-metadata-response.
 type ProjectConfigurationMetadataResponse struct {

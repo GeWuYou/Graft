@@ -103,6 +103,11 @@ type CreationMethodCatalogResult struct {
 	Items []generated.ProjectCreationMethod
 }
 
+// ComposeRuntimeTargets returns registered runtime targets that implement the Compose capability contract.
+func (s *Service) ComposeRuntimeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	return s.listComposeTargets(ctx)
+}
+
 // ActivityAuthority identifies the stable project activity authority contract.
 type ActivityAuthority string
 
@@ -445,7 +450,7 @@ type Service struct {
 	logReader                    moduleapi.ContainerProjectLogReader
 	configResolver               moduleapi.SystemConfigResolver
 	savedViews                   moduleapi.SavedViewService
-	runtimeTargets               moduleapi.RuntimeTargetReader
+	runtimeTargets               moduleapi.ComposeRuntimeTargetReader
 	authorizer                   moduleapi.Authorizer
 	realtimeTickets              realtimeauth.Service
 	realtimeHub                  realtime.Hub
@@ -583,7 +588,7 @@ func (s *Service) SetSavedViewService(service moduleapi.SavedViewService) {
 }
 
 // SetRuntimeTargetReader injects the narrow Runtime Target identity authority.
-func (s *Service) SetRuntimeTargetReader(reader moduleapi.RuntimeTargetReader) {
+func (s *Service) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) {
 	if s != nil {
 		s.runtimeTargets = reader
 	}
@@ -633,7 +638,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if query.Provider != "" && query.Provider != "docker" {
 		return ListResult{Items: []generated.ProjectListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 	}
-	targets, err := s.listDockerTargets(ctx)
+	targets, err := s.listComposeTargets(ctx)
 	if err != nil {
 		return ListResult{}, err
 	}
@@ -661,7 +666,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }
 
-func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.RuntimeTargetSummary) bool {
+func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.ComposeRuntimeTargetSummary) bool {
 	if id == nil {
 		return true
 	}
@@ -678,7 +683,7 @@ func (s *Service) listRuntimeStatusPage(
 	repository projectstore.Repository,
 	storeQuery projectstore.ListQuery,
 	query ListQuery,
-	targetByID map[uint64]moduleapi.RuntimeTargetSummary,
+	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 ) (ListResult, error) {
 	matched := make([]generated.ProjectListItem, 0)
 	offset := 0
@@ -706,7 +711,7 @@ func (s *Service) listRuntimeStatusPage(
 func (s *Service) mapProjectListItems(
 	ctx context.Context,
 	items []projectstore.ProjectAggregate,
-	targetByID map[uint64]moduleapi.RuntimeTargetSummary,
+	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 	runtimeStatus string,
 ) []generated.ProjectListItem {
 	managedRootDirectory := s.readyManagedRootDirectory(ctx)
@@ -728,16 +733,16 @@ func (s *Service) mapProjectListItems(
 	return mappedItems
 }
 
-func (s *Service) listDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
+func (s *Service) listComposeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
 	if s == nil || s.runtimeTargets == nil {
-		return []moduleapi.RuntimeTargetSummary{}, nil
+		return []moduleapi.ComposeRuntimeTargetSummary{}, nil
 	}
-	return s.runtimeTargets.ListDockerTargets(ctx)
+	return s.runtimeTargets.ListComposeTargets(ctx)
 }
 
 // runtimeTargetLookup indexes valid runtime-target summaries by ID.
-func runtimeTargetLookup(targets []moduleapi.RuntimeTargetSummary) map[uint64]moduleapi.RuntimeTargetSummary {
-	byID := make(map[uint64]moduleapi.RuntimeTargetSummary, len(targets))
+func runtimeTargetLookup(targets []moduleapi.ComposeRuntimeTargetSummary) map[uint64]moduleapi.ComposeRuntimeTargetSummary {
+	byID := make(map[uint64]moduleapi.ComposeRuntimeTargetSummary, len(targets))
 	for _, target := range targets {
 		if target.ID > 0 {
 			byID[uint64(target.ID)] = target
@@ -751,7 +756,7 @@ func (s *Service) BackfillRuntimeTargets(ctx context.Context) error {
 	if s == nil || s.repository == nil || s.runtimeTargets == nil {
 		return nil
 	}
-	target, err := s.runtimeTargets.ReadDockerTarget(ctx, nil)
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, nil)
 	if err != nil {
 		if s.logger != nil {
 			s.logger.Warn("backfill runtime targets: read docker target failed", zap.String("module", s.moduleName), zap.Error(err))

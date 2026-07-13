@@ -67,6 +67,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectorySources)
 	group.GET(projectcontract.ProjectImportDirectoriesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectories)
 	group.GET(projectcontract.ProjectCreationMethodsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreationMethodViewPermission.String(), publisher), routes.handleCreationMethods)
+	group.GET(projectcontract.ProjectComposeRuntimeTargetsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleComposeRuntimeTargets)
 	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
@@ -120,6 +121,23 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectListResponse(result))
+}
+
+func (r routeRuntime) handleComposeRuntimeTargets(ginCtx *gin.Context) {
+	targets, err := r.service.ComposeRuntimeTargets(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	items := make([]generated.ProjectComposeRuntimeTarget, 0, len(targets))
+	for _, target := range targets {
+		readiness := generated.ProjectComposeRuntimeTargetReadinessRuntimeUnavailable
+		if target.Available {
+			readiness = generated.ProjectComposeRuntimeTargetReadinessReady
+		}
+		items = append(items, generated.ProjectComposeRuntimeTarget{RuntimeTargetId: target.ID, DisplayName: target.DisplayName, Provider: target.Provider, Availability: target.Available, Readiness: readiness, Capabilities: target.Capabilities})
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ProjectComposeRuntimeTargetCatalogResponse{DeploymentType: generated.ProjectComposeRuntimeTargetCatalogResponseDeploymentTypeCompose, Items: items})
 }
 
 func (r routeRuntime) handleSavedViewList(ginCtx *gin.Context) {
@@ -947,8 +965,12 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 			"code":         projectcontract.ProjectConflict.String(),
 			"actionResult": toActionResponse(action),
 		})
-	case errors.Is(err, errProjectUnsupportedLifecycle), errors.Is(err, errProjectManagedFlow):
-		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ProjectUnsupportedLifecycle.String(), map[string]any{
+	case errors.Is(err, errProjectUnsupportedLifecycle), errors.Is(err, errProjectManagedFlow), errors.Is(err, errProjectRuntimeUnavailable):
+		messageKey := projectcontract.ProjectUnsupportedLifecycle
+		if errors.Is(err, errProjectRuntimeUnavailable) {
+			messageKey = projectcontract.ProjectRuntimeUnavailable
+		}
+		r.writeLocalizedActionError(ginCtx, http.StatusConflict, messageKey.String(), map[string]any{
 			"code":         mapLifecycleErrorCode(err),
 			"actionResult": toActionResponse(action),
 		})

@@ -1,0 +1,10 @@
+type: object
+required: [deployment_type, items]
+properties:
+  deployment_type:
+    type: string
+    enum: [compose]
+  items:
+    type: array
+    items:
+      $ref: ./project-compose-runtime-target.yaml

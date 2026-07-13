@@ -297,6 +297,8 @@ paths:
     $ref: ./paths/ops-projects.import-directories.yaml
   /api/ops/projects/creation-methods:
     $ref: ./paths/ops-projects.creation-methods.yaml
+  /api/ops/projects/create/runtime-targets:
+    $ref: ./paths/ops-projects.compose-runtime-targets.yaml
   /api/ops/projects/discovery-candidates:
     $ref: ./paths/ops-projects.discovery-candidates.yaml
   /api/ops/projects/managed/root:
@@ -863,6 +865,10 @@ components:
       $ref: ./components/schemas/project-creation-method.yaml
     ProjectCreationMethodCatalogResponse:
       $ref: ./components/schemas/project-creation-method-catalog-response.yaml
+    ProjectComposeRuntimeTarget:
+      $ref: ./components/schemas/project-compose-runtime-target.yaml
+    ProjectComposeRuntimeTargetCatalogResponse:
+      $ref: ./components/schemas/project-compose-runtime-target-catalog-response.yaml
     ProjectSourceMetadata:
       $ref: ./components/schemas/project-source-metadata.yaml
     ProjectHostScope:
@@ -997,6 +1003,8 @@ components:
       $ref: ./components/schemas/enveloped-project-list-response.yaml
     EnvelopedProjectCreationMethodCatalogResponse:
       $ref: ./components/schemas/enveloped-project-creation-method-catalog-response.yaml
+    EnvelopedProjectComposeRuntimeTargetCatalogResponse:
+      $ref: ./components/schemas/enveloped-project-compose-runtime-target-catalog-response.yaml
     EnvelopedProjectDetailResponse:
       $ref: ./components/schemas/enveloped-project-detail-response.yaml
     EnvelopedProjectLogResponse:

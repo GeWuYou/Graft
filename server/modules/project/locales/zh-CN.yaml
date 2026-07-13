@@ -6,6 +6,7 @@ ops.project.error.invalidCanonicalProjectName: Canonical Project Name 不符合 
 ops.project.error.conflict: 当前项目状态存在冲突，无法执行该操作。
 ops.project.error.notFound: 未找到对应的项目。
 ops.project.error.unsupportedLifecycle: 当前项目状态不支持该生命周期操作。
+ops.project.error.runtimeUnavailable: 所选运行目标当前不可用。工作区已保留，待运行目标恢复后即可部署。
 ops.project.error.importValidationFailed: 项目导入检查未通过校验。
 ops.project.error.managedRootUnconfigured: 受管项目根目录尚未配置。
 ops.project.error.managedRootInvalid: 受管项目根目录配置无效。

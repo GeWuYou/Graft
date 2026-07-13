@@ -6,6 +6,7 @@ ops.project.error.invalidCanonicalProjectName: Canonical Project Name must start
 ops.project.error.conflict: Project action is blocked by a conflicting project state.
 ops.project.error.notFound: Project was not found.
 ops.project.error.unsupportedLifecycle: Project lifecycle action is not available for the current project state.
+ops.project.error.runtimeUnavailable: The selected Runtime Target is unavailable. The workspace remains registered and can be deployed after the target recovers.
 ops.project.error.importValidationFailed: Project import inspection failed validation.
 ops.project.error.managedRootUnconfigured: Managed project root is not configured.
 ops.project.error.managedRootInvalid: Managed project root is invalid.

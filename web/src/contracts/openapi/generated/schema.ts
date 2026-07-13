@@ -2601,6 +2601,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/create/runtime-targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List selectable Compose runtime targets
+     * @description Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready.
+     */
+    get: operations['getProjectComposeRuntimeTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/discovery-candidates': {
     parameters: {
       query?: never;
@@ -3339,6 +3359,8 @@ export interface components {
     ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
     ProjectCreationMethod: components['schemas']['project-creation-method'];
     ProjectCreationMethodCatalogResponse: components['schemas']['project-creation-method-catalog-response'];
+    ProjectComposeRuntimeTarget: components['schemas']['project-compose-runtime-target'];
+    ProjectComposeRuntimeTargetCatalogResponse: components['schemas']['project-compose-runtime-target-catalog-response'];
     ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
@@ -3406,6 +3428,7 @@ export interface components {
     SavedViewListResponse: components['schemas']['saved-view-list-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
+    EnvelopedProjectComposeRuntimeTargetCatalogResponse: components['schemas']['enveloped-project-compose-runtime-target-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
     EnvelopedProjectLogResponse: components['schemas']['enveloped-project-log-response'];
     EnvelopedProjectOverviewResponse: components['schemas']['enveloped-project-overview-response'];
@@ -6665,6 +6688,24 @@ export interface components {
     };
     'enveloped-project-creation-method-catalog-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-creation-method-catalog-response'];
+    };
+    'project-compose-runtime-target': {
+      /** Format: int64 */
+      runtime_target_id: number;
+      display_name: string;
+      provider: string;
+      availability: boolean;
+      /** @enum {string} */
+      readiness: 'ready' | 'runtime_unavailable';
+      capabilities: string[];
+    };
+    'project-compose-runtime-target-catalog-response': {
+      /** @enum {string} */
+      deployment_type: 'compose';
+      items: components['schemas']['project-compose-runtime-target'][];
+    };
+    'enveloped-project-compose-runtime-target-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-compose-runtime-target-catalog-response'];
     };
     /** @enum {string} */
     'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
@@ -14650,6 +14691,29 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-project-creation-method-catalog-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectComposeRuntimeTargets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Compose runtime target catalog. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-compose-runtime-target-catalog-response'];
         };
       };
       401: components['responses']['unauthorized'];
