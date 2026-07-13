@@ -439,3 +439,9 @@
 - 创建路由的 `runtime_target_id` 始终指向既有运行目标；不得使用尚未创建的 Application ID 作为 Target 查询值。
 - Workspace 不按 Deployment Type 或 Provider 分层；Runtime 变更不移动 Workspace。数据库 registry 是元数据真相，实际 Workspace 是文件内容真相；本主题不引入 `graft.yaml`。
 - 下一批为 `application-identity-backend`：由 OpenAPI 与 `server/modules/project/**` 修复 public ID、受管 Workspace、Compose identity 和 capability-aware target authority；不得以旧 `canonical_project_name` 或相对目录作兼容入口。
+
+## 2026-07-14 Git source roadmap-card boundary
+
+- 用户要求 Source 阶段视觉上完整呈现 Blank、Template、Git、Import Existing；Git 采用禁用卡片，不可点击或键盘触发，并以本地化 tooltip 显示“暂不支持”。
+- Git 的可见路线图不构成当前 source capability：不新增 URL、OpenAPI、创建方式目录项、菜单、`source_kind`、持久化 metadata 或后端 placeholder model。
+- 设计与导航 IA 已同步该边界。后续 `create-workflow-web` 只负责实现来源页的禁用 Git 卡片与既有三种可执行来源，不得扩大到 Git adapter。

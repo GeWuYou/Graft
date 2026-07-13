@@ -82,11 +82,11 @@
 
 ## Completion Scope
 
-用户批准的创建顺序是 `Deployment Type -> Runtime Target -> Source`：当前 Deployment Type 只有 Compose；Runtime Target 只列出已登记且具备 Compose capability 的 Local Docker；来源为 `Blank`、`Template` 与 `Import Existing`。三者都在 Workspace 解析完成后复用同一 CreationCommand pipeline；创建不自动部署，部署仍是独立操作。
+用户批准的创建顺序是 `Deployment Type -> Runtime Target -> Source`：当前 Deployment Type 只有 Compose；Runtime Target 只列出已登记且具备 Compose capability 的 Local Docker；Source 页面展示 `Blank`、`Template`、`Git`、`Import Existing`。Git 是禁用且不可键盘触发的路线图卡片，hover/focus 显示本地化“暂不支持”提示；只有 Blank、Template 与 Import Existing 进入 CreationCommand pipeline。创建不自动部署，部署仍是独立操作。
 
 受管 Workspace 固定由 Graft 在 Application Root 下按唯一 `workspace_key` 创建；创建表单展示 Graft 提议的可编辑单层安全 key，默认冲突自动加后缀，显式 key 冲突返回建议值。它不按 Docker/Podman 或 Compose/Kubernetes 分层。`Application ID (app_<ULID>)` 是创建后公开稳定标识，`Compose Project Name` 是可变部署 identity；二者均不由用户在创建表单填写。数据库 registry 是元数据真相，Workspace 文件是内容真相；不引入 `graft.yaml`。
 
-Git、Remote Host、ZIP 与 GitHub Template 被明确延后：不保留可点击页面、公开 API、创建方式枚举或占位入口。未来能力只能在其真实向导、共享契约和创建方式目录同时实现后公开。
+Git、Remote Host、ZIP 与 GitHub Template 被明确延后：Git 只允许上述禁用路线图卡片；它们均不保留可点击页面、公开 API、创建方式枚举、持久化来源类型或占位入口。未来能力只能在其真实向导、共享契约和创建方式目录同时实现后公开。
 
 ## Validation Targets
 

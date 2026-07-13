@@ -76,7 +76,7 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - `Deployment Type`
   - 应用模型与文件/生命周期语义，例如 `compose`、`swarm`、`kubernetes`、`nomad`。Compose 基于 Compose Specification；Docker 和 Podman 不是 Deployment Type，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
 - `Application Source`
-  - 在已选择 Deployment Type 和 Runtime Target 后，取得或构建 Application Workspace 的方式；当前 Compose 支持 `blank`、`template`、`import`。它不是 Deployment Type、Provider 或菜单对象。
+  - 在已选择 Deployment Type 和 Runtime Target 后，取得或构建 Application Workspace 的方式；当前 Compose 可执行来源为 `blank`、`template`、`import`。`git` 仅可作为禁用的路线图卡片出现，不是当前创建方式。Source 不是 Deployment Type、Provider 或菜单对象。
 - `Runtime Target`
   - 应用实际绑定的运行目标，拥有连接与能力发现，例如 Local Docker、Remote Docker、Local Podman。当前只有已登记且报告 Compose capability 的 Target 可选。
 - `Runtime Provider`
@@ -113,7 +113,7 @@ Application list
 
 首期 Deployment Type 页展示 `Compose`（基于 Compose Specification）、`Swarm`（Docker Stack）、`Kubernetes`（Deployment/Pod）与 `Nomad`（Job）。仅 `Compose` 可点击；其它卡片必须禁用、不可键盘触发，并在 hover/focus 说明“暂不支持”。它们是产品路线图，不得生成菜单、OpenAPI catalog、Provider contract、持久化枚举值或空实现 API。
 
-选择 Compose 后进入 Runtime Target 页，只列出已登记、健康且具备 `compose_execution` 与 `workspace_access` capability 的 Target；当前是 Local Docker。该页复用运行目标卡片的 Provider 标识与交互，不虚构 Remote Docker、Podman 或 Containerd 卡片。随后才进入 Source：`blank`、`template`、`import`。来源只负责取得或物化 Workspace，随后进入同一 Compose Project creation pipeline；当前不公开 Git 入口或占位项。
+选择 Compose 后进入 Runtime Target 页，只列出已登记、健康且具备 `compose_execution` 与 `workspace_access` capability 的 Target；当前是 Local Docker。该页复用运行目标卡片的 Provider 标识与交互，不虚构 Remote Docker、Podman 或 Containerd 卡片。随后才进入 Source：`blank`、`template`、`git`、`import`。其中 Git 必须是禁用、不可键盘触发的路线图卡片，并在 hover/focus 通过本地化 tooltip 显示“暂不支持”；它没有路由、API、创建方式枚举、持久化来源类型或占位页面。其余三个来源才取得或物化 Workspace，并进入同一 Compose Project creation pipeline。
 
 UI route 的 canonical 语义固定为：
 
@@ -393,7 +393,7 @@ web Project Activity tab
 - `compose_project_name_source`
   - `declared | generated | derived`
 - `source_kind`
-  - `imported | managed | git | template`
+  - `imported | managed | template`
 - `host_scope`
   - Phase 1 固定 `local`
 - `workspace_key`（受管项目必填）
@@ -578,8 +578,10 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
   - 只能从 working directory、tracked compose files、canonical project name 推导出可恢复的最小 authority
   - `profiles`、`pull/build/wait/force-recreate/prune` 等不可从 Docker runtime 历史可靠恢复
   - 因此导入向导必须先展示可编辑的默认 lifecycle configuration；操作员确认后，项目注册与配置一起保存为 `confirmed`
-- `git`、`template`、`remote-host`
-  - 当前只保留 future-friendly strategy wording，不在本批实现 custom script 或 remote execution
+- `template`
+  - 当前作为受管 Workspace 的 materialized source，沿用 managed lifecycle configuration。
+- `git`、`remote-host`
+  - 尚未进入 lifecycle 或来源策略枚举；Git 仅在来源选择页以禁用路线图卡片表达，Remote Host 不展示。
 
 标准策略当前固定为 `standard`：
 
@@ -1817,6 +1819,6 @@ IA guardrail:
 - `Template`：模块内置模板生成 Workspace。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
-MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，依次进入 deployment、target、source 与向导。Git、Remote Host、ZIP 和 GitHub Template 不得预先暴露 API、路由、菜单、创建方式枚举或占位页面。
+MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，依次进入 deployment、target、source 与向导。Git 可在 Source 页面仅作为禁用卡片展示，并通过本地化 tooltip 显示“暂不支持”；它与 Remote Host、ZIP、GitHub Template 一样不得预先暴露 API、路由、菜单、创建方式枚举、持久化来源类型或占位页面。
 
 未来 Deployment Type 或 Runtime Target Provider 必须先由 canonical OpenAPI 定义 kind、capability、可用性和 stable reason code，再同时交付生命周期与 Source adapter；不得用占位卡片提前建立 wire model。未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Deployment Type -> Runtime Target -> Application Source -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

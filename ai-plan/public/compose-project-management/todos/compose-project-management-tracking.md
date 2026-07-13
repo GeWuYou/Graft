@@ -289,6 +289,12 @@ Compose Project Management
 - [x] Navigation icon system: menus resolve static Iconify data through a single component, using Lucide by default and `tabler:brand-docker` for the Docker outline brand glyph.
 - [x] Acceptance validation: SQL migration gate, OpenAPI bundle/type governance, targeted contract tests, `graft validate backend`, `bun run check`, shared asset registry and ai-plan structure guards all passed; generated artifacts and working tree are clean.
 
+## 2026-07-14 Git Source Roadmap Card Documentation
+
+- [x] Source 页固定展示 Blank、Template、Git、Import Existing 四张卡片；Git 仅是禁用且不可键盘触发的路线图卡片，hover/focus 使用本地化“暂不支持”提示。
+- [x] Git 不进入 OpenAPI、创建方式目录、路由、菜单、`source_kind` 或任何持久化/后端占位模型；当前可执行来源仍只有 Blank、Template、Import Existing。
+- [x] 本批只修复设计与 IA authority，不实现 Web 卡片；下一批由 `create-workflow-web` 落地三步创建页面和该禁用卡片。
+
 ## Current Loop Batch State
 
 ```json
@@ -300,11 +306,12 @@ Compose Project Management
     "web-application-management-and-icon-system",
     "cross-boundary-acceptance-and-topic-closeout",
     "application-model-docs",
-    "application-model-docs-correction"
+    "application-model-docs-correction",
+    "git-source-roadmap-card-documentation"
   ],
   "pending_batches": ["application-identity-backend", "create-workflow-web", "validation-and-closeout"],
-  "current_batch": "application-model-docs-correction",
-  "next_batch": "application-identity-backend",
-  "closeout_status": "application-model-docs-correction-complete"
+  "current_batch": "git-source-roadmap-card-documentation",
+  "next_batch": "create-workflow-web",
+  "closeout_status": "git-source-roadmap-card-documentation-complete"
 }
 ```
