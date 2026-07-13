@@ -30,6 +30,7 @@ type runtimeTargetSummaryCollector struct {
 	observer func()
 }
 
+// newRuntimeTargetSummaryCollector 创建运行时目标摘要收集器，并配置其实时发布中心和摘要收集函数。
 func newRuntimeTargetSummaryCollector(hub realtime.Hub, collect func(context.Context) []generated.RuntimeTarget) *runtimeTargetSummaryCollector {
 	return &runtimeTargetSummaryCollector{hub: hub, collect: collect}
 }

@@ -240,6 +240,9 @@ func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc 
 	}
 }
 
+// runtimeTargetListWindow parses and validates pagination parameters from the request.
+// It returns the requested limit and offset, or aborts the request with a bad-request
+// response when either parameter is invalid.
 func runtimeTargetListWindow(c *gin.Context) (int, int, bool) {
 	limit := 10
 	offset := 0
@@ -293,6 +296,7 @@ func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.Runt
 	return generated.RuntimeTarget{Id: int64(target.ID), Provider: target.Provider, DisplayName: target.DisplayName, EndpointLabel: target.EndpointLabel, ConnectionKind: target.ConnectionKind, Capabilities: target.Capabilities, Availability: target.Availability, LastError: target.LastError, LastCheckedAt: target.CheckedAt, Summary: toHTTPSummary(summary)}
 }
 
+// toHTTPSummary converts a runtime target summary to its HTTP response representation.
 func toHTTPSummary(summary targetRuntimeSummary) generated.RuntimeTargetSummary {
 	return generated.RuntimeTargetSummary{Containers: generated.RuntimeTargetCountMetric{Available: summary.Containers.Available, Total: summary.Containers.Total, Running: summary.Containers.Running, Stopped: summary.Containers.Stopped, UnavailableReason: summary.Containers.UnavailableReason}, Images: generated.RuntimeTargetImageMetric{Available: summary.Images.Available, Total: summary.Images.Total, Used: summary.Images.Used, Unused: summary.Images.Unused, UnavailableReason: summary.Images.UnavailableReason}, Cpu: generated.RuntimeTargetUsageMetric{Available: summary.CPU.Available, UsedBytes: summary.CPU.UsedBytes, TotalBytes: summary.CPU.TotalBytes, UsagePercent: summary.CPU.UsagePercent, UnavailableReason: summary.CPU.UnavailableReason}, Memory: generated.RuntimeTargetUsageMetric{Available: summary.Memory.Available, UsedBytes: summary.Memory.UsedBytes, TotalBytes: summary.Memory.TotalBytes, UsagePercent: summary.Memory.UsagePercent, UnavailableReason: summary.Memory.UnavailableReason}, Disk: generated.RuntimeTargetUsageMetric{Available: summary.Disk.Available, UsedBytes: summary.Disk.UsedBytes, TotalBytes: summary.Disk.TotalBytes, UsagePercent: summary.Disk.UsagePercent, UnavailableReason: summary.Disk.UnavailableReason}}
 }

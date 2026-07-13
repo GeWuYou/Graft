@@ -105,13 +105,13 @@ export function normalizeGlobalMenuSearchKeyword(keyword: string) {
 }
 
 /**
- * Recursively collects searchable menu items from a route hierarchy.
+ * 从路由层级中递归收集可搜索的菜单项。
  *
- * Filters out hidden routes, resolves canonical navigation targets, derives titles and title keys, and builds hierarchical metadata. Returns a flattened array of leaf items with associated keywords, module information, and parent context. Uses the `orderRef` object to maintain consistent global ordering across recursive calls.
+ * 过滤隐藏路由，解析导航目标，并为菜单项构建标题、层级上下文、关键词及模块信息。
  *
- * @param routes - The routes to process
- * @param locale - The locale for resolving localized titles
- * @returns A flattened array of searchable menu items with computed metadata
+ * @param routes - 要处理的路由
+ * @param locale - 用于解析本地化标题的区域设置
+ * @returns 扁平化的可搜索菜单项数组
  */
 function collectGlobalMenuSearchItems(
   routes: MenuRoute[],
@@ -359,11 +359,11 @@ function normalizeSearchModuleKey(value: string) {
 }
 
 /**
- * Determines the navigation destination for a route, following redirects and descending to the first visible child.
+ * 解析路由最终使用的导航路径。
  *
- * @param route - The route to resolve
- * @param fullPath - The current full path of the route
- * @returns The navigation path to use
+ * @param route - 要解析的路由
+ * @param fullPath - 路由当前的完整路径
+ * @returns 路由配置的导航目标路径、重定向目标路径、首个可见子路由的导航路径，或当前完整路径
  */
 function resolveSearchNavigationPath(route: MenuRoute, fullPath: string): string {
   const navigationTargetPath = route.meta?.navigationTargetPath?.trim();

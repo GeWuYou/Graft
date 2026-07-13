@@ -51,6 +51,7 @@ type summaryCache struct {
 	running map[uint64]chan struct{}
 }
 
+// newSummaryCache creates an empty summary cache with initialized cache and in-flight collection state.
 func newSummaryCache() *summaryCache {
 	return &summaryCache{entries: map[uint64]summaryCacheEntry{}, running: map[uint64]chan struct{}{}}
 }
@@ -89,11 +90,13 @@ func (c *summaryCache) get(ctx context.Context, target store.Target) targetRunti
 	}
 }
 
+// unavailableTargetSummary 创建一个运行时摘要，并为所有指标设置不可用原因。
+// reason 指示这些指标不可用的原因。
 func unavailableTargetSummary(reason string) targetRuntimeSummary {
 	return targetRuntimeSummary{Containers: targetCountMetric{UnavailableReason: reason}, Images: targetImageMetric{UnavailableReason: reason}, CPU: targetUsageMetric{UnavailableReason: reason}, Memory: targetUsageMetric{UnavailableReason: reason}, Disk: targetUsageMetric{UnavailableReason: reason}}
 }
 
-//nolint:funlen,gocognit,gocyclo,cyclop // Docker summary collection deliberately preserves each metric's independent availability.
+// collectTargetSummary collects container, image, CPU, memory, and disk metrics for a Docker target, preserving availability for each metric independently.
 func collectTargetSummary(ctx context.Context, target store.Target) targetRuntimeSummary {
 	if !target.Availability || target.Provider != "docker" || target.ConnectionKind != "unix_socket" {
 		return unavailableTargetSummary("Docker target is unavailable")
@@ -144,6 +147,8 @@ func collectTargetSummary(ctx context.Context, target store.Target) targetRuntim
 	return result
 }
 
+// collectHostCPUUsage collects the host CPU usage percentage.
+// It returns an unavailable metric when the CPU usage cannot be retrieved.
 func collectHostCPUUsage(ctx context.Context) targetUsageMetric {
 	values, err := cpu.PercentWithContext(ctx, 0, false)
 	if err != nil || len(values) == 0 {
@@ -152,6 +157,8 @@ func collectHostCPUUsage(ctx context.Context) targetUsageMetric {
 	return targetUsageMetric{Available: true, UsagePercent: values[0]}
 }
 
+// collectHostMemoryUsage collects host memory usage metrics.
+// It returns an unavailable metric when the memory snapshot cannot be obtained or has no total capacity.
 func collectHostMemoryUsage(ctx context.Context) targetUsageMetric {
 	snapshot, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil || snapshot == nil || snapshot.Total == 0 {
@@ -160,6 +167,8 @@ func collectHostMemoryUsage(ctx context.Context) targetUsageMetric {
 	return targetUsageMetric{Available: true, UsedBytes: uint64ToInt64(snapshot.Used), TotalBytes: uint64ToInt64(snapshot.Total), UsagePercent: snapshot.UsedPercent}
 }
 
+// uint64ToInt64 converts a uint64 value to int64, saturating values greater than
+// math.MaxInt64 at math.MaxInt64.
 func uint64ToInt64(value uint64) int64 {
 	if value > math.MaxInt64 {
 		return math.MaxInt64
@@ -167,6 +176,7 @@ func uint64ToInt64(value uint64) int64 {
 	return int64(value)
 }
 
+// filesystemBytes 将文件系统块数和块大小转换为字节数；当参数无效或计算结果超出 int64 范围时返回 math.MaxInt64。
 func filesystemBytes(blocks uint64, blockSize int64) int64 {
 	if blocks == 0 || blockSize <= 0 || blocks > uint64(math.MaxInt64)/uint64(blockSize) {
 		return math.MaxInt64
