@@ -26,6 +26,7 @@ type CreationCommand struct {
 	ParseResult                projectcompose.Result
 	ActorID                    *uint64
 	RuntimeTargetID            uint64
+	WorkspaceKey               *string
 }
 
 // createProjectFromWorkspace persists the common project aggregate after a source
@@ -47,7 +48,14 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	if err != nil {
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
+	strictCreate := command.SourceKind == projectcontract.SourceKindManaged.String() || command.SourceKind == projectcontract.SourceKindTemplate.String()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
+		ApplicationID:              newApplicationID(),
+		WorkspaceKey:               command.WorkspaceKey,
+		WorkspacePath:              strings.TrimSpace(command.WorkingDirectory),
+		ComposeProjectName:         strings.TrimSpace(command.CanonicalProjectName),
+		ComposeProjectNameSource:   composeProjectNameSource(command.CanonicalProjectNameSource),
+		StrictCreate:               strictCreate,
 		DisplayName:                strings.TrimSpace(command.DisplayName),
 		CanonicalProjectName:       strings.TrimSpace(command.CanonicalProjectName),
 		CanonicalProjectNameSource: strings.TrimSpace(command.CanonicalProjectNameSource),
@@ -77,6 +85,13 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		return projectstore.ProjectAggregate{}, time.Time{}, mapStoreError(err)
 	}
 	return aggregate, now, nil
+}
+
+func composeProjectNameSource(value string) string {
+	if strings.TrimSpace(value) == projectcontract.CanonicalProjectNameSourceOverride.String() {
+		return "declared"
+	}
+	return "derived"
 }
 
 func (s *Service) resolveDockerRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {

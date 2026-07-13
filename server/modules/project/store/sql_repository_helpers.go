@@ -590,6 +590,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var item Project
 	var lastDriftCheckedAt sql.NullTime
 	var runtimeTargetID sql.NullInt64
+	var workspaceKey sql.NullString
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
@@ -598,6 +599,11 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var workspaceAnnotationsJSON []byte
 	if err := scanner.Scan(
 		&item.ID,
+		&item.ApplicationID,
+		&workspaceKey,
+		&item.WorkspacePath,
+		&item.ComposeProjectName,
+		&item.ComposeProjectNameSource,
 		&runtimeTargetID,
 		&item.DisplayName,
 		&item.CanonicalProjectName,
@@ -625,6 +631,10 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	}
 	item.LastDriftCheckedAt = nullableTime(lastDriftCheckedAt)
 	item.RuntimeTargetID = nullableUint64(runtimeTargetID)
+	if workspaceKey.Valid {
+		value := workspaceKey.String
+		item.WorkspaceKey = &value
+	}
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)
 	item.DeletedBy = nullableUint64(deletedBy)

@@ -32,6 +32,11 @@ var (
 // Project stores one Compose project registry record.
 type Project struct {
 	ID                         uint64
+	ApplicationID              string
+	WorkspaceKey               *string
+	WorkspacePath              string
+	ComposeProjectName         string
+	ComposeProjectNameSource   string
 	RuntimeTargetID            *uint64
 	DisplayName                string
 	CanonicalProjectName       string
@@ -122,6 +127,12 @@ type ListResult struct {
 
 // ImportProjectInput creates or replaces one project registry entry.
 type ImportProjectInput struct {
+	ApplicationID              string
+	WorkspaceKey               *string
+	WorkspacePath              string
+	ComposeProjectName         string
+	ComposeProjectNameSource   string
+	StrictCreate               bool
 	RuntimeTargetID            uint64
 	DisplayName                string
 	CanonicalProjectName       string
