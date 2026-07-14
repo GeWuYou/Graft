@@ -1,6 +1,7 @@
 menu.monitor.overview.title: 概览
 menu.monitor.serviceStatus.title: 服务状态
 menu.monitor.dependencies.title: 依赖服务
+menu.monitor.requestPerformance.title: 请求性能
 monitor.evidence.auditUnavailable.title: 审计证据不可用
 dashboard.widget.monitorSystemHealth.title: 系统健康
 dashboard.widget.monitorSystemHealth.description: 当前服务健康度、依赖状态和活跃异常。

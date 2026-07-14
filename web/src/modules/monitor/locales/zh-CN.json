@@ -3,7 +3,8 @@
     "monitor": {
       "overview": { "title": "概览" },
       "serviceStatus": { "title": "服务状态" },
-      "dependencies": { "title": "依赖服务" }
+      "dependencies": { "title": "依赖服务" },
+      "requestPerformance": { "title": "请求性能" }
     }
   },
   "monitor": {
@@ -20,6 +21,10 @@
         "title": "依赖服务",
         "breadcrumb": "依赖服务"
       },
+      "requestPerformance": {
+        "title": "请求性能",
+        "breadcrumb": "请求性能"
+      },
       "moduleRuntime": {
         "title": "模块",
         "breadcrumb": "模块"
@@ -27,8 +32,8 @@
     },
     "sectionTitle": "可观测性",
     "serverStatus": {
-      "overviewTitle": "服务器状态总览",
-      "overviewHint": "查看服务器整体资源、依赖健康状态与 Go 进程运行摘要。",
+      "overviewTitle": "系统运行总览",
+      "overviewHint": "查看整体资源压力、依赖健康状态与请求性能。",
       "refreshIntervalLabel": "刷新频率",
       "refreshInterval5Seconds": "每 5 秒",
       "refreshInterval10Seconds": "每 10 秒",
@@ -64,6 +69,11 @@
       "openAuditEvidence": "查看审计证据",
       "auditEvidenceUnavailable": "当前异常暂无可用的审计证据。",
       "runtimeStatusDependenciesTitle": "依赖服务",
+      "requestPerformanceTitle": "请求性能",
+      "openDependencies": "查看依赖服务",
+      "openRequestPerformance": "查看请求性能",
+      "dependencyHealthSummary": "健康 {healthy} / {total} · 需关注 {attention}",
+      "requestPerformanceSummary": "{rps} RPS · P95 {p95} 毫秒 · 5xx {errors}",
       "runtimeStatusProcessTitle": "进程摘要",
       "runtimeStatusSamplingTitle": "采样状态",
       "runtimeStatusUptimeLabel": "运行时长",
@@ -171,6 +181,42 @@
         "meta": "等待首次成功快照",
         "description": "等待状态数据"
       }
+    },
+    "requestPerformance": {
+      "title": "请求性能",
+      "subtitle": "查看 HTTP 请求量、延迟、失败情况和高频路由。",
+      "loadFailed": "请求性能加载失败",
+      "empty": "暂无请求性能数据。",
+      "statusHealthy": "健康",
+      "statusAttention": "需关注",
+      "summary": {
+        "rps": "请求速率",
+        "rpsHint": "所选时间窗口内的平均每秒请求数",
+        "latency": "P50 / P95 延迟",
+        "latencyHint": "P95 是主要的运行延迟信号",
+        "errors": "5xx 错误率",
+        "errorsHint": "只有 5xx 响应影响健康状态",
+        "slow": "慢请求数",
+        "slowHint": "超过服务端慢请求阈值的请求"
+      },
+      "trafficTitle": "请求量",
+      "trafficHint": "按分钟聚合的请求速率趋势。",
+      "trafficSeries": "每秒请求数",
+      "latencyTitle": "P95 延迟",
+      "latencyHint": "按分钟聚合的 P95 延迟趋势。",
+      "latencySeries": "P95 延迟（毫秒）",
+      "errorTitle": "5xx 错误率",
+      "errorHint": "4xx 仅作为参考信息，不降低健康状态。",
+      "errorSeries": "5xx 错误率（%）",
+      "statusDistributionTitle": "状态码分布",
+      "statusDistributionHint": "所选时间窗口内的响应状态分组。",
+      "topTrafficTitle": "请求量最高路由",
+      "topTrafficHint": "按请求量排序的前五条路由。",
+      "topErrorsTitle": "5xx 最多路由",
+      "topErrorsHint": "按 5xx 数排序的前五条路由。",
+      "topLatencyTitle": "P95 最高路由",
+      "topLatencyHint": "按 P95 延迟排序的前五条路由。",
+      "columns": { "method": "方法", "route": "路由", "requests": "请求数", "errors": "5xx", "p95": "P95" }
     },
     "moduleRuntime": {
       "title": "模块状态",

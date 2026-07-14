@@ -174,6 +174,27 @@
                   </article>
                 </div>
               </article>
+
+              <article class="trend-runtime-summary" data-trend-overview-section="requestPerformance">
+                <header class="trend-section-header">
+                  <div class="trend-section-header__copy">
+                    <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.requestPerformanceTitle') }}</h3>
+                  </div>
+                  <t-button theme="primary" variant="text" size="small" @click="openRequestPerformance">
+                    {{ t('monitor.serverStatus.openRequestPerformance') }}
+                  </t-button>
+                </header>
+                <div class="trend-runtime-summary__grid">
+                  <article
+                    v-for="metric in requestPerformanceMetrics"
+                    :key="metric.key"
+                    class="trend-runtime-summary__item"
+                  >
+                    <span class="trend-runtime-summary__label">{{ metric.label }}</span>
+                    <strong class="trend-runtime-summary__value">{{ metric.value }}</strong>
+                  </article>
+                </div>
+              </article>
             </div>
 
             <transition-group
@@ -309,7 +330,7 @@
             </header>
             <div class="anomaly-list">
               <article
-                v-for="anomaly in monitorAnomalies"
+                v-for="anomaly in monitorAnomalies.slice(0, 3)"
                 :key="`${anomaly.anomaly_key}:${anomaly.scope_ref}`"
                 class="anomaly-item"
                 :data-anomaly-key="anomaly.anomaly_key"
@@ -343,82 +364,24 @@
                 {{ t('monitor.serverStatus.runtimeStatusDependenciesTitle') }}
               </h3>
             </header>
-            <div class="dependency-list">
-              <article
-                v-for="dependency in dependencyItems"
-                :key="dependency.key"
-                class="dependency-item"
-                :data-status="dependency.status"
-              >
-                <div class="dependency-item__main">
-                  <span class="dependency-item__icon-wrap">
-                    <component :is="dependency.icon" class="dependency-item__icon" />
-                  </span>
-                  <div class="dependency-item__body">
-                    <div class="dependency-item__title-row">
-                      <span class="dependency-item__title">{{ dependency.label }}</span>
-                      <t-tag :theme="statusTheme(dependency.status)" variant="light">
-                        {{ statusLabel(dependency.status) }}
-                      </t-tag>
-                    </div>
-                    <p class="dependency-item__detail">{{ dependency.detail }}</p>
-                  </div>
-                </div>
-                <div class="dependency-item__metrics">
-                  <span class="dependency-item__latency">{{ dependency.latency }}</span>
-                  <div v-if="dependency.pool" class="dependency-item__pool" data-dependency-pool="true">
-                    <div class="dependency-item__pool-header">
-                      <span class="dependency-item__pool-label">{{
-                        t('monitor.serverStatus.dependencyPoolLabel')
-                      }}</span>
-                      <strong class="dependency-item__pool-value">{{ dependency.pool.value }}</strong>
-                    </div>
-                    <metric-usage-bar
-                      :value="dependency.pool.usage.value"
-                      :label="dependency.pool.usage.label"
-                      :status="dependency.pool.usage.status"
-                      :tooltip="dependency.pool.usage.tooltip"
-                      :empty-text="t('monitor.serverStatus.metricUsageNoData')"
-                    />
-                    <p class="dependency-item__pool-detail">{{ dependency.pool.detail }}</p>
-                  </div>
-                </div>
-              </article>
+            <div class="status-sidebar__summary-link">
+              <strong>{{ dependencyHealthSummary }}</strong>
+              <t-button theme="primary" variant="text" size="small" @click="openDependencies">
+                {{ t('monitor.serverStatus.openDependencies') }}
+              </t-button>
             </div>
           </section>
 
-          <section class="status-sidebar__section" data-status-sidebar-group="process">
+          <section class="status-sidebar__section" data-status-sidebar-group="request-performance">
             <header class="status-sidebar__section-header">
-              <h3 class="status-sidebar__section-title">{{ t('monitor.serverStatus.runtimeStatusProcessTitle') }}</h3>
+              <h3 class="status-sidebar__section-title">{{ t('monitor.serverStatus.requestPerformanceTitle') }}</h3>
             </header>
-            <dl class="status-sidebar__summary-list">
-              <div
-                v-for="item in processSummaryItems"
-                :key="item.key"
-                class="status-sidebar__summary-item"
-                :data-status-sidebar-item="item.key"
-              >
-                <dt class="status-sidebar__summary-key">{{ item.label }}</dt>
-                <dd class="status-sidebar__summary-value">{{ item.value }}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section class="status-sidebar__section" data-status-sidebar-group="sampling">
-            <header class="status-sidebar__section-header">
-              <h3 class="status-sidebar__section-title">{{ t('monitor.serverStatus.runtimeStatusSamplingTitle') }}</h3>
-            </header>
-            <dl class="status-sidebar__summary-list">
-              <div
-                v-for="item in samplingStatusItems"
-                :key="item.key"
-                class="status-sidebar__summary-item"
-                :data-status-sidebar-item="item.key"
-              >
-                <dt class="status-sidebar__summary-key">{{ item.label }}</dt>
-                <dd class="status-sidebar__summary-value">{{ item.value }}</dd>
-              </div>
-            </dl>
+            <div class="status-sidebar__summary-link">
+              <strong>{{ requestPerformanceSummary }}</strong>
+              <t-button theme="primary" variant="text" size="small" @click="openRequestPerformance">
+                {{ t('monitor.serverStatus.openRequestPerformance') }}
+              </t-button>
+            </div>
           </section>
         </div>
         <t-empty v-else :description="t('monitor.serverStatus.empty')" />
@@ -431,10 +394,9 @@ import { LineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { DataBaseIcon, InfoCircleIcon, LinkIcon } from 'tdesign-icons-vue-next';
+import { InfoCircleIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
-import type { Component } from 'vue';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { type Component, computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -445,6 +407,7 @@ import { RefreshControlBar } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
+import { getRequestPerformance } from '../../api/request-performance';
 import { getServerStatus } from '../../api/server-status';
 import MetricUsageBar from '../../components/MetricUsageBar.vue';
 import SectionCard from '../../components/SectionCard.vue';
@@ -456,17 +419,11 @@ import { normalizeMonitorOriginContext } from '../../contract/navigation';
 import type { MonitorRefreshInterval } from '../../contract/refresh';
 import type { MonitorTrendRange } from '../../contract/trend';
 import { MONITOR_TREND_RANGE } from '../../contract/trend';
-import {
-  formatDependencyPoolUsage,
-  formatPoolCount,
-  poolUsagePercent,
-  poolUsageStatus,
-} from '../../shared/pool-metrics';
-import { formatChartTimeOnly, formatTimeOnly as formatMonitorTimeOnly } from '../../shared/time-display';
+import { formatChartTimeOnly } from '../../shared/time-display';
+import type { RequestPerformanceResponse } from '../../types/request-performance';
 import type {
   EvidenceLink,
   ServerStatusAnomaly,
-  ServerStatusDependency,
   ServerStatusResponse,
   ServerStatusTrendPoint,
 } from '../../types/server-status';
@@ -480,7 +437,7 @@ const router = useRouter();
 
 type MonitorStatus = 'healthy' | 'degraded' | 'disabled' | 'unknown';
 type MetricCardTone = 'healthy' | 'warning' | 'critical' | 'unknown';
-type MetricUsageStatus = ReturnType<typeof poolUsageStatus>;
+type MetricUsageStatus = 'healthy' | 'warning' | 'danger' | 'unknown';
 type MetricUsageKind = 'percent' | 'loadPressure';
 type TrendRange = MonitorTrendRange;
 type TrendMode = 'overview' | 'multi' | 'focus';
@@ -551,18 +508,6 @@ interface TrendOverviewSection {
   metrics: TrendMetricDefinition[];
 }
 
-interface StatusSidebarSummaryItem {
-  key: string;
-  label: string;
-  value: string;
-}
-
-interface DependencyPoolView {
-  value: string;
-  detail: string;
-  usage: MetricCardUsage;
-}
-
 const { t, locale } = useI18n();
 const settingStore = useSettingStore();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
@@ -574,10 +519,10 @@ const {
 } = useMonitorRefreshPreferences();
 const loading = ref(false);
 const serverStatus = ref<ServerStatusResponse | null>(null);
+const requestPerformance = ref<RequestPerformanceResponse | null>(null);
 const selectedTrendRange = ref<TrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
 const selectedTrendMode = ref<TrendMode>('overview');
 const selectedFocusMetric = ref<FocusMetric>('cpu');
-const lastUpdatedAt = ref<string | null>(null);
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
@@ -602,14 +547,6 @@ const trendModeOptions = computed(() => [
 ]);
 
 const monitorAnomalies = computed<ServerStatusAnomaly[]>(() => serverStatus.value?.anomalies ?? []);
-
-const selectedTrendRangeLabel = computed(() => {
-  return trendRangeOptions.value.find((option) => option.value === selectedTrendRange.value)?.label ?? '--';
-});
-
-const selectedTrendModeLabel = computed(() => {
-  return trendModeOptions.value.find((option) => option.value === selectedTrendMode.value)?.label ?? '--';
-});
 
 function trendGroupInfoText(group: TrendMetricGroup) {
   switch (group) {
@@ -963,94 +900,41 @@ const metricCards = computed<MetricCard[]>(() => {
   ];
 });
 
-const dependencyItems = computed(() => {
-  const response = serverStatus.value;
-  if (!response) {
-    return [];
-  }
-
-  return [
-    buildDependencyItem(
-      'database',
-      t('monitor.serverStatus.postgresqlLabel'),
-      response.dependencies.database,
-      DataBaseIcon,
-    ),
-    buildDependencyItem('redis', t('monitor.serverStatus.redisLabel'), response.dependencies.redis, LinkIcon),
-  ];
+const dependencyHealthSummary = computed(() => {
+  const summary = serverStatus.value?.summary;
+  if (!summary) return t('monitor.serverStatus.runtimeStatusNotAvailable');
+  const total = summary.healthy_dependencies + summary.degraded_dependencies + summary.disabled_dependencies;
+  return t('monitor.serverStatus.dependencyHealthSummary', {
+    healthy: String(summary.healthy_dependencies),
+    total: String(total),
+    attention: String(summary.degraded_dependencies),
+  });
 });
-
-const processSummaryItems = computed<StatusSidebarSummaryItem[]>(() => {
-  const response = serverStatus.value;
-  if (!response) {
-    return [];
-  }
-
+const requestPerformanceSummary = computed(() => {
+  const summary = requestPerformance.value?.summary;
+  if (!summary) return t('monitor.serverStatus.runtimeStatusNotAvailable');
+  return t('monitor.serverStatus.requestPerformanceSummary', {
+    rps: summary.requests_per_second.toFixed(2),
+    p95: summary.p95_latency_ms.toFixed(0),
+    errors: formatRequestErrorRate(summary.error_5xx_rate),
+  });
+});
+const requestPerformanceMetrics = computed(() => {
+  const summary = requestPerformance.value?.summary;
   return [
     {
-      key: 'uptime',
-      label: t('monitor.serverStatus.runtimeStatusUptimeLabel'),
-      value: formatUptime(response.server.uptime_seconds),
+      key: 'rps',
+      label: t('monitor.requestPerformance.summary.rps'),
+      value: summary ? `${summary.requests_per_second.toFixed(2)} RPS` : '--',
     },
+    { key: 'p95', label: 'P95', value: summary ? `${summary.p95_latency_ms.toFixed(0)} ms` : '--' },
     {
-      key: 'goroutines',
-      label: t('monitor.serverStatus.runtimeStatusGoroutinesLabel'),
-      value: String(response.runtime.goroutines),
-    },
-    {
-      key: 'heap',
-      label: t('monitor.serverStatus.runtimeStatusHeapLabel'),
-      value: formatBytes(response.runtime.runtime_heap_in_use_bytes),
-    },
-    {
-      key: 'runtimeSys',
-      label: t('monitor.serverStatus.runtimeStatusRuntimeSysLabel'),
-      value: formatBytes(response.runtime.runtime_sys_bytes),
-    },
-    {
-      key: 'gcCount',
-      label: t('monitor.serverStatus.runtimeStatusGcCountLabel'),
-      value: String(response.runtime.runtime_gc_cycles),
-    },
-    {
-      key: 'lastGc',
-      label: t('monitor.serverStatus.runtimeStatusLastGcLabel'),
-      value: t('monitor.serverStatus.runtimeStatusNotAvailable'),
+      key: 'errors',
+      label: t('monitor.requestPerformance.summary.errors'),
+      value: summary ? formatRequestErrorRate(summary.error_5xx_rate) : '--',
     },
   ];
 });
-
-const samplingStatusItems = computed<StatusSidebarSummaryItem[]>(() => [
-  {
-    key: 'lastUpdated',
-    label: t('monitor.serverStatus.runtimeStatusLastUpdatedLabel'),
-    value: formatOverviewTimeOnly(lastUpdatedAt.value ?? serverStatus.value?.observed_at),
-  },
-  {
-    key: 'autoRefresh',
-    label: t('monitor.serverStatus.runtimeStatusAutoRefreshLabel'),
-    value: canRunAutoRefreshCycle()
-      ? t('monitor.serverStatus.runtimeStatusRefreshValue')
-      : selectedRefreshInterval.value <= 0
-        ? t('app.refreshControl.status.off')
-        : t('monitor.serverStatus.runtimeStatusPaused'),
-  },
-  {
-    key: 'timeRange',
-    label: t('monitor.serverStatus.runtimeStatusTimeRangeLabel'),
-    value: selectedTrendRangeLabel.value,
-  },
-  {
-    key: 'samples',
-    label: t('monitor.serverStatus.runtimeStatusSamplesLabel'),
-    value: String(trendPoints.value.length),
-  },
-  {
-    key: 'trendMode',
-    label: t('monitor.serverStatus.runtimeStatusTrendModeLabel'),
-    value: selectedTrendModeLabel.value,
-  },
-]);
 const toolbarStatus = computed<ServerStatusTone>(() => {
   switch (overallStatus.value) {
     case 'healthy':
@@ -1098,8 +982,12 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
   loading.value = true;
 
   try {
-    serverStatus.value = await getServerStatus(requestedTrendRange);
-    lastUpdatedAt.value = new Date().toISOString();
+    const [status, performance] = await Promise.all([
+      getServerStatus(requestedTrendRange),
+      getRequestPerformance(requestedTrendRange),
+    ]);
+    serverStatus.value = status;
+    requestPerformance.value = performance;
     consecutiveFailures.value = 0;
   } catch (error) {
     const previousFailures = consecutiveFailures.value;
@@ -1228,46 +1116,17 @@ function emptyMetricCard(key: string, label: string, kind: MetricUsageKind): Met
   };
 }
 
-function buildDependencyItem(key: string, label: string, dependency: ServerStatusDependency, icon: Component) {
-  return {
-    key,
-    label,
-    detail: dependency.detail,
-    status: normalizeStatus(dependency.status),
-    latency: formatLatency(dependency.latency_ms),
-    pool: dependency.pool ? buildDependencyPoolView(label, dependency.pool) : null,
-    icon,
-  };
+function openDependencies() {
+  void router.push({ path: '/observability/dependencies' });
 }
 
-function buildDependencyPoolView(label: string, pool: NonNullable<ServerStatusDependency['pool']>): DependencyPoolView {
-  const value = formatDependencyPoolUsage(pool, emptyRuntimeStatusText());
-  const percent = poolUsagePercent(pool);
-  return {
-    value,
-    detail: t('monitor.serverStatus.dependencyPoolDetail', {
-      inUse: formatPoolCount(pool.in_use_connections, emptyRuntimeStatusText()),
-      idle: formatPoolCount(pool.idle_connections, emptyRuntimeStatusText()),
-      open: formatPoolCount(pool.open_connections, emptyRuntimeStatusText()),
-      capacity: formatPoolCount(pool.capacity, emptyRuntimeStatusText()),
-    }),
-    usage: {
-      kind: 'percent',
-      label: t('monitor.serverStatus.dependencyPoolUsageLabel', { label }),
-      value: percent,
-      status: poolUsageStatus(percent),
-      tooltip: t('monitor.serverStatus.dependencyPoolUsageTooltip', {
-        label,
-        value,
-        percent: formatPercentPrecise(percent),
-      }),
-      loading: false,
-    },
-  };
+function openRequestPerformance() {
+  void router.push({ path: '/observability/request-performance' });
 }
 
-function emptyRuntimeStatusText() {
-  return t('monitor.serverStatus.runtimeStatusNotAvailable');
+function formatRequestErrorRate(value: number) {
+  const percent = value <= 1 ? value * 100 : value;
+  return `${percent.toFixed(2)}%`;
 }
 
 function resolveAnomalyByKey(anomalyKey: string) {
@@ -1906,22 +1765,6 @@ function overallStatusLabel(status?: string) {
   }
 }
 
-function formatUptime(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${hours}h ${minutes}m ${seconds}s`;
-}
-
-function formatOverviewTimeOnly(value?: string | null) {
-  if (!value) {
-    return t('monitor.serverStatus.runtimeStatusNotAvailable');
-  }
-
-  const formatted = formatMonitorTimeOnly(value, locale);
-  return formatted === '--' ? t('monitor.serverStatus.runtimeStatusNotAvailable') : formatted;
-}
-
 function formatChartTimestamp(value: string) {
   return formatChartTimeOnly(value, locale) || t('monitor.serverStatus.runtimeStatusNotAvailable');
 }
@@ -1941,38 +1784,6 @@ function formatBytes(bytes: number | null) {
 
   const decimals = unitIndex >= 3 ? 1 : value >= 10 || unitIndex === 0 ? 0 : 1;
   return `${value.toFixed(decimals)} ${units[unitIndex]}`;
-}
-
-function formatLatency(latency: number | null) {
-  if (latency === null) {
-    return t('monitor.serverStatus.noLatency');
-  }
-
-  return t('monitor.serverStatus.latencyValue', { value: latency.toFixed(2) });
-}
-
-function statusLabel(status?: string) {
-  switch (status) {
-    case 'healthy':
-      return t('monitor.serverStatus.statusHealthy');
-    case 'degraded':
-      return t('monitor.serverStatus.statusDegraded');
-    case 'disabled':
-      return t('monitor.serverStatus.statusDisabled');
-    default:
-      return t('monitor.serverStatus.statusUnknown');
-  }
-}
-
-function statusTheme(status?: string) {
-  switch (status) {
-    case 'healthy':
-      return 'success';
-    case 'degraded':
-      return 'warning';
-    default:
-      return 'default';
-  }
 }
 
 watch(

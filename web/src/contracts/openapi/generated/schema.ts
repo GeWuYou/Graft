@@ -949,6 +949,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/monitor/request-performance': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read request performance snapshot
+     * @description Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.
+     */
+    get: operations['getMonitorRequestPerformance'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/modules/runtime': {
     parameters: {
       query?: never;
@@ -3181,6 +3201,13 @@ export interface components {
     ServerStatusAnomaly: components['schemas']['server-status-anomaly'];
     ServerStatusResponse: components['schemas']['server-status-response'];
     EnvelopedServerStatusResponse: components['schemas']['enveloped-server-status-response'];
+    RequestPerformanceSummary: components['schemas']['request-performance-summary'];
+    RequestPerformanceMinuteBucket: components['schemas']['request-performance-minute-bucket'];
+    RequestPerformanceStatusGroup: components['schemas']['request-performance-status-group'];
+    RequestPerformanceRoute: components['schemas']['request-performance-route'];
+    RequestPerformanceTopRoutes: components['schemas']['request-performance-top-routes'];
+    RequestPerformanceResponse: components['schemas']['request-performance-response'];
+    EnvelopedRequestPerformanceResponse: components['schemas']['enveloped-request-performance-response'];
     ModuleRuntimeDependency: components['schemas']['module-runtime-dependency'];
     ModuleRuntimeMigrationStatus: components['schemas']['module-runtime-migration-status'];
     ModuleRuntimeSchemaStatus: components['schemas']['module-runtime-schema-status'];
@@ -4578,6 +4605,74 @@ export interface components {
     };
     'enveloped-server-status-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['server-status-response'];
+    };
+    'request-performance-summary': {
+      /** Format: int64 */
+      total_requests: number;
+      /** Format: double */
+      requests_per_second: number;
+      /** Format: double */
+      p50_latency_ms: number;
+      /** Format: double */
+      p95_latency_ms: number;
+      /** Format: int64 */
+      error_5xx_count: number;
+      /** Format: double */
+      error_5xx_rate: number;
+      /** Format: int64 */
+      slow_request_count: number;
+    };
+    'request-performance-minute-bucket': {
+      /** Format: date-time */
+      observed_at: string;
+      /** Format: int64 */
+      total_requests: number;
+      /** Format: double */
+      requests_per_second: number;
+      /** Format: double */
+      p95_latency_ms: number;
+      /** Format: int64 */
+      error_5xx_count: number;
+      /** Format: double */
+      error_5xx_rate: number;
+    };
+    'request-performance-status-group': {
+      /** @enum {string} */
+      status_group: '2xx' | '3xx' | '4xx' | '5xx';
+      /** Format: int64 */
+      request_count: number;
+      /** Format: double */
+      request_rate: number;
+    };
+    'request-performance-route': {
+      method: string;
+      route: string;
+      /** Format: int64 */
+      total_requests: number;
+      /** Format: int64 */
+      error_5xx_count: number;
+      /** Format: double */
+      error_5xx_rate: number;
+      /** Format: double */
+      p95_latency_ms: number;
+    };
+    'request-performance-top-routes': {
+      traffic: components['schemas']['request-performance-route'][];
+      errors_5xx: components['schemas']['request-performance-route'][];
+      p95_latency: components['schemas']['request-performance-route'][];
+    };
+    'request-performance-response': {
+      /** Format: date-time */
+      observed_at: string;
+      /** @enum {string} */
+      range: '10m' | '30m' | '1h';
+      summary: components['schemas']['request-performance-summary'];
+      minute_buckets: components['schemas']['request-performance-minute-bucket'][];
+      status_groups: components['schemas']['request-performance-status-group'][];
+      top_routes: components['schemas']['request-performance-top-routes'];
+    };
+    'enveloped-request-performance-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['request-performance-response'];
     };
     'module-runtime-summary': {
       total_modules: number;
@@ -10130,6 +10225,48 @@ export interface operations {
         content: {
           'application/json': components['schemas']['enveloped-server-status-response'];
         };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getMonitorRequestPerformance: {
+    parameters: {
+      query?: {
+        /** @description Bounded request-performance aggregation range. */
+        range?: '10m' | '30m' | '1h';
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Request performance snapshot. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-request-performance-response'];
+        };
+      };
+      /** @description Invalid request-performance range. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];

@@ -37,7 +37,7 @@ import (
 
 const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
-const coreServiceRegistrationCapacity = 12
+const coreServiceRegistrationCapacity = 13
 const (
 	coreModuleRuntimeHealthWidgetOrder = 10
 	moduleRuntimeHealthTitleKey        = "dashboard.widget.moduleRuntimeHealth.title"

@@ -1,0 +1,14 @@
+type: object
+required: [status_group, request_count, request_rate]
+properties:
+  status_group:
+    type: string
+    enum: [2xx, 3xx, 4xx, 5xx]
+  request_count:
+    type: integer
+    format: int64
+    minimum: 0
+  request_rate:
+    type: number
+    format: double
+    minimum: 0

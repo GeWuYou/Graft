@@ -3,7 +3,8 @@
     "monitor": {
       "overview": { "title": "Overview" },
       "serviceStatus": { "title": "Service Status" },
-      "dependencies": { "title": "Dependencies" }
+      "dependencies": { "title": "Dependencies" },
+      "requestPerformance": { "title": "Request Performance" }
     }
   },
   "monitor": {
@@ -20,6 +21,10 @@
         "title": "Dependencies",
         "breadcrumb": "Dependencies"
       },
+      "requestPerformance": {
+        "title": "Request Performance",
+        "breadcrumb": "Request Performance"
+      },
       "moduleRuntime": {
         "title": "Modules",
         "breadcrumb": "Modules"
@@ -27,8 +32,8 @@
     },
     "sectionTitle": "Observability",
     "serverStatus": {
-      "overviewTitle": "Server Status Overview",
-      "overviewHint": "Review overall server resources, dependency health, and the current Go process runtime summary.",
+      "overviewTitle": "System Runtime Overview",
+      "overviewHint": "Review overall resource pressure, dependency health, and request performance.",
       "refreshIntervalLabel": "Refresh cadence",
       "refreshInterval5Seconds": "Every 5 sec",
       "refreshInterval10Seconds": "Every 10 sec",
@@ -64,6 +69,11 @@
       "openAuditEvidence": "Open audit evidence",
       "auditEvidenceUnavailable": "Audit evidence is unavailable for this anomaly.",
       "runtimeStatusDependenciesTitle": "Dependencies",
+      "requestPerformanceTitle": "Request performance",
+      "openDependencies": "Open dependencies",
+      "openRequestPerformance": "Open request performance",
+      "dependencyHealthSummary": "{healthy} of {total} healthy · {attention} need attention",
+      "requestPerformanceSummary": "{rps} RPS · P95 {p95} ms · 5xx {errors}",
       "runtimeStatusProcessTitle": "Process summary",
       "runtimeStatusSamplingTitle": "Sampling status",
       "runtimeStatusUptimeLabel": "Uptime",
@@ -171,6 +181,42 @@
         "meta": "Waiting for the first successful snapshot",
         "description": "Waiting for status data"
       }
+    },
+    "requestPerformance": {
+      "title": "Request Performance",
+      "subtitle": "Review HTTP request volume, latency, failures, and the busiest routes.",
+      "loadFailed": "Failed to load request performance",
+      "empty": "No request performance data is available.",
+      "statusHealthy": "Healthy",
+      "statusAttention": "Attention",
+      "summary": {
+        "rps": "Request rate",
+        "rpsHint": "Average requests per second in the selected window",
+        "latency": "P50 / P95 latency",
+        "latencyHint": "P95 is the operational latency signal",
+        "errors": "5xx error rate",
+        "errorsHint": "Only 5xx responses affect health",
+        "slow": "Slow requests",
+        "slowHint": "Requests over the server slow-request threshold"
+      },
+      "trafficTitle": "Request volume",
+      "trafficHint": "One-minute request-rate trend.",
+      "trafficSeries": "Requests per second",
+      "latencyTitle": "P95 latency",
+      "latencyHint": "One-minute P95 latency trend.",
+      "latencySeries": "P95 latency (ms)",
+      "errorTitle": "5xx error rate",
+      "errorHint": "4xx responses are informational and do not lower health.",
+      "errorSeries": "5xx error rate (%)",
+      "statusDistributionTitle": "Status distribution",
+      "statusDistributionHint": "Request status groups in the selected window.",
+      "topTrafficTitle": "Highest traffic routes",
+      "topTrafficHint": "Top five routes by request volume.",
+      "topErrorsTitle": "Most 5xx routes",
+      "topErrorsHint": "Top five routes by 5xx count.",
+      "topLatencyTitle": "Highest P95 routes",
+      "topLatencyHint": "Top five routes by P95 latency.",
+      "columns": { "method": "Method", "route": "Route", "requests": "Requests", "errors": "5xx", "p95": "P95" }
     },
     "moduleRuntime": {
       "title": "Module Status",

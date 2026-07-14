@@ -155,7 +155,7 @@ func TestBuildServerStatusResponseBuildInfoFallsBackToCanonicalDefaults(t *testi
 	assertEqual(t, "server build git tree state fallback", string(response.Server.Build.GitTreeState), "unknown")
 }
 
-func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
+func TestRegisterMessagesIncludesMonitorTitles(t *testing.T) {
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
 	resources, err := monitorlocales.EmbeddedLocaleResources()
 	if err != nil {
@@ -171,6 +171,8 @@ func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
 
 	assertRegisteredMessage(t, localizer, i18n.LocaleZHCN, monitorcontract.AuditEvidenceUnavailableTitle.String(), "审计证据不可用")
 	assertRegisteredMessage(t, localizer, i18n.LocaleENUS, monitorcontract.AuditEvidenceUnavailableTitle.String(), "Audit evidence is unavailable")
+	assertRegisteredMessage(t, localizer, i18n.LocaleZHCN, monitorcontract.RequestPerformanceMenuTitle.String(), "请求性能")
+	assertRegisteredMessage(t, localizer, i18n.LocaleENUS, monitorcontract.RequestPerformanceMenuTitle.String(), "Request Performance")
 }
 
 func assertRegisteredMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {

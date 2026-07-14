@@ -461,6 +461,21 @@ function resolveOptionLabel(value: RefreshControlValue, options: RefreshControlO
     padding-inline: var(--graft-density-gap-12);
   }
 
+  .refresh-control-bar--page .refresh-control-bar__status,
+  .refresh-control-bar--page .refresh-control-bar__items {
+    flex-basis: 100%;
+  }
+
+  .refresh-control-bar--page .refresh-control-bar__item {
+    flex-basis: 100%;
+  }
+
+  .refresh-control-bar--page .refresh-control-bar__actions {
+    flex-wrap: wrap;
+    min-width: 0;
+    width: 100%;
+  }
+
   .refresh-control-bar--compact.refresh-control-bar--plain {
     flex-wrap: wrap;
   }

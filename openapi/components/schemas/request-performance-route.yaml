@@ -1,0 +1,29 @@
+type: object
+required:
+  - method
+  - route
+  - total_requests
+  - error_5xx_count
+  - error_5xx_rate
+  - p95_latency_ms
+properties:
+  method:
+    type: string
+  route:
+    type: string
+  total_requests:
+    type: integer
+    format: int64
+    minimum: 0
+  error_5xx_count:
+    type: integer
+    format: int64
+    minimum: 0
+  error_5xx_rate:
+    type: number
+    format: double
+    minimum: 0
+  p95_latency_ms:
+    type: number
+    format: double
+    minimum: 0

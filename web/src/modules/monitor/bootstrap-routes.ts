@@ -9,6 +9,8 @@ const runtimeRouteTitle = localizeRouteTitleKey('monitor.route.runtime.title');
 const runtimeBreadcrumbTitle = localizeRouteTitleKey('monitor.route.runtime.breadcrumb');
 const dependenciesRouteTitle = localizeRouteTitleKey('monitor.route.dependencies.title');
 const dependenciesBreadcrumbTitle = localizeRouteTitleKey('monitor.route.dependencies.breadcrumb');
+const requestPerformanceRouteTitle = localizeRouteTitleKey('monitor.route.requestPerformance.title');
+const requestPerformanceBreadcrumbTitle = localizeRouteTitleKey('monitor.route.requestPerformance.breadcrumb');
 const moduleRuntimeRouteTitle = localizeRouteTitleKey('monitor.route.moduleRuntime.title');
 const moduleRuntimeBreadcrumbTitle = localizeRouteTitleKey('monitor.route.moduleRuntime.breadcrumb');
 
@@ -53,6 +55,20 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       semanticTitle: dependenciesRouteTitle,
       breadcrumbTitle: dependenciesBreadcrumbTitle,
       tabTitle: dependenciesRouteTitle,
+    },
+  },
+  {
+    menuPath: MONITOR_ROUTE_PATH.OBSERVABILITY_REQUEST_PERFORMANCE,
+    routeName: 'MonitorRequestPerformance',
+    loadPage: () => import('./pages/request-performance/index.vue'),
+    meta: {
+      domain: 'monitor',
+      tabGroup: 'monitor',
+      dashboard: true,
+      pageKind: 'overview',
+      semanticTitle: requestPerformanceRouteTitle,
+      breadcrumbTitle: requestPerformanceBreadcrumbTitle,
+      tabTitle: requestPerformanceRouteTitle,
     },
   },
   {

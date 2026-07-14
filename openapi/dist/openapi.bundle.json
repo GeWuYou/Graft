@@ -5580,6 +5580,73 @@
         }
       }
     },
+    "/api/monitor/request-performance": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "Read request performance snapshot",
+        "operationId": "getMonitorRequestPerformance",
+        "description": "Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "description": "Bounded request-performance aggregation range.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "10m",
+                "30m",
+                "1h"
+              ],
+              "default": "10m"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request performance snapshot.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-request-performance-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request-performance range."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/modules/runtime": {
       "get": {
         "tags": [
@@ -15460,6 +15527,27 @@
       "EnvelopedServerStatusResponse": {
         "$ref": "#/components/schemas/enveloped-server-status-response"
       },
+      "RequestPerformanceSummary": {
+        "$ref": "#/components/schemas/request-performance-summary"
+      },
+      "RequestPerformanceMinuteBucket": {
+        "$ref": "#/components/schemas/request-performance-minute-bucket"
+      },
+      "RequestPerformanceStatusGroup": {
+        "$ref": "#/components/schemas/request-performance-status-group"
+      },
+      "RequestPerformanceRoute": {
+        "$ref": "#/components/schemas/request-performance-route"
+      },
+      "RequestPerformanceTopRoutes": {
+        "$ref": "#/components/schemas/request-performance-top-routes"
+      },
+      "RequestPerformanceResponse": {
+        "$ref": "#/components/schemas/request-performance-response"
+      },
+      "EnvelopedRequestPerformanceResponse": {
+        "$ref": "#/components/schemas/enveloped-request-performance-response"
+      },
       "ModuleRuntimeDependency": {
         "$ref": "#/components/schemas/module-runtime-dependency"
       },
@@ -19476,6 +19564,257 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/server-status-response"
+              }
+            }
+          }
+        ]
+      },
+      "request-performance-summary": {
+        "type": "object",
+        "required": [
+          "total_requests",
+          "requests_per_second",
+          "p50_latency_ms",
+          "p95_latency_ms",
+          "error_5xx_count",
+          "error_5xx_rate",
+          "slow_request_count"
+        ],
+        "properties": {
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "requests_per_second": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p50_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "error_5xx_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "slow_request_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-minute-bucket": {
+        "type": "object",
+        "required": [
+          "observed_at",
+          "total_requests",
+          "requests_per_second",
+          "p95_latency_ms",
+          "error_5xx_count",
+          "error_5xx_rate"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "requests_per_second": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "error_5xx_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-status-group": {
+        "type": "object",
+        "required": [
+          "status_group",
+          "request_count",
+          "request_rate"
+        ],
+        "properties": {
+          "status_group": {
+            "type": "string",
+            "enum": [
+              "2xx",
+              "3xx",
+              "4xx",
+              "5xx"
+            ]
+          },
+          "request_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-route": {
+        "type": "object",
+        "required": [
+          "method",
+          "route",
+          "total_requests",
+          "error_5xx_count",
+          "error_5xx_rate",
+          "p95_latency_ms"
+        ],
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-top-routes": {
+        "type": "object",
+        "required": [
+          "traffic",
+          "errors_5xx",
+          "p95_latency"
+        ],
+        "properties": {
+          "traffic": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-route"
+            }
+          },
+          "errors_5xx": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-route"
+            }
+          },
+          "p95_latency": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-route"
+            }
+          }
+        }
+      },
+      "request-performance-response": {
+        "type": "object",
+        "required": [
+          "observed_at",
+          "range",
+          "summary",
+          "minute_buckets",
+          "status_groups",
+          "top_routes"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "10m",
+              "30m",
+              "1h"
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/request-performance-summary"
+          },
+          "minute_buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-minute-bucket"
+            }
+          },
+          "status_groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-status-group"
+            }
+          },
+          "top_routes": {
+            "$ref": "#/components/schemas/request-performance-top-routes"
+          }
+        }
+      },
+      "enveloped-request-performance-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/request-performance-response"
               }
             }
           }

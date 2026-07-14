@@ -21,6 +21,7 @@ import (
 	"graft/server/internal/kvx"
 	"graft/server/internal/logger"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
 	"graft/server/internal/redisx"
@@ -132,6 +133,19 @@ func (r *Runtime) runtimeDataServiceRegistrations() []serviceRegistration {
 					return nil, errors.New("cache manager is unavailable")
 				}
 				return r.cacheManager, nil
+			},
+		},
+		{
+			key: (*moduleapi.RequestPerformanceReader)(nil),
+			provider: func() (any, error) {
+				if r.server == nil || r.server.AccessLogRepository() == nil {
+					return nil, errors.New("access log repository is unavailable")
+				}
+				reader, ok := r.server.AccessLogRepository().(moduleapi.RequestPerformanceReader)
+				if !ok {
+					return nil, errors.New("access log repository does not provide request performance reader")
+				}
+				return reader, nil
 			},
 		},
 	}
