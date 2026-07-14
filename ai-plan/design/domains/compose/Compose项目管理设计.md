@@ -1055,7 +1055,7 @@ Blank create request 建议至少包含：
 - `runtime_target_id`
 - `workspace_key?`
 - `workspace_entries[]`
-  - `relative_path`
+  - `path`
   - `node_type: file | directory`
   - 文件条目的 UTF-8 `content`
 - `compose_file_path`

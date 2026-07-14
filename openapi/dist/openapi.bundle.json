@@ -28899,9 +28899,60 @@
         ]
       },
       "project-workspace-entry-create-request": {
-        "allOf": [
+        "oneOf": [
           {
-            "$ref": "#/components/schemas/project-workspace-entry"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/project-workspace-entry"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "path",
+                  "node_type",
+                  "content"
+                ],
+                "properties": {
+                  "node_type": {
+                    "type": "string",
+                    "enum": [
+                      "file"
+                    ]
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Required UTF-8 text content for file entries."
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/project-workspace-entry"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "path",
+                  "node_type"
+                ],
+                "properties": {
+                  "node_type": {
+                    "type": "string",
+                    "enum": [
+                      "directory"
+                    ]
+                  }
+                },
+                "not": {
+                  "required": [
+                    "content"
+                  ]
+                }
+              }
+            ]
           }
         ]
       },
