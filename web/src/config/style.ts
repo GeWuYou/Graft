@@ -13,5 +13,6 @@ export default {
   isHeaderFixed: true,
   isUseTabsRouter: false,
   showHeader: true,
+  showThemeWorkbenchDock: true,
   brandTheme: '#0052D9',
 };

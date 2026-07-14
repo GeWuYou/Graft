@@ -390,6 +390,18 @@
                     @update:model-value="(value) => settingStore.updateConfig({ isUseTabsRouter: value })"
                   />
                 </div>
+                <div class="switch-item">
+                  <div class="switch-item__content">
+                    <div class="switch-item__label">{{ t('layout.setting.element.showThemeWorkbenchDock') }}</div>
+                    <div class="switch-item__hint">
+                      {{ t('layout.setting.workbench.layout.showThemeWorkbenchDockHint') }}
+                    </div>
+                  </div>
+                  <t-switch
+                    :model-value="settingStore.showThemeWorkbenchDock"
+                    @update:model-value="(value) => settingStore.updateConfig({ showThemeWorkbenchDock: value })"
+                  />
+                </div>
               </div>
             </div>
           </div>

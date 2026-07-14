@@ -31,7 +31,8 @@
       "help": "帮助文档",
       "user": "个人中心",
       "signOut": "退出登录",
-      "setting": "系统设置"
+      "setting": "系统设置",
+      "personalization": "个性化"
     },
     "notice": {
       "title": "通知中心",
@@ -80,6 +81,7 @@
         "showBreadcrumb": "显示 Breadcrumbs",
         "showFooter": "显示 Footer",
         "useTagTabs": "显示多标签 Tab 页",
+        "showThemeWorkbenchDock": "显示个性化悬浮按钮",
         "menuAutoCollapsed": "菜单自动折叠",
         "menuAlwaysExpanded": "始终展开所有菜单"
       },
@@ -118,6 +120,7 @@
           "showBreadcrumbHint": "显示当前位置路径。",
           "showFooterHint": "显示页面底部信息。",
           "useTagTabsHint": "开启多页面标签切换。",
+          "showThemeWorkbenchDockHint": "显示可拖动的个性化设置入口。",
           "onlyMix": "仅混合布局可用",
           "onlySideOrMix": "仅侧边与混合布局可用",
           "notIntegrated": "暂未接入"

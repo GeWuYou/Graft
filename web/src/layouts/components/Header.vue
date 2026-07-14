@@ -69,9 +69,9 @@
             </t-dropdown>
           </div>
           <div class="header-operation-item">
-            <t-tooltip placement="bottom" :content="t('layout.header.setting')">
+            <t-tooltip placement="bottom" :content="t('layout.header.personalization')">
               <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
-                <setting-icon />
+                <palette-icon />
               </t-button>
             </t-tooltip>
           </div>
@@ -81,7 +81,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ChevronDownIcon, PoweroffIcon, SettingIcon, UserCircleIcon } from 'tdesign-icons-vue-next';
+import { ChevronDownIcon, PaletteIcon, PoweroffIcon, UserCircleIcon } from 'tdesign-icons-vue-next';
 import type { PropType } from 'vue';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
