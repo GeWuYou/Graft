@@ -2,10 +2,12 @@ package httpx
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
@@ -95,19 +97,20 @@ func shouldLogAccessToConsole(record CreateAccessLogInput, options AccessLogOpti
 
 func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, startedAt time.Time) CreateAccessLogInput {
 	record := CreateAccessLogInput{
-		RequestID:    sanitizeAccessLogStableText(requestID),
-		TraceID:      sanitizeAccessLogStableText(traceID),
-		Method:       sanitizeAccessLogStableText(ctx.Request.Method),
-		Path:         sanitizeAccessLogPath(currentRequestPath(ctx)),
-		Route:        sanitizeAccessLogRoute(currentRequestRoute(ctx)),
-		StatusCode:   ctx.Writer.Status(),
-		DurationMS:   time.Since(startedAt).Milliseconds(),
-		ClientIP:     sanitizeAccessLogStableText(ctx.ClientIP()),
-		UserAgent:    sanitizeAccessLogFreeText(ctx.Request.UserAgent()),
-		RequestSize:  currentRequestSize(ctx),
-		ResponseSize: currentResponseSize(ctx),
-		StartedAt:    startedAt.UTC(),
-		OccurredAt:   time.Now().UTC(),
+		RequestID:      sanitizeAccessLogStableText(requestID),
+		TraceID:        sanitizeAccessLogStableText(traceID),
+		Method:         sanitizeAccessLogStableText(ctx.Request.Method),
+		Path:           sanitizeAccessLogPath(currentRequestPath(ctx)),
+		Route:          sanitizeAccessLogRoute(currentRequestRoute(ctx)),
+		ConnectionType: currentAccessLogConnectionType(ctx),
+		StatusCode:     ctx.Writer.Status(),
+		DurationMS:     time.Since(startedAt).Milliseconds(),
+		ClientIP:       sanitizeAccessLogStableText(ctx.ClientIP()),
+		UserAgent:      sanitizeAccessLogFreeText(ctx.Request.UserAgent()),
+		RequestSize:    currentRequestSize(ctx),
+		ResponseSize:   currentResponseSize(ctx),
+		StartedAt:      startedAt.UTC(),
+		OccurredAt:     time.Now().UTC(),
 	}
 
 	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx.Request.Context()); ok && requestAuth.User != nil {
@@ -116,6 +119,16 @@ func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, st
 	}
 
 	return record
+}
+
+func currentAccessLogConnectionType(ctx *gin.Context) AccessLogConnectionType {
+	if ctx == nil || ctx.Request == nil || ctx.Writer == nil {
+		return AccessLogConnectionTypeHTTP
+	}
+	if websocket.IsWebSocketUpgrade(ctx.Request) && ctx.Writer.Status() == http.StatusSwitchingProtocols {
+		return AccessLogConnectionTypeWebSocket
+	}
+	return AccessLogConnectionTypeHTTP
 }
 
 func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogRepository, record CreateAccessLogInput) {

@@ -19,6 +19,7 @@ func (r *accessLogRepository) buildAccessLogListSelectQuery(
 		method,
 		path,
 		route,
+		connection_type,
 		status_code,
 		duration_ms,
 		client_ip,

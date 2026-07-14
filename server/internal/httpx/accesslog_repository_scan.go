@@ -37,6 +37,7 @@ func scanAccessLog(scanner accessLogScanner) (AccessLog, error) {
 		&record.Method,
 		&record.Path,
 		&route,
+		&record.ConnectionType,
 		&record.StatusCode,
 		&record.DurationMS,
 		&clientIP,
@@ -60,6 +61,7 @@ func scanAccessLog(scanner accessLogScanner) (AccessLog, error) {
 	}
 	record.TraceID = traceID.String
 	record.Route = route.String
+	record.ConnectionType = normalizeAccessLogConnectionType(record.ConnectionType)
 	record.ClientIP = clientIP.String
 	record.UserAgent = userAgent.String
 	record.Username = username.String

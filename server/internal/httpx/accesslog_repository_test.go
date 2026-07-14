@@ -27,6 +27,7 @@ func newAccessLogSQLiteDB(t *testing.T) *sql.DB {
 		method TEXT NOT NULL,
 		path TEXT NOT NULL,
 		route TEXT NULL,
+		connection_type TEXT NOT NULL DEFAULT 'http',
 		status_code INTEGER NOT NULL,
 		duration_ms BIGINT NOT NULL,
 		client_ip TEXT NULL,

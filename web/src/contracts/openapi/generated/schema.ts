@@ -958,7 +958,7 @@ export interface paths {
     };
     /**
      * Read request performance snapshot
-     * @description Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.
+     * @description Returns an aggregated normal HTTP request-performance snapshot for the selected bounded time range. Successfully upgraded WebSocket connections are retained as access-log facts but excluded because their duration is connection lifetime rather than request latency.
      */
     get: operations['getMonitorRequestPerformance'];
     put?: never;

@@ -18,6 +18,8 @@ func (s scanAccessLogTestScanner) Scan(dest ...any) error {
 			*target = s.values[index].(int64)
 		case *string:
 			*target = s.values[index].(string)
+		case *AccessLogConnectionType:
+			*target = s.values[index].(AccessLogConnectionType)
 		case *int:
 			*target = s.values[index].(int)
 		case *sql.NullString:
@@ -42,6 +44,7 @@ func TestScanAccessLogRejectsNegativeID(t *testing.T) {
 		"GET",
 		"/healthz",
 		sql.NullString{},
+		AccessLogConnectionTypeHTTP,
 		200,
 		int64(1),
 		sql.NullString{},
@@ -70,6 +73,7 @@ func TestScanAccessLogRejectsNegativeUserID(t *testing.T) {
 		"GET",
 		"/healthz",
 		sql.NullString{},
+		AccessLogConnectionTypeHTTP,
 		200,
 		int64(1),
 		sql.NullString{},

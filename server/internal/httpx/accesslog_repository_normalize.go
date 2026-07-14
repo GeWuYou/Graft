@@ -12,22 +12,30 @@ func normalizeCreateAccessLogInput(input CreateAccessLogInput) AccessLog {
 	traceID := normalizeAccessLogTraceID(sanitizeAccessLogStableText(input.TraceID), requestID)
 
 	return AccessLog{
-		RequestID:    requestID,
-		TraceID:      traceID,
-		Method:       sanitizeAccessLogStableText(input.Method),
-		Path:         sanitizeAccessLogPath(input.Path),
-		Route:        sanitizeAccessLogRoute(input.Route),
-		StatusCode:   input.StatusCode,
-		DurationMS:   input.DurationMS,
-		ClientIP:     sanitizeAccessLogStableText(input.ClientIP),
-		UserAgent:    sanitizeAccessLogFreeText(input.UserAgent),
-		UserID:       cloneUint64Pointer(input.UserID),
-		Username:     sanitizeAccessLogStableText(input.Username),
-		RequestSize:  cloneInt64Pointer(input.RequestSize),
-		ResponseSize: cloneInt64Pointer(input.ResponseSize),
-		StartedAt:    normalizeStartedAt(input.StartedAt, input.OccurredAt),
-		OccurredAt:   normalizeOccurredAt(input.OccurredAt),
+		RequestID:      requestID,
+		TraceID:        traceID,
+		Method:         sanitizeAccessLogStableText(input.Method),
+		Path:           sanitizeAccessLogPath(input.Path),
+		Route:          sanitizeAccessLogRoute(input.Route),
+		ConnectionType: normalizeAccessLogConnectionType(input.ConnectionType),
+		StatusCode:     input.StatusCode,
+		DurationMS:     input.DurationMS,
+		ClientIP:       sanitizeAccessLogStableText(input.ClientIP),
+		UserAgent:      sanitizeAccessLogFreeText(input.UserAgent),
+		UserID:         cloneUint64Pointer(input.UserID),
+		Username:       sanitizeAccessLogStableText(input.Username),
+		RequestSize:    cloneInt64Pointer(input.RequestSize),
+		ResponseSize:   cloneInt64Pointer(input.ResponseSize),
+		StartedAt:      normalizeStartedAt(input.StartedAt, input.OccurredAt),
+		OccurredAt:     normalizeOccurredAt(input.OccurredAt),
 	}
+}
+
+func normalizeAccessLogConnectionType(value AccessLogConnectionType) AccessLogConnectionType {
+	if value == AccessLogConnectionTypeWebSocket {
+		return AccessLogConnectionTypeWebSocket
+	}
+	return AccessLogConnectionTypeHTTP
 }
 
 // 当 startedAt 为空时，返回规范化后的 occurredAt；否则返回 startedAt 的 UTC 时间。
