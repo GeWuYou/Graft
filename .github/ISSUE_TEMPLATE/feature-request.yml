@@ -1,0 +1,34 @@
+name: Feature request / 功能建议
+description: Propose a capability or improvement for Graft. / 为 Graft 提出新能力或改进建议。
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve / 要解决的问题
+      description: Describe the user or operator problem, not only a preferred implementation. / 描述用户或运维问题，而不只是偏好的实现方式。
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome / 期望结果
+      description: Explain what success looks like and who benefits. / 说明成功状态及受益对象。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach / 建议方案
+      description: Include sketches, examples, or API/UI expectations where helpful. / 可补充草图、示例或 API/UI 预期。
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered / 已考虑的替代方案
+      description: Describe current workarounds or other approaches. / 描述现有替代方案或临时绕过方式。
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context / 补充背景
+      description: Include related issues, compatibility concerns, or scope limits. / 可包含关联 Issue、兼容性顾虑或范围限制。

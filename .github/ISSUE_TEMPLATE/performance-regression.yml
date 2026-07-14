@@ -1,0 +1,67 @@
+name: Performance regression / 性能回退
+description: Report a measurable slowdown, resource increase, or regression. / 报告可量化的变慢、资源增长或性能回退。
+title: "[Performance]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove credentials, customer data, and infrastructure identifiers from all evidence.
+
+        请从所有证据中移除凭据、客户数据和基础设施标识信息。
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area / 影响范围
+      options:
+        - Server / 服务端
+        - Web / 前端
+        - Database / 数据库
+        - Deployment or runtime / 部署或运行时
+        - Other / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression summary / 回退概述
+      description: State what became slower or more resource-intensive, and when it was first observed. / 说明变慢或资源增大的内容，以及首次发现的时间或版本。
+    validations:
+      required: true
+  - type: textarea
+    id: measurement
+    attributes:
+      label: Baseline and current measurement / 基线与当前指标
+      description: Include units, sample size, and measurement method. / 请包含单位、样本量和测量方法。
+      placeholder: |
+        Baseline / 基线:
+        Current / 当前:
+        Method / 方法:
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: Reproduction workload / 复现负载
+      description: Describe data size, concurrency, request shape, or user flow. / 描述数据量、并发度、请求形态或用户操作流。
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Version and environment / 版本与环境
+      description: Include known good and bad versions or commits, plus relevant OS, browser, database, and deployment details. / 请提供已知正常与异常的版本或提交，以及相关 OS、浏览器、数据库和部署信息。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / 证据
+      description: Attach sanitized profiles, traces, logs, screenshots, or benchmark output if available. / 如有，请附上脱敏后的性能分析、追踪、日志、截图或基准测试输出。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist / 提交确认
+      options:
+        - label: I removed sensitive information and searched existing issues. / 我已移除敏感信息并搜索现有 Issue。
+          required: true

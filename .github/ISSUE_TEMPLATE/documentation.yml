@@ -1,0 +1,36 @@
+name: Documentation improvement / 文档改进
+description: Report missing, incorrect, unclear, or outdated documentation. / 报告缺失、错误、不清晰或过期的文档。
+title: "[Docs]: "
+labels: [documentation]
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation location / 文档位置
+      description: Provide a URL, repository path, or page title. / 请提供 URL、仓库路径或页面标题。
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is unclear or incorrect? / 哪些内容不清晰或不正确？
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement / 建议修改
+      description: Include replacement text, an outline, or an example when possible. / 可提供替换文本、提纲或示例。
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Intended audience / 目标读者
+      options:
+        - New contributor / 新贡献者
+        - Application operator / 应用运维人员
+        - Server developer / 服务端开发者
+        - Web developer / 前端开发者
+        - Maintainer / 维护者
+        - Other / 其他
+    validations:
+      required: true

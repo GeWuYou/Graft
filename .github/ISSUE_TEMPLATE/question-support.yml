@@ -1,0 +1,32 @@
+name: Question or support / 问题咨询或使用支持
+description: Ask for help using, configuring, or understanding Graft. / 咨询 Graft 的使用、配置或行为。
+title: "[Question]: "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not post secrets, personal data, or security vulnerability details. For a reproducible defect, use the bug report form instead.
+
+        请勿提交密钥、个人数据或安全漏洞细节。可稳定复现的故障请使用缺陷报告表单。
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal or question / 目标或问题
+      description: State what you are trying to achieve and where you are blocked. / 说明你希望完成的目标及当前阻塞点。
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried? / 已尝试的内容
+      description: Include relevant commands, configuration excerpts, or documentation consulted after removing sensitive values. / 请在移除敏感值后提供相关命令、配置片段或已查阅文档。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / 环境信息
+      description: Include Graft version or commit, installation method, and relevant runtime details. / 请提供 Graft 版本或提交、安装方式及相关运行环境信息。
+    validations:
+      required: true
