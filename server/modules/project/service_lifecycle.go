@@ -112,7 +112,7 @@ func validateDestroyRequest(
 	request DestroyRequest,
 ) (ActionResult, error) {
 	guardResults := []GuardResult{}
-	if strings.TrimSpace(request.ConfirmCanonicalProjectName) != aggregate.Project.CanonicalProjectName {
+	if aggregate.Project.ApplicationID == "" || strings.TrimSpace(request.ConfirmCanonicalProjectName) != aggregate.Project.ApplicationID {
 		return blockedActionResult(projectID, generated.ProjectActionResponseActionProjectActionDestroy, append(guardResults, guardCode("confirm_canonical_project_name_mismatch"))), errProjectDestroyBlocked
 	}
 	guardResults = append(guardResults, guardCode("confirm_canonical_project_name_matched"))

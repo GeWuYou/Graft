@@ -207,3 +207,8 @@ type Repository interface {
 type ApplicationLookupRepository interface {
 	GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error)
 }
+
+// ApplicationIDBatchLookupRepository resolves public IDs without aggregate loads.
+type ApplicationIDBatchLookupRepository interface {
+	GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error)
+}

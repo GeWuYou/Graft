@@ -11,7 +11,7 @@ import {
 
 function createProjectDetail(additionalArgs: string[] = []) {
   return {
-    canonical_project_name: 'compose-demo',
+    compose_project_name: 'compose-demo',
     compose_files: [
       { absolute_path: '/srv/compose-demo/compose.yaml', display_path: 'compose.yaml' },
       { absolute_path: '/srv/compose-demo/compose.override.yaml', display_path: 'compose.override.yaml' },
@@ -32,7 +32,7 @@ function createProjectDetail(additionalArgs: string[] = []) {
     },
     lifecycle_review_status: 'confirmed',
     source_kind: 'manual',
-    working_directory: '/srv/compose-demo',
+    workspace_path: '/srv/compose-demo',
   } as never;
 }
 
@@ -81,7 +81,7 @@ describe('project lifecycle helpers', () => {
 
   it('formats copied lifecycle commands with relative or absolute compose paths', () => {
     const detail = createProjectDetail() as Record<string, unknown>;
-    detail.canonical_project_name = 'compose-demo-copy-mode';
+    detail.compose_project_name = 'compose-demo-copy-mode';
     const draft = buildLifecycleConfigurationDraft(detail as never);
     draft.pull_before_redeploy = true;
 

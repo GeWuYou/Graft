@@ -54,7 +54,7 @@
               >{{ t('project.creation.actions.start') }}</t-button
             >
             <t-tooltip v-else :content="t('project.workflow.unsupportedTooltip')" placement="top"
-              ><span tabindex="0"
+              ><span class="project-creation-card__disabled-wrap" tabindex="0"
                 ><t-button :data-testid="`project-creation-method-${method.method}`" theme="primary" disabled>{{
                   t('project.creation.actions.unavailable')
                 }}</t-button></span
@@ -235,6 +235,16 @@ function openMethod(method: ProjectCreationMethodType) {
 
 .project-creation-card--disabled {
   opacity: 0.62;
+}
+
+.project-creation-card__disabled-wrap {
+  display: block;
+  outline: none;
+}
+
+.project-creation-card__disabled-wrap:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
 }
 
 .project-creation-card--disabled:focus-visible {

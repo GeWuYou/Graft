@@ -28,23 +28,30 @@ ALTER TABLE compose_projects
 
 ALTER TABLE compose_projects
   ADD CONSTRAINT compose_projects_application_id_format_check
-    CHECK (application_id ~ '^app_[0-9A-HJKMNP-TV-Z]{26}$'),
+    CHECK (application_id ~ '^app_[0-9A-HJKMNP-TV-Z]{26}$') NOT VALID,
   ADD CONSTRAINT compose_projects_workspace_key_format_check
-    CHECK (workspace_key IS NULL OR workspace_key ~ '^[a-z0-9][a-z0-9-]*$'),
+    CHECK (workspace_key IS NULL OR workspace_key ~ '^[a-z0-9][a-z0-9-]*$') NOT VALID,
   ADD CONSTRAINT compose_projects_compose_project_name_source_check
-    CHECK (compose_project_name_source IN ('declared', 'generated', 'derived'));
+    CHECK (compose_project_name_source IN ('declared', 'generated', 'derived')) NOT VALID;
 
-DROP INDEX IF EXISTS compose_projects_host_scope_canonical_project_name_live;
-CREATE UNIQUE INDEX IF NOT EXISTS compose_projects_application_id_live
+ALTER TABLE compose_projects
+  VALIDATE CONSTRAINT compose_projects_application_id_format_check;
+ALTER TABLE compose_projects
+  VALIDATE CONSTRAINT compose_projects_workspace_key_format_check;
+ALTER TABLE compose_projects
+  VALIDATE CONSTRAINT compose_projects_compose_project_name_source_check;
+
+DROP INDEX CONCURRENTLY IF EXISTS compose_projects_host_scope_canonical_project_name_live;
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_application_id_live
   ON compose_projects (application_id)
   WHERE deleted_at = 0;
-CREATE UNIQUE INDEX IF NOT EXISTS compose_projects_runtime_compose_name_live
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_runtime_compose_name_live
   ON compose_projects (runtime_target_id, compose_project_name)
   WHERE deleted_at = 0;
-CREATE UNIQUE INDEX IF NOT EXISTS compose_projects_workspace_path_live
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_workspace_path_live
   ON compose_projects (workspace_path)
   WHERE deleted_at = 0;
-CREATE UNIQUE INDEX IF NOT EXISTS compose_projects_workspace_key_live
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_workspace_key_live
   ON compose_projects (workspace_key)
   WHERE deleted_at = 0 AND workspace_key IS NOT NULL;
 

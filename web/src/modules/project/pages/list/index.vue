@@ -94,7 +94,7 @@
         :empty-title="t('project.list.emptyTitle')"
         :footer-summary="paginationSummary"
         :loading="tableLoading"
-        row-key="id"
+        row-key="application_id"
         :rows="rows"
         :selected-row-keys="selectedRowKeys"
         :summary="t('project.list.tableSummary', { count: summaryTotalCount })"

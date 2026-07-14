@@ -52,24 +52,37 @@ const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const creating = ref(false);
-const runtimeTargetId = computed(() => Number(route.query.runtime_target_id));
+const runtimeTargetId = computed(() => {
+  const raw = route.query.runtime_target_id;
+  return typeof raw === 'string' && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : null;
+});
 const form = reactive({ display_name: '', workspace_key: '' });
 const templateForm = reactive({ template_key: 'empty-compose', template_version: 'v1', template_instance_name: '' });
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
 ]);
-function templatePayload(): ProjectTemplateCreateRequest {
+function templatePayload(runtimeTargetIdValue: number): ProjectTemplateCreateRequest {
   return {
     display_name: form.display_name.trim(),
-    runtime_target_id: runtimeTargetId.value,
+    runtime_target_id: runtimeTargetIdValue,
     ...(form.workspace_key.trim() ? { workspace_key: form.workspace_key.trim() } : {}),
-    ...templateForm,
+    template_key: templateForm.template_key === 'empty-compose' ? 'empty-compose' : undefined,
+    template_version: templateForm.template_version === 'v1' ? 'v1' : undefined,
+    template_instance_name: templateForm.template_instance_name.trim() || undefined,
   };
 }
 async function onCreate() {
+  if (runtimeTargetId.value === null) {
+    MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
+    return;
+  }
+  if (templateForm.template_key !== 'empty-compose' || templateForm.template_version !== 'v1') {
+    MessagePlugin.warning(t('project.sourceCreate.template'));
+    return;
+  }
   creating.value = true;
   try {
-    const result = await postProjectCreateTemplate(templatePayload());
+    const result = await postProjectCreateTemplate(templatePayload(runtimeTargetId.value));
     MessagePlugin.success(t('project.sourceCreate.createSuccess'));
     await router.push({
       name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,

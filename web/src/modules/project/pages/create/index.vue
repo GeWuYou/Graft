@@ -87,7 +87,12 @@ const route = useRoute();
 const formRef = ref<FormInstanceFunctions | null>(null);
 const creating = ref(false);
 const step = ref(0);
-const runtimeTargetId = computed(() => Number(route.query.runtime_target_id));
+const runtimeTargetId = computed(() => {
+  const raw = route.query.runtime_target_id;
+  if (typeof raw !== 'string' || !/^[1-9]\d*$/.test(raw)) return null;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : null;
+});
 const formData = reactive({ display_name: '', workspace_key: '' });
 const workspaceFiles = ref<ProjectWorkspaceManifestFile[]>([
   { path: 'compose.yaml', content: t('project.create.workspace.defaultCompose.unit') },
@@ -105,29 +110,40 @@ const stepOptions = computed(() =>
   ['identity', 'workspace', 'review'].map((key) => ({ title: t(`project.create.steps.${key}`) })),
 );
 const composePath = computed(
-  () =>
-    workspaceFiles.value.find((file) => /(^|\/)(compose|docker-compose)(\..+)?\.ya?ml$/i.test(file.path))?.path ||
-    'compose.yaml',
+  () => workspaceFiles.value.find((file) => /(^|\/)(compose|docker-compose)(\..+)?\.ya?ml$/i.test(file.path))?.path,
 );
 async function nextFromIdentity() {
-  if ((await formRef.value?.validate()) === true && runtimeTargetId.value > 0) step.value++;
+  if ((await formRef.value?.validate()) !== true) return;
+  if (runtimeTargetId.value === null) {
+    MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
+    return;
+  }
+  step.value++;
 }
-function payload(): ProjectCreateRequest {
+function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
   const compose = workspaceFiles.value.find((file) => file.path === composePath.value);
   return {
     display_name: formData.display_name.trim(),
-    runtime_target_id: runtimeTargetId.value,
+    runtime_target_id: runtimeTargetIdValue,
     ...(formData.workspace_key.trim() ? { workspace_key: formData.workspace_key.trim() } : {}),
-    compose_file_name: composePath.value,
+    compose_file_name: composePath.value as string,
     compose_file_content: compose?.content || '',
     workspace_files: workspaceFiles.value,
     compose_file_path: composePath.value,
   };
 }
 async function createProject() {
+  if (runtimeTargetId.value === null) {
+    MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
+    return;
+  }
+  if (!composePath.value) {
+    MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
+    return;
+  }
   creating.value = true;
   try {
-    const response = await postProjectCreate(payload());
+    const response = await postProjectCreate(payload(runtimeTargetId.value));
     MessagePlugin.success(t('project.create.messages.createSuccess'));
     openCreatedProject(response);
   } catch (error) {

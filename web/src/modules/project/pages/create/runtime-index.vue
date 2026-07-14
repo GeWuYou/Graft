@@ -80,7 +80,9 @@ const deploymentTypes = [
   },
 ] as const;
 
-function selectDeployment(deployment: 'compose') {
+type DeploymentType = (typeof deploymentTypes)[number]['key'];
+
+function selectDeployment(deployment: DeploymentType) {
   void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE_RUNTIME_TARGET.pageRouteName, query: { deployment } });
 }
 </script>

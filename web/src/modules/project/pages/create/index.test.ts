@@ -4,6 +4,7 @@ import { defineComponent, h } from 'vue';
 
 import ProjectCreateIndex from './index.vue';
 
+const routeQuery = vi.hoisted(() => ({ runtime_target_id: '7' as string | string[] }));
 const mocks = vi.hoisted(() => ({
   postProjectCreate: vi.fn(),
 }));
@@ -14,7 +15,7 @@ vi.mock('../../api/project', () => ({
 }));
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: { runtime_target_id: '7' } }),
+  useRoute: () => ({ query: routeQuery }),
 }));
 
 vi.mock('../../shared/page-context', () => ({
@@ -121,8 +122,10 @@ function mountPage() {
 
 describe('ProjectCreateIndex', () => {
   beforeEach(() => {
+    mocks.postProjectCreate.mockClear();
+    routeQuery.runtime_target_id = '7';
     mocks.postProjectCreate.mockResolvedValue({
-      application_id: 42,
+      application_id: 'app_42',
       display_name: 'demo-project',
     });
   });
@@ -151,5 +154,17 @@ describe('ProjectCreateIndex', () => {
 
     expect(mocks.postProjectCreate).toHaveBeenCalledTimes(1);
     expect(mocks.postProjectCreate).toHaveBeenCalledWith(expect.objectContaining({ runtime_target_id: 7 }));
+  });
+
+  it('does not create when the runtime target id is not a safe positive integer', async () => {
+    routeQuery.runtime_target_id = '1.5';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(mocks.postProjectCreate).not.toHaveBeenCalled();
+    routeQuery.runtime_target_id = '7';
   });
 });

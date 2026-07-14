@@ -768,7 +768,7 @@ func (s *Service) BackfillRuntimeTargets(ctx context.Context) error {
 	target, err := s.runtimeTargets.ReadComposeTarget(ctx, nil)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("backfill runtime targets: read docker target failed", zap.String("module", s.moduleName), zap.Error(err))
+			s.logger.Warn("backfill runtime targets: read compose target failed", zap.String("module", s.moduleName), zap.Error(err))
 		}
 		return nil
 	}
@@ -932,7 +932,7 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 	}
 	return generated.ProjectOverviewResponse{
 		ApplicationId:      aggregate.Project.ApplicationID,
-		ComposeProjectName: nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
+		ComposeProjectName: aggregate.Project.ComposeProjectName,
 		CollectedAt:        optionalRFC3339Time(resourceSummary.CollectedAt),
 		Health: generated.ProjectOverviewHealthSummary{
 			HealthyServiceCount:     healthyServiceCount,

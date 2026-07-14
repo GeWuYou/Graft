@@ -411,20 +411,21 @@ const TableActionMenuStub = defineComponent({
 function buildProjectDetail(runtimeStatus: string = 'running') {
   return {
     activity_authority: 'frontend-fanout',
-    canonical_project_name: 'compose-demo',
-    canonical_project_name_source: 'explicit',
+    application_id: '7',
+    application_type: 'compose',
+    compose_project_name: 'compose-demo',
+    compose_project_name_source: 'explicit',
     compose_files: [],
     container_counts: { issue: 0, running: 1, stopped: 0, total: 1, transitioning: 0 },
     display_name: 'Compose Demo',
     drift_status: 'clean',
     env_files: [],
     host_scope: 'local',
-    id: 7,
     last_observed_config_hash: null,
     ownership_mode: 'external',
     runtime_status: runtimeStatus,
     service_count: 2,
-    working_directory: '/srv/compose-demo',
+    workspace_path: '/srv/compose-demo',
     lifecycle_configuration: {
       strategy_kind: 'standard',
       profiles: [],
@@ -1073,7 +1074,7 @@ describe('Project detail service tab', () => {
   });
 
   it('does not mount task history for an invalid route ID', async () => {
-    routeState.value.params = { id: 'not-a-project-id' };
+    routeState.value.params = { id: '' };
 
     const wrapper = mountPage();
     await flushPromises();

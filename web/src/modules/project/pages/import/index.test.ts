@@ -1298,7 +1298,7 @@ describe('ProjectImportIndex', () => {
     } as never;
     flowState.submitImport.mockResolvedValue({
       project: {
-        id: 1,
+        application_id: '1',
         display_name: 'Demo Project',
       },
     });
@@ -1314,7 +1314,7 @@ describe('ProjectImportIndex', () => {
     expect(mocks.appendResolvedTab).toHaveBeenCalledTimes(1);
     expect(mocks.push).toHaveBeenCalledWith({
       name: 'ProjectDetailIndex',
-      params: { id: 1 },
+      params: { id: '1' },
       query: { tab: 'lifecycle' },
     });
     expect(mocks.closeTabsByPredicate).toHaveBeenCalledTimes(1);

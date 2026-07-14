@@ -148,19 +148,30 @@ func (r runtimeTargetReader) ReadComposeTarget(ctx context.Context, id *int64) (
 		return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
 	}
 	if id != nil {
-		if *id < 1 {
-			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
-		}
-		target, err := r.repository.Get(ctx, uint64(*id))
-		if err != nil {
-			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
-		}
-		summary, ok := composeTargetSummary(target)
-		if !ok {
-			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
-		}
-		return summary, nil
+		return r.readComposeTargetByID(ctx, *id)
 	}
+	return r.readFirstComposeTarget(ctx)
+}
+
+func (r runtimeTargetReader) readComposeTargetByID(ctx context.Context, id int64) (moduleapi.ComposeRuntimeTargetSummary, error) {
+	if id < 1 {
+		return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+	}
+	target, err := r.repository.Get(ctx, uint64(id))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+		}
+		return moduleapi.ComposeRuntimeTargetSummary{}, err
+	}
+	summary, ok := composeTargetSummary(target)
+	if !ok {
+		return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
+	}
+	return summary, nil
+}
+
+func (r runtimeTargetReader) readFirstComposeTarget(ctx context.Context) (moduleapi.ComposeRuntimeTargetSummary, error) {
 	items, err := r.repository.List(ctx)
 	if err != nil {
 		return moduleapi.ComposeRuntimeTargetSummary{}, err

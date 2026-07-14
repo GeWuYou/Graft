@@ -22,9 +22,9 @@ const defaultLifecycleWaitTimeoutSeconds = 120;
  * @param workingDirectory - 用于匹配并移除的工作目录
  * @returns 去除工作目录前缀后的路径
  */
-function normalizeLifecycleFilePath(path: string, workingDirectory: string) {
+function normalizeLifecycleFilePath(path: string, workingDirectory?: string | null) {
   const value = path.trim();
-  const normalizedWorkingDirectory = workingDirectory.trim().replace(/\/+$/g, '');
+  const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
 
   if (!value || !normalizedWorkingDirectory) {
     return value;
@@ -124,9 +124,9 @@ function formatAdditionalArgs(values: readonly string[] | null | undefined) {
  * @param workingDirectory - 用于补全相对路径的工作目录
  * @returns 去除首尾空白后的绝对路径；绝对路径或缺少工作目录时返回原路径
  */
-function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory: string) {
+function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory?: string | null) {
   const value = path.trim();
-  const normalizedWorkingDirectory = workingDirectory.trim().replace(/\/+$/g, '');
+  const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
 
   if (!value || !normalizedWorkingDirectory || value.startsWith('/')) {
     return value;

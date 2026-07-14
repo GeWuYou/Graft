@@ -97,79 +97,107 @@ type normalizedManagedWorkspaceFile struct {
 // normalizeManagedCreateRequest 校验并规范化受控项目创建请求，生成用于后续创建流程的工作区配置。
 // 返回规范化后的请求；当字段、路径、工作区文件或 Compose 项目名称无效时返回错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
-	displayName := strings.TrimSpace(request.DisplayName)
-	composeFileContent := strings.TrimSpace(request.ComposeFileContent)
-	workspaceKey, err := normalizeOrDeriveWorkspaceKey(request.DisplayName, request.WorkspaceKey)
+	identity, err := normalizeManagedCreateIdentity(request)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	if strings.TrimSpace(request.CanonicalProjectName) != "" {
-		if _, err := validateExplicitCanonicalProjectName(request.CanonicalProjectName); err != nil {
-			return normalizedManagedCreateRequest{}, err
-		}
-	}
-	if strings.TrimSpace(request.RelativeProjectDirectory) != "" {
-		legacyKey, err := normalizeManagedRelativeDirectory(request.RelativeProjectDirectory)
-		if err != nil {
-			return normalizedManagedCreateRequest{}, err
-		}
-		workspaceKey = &legacyKey
-	}
-	composeFileName, err := normalizeManagedFileName(request.ComposeFileName, "compose")
+	composeName, composeFileContent, err := ensureComposeProjectName(identity.composeContent, identity.displayName)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	if displayName == "" || composeFileContent == "" {
-		return normalizedManagedCreateRequest{}, fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
-	}
-	envFileName, err := normalizeManagedOptionalFileName(request.EnvFileName, "env")
-	if err != nil {
+	if err := rejectComposeProjectNameOverride(identity.envContent, composeName); err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	envFileContent := normalizeManagedOptionalContent(request.EnvFileContent)
-	if envFileName == nil {
-		envFileContent = nil
-	}
-	composeFilePath := composeFileName
-	if strings.TrimSpace(request.ComposeFilePath) != "" {
-		composeFilePath, err = normalizeManagedWorkspacePath(request.ComposeFilePath)
-		if err != nil {
-			return normalizedManagedCreateRequest{}, err
-		}
-	}
-	composeName, composeFileContent, err := ensureComposeProjectName(composeFileContent, displayName)
-	if err != nil {
-		return normalizedManagedCreateRequest{}, err
-	}
-	if err := rejectComposeProjectNameOverride(envFileContent, composeName); err != nil {
-		return normalizedManagedCreateRequest{}, err
-	}
-	workspaceFiles, err := normalizeManagedWorkspaceFiles(request.WorkspaceFiles, composeFilePath, composeFileContent, envFileName, envFileContent)
+	workspaceFiles, err := normalizeManagedWorkspaceFiles(request.WorkspaceFiles, identity.composePath, composeFileContent, identity.envName, identity.envContent)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
 	materializedFiles := make([]ManagedWorkspaceFile, 0, len(workspaceFiles))
 	for _, item := range workspaceFiles {
 		content := item.Content
-		if item.Path == composeFilePath {
+		if item.Path == identity.composePath {
 			content = composeFileContent
 		}
 		materializedFiles = append(materializedFiles, ManagedWorkspaceFile{Path: item.Path, Content: content})
 	}
 	return normalizedManagedCreateRequest{
-		DisplayName:          displayName,
+		DisplayName:          identity.displayName,
 		RuntimeTargetID:      request.RuntimeTargetID,
-		WorkspaceKey:         workspaceKey,
+		WorkspaceKey:         identity.workspaceKey,
 		CanonicalProjectName: "",
-		ComposeFileName:      composeFilePath,
+		ComposeFileName:      identity.composePath,
 		ComposeFileContent:   composeFileContent,
-		EnvFileName:          envFileName,
-		EnvFileContent:       envFileContent,
+		EnvFileName:          identity.envName,
+		EnvFileContent:       identity.envContent,
 		WorkspaceFiles:       materializedFiles,
-		ComposeFilePath:      request.ComposeFilePath,
+		ComposeFilePath:      identity.composePath,
 		EnvFilePaths:         append([]string(nil), request.EnvFilePaths...),
 		LifecycleConfig:      request.LifecycleConfig,
 	}, nil
+}
+
+type managedCreateIdentity struct {
+	displayName, composeContent, composePath string
+	workspaceKey                             *string
+	envName                                  *string
+	envContent                               *string
+}
+
+type managedCreateFiles struct {
+	composePath string
+	envName     *string
+	envContent  *string
+}
+
+func normalizeManagedCreateIdentity(request ManagedProjectCreateRequest) (managedCreateIdentity, error) {
+	displayName := strings.TrimSpace(request.DisplayName)
+	composeContent := strings.TrimSpace(request.ComposeFileContent)
+	if displayName == "" || composeContent == "" {
+		return managedCreateIdentity{}, fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
+	}
+	if strings.TrimSpace(request.CanonicalProjectName) != "" {
+		if _, err := validateExplicitCanonicalProjectName(request.CanonicalProjectName); err != nil {
+			return managedCreateIdentity{}, err
+		}
+	}
+	workspaceKey, err := normalizeOrDeriveWorkspaceKey(displayName, request.WorkspaceKey)
+	if err != nil {
+		return managedCreateIdentity{}, err
+	}
+	if strings.TrimSpace(request.RelativeProjectDirectory) != "" {
+		legacyKey, err := normalizeManagedRelativeDirectory(request.RelativeProjectDirectory)
+		if err != nil {
+			return managedCreateIdentity{}, err
+		}
+		workspaceKey = &legacyKey
+	}
+	files, err := normalizeManagedCreateFiles(request)
+	if err != nil {
+		return managedCreateIdentity{}, err
+	}
+	return managedCreateIdentity{displayName: displayName, composeContent: composeContent, composePath: files.composePath, workspaceKey: workspaceKey, envName: files.envName, envContent: files.envContent}, nil
+}
+
+func normalizeManagedCreateFiles(request ManagedProjectCreateRequest) (managedCreateFiles, error) {
+	composePath, err := normalizeManagedFileName(request.ComposeFileName, "compose")
+	if err != nil {
+		return managedCreateFiles{}, err
+	}
+	if strings.TrimSpace(request.ComposeFilePath) != "" {
+		composePath, err = normalizeManagedWorkspacePath(request.ComposeFilePath)
+		if err != nil {
+			return managedCreateFiles{}, err
+		}
+	}
+	envName, err := normalizeManagedOptionalFileName(request.EnvFileName, "env")
+	if err != nil {
+		return managedCreateFiles{}, err
+	}
+	envContent := normalizeManagedOptionalContent(request.EnvFileContent)
+	if envName == nil {
+		envContent = nil
+	}
+	return managedCreateFiles{composePath: composePath, envName: envName, envContent: envContent}, nil
 }
 
 // rejectComposeProjectNameOverride 检查内容中的 COMPOSE_PROJECT_NAME 是否与指定的 compose 名称一致。
@@ -183,7 +211,11 @@ func rejectComposeProjectNameOverride(content *string, composeName string) error
 		if !strings.HasPrefix(line, "COMPOSE_PROJECT_NAME=") {
 			continue
 		}
-		value := strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "COMPOSE_PROJECT_NAME=")), "\"'")
+		valueRaw := strings.TrimPrefix(line, "COMPOSE_PROJECT_NAME=")
+		if index := strings.Index(valueRaw, "#"); index >= 0 {
+			valueRaw = valueRaw[:index]
+		}
+		value := strings.Trim(strings.TrimSpace(valueRaw), "\"'")
 		if value != composeName {
 			return fmt.Errorf("%w: COMPOSE_PROJECT_NAME conflicts with compose name", errProjectInvalidArgument)
 		}
@@ -223,6 +255,7 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 		return "", nil, errProjectInvalidArgument
 	}
 	base := *requested
+	conflict := false
 	for suffix := 1; suffix < 10000; suffix++ {
 		key := base
 		if suffix > 1 {
@@ -231,13 +264,17 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 		path := filepath.Join(root, key)
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
+			if explicit && conflict {
+				return "", nil, fmt.Errorf("%w: workspace key already exists; suggested=%s", errProjectConflict, key)
+			}
 			return path, &key, nil
 		}
 		if err != nil {
 			return "", nil, fmt.Errorf("%w: workspace path unavailable", errProjectInvalidArgument)
 		}
 		if explicit {
-			return "", nil, fmt.Errorf("%w: workspace key already exists; suggested=%s-%d", errProjectConflict, base, suffix)
+			conflict = true
+			continue
 		}
 	}
 	return "", nil, errProjectConflict

@@ -18,6 +18,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
+	projectstore "graft/server/modules/project/store"
 )
 
 type routeRuntime struct {
@@ -826,14 +827,10 @@ func (r routeRuntime) handleBatchActions(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectBatchActions(bindPostProjectBatchActionsParams(ginCtx), request)
-	projectIDs := make([]uint64, 0, len(request.ApplicationIds))
-	for _, applicationID := range request.ApplicationIds {
-		projectID, err := r.service.ResolveApplicationID(ginCtx.Request.Context(), applicationID)
-		if err != nil {
-			r.writeRouteError(ginCtx, errProjectInvalidArgument)
-			return
-		}
-		projectIDs = append(projectIDs, projectID)
+	projectIDs, err := r.resolveBatchProjectIDs(ginCtx, request.ApplicationIds)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
 	}
 	result, err := r.service.BatchAction(ginCtx.Request.Context(), BatchActionRequest{
 		Action:                      request.Action,
@@ -850,6 +847,33 @@ func (r routeRuntime) handleBatchActions(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toBatchActionResponse(result))
+}
+
+func (r routeRuntime) resolveBatchProjectIDs(ginCtx *gin.Context, applicationIDs []string) ([]uint64, error) {
+	repository, err := r.service.repositoryOrErr()
+	if err != nil {
+		return nil, err
+	}
+	lookup, ok := repository.(projectstore.ApplicationIDBatchLookupRepository)
+	if !ok {
+		return nil, errProjectServiceUnavailable
+	}
+	resolved, err := lookup.GetIDsByApplicationIDs(ginCtx.Request.Context(), applicationIDs)
+	if err != nil {
+		return nil, err
+	}
+	projectIDs := make([]uint64, 0, len(applicationIDs))
+	for _, applicationID := range applicationIDs {
+		if !isApplicationID(applicationID) {
+			return nil, errProjectInvalidArgument
+		}
+		projectID, ok := resolved[applicationID]
+		if !ok {
+			return nil, errProjectNotFound
+		}
+		projectIDs = append(projectIDs, projectID)
+	}
+	return projectIDs, nil
 }
 
 func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action generated.ProjectBatchActionRequestAction) bool {

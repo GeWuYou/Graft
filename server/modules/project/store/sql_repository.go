@@ -198,6 +198,38 @@ func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID st
 	return r.Get(ctx, uint64(projectID)) // #nosec G115 -- positivity is checked above.
 }
 
+// GetIDsByApplicationIDs resolves public application identifiers in one query.
+func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error) {
+	result := make(map[string]uint64, len(applicationIDs))
+	if len(applicationIDs) == 0 {
+		return result, nil
+	}
+	placeholders := make([]string, len(applicationIDs))
+	args := make([]any, len(applicationIDs))
+	for index, value := range applicationIDs {
+		placeholders[index], args[index] = "?", strings.TrimSpace(value)
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, id FROM compose_projects WHERE deleted_at = 0 AND application_id IN (`+strings.Join(placeholders, ",")+`)`), args...)
+	if err != nil {
+		return nil, fmt.Errorf("resolve project application ids: %w", err)
+	}
+	defer closeRows(rows)
+	for rows.Next() {
+		var applicationID string
+		var projectID int64
+		if err := rows.Scan(&applicationID, &projectID); err != nil {
+			return nil, fmt.Errorf("scan project application id: %w", err)
+		}
+		if projectID > 0 {
+			result[applicationID] = uint64(projectID)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate project application ids: %w", err)
+	}
+	return result, nil
+}
+
 // GetFile returns one file within the requested project scope.
 func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID uint64) (ProjectFile, error) {
 	if err := r.ensureReady(); err != nil {
@@ -814,6 +846,9 @@ func composeProjectsUpsertSQL() string {
 		)
 		ON CONFLICT (runtime_target_id, compose_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
+			compose_project_name_source = excluded.compose_project_name_source,
+			workspace_key = excluded.workspace_key,
+			workspace_path = excluded.workspace_path,
 			runtime_target_id = excluded.runtime_target_id,
 			canonical_project_name_source = excluded.canonical_project_name_source,
 			source_kind = excluded.source_kind,
