@@ -276,4 +276,15 @@ describe('request performance page', () => {
     expect(wrapper.find('[data-tooltip-content="5xx explanation"]').exists()).toBe(true);
     wrapper.unmount();
   });
+
+  it('marks empty route tables so their horizontal scrollbars stay hidden', async () => {
+    schedulerStoreMock.store!.allowPolling = false;
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('.request-performance-page__route-table')).toHaveLength(3);
+    expect(wrapper.findAll('.request-performance-page__route-table--empty')).toHaveLength(3);
+    wrapper.unmount();
+  });
 });

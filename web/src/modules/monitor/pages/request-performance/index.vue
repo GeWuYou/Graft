@@ -100,7 +100,14 @@
 
       <div class="request-performance-page__routes">
         <section-card v-for="list in routeLists" :key="list.key" :title="list.title" :description="list.description">
-          <t-table :data="list.rows" :columns="routeColumns" row-key="route" size="small" />
+          <t-table
+            class="request-performance-page__route-table"
+            :class="{ 'request-performance-page__route-table--empty': list.rows.length === 0 }"
+            :data="list.rows"
+            :columns="routeColumns"
+            row-key="route"
+            size="small"
+          />
         </section-card>
       </div>
     </template>
@@ -499,6 +506,27 @@ onUnmounted(() => {
 .request-performance-page__chart {
   height: 220px;
   width: 100%;
+}
+
+.request-performance-page__route-table:not(.request-performance-page__route-table--empty) {
+  height: 100%;
+
+  :deep(.t-table__content) {
+    height: 100%;
+  }
+}
+
+.request-performance-page__route-table--empty {
+  height: 100%;
+
+  :deep(.t-table__content),
+  :deep(.t-table table) {
+    height: 100%;
+  }
+
+  :deep(.t-table__content) {
+    overflow-x: hidden;
+  }
 }
 
 .request-performance-page__chart-title,
