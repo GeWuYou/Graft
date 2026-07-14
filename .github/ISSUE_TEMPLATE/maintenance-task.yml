@@ -1,6 +1,7 @@
 name: Maintenance task / 维护任务
 description: Track refactoring, tests, dependencies, CI, or governance work. / 跟踪重构、测试、依赖、CI 或治理工作。
 title: "[Maintenance]: "
+labels: [maintenance]
 body:
   - type: textarea
     id: motivation
