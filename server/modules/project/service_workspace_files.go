@@ -282,9 +282,20 @@ func (s *Service) createProjectWorkspaceEntry(ctx context.Context, projectID uin
 func (s *Service) renameProjectWorkspaceEntry(ctx context.Context, projectID uint64, request workspaceEntryRenameRequest) error {
 	s.workspaceMutationMu.Lock()
 	defer s.workspaceMutationMu.Unlock()
-	source, root, err := s.openProjectWorkspaceRoot(ctx, projectID, request.Path)
+	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return err
+	}
+	rootDir, source, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, request.Path)
+	if err != nil {
+		return err
+	}
+	if workspaceMutationContainsTrackedLifecycleInput(aggregate, source) {
+		return errProjectConflict
+	}
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return mapWorkspacePathError(err)
 	}
 	defer func() { _ = closeManagedRootFS(root) }()
 	destination, err := normalizeManagedWorkspacePath(request.NewPath)
@@ -382,7 +393,7 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 	if err != nil {
 		return err
 	}
-	if workspaceDeletionContainsTrackedLifecycleInput(aggregate, relativePath) {
+	if workspaceMutationContainsTrackedLifecycleInput(aggregate, relativePath) {
 		return errProjectConflict
 	}
 	root, err := openManagedRootFS(rootDir)
@@ -406,8 +417,8 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 	return mapWorkspacePathError(root.root.Remove(relativePath))
 }
 
-// workspaceDeletionContainsTrackedLifecycleInput prevents removing files that active lifecycle commands still reference.
-func workspaceDeletionContainsTrackedLifecycleInput(aggregate projectstore.ProjectAggregate, deletedPath string) bool {
+// workspaceMutationContainsTrackedLifecycleInput prevents moving or removing files that active lifecycle commands still reference.
+func workspaceMutationContainsTrackedLifecycleInput(aggregate projectstore.ProjectAggregate, path string) bool {
 	for _, file := range aggregate.Files {
 		relative, err := filepath.Rel(aggregate.Project.WorkingDirectory, file.AbsolutePath)
 		if err != nil {
@@ -417,7 +428,7 @@ func workspaceDeletionContainsTrackedLifecycleInput(aggregate projectstore.Proje
 		if err != nil {
 			continue
 		}
-		if relative == deletedPath || strings.HasPrefix(relative, deletedPath+string(filepath.Separator)) {
+		if relative == path || strings.HasPrefix(relative, path+string(filepath.Separator)) {
 			return true
 		}
 	}
