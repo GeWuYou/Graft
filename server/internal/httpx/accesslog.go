@@ -95,6 +95,7 @@ func shouldLogAccessToConsole(record CreateAccessLogInput, options AccessLogOpti
 	}
 }
 
+// requestID 和 traceID 标识当前请求；startedAt 指定请求开始时间。
 func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, startedAt time.Time) CreateAccessLogInput {
 	record := CreateAccessLogInput{
 		RequestID:      sanitizeAccessLogStableText(requestID),
@@ -121,6 +122,7 @@ func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, st
 	return record
 }
 
+// currentAccessLogConnectionType classifies a request as HTTP or WebSocket based on its upgrade status.
 func currentAccessLogConnectionType(ctx *gin.Context) AccessLogConnectionType {
 	if ctx == nil || ctx.Request == nil || ctx.Writer == nil {
 		return AccessLogConnectionTypeHTTP
@@ -131,6 +133,7 @@ func currentAccessLogConnectionType(ctx *gin.Context) AccessLogConnectionType {
 	return AccessLogConnectionTypeHTTP
 }
 
+// persistAccessLog 将访问日志记录持久化到仓储，并在持久化失败时记录错误。
 func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogRepository, record CreateAccessLogInput) {
 	if repo == nil {
 		return

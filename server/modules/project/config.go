@@ -68,6 +68,7 @@ func configDefinitions() []configregistry.Definition {
 	}
 }
 
+// projectBlankCreatePrefillDefaultTemplateDefinition returns the configuration definition for enabling the default template when creating a blank project.
 func projectBlankCreatePrefillDefaultTemplateDefinition() configregistry.Definition {
 	return configregistry.Definition{
 		Key:                 projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfig.String(),

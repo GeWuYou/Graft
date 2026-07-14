@@ -316,6 +316,7 @@ func (s *Service) openProjectWorkspaceRoot(ctx context.Context, projectID uint64
 	return relativePath, root, nil
 }
 
+// validateWorkspaceEntryRequest validates a workspace entry creation request, including its node type and file content constraints.
 func validateWorkspaceEntryRequest(request workspaceEntryCreateRequest) error {
 	if request.NodeType != "file" && request.NodeType != "directory" {
 		return errProjectInvalidArgument
@@ -332,6 +333,8 @@ func validateWorkspaceEntryRequest(request workspaceEntryCreateRequest) error {
 	return nil
 }
 
+// ensureWorkspaceEntryAbsent verifies that the specified workspace path does not exist.
+// It returns an error if the path exists or cannot be inspected.
 func ensureWorkspaceEntryAbsent(root *managedRootFS, path string) error {
 	if _, err := root.root.Lstat(path); err == nil {
 		return errProjectConflict
@@ -341,6 +344,7 @@ func ensureWorkspaceEntryAbsent(root *managedRootFS, path string) error {
 	return nil
 }
 
+// ensureWorkspaceEntrySafe verifies that a workspace entry exists and is not a symbolic link.
 func ensureWorkspaceEntrySafe(root *managedRootFS, path string) error {
 	info, err := root.root.Lstat(path)
 	if err != nil {
@@ -352,6 +356,7 @@ func ensureWorkspaceEntrySafe(root *managedRootFS, path string) error {
 	return nil
 }
 
+// ensureWorkspaceParent creates the parent directory for the specified workspace path.
 func ensureWorkspaceParent(root *managedRootFS, path string) error {
 	parent := filepath.Dir(path)
 	if parent == "." {

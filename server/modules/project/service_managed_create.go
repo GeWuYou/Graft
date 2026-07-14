@@ -96,7 +96,8 @@ type normalizedManagedWorkspaceEntry struct {
 // 返回规范化后的请求数据及验证错误。
 //
 // normalizeManagedCreateRequest 校验并规范化受控项目创建请求，生成用于后续创建流程的工作区配置。
-// 返回规范化后的请求；当字段、路径、工作区文件或 Compose 项目名称无效时返回错误。
+// normalizeManagedCreateRequest 规范化受控项目创建请求及其工作区条目。
+// 当请求字段、路径、工作区条目或 Compose 项目名称无效时返回错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	identity, err := normalizeManagedCreateIdentity(request)
 	if err != nil {
@@ -137,6 +138,9 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	}, nil
 }
 
+// normalizeManagedWorkspaceEntries 标准化并验证工作区条目，确保其中包含 Compose 文件。
+//
+// 返回标准化后的工作区条目；条目为空或未包含 Compose 文件时返回错误。
 func normalizeManagedWorkspaceEntries(entries []ManagedWorkspaceEntry, composePath string) ([]normalizedManagedWorkspaceEntry, error) {
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("%w: workspace entries are required", errProjectInvalidArgument)
@@ -161,6 +165,9 @@ func normalizeManagedWorkspaceEntries(entries []ManagedWorkspaceEntry, composePa
 	return result, nil
 }
 
+// normalizeManagedWorkspaceEntry 规范化并验证工作区条目，并指示该条目是否为 Compose 文件。
+//
+// 返回规范化后的路径、节点类型和内容；如果条目表示指定路径的文件，返回值中的布尔值为 true。
 func normalizeManagedWorkspaceEntry(entry ManagedWorkspaceEntry, composePath string, seen map[string]string) (normalizedManagedWorkspaceEntry, bool, error) {
 	path, err := normalizeManagedWorkspacePath(entry.Path)
 	if err != nil {
@@ -173,6 +180,7 @@ func normalizeManagedWorkspaceEntry(entry ManagedWorkspaceEntry, composePath str
 	return normalizedManagedWorkspaceEntry{Path: path, NodeType: nodeType, Content: entry.Content}, nodeType == "file" && path == composePath, nil
 }
 
+// validateManagedWorkspaceEntry validates a workspace entry's type, uniqueness, ancestor relationships, and content.
 func validateManagedWorkspaceEntry(path, nodeType string, content *string, seen map[string]string) error {
 	if nodeType != "file" && nodeType != "directory" {
 		return fmt.Errorf("%w: invalid workspace entry type", errProjectInvalidArgument)
@@ -189,6 +197,7 @@ func validateManagedWorkspaceEntry(path, nodeType string, content *string, seen 
 	return validateWorkspaceFileContent(content)
 }
 
+// validateWorkspaceEntryAncestors rejects paths whose ancestor is already registered as a file.
 func validateWorkspaceEntryAncestors(path string, seen map[string]string) error {
 	for ancestor := filepath.Dir(path); ancestor != "."; ancestor = filepath.Dir(ancestor) {
 		if seen[ancestor] == "file" {
@@ -198,6 +207,7 @@ func validateWorkspaceEntryAncestors(path string, seen map[string]string) error 
 	return nil
 }
 
+// validateWorkspaceDirectoryContent validates that a workspace directory has no content.
 func validateWorkspaceDirectoryContent(content *string) error {
 	if content != nil {
 		return fmt.Errorf("%w: workspace directory cannot have content", errProjectInvalidArgument)
@@ -205,6 +215,7 @@ func validateWorkspaceDirectoryContent(content *string) error {
 	return nil
 }
 
+// validateWorkspaceFileContent validates that workspace file content is present, valid UTF-8 text, and contains no NUL characters.
 func validateWorkspaceFileContent(content *string) error {
 	if content == nil || !utf8.ValidString(*content) || strings.Contains(*content, "\x00") {
 		return fmt.Errorf("%w: workspace file must be UTF-8 text", errProjectInvalidArgument)
@@ -325,7 +336,9 @@ func normalizeOrDeriveWorkspaceKey(displayName string, requested *string) (*stri
 }
 
 // chooseWorkspacePath selects an available workspace path and key under root.
-// For explicit requests, it returns a conflict error when the requested key is already in use.
+// chooseWorkspacePath 为工作区键选择可用路径和键；显式请求遇到已占用的键时返回冲突错误及建议键。
+// requested 不能为 nil。
+// 返回选定的工作区路径、键以及可能的错误。
 func chooseWorkspacePath(root string, requested *string, explicit bool) (string, *string, error) {
 	if requested == nil {
 		return "", nil, errProjectInvalidArgument
@@ -357,7 +370,8 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 }
 
 // normalizeManagedWorkspacePath validates and normalizes a relative workspace file path.
-// It rejects absolute paths, backslashes, empty paths, and paths that escape the project.
+// normalizeManagedWorkspacePath 规范化工作区相对路径，并拒绝空路径、绝对路径、包含反斜杠或逃逸出项目目录的路径。
+// 返回使用斜杠分隔的规范化路径；输入无效时返回错误。
 func normalizeManagedWorkspacePath(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || filepath.IsAbs(value) || strings.Contains(value, `\`) {

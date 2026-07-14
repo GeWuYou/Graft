@@ -35,7 +35,8 @@ const minimumProjectListLimit = 1
 // registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
 // registerRoutes 注册项目模块的 HTTP 路由。
 // registerRoutes 注册项目 API 路由及其请求 ID、权限校验中间件。
-// 当上下文或路由器为空时跳过注册并返回 nil；当项目服务缺失或认证依赖解析失败时返回错误。
+// registerRoutes 注册项目 API 路由及其权限与请求 ID 中间件。
+// 当上下文或路由器为空时跳过注册；项目服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil

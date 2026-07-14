@@ -115,6 +115,7 @@ func (s *Service) resolveTemplateWorkspace(ctx context.Context, request Template
 	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, ComposeFileName: composePath, ComposeFileContent: composeContent, ComposeFilePath: composePath, WorkspaceEntries: workspaceEntries, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
 }
 
+// loadTemplateCreateEntries 加载指定模板的工作区条目，并返回其 compose.yaml 内容。
 func loadTemplateCreateEntries(root, key string) ([]ManagedWorkspaceEntry, string, error) {
 	entries, err := loadWorkspaceTemplate(root, key)
 	if err != nil {
@@ -131,6 +132,7 @@ func loadTemplateCreateEntries(root, key string) ([]ManagedWorkspaceEntry, strin
 	return workspaceEntries, composeContent, nil
 }
 
+// workspaceEntryContent 返回模板条目中指定文件路径的内容；如果未找到对应文件，则返回错误。
 func workspaceEntryContent(entries []ManagedWorkspaceEntry, path string) (string, error) {
 	for _, entry := range entries {
 		if entry.NodeType == "file" && entry.Path == path && entry.Content != nil {

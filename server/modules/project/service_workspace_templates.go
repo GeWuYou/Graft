@@ -107,14 +107,16 @@ func (s *Service) blankCreatePrefillDefaultTemplate(ctx context.Context) (bool, 
 	return enabled, nil
 }
 
+// blankWorkspaceEntries 返回包含空内容的初始 .env 和 compose.yaml 文件条目。
 func blankWorkspaceEntries() []WorkspaceEntry {
 	empty := ""
 	return []WorkspaceEntry{{Path: ".env", NodeType: "file", Content: &empty}, {Path: "compose.yaml", NodeType: "file", Content: &empty}}
 }
 
+// templateRoot 返回应用根目录下的模板目录路径。
 func templateRoot(applicationRoot string) string { return filepath.Join(applicationRoot, "templates") }
 
-// seedDefaultWorkspaceTemplate writes missing bundled files only. Operator-managed files are never overwritten.
+// seedDefaultWorkspaceTemplate adds missing bundled files to the default workspace template without overwriting existing files. It returns an error if the bundled files cannot be read or written, or if the target files cannot be inspected.
 func seedDefaultWorkspaceTemplate(applicationRoot string) error {
 	targetRoot := filepath.Join(templateRoot(applicationRoot), defaultTemplateKey)
 	for _, bundledPath := range []string{"templates/default/compose.yaml", "templates/default/.env"} {
@@ -141,6 +143,8 @@ func seedDefaultWorkspaceTemplate(applicationRoot string) error {
 	return nil
 }
 
+// listWorkspaceTemplates lists valid workspace templates under the application root,
+// sorted by template key. It returns an error if the template directory cannot be read.
 func listWorkspaceTemplates(applicationRoot string) ([]WorkspaceTemplate, error) {
 	entries, err := os.ReadDir(templateRoot(applicationRoot))
 	if err != nil {
@@ -157,11 +161,15 @@ func listWorkspaceTemplates(applicationRoot string) ([]WorkspaceTemplate, error)
 	return result, nil
 }
 
+// validTemplateKey reports whether the trimmed key matches the workspace template key format.
 func validTemplateKey(key string) bool {
 	key = strings.TrimSpace(key)
 	return workspaceKeyPattern.MatchString(key)
 }
 
+// loadWorkspaceTemplate 加载指定工作区模板中的文件和目录条目，并按路径排序。
+// key 必须是有效的模板标识。
+// 返回模板条目；加载失败时返回错误。
 func loadWorkspaceTemplate(applicationRoot, key string) ([]WorkspaceEntry, error) {
 	if !validTemplateKey(key) {
 		return nil, errProjectInvalidArgument
@@ -183,6 +191,10 @@ func loadWorkspaceTemplate(applicationRoot, key string) ([]WorkspaceEntry, error
 	return entries, nil
 }
 
+// workspaceTemplateEntry converts a template filesystem entry into a workspace entry.
+// It skips the template root and rejects symlinks and files that are not valid UTF-8
+// text or contain NUL bytes. It returns whether the entry should be skipped and any
+// error encountered while processing it.
 func workspaceTemplateEntry(root, path string, entry fs.DirEntry, walkErr error) (WorkspaceEntry, bool, error) {
 	if walkErr != nil {
 		return WorkspaceEntry{}, false, walkErr

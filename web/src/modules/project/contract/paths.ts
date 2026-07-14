@@ -155,10 +155,22 @@ export function buildProjectFilesAnnotationApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_ANNOTATION.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目文件条目接口路径。
+ *
+ * @param id - 项目标识符
+ * @returns 替换项目标识符后的文件条目接口路径
+ */
 export function buildProjectFilesEntriesApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_ENTRIES.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目文件重命名接口的路径。
+ *
+ * @param id - 项目标识符
+ * @returns 已替换并进行 URL 编码的接口路径
+ */
 export function buildProjectFilesRenameApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_RENAME.replace('{id}', encodeProjectPathParam(id));
 }
