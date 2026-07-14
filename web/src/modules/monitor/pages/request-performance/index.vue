@@ -116,6 +116,8 @@ echarts.use([GridComponent, TooltipComponent, LineChart, CanvasRenderer]);
 defineOptions({ name: 'MonitorRequestPerformanceIndex' });
 
 type ChartKey = 'traffic' | 'latency' | 'errors';
+const MIN_PENDING_REFRESH_DISPLAY_MS = 500;
+
 const { t } = useI18n();
 const scheduler = useRealtimeSchedulerStore();
 const { autoRefreshEnabled, refreshIntervalOptions, selectedRefreshInterval, toggleAutoRefresh } =
@@ -129,6 +131,8 @@ const chartRefs = ref<Partial<Record<ChartKey, HTMLDivElement | null>>>({});
 const chartInstances = new Map<ChartKey, echarts.ECharts>();
 let refreshTimer: number | null = null;
 let refreshDeadline: number | null = null;
+let pendingDisplayTimer: number | null = null;
+let isMounted = false;
 
 const rangeOptions = computed<RefreshControlOption[]>(() => [
   { label: t('monitor.serverStatus.trendRange10Minutes'), value: MONITOR_TREND_RANGE.TEN_MINUTES },
@@ -275,6 +279,7 @@ function updateRange(value: number | string) {
 
 async function refresh() {
   if (loading.value) return;
+  const pendingDisplayStartedAt = remainingRefreshSeconds.value === 0 ? Date.now() : null;
   loading.value = true;
   errorMessage.value = '';
   try {
@@ -285,9 +290,27 @@ async function refresh() {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('monitor.requestPerformance.loadFailed'));
   } finally {
     loading.value = false;
+    if (pendingDisplayStartedAt !== null) {
+      await keepPendingStateVisible(pendingDisplayStartedAt);
+    }
+  }
+  if (isMounted) {
     scheduleRefresh();
   }
 }
+
+async function keepPendingStateVisible(startedAt: number) {
+  const remainingDelay = MIN_PENDING_REFRESH_DISPLAY_MS - (Date.now() - startedAt);
+  if (remainingDelay <= 0) return;
+
+  await new Promise<void>((resolve) => {
+    pendingDisplayTimer = window.setTimeout(() => {
+      pendingDisplayTimer = null;
+      resolve();
+    }, remainingDelay);
+  });
+}
+
 function scheduleRefresh() {
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
   refreshTimer = null;
@@ -295,10 +318,19 @@ function scheduleRefresh() {
   remainingRefreshSeconds.value = null;
   if (!autoRefreshEnabled.value || !scheduler.allowPolling || selectedRefreshInterval.value <= 0) return;
   refreshDeadline = Date.now() + selectedRefreshInterval.value * 1000;
+  updateRemainingRefreshSeconds();
   refreshTimer = window.setInterval(() => {
-    remainingRefreshSeconds.value = Math.max(0, Math.ceil((refreshDeadline! - Date.now()) / 1000));
+    updateRemainingRefreshSeconds();
     if (remainingRefreshSeconds.value === 0) void refresh();
   }, 1000);
+}
+function updateRemainingRefreshSeconds() {
+  if (refreshDeadline === null) {
+    remainingRefreshSeconds.value = null;
+    return;
+  }
+
+  remainingRefreshSeconds.value = Math.max(0, Math.ceil((refreshDeadline - Date.now()) / 1000));
 }
 function renderCharts() {
   const buckets = snapshot.value?.minute_buckets ?? [];
@@ -347,11 +379,14 @@ function renderCharts() {
 }
 watch([selectedRefreshInterval, autoRefreshEnabled, () => scheduler.allowPolling], scheduleRefresh);
 onMounted(() => {
+  isMounted = true;
   void refresh();
   window.addEventListener('resize', renderCharts);
 });
 onUnmounted(() => {
+  isMounted = false;
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
+  if (pendingDisplayTimer !== null) window.clearTimeout(pendingDisplayTimer);
   chartInstances.forEach((instance) => instance.dispose());
   window.removeEventListener('resize', renderCharts);
 });

@@ -56,9 +56,12 @@
           class="refresh-control-bar__item refresh-control-bar__item--countdown"
           data-refresh-countdown="true"
         >
-          <span class="refresh-control-bar__value refresh-control-bar__value--countdown">{{
-            countdownSummaryText
-          }}</span>
+          <span class="refresh-control-bar__countdown-content" aria-live="polite">
+            <span class="refresh-control-bar__value refresh-control-bar__value--countdown">{{
+              countdownSummaryText
+            }}</span>
+            <span class="refresh-control-bar__countdown-reserve" aria-hidden="true">{{ pendingSummaryText }}</span>
+          </span>
         </div>
 
         <div v-if="lastUpdatedAt" class="refresh-control-bar__item refresh-control-bar__item--muted">
@@ -186,9 +189,11 @@ const autoRefreshSummaryText = computed(() => {
 
 const showCountdownStatus = computed(() => props.showCountdown && props.status === 'running');
 
+const pendingSummaryText = computed(() => t('app.refreshControl.pending'));
+
 const countdownSummaryText = computed(() => {
-  if (props.countdownSeconds === null || props.countdownSeconds === undefined) {
-    return t('app.refreshControl.pending');
+  if (props.countdownSeconds === null || props.countdownSeconds === undefined || props.countdownSeconds <= 0) {
+    return pendingSummaryText.value;
   }
 
   return t('app.refreshControl.countdown', {
@@ -377,6 +382,19 @@ function resolveOptionLabel(value: RefreshControlValue, options: RefreshControlO
 .refresh-control-bar__value--countdown {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.refresh-control-bar__countdown-content {
+  display: inline-grid;
+}
+
+.refresh-control-bar__countdown-content > * {
+  grid-area: 1 / 1;
+}
+
+.refresh-control-bar__countdown-reserve {
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .refresh-control-bar__select {

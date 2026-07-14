@@ -1297,11 +1297,11 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s Until refresh');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('5s Until refresh');
 
     await vi.advanceTimersByTimeAsync(2000);
     await flushPromises();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('3s Until refresh');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('3s Until refresh');
 
     const buttons = wrapper.findAll('button');
     await buttons[1]?.trigger('click');
@@ -1382,7 +1382,7 @@ describe('MonitorPage', () => {
     const wrapper = mountMonitorPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('10s Until refresh');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('10s Until refresh');
 
     await vi.advanceTimersByTimeAsync(9000);
     await flushPromises();

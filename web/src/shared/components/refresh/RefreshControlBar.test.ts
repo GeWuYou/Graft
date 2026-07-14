@@ -109,7 +109,7 @@ describe('RefreshControlBar', () => {
     expect(wrapper.text()).toContain('健康');
     expect(wrapper.text()).toContain('自动刷新：');
     expect(wrapper.text()).toContain('每 5 秒');
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s 后刷新');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('5s 后刷新');
     expect(wrapper.get('[data-refresh-now="true"]').text()).toContain('立即刷新');
     expect(wrapper.get('[data-refresh-toggle-auto="true"]').text()).toContain('暂停自动刷新');
   });
@@ -150,7 +150,7 @@ describe('RefreshControlBar', () => {
     expect(wrapper.get('[data-refresh-control-bar="true"]').attributes('data-refresh-variant')).toBe('compact');
     expect(wrapper.text()).toContain('自动刷新：');
     expect(wrapper.text()).toContain('每 5 秒');
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s 后刷新');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('5s 后刷新');
     expect(wrapper.classes()).toContain('refresh-control-bar--compact');
     expect(wrapper.classes()).not.toContain('refresh-control-bar--page');
   });
@@ -175,7 +175,18 @@ describe('RefreshControlBar', () => {
       variant: 'page',
     });
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('等待下次刷新');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('等待下次刷新');
+  });
+
+  it('shows the pending message at zero and reserves its layout width', () => {
+    const wrapper = mountBar({
+      countdownSeconds: 0,
+      showCountdown: true,
+      variant: 'page',
+    });
+
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('等待下次刷新');
+    expect(wrapper.get('.refresh-control-bar__countdown-reserve').text()).toBe('等待下次刷新');
   });
 
   it('emits pause and resume based on status', async () => {
