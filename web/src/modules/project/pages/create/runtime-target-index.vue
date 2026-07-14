@@ -108,7 +108,10 @@ function providerIcon(provider: string) {
   return provider === 'docker' ? dockerIcon : provider === 'podman' ? podmanIcon : '';
 }
 function goToDeploymentModels() {
-  router.back();
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName,
+    query: { deployment: 'compose' },
+  });
 }
 function selectTarget(runtimeTargetId: number) {
   navigateProjectCreateRoute(

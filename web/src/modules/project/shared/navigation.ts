@@ -5,8 +5,20 @@ import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
 
+import { PROJECT_BOOTSTRAP_ROUTE } from '../contract/bootstrap';
+
 type ProjectCreateRouter = Pick<Router, 'push' | 'replace'>;
 type ProjectRouteRouter = Pick<Router, 'push' | 'resolve'>;
+
+/**
+ * 导航回项目创建方式选择页，并保留当前创建流程的查询上下文。
+ */
+export function navigateToProjectCreateSource(router: ProjectCreateRouter, query: LocationQueryRaw) {
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
+    query,
+  });
+}
 
 /**
  * 追加项目创建流程标签并导航至目标页面。

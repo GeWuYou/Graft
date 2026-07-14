@@ -6,13 +6,12 @@ import ProjectRuntimeTargetIndex from './runtime-target-index.vue';
 const mocks = vi.hoisted(() => ({
   getProjectComposeRuntimeTargets: vi.fn(),
   push: vi.fn(),
-  back: vi.fn(),
   replace: vi.fn(),
   resolve: vi.fn((target) => target),
 }));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: { deployment: 'compose' } }),
-  useRouter: () => ({ push: mocks.push, replace: mocks.replace, back: mocks.back, resolve: mocks.resolve }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace, resolve: mocks.resolve }),
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('../../api/project', () => ({ getProjectComposeRuntimeTargets: mocks.getProjectComposeRuntimeTargets }));
@@ -63,7 +62,10 @@ describe('ProjectRuntimeTargetIndex', () => {
     });
 
     await wrapper.get('[data-testid="project-runtime-target-back"]').trigger('click');
-    expect(mocks.back).toHaveBeenCalledTimes(1);
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      name: 'ProjectCreateMethodIndex',
+      query: { deployment: 'compose' },
+    });
   });
 
   it('does not transition when an unavailable target card is activated', async () => {

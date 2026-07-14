@@ -45,7 +45,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { postProjectCreateTemplate } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { refreshProjectCreatePage } from '../../shared/navigation';
+import { navigateToProjectCreateSource, refreshProjectCreatePage } from '../../shared/navigation';
 import type { ProjectTemplateCreateRequest } from '../../types/project';
 defineOptions({ name: 'ProjectSourceCreate' });
 const { t } = useI18n();
@@ -96,7 +96,7 @@ async function onCreate() {
   }
 }
 function goToSource() {
-  router.back();
+  navigateToProjectCreateSource(router, route.query);
 }
 function refreshPage() {
   refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);
