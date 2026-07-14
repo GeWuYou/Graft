@@ -1,5 +1,34 @@
 # Backend Lessons
 
+## LESSON-BACKEND-TASK-OWNER-001：跨模块 Task owner 必须使用资源公开稳定标识
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `server/internal/moduleapi/task.go`
+  - `server/modules/*` 中提交或授权 Task 的 consumer
+  - 消费 Task 历史的 `web/src/modules/*`
+- Source:
+  - 2026-07-15 应用管理状态入口以 `application_id` 查询最近 Task，但 Project 仍把内部数值 `id` 写入 `compose_project` owner，导致授权路径返回隐藏式 404。
+- Problem:
+  业务模块新增公开资源标识后只更新 HTTP 和前端消费面，未同步 Task owner 的创建、授权与历史数据，会让同一资源在跨模块能力中同时使用公开 ID 和私有主键，产生不可访问的历史记录或错误的资源不存在响应。
+- Correct pattern:
+  `TaskOwner` 保持通用 `type + id` 契约，由每个 consumer 选择其公开、不可变且可授权解析的资源标识。Project 的 `compose_project` owner 使用 `application_id`；consumer 同步迁移提交、owner authorizer、历史 Task 数据和前端查询，Task module 不反向依赖 Project 实现。
+- Anti-pattern:
+  将模块私有数值主键写入通用 Task owner；为前端临时暴露私有主键；或让 Task module 为某个业务模块增加 owner 类型分支与兼容解析。
+- Enforcement:
+  新增或迁移 consumer owner 标识时，测试 Task 提交、owner authorization 和前端 owner-scoped 查询使用同一公开 ID。历史数据变更必须由拥有 `tasks` 表的 Task migration 回填，并保持其它 owner type 与无法映射记录不变。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `server/modules/project/service_lifecycle.go`
+  - `server/modules/project/task_authorizer.go`
+  - `server/modules/task/migrations/202607150003_project_task_owner_application_id.sql`
+  - `ai-plan/design/architecture/任务执行运行时设计.md`
+- Updated at:
+  2026-07-15
+
 ## LESSON-BACKEND-SAVED-VIEW-001：分页保存视图必须分离通用存储与消费页面语义
 
 - Status: active

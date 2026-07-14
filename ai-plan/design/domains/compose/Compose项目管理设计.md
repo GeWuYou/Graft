@@ -87,6 +87,7 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
   - 指未来由 `Graft` 在受管根目录下创建的项目；它是 Source 概念，不自动等价于“允许销毁目录”。
 - `Application ID`
   - 对外稳定标识，格式为 `app_<ULID>`；不因显示名、工作区或运行目标变化而改变。
+  - 作为 Project 与 Task Runtime 等跨模块能力之间的资源引用；内部数值 `id` 仅限 Project 自有表关系和存储实现。
 - `Workspace Key` / `Workspace Path`
   - 受管应用的稳定单层安全 key 与实际工作区路径。Graft 提议可用 key 并生成 `<application-root>/<workspace-key>`；用户可在表单中编辑 key，但不能输入任意相对目录。默认 key 冲突自动加后缀，显式 key 由服务端校验唯一性；不按 Provider 或 Deployment Type 分层。导入的外部工作区只记录其既有路径。
 - `Compose Project Name`

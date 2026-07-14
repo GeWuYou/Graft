@@ -219,7 +219,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("project.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: fmt.Sprintf("%d", projectID)}, RequestedBy: actor.id, Plan: plan})
+	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("project.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: aggregate.Project.ApplicationID}, RequestedBy: actor.id, Plan: plan})
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)

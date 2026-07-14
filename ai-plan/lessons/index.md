@@ -7,6 +7,7 @@
 | LESSON-BACKEND-HTTPX-CONTEXT-001       | 守卫发布安全审计前必须先写回增强后的请求上下文 | backend    |    L1 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
 | LESSON-BACKEND-MIGRATION-VERSION-001   | 已执行 Atlas migration 版本不能追加新 DDL      | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`            |
 | LESSON-BACKEND-MODULE-LIFECYCLE-001    | Builder 不应解析 Register 才暴露的跨模块服务   | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | -                                                                         |
+| LESSON-BACKEND-TASK-OWNER-001          | 跨模块 Task owner 必须使用资源公开稳定标识    | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/architecture/任务执行运行时设计.md`                       |
 | LESSON-BACKEND-SAVED-VIEW-001          | 分页保存视图必须分离通用存储与消费页面语义     | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/domains/compose/Compose项目管理设计.md`                  |
 | LESSON-GOVERNANCE-BROWSER-BACKEND-001  | 浏览器验收需要真实后端时不要停在 mock 登录页   | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001 | 动态配置必须消费 schema 与 i18n authority      | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
