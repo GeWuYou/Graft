@@ -67,6 +67,7 @@ func configDefinitions() []configregistry.Definition {
 	}
 }
 
+// applicationRootDirectoryDefinition returns the configuration definition for the application's root directory.
 func applicationRootDirectoryDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
 		key:                 projectcontract.ApplicationRootDirectoryConfig.String(),
@@ -137,6 +138,7 @@ func projectWorkspaceDirectoryTooltipRulesDefinition() configregistry.Definition
 	})
 }
 
+// buildProjectConfigDefinition constructs a project configuration definition from the provided specification.
 func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregistry.Definition {
 	return configregistry.Definition{
 		Key:                 spec.key,
@@ -163,7 +165,7 @@ func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregist
 }
 
 // applicationRootDirectorySchema returns the JSON Schema for the application root directory.
-// The empty-string override intentionally disables managed application creation.
+// applicationRootDirectorySchema 返回应用根目录配置的 JSON Schema；空字符串表示禁用应用创建。
 func applicationRootDirectorySchema() string {
 	return fmt.Sprintf(
 		`{"type":"string","minLength":0,"maxLength":%d,"x-i18n":{"titleKey":"%s","descriptionKey":"%s"}}`,

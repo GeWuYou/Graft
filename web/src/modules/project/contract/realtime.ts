@@ -28,20 +28,20 @@ export function buildProjectRuntimeTopicName(applicationId: string): string {
 }
 
 /**
- * 构建项目生命周期配置实时主题名称。
+ * 构建指定应用的项目生命周期配置实时主题名称。
  *
- * @param projectId - 项目标识
- * @returns 拼接项目标识后的生命周期配置实时主题名称
+ * @param applicationId - 应用标识
+ * @returns 拼接应用标识后的生命周期配置实时主题名称
  */
 export function buildProjectLifecycleConfigTopicName(applicationId: string): string {
   return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
 }
 
 /**
- * 构建项目日志实时消息的 topic 名称。
+ * 构建指定应用的项目日志实时消息主题名称。
  *
- * @param projectId - 项目标识
- * @returns 拼接项目标识后的日志 topic 名称
+ * @param applicationId - 应用标识
+ * @returns 拼接应用标识后的日志主题名称
  */
 export function buildProjectLogsTopicName(applicationId: string): string {
   return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
@@ -121,11 +121,12 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
 }
 
 /**
- * 校验项目详情实时消息信封并返回其数据。
+ * 校验项目详情实时消息信封，并返回有效的消息数据。
  *
  * @param raw - 待解析的原始实时消息
- * @param validator - 可选的附加数据校验函数
- * @returns 校验通过的消息数据，或 `null`
+ * @param expectedTopic - 根据应用标识生成预期主题名称的函数
+ * @param validator - 可选的附加消息数据校验函数
+ * @returns 校验通过的消息数据，校验失败时返回 `null`
  */
 function parseProjectDetailEnvelopeData(
   raw: unknown,

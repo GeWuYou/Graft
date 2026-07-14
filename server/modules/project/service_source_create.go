@@ -93,7 +93,8 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 
 // resolveTemplateWorkspace resolves a template request into a materialization workspace and its template metadata.
 // It applies default template identifiers, validates that the requested template is supported, and derives
-// the instance name from the canonical project name when none is provided.
+// resolveTemplateWorkspace 将模板请求解析为托管项目创建请求及模板元数据，并应用默认模板标识和实例名称。
+// 仅支持默认模板键与版本；使用者未提供时，实例名称从工作区键派生。
 func resolveTemplateWorkspace(request TemplateProjectCreateRequest) (ManagedProjectCreateRequest, map[string]string, error) {
 	key := strings.TrimSpace(request.TemplateKey)
 	if key == "" {

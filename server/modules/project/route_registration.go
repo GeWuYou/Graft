@@ -33,7 +33,8 @@ const minimumProjectListLimit = 1
 // registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
 // registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
 // registerRoutes 注册项目模块的 HTTP 路由。
-// 当上下文或路由器为空时返回 nil；当项目服务缺失或认证依赖解析失败时返回错误。
+// registerRoutes 注册项目 API 路由及其请求 ID、权限校验中间件。
+// 当上下文或路由器为空时跳过注册并返回 nil；当项目服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -492,7 +493,8 @@ func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
 }
 
 // toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
-// It returns an error when the lifecycle configuration cannot use the standard strategy.
+// toTemplateProjectCreateRequest 将模板项目创建请求转换为领域请求。
+// 当生命周期配置无法转换为标准配置时返回错误。
 func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (TemplateProjectCreateRequest, error) {
 	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
 	if request.LifecycleConfiguration != nil {
@@ -884,6 +886,7 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action generated
 	return true
 }
 
+// batchActionPermission returns the required permission for a batch action and whether the action is supported.
 func batchActionPermission(action generated.ProjectBatchActionRequestAction) (string, bool) {
 	switch action {
 	case generated.ProjectBatchActionRequestActionStart,
@@ -1247,7 +1250,7 @@ func bindPostProjectImportRuntimeInspectParams(ginCtx *gin.Context) generated.Po
 
 // bindJSON 绑定请求体中的 JSON 到目标对象。
 //
-// 绑定失败时，会中止当前请求并返回 400 Bad Request 的本地化参数错误，错误字段为 `body`。
+// 绑定失败时中止请求，并返回字段为 body 的本地化无效参数错误。
 func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	if err := ginCtx.ShouldBindJSON(target); err != nil {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})

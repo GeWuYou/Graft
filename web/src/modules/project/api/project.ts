@@ -312,6 +312,13 @@ export function getProjectFiles(id: string, query?: ProjectWorkspaceFilesQuery) 
   }) as Promise<ProjectWorkspaceFilesResponse>;
 }
 
+/**
+ * 获取项目工作区文件的内容。
+ *
+ * @param id - 项目标识
+ * @param query - 文件内容查询参数
+ * @returns 项目工作区文件内容响应
+ */
 export function getProjectFileContent(id: string, query: ProjectWorkspaceFileContentQuery) {
   return request.get<ProjectWorkspaceFileContentResponse>({
     url: buildProjectFilesContentApiPath(id),
@@ -319,6 +326,14 @@ export function getProjectFileContent(id: string, query: ProjectWorkspaceFileCon
   }) as Promise<ProjectWorkspaceFileContentResponse>;
 }
 
+/**
+ * 保存项目工作区文件内容。
+ *
+ * @param id - 项目标识
+ * @param query - 文件内容查询参数
+ * @param payload - 要保存的文件内容
+ * @returns 文件保存结果
+ */
 export function putProjectFileContent(
   id: string,
   query: ProjectWorkspaceFileContentQuery,

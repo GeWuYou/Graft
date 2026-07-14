@@ -595,7 +595,7 @@ func (s *Service) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetRe
 	}
 }
 
-// WithRuntimeTargetReader injects the capability-scoped Compose Runtime Target authority.
+// WithRuntimeTargetReader configures the Compose runtime target reader used by the service.
 func WithRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.runtimeTargets = reader
@@ -674,6 +674,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }
 
+// 当 ID 为空时返回 true；当 ID 小于 1 或不对应已知目标时返回 false。
 func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.ComposeRuntimeTargetSummary) bool {
 	if id == nil {
 		return true

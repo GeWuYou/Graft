@@ -192,7 +192,8 @@ func (r runtimeTargetReader) ListComposeTargets(ctx context.Context) ([]moduleap
 }
 
 // composeTargetSummary validates the provider-neutral capability contract while keeping
-// endpoint and credential data inside the runtime-target module.
+// composeTargetSummary 将满足 Compose 能力要求的运行时目标转换为摘要；目标 ID 超出支持范围或缺少必要能力时返回 false。
+// 返回摘要及其是否转换成功。
 func composeTargetSummary(target store.Target) (moduleapi.ComposeRuntimeTargetSummary, bool) {
 	if target.ID > maxRuntimeTargetID || !hasComposeCapabilities(target.Capabilities) {
 		return moduleapi.ComposeRuntimeTargetSummary{}, false
@@ -200,6 +201,8 @@ func composeTargetSummary(target store.Target) (moduleapi.ComposeRuntimeTargetSu
 	return moduleapi.ComposeRuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider, Capabilities: append([]string(nil), target.Capabilities...), Available: target.Availability}, true
 }
 
+// hasComposeCapabilities determines whether the capabilities include Compose execution and workspace access.
+// It returns true when both required capabilities are present, and false otherwise.
 func hasComposeCapabilities(capabilities []string) bool {
 	seen := make(map[string]bool, len(capabilities))
 	for _, capability := range capabilities {

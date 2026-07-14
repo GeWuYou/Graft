@@ -134,6 +134,12 @@ export class LogViewportCommitScheduler<T> {
   }
 }
 
+/**
+ * 调度一个帧回调，并在当前环境不支持动画帧时使用定时器作为回退方案。
+ *
+ * @param callback - 帧调度时调用的回调函数
+ * @returns 可用于取消已调度回调的句柄
+ */
 function defaultRequestFrame(callback: FrameRequestCallback) {
   if (typeof globalThis.requestAnimationFrame === 'function') {
     return globalThis.requestAnimationFrame(callback);
@@ -141,6 +147,11 @@ function defaultRequestFrame(callback: FrameRequestCallback) {
   return globalThis.setTimeout(() => callback(Date.now()), 0) as unknown as number;
 }
 
+/**
+ * 取消通过默认帧调度器安排的回调。
+ *
+ * @param handle - 待取消的帧或定时器句柄
+ */
 function defaultCancelFrame(handle: number) {
   if (typeof globalThis.cancelAnimationFrame === 'function') {
     globalThis.cancelAnimationFrame(handle);

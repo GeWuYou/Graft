@@ -122,6 +122,8 @@ func (s *Service) composeProjectNameState(ctx context.Context, targetID uint64, 
 	return availability.State
 }
 
+// composeProjectNameSource classifies a canonical Compose project name source.
+// It returns "declared" for the canonical override source and "derived" for all other values.
 func composeProjectNameSource(value string) string {
 	if strings.TrimSpace(value) == projectcontract.CanonicalProjectNameSourceOverride.String() {
 		return "declared"

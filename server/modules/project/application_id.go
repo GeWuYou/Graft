@@ -18,7 +18,8 @@ const (
 	base32MostSignificantBit   = 4
 )
 
-// newApplicationID produces the public app_<ULID> identity without exposing the SQL key.
+// newApplicationID 生成不暴露 SQL 密钥的公开应用标识，格式为 `app_<ULID>`。
+// 返回生成的应用标识字符串。
 func newApplicationID() string {
 	var value [16]byte
 	binary.BigEndian.PutUint64(value[:8], uint64(time.Now().UTC().UnixMilli()))
@@ -44,6 +45,9 @@ func newApplicationID() string {
 	return "app_" + string(encoded)
 }
 
+// isApplicationID 校验字符串是否为格式正确的应用标识。
+// 首尾空白会被忽略，标识必须包含 app_ 前缀及 26 个 Crockford Base32 字符。
+// 返回 true 表示格式有效，否则返回 false。
 func isApplicationID(value string) bool {
 	value = strings.TrimSpace(value)
 	if len(value) != len("app_")+applicationIDEncodedLength || !strings.HasPrefix(value, "app_") {

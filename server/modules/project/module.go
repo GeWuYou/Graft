@@ -104,7 +104,8 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	return taskRegistrar, nil
 }
 
-// resolveProjectRuntimeTargetReader resolves the project runtime target reader from the module service registry.
+// resolveProjectRuntimeTargetReader 从模块服务注册表中解析项目运行时目标读取器。
+// 如果解析失败，则返回包装后的错误。
 func resolveProjectRuntimeTargetReader(ctx *module.Context) (moduleapi.ComposeRuntimeTargetReader, error) {
 	reader, err := module.ResolveService[moduleapi.ComposeRuntimeTargetReader](ctx.Services, (*moduleapi.ComposeRuntimeTargetReader)(nil))
 	if err != nil {

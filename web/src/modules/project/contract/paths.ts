@@ -82,10 +82,22 @@ export function buildProjectDetailApiPath(id: string | number) {
   return PROJECT_API_PATH.DETAIL.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目概览 API 路径。
+ *
+ * @param id - 项目标识
+ * @returns 包含 URL 编码项目标识的项目概览 API 路径
+ */
 export function buildProjectOverviewApiPath(id: string | number) {
   return PROJECT_API_PATH.OVERVIEW.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目日志 API 路径。
+ *
+ * @param id - 项目标识符
+ * @returns 包含 URL 编码项目标识符的日志 API 路径
+ */
 export function buildProjectLogsApiPath(id: string | number) {
   return PROJECT_API_PATH.LOGS.replace('{id}', encodeProjectPathParam(id));
 }
@@ -120,14 +132,32 @@ export function buildProjectFilesApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目文件内容 API 路径。
+ *
+ * @param id - 项目标识
+ * @returns 包含 URL 编码项目标识的文件内容 API 路径
+ */
 export function buildProjectFilesContentApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_CONTENT.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目文件标注 API 路径。
+ *
+ * @param id - 项目标识
+ * @returns 包含已编码项目标识的文件标注 API 路径
+ */
 export function buildProjectFilesAnnotationApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_ANNOTATION.replace('{id}', encodeProjectPathParam(id));
 }
 
+/**
+ * 构建项目生命周期配置 API 路径。
+ *
+ * @param id - 项目标识符
+ * @returns 包含 URL 编码项目标识符的生命周期配置 API 路径
+ */
 export function buildProjectLifecycleConfigurationApiPath(id: string | number) {
   return PROJECT_API_PATH.LIFECYCLE_CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
 }

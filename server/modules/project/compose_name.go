@@ -9,7 +9,8 @@ import (
 )
 
 // ensureComposeProjectName preserves a declared Compose top-level name or injects
-// a deterministic name derived from the display name before a managed workspace is written.
+// ensureComposeProjectName 确保 Compose YAML 包含有效的顶层 name，并在缺少时根据显示名称生成并写入。
+// 返回项目名称、处理后的 YAML 内容以及处理错误。
 func ensureComposeProjectName(content, displayName string) (string, string, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &root); err != nil {
@@ -41,6 +42,8 @@ func ensureComposeProjectName(content, displayName string) (string, string, erro
 	return name, string(encoded), nil
 }
 
+// deriveComposeProjectName 根据显示名称生成规范的 Compose 项目名称；非字母数字字符会替换为连字符。
+// 成功时返回生成的名称；名称无效时返回错误。
 func deriveComposeProjectName(displayName string) (string, error) {
 	value := strings.ToLower(strings.TrimSpace(displayName))
 	value = strings.Map(func(r rune) rune {

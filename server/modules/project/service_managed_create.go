@@ -94,7 +94,8 @@ type normalizedManagedWorkspaceFile struct {
 // 它会校验项目名称、目录、Compose 文件、可选环境文件及工作区文件，并保留生命周期配置和环境文件路径。
 // 返回规范化后的请求数据及验证错误。
 //
-//nolint:cyclop,gocognit,gocyclo // The coupled request fields must be normalized together before any managed-root write.
+// normalizeManagedCreateRequest 校验并规范化受控项目创建请求，生成用于后续创建流程的工作区配置。
+// 返回规范化后的请求；当字段、路径、工作区文件或 Compose 项目名称无效时返回错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	composeFileContent := strings.TrimSpace(request.ComposeFileContent)
@@ -171,6 +172,8 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	}, nil
 }
 
+// rejectComposeProjectNameOverride 检查内容中的 COMPOSE_PROJECT_NAME 是否与指定的 compose 名称一致。
+// content 为 nil 时不执行检查；发现不一致的配置时返回参数错误。
 func rejectComposeProjectNameOverride(content *string, composeName string) error {
 	if content == nil {
 		return nil
@@ -188,6 +191,10 @@ func rejectComposeProjectNameOverride(content *string, composeName string) error
 	return nil
 }
 
+// normalizeOrDeriveWorkspaceKey 返回请求中的工作区键；未提供时根据显示名称生成，并验证其格式。
+// @param displayName 用于派生工作区键的显示名称。
+// @param requested 请求指定的工作区键；为 nil 或空白时根据 displayName 派生。
+// @returns 规范化后的工作区键；如果键为空或格式无效，则返回错误。
 func normalizeOrDeriveWorkspaceKey(displayName string, requested *string) (*string, error) {
 	key := ""
 	if requested != nil {
@@ -209,6 +216,8 @@ func normalizeOrDeriveWorkspaceKey(displayName string, requested *string) (*stri
 	return &key, nil
 }
 
+// chooseWorkspacePath selects an available workspace path and key under root.
+// For explicit requests, it returns a conflict error when the requested key is already in use.
 func chooseWorkspacePath(root string, requested *string, explicit bool) (string, *string, error) {
 	if requested == nil {
 		return "", nil, errProjectInvalidArgument
@@ -234,7 +243,8 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 	return "", nil, errProjectConflict
 }
 
-// normalizeManagedWorkspaceFiles validates and normalizes workspace files, supplying default compose and environment files when none are provided.
+// normalizeManagedWorkspaceFiles 规范化工作区文件，并在未提供文件时补充 Compose 文件和可选的环境文件。
+// 文件路径必须有效且唯一，内容必须为文本，并且工作区必须包含指定的 Compose 文件。
 func normalizeManagedWorkspaceFiles(items []ManagedWorkspaceFile, composeFileName, composeContent string, envFileName *string, envContent *string) ([]normalizedManagedWorkspaceFile, error) {
 	if len(items) == 0 {
 		items = []ManagedWorkspaceFile{{Path: composeFileName, Content: composeContent}}
