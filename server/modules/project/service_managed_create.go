@@ -145,9 +145,13 @@ func normalizeManagedWorkspaceEntries(entries []ManagedWorkspaceEntry, composePa
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("%w: workspace entries are required", errProjectInvalidArgument)
 	}
+	if len(entries) > maxWorkspaceEntryCount {
+		return nil, fmt.Errorf("%w: workspace entry limit exceeded", errProjectInvalidArgument)
+	}
 	result := make([]normalizedManagedWorkspaceEntry, 0, len(entries))
 	seen := make(map[string]string, len(entries))
 	foundCompose := false
+	totalBytes := 0
 	for _, entry := range entries {
 		item, isCompose, err := normalizeManagedWorkspaceEntry(entry, composePath, seen)
 		if err != nil {
@@ -157,12 +161,32 @@ func normalizeManagedWorkspaceEntries(entries []ManagedWorkspaceEntry, composePa
 			foundCompose = true
 		}
 		seen[item.Path] = item.NodeType
+		if err := accumulateWorkspaceEntrySize(item, &totalBytes); err != nil {
+			return nil, err
+		}
 		result = append(result, item)
+	}
+	if err := validateWorkspaceEntryRelationships(seen); err != nil {
+		return nil, err
 	}
 	if !foundCompose {
 		return nil, fmt.Errorf("%w: compose file is absent from workspace", errProjectInvalidArgument)
 	}
 	return result, nil
+}
+
+func accumulateWorkspaceEntrySize(item normalizedManagedWorkspaceEntry, totalBytes *int) error {
+	if item.NodeType != "file" {
+		return nil
+	}
+	if len(*item.Content) > maxWorkspaceFileBytes {
+		return fmt.Errorf("%w: workspace file size limit exceeded", errProjectInvalidArgument)
+	}
+	*totalBytes += len(*item.Content)
+	if *totalBytes > maxWorkspaceTotalBytes {
+		return fmt.Errorf("%w: workspace total size limit exceeded", errProjectInvalidArgument)
+	}
+	return nil
 }
 
 // normalizeManagedWorkspaceEntry 规范化并验证工作区条目，并指示该条目是否为 Compose 文件。
@@ -188,20 +212,19 @@ func validateManagedWorkspaceEntry(path, nodeType string, content *string, seen 
 	if _, ok := seen[path]; ok {
 		return fmt.Errorf("%w: duplicate workspace entry", errProjectInvalidArgument)
 	}
-	if err := validateWorkspaceEntryAncestors(path, seen); err != nil {
-		return err
-	}
 	if nodeType == "directory" {
 		return validateWorkspaceDirectoryContent(content)
 	}
 	return validateWorkspaceFileContent(content)
 }
 
-// validateWorkspaceEntryAncestors rejects paths whose ancestor is already registered as a file.
-func validateWorkspaceEntryAncestors(path string, seen map[string]string) error {
-	for ancestor := filepath.Dir(path); ancestor != "."; ancestor = filepath.Dir(ancestor) {
-		if seen[ancestor] == "file" {
-			return fmt.Errorf("%w: workspace entry has file ancestor", errProjectInvalidArgument)
+// validateWorkspaceEntryRelationships rejects every file/descendant conflict after all paths are known.
+func validateWorkspaceEntryRelationships(entries map[string]string) error {
+	for path := range entries {
+		for ancestor := filepath.Dir(path); ancestor != "."; ancestor = filepath.Dir(ancestor) {
+			if entries[ancestor] == "file" {
+				return fmt.Errorf("%w: workspace entry has file ancestor", errProjectInvalidArgument)
+			}
 		}
 	}
 	return nil

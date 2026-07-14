@@ -7,7 +7,19 @@
           class="project-create-workspace__tree graft-scrollbar"
           @contextmenu.prevent="openMenu('', 'directory', $event)"
         >
-          <p class="project-create-workspace__root-label">{{ t('project.create.workspace.rootLabel') }}</p>
+          <div class="project-create-workspace__root-heading">
+            <p class="project-create-workspace__root-label">{{ t('project.create.workspace.rootLabel') }}</p>
+            <button
+              type="button"
+              class="project-create-workspace__entry-actions"
+              :aria-label="
+                t('project.create.workspace.entryActions', { path: t('project.create.workspace.rootLabel') })
+              "
+              @click.stop="openMenu('', 'directory', $event, true)"
+            >
+              <ellipsis-icon />
+            </button>
+          </div>
           <template v-for="row in treeRows" :key="row.path">
             <div
               class="project-create-workspace__tree-row"
@@ -26,6 +38,14 @@
                 <folder-icon v-if="row.nodeType === 'directory'" />
                 <file-code-icon v-else />
                 <span>{{ row.name }}</span>
+              </button>
+              <button
+                type="button"
+                class="project-create-workspace__entry-actions"
+                :aria-label="t('project.create.workspace.entryActions', { path: row.path })"
+                @click.stop="openMenu(row.path, row.nodeType, $event, true)"
+              >
+                <ellipsis-icon />
               </button>
             </div>
           </template>
@@ -53,8 +73,13 @@
       class="project-create-workspace__context-menu"
       :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
       role="menu"
+      @keydown.down.prevent="moveMenuFocus(1)"
+      @keydown.end.prevent="moveMenuFocus(-1, true)"
+      @keydown.esc.prevent="closeMenu(true)"
+      @keydown.home.prevent="moveMenuFocus(1, true)"
+      @keydown.up.prevent="moveMenuFocus(-1)"
     >
-      <button type="button" role="menuitem" @click="beginCreate('file')">
+      <button ref="firstMenuItem" type="button" role="menuitem" @click="beginCreate('file')">
         {{ t('project.create.workspace.newFile') }}
       </button>
       <button type="button" role="menuitem" @click="beginCreate('directory')">
@@ -117,8 +142,8 @@
   </section>
 </template>
 <script setup lang="ts">
-import { FileCodeIcon, FolderIcon } from 'tdesign-icons-vue-next';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { EllipsisIcon, FileCodeIcon, FolderIcon } from 'tdesign-icons-vue-next';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
 import { resolveWorkspaceMonacoLanguage } from '../shared/configuration-workspace';
 import { useProjectPageContext } from '../shared/page-context';
@@ -134,7 +159,9 @@ const files = defineModel<WorkspaceDraftEntry[]>('files', { required: true });
 const { t } = useProjectPageContext();
 const activePath = ref(files.value.find((entry) => entry.node_type !== 'directory')?.path || '');
 const expandedDirectories = ref<string[]>([]);
+const firstMenuItem = ref<HTMLButtonElement | null>(null);
 const contextMenu = reactive({ nodeType: 'directory' as 'directory' | 'file', path: '', visible: false, x: 0, y: 0 });
+let contextMenuTrigger: HTMLElement | null = null;
 const entryDialog = reactive({
   error: '',
   mode: 'create' as 'create' | 'rename',
@@ -196,12 +223,14 @@ function parentDirectory(path: string, nodeType: 'directory' | 'file') {
   if (!path) return '';
   return nodeType === 'directory' ? path : path.split('/').slice(0, -1).join('/');
 }
-function openMenu(path: string, nodeType: 'directory' | 'file', event: MouseEvent) {
+function openMenu(path: string, nodeType: 'directory' | 'file', event: MouseEvent, focusMenu = false) {
   contextMenu.path = path;
   contextMenu.nodeType = nodeType;
   contextMenu.x = event.clientX;
   contextMenu.y = event.clientY;
+  contextMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
   contextMenu.visible = true;
+  if (focusMenu) void nextTick(() => firstMenuItem.value?.focus());
 }
 function isDirectoryExpanded(path: string) {
   return expandedDirectories.value.includes(path);
@@ -211,8 +240,22 @@ function toggleDirectory(path: string) {
     ? expandedDirectories.value.filter((value) => value !== path)
     : [...expandedDirectories.value, path];
 }
-function closeMenu() {
+function closeMenu(restoreFocus = false) {
   contextMenu.visible = false;
+  if (restoreFocus) void nextTick(() => contextMenuTrigger?.focus());
+}
+function moveMenuFocus(direction: 1 | -1, boundary = false) {
+  const items = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.project-create-workspace__context-menu [role="menuitem"]'),
+  ).filter((item) => !item.disabled);
+  if (!items.length) return;
+  const currentIndex = items.findIndex((item) => item === document.activeElement);
+  const nextIndex = boundary
+    ? direction > 0
+      ? 0
+      : items.length - 1
+    : (currentIndex + direction + items.length) % items.length;
+  items[nextIndex].focus();
 }
 function beginCreate(nodeType: 'directory' | 'file') {
   entryDialog.mode = 'create';
@@ -239,7 +282,11 @@ function submitEntryDialog() {
   }
   const oldPath = contextMenu.path;
   if (entryDialog.mode === 'create') {
-    if (files.value.some((entry) => entry.path === path)) {
+    if (
+      files.value.some(
+        (entry) => entry.path === path || entry.path.startsWith(`${path}/`) || path.startsWith(`${entry.path}/`),
+      )
+    ) {
       entryDialog.error = t('project.create.workspace.pathConflict');
       return;
     }
@@ -254,7 +301,13 @@ function submitEntryDialog() {
     if (
       !oldPath ||
       path.startsWith(`${oldPath}/`) ||
-      (path !== oldPath && files.value.some((entry) => entry.path === path || entry.path.startsWith(`${path}/`)))
+      (path !== oldPath &&
+        files.value.some(
+          (entry) =>
+            entry.path !== oldPath &&
+            !entry.path.startsWith(`${oldPath}/`) &&
+            (entry.path === path || entry.path.startsWith(`${path}/`) || path.startsWith(`${entry.path}/`)),
+        ))
     ) {
       entryDialog.error = t('project.create.workspace.pathConflict');
       return;
@@ -335,7 +388,20 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
   margin: 0 0 var(--graft-density-gap-8);
 }
 
+.project-create-workspace__root-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--graft-density-gap-8);
+}
+
+.project-create-workspace__root-heading .project-create-workspace__root-label {
+  margin-bottom: 0;
+}
+
 .project-create-workspace__tree-row {
+  align-items: center;
+  display: flex;
   padding-left: calc(var(--workspace-tree-depth) * var(--graft-density-gap-16));
 }
 
@@ -352,6 +418,22 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
   padding: 0 var(--graft-density-gap-8);
   text-align: left;
   width: 100%;
+}
+
+.project-create-workspace__entry-actions {
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-secondary);
+  cursor: pointer;
+  flex: 0 0 auto;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+.project-create-workspace__entry-actions:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: -2px;
 }
 
 .project-create-workspace__tree-expander {

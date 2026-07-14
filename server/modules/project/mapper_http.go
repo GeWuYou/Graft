@@ -663,7 +663,7 @@ func managedWorkspaceEntryFromGenerated(entry generated.ProjectWorkspaceEntry) (
 	return ManagedWorkspaceEntry{Path: path, NodeType: nodeType, Content: entry.Content}, nil
 }
 
-// toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求，并校验运行时目标 ID、工作区条目、Compose 文件和生命周期配置。ಿಸಿದ
+// toManagedCreateExecuteRequest maps an execute request into the internal managed-create request.
 func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {

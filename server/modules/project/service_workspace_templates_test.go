@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,5 +64,41 @@ func TestNormalizeManagedWorkspaceEntriesAcceptsArbitraryTextAndEmptyDirectory(t
 	}
 	if len(entries) != 3 {
 		t.Fatalf("entry count = %d, want 3", len(entries))
+	}
+}
+
+func TestNormalizeManagedWorkspaceEntriesRejectsFileAncestorRegardlessOfOrder(t *testing.T) {
+	compose := "services: {}\n"
+	for _, entries := range [][]ManagedWorkspaceEntry{
+		{{Path: "config/child", NodeType: "file", Content: &compose}, {Path: "config", NodeType: "file", Content: &compose}, {Path: "compose.yaml", NodeType: "file", Content: &compose}},
+		{{Path: "config", NodeType: "file", Content: &compose}, {Path: "config/child", NodeType: "file", Content: &compose}, {Path: "compose.yaml", NodeType: "file", Content: &compose}},
+	} {
+		if _, err := normalizeManagedWorkspaceEntries(entries, "compose.yaml"); !errors.Is(err, errProjectInvalidArgument) {
+			t.Fatalf("expected file ancestor conflict, got %v", err)
+		}
+	}
+}
+
+func TestSeedDefaultWorkspaceTemplateRejectsDirectoryAtBundledFilePath(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "templates", defaultTemplateKey, "compose.yaml"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedDefaultWorkspaceTemplate(root); err == nil {
+		t.Fatal("expected directory target rejection")
+	}
+}
+
+func TestLoadWorkspaceTemplateRejectsOversizedFileBeforeRead(t *testing.T) {
+	root := t.TempDir()
+	template := filepath.Join(root, "templates", "custom")
+	if err := os.MkdirAll(template, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "large.txt"), make([]byte, maxWorkspaceFileBytes+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadWorkspaceTemplate(root, "custom"); err == nil {
+		t.Fatal("expected oversized template file rejection")
 	}
 }

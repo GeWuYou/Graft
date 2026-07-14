@@ -213,6 +213,8 @@ func (s *Service) saveProjectFileContent(
 	path string,
 	request workspaceFileSaveRequest,
 ) (workspaceFileSaveResult, error) {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return workspaceFileSaveResult{}, err
@@ -255,6 +257,8 @@ func (s *Service) saveProjectFileContent(
 }
 
 func (s *Service) createProjectWorkspaceEntry(ctx context.Context, projectID uint64, request workspaceEntryCreateRequest) error {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
 	relativePath, root, err := s.openProjectWorkspaceRoot(ctx, projectID, request.Path)
 	if err != nil {
 		return err
@@ -276,6 +280,8 @@ func (s *Service) createProjectWorkspaceEntry(ctx context.Context, projectID uin
 }
 
 func (s *Service) renameProjectWorkspaceEntry(ctx context.Context, projectID uint64, request workspaceEntryRenameRequest) error {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
 	source, root, err := s.openProjectWorkspaceRoot(ctx, projectID, request.Path)
 	if err != nil {
 		return err
@@ -366,6 +372,8 @@ func ensureWorkspaceParent(root *managedRootFS, path string) error {
 }
 
 func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uint64, path string, recursive bool) error {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return err
@@ -373,6 +381,9 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
 	if err != nil {
 		return err
+	}
+	if workspaceDeletionContainsTrackedLifecycleInput(aggregate, relativePath) {
+		return errProjectConflict
 	}
 	root, err := openManagedRootFS(rootDir)
 	if err != nil {
@@ -393,6 +404,24 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 		return mapWorkspacePathError(root.root.Remove(relativePath))
 	}
 	return mapWorkspacePathError(root.root.Remove(relativePath))
+}
+
+// workspaceDeletionContainsTrackedLifecycleInput prevents removing files that active lifecycle commands still reference.
+func workspaceDeletionContainsTrackedLifecycleInput(aggregate projectstore.ProjectAggregate, deletedPath string) bool {
+	for _, file := range aggregate.Files {
+		relative, err := filepath.Rel(aggregate.Project.WorkingDirectory, file.AbsolutePath)
+		if err != nil {
+			continue
+		}
+		relative, err = normalizeManagedWorkspacePath(relative)
+		if err != nil {
+			continue
+		}
+		if relative == deletedPath || strings.HasPrefix(relative, deletedPath+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) updateProjectWorkspaceAnnotation(

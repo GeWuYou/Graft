@@ -112,6 +112,16 @@
                     class="project-configuration-workspace__tree graft-scrollbar"
                     @contextmenu.prevent="openWorkspaceEntryMenu(null, $event)"
                   >
+                    <button
+                      type="button"
+                      class="project-configuration-workspace__tree-menu-trigger"
+                      :aria-label="
+                        t('project.create.workspace.entryActions', { path: workspaceCopy.workspaceRootLabel })
+                      "
+                      @click.stop="openWorkspaceEntryMenu(null, $event, true)"
+                    >
+                      <ellipsis-icon />
+                    </button>
                     <template v-if="workspaceFlatRows.length">
                       <template v-for="row in workspaceFlatRows" :key="row.item.relative_path || row.item.name">
                         <div
@@ -136,6 +146,15 @@
                             </span>
                           </button>
                           <span v-else class="project-configuration-workspace__tree-expander-placeholder" />
+
+                          <button
+                            type="button"
+                            class="project-configuration-workspace__tree-menu-trigger"
+                            :aria-label="t('project.create.workspace.entryActions', { path: row.item.relative_path })"
+                            @click.stop="openWorkspaceEntryMenu(row.item, $event, true)"
+                          >
+                            <ellipsis-icon />
+                          </button>
 
                           <button
                             class="project-configuration-workspace__tree-entry"
@@ -732,8 +751,18 @@
       class="project-configuration-workspace__context-menu"
       :style="{ left: `${workspaceEntryMenu.x}px`, top: `${workspaceEntryMenu.y}px` }"
       role="menu"
+      @keydown.down.prevent="moveWorkspaceEntryMenuFocus(1)"
+      @keydown.end.prevent="moveWorkspaceEntryMenuFocus(-1, true)"
+      @keydown.esc.prevent="closeWorkspaceEntryMenu(true)"
+      @keydown.home.prevent="moveWorkspaceEntryMenuFocus(1, true)"
+      @keydown.up.prevent="moveWorkspaceEntryMenuFocus(-1)"
     >
-      <button type="button" role="menuitem" @click="openWorkspaceEntryDialog('create-file')">
+      <button
+        ref="firstWorkspaceEntryMenuItem"
+        type="button"
+        role="menuitem"
+        @click="openWorkspaceEntryDialog('create-file')"
+      >
         {{ t('project.create.workspace.newFile') }}
       </button>
       <button type="button" role="menuitem" @click="openWorkspaceEntryDialog('create-directory')">
@@ -781,7 +810,6 @@
           workspaceDeleteDialog.stage === 'recursive'
             ? t('project.create.workspace.recursiveDeleteBody', {
                 path: workspaceDeleteDialog.path,
-                count: String(workspaceDeleteDialog.count),
               })
             : t('project.create.workspace.deleteBody', { path: workspaceDeleteDialog.path })
         }}
@@ -797,6 +825,7 @@ import {
   BrowseOffIcon,
   CommandIcon,
   Edit1Icon,
+  EllipsisIcon,
   FileCodeIcon,
   FileIcon,
   FolderIcon,
@@ -1047,11 +1076,12 @@ const workspaceEntryDialog = reactive<{
   visible: boolean;
 }>({ error: '', mode: 'create-file', path: '', visible: false });
 const workspaceDeleteDialog = reactive<{
-  count: number;
   path: string;
   stage: 'initial' | 'recursive';
   visible: boolean;
-}>({ count: 0, path: '', stage: 'initial', visible: false });
+}>({ path: '', stage: 'initial', visible: false });
+const firstWorkspaceEntryMenuItem = ref<HTMLButtonElement | null>(null);
+let workspaceEntryMenuTrigger: HTMLElement | null = null;
 let removeSidebarResizeListeners: (() => void) | null = null;
 
 const editorOptions = {
@@ -1527,15 +1557,32 @@ function isSafeWorkspaceEntryPath(path: string) {
   );
 }
 
-function openWorkspaceEntryMenu(item: WorkspaceListItem | null, event: MouseEvent) {
+function openWorkspaceEntryMenu(item: WorkspaceListItem | null, event: MouseEvent, focusMenu = false) {
   workspaceEntryMenu.item = item;
   workspaceEntryMenu.x = event.clientX;
   workspaceEntryMenu.y = event.clientY;
+  workspaceEntryMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
   workspaceEntryMenu.visible = true;
+  if (focusMenu) void nextTick(() => firstWorkspaceEntryMenuItem.value?.focus());
 }
 
-function closeWorkspaceEntryMenu() {
+function closeWorkspaceEntryMenu(restoreFocus = false) {
   workspaceEntryMenu.visible = false;
+  if (restoreFocus) void nextTick(() => workspaceEntryMenuTrigger?.focus());
+}
+
+function moveWorkspaceEntryMenuFocus(direction: 1 | -1, boundary = false) {
+  const items = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.project-configuration-workspace__context-menu [role="menuitem"]'),
+  ).filter((item) => !item.disabled);
+  if (!items.length) return;
+  const currentIndex = items.findIndex((item) => item === document.activeElement);
+  const nextIndex = boundary
+    ? direction > 0
+      ? 0
+      : items.length - 1
+    : (currentIndex + direction + items.length) % items.length;
+  items[nextIndex].focus();
 }
 
 function openWorkspaceEntryDialog(mode: 'create-file' | 'create-directory' | 'rename') {
@@ -1566,6 +1613,7 @@ async function submitWorkspaceEntryDialog() {
     if (workspaceEntryDialog.mode === 'rename') {
       if (!target) return;
       await postProjectWorkspaceRename(projectId.value, { path: target.relative_path, new_path: path });
+      migrateWorkspaceBuffers(target.relative_path, path);
     } else {
       await postProjectWorkspaceEntry(projectId.value, {
         path,
@@ -1585,7 +1633,6 @@ function openWorkspaceDeleteDialog() {
   const target = workspaceEntryMenu.item;
   if (!target) return;
   workspaceDeleteDialog.path = target.relative_path;
-  workspaceDeleteDialog.count = (directoryChildrenMap.get(target.relative_path)?.length ?? 0) + 1;
   workspaceDeleteDialog.stage = 'initial';
   workspaceDeleteDialog.visible = true;
   closeWorkspaceEntryMenu();
@@ -1593,18 +1640,22 @@ function openWorkspaceDeleteDialog() {
 
 async function confirmWorkspaceEntryDelete() {
   const target = workspaceItemMap.value.get(workspaceDeleteDialog.path);
-  const needsRecursiveConfirm =
-    target?.node_type === 'directory' && (target.has_children || workspaceDeleteDialog.count > 1);
+  const needsRecursiveConfirm = target?.node_type === 'directory' && target.has_children;
   if (needsRecursiveConfirm && workspaceDeleteDialog.stage === 'initial') {
     workspaceDeleteDialog.stage = 'recursive';
     return;
   }
   try {
+    const affectedPaths = openTabs.value.filter(
+      (path) => path === workspaceDeleteDialog.path || path.startsWith(`${workspaceDeleteDialog.path}/`),
+    );
+    if (!(await confirmWorkspaceBufferDeletion(affectedPaths))) return;
     await deleteProjectWorkspaceEntry(projectId.value, {
       path: workspaceDeleteDialog.path,
       recursive: workspaceDeleteDialog.stage === 'recursive',
     });
     workspaceDeleteDialog.visible = false;
+    removeWorkspaceBuffers(affectedPaths);
     await refreshWorkspaceAfterEntryMutation();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
@@ -1612,18 +1663,64 @@ async function confirmWorkspaceEntryDelete() {
 }
 
 async function refreshWorkspaceAfterEntryMutation() {
-  const removedPaths = [...openTabs.value];
-  for (const path of removedPaths) {
-    openFileMap.delete(path);
-  }
-  openTabs.value = [];
-  activeTabPath.value = '';
   rootWorkspaceItems.value = [];
   directoryChildrenMap.clear();
   directoryBrowseStateMap.clear();
   directoryErrorMap.clear();
+  directoryLoadingMap.clear();
   expandedDirectoryPaths.value = [];
   await loadWorkspaceDirectory('', { root: true });
+}
+
+function migrateWorkspaceBuffers(oldPath: string, newPath: string) {
+  const remappedPaths = new Map<string, string>();
+  for (const path of openTabs.value) {
+    if (path === oldPath || path.startsWith(`${oldPath}/`)) {
+      remappedPaths.set(path, `${newPath}${path.slice(oldPath.length)}`);
+    }
+  }
+  for (const [path, nextPath] of remappedPaths) {
+    const buffer = openFileMap.get(path);
+    if (!buffer) continue;
+    openFileMap.delete(path);
+    buffer.path = nextPath;
+    buffer.name = resolveWorkspaceFileName(nextPath);
+    openFileMap.set(nextPath, buffer);
+  }
+  if (!remappedPaths.size) return;
+  openTabs.value = openTabs.value.map((path) => remappedPaths.get(path) ?? path);
+  activeTabPath.value = remappedPaths.get(activeTabPath.value) ?? activeTabPath.value;
+  activeFileTabPathForMenu.value = activeFileTabPathForMenu.value
+    ? (remappedPaths.get(activeFileTabPathForMenu.value) ?? activeFileTabPathForMenu.value)
+    : null;
+  latestOpenRequestPath = remappedPaths.get(latestOpenRequestPath) ?? latestOpenRequestPath;
+}
+
+function removeWorkspaceBuffers(paths: string[]) {
+  const removedPathSet = new Set(paths);
+  if (!removedPathSet.size) return;
+  removedPathSet.forEach((path) => openFileMap.delete(path));
+  openTabs.value = openTabs.value.filter((path) => !removedPathSet.has(path));
+  if (removedPathSet.has(activeTabPath.value)) activeTabPath.value = openTabs.value.at(-1) ?? '';
+  if (activeFileTabPathForMenu.value && removedPathSet.has(activeFileTabPathForMenu.value)) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function confirmWorkspaceBufferDeletion(paths: string[]) {
+  const dirtyPaths = paths.filter((path) => isFileDirty(path));
+  if (!dirtyPaths.length) return true;
+  const action = await openDialog({
+    body: workspaceCopy.value.dirtyProjectActionBody,
+    buttons: [
+      { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
+      { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
+      { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+    ],
+    title: workspaceCopy.value.dirtyProjectActionTitle,
+  });
+  if (action === 'cancel') return false;
+  return action !== 'save' || saveTabsByPaths(dirtyPaths);
 }
 
 function workspaceEntryTestId(item: WorkspaceListItem) {
@@ -3307,6 +3404,32 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__tree-entry:hover {
   color: var(--td-text-color-primary);
+}
+
+.project-configuration-workspace__tree-menu-trigger {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  width: 30px;
+}
+
+.project-configuration-workspace__tree-menu-trigger:hover,
+.project-configuration-workspace__tree-menu-trigger:focus-visible {
+  background: var(--td-bg-color-container-hover);
+  color: var(--td-text-color-primary);
+}
+
+.project-configuration-workspace__tree-menu-trigger:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: -2px;
 }
 
 .project-configuration-workspace__browser-icon {

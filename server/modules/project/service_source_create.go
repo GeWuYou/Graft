@@ -25,7 +25,7 @@ type TemplateProjectCreateRequest struct {
 
 // CreateTemplateProject materializes an operator-managed runtime template and registers it through the shared pipeline.
 func (s *Service) CreateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
-	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request)
+	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request, true)
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
 	}
@@ -34,7 +34,7 @@ func (s *Service) CreateTemplateProject(ctx context.Context, request TemplatePro
 
 // ValidateTemplateProject checks a runtime template and its eventual managed-root target without writing it.
 func (s *Service) ValidateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest) (ManagedProjectCreateValidationResult, error) {
-	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request)
+	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request, false)
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
@@ -87,21 +87,26 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 }
 
 // resolveTemplateWorkspace loads a complete runtime template directory into one managed creation request.
-func (s *Service) resolveTemplateWorkspace(ctx context.Context, request TemplateProjectCreateRequest) (ManagedProjectCreateRequest, map[string]string, error) {
+func (s *Service) resolveTemplateWorkspace(ctx context.Context, request TemplateProjectCreateRequest, seedDefault bool) (ManagedProjectCreateRequest, map[string]string, error) {
 	key := strings.TrimSpace(request.TemplateKey)
 	if key == "" {
 		key = defaultTemplateKey
 	}
 	version := strings.TrimSpace(request.TemplateVersion)
 	if version == "" {
-		version = "runtime"
+		version = defaultTemplateVersion
+	}
+	if version != defaultTemplateVersion {
+		return ManagedProjectCreateRequest{}, nil, fmt.Errorf("%w: unsupported template version", errProjectInvalidArgument)
 	}
 	root, err := s.applicationRootDirectory(ctx)
 	if err != nil {
 		return ManagedProjectCreateRequest{}, nil, err
 	}
-	if err := seedDefaultWorkspaceTemplate(root); err != nil {
-		return ManagedProjectCreateRequest{}, nil, err
+	if seedDefault {
+		if err := seedDefaultWorkspaceTemplate(root); err != nil {
+			return ManagedProjectCreateRequest{}, nil, err
+		}
 	}
 	workspaceEntries, composeContent, err := loadTemplateCreateEntries(root, key)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	projectcontract "graft/server/modules/project/contract"
@@ -19,7 +20,12 @@ import (
 const (
 	defaultTemplateKey     = "default"
 	defaultTemplateVersion = "runtime"
+	maxWorkspaceEntryCount = 1024
+	maxWorkspaceFileBytes  = 1 << 20
+	maxWorkspaceTotalBytes = 10 << 20
 )
+
+var defaultWorkspaceTemplateSeedMu sync.Mutex
 
 //go:embed all:templates/default
 var bundledWorkspaceTemplates embed.FS
@@ -98,11 +104,11 @@ func (s *Service) blankCreatePrefillDefaultTemplate(ctx context.Context) (bool, 
 	}
 	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfig.String())
 	if err != nil {
-		return true, nil
+		return false, fmt.Errorf("%w: resolve blank-create template prefill: %v", errProjectInvalidArgument, err)
 	}
 	var enabled bool
 	if err := json.Unmarshal([]byte(raw), &enabled); err != nil {
-		return true, nil
+		return false, fmt.Errorf("%w: decode blank-create template prefill: %v", errProjectInvalidArgument, err)
 	}
 	return enabled, nil
 }
@@ -118,27 +124,81 @@ func templateRoot(applicationRoot string) string { return filepath.Join(applicat
 
 // seedDefaultWorkspaceTemplate adds missing bundled files to the default workspace template without overwriting existing files. It returns an error if the bundled files cannot be read or written, or if the target files cannot be inspected.
 func seedDefaultWorkspaceTemplate(applicationRoot string) error {
+	defaultWorkspaceTemplateSeedMu.Lock()
+	defer defaultWorkspaceTemplateSeedMu.Unlock()
 	targetRoot := filepath.Join(templateRoot(applicationRoot), defaultTemplateKey)
 	for _, bundledPath := range []string{"templates/default/compose.yaml", "templates/default/.env"} {
-		content, err := bundledWorkspaceTemplates.ReadFile(bundledPath)
-		if err != nil {
-			return fmt.Errorf("read bundled workspace template: %w", err)
+		if err := seedBundledWorkspaceTemplateFile(targetRoot, bundledPath); err != nil {
+			return err
 		}
-		relative := strings.TrimPrefix(bundledPath, "templates/default/")
-		target := filepath.Join(targetRoot, relative)
-		if err := os.MkdirAll(filepath.Dir(target), managedCreateDirMode); err != nil {
-			return fmt.Errorf("create default template directory: %w", err)
-		}
-		_, err = os.Lstat(target)
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("inspect default template file: %w", err)
-		}
-		if err := os.WriteFile(target, content, managedCreateFileMode); err != nil {
-			return fmt.Errorf("seed default template file: %w", err)
-		}
+	}
+	return nil
+}
+
+func seedBundledWorkspaceTemplateFile(targetRoot, bundledPath string) error {
+	content, err := bundledWorkspaceTemplates.ReadFile(bundledPath)
+	if err != nil {
+		return fmt.Errorf("read bundled workspace template: %w", err)
+	}
+	relative := strings.TrimPrefix(bundledPath, "templates/default/")
+	target := filepath.Join(targetRoot, relative)
+	if err := os.MkdirAll(filepath.Dir(target), managedCreateDirMode); err != nil {
+		return fmt.Errorf("create default template directory: %w", err)
+	}
+	if exists, err := regularTemplateFileExists(target, relative); err != nil || exists {
+		return err
+	}
+	return publishNewWorkspaceTemplateFile(target, content)
+}
+
+func regularTemplateFileExists(target, relative string) (bool, error) {
+	info, err := os.Lstat(target)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("inspect default template file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return false, fmt.Errorf("inspect default template file: %s is not a regular file", relative)
+	}
+	return true, nil
+}
+
+func publishNewWorkspaceTemplateFile(target string, content []byte) error {
+	temporary, err := os.CreateTemp(filepath.Dir(target), ".graft-template-*")
+	if err != nil {
+		return fmt.Errorf("create default template temporary file: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+	if err := writeWorkspaceTemplateTemporaryFile(temporary, content); err != nil {
+		return err
+	}
+	if err := os.Link(temporaryPath, target); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("publish default template file: %w", err)
+	}
+	_, err = regularTemplateFileExists(target, filepath.Base(target))
+	return err
+}
+
+func writeWorkspaceTemplateTemporaryFile(temporary *os.File, content []byte) error {
+	if err := temporary.Chmod(managedCreateFileMode); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("set default template file mode: %w", err)
+	}
+	if _, err := temporary.Write(content); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("write default template temporary file: %w", err)
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("sync default template temporary file: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("close default template temporary file: %w", err)
 	}
 	return nil
 }
@@ -176,10 +236,20 @@ func loadWorkspaceTemplate(applicationRoot, key string) ([]WorkspaceEntry, error
 	}
 	root := filepath.Join(templateRoot(applicationRoot), key)
 	entries := make([]WorkspaceEntry, 0)
+	totalBytes := int64(0)
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		item, skip, itemErr := workspaceTemplateEntry(root, path, entry, walkErr)
 		if itemErr != nil || skip {
 			return itemErr
+		}
+		if len(entries) >= maxWorkspaceEntryCount {
+			return fmt.Errorf("template exceeds workspace entry limit")
+		}
+		if item.NodeType == "file" {
+			totalBytes += int64(len(stringValue(item.Content)))
+			if totalBytes > maxWorkspaceTotalBytes {
+				return fmt.Errorf("template exceeds workspace total size limit")
+			}
 		}
 		entries = append(entries, item)
 		return nil
@@ -199,22 +269,18 @@ func workspaceTemplateEntry(root, path string, entry fs.DirEntry, walkErr error)
 	if walkErr != nil {
 		return WorkspaceEntry{}, false, walkErr
 	}
-	if path == root {
+	normalized, skip, err := normalizedWorkspaceTemplatePath(root, path, entry)
+	if err != nil {
+		return WorkspaceEntry{}, false, err
+	}
+	if skip {
 		return WorkspaceEntry{}, true, nil
-	}
-	if entry.Type()&os.ModeSymlink != 0 {
-		return WorkspaceEntry{}, false, fmt.Errorf("template symlinks are not allowed")
-	}
-	relative, err := filepath.Rel(root, path)
-	if err != nil {
-		return WorkspaceEntry{}, false, err
-	}
-	normalized, err := normalizeManagedWorkspacePath(relative)
-	if err != nil {
-		return WorkspaceEntry{}, false, err
 	}
 	if entry.IsDir() {
 		return WorkspaceEntry{Path: normalized, NodeType: "directory"}, false, nil
+	}
+	if err := validateWorkspaceTemplateFile(entry, normalized); err != nil {
+		return WorkspaceEntry{}, false, err
 	}
 	// #nosec G304 -- WalkDir path is anchored to the validated Application Root template directory and rejects symlinks.
 	content, err := os.ReadFile(path)
@@ -226,4 +292,36 @@ func workspaceTemplateEntry(root, path string, entry fs.DirEntry, walkErr error)
 	}
 	value := string(content)
 	return WorkspaceEntry{Path: normalized, NodeType: "file", Content: &value}, false, nil
+}
+
+func normalizedWorkspaceTemplatePath(root, path string, entry fs.DirEntry) (string, bool, error) {
+	if path == root {
+		return "", true, nil
+	}
+	if entry.Type()&os.ModeSymlink != 0 {
+		return "", false, fmt.Errorf("template symlinks are not allowed")
+	}
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return "", false, err
+	}
+	normalized, err := normalizeManagedWorkspacePath(relative)
+	if err != nil {
+		return "", false, err
+	}
+	return normalized, false, nil
+}
+
+func validateWorkspaceTemplateFile(entry fs.DirEntry, normalized string) error {
+	info, err := entry.Info()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("template file %s is not regular", normalized)
+	}
+	if info.Size() > maxWorkspaceFileBytes {
+		return fmt.Errorf("template file %s exceeds size limit", normalized)
+	}
+	return nil
 }
