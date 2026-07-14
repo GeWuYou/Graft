@@ -4268,7 +4268,14 @@ export interface components {
      *       "runtime_alloc_bytes": 62914560,
      *       "runtime_heap_in_use_bytes": 35651584,
      *       "runtime_sys_bytes": 100663296,
-     *       "runtime_gc_cycles": 18
+     *       "runtime_gc_cycles": 18,
+     *       "runtime_last_gc_at": "2026-05-24T08:04:59Z",
+     *       "runtime_last_gc_pause_ns": 245760,
+     *       "runtime_gc_pause_total_ns": 4915200,
+     *       "runtime_next_gc_bytes": 75497472,
+     *       "runtime_heap_objects": 18432,
+     *       "runtime_heap_released_bytes": 8388608,
+     *       "runtime_stack_in_use_bytes": 1048576
      *     }
      */
     'server-status-runtime': {
@@ -4294,6 +4301,41 @@ export interface components {
       /** Format: int64 */
       runtime_sys_bytes: number;
       runtime_gc_cycles: number;
+      /**
+       * Format: date-time
+       * @description UTC timestamp of the most recently completed Go garbage collection cycle; null before the first cycle.
+       */
+      runtime_last_gc_at: string | null;
+      /**
+       * Format: int64
+       * @description Stop-the-world pause duration in nanoseconds for the most recently completed Go garbage collection cycle; null before the first cycle.
+       */
+      runtime_last_gc_pause_ns: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative Go garbage collection pause duration in nanoseconds for the current process.
+       */
+      runtime_gc_pause_total_ns: number;
+      /**
+       * Format: int64
+       * @description Heap allocation target in bytes that will trigger the next Go garbage collection cycle.
+       */
+      runtime_next_gc_bytes: number;
+      /**
+       * Format: int64
+       * @description Number of allocated heap objects tracked by the Go runtime.
+       */
+      runtime_heap_objects: number;
+      /**
+       * Format: int64
+       * @description Heap bytes returned by the Go runtime to the operating system.
+       */
+      runtime_heap_released_bytes: number;
+      /**
+       * Format: int64
+       * @description Bytes occupied by Go stacks currently in use.
+       */
+      runtime_stack_in_use_bytes: number;
     };
     /**
      * @example {

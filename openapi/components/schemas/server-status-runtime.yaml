@@ -16,6 +16,13 @@ required:
   - runtime_heap_in_use_bytes
   - runtime_sys_bytes
   - runtime_gc_cycles
+  - runtime_last_gc_at
+  - runtime_last_gc_pause_ns
+  - runtime_gc_pause_total_ns
+  - runtime_next_gc_bytes
+  - runtime_heap_objects
+  - runtime_heap_released_bytes
+  - runtime_stack_in_use_bytes
 properties:
   go_version:
     type: string
@@ -55,6 +62,36 @@ properties:
     format: int64
   runtime_gc_cycles:
     type: integer
+  runtime_last_gc_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: UTC timestamp of the most recently completed Go garbage collection cycle; null before the first cycle.
+  runtime_last_gc_pause_ns:
+    type: integer
+    format: int64
+    nullable: true
+    description: Stop-the-world pause duration in nanoseconds for the most recently completed Go garbage collection cycle; null before the first cycle.
+  runtime_gc_pause_total_ns:
+    type: integer
+    format: int64
+    description: Cumulative Go garbage collection pause duration in nanoseconds for the current process.
+  runtime_next_gc_bytes:
+    type: integer
+    format: int64
+    description: Heap allocation target in bytes that will trigger the next Go garbage collection cycle.
+  runtime_heap_objects:
+    type: integer
+    format: int64
+    description: Number of allocated heap objects tracked by the Go runtime.
+  runtime_heap_released_bytes:
+    type: integer
+    format: int64
+    description: Heap bytes returned by the Go runtime to the operating system.
+  runtime_stack_in_use_bytes:
+    type: integer
+    format: int64
+    description: Bytes occupied by Go stacks currently in use.
 example:
   go_version: go1.25.1
   host_name: graft-dev
@@ -80,3 +117,10 @@ example:
   runtime_heap_in_use_bytes: 35651584
   runtime_sys_bytes: 100663296
   runtime_gc_cycles: 18
+  runtime_last_gc_at: '2026-05-24T08:04:59Z'
+  runtime_last_gc_pause_ns: 245760
+  runtime_gc_pause_total_ns: 4915200
+  runtime_next_gc_bytes: 75497472
+  runtime_heap_objects: 18432
+  runtime_heap_released_bytes: 8388608
+  runtime_stack_in_use_bytes: 1048576

@@ -10104,8 +10104,29 @@ type ServerStatusRuntime struct {
 	OperatingSystem       string                  `json:"operating_system"`
 	RuntimeAllocBytes     int64                   `json:"runtime_alloc_bytes"`
 	RuntimeGcCycles       int                     `json:"runtime_gc_cycles"`
-	RuntimeHeapInUseBytes int64                   `json:"runtime_heap_in_use_bytes"`
-	RuntimeSysBytes       int64                   `json:"runtime_sys_bytes"`
+
+	// RuntimeGcPauseTotalNs Cumulative Go garbage collection pause duration in nanoseconds for the current process.
+	RuntimeGcPauseTotalNs int64 `json:"runtime_gc_pause_total_ns"`
+	RuntimeHeapInUseBytes int64 `json:"runtime_heap_in_use_bytes"`
+
+	// RuntimeHeapObjects Number of allocated heap objects tracked by the Go runtime.
+	RuntimeHeapObjects int64 `json:"runtime_heap_objects"`
+
+	// RuntimeHeapReleasedBytes Heap bytes returned by the Go runtime to the operating system.
+	RuntimeHeapReleasedBytes int64 `json:"runtime_heap_released_bytes"`
+
+	// RuntimeLastGcAt UTC timestamp of the most recently completed Go garbage collection cycle; null before the first cycle.
+	RuntimeLastGcAt *time.Time `json:"runtime_last_gc_at"`
+
+	// RuntimeLastGcPauseNs Stop-the-world pause duration in nanoseconds for the most recently completed Go garbage collection cycle; null before the first cycle.
+	RuntimeLastGcPauseNs *int64 `json:"runtime_last_gc_pause_ns"`
+
+	// RuntimeNextGcBytes Heap allocation target in bytes that will trigger the next Go garbage collection cycle.
+	RuntimeNextGcBytes int64 `json:"runtime_next_gc_bytes"`
+
+	// RuntimeStackInUseBytes Bytes occupied by Go stacks currently in use.
+	RuntimeStackInUseBytes int64 `json:"runtime_stack_in_use_bytes"`
+	RuntimeSysBytes        int64 `json:"runtime_sys_bytes"`
 }
 
 // ServerStatusServer defines model for server-status-server.

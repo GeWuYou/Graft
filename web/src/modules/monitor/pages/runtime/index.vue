@@ -67,12 +67,30 @@
           />
         </div>
       </section-card>
+
+      <section-card
+        class="server-status-runtime-grid__card server-status-runtime-grid__card--diagnostics"
+        :title="t('monitor.runtimePage.diagnosticsTitle')"
+        :description="t('monitor.runtimePage.diagnosticsDescription')"
+      >
+        <div class="server-status-runtime-diagnostics-grid">
+          <key-value-row
+            v-for="field in runtimeDiagnosticFields"
+            :key="field.key"
+            :label="field.label"
+            :value="field.value"
+            :description="field.description"
+          />
+        </div>
+      </section-card>
     </div>
   </monitor-status-page-frame>
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+
+import { formatNanosecondsAsDuration } from '@/shared/observability';
 
 import KeyValueRow from '../../components/KeyValueRow.vue';
 import MonitorStatusPageFrame from '../../components/MonitorStatusPageFrame.vue';
@@ -212,7 +230,7 @@ const runtimeSecondaryFields = computed(() => {
     {
       key: 'lastGc',
       label: t('monitor.runtimePage.fields.lastGc'),
-      value: notReportedLabel.value,
+      value: formatLastGCTimestamp(runtime?.runtime_last_gc_at),
       description: t('monitor.runtimePage.fieldDescriptions.lastGc'),
     },
     {
@@ -226,6 +244,49 @@ const runtimeSecondaryFields = computed(() => {
       label: t('monitor.runtimePage.fields.loadAverage'),
       value: formatLoadAverage(serverStatus.value?.runtime.load_average),
       description: t('monitor.runtimePage.fieldDescriptions.loadAverage'),
+    },
+  ];
+});
+
+const runtimeDiagnosticFields = computed(() => {
+  const runtime = serverStatus.value?.runtime;
+
+  return [
+    {
+      key: 'lastGcPause',
+      label: t('monitor.runtimePage.fields.lastGcPause'),
+      value: formatLastGCPause(runtime?.runtime_last_gc_pause_ns),
+      description: t('monitor.runtimePage.fieldDescriptions.lastGcPause'),
+    },
+    {
+      key: 'gcPauseTotal',
+      label: t('monitor.runtimePage.fields.gcPauseTotal'),
+      value: formatSnapshotDuration(runtime?.runtime_gc_pause_total_ns),
+      description: t('monitor.runtimePage.fieldDescriptions.gcPauseTotal'),
+    },
+    {
+      key: 'nextGc',
+      label: t('monitor.runtimePage.fields.nextGc'),
+      value: formatSnapshotBytes(runtime?.runtime_next_gc_bytes),
+      description: t('monitor.runtimePage.fieldDescriptions.nextGc'),
+    },
+    {
+      key: 'heapObjects',
+      label: t('monitor.runtimePage.fields.heapObjects'),
+      value: formatCount(runtime?.runtime_heap_objects),
+      description: t('monitor.runtimePage.fieldDescriptions.heapObjects'),
+    },
+    {
+      key: 'heapReleased',
+      label: t('monitor.runtimePage.fields.heapReleased'),
+      value: formatSnapshotBytes(runtime?.runtime_heap_released_bytes),
+      description: t('monitor.runtimePage.fieldDescriptions.heapReleased'),
+    },
+    {
+      key: 'stackInUse',
+      label: t('monitor.runtimePage.fields.stackInUse'),
+      value: formatSnapshotBytes(runtime?.runtime_stack_in_use_bytes),
+      description: t('monitor.runtimePage.fieldDescriptions.stackInUse'),
     },
   ];
 });
@@ -329,6 +390,19 @@ function formatSnapshotTimestamp(value?: string | null) {
   return formatted === '--' ? notReportedLabel.value : formatted;
 }
 
+function formatLastGCTimestamp(value?: string | null) {
+  return value ? formatSnapshotTimestamp(value) : t('monitor.runtimePage.notOccurred');
+}
+
+function formatSnapshotDuration(value?: number | null) {
+  const formatted = formatNanosecondsAsDuration(value, notReportedLabel.value, locale.value);
+  return formatted === notReportedLabel.value ? notReportedLabel.value : formatted;
+}
+
+function formatLastGCPause(value?: number | null) {
+  return value === null || value === undefined ? t('monitor.runtimePage.notOccurred') : formatSnapshotDuration(value);
+}
+
 function formatSnapshotUptime(value?: number | null) {
   const formatted = formatUptime(value);
   return formatted === '--' ? notReportedLabel.value : formatted;
@@ -405,6 +479,21 @@ function formatHostMemoryPercent(
   grid-column: span 4;
 }
 
+.server-status-runtime-grid__card--diagnostics {
+  grid-column: span 12;
+}
+
+.server-status-runtime-diagnostics-grid {
+  column-gap: var(--graft-density-gap-24);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.server-status-runtime-diagnostics-grid > :deep(.server-status-kv-row:nth-child(-n + 2)) {
+  border-top: 0;
+  padding-top: 0;
+}
+
 .server-status-runtime-scope-line {
   background: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
   border: 1px solid var(--server-status-card-border, var(--td-component-stroke));
@@ -459,6 +548,15 @@ function formatHostMemoryPercent(
 @media (width <= 575px) {
   .server-status-runtime-memory-hero {
     grid-template-columns: 1fr;
+  }
+
+  .server-status-runtime-diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .server-status-runtime-diagnostics-grid > :deep(.server-status-kv-row:nth-child(2)) {
+    border-top: 1px solid var(--td-component-border);
+    padding-top: var(--graft-density-gap-12);
   }
 }
 </style>

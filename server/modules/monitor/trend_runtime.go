@@ -318,37 +318,123 @@ func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime,
 	if err != nil {
 		return generated.ServerStatusRuntime{}, err
 	}
-	runtimeAllocBytes, err := mustConvertGeneratedInt64(stats.Alloc, "runtime alloc bytes")
-	if err != nil {
-		return generated.ServerStatusRuntime{}, err
-	}
-	runtimeHeapInUseBytes, err := mustConvertGeneratedInt64(stats.HeapInuse, "runtime heap in use bytes")
-	if err != nil {
-		return generated.ServerStatusRuntime{}, err
-	}
-	runtimeSysBytes, err := mustConvertGeneratedInt64(stats.Sys, "runtime sys bytes")
+	runtimeMetrics, err := collectRuntimeMemoryMetrics(stats)
 	if err != nil {
 		return generated.ServerStatusRuntime{}, err
 	}
 
 	return generated.ServerStatusRuntime{
-		GoVersion:             runtime.Version(),
-		HostName:              resolveHostName(),
-		OperatingSystem:       runtime.GOOS,
-		Architecture:          runtime.GOARCH,
-		CpuCores:              runtime.NumCPU(),
-		LoadAverage:           loadAverage,
-		DiskUsage:             diskUsage,
-		HostMemoryTotalBytes:  hostMemoryTotalBytes,
-		HostMemoryUsedBytes:   hostMemoryUsedBytes,
-		HostMemoryFreeBytes:   hostMemoryFreeBytes,
-		HostMemoryUsedPercent: hostMemoryUsedPercent,
-		Goroutines:            runtime.NumGoroutine(),
-		RuntimeAllocBytes:     runtimeAllocBytes,
-		RuntimeHeapInUseBytes: runtimeHeapInUseBytes,
-		RuntimeSysBytes:       runtimeSysBytes,
-		RuntimeGcCycles:       int(stats.NumGC),
+		GoVersion:                runtime.Version(),
+		HostName:                 resolveHostName(),
+		OperatingSystem:          runtime.GOOS,
+		Architecture:             runtime.GOARCH,
+		CpuCores:                 runtime.NumCPU(),
+		LoadAverage:              loadAverage,
+		DiskUsage:                diskUsage,
+		HostMemoryTotalBytes:     hostMemoryTotalBytes,
+		HostMemoryUsedBytes:      hostMemoryUsedBytes,
+		HostMemoryFreeBytes:      hostMemoryFreeBytes,
+		HostMemoryUsedPercent:    hostMemoryUsedPercent,
+		Goroutines:               runtime.NumGoroutine(),
+		RuntimeAllocBytes:        runtimeMetrics.allocBytes,
+		RuntimeHeapInUseBytes:    runtimeMetrics.heapInUseBytes,
+		RuntimeSysBytes:          runtimeMetrics.sysBytes,
+		RuntimeGcCycles:          int(stats.NumGC),
+		RuntimeLastGcAt:          runtimeMetrics.lastGCAt,
+		RuntimeLastGcPauseNs:     runtimeMetrics.lastGCPauseNs,
+		RuntimeGcPauseTotalNs:    runtimeMetrics.gcPauseTotalNs,
+		RuntimeNextGcBytes:       runtimeMetrics.nextGCBytes,
+		RuntimeHeapObjects:       runtimeMetrics.heapObjects,
+		RuntimeHeapReleasedBytes: runtimeMetrics.heapReleasedBytes,
+		RuntimeStackInUseBytes:   runtimeMetrics.stackInUseBytes,
 	}, nil
+}
+
+type runtimeMemoryMetrics struct {
+	allocBytes        int64
+	heapInUseBytes    int64
+	sysBytes          int64
+	gcPauseTotalNs    int64
+	nextGCBytes       int64
+	heapObjects       int64
+	heapReleasedBytes int64
+	stackInUseBytes   int64
+	lastGCAt          *time.Time
+	lastGCPauseNs     *int64
+}
+
+func collectRuntimeMemoryMetrics(stats runtime.MemStats) (runtimeMemoryMetrics, error) {
+	allocBytes, err := mustConvertGeneratedInt64(stats.Alloc, "runtime alloc bytes")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	heapInUseBytes, err := mustConvertGeneratedInt64(stats.HeapInuse, "runtime heap in use bytes")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	sysBytes, err := mustConvertGeneratedInt64(stats.Sys, "runtime sys bytes")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	gcPauseTotalNs, err := mustConvertGeneratedInt64(stats.PauseTotalNs, "runtime GC pause total")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	nextGCBytes, err := mustConvertGeneratedInt64(stats.NextGC, "runtime next GC bytes")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	heapObjects, err := mustConvertGeneratedInt64(stats.HeapObjects, "runtime heap objects")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	heapReleasedBytes, err := mustConvertGeneratedInt64(stats.HeapReleased, "runtime heap released bytes")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	stackInUseBytes, err := mustConvertGeneratedInt64(stats.StackInuse, "runtime stack in-use bytes")
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+	lastGCAt, lastGCPauseNs, err := runtimeLastGCDetails(stats)
+	if err != nil {
+		return runtimeMemoryMetrics{}, err
+	}
+
+	return runtimeMemoryMetrics{
+		allocBytes:        allocBytes,
+		heapInUseBytes:    heapInUseBytes,
+		sysBytes:          sysBytes,
+		gcPauseTotalNs:    gcPauseTotalNs,
+		nextGCBytes:       nextGCBytes,
+		heapObjects:       heapObjects,
+		heapReleasedBytes: heapReleasedBytes,
+		stackInUseBytes:   stackInUseBytes,
+		lastGCAt:          lastGCAt,
+		lastGCPauseNs:     lastGCPauseNs,
+	}, nil
+}
+
+// runtimeLastGCDetails returns nil values until the process has completed its first GC cycle.
+func runtimeLastGCDetails(stats runtime.MemStats) (*time.Time, *int64, error) {
+	if stats.NumGC == 0 {
+		return nil, nil, nil
+	}
+
+	lastGCPauseNs, err := mustConvertGeneratedInt64(
+		stats.PauseNs[(int(stats.NumGC)+len(stats.PauseNs)-1)%len(stats.PauseNs)],
+		"runtime last GC pause",
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	lastGCUnixNs, err := mustConvertGeneratedInt64(stats.LastGC, "runtime last GC timestamp")
+	if err != nil {
+		return nil, nil, err
+	}
+	lastGCAt := time.Unix(0, lastGCUnixNs).UTC()
+
+	return &lastGCAt, &lastGCPauseNs, nil
 }
 
 func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {

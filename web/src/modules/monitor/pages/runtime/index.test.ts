@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
+import type { ServerStatusResponse } from '../../types/server-status';
 import RuntimePage from './index.vue';
 
 const monitorApiMocks = vi.hoisted(() => ({
@@ -71,6 +72,10 @@ const translations = vi.hoisted((): Record<string, string> => ({
     'Memory scope: server memory covers the whole server, while Go Runtime memory covers only the current service process.',
   'monitor.runtimePage.runtimeMemoryTitle': 'Go Runtime Memory',
   'monitor.runtimePage.runtimeMemoryDescription': 'Current in-process memory usage and garbage collection snapshot.',
+  'monitor.runtimePage.diagnosticsTitle': 'GC and Memory Diagnostics',
+  'monitor.runtimePage.diagnosticsDescription':
+    'Garbage collection and memory reclamation for the current Graft process only.',
+  'monitor.runtimePage.notOccurred': 'No GC cycle yet',
   'monitor.runtimePage.processBuildTitle': 'Process and Build',
   'monitor.runtimePage.hostEnvironmentTitle': 'Server Environment',
   'monitor.runtimePage.serverEnvironmentDescription':
@@ -88,6 +93,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.runtimePage.fields.runtimeSys': 'Runtime sys',
   'monitor.runtimePage.fields.gcCycles': 'GC count',
   'monitor.runtimePage.fields.lastGc': 'Last GC time',
+  'monitor.runtimePage.fields.lastGcPause': 'Last GC pause',
+  'monitor.runtimePage.fields.gcPauseTotal': 'Total GC pause',
+  'monitor.runtimePage.fields.nextGc': 'Next GC target',
+  'monitor.runtimePage.fields.heapObjects': 'Heap objects',
+  'monitor.runtimePage.fields.heapReleased': 'Released heap',
+  'monitor.runtimePage.fields.stackInUse': 'Stack in use',
   'monitor.runtimePage.fields.buildVersion': 'Build version',
   'monitor.runtimePage.fields.gitCommit': 'Git commit',
   'monitor.runtimePage.fields.buildTimeUtc': 'Build time (UTC)',
@@ -107,7 +118,17 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.runtimePage.fieldDescriptions.runtimeHeap': 'Heap bytes actively used by the Go process.',
   'monitor.runtimePage.fieldDescriptions.runtimeSys': 'Total memory requested from the system by the Go runtime.',
   'monitor.runtimePage.fieldDescriptions.gcCycles': 'Current snapshot of completed GC cycles.',
-  'monitor.runtimePage.fieldDescriptions.lastGc': 'Reserved until the backend exposes the most recent GC timestamp.',
+  'monitor.runtimePage.fieldDescriptions.lastGc':
+    'Time of the most recently completed GC cycle; the page states when no cycle has completed.',
+  'monitor.runtimePage.fieldDescriptions.lastGcPause':
+    'Stop-the-world pause duration of the most recently completed GC cycle.',
+  'monitor.runtimePage.fieldDescriptions.gcPauseTotal':
+    'Cumulative GC pause duration since the current process started.',
+  'monitor.runtimePage.fieldDescriptions.nextGc': 'Heap allocation target that will trigger the next GC cycle.',
+  'monitor.runtimePage.fieldDescriptions.heapObjects': 'Allocated heap objects tracked by the Go runtime.',
+  'monitor.runtimePage.fieldDescriptions.heapReleased':
+    'Heap memory returned by the Go runtime to the operating system.',
+  'monitor.runtimePage.fieldDescriptions.stackInUse': 'Memory currently occupied by Go stacks.',
   'monitor.runtimePage.fieldDescriptions.buildVersion': 'Uses the current backend version field when present.',
   'monitor.runtimePage.fieldDescriptions.gitCommit':
     'Reserved until the backend exposes an explicit commit identifier.',
@@ -131,6 +152,7 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
+      locale: { value: 'en-US' },
       t: (key: string, params?: Record<string, unknown>) => {
         const template = translations[key] ?? key;
         if (!params) {
@@ -229,7 +251,7 @@ afterEach(() => {
   resetMonitorRefreshPreferencesForTests();
 });
 
-function createResponse() {
+function createResponse(): ServerStatusResponse {
   return {
     status: 'healthy',
     observed_at: '2026-05-21T10:30:00Z',
@@ -273,6 +295,13 @@ function createResponse() {
       runtime_heap_in_use_bytes: 31457280,
       runtime_sys_bytes: 83886080,
       runtime_gc_cycles: 12,
+      runtime_last_gc_at: '2026-05-21T10:29:58Z',
+      runtime_last_gc_pause_ns: 245760,
+      runtime_gc_pause_total_ns: 4915200,
+      runtime_next_gc_bytes: 67108864,
+      runtime_heap_objects: 18432,
+      runtime_heap_released_bytes: 8388608,
+      runtime_stack_in_use_bytes: 1048576,
     },
     dependencies: {
       database: { status: 'healthy', detail: 'ok', latency_ms: 2.1 },
@@ -294,6 +323,7 @@ function createResponse() {
       points: [],
     },
     modules: [],
+    anomalies: [],
   };
 }
 
@@ -307,6 +337,7 @@ describe('monitor runtime page', () => {
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
     expect(wrapper.text()).toContain('Service Status');
     expect(wrapper.text()).toContain('Go Runtime Memory');
+    expect(wrapper.text()).toContain('GC and Memory Diagnostics');
     expect(wrapper.text()).toContain('Server Environment');
     expect(wrapper.text()).toContain('Server memory');
     expect(wrapper.text()).toContain('Memory usage');
@@ -319,6 +350,11 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('5s 后刷新');
     expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Current alloc');
+    expect(wrapper.text()).toContain('Last GC time');
+    expect(wrapper.text()).toContain('05/21/2026');
+    expect(wrapper.text()).toContain('Last GC pause');
+    expect(wrapper.text()).toContain('0.25 ms');
+    expect(wrapper.text()).toContain('Released heap');
     expect(wrapper.text()).toContain(
       'Memory scope: server memory covers the whole server, while Go Runtime memory covers only the current service process.',
     );
@@ -329,12 +365,25 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('2026-05-21T07:55:00Z');
     expect(wrapper.text()).toContain('clean');
     expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
-    expect(wrapper.findAll('.server-status-runtime-grid__card')).toHaveLength(3);
-    expect(wrapper.findAll('.server-status-kv-row')).toHaveLength(18);
+    expect(wrapper.findAll('.server-status-runtime-grid__card')).toHaveLength(4);
+    expect(wrapper.findAll('.server-status-kv-row')).toHaveLength(24);
     expect(wrapper.find('[data-refresh-trend-window-select="true"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Snapshot Context');
     expect(wrapper.text()).not.toContain('Metric scope');
     expect(wrapper.text().match(/Snapshot ready/g)).toHaveLength(1);
     expect(wrapper.text()).not.toContain('Data status');
+  });
+
+  it('distinguishes a process without a completed GC cycle from an unavailable snapshot', async () => {
+    const response = createResponse();
+    response.runtime.runtime_last_gc_at = null;
+    response.runtime.runtime_last_gc_pause_ns = null;
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountRuntimePage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('No GC cycle yet');
+    expect(wrapper.text()).not.toContain('Not reported');
   });
 });
