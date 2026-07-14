@@ -1500,11 +1500,22 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 	}
 	for _, expectedCSS := range []string{
 		"overflow: hidden",
+		".scalar-api-reference.references-layout",
+		".scalar-api-reference.references-layout .references-rendered",
 		".references-rendered",
 		"scrollbar-color: var(--scalar-scrollbar-color, transparent)",
 	} {
 		if !strings.Contains(scalarConfiguration.CustomCSS, expectedCSS) {
 			t.Fatalf("%s: expected Scalar configuration CSS to contain %q", openapiDocsPath, expectedCSS)
+		}
+	}
+	for _, unexpectedCSS := range []string{
+		".scalar-app,",
+		".scalar-app .references-layout",
+		".scalar-app .references-rendered",
+	} {
+		if strings.Contains(scalarConfiguration.CustomCSS, unexpectedCSS) {
+			t.Fatalf("%s: custom CSS must not target the generic Scalar app selector %q", openapiDocsPath, unexpectedCSS)
 		}
 	}
 	if !strings.Contains(recorder.Body.String(), `href="/favicon.svg?v=3"`) {

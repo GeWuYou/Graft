@@ -24,46 +24,42 @@ const scalarDocsCustomCSS = `html, body {
   overflow: hidden;
 }
 
-.scalar-app,
-.scalar-app .references-layout {
+.scalar-api-reference.references-layout {
   height: 100dvh;
   min-height: 0;
-}
-
-.scalar-app .references-layout {
   grid-template-rows: var(--scalar-header-height, 0px) minmax(0, 1fr) auto;
 }
 
-.scalar-app .references-rendered {
+.scalar-api-reference.references-layout .references-rendered {
   min-height: 0;
   overflow-y: auto;
   scrollbar-color: var(--scalar-scrollbar-color, transparent) transparent;
   scrollbar-width: thin;
 }
 
-.scalar-app .references-rendered::-webkit-scrollbar {
+.scalar-api-reference.references-layout .references-rendered::-webkit-scrollbar {
   width: 12px;
 }
 
-.scalar-app .references-rendered::-webkit-scrollbar-track {
+.scalar-api-reference.references-layout .references-rendered::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.scalar-app .references-rendered::-webkit-scrollbar-thumb {
+.scalar-api-reference.references-layout .references-rendered::-webkit-scrollbar-thumb {
   background: var(--scalar-scrollbar-color, transparent);
   background-clip: content-box;
   border: 3px solid transparent;
   border-radius: 20px;
 }
 
-.scalar-app .references-rendered::-webkit-scrollbar-thumb:active {
+.scalar-api-reference.references-layout .references-rendered::-webkit-scrollbar-thumb:active {
   background: var(--scalar-scrollbar-color-active, transparent);
   background-clip: content-box;
   border: 3px solid transparent;
 }
 
 @media (max-width: 1000px) {
-  .scalar-app .references-layout {
+  .scalar-api-reference.references-layout {
     grid-template-rows: var(--scalar-header-height, 0px) 0 minmax(0, 1fr) auto;
   }
 }`
