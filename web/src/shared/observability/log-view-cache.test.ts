@@ -133,4 +133,23 @@ describe('LogViewCache', () => {
 
     expect(result.displayLines.map((line) => line.lineNo)).toEqual([3, 4]);
   });
+
+  it('keeps row keys stable for retained rows after a tail append', () => {
+    const cache = new LogViewCache();
+    const first = cache.buildView({
+      entries: [createEntry('line-a'), createEntry('line-b'), createEntry('line-c')],
+      lineLimit: 3,
+      level: 'ALL',
+      keyword: '',
+    });
+    const second = cache.buildView({
+      entries: [createEntry('line-a'), createEntry('line-b'), createEntry('line-c'), createEntry('line-d')],
+      lineLimit: 3,
+      level: 'ALL',
+      keyword: '',
+    });
+
+    expect(second.displayLines[0]?.rowKey).toBe(first.displayLines[1]?.rowKey);
+    expect(second.displayLines[1]?.rowKey).toBe(first.displayLines[2]?.rowKey);
+  });
 });

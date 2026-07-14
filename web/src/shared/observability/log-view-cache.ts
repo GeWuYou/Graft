@@ -12,9 +12,14 @@ type CachedLineMaterialization = Readonly<{
 }>;
 
 export type LogViewResult = Readonly<{
-  displayLines: DisplayLogLine[];
+  displayLines: LogViewLine[];
   matchCount: number;
 }>;
+
+export type LogViewLine = DisplayLogLine &
+  Readonly<{
+    rowKey: string;
+  }>;
 
 export class LogViewCache {
   readonly #parsedByKey = new Map<string, CachedParsedLogLine>();
@@ -35,7 +40,8 @@ export class LogViewCache {
     this.#pruneSearchCache(visibleKeySet);
 
     const lineNoOffset = options.entries.length - visibleEntries.length;
-    const displayLines: DisplayLogLine[] = [];
+    const displayLines: LogViewLine[] = [];
+    const rowKeyCounts = new Map<string, number>();
     let matchCount = 0;
 
     visibleEntries.forEach((entry, index) => {
@@ -45,10 +51,13 @@ export class LogViewCache {
       }
 
       const searchPayload = this.#resolveSearchPayload(parsedLine, cacheKey, options.keyword);
+      const occurrence = rowKeyCounts.get(cacheKey) ?? 0;
+      rowKeyCounts.set(cacheKey, occurrence + 1);
       matchCount += searchPayload.searchMatchCount;
       displayLines.push({
         ...parsedLine,
         ...searchPayload,
+        rowKey: `${cacheKey}\u0000${occurrence}`,
       });
     });
 
