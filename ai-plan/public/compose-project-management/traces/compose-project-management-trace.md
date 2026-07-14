@@ -1,5 +1,10 @@
 # Compose Project Management Trace
 
+## 2026-07-15 PR #156 migration immutability repair
+
+- 撤回对已提交 `server/internal/httpx/migrations/202607150001_access_log_connection_type.sql` 的改写，新增 `202607150002_access_log_connection_type_backfill_fix.sql` 修复失败握手被误标为 WebSocket 的历史数据。
+- 迁移规范与 `LESSON-BACKEND-MIGRATION-VERSION-001` 明确：已提交 migration 默认可能已执行；只有 Atlas revision 证明所有相关环境均未执行时才允许改写，否则追加 forward-only 修复迁移。
+
 ## 2026-07-11 Import Lifecycle Confirmation
 
 - 将运行时 Compose 导入从“注册后进入详情页审核”收口为导入向导内的强制生命周期审核步骤。
