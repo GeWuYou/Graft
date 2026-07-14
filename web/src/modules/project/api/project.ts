@@ -29,8 +29,6 @@ import type {
   ProjectConfigurationMetadataResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
-  ProjectCreateValidateRequest,
-  ProjectCreateValidateResponse,
   ProjectCreationMethodCatalogResponse,
   ProjectDeployResponse,
   ProjectDestroyRequest,
@@ -41,7 +39,6 @@ import type {
   ProjectListQuery,
   ProjectListResponseWithLifecycle,
   ProjectLogResponse,
-  ProjectManagedRootResponse,
   ProjectOverviewResponse,
   ProjectSavedView,
   ProjectSavedViewRequest,
@@ -96,11 +93,6 @@ type GetProjectConfigurationEnvelope =
 type GetProjectConfigurationData = NonNullable<GetProjectConfigurationEnvelope['data']>;
 type GetProjectConfigurationPathParams = GetProjectConfigurationOperation['parameters']['path'];
 
-type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
-type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
-type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
-type GetProjectManagedRootData = NonNullable<GetProjectManagedRootEnvelope['data']>;
-
 type ProjectCreationMethodsPath = (typeof PROJECT_API_PATH)['CREATION_METHODS'];
 type GetProjectCreationMethodsOperation = paths[ProjectCreationMethodsPath]['get'];
 type GetProjectCreationMethodsEnvelope =
@@ -119,12 +111,6 @@ type GetProjectDiscoveryCandidatesEnvelope =
   GetProjectDiscoveryCandidatesOperation['responses'][200]['content']['application/json'];
 type GetProjectDiscoveryCandidatesData = NonNullable<GetProjectDiscoveryCandidatesEnvelope['data']>;
 
-type ProjectCreateValidatePath = (typeof PROJECT_API_PATH)['CREATE_VALIDATE'];
-type ProjectCreateValidateOperation = paths[ProjectCreateValidatePath]['post'];
-type ProjectCreateValidateEnvelope = ProjectCreateValidateOperation['responses'][200]['content']['application/json'];
-type ProjectCreateValidateData = NonNullable<ProjectCreateValidateEnvelope['data']>;
-type ProjectCreateValidatePayload = ProjectCreateValidateOperation['requestBody']['content']['application/json'];
-
 type ProjectCreatePath = (typeof PROJECT_API_PATH)['CREATE'];
 type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
 type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
@@ -136,12 +122,6 @@ type ProjectTemplateCreateOperation = paths[ProjectTemplateCreatePath]['post'];
 type ProjectTemplateCreateData = NonNullable<
   ProjectTemplateCreateOperation['responses'][201]['content']['application/json']['data']
 >;
-type ProjectTemplateValidatePath = (typeof PROJECT_API_PATH)['CREATE_TEMPLATE_VALIDATE'];
-type ProjectTemplateValidateOperation = paths[ProjectTemplateValidatePath]['post'];
-type ProjectTemplateValidateData = NonNullable<
-  ProjectTemplateValidateOperation['responses'][200]['content']['application/json']['data']
->;
-
 type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
 type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
 type ProjectDeployData = NonNullable<ProjectDeployEnvelope['data']>;
@@ -372,17 +352,6 @@ export function putProjectFileAnnotation(
 }
 
 /**
- * 获取项目可管理的根目录。
- *
- * @returns 项目可管理根目录的响应数据。
- */
-export function getProjectManagedRoot() {
-  return request.get<GetProjectManagedRootData>({
-    url: PROJECT_API_PATH.MANAGED_ROOT,
-  }) as Promise<ProjectManagedRootResponse>;
-}
-
-/**
  * 获取项目创建方式目录。
  *
  * @returns 项目创建方式目录信息。
@@ -412,19 +381,6 @@ export function getProjectDiscoveryCandidates() {
 }
 
 /**
- * 校验项目创建请求。
- *
- * @param payload - 项目创建校验请求内容
- * @returns 校验结果
- */
-export function postProjectCreateValidate(payload: ProjectCreateValidateRequest) {
-  return postProjectAction<ProjectCreateValidateData>(
-    PROJECT_API_PATH.CREATE_VALIDATE,
-    payload as ProjectCreateValidatePayload,
-  ) as Promise<ProjectCreateValidateResponse>;
-}
-
-/**
  * 创建项目。
  *
  * @param payload - 创建项目所需的请求内容
@@ -435,19 +391,6 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
     PROJECT_API_PATH.CREATE,
     payload as ProjectCreatePayload,
   ) as Promise<ProjectCreateResponse>;
-}
-
-/**
- * 校验基于模板创建项目的请求。
- *
- * @param payload - 模板创建请求数据
- * @returns 项目创建校验结果
- */
-export function postProjectCreateTemplateValidate(payload: ProjectTemplateCreateRequest) {
-  return postProjectAction<ProjectTemplateValidateData>(
-    PROJECT_API_PATH.CREATE_TEMPLATE_VALIDATE,
-    payload,
-  ) as Promise<ProjectCreateValidateResponse>;
 }
 
 /**

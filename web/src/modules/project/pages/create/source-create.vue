@@ -45,6 +45,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { postProjectCreateTemplate } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { navigateProjectCreateList, refreshProjectCreatePage } from '../../shared/navigation';
 import type { ProjectTemplateCreateRequest } from '../../types/project';
 defineOptions({ name: 'ProjectSourceCreate' });
 const { t } = useI18n();
@@ -81,10 +82,10 @@ async function onCreate() {
   }
 }
 function goToList() {
-  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
+  navigateProjectCreateList(router, PROJECT_BOOTSTRAP_ROUTE.LIST.routeName);
 }
 function refreshPage() {
-  void router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, query: route.query });
+  refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);
 }
 </script>
 <style scoped>

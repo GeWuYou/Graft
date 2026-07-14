@@ -73,7 +73,12 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { postProjectCreate } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
+import {
+  appendResolvedTab,
+  buildDetailTitleWithFallback,
+  navigateProjectCreateList,
+  refreshProjectCreatePage,
+} from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import type { ProjectCreateRequest, ProjectCreateResponse, ProjectWorkspaceManifestFile } from '../../types/project';
 defineOptions({ name: 'ProjectManagedCreateIndex' });
@@ -132,10 +137,10 @@ async function createProject() {
   }
 }
 function goToList() {
-  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
+  navigateProjectCreateList(router, PROJECT_BOOTSTRAP_ROUTE.LIST.routeName);
 }
 function refreshPage() {
-  void router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, query: route.query });
+  refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, route.query);
 }
 function openCreatedProject(response: ProjectCreateResponse) {
   const target = {

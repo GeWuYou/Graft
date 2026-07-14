@@ -1,6 +1,18 @@
+import type { LocationQueryRaw, Router } from 'vue-router';
+
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
+
+type ProjectCreateRouter = Pick<Router, 'push' | 'replace'>;
+
+export function navigateProjectCreateList(router: ProjectCreateRouter, listRouteName: string) {
+  void router.push({ name: listRouteName });
+}
+
+export function refreshProjectCreatePage(router: ProjectCreateRouter, pageRouteName: string, query: LocationQueryRaw) {
+  void router.replace({ name: pageRouteName, query });
+}
 
 /**
  * 生成带回退规则的详情页标题。
