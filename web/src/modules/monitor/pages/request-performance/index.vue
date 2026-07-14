@@ -66,7 +66,7 @@
                 <button
                   type="button"
                   class="request-performance-page__chart-help"
-                  :aria-label="`${chart.title}${t('monitor.requestPerformance.infoActionLabel')}`"
+                  :aria-label="`${chart.title} ${t('monitor.requestPerformance.infoActionLabel')}`"
                 >
                   <info-circle-icon />
                 </button>
