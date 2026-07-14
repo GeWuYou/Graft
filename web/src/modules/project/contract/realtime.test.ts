@@ -16,7 +16,7 @@ describe('project realtime payload parsers', () => {
           published_at: '2026-07-06T00:00:00Z',
           items: [
             {
-              project_id: 7,
+              application_id: '7',
               runtime_status: 'running',
               service_count: 3,
               container_counts: {
@@ -36,7 +36,7 @@ describe('project realtime payload parsers', () => {
     expect(payload).toMatchObject({
       topic: 'project.list.summary',
       published_at: '2026-07-06T00:00:00Z',
-      items: [{ project_id: 7, runtime_status: 'running' }],
+      items: [{ application_id: '7', runtime_status: 'running' }],
     });
   });
 
@@ -67,7 +67,7 @@ describe('project realtime payload parsers', () => {
       JSON.stringify({
         data: {
           topic: 'project.runtime:7',
-          project_id: 7,
+          application_id: '7',
           published_at: '2026-07-06T00:00:00Z',
           detail: { id: 7 },
           overview: { project_id: 7 },
@@ -78,7 +78,7 @@ describe('project realtime payload parsers', () => {
 
     expect(payload).toMatchObject({
       topic: 'project.runtime:7',
-      project_id: 7,
+      application_id: '7',
       published_at: '2026-07-06T00:00:00Z',
     });
   });
@@ -107,7 +107,7 @@ describe('project realtime payload parsers', () => {
       JSON.stringify({
         data: {
           topic: 'project.lifecycle-config:7',
-          project_id: 7,
+          application_id: '7',
           published_at: '2026-07-06T00:00:00Z',
           detail: { id: 7, lifecycle_configuration: { wait_after_up: true } },
         },
@@ -116,7 +116,7 @@ describe('project realtime payload parsers', () => {
 
     expect(payload).toMatchObject({
       topic: 'project.lifecycle-config:7',
-      project_id: 7,
+      application_id: '7',
       published_at: '2026-07-06T00:00:00Z',
     });
   });
@@ -131,7 +131,7 @@ describe('project realtime payload parsers', () => {
         JSON.stringify({
           data: {
             topic: 'project.lifecycle-config:8',
-            project_id: 7,
+            application_id: '7',
             published_at: '2026-07-06T00:00:00Z',
             detail: { id: 7 },
           },

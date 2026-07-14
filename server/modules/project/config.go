@@ -11,7 +11,7 @@ import (
 
 const (
 	projectConfigDomain          = "ops"
-	projectConfigGroupCreate     = "ops.project.create"
+	projectConfigGroupCreate     = "ops.application.create"
 	projectConfigGroupImport     = "ops.project.import"
 	projectConfigGroupWorkspace  = "ops.project.workspace"
 	projectConfigOrderBase       = 7100
@@ -22,7 +22,7 @@ const (
 	maxWorkspaceTooltipRulesJSON = 16384
 )
 
-const defaultManagedRootDirectory = ""
+const defaultApplicationRootDirectory = "/opt/graft/apps"
 const defaultImportAllowedRoots = "[]"
 const defaultWorkspaceHiddenDirectories = `[".git",".github","node_modules","vendor","target","build","dist","coverage","data","logs","tmp","cache",".idea",".vscode"]`
 const defaultWorkspaceFileTooltipRules = `[{"pattern":"^docker-compose(?:\\.[^.]+)?\\.ya?ml$","tooltip":"Compose 配置","enabled":true},{"pattern":"^\\.env(?:\\..+)?$","tooltip":"环境变量文件","enabled":true}]`
@@ -59,7 +59,7 @@ func registerConfig(registry *configregistry.Registry) error {
 // configDefinitions 返回本模块管理的配置定义列表。
 func configDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
-		projectManagedRootDefinition(),
+		applicationRootDirectoryDefinition(),
 		projectImportAllowedRootsDefinition(),
 		projectWorkspaceHiddenDirectoriesDefinition(),
 		projectWorkspaceFileTooltipRulesDefinition(),
@@ -67,16 +67,17 @@ func configDefinitions() []configregistry.Definition {
 	}
 }
 
-func projectManagedRootDefinition() configregistry.Definition {
+// applicationRootDirectoryDefinition returns the configuration definition for the application's root directory.
+func applicationRootDirectoryDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
-		key:                 projectcontract.ProjectManagedRootConfig.String(),
+		key:                 projectcontract.ApplicationRootDirectoryConfig.String(),
 		group:               projectConfigGroupCreate,
-		groupKey:            projectcontract.ProjectCreateConfigGroupTitle.String(),
-		groupDescriptionKey: projectcontract.ProjectCreateConfigGroupDescription.String(),
-		titleKey:            projectcontract.ProjectManagedRootConfigTitle.String(),
-		descriptionKey:      projectcontract.ProjectManagedRootConfigDescription.String(),
-		schema:              projectManagedRootSchema(),
-		defaultValue:        defaultManagedRootDirectory,
+		groupKey:            projectcontract.ApplicationCreateConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ApplicationCreateConfigGroupDescription.String(),
+		titleKey:            projectcontract.ApplicationRootDirectoryConfigTitle.String(),
+		descriptionKey:      projectcontract.ApplicationRootDirectoryConfigDescription.String(),
+		schema:              applicationRootDirectorySchema(),
+		defaultValue:        defaultApplicationRootDirectory,
 		permission:          projectcontract.ProjectCreatePermission.String(),
 	})
 }
@@ -137,6 +138,7 @@ func projectWorkspaceDirectoryTooltipRulesDefinition() configregistry.Definition
 	})
 }
 
+// buildProjectConfigDefinition constructs a project configuration definition from the provided specification.
 func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregistry.Definition {
 	return configregistry.Definition{
 		Key:                 spec.key,
@@ -162,13 +164,14 @@ func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregist
 	}
 }
 
-// projectManagedRootSchema 返回项目托管根目录配置的 JSON Schema 字符串。
-// projectManagedRootSchema 返回用于项目创建流程托管根目录配置的 JSON Schema。
-// 该 Schema 约束值为字符串，并包含最大长度限制；空值表示托管创建在显式配置前不可用。
-func projectManagedRootSchema() string {
+// applicationRootDirectorySchema returns the JSON Schema for the application root directory.
+// applicationRootDirectorySchema 返回应用根目录配置的 JSON Schema；空字符串表示禁用应用创建。
+func applicationRootDirectorySchema() string {
 	return fmt.Sprintf(
-		`{"type":"string","minLength":0,"maxLength":%d,"description":"Absolute managed root directory for project create flows. Empty means managed create stays unavailable until explicitly configured."}`,
+		`{"type":"string","minLength":0,"maxLength":%d,"x-i18n":{"titleKey":"%s","descriptionKey":"%s"}}`,
 		maxManagedRootLength,
+		projectcontract.ApplicationRootDirectoryConfigTitle.String(),
+		projectcontract.ApplicationRootDirectoryConfigDescription.String(),
 	)
 }
 

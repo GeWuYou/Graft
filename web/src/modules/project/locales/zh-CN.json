@@ -5,6 +5,7 @@
         "invalidArgument": "项目请求参数不合法。",
         "invalidCanonicalProjectName": "Canonical Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
         "conflict": "当前项目状态存在冲突，无法执行该操作。",
+        "composeProjectNameOccupied": "所选运行目标上已有同名 Compose 项目，无法继续操作。",
         "notFound": "未找到对应的项目。",
         "unsupportedLifecycle": "当前项目状态不支持该生命周期操作。",
         "importValidationFailed": "项目导入检查未通过校验。",
@@ -40,8 +41,16 @@
         "breadcrumb": "导入现有项目"
       },
       "create": {
-        "title": "创建项目",
-        "breadcrumb": "创建项目"
+        "title": "创建应用",
+        "breadcrumb": "创建应用"
+      },
+      "createRuntimeTarget": {
+        "title": "选择运行目标",
+        "breadcrumb": "选择运行目标"
+      },
+      "createSource": {
+        "title": "选择应用来源",
+        "breadcrumb": "选择应用来源"
       },
       "createBlank": {
         "title": "新建空白项目",
@@ -285,7 +294,7 @@
         "detail": "详情",
         "operationMenu": "操作",
         "import": "导入现有项目",
-        "create": "创建项目",
+        "create": "创建应用",
         "refresh": "刷新",
         "up": "启动项目",
         "stop": "停止项目",
@@ -685,8 +694,10 @@
       "description": "在受管目录中创建新的 Compose 工作区。",
       "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册项目。创建不会自动部署。",
       "actions": {
+        "refresh": "刷新",
         "backToList": "返回列表",
         "refreshAuthority": "刷新 authority",
+        "resetDefaultDirectory": "恢复默认目录",
         "validate": "校验创建输入",
         "create": "创建并打开项目",
         "reset": "重置表单",
@@ -706,6 +717,8 @@
         "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建项目。"
       },
       "form": {
+        "workspaceKey": "工作区名称",
+        "workspaceKeyPlaceholder": "例如：orders-dev",
         "title": "项目基础信息",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
@@ -713,12 +726,14 @@
         "canonicalProjectNamePlaceholder": "例如：orders-dev",
         "relativeProjectDirectory": "相对项目目录",
         "relativeProjectDirectoryPlaceholder": "例如：orders/dev",
+        "resolvedDirectory": "应用目录",
         "composeFileName": "Compose 文件名",
         "composeFileNamePlaceholder": "例如：compose.yaml",
         "envFileName": "Env 文件名",
         "envFileNamePlaceholder": "留空表示本次不写入 Env 文件"
       },
       "validation": {
+        "workspaceKeyPattern": "工作区名称只能包含小写字母、数字和中横线。",
         "title": "Authority 与路径预览",
         "rootDirectory": "Managed Root",
         "configKey": "系统配置键",
@@ -756,6 +771,7 @@
       },
       "steps": { "identity": "项目与根目录", "workspace": "工作区", "lifecycle": "生命周期", "review": "审核" },
       "workspace": {
+        "defaultCompose": { "unit": "services:\n  app:\n    image: nginx:alpine" },
         "hint": "工作区会作为项目目录完整写入受管根目录。仅支持文本配置文件。",
         "filesTitle": "工作区文件",
         "addFile": "新增文件",
@@ -791,9 +807,9 @@
       }
     },
     "creation": {
-      "eyebrow": "创建项目",
-      "title": "创建项目",
-      "description": "选择项目创建方式。不同的初始化方式最终都会作为统一的 Compose 项目进行管理。",
+      "eyebrow": "Docker Compose",
+      "title": "选择应用来源",
+      "description": "选择 Docker Compose 应用的初始化方式。",
       "availability": { "ready": "可用", "blocked": "暂不可用" },
       "blockedReasons": {
         "managed_root_unconfigured": "受管项目根目录尚未配置，暂时无法新建空白项目。",
@@ -833,15 +849,52 @@
             "register": "登记后统一查看运行状态"
           },
           "advanced": "导入会先检查目录与运行时信息，再登记项目。"
+        },
+        "git": {
+          "title": "Git",
+          "description": "从 Git 仓库创建应用。"
         }
       },
       "messages": { "loadFailed": "项目创建方式加载失败。" }
     },
+    "workflow": { "unsupportedTooltip": "暂不支持" },
+    "deployment": {
+      "eyebrow": "创建应用",
+      "description": "选择应用的部署模型。",
+      "items": {
+        "compose": { "title": "Compose", "description": "基于 Compose Specification" },
+        "swarm": { "title": "Swarm", "description": "Docker Stack" },
+        "kubernetes": { "title": "Kubernetes", "description": "Deployment/Pod" },
+        "nomad": { "title": "Nomad", "description": "Job" }
+      }
+    },
+    "runtimeTarget": {
+      "eyebrow": "Compose",
+      "description": "选择运行目标。",
+      "loadFailed": "运行目标加载失败。",
+      "unavailableTooltip": "运行目标当前不可用"
+    },
+    "runtime": {
+      "eyebrow": "创建应用",
+      "description": "选择应用的运行方式。",
+      "unsupportedTooltip": "暂未支持",
+      "items": {
+        "dockerCompose": { "title": "Docker Compose", "description": "使用 Docker Compose 管理单机应用。" },
+        "dockerSwarm": { "title": "Docker Swarm", "description": "使用 Docker Stack 部署 Swarm 集群应用。" },
+        "kubernetes": { "title": "Kubernetes", "description": "管理 Kubernetes 工作负载。" },
+        "podmanCompose": { "title": "Podman Compose", "description": "使用 Podman Compose 管理应用。" },
+        "nomad": { "title": "Nomad", "description": "使用 Nomad 调度应用工作负载。" }
+      }
+    },
     "sourceCreate": {
-      "templateDescription": "从内置 Compose 工作区模板创建托管项目。",
+      "templateDescription": "从内置 Compose 工作区模板创建托管应用。",
       "displayName": "显示名称",
+      "workspaceKey": "工作区名称",
+      "workspaceKeyPlaceholder": "例如：orders-dev",
       "canonicalName": "规范项目名称",
       "relativeDirectory": "相对目录",
+      "resolvedDirectory": "应用目录",
+      "resetDefaultDirectory": "恢复默认目录",
       "repositoryUrl": "仓库地址",
       "reference": "引用",
       "referencePlaceholder": "HEAD",
@@ -852,12 +905,12 @@
       "instanceName": "模板实例名称",
       "lifecycleHint": "创建时初始化标准项目生命周期配置；创建不会部署或启动容器。",
       "validate": "校验来源",
-      "create": "创建项目",
+      "create": "创建应用",
       "validated": "来源和目标目录有效：{directory}",
       "validateSuccess": "来源校验完成。",
       "validateFailed": "来源校验失败。",
-      "createSuccess": "项目已创建。",
-      "createFailed": "项目创建失败。",
+      "createSuccess": "应用已创建。",
+      "createFailed": "应用创建失败。",
       "deployAfterCreate": "项目创建后立即部署",
       "deployPermissionRequired": "需要项目部署权限才能在创建后部署；不部署也可以正常创建项目。",
       "deploySuccess": "项目已在创建后部署。",

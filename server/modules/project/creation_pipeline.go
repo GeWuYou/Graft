@@ -2,9 +2,11 @@ package project
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
+	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -26,6 +28,7 @@ type CreationCommand struct {
 	ParseResult                projectcompose.Result
 	ActorID                    *uint64
 	RuntimeTargetID            uint64
+	WorkspaceKey               *string
 }
 
 // createProjectFromWorkspace persists the common project aggregate after a source
@@ -43,11 +46,21 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
 	now := time.Now().UTC()
-	targetID, err := s.resolveDockerRuntimeTarget(ctx, command.RuntimeTargetID)
+	targetID, err := s.resolveComposeRuntimeTarget(ctx, command.RuntimeTargetID)
 	if err != nil {
 		return projectstore.ProjectAggregate{}, time.Time{}, err
 	}
+	if err := s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, command.CanonicalProjectName); err != nil {
+		return projectstore.ProjectAggregate{}, time.Time{}, err
+	}
+	strictCreate := command.SourceKind == projectcontract.SourceKindManaged.String() || command.SourceKind == projectcontract.SourceKindTemplate.String()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
+		ApplicationID:              newApplicationID(),
+		WorkspaceKey:               command.WorkspaceKey,
+		WorkspacePath:              strings.TrimSpace(command.WorkingDirectory),
+		ComposeProjectName:         strings.TrimSpace(command.CanonicalProjectName),
+		ComposeProjectNameSource:   composeProjectNameSource(command.CanonicalProjectNameSource),
+		StrictCreate:               strictCreate,
 		DisplayName:                strings.TrimSpace(command.DisplayName),
 		CanonicalProjectName:       strings.TrimSpace(command.CanonicalProjectName),
 		CanonicalProjectNameSource: strings.TrimSpace(command.CanonicalProjectNameSource),
@@ -79,12 +92,51 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	return aggregate, now, nil
 }
 
-func (s *Service) resolveDockerRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {
+// ensureComposeProjectNameAvailableForCreate prevents a managed workspace from
+// claiming a runtime name already owned by another Compose project. An
+// unavailable target is intentionally non-blocking so users can prepare a
+// workspace before the target recovers.
+func (s *Service) ensureComposeProjectNameAvailableForCreate(ctx context.Context, targetID uint64, name string) error {
+	state := s.composeProjectNameState(ctx, targetID, name)
+	switch state {
+	case moduleapi.ComposeProjectNameStateOccupied:
+		return errors.Join(errProjectConflict, errProjectComposeNameOccupied)
+	case moduleapi.ComposeProjectNameStateAvailable, moduleapi.ComposeProjectNameStateUnavailable:
+		return nil
+	default:
+		return errProjectRuntimeUnavailable
+	}
+}
+
+func (s *Service) composeProjectNameState(ctx context.Context, targetID uint64, name string) moduleapi.ComposeProjectNameState {
+	if s == nil || s.runtimeTargets == nil {
+		return moduleapi.ComposeProjectNameStateUnavailable
+	}
+	if targetID == 0 || targetID > uint64(^uint64(0)>>1) || strings.TrimSpace(name) == "" {
+		return moduleapi.ComposeProjectNameStateError
+	}
+	availability, err := s.runtimeTargets.CheckComposeProjectName(ctx, int64(targetID), strings.TrimSpace(name))
+	if err != nil {
+		return moduleapi.ComposeProjectNameStateError
+	}
+	return availability.State
+}
+
+// composeProjectNameSource classifies a canonical Compose project name source.
+// It returns "declared" for the canonical override source and "derived" for all other values.
+func composeProjectNameSource(value string) string {
+	if strings.TrimSpace(value) == projectcontract.CanonicalProjectNameSourceOverride.String() {
+		return "declared"
+	}
+	return "derived"
+}
+
+func (s *Service) resolveComposeRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {
 	if s == nil || s.runtimeTargets == nil {
 		return 0, nil // Unit tests construct the service without module wiring.
 	}
 	if requested == 0 {
-		targets, err := s.runtimeTargets.ListDockerTargets(ctx)
+		targets, err := s.runtimeTargets.ListComposeTargets(ctx)
 		if err != nil || len(targets) != 1 || targets[0].ID < 1 {
 			return 0, errProjectInvalidArgument
 		}
@@ -96,7 +148,7 @@ func (s *Service) resolveDockerRuntimeTarget(ctx context.Context, requested uint
 	}
 	value := int64(requested)
 	id = &value
-	target, err := s.runtimeTargets.ReadDockerTarget(ctx, id)
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, id)
 	if err != nil || target.ID < 1 {
 		return 0, errProjectInvalidArgument
 	}
@@ -118,5 +170,5 @@ func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) Lifec
 
 // managedCreationCommand 构建受管项目创建流程使用的源无关创建命令。
 func managedCreationCommand(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
-	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: normalized.CanonicalProjectName, CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceOverride.String(), SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkingDirectory, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID}
+	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, WorkspaceKey: validation.WorkspaceKey}
 }

@@ -1789,12 +1789,15 @@ let logsRealtimeController: RealtimeTopicSocketController | null = null;
 let logsRealtimeTopic = '';
 const logsBootstrapRequested = ref(false);
 const logsRecoveryLoadRequested = ref(false);
-let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
-  lineLimit: DEFAULT_LOG_QUERY.tail,
-  onCommit: (snapshot) => {
-    logViewStore.commit(snapshot);
-  },
-});
+function createLogsRealtimeBatcher() {
+  return new ContainerLogRealtimeBatcher({
+    lineLimit: DEFAULT_LOG_QUERY.tail,
+    onCommit: (snapshot) => {
+      logViewStore.commit(snapshot);
+    },
+  });
+}
+let logsRealtimeBatcher = createLogsRealtimeBatcher();
 const logsRouteSpinnerActive = computed(() => routeLoading.value && !logsHasVisibleContent.value);
 const detailRefreshButtonLoading = computed(() => detailRefreshing.value);
 const logsHasStarted = computed(
@@ -2620,6 +2623,8 @@ const portColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(() => {
+  logsRealtimeBatcher.destroy();
+  logsRealtimeBatcher = createLogsRealtimeBatcher();
   detailPageActive.value = true;
   updateCurrentTabTitle(fallbackTitle.value);
   void refreshContainerDetail();

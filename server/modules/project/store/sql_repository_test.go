@@ -44,6 +44,23 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryGetIDsByApplicationIDsIgnoresBlankValues(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newTestSQLRepository(t)
+	now := time.Now().UTC()
+	insertProjectRow(t, db, 1, "alpha", now, 0)
+	mustExec(t, db, `UPDATE compose_projects SET application_id = ? WHERE id = ?`, "app_01ARZ3NDEKTSV4RRFFQ69G5FAV", 1)
+
+	result, err := repo.GetIDsByApplicationIDs(context.Background(), []string{"  ", " app_01ARZ3NDEKTSV4RRFFQ69G5FAV ", ""})
+	if err != nil {
+		t.Fatalf("get project IDs: %v", err)
+	}
+	if len(result) != 1 || result["app_01ARZ3NDEKTSV4RRFFQ69G5FAV"] != 1 {
+		t.Fatalf("unexpected resolved IDs: %#v", result)
+	}
+}
+
 func TestSQLRepositoryListAggregatesFilesAndSnapshots(t *testing.T) {
 	t.Parallel()
 
@@ -202,6 +219,11 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 
 	mustExec(t, db, `CREATE TABLE compose_projects (
 		id INTEGER PRIMARY KEY,
+		application_id TEXT NOT NULL DEFAULT 'app_00000000000000000000000000',
+		workspace_key TEXT NULL,
+		workspace_path TEXT NOT NULL DEFAULT '',
+		compose_project_name TEXT NOT NULL DEFAULT '',
+		compose_project_name_source TEXT NOT NULL DEFAULT 'derived',
 		runtime_target_id INTEGER NULL,
 		display_name TEXT NOT NULL,
 		canonical_project_name TEXT NOT NULL,

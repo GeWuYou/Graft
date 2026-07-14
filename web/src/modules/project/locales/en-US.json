@@ -5,6 +5,7 @@
         "invalidArgument": "Invalid project request.",
         "invalidCanonicalProjectName": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
         "conflict": "Project action is blocked by a conflicting project state.",
+        "composeProjectNameOccupied": "The Compose project name is already in use on the selected Runtime Target.",
         "notFound": "Project was not found.",
         "unsupportedLifecycle": "Project lifecycle action is not available for the current project state.",
         "importValidationFailed": "Project import inspection failed validation.",
@@ -40,8 +41,16 @@
         "breadcrumb": "Import Existing Project"
       },
       "create": {
-        "title": "Create Project",
-        "breadcrumb": "Create Project"
+        "title": "Create Application",
+        "breadcrumb": "Create Application"
+      },
+      "createRuntimeTarget": {
+        "title": "Select Runtime Target",
+        "breadcrumb": "Select Runtime Target"
+      },
+      "createSource": {
+        "title": "Choose Application Source",
+        "breadcrumb": "Choose Application Source"
       },
       "createBlank": {
         "title": "Create Blank Project",
@@ -285,7 +294,7 @@
         "detail": "Detail",
         "operationMenu": "Actions",
         "import": "Import Existing Project",
-        "create": "Create Project",
+        "create": "Create Application",
         "refresh": "Refresh",
         "up": "Up",
         "stop": "Stop",
@@ -685,8 +694,10 @@
       "description": "Create a new Compose workspace in the managed directory.",
       "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the project. Create never deploys automatically.",
       "actions": {
+        "refresh": "Refresh",
         "backToList": "Back to List",
         "refreshAuthority": "Refresh Authority",
+        "resetDefaultDirectory": "Reset to Default Directory",
         "validate": "Validate Create Input",
         "create": "Create and Open Project",
         "reset": "Reset Form",
@@ -706,6 +717,8 @@
         "unavailableHint": "The Managed Root Authority Is Not Available Yet. Repair the Upstream System Config Before Creating Projects."
       },
       "form": {
+        "workspaceKey": "Workspace Name",
+        "workspaceKeyPlaceholder": "For example: orders-dev",
         "title": "Project Basics",
         "displayName": "Display Name",
         "displayNamePlaceholder": "Example: Orders Service Dev",
@@ -713,12 +726,14 @@
         "canonicalProjectNamePlaceholder": "Example: orders-dev",
         "relativeProjectDirectory": "Relative Project Directory",
         "relativeProjectDirectoryPlaceholder": "Example: orders/dev",
+        "resolvedDirectory": "Application Directory",
         "composeFileName": "Compose File Name",
         "composeFileNamePlaceholder": "Example: compose.yaml",
         "envFileName": "Env File Name",
         "envFileNamePlaceholder": "Leave Blank to Skip Writing an Env File"
       },
       "validation": {
+        "workspaceKeyPattern": "Workspace names may contain lowercase letters, numbers, and hyphens only.",
         "title": "Authority and Path Preview",
         "rootDirectory": "Managed Root",
         "configKey": "System Config Key",
@@ -761,6 +776,7 @@
         "review": "Review"
       },
       "workspace": {
+        "defaultCompose": { "unit": "services:\n  app:\n    image: nginx:alpine" },
         "hint": "The complete workspace is materialized in the managed root. Only text configuration files are supported.",
         "filesTitle": "Workspace Files",
         "addFile": "Add File",
@@ -796,9 +812,9 @@
       }
     },
     "creation": {
-      "eyebrow": "Create Project",
-      "title": "Create Project",
-      "description": "Choose how to initialize the project. Every method is managed as one Compose project afterward.",
+      "eyebrow": "Docker Compose",
+      "title": "Choose Application Source",
+      "description": "Choose how to initialize this Docker Compose application.",
       "availability": { "ready": "Available", "blocked": "Unavailable" },
       "blockedReasons": {
         "managed_root_unconfigured": "The managed project root is not configured, so blank projects cannot be created yet.",
@@ -838,15 +854,58 @@
             "register": "Registers runtime status under one project record"
           },
           "advanced": "Import reviews directory and runtime information before registration."
+        },
+        "git": {
+          "title": "Git",
+          "description": "Create an application from a Git repository."
         }
       },
       "messages": { "loadFailed": "Project Creation Methods Could Not Be Loaded." }
     },
+    "workflow": { "unsupportedTooltip": "Not Supported Yet" },
+    "deployment": {
+      "eyebrow": "Create Application",
+      "description": "Select the application deployment model.",
+      "items": {
+        "compose": { "title": "Compose", "description": "Based on the Compose Specification" },
+        "swarm": { "title": "Swarm", "description": "Docker Stack" },
+        "kubernetes": { "title": "Kubernetes", "description": "Deployment/Pod" },
+        "nomad": { "title": "Nomad", "description": "Job" }
+      }
+    },
+    "runtimeTarget": {
+      "eyebrow": "Compose",
+      "description": "Select a runtime target.",
+      "loadFailed": "Failed to load runtime targets.",
+      "unavailableTooltip": "This runtime target is currently unavailable"
+    },
+    "runtime": {
+      "eyebrow": "Create Application",
+      "description": "Choose how this application runs.",
+      "unsupportedTooltip": "Not Supported Yet",
+      "items": {
+        "dockerCompose": {
+          "title": "Docker Compose",
+          "description": "Manage a single-host application with Docker Compose."
+        },
+        "dockerSwarm": {
+          "title": "Docker Swarm",
+          "description": "Deploy a Swarm cluster application with Docker Stack."
+        },
+        "kubernetes": { "title": "Kubernetes", "description": "Manage Kubernetes workloads." },
+        "podmanCompose": { "title": "Podman Compose", "description": "Manage an application with Podman Compose." },
+        "nomad": { "title": "Nomad", "description": "Schedule application workloads with Nomad." }
+      }
+    },
     "sourceCreate": {
-      "templateDescription": "Create a managed project from a bundled Compose workspace template.",
+      "templateDescription": "Create a managed application from a bundled Compose workspace template.",
       "displayName": "Display Name",
+      "workspaceKey": "Workspace Name",
+      "workspaceKeyPlaceholder": "For example: orders-dev",
       "canonicalName": "Canonical Project Name",
       "relativeDirectory": "Relative Directory",
+      "resolvedDirectory": "Application Directory",
+      "resetDefaultDirectory": "Reset to Default Directory",
       "repositoryUrl": "Repository URL",
       "reference": "Reference",
       "referencePlaceholder": "HEAD",
@@ -857,12 +916,12 @@
       "instanceName": "Template Instance Name",
       "lifecycleHint": "The standard project lifecycle configuration is initialized on creation. Creation does not deploy or start containers.",
       "validate": "Validate Source",
-      "create": "Create Project",
+      "create": "Create Application",
       "validated": "Source and target are valid: {directory}",
       "validateSuccess": "Source validation completed.",
       "validateFailed": "Source validation failed.",
-      "createSuccess": "Project created.",
-      "createFailed": "Project creation failed.",
+      "createSuccess": "Application created.",
+      "createFailed": "Application creation failed.",
       "deployAfterCreate": "Deploy after the project is created",
       "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment.",
       "deploySuccess": "Project deployed after creation.",

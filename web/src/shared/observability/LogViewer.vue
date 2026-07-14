@@ -120,6 +120,9 @@
         <div
           ref="viewport"
           :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
+          @pointercancel="endViewportInteraction"
+          @pointerdown="beginViewportInteraction"
+          @pointerup="endViewportInteraction"
           @scroll="handleViewportScroll"
         >
           <stream-viewport-state-surface
@@ -138,13 +141,13 @@
             <ol class="log-viewer__lines" :style="virtualListStyle">
               <li
                 v-for="(line, lineIndex) in renderedLines"
-                :key="line.lineNo"
-                :ref="(element) => setRenderedLineRef(line.lineNo, element)"
+                :key="line.rowKey"
+                :ref="(element) => setRenderedLineRef(line.rowKey, element)"
                 tabindex="0"
                 :class="[
                   'log-viewer__line',
                   `log-viewer__line--${line.tone}`,
-                  { 'log-viewer__line--active': isActive(line.lineNo) },
+                  { 'log-viewer__line--active': isActive(line.rowKey) },
                 ]"
                 :style="virtualLineStyle(lineIndex)"
                 @click="openLineDetail(line)"
@@ -352,6 +355,9 @@
     <div
       ref="viewport"
       :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
+      @pointercancel="endViewportInteraction"
+      @pointerdown="beginViewportInteraction"
+      @pointerup="endViewportInteraction"
       @scroll="handleViewportScroll"
     >
       <stream-viewport-state-surface
@@ -370,13 +376,13 @@
         <ol class="log-viewer__lines" :style="virtualListStyle">
           <li
             v-for="(line, lineIndex) in renderedLines"
-            :key="line.lineNo"
-            :ref="(element) => setRenderedLineRef(line.lineNo, element)"
+            :key="line.rowKey"
+            :ref="(element) => setRenderedLineRef(line.rowKey, element)"
             tabindex="0"
             :class="[
               'log-viewer__line',
               `log-viewer__line--${line.tone}`,
-              { 'log-viewer__line--active': isActive(line.lineNo) },
+              { 'log-viewer__line--active': isActive(line.rowKey) },
             ]"
             :style="virtualLineStyle(lineIndex)"
             @click="openLineDetail(line)"
@@ -633,7 +639,8 @@ import { copyText } from './copy';
 import type { StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { type DisplayLogLine, formatLogMetadataValue, type ParsedLogMetadata, summarizeMetadata } from './log-parser';
-import { LogViewCache } from './log-view-cache';
+import { LogViewCache, type LogViewLine } from './log-view-cache';
+import { LogViewportCommitScheduler } from './log-viewport-commit-scheduler';
 import type { StreamViewportState } from './stream-viewport-state';
 import StreamViewportStateSurface from './StreamViewportStateSurface.vue';
 import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
@@ -762,9 +769,20 @@ const viewportScrollTop = ref(0);
 const viewportHeight = ref(DEFAULT_VIRTUAL_VIEWPORT_HEIGHT);
 const viewportPinnedToBottom = ref(true);
 const hasAutoScrolledSinceLastEmpty = ref(false);
-const selectedLineNo = ref<number | null>(null);
-const measuredHeights = shallowRef(new Map<number, number>());
+const selectedLineKey = ref<string | null>(null);
+const measuredHeights = shallowRef(new Map<string, number>());
 const logViewCache = new LogViewCache();
+const renderedEntries = shallowRef<readonly StructuredLogEntry[]>(props.entries);
+const renderedContentVersion = ref(props.contentVersion ?? props.entries.length);
+const viewportCommitScheduler = new LogViewportCommitScheduler<{
+  contentVersion: number;
+  entries: readonly StructuredLogEntry[];
+}>({
+  onCommit: (snapshot) => {
+    renderedEntries.value = snapshot.entries;
+    renderedContentVersion.value = snapshot.contentVersion;
+  },
+});
 let scrollToBottomFrameId: number | null = null;
 
 const levelOptions = computed<SelectOption[]>(() => [
@@ -781,11 +799,11 @@ const levelOptions = computed<SelectOption[]>(() => [
 const lineLimitOptions = computed<SelectOption[]>(() =>
   props.lineLimits.map((value) => ({ label: String(value), value })),
 );
-const effectiveContentVersion = computed(() => props.contentVersion ?? props.entries.length);
+const sourceContentVersion = computed(() => props.contentVersion ?? props.entries.length);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim());
 const logView = computed(() =>
   logViewCache.buildView({
-    entries: props.entries,
+    entries: renderedEntries.value,
     lineLimit: selectedLineLimit.value,
     level: selectedLevel.value,
     keyword: normalizedSearchKeyword.value,
@@ -804,7 +822,7 @@ const virtualMetrics = computed<VirtualMetrics>(() => {
 
   for (const line of displayLines.value) {
     offsets.push(totalHeight);
-    const rowHeight = measuredHeights.value.get(line.lineNo) ?? defaultVirtualRowHeight.value;
+    const rowHeight = measuredHeights.value.get(line.rowKey) ?? defaultVirtualRowHeight.value;
     totalHeight += rowHeight;
     ends.push(totalHeight);
   }
@@ -843,7 +861,7 @@ const virtualListStyle = computed(() => ({
   height: `${virtualMetrics.value.totalHeight}px`,
 }));
 const searchMatchCount = computed(() => logView.value.matchCount);
-const selectedLine = computed(() => displayLines.value.find((line) => line.lineNo === selectedLineNo.value) ?? null);
+const selectedLine = computed(() => displayLines.value.find((line) => line.rowKey === selectedLineKey.value) ?? null);
 const shouldRenderViewportStateSurface = computed(() => !displayLines.value.length);
 const viewportStateSurfaceModel = computed<LogViewerViewportState>(() => {
   if (props.viewportState) {
@@ -877,7 +895,7 @@ const detailDrawerVisible = computed({
   get: () => selectedLine.value !== null,
   set: (visible: boolean) => {
     if (!visible) {
-      selectedLineNo.value = null;
+      selectedLineKey.value = null;
     }
   },
 });
@@ -901,7 +919,7 @@ watch(
 );
 
 watch(
-  () => [effectiveContentVersion.value, scrollAfterRefresh.value] as const,
+  () => [renderedContentVersion.value, scrollAfterRefresh.value] as const,
   () => {
     if (!scrollAfterRefresh.value) return;
     if (!displayLines.value.length) return;
@@ -917,12 +935,29 @@ watch(
 );
 
 watch(
-  () => [props.entries, effectiveContentVersion.value, wrapLines.value] as const,
+  () => [renderedEntries.value, renderedContentVersion.value] as const,
+  () => {
+    pruneMeasuredHeights();
+    void nextTick(syncViewportMetrics);
+  },
+  { flush: 'post' },
+);
+
+watch(
+  () => wrapLines.value,
   () => {
     clearMeasuredHeights();
     void nextTick(syncViewportMetrics);
   },
-  { flush: 'post' },
+);
+
+watch(
+  () => [props.entries, sourceContentVersion.value] as const,
+  ([entries, contentVersion], previous) => {
+    const firstNonEmptySnapshot = renderedEntries.value.length === 0 && entries.length > 0;
+    viewportCommitScheduler.publish({ entries, contentVersion }, previous === undefined || firstNonEmptySnapshot);
+  },
+  { immediate: true },
 );
 
 onMounted(() => {
@@ -931,6 +966,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  viewportCommitScheduler.destroy();
   window.removeEventListener('resize', syncViewportMetrics);
   if (scrollToBottomFrameId !== null) {
     cancelAnimationFrame(scrollToBottomFrameId);
@@ -997,6 +1033,21 @@ function handleViewportScroll(event: Event) {
   viewportScrollTop.value = node.scrollTop;
   viewportHeight.value = node.clientHeight || DEFAULT_VIRTUAL_VIEWPORT_HEIGHT;
   viewportPinnedToBottom.value = isViewportNearBottom(node);
+  if (event.isTrusted) viewportCommitScheduler.noteUserScroll();
+}
+
+function beginViewportInteraction(event: PointerEvent) {
+  viewportCommitScheduler.beginInteraction();
+  const node = event.currentTarget;
+  if (node instanceof HTMLElement) node.setPointerCapture?.(event.pointerId);
+}
+
+function endViewportInteraction(event: PointerEvent) {
+  const node = event.currentTarget;
+  if (node instanceof HTMLElement && node.hasPointerCapture?.(event.pointerId)) {
+    node.releasePointerCapture(event.pointerId);
+  }
+  viewportCommitScheduler.endInteraction();
 }
 
 function syncViewportMetrics() {
@@ -1017,7 +1068,7 @@ function virtualLineStyle(renderedIndex: number) {
   };
 }
 
-function setRenderedLineRef(lineNo: number, element: Element | ComponentPublicInstance | null) {
+function setRenderedLineRef(rowKey: string, element: Element | ComponentPublicInstance | null) {
   if (!(element instanceof HTMLElement)) {
     return;
   }
@@ -1028,18 +1079,29 @@ function setRenderedLineRef(lineNo: number, element: Element | ComponentPublicIn
     element.clientHeight ||
     defaultVirtualRowHeight.value;
   const nextHeight = Math.max(defaultVirtualRowHeight.value, Math.ceil(measuredHeight) + LOG_ROW_VERTICAL_MARGIN_PX);
-  const currentHeight = measuredHeights.value.get(lineNo);
+  const currentHeight = measuredHeights.value.get(rowKey);
   if (currentHeight === nextHeight) {
     return;
   }
 
-  measuredHeights.value.set(lineNo, nextHeight);
+  measuredHeights.value.set(rowKey, nextHeight);
   triggerRef(measuredHeights);
 }
 
 function clearMeasuredHeights() {
   measuredHeights.value.clear();
   triggerRef(measuredHeights);
+}
+
+function pruneMeasuredHeights() {
+  const activeRowKeys = new Set(displayLines.value.map((line) => line.rowKey));
+  let changed = false;
+  for (const rowKey of measuredHeights.value.keys()) {
+    if (activeRowKeys.has(rowKey)) continue;
+    measuredHeights.value.delete(rowKey);
+    changed = true;
+  }
+  if (changed) triggerRef(measuredHeights);
 }
 
 function scheduleScrollToBottom() {
@@ -1053,16 +1115,16 @@ function scheduleScrollToBottom() {
   });
 }
 
-function openLineDetail(line: DisplayLogLine) {
-  selectedLineNo.value = line.lineNo;
+function openLineDetail(line: LogViewLine) {
+  selectedLineKey.value = line.rowKey;
 }
 
 function closeLineDetail() {
-  selectedLineNo.value = null;
+  selectedLineKey.value = null;
 }
 
-function isActive(lineNo: number) {
-  return selectedLineNo.value === lineNo;
+function isActive(rowKey: string) {
+  return selectedLineKey.value === rowKey;
 }
 
 async function copySelectedLine() {

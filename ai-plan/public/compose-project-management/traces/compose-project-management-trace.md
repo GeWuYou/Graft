@@ -430,3 +430,25 @@
 - Accepted the Application Management UI and icon boundary: `/projects` supports saved-view CRUD and target/provider filtering; menu rendering has one static Iconify resolver, with Lucide defaults and Tabler's outline Docker logo.
 - Validation passed: `git diff --check`, `python3 scripts/validate_sql_migrations.py`, `node scripts/openapi-bundle.mjs`, `cd web && bun run openapi:types:check`, targeted Go/Vitest suites, `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `python3 scripts/validate_shared_asset_registries.py`, and `python3 scripts/validate_ai_plan_structure.py`.
 - Archive-readiness remains false. The previously deferred `remote-source-adapter-and-activity-boundary` is independent Phase 3 work; it must not be represented by a placeholder route, API, or source catalog entry.
+
+## 2026-07-14 Application model authority repair
+
+- 创建 IA 固定为 `Deployment Type -> Runtime Target -> Source`。Compose 是基于 Compose Specification 的 Deployment Type；Docker、Podman、containerd 是 Runtime Provider，不能再产生 Docker Compose / Podman Compose 两个一级应用模型。
+- 第一步保留 Compose 可点击卡片，并将 Swarm、Kubernetes、Nomad 作为禁用且带“暂不支持”提示的路线图；第二步只列出有真实 Compose capability 的 Runtime Target，当前为 Local Docker；第三步只公开 Blank、Template、Import Existing。
+- Application 的公开稳定标识改为创建后的 `app_<ULID>`。`Display Name`、唯一 Workspace Key/Path 与 Compose Project Name 分离：受管 Workspace 由服务端创建在 Application Root 下；表单展示 Graft 提议、用户可编辑的单层安全 Workspace Key，Compose `name:` 是 deployment identity，用户不填任意目录或 Compose 名称。
+- 创建路由的 `runtime_target_id` 始终指向既有运行目标；不得使用尚未创建的 Application ID 作为 Target 查询值。
+- Workspace 不按 Deployment Type 或 Provider 分层；Runtime 变更不移动 Workspace。数据库 registry 是元数据真相，实际 Workspace 是文件内容真相；本主题不引入 `graft.yaml`。
+- 下一批为 `application-identity-backend`：由 OpenAPI 与 `server/modules/project/**` 修复 public ID、受管 Workspace、Compose identity 和 capability-aware target authority；不得以旧 `canonical_project_name` 或相对目录作兼容入口。
+
+## 2026-07-14 Git source roadmap-card boundary
+
+- 用户要求 Source 阶段视觉上完整呈现 Blank、Template、Git、Import Existing；Git 采用禁用卡片，不可点击或键盘触发，并以本地化 tooltip 显示“暂不支持”。
+- Git 的可见路线图不构成当前 source capability：不新增 URL、OpenAPI、创建方式目录项、菜单、`source_kind`、持久化 metadata 或后端 placeholder model。
+- 设计与导航 IA 已同步该边界。后续 `create-workflow-web` 只负责实现来源页的禁用 Git 卡片与既有三种可执行来源，不得扩大到 Git adapter。
+
+## 2026-07-14 Application creation authority repair accepted
+
+- 服务端已将公开 Application ID、Workspace Key/Path 与 Compose Project Name 分离；Workspace 仅按 Application 管理，不编码 Runtime Provider 或 Deployment Type。Compose 创建会验证顶层 `name:` 和运行目标内的名称占用，包含已停止容器。
+- Web 创建流程已落地为 `Deployment Type -> Runtime Target -> Source`。当前只展示真实具备 Compose capability 的 Local Docker；未支持的部署模型和 Git 使用本地化禁用提示，不建立占位 API 或路由。
+- 列表、详情、配置和导入页面已同步公开 Application contract；技术目录与 Canonical Project Name 不再作为新建表单输入。返回列表与刷新动作均使用已本地化的明确文案。
+- 验证通过：`git diff --check`、`python3 scripts/validate_sql_migrations.py`、`cd web && bun run openapi:types:check`、`cd web && bun run lint:i18n`、`cd web && bun run check`、`cd server && go run ./cmd/graft validate backend`。浏览器 QA 未执行，因为本机缺少 Playwright 的 `chrome-for-testing`。

@@ -54,11 +54,13 @@ Locked architecture decisions:
    - configuration metadata/list
    - configuration preview
    - configuration single-file content
-8. `Canonical Project Name` 与 `Display Name` 必须分离。
+8. `Application ID`、Workspace Key/Path、`Display Name` 与 `Compose Project Name` 必须分离。
+   - Workspace Key 是表单中 Graft 提议、用户可编辑且服务端唯一校验的单层安全值；Application ID 在创建后才生成，不能作为 Runtime Target 查询标识。
 9. Snapshot 只表示最近一次成功解析结果，不是 runtime cache。
 10. Phase 1 只做 `local host`。
-11. 推荐静态解析使用 `compose-go`，生命周期执行使用 `docker compose` CLI。
-12. 推荐 persistence 使用模块自有 `database/sql + migrations`，不是先回到集中 Ent 仓储。
+11. Compose 是 Deployment Type；Runtime Target 是 Provider-neutral capability authority。当前只公开 Local Docker；未来 Podman/Containerd 只能作为 Target Provider 接入。
+12. 推荐静态解析使用 `compose-go`，生命周期执行由 Target Provider adapter 执行当前 Docker Compose CLI 语义。
+13. 推荐 persistence 使用模块自有 `database/sql + migrations`，不是先回到集中 Ent 仓储。
 
 Implementation guardrails:
 

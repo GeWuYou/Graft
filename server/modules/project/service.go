@@ -38,6 +38,7 @@ var (
 	errProjectInspectionStale      = errors.New("project inspection stale")
 	errProjectFileHashMismatch     = errors.New("project file hash mismatch")
 	errProjectRuntimeUnavailable   = errors.New("project runtime is unavailable")
+	errProjectComposeNameOccupied  = errors.New("compose project name is already occupied on runtime target")
 	errProjectActorAttribution     = errors.New("project actor attribution required")
 )
 
@@ -101,6 +102,11 @@ type ListResult struct {
 // CreationMethodCatalogResult returns the available Compose project creation methods.
 type CreationMethodCatalogResult struct {
 	Items []generated.ProjectCreationMethod
+}
+
+// ComposeRuntimeTargets returns registered runtime targets that implement the Compose capability contract.
+func (s *Service) ComposeRuntimeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	return s.listComposeTargets(ctx)
 }
 
 // ActivityAuthority identifies the stable project activity authority contract.
@@ -385,7 +391,10 @@ type ManagedRootInfo struct {
 
 // ManagedProjectCreateRequest describes Phase 2 managed-create contract payloads.
 type ManagedProjectCreateRequest struct {
-	DisplayName              string
+	DisplayName     string
+	RuntimeTargetID uint64
+	WorkspaceKey    *string
+	// Internal source adapters retain these fields while public HTTP contracts use workspace_key.
 	CanonicalProjectName     string
 	RelativeProjectDirectory string
 	ComposeFileName          string
@@ -409,9 +418,12 @@ type ManagedProjectCreateValidationResult struct {
 	ManagedRoot             ManagedRootInfo
 	SourceType              string
 	DisplayName             string
-	CanonicalProjectName    string
+	ComposeProjectName      string
+	WorkspaceKey            *string
 	OwnershipMode           string
+	WorkspacePath           string
 	WorkingDirectory        string
+	CanonicalProjectName    string
 	ComposeFileName         string
 	EnvFileName             *string
 	ComposeFileAbsolutePath string
@@ -425,6 +437,7 @@ type ManagedProjectCreateResult struct {
 	Validation           ManagedProjectCreateValidationResult
 	SourceType           string
 	ProjectID            uint64
+	ApplicationID        string
 	ConfigHash           string
 	DeclaredServiceCount int
 	RefreshedAt          time.Time
@@ -438,7 +451,7 @@ type Service struct {
 	logReader                    moduleapi.ContainerProjectLogReader
 	configResolver               moduleapi.SystemConfigResolver
 	savedViews                   moduleapi.SavedViewService
-	runtimeTargets               moduleapi.RuntimeTargetReader
+	runtimeTargets               moduleapi.ComposeRuntimeTargetReader
 	authorizer                   moduleapi.Authorizer
 	realtimeTickets              realtimeauth.Service
 	realtimeHub                  realtime.Hub
@@ -576,10 +589,17 @@ func (s *Service) SetSavedViewService(service moduleapi.SavedViewService) {
 }
 
 // SetRuntimeTargetReader injects the narrow Runtime Target identity authority.
-func (s *Service) SetRuntimeTargetReader(reader moduleapi.RuntimeTargetReader) {
+func (s *Service) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) {
 	if s != nil {
 		s.runtimeTargets = reader
 	}
+}
+
+// WithRuntimeTargetReader configures the Compose runtime target reader used by the service.
+func WithRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.runtimeTargets = reader
+	})
 }
 
 // SetAuthorizer injects the authorizer after module registration.
@@ -626,7 +646,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if query.Provider != "" && query.Provider != "docker" {
 		return ListResult{Items: []generated.ProjectListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 	}
-	targets, err := s.listDockerTargets(ctx)
+	targets, err := s.listComposeTargets(ctx)
 	if err != nil {
 		return ListResult{}, err
 	}
@@ -654,7 +674,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }
 
-func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.RuntimeTargetSummary) bool {
+// 当 ID 为空时返回 true；当 ID 小于 1 或不对应已知目标时返回 false。
+func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.ComposeRuntimeTargetSummary) bool {
 	if id == nil {
 		return true
 	}
@@ -671,7 +692,7 @@ func (s *Service) listRuntimeStatusPage(
 	repository projectstore.Repository,
 	storeQuery projectstore.ListQuery,
 	query ListQuery,
-	targetByID map[uint64]moduleapi.RuntimeTargetSummary,
+	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 ) (ListResult, error) {
 	matched := make([]generated.ProjectListItem, 0)
 	offset := 0
@@ -699,7 +720,7 @@ func (s *Service) listRuntimeStatusPage(
 func (s *Service) mapProjectListItems(
 	ctx context.Context,
 	items []projectstore.ProjectAggregate,
-	targetByID map[uint64]moduleapi.RuntimeTargetSummary,
+	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 	runtimeStatus string,
 ) []generated.ProjectListItem {
 	managedRootDirectory := s.readyManagedRootDirectory(ctx)
@@ -721,16 +742,16 @@ func (s *Service) mapProjectListItems(
 	return mappedItems
 }
 
-func (s *Service) listDockerTargets(ctx context.Context) ([]moduleapi.RuntimeTargetSummary, error) {
+func (s *Service) listComposeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
 	if s == nil || s.runtimeTargets == nil {
-		return []moduleapi.RuntimeTargetSummary{}, nil
+		return []moduleapi.ComposeRuntimeTargetSummary{}, nil
 	}
-	return s.runtimeTargets.ListDockerTargets(ctx)
+	return s.runtimeTargets.ListComposeTargets(ctx)
 }
 
 // runtimeTargetLookup indexes valid runtime-target summaries by ID.
-func runtimeTargetLookup(targets []moduleapi.RuntimeTargetSummary) map[uint64]moduleapi.RuntimeTargetSummary {
-	byID := make(map[uint64]moduleapi.RuntimeTargetSummary, len(targets))
+func runtimeTargetLookup(targets []moduleapi.ComposeRuntimeTargetSummary) map[uint64]moduleapi.ComposeRuntimeTargetSummary {
+	byID := make(map[uint64]moduleapi.ComposeRuntimeTargetSummary, len(targets))
 	for _, target := range targets {
 		if target.ID > 0 {
 			byID[uint64(target.ID)] = target
@@ -744,10 +765,10 @@ func (s *Service) BackfillRuntimeTargets(ctx context.Context) error {
 	if s == nil || s.repository == nil || s.runtimeTargets == nil {
 		return nil
 	}
-	target, err := s.runtimeTargets.ReadDockerTarget(ctx, nil)
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, nil)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("backfill runtime targets: read docker target failed", zap.String("module", s.moduleName), zap.Error(err))
+			s.logger.Warn("backfill runtime targets: read compose target failed", zap.String("module", s.moduleName), zap.Error(err))
 		}
 		return nil
 	}
@@ -910,9 +931,9 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 		items = append(items, generatedItem)
 	}
 	return generated.ProjectOverviewResponse{
-		ProjectId:            mustGeneratedID(projectID),
-		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
-		CollectedAt:          optionalRFC3339Time(resourceSummary.CollectedAt),
+		ApplicationId:      aggregate.Project.ApplicationID,
+		ComposeProjectName: aggregate.Project.ComposeProjectName,
+		CollectedAt:        optionalRFC3339Time(resourceSummary.CollectedAt),
 		Health: generated.ProjectOverviewHealthSummary{
 			HealthyServiceCount:     healthyServiceCount,
 			HealthyContainerCount:   resourceSummary.HealthyContainerCount,
@@ -937,7 +958,7 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 
 // ManagedRoot reports the canonical managed-root authority for future managed-create flows.
 func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
-	definitionKey := projectcontract.ProjectManagedRootConfig.String()
+	definitionKey := projectcontract.ApplicationRootDirectoryConfig.String()
 	info := ManagedRootInfo{
 		SourceType:            "managed",
 		Status:                projectcontract.ManagedRootStatusUnconfigured.String(),
@@ -1001,7 +1022,18 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
-	workingDirectory := filepath.Join(*rootInfo.ConfiguredRootDirectory, normalized.RelativeProjectDirectory)
+	workingDirectory, workspaceKey, err := chooseWorkspacePath(*rootInfo.ConfiguredRootDirectory, normalized.WorkspaceKey, request.WorkspaceKey != nil && strings.TrimSpace(*request.WorkspaceKey) != "")
+	if err != nil {
+		return ManagedProjectCreateValidationResult{}, err
+	}
+	composeName, composeContent, err := ensureComposeProjectName(normalized.ComposeFileContent, normalized.DisplayName)
+	if err != nil {
+		return ManagedProjectCreateValidationResult{}, err
+	}
+	if err := s.ensureManagedCreateRuntimeNameAvailable(ctx, normalized.RuntimeTargetID, composeName); err != nil {
+		return ManagedProjectCreateValidationResult{}, err
+	}
+	normalized.ComposeFileContent = composeContent
 	composeFileAbsolutePath := filepath.Join(workingDirectory, normalized.ComposeFileName)
 	envFileAbsolutePath := managedCreateEnvAbsolutePath(workingDirectory, normalized.EnvFileName)
 	warnings := make([]string, 0, managedCreateWarningsCap)
@@ -1014,21 +1046,35 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		ManagedRoot:             rootInfo,
 		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
-		CanonicalProjectName:    normalized.CanonicalProjectName,
+		ComposeProjectName:      composeName,
+		WorkspaceKey:            workspaceKey,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
+		WorkspacePath:           workingDirectory,
 		WorkingDirectory:        workingDirectory,
+		CanonicalProjectName:    composeName,
 		ComposeFileName:         normalized.ComposeFileName,
 		EnvFileName:             normalized.EnvFileName,
 		ComposeFileAbsolutePath: composeFileAbsolutePath,
 		EnvFileAbsolutePath:     envFileAbsolutePath,
 		SourceMetadata: map[string]string{
-			"managed_root_key":           rootInfo.ConfigKey,
-			"managed_relative_directory": normalized.RelativeProjectDirectory,
-			"managed_compose_file_name":  normalized.ComposeFileName,
-			"managed_env_file_name":      stringValue(normalized.EnvFileName),
+			"managed_root_key":          rootInfo.ConfigKey,
+			"workspace_key":             *workspaceKey,
+			"managed_compose_file_name": normalized.ComposeFileName,
+			"managed_env_file_name":     stringValue(normalized.EnvFileName),
 		},
 		Warnings: warnings,
 	}, nil
+}
+
+func (s *Service) ensureManagedCreateRuntimeNameAvailable(ctx context.Context, runtimeTargetID uint64, composeName string) error {
+	if s.runtimeTargets == nil {
+		return nil
+	}
+	targetID, err := s.resolveComposeRuntimeTarget(ctx, runtimeTargetID)
+	if err != nil {
+		return err
+	}
+	return s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, composeName)
 }
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
@@ -1102,6 +1148,27 @@ func (s *Service) repositoryOrErr() (projectstore.Repository, error) {
 		return nil, errProjectServiceUnavailable
 	}
 	return s.repository, nil
+}
+
+// ResolveApplicationID resolves the only public Project HTTP identifier to the
+// module-private key used by project-owned tables and task records.
+func (s *Service) ResolveApplicationID(ctx context.Context, applicationID string) (uint64, error) {
+	if !isApplicationID(applicationID) {
+		return 0, errProjectInvalidArgument
+	}
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return 0, err
+	}
+	lookup, ok := repository.(projectstore.ApplicationLookupRepository)
+	if !ok {
+		return 0, errProjectServiceUnavailable
+	}
+	aggregate, err := lookup.GetByApplicationID(ctx, applicationID)
+	if err != nil {
+		return 0, mapStoreError(err)
+	}
+	return aggregate.Project.ID, nil
 }
 
 func (s *Service) getAggregate(ctx context.Context, projectID uint64) (projectstore.ProjectAggregate, error) {

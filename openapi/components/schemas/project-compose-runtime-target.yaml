@@ -1,0 +1,18 @@
+type: object
+required: [runtime_target_id, display_name, provider, availability, readiness, capabilities]
+properties:
+  runtime_target_id:
+    type: integer
+    format: int64
+  display_name:
+    type: string
+  provider:
+    type: string
+  availability:
+    type: boolean
+  readiness:
+    type: string
+    enum: [ready, runtime_unavailable]
+  capabilities:
+    type: array
+    items: {type: string}

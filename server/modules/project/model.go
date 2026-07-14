@@ -9,6 +9,11 @@ import "time"
 // snapshot, and drift metadata.
 type Record struct {
 	ID                         uint64
+	ApplicationID              string
+	WorkspaceKey               *string
+	WorkspacePath              string
+	ComposeProjectName         string
+	ComposeProjectNameSource   string
 	DisplayName                string
 	CanonicalProjectName       string
 	CanonicalProjectNameSource string

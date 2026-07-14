@@ -1,0 +1,16 @@
+get:
+  tags: [project]
+  summary: List selectable Compose runtime targets
+  operationId: getProjectComposeRuntimeTargets
+  description: "Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready."
+  security: [{bearerAuth: []}]
+  responses:
+    '200':
+      description: Compose runtime target catalog.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-compose-runtime-target-catalog-response.yaml
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

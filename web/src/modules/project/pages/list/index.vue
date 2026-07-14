@@ -94,7 +94,7 @@
         :empty-title="t('project.list.emptyTitle')"
         :footer-summary="paginationSummary"
         :loading="tableLoading"
-        row-key="id"
+        row-key="application_id"
         :rows="rows"
         :selected-row-keys="selectedRowKeys"
         :summary="t('project.list.tableSummary', { count: summaryTotalCount })"
@@ -254,7 +254,7 @@
             <div class="project-identity__meta">
               <span v-if="projectSecondaryName(projectRow(row))">{{ projectSecondaryName(projectRow(row)) }}</span>
             </div>
-            <code>{{ projectRow(row).working_directory }}</code>
+            <code>{{ projectRow(row).workspace_path }}</code>
           </div>
         </template>
 
@@ -285,18 +285,18 @@
               :class="[
                 'project-runtime-badge',
                 `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
-                { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).id) },
+                { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).application_id) },
               ]"
-              :aria-busy="isRowActionPending(projectRow(row).id)"
+              :aria-busy="isRowActionPending(projectRow(row).application_id)"
               :aria-label="runtimeStatusActionTooltip(projectRow(row))"
-              :disabled="openingTaskRowIds.has(projectRow(row).id)"
-              :data-testid="`project-runtime-status-${projectRow(row).id}`"
+              :disabled="openingTaskRowIds.has(projectRow(row).application_id)"
+              :data-testid="`project-runtime-status-${projectRow(row).application_id}`"
               @click="openProjectTask(projectRow(row))"
             >
               <span
-                v-if="isRowActionPending(projectRow(row).id)"
+                v-if="isRowActionPending(projectRow(row).application_id)"
                 class="project-runtime-badge__spinner"
-                :data-testid="`project-runtime-status-loading-${projectRow(row).id}`"
+                :data-testid="`project-runtime-status-loading-${projectRow(row).application_id}`"
               />
               <template v-else>
                 {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
@@ -319,7 +319,7 @@
                   :key="badge.key"
                   :class="['project-resource-badge', `project-resource-badge--${badge.key}`]"
                   :aria-label="badge.label"
-                  :data-testid="`project-resource-badge-${badge.key}-${projectRow(row).id}`"
+                  :data-testid="`project-resource-badge-${badge.key}-${projectRow(row).application_id}`"
                   :title="badge.label"
                 >
                   <span class="project-resource-badge__icon" aria-hidden="true">{{ badge.icon }}</span>
@@ -504,7 +504,7 @@ const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
 const activeTaskId = ref<number | null>(null);
 const taskDrawerVisible = ref(false);
-const openingTaskRowIds = ref(new Set<number>());
+const openingTaskRowIds = ref(new Set<string>());
 let taskOpenRequestVersion = 0;
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
@@ -735,8 +735,8 @@ const projectSavedViews = useSavedQueryViews<ProjectSavedQueryViewState, number>
 });
 const confirmDialogOpen = ref(false);
 const realtimeActive = ref(false);
-const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
-const selectedRowKeys = ref<number[]>([]);
+const pendingRowActions = ref<Record<string, PendingProjectActionState>>({});
+const selectedRowKeys = ref<string[]>([]);
 const batchActionLoading = ref<ProjectBatchActionUi | ''>('');
 
 const summaryTotalCount = computed(() => (pagination.value.total > 0 ? pagination.value.total : rows.value.length));
@@ -790,7 +790,7 @@ const paginationSummary = computed(() => {
   return `${start}-${end} / ${pagination.value.total}`;
 });
 const selectedRows = computed(() => {
-  const rowMap = new Map(rows.value.map((row) => [row.id, row]));
+  const rowMap = new Map(rows.value.map((row) => [row.application_id, row]));
   return selectedRowKeys.value
     .map((id) => rowMap.get(id))
     .filter((row): row is ProjectListItemWithLifecycle => Boolean(row));
@@ -955,7 +955,7 @@ function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResou
 }
 
 function projectSecondaryName(row: ProjectListItemWithLifecycle) {
-  const canonicalName = row.canonical_project_name?.trim() || '';
+  const canonicalName = row.compose_project_name?.trim() || '';
   const displayName = row.display_name?.trim() || '';
 
   if (!canonicalName || canonicalName === displayName) {
@@ -966,8 +966,8 @@ function projectSecondaryName(row: ProjectListItemWithLifecycle) {
 }
 
 let refreshRequestSeq = 0;
-const pendingRowTimeouts = new Map<number, number>();
-const pendingTaskObservers = new Map<number, TaskObserver>();
+const pendingRowTimeouts = new Map<string, number>();
+const pendingTaskObservers = new Map<string, TaskObserver>();
 
 function syncProjectListRealtimeSubscription() {
   if (realtimeActive.value && realtimeSchedulerStore.allowPolling) {
@@ -1009,7 +1009,7 @@ async function fetchProjects() {
     const nextRows = response.items;
     rows.value = nextRows;
     reconcilePendingRowActions(nextRows);
-    selectedRowKeys.value = selectedRowKeys.value.filter((id) => nextRows.some((row) => row.id === id));
+    selectedRowKeys.value = selectedRowKeys.value.filter((id) => nextRows.some((row) => row.application_id === id));
   } catch (error) {
     if (requestSeq !== refreshRequestSeq) {
       return;
@@ -1046,7 +1046,7 @@ async function loadSavedViews() {
 
 function handleProjectListRealtimeItems(
   items: Array<{
-    project_id: number;
+    application_id: string;
     runtime_status: ProjectRuntimeStatus;
     service_count: number;
     container_counts: ProjectListItemWithLifecycle['container_counts'];
@@ -1056,10 +1056,10 @@ function handleProjectListRealtimeItems(
   if (!realtimeActive.value || !realtimeSchedulerStore.allowPolling || rows.value.length === 0) {
     return;
   }
-  const patchById = new Map(items.map((item) => [item.project_id, item]));
+  const patchById = new Map(items.map((item) => [item.application_id, item]));
   let changed = false;
   const nextRows = rows.value.map((row) => {
-    const patch = patchById.get(row.id);
+    const patch = patchById.get(row.application_id);
     if (!patch) {
       return row;
     }
@@ -1101,10 +1101,10 @@ function syncPaginationFromResponse(response: { total?: number; limit?: number; 
 
 function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
   const nextPending = { ...pendingRowActions.value };
-  const rowMap = new Map(nextRows.map((row) => [row.id, row]));
+  const rowMap = new Map(nextRows.map((row) => [row.application_id, row]));
 
   for (const [rawId, pending] of Object.entries(nextPending)) {
-    const id = Number(rawId);
+    const id = rawId;
     const row = rowMap.get(id);
     if (!row) {
       clearPendingRowActionTimeout(id);
@@ -1126,10 +1126,10 @@ function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
 }
 
 function markPendingRowAction(row: ProjectListItemWithLifecycle, action: PendingProjectAction) {
-  clearPendingRowActionTimeout(row.id);
+  clearPendingRowActionTimeout(row.application_id);
   pendingRowActions.value = {
     ...pendingRowActions.value,
-    [row.id]: {
+    [row.application_id]: {
       action,
       awaitingVisibleChange: false,
       deadlineAt: null,
@@ -1145,8 +1145,8 @@ function markPendingRowActions(rowsToMark: ProjectListItemWithLifecycle[], actio
 
   const nextPending = { ...pendingRowActions.value };
   for (const row of rowsToMark) {
-    clearPendingRowActionTimeout(row.id);
-    nextPending[row.id] = {
+    clearPendingRowActionTimeout(row.application_id);
+    nextPending[row.application_id] = {
       action,
       awaitingVisibleChange: false,
       deadlineAt: null,
@@ -1156,7 +1156,7 @@ function markPendingRowActions(rowsToMark: ProjectListItemWithLifecycle[], actio
   pendingRowActions.value = nextPending;
 }
 
-function markPendingRowActionAwaitingChange(rowId: number) {
+function markPendingRowActionAwaitingChange(rowId: string) {
   const pending = pendingRowActions.value[rowId];
   if (!pending) {
     return;
@@ -1174,7 +1174,7 @@ function markPendingRowActionAwaitingChange(rowId: number) {
   schedulePendingRowActionTimeout(rowId, deadlineAt);
 }
 
-function observePendingTask(rowId: number, taskId: number) {
+function observePendingTask(rowId: string, taskId: number) {
   pendingTaskObservers.get(rowId)?.stop();
   const observer = observeTask(taskId, {
     onError: (error) => logger.warn('task status observation failed', { error, rowId, taskId }),
@@ -1185,7 +1185,7 @@ function observePendingTask(rowId: number, taskId: number) {
   pendingTaskObservers.set(rowId, observer);
 }
 
-function markPendingRowActionTask(rowId: number, taskId: number) {
+function markPendingRowActionTask(rowId: string, taskId: number) {
   const pending = pendingRowActions.value[rowId];
   if (!pending) return;
   clearPendingRowActionTimeout(rowId);
@@ -1196,7 +1196,7 @@ function markPendingRowActionTask(rowId: number, taskId: number) {
   observePendingTask(rowId, taskId);
 }
 
-function markPendingRowActionsAwaitingChange(rowIds: number[]) {
+function markPendingRowActionsAwaitingChange(rowIds: string[]) {
   if (rowIds.length === 0) {
     return;
   }
@@ -1224,7 +1224,7 @@ function markPendingRowActionsAwaitingChange(rowIds: number[]) {
   }
 }
 
-function clearPendingRowAction(rowId: number) {
+function clearPendingRowAction(rowId: string) {
   if (!pendingRowActions.value[rowId]) {
     return;
   }
@@ -1236,7 +1236,7 @@ function clearPendingRowAction(rowId: number) {
   pendingRowActions.value = nextPending;
 }
 
-function clearPendingRowActions(rowIds: number[]) {
+function clearPendingRowActions(rowIds: string[]) {
   if (rowIds.length === 0) {
     return;
   }
@@ -1260,11 +1260,11 @@ function clearPendingRowActions(rowIds: number[]) {
   }
 }
 
-function isRowActionPending(rowId: number) {
+function isRowActionPending(rowId: string) {
   return Boolean(pendingRowActions.value[rowId]);
 }
 
-function schedulePendingRowActionTimeout(rowId: number, deadlineAt: number) {
+function schedulePendingRowActionTimeout(rowId: string, deadlineAt: number) {
   clearPendingRowActionTimeout(rowId);
   if (typeof window === 'undefined') {
     return;
@@ -1276,7 +1276,7 @@ function schedulePendingRowActionTimeout(rowId: number, deadlineAt: number) {
   pendingRowTimeouts.set(rowId, timeoutId);
 }
 
-function clearPendingRowActionTimeout(rowId: number) {
+function clearPendingRowActionTimeout(rowId: string) {
   if (typeof window === 'undefined') {
     pendingRowTimeouts.delete(rowId);
     return;
@@ -1310,7 +1310,7 @@ function clearSelection() {
 }
 
 function handleSelectChange(rowKeys: Array<string | number>) {
-  selectedRowKeys.value = rowKeys.map((key) => Number(key)).filter((key) => Number.isInteger(key) && key > 0);
+  selectedRowKeys.value = rowKeys.map(String).filter(Boolean);
 }
 
 function resetFilters() {
@@ -1506,7 +1506,7 @@ watch(
 function navigateToDetail(row: ProjectListItemWithLifecycle, tab?: string) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
-    params: { id: row.id },
+    params: { id: row.application_id },
     query: {
       ...(tab ? { tab } : {}),
       name: row.display_name,
@@ -1531,7 +1531,7 @@ function navigateToSourceChooser() {
 }
 
 async function runAction(
-  handler: (id: number) => Promise<ProjectTaskReceipt | ProjectDetailResponse | unknown>,
+  handler: (id: string) => Promise<ProjectTaskReceipt | ProjectDetailResponse | unknown>,
   row: ProjectListItemWithLifecycle,
   successMessage: string,
   pendingAction?: PendingProjectAction,
@@ -1540,25 +1540,25 @@ async function runAction(
     markPendingRowAction(row, pendingAction);
   }
   try {
-    const receipt = await handler(row.id);
+    const receipt = await handler(row.application_id);
     if (isTaskReceipt(receipt)) {
-      if (pendingAction) markPendingRowActionTask(row.id, receipt.task_id);
+      if (pendingAction) markPendingRowActionTask(row.application_id, receipt.task_id);
       openTaskDrawer(receipt.task_id);
       MessagePlugin.success(t('project.list.actions.taskAccepted'));
     } else {
-      if (pendingAction) markPendingRowActionAwaitingChange(row.id);
+      if (pendingAction) markPendingRowActionAwaitingChange(row.application_id);
       MessagePlugin.success(successMessage);
     }
     await fetchProjects();
   } catch (error) {
-    clearPendingRowAction(row.id);
+    clearPendingRowAction(row.application_id);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
 }
 
 function buildRowActions(row: ProjectListItemWithLifecycle) {
   const visibility = projectLifecycleActionVisibility(row.runtime_status, {
-    hideLifecycleActions: isRowActionPending(row.id),
+    hideLifecycleActions: isRowActionPending(row.application_id),
   });
   const lifecycleBlocked = projectRequiresLifecycleReview(row);
 
@@ -1598,13 +1598,13 @@ function isRowBatchEligible(row: ProjectListItemWithLifecycle, action: ProjectBa
     return false;
   }
   const visibility = projectLifecycleActionVisibility(row.runtime_status, {
-    hideLifecycleActions: isRowActionPending(row.id),
+    hideLifecycleActions: isRowActionPending(row.application_id),
   });
   if (action === 'start') return visibility.up;
   if (action === 'stop') return visibility.stop;
   if (action === 'restart') return visibility.restart;
   if (action === 'unregister') return true;
-  if (action === 'redeploy') return !isRowActionPending(row.id);
+  if (action === 'redeploy') return !isRowActionPending(row.application_id);
   return true;
 }
 
@@ -1715,8 +1715,8 @@ function confirmDangerousAction(
         if (action === 'destroy') {
           await runDestroy(row, {
             auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
-            confirm_canonical_project_name: row.canonical_project_name,
-            delete_working_directory: deleteWorkingDirectory.value,
+            confirm_application_id: row.application_id,
+            delete_workspace: deleteWorkingDirectory.value,
             image_prune: false,
             remove_named_volumes: removeNamedVolumes.value,
           });
@@ -1731,7 +1731,7 @@ function confirmDangerousAction(
 
 async function runDestroy(row: ProjectListItemWithLifecycle, payload: ProjectDestroyRequest) {
   try {
-    await postProjectDestroy(row.id, payload);
+    await postProjectDestroy(row.application_id, payload);
     MessagePlugin.success(t('project.list.actions.actionSuccess'));
     await fetchProjects();
   } catch (error) {
@@ -1742,13 +1742,13 @@ async function runDestroy(row: ProjectListItemWithLifecycle, payload: ProjectDes
 async function runRedeploy(row: ProjectListItemWithLifecycle) {
   markPendingRowAction(row, 'redeploy');
   try {
-    const receipt = await postProjectRedeploy(row.id);
-    markPendingRowActionTask(row.id, receipt.task_id);
+    const receipt = await postProjectRedeploy(row.application_id);
+    markPendingRowActionTask(row.application_id, receipt.task_id);
     openTaskDrawer(receipt.task_id);
     MessagePlugin.success(t('project.list.actions.taskAccepted'));
     await fetchProjects();
   } catch (error) {
-    clearPendingRowAction(row.id);
+    clearPendingRowAction(row.application_id);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
 }
@@ -1764,16 +1764,16 @@ function openTaskDrawer(taskId: number) {
 }
 
 async function openProjectTask(row: ProjectListItemWithLifecycle) {
-  const pendingTaskId = pendingRowActions.value[row.id]?.taskId;
+  const pendingTaskId = pendingRowActions.value[row.application_id]?.taskId;
   if (pendingTaskId) {
     openTaskDrawer(pendingTaskId);
     return;
   }
 
   const requestVersion = ++taskOpenRequestVersion;
-  openingTaskRowIds.value = new Set(openingTaskRowIds.value).add(row.id);
+  openingTaskRowIds.value = new Set(openingTaskRowIds.value).add(row.application_id);
   try {
-    const task = await getLatestTaskForOwner({ ownerId: String(row.id), ownerType: 'compose_project' });
+    const task = await getLatestTaskForOwner({ ownerId: row.application_id, ownerType: 'compose_project' });
     if (requestVersion !== taskOpenRequestVersion) return;
     if (task) openTaskDrawer(task.id);
     else MessagePlugin.info(t('project.list.actions.noTaskHistory'));
@@ -1783,18 +1783,27 @@ async function openProjectTask(row: ProjectListItemWithLifecycle) {
     }
   } finally {
     const nextOpeningRows = new Set(openingTaskRowIds.value);
-    nextOpeningRows.delete(row.id);
+    nextOpeningRows.delete(row.application_id);
     openingTaskRowIds.value = nextOpeningRows;
   }
 }
 
 function runtimeStatusActionTooltip(row: ProjectListItemWithLifecycle) {
-  return isRowActionPending(row.id)
+  return isRowActionPending(row.application_id)
     ? t('project.list.statusTooltip.taskInProgress')
     : t('project.list.statusTooltip.viewLatestTask');
 }
 
-async function executeBatchAction(action: ProjectBatchActionUi, overrides: Partial<ProjectDestroyRequest> = {}) {
+async function executeBatchAction(
+  action: ProjectBatchActionUi,
+  overrides: {
+    confirmCanonicalProjectName?: string;
+    deleteWorkingDirectory?: boolean;
+    auto_unregister?: boolean;
+    image_prune?: boolean;
+    remove_named_volumes?: boolean;
+  } = {},
+) {
   const actionableRows = batchActionableRows(action);
   if (requiresSingleSelection(action) && actionableRows.length !== 1) {
     return;
@@ -1814,19 +1823,19 @@ async function executeBatchAction(action: ProjectBatchActionUi, overrides: Parti
     const response = await postProjectBatchActions({
       action,
       auto_unregister: overrides.auto_unregister ?? false,
-      confirm_canonical_project_name: overrides.confirm_canonical_project_name,
-      delete_working_directory: overrides.delete_working_directory ?? false,
+      confirm_canonical_project_name: overrides.confirmCanonicalProjectName,
+      delete_working_directory: overrides.deleteWorkingDirectory ?? false,
       image_prune: overrides.image_prune ?? false,
-      project_ids: actionableRows.map((row) => row.id),
+      application_ids: actionableRows.map((row) => row.application_id),
       remove_named_volumes: overrides.remove_named_volumes ?? false,
     });
     if (pendingAction) {
       const completedRowIds = response.items
         .filter((item) => !item.skipped && item.result === 'completed')
-        .map((item) => item.project_id);
+        .map((item) => String(item.project_id));
       const blockedRowIds = response.items
         .filter((item) => item.skipped || item.result !== 'completed')
-        .map((item) => item.project_id);
+        .map((item) => String(item.project_id));
       markPendingRowActionsAwaitingChange(completedRowIds);
       clearPendingRowActions(blockedRowIds);
     }
@@ -1835,7 +1844,7 @@ async function executeBatchAction(action: ProjectBatchActionUi, overrides: Parti
     await fetchProjects();
   } catch (error) {
     if (pendingAction) {
-      clearPendingRowActions(actionableRows.map((row) => row.id));
+      clearPendingRowActions(actionableRows.map((row) => row.application_id));
     }
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.batch.failed')));
   } finally {
@@ -1962,11 +1971,9 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
       closeDialog();
       await executeBatchAction(action, {
         auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
-        confirm_canonical_project_name:
-          action === 'destroy' && selectedRows.value.length === 1
-            ? selectedRows.value[0]?.canonical_project_name
-            : undefined,
-        delete_working_directory: deleteWorkingDirectory.value,
+        confirmCanonicalProjectName:
+          action === 'destroy' && selectedRows.value.length === 1 ? selectedRows.value[0]?.application_id : undefined,
+        deleteWorkingDirectory: deleteWorkingDirectory.value,
         image_prune: false,
         remove_named_volumes: removeNamedVolumes.value,
       });
@@ -2037,6 +2044,14 @@ async function handleRowAction(action: string, row: ProjectListItemWithLifecycle
 .project-page {
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+}
+
+.project-page :deep(.t-table__body > tr:not(.t-table__row--active)) {
+  background-color: var(--td-bg-color-container);
+}
+
+.project-page :deep(.t-table__body > tr:not(.t-table__row--active):hover) {
+  background-color: var(--td-bg-color-container-hover);
 }
 
 .project-table-head {

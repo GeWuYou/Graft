@@ -75,7 +75,8 @@ func (r *SQLRepository) listProjectsPage(
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
+			id, application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+			runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
@@ -139,7 +140,8 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 	project, err := scanProject(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
+			id, application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+			runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
@@ -170,6 +172,68 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 		aggregate.Snapshot = snapshot
 	}
 	return aggregate, nil
+}
+
+// GetByApplicationID resolves the public Application ID without exposing the
+// private database key in a caller-visible contract.
+func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error) {
+	if err := r.ensureReady(); err != nil {
+		return ProjectAggregate{}, err
+	}
+	applicationID = strings.TrimSpace(applicationID)
+	if applicationID == "" {
+		return ProjectAggregate{}, ErrInvalidInput
+	}
+	var projectID int64
+	err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT id FROM compose_projects WHERE application_id = ? AND deleted_at = 0`), applicationID).Scan(&projectID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ProjectAggregate{}, ErrProjectNotFound
+		}
+		return ProjectAggregate{}, fmt.Errorf("get project by application id: %w", err)
+	}
+	if projectID < 1 {
+		return ProjectAggregate{}, ErrProjectNotFound
+	}
+	return r.Get(ctx, uint64(projectID)) // #nosec G115 -- positivity is checked above.
+}
+
+// GetIDsByApplicationIDs resolves public application identifiers in one query.
+func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error) {
+	result := make(map[string]uint64, len(applicationIDs))
+	if len(applicationIDs) == 0 {
+		return result, nil
+	}
+	placeholders := make([]string, 0, len(applicationIDs))
+	args := make([]any, 0, len(applicationIDs))
+	for _, value := range applicationIDs {
+		if value = strings.TrimSpace(value); value != "" {
+			placeholders = append(placeholders, "?")
+			args = append(args, value)
+		}
+	}
+	if len(args) == 0 {
+		return result, nil
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, id FROM compose_projects WHERE deleted_at = 0 AND application_id IN (`+strings.Join(placeholders, ",")+`)`), args...)
+	if err != nil {
+		return nil, fmt.Errorf("resolve project application ids: %w", err)
+	}
+	defer closeRows(rows)
+	for rows.Next() {
+		var applicationID string
+		var projectID int64
+		if err := rows.Scan(&applicationID, &projectID); err != nil {
+			return nil, fmt.Errorf("scan project application id: %w", err)
+		}
+		if projectID > 0 {
+			result[applicationID] = uint64(projectID)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate project application ids: %w", err)
+	}
+	return result, nil
 }
 
 // GetFile returns one file within the requested project scope.
@@ -221,7 +285,12 @@ func (r *SQLRepository) ImportProject(ctx context.Context, input ImportProjectIn
 	defer rollbackTx(tx)
 
 	now := time.Now().UTC()
-	projectID, err := r.upsertProject(ctx, tx, input, now)
+	var projectID uint64
+	if input.StrictCreate {
+		projectID, err = r.createProject(ctx, tx, input, now)
+	} else {
+		projectID, err = r.upsertProject(ctx, tx, input, now)
+	}
 	if err != nil {
 		return ProjectAggregate{}, err
 	}
@@ -700,6 +769,11 @@ func (r *SQLRepository) upsertProject(
 	err = tx.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(composeProjectsUpsertSQL()),
+		input.ApplicationID,
+		input.WorkspaceKey,
+		input.WorkspacePath,
+		input.ComposeProjectName,
+		input.ComposeProjectNameSource,
 		input.DisplayName,
 		runtimeTargetID,
 		input.CanonicalProjectName,
@@ -727,18 +801,60 @@ func (r *SQLRepository) upsertProject(
 	return projectID, nil
 }
 
+func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input ImportProjectInput, now time.Time) (uint64, error) {
+	lifecycleConfigJSON, err := encodeLifecycleConfigJSON(input.LifecycleConfig)
+	if err != nil {
+		return 0, err
+	}
+	sourceMetadataJSON, err := encodeSourceMetadataJSON(input.SourceMetadata)
+	if err != nil {
+		return 0, err
+	}
+	var runtimeTargetID any
+	if input.RuntimeTargetID > 0 {
+		runtimeTargetID = input.RuntimeTargetID
+	}
+	var workspaceKey any
+	if input.WorkspaceKey != nil {
+		workspaceKey = *input.WorkspaceKey
+	}
+	var projectID uint64
+	err = tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO compose_projects (
+		application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+		display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
+		working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status,
+		lifecycle_config_json, last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
+		created_by, updated_by, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
+	RETURNING id`),
+		input.ApplicationID, workspaceKey, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
+		input.DisplayName, runtimeTargetID, input.CanonicalProjectName, input.CanonicalProjectNameSource, input.SourceKind, input.HostScope,
+		input.WorkingDirectory, input.OwnershipMode, string(sourceMetadataJSON), input.LifecycleStrategyKind, input.LifecycleReviewStatus,
+		string(lifecycleConfigJSON), input.LastObservedConfigHash, `{}`, input.LastDriftCheckedAt, input.DriftStatus,
+		input.ActorID, input.ActorID, now, now,
+	).Scan(&projectID)
+	if err != nil {
+		return 0, mapWriteErr("create project", err)
+	}
+	return projectID, nil
+}
+
 // composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句，并通过 RETURNING 子句返回项目 ID。
 func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
+			application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
 			display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
-		ON CONFLICT (host_scope, canonical_project_name) WHERE deleted_at = 0 DO UPDATE SET
+		ON CONFLICT (runtime_target_id, compose_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
+			compose_project_name_source = excluded.compose_project_name_source,
+			workspace_key = excluded.workspace_key,
+			workspace_path = excluded.workspace_path,
 			runtime_target_id = excluded.runtime_target_id,
 			canonical_project_name_source = excluded.canonical_project_name_source,
 			source_kind = excluded.source_kind,

@@ -40,9 +40,9 @@
                   {{ detailRecord?.ownership_mode || '-' }}
                 </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryWorkingDirectoryLabel">
-                  <t-tooltip :content="detailRecord?.working_directory || '-'" placement="top-left" theme="light">
+                  <t-tooltip :content="detailRecord?.workspace_path || '-'" placement="top-left" theme="light">
                     <code
-                      :aria-label="detailRecord?.working_directory || '-'"
+                      :aria-label="detailRecord?.workspace_path || '-'"
                       class="project-configuration-workspace__summary-technical"
                       data-testid="workspace-working-directory"
                     >
@@ -982,7 +982,7 @@ const readonlyOptions = {
 };
 
 const workspaceCopy = computed(() => resolveConfigurationWorkspaceCopy((key) => String(t(key))));
-const projectId = computed(() => Number(route.params.id));
+const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''));
 const fallbackDisplayName = computed(() => {
   const queryName = typeof route.query.name === 'string' ? route.query.name.trim() : '';
   return queryName;
@@ -1198,7 +1198,7 @@ const currentWorkspaceDirectoryPath = computed(() => {
 const currentWorkspacePathLabel = computed(
   () => currentWorkspaceDirectoryPath.value || workspaceCopy.value.workspaceRootLabel,
 );
-const workingDirectoryDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.working_directory));
+const workingDirectoryDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.workspace_path));
 const currentWorkspacePathDisplay = computed(() => abbreviateWorkspacePath(currentWorkspacePathLabel.value));
 const workspaceFlatRows = computed(() => flattenWorkspaceRows(rootWorkspaceItems.value, 0));
 
@@ -1324,7 +1324,7 @@ watch(activeTabPath, () => {
 });
 
 async function loadWorkspace() {
-  if (!Number.isFinite(projectId.value)) {
+  if (!projectId.value) {
     workspaceError.value = t('project.list.retry');
     return;
   }

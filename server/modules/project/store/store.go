@@ -32,6 +32,11 @@ var (
 // Project stores one Compose project registry record.
 type Project struct {
 	ID                         uint64
+	ApplicationID              string
+	WorkspaceKey               *string
+	WorkspacePath              string
+	ComposeProjectName         string
+	ComposeProjectNameSource   string
 	RuntimeTargetID            *uint64
 	DisplayName                string
 	CanonicalProjectName       string
@@ -122,6 +127,12 @@ type ListResult struct {
 
 // ImportProjectInput creates or replaces one project registry entry.
 type ImportProjectInput struct {
+	ApplicationID              string
+	WorkspaceKey               *string
+	WorkspacePath              string
+	ComposeProjectName         string
+	ComposeProjectNameSource   string
+	StrictCreate               bool
 	RuntimeTargetID            uint64
 	DisplayName                string
 	CanonicalProjectName       string
@@ -187,4 +198,17 @@ type Repository interface {
 	UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ProjectAggregate, error)
 	UnregisterProject(ctx context.Context, input UnregisterProjectInput) error
 	BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error
+}
+
+// ApplicationLookupRepository resolves the external Application ID to the
+// module-private numeric registry key. It is deliberately narrow so existing
+// test stores and repository adapters do not gain an accidental public lookup
+// obligation.
+type ApplicationLookupRepository interface {
+	GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error)
+}
+
+// ApplicationIDBatchLookupRepository resolves public IDs without aggregate loads.
+type ApplicationIDBatchLookupRepository interface {
+	GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error)
 }

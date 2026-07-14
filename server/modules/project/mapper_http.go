@@ -511,9 +511,10 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
 		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		DisplayName:             result.DisplayName,
-		CanonicalProjectName:    result.CanonicalProjectName,
+		ComposeProjectName:      result.ComposeProjectName,
+		WorkspaceKey:            result.WorkspaceKey,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
-		WorkingDirectory:        result.WorkingDirectory,
+		WorkspacePath:           result.WorkspacePath,
 		ComposeFileName:         result.ComposeFileName,
 		ComposeFileAbsolutePath: result.ComposeFileAbsolutePath,
 	}
@@ -536,16 +537,19 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 // toManagedCreateResponse 将托管项目创建结果转换为创建响应。
 // toManagedCreateResponse 将托管项目创建结果转换为创建响应，并包含项目快照摘要及可选的环境文件、源元数据和警告。
 // @param result 托管项目创建结果。
-// @return 托管项目创建响应。
+// toManagedCreateResponse 将托管项目创建结果转换为项目创建响应。
+//
+// 返回包含项目身份、工作区、配置快照及可选环境文件、来源元数据和警告信息的响应。
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
 		SourceType:              generated.ProjectSourceKind(result.SourceType),
-		ProjectId:               mustGeneratedID(result.ProjectID),
+		ApplicationId:           result.ApplicationID,
 		DisplayName:             result.Validation.DisplayName,
-		CanonicalProjectName:    result.Validation.CanonicalProjectName,
+		ComposeProjectName:      result.Validation.ComposeProjectName,
+		WorkspaceKey:            result.Validation.WorkspaceKey,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.Validation.OwnershipMode),
-		WorkingDirectory:        result.Validation.WorkingDirectory,
+		WorkspacePath:           result.Validation.WorkspacePath,
 		ComposeFileName:         result.Validation.ComposeFileName,
 		ComposeFileAbsolutePath: result.Validation.ComposeFileAbsolutePath,
 		Action:                  generated.ProjectCreateResponseAction("create"),
@@ -583,30 +587,36 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 
 // toManagedCreateRequest 将项目创建校验请求转换为内部创建请求。
 // toManagedCreateRequest 将项目创建校验请求转换为内部托管项目创建请求，并保留工作区文件、Compose/环境文件路径及生命周期配置等可选信息。
-// 返回转换后的托管项目创建请求。
+// toManagedCreateRequest 将 HTTP 请求转换为托管项目创建请求，并返回转换错误。
 func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) (ManagedProjectCreateRequest, error) {
+	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
+	if err != nil {
+		return ManagedProjectCreateRequest{}, err
+	}
 	var envFileName *string
 	if request.EnvFileName != nil {
 		value := *request.EnvFileName
 		envFileName = &value
 	}
-	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, canonicalName: request.CanonicalProjectName, relativeDirectory: request.RelativeProjectDirectory, composeFileName: request.ComposeFileName, envFileName: envFileName, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, composeFileName: request.ComposeFileName, envFileName: envFileName, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
 }
 
 type managedCreateHTTPParts struct {
-	displayName, canonicalName, relativeDirectory, composeFileName, composeFileContent string
-	envFileName, envFileContent                                                        *string
-	workspaceFiles                                                                     *[]generated.ProjectWorkspaceManifestFile
-	composeFilePath                                                                    *string
-	envFilePaths                                                                       *[]string
-	lifecycle                                                                          *generated.ProjectLifecycleConfigurationRequest
+	displayName, composeFileName, composeFileContent string
+	runtimeTargetID                                  uint64
+	workspaceKey                                     *string
+	envFileName, envFileContent                      *string
+	workspaceFiles                                   *[]generated.ProjectWorkspaceManifestFile
+	composeFilePath                                  *string
+	envFilePaths                                     *[]string
+	lifecycle                                        *generated.ProjectLifecycleConfigurationRequest
 }
 
 // managedCreateRequestFromParts 将托管项目创建 HTTP 请求的各部分组装为内部请求。
-// 它会复制工作区文件、Compose 和环境文件路径，并校验生命周期配置采用标准策略。
+// 可选的生命周期配置必须采用标准策略；配置策略无效时返回错误。
 func managedCreateRequestFromParts(parts managedCreateHTTPParts) (ManagedProjectCreateRequest, error) {
 	request := ManagedProjectCreateRequest{
-		DisplayName: parts.displayName, CanonicalProjectName: parts.canonicalName, RelativeProjectDirectory: parts.relativeDirectory, ComposeFileName: parts.composeFileName, ComposeFileContent: parts.composeFileContent, EnvFileName: parts.envFileName, EnvFileContent: parts.envFileContent,
+		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, WorkspaceKey: parts.workspaceKey, ComposeFileName: parts.composeFileName, ComposeFileContent: parts.composeFileContent, EnvFileName: parts.envFileName, EnvFileContent: parts.envFileContent,
 	}
 	if parts.workspaceFiles != nil {
 		for _, item := range *parts.workspaceFiles {
@@ -629,8 +639,12 @@ func managedCreateRequestFromParts(parts managedCreateHTTPParts) (ManagedProject
 	return request, nil
 }
 
-// toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求。
+// toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求；当运行时目标 ID 无效或生命周期配置策略不受支持时返回错误。
 func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
+	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
+	if err != nil {
+		return ManagedProjectCreateRequest{}, err
+	}
 	var envFileName *string
 	if request.EnvFileName != nil {
 		value := *request.EnvFileName
@@ -641,7 +655,16 @@ func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONReques
 		value := *request.EnvFileContent
 		envFileContent = &value
 	}
-	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, canonicalName: request.CanonicalProjectName, relativeDirectory: request.RelativeProjectDirectory, composeFileName: request.ComposeFileName, composeFileContent: request.ComposeFileContent, envFileName: envFileName, envFileContent: envFileContent, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, composeFileName: request.ComposeFileName, composeFileContent: request.ComposeFileContent, envFileName: envFileName, envFileContent: envFileContent, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+}
+
+// runtimeTargetIDFromGenerated validates and converts a generated runtime target identifier.
+// It returns an error when the identifier is less than 1.
+func runtimeTargetIDFromGenerated(value int64) (uint64, error) {
+	if value < 1 {
+		return 0, errProjectInvalidArgument
+	}
+	return uint64(value), nil
 }
 
 // toProjectOverviewServiceItem 将服务投影和运行时资源摘要转换为项目概览服务项。

@@ -1,8 +1,10 @@
 package project
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -45,6 +47,17 @@ func TestNormalizeManagedCreateRequestRejectsInvalidCanonicalProjectName(t *test
 	})
 	if err == nil {
 		t.Fatal("expected managed create request to reject invalid canonical project name")
+	}
+}
+
+func TestChooseWorkspacePathSuggestsNextAvailableSuffix(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "demo"), 0o750); err != nil {
+		t.Fatalf("create base workspace: %v", err)
+	}
+	path, key, err := chooseWorkspacePath(root, stringPointer("demo"), true)
+	if !errors.Is(err, errProjectConflict) || !strings.Contains(err.Error(), "suggested=demo-2") || path != "" || key != nil {
+		t.Fatalf("chooseWorkspacePath = (%q, %v, %v), want conflict", path, key, err)
 	}
 }
 

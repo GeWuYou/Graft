@@ -27,7 +27,7 @@ func sameWorkingDirectory(left string, right string) bool {
 // toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
 // toProjectListItemWithManagedRoot 将项目聚合及运行时信息转换为项目列表项。
 //
-// 结果包含项目标识、名称、来源元数据、工作目录、声明服务数、容器数量、运行时状态和漂移状态。
+// toProjectListItemWithManagedRoot 将项目聚合数据转换为项目列表项，包含项目标识、名称、来源元数据、工作区信息、服务数、容器数量、运行时状态和漂移状态。
 func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -40,21 +40,22 @@ func toProjectListItemWithManagedRoot(
 	}
 	counts := buildProjectContainerCounts(runtimeSummary)
 	return generated.ProjectListItem{
-		Id:                         mustGeneratedID(aggregate.Project.ID),
-		DisplayName:                aggregate.Project.DisplayName,
-		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
-		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
-		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
-		LifecycleReviewStatus:      generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
-		SourceMetadata:             buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority()),
-		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
-		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
-		WorkingDirectory:           aggregate.Project.WorkingDirectory,
-		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
-		ServiceCount:               serviceCount,
-		ContainerCounts:            counts,
-		DriftStatus:                generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
+		ApplicationId:            aggregate.Project.ApplicationID,
+		DisplayName:              aggregate.Project.DisplayName,
+		ComposeProjectName:       nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
+		ComposeProjectNameSource: generated.ProjectCanonicalNameSource(nonEmptyString(aggregate.Project.ComposeProjectNameSource, aggregate.Project.CanonicalProjectNameSource)),
+		WorkspaceKey:             aggregate.Project.WorkspaceKey,
+		SourceKind:               generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		LifecycleReviewStatus:    generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+		SourceMetadata:           buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
+		ActivityAuthority:        generated.ProjectActivityAuthority(resolveActivityAuthority()),
+		HostScope:                generated.ProjectHostScope(aggregate.Project.HostScope),
+		OwnershipMode:            generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
+		WorkspacePath:            aggregate.Project.WorkspacePath,
+		RuntimeStatus:            deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
+		ServiceCount:             serviceCount,
+		ContainerCounts:          counts,
+		DriftStatus:              generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
 	}
 }
 
@@ -71,7 +72,7 @@ func toProjectDetailResponse(
 }
 
 // toProjectDetailResponseWithManagedRoot builds a detailed project response, including
-// lifecycle configuration, file metadata, runtime information, and managed-root source metadata.
+// toProjectDetailResponseWithManagedRoot 将项目聚合数据转换为项目详情响应，包含生命周期配置、文件元数据、运行时信息及托管根目录来源元数据。
 func toProjectDetailResponseWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -80,24 +81,25 @@ func toProjectDetailResponseWithManagedRoot(
 ) generated.ProjectDetailResponse {
 	counts := buildProjectContainerCounts(runtimeSummary)
 	item := generated.ProjectDetailResponse{
-		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
-		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
-		LifecycleReviewStatus:      generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
-		LifecycleConfiguration:     toGeneratedProjectLifecycleConfiguration(aggregate),
-		ComposeFiles:               toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
-		ContainerCounts:            counts,
-		DisplayName:                aggregate.Project.DisplayName,
-		DriftStatus:                generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
-		EnvFiles:                   toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
-		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
-		Id:                         mustGeneratedID(aggregate.Project.ID),
-		LastDriftCheckedAt:         aggregate.Project.LastDriftCheckedAt,
-		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
-		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
-		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
-		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority()),
-		WorkingDirectory:           aggregate.Project.WorkingDirectory,
+		ComposeProjectName:       nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
+		ComposeProjectNameSource: generated.ProjectCanonicalNameSource(nonEmptyString(aggregate.Project.ComposeProjectNameSource, aggregate.Project.CanonicalProjectNameSource)),
+		LifecycleReviewStatus:    generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+		LifecycleConfiguration:   toGeneratedProjectLifecycleConfiguration(aggregate),
+		ComposeFiles:             toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
+		ContainerCounts:          counts,
+		DisplayName:              aggregate.Project.DisplayName,
+		DriftStatus:              generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
+		EnvFiles:                 toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
+		HostScope:                generated.ProjectHostScope(aggregate.Project.HostScope),
+		ApplicationId:            aggregate.Project.ApplicationID,
+		LastDriftCheckedAt:       aggregate.Project.LastDriftCheckedAt,
+		OwnershipMode:            generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
+		RuntimeStatus:            deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
+		SourceKind:               generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		SourceMetadata:           buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
+		ActivityAuthority:        generated.ProjectActivityAuthority(resolveActivityAuthority()),
+		WorkspacePath:            aggregate.Project.WorkspacePath,
+		WorkspaceKey:             aggregate.Project.WorkspaceKey,
 	}
 	if aggregate.Project.LastObservedConfigHash != "" {
 		item.LastObservedConfigHash = stringPointer(aggregate.Project.LastObservedConfigHash)
@@ -566,12 +568,15 @@ func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggr
 // buildManagedSourceMetadata 生成托管项目的来源元数据。
 // buildManagedSourceMetadata 构建托管项目的来源元数据，包含托管根标识、相对目录以及已登记的 Compose 和环境文件名。// @param aggregate 项目聚合数据。
 // @param managedRootDirectory 托管根目录。
+// buildManagedSourceMetadata 为托管项目构建来源元数据。
+// @param aggregate 项目聚合数据。
+// @param managedRootDirectory 托管根目录。
 // @returns 托管项目的来源元数据。
 func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
 	metadata := map[string]string{
-		"managed_root_key": projectcontract.ProjectManagedRootConfig.String(),
+		"managed_root_key": projectcontract.ApplicationRootDirectoryConfig.String(),
 	}
 	if relativePath := deriveManagedRelativeDirectory(managedRootDirectory, aggregate.Project.WorkingDirectory); relativePath != "" {
 		metadata["managed_relative_directory"] = relativePath

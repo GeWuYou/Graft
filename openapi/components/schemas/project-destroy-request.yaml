@@ -1,8 +1,8 @@
 type: object
 required:
   - remove_named_volumes
-  - delete_working_directory
-  - confirm_canonical_project_name
+  - delete_workspace
+  - confirm_application_id
 properties:
   remove_named_volumes:
     type: boolean
@@ -13,9 +13,9 @@ properties:
   image_prune:
     type: boolean
     default: false
-  delete_working_directory:
+  delete_workspace:
     type: boolean
     default: false
-  confirm_canonical_project_name:
+  confirm_application_id:
     type: string
     minLength: 1

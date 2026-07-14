@@ -23,28 +23,28 @@ export function getProjectListSummaryTopicName(): string {
  * @param projectId - 项目标识
  * @returns 包含项目标识的运行时主题名称
  */
-export function buildProjectRuntimeTopicName(projectId: number): string {
-  return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${projectId}`;
+export function buildProjectRuntimeTopicName(applicationId: string): string {
+  return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${applicationId}`;
 }
 
 /**
- * 构建项目生命周期配置实时主题名称。
+ * 构建指定应用的项目生命周期配置实时主题名称。
  *
- * @param projectId - 项目标识
- * @returns 拼接项目标识后的生命周期配置实时主题名称
+ * @param applicationId - 应用标识
+ * @returns 拼接应用标识后的生命周期配置实时主题名称
  */
-export function buildProjectLifecycleConfigTopicName(projectId: number): string {
-  return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${projectId}`;
+export function buildProjectLifecycleConfigTopicName(applicationId: string): string {
+  return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
 }
 
 /**
- * 构建项目日志实时消息的 topic 名称。
+ * 构建指定应用的项目日志实时消息主题名称。
  *
- * @param projectId - 项目标识
- * @returns 拼接项目标识后的日志 topic 名称
+ * @param applicationId - 应用标识
+ * @returns 拼接应用标识后的日志主题名称
  */
-export function buildProjectLogsTopicName(projectId: number): string {
-  return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${projectId}`;
+export function buildProjectLogsTopicName(applicationId: string): string {
+  return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
 }
 
 type ProjectDetailResponse = components['schemas']['ProjectDetailResponse'];
@@ -56,7 +56,7 @@ type ProjectDriftStatus = components['schemas']['ProjectDriftStatus'];
 type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
 
 export type ProjectListSummaryRealtimeItem = {
-  project_id: number;
+  application_id: string;
   runtime_status: ProjectRuntimeStatus;
   service_count: number;
   container_counts: ProjectContainerCounts;
@@ -65,7 +65,7 @@ export type ProjectListSummaryRealtimeItem = {
 
 export type ProjectRuntimeRealtimePayload = {
   topic: string;
-  project_id: number;
+  application_id: string;
   published_at: string;
   detail: ProjectDetailResponse;
   overview: ProjectOverviewResponse;
@@ -74,7 +74,7 @@ export type ProjectRuntimeRealtimePayload = {
 
 export type ProjectLifecycleConfigRealtimePayload = {
   topic: string;
-  project_id: number;
+  application_id: string;
   published_at: string;
   detail: ProjectDetailResponse;
 };
@@ -108,7 +108,7 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
     !data.items.every(
       (item) =>
         isRealtimePayloadObject(item) &&
-        typeof item.project_id === 'number' &&
+        typeof item.application_id === 'string' &&
         typeof item.runtime_status === 'string' &&
         typeof item.service_count === 'number' &&
         isRealtimePayloadObject(item.container_counts) &&
@@ -121,15 +121,16 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
 }
 
 /**
- * 校验项目详情实时消息信封并返回其数据。
+ * 校验项目详情实时消息信封，并返回有效的消息数据。
  *
  * @param raw - 待解析的原始实时消息
- * @param validator - 可选的附加数据校验函数
- * @returns 校验通过的消息数据，或 `null`
+ * @param expectedTopic - 根据应用标识生成预期主题名称的函数
+ * @param validator - 可选的附加消息数据校验函数
+ * @returns 校验通过的消息数据，校验失败时返回 `null`
  */
 function parseProjectDetailEnvelopeData(
   raw: unknown,
-  expectedTopic: (projectId: number) => string,
+  expectedTopic: (applicationId: string) => string,
   validator?: (data: Record<string, unknown>) => boolean,
 ): Record<string, unknown> | null {
   const data = parseRealtimeEnvelopeData(raw);
@@ -138,8 +139,8 @@ function parseProjectDetailEnvelopeData(
   }
   if (
     typeof data.topic !== 'string' ||
-    typeof data.project_id !== 'number' ||
-    data.topic !== expectedTopic(data.project_id) ||
+    typeof data.application_id !== 'string' ||
+    data.topic !== expectedTopic(data.application_id) ||
     typeof data.published_at !== 'string' ||
     !isRealtimePayloadObject(data.detail) ||
     (validator && !validator(data))

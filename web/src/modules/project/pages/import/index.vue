@@ -1181,7 +1181,7 @@ async function openDetail(response: ProjectImportExecuteResponse) {
   const currentTabFullPath = route.fullPath;
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
-    params: { id: project.id },
+    params: { id: project.application_id },
     query: { tab: 'lifecycle' },
   };
   const resolved = router.resolve(target);

@@ -315,6 +315,7 @@ func TestServicesMergesRuntimeMembers(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            "local",
 				WorkingDirectory:     tempDir,
@@ -475,6 +476,7 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            "local",
 				WorkingDirectory:     tempDir,
@@ -489,7 +491,7 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 	}
 	result, err := service.Destroy(authenticatedProjectActionContext(), 1, DestroyRequest{
 		DeleteWorkingDirectory:      true,
-		ConfirmCanonicalProjectName: "demo",
+		ConfirmCanonicalProjectName: "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 	})
 	if !errors.Is(err, errProjectDestroyBlocked) {
 		t.Fatalf("expected destroy blocked, got %v", err)
@@ -509,6 +511,7 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     t.TempDir(),
@@ -552,6 +555,7 @@ func TestUnregisterFailsClosedWithoutRequestActor(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     t.TempDir(),
@@ -617,6 +621,7 @@ func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
@@ -653,6 +658,7 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     t.TempDir(),
@@ -714,6 +720,7 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
@@ -726,7 +733,7 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	confirmName := "demo"
+	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:                      generated.ProjectBatchActionRequestActionDestroy,
@@ -765,6 +772,7 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     workingDirectory,
@@ -777,7 +785,7 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	confirmName := "demo"
+	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:                      generated.ProjectBatchActionRequestActionDestroy,
@@ -825,6 +833,7 @@ func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 		aggregate: projectstore.ProjectAggregate{
 			Project: projectstore.Project{
 				ID:                   1,
+				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 				CanonicalProjectName: "demo",
 				HostScope:            projectcontract.HostScopeLocal.String(),
 				WorkingDirectory:     workingDirectory,
@@ -838,7 +847,7 @@ func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	confirmName := "demo"
+	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:                      generated.ProjectBatchActionRequestActionDestroy,
@@ -1720,8 +1729,8 @@ func TestImportDirectorySourcesIncludeManagedRootAndAllowlistedRoot(t *testing.T
 	managedRoot := t.TempDir()
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			"ops.project.managed.root_directory": `"` + managedRoot + `"`,
-			"ops.project.import.allowed_roots":   `[{"id":"srv","label":"Srv","path":"/srv"}]`,
+			"ops.application.root_directory":   `"` + managedRoot + `"`,
+			"ops.project.import.allowed_roots": `[{"id":"srv","label":"Srv","path":"/srv"}]`,
 		},
 	}))
 	if err != nil {
@@ -2308,7 +2317,7 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import by inspection: %v", err)
 	}
-	if imported.Project.CanonicalProjectName != "orders" {
+	if imported.Project.ComposeProjectName != "orders" {
 		t.Fatalf("unexpected imported project: %#v", imported.Project)
 	}
 	assertImportedCreationPipelinePersisted(t, repo.importInput, projectDir)

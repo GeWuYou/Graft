@@ -6,7 +6,7 @@ Compose Project Management
 
 ## Scope
 
-在 `Graft` 新增 Docker Compose Project 管理能力，保持 `Project` 作为管理与聚合层，保持 `Container` 作为运行时 authority，并按 Phase 1-3 分阶段完成导入、项目注册、生命周期、配置只读、活动聚合与后续扩展。
+在 `Graft` 新增以 Compose Specification 为首个 Deployment Type 的 Application 管理能力，保持 `Project` 作为管理与聚合层，保持 `Container` 作为运行时 authority，并按 Phase 1-3 分阶段完成导入、项目注册、生命周期、配置只读、活动聚合与后续扩展。
 
 ## Repository Truth
 
@@ -72,7 +72,7 @@ Compose Project Management
   - `Project` 不得新增自己的 container detail。
   - Phase 1 Activity 继续复用 container logs/events，并由前端 fan-out 聚合。
   - Phase 1 Configuration 只读。
-  - `Canonical Project Name` 与 `Display Name` 必须分离。
+  - `Application ID`、Workspace Key/Path、`Display Name` 与 `Compose Project Name` 必须分离。
   - `Unregister` 是安全默认；`Destroy` 是显式高危动作。
   - 本地项目统一保存结构化 `Lifecycle Configuration`，而不是原始部署脚本或裸命令串。
   - `managed` 项目默认 `lifecycle_review_status=confirmed`；运行时 `imported` 项目必须在导入向导内确认 lifecycle configuration，并与注册一起保存为 `confirmed`。
@@ -102,6 +102,10 @@ Compose Project Management
 - [x] import-creation-adapter-and-regression：Import inspection commit 已验证复用 creation pipeline；保留 candidate/TTL/freshness/adopt guard，复用生命周期审核，并在最终审核明确不自动 deploy
 - [x] git-template-source-adapters：Git/Template 均已通过 source adapter 进入同一 CreationCommand pipeline；Git 仅在隔离暂存目录解析无凭据仓库，Template 使用模块内置的 explicit empty-compose v1 catalog
 - [x] saved-view-foundation-and-project-contract：新增无菜单 `saved-view` module，提供用户私有、surface-scoped 的分页保存视图；Project 通过自身 view 权限提供 `/api/ops/projects/saved-views`，保存筛选、每页大小和可见列，不保存当前页。
+- [x] application-model-docs：设计 authority 收敛为 `Deployment Type -> Runtime Target -> Source`，并固定 Application ID、Workspace 与 Compose deployment identity 的正交边界。
+- [x] application-identity-backend：迁移 public Application ID、Workspace Key/Path、Compose Project Name 与 capability-aware Target 选择契约。
+- [x] create-workflow-web：三步创建 UI、可用 Target 卡片、来源收敛与返回/刷新列表行为。
+- [x] validation-and-closeout：OpenAPI、server、web 与主题验收；浏览器路径因本机缺少 `chrome-for-testing` 未执行。
 
 ## Creation Pipeline Follow-up
 
@@ -137,6 +141,13 @@ Compose Project Management
 
 - 支持 git/template/scan/discovery/remote-host 扩展路径
 - 支持后端 project activity aggregation authority
+
+当前批次决定（2026-07-14）：
+
+- Deployment Type、Runtime Target、Source 三层正交：Compose 是 Deployment Type；Docker、Podman、containerd 是 Runtime Provider。
+- 当前只公开 Compose、具备真实 capability 的 Local Docker，以及 Blank、Template、Import Existing；Swarm/Kubernetes/Nomad 在第一步禁用并提示暂不支持，Git/Remote/Podman 不展示占位入口。
+- 公开标识为创建后的 `app_<ULID>`；Workspace Path 由服务端以唯一 Workspace Key 生成，表单展示 Graft 提议且可编辑的安全 key；Compose `name:` 决定 Compose Project Name，三者都不等同于 Display Name。
+- Workspace 是 Application 文件载体，不按 Provider 或 Deployment Type 分目录；数据库 registry 是元数据真相，不新增 `graft.yaml`。
 
 当前 batch-1 已完成的前置条件：
 
@@ -237,6 +248,30 @@ Compose Project Management
 }
 ```
 
+## 2026-07-14 Application Creation Authority Repair Closeout
+
+- [x] `application-identity-backend`：公开路由与批量操作切换为 `app_<ULID>`；受管创建使用 `runtime_target_id` 和可选 `workspace_key`，并由 Compose 顶层 `name:` 作为 deployment identity。
+- [x] `create-workflow-web`：实现 `Deployment Type -> Runtime Target -> Source`，仅 Compose 可用；Swarm、Kubernetes、Nomad 和 Git 都以本地化禁用提示呈现。返回列表使用“返回”，列表刷新使用“刷新”。
+- [x] `validation-and-closeout`：`validate_sql_migrations.py`、OpenAPI 类型检查、`graft validate backend`、`bun run lint:i18n`、`bun run check` 与 `git diff --check` 均通过。浏览器 QA 未执行，因为 Playwright 环境没有 `chrome-for-testing`。
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "application-model-docs",
+    "application-model-docs-correction",
+    "git-source-roadmap-card-documentation",
+    "application-identity-backend",
+    "create-workflow-web",
+    "validation-and-closeout"
+  ],
+  "pending_batches": [],
+  "current_batch": "validation-and-closeout",
+  "next_batch": null,
+  "closeout_status": "application-creation-authority-repair-complete"
+}
+```
+
 ## 2026-07-12 Source Surface Simplification
 
 - [x] `source-surface-simplification-and-extension-seam`：公开来源收敛为 Managed、Template 与独立 Import Existing；Git/Remote 的 API、路由、页面、OpenAPI contract、catalog 和 metadata 已移除。
@@ -278,6 +313,12 @@ Compose Project Management
 - [x] Navigation icon system: menus resolve static Iconify data through a single component, using Lucide by default and `tabler:brand-docker` for the Docker outline brand glyph.
 - [x] Acceptance validation: SQL migration gate, OpenAPI bundle/type governance, targeted contract tests, `graft validate backend`, `bun run check`, shared asset registry and ai-plan structure guards all passed; generated artifacts and working tree are clean.
 
+## 2026-07-14 Git Source Roadmap Card Documentation
+
+- [x] Source 页固定展示 Blank、Template、Git、Import Existing 四张卡片；Git 仅是禁用且不可键盘触发的路线图卡片，hover/focus 使用本地化“暂不支持”提示。
+- [x] Git 不进入 OpenAPI、创建方式目录、路由、菜单、`source_kind` 或任何持久化/后端占位模型；当前可执行来源仍只有 Blank、Template、Import Existing。
+- [x] 本批只修复设计与 IA authority，不实现 Web 卡片；下一批由 `create-workflow-web` 落地三步创建页面和该禁用卡片。
+
 ## Current Loop Batch State
 
 ```json
@@ -287,11 +328,14 @@ Compose Project Management
     "saved-view-foundation-and-project-contract",
     "application-target-association-and-list-query",
     "web-application-management-and-icon-system",
-    "cross-boundary-acceptance-and-topic-closeout"
+    "cross-boundary-acceptance-and-topic-closeout",
+    "application-model-docs",
+    "application-model-docs-correction",
+    "git-source-roadmap-card-documentation"
   ],
-  "pending_batches": ["remote-source-adapter-and-activity-boundary"],
-  "current_batch": "cross-boundary-acceptance-and-topic-closeout",
-  "next_batch": "remote-source-adapter-and-activity-boundary",
-  "closeout_status": "application-management-accepted-topic-active"
+  "pending_batches": ["application-identity-backend", "create-workflow-web", "validation-and-closeout"],
+  "current_batch": "git-source-roadmap-card-documentation",
+  "next_batch": "create-workflow-web",
+  "closeout_status": "git-source-roadmap-card-documentation-complete"
 }
 ```

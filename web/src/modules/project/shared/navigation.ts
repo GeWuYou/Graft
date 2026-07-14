@@ -1,6 +1,30 @@
+import type { LocationQueryRaw, Router } from 'vue-router';
+
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
+
+type ProjectCreateRouter = Pick<Router, 'push' | 'replace'>;
+
+/**
+ * 导航至项目创建列表页。
+ *
+ * @param listRouteName - 目标列表页的路由名称
+ */
+export function navigateProjectCreateList(router: ProjectCreateRouter, listRouteName: string) {
+  void router.push({ name: listRouteName });
+}
+
+/**
+ * 使用指定的路由名称和查询参数替换当前项目创建页面。
+ *
+ * @param router - 用于执行路由替换的路由器
+ * @param pageRouteName - 目标页面的路由名称
+ * @param query - 目标页面的查询参数
+ */
+export function refreshProjectCreatePage(router: ProjectCreateRouter, pageRouteName: string, query: LocationQueryRaw) {
+  void router.replace({ name: pageRouteName, query });
+}
 
 /**
  * 生成带回退规则的详情页标题。

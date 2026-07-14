@@ -1597,8 +1597,7 @@ describe('container detail page', () => {
     expect(wrapper.get('[data-testid="container-detail-logs-header"]').text()).toContain('容器日志');
 
     logController!.emitMessage(createRealtimeLogEvent('server ready'));
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('.log-viewer').text()).toContain('server ready');
 
@@ -1621,8 +1620,7 @@ describe('container detail page', () => {
 
     logController!.emitMessage(createRealtimeLogEvent('wrong-topic-line', 'container-1', 'container.logs:container-2'));
     logController!.emitMessage(createRealtimeLogEvent('wrong-id-line', 'container-2', 'container.logs:container-1'));
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     const text = wrapper.get('.log-viewer').text();
     expect(text).not.toContain('wrong-topic-line');
@@ -1695,8 +1693,7 @@ describe('container detail page', () => {
     expect(wrapper.get('.log-viewer').text()).not.toContain('line-2');
     expect(wrapper.get('.log-viewer').text()).not.toContain('line-3');
 
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     const text = wrapper.get('.log-viewer').text();
     expect(text).toContain('line-2');
@@ -1723,15 +1720,14 @@ describe('container detail page', () => {
 
     logController!.emitMessage(createRealtimeLogEvent('paused-line-2'));
     logController!.emitMessage(createRealtimeLogEvent('paused-line-3'));
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     const pausedText = wrapper.get('.log-viewer').text();
     expect(pausedText).not.toContain('paused-line-2');
     expect(pausedText).not.toContain('paused-line-3');
 
     await wrapper.get('[data-testid="log-viewer-pause-toggle"]').trigger('click');
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     const resumedText = wrapper.get('.log-viewer').text();
     expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时');
@@ -1766,8 +1762,7 @@ describe('container detail page', () => {
     expect(wrapper.get('.log-viewer').text()).toContain('日志流已经准备好');
 
     logController!.emitMessage(createRealtimeLogEvent('first-visible-line'));
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('实时');
     expect(wrapper.get('.log-viewer').text()).toContain('first-visible-line');
@@ -1775,9 +1770,10 @@ describe('container detail page', () => {
   });
 
   it('shows disconnected viewport semantics when the stream closes after logs were cleared', async () => {
+    vi.useFakeTimers();
     routeState.route.query.tab = 'logs';
     const wrapper = mountPage();
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     const logController = realtimeMocks.controllers.find(
       (controller) => controller.topic === 'container.logs:container-1',
@@ -1785,10 +1781,10 @@ describe('container detail page', () => {
     expect(logController).toBeTruthy();
 
     await wrapper.get('[data-testid="log-viewer-clear"]').trigger('click');
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     logController!.emitStateChange('closed');
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('连接断开');
     expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(true);
@@ -1834,13 +1830,12 @@ describe('container detail page', () => {
     expect(wrapper.get('.log-viewer').text()).toContain('server started');
 
     await wrapper.get('[data-testid="log-viewer-clear"]').trigger('click');
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('.log-viewer').text()).not.toContain('server started');
 
     logController!.emitMessage(createRealtimeLogEvent('after-clear-line'));
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('.log-viewer').text()).toContain('after-clear-line');
   });
@@ -1867,8 +1862,7 @@ describe('container detail page', () => {
         },
       },
     });
-    vi.advanceTimersByTime(100);
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('.log-viewer').text()).toContain('snake-case-line');
   });
@@ -3511,6 +3505,12 @@ function createRealtimeLogEvent(
       entry: createLogEntry(line, stream),
     },
   };
+}
+
+async function flushLogViewerUpdates() {
+  await vi.advanceTimersByTimeAsync(1000);
+  await flushPromises();
+  await nextTick();
 }
 
 function mountPage(component: object = ContainerDetailPage) {

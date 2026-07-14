@@ -397,7 +397,7 @@ func TestLifecycleConfigRealtimePayloadDoesNotReadRuntimeSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build lifecycle configuration realtime payload: %v", err)
 	}
-	if payload.Detail.Id != 1 {
+	if payload.Detail.ComposeProjectName != "demo" {
 		t.Fatalf("expected payload detail for project 1, got %#v", payload.Detail)
 	}
 	if got := runtimeReader.listProjectMemberCalls.Load(); got != 0 {

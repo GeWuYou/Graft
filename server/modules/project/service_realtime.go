@@ -15,7 +15,7 @@ import (
 const projectDetailTopicRefreshInterval = 5 * time.Second
 
 type projectListSummaryRealtimeItem struct {
-	ProjectID       int64                            `json:"project_id"`
+	ApplicationID   string                           `json:"application_id"`
 	RuntimeStatus   generated.ProjectRuntimeStatus   `json:"runtime_status"`
 	ServiceCount    int                              `json:"service_count"`
 	ContainerCounts generated.ProjectContainerCounts `json:"container_counts"`

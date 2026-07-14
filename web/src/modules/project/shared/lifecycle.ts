@@ -22,9 +22,9 @@ const defaultLifecycleWaitTimeoutSeconds = 120;
  * @param workingDirectory - 用于匹配并移除的工作目录
  * @returns 去除工作目录前缀后的路径
  */
-function normalizeLifecycleFilePath(path: string, workingDirectory: string) {
+function normalizeLifecycleFilePath(path: string, workingDirectory?: string | null) {
   const value = path.trim();
-  const normalizedWorkingDirectory = workingDirectory.trim().replace(/\/+$/g, '');
+  const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
 
   if (!value || !normalizedWorkingDirectory) {
     return value;
@@ -124,9 +124,9 @@ function formatAdditionalArgs(values: readonly string[] | null | undefined) {
  * @param workingDirectory - 用于补全相对路径的工作目录
  * @returns 去除首尾空白后的绝对路径；绝对路径或缺少工作目录时返回原路径
  */
-function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory: string) {
+function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory?: string | null) {
   const value = path.trim();
-  const normalizedWorkingDirectory = workingDirectory.trim().replace(/\/+$/g, '');
+  const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
 
   if (!value || !normalizedWorkingDirectory || value.startsWith('/')) {
     return value;
@@ -455,9 +455,9 @@ export function buildLifecycleConfigurationDraft(
   const source = detail.lifecycle_configuration;
   const config: ProjectLifecycleConfigurationDraft = {
     strategy_kind: source?.strategy_kind ?? 'standard',
-    working_directory: detail.working_directory,
+    working_directory: detail.workspace_path,
     compose_files: normalizeComposeFiles(detail),
-    canonical_project_name: detail.canonical_project_name,
+    canonical_project_name: detail.compose_project_name,
     profiles: source?.profiles ?? [],
     down_before_redeploy: source?.down_before_redeploy ?? true,
     pull_before_redeploy: source?.pull_before_redeploy ?? false,
@@ -470,7 +470,7 @@ export function buildLifecycleConfigurationDraft(
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
     additional_args: formatAdditionalArgs(source?.additional_args),
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
-    generated_commands: mapGeneratedCommands(source, detail.working_directory),
+    generated_commands: mapGeneratedCommands(source, detail.workspace_path),
   };
 
   return {

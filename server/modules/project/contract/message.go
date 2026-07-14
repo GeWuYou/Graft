@@ -53,10 +53,14 @@ const (
 	ProjectInvalidCanonicalProjectName ErrorCode = "ops.project.error.invalidCanonicalProjectName"
 	// ProjectConflict identifies project-registration uniqueness conflicts.
 	ProjectConflict ErrorCode = "ops.project.error.conflict"
+	// ProjectComposeProjectNameOccupied identifies a runtime-local Compose name collision.
+	ProjectComposeProjectNameOccupied ErrorCode = "ops.project.error.composeProjectNameOccupied"
 	// ProjectNotFound identifies unknown project records.
 	ProjectNotFound ErrorCode = "ops.project.error.notFound"
 	// ProjectUnsupportedLifecycle identifies lifecycle requests blocked by project ownership or phase scope.
 	ProjectUnsupportedLifecycle ErrorCode = "ops.project.error.unsupportedLifecycle"
+	// ProjectRuntimeUnavailable identifies Compose lifecycle requests blocked by an unavailable selected Runtime Target.
+	ProjectRuntimeUnavailable ErrorCode = "ops.project.error.runtimeUnavailable"
 	// ProjectImportValidationFailed identifies invalid Compose import payloads or parse failures.
 	ProjectImportValidationFailed ErrorCode = "ops.project.error.importValidationFailed"
 	// ProjectManagedRootUnconfigured identifies managed-create flows blocked by missing managed-root authority.
@@ -142,8 +146,8 @@ const (
 )
 
 const (
-	// ProjectManagedRootConfig stores the canonical managed-project root directory.
-	ProjectManagedRootConfig ConfigKey = "ops.project.managed.root_directory"
+	// ApplicationRootDirectoryConfig stores the canonical application root directory.
+	ApplicationRootDirectoryConfig ConfigKey = "ops.application.root_directory"
 	// ProjectImportAllowedRootsConfig stores operator-allowlisted browse roots for import flows.
 	ProjectImportAllowedRootsConfig ConfigKey = "ops.project.import.allowed_roots"
 	// ProjectWorkspaceHiddenDirectoriesConfig stores default-hidden heavy directories for the configuration workspace tree.
@@ -155,14 +159,14 @@ const (
 )
 
 const (
-	// ProjectManagedRootConfigTitle identifies the managed-root config title localization key.
-	ProjectManagedRootConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.title"
-	// ProjectManagedRootConfigDescription identifies the managed-root config description localization key.
-	ProjectManagedRootConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.description"
-	// ProjectCreateConfigGroupTitle identifies the project-create config group title localization key.
-	ProjectCreateConfigGroupTitle ConfigMessageKey = "systemConfig.groups.ops.project.create"
-	// ProjectCreateConfigGroupDescription identifies the project-create config group description localization key.
-	ProjectCreateConfigGroupDescription ConfigMessageKey = "systemConfig.groups.ops.project.create.description"
+	// ApplicationRootDirectoryConfigTitle identifies the application-root config title localization key.
+	ApplicationRootDirectoryConfigTitle ConfigMessageKey = "systemConfig.project.ops.application.root_directory.title"
+	// ApplicationRootDirectoryConfigDescription identifies the application-root config description localization key.
+	ApplicationRootDirectoryConfigDescription ConfigMessageKey = "systemConfig.project.ops.application.root_directory.description"
+	// ApplicationCreateConfigGroupTitle identifies the application-create config group title localization key.
+	ApplicationCreateConfigGroupTitle ConfigMessageKey = "systemConfig.groups.ops.application.create"
+	// ApplicationCreateConfigGroupDescription identifies the application-create config group description localization key.
+	ApplicationCreateConfigGroupDescription ConfigMessageKey = "systemConfig.groups.ops.application.create.description"
 	// ProjectImportAllowedRootsConfigTitle identifies the allowlisted import roots config title localization key.
 	ProjectImportAllowedRootsConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.title"
 	// ProjectImportAllowedRootsConfigDescription identifies the allowlisted import roots config description localization key.

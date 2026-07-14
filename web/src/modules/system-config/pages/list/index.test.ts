@@ -41,15 +41,15 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.groups.notification.general.description': '控制通知中心的基础行为。',
   'systemConfig.groups.ops.container.general': '容器管理',
   'systemConfig.groups.ops.container.general.description': '控制容器管理能力的基础开关。',
-  'systemConfig.groups.ops.project.create': '项目创建',
-  'systemConfig.groups.ops.project.create.description': '管理受管项目创建流程的 authority 和根目录入口。',
+  'systemConfig.groups.ops.application.create': '应用创建',
+  'systemConfig.groups.ops.application.create.description': '管理受管应用创建流程的 authority 和根目录入口。',
   'systemConfig.groups.ops.project.import': '项目导入',
   'systemConfig.groups.ops.project.import.description': '管理导入流程允许浏览的根目录与边界。',
   'systemConfig.groups.ops.project.workspace': '项目工作台',
   'systemConfig.groups.ops.project.workspace.description': '管理配置工作台的目录过滤与文件浏览默认行为。',
-  'systemConfig.project.ops.project.managed.root_directory.title': '受管项目根目录',
-  'systemConfig.project.ops.project.managed.root_directory.description':
-    '受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。',
+  'systemConfig.project.ops.application.root_directory.title': '应用根目录',
+  'systemConfig.project.ops.application.root_directory.description':
+    '受管 Docker Compose 应用创建使用的根目录。留空表示禁用受管创建。',
   'systemConfig.project.ops.project.import.allowed_roots.title': '导入允许根目录',
   'systemConfig.project.ops.project.import.allowed_roots.description':
     '配置项目导入流程允许浏览的根目录 JSON 数组字符串。',
@@ -819,21 +819,22 @@ describe('system config list page', () => {
           order: 7099,
         }),
         projectConfigItem({
-          key: 'ops.project.create.managed_root_directory',
-          group: 'ops.project.create',
-          groupKey: 'systemConfig.groups.ops.project.create',
-          groupLabel: 'Project Create',
-          groupDescriptionKey: 'systemConfig.groups.ops.project.create.description',
-          groupDescription: 'Managed project create authority and root workflow.',
-          titleKey: 'systemConfig.project.ops.project.managed.root_directory.title',
-          title: 'Managed Root Directory',
-          descriptionKey: 'systemConfig.project.ops.project.managed.root_directory.description',
-          description: 'Managed Compose project create root directory.',
+          key: 'ops.application.root_directory',
+          group: 'ops.application.create',
+          groupKey: 'systemConfig.groups.ops.application.create',
+          groupLabel: 'Application Create',
+          groupDescriptionKey: 'systemConfig.groups.ops.application.create.description',
+          groupDescription: 'Managed application create authority and root workflow.',
+          titleKey: 'systemConfig.project.ops.application.root_directory.title',
+          title: 'Application Root Directory',
+          descriptionKey: 'systemConfig.project.ops.application.root_directory.description',
+          description:
+            'Root directory used for managed Docker Compose application creation. Leave empty to disable managed creation.',
           configSchema: {
             type: 'string',
           },
-          effectiveValue: '"/srv/projects"',
-          defaultValue: '""',
+          effectiveValue: '"/opt/graft/apps"',
+          defaultValue: '"/opt/graft/apps"',
           order: 7100,
         }),
       ],
@@ -844,7 +845,7 @@ describe('system config list page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('应用');
-    expect(wrapper.text()).toContain('项目创建');
+    expect(wrapper.text()).toContain('应用');
     expect(wrapper.text()).toContain('项目导入');
     expect(wrapper.text()).toContain('项目工作台');
     expect(wrapper.text()).toContain('管理配置工作台的目录过滤与文件浏览默认行为。');

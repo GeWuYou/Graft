@@ -2601,6 +2601,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/create/runtime-targets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List selectable Compose runtime targets
+     * @description Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready.
+     */
+    get: operations['getProjectComposeRuntimeTargets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/discovery-candidates': {
     parameters: {
       query?: never;
@@ -3339,6 +3359,8 @@ export interface components {
     ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
     ProjectCreationMethod: components['schemas']['project-creation-method'];
     ProjectCreationMethodCatalogResponse: components['schemas']['project-creation-method-catalog-response'];
+    ProjectComposeRuntimeTarget: components['schemas']['project-compose-runtime-target'];
+    ProjectComposeRuntimeTargetCatalogResponse: components['schemas']['project-compose-runtime-target-catalog-response'];
     ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
@@ -3406,6 +3428,7 @@ export interface components {
     SavedViewListResponse: components['schemas']['saved-view-list-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
+    EnvelopedProjectComposeRuntimeTargetCatalogResponse: components['schemas']['enveloped-project-compose-runtime-target-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
     EnvelopedProjectLogResponse: components['schemas']['enveloped-project-log-response'];
     EnvelopedProjectOverviewResponse: components['schemas']['enveloped-project-overview-response'];
@@ -6170,21 +6193,21 @@ export interface components {
       total: number;
     };
     'project-list-item': {
-      /** Format: int64 */
-      id: number;
+      application_id: string;
       display_name: string;
       /** @enum {string} */
       application_type: 'compose';
       runtime_target?: components['schemas']['project-runtime-target-summary'];
-      canonical_project_name: string;
-      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      compose_project_name: string;
+      compose_project_name_source: components['schemas']['project-canonical-name-source'];
+      workspace_key?: string | null;
       lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
       source_kind: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
       activity_authority: components['schemas']['project-activity-authority'];
       host_scope: components['schemas']['project-host-scope'];
       ownership_mode: components['schemas']['project-ownership-mode'];
-      working_directory: string;
+      workspace_path: string;
       /** @description Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority. */
       runtime_status?: components['schemas']['project-runtime-status'];
       service_count: number;
@@ -6666,6 +6689,24 @@ export interface components {
     'enveloped-project-creation-method-catalog-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-creation-method-catalog-response'];
     };
+    'project-compose-runtime-target': {
+      /** Format: int64 */
+      runtime_target_id: number;
+      display_name: string;
+      provider: string;
+      availability: boolean;
+      /** @enum {string} */
+      readiness: 'ready' | 'runtime_unavailable';
+      capabilities: string[];
+    };
+    'project-compose-runtime-target-catalog-response': {
+      /** @enum {string} */
+      deployment_type: 'compose';
+      items: components['schemas']['project-compose-runtime-target'][];
+    };
+    'enveloped-project-compose-runtime-target-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-compose-runtime-target-catalog-response'];
+    };
     /** @enum {string} */
     'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
     /** @enum {string} */
@@ -6729,9 +6770,10 @@ export interface components {
     };
     'project-create-validate-request': {
       display_name: string;
-      canonical_project_name: string;
-      /** @description Relative project directory under the canonical managed root. */
-      relative_project_directory: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
+      workspace_key?: string;
       compose_file_name: string;
       env_file_name?: string | null;
       /** @description Complete managed workspace text manifest to validate without materializing. */
@@ -6746,9 +6788,10 @@ export interface components {
       managed_root: components['schemas']['project-managed-root-response'];
       source_type: components['schemas']['project-source-kind'];
       display_name: string;
-      canonical_project_name: string;
+      compose_project_name: string;
+      workspace_key?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
-      working_directory: string;
+      workspace_path: string;
       compose_file_name: string;
       env_file_name?: string | null;
       compose_file_absolute_path: string;
@@ -6761,9 +6804,10 @@ export interface components {
     };
     'project-create-request': {
       display_name: string;
-      canonical_project_name: string;
-      /** @description Relative project directory under the canonical managed root. */
-      relative_project_directory: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
+      workspace_key?: string;
       compose_file_name: string;
       /** @description Initial Compose YAML content to materialize in the managed project directory. */
       compose_file_content: string;
@@ -6781,16 +6825,16 @@ export interface components {
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];
       source_type: components['schemas']['project-source-kind'];
-      /** Format: int64 */
-      project_id: number;
+      application_id: string;
       /** @enum {string} */
       action: 'create';
       /** @enum {string} */
       result: 'created';
       display_name: string;
-      canonical_project_name: string;
+      compose_project_name: string;
+      workspace_key?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
-      working_directory: string;
+      workspace_path: string;
       compose_file_name: string;
       compose_file_absolute_path: string;
       env_file_name?: string | null;
@@ -6811,13 +6855,14 @@ export interface components {
     };
     'project-template-create-request': {
       display_name: string;
-      canonical_project_name: string;
-      relative_project_directory: string;
+      /** Format: int64 */
+      runtime_target_id: number;
+      workspace_key?: string;
       /** @description Explicit bundled template key. Defaults to empty-compose. */
       template_key?: string;
       /** @description Explicit bundled template version. Defaults to v1. */
       template_version?: string;
-      /** @description Safe display provenance for this template instance. Defaults to canonical_project_name. */
+      /** @description Safe display provenance for this template instance. Defaults to the generated workspace key. */
       template_instance_name?: string;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
@@ -6874,9 +6919,8 @@ export interface components {
       memory_limit_bytes: number;
     };
     'project-overview-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
+      application_id: string;
+      compose_project_name: string;
       /** Format: date-time */
       collected_at?: string | null;
       health: components['schemas']['project-overview-health-summary'];
@@ -7113,7 +7157,7 @@ export interface components {
     'project-batch-action-request': {
       /** @enum {string} */
       action: 'start' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy';
-      project_ids: number[];
+      application_ids: string[];
       /** @default false */
       remove_named_volumes: boolean;
       /** @default false */
@@ -7154,8 +7198,8 @@ export interface components {
       /** @default false */
       image_prune: boolean;
       /** @default false */
-      delete_working_directory: boolean;
-      confirm_canonical_project_name: string;
+      delete_workspace: boolean;
+      confirm_application_id: string;
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -7343,8 +7387,8 @@ export interface components {
     'project-list-source-kind': components['schemas']['project-source-kind'];
     /** @description Optional project drift-status filter. */
     'project-list-drift-status': components['schemas']['project-drift-status'];
-    /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
-    'project-id-path': number;
+    /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
+    'project-id-path': string;
     'project-saved-view-id-path': string;
     'saved-view-id-path': string;
     /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
@@ -14654,6 +14698,29 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getProjectComposeRuntimeTargets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Compose runtime target catalog. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-compose-runtime-target-catalog-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getProjectDiscoveryCandidates: {
     parameters: {
       query?: never;
@@ -14931,7 +14998,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -14986,7 +15053,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15052,7 +15119,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15107,7 +15174,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15176,7 +15243,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15231,7 +15298,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15286,7 +15353,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15346,7 +15413,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15404,7 +15471,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15462,7 +15529,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15524,7 +15591,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15583,7 +15650,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15648,7 +15715,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15703,7 +15770,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15768,7 +15835,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15833,7 +15900,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -15898,7 +15965,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -16019,7 +16086,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;
@@ -16074,7 +16141,7 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
         id: components['parameters']['project-id-path'];
       };
       cookie?: never;

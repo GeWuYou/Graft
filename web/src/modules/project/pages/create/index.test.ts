@@ -4,16 +4,18 @@ import { defineComponent, h } from 'vue';
 
 import ProjectCreateIndex from './index.vue';
 
+const routeQuery = vi.hoisted(() => ({ runtime_target_id: '7' as string | string[] }));
 const mocks = vi.hoisted(() => ({
-  getProjectManagedRoot: vi.fn(),
-  postProjectCreateValidate: vi.fn(),
+  postProjectCreate: vi.fn(),
 }));
 
 vi.mock('../../api/project', () => ({
-  getProjectManagedRoot: mocks.getProjectManagedRoot,
-  postProjectCreate: vi.fn(),
-  postProjectCreateValidate: mocks.postProjectCreateValidate,
+  postProjectCreate: mocks.postProjectCreate,
   postProjectDeploy: vi.fn(),
+}));
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: routeQuery }),
 }));
 
 vi.mock('../../shared/page-context', () => ({
@@ -120,19 +122,15 @@ function mountPage() {
 
 describe('ProjectCreateIndex', () => {
   beforeEach(() => {
-    mocks.getProjectManagedRoot.mockResolvedValue({
-      configured_root_directory: '/srv/graft',
-      create_permission: 'project:create',
-      status: 'ready',
-      supports_managed_create: true,
-    });
-    mocks.postProjectCreateValidate.mockResolvedValue({
-      warnings: ['compose file uses a deprecated attribute'],
-      working_directory: '/srv/graft/demo-project',
+    mocks.postProjectCreate.mockClear();
+    routeQuery.runtime_target_id = '7';
+    mocks.postProjectCreate.mockResolvedValue({
+      application_id: 'app_42',
+      display_name: 'demo-project',
     });
   });
 
-  it('validates the lifecycle draft before entering review and renders its result', async () => {
+  it('creates a project from the workspace draft', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -148,9 +146,24 @@ describe('ProjectCreateIndex', () => {
       .find((button) => button.text().includes('project.create.actions.review'))
       ?.trigger('click');
     await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('project.create.actions.create'))
+      ?.trigger('click');
+    await flushPromises();
 
-    expect(mocks.postProjectCreateValidate).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('/srv/graft/demo-project');
-    expect(wrapper.text()).toContain('compose file uses a deprecated attribute');
+    expect(mocks.postProjectCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.postProjectCreate).toHaveBeenCalledWith(expect.objectContaining({ runtime_target_id: 7 }));
+  });
+
+  it('does not create when the runtime target id is not a safe positive integer', async () => {
+    routeQuery.runtime_target_id = '1.5';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(mocks.postProjectCreate).not.toHaveBeenCalled();
   });
 });

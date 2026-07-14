@@ -4,8 +4,10 @@ ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.
 ops.project.error.invalidCanonicalProjectName: Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.
 ops.project.error.conflict: Project action is blocked by a conflicting project state.
+ops.project.error.composeProjectNameOccupied: The Compose project name is already in use on the selected Runtime Target.
 ops.project.error.notFound: Project was not found.
 ops.project.error.unsupportedLifecycle: Project lifecycle action is not available for the current project state.
+ops.project.error.runtimeUnavailable: The selected Runtime Target is unavailable. The workspace remains registered and can be deployed after the target recovers.
 ops.project.error.importValidationFailed: Project import inspection failed validation.
 ops.project.error.managedRootUnconfigured: Managed project root is not configured.
 ops.project.error.managedRootInvalid: Managed project root is invalid.
@@ -36,10 +38,10 @@ rbac.permissionCatalog.projectDiscoveryView.description: Preview discovered loca
 rbac.permissionCatalog.projectDeploy.display: Deploy Managed Compose Project Drafts
 rbac.permissionCatalog.projectDeploy.description: Diff, validate, and deploy managed project configuration drafts.
 ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
-systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
-systemConfig.project.ops.project.managed.root_directory.description: Root directory used for managed Compose project creation. Leave empty to keep managed creation unavailable.
-systemConfig.groups.ops.project.create: Project Create
-systemConfig.groups.ops.project.create.description: Managed project create authority and root workflow.
+systemConfig.project.ops.application.root_directory.title: Application Root Directory
+systemConfig.project.ops.application.root_directory.description: Root directory used for managed Docker Compose application creation. Leave empty to disable managed creation.
+systemConfig.groups.ops.application.create: Application Create
+systemConfig.groups.ops.application.create.description: Managed application create authority and root workflow.
 systemConfig.project.ops.project.import.allowed_roots.title: Import Allowed Roots
 systemConfig.project.ops.project.import.allowed_roots.description: Configure the JSON array string of root directories that import flows are allowed to browse.
 systemConfig.project.ops.project.workspace.hidden_directories.title: Workspace Hidden Directories

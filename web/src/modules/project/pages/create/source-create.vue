@@ -4,125 +4,102 @@
       title-key="project.route.createTemplate.title"
       :description="t('project.sourceCreate.templateDescription')"
       :source="{ labelKey: 'project.creation.eyebrow', fallback: t('project.creation.eyebrow') }"
-    />
-
-    <t-card :bordered="true">
-      <t-form :data="form" layout="vertical" @submit="onCreate">
-        <div class="source-create__grid">
-          <t-form-item :label="t('project.sourceCreate.displayName')" name="display_name">
-            <t-input v-model="form.display_name" />
-          </t-form-item>
-          <t-form-item :label="t('project.sourceCreate.canonicalName')" name="canonical_project_name">
-            <t-input v-model="form.canonical_project_name" />
-          </t-form-item>
-          <t-form-item :label="t('project.sourceCreate.relativeDirectory')" name="relative_project_directory">
-            <t-input v-model="form.relative_project_directory" />
-          </t-form-item>
-          <t-form-item :label="t('project.sourceCreate.template')" name="template_key">
-            <t-select v-model="templateForm.template_key" :options="templateOptions" />
-          </t-form-item>
-          <t-form-item :label="t('project.sourceCreate.instanceName')" name="template_instance_name">
-            <t-input v-model="templateForm.template_instance_name" :placeholder="form.canonical_project_name" />
-          </t-form-item>
+    >
+      <template #actions
+        ><t-space size="small"
+          ><t-button variant="outline" @click="goToList">{{ t('project.create.actions.back') }}</t-button
+          ><t-button @click="refreshPage">{{ t('project.create.actions.refresh') }}</t-button></t-space
+        ></template
+      >
+    </management-page-header>
+    <t-card :bordered="true"
+      ><t-form :data="form" layout="vertical" @submit="onCreate"
+        ><div class="source-create__grid">
+          <t-form-item :label="t('project.sourceCreate.displayName')" name="display_name"
+            ><t-input v-model="form.display_name" /></t-form-item
+          ><t-form-item :label="t('project.sourceCreate.workspaceKey')" name="workspace_key"
+            ><t-input
+              v-model="form.workspace_key"
+              :placeholder="t('project.sourceCreate.workspaceKeyPlaceholder')" /></t-form-item
+          ><t-form-item :label="t('project.sourceCreate.template')" name="template_key"
+            ><t-select v-model="templateForm.template_key" :options="templateOptions"
+          /></t-form-item>
         </div>
-
-        <t-alert theme="info" :message="t('project.sourceCreate.lifecycleHint')" class="source-create__notice" />
-        <t-checkbox v-model="deployAfterCreate" :disabled="!canDeployAfterCreate">
-          {{ t('project.sourceCreate.deployAfterCreate') }}
-        </t-checkbox>
-        <t-alert
-          v-if="!canDeployAfterCreate"
-          theme="info"
-          :message="t('project.sourceCreate.deployPermissionRequired')"
-          class="source-create__notice"
-        />
-        <t-alert
-          v-if="validation"
-          theme="success"
-          :message="t('project.sourceCreate.validated', { directory: validation.working_directory })"
-          class="source-create__notice"
-        />
-
-        <t-space class="source-create__actions">
-          <t-button variant="outline" :loading="validating" @click="onValidate">{{
-            t('project.sourceCreate.validate')
-          }}</t-button>
-          <t-button theme="primary" type="submit" :loading="creating">{{ t('project.sourceCreate.create') }}</t-button>
-        </t-space>
-      </t-form>
-    </t-card>
+        <t-space class="source-create__actions"
+          ><t-button theme="primary" type="submit" :loading="creating">{{
+            t('project.sourceCreate.create')
+          }}</t-button></t-space
+        ></t-form
+      ></t-card
+    >
   </management-page-content>
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { usePermissionStore } from '@/store';
 
-import { postProjectCreateTemplate, postProjectCreateTemplateValidate, postProjectDeploy } from '../../api/project';
-import { PROJECT_PERMISSION_CODE } from '../../contract/permissions';
-import { createWithOptionalDeploy } from '../../shared/create-with-optional-deploy';
-import type { ProjectCreateValidateResponse, ProjectTemplateCreateRequest } from '../../types/project';
-
+import { postProjectCreateTemplate } from '../../api/project';
+import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { navigateProjectCreateList, refreshProjectCreatePage } from '../../shared/navigation';
+import type { ProjectTemplateCreateRequest } from '../../types/project';
 defineOptions({ name: 'ProjectSourceCreate' });
-
-const router = useRouter();
 const { t } = useI18n();
-const permissionStore = usePermissionStore();
-const validating = ref(false);
+const router = useRouter();
+const route = useRoute();
 const creating = ref(false);
-const deployAfterCreate = ref(false);
-const validation = ref<ProjectCreateValidateResponse | null>(null);
-const form = reactive({ display_name: '', canonical_project_name: '', relative_project_directory: '' });
+const runtimeTargetId = computed(() => {
+  const raw = route.query.runtime_target_id;
+  return typeof raw === 'string' && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : null;
+});
+const form = reactive({ display_name: '', workspace_key: '' });
 const templateForm = reactive({ template_key: 'empty-compose', template_version: 'v1', template_instance_name: '' });
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
 ]);
-const canDeployAfterCreate = computed(() => permissionStore.hasPermission(PROJECT_PERMISSION_CODE.DEPLOY));
-
-function templatePayload(): ProjectTemplateCreateRequest {
-  return { ...form, ...templateForm };
+function templatePayload(runtimeTargetIdValue: number): ProjectTemplateCreateRequest {
+  return {
+    display_name: form.display_name.trim(),
+    runtime_target_id: runtimeTargetIdValue,
+    ...(form.workspace_key.trim() ? { workspace_key: form.workspace_key.trim() } : {}),
+    template_key: templateForm.template_key === 'empty-compose' ? 'empty-compose' : undefined,
+    template_version: templateForm.template_version === 'v1' ? 'v1' : undefined,
+    template_instance_name: templateForm.template_instance_name.trim() || undefined,
+  };
 }
-
-async function onValidate() {
-  validating.value = true;
-  try {
-    validation.value = await postProjectCreateTemplateValidate(templatePayload());
-    MessagePlugin.success(t('project.sourceCreate.validateSuccess'));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.validateFailed')));
-  } finally {
-    validating.value = false;
-  }
-}
-
 async function onCreate() {
+  if (runtimeTargetId.value === null) {
+    MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
+    goToList();
+    return;
+  }
+  if (templateForm.template_key !== 'empty-compose' || templateForm.template_version !== 'v1') {
+    MessagePlugin.warning(t('project.sourceCreate.template'));
+    return;
+  }
   creating.value = true;
   try {
-    const result = await createWithOptionalDeploy({
-      create: () => postProjectCreateTemplate(templatePayload()),
-      deploy: postProjectDeploy,
-      deployAfterCreate: deployAfterCreate.value && canDeployAfterCreate.value,
-    });
+    const result = await postProjectCreateTemplate(templatePayload(runtimeTargetId.value));
     MessagePlugin.success(t('project.sourceCreate.createSuccess'));
-    if (result.deployment.status === 'succeeded') {
-      MessagePlugin.success(t('project.sourceCreate.deploySuccess'));
-    }
-    if (result.deployment.status === 'failed') {
-      MessagePlugin.error(
-        resolveLocalizedErrorMessage(t, result.deployment.error, t('project.sourceCreate.deployFailed')),
-      );
-    }
-    await router.push({ name: 'ProjectDetailIndex', params: { id: result.created.project_id } });
+    await router.push({
+      name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
+      params: { id: result.application_id },
+    });
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
   } finally {
     creating.value = false;
   }
+}
+function goToList() {
+  navigateProjectCreateList(router, PROJECT_BOOTSTRAP_ROUTE.LIST.routeName);
+}
+function refreshPage() {
+  refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);
 }
 </script>
 <style scoped>
@@ -130,10 +107,6 @@ async function onCreate() {
   display: grid;
   gap: var(--graft-density-gap-16);
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
-.source-create__notice {
-  margin-top: var(--graft-density-gap-16);
 }
 
 .source-create__actions {

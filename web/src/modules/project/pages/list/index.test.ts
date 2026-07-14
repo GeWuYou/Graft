@@ -295,6 +295,7 @@ const TTableStub = defineComponent({
   props: {
     columns: { type: Array, required: true },
     data: { type: Array, required: true },
+    rowKey: { type: String, default: 'id' },
     selectedRowKeys: { type: Array, default: () => [] },
   },
   emits: ['select-change'],
@@ -315,7 +316,7 @@ const TTableStub = defineComponent({
           (props.data as Array<Record<string, unknown>>).map((row) =>
             h(
               'tr',
-              { 'data-row-id': String(row.id ?? '') },
+              { 'data-row-id': String(row[props.rowKey] ?? '') },
               (props.columns as Array<Record<string, unknown>>).map((column) => {
                 const slotName = String(column.colKey);
                 const slot = slots[slotName];
@@ -474,17 +475,21 @@ vi.mock('@/shared/components/management', async (importOriginal) => {
 
 function buildProjectRow(overrides: Record<string, unknown>) {
   return {
-    canonical_project_name: 'alpha',
+    activity_authority: 'frontend-fanout',
+    application_id: '1',
+    application_type: 'compose',
+    compose_project_name: 'alpha',
+    compose_project_name_source: 'explicit',
     container_counts: { issue: 0, running: 3, stopped: 0, total: 3, transitioning: 0 },
     display_name: 'Alpha',
     drift_status: 'clean',
-    id: 1,
+    host_scope: 'local',
     lifecycle_review_status: 'confirmed',
     ownership_mode: 'external',
     runtime_status: 'running',
     service_count: 3,
     source_kind: 'imported',
-    working_directory: '/srv/alpha',
+    workspace_path: '/srv/alpha',
     ...overrides,
   };
 }
@@ -575,34 +580,34 @@ describe('Project list page', () => {
       items: [
         buildProjectRow({}),
         buildProjectRow({
-          canonical_project_name: 'beta',
+          application_id: '2',
+          compose_project_name: 'beta',
           container_counts: { issue: 0, running: 0, stopped: 2, total: 2, transitioning: 0 },
           display_name: 'Beta',
-          id: 2,
           runtime_status: 'degraded',
           service_count: 2,
           source_kind: 'managed',
-          working_directory: '/srv/beta',
+          workspace_path: '/srv/beta',
         }),
         buildProjectRow({
-          canonical_project_name: 'gamma',
+          application_id: '3',
+          compose_project_name: 'gamma',
           container_counts: { issue: 0, running: 0, stopped: 1, total: 2, transitioning: 1 },
           display_name: 'Gamma',
-          id: 3,
           runtime_status: 'transitioning',
           source_kind: 'template',
-          working_directory: '/srv/gamma',
+          workspace_path: '/srv/gamma',
         }),
         buildProjectRow({
-          canonical_project_name: 'delta',
+          application_id: '4',
+          compose_project_name: 'delta',
           container_counts: { issue: 1, running: 0, stopped: 1, total: 1, transitioning: 0 },
           display_name: 'Delta',
           drift_status: 'unknown',
-          id: 4,
           runtime_status: 'unknown',
           service_count: 1,
           source_kind: 'template',
-          working_directory: '/srv/delta',
+          workspace_path: '/srv/delta',
         }),
       ],
       limit: 20,
@@ -632,7 +637,7 @@ describe('Project list page', () => {
 
   it('uses response total for total-like summary copy instead of current page length', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ id: 1 }), buildProjectRow({ id: 2 })],
+      items: [buildProjectRow({ application_id: '1' }), buildProjectRow({ application_id: '2' })],
       limit: 2,
       offset: 0,
       total: 42,
@@ -793,7 +798,7 @@ describe('Project list page', () => {
       items: [
         buildProjectRow({
           container_counts: { issue: 0, running: 0, stopped: 0, total: 0, transitioning: 0 },
-          id: 11,
+          application_id: '11',
           runtime_status: 'unknown',
         }),
       ],
@@ -817,7 +822,7 @@ describe('Project list page', () => {
       items: [
         buildProjectRow({
           container_counts: { issue: 0, running: 0, stopped: 0, total: 0, transitioning: 0 },
-          id: 12,
+          application_id: '12',
           runtime_status: 'running',
         }),
       ],
@@ -877,7 +882,7 @@ describe('Project list page', () => {
       {
         container_counts: { issue: 0, running: 0, stopped: 3, total: 3, transitioning: 0 },
         drift_status: 'changed',
-        project_id: 1,
+        application_id: '1',
         runtime_status: 'stopped',
         service_count: 4,
       },
@@ -929,7 +934,7 @@ describe('Project list page', () => {
         }),
       );
     projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ id: 1 }), buildProjectRow({ id: 2 })],
+      items: [buildProjectRow({ application_id: '1' }), buildProjectRow({ application_id: '2' })],
       limit: 20,
       offset: 0,
       total: 2,
@@ -986,7 +991,7 @@ describe('Project list page', () => {
     restartGate.resolve?.();
     await flushPromises();
 
-    expect(projectApiMocks.postProjectRestart).toHaveBeenCalledWith(1);
+    expect(projectApiMocks.postProjectRestart).toHaveBeenCalledWith('1');
     expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(2);
     expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
     wrapper.unmount();
@@ -1039,9 +1044,9 @@ describe('Project list page', () => {
   it('hides lifecycle actions by runtime status without a refresh column', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ id: 1, runtime_status: 'running' }),
-        buildProjectRow({ id: 2, runtime_status: 'degraded' }),
-        buildProjectRow({ id: 3, runtime_status: 'stopped' }),
+        buildProjectRow({ application_id: '1', runtime_status: 'running' }),
+        buildProjectRow({ application_id: '2', runtime_status: 'degraded' }),
+        buildProjectRow({ application_id: '3', runtime_status: 'stopped' }),
       ],
       limit: 20,
       offset: 0,
@@ -1084,7 +1089,7 @@ describe('Project list page', () => {
 
   it('shows a lifecycle review badge and hides compose actions for review-required imported projects', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ id: 9, lifecycle_review_status: 'review_required' })],
+      items: [buildProjectRow({ application_id: '9', lifecycle_review_status: 'review_required' })],
       limit: 20,
       offset: 0,
       total: 1,
@@ -1107,7 +1112,9 @@ describe('Project list page', () => {
 
   it('opens the lifecycle tab when the lifecycle review tag is clicked', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ id: 9, display_name: 'Dockge', lifecycle_review_status: 'review_required' })],
+      items: [
+        buildProjectRow({ application_id: '9', display_name: 'Dockge', lifecycle_review_status: 'review_required' }),
+      ],
       limit: 20,
       offset: 0,
       total: 1,
@@ -1120,7 +1127,7 @@ describe('Project list page', () => {
 
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
-      params: { id: 9 },
+      params: { id: '9' },
       query: {
         name: 'Dockge',
         tab: 'lifecycle',
@@ -1147,8 +1154,8 @@ describe('Project list page', () => {
 
     projectApiMocks.getProjects.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ id: 1, runtime_status: 'stopped' }),
-        buildProjectRow({ id: 2, runtime_status: 'running' }),
+        buildProjectRow({ application_id: '1', runtime_status: 'stopped' }),
+        buildProjectRow({ application_id: '2', runtime_status: 'running' }),
       ],
       limit: 20,
       offset: 0,
@@ -1158,7 +1165,7 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', ['1', '2']);
     await flushPromises();
     await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
     await flushPromises();
@@ -1169,7 +1176,7 @@ describe('Project list page', () => {
       confirm_canonical_project_name: undefined,
       delete_working_directory: false,
       image_prune: false,
-      project_ids: [2],
+      application_ids: ['2'],
       remove_named_volumes: false,
     });
   });
@@ -1183,8 +1190,8 @@ describe('Project list page', () => {
     );
     projectApiMocks.getProjects.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ id: 1, runtime_status: 'stopped' }),
-        buildProjectRow({ id: 2, runtime_status: 'running' }),
+        buildProjectRow({ application_id: '1', runtime_status: 'stopped' }),
+        buildProjectRow({ application_id: '2', runtime_status: 'running' }),
       ],
       limit: 20,
       offset: 0,
@@ -1194,7 +1201,7 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', ['1', '2']);
     await flushPromises();
     await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
     await flushPromises();
@@ -1219,7 +1226,7 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', ['1', '2']);
     await flushPromises();
 
     expect(wrapper.get('[data-testid="project-batch-destroy"]').attributes('disabled')).toBeDefined();
@@ -1249,7 +1256,7 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1]);
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', ['1']);
     await flushPromises();
     await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
     await flushPromises();
@@ -1290,7 +1297,7 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2, 3]);
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', ['1', '2', '3']);
     await flushPromises();
     await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
     await flushPromises();

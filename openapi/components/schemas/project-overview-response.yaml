@@ -1,16 +1,14 @@
 type: object
 required:
-  - project_id
-  - canonical_project_name
+  - application_id
+  - compose_project_name
   - health
   - resources
   - services
 properties:
-  project_id:
-    type: integer
-    format: int64
-    minimum: 1
-  canonical_project_name:
+  application_id:
+    type: string
+  compose_project_name:
     type: string
   collected_at:
     type: string

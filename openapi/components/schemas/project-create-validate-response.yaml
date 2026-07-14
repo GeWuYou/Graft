@@ -3,9 +3,9 @@ required:
   - managed_root
   - source_type
   - display_name
-  - canonical_project_name
+  - compose_project_name
   - ownership_mode
-  - working_directory
+  - workspace_path
   - compose_file_name
   - compose_file_absolute_path
 properties:
@@ -15,11 +15,14 @@ properties:
     $ref: ./project-source-kind.yaml
   display_name:
     type: string
-  canonical_project_name:
+  compose_project_name:
     type: string
+  workspace_key:
+    type: string
+    nullable: true
   ownership_mode:
     $ref: ./project-ownership-mode.yaml
-  working_directory:
+  workspace_path:
     type: string
   compose_file_name:
     type: string
