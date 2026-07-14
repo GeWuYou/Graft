@@ -7,7 +7,7 @@
     >
       <template #actions
         ><t-space size="small"
-          ><t-button variant="outline" @click="goToList">{{ t('project.create.actions.back') }}</t-button
+          ><t-button variant="outline" @click="goToSource">{{ t('project.create.actions.backToSource') }}</t-button
           ><t-button @click="refreshPage">{{ t('project.create.actions.refresh') }}</t-button></t-space
         ></template
       >
@@ -45,7 +45,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { postProjectCreateTemplate } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { navigateProjectCreateList, refreshProjectCreatePage } from '../../shared/navigation';
+import { navigateToProjectCreateSource, refreshProjectCreatePage } from '../../shared/navigation';
 import type { ProjectTemplateCreateRequest } from '../../types/project';
 defineOptions({ name: 'ProjectSourceCreate' });
 const { t } = useI18n();
@@ -74,7 +74,7 @@ function templatePayload(runtimeTargetIdValue: number): ProjectTemplateCreateReq
 async function onCreate() {
   if (runtimeTargetId.value === null) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
-    goToList();
+    goToSource();
     return;
   }
   if (templateForm.template_key !== 'empty-compose' || templateForm.template_version !== 'v1') {
@@ -95,8 +95,8 @@ async function onCreate() {
     creating.value = false;
   }
 }
-function goToList() {
-  navigateProjectCreateList(router, PROJECT_BOOTSTRAP_ROUTE.LIST.routeName);
+function goToSource() {
+  navigateToProjectCreateSource(router, route.query);
 }
 function refreshPage() {
   refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);

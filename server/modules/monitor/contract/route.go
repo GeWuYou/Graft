@@ -24,6 +24,12 @@ const (
 	// DependenciesRoute identifies the dependencies route fragment under server-status.
 	DependenciesRoute = "/dependencies"
 
+	// RequestPerformanceRoute identifies the request-performance API route fragment.
+	RequestPerformanceRoute = "/request-performance"
+
+	// RequestPerformanceRangeQueryKey identifies the request-performance range query parameter.
+	RequestPerformanceRangeQueryKey = "range"
+
 	// ServerStatusMenuPath identifies the Observability UI route prefix.
 	ServerStatusMenuPath = "/observability"
 
@@ -35,4 +41,7 @@ const (
 
 	// ServerStatusDependenciesMenuPath identifies the canonical dependencies menu path.
 	ServerStatusDependenciesMenuPath = ServerStatusMenuPath + DependenciesRoute
+
+	// RequestPerformanceMenuPath identifies the canonical request-performance menu path.
+	RequestPerformanceMenuPath = ServerStatusMenuPath + RequestPerformanceRoute
 )

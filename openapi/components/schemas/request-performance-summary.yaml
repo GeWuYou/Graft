@@ -1,0 +1,40 @@
+type: object
+required:
+  - total_requests
+  - requests_per_second
+  - p50_latency_ms
+  - p95_latency_ms
+  - error_5xx_count
+  - error_5xx_rate
+  - slow_request_count
+properties:
+  total_requests:
+    type: integer
+    format: int64
+    minimum: 0
+  requests_per_second:
+    type: number
+    format: double
+    minimum: 0
+  p50_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  p95_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  error_5xx_count:
+    type: integer
+    format: int64
+    minimum: 0
+  error_5xx_rate:
+    type: number
+    format: double
+    description: 5xx error rate as a percentage from 0 to 100.
+    minimum: 0
+    maximum: 100
+  slow_request_count:
+    type: integer
+    format: int64
+    minimum: 0

@@ -702,6 +702,7 @@
         "create": "创建并打开项目",
         "reset": "重置表单",
         "back": "上一步",
+        "backToSource": "返回应用来源",
         "continue": "继续",
         "review": "查看审核",
         "cancel": "取消"
@@ -810,14 +811,19 @@
       "eyebrow": "Docker Compose",
       "title": "选择应用来源",
       "description": "选择 Docker Compose 应用的初始化方式。",
-      "availability": { "ready": "可用", "blocked": "暂不可用" },
+      "availability": { "ready": "可用", "blocked": "暂不可用", "comingSoon": "即将推出" },
       "blockedReasons": {
         "managed_root_unconfigured": "受管项目根目录尚未配置，暂时无法新建空白项目。",
         "managed_root_invalid": "受管项目根目录配置无效，修复系统配置后才能新建空白项目。",
         "managed_root_unknown": "受管项目根目录状态未知，请刷新系统配置后重试。",
         "unknown": "当前创建方式暂不可用。"
       },
-      "actions": { "start": "开始创建", "unavailable": "暂不可用", "retry": "重试" },
+      "actions": {
+        "start": "开始创建",
+        "unavailable": "暂不可用",
+        "retry": "重试",
+        "backToRuntimeTargets": "返回运行目标"
+      },
       "advanced": { "title": "高级信息" },
       "methods": {
         "blank": {
@@ -852,7 +858,8 @@
         },
         "git": {
           "title": "Git",
-          "description": "从 Git 仓库创建应用。"
+          "description": "从 Git 仓库创建应用。",
+          "unavailableHint": "Git 仓库创建将在未来版本提供支持。"
         }
       },
       "messages": { "loadFailed": "项目创建方式加载失败。" }
@@ -861,16 +868,38 @@
     "deployment": {
       "eyebrow": "创建应用",
       "description": "选择应用的部署模型。",
+      "backToApplicationManagement": "返回应用管理",
+      "recommended": "推荐",
+      "comingSoon": "即将推出",
+      "selectCompose": "选择 Compose",
+      "comingSoonHelper": "暂不支持创建，未来版本将提供支持。",
       "items": {
-        "compose": { "title": "Compose", "description": "基于 Compose Specification" },
-        "swarm": { "title": "Swarm", "description": "Docker Stack" },
-        "kubernetes": { "title": "Kubernetes", "description": "Deployment/Pod" },
-        "nomad": { "title": "Nomad", "description": "Job" }
+        "compose": {
+          "title": "Compose",
+          "description": "基于 Compose Specification",
+          "capabilities": ["Docker / Podman", "多容器应用", "compose.yaml"]
+        },
+        "swarm": {
+          "title": "Swarm",
+          "description": "Docker Stack",
+          "capabilities": ["Docker 集群", "Docker Stack", "滚动更新"]
+        },
+        "kubernetes": {
+          "title": "Kubernetes",
+          "description": "集群工作负载",
+          "capabilities": ["集群工作负载", "Deployment / Pod", "Helm"]
+        },
+        "nomad": {
+          "title": "Nomad",
+          "description": "Job",
+          "capabilities": ["HashiCorp 生态", "Job 调度"]
+        }
       }
     },
     "runtimeTarget": {
       "eyebrow": "Compose",
       "description": "选择运行目标。",
+      "backToDeploymentModels": "返回部署模型",
       "loadFailed": "运行目标加载失败。",
       "unavailableTooltip": "运行目标当前不可用"
     },

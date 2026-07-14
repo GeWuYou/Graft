@@ -1,4 +1,4 @@
-Monitor-only generated server bindings are produced through `go generate`.
+Monitor-only generated server bindings for server status and request performance are produced through `go generate`.
 
-This package is intentionally limited to `getMonitorServerStatus` so the spike can validate generated server constraints
-without broadening the repository-wide runtime pattern.
+This package remains limited to monitor-owned read operations so generated server constraints stay bounded without
+broadening the repository-wide runtime pattern.

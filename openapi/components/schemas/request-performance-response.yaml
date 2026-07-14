@@ -1,0 +1,21 @@
+type: object
+required: [observed_at, range, summary, minute_buckets, status_groups, top_routes]
+properties:
+  observed_at:
+    type: string
+    format: date-time
+  range:
+    type: string
+    enum: [10m, 30m, 1h]
+  summary:
+    $ref: ./request-performance-summary.yaml
+  minute_buckets:
+    type: array
+    items:
+      $ref: ./request-performance-minute-bucket.yaml
+  status_groups:
+    type: array
+    items:
+      $ref: ./request-performance-status-group.yaml
+  top_routes:
+    $ref: ./request-performance-top-routes.yaml

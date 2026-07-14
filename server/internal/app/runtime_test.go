@@ -33,6 +33,7 @@ import (
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/moduleregistry"
 	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
@@ -456,6 +457,10 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new runtime cache manager: %v", err)
 	}
+	accessLogRepository, err := httpx.NewAccessLogRepository(sqlDB)
+	if err != nil {
+		t.Fatalf("new access log repository: %v", err)
+	}
 	runtime := &Runtime{
 		config:           cfg,
 		logger:           runtimeLogger,
@@ -463,6 +468,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		database:         &database.Resources{SQL: sqlDB},
 		redis:            redisClient,
 		cacheManager:     cacheManager,
+		server:           httpx.NewServer(runtimeLogger, accessLogRepository),
 		eventBus:         runtimeEventBus,
 		services:         container.New(),
 		appLogRepository: &runtimeAppLogRecorderRepo{},
@@ -482,6 +488,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*logger.AppLogRepository)(nil), runtime.appLogRepository, "app log repository")
 	assertServiceRegistered(t, runtime.services, (*redisx.HealthReporter)(nil), "redis health reporter")
 	assertServiceRegistered(t, runtime.services, (*statex.TimeSeriesStore)(nil), "statex time-series store")
+	assertServiceRegistered(t, runtime.services, (*moduleapi.RequestPerformanceReader)(nil), "request performance reader")
 	assertServiceKeyNotRegistered(t, runtime.services, (*redis.Client)(nil), "redis client")
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }

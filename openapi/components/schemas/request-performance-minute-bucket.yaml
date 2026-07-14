@@ -1,0 +1,32 @@
+type: object
+required:
+  - observed_at
+  - total_requests
+  - requests_per_second
+  - p95_latency_ms
+  - error_5xx_count
+  - error_5xx_rate
+properties:
+  observed_at:
+    type: string
+    format: date-time
+  total_requests:
+    type: integer
+    format: int64
+    minimum: 0
+  requests_per_second:
+    type: number
+    format: double
+    minimum: 0
+  p95_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  error_5xx_count:
+    type: integer
+    format: int64
+    minimum: 0
+  error_5xx_rate:
+    type: number
+    format: double
+    minimum: 0

@@ -7,6 +7,7 @@ import ProjectCreateIndex from './index.vue';
 const routeQuery = vi.hoisted(() => ({ runtime_target_id: '7' as string | string[] }));
 const mocks = vi.hoisted(() => ({
   postProjectCreate: vi.fn(),
+  push: vi.fn(),
 }));
 
 vi.mock('../../api/project', () => ({
@@ -20,7 +21,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('../../shared/page-context', () => ({
   useProjectPageContext: () => ({
-    router: { push: vi.fn(), resolve: vi.fn() },
+    router: { push: mocks.push, resolve: vi.fn() },
     tabsRouterStore: { appendTabRouterList: vi.fn() },
     t: (key: string) => key,
   }),
@@ -55,7 +56,7 @@ vi.mock('../../components/ProjectLifecycleConfigurationReview.vue', () => ({
 const WrapperStub = defineComponent({
   name: 'WrapperStub',
   setup(_props, { slots }) {
-    return () => h('div', slots.default?.());
+    return () => h('div', [slots.default?.(), slots.actions?.()]);
   },
 });
 
@@ -165,5 +166,17 @@ describe('ProjectCreateIndex', () => {
     await flushPromises();
 
     expect(mocks.postProjectCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns to the source page with the current query', async () => {
+    mocks.push.mockClear();
+    const wrapper = mountPage();
+
+    await wrapper.get('[data-testid="project-create-back-source"]').trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: 'ProjectCreateSourceIndex',
+      query: { runtime_target_id: '7' },
+    });
   });
 });

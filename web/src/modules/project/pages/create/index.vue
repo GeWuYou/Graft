@@ -7,7 +7,9 @@
       >
         <template #actions
           ><t-space size="small"
-            ><t-button variant="outline" @click="goToList">{{ t('project.create.actions.back') }}</t-button
+            ><t-button variant="outline" data-testid="project-create-back-source" @click="goToSource">{{
+              t('project.create.actions.backToSource')
+            }}</t-button
             ><t-button @click="refreshPage">{{ t('project.create.actions.refresh') }}</t-button></t-space
           ></template
         >
@@ -76,7 +78,7 @@ import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   appendResolvedTab,
   buildDetailTitleWithFallback,
-  navigateProjectCreateList,
+  navigateToProjectCreateSource,
   refreshProjectCreatePage,
 } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
@@ -152,8 +154,8 @@ async function createProject() {
     creating.value = false;
   }
 }
-function goToList() {
-  navigateProjectCreateList(router, PROJECT_BOOTSTRAP_ROUTE.LIST.routeName);
+function goToSource() {
+  navigateToProjectCreateSource(router, route.query);
 }
 function refreshPage() {
   refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, route.query);

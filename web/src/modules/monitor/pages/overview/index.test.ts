@@ -9,6 +9,7 @@ import MonitorPage from './index.vue';
 
 const monitorApiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
+  getRequestPerformance: vi.fn(),
 }));
 
 const messageMocks = vi.hoisted(() => ({
@@ -155,6 +156,13 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.openAuditEvidence': 'Open audit evidence',
   'monitor.serverStatus.auditEvidenceUnavailable': 'Audit evidence is unavailable for this anomaly.',
   'monitor.serverStatus.runtimeStatusDependenciesTitle': 'Dependencies',
+  'monitor.serverStatus.requestPerformanceTitle': 'Request performance',
+  'monitor.serverStatus.openDependencies': 'Open dependencies',
+  'monitor.serverStatus.openRequestPerformance': 'Open request performance',
+  'monitor.serverStatus.dependencyHealthSummary': '{healthy} of {total} healthy · {attention} need attention',
+  'monitor.serverStatus.requestPerformanceSummary': '{rps} RPS · P95 {p95} ms · 5xx {errors}',
+  'monitor.requestPerformance.summary.rps': 'Request rate',
+  'monitor.requestPerformance.summary.errors': '5xx error rate',
   'monitor.serverStatus.dependencyPoolLabel': 'Pool',
   'monitor.serverStatus.dependencyPoolDetail': 'In use {inUse} · Idle {idle} · Open {open} · Max {capacity}',
   'monitor.serverStatus.dependencyPoolUsageLabel': '{label} pool',
@@ -306,6 +314,10 @@ const translations = vi.hoisted((): Record<string, string> => ({
 
 vi.mock('../../api/server-status', () => ({
   getServerStatus: monitorApiMocks.getServerStatus,
+}));
+
+vi.mock('../../api/request-performance', () => ({
+  getRequestPerformance: monitorApiMocks.getRequestPerformance,
 }));
 
 vi.mock('@/store', async () => {
@@ -744,12 +756,6 @@ function metricUsageBar(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-card-key="${key}"] [data-usage-status]`);
 }
 
-function dependencyPoolUsageBar(wrapper: VueWrapper, key: string) {
-  return wrapper.find(
-    `[data-status-sidebar-group="dependencies"] [data-status="${key}"] [data-dependency-pool="true"] [data-usage-status]`,
-  );
-}
-
 function sidebarGroupText(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-status-sidebar-group="${key}"]`).text();
 }
@@ -763,6 +769,17 @@ describe('MonitorPage', () => {
     vi.useRealTimers();
     vi.stubGlobal('ResizeObserver', resizeObserverMocks.ResizeObserverMock);
     monitorApiMocks.getServerStatus.mockReset();
+    monitorApiMocks.getRequestPerformance.mockReset();
+    monitorApiMocks.getRequestPerformance.mockResolvedValue({
+      summary: {
+        requests_per_second: 1.25,
+        p50_latency_ms: 12,
+        p95_latency_ms: 30,
+        error_5xx_count: 0,
+        error_5xx_rate: 0,
+        slow_request_count: 0,
+      },
+    });
     messageMocks.error.mockReset();
     correlationActionMocks.openCorrelationErrorNotification.mockReset();
     correlationActionMocks.requestIdFromError.mockReset();
@@ -904,49 +921,13 @@ describe('MonitorPage', () => {
     expect(diskCardText).not.toContain('Root partition ·');
     expect(diskCardText).not.toContain('/ 11.8 GB / 59.9 GB');
 
-    expect(wrapper.findAll('[data-status-sidebar-group]')).toHaveLength(4);
+    expect(wrapper.findAll('[data-status-sidebar-group]')).toHaveLength(3);
     expect(sidebarGroupText(wrapper, 'anomalies')).toContain('Active anomalies');
     expect(sidebarGroupText(wrapper, 'anomalies')).toContain('CPU usage reached 84.2% in the current monitor window.');
     expect(sidebarGroupText(wrapper, 'anomalies')).toContain('Open audit evidence');
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Dependencies');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('PostgreSQL');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Healthy');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('2.15 ms');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Pool');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('3 / 25');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('In use 3 · Idle 5 · Open 8 · Max 25');
-    expect(dependencyPoolUsageBar(wrapper, 'healthy').attributes('data-usage-status')).toBe('healthy');
-    expect(dependencyPoolUsageBar(wrapper, 'healthy').attributes('data-usage-percent')).toBe('12.00');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Redis');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Disabled');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('No latency sample');
-
-    expect(sidebarGroupText(wrapper, 'process')).toContain('Process summary');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('Uptime');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('1h 1m 1s');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('Goroutines');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('32');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('Heap memory');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('50 MB');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('Runtime system memory');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('150 MB');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('GC count');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('12');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('Last GC');
-    expect(sidebarGroupText(wrapper, 'process')).toContain('N/A');
-
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Sampling status');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Last updated');
-    expect(sidebarGroupText(wrapper, 'sampling')).not.toContain('N/A');
-    expect(sidebarGroupText(wrapper, 'sampling')).toMatch(/\d{1,2}:\d{2}:\d{2}/);
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('5 sec');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Time range');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('10 min');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Samples');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('2');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Trend mode');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Overview');
+    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Open dependencies');
+    expect(sidebarGroupText(wrapper, 'request-performance')).toContain('Open request performance');
 
     const option = getLatestChartOption<{
       series: Array<{ name: string; yAxisIndex?: number; data: number[] }>;
@@ -959,7 +940,7 @@ describe('MonitorPage', () => {
     }>();
 
     expect(chartMocks.init).toHaveBeenCalledTimes(2);
-    expect(wrapper.findAll('[data-trend-overview-section]')).toHaveLength(3);
+    expect(wrapper.findAll('[data-trend-overview-section]')).toHaveLength(4);
     expect(wrapper.find('[data-trend-overview-section="resourceUsage"]').text()).toContain('Resource Usage');
     expect(wrapper.find('[data-trend-overview-section="systemLoad"]').text()).toContain('System Load');
     expect(wrapper.find('[data-trend-overview-section="runtimeSummary"]').text()).toContain('Runtime Summary');
@@ -1204,8 +1185,6 @@ describe('MonitorPage', () => {
     expect(wrapper.find('[data-trend-mode-panel="focus"]').text()).toContain('Runtime sys');
     expect(wrapper.find('[data-trend-legend-group="focus"]').text()).toContain('Runtime sys');
     expect(wrapper.find('[data-trend-mode-panel="focus"]').text()).toContain('Unit MB');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Trend mode');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Focus metric');
 
     wrapper.findAllComponents(radioGroupStub)[0]?.vm.$emit('update:modelValue', 'multi');
     await nextTick();
@@ -1293,10 +1272,6 @@ describe('MonitorPage', () => {
 
     expect(wrapper.find('[data-trend-mode-panel="multi"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-trend-small-card]')).toHaveLength(7);
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Time range');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('30 min');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Trend mode');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Small charts');
   });
 
   it('resizes trend charts when the container observer reports a layout change', async () => {
@@ -1322,18 +1297,16 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s Until refresh');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('5s Until refresh');
 
     await vi.advanceTimersByTimeAsync(2000);
     await flushPromises();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('3s Until refresh');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('3s Until refresh');
 
     const buttons = wrapper.findAll('button');
     await buttons[1]?.trigger('click');
     await nextTick();
     expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Paused');
 
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
@@ -1390,8 +1363,6 @@ describe('MonitorPage', () => {
     await nextTick();
 
     expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(true);
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('5 sec');
 
     if (!realtimeSchedulerStoreMock.store) {
       throw new Error('realtime scheduler store mock is unavailable');
@@ -1402,7 +1373,6 @@ describe('MonitorPage', () => {
 
     expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('Auto refresh paused');
-    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Paused');
   });
 
   it('backs off the retry cadence after a failed auto refresh', async () => {
@@ -1412,7 +1382,7 @@ describe('MonitorPage', () => {
     const wrapper = mountMonitorPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('10s Until refresh');
+    expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('10s Until refresh');
 
     await vi.advanceTimersByTimeAsync(9000);
     await flushPromises();

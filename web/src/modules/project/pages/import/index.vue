@@ -13,6 +13,12 @@
             </t-tag>
           </t-space>
         </template>
+        <template #actions>
+          <t-button variant="text" @click="goToSource">
+            <template #icon><chevron-left-icon /></template>
+            {{ t('project.create.actions.backToSource') }}
+          </t-button>
+        </template>
       </management-page-header>
 
       <div class="project-import-surface">
@@ -334,7 +340,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { SearchIcon } from 'tdesign-icons-vue-next';
+import { ChevronLeftIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { FormProps, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
@@ -1192,6 +1198,13 @@ async function openDetail(response: ProjectImportExecuteResponse) {
   );
   await router.push(target);
   tabsRouterStore.closeTabsByPredicate((tab) => tab.path === currentTabPath || tab.fullPath === currentTabFullPath);
+}
+
+function goToSource() {
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
+    query: route.query,
+  });
 }
 
 function resetCandidateFilters() {

@@ -7,6 +7,117 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetMonitorRequestPerformanceParamsRange.
+const (
+	GetMonitorRequestPerformanceParamsRangeN10m GetMonitorRequestPerformanceParamsRange = "10m"
+	GetMonitorRequestPerformanceParamsRangeN1h  GetMonitorRequestPerformanceParamsRange = "1h"
+	GetMonitorRequestPerformanceParamsRangeN30m GetMonitorRequestPerformanceParamsRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformanceParamsRange enum.
+func (e GetMonitorRequestPerformanceParamsRange) Valid() bool {
+	switch e {
+	case GetMonitorRequestPerformanceParamsRangeN10m:
+		return true
+	case GetMonitorRequestPerformanceParamsRangeN1h:
+		return true
+	case GetMonitorRequestPerformanceParamsRangeN30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorRequestPerformance200JSONResponseBodyDataRange.
+const (
+	GetMonitorRequestPerformance200JSONResponseBodyDataRangeN10m GetMonitorRequestPerformance200JSONResponseBodyDataRange = "10m"
+	GetMonitorRequestPerformance200JSONResponseBodyDataRangeN1h  GetMonitorRequestPerformance200JSONResponseBodyDataRange = "1h"
+	GetMonitorRequestPerformance200JSONResponseBodyDataRangeN30m GetMonitorRequestPerformance200JSONResponseBodyDataRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformance200JSONResponseBodyDataRange enum.
+func (e GetMonitorRequestPerformance200JSONResponseBodyDataRange) Valid() bool {
+	switch e {
+	case GetMonitorRequestPerformance200JSONResponseBodyDataRangeN10m:
+		return true
+	case GetMonitorRequestPerformance200JSONResponseBodyDataRangeN1h:
+		return true
+	case GetMonitorRequestPerformance200JSONResponseBodyDataRangeN30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup.
+const (
+	N2xx GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup = "2xx"
+	N3xx GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup = "3xx"
+	N4xx GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup = "4xx"
+	N5xx GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup = "5xx"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup enum.
+func (e GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup) Valid() bool {
+	switch e {
+	case N2xx:
+		return true
+	case N3xx:
+		return true
+	case N4xx:
+		return true
+	case N5xx:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorRequestPerformance401JSONResponseBodySuccess.
+const (
+	GetMonitorRequestPerformance401JSONResponseBodySuccessFalse GetMonitorRequestPerformance401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformance401JSONResponseBodySuccess enum.
+func (e GetMonitorRequestPerformance401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetMonitorRequestPerformance401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorRequestPerformance403JSONResponseBodySuccess.
+const (
+	GetMonitorRequestPerformance403JSONResponseBodySuccessFalse GetMonitorRequestPerformance403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformance403JSONResponseBodySuccess enum.
+func (e GetMonitorRequestPerformance403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetMonitorRequestPerformance403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorRequestPerformance500JSONResponseBodySuccess.
+const (
+	GetMonitorRequestPerformance500JSONResponseBodySuccessFalse GetMonitorRequestPerformance500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformance500JSONResponseBodySuccess enum.
+func (e GetMonitorRequestPerformance500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetMonitorRequestPerformance500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMonitorServerStatusParamsTrendRange.
 const (
 	GetMonitorServerStatusParamsTrendRangeN10m GetMonitorServerStatusParamsTrendRange = "10m"
@@ -309,13 +420,13 @@ func (e GetMonitorServerStatus403JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for GetMonitorServerStatus500JSONResponseBodySuccess.
 const (
-	False GetMonitorServerStatus500JSONResponseBodySuccess = false
+	GetMonitorServerStatus500JSONResponseBodySuccessFalse GetMonitorServerStatus500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the GetMonitorServerStatus500JSONResponseBodySuccess enum.
 func (e GetMonitorServerStatus500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case GetMonitorServerStatus500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -327,6 +438,37 @@ type bearerAuthContextKey string
 
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
+
+// GetMonitorRequestPerformanceParams defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformanceParams struct {
+	// Range Bounded request-performance aggregation range.
+	Range *GetMonitorRequestPerformanceParamsRange `form:"range,omitempty" json:"range,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetMonitorRequestPerformanceParamsRange defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformanceParamsRange string
+
+// GetMonitorRequestPerformance200JSONResponseBodyDataRange defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformance200JSONResponseBodyDataRange string
+
+// GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformance200JSONResponseBodyDataStatusGroupsStatusGroup string
+
+// GetMonitorRequestPerformance401JSONResponseBodySuccess defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformance401JSONResponseBodySuccess bool
+
+// GetMonitorRequestPerformance403JSONResponseBodySuccess defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformance403JSONResponseBodySuccess bool
+
+// GetMonitorRequestPerformance500JSONResponseBodySuccess defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformance500JSONResponseBodySuccess bool
 
 // GetMonitorServerStatusParams defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatusParams struct {

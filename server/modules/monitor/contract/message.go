@@ -17,6 +17,8 @@ const (
 	ServerStatusServiceStatusMenuTitle MessageKey = "menu.monitor.serviceStatus.title"
 	// ServerStatusDependenciesMenuTitle identifies the localized title for the monitor dependencies menu.
 	ServerStatusDependenciesMenuTitle MessageKey = "menu.monitor.dependencies.title"
+	// RequestPerformanceMenuTitle identifies the localized title for the request-performance menu.
+	RequestPerformanceMenuTitle MessageKey = "menu.monitor.requestPerformance.title"
 	// AuditEvidenceUnavailableTitle identifies unavailable audit evidence link titles.
 	AuditEvidenceUnavailableTitle MessageKey = "monitor.evidence.auditUnavailable.title"
 )

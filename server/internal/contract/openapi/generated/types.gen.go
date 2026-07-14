@@ -2967,6 +2967,51 @@ func (e ProjectWorkspaceFileKind) Valid() bool {
 	}
 }
 
+// Defines values for RequestPerformanceResponseRange.
+const (
+	RequestPerformanceResponseRangeN10m RequestPerformanceResponseRange = "10m"
+	RequestPerformanceResponseRangeN1h  RequestPerformanceResponseRange = "1h"
+	RequestPerformanceResponseRangeN30m RequestPerformanceResponseRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the RequestPerformanceResponseRange enum.
+func (e RequestPerformanceResponseRange) Valid() bool {
+	switch e {
+	case RequestPerformanceResponseRangeN10m:
+		return true
+	case RequestPerformanceResponseRangeN1h:
+		return true
+	case RequestPerformanceResponseRangeN30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RequestPerformanceStatusGroupStatusGroup.
+const (
+	RequestPerformanceStatusGroupStatusGroupN2xx RequestPerformanceStatusGroupStatusGroup = "2xx"
+	RequestPerformanceStatusGroupStatusGroupN3xx RequestPerformanceStatusGroupStatusGroup = "3xx"
+	RequestPerformanceStatusGroupStatusGroupN4xx RequestPerformanceStatusGroupStatusGroup = "4xx"
+	RequestPerformanceStatusGroupStatusGroupN5xx RequestPerformanceStatusGroupStatusGroup = "5xx"
+)
+
+// Valid indicates whether the value is a known member of the RequestPerformanceStatusGroupStatusGroup enum.
+func (e RequestPerformanceStatusGroupStatusGroup) Valid() bool {
+	switch e {
+	case RequestPerformanceStatusGroupStatusGroupN2xx:
+		return true
+	case RequestPerformanceStatusGroupStatusGroupN3xx:
+		return true
+	case RequestPerformanceStatusGroupStatusGroupN4xx:
+		return true
+	case RequestPerformanceStatusGroupStatusGroupN5xx:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RoleDetailResponseStatus.
 const (
 	RoleDetailResponseStatusDisabled RoleDetailResponseStatus = "disabled"
@@ -4070,16 +4115,16 @@ func (e GetAccessLogsParamsPathMatch) Valid() bool {
 
 // Defines values for GetAccessLogsParamsStatusGroup.
 const (
-	N4xx GetAccessLogsParamsStatusGroup = "4xx"
-	N5xx GetAccessLogsParamsStatusGroup = "5xx"
+	GetAccessLogsParamsStatusGroupN4xx GetAccessLogsParamsStatusGroup = "4xx"
+	GetAccessLogsParamsStatusGroupN5xx GetAccessLogsParamsStatusGroup = "5xx"
 )
 
 // Valid indicates whether the value is a known member of the GetAccessLogsParamsStatusGroup enum.
 func (e GetAccessLogsParamsStatusGroup) Valid() bool {
 	switch e {
-	case N4xx:
+	case GetAccessLogsParamsStatusGroupN4xx:
 		return true
-	case N5xx:
+	case GetAccessLogsParamsStatusGroupN5xx:
 		return true
 	default:
 		return false
@@ -4335,6 +4380,27 @@ func (e DeleteAuditVisibilityOverrideParamsSource) Valid() bool {
 	case DeleteAuditVisibilityOverrideParamsSourceREQUEST:
 		return true
 	case DeleteAuditVisibilityOverrideParamsSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorRequestPerformanceParamsRange.
+const (
+	GetMonitorRequestPerformanceParamsRangeN10m GetMonitorRequestPerformanceParamsRange = "10m"
+	GetMonitorRequestPerformanceParamsRangeN1h  GetMonitorRequestPerformanceParamsRange = "1h"
+	GetMonitorRequestPerformanceParamsRangeN30m GetMonitorRequestPerformanceParamsRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorRequestPerformanceParamsRange enum.
+func (e GetMonitorRequestPerformanceParamsRange) Valid() bool {
+	switch e {
+	case GetMonitorRequestPerformanceParamsRangeN10m:
+		return true
+	case GetMonitorRequestPerformanceParamsRangeN1h:
+		return true
+	case GetMonitorRequestPerformanceParamsRangeN30m:
 		return true
 	default:
 		return false
@@ -7481,6 +7547,26 @@ type EnvelopedRealtimeSubscriptionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRequestPerformanceResponse defines model for enveloped-request-performance-response.
+type EnvelopedRequestPerformanceResponse struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data RequestPerformanceResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRoleDetailResponse defines model for enveloped-role-detail-response.
 type EnvelopedRoleDetailResponse struct {
 	// Code Existing canonical response code.
@@ -9491,6 +9577,67 @@ type ReplaceUserRolesRequest struct {
 	RoleIds []int64 `json:"role_ids"`
 }
 
+// RequestPerformanceMinuteBucket defines model for request-performance-minute-bucket.
+type RequestPerformanceMinuteBucket struct {
+	Error5xxCount     int64     `json:"error_5xx_count"`
+	Error5xxRate      float64   `json:"error_5xx_rate"`
+	ObservedAt        time.Time `json:"observed_at"`
+	P95LatencyMs      float64   `json:"p95_latency_ms"`
+	RequestsPerSecond float64   `json:"requests_per_second"`
+	TotalRequests     int64     `json:"total_requests"`
+}
+
+// RequestPerformanceResponse defines model for request-performance-response.
+type RequestPerformanceResponse struct {
+	MinuteBuckets []RequestPerformanceMinuteBucket `json:"minute_buckets"`
+	ObservedAt    time.Time                        `json:"observed_at"`
+	Range         RequestPerformanceResponseRange  `json:"range"`
+	StatusGroups  []RequestPerformanceStatusGroup  `json:"status_groups"`
+	Summary       RequestPerformanceSummary        `json:"summary"`
+	TopRoutes     RequestPerformanceTopRoutes      `json:"top_routes"`
+}
+
+// RequestPerformanceResponseRange defines model for RequestPerformanceResponse.Range.
+type RequestPerformanceResponseRange string
+
+// RequestPerformanceRoute defines model for request-performance-route.
+type RequestPerformanceRoute struct {
+	Error5xxCount int64   `json:"error_5xx_count"`
+	Error5xxRate  float64 `json:"error_5xx_rate"`
+	Method        string  `json:"method"`
+	P95LatencyMs  float64 `json:"p95_latency_ms"`
+	Route         string  `json:"route"`
+	TotalRequests int64   `json:"total_requests"`
+}
+
+// RequestPerformanceStatusGroup defines model for request-performance-status-group.
+type RequestPerformanceStatusGroup struct {
+	RequestCount int64                                    `json:"request_count"`
+	RequestRate  float64                                  `json:"request_rate"`
+	StatusGroup  RequestPerformanceStatusGroupStatusGroup `json:"status_group"`
+}
+
+// RequestPerformanceStatusGroupStatusGroup defines model for RequestPerformanceStatusGroup.StatusGroup.
+type RequestPerformanceStatusGroupStatusGroup string
+
+// RequestPerformanceSummary defines model for request-performance-summary.
+type RequestPerformanceSummary struct {
+	Error5xxCount     int64   `json:"error_5xx_count"`
+	Error5xxRate      float64 `json:"error_5xx_rate"`
+	P50LatencyMs      float64 `json:"p50_latency_ms"`
+	P95LatencyMs      float64 `json:"p95_latency_ms"`
+	RequestsPerSecond float64 `json:"requests_per_second"`
+	SlowRequestCount  int64   `json:"slow_request_count"`
+	TotalRequests     int64   `json:"total_requests"`
+}
+
+// RequestPerformanceTopRoutes defines model for request-performance-top-routes.
+type RequestPerformanceTopRoutes struct {
+	Errors5xx  []RequestPerformanceRoute `json:"errors_5xx"`
+	P95Latency []RequestPerformanceRoute `json:"p95_latency"`
+	Traffic    []RequestPerformanceRoute `json:"traffic"`
+}
+
 // ResetUserPasswordRequest defines model for reset-user-password-request.
 type ResetUserPasswordRequest struct {
 	NewPassword string `json:"new_password"`
@@ -10104,8 +10251,29 @@ type ServerStatusRuntime struct {
 	OperatingSystem       string                  `json:"operating_system"`
 	RuntimeAllocBytes     int64                   `json:"runtime_alloc_bytes"`
 	RuntimeGcCycles       int                     `json:"runtime_gc_cycles"`
-	RuntimeHeapInUseBytes int64                   `json:"runtime_heap_in_use_bytes"`
-	RuntimeSysBytes       int64                   `json:"runtime_sys_bytes"`
+
+	// RuntimeGcPauseTotalNs Cumulative Go garbage collection pause duration in nanoseconds for the current process.
+	RuntimeGcPauseTotalNs int64 `json:"runtime_gc_pause_total_ns"`
+	RuntimeHeapInUseBytes int64 `json:"runtime_heap_in_use_bytes"`
+
+	// RuntimeHeapObjects Number of allocated heap objects tracked by the Go runtime.
+	RuntimeHeapObjects int64 `json:"runtime_heap_objects"`
+
+	// RuntimeHeapReleasedBytes Heap bytes returned by the Go runtime to the operating system.
+	RuntimeHeapReleasedBytes int64 `json:"runtime_heap_released_bytes"`
+
+	// RuntimeLastGcAt UTC timestamp of the most recently completed Go garbage collection cycle; null before the first cycle.
+	RuntimeLastGcAt *time.Time `json:"runtime_last_gc_at"`
+
+	// RuntimeLastGcPauseNs Stop-the-world pause duration in nanoseconds for the most recently completed Go garbage collection cycle; null before the first cycle.
+	RuntimeLastGcPauseNs *int64 `json:"runtime_last_gc_pause_ns"`
+
+	// RuntimeNextGcBytes Heap allocation target in bytes that will trigger the next Go garbage collection cycle.
+	RuntimeNextGcBytes int64 `json:"runtime_next_gc_bytes"`
+
+	// RuntimeStackInUseBytes Bytes occupied by Go stacks currently in use.
+	RuntimeStackInUseBytes int64 `json:"runtime_stack_in_use_bytes"`
+	RuntimeSysBytes        int64 `json:"runtime_sys_bytes"`
 }
 
 // ServerStatusServer defines model for server-status-server.
@@ -11313,6 +11481,22 @@ type GetModulesRuntimeModuleParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// GetMonitorRequestPerformanceParams defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformanceParams struct {
+	// Range Bounded request-performance aggregation range.
+	Range *GetMonitorRequestPerformanceParamsRange `form:"range,omitempty" json:"range,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetMonitorRequestPerformanceParamsRange defines parameters for GetMonitorRequestPerformance.
+type GetMonitorRequestPerformanceParamsRange string
 
 // GetMonitorServerStatusParams defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatusParams struct {

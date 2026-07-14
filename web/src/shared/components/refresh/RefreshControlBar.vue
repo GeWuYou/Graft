@@ -56,9 +56,12 @@
           class="refresh-control-bar__item refresh-control-bar__item--countdown"
           data-refresh-countdown="true"
         >
-          <span class="refresh-control-bar__value refresh-control-bar__value--countdown">{{
-            countdownSummaryText
-          }}</span>
+          <span class="refresh-control-bar__countdown-content">
+            <span class="refresh-control-bar__value refresh-control-bar__value--countdown">{{
+              countdownSummaryText
+            }}</span>
+            <span class="refresh-control-bar__countdown-reserve" aria-hidden="true">{{ pendingSummaryText }}</span>
+          </span>
         </div>
 
         <div v-if="lastUpdatedAt" class="refresh-control-bar__item refresh-control-bar__item--muted">
@@ -186,9 +189,11 @@ const autoRefreshSummaryText = computed(() => {
 
 const showCountdownStatus = computed(() => props.showCountdown && props.status === 'running');
 
+const pendingSummaryText = computed(() => t('app.refreshControl.pending'));
+
 const countdownSummaryText = computed(() => {
-  if (props.countdownSeconds === null || props.countdownSeconds === undefined) {
-    return t('app.refreshControl.pending');
+  if (props.countdownSeconds === null || props.countdownSeconds === undefined || props.countdownSeconds <= 0) {
+    return pendingSummaryText.value;
   }
 
   return t('app.refreshControl.countdown', {
@@ -379,6 +384,19 @@ function resolveOptionLabel(value: RefreshControlValue, options: RefreshControlO
   font-weight: 600;
 }
 
+.refresh-control-bar__countdown-content {
+  display: inline-grid;
+}
+
+.refresh-control-bar__countdown-content > * {
+  grid-area: 1 / 1;
+}
+
+.refresh-control-bar__countdown-reserve {
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .refresh-control-bar__select {
   min-width: 0;
 }
@@ -459,6 +477,21 @@ function resolveOptionLabel(value: RefreshControlValue, options: RefreshControlO
   .refresh-control-bar--page {
     inline-size: 100%;
     padding-inline: var(--graft-density-gap-12);
+  }
+
+  .refresh-control-bar--page .refresh-control-bar__status,
+  .refresh-control-bar--page .refresh-control-bar__items {
+    flex-basis: 100%;
+  }
+
+  .refresh-control-bar--page .refresh-control-bar__item {
+    flex-basis: 100%;
+  }
+
+  .refresh-control-bar--page .refresh-control-bar__actions {
+    flex-wrap: wrap;
+    min-width: 0;
+    width: 100%;
   }
 
   .refresh-control-bar--compact.refresh-control-bar--plain {

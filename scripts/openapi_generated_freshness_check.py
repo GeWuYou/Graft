@@ -22,7 +22,7 @@ MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
     "--include-operation-ids",
-    "getMonitorServerStatus",
+    "getMonitorServerStatus,getMonitorRequestPerformance",
     "--generate",
     "types",
     "--package",

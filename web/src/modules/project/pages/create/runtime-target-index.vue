@@ -5,7 +5,14 @@
         title-key="project.route.createRuntimeTarget.title"
         description-key="project.runtimeTarget.description"
         :source="{ labelKey: 'project.runtimeTarget.eyebrow', fallback: t('project.runtimeTarget.eyebrow') }"
-      />
+      >
+        <template #actions>
+          <t-button variant="text" data-testid="project-runtime-target-back" @click="goToDeploymentModels">
+            <template #icon><chevron-left-icon /></template>
+            {{ t('project.runtimeTarget.backToDeploymentModels') }}
+          </t-button>
+        </template>
+      </management-page-header>
       <t-alert v-if="loadError" theme="warning" :message="loadError" class="project-runtime-target-page__notice" />
       <div class="project-runtime-target-page__grid" :aria-busy="loading">
         <template v-for="target in targets" :key="target.runtime_target_id">
@@ -55,6 +62,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { ChevronLeftIcon } from 'tdesign-icons-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -66,12 +74,14 @@ import { getProjectComposeRuntimeTargets } from '../../api/project';
 import dockerIcon from '../../assets/runtime/docker.svg?url';
 import podmanIcon from '../../assets/runtime/podman.svg?url';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { useProjectCreateRouteNavigation } from '../../shared/navigation';
 import type { ProjectComposeRuntimeTarget } from '../../types/project';
 
 defineOptions({ name: 'ProjectCreateRuntimeTargetIndex' });
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const navigateProjectCreateRoute = useProjectCreateRouteNavigation(router);
 const loading = ref(false);
 const loadError = ref('');
 const targets = ref<ProjectComposeRuntimeTarget[]>([]);
@@ -97,11 +107,20 @@ async function loadTargets() {
 function providerIcon(provider: string) {
   return provider === 'docker' ? dockerIcon : provider === 'podman' ? podmanIcon : '';
 }
-function selectTarget(runtimeTargetId: number) {
+function goToDeploymentModels() {
   void router.push({
-    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
-    query: { deployment: 'compose', runtime_target_id: String(runtimeTargetId) },
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName,
+    query: { deployment: 'compose' },
   });
+}
+function selectTarget(runtimeTargetId: number) {
+  navigateProjectCreateRoute(
+    {
+      name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
+      query: { deployment: 'compose', runtime_target_id: String(runtimeTargetId) },
+    },
+    'project.route.createSource.title',
+  );
 }
 </script>
 <style scoped>
@@ -149,6 +168,8 @@ function selectTarget(runtimeTargetId: number) {
 
 .project-runtime-target-card--actionable:hover,
 .project-runtime-target-card--actionable:focus-visible {
+  border-color: var(--td-brand-color);
+  box-shadow: var(--td-shadow-2);
   outline: 2px solid var(--td-brand-color);
   outline-offset: 2px;
   transform: translateY(-2px);

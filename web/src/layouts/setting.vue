@@ -1,20 +1,16 @@
 <template>
-  <theme-workbench-dock v-if="showFloatingWorkbench" />
+  <theme-workbench-dock v-if="settingStore.showThemeWorkbenchDock" />
   <theme-workbench-panel />
 </template>
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { onMounted } from 'vue';
 
-import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useSettingStore } from '@/store';
 
 import ThemeWorkbenchDock from './components/theme-workbench/ThemeWorkbenchDock.vue';
 import ThemeWorkbenchPanel from './components/theme-workbench/ThemeWorkbenchPanel.vue';
 
-const route = useRoute();
 const settingStore = useSettingStore();
-const showFloatingWorkbench = computed(() => route.path !== AUTH_ROUTE_PATH.LOGIN);
 
 onMounted(() => {
   // 主题工作台宿主提升到 App 根节点后，运行时初始化只保留这一条入口。

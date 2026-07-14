@@ -1,0 +1,36 @@
+get:
+  tags: [monitor]
+  summary: Read request performance snapshot
+  operationId: getMonitorRequestPerformance
+  description: Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: range
+      in: query
+      required: false
+      description: Bounded request-performance aggregation range.
+      schema:
+        type: string
+        enum: [10m, 30m, 1h]
+        default: 10m
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Request performance snapshot.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-request-performance-response.yaml
+    '400':
+      description: Invalid request-performance range.
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

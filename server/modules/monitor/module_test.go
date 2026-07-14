@@ -155,7 +155,7 @@ func TestBuildServerStatusResponseBuildInfoFallsBackToCanonicalDefaults(t *testi
 	assertEqual(t, "server build git tree state fallback", string(response.Server.Build.GitTreeState), "unknown")
 }
 
-func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
+func TestRegisterMessagesIncludesMonitorTitles(t *testing.T) {
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
 	resources, err := monitorlocales.EmbeddedLocaleResources()
 	if err != nil {
@@ -171,6 +171,8 @@ func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
 
 	assertRegisteredMessage(t, localizer, i18n.LocaleZHCN, monitorcontract.AuditEvidenceUnavailableTitle.String(), "审计证据不可用")
 	assertRegisteredMessage(t, localizer, i18n.LocaleENUS, monitorcontract.AuditEvidenceUnavailableTitle.String(), "Audit evidence is unavailable")
+	assertRegisteredMessage(t, localizer, i18n.LocaleZHCN, monitorcontract.RequestPerformanceMenuTitle.String(), "请求性能")
+	assertRegisteredMessage(t, localizer, i18n.LocaleENUS, monitorcontract.RequestPerformanceMenuTitle.String(), "Request Performance")
 }
 
 func assertRegisteredMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {
@@ -924,6 +926,7 @@ func assertCurrentSliceRuntimeSnapshot(t *testing.T, response generated.ServerSt
 	if response.Runtime.RuntimeSysBytes == 0 {
 		t.Fatalf("expected runtime sys bytes to be positive")
 	}
+	assertCurrentSliceRuntimeMemorySnapshot(t, response)
 	if response.Runtime.DiskUsage.TotalBytes == 0 {
 		t.Fatalf("expected runtime disk usage total bytes to be positive")
 	}
@@ -937,6 +940,68 @@ func assertCurrentSliceRuntimeSnapshot(t *testing.T, response generated.ServerSt
 		response.Runtime.LoadAverage.FiveMinutes < 0 ||
 		response.Runtime.LoadAverage.FifteenMinutes < 0 {
 		t.Fatalf("expected runtime load averages to be non-negative")
+	}
+	if response.Runtime.RuntimeNextGcBytes == 0 {
+		t.Fatalf("expected next GC threshold to be positive")
+	}
+}
+
+func assertCurrentSliceRuntimeMemorySnapshot(t *testing.T, response generated.ServerStatusResponse) {
+	t.Helper()
+
+	if response.Runtime.RuntimeHeapObjects < 0 {
+		t.Fatalf("expected runtime heap objects to be non-negative, got %d", response.Runtime.RuntimeHeapObjects)
+	}
+	if response.Runtime.RuntimeHeapReleasedBytes < 0 {
+		t.Fatalf("expected runtime heap released bytes to be non-negative, got %d", response.Runtime.RuntimeHeapReleasedBytes)
+	}
+	if response.Runtime.RuntimeStackInUseBytes < 0 {
+		t.Fatalf("expected runtime stack in-use bytes to be non-negative, got %d", response.Runtime.RuntimeStackInUseBytes)
+	}
+	if response.Runtime.RuntimeGcPauseTotalNs < 0 {
+		t.Fatalf("expected runtime GC pause total to be non-negative, got %d", response.Runtime.RuntimeGcPauseTotalNs)
+	}
+}
+
+func TestRuntimeLastGCDetails(t *testing.T) {
+	t.Parallel()
+
+	const lastGCUnixNs = 1784028600000000000
+	tests := []struct {
+		name          string
+		stats         runtime.MemStats
+		wantTimestamp *time.Time
+		wantPauseNs   *int64
+	}{
+		{
+			name:  "no completed GC returns null details",
+			stats: runtime.MemStats{},
+		},
+		{
+			name: "uses the latest pause from the circular buffer",
+			stats: func() runtime.MemStats {
+				stats := runtime.MemStats{NumGC: 257, LastGC: lastGCUnixNs}
+				stats.PauseNs[0] = 245760
+				return stats
+			}(),
+			wantTimestamp: timePtr(time.Unix(0, lastGCUnixNs).UTC()),
+			wantPauseNs:   int64Ptr(245760),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotTimestamp, gotPauseNs, err := runtimeLastGCDetails(tt.stats)
+			if err != nil {
+				t.Fatalf("runtimeLastGCDetails() error = %v", err)
+			}
+			if !timePointersEqual(gotTimestamp, tt.wantTimestamp) {
+				t.Fatalf("runtimeLastGCDetails() timestamp = %v, want %v", gotTimestamp, tt.wantTimestamp)
+			}
+			if !int64PointersEqual(gotPauseNs, tt.wantPauseNs) {
+				t.Fatalf("runtimeLastGCDetails() pause = %v, want %v", gotPauseNs, tt.wantPauseNs)
+			}
+		})
 	}
 }
 
@@ -1050,6 +1115,9 @@ func moduleWithStartedAt(db *sql.DB, startedAt time.Time) *Module {
 }
 
 func stableRuntimeSnapshot() generated.ServerStatusRuntime {
+	lastGCAt := time.Date(2026, time.July, 14, 11, 30, 0, 0, time.UTC)
+	lastGCPauseNs := int64(245760)
+
 	return generated.ServerStatusRuntime{
 		GoVersion:       runtime.Version(),
 		HostName:        "test-host",
@@ -1068,16 +1136,45 @@ func stableRuntimeSnapshot() generated.ServerStatusRuntime {
 			FreeBytes:   384 * 1024 * 1024 * 1024,
 			UsedPercent: 25,
 		},
-		HostMemoryTotalBytes:  32 * 1024 * 1024 * 1024,
-		HostMemoryUsedBytes:   12 * 1024 * 1024 * 1024,
-		HostMemoryFreeBytes:   20 * 1024 * 1024 * 1024,
-		HostMemoryUsedPercent: 37.5,
-		Goroutines:            12,
-		RuntimeAllocBytes:     48 * 1024 * 1024,
-		RuntimeHeapInUseBytes: 28 * 1024 * 1024,
-		RuntimeSysBytes:       96 * 1024 * 1024,
-		RuntimeGcCycles:       4,
+		HostMemoryTotalBytes:     32 * 1024 * 1024 * 1024,
+		HostMemoryUsedBytes:      12 * 1024 * 1024 * 1024,
+		HostMemoryFreeBytes:      20 * 1024 * 1024 * 1024,
+		HostMemoryUsedPercent:    37.5,
+		Goroutines:               12,
+		RuntimeAllocBytes:        48 * 1024 * 1024,
+		RuntimeHeapInUseBytes:    28 * 1024 * 1024,
+		RuntimeSysBytes:          96 * 1024 * 1024,
+		RuntimeGcCycles:          4,
+		RuntimeLastGcAt:          &lastGCAt,
+		RuntimeLastGcPauseNs:     &lastGCPauseNs,
+		RuntimeGcPauseTotalNs:    4915200,
+		RuntimeNextGcBytes:       64 * 1024 * 1024,
+		RuntimeHeapObjects:       18432,
+		RuntimeHeapReleasedBytes: 8 * 1024 * 1024,
+		RuntimeStackInUseBytes:   1024 * 1024,
 	}
+}
+
+func timePtr(value time.Time) *time.Time {
+	return &value
+}
+
+func int64Ptr(value int64) *int64 {
+	return &value
+}
+
+func timePointersEqual(left, right *time.Time) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return left.Equal(*right)
+}
+
+func int64PointersEqual(left, right *int64) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return *left == *right
 }
 
 func TestDefaultDiskUsagePathForGOOS(t *testing.T) {

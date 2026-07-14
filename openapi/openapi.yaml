@@ -129,6 +129,8 @@ paths:
     $ref: ./paths/audit.visibility-overrides.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
+  /api/monitor/request-performance:
+    $ref: ./paths/monitor.request-performance.yaml
   /api/modules/runtime:
     $ref: ./paths/modules.runtime.yaml
   /api/modules/runtime/{module_key}:
@@ -509,6 +511,20 @@ components:
       $ref: ./components/schemas/server-status-response.yaml
     EnvelopedServerStatusResponse:
       $ref: ./components/schemas/enveloped-server-status-response.yaml
+    RequestPerformanceSummary:
+      $ref: ./components/schemas/request-performance-summary.yaml
+    RequestPerformanceMinuteBucket:
+      $ref: ./components/schemas/request-performance-minute-bucket.yaml
+    RequestPerformanceStatusGroup:
+      $ref: ./components/schemas/request-performance-status-group.yaml
+    RequestPerformanceRoute:
+      $ref: ./components/schemas/request-performance-route.yaml
+    RequestPerformanceTopRoutes:
+      $ref: ./components/schemas/request-performance-top-routes.yaml
+    RequestPerformanceResponse:
+      $ref: ./components/schemas/request-performance-response.yaml
+    EnvelopedRequestPerformanceResponse:
+      $ref: ./components/schemas/enveloped-request-performance-response.yaml
     ModuleRuntimeDependency:
       $ref: ./components/schemas/module-runtime-dependency.yaml
     ModuleRuntimeMigrationStatus:

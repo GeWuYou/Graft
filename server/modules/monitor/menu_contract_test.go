@@ -7,15 +7,15 @@ import (
 	monitorcontract "graft/server/modules/monitor/contract"
 )
 
-func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
+func TestRegisterMonitorMenuIncludesObservabilityEntries(t *testing.T) {
 	t.Parallel()
 
 	registry := menu.NewRegistry()
 	registerMonitorMenu(registry, moduleID)
 
 	menus := registry.Items()
-	if len(menus) != 3 {
-		t.Fatalf("expected 3 registered monitor menus, got %#v", menus)
+	if len(menus) != 4 {
+		t.Fatalf("expected 4 registered monitor menus, got %#v", menus)
 	}
 
 	overviewMenu := menus[0]
@@ -45,6 +45,16 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		path:       monitorcontract.ServerStatusDependenciesMenuPath,
 		icon:       "dependencies",
 		order:      103,
+		permission: monitorcontract.ServerStatusReadPermission.String(),
+	})
+
+	requestPerformanceMenu := menus[3]
+	assertMenuItem(t, requestPerformanceMenu, expectedMenuItem{
+		code:       "monitor.request-performance",
+		titleKey:   monitorcontract.RequestPerformanceMenuTitle.String(),
+		path:       monitorcontract.RequestPerformanceMenuPath,
+		icon:       "chart-line",
+		order:      104,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
 }

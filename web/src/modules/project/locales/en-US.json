@@ -702,6 +702,7 @@
         "create": "Create and Open Project",
         "reset": "Reset Form",
         "back": "Back",
+        "backToSource": "Back to Application Source",
         "continue": "Continue",
         "review": "Review",
         "cancel": "Cancel"
@@ -815,14 +816,19 @@
       "eyebrow": "Docker Compose",
       "title": "Choose Application Source",
       "description": "Choose how to initialize this Docker Compose application.",
-      "availability": { "ready": "Available", "blocked": "Unavailable" },
+      "availability": { "ready": "Available", "blocked": "Unavailable", "comingSoon": "Coming Soon" },
       "blockedReasons": {
         "managed_root_unconfigured": "The managed project root is not configured, so blank projects cannot be created yet.",
         "managed_root_invalid": "The managed project root configuration is invalid. Repair system configuration before creating a blank project.",
         "managed_root_unknown": "The managed project root status is unknown. Refresh system configuration and try again.",
         "unknown": "This creation method is currently unavailable."
       },
-      "actions": { "start": "Start Creating", "unavailable": "Unavailable", "retry": "Retry" },
+      "actions": {
+        "start": "Start Creating",
+        "unavailable": "Unavailable",
+        "retry": "Retry",
+        "backToRuntimeTargets": "Back to Runtime Target"
+      },
       "advanced": { "title": "Advanced Information" },
       "methods": {
         "blank": {
@@ -857,7 +863,8 @@
         },
         "git": {
           "title": "Git",
-          "description": "Create an application from a Git repository."
+          "description": "Create an application from a Git repository.",
+          "unavailableHint": "Git repository creation will be available in a future release."
         }
       },
       "messages": { "loadFailed": "Project Creation Methods Could Not Be Loaded." }
@@ -866,16 +873,38 @@
     "deployment": {
       "eyebrow": "Create Application",
       "description": "Select the application deployment model.",
+      "backToApplicationManagement": "Back to Application Management",
+      "recommended": "Recommended",
+      "comingSoon": "Coming Soon",
+      "selectCompose": "Select Compose",
+      "comingSoonHelper": "Creation is not supported yet. This deployment model will be available in a future release.",
       "items": {
-        "compose": { "title": "Compose", "description": "Based on the Compose Specification" },
-        "swarm": { "title": "Swarm", "description": "Docker Stack" },
-        "kubernetes": { "title": "Kubernetes", "description": "Deployment/Pod" },
-        "nomad": { "title": "Nomad", "description": "Job" }
+        "compose": {
+          "title": "Compose",
+          "description": "Based on the Compose Specification",
+          "capabilities": ["Docker / Podman", "Multi-container Applications", "compose.yaml"]
+        },
+        "swarm": {
+          "title": "Swarm",
+          "description": "Docker Stack",
+          "capabilities": ["Docker Cluster", "Docker Stack", "Rolling Updates"]
+        },
+        "kubernetes": {
+          "title": "Kubernetes",
+          "description": "Cluster Workloads",
+          "capabilities": ["Cluster Workloads", "Deployment / Pod", "Helm"]
+        },
+        "nomad": {
+          "title": "Nomad",
+          "description": "Job",
+          "capabilities": ["HashiCorp Ecosystem", "Job Scheduling"]
+        }
       }
     },
     "runtimeTarget": {
       "eyebrow": "Compose",
       "description": "Select a runtime target.",
+      "backToDeploymentModels": "Back to Deployment Models",
       "loadFailed": "Failed to load runtime targets.",
       "unavailableTooltip": "This runtime target is currently unavailable"
     },

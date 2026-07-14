@@ -1,18 +1,50 @@
 import type { LocationQueryRaw, Router } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
+import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
 
+import { PROJECT_BOOTSTRAP_ROUTE } from '../contract/bootstrap';
+
 type ProjectCreateRouter = Pick<Router, 'push' | 'replace'>;
+type ProjectRouteRouter = Pick<Router, 'push' | 'resolve'>;
 
 /**
- * 导航至项目创建列表页。
- *
- * @param listRouteName - 目标列表页的路由名称
+ * 导航回项目创建方式选择页，并保留当前创建流程的查询上下文。
  */
-export function navigateProjectCreateList(router: ProjectCreateRouter, listRouteName: string) {
-  void router.push({ name: listRouteName });
+export function navigateToProjectCreateSource(router: ProjectCreateRouter, query: LocationQueryRaw) {
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
+    query,
+  });
+}
+
+/**
+ * 追加项目创建流程标签并导航至目标页面。
+ */
+function navigateProjectCreateRoute(
+  router: ProjectRouteRouter,
+  tabs: { appendTabRouterList: (route: TRouterInfo) => void; setActiveTabKey: (key: string) => void },
+  target: Parameters<Router['push']>[0],
+  titleKey: string,
+) {
+  const resolved = router.resolve(target);
+  appendResolvedTab(tabs, resolved, localizeRouteTitleKey(titleKey));
+  void router.push(target);
+}
+
+/**
+ * 创建用于项目创建流程的路由导航函数。
+ *
+ * @returns 接收目标路由和标题键的导航函数；导航前会添加并激活对应标签页。
+ */
+export function useProjectCreateRouteNavigation(router: ProjectRouteRouter) {
+  const tabs = useTabsRouterStore();
+
+  return (target: Parameters<Router['push']>[0], titleKey: string) => {
+    navigateProjectCreateRoute(router, tabs, target, titleKey);
+  };
 }
 
 /**

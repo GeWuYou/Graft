@@ -204,6 +204,26 @@ describe('setting store theme authority', () => {
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
   });
 
+  it('applies and cancels the floating personalization entry through the layout draft', () => {
+    const store = useSettingStore();
+
+    expect(store.showThemeWorkbenchDock).toBe(true);
+
+    store.openThemeWorkbench('layout');
+    store.updateConfig({ showThemeWorkbenchDock: false });
+
+    expect(store.showThemeWorkbenchDock).toBe(false);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.cancelThemeDraft();
+    expect(store.showThemeWorkbenchDock).toBe(true);
+
+    store.openThemeWorkbench('layout');
+    store.updateConfig({ showThemeWorkbenchDock: false });
+    store.applyThemeDraft();
+    expect(store.showThemeWorkbenchDock).toBe(false);
+  });
+
   it('keeps previewed layout config after applying the workbench changes', () => {
     const store = useSettingStore();
 

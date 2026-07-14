@@ -76,13 +76,14 @@ func defaultDiskUsagePath() string {
 
 // Module implements the monitor/server-status slice.
 type Module struct {
-	startedAtUnixNs atomic.Int64
-	db              *sql.DB
-	logger          *zap.Logger
-	authService     moduleapi.AuthService
-	routeAuthorizer moduleapi.Authorizer
-	trendStore      statex.TimeSeriesStore
-	redisHealth     redisx.HealthReporter
+	startedAtUnixNs          atomic.Int64
+	db                       *sql.DB
+	logger                   *zap.Logger
+	authService              moduleapi.AuthService
+	routeAuthorizer          moduleapi.Authorizer
+	trendStore               statex.TimeSeriesStore
+	redisHealth              redisx.HealthReporter
+	requestPerformanceReader moduleapi.RequestPerformanceReader
 
 	samplerMu     sync.Mutex
 	samplerCancel context.CancelFunc
@@ -154,6 +155,7 @@ func (p *Module) Shutdown(ctx *module.Context) error {
 	return p.stopTrendSampler(ctx)
 }
 
+// 当本地化服务不可用或任一必需消息资源缺失时返回错误。
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
@@ -164,6 +166,7 @@ func registerMessages(localizer *i18n.Service) error {
 			monitorcontract.ServerStatusOverviewMenuTitle,
 			monitorcontract.ServerStatusServiceStatusMenuTitle,
 			monitorcontract.ServerStatusDependenciesMenuTitle,
+			monitorcontract.RequestPerformanceMenuTitle,
 			monitorcontract.AuditEvidenceUnavailableTitle,
 		} {
 			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key.String()))
@@ -218,6 +221,12 @@ func (p *Module) bindDependencies(ctx *module.Context) error {
 
 	p.authService = authService
 	p.routeAuthorizer = authorizer
+
+	requestPerformanceReader, err := module.ResolveService[moduleapi.RequestPerformanceReader](ctx.Services, (*moduleapi.RequestPerformanceReader)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve request performance reader: %w", err)
+	}
+	p.requestPerformanceReader = requestPerformanceReader
 	return nil
 }
 
@@ -280,7 +289,7 @@ func resolveOptionalRedisHealthReporter(ctx *module.Context) (redisx.HealthRepor
 	return reporter, nil
 }
 
-// registerMonitorPermissions 注册服务器状态读权限。若注册表为 nil，则直接返回。
+// registerMonitorPermissions 向权限注册表注册服务器状态读取权限；注册表为 nil 时不执行任何操作。
 func registerMonitorPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -297,13 +306,14 @@ func registerMonitorPermissions(registry *permission.Registry, moduleName string
 }
 
 const (
-	monitorMenuOrderOverview     = 101
-	monitorMenuOrderRuntime      = 102
-	monitorMenuOrderDependencies = 103
+	monitorMenuOrderOverview           = 101
+	monitorMenuOrderRuntime            = 102
+	monitorMenuOrderDependencies       = 103
+	monitorMenuOrderRequestPerformance = 104
 )
 
 // registerMonitorMenu registers server status entries under the observability menu.
-// It does nothing when registry is nil.
+// registerMonitorMenu 注册监控模块的服务器状态和请求性能菜单项；registry 为 nil 时不执行任何操作。
 func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -347,8 +357,22 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
 		Module:     moduleName,
 	})
+
+	registry.Register(menu.Item{
+		Code:       "monitor.request-performance",
+		ParentCode: "domain.observability",
+		Kind:       menu.NodeKindEntry,
+		Title:      "",
+		TitleKey:   monitorcontract.RequestPerformanceMenuTitle.String(),
+		Path:       monitorcontract.RequestPerformanceMenuPath,
+		Icon:       "chart-line",
+		Order:      monitorMenuOrderRequestPerformance,
+		Permission: monitorcontract.ServerStatusReadPermission.String(),
+		Module:     moduleName,
+	})
 }
 
+// registerMonitorRoutes registers monitor server-status and request-performance HTTP routes with request ID middleware and permission checks.
 func registerMonitorRoutes(
 	ctx *module.Context,
 	instance *Module,
@@ -367,8 +391,18 @@ func registerMonitorRoutes(
 			moduleName: moduleName,
 		}),
 	)
+	group.GET(
+		monitorcontract.RequestPerformanceRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, monitorcontract.ServerStatusReadPermission.String()),
+		newRequestPerformanceHandler(&monitorServerHandler{
+			ctx:        ctx,
+			instance:   instance,
+			moduleName: moduleName,
+		}),
+	)
 }
 
+// newServerStatusHandler 创建处理服务器状态请求的 Gin 处理函数，并在成功时返回状态数据，发生错误时返回本地化的内部错误。
 func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedMonitorParams(ginCtx)

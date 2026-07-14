@@ -12,9 +12,11 @@
         <t-icon name="help-circle" class="icon" />
       </t-button>
       <language-switcher />
-      <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
-        <t-icon name="setting" class="icon" />
-      </t-button>
+      <t-tooltip placement="bottom" :content="t('layout.header.personalization')">
+        <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
+          <t-icon name="palette" class="icon" />
+        </t-button>
+      </t-tooltip>
     </div>
   </header>
 </template>
@@ -59,11 +61,9 @@ const navToHelper = () => {
 
   .operations-container {
     align-items: center;
-    display: flex;
-
-    .t-button {
-      margin-left: var(--td-comp-margin-l);
-    }
+    display: inline-flex;
+    gap: var(--graft-density-gap-4);
+    line-height: 0;
   }
 }
 </style>

@@ -5453,7 +5453,14 @@
                           "runtime_alloc_bytes": 62914560,
                           "runtime_heap_in_use_bytes": 35651584,
                           "runtime_sys_bytes": 100663296,
-                          "runtime_gc_cycles": 18
+                          "runtime_gc_cycles": 18,
+                          "runtime_last_gc_at": "2026-05-24T08:04:59Z",
+                          "runtime_last_gc_pause_ns": 245760,
+                          "runtime_gc_pause_total_ns": 4915200,
+                          "runtime_next_gc_bytes": 75497472,
+                          "runtime_heap_objects": 18432,
+                          "runtime_heap_released_bytes": 8388608,
+                          "runtime_stack_in_use_bytes": 1048576
                         },
                         "dependencies": {
                           "database": {
@@ -5560,6 +5567,73 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/monitor/request-performance": {
+      "get": {
+        "tags": [
+          "monitor"
+        ],
+        "summary": "Read request performance snapshot",
+        "operationId": "getMonitorRequestPerformance",
+        "description": "Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "description": "Bounded request-performance aggregation range.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "10m",
+                "30m",
+                "1h"
+              ],
+              "default": "10m"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request performance snapshot.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-request-performance-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request-performance range."
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -15453,6 +15527,27 @@
       "EnvelopedServerStatusResponse": {
         "$ref": "#/components/schemas/enveloped-server-status-response"
       },
+      "RequestPerformanceSummary": {
+        "$ref": "#/components/schemas/request-performance-summary"
+      },
+      "RequestPerformanceMinuteBucket": {
+        "$ref": "#/components/schemas/request-performance-minute-bucket"
+      },
+      "RequestPerformanceStatusGroup": {
+        "$ref": "#/components/schemas/request-performance-status-group"
+      },
+      "RequestPerformanceRoute": {
+        "$ref": "#/components/schemas/request-performance-route"
+      },
+      "RequestPerformanceTopRoutes": {
+        "$ref": "#/components/schemas/request-performance-top-routes"
+      },
+      "RequestPerformanceResponse": {
+        "$ref": "#/components/schemas/request-performance-response"
+      },
+      "EnvelopedRequestPerformanceResponse": {
+        "$ref": "#/components/schemas/enveloped-request-performance-response"
+      },
       "ModuleRuntimeDependency": {
         "$ref": "#/components/schemas/module-runtime-dependency"
       },
@@ -18856,7 +18951,14 @@
           "runtime_alloc_bytes",
           "runtime_heap_in_use_bytes",
           "runtime_sys_bytes",
-          "runtime_gc_cycles"
+          "runtime_gc_cycles",
+          "runtime_last_gc_at",
+          "runtime_last_gc_pause_ns",
+          "runtime_gc_pause_total_ns",
+          "runtime_next_gc_bytes",
+          "runtime_heap_objects",
+          "runtime_heap_released_bytes",
+          "runtime_stack_in_use_bytes"
         ],
         "properties": {
           "go_version": {
@@ -18912,6 +19014,43 @@
           },
           "runtime_gc_cycles": {
             "type": "integer"
+          },
+          "runtime_last_gc_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "UTC timestamp of the most recently completed Go garbage collection cycle; null before the first cycle."
+          },
+          "runtime_last_gc_pause_ns": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Stop-the-world pause duration in nanoseconds for the most recently completed Go garbage collection cycle; null before the first cycle."
+          },
+          "runtime_gc_pause_total_ns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Cumulative Go garbage collection pause duration in nanoseconds for the current process."
+          },
+          "runtime_next_gc_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Heap allocation target in bytes that will trigger the next Go garbage collection cycle."
+          },
+          "runtime_heap_objects": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of allocated heap objects tracked by the Go runtime."
+          },
+          "runtime_heap_released_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Heap bytes returned by the Go runtime to the operating system."
+          },
+          "runtime_stack_in_use_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes occupied by Go stacks currently in use."
           }
         },
         "example": {
@@ -18940,7 +19079,14 @@
           "runtime_alloc_bytes": 62914560,
           "runtime_heap_in_use_bytes": 35651584,
           "runtime_sys_bytes": 100663296,
-          "runtime_gc_cycles": 18
+          "runtime_gc_cycles": 18,
+          "runtime_last_gc_at": "2026-05-24T08:04:59Z",
+          "runtime_last_gc_pause_ns": 245760,
+          "runtime_gc_pause_total_ns": 4915200,
+          "runtime_next_gc_bytes": 75497472,
+          "runtime_heap_objects": 18432,
+          "runtime_heap_released_bytes": 8388608,
+          "runtime_stack_in_use_bytes": 1048576
         }
       },
       "server-status-connection-pool": {
@@ -19418,6 +19564,257 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/server-status-response"
+              }
+            }
+          }
+        ]
+      },
+      "request-performance-summary": {
+        "type": "object",
+        "required": [
+          "total_requests",
+          "requests_per_second",
+          "p50_latency_ms",
+          "p95_latency_ms",
+          "error_5xx_count",
+          "error_5xx_rate",
+          "slow_request_count"
+        ],
+        "properties": {
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "requests_per_second": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p50_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "error_5xx_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "slow_request_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-minute-bucket": {
+        "type": "object",
+        "required": [
+          "observed_at",
+          "total_requests",
+          "requests_per_second",
+          "p95_latency_ms",
+          "error_5xx_count",
+          "error_5xx_rate"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "requests_per_second": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "error_5xx_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-status-group": {
+        "type": "object",
+        "required": [
+          "status_group",
+          "request_count",
+          "request_rate"
+        ],
+        "properties": {
+          "status_group": {
+            "type": "string",
+            "enum": [
+              "2xx",
+              "3xx",
+              "4xx",
+              "5xx"
+            ]
+          },
+          "request_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-route": {
+        "type": "object",
+        "required": [
+          "method",
+          "route",
+          "total_requests",
+          "error_5xx_count",
+          "error_5xx_rate",
+          "p95_latency_ms"
+        ],
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "error_5xx_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "request-performance-top-routes": {
+        "type": "object",
+        "required": [
+          "traffic",
+          "errors_5xx",
+          "p95_latency"
+        ],
+        "properties": {
+          "traffic": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-route"
+            }
+          },
+          "errors_5xx": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-route"
+            }
+          },
+          "p95_latency": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-route"
+            }
+          }
+        }
+      },
+      "request-performance-response": {
+        "type": "object",
+        "required": [
+          "observed_at",
+          "range",
+          "summary",
+          "minute_buckets",
+          "status_groups",
+          "top_routes"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "10m",
+              "30m",
+              "1h"
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/request-performance-summary"
+          },
+          "minute_buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-minute-bucket"
+            }
+          },
+          "status_groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-status-group"
+            }
+          },
+          "top_routes": {
+            "$ref": "#/components/schemas/request-performance-top-routes"
+          }
+        }
+      },
+      "enveloped-request-performance-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/request-performance-response"
               }
             }
           }
@@ -27815,7 +28212,8 @@
         "properties": {
           "display_name": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 120
           },
           "runtime_target_id": {
             "type": "integer",
@@ -27824,6 +28222,7 @@
           },
           "workspace_key": {
             "type": "string",
+            "maxLength": 255,
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "template_key": {
