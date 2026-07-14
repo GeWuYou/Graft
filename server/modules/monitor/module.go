@@ -155,6 +155,7 @@ func (p *Module) Shutdown(ctx *module.Context) error {
 	return p.stopTrendSampler(ctx)
 }
 
+// 当本地化服务不可用或任一必需消息资源缺失时返回错误。
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
@@ -288,7 +289,7 @@ func resolveOptionalRedisHealthReporter(ctx *module.Context) (redisx.HealthRepor
 	return reporter, nil
 }
 
-// registerMonitorPermissions 注册服务器状态读权限。若注册表为 nil，则直接返回。
+// registerMonitorPermissions 向权限注册表注册服务器状态读取权限；注册表为 nil 时不执行任何操作。
 func registerMonitorPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -312,7 +313,7 @@ const (
 )
 
 // registerMonitorMenu registers server status entries under the observability menu.
-// It does nothing when registry is nil.
+// registerMonitorMenu 注册监控模块的服务器状态和请求性能菜单项；registry 为 nil 时不执行任何操作。
 func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -371,6 +372,7 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	})
 }
 
+// registerMonitorRoutes registers monitor server-status and request-performance HTTP routes with request ID middleware and permission checks.
 func registerMonitorRoutes(
 	ctx *module.Context,
 	instance *Module,
@@ -400,6 +402,7 @@ func registerMonitorRoutes(
 	)
 }
 
+// newServerStatusHandler 创建处理服务器状态请求的 Gin 处理函数，并在成功时返回状态数据，发生错误时返回本地化的内部错误。
 func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedMonitorParams(ginCtx)

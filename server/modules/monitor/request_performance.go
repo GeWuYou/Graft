@@ -24,6 +24,9 @@ import (
 
 const requestPerformanceRateScale = 100
 
+// newRequestPerformanceHandler creates the HTTP handler for request-performance monitoring.
+// It validates request parameters, builds the performance response, and writes localized
+// client or server error responses when processing fails.
 func newRequestPerformanceHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedRequestPerformanceParams(ginCtx)
@@ -65,6 +68,8 @@ func (h *monitorServerHandler) localizer() *i18n.Service {
 	return h.ctx.I18n
 }
 
+// bindGeneratedRequestPerformanceParams 从 Gin 请求上下文中提取并绑定请求性能接口的查询参数和请求头。
+// 返回包含时间范围、请求 ID 和区域设置的请求参数。
 func bindGeneratedRequestPerformanceParams(ginCtx *gin.Context) monitoropenapi.GetMonitorRequestPerformanceParams {
 	params := monitoropenapi.GetMonitorRequestPerformanceParams{}
 	if raw := strings.TrimSpace(ginCtx.Query(monitorcontract.RequestPerformanceRangeQueryKey)); raw != "" {
@@ -80,6 +85,7 @@ func bindGeneratedRequestPerformanceParams(ginCtx *gin.Context) monitoropenapi.G
 	return params
 }
 
+// parseGeneratedRequestPerformanceRange converts an optional request range to a monitoring trend range, defaulting to 10 minutes when no range is provided.
 func parseGeneratedRequestPerformanceRange(raw *monitoropenapi.GetMonitorRequestPerformanceParamsRange) monitorcontract.TrendRange {
 	if raw == nil {
 		return monitorcontract.TrendRange10Minutes
@@ -87,6 +93,7 @@ func parseGeneratedRequestPerformanceRange(raw *monitoropenapi.GetMonitorRequest
 	return parseTrendRange(string(*raw))
 }
 
+// 读取请求性能聚合数据，并将其转换为生成的响应模型；读取器不可用或读取失败时返回错误。
 func buildRequestPerformanceResponse(
 	ctx context.Context,
 	reader moduleapi.RequestPerformanceReader,
@@ -126,6 +133,8 @@ func buildRequestPerformanceResponse(
 	}, nil
 }
 
+// requestPerformanceMinuteBuckets 将每分钟请求性能指标转换为响应模型中的分钟桶。
+// 返回包含观测时间、请求量、请求速率、P95 延迟及 5xx 错误指标的分钟桶列表。
 func requestPerformanceMinuteBuckets(items []moduleapi.RequestPerformanceMinuteBucket) []generated.RequestPerformanceMinuteBucket {
 	result := make([]generated.RequestPerformanceMinuteBucket, 0, len(items))
 	for _, item := range items {
@@ -141,6 +150,7 @@ func requestPerformanceMinuteBuckets(items []moduleapi.RequestPerformanceMinuteB
 	return result
 }
 
+// requestPerformanceStatusGroups converts HTTP status-group counts into response entries with their percentage rates.
 func requestPerformanceStatusGroups(groups moduleapi.RequestPerformanceStatusGroups, total int64) []generated.RequestPerformanceStatusGroup {
 	return []generated.RequestPerformanceStatusGroup{
 		{StatusGroup: generated.RequestPerformanceStatusGroupStatusGroupN2xx, RequestCount: groups.TwoXX, RequestRate: percentage(groups.TwoXX, total)},
@@ -150,6 +160,7 @@ func requestPerformanceStatusGroups(groups moduleapi.RequestPerformanceStatusGro
 	}
 }
 
+// requestPerformanceTopRoutesResponse 将请求性能 Top 路由数据转换为流量、5xx 错误和 P95 延迟三个响应分组。
 func requestPerformanceTopRoutesResponse(items moduleapi.RequestPerformanceTopRoutes) generated.RequestPerformanceTopRoutes {
 	return generated.RequestPerformanceTopRoutes{
 		Traffic:    requestPerformanceRoutes(items.ByTraffic),
@@ -158,6 +169,7 @@ func requestPerformanceTopRoutesResponse(items moduleapi.RequestPerformanceTopRo
 	}
 }
 
+// requestPerformanceRoutes 将请求性能路由指标转换为生成的响应路由列表。
 func requestPerformanceRoutes(items []moduleapi.RequestPerformanceRoute) []generated.RequestPerformanceRoute {
 	result := make([]generated.RequestPerformanceRoute, 0, len(items))
 	for _, item := range items {
@@ -173,6 +185,8 @@ func requestPerformanceRoutes(items []moduleapi.RequestPerformanceRoute) []gener
 	return result
 }
 
+// requestsPerSecond computes the request rate for the specified duration.
+// It returns zero when the request count or duration is zero or negative.
 func requestsPerSecond(total int64, seconds float64) float64 {
 	if total <= 0 || seconds <= 0 {
 		return 0
@@ -180,6 +194,8 @@ func requestsPerSecond(total int64, seconds float64) float64 {
 	return float64(total) / seconds
 }
 
+// percentage 计算值占总数的百分比。
+// 当值或总数小于等于零时，返回 0。
 func percentage(value int64, total int64) float64 {
 	if value <= 0 || total <= 0 {
 		return 0

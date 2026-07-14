@@ -79,6 +79,8 @@ func (r *accessLogRepository) ReadRequestPerformance(
 	return summary, nil
 }
 
+// collectRequestPerformanceRows aggregates request performance data from database rows.
+// It returns an error if a row cannot be scanned or iteration fails.
 func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerformanceQuery) (moduleapi.RequestPerformanceSummary, error) {
 	collector := newRequestPerformanceCollector(query)
 	for rows.Next() {
@@ -98,6 +100,7 @@ func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerfor
 	return collector.summaryWithRankings(), nil
 }
 
+// newRequestPerformanceCollector creates a collector initialized for the query window and bucket size.
 func newRequestPerformanceCollector(query moduleapi.RequestPerformanceQuery) *requestPerformanceCollector {
 	summary := newRequestPerformanceSummary(query.WindowStart.UTC(), query.WindowEnd.UTC(), query.BucketSize)
 	buckets := make(map[time.Time]*requestPerformanceBucketAggregate, len(summary.Buckets))
@@ -157,6 +160,7 @@ func (c *requestPerformanceCollector) summaryWithRankings() moduleapi.RequestPer
 	return c.summary
 }
 
+// validateRequestPerformanceQuery validates the request performance query window and bucket size.
 func validateRequestPerformanceQuery(query moduleapi.RequestPerformanceQuery) error {
 	if query.WindowStart.IsZero() || query.WindowEnd.IsZero() || !query.WindowStart.Before(query.WindowEnd) || query.BucketSize != moduleapi.RequestPerformanceMinuteBucketSize {
 		return moduleapi.ErrRequestPerformanceInvalidQuery
@@ -164,6 +168,7 @@ func validateRequestPerformanceQuery(query moduleapi.RequestPerformanceQuery) er
 	return nil
 }
 
+// newRequestPerformanceSummary 根据时间窗口和桶大小创建请求性能汇总，并生成窗口内的时间桶。
 func newRequestPerformanceSummary(start, end time.Time, bucketSize time.Duration) moduleapi.RequestPerformanceSummary {
 	firstBucket := start.Truncate(bucketSize)
 	bucketCount := int(end.Sub(firstBucket) / bucketSize)
@@ -177,6 +182,7 @@ func newRequestPerformanceSummary(start, end time.Time, bucketSize time.Duration
 	return moduleapi.RequestPerformanceSummary{WindowStart: start, WindowEnd: end, Buckets: buckets}
 }
 
+// incrementRequestPerformanceStatusGroup increments the status group corresponding to statusCode.
 func incrementRequestPerformanceStatusGroup(groups *moduleapi.RequestPerformanceStatusGroups, statusCode int) {
 	switch {
 	case statusCode >= 200 && statusCode <= 299:
@@ -190,10 +196,12 @@ func incrementRequestPerformanceStatusGroup(groups *moduleapi.RequestPerformance
 	}
 }
 
+// isRequestPerformanceServerError reports whether a status code is in the 5xx server error range.
 func isRequestPerformanceServerError(statusCode int) bool {
 	return statusCode >= accessLogStatus5xxMin && statusCode <= accessLogStatus5xxMax
 }
 
+// requestPerformancePercentile returns the requested percentile value from a set of latency measurements. Empty input produces 0.
 func requestPerformancePercentile(values []int64, percentile float64) int64 {
 	if len(values) == 0 {
 		return 0
@@ -207,6 +215,7 @@ func requestPerformancePercentile(values []int64, percentile float64) int64 {
 	return sorted[index]
 }
 
+// requestPerformanceTopRoutes ranks routes by traffic, server errors, and P95 latency.
 func requestPerformanceTopRoutes(routes map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate) moduleapi.RequestPerformanceTopRoutes {
 	aggregates := make([]*requestPerformanceRouteAggregate, 0, len(routes))
 	for _, aggregate := range routes {
@@ -220,6 +229,7 @@ func requestPerformanceTopRoutes(routes map[requestPerformanceRouteKey]*requestP
 	}
 }
 
+// onlyRequestPerformanceErrorRoutes filters routes to those with at least one server error.
 func onlyRequestPerformanceErrorRoutes(routes []*requestPerformanceRouteAggregate) []*requestPerformanceRouteAggregate {
 	filtered := make([]*requestPerformanceRouteAggregate, 0, len(routes))
 	for _, route := range routes {
@@ -230,6 +240,8 @@ func onlyRequestPerformanceErrorRoutes(routes []*requestPerformanceRouteAggregat
 	return filtered
 }
 
+// requestPerformanceRankRoutes按指定比较规则对路由聚合结果排序，生成最多包含前五名路由的性能结果。
+// 返回按排序结果排列的路由信息，并包含每条路由的请求数、服务器错误数和P95延迟。
 func requestPerformanceRankRoutes(routes []*requestPerformanceRouteAggregate, compare func(*requestPerformanceRouteAggregate, *requestPerformanceRouteAggregate) bool) []moduleapi.RequestPerformanceRoute {
 	sorted := append([]*requestPerformanceRouteAggregate(nil), routes...)
 	sort.Slice(sorted, func(left, right int) bool { return compare(sorted[left], sorted[right]) })
@@ -249,6 +261,8 @@ func requestPerformanceRankRoutes(routes []*requestPerformanceRouteAggregate, co
 	return result
 }
 
+// compareRequestPerformanceTraffic orders route aggregates by descending request count,
+// using the route identity as a deterministic tie-breaker.
 func compareRequestPerformanceTraffic(left, right *requestPerformanceRouteAggregate) bool {
 	if left.totalRequests != right.totalRequests {
 		return left.totalRequests > right.totalRequests
@@ -256,6 +270,7 @@ func compareRequestPerformanceTraffic(left, right *requestPerformanceRouteAggreg
 	return requestPerformanceRouteIdentity(left) < requestPerformanceRouteIdentity(right)
 }
 
+// compareRequestPerformanceServerErrors reports whether left ranks ahead of right by server error count, total request count, and route identity.
 func compareRequestPerformanceServerErrors(left, right *requestPerformanceRouteAggregate) bool {
 	if left.serverErrorCount != right.serverErrorCount {
 		return left.serverErrorCount > right.serverErrorCount
@@ -266,6 +281,7 @@ func compareRequestPerformanceServerErrors(left, right *requestPerformanceRouteA
 	return requestPerformanceRouteIdentity(left) < requestPerformanceRouteIdentity(right)
 }
 
+// compareRequestPerformanceP95Latency 按 P95 延迟、请求总数及路由标识的优先级比较两个路由聚合结果，确定左侧是否应排在右侧之前。
 func compareRequestPerformanceP95Latency(left, right *requestPerformanceRouteAggregate) bool {
 	leftP95 := requestPerformancePercentile(left.latencies, requestPerformanceP95Percentile)
 	rightP95 := requestPerformancePercentile(right.latencies, requestPerformanceP95Percentile)
@@ -278,6 +294,7 @@ func compareRequestPerformanceP95Latency(left, right *requestPerformanceRouteAgg
 	return requestPerformanceRouteIdentity(left) < requestPerformanceRouteIdentity(right)
 }
 
+// requestPerformanceRouteIdentity returns a stable identity string for a route aggregate.
 func requestPerformanceRouteIdentity(route *requestPerformanceRouteAggregate) string {
 	return route.method + "\x00" + route.route
 }

@@ -22,6 +22,11 @@ function navigateProjectCreateRoute(
   void router.push(target);
 }
 
+/**
+ * 创建用于项目创建流程的路由导航函数。
+ *
+ * @returns 接收目标路由和标题键的导航函数；导航前会添加并激活对应标签页。
+ */
 export function useProjectCreateRouteNavigation(router: ProjectRouteRouter) {
   const tabs = useTabsRouterStore();
 

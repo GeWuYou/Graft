@@ -290,6 +290,8 @@ func resolveHostName() string {
 	return strings.TrimSpace(hostName)
 }
 
+// collectRuntimeSnapshot 收集主机、磁盘、负载及 Go 运行时指标，构建服务器运行状态快照。
+// 如果指标转换或负载、磁盘信息采集失败，则返回错误。
 func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime, error) {
 	stats := runtime.MemStats{}
 	runtime.ReadMemStats(&stats)
@@ -363,6 +365,7 @@ type runtimeMemoryMetrics struct {
 	lastGCPauseNs     *int64
 }
 
+// 如果统计值超出目标类型范围，则返回转换错误。
 func collectRuntimeMemoryMetrics(stats runtime.MemStats) (runtimeMemoryMetrics, error) {
 	allocBytes, err := mustConvertGeneratedInt64(stats.Alloc, "runtime alloc bytes")
 	if err != nil {
@@ -415,7 +418,7 @@ func collectRuntimeMemoryMetrics(stats runtime.MemStats) (runtimeMemoryMetrics, 
 	}, nil
 }
 
-// runtimeLastGCDetails returns nil values until the process has completed its first GC cycle.
+// runtimeLastGCDetails 获取最近一次垃圾回收的 UTC 时间和暂停时长；进程尚未完成首次垃圾回收时返回 nil 值，数值转换失败时返回错误。
 func runtimeLastGCDetails(stats runtime.MemStats) (*time.Time, *int64, error) {
 	if stats.NumGC == 0 {
 		return nil, nil, nil
@@ -437,6 +440,7 @@ func runtimeLastGCDetails(stats runtime.MemStats) (*time.Time, *int64, error) {
 	return &lastGCAt, &lastGCPauseNs, nil
 }
 
+// collectHostMemory retrieves the host's virtual memory statistics, returning empty statistics when the context is nil or the retrieval fails.
 func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {
 	if ctx == nil {
 		return &mem.VirtualMemoryStat{}

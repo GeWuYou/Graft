@@ -11,6 +11,12 @@ type RequestPerformanceQuery = NonNullable<RequestPerformanceOperation['paramete
 type RequestPerformanceEnvelope = RequestPerformanceOperation['responses'][200]['content']['application/json'];
 type RequestPerformanceData = NonNullable<RequestPerformanceEnvelope['data']>;
 
+/**
+ * 获取指定趋势范围内的请求性能数据。
+ *
+ * @param range - 请求性能数据的趋势范围
+ * @returns 请求性能响应数据
+ */
 export function getRequestPerformance(range: MonitorTrendRange) {
   const params: RequestPerformanceQuery = { range };
   return request.get<RequestPerformanceData>({
