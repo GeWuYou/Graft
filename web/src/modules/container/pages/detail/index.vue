@@ -2623,6 +2623,7 @@ const portColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(() => {
+  logsRealtimeBatcher.destroy();
   logsRealtimeBatcher = createLogsRealtimeBatcher();
   detailPageActive.value = true;
   updateCurrentTabTitle(fallbackTitle.value);

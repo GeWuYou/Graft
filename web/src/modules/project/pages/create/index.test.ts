@@ -165,6 +165,5 @@ describe('ProjectCreateIndex', () => {
     await flushPromises();
 
     expect(mocks.postProjectCreate).not.toHaveBeenCalled();
-    routeQuery.runtime_target_id = '7';
   });
 });

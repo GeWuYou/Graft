@@ -34,33 +34,8 @@ ALTER TABLE compose_projects
   ADD CONSTRAINT compose_projects_compose_project_name_source_check
     CHECK (compose_project_name_source IN ('declared', 'generated', 'derived')) NOT VALID;
 
-ALTER TABLE compose_projects
-  VALIDATE CONSTRAINT compose_projects_application_id_format_check;
-ALTER TABLE compose_projects
-  VALIDATE CONSTRAINT compose_projects_workspace_key_format_check;
-ALTER TABLE compose_projects
-  VALIDATE CONSTRAINT compose_projects_compose_project_name_source_check;
-
-DROP INDEX CONCURRENTLY IF EXISTS compose_projects_host_scope_canonical_project_name_live;
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_application_id_live
-  ON compose_projects (application_id)
-  WHERE deleted_at = 0;
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_runtime_compose_name_live
-  ON compose_projects (runtime_target_id, compose_project_name)
-  WHERE deleted_at = 0;
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_workspace_path_live
-  ON compose_projects (workspace_path)
-  WHERE deleted_at = 0;
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS compose_projects_workspace_key_live
-  ON compose_projects (workspace_key)
-  WHERE deleted_at = 0 AND workspace_key IS NOT NULL;
-
 COMMENT ON COLUMN compose_projects.application_id IS '应用公开标识，格式为 app_ 加 ULID，供 HTTP 路径和外部引用使用';
 COMMENT ON COLUMN compose_projects.workspace_key IS '受管应用工作区单层安全名称；外部导入工作区为空';
 COMMENT ON COLUMN compose_projects.workspace_path IS '应用工作区绝对路径，是应用文件的稳定载体';
 COMMENT ON COLUMN compose_projects.compose_project_name IS 'Compose 顶层 name 对应的运行时项目名称';
 COMMENT ON COLUMN compose_projects.compose_project_name_source IS 'Compose 名称来源，取值为 declared、generated、derived';
-COMMENT ON INDEX compose_projects_application_id_live IS '存活应用公开标识唯一索引';
-COMMENT ON INDEX compose_projects_runtime_compose_name_live IS '同一运行目标内存活 Compose 运行时名称唯一索引';
-COMMENT ON INDEX compose_projects_workspace_path_live IS '存活应用工作区路径唯一索引';
-COMMENT ON INDEX compose_projects_workspace_key_live IS '受管应用工作区名称唯一索引';

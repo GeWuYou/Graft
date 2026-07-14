@@ -60,6 +60,22 @@ func TestCheckComposeProjectNameReportsUnavailableTarget(t *testing.T) {
 	}
 }
 
+func TestReadDockerTargetPropagatesRepositoryErrors(t *testing.T) {
+	db := openComposeProjectNameTestDB(t)
+	if err := db.Close(); err != nil {
+		t.Fatalf("close test database: %v", err)
+	}
+	reader := runtimeTargetReader{repository: store.NewSQLRepository(db)}
+	id := int64(1)
+
+	for _, testID := range []*int64{&id, nil} {
+		_, err := reader.ReadDockerTarget(context.Background(), testID)
+		if err == nil || errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("expected repository error, got %v", err)
+		}
+	}
+}
+
 func openComposeProjectNameTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", "file:"+t.Name()+"?mode=memory&cache=shared")

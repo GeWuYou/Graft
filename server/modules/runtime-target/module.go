@@ -110,17 +110,39 @@ func (r runtimeTargetReader) ReadDockerTarget(ctx context.Context, id *int64) (m
 		return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 	}
 	if id != nil {
-		if *id < 1 {
-			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
-		}
-		target, err := r.repository.Get(ctx, uint64(*id))
-		if err != nil || target.Provider != "docker" || target.ID > maxRuntimeTargetID {
-			return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
-		}
-		return moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider}, nil
+		return r.readDockerTargetByID(ctx, *id)
 	}
+	return r.readSystemDockerTarget(ctx)
+}
+
+func (r runtimeTargetReader) readDockerTargetByID(ctx context.Context, id int64) (moduleapi.RuntimeTargetSummary, error) {
+	if id < 1 {
+		return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
+	}
+	target, err := r.repository.Get(ctx, uint64(id))
+	if err != nil {
+		return moduleapi.RuntimeTargetSummary{}, normalizeRuntimeTargetLookupError(err)
+	}
+	return dockerTargetSummary(target)
+}
+
+func (r runtimeTargetReader) readSystemDockerTarget(ctx context.Context) (moduleapi.RuntimeTargetSummary, error) {
 	target, err := r.repository.FindSystemLocalDocker(ctx)
-	if err != nil || target.ID > maxRuntimeTargetID {
+	if err != nil {
+		return moduleapi.RuntimeTargetSummary{}, normalizeRuntimeTargetLookupError(err)
+	}
+	return dockerTargetSummary(target)
+}
+
+func normalizeRuntimeTargetLookupError(err error) error {
+	if errors.Is(err, store.ErrNotFound) {
+		return store.ErrNotFound
+	}
+	return err
+}
+
+func dockerTargetSummary(target store.Target) (moduleapi.RuntimeTargetSummary, error) {
+	if target.Provider != "docker" || target.ID > maxRuntimeTargetID {
 		return moduleapi.RuntimeTargetSummary{}, store.ErrNotFound
 	}
 	return moduleapi.RuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider}, nil

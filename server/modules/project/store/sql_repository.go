@@ -204,10 +204,16 @@ func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationI
 	if len(applicationIDs) == 0 {
 		return result, nil
 	}
-	placeholders := make([]string, len(applicationIDs))
-	args := make([]any, len(applicationIDs))
-	for index, value := range applicationIDs {
-		placeholders[index], args[index] = "?", strings.TrimSpace(value)
+	placeholders := make([]string, 0, len(applicationIDs))
+	args := make([]any, 0, len(applicationIDs))
+	for _, value := range applicationIDs {
+		if value = strings.TrimSpace(value); value != "" {
+			placeholders = append(placeholders, "?")
+			args = append(args, value)
+		}
+	}
+	if len(args) == 0 {
+		return result, nil
 	}
 	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, id FROM compose_projects WHERE deleted_at = 0 AND application_id IN (`+strings.Join(placeholders, ",")+`)`), args...)
 	if err != nil {

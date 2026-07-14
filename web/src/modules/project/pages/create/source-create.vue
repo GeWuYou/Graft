@@ -74,6 +74,7 @@ function templatePayload(runtimeTargetIdValue: number): ProjectTemplateCreateReq
 async function onCreate() {
   if (runtimeTargetId.value === null) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
+    goToList();
     return;
   }
   if (templateForm.template_key !== 'empty-compose' || templateForm.template_version !== 'v1') {
