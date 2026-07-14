@@ -4617,7 +4617,10 @@ export interface components {
       p95_latency_ms: number;
       /** Format: int64 */
       error_5xx_count: number;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description 5xx error rate as a percentage from 0 to 100.
+       */
       error_5xx_rate: number;
       /** Format: int64 */
       slow_request_count: number;
@@ -4641,7 +4644,10 @@ export interface components {
       status_group: '2xx' | '3xx' | '4xx' | '5xx';
       /** Format: int64 */
       request_count: number;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description Request rate as a percentage from 0 to 100.
+       */
       request_rate: number;
     };
     'request-performance-route': {

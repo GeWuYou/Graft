@@ -1201,7 +1201,10 @@ async function openDetail(response: ProjectImportExecuteResponse) {
 }
 
 function goToSource() {
-  router.back();
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
+    query: route.query,
+  });
 }
 
 function resetCandidateFilters() {

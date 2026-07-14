@@ -1319,4 +1319,20 @@ describe('ProjectImportIndex', () => {
     });
     expect(mocks.closeTabsByPredicate).toHaveBeenCalledTimes(1);
   });
+
+  it('returns to the source page with the current query', async () => {
+    routeState.query = { deployment: 'compose', runtime_target_id: '7', step: 'select' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('返回应用来源'))
+      ?.trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: 'ProjectCreateSourceIndex',
+      query: { deployment: 'compose', runtime_target_id: '7', step: 'select' },
+    });
+  });
 });

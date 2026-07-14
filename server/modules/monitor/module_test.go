@@ -926,6 +926,7 @@ func assertCurrentSliceRuntimeSnapshot(t *testing.T, response generated.ServerSt
 	if response.Runtime.RuntimeSysBytes == 0 {
 		t.Fatalf("expected runtime sys bytes to be positive")
 	}
+	assertCurrentSliceRuntimeMemorySnapshot(t, response)
 	if response.Runtime.DiskUsage.TotalBytes == 0 {
 		t.Fatalf("expected runtime disk usage total bytes to be positive")
 	}
@@ -942,6 +943,23 @@ func assertCurrentSliceRuntimeSnapshot(t *testing.T, response generated.ServerSt
 	}
 	if response.Runtime.RuntimeNextGcBytes == 0 {
 		t.Fatalf("expected next GC threshold to be positive")
+	}
+}
+
+func assertCurrentSliceRuntimeMemorySnapshot(t *testing.T, response generated.ServerStatusResponse) {
+	t.Helper()
+
+	if response.Runtime.RuntimeHeapObjects < 0 {
+		t.Fatalf("expected runtime heap objects to be non-negative, got %d", response.Runtime.RuntimeHeapObjects)
+	}
+	if response.Runtime.RuntimeHeapReleasedBytes < 0 {
+		t.Fatalf("expected runtime heap released bytes to be non-negative, got %d", response.Runtime.RuntimeHeapReleasedBytes)
+	}
+	if response.Runtime.RuntimeStackInUseBytes < 0 {
+		t.Fatalf("expected runtime stack in-use bytes to be non-negative, got %d", response.Runtime.RuntimeStackInUseBytes)
+	}
+	if response.Runtime.RuntimeGcPauseTotalNs < 0 {
+		t.Fatalf("expected runtime GC pause total to be non-negative, got %d", response.Runtime.RuntimeGcPauseTotalNs)
 	}
 }
 

@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -83,6 +84,37 @@ func TestAccessLogRepositoryReadRequestPerformanceRejectsInvalidQuery(t *testing
 	})
 	if err != moduleapi.ErrRequestPerformanceInvalidQuery {
 		t.Fatalf("expected invalid query error, got %v", err)
+	}
+}
+
+func TestRequestPerformanceUsesCanonicalUnmatchedRouteAndBoundedLatencySamples(t *testing.T) {
+	base := time.Date(2026, 7, 14, 8, 0, 0, 0, time.UTC)
+	query := moduleapi.RequestPerformanceQuery{
+		WindowStart: base,
+		WindowEnd:   base.Add(time.Minute),
+		BucketSize:  moduleapi.RequestPerformanceMinuteBucketSize,
+	}
+	collector := newRequestPerformanceCollector(query)
+	collector.add(base.Add(time.Second), "GET", requestPerformanceUnmatchedRoute, 200, 100, query.BucketSize)
+	for index := 0; index < requestPerformanceLatencySampleLimit+10; index++ {
+		collector.add(base.Add(2*time.Second), "GET", "/api/users", 200, int64(index), query.BucketSize)
+	}
+
+	summary := collector.summaryWithRankings()
+	if len(collector.latencies.values) != requestPerformanceLatencySampleLimit {
+		t.Fatalf("expected bounded overall latency samples, got %d", len(collector.latencies.values))
+	}
+	if len(collector.routes[requestPerformanceRouteKey{method: "GET", route: "/api/users"}].latencies.values) != requestPerformanceLatencySampleLimit {
+		t.Fatalf("expected bounded route latency samples")
+	}
+	if len(summary.TopRoutes.ByP95Latency) != 2 || summary.TopRoutes.ByP95Latency[0].Route != "/api/users" {
+		t.Fatalf("expected route rankings to include canonical routes, got %#v", summary.TopRoutes.ByP95Latency)
+	}
+	if summary.TopRoutes.ByP95Latency[1].Route != requestPerformanceUnmatchedRoute {
+		t.Fatalf("expected unmatched route marker, got %#v", summary.TopRoutes.ByP95Latency)
+	}
+	if got := requestPerformanceRouteValue(sql.NullString{}); got != requestPerformanceUnmatchedRoute {
+		t.Fatalf("expected NULL route marker %q, got %q", requestPerformanceUnmatchedRoute, got)
 	}
 }
 

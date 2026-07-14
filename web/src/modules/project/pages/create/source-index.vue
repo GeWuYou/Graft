@@ -215,7 +215,10 @@ function blockedReasonLabel(reason?: string | null) {
 }
 
 function goToRuntimeTargets() {
-  router.back();
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_RUNTIME_TARGET.pageRouteName,
+    query: route.query,
+  });
 }
 
 function openMethod(method: ProjectCreationMethodType) {

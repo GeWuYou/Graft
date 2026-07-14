@@ -7,7 +7,9 @@
       >
         <template #actions
           ><t-space size="small"
-            ><t-button variant="outline" @click="goToSource">{{ t('project.create.actions.backToSource') }}</t-button
+            ><t-button variant="outline" data-testid="project-create-back-source" @click="goToSource">{{
+              t('project.create.actions.backToSource')
+            }}</t-button
             ><t-button @click="refreshPage">{{ t('project.create.actions.refresh') }}</t-button></t-space
           ></template
         >
@@ -148,7 +150,10 @@ async function createProject() {
   }
 }
 function goToSource() {
-  router.back();
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
+    query: route.query,
+  });
 }
 function refreshPage() {
   refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, route.query);

@@ -110,6 +110,7 @@ describe('RefreshControlBar', () => {
     expect(wrapper.text()).toContain('自动刷新：');
     expect(wrapper.text()).toContain('每 5 秒');
     expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('5s 后刷新');
+    expect(wrapper.get('.refresh-control-bar__countdown-content').attributes('aria-live')).toBeUndefined();
     expect(wrapper.get('[data-refresh-now="true"]').text()).toContain('立即刷新');
     expect(wrapper.get('[data-refresh-toggle-auto="true"]').text()).toContain('暂停自动刷新');
   });
@@ -187,6 +188,7 @@ describe('RefreshControlBar', () => {
 
     expect(wrapper.get('.refresh-control-bar__value--countdown').text()).toBe('等待下次刷新');
     expect(wrapper.get('.refresh-control-bar__countdown-reserve').text()).toBe('等待下次刷新');
+    expect(wrapper.get('.refresh-control-bar__countdown-reserve').attributes('aria-hidden')).toBe('true');
   });
 
   it('emits pause and resume based on status', async () => {

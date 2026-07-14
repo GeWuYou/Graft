@@ -56,7 +56,7 @@
           class="refresh-control-bar__item refresh-control-bar__item--countdown"
           data-refresh-countdown="true"
         >
-          <span class="refresh-control-bar__countdown-content" aria-live="polite">
+          <span class="refresh-control-bar__countdown-content">
             <span class="refresh-control-bar__value refresh-control-bar__value--countdown">{{
               countdownSummaryText
             }}</span>

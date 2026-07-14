@@ -263,7 +263,7 @@ function formatLatency(value?: number) {
   return Number.isFinite(value) ? `${value!.toFixed(0)} ms` : '--';
 }
 function formatPercent(value?: number) {
-  return Number.isFinite(value) ? `${(value! * (value! <= 1 ? 100 : 1)).toFixed(2)}%` : '--';
+  return Number.isFinite(value) ? `${value!.toFixed(2)}%` : '--';
 }
 function setChartRef(key: ChartKey, value: unknown) {
   chartRefs.value[key] = value instanceof HTMLDivElement ? value : null;
@@ -348,7 +348,7 @@ function renderCharts() {
     },
     errors: {
       name: t('monitor.requestPerformance.errorSeries'),
-      values: buckets.map((bucket) => bucket.error_5xx_rate * (bucket.error_5xx_rate <= 1 ? 100 : 1)),
+      values: buckets.map((bucket) => bucket.error_5xx_rate),
       color: 'var(--td-error-color-5)',
     },
   };
@@ -377,18 +377,21 @@ function renderCharts() {
     });
   });
 }
+function resizeCharts() {
+  chartInstances.forEach((instance) => instance.resize());
+}
 watch([selectedRefreshInterval, autoRefreshEnabled, () => scheduler.allowPolling], scheduleRefresh);
 onMounted(() => {
   isMounted = true;
   void refresh();
-  window.addEventListener('resize', renderCharts);
+  window.addEventListener('resize', resizeCharts);
 });
 onUnmounted(() => {
   isMounted = false;
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
   if (pendingDisplayTimer !== null) window.clearTimeout(pendingDisplayTimer);
   chartInstances.forEach((instance) => instance.dispose());
-  window.removeEventListener('resize', renderCharts);
+  window.removeEventListener('resize', resizeCharts);
 });
 </script>
 <style scoped lang="less">

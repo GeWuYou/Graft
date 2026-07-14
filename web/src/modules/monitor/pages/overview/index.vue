@@ -1125,8 +1125,7 @@ function openRequestPerformance() {
 }
 
 function formatRequestErrorRate(value: number) {
-  const percent = value <= 1 ? value * 100 : value;
-  return `${percent.toFixed(2)}%`;
+  return `${value.toFixed(2)}%`;
 }
 
 function resolveAnomalyByKey(anomalyKey: string) {

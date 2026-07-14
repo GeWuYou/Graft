@@ -386,4 +386,16 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('No GC cycle yet');
     expect(wrapper.text()).not.toContain('Not reported');
   });
+
+  it('shows an unavailable GC pause when the snapshot omits the field', async () => {
+    const response = createResponse();
+    delete (response.runtime as { runtime_last_gc_pause_ns?: number | null }).runtime_last_gc_pause_ns;
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountRuntimePage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Not reported');
+    expect(wrapper.text()).not.toContain('No GC cycle yet');
+  });
 });

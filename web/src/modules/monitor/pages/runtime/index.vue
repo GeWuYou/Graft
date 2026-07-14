@@ -395,12 +395,17 @@ function formatLastGCTimestamp(value?: string | null) {
 }
 
 function formatSnapshotDuration(value?: number | null) {
-  const formatted = formatNanosecondsAsDuration(value, notReportedLabel.value, locale.value);
-  return formatted === notReportedLabel.value ? notReportedLabel.value : formatted;
+  return formatNanosecondsAsDuration(value, notReportedLabel.value, locale.value);
 }
 
 function formatLastGCPause(value?: number | null) {
-  return value === null || value === undefined ? t('monitor.runtimePage.notOccurred') : formatSnapshotDuration(value);
+  if (value === null) {
+    return t('monitor.runtimePage.notOccurred');
+  }
+  if (value === undefined) {
+    return notReportedLabel.value;
+  }
+  return formatSnapshotDuration(value);
 }
 
 function formatSnapshotUptime(value?: number | null) {

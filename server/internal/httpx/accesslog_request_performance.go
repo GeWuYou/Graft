@@ -13,12 +13,14 @@ import (
 )
 
 const (
-	requestPerformanceSlowThresholdMS = int64(1000)
-	requestPerformanceTopRouteLimit   = 5
-	requestPerformanceP50Percentile   = 0.50
-	requestPerformanceP95Percentile   = 0.95
-	requestPerformanceWindowStartArg  = 1
-	requestPerformanceWindowEndArg    = 2
+	requestPerformanceSlowThresholdMS    = int64(1000)
+	requestPerformanceTopRouteLimit      = 5
+	requestPerformanceP50Percentile      = 0.50
+	requestPerformanceP95Percentile      = 0.95
+	requestPerformanceLatencySampleLimit = 1024
+	requestPerformanceWindowStartArg     = 1
+	requestPerformanceWindowEndArg       = 2
+	requestPerformanceUnmatchedRoute     = "<unmatched>"
 )
 
 type requestPerformanceRouteAggregate struct {
@@ -26,7 +28,8 @@ type requestPerformanceRouteAggregate struct {
 	route            string
 	totalRequests    int64
 	serverErrorCount int64
-	latencies        []int64
+	latencies        requestPerformanceLatencySummary
+	p95LatencyMS     int64
 }
 
 type requestPerformanceRouteKey struct {
@@ -37,14 +40,14 @@ type requestPerformanceRouteKey struct {
 type requestPerformanceBucketAggregate struct {
 	totalRequests    int64
 	serverErrorCount int64
-	latencies        []int64
+	latencies        requestPerformanceLatencySummary
 }
 
 type requestPerformanceCollector struct {
 	summary   moduleapi.RequestPerformanceSummary
 	buckets   map[time.Time]*requestPerformanceBucketAggregate
 	routes    map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate
-	latencies []int64
+	latencies requestPerformanceLatencySummary
 }
 
 // ReadRequestPerformance reads a bounded aggregate from canonical access-log facts.
@@ -92,7 +95,7 @@ func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerfor
 		if err := rows.Scan(&occurredAt, &method, &route, &statusCode, &durationMS); err != nil {
 			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("scan request performance access log: %w", err)
 		}
-		collector.add(occurredAt, method, route.String, statusCode, durationMS, query.BucketSize)
+		collector.add(occurredAt, method, requestPerformanceRouteValue(route), statusCode, durationMS, query.BucketSize)
 	}
 	if err := rows.Err(); err != nil {
 		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("iterate request performance access logs: %w", err)
@@ -132,9 +135,9 @@ func (c *requestPerformanceCollector) add(occurredAt time.Time, method, route st
 	if durationMS >= requestPerformanceSlowThresholdMS {
 		c.summary.SlowRequestCount++
 	}
-	c.latencies = append(c.latencies, durationMS)
-	bucket.latencies = append(bucket.latencies, durationMS)
-	routeAggregate.latencies = append(routeAggregate.latencies, durationMS)
+	c.latencies.add(durationMS)
+	bucket.latencies.add(durationMS)
+	routeAggregate.latencies.add(durationMS)
 }
 
 func (c *requestPerformanceCollector) route(method, route string) *requestPerformanceRouteAggregate {
@@ -148,13 +151,16 @@ func (c *requestPerformanceCollector) route(method, route string) *requestPerfor
 }
 
 func (c *requestPerformanceCollector) summaryWithRankings() moduleapi.RequestPerformanceSummary {
-	c.summary.P50LatencyMS = requestPerformancePercentile(c.latencies, requestPerformanceP50Percentile)
-	c.summary.P95LatencyMS = requestPerformancePercentile(c.latencies, requestPerformanceP95Percentile)
+	c.summary.P50LatencyMS = c.latencies.percentile(requestPerformanceP50Percentile)
+	c.summary.P95LatencyMS = c.latencies.percentile(requestPerformanceP95Percentile)
 	for index := range c.summary.Buckets {
 		bucket := c.buckets[c.summary.Buckets[index].Start]
 		c.summary.Buckets[index].TotalRequests = bucket.totalRequests
 		c.summary.Buckets[index].ServerErrorCount = bucket.serverErrorCount
-		c.summary.Buckets[index].P95LatencyMS = requestPerformancePercentile(bucket.latencies, requestPerformanceP95Percentile)
+		c.summary.Buckets[index].P95LatencyMS = bucket.latencies.percentile(requestPerformanceP95Percentile)
+	}
+	for _, route := range c.routes {
+		route.p95LatencyMS = route.latencies.percentile(requestPerformanceP95Percentile)
 	}
 	c.summary.TopRoutes = requestPerformanceTopRoutes(c.routes)
 	return c.summary
@@ -201,12 +207,35 @@ func isRequestPerformanceServerError(statusCode int) bool {
 	return statusCode >= accessLogStatus5xxMin && statusCode <= accessLogStatus5xxMax
 }
 
-// requestPerformancePercentile returns the requested percentile value from a set of latency measurements. Empty input produces 0.
-func requestPerformancePercentile(values []int64, percentile float64) int64 {
-	if len(values) == 0 {
+// requestPerformanceLatencySummary stores a bounded deterministic reservoir of latency samples.
+// Exact percentiles are retained until the reservoir is full; larger windows use a stable sample.
+type requestPerformanceLatencySummary struct {
+	values []int64
+	seen   int64
+}
+
+func (s *requestPerformanceLatencySummary) add(value int64) {
+	s.seen++
+	if len(s.values) < requestPerformanceLatencySampleLimit {
+		s.values = append(s.values, value)
+		return
+	}
+	// This deterministic replacement keeps memory bounded without adding a dependency or
+	// making equivalent reads produce different dashboard values.
+	index := (s.seen*requestPerformanceReservoirMultiplier + requestPerformanceReservoirIncrement) % requestPerformanceLatencySampleLimit
+	s.values[index] = value
+}
+
+const (
+	requestPerformanceReservoirMultiplier = int64(7919)
+	requestPerformanceReservoirIncrement  = int64(104729)
+)
+
+func (s requestPerformanceLatencySummary) percentile(percentile float64) int64 {
+	if len(s.values) == 0 {
 		return 0
 	}
-	sorted := append([]int64(nil), values...)
+	sorted := append([]int64(nil), s.values...)
 	sort.Slice(sorted, func(left, right int) bool { return sorted[left] < sorted[right] })
 	index := int(math.Ceil(percentile*float64(len(sorted)))) - 1
 	if index < 0 {
@@ -255,7 +284,7 @@ func requestPerformanceRankRoutes(routes []*requestPerformanceRouteAggregate, co
 			Route:            route.route,
 			TotalRequests:    route.totalRequests,
 			ServerErrorCount: route.serverErrorCount,
-			P95LatencyMS:     requestPerformancePercentile(route.latencies, requestPerformanceP95Percentile),
+			P95LatencyMS:     route.p95LatencyMS,
 		})
 	}
 	return result
@@ -267,7 +296,7 @@ func compareRequestPerformanceTraffic(left, right *requestPerformanceRouteAggreg
 	if left.totalRequests != right.totalRequests {
 		return left.totalRequests > right.totalRequests
 	}
-	return requestPerformanceRouteIdentity(left) < requestPerformanceRouteIdentity(right)
+	return requestPerformanceRouteLess(left, right)
 }
 
 // compareRequestPerformanceServerErrors reports whether left ranks ahead of right by server error count, total request count, and route identity.
@@ -278,25 +307,34 @@ func compareRequestPerformanceServerErrors(left, right *requestPerformanceRouteA
 	if left.totalRequests != right.totalRequests {
 		return left.totalRequests > right.totalRequests
 	}
-	return requestPerformanceRouteIdentity(left) < requestPerformanceRouteIdentity(right)
+	return requestPerformanceRouteLess(left, right)
 }
 
 // compareRequestPerformanceP95Latency 按 P95 延迟、请求总数及路由标识的优先级比较两个路由聚合结果，确定左侧是否应排在右侧之前。
 func compareRequestPerformanceP95Latency(left, right *requestPerformanceRouteAggregate) bool {
-	leftP95 := requestPerformancePercentile(left.latencies, requestPerformanceP95Percentile)
-	rightP95 := requestPerformancePercentile(right.latencies, requestPerformanceP95Percentile)
+	leftP95 := left.p95LatencyMS
+	rightP95 := right.p95LatencyMS
 	if leftP95 != rightP95 {
 		return leftP95 > rightP95
 	}
 	if left.totalRequests != right.totalRequests {
 		return left.totalRequests > right.totalRequests
 	}
-	return requestPerformanceRouteIdentity(left) < requestPerformanceRouteIdentity(right)
+	return requestPerformanceRouteLess(left, right)
 }
 
-// requestPerformanceRouteIdentity returns a stable identity string for a route aggregate.
-func requestPerformanceRouteIdentity(route *requestPerformanceRouteAggregate) string {
-	return route.method + "\x00" + route.route
+func requestPerformanceRouteLess(left, right *requestPerformanceRouteAggregate) bool {
+	if left.method != right.method {
+		return left.method < right.method
+	}
+	return left.route < right.route
+}
+
+func requestPerformanceRouteValue(route sql.NullString) string {
+	if !route.Valid || route.String == "" {
+		return requestPerformanceUnmatchedRoute
+	}
+	return route.String
 }
 
 var _ moduleapi.RequestPerformanceReader = (*accessLogRepository)(nil)
