@@ -402,6 +402,7 @@ type ManagedProjectCreateRequest struct {
 	EnvFileName              *string
 	EnvFileContent           *string
 	WorkspaceFiles           []ManagedWorkspaceFile
+	WorkspaceEntries         []ManagedWorkspaceEntry
 	ComposeFilePath          string
 	EnvFilePaths             []string
 	LifecycleConfig          *LifecycleStandardConfig
@@ -411,6 +412,13 @@ type ManagedProjectCreateRequest struct {
 type ManagedWorkspaceFile struct {
 	Path    string
 	Content string
+}
+
+// ManagedWorkspaceEntry represents either an arbitrary UTF-8 text file or an empty/non-empty directory.
+type ManagedWorkspaceEntry struct {
+	Path     string
+	NodeType string
+	Content  *string
 }
 
 // ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.

@@ -1,0 +1,16 @@
+type: object
+additionalProperties: false
+required: [path, node_type]
+properties:
+  path:
+    type: string
+    minLength: 1
+    maxLength: 1024
+    description: Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
+  node_type:
+    type: string
+    enum: [file, directory]
+  content:
+    type: string
+    nullable: true
+    description: Required UTF-8 text content for file entries and omitted for directory entries.

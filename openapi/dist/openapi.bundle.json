@@ -13349,9 +13349,9 @@
         "tags": [
           "project"
         ],
-        "summary": "Validate a bundled template project source",
+        "summary": "Validate a runtime template project source",
         "operationId": "postProjectCreateTemplateValidate",
-        "description": "Validates the selected bundled template and eventual managed-root target without writing it.",
+        "description": "Validates the selected Application Root template directory and eventual managed-root target without writing it.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -13415,9 +13415,9 @@
         "tags": [
           "project"
         ],
-        "summary": "Create a managed Compose project from a bundled template",
+        "summary": "Create a managed Compose project from a runtime template directory",
         "operationId": "postProjectCreateTemplate",
-        "description": "Materializes one explicit bundled text workspace template under the managed root, then registers it without running Compose lifecycle commands.",
+        "description": "Materializes one operator-managed text workspace template from Application Root templates/<template-key> under the managed root, then registers it without running Compose lifecycle commands.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -13463,6 +13463,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/workspace-defaults": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get blank project workspace defaults and runtime templates",
+        "operationId": "getProjectWorkspaceDefaults",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-owned blank workspace defaults.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-workspace-defaults-response"
                 }
               }
             }
@@ -13839,6 +13879,148 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/files/entries": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Create a file or directory in a project workspace",
+        "operationId": "postProjectWorkspaceEntry",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-workspace-entry-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Workspace entry created."
+          },
+          "400": {
+            "description": "Invalid workspace entry request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Workspace entry already exists."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Delete a project workspace file or directory",
+        "operationId": "deleteProjectWorkspaceEntry",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "recursive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Workspace entry deleted."
+          },
+          "400": {
+            "description": "Invalid workspace entry request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/files/rename": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Rename a project workspace file or directory",
+        "operationId": "postProjectWorkspaceEntryRename",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-workspace-entry-rename-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Workspace entry renamed."
+          },
+          "400": {
+            "description": "Invalid workspace entry request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Workspace entry already exists."
           }
         }
       }
@@ -16183,6 +16365,15 @@
       },
       "ProjectWorkspaceManifestFile": {
         "$ref": "#/components/schemas/project-workspace-manifest-file"
+      },
+      "ProjectWorkspaceEntry": {
+        "$ref": "#/components/schemas/project-workspace-entry"
+      },
+      "ProjectWorkspaceDefaultsResponse": {
+        "$ref": "#/components/schemas/project-workspace-defaults-response"
+      },
+      "EnvelopedProjectWorkspaceDefaultsResponse": {
+        "$ref": "#/components/schemas/enveloped-project-workspace-defaults-response"
       },
       "ProjectImportValidateRequest": {
         "$ref": "#/components/schemas/project-import-validate-request"
@@ -19609,7 +19800,9 @@
           "error_5xx_rate": {
             "type": "number",
             "format": "double",
-            "minimum": 0
+            "description": "5xx error rate as a percentage from 0 to 100.",
+            "minimum": 0,
+            "maximum": 100
           },
           "slow_request_count": {
             "type": "integer",
@@ -19685,7 +19878,9 @@
           "request_rate": {
             "type": "number",
             "format": "double",
-            "minimum": 0
+            "description": "Request rate as a percentage from 0 to 100.",
+            "minimum": 0,
+            "maximum": 100
           }
         }
       },
@@ -27828,23 +28023,31 @@
           }
         ]
       },
-      "project-workspace-manifest-file": {
+      "project-workspace-entry": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "path",
-          "content"
+          "node_type"
         ],
         "properties": {
           "path": {
             "type": "string",
             "minLength": 1,
             "maxLength": 1024,
-            "description": "Relative text-file path within the managed workspace. Absolute paths and traversal are rejected."
+            "description": "Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected."
+          },
+          "node_type": {
+            "type": "string",
+            "enum": [
+              "file",
+              "directory"
+            ]
           },
           "content": {
             "type": "string",
-            "description": "UTF-8 text content to materialize for the file."
+            "nullable": true,
+            "description": "Required UTF-8 text content for file entries and omitted for directory entries."
           }
         }
       },
@@ -27853,7 +28056,8 @@
         "required": [
           "display_name",
           "runtime_target_id",
-          "compose_file_name"
+          "workspace_entries",
+          "compose_file_path"
         ],
         "properties": {
           "display_name": {
@@ -27872,25 +28076,12 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$",
             "description": "Optional single-segment managed workspace key. The server derives and reserves a key when omitted."
           },
-          "compose_file_name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "pattern": "^[^/\\\\\\\\]+$"
-          },
-          "env_file_name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "pattern": "^[^/\\\\\\\\]+$",
-            "nullable": true
-          },
-          "workspace_files": {
+          "workspace_entries": {
             "type": "array",
             "minItems": 1,
-            "description": "Complete managed workspace text manifest to validate without materializing.",
+            "description": "Complete managed workspace manifest to validate without materializing.",
             "items": {
-              "$ref": "#/components/schemas/project-workspace-manifest-file"
+              "$ref": "#/components/schemas/project-workspace-entry"
             }
           },
           "compose_file_path": {
@@ -27899,16 +28090,6 @@
             "maxLength": 1024,
             "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$",
             "description": "Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace."
-          },
-          "env_file_paths": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 1024,
-              "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$"
-            },
-            "description": "Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"
@@ -27998,8 +28179,8 @@
         "required": [
           "display_name",
           "runtime_target_id",
-          "compose_file_name",
-          "compose_file_content"
+          "workspace_entries",
+          "compose_file_path"
         ],
         "properties": {
           "display_name": {
@@ -28018,35 +28199,12 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$",
             "description": "Optional single-segment managed workspace key. The server derives and reserves a key when omitted."
           },
-          "compose_file_name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "pattern": "^[^/\\\\\\\\]+$"
-          },
-          "compose_file_content": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Initial Compose YAML content to materialize in the managed project directory."
-          },
-          "env_file_name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "pattern": "^[^/\\\\\\\\]+$",
-            "nullable": true
-          },
-          "env_file_content": {
-            "type": "string",
-            "nullable": true,
-            "description": "Optional initial env file content. It is ignored when env_file_name is omitted."
-          },
-          "workspace_files": {
+          "workspace_entries": {
             "type": "array",
             "minItems": 1,
-            "description": "Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.",
+            "description": "Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.",
             "items": {
-              "$ref": "#/components/schemas/project-workspace-manifest-file"
+              "$ref": "#/components/schemas/project-workspace-entry"
             }
           },
           "compose_file_path": {
@@ -28054,17 +28212,7 @@
             "minLength": 1,
             "maxLength": 1024,
             "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$",
-            "description": "Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition."
-          },
-          "env_file_paths": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 1024,
-              "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$"
-            },
-            "description": "Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace."
+            "description": "Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"
@@ -28227,11 +28375,11 @@
           },
           "template_key": {
             "type": "string",
-            "description": "Explicit bundled template key. Defaults to empty-compose."
+            "description": "Runtime template directory key. Defaults to default."
           },
           "template_version": {
             "type": "string",
-            "description": "Explicit bundled template version. Defaults to v1."
+            "description": "Optional operator-defined template version label. Defaults to runtime."
           },
           "template_instance_name": {
             "type": "string",
@@ -28239,6 +28387,60 @@
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"
+          }
+        }
+      },
+      "project-workspace-defaults-response": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "templates",
+          "default_template_key",
+          "workspace_entries",
+          "compose_file_path"
+        ],
+        "properties": {
+          "templates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "key",
+                "display_name"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "display_name": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default_template_key": {
+            "type": "string"
+          },
+          "workspace_entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-workspace-entry"
+            }
+          },
+          "compose_file_path": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-project-workspace-defaults-response": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/project-workspace-defaults-response"
           }
         }
       },
@@ -28695,6 +28897,33 @@
             }
           }
         ]
+      },
+      "project-workspace-entry-create-request": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/project-workspace-entry"
+          }
+        ]
+      },
+      "project-workspace-entry-rename-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "new_path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "new_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
       },
       "project-service-item": {
         "type": "object",
@@ -29956,6 +30185,26 @@
             "minimum": 0,
             "description": "Optional count of module or service entries that need attention.",
             "example": 0
+          }
+        }
+      },
+      "project-workspace-manifest-file": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Relative text-file path within the managed workspace. Absolute paths and traversal are rejected."
+          },
+          "content": {
+            "type": "string",
+            "description": "UTF-8 text content to materialize for the file."
           }
         }
       }

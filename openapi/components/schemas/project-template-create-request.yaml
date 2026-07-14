@@ -18,10 +18,10 @@ properties:
     pattern: '^[a-z0-9][a-z0-9-]*$'
   template_key:
     type: string
-    description: Explicit bundled template key. Defaults to empty-compose.
+    description: Runtime template directory key. Defaults to default.
   template_version:
     type: string
-    description: Explicit bundled template version. Defaults to v1.
+    description: Optional operator-defined template version label. Defaults to runtime.
   template_instance_name:
     type: string
     description: Safe display provenance for this template instance. Defaults to the generated workspace key.

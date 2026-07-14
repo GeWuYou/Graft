@@ -62,8 +62,8 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - 不重写用户已有目录布局。
 - 不在 `Project` 下新增第二套容器详情页。
 - 不在 `Project` 层持久化容器日志、事件、Stats 或运行时快照。
-- Phase 1 不做 Git Project、Template、目录扫描、自动发现、远程主机。
-- Phase 1 不做基于项目根目录文件工作台的 Configuration 编辑器、Diff、Deploy、Validate UI。
+- Phase 1 不做 Git Project、目录扫描、自动发现、远程主机。
+- Phase 1 不做 Diff、Deploy、Validate UI。
 - Phase 1 不做 Project Events API、project-owned container detail，且不持久化项目运行时日志或实时缓存。
 - Phase 1 的项目详情实时快照与项目日志聚合只提供 bounded backend aggregation surface，不复制容器运行时 authority。
 
@@ -489,6 +489,17 @@ Phase 1 推荐三张模块自有表：
 - Configuration 工作台必须来自 `working_directory` 的真实目录浏览接口，而不是从这里推断文件列表。
 - 它不再是 workspace state 的 source of truth。
 - 它只继续服务 compose parsing、preview、validation、lifecycle 与 deployment 所需的 compose/env 元数据覆盖层。
+
+### Application Root templates
+
+`Application Root Directory` 下的 `templates/` 是受管工作区之外的保留运行时目录。当前默认模板固定在
+`<application-root>/templates/default`；它是 Template source 的内容 authority，不是模块内置文件或前端常量。
+
+- Project module 在目录缺失时以发布随附的种子资源初始化 `templates/default`；已有目录或文件绝不覆盖，以保留管理员维护的模板。
+- `default` 当前提供 `.env` 与 `compose.yaml` 两个示例文件；它们只定义 Blank/Template 的初始体验，不限制工作区可创建、读取或编辑的文件名、扩展名、层级或目录。
+- `templates/` 的合法一级子目录是可发现的模板 key，`default` 是默认选择；一个模板可包含任意安全相对路径的 UTF-8 文本文件、嵌套目录和空目录，materialize 时完整复制。
+- 创建 contract 由服务端提供可用模板目录清单、所选模板的安全标识及 Blank 默认草稿；web 不直接读取 Application Root，也不根据目录名推导模板内容。
+- `templates/` 本身及其子路径不能作为 `workspace_key`、项目工作区、导入目标或项目文件 API 的可访问根目录。
 
 ### `compose_project_snapshots`
 
@@ -1038,13 +1049,24 @@ managed root authority 约束：
 - empty string 是显式 override，表示禁用 managed creation；不得把它或“未配置”降级成 request payload fallback。此功能未发版，不保留 `ops.project.managed.root_directory` legacy key、alias 或双读。
 - Phase 2 真实 create 只能在该 managed root 下创建 `managed-root-dedicated` 目录
 
-managed create request 建议至少包含：
+Blank create request 建议至少包含：
 
 - `display_name`
 - `runtime_target_id`
 - `workspace_key?`
-- `compose_file_name`
-- `env_file_name?`
+- `workspace_entries[]`
+  - `relative_path`
+  - `node_type: file | directory`
+  - 文件条目的 UTF-8 `content`
+- `compose_file_path`
+
+`workspace_entries` 表达任意安全相对路径的文本文件及空目录，不按文件名、扩展名或 `file_kind` 设置创建白名单。`compose_file_path` 只标识本次创建必须存在且可解析的主 Compose 文件，不决定其他 workspace 成员资格。服务端必须拒绝绝对路径、空路径、`..` 路径逃逸、重复或冲突条目、符号链接绕过和不受支持的二进制内容；不得以现有前端文件高亮或目录隐藏配置作为创建准入规则。
+
+Blank 向导的默认草稿由 project module 返回，前端不得硬编码模板文件内容。System Config `ops.project.blank.prefill_default_template` 的产品名称为“Blank 创建预填默认模板”，默认 `true`，通过现有 `configregistry -> SystemConfigResolver` authority 链和 `runtime-hot` 语义生效：
+
+- 开启时，Blank 草稿完整复制 `templates/default` 的当前内容。
+- 关闭时，Blank 草稿仅提供空 `.env` 与空 `compose.yaml`；在审核及创建前必须填充并通过 `compose_file_path` 的 Compose 解析。
+- Template source 始终物化用户所选模板目录，且不受该开关影响。
 
 服务端从 `workspace_key` 生成唯一的单层 Workspace Path：`Application Root Directory + workspace_key`。创建表单展示可编辑的 Workspace Key 控制项，初始值为 Graft 按显示名提议的可用 key；默认 key 冲突时服务端自动附加 `-2`、`-3` 等后缀。用户若显式修改 key，只能填写安全 slug，冲突时返回本地化错误与建议值。不得接受 `relative_project_directory`、绝对路径、路径分隔符或 `..`；用户界面不展示完整路径、受管根目录、权限或 Compose runtime identity。
 
@@ -1052,10 +1074,7 @@ managed create request 建议至少包含：
 
 采用受管默认目录符合主流自托管产品的共同策略：集中工作目录使权限、备份、迁移、冲突检测和受控销毁的边界可审计，同时仍为高级操作者保留受约束的子目录选择。公开部署材料可作为实现前复核依据：Portainer 的 Stack 文档将 Compose/Swarm/Kubernetes 按独立部署方式管理；[Dockge](https://github.com/louislam/dockge) 公开 `DOCKGE_STACKS_DIR` 工作目录配置；[Coolify](https://coolify.io/docs/installation) 安装到平台受管数据目录；[Dokploy](https://docs.dokploy.com/docs/core/installation) 以平台安装与数据目录管理其工作负载。Graft 不依赖这些产品的精确路径或内部实现，只采用“平台默认受管根目录、用户可在安全边界内覆盖”的产品原则。
 
-本批次明确不做：
-
-- editor / diff / validate / deploy flow
-- 下游兼容字段或用 import contract 冒充 create contract
+本批次不引入下游兼容字段，也不得用 import contract 冒充 create contract。
 
 ## 10.3 配置
 
@@ -1065,6 +1084,7 @@ Configuration workspace 的 authority 需要拆成两层：
   - 继续保存 lifecycle 执行所需的 `compose_files`、`env_files`、`working_directory`、`canonical_project_name`
 - Workspace authority
   - File tree、editor open/read、dirty state、save 与 preview diff 全部围绕同一套 workspace file model 运作
+  - 同一文件树编辑器同时服务创建向导中的本地 workspace draft 和已创建项目的持久化 workspace；差异仅在数据源与保存时机，不得形成两套文件树交互或文件类型规则
   - 左侧文件树、编辑器文件打开、保存能力全部来自 `working_directory` 的真实目录浏览/读写接口
   - `compose_project_files`、`lifecycle_configuration`、`compose_files` 与固定文件名都不能决定工作台文件成员资格
   - Compose metadata 只允许 enrich workspace entry 的 `file_kind` / tooltip / lifecycle overlay，不拥有文件内容 authority
@@ -1084,6 +1104,9 @@ Configuration workspace 的 authority 需要拆成两层：
 | `GET`  | `/api/ops/projects/{id}/files`                 | 基于 `working_directory` 懒加载浏览真实目录树         |
 | `GET`  | `/api/ops/projects/{id}/files/content`         | 基于相对路径读取单文件内容                            |
 | `PUT`  | `/api/ops/projects/{id}/files/content`         | 基于相对路径保存单文件内容，只写回 `working_directory` |
+| `POST` | `/api/ops/projects/{id}/files`                 | 在受控工作区创建文件或空目录                          |
+| `PATCH` | `/api/ops/projects/{id}/files`                | 重命名文件或目录                                      |
+| `DELETE` | `/api/ops/projects/{id}/files`               | 删除文件或目录；递归删除必须显式声明                  |
 
 `configuration` 返回建议包含：
 
@@ -1123,6 +1146,8 @@ Configuration workspace 的 authority 需要拆成两层：
 - 默认隐藏重目录，隐藏策略来自 `ops.project.workspace.hidden_directories`；前端只消费接口返回与 `show hidden` 开关能力。
 - `compose_project_files` 继续服务 lifecycle authority，但不能再充当 workspace tree authority。
 - 任意可在 workspace 中打开并编辑的文本文件，都天然属于 Preview Diff 范围；不根据后缀额外维护 diff 白名单。
+- 已创建项目的创建、重命名和删除操作都以 `working_directory` 为唯一可写根目录，并复用读取/保存接口的项目编辑权限与相对路径边界校验。目录删除只有请求显式 `recursive=true` 时才允许递归；UI 必须在非空目录删除前二次确认并显示受影响条目范围。
+- Workspace tree 的根节点、目录节点和文件节点均提供右键菜单：新建文件、新建文件夹、重命名、删除。文件节点的新建目标为其父目录；根和目录节点的新建目标为当前目录。前端操作后同步树、展开状态、打开标签、活动文件及未保存 buffer。
 
 `files/content` 返回建议包含：
 
@@ -1519,7 +1544,7 @@ Phase 1 处理：
 | 方向                                 | 是否兼容当前模型 | 设计说明                                                     |
 | ------------------------------------ | ---------------- | ------------------------------------------------------------ |
 | Git-based Projects                   | `yes`            | 在 `source_kind` 上扩展 `git`，并追加 source metadata        |
-| Templates                            | `yes`            | Template 实质上是 future `Managed Create` 的输入源           |
+| Templates                            | `yes`            | Template 是 Application Root `templates/<key>` 的受管输入源 |
 | Directory Scan                       | `yes`            | 扫描只产出 candidates，不直接注册                            |
 | Auto Discovery                       | `yes`            | 后台发现只更新 candidate / drift，不改变 runtime authority   |
 | Multiple Compose Files               | `yes`            | `compose_project_files` 的 `order_index` 已为有序 `-f` 预留  |
@@ -1537,7 +1562,7 @@ Phase 1 处理：
 - Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
 - Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
 - `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。
-- `source_metadata_json` 持久化来源专属、无密钥 provenance；当前 Template adapter 与未来来源 adapter 都只负责解析/物化 workspace 后调用同一 pipeline。
+- `source_metadata_json` 持久化来源专属、无密钥 provenance；Template adapter 从 Application Root 模板目录发现并物化 workspace，未来来源 adapter 也只能在解析/物化 workspace 后调用同一 pipeline。
 
 ## 16. 分阶段实施路线
 
@@ -1612,6 +1637,7 @@ Configuration：
   - 新增 `GET /api/ops/projects/{id}/files`
   - 新增 `GET /api/ops/projects/{id}/files/content`
   - 新增 `PUT /api/ops/projects/{id}/files/content`
+  - 新增 `POST /api/ops/projects/{id}/files`、`PATCH /api/ops/projects/{id}/files`、`DELETE /api/ops/projects/{id}/files`，分别承担创建、重命名和显式递归删除
   - 新增 `POST /api/ops/projects/{id}/validate`
   - 新增 `POST /api/ops/projects/{id}/deploy`
   - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`
@@ -1620,7 +1646,7 @@ Configuration：
   - Configuration workspace 左侧文件树 authority 改为 `working_directory` 的真实目录扫描，不再从 tracked files 推断
   - Workspace file membership / content authority 全部收口到 `working_directory` 的 runtime browse/read/write service
   - `compose_project_files` 降级为 compose/env 元数据 overlay，不再承载 workspace state 或 Preview Diff authority
-  - `files` / `files/content` 使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束
+  - `files` / `files/content` 及文件树变更接口使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束；不以文件扩展名、语言高亮或隐藏目录配置限制创建
   - validate 只针对当前已保存磁盘状态做静态解析，不消费前端未保存草稿
   - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`；运行时导入必须在导入向导内审核服务端提供的默认配置，并与项目注册一起保存为 `confirmed`
   - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 deploy
@@ -1648,7 +1674,6 @@ Configuration：
 Management：
 
 - Git Project
-- Templates
 - Directory Scan
 - Auto Discovery
 - Remote Host
@@ -1708,7 +1733,7 @@ Configuration：
 
 ## 16.4B Phase 3 Batch 1 authority 落地说明
 
-`phase-3-batch-1-git-template-source-contract-and-boundary` 只收敛 source entry authority，不实现 source-specific materialization：
+`phase-3-batch-1-git-template-source-contract-and-boundary` 收敛 Git source 的 entry authority，并复核已落地 Template source 与同一 creation pipeline 的边界：
 
 - OpenAPI contract owner：`openapi/**`
   - 新增 `GET /api/ops/projects/sources` 作为 source catalog authority
@@ -1716,7 +1741,7 @@ Configuration：
 - Project module owner：`server/modules/project/**`
   - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
   - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
-  - Git/Template adapter 已落地：Git 仅在隔离临时目录 clone/checkout 无凭据来源，Template 仅允许显式模块内置 text workspace；二者都不扩展到目录扫描、remote host 或 backend activity aggregation
+  - Git 仅在隔离临时目录 clone/checkout 无凭据来源；Template 只从 Application Root `templates/<key>` 读取、发现并完整物化安全文本 workspace，不使用模块内置内容。二者都不扩展到目录扫描、remote host 或 backend activity aggregation。
 - Web module owner：`web/src/modules/project/**`
   - `/ops/projects/create` 固定为 source selector
   - `/ops/projects/create/managed` 承接现有 managed create 页面
@@ -1816,7 +1841,7 @@ IA guardrail:
 当前公开且可执行的 Compose Application Source 只有：
 
 - `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
-- `Template`：模块内置模板生成 Workspace。
+- `Template`：Application Root `templates/<key>` 模板目录生成 Workspace。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
 MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，依次进入 deployment、target、source 与向导。Git 可在 Source 页面仅作为禁用卡片展示，并通过本地化 tooltip 显示“暂不支持”；它与 Remote Host、ZIP、GitHub Template 一样不得预先暴露 API、路由、菜单、创建方式枚举、持久化来源类型或占位页面。

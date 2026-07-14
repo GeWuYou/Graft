@@ -79,15 +79,16 @@ type normalizedManagedCreateRequest struct {
 	ComposeFileContent   string
 	EnvFileName          *string
 	EnvFileContent       *string
-	WorkspaceFiles       []ManagedWorkspaceFile
+	WorkspaceEntries     []ManagedWorkspaceEntry
 	ComposeFilePath      string
 	EnvFilePaths         []string
 	LifecycleConfig      *LifecycleStandardConfig
 }
 
-type normalizedManagedWorkspaceFile struct {
-	Path    string
-	Content string
+type normalizedManagedWorkspaceEntry struct {
+	Path     string
+	NodeType string
+	Content  *string
 }
 
 // normalizeManagedCreateRequest 规范化并验证受控项目创建请求，生成用于后续项目创建的输入数据。
@@ -108,17 +109,17 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	if err := rejectComposeProjectNameOverride(identity.envContent, composeName); err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	workspaceFiles, err := normalizeManagedWorkspaceFiles(request.WorkspaceFiles, identity.composePath, composeFileContent, identity.envName, identity.envContent)
+	workspaceEntries, err := normalizeManagedWorkspaceEntries(request.WorkspaceEntries, identity.composePath)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	materializedFiles := make([]ManagedWorkspaceFile, 0, len(workspaceFiles))
-	for _, item := range workspaceFiles {
+	materializedEntries := make([]ManagedWorkspaceEntry, 0, len(workspaceEntries))
+	for _, item := range workspaceEntries {
 		content := item.Content
-		if item.Path == identity.composePath {
-			content = composeFileContent
+		if item.NodeType == "file" && item.Path == identity.composePath {
+			content = stringPointer(composeFileContent)
 		}
-		materializedFiles = append(materializedFiles, ManagedWorkspaceFile{Path: item.Path, Content: content})
+		materializedEntries = append(materializedEntries, ManagedWorkspaceEntry{Path: item.Path, NodeType: item.NodeType, Content: content})
 	}
 	return normalizedManagedCreateRequest{
 		DisplayName:          identity.displayName,
@@ -129,11 +130,86 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 		ComposeFileContent:   composeFileContent,
 		EnvFileName:          identity.envName,
 		EnvFileContent:       identity.envContent,
-		WorkspaceFiles:       materializedFiles,
+		WorkspaceEntries:     materializedEntries,
 		ComposeFilePath:      identity.composePath,
 		EnvFilePaths:         append([]string(nil), request.EnvFilePaths...),
 		LifecycleConfig:      request.LifecycleConfig,
 	}, nil
+}
+
+func normalizeManagedWorkspaceEntries(entries []ManagedWorkspaceEntry, composePath string) ([]normalizedManagedWorkspaceEntry, error) {
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("%w: workspace entries are required", errProjectInvalidArgument)
+	}
+	result := make([]normalizedManagedWorkspaceEntry, 0, len(entries))
+	seen := make(map[string]string, len(entries))
+	foundCompose := false
+	for _, entry := range entries {
+		item, isCompose, err := normalizeManagedWorkspaceEntry(entry, composePath, seen)
+		if err != nil {
+			return nil, err
+		}
+		if isCompose {
+			foundCompose = true
+		}
+		seen[item.Path] = item.NodeType
+		result = append(result, item)
+	}
+	if !foundCompose {
+		return nil, fmt.Errorf("%w: compose file is absent from workspace", errProjectInvalidArgument)
+	}
+	return result, nil
+}
+
+func normalizeManagedWorkspaceEntry(entry ManagedWorkspaceEntry, composePath string, seen map[string]string) (normalizedManagedWorkspaceEntry, bool, error) {
+	path, err := normalizeManagedWorkspacePath(entry.Path)
+	if err != nil {
+		return normalizedManagedWorkspaceEntry{}, false, err
+	}
+	nodeType := strings.TrimSpace(entry.NodeType)
+	if err := validateManagedWorkspaceEntry(path, nodeType, entry.Content, seen); err != nil {
+		return normalizedManagedWorkspaceEntry{}, false, err
+	}
+	return normalizedManagedWorkspaceEntry{Path: path, NodeType: nodeType, Content: entry.Content}, nodeType == "file" && path == composePath, nil
+}
+
+func validateManagedWorkspaceEntry(path, nodeType string, content *string, seen map[string]string) error {
+	if nodeType != "file" && nodeType != "directory" {
+		return fmt.Errorf("%w: invalid workspace entry type", errProjectInvalidArgument)
+	}
+	if _, ok := seen[path]; ok {
+		return fmt.Errorf("%w: duplicate workspace entry", errProjectInvalidArgument)
+	}
+	if err := validateWorkspaceEntryAncestors(path, seen); err != nil {
+		return err
+	}
+	if nodeType == "directory" {
+		return validateWorkspaceDirectoryContent(content)
+	}
+	return validateWorkspaceFileContent(content)
+}
+
+func validateWorkspaceEntryAncestors(path string, seen map[string]string) error {
+	for ancestor := filepath.Dir(path); ancestor != "."; ancestor = filepath.Dir(ancestor) {
+		if seen[ancestor] == "file" {
+			return fmt.Errorf("%w: workspace entry has file ancestor", errProjectInvalidArgument)
+		}
+	}
+	return nil
+}
+
+func validateWorkspaceDirectoryContent(content *string) error {
+	if content != nil {
+		return fmt.Errorf("%w: workspace directory cannot have content", errProjectInvalidArgument)
+	}
+	return nil
+}
+
+func validateWorkspaceFileContent(content *string) error {
+	if content == nil || !utf8.ValidString(*content) || strings.Contains(*content, "\x00") {
+		return fmt.Errorf("%w: workspace file must be UTF-8 text", errProjectInvalidArgument)
+	}
+	return nil
 }
 
 type managedCreateIdentity struct {
@@ -278,37 +354,6 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 		}
 	}
 	return "", nil, errProjectConflict
-}
-
-// normalizeManagedWorkspaceFiles 规范化工作区文件，并在未提供文件时补充 Compose 文件和可选的环境文件。
-// 文件路径必须有效且唯一，内容必须为文本，并且工作区必须包含指定的 Compose 文件。
-func normalizeManagedWorkspaceFiles(items []ManagedWorkspaceFile, composeFileName, composeContent string, envFileName *string, envContent *string) ([]normalizedManagedWorkspaceFile, error) {
-	if len(items) == 0 {
-		items = []ManagedWorkspaceFile{{Path: composeFileName, Content: composeContent}}
-		if envFileName != nil && envContent != nil {
-			items = append(items, ManagedWorkspaceFile{Path: *envFileName, Content: *envContent})
-		}
-	}
-	result := make([]normalizedManagedWorkspaceFile, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		path, err := normalizeManagedWorkspacePath(item.Path)
-		if err != nil {
-			return nil, err
-		}
-		if !utf8.ValidString(item.Content) || strings.Contains(item.Content, "\x00") {
-			return nil, fmt.Errorf("%w: workspace file must be text", errProjectInvalidArgument)
-		}
-		if _, ok := seen[path]; ok {
-			return nil, fmt.Errorf("%w: duplicate workspace file", errProjectInvalidArgument)
-		}
-		seen[path] = struct{}{}
-		result = append(result, normalizedManagedWorkspaceFile{Path: path, Content: item.Content})
-	}
-	if _, ok := seen[composeFileName]; !ok {
-		return nil, fmt.Errorf("%w: compose file is absent from workspace", errProjectInvalidArgument)
-	}
-	return result, nil
 }
 
 // normalizeManagedWorkspacePath validates and normalizes a relative workspace file path.

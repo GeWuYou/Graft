@@ -1,0 +1,16 @@
+get:
+  tags: [project]
+  summary: Get blank project workspace defaults and runtime templates
+  operationId: getProjectWorkspaceDefaults
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security: [{ bearerAuth: [] }]
+  responses:
+    '200':
+      description: Server-owned blank workspace defaults.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-project-workspace-defaults-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

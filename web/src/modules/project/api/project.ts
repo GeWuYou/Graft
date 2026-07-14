@@ -9,6 +9,8 @@ import {
   buildProjectFilesAnnotationApiPath,
   buildProjectFilesApiPath,
   buildProjectFilesContentApiPath,
+  buildProjectFilesEntriesApiPath,
+  buildProjectFilesRenameApiPath,
   buildProjectLifecycleConfigurationApiPath,
   buildProjectLogsApiPath,
   buildProjectOverviewApiPath,
@@ -45,6 +47,8 @@ import type {
   ProjectServicesResponse,
   ProjectTaskReceipt,
   ProjectTemplateCreateRequest,
+  ProjectWorkspaceDefaultsResponse,
+  ProjectWorkspaceEntry,
   ProjectWorkspaceFileAnnotationRequest,
   ProjectWorkspaceFileAnnotationResponse,
   ProjectWorkspaceFileContentQuery,
@@ -53,6 +57,7 @@ import type {
   ProjectWorkspaceFileSaveResponse,
   ProjectWorkspaceFilesQuery,
   ProjectWorkspaceFilesResponse,
+  ProjectWorkspaceRenameRequest,
 } from '../types/project';
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -284,6 +289,22 @@ export function getProjectServices(id: GetProjectServicesPathParams['id']) {
   return request.get<GetProjectServicesData>({
     url: buildProjectServicesApiPath(id),
   }) as Promise<ProjectServicesResponse>;
+}
+
+export function getProjectWorkspaceDefaults() {
+  return request.get<ProjectWorkspaceDefaultsResponse>({ url: PROJECT_API_PATH.CREATE_WORKSPACE_DEFAULTS });
+}
+
+export function postProjectWorkspaceEntry(id: string | number, payload: ProjectWorkspaceEntry) {
+  return request.post({ url: buildProjectFilesEntriesApiPath(id), data: payload });
+}
+
+export function postProjectWorkspaceRename(id: string | number, payload: ProjectWorkspaceRenameRequest) {
+  return request.post({ url: buildProjectFilesRenameApiPath(id), data: payload });
+}
+
+export function deleteProjectWorkspaceEntry(id: string | number, query: { path: string; recursive?: boolean }) {
+  return request.delete({ url: buildProjectFilesEntriesApiPath(id), params: query });
 }
 
 /**

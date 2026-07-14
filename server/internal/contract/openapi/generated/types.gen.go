@@ -2934,6 +2934,24 @@ func (e ProjectSourceKind) Valid() bool {
 	}
 }
 
+// Defines values for ProjectWorkspaceEntryNodeType.
+const (
+	Directory ProjectWorkspaceEntryNodeType = "directory"
+	File      ProjectWorkspaceEntryNodeType = "file"
+)
+
+// Valid indicates whether the value is a known member of the ProjectWorkspaceEntryNodeType enum.
+func (e ProjectWorkspaceEntryNodeType) Valid() bool {
+	switch e {
+	case Directory:
+		return true
+	case File:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectWorkspaceFileKind.
 const (
 	ProjectWorkspaceFileKindBinary      ProjectWorkspaceFileKind = "binary"
@@ -7527,6 +7545,11 @@ type EnvelopedProjectServicesResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectWorkspaceDefaultsResponse defines model for enveloped-project-workspace-defaults-response.
+type EnvelopedProjectWorkspaceDefaultsResponse struct {
+	Data ProjectWorkspaceDefaultsResponse `json:"data"`
+}
+
 // EnvelopedRealtimeSubscriptionResponse defines model for enveloped-realtime-subscription-response.
 type EnvelopedRealtimeSubscriptionResponse struct {
 	// Code Existing canonical response code.
@@ -8577,25 +8600,14 @@ type ProjectContainerCounts struct {
 
 // ProjectCreateRequest defines model for project-create-request.
 type ProjectCreateRequest struct {
-	// ComposeFileContent Initial Compose YAML content to materialize in the managed project directory.
-	ComposeFileContent string `json:"compose_file_content"`
-	ComposeFileName    string `json:"compose_file_name"`
-
-	// ComposeFilePath Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition.
-	ComposeFilePath *string `json:"compose_file_path,omitempty"`
-	DisplayName     string  `json:"display_name"`
-
-	// EnvFileContent Optional initial env file content. It is ignored when env_file_name is omitted.
-	EnvFileContent *string `json:"env_file_content,omitempty"`
-	EnvFileName    *string `json:"env_file_name,omitempty"`
-
-	// EnvFilePaths Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
-	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
+	// ComposeFilePath Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
+	ComposeFilePath        string                                `json:"compose_file_path"`
+	DisplayName            string                                `json:"display_name"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
 
-	// WorkspaceFiles Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.
-	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
+	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
+	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
 
 	// WorkspaceKey Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
 	WorkspaceKey *string `json:"workspace_key,omitempty"`
@@ -8636,20 +8648,14 @@ type ProjectCreateResponseResult string
 
 // ProjectCreateValidateRequest defines model for project-create-validate-request.
 type ProjectCreateValidateRequest struct {
-	ComposeFileName string `json:"compose_file_name"`
-
 	// ComposeFilePath Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
-	ComposeFilePath *string `json:"compose_file_path,omitempty"`
-	DisplayName     string  `json:"display_name"`
-	EnvFileName     *string `json:"env_file_name,omitempty"`
-
-	// EnvFilePaths Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
-	EnvFilePaths           *[]string                             `json:"env_file_paths,omitempty"`
+	ComposeFilePath        string                                `json:"compose_file_path"`
+	DisplayName            string                                `json:"display_name"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
 
-	// WorkspaceFiles Complete managed workspace text manifest to validate without materializing.
-	WorkspaceFiles *[]ProjectWorkspaceManifestFile `json:"workspace_files,omitempty"`
+	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
+	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
 
 	// WorkspaceKey Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
 	WorkspaceKey *string `json:"workspace_key,omitempty"`
@@ -9519,25 +9525,49 @@ type ProjectTemplateCreateRequest struct {
 	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the generated workspace key.
 	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
 
-	// TemplateKey Explicit bundled template key. Defaults to empty-compose.
+	// TemplateKey Runtime template directory key. Defaults to default.
 	TemplateKey *string `json:"template_key,omitempty"`
 
-	// TemplateVersion Explicit bundled template version. Defaults to v1.
+	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
 	TemplateVersion *string `json:"template_version,omitempty"`
 	WorkspaceKey    *string `json:"workspace_key,omitempty"`
 }
 
-// ProjectWorkspaceFileKind defines model for project-workspace-file-kind.
-type ProjectWorkspaceFileKind string
+// ProjectWorkspaceDefaultsResponse defines model for project-workspace-defaults-response.
+type ProjectWorkspaceDefaultsResponse struct {
+	ComposeFilePath    string `json:"compose_file_path"`
+	DefaultTemplateKey string `json:"default_template_key"`
+	Templates          []struct {
+		DisplayName string `json:"display_name"`
+		Key         string `json:"key"`
+	} `json:"templates"`
+	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
+}
 
-// ProjectWorkspaceManifestFile defines model for project-workspace-manifest-file.
-type ProjectWorkspaceManifestFile struct {
-	// Content UTF-8 text content to materialize for the file.
-	Content string `json:"content"`
+// ProjectWorkspaceEntry defines model for project-workspace-entry.
+type ProjectWorkspaceEntry struct {
+	// Content Required UTF-8 text content for file entries and omitted for directory entries.
+	Content  *string                       `json:"content,omitempty"`
+	NodeType ProjectWorkspaceEntryNodeType `json:"node_type"`
 
-	// Path Relative text-file path within the managed workspace. Absolute paths and traversal are rejected.
+	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
 	Path string `json:"path"`
 }
+
+// ProjectWorkspaceEntryNodeType defines model for ProjectWorkspaceEntry.NodeType.
+type ProjectWorkspaceEntryNodeType string
+
+// ProjectWorkspaceEntryCreateRequest defines model for project-workspace-entry-create-request.
+type ProjectWorkspaceEntryCreateRequest = ProjectWorkspaceEntry
+
+// ProjectWorkspaceEntryRenameRequest defines model for project-workspace-entry-rename-request.
+type ProjectWorkspaceEntryRenameRequest struct {
+	NewPath string `json:"new_path"`
+	Path    string `json:"path"`
+}
+
+// ProjectWorkspaceFileKind defines model for project-workspace-file-kind.
+type ProjectWorkspaceFileKind string
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -9612,9 +9642,11 @@ type RequestPerformanceRoute struct {
 
 // RequestPerformanceStatusGroup defines model for request-performance-status-group.
 type RequestPerformanceStatusGroup struct {
-	RequestCount int64                                    `json:"request_count"`
-	RequestRate  float64                                  `json:"request_rate"`
-	StatusGroup  RequestPerformanceStatusGroupStatusGroup `json:"status_group"`
+	RequestCount int64 `json:"request_count"`
+
+	// RequestRate Request rate as a percentage from 0 to 100.
+	RequestRate float64                                  `json:"request_rate"`
+	StatusGroup RequestPerformanceStatusGroupStatusGroup `json:"status_group"`
 }
 
 // RequestPerformanceStatusGroupStatusGroup defines model for RequestPerformanceStatusGroup.StatusGroup.
@@ -9622,7 +9654,9 @@ type RequestPerformanceStatusGroupStatusGroup string
 
 // RequestPerformanceSummary defines model for request-performance-summary.
 type RequestPerformanceSummary struct {
-	Error5xxCount     int64   `json:"error_5xx_count"`
+	Error5xxCount int64 `json:"error_5xx_count"`
+
+	// Error5xxRate 5xx error rate as a percentage from 0 to 100.
 	Error5xxRate      float64 `json:"error_5xx_rate"`
 	P50LatencyMs      float64 `json:"p50_latency_ms"`
 	P95LatencyMs      float64 `json:"p95_latency_ms"`
@@ -11904,6 +11938,16 @@ type PostProjectCreateTemplateValidateParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetProjectWorkspaceDefaultsParams defines parameters for GetProjectWorkspaceDefaults.
+type GetProjectWorkspaceDefaultsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetProjectCreationMethodsParams defines parameters for GetProjectCreationMethods.
 type GetProjectCreationMethodsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -12176,6 +12220,12 @@ type PutProjectFileContentParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteProjectWorkspaceEntryParams defines parameters for DeleteProjectWorkspaceEntry.
+type DeleteProjectWorkspaceEntryParams struct {
+	Path      string `form:"path" json:"path"`
+	Recursive *bool  `form:"recursive,omitempty" json:"recursive,omitempty"`
 }
 
 // PutProjectLifecycleConfigurationParams defines parameters for PutProjectLifecycleConfiguration.
@@ -13042,6 +13092,12 @@ type PutProjectFileAnnotationJSONRequestBody = ProjectFileAnnotationRequest
 
 // PutProjectFileContentJSONRequestBody defines body for PutProjectFileContent for application/json ContentType.
 type PutProjectFileContentJSONRequestBody = ProjectFileSaveRequest
+
+// PostProjectWorkspaceEntryJSONRequestBody defines body for PostProjectWorkspaceEntry for application/json ContentType.
+type PostProjectWorkspaceEntryJSONRequestBody = ProjectWorkspaceEntryCreateRequest
+
+// PostProjectWorkspaceEntryRenameJSONRequestBody defines body for PostProjectWorkspaceEntryRename for application/json ContentType.
+type PostProjectWorkspaceEntryRenameJSONRequestBody = ProjectWorkspaceEntryRenameRequest
 
 // PutProjectLifecycleConfigurationJSONRequestBody defines body for PutProjectLifecycleConfiguration for application/json ContentType.
 type PutProjectLifecycleConfigurationJSONRequestBody = ProjectLifecycleConfigurationRequest

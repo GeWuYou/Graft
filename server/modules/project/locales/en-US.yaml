@@ -49,6 +49,8 @@ systemConfig.project.ops.project.workspace.hidden_directories.description: JSON 
 systemConfig.project.ops.project.workspace.hidden_directories.placeholder: Press Enter after each directory name, for example node_modules or .git
 systemConfig.project.ops.project.workspace.file_tooltip_rules.title: Workspace File Tooltip Rules
 systemConfig.project.ops.project.workspace.file_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against file basenames. Later enabled matches override earlier matches.
+systemConfig.project.ops.project.create.blank_prefill_default_template.title: Prefill Blank Projects from Default Template
+systemConfig.project.ops.project.create.blank_prefill_default_template.description: When enabled, blank project creation starts with the complete templates/default workspace. When disabled, it starts with empty .env and compose.yaml files.
 systemConfig.project.ops.project.workspace.directory_tooltip_rules.title: Workspace Directory Tooltip Rules
 systemConfig.project.ops.project.workspace.directory_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against directory basenames. Later enabled matches override earlier matches.
 systemConfig.groups.ops.project.import: Project Import

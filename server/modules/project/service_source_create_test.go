@@ -33,6 +33,10 @@ func composeTargetReader(state moduleapi.ComposeProjectNameState) stubComposeRun
 	return stubComposeRuntimeTargetReader{target: moduleapi.ComposeRuntimeTargetSummary{ID: 7, Available: state != moduleapi.ComposeProjectNameStateUnavailable}, state: state}
 }
 
+func managedWorkspaceEntries(compose string) []ManagedWorkspaceEntry {
+	return []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: &compose}}
+}
+
 func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	managedRoot := t.TempDir()
 	repository := &stubProjectRepository{}
@@ -72,7 +76,7 @@ func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorks
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n",
+		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
 		t.Fatalf("expected compose name conflict, got %v", err)
@@ -96,7 +100,7 @@ func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n",
+		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if err != nil {
 		t.Fatalf("create managed project: %v", err)

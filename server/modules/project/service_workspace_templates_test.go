@@ -1,0 +1,67 @@
+package project
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestSeedDefaultWorkspaceTemplatePreservesOperatorFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := seedDefaultWorkspaceTemplate(root); err != nil {
+		t.Fatalf("seed default template: %v", err)
+	}
+	composePath := filepath.Join(root, "templates", defaultTemplateKey, "compose.yaml")
+	// #nosec G304 -- test path is rooted in t.TempDir.
+	if content, err := os.ReadFile(composePath); err != nil || len(content) == 0 {
+		t.Fatalf("read seeded compose template: content=%q err=%v", content, err)
+	}
+	// #nosec G304 -- test path is rooted in t.TempDir.
+	if content, err := os.ReadFile(filepath.Join(root, "templates", defaultTemplateKey, ".env")); err != nil || len(content) == 0 {
+		t.Fatalf("read seeded env template: content=%q err=%v", content, err)
+	}
+	if err := os.WriteFile(composePath, []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatalf("replace operator template: %v", err)
+	}
+	if err := seedDefaultWorkspaceTemplate(root); err != nil {
+		t.Fatalf("repeat seed default template: %v", err)
+	}
+	// #nosec G304 -- test path is rooted in t.TempDir.
+	if content, err := os.ReadFile(composePath); err != nil || string(content) != "services: {}\n" {
+		t.Fatalf("operator template was overwritten: content=%q err=%v", content, err)
+	}
+}
+
+func TestLoadWorkspaceTemplatePreservesDirectoriesAndArbitraryTextFiles(t *testing.T) {
+	root := t.TempDir()
+	template := filepath.Join(root, "templates", "custom")
+	if err := os.MkdirAll(filepath.Join(template, "empty"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "file-without-extension"), []byte("text"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := loadWorkspaceTemplate(root, "custom")
+	if err != nil {
+		t.Fatalf("load template: %v", err)
+	}
+	if len(entries) != 2 || entries[0].Path != "empty" || entries[0].NodeType != "directory" || entries[1].Path != "file-without-extension" || entries[1].NodeType != "file" {
+		t.Fatalf("unexpected template entries: %#v", entries)
+	}
+}
+
+func TestNormalizeManagedWorkspaceEntriesAcceptsArbitraryTextAndEmptyDirectory(t *testing.T) {
+	compose := "services: {}\n"
+	content := "arbitrary text\n"
+	entries, err := normalizeManagedWorkspaceEntries([]ManagedWorkspaceEntry{
+		{Path: "nested", NodeType: "directory"},
+		{Path: "nested/readme", NodeType: "file", Content: &content},
+		{Path: "compose.yaml", NodeType: "file", Content: &compose},
+	}, "compose.yaml")
+	if err != nil {
+		t.Fatalf("normalize entries: %v", err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("entry count = %d, want 3", len(entries))
+	}
+}

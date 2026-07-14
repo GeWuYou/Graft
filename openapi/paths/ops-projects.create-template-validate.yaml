@@ -1,8 +1,8 @@
 post:
   tags: [project]
-  summary: Validate a bundled template project source
+  summary: Validate a runtime template project source
   operationId: postProjectCreateTemplateValidate
-  description: Validates the selected bundled template and eventual managed-root target without writing it.
+  description: Validates the selected Application Root template directory and eventual managed-root target without writing it.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

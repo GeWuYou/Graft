@@ -1141,7 +1141,12 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(annotationButton.element.parentElement?.getAttribute('data-tooltip-content')).toBe('Edit Annotation');
 
     await annotationButton.trigger('click');
-    expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('true');
+    expect(
+      wrapper
+        .findAll('[data-stub="TDialog"]')
+        .find((dialog) => dialog.attributes('data-title') === 'Edit Annotation')
+        ?.attributes('data-visible'),
+    ).toBe('true');
   });
 
   it('saves workspace annotations through the dialog flow', async () => {
@@ -1158,7 +1163,12 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { path: 'docker-compose.yml' },
       { annotation: 'Updated note' },
     );
-    expect(wrapper.findAll('[data-stub="TDialog"]').at(-1)?.attributes('data-visible')).toBe('false');
+    expect(
+      wrapper
+        .findAll('[data-stub="TDialog"]')
+        .find((dialog) => dialog.attributes('data-title') === 'Edit Annotation')
+        ?.attributes('data-visible'),
+    ).toBe('false');
     expect(mocks.error).not.toHaveBeenCalled();
   });
 

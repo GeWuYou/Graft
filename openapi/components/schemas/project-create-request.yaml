@@ -2,8 +2,8 @@ type: object
 required:
   - display_name
   - runtime_target_id
-  - compose_file_name
-  - compose_file_content
+  - workspace_entries
+  - compose_file_path
 properties:
   display_name:
     type: string
@@ -18,44 +18,17 @@ properties:
     maxLength: 255
     pattern: '^[a-z0-9][a-z0-9-]*$'
     description: Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
-  compose_file_name:
-    type: string
-    minLength: 1
-    maxLength: 255
-    pattern: '^[^/\\\\]+$'
-  compose_file_content:
-    type: string
-    minLength: 1
-    description: Initial Compose YAML content to materialize in the managed project directory.
-  env_file_name:
-    type: string
-    minLength: 1
-    maxLength: 255
-    pattern: '^[^/\\\\]+$'
-    nullable: true
-  env_file_content:
-    type: string
-    nullable: true
-    description: Optional initial env file content. It is ignored when env_file_name is omitted.
-  workspace_files:
+  workspace_entries:
     type: array
     minItems: 1
-    description: Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest.
+    description: Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
     items:
-      $ref: ./project-workspace-manifest-file.yaml
+      $ref: ./project-workspace-entry.yaml
   compose_file_path:
     type: string
     minLength: 1
     maxLength: 1024
     pattern: '^[^/\\\\][^\\\\]*$'
-    description: Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition.
-  env_file_paths:
-    type: array
-    items:
-      type: string
-      minLength: 1
-      maxLength: 1024
-      pattern: '^[^/\\\\][^\\\\]*$'
-    description: Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace.
+    description: Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
   lifecycle_configuration:
     $ref: ./project-lifecycle-configuration-request.yaml

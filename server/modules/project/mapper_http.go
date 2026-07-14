@@ -1,6 +1,7 @@
 package project
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -585,49 +586,50 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 	return response
 }
 
-// toManagedCreateRequest 将项目创建校验请求转换为内部创建请求。
-// toManagedCreateRequest 将项目创建校验请求转换为内部托管项目创建请求，并保留工作区文件、Compose/环境文件路径及生命周期配置等可选信息。
-// toManagedCreateRequest 将 HTTP 请求转换为托管项目创建请求，并返回转换错误。
+// toManagedCreateRequest converts the canonical workspace-entry validation request into a managed create request.
 func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	var envFileName *string
-	if request.EnvFileName != nil {
-		value := *request.EnvFileName
-		envFileName = &value
-	}
-	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, composeFileName: request.ComposeFileName, envFileName: envFileName, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
 }
 
-type managedCreateHTTPParts struct {
-	displayName, composeFileName, composeFileContent string
-	runtimeTargetID                                  uint64
-	workspaceKey                                     *string
-	envFileName, envFileContent                      *string
-	workspaceFiles                                   *[]generated.ProjectWorkspaceManifestFile
-	composeFilePath                                  *string
-	envFilePaths                                     *[]string
-	lifecycle                                        *generated.ProjectLifecycleConfigurationRequest
+type managedCreateEntriesHTTPParts struct {
+	displayName      string
+	runtimeTargetID  uint64
+	workspaceKey     *string
+	workspaceEntries []generated.ProjectWorkspaceEntry
+	composeFilePath  string
+	lifecycle        *generated.ProjectLifecycleConfigurationRequest
 }
 
-// managedCreateRequestFromParts 将托管项目创建 HTTP 请求的各部分组装为内部请求。
-// 可选的生命周期配置必须采用标准策略；配置策略无效时返回错误。
-func managedCreateRequestFromParts(parts managedCreateHTTPParts) (ManagedProjectCreateRequest, error) {
-	request := ManagedProjectCreateRequest{
-		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, WorkspaceKey: parts.workspaceKey, ComposeFileName: parts.composeFileName, ComposeFileContent: parts.composeFileContent, EnvFileName: parts.envFileName, EnvFileContent: parts.envFileContent,
+func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (ManagedProjectCreateRequest, error) {
+	composePath, err := normalizeManagedWorkspacePath(parts.composeFilePath)
+	if err != nil {
+		return ManagedProjectCreateRequest{}, err
 	}
-	if parts.workspaceFiles != nil {
-		for _, item := range *parts.workspaceFiles {
-			request.WorkspaceFiles = append(request.WorkspaceFiles, ManagedWorkspaceFile{Path: item.Path, Content: item.Content})
+	entries := make([]ManagedWorkspaceEntry, 0, len(parts.workspaceEntries))
+	var composeContent string
+	foundCompose := false
+	for _, entry := range parts.workspaceEntries {
+		mapped, err := managedWorkspaceEntryFromGenerated(entry)
+		if err != nil {
+			return ManagedProjectCreateRequest{}, err
+		}
+		entries = append(entries, mapped)
+		if mapped.NodeType == "file" && mapped.Path == composePath && mapped.Content != nil {
+			composeContent = *mapped.Content
+			foundCompose = true
 		}
 	}
-	if parts.composeFilePath != nil {
-		request.ComposeFilePath = *parts.composeFilePath
+	if !foundCompose {
+		return ManagedProjectCreateRequest{}, errProjectInvalidArgument
 	}
-	if parts.envFilePaths != nil {
-		request.EnvFilePaths = append([]string(nil), (*parts.envFilePaths)...)
+	request := ManagedProjectCreateRequest{
+		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, WorkspaceKey: parts.workspaceKey,
+		ComposeFileName: filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
+		WorkspaceEntries: entries,
 	}
 	if parts.lifecycle != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
@@ -639,23 +641,31 @@ func managedCreateRequestFromParts(parts managedCreateHTTPParts) (ManagedProject
 	return request, nil
 }
 
+func managedWorkspaceEntryFromGenerated(entry generated.ProjectWorkspaceEntry) (ManagedWorkspaceEntry, error) {
+	path, err := normalizeManagedWorkspacePath(entry.Path)
+	if err != nil {
+		return ManagedWorkspaceEntry{}, err
+	}
+	nodeType := string(entry.NodeType)
+	if nodeType != "file" && nodeType != "directory" {
+		return ManagedWorkspaceEntry{}, errProjectInvalidArgument
+	}
+	if nodeType == "file" && entry.Content == nil {
+		return ManagedWorkspaceEntry{}, errProjectInvalidArgument
+	}
+	if nodeType == "directory" && entry.Content != nil {
+		return ManagedWorkspaceEntry{}, errProjectInvalidArgument
+	}
+	return ManagedWorkspaceEntry{Path: path, NodeType: nodeType, Content: entry.Content}, nil
+}
+
 // toManagedCreateExecuteRequest 将项目创建执行请求转换为内部创建请求；当运行时目标 ID 无效或生命周期配置策略不受支持时返回错误。
 func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	var envFileName *string
-	if request.EnvFileName != nil {
-		value := *request.EnvFileName
-		envFileName = &value
-	}
-	var envFileContent *string
-	if request.EnvFileContent != nil {
-		value := *request.EnvFileContent
-		envFileContent = &value
-	}
-	return managedCreateRequestFromParts(managedCreateHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, composeFileName: request.ComposeFileName, composeFileContent: request.ComposeFileContent, envFileName: envFileName, envFileContent: envFileContent, workspaceFiles: request.WorkspaceFiles, composeFilePath: request.ComposeFilePath, envFilePaths: request.EnvFilePaths, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
 }
 
 // runtimeTargetIDFromGenerated validates and converts a generated runtime target identifier.

@@ -18,6 +18,8 @@ describe('ProjectCreateWorkspaceEditor', () => {
         files: [
           { path: 'compose.yaml', content: 'services: {}' },
           { path: '.env', content: '' },
+          { path: 'nginx', content: '', node_type: 'directory' },
+          { path: 'nginx/nginx.conf', content: 'events {}' },
         ],
       },
       global: {
@@ -26,15 +28,65 @@ describe('ProjectCreateWorkspaceEditor', () => {
           't-alert': { template: '<div><slot /></div>' },
           't-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
           't-card': { template: '<section><slot name="actions" /><slot /></section>' },
-          't-dialog': { template: '<section><slot /></section>' },
+          't-dialog': {
+            props: ['visible'],
+            emits: ['confirm', 'update:visible'],
+            template:
+              '<section v-if="visible"><slot /><button type="button" class="dialog-confirm" @click="$emit(\'confirm\')">confirm</button></section>',
+          },
           't-form': { template: '<form><slot /></form>' },
           't-form-item': { template: '<label><slot /></label>' },
-          't-input': { template: '<input />' },
+          't-input': {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
         },
       },
     });
 
     expect(wrapper.text()).toContain('compose.yaml');
     expect(wrapper.text()).toContain('.env');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('nginx'))
+      ?.trigger('click');
+    expect(wrapper.text()).toContain('nginx.conf');
+  });
+
+  it('creates unrestricted file names through the tree context menu', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+      global: {
+        stubs: {
+          'project-monaco-surface': { template: '<textarea />' },
+          't-alert': { template: '<div><slot /></div>' },
+          't-card': { template: '<section><slot /></section>' },
+          't-empty': { template: '<div />' },
+          't-form': { template: '<form><slot /></form>' },
+          't-form-item': { template: '<label><slot /></label>' },
+          't-dialog': {
+            props: ['visible'],
+            emits: ['confirm'],
+            template:
+              '<section v-if="visible"><slot /><button class="dialog-confirm" @click="$emit(\'confirm\')">confirm</button></section>',
+          },
+          't-input': {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
+        },
+      },
+    });
+
+    await wrapper.find('.project-create-workspace__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
+    await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
+    await wrapper.find('input').setValue('scripts/start');
+    await wrapper.find('.dialog-confirm').trigger('click');
+
+    expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: 'scripts/start', node_type: 'file' })]),
+    );
   });
 });

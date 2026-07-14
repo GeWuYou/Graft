@@ -10,12 +10,7 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 )
 
-const (
-	defaultTemplateKey     = "empty-compose"
-	defaultTemplateVersion = "v1"
-)
-
-// TemplateProjectCreateRequest selects one bundled, module-owned template.
+// TemplateProjectCreateRequest selects one operator-managed workspace template.
 type TemplateProjectCreateRequest struct {
 	DisplayName              string
 	RuntimeTargetID          uint64
@@ -28,18 +23,18 @@ type TemplateProjectCreateRequest struct {
 	LifecycleConfig          *LifecycleStandardConfig
 }
 
-// CreateTemplateProject materializes a bundled template and registers it through the shared pipeline.
+// CreateTemplateProject materializes an operator-managed runtime template and registers it through the shared pipeline.
 func (s *Service) CreateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
-	workspace, metadata, err := resolveTemplateWorkspace(request)
+	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request)
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
 	}
 	return s.createMaterializedSourceProject(ctx, workspace, projectcontract.SourceKindTemplate.String(), metadata, actorID)
 }
 
-// ValidateTemplateProject checks a bundled template and its eventual managed-root target without writing it.
+// ValidateTemplateProject checks a runtime template and its eventual managed-root target without writing it.
 func (s *Service) ValidateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest) (ManagedProjectCreateValidationResult, error) {
-	workspace, metadata, err := resolveTemplateWorkspace(request)
+	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request)
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
@@ -91,25 +86,56 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 	return ManagedProjectCreateResult{Validation: validation, SourceType: sourceType, ProjectID: aggregate.Project.ID, ApplicationID: aggregate.Project.ApplicationID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
 }
 
-// resolveTemplateWorkspace resolves a template request into a materialization workspace and its template metadata.
-// It applies default template identifiers, validates that the requested template is supported, and derives
-// resolveTemplateWorkspace 将模板请求解析为托管项目创建请求及模板元数据，并应用默认模板标识和实例名称。
-// 仅支持默认模板键与版本；使用者未提供时，实例名称从工作区键派生。
-func resolveTemplateWorkspace(request TemplateProjectCreateRequest) (ManagedProjectCreateRequest, map[string]string, error) {
+// resolveTemplateWorkspace loads a complete runtime template directory into one managed creation request.
+func (s *Service) resolveTemplateWorkspace(ctx context.Context, request TemplateProjectCreateRequest) (ManagedProjectCreateRequest, map[string]string, error) {
 	key := strings.TrimSpace(request.TemplateKey)
 	if key == "" {
 		key = defaultTemplateKey
 	}
 	version := strings.TrimSpace(request.TemplateVersion)
 	if version == "" {
-		version = defaultTemplateVersion
+		version = "runtime"
 	}
-	if key != defaultTemplateKey || version != defaultTemplateVersion {
-		return ManagedProjectCreateRequest{}, nil, fmt.Errorf("%w: unknown template key or version", errProjectInvalidArgument)
+	root, err := s.applicationRootDirectory(ctx)
+	if err != nil {
+		return ManagedProjectCreateRequest{}, nil, err
 	}
+	if err := seedDefaultWorkspaceTemplate(root); err != nil {
+		return ManagedProjectCreateRequest{}, nil, err
+	}
+	workspaceEntries, composeContent, err := loadTemplateCreateEntries(root, key)
+	if err != nil {
+		return ManagedProjectCreateRequest{}, nil, fmt.Errorf("%w: template %s is unavailable", errProjectInvalidArgument, key)
+	}
+	composePath := "compose.yaml"
 	instance := strings.TrimSpace(request.TemplateInstanceName)
 	if instance == "" {
 		instance = stringValue(request.WorkspaceKey)
 	}
-	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", EnvFileName: stringPointer(".env"), EnvFileContent: stringPointer("\n"), WorkspaceFiles: []ManagedWorkspaceFile{{Path: "compose.yaml", Content: "services: {}\n"}, {Path: ".env", Content: "\n"}}, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
+	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, ComposeFileName: composePath, ComposeFileContent: composeContent, ComposeFilePath: composePath, WorkspaceEntries: workspaceEntries, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
+}
+
+func loadTemplateCreateEntries(root, key string) ([]ManagedWorkspaceEntry, string, error) {
+	entries, err := loadWorkspaceTemplate(root, key)
+	if err != nil {
+		return nil, "", err
+	}
+	workspaceEntries := make([]ManagedWorkspaceEntry, 0, len(entries))
+	for _, entry := range entries {
+		workspaceEntries = append(workspaceEntries, ManagedWorkspaceEntry(entry))
+	}
+	composeContent, err := workspaceEntryContent(workspaceEntries, "compose.yaml")
+	if err != nil {
+		return nil, "", err
+	}
+	return workspaceEntries, composeContent, nil
+}
+
+func workspaceEntryContent(entries []ManagedWorkspaceEntry, path string) (string, error) {
+	for _, entry := range entries {
+		if entry.NodeType == "file" && entry.Path == path && entry.Content != nil {
+			return *entry.Content, nil
+		}
+	}
+	return "", fmt.Errorf("%w: template has no %s", errProjectInvalidArgument, path)
 }

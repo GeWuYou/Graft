@@ -41,23 +41,44 @@ func writeManagedProjectFiles(
 		err = errors.Join(err, workingRoot.Close())
 	}()
 	createdFiles = []string{}
-	workspaceFiles, err := normalizeManagedWorkspaceFiles(normalized.WorkspaceFiles, normalized.ComposeFileName, normalized.ComposeFileContent, normalized.EnvFileName, normalized.EnvFileContent)
-	if err != nil {
+	if err := materializeWorkspaceEntries(workingRoot, normalized.WorkspaceEntries, workingDirectory, &createdFiles); err != nil {
 		return workingDirectory, createdFiles, err
 	}
-	for _, item := range workspaceFiles {
-		parent := filepath.Dir(item.Path)
-		if parent != "." {
-			if err := workingRoot.MkdirAll(parent, managedCreateDirMode); err != nil {
-				return workingDirectory, createdFiles, fmt.Errorf("create workspace parent: %w", err)
-			}
-		}
-		if err := workingRoot.WriteFile(item.Path, []byte(item.Content), managedCreateFileMode); err != nil {
-			return workingDirectory, createdFiles, fmt.Errorf("write workspace file: %w", err)
-		}
-		createdFiles = append(createdFiles, filepath.Join(workingDirectory, item.Path))
-	}
 	return workingDirectory, createdFiles, nil
+}
+
+func materializeWorkspaceEntries(root *os.Root, entries []ManagedWorkspaceEntry, workingDirectory string, createdFiles *[]string) error {
+	for _, entry := range entries {
+		if err := materializeWorkspaceEntry(root, entry); err != nil {
+			return err
+		}
+		if entry.NodeType == "file" {
+			*createdFiles = append(*createdFiles, filepath.Join(workingDirectory, entry.Path))
+		}
+	}
+	return nil
+}
+
+func materializeWorkspaceEntry(root *os.Root, entry ManagedWorkspaceEntry) error {
+	parent := filepath.Dir(entry.Path)
+	if parent != "." {
+		if err := root.MkdirAll(parent, managedCreateDirMode); err != nil {
+			return fmt.Errorf("create workspace parent: %w", err)
+		}
+	}
+	if entry.NodeType == "directory" {
+		if err := root.MkdirAll(entry.Path, managedCreateDirMode); err != nil {
+			return fmt.Errorf("create workspace directory: %w", err)
+		}
+		return nil
+	}
+	if entry.Content == nil {
+		return fmt.Errorf("write workspace file: content is required")
+	}
+	if err := root.WriteFile(entry.Path, []byte(*entry.Content), managedCreateFileMode); err != nil {
+		return fmt.Errorf("write workspace file: %w", err)
+	}
+	return nil
 }
 
 // cleanupManagedCreate 清理受管创建过程中生成的文件和目录。

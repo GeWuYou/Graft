@@ -156,6 +156,8 @@ const (
 	ProjectWorkspaceFileTooltipRulesConfig ConfigKey = "ops.project.workspace.file_tooltip_rules"
 	// ProjectWorkspaceDirectoryTooltipRulesConfig stores ordered default tooltip rules matched against directory basenames.
 	ProjectWorkspaceDirectoryTooltipRulesConfig ConfigKey = "ops.project.workspace.directory_tooltip_rules"
+	// ProjectBlankCreatePrefillDefaultTemplateConfig controls whether blank creation starts from templates/default.
+	ProjectBlankCreatePrefillDefaultTemplateConfig ConfigKey = "ops.project.create.blank_prefill_default_template"
 )
 
 const (
@@ -193,4 +195,8 @@ const (
 	ProjectWorkspaceDirectoryTooltipRulesConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.workspace.directory_tooltip_rules.title"
 	// ProjectWorkspaceDirectoryTooltipRulesConfigDescription identifies the workspace directory-tooltip rules config description localization key.
 	ProjectWorkspaceDirectoryTooltipRulesConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.workspace.directory_tooltip_rules.description"
+	// ProjectBlankCreatePrefillDefaultTemplateConfigTitle identifies the blank-create template prefill config title.
+	ProjectBlankCreatePrefillDefaultTemplateConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.create.blank_prefill_default_template.title"
+	// ProjectBlankCreatePrefillDefaultTemplateConfigDescription identifies the blank-create template prefill config description.
+	ProjectBlankCreatePrefillDefaultTemplateConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.create.blank_prefill_default_template.description"
 )
