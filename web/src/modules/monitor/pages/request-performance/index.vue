@@ -56,6 +56,23 @@
           :description="chart.description"
           :min-height="260"
         >
+          <template v-if="chart.qualifier || chart.help" #title>
+            <span class="request-performance-page__chart-title">
+              <span>{{ chart.title }}</span>
+              <small v-if="chart.qualifier" class="request-performance-page__chart-qualifier">
+                {{ chart.qualifier }}
+              </small>
+              <t-tooltip v-if="chart.help" :content="chart.help" placement="top" theme="light">
+                <button
+                  type="button"
+                  class="request-performance-page__chart-help"
+                  :aria-label="`${chart.title}${t('monitor.requestPerformance.infoActionLabel')}`"
+                >
+                  <info-circle-icon />
+                </button>
+              </t-tooltip>
+            </span>
+          </template>
           <div :ref="(element) => setChartRef(chart.key, element)" class="request-performance-page__chart" />
         </section-card>
       </div>
@@ -71,9 +88,12 @@
             class="request-performance-page__status-group"
             :data-status-group="group.status_group"
           >
-            <strong>{{ group.status_group }}</strong>
+            <div class="request-performance-page__status-group-heading">
+              <strong>{{ group.label }}</strong>
+              <small>{{ group.status_group }}</small>
+            </div>
             <span>{{ formatCount(group.request_count) }}</span>
-            <small>{{ formatPercent(group.request_rate) }}</small>
+            <small class="request-performance-page__status-group-rate">{{ formatPercent(group.request_rate) }}</small>
           </div>
         </div>
       </section-card>
@@ -92,13 +112,14 @@ import { LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { InfoCircleIcon } from 'tdesign-icons-vue-next';
 import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { RefreshControlBar, type RefreshControlOption, type RefreshControlStatus } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { useRealtimeSchedulerStore } from '@/store';
+import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
 import { getRequestPerformance } from '../../api/request-performance';
 import MonitorPageFeedback from '../../components/MonitorPageFeedback.vue';
@@ -116,10 +137,19 @@ echarts.use([GridComponent, TooltipComponent, LineChart, CanvasRenderer]);
 defineOptions({ name: 'MonitorRequestPerformanceIndex' });
 
 type ChartKey = 'traffic' | 'latency' | 'errors';
+interface ChartDefinition {
+  key: ChartKey;
+  title: string;
+  description: string;
+  qualifier?: string;
+  help?: string;
+}
+
 const MIN_PENDING_REFRESH_DISPLAY_MS = 500;
 
 const { t } = useI18n();
 const scheduler = useRealtimeSchedulerStore();
+const settingStore = useSettingStore();
 const { autoRefreshEnabled, refreshIntervalOptions, selectedRefreshInterval, toggleAutoRefresh } =
   useMonitorRefreshPreferences();
 const selectedRange = ref<MonitorTrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
@@ -177,7 +207,7 @@ const summaryCards = computed(() => {
     ),
   ];
 });
-const charts = computed(() => [
+const charts = computed<ChartDefinition[]>(() => [
   {
     key: 'traffic' as const,
     title: t('monitor.requestPerformance.trafficTitle'),
@@ -187,14 +217,23 @@ const charts = computed(() => [
     key: 'latency' as const,
     title: t('monitor.requestPerformance.latencyTitle'),
     description: t('monitor.requestPerformance.latencyHint'),
+    qualifier: t('monitor.requestPerformance.latencyQualifier'),
+    help: t('monitor.requestPerformance.latencyHelp'),
   },
   {
     key: 'errors' as const,
     title: t('monitor.requestPerformance.errorTitle'),
     description: t('monitor.requestPerformance.errorHint'),
+    qualifier: t('monitor.requestPerformance.errorQualifier'),
+    help: t('monitor.requestPerformance.errorHelp'),
   },
 ]);
-const statusGroups = computed(() => snapshot.value?.status_groups ?? []);
+const statusGroups = computed(() =>
+  (snapshot.value?.status_groups ?? []).map((group) => ({
+    ...group,
+    label: statusGroupLabel(group.status_group),
+  })),
+);
 const routeLists = computed(() => {
   const routes = snapshot.value?.top_routes;
   return [
@@ -229,7 +268,7 @@ const routeColumns = computed<PrimaryTableCol[]>(() => [
   {
     colKey: 'error_5xx_count',
     title: t('monitor.requestPerformance.columns.errors'),
-    width: 92,
+    width: 108,
   },
   {
     colKey: 'p95_latency_ms',
@@ -264,6 +303,20 @@ function formatLatency(value?: number) {
 }
 function formatPercent(value?: number) {
   return Number.isFinite(value) ? `${value!.toFixed(2)}%` : '--';
+}
+function statusGroupLabel(statusGroup: string) {
+  switch (statusGroup) {
+    case '2xx':
+      return t('monitor.requestPerformance.statusGroups.success');
+    case '3xx':
+      return t('monitor.requestPerformance.statusGroups.redirect');
+    case '4xx':
+      return t('monitor.requestPerformance.statusGroups.clientError');
+    case '5xx':
+      return t('monitor.requestPerformance.statusGroups.serverError');
+    default:
+      return statusGroup;
+  }
 }
 function setChartRef(key: ChartKey, value: unknown) {
   chartRefs.value[key] = value instanceof HTMLDivElement ? value : null;
@@ -335,21 +388,27 @@ function updateRemainingRefreshSeconds() {
 function renderCharts() {
   const buckets = snapshot.value?.minute_buckets ?? [];
   const labels = buckets.map((bucket) => formatChartTimeOnly(bucket.observed_at));
-  const definitions: Record<ChartKey, { name: string; values: number[]; color: string }> = {
+  const definitions: Record<
+    ChartKey,
+    { name: string; values: number[]; color: string; value: (input: number) => string }
+  > = {
     traffic: {
       name: t('monitor.requestPerformance.trafficSeries'),
       values: buckets.map((bucket) => bucket.requests_per_second),
-      color: 'var(--td-brand-color)',
+      color: readChartThemeColor('--td-brand-color', '#0052d9'),
+      value: (input) => `${input.toFixed(2)} RPS`,
     },
     latency: {
       name: t('monitor.requestPerformance.latencySeries'),
       values: buckets.map((bucket) => bucket.p95_latency_ms),
-      color: 'var(--td-warning-color-5)',
+      color: readChartThemeColor('--td-warning-color-5', '#ebb105'),
+      value: (input) => `${input.toFixed(0)} ms`,
     },
     errors: {
       name: t('monitor.requestPerformance.errorSeries'),
       values: buckets.map((bucket) => bucket.error_5xx_rate),
-      color: 'var(--td-error-color-5)',
+      color: readChartThemeColor('--td-error-color-5', '#e34d59'),
+      value: (input) => `${input.toFixed(2)}%`,
     },
   };
   (Object.keys(definitions) as ChartKey[]).forEach((key) => {
@@ -360,27 +419,61 @@ function renderCharts() {
     const definition = definitions[key];
     instance.setOption({
       color: [definition.color],
-      tooltip: { trigger: 'axis' },
-      grid: { left: 44, right: 16, top: 24, bottom: 28 },
-      xAxis: { type: 'category', data: labels, boundaryGap: false },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: 'var(--td-component-stroke)' } } },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { lineStyle: { color: settingStore.chartColors.borderColor } },
+        backgroundColor: settingStore.chartColors.containerColor,
+        borderColor: settingStore.chartColors.borderColor,
+        textStyle: { color: settingStore.chartColors.textColor },
+        formatter: (params: Array<{ axisValueLabel?: string; color: string; data: number }>) => {
+          const point = params[0];
+          if (!point) return '';
+          return `${point.axisValueLabel ?? ''}<br/><span style="color:${point.color}">●</span> ${definition.name}: <strong>${definition.value(point.data)}</strong>`;
+        },
+      },
+      grid: { left: 44, right: 16, top: 20, bottom: 28 },
+      xAxis: {
+        type: 'category',
+        data: labels,
+        boundaryGap: false,
+        axisLabel: { color: settingStore.chartColors.placeholderColor },
+        axisLine: { lineStyle: { color: settingStore.chartColors.borderColor } },
+        axisTick: { show: false },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { color: settingStore.chartColors.placeholderColor },
+        splitLine: { lineStyle: { color: settingStore.chartColors.borderColor } },
+      },
       series: [
         {
           name: definition.name,
           type: 'line',
           smooth: true,
           showSymbol: false,
+          lineStyle: { color: definition.color, width: 2 },
+          itemStyle: { color: definition.color },
+          emphasis: { focus: 'series' },
+          areaStyle: { opacity: 0.1 },
           data: definition.values,
-          areaStyle: { opacity: 0.08 },
         },
       ],
     });
   });
 }
+function readChartThemeColor(token: string, fallback: string) {
+  void settingStore.resolvedThemeTokensForDisplayMode;
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
+}
 function resizeCharts() {
   chartInstances.forEach((instance) => instance.resize());
 }
 watch([selectedRefreshInterval, autoRefreshEnabled, () => scheduler.allowPolling], scheduleRefresh);
+watch(
+  () => [settingStore.displayMode, settingStore.brandTheme, settingStore.resolvedThemeTokensForDisplayMode],
+  () => renderCharts(),
+  { deep: true },
+);
 onMounted(() => {
   isMounted = true;
   void refresh();
@@ -408,6 +501,34 @@ onUnmounted(() => {
   width: 100%;
 }
 
+.request-performance-page__chart-title,
+.request-performance-page__status-group-heading {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-6);
+}
+
+.request-performance-page__chart-qualifier,
+.request-performance-page__status-group-heading small {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.request-performance-page__chart-help {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--td-text-color-secondary);
+  cursor: help;
+  display: inline-flex;
+  padding: 0;
+}
+
+.request-performance-page__chart-help:hover,
+.request-performance-page__chart-help:focus-visible {
+  color: var(--td-brand-color);
+}
+
 .request-performance-page__status-groups {
   display: grid;
   gap: var(--graft-density-gap-12);
@@ -432,6 +553,10 @@ onUnmounted(() => {
 
 .request-performance-page__status-group small {
   color: var(--td-text-color-secondary);
+}
+
+.request-performance-page__status-group-rate {
+  margin-top: calc(-1 * var(--graft-density-gap-4));
 }
 
 @media (width <= 1200px) {

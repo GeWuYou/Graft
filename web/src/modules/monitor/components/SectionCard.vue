@@ -1,5 +1,8 @@
 <template>
   <governance-section :title="title" :description="description" :min-height="minHeight" kind="trend">
+    <template v-if="$slots.title" #title>
+      <slot name="title" />
+    </template>
     <template v-if="$slots.actions" #actions>
       <slot name="actions" />
     </template>
