@@ -5,7 +5,14 @@
         title-key="project.creation.title"
         description-key="project.creation.description"
         :source="{ labelKey: 'project.creation.eyebrow', fallback: t('project.creation.eyebrow') }"
-      />
+      >
+        <template #actions>
+          <t-button variant="text" data-testid="project-creation-back" @click="goToRuntimeTargets">
+            <template #icon><project-back-icon /></template>
+            {{ t('project.creation.actions.backToRuntimeTargets') }}
+          </t-button>
+        </template>
+      </management-page-header>
 
       <t-alert v-if="loadError" theme="warning" :message="loadError" class="project-creation-page__notice">
         <template #operation>
@@ -64,16 +71,22 @@
         </t-card>
         <t-tooltip :content="t('project.workflow.unsupportedTooltip')" placement="top">
           <div class="project-creation-card project-creation-card--disabled" tabindex="0" aria-disabled="true">
-            <t-card :bordered="true">
+            <t-card :bordered="true" class="project-creation-card__disabled-card">
               <template #header
                 ><div class="project-creation-card__header">
                   <div>
                     <h2>{{ t('project.creation.methods.git.title') }}</h2>
                     <p>{{ t('project.creation.methods.git.description') }}</p>
                   </div>
+                  <t-tag theme="default" variant="light-outline">
+                    {{ t('project.creation.availability.comingSoon') }}
+                  </t-tag>
                 </div></template
               >
-              <t-button disabled>{{ t('project.creation.actions.unavailable') }}</t-button>
+              <div class="project-creation-card__disabled-body">
+                <p>{{ t('project.creation.methods.git.unavailableHint') }}</p>
+                <t-button disabled>{{ t('project.creation.actions.unavailable') }}</t-button>
+              </div>
             </t-card>
           </div>
         </t-tooltip>
@@ -82,18 +95,17 @@
   </div>
 </template>
 <script setup lang="ts">
+import { ChevronLeftIcon as ProjectBackIcon } from 'tdesign-icons-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { useTabsRouterStore } from '@/store/modules/tabs-router';
-import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import { getProjectCreationMethods } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { appendResolvedTab } from '../../shared/navigation';
+import { useProjectCreateRouteNavigation } from '../../shared/navigation';
 import type { ProjectCreationMethod, ProjectCreationMethodType } from '../../types/project';
 
 defineOptions({
@@ -154,7 +166,7 @@ const routeTitleKeys: Record<ProjectCreationMethodType, string> = {
 
 const router = useRouter();
 const route = useRoute();
-const tabsRouterStore = useTabsRouterStore();
+const navigateProjectCreateRoute = useProjectCreateRouteNavigation(router);
 const { t } = useI18n();
 const entries = ref<ProjectCreationMethod[]>([]);
 const loadError = ref('');
@@ -202,14 +214,16 @@ function blockedReasonLabel(reason?: string | null) {
   return t('project.creation.blockedReasons.unknown');
 }
 
+function goToRuntimeTargets() {
+  router.back();
+}
+
 function openMethod(method: ProjectCreationMethodType) {
   const target = {
     name: routeNames[method],
     query: { deployment: 'compose', runtime_target_id: String(route.query.runtime_target_id) },
   };
-  const resolved = router.resolve(target);
-  appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey(routeTitleKeys[method]));
-  void router.push(target);
+  navigateProjectCreateRoute(target, routeTitleKeys[method]);
 }
 </script>
 <style scoped>
@@ -230,11 +244,44 @@ function openMethod(method: ProjectCreationMethodType) {
 }
 
 .project-creation-card {
-  min-height: 100%;
+  min-height: 348px;
 }
 
 .project-creation-card--disabled {
-  opacity: 0.62;
+  cursor: not-allowed;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-creation-card__disabled-card {
+  cursor: not-allowed;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.project-creation-card__disabled-card :deep(.t-card__body) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.project-creation-card__disabled-body {
+  color: var(--td-text-color-placeholder);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: var(--td-font-size-body-small);
+  gap: var(--graft-density-gap-16);
+}
+
+.project-creation-card__disabled-body p {
+  margin: 0;
+}
+
+.project-creation-card__disabled-body :deep(.t-button) {
+  align-self: flex-start;
+  margin-top: auto;
 }
 
 .project-creation-card__disabled-wrap {
@@ -286,6 +333,21 @@ function openMethod(method: ProjectCreationMethodType) {
 
 .project-creation-card__body :deep(.t-button) {
   justify-self: start;
+}
+
+.project-creation-card:not(.project-creation-card--disabled) {
+  cursor: pointer;
+  transition:
+    border-color var(--td-transition-duration-base) var(--td-transition-timing-function-ease-in-out),
+    box-shadow var(--td-transition-duration-base) var(--td-transition-timing-function-ease-in-out),
+    transform var(--td-transition-duration-base) var(--td-transition-timing-function-ease-in-out);
+}
+
+.project-creation-card:not(.project-creation-card--disabled):hover,
+.project-creation-card:not(.project-creation-card--disabled):focus-within {
+  border-color: var(--td-brand-color);
+  box-shadow: var(--td-shadow-2);
+  transform: translateY(-2px);
 }
 
 @media (width <= 640px) {

@@ -1,18 +1,33 @@
 import type { LocationQueryRaw, Router } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
+import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
 
 type ProjectCreateRouter = Pick<Router, 'push' | 'replace'>;
+type ProjectRouteRouter = Pick<Router, 'push' | 'resolve'>;
 
 /**
- * 导航至项目创建列表页。
- *
- * @param listRouteName - 目标列表页的路由名称
+ * 追加项目创建流程标签并导航至目标页面。
  */
-export function navigateProjectCreateList(router: ProjectCreateRouter, listRouteName: string) {
-  void router.push({ name: listRouteName });
+function navigateProjectCreateRoute(
+  router: ProjectRouteRouter,
+  tabs: { appendTabRouterList: (route: TRouterInfo) => void; setActiveTabKey: (key: string) => void },
+  target: Parameters<Router['push']>[0],
+  titleKey: string,
+) {
+  const resolved = router.resolve(target);
+  appendResolvedTab(tabs, resolved, localizeRouteTitleKey(titleKey));
+  void router.push(target);
+}
+
+export function useProjectCreateRouteNavigation(router: ProjectRouteRouter) {
+  const tabs = useTabsRouterStore();
+
+  return (target: Parameters<Router['push']>[0], titleKey: string) => {
+    navigateProjectCreateRoute(router, tabs, target, titleKey);
+  };
 }
 
 /**

@@ -7,7 +7,7 @@
       >
         <template #actions
           ><t-space size="small"
-            ><t-button variant="outline" @click="goToList">{{ t('project.create.actions.back') }}</t-button
+            ><t-button variant="outline" @click="goToSource">{{ t('project.create.actions.backToSource') }}</t-button
             ><t-button @click="refreshPage">{{ t('project.create.actions.refresh') }}</t-button></t-space
           ></template
         >
@@ -73,12 +73,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { postProjectCreate } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import {
-  appendResolvedTab,
-  buildDetailTitleWithFallback,
-  navigateProjectCreateList,
-  refreshProjectCreatePage,
-} from '../../shared/navigation';
+import { appendResolvedTab, buildDetailTitleWithFallback, refreshProjectCreatePage } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import type { ProjectCreateRequest, ProjectCreateResponse, ProjectWorkspaceManifestFile } from '../../types/project';
 defineOptions({ name: 'ProjectManagedCreateIndex' });
@@ -152,8 +147,8 @@ async function createProject() {
     creating.value = false;
   }
 }
-function goToList() {
-  navigateProjectCreateList(router, PROJECT_BOOTSTRAP_ROUTE.LIST.routeName);
+function goToSource() {
+  router.back();
 }
 function refreshPage() {
   refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, route.query);
