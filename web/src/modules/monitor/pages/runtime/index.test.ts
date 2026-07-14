@@ -387,8 +387,9 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).not.toContain('Not reported');
   });
 
-  it('shows an unavailable GC pause when the snapshot omits the field', async () => {
+  it('shows unavailable GC fields when the snapshot omits them', async () => {
     const response = createResponse();
+    delete (response.runtime as { runtime_last_gc_at?: string | null }).runtime_last_gc_at;
     delete (response.runtime as { runtime_last_gc_pause_ns?: number | null }).runtime_last_gc_pause_ns;
     monitorApiMocks.getServerStatus.mockResolvedValue(response);
 

@@ -24,9 +24,8 @@ import (
 
 const requestPerformanceRateScale = 100
 
-// newRequestPerformanceHandler creates the HTTP handler for request-performance monitoring.
-// It validates request parameters, builds the performance response, and writes localized
-// client or server error responses when processing fails.
+// newRequestPerformanceHandler 创建请求性能监控的 HTTP 处理器。
+// 它校验请求参数，构造性能响应，并在处理失败时写入本地化的客户端或服务端错误响应。
 func newRequestPerformanceHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedRequestPerformanceParams(ginCtx)
@@ -85,7 +84,7 @@ func bindGeneratedRequestPerformanceParams(ginCtx *gin.Context) monitoropenapi.G
 	return params
 }
 
-// parseGeneratedRequestPerformanceRange converts an optional request range to a monitoring trend range, defaulting to 10 minutes when no range is provided.
+// parseGeneratedRequestPerformanceRange 将可选请求范围转换为监控趋势范围；未提供范围时默认使用 10 分钟。
 func parseGeneratedRequestPerformanceRange(raw *monitoropenapi.GetMonitorRequestPerformanceParamsRange) monitorcontract.TrendRange {
 	if raw == nil {
 		return monitorcontract.TrendRange10Minutes
@@ -150,7 +149,7 @@ func requestPerformanceMinuteBuckets(items []moduleapi.RequestPerformanceMinuteB
 	return result
 }
 
-// requestPerformanceStatusGroups converts HTTP status-group counts into response entries with their percentage rates.
+// requestPerformanceStatusGroups 将 HTTP 状态分组计数转换为包含百分比的响应条目。
 func requestPerformanceStatusGroups(groups moduleapi.RequestPerformanceStatusGroups, total int64) []generated.RequestPerformanceStatusGroup {
 	return []generated.RequestPerformanceStatusGroup{
 		{StatusGroup: generated.RequestPerformanceStatusGroupStatusGroupN2xx, RequestCount: groups.TwoXX, RequestRate: percentage(groups.TwoXX, total)},
@@ -185,8 +184,8 @@ func requestPerformanceRoutes(items []moduleapi.RequestPerformanceRoute) []gener
 	return result
 }
 
-// requestsPerSecond computes the request rate for the specified duration.
-// It returns zero when the request count or duration is zero or negative.
+// requestsPerSecond 计算指定时长内的请求速率。
+// 当请求数或时长为零或负数时返回零。
 func requestsPerSecond(total int64, seconds float64) float64 {
 	if total <= 0 || seconds <= 0 {
 		return 0

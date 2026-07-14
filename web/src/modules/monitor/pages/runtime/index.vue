@@ -391,7 +391,10 @@ function formatSnapshotTimestamp(value?: string | null) {
 }
 
 function formatLastGCTimestamp(value?: string | null) {
-  return value ? formatSnapshotTimestamp(value) : t('monitor.runtimePage.notOccurred');
+  if (value === null) {
+    return t('monitor.runtimePage.notOccurred');
+  }
+  return value ? formatSnapshotTimestamp(value) : notReportedLabel.value;
 }
 
 function formatSnapshotDuration(value?: number | null) {
