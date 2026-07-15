@@ -22,6 +22,8 @@ const TTableStub = defineComponent({
           ),
         ),
         h('button', { 'data-testid': 'row-click', onClick: () => emit('row-click', { row }) }, 'open'),
+        h('div', { 'data-testid': 'action-slot' }, slots.action?.({ row })),
+        h('div', { 'data-testid': 'resource-slot' }, slots.resource?.({ row })),
         h('div', { 'data-testid': 'operation-slot' }, slots.operation?.({ row })),
       ]);
   },
@@ -138,7 +140,7 @@ function auditRow(): AuditLogListItem {
   } as AuditLogListItem;
 }
 
-function mountTable() {
+function mountTable(row = auditRow()) {
   return shallowMount(AuditTable, {
     global: {
       plugins: [i18n],
@@ -156,7 +158,7 @@ function mountTable() {
       current: 1,
       footerSummary: '1 event',
       pageSize: 10,
-      rows: [auditRow()],
+      rows: [row],
       total: 1,
       visibleColumnKeys: ['action', 'actor', 'resource'],
     },
@@ -198,5 +200,24 @@ describe('AuditTable', () => {
     expect(wrapper.emitted('view-app-log')?.[0]?.[0]).toMatchObject({ request_id: 'req-1' });
     expect(wrapper.emitted('view-security-event')?.[0]?.[0]).toMatchObject({ request_id: 'req-1' });
     expect(wrapper.emitted('delete')).toBeUndefined();
+  });
+
+  it('hides repeated secondary action and resource values', () => {
+    const row = {
+      ...auditRow(),
+      action: 'auth.unknown',
+      message: 'Security Event',
+      resource_name: 'auth.unknown',
+    } as AuditLogListItem;
+    const wrapper = mountTable(row);
+
+    expect(wrapper.get('[data-testid="action-slot"]').findAll('.stack-cell__secondary')).toHaveLength(0);
+    expect(wrapper.get('[data-testid="resource-slot"]').findAll('.stack-cell__secondary')).toHaveLength(0);
+  });
+
+  it('keeps secondary audit context when it adds information', () => {
+    const wrapper = mountTable();
+
+    expect(wrapper.get('[data-testid="resource-slot"]').findAll('.stack-cell__secondary')).toHaveLength(1);
   });
 });

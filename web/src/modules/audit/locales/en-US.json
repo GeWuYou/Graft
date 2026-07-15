@@ -402,10 +402,14 @@
         "token_expired": "Token Expired",
         "token": {
           "expired": "Token Expired",
-          "missing": "Token Missing"
+          "missing": "Token Missing",
+          "invalid": "Invalid Access Token"
         },
         "missing": "Token Missing",
-        "invalid": "Token Invalid"
+        "invalid": "Token Invalid",
+        "permission": {
+          "denied": "Permission Denied"
+        }
       },
       "permission": {
         "denied": "Permission Denied"

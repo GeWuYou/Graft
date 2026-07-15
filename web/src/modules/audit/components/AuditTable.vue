@@ -30,7 +30,9 @@
         <template #action="{ row }">
           <div class="stack-cell">
             <strong>{{ actionTitle(row, t) }}</strong>
-            <span class="stack-cell__secondary">{{ actionCategoryLabel(row, t) }}</span>
+            <span v-if="actionCategoryLabel(row, t) !== actionTitle(row, t)" class="stack-cell__secondary">
+              {{ actionCategoryLabel(row, t) }}
+            </span>
           </div>
         </template>
 
@@ -44,7 +46,9 @@
         <template #resource="{ row }">
           <div class="stack-cell">
             <strong>{{ resourceLabel(row, t) }}</strong>
-            <span class="stack-cell__secondary">{{ reasonForRecord(row, t) }}</span>
+            <span v-if="reasonForRecord(row, t) !== resourceLabel(row, t)" class="stack-cell__secondary">
+              {{ reasonForRecord(row, t) }}
+            </span>
           </div>
         </template>
 

@@ -59,14 +59,19 @@ export function actorSecondaryLabel(row: AuditLogListItem) {
 }
 
 export function resourceLabel(row: AuditPresentationRecord, t: Translate) {
-  return (
+  const resource =
     row.target_label ||
     row.resource_name ||
     resourceSecondaryLabel(row, t) ||
     row.request_path ||
     metadataLookup(row, 'request_path') ||
-    t('audit.common.unknownResource')
-  );
+    t('audit.common.unknownResource');
+
+  if ((row.source || sourceForRecord(row)) === 'SECURITY_EVENT' && resource === row.action) {
+    return actionTitle(row, t);
+  }
+
+  return resource;
 }
 
 function resourceSecondaryLabel(row: AuditPresentationRecord, t: Translate) {

@@ -62,7 +62,6 @@
       },
       "risk": { "viewLogs": "查看审计日志" },
       "events": {
-        "unknownResource": "未知资源",
         "emptyTitle": "暂无安全事件",
         "emptyDescription": "所选时间范围内没有安全事件。"
       },

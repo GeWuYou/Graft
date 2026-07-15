@@ -45,6 +45,11 @@ p {
   box-sizing: border-box;
 }
 
+button {
+  color: inherit;
+  font: inherit;
+}
+
 // 浏览器密码管理器会直接给原生 input 注入自动填充背景；使用 token 覆盖其绘制，保持主题一致。
 .t-input {
   --graft-input-autofill-background: var(--td-bg-color-container);
