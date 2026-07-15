@@ -139,7 +139,9 @@ useKeyboardShortcut(
   },
 );
 
-const showHeaderBar = computed(() => props.showHeader && (Boolean(slots.header || slots['header-actions']) || true));
+const showHeaderBar = computed(
+  () => props.showHeader && Boolean(slots.header || slots['header-actions'] || props.showFullscreenButton),
+);
 const currentMinHeight = computed(() =>
   viewportWidth.value <= props.mobileBreakpoint ? props.mobileMinHeight : props.minHeight,
 );

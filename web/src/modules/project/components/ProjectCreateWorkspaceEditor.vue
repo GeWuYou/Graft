@@ -167,7 +167,7 @@ import {
   SaveIcon,
 } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, nextTick, onActivated, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
 import { useKeyboardShortcut } from '@/shared/composables';
 import { copyText } from '@/shared/observability';
@@ -197,11 +197,12 @@ type WorkspaceEditorHandle = {
 };
 
 const MONACO_MARKER_ERROR_SEVERITY = 8;
+let workspaceSessionSeed = 0;
 
 const files = defineModel<ProjectWorkspaceDraftEntry[]>('files', { required: true });
 const { t } = useProjectPageContext();
 const workspaceStore = useProjectWorkspaceStore(store);
-const workspaceSessionKey = 'project-create-workspace';
+const workspaceSessionKey = `project-create-workspace:${++workspaceSessionSeed}`;
 const fullscreen = ref(false);
 const inlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
 const pendingCreatedFilePath = ref('');
@@ -217,6 +218,7 @@ const syntaxErrorDialog = reactive<{ issues: Array<{ count: number; path: string
 });
 
 workspaceStore.ensureSession(workspaceSessionKey);
+onBeforeUnmount(() => workspaceStore.clearSession(workspaceSessionKey));
 
 const editorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
   closeAll: t('layout.tagTabs.closeAll'),
@@ -231,6 +233,7 @@ const editorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
   newFolder: t('project.create.workspace.newFolder'),
   refresh: t('layout.tagTabs.refresh'),
   rename: t('project.create.workspace.rename'),
+  resizeEditorHeight: t('project.detail.configuration.resizeEditor'),
 }));
 const activePath = computed({
   get: () => workspaceStore.session(workspaceSessionKey).activeFileKey,
@@ -438,7 +441,9 @@ async function collectSyntaxIssues(paths: string[]) {
       continue;
     }
     activateTab(path);
-    if (!(await waitForActiveEditor(path))) continue;
+    if (!(await waitForActiveEditor(path))) {
+      return { issues, skippedPaths, unavailablePath: path };
+    }
     const markers = await workspaceEditor.value?.getActiveEditor()?.waitForDiagnostics?.({
       quietMs: 180,
       timeoutMs: 1500,
@@ -451,7 +456,7 @@ async function collectSyntaxIssues(paths: string[]) {
     activateTab(activePathBeforeValidation);
     await waitForActiveEditor(activePathBeforeValidation);
   }
-  return { issues, skippedPaths };
+  return { issues, skippedPaths, unavailablePath: '' };
 }
 
 function notifySkippedSyntaxValidation(paths: string[]) {
@@ -475,8 +480,12 @@ async function saveFiles(action: Exclude<PendingSaveAction, null>) {
   if (!paths.length || saveLoading.value) return;
   saveLoading.value = true;
   try {
-    const { issues, skippedPaths } = await collectSyntaxIssues(paths);
+    const { issues, skippedPaths, unavailablePath } = await collectSyntaxIssues(paths);
     notifySkippedSyntaxValidation(skippedPaths);
+    if (unavailablePath) {
+      MessagePlugin.error(t('project.create.workspace.fileValidationFailed'));
+      return;
+    }
     if (issues.length) {
       pendingSave.action = action;
       pendingSave.paths = paths;
@@ -519,7 +528,11 @@ async function validateCurrentFile() {
   }
   validationLoading.value = true;
   try {
-    const { issues } = await collectSyntaxIssues([active.path]);
+    const { issues, unavailablePath } = await collectSyntaxIssues([active.path]);
+    if (unavailablePath) {
+      MessagePlugin.error(t('project.create.workspace.fileValidationFailed'));
+      return;
+    }
     if (!issues.length) {
       MessagePlugin.success(t('project.create.workspace.fileValidationPassed'));
       return;

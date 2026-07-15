@@ -119,9 +119,21 @@ describe('ContentViewerFrame', () => {
 
     expect(wrapper.get('.content-viewer-frame__panel').attributes('style')).toContain('height: 100%;');
   });
+
+  it('omits the header when no header content or fullscreen control is available', () => {
+    const wrapper = mountFrame({ showFullscreenButton: false }, {});
+
+    expect(wrapper.find('.content-viewer-frame__header').exists()).toBe(false);
+  });
 });
 
-function mountFrame(props: Record<string, unknown> = {}) {
+function mountFrame(
+  props: Record<string, unknown> = {},
+  slots: Record<string, () => ReturnType<typeof h>> = {
+    header: () => h('div', 'Header'),
+    default: () => h('div', 'Content'),
+  },
+) {
   const wrapper = mount(ContentViewerFrame, {
     props: {
       storageKey: 'graft.test.viewer.height',
@@ -130,10 +142,7 @@ function mountFrame(props: Record<string, unknown> = {}) {
       resizeHandleLabel: '调整阅读器高度',
       ...props,
     },
-    slots: {
-      header: () => h('div', 'Header'),
-      default: () => h('div', 'Content'),
-    },
+    slots,
     global: {
       stubs: {
         't-button': defineComponent({

@@ -53,4 +53,22 @@ describe('consola transport', () => {
       '2026-07-15T06:30:00.000Z | request failed | error.name="Error" error.message="network failed"',
     );
   });
+
+  it('falls back safely when JSON.stringify omits function or symbol values', () => {
+    createConsolaTransport().log({
+      level: 'info',
+      moduleName: 'project.detail',
+      message: 'callback skipped',
+      timestamp: new Date('2026-07-15T06:30:00.000Z'),
+      meta: {
+        callback: () => undefined,
+        marker: Symbol('marker'),
+        missing: undefined,
+      },
+    });
+
+    expect(consolaMocks.info).toHaveBeenCalledWith(
+      '2026-07-15T06:30:00.000Z | callback skipped | callback="[unserializable]" marker="[unserializable]" missing=undefined',
+    );
+  });
 });

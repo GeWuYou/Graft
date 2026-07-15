@@ -189,7 +189,8 @@ export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealti
   }
   if (
     typeof data.topic !== 'string' ||
-    !data.topic.startsWith(PROJECT_REALTIME_TOPIC.LOGS_PREFIX) ||
+    typeof data.application_id !== 'string' ||
+    data.topic !== buildProjectLogsTopicName(data.application_id) ||
     !isRealtimePayloadObject(data.entry) ||
     typeof data.entry.line !== 'string'
   ) {

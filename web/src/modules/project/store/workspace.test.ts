@@ -181,4 +181,25 @@ describe('project workspace store', () => {
     expect(store.session('project:shared-postgres').dirtyFiles).toEqual([]);
     expect(store.session('project-create-workspace').dirtyFiles).toEqual(['.env']);
   });
+
+  it('keeps __proto__ session and file paths as ordinary workspace keys', () => {
+    const store = useProjectWorkspaceStore();
+    store.replaceTree('__proto__', [
+      {
+        editable: true,
+        file_kind: 'text',
+        has_children: false,
+        name: '__proto__',
+        node_type: 'file',
+        readable: true,
+        relative_path: '__proto__',
+      },
+    ]);
+    store.openFile('__proto__', '__proto__', { content: 'safe', loaded: true, savedContent: 'safe' });
+
+    expect(Object.getPrototypeOf(store.$state.sessions)).toBeNull();
+    expect(Object.getPrototypeOf(store.session('__proto__').nodesByKey)).toBeNull();
+    expect(Object.getPrototypeOf(store.session('__proto__').fileContents)).toBeNull();
+    expect(store.activeFile('__proto__')?.content).toBe('safe');
+  });
 });

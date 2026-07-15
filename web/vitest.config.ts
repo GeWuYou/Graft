@@ -21,6 +21,14 @@ export default mergeConfig(
       },
     ],
     test: {
+      deps: {
+        optimizer: {
+          client: {
+            enabled: true,
+            include: ['@material/material-color-utilities', 'tvision-color'],
+          },
+        },
+      },
       reporters: [
         'default',
         [

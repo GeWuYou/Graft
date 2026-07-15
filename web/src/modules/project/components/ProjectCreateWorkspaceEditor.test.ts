@@ -1,11 +1,14 @@
-import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import ProjectCreateWorkspaceEditor from './ProjectCreateWorkspaceEditor.vue';
 
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() }));
-const monacoDiagnostics = vi.hoisted(() => ({ resolver: (_modelKey: string) => [] as Array<{ severity: number }> }));
+const monacoDiagnostics = vi.hoisted(() => ({
+  boundModelKey: '',
+  resolver: (_modelKey: string) => [] as Array<{ severity: number }>,
+}));
 
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
 
@@ -15,7 +18,7 @@ vi.mock('./ProjectMonacoSurface.vue', () => ({
     props: { modelKey: { type: String, default: '' } },
     setup(props, { expose }) {
       expose({
-        getModelKey: () => props.modelKey,
+        getModelKey: () => monacoDiagnostics.boundModelKey || props.modelKey,
         waitForDiagnostics: () => Promise.resolve(monacoDiagnostics.resolver(props.modelKey)),
       });
       return () => h('textarea');
@@ -27,7 +30,16 @@ vi.mock('../shared/page-context', () => ({
   useProjectPageContext: () => ({ t: (key: string, values?: Record<string, string>) => values?.path || key }),
 }));
 
+enableAutoUnmount(afterEach);
+
 describe('ProjectCreateWorkspaceEditor', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    monacoDiagnostics.boundModelKey = '';
+    monacoDiagnostics.resolver = () => [];
+    vi.clearAllMocks();
+  });
+
   it('synchronizes the active workspace draft with Ctrl+S without leaving its workspace scope', async () => {
     messageMocks.success.mockClear();
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
@@ -46,10 +58,11 @@ describe('ProjectCreateWorkspaceEditor', () => {
       key: 's',
     });
     wrapper.find('textarea').element.dispatchEvent(saveEvent);
+    await flushPromises();
 
     expect(saveEvent.defaultPrevented).toBe(true);
     expect(messageMocks.success).toHaveBeenCalledWith('project.create.workspace.saveSuccess');
-    expect(wrapper.props('files')).toEqual([{ path: '.env', content: 'APP_PORT=3000' }]);
+    expect(wrapper.props('files')).toEqual([{ path: '.env', content: 'APP_PORT=3000\n' }]);
 
     messageMocks.success.mockClear();
     document.body.dispatchEvent(
@@ -180,7 +193,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await nextTick();
 
     await wrapper.find('[data-testid="workspace-create-save"]').trigger('click');
-    await nextTick();
+    await flushPromises();
 
     expect(messageMocks.success).toHaveBeenCalledWith('project.create.workspace.saveSuccess');
     expect(editor.props('activeBuffer')).toMatchObject({ dirty: false });
@@ -207,7 +220,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await nextTick();
 
     await wrapper.find('[data-testid="workspace-create-save"]').trigger('click');
-    await nextTick();
+    await flushPromises();
 
     expect(wrapper.text()).toContain('project.create.workspace.syntaxErrorSaveBody');
     expect(editor.props('activeBuffer')).toMatchObject({ dirty: true });
@@ -216,6 +229,26 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
     expect(messageMocks.success).toHaveBeenCalledWith('project.create.workspace.saveSuccess');
     expect(editor.props('activeBuffer')).toMatchObject({ dirty: false });
+  });
+
+  it('does not save when the active syntax model cannot bind', async () => {
+    messageMocks.error.mockClear();
+    messageMocks.success.mockClear();
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+    });
+    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    editor.vm.$emit('update-content', 'compose.yaml', 'services: [broken');
+    await nextTick();
+    monacoDiagnostics.boundModelKey = 'other.yaml';
+
+    await wrapper.find('[data-testid="workspace-create-save"]').trigger('click');
+    await flushPromises();
+
+    expect(messageMocks.error).toHaveBeenCalledWith('project.create.workspace.fileValidationFailed');
+    expect(messageMocks.success).not.toHaveBeenCalled();
+    expect(editor.props('activeBuffer')).toMatchObject({ dirty: true });
+    monacoDiagnostics.boundModelKey = '';
   });
 
   it('uses F11 within the workspace to toggle its existing outer fullscreen mode', async () => {

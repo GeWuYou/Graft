@@ -156,28 +156,6 @@
                 />
               </article>
 
-              <article class="trend-runtime-summary" data-trend-overview-section="runtimeSummary">
-                <header class="trend-section-header">
-                  <div class="trend-section-header__copy">
-                    <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.runtimeSummaryTitle') }}</h3>
-                  </div>
-                  <t-button theme="primary" variant="text" size="small" @click="openServiceStatus">
-                    {{ t('monitor.serverStatus.openServiceStatus') }}
-                  </t-button>
-                </header>
-                <div class="trend-runtime-summary__grid">
-                  <article
-                    v-for="metric in runtimeSummaryMetrics"
-                    :key="metric.key"
-                    class="trend-runtime-summary__item"
-                    :data-runtime-summary-item="metric.key"
-                  >
-                    <span class="trend-runtime-summary__label">{{ metric.shortLabel }}</span>
-                    <strong class="trend-runtime-summary__value">{{ metric.currentValue }}</strong>
-                  </article>
-                </div>
-              </article>
-
               <article class="trend-runtime-summary" data-trend-overview-section="requestPerformance">
                 <header class="trend-section-header">
                   <div class="trend-section-header__copy">
@@ -313,6 +291,28 @@
               />
             </div>
           </transition>
+
+          <article class="trend-runtime-summary" data-trend-overview-section="runtimeSummary">
+            <header class="trend-section-header">
+              <div class="trend-section-header__copy">
+                <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.runtimeSummaryTitle') }}</h3>
+              </div>
+              <t-button theme="primary" variant="text" size="small" @click="openServiceStatus">
+                {{ t('monitor.serverStatus.openServiceStatus') }}
+              </t-button>
+            </header>
+            <div class="trend-runtime-summary__grid">
+              <article
+                v-for="metric in runtimeSummaryMetrics"
+                :key="metric.key"
+                class="trend-runtime-summary__item"
+                :data-runtime-summary-item="metric.key"
+              >
+                <span class="trend-runtime-summary__label">{{ metric.shortLabel }}</span>
+                <strong class="trend-runtime-summary__value">{{ metric.currentValue }}</strong>
+              </article>
+            </div>
+          </article>
         </div>
       </section-card>
 
@@ -609,7 +609,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-runtimeAlloc',
-      currentValue: formatBytes(latestTrendPoint.value?.runtime_alloc_bytes ?? 0),
+      currentValue: formatBytes(serverStatus.value?.runtime.runtime_alloc_bytes ?? 0),
       values: points.map((point) => point.runtime_alloc_bytes),
     },
     {
@@ -627,7 +627,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-runtimeHeap',
-      currentValue: formatBytes(latestTrendPoint.value?.runtime_heap_in_use_bytes ?? 0),
+      currentValue: formatBytes(serverStatus.value?.runtime.runtime_heap_in_use_bytes ?? 0),
       values: points.map((point) => point.runtime_heap_in_use_bytes),
     },
     {
@@ -645,7 +645,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-runtimeSys',
-      currentValue: formatBytes(latestTrendPoint.value?.runtime_sys_bytes ?? 0),
+      currentValue: formatBytes(serverStatus.value?.runtime.runtime_sys_bytes ?? 0),
       values: points.map((point) => point.runtime_sys_bytes),
     },
     {
@@ -663,7 +663,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-goroutines',
-      currentValue: formatCountValue(latestTrendPoint.value?.goroutines ?? null),
+      currentValue: formatCountValue(serverStatus.value?.runtime.goroutines ?? null),
       values: points.map((point) => point.goroutines),
     },
   ];

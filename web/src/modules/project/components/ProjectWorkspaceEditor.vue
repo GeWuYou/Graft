@@ -169,7 +169,7 @@
           :fill-height="fullscreen"
           :fullscreen-label="labels.fullscreen"
           :resizable="!fullscreen"
-          resize-handle-label="Resize Editor Height"
+          :resize-handle-label="labels.resizeEditorHeight"
           :show-header="false"
           :show-fullscreen-button="false"
           :enable-fullscreen-shortcut="false"
@@ -371,6 +371,7 @@ export type ProjectWorkspaceEditorLabels = {
   newFolder: string;
   refresh: string;
   rename: string;
+  resizeEditorHeight: string;
 };
 
 const props = withDefaults(
@@ -404,7 +405,7 @@ const props = withDefaults(
     inlineEdit: null,
     sidebarMaxWidth: 360,
     sidebarMinWidth: 208,
-    sidebarResizeAriaLabel: 'Resize file tree',
+    sidebarResizeAriaLabel: '',
     sidebarWidthStorageKey: '',
     showAnnotationAction: false,
     selectedPath: '',
@@ -447,7 +448,7 @@ const contextMenu = reactive<{ row: ProjectWorkspaceEditorRow | null; visible: b
   x: 0,
   y: 0,
 });
-const editorOptions = { fontSize: 13, lineNumbers: 'on' as const, wordWrap: 'off' as const };
+const editorOptions = { lineNumbers: 'on' as const, wordWrap: 'off' as const };
 const inlineEdit = computed(() => props.inlineEdit);
 const sidebarWidth = ref(resolveStoredSidebarWidth());
 const resolvedSidebarWidth = computed(() => clampSidebarWidth(sidebarWidth.value));
@@ -602,7 +603,9 @@ function stopSidebarResize() {
 function resolveStoredSidebarWidth() {
   if (!props.sidebarWidthStorageKey || typeof window === 'undefined') return 256;
   try {
-    const parsed = Number(window.localStorage.getItem(props.sidebarWidthStorageKey));
+    const storedWidth = window.localStorage.getItem(props.sidebarWidthStorageKey);
+    if (storedWidth === null) return 256;
+    const parsed = Number(storedWidth);
     return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : 256;
   } catch {
     return 256;

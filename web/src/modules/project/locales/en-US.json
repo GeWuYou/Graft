@@ -723,7 +723,7 @@
       },
       "form": {
         "applicationName": "Application Name",
-        "applicationNamePlaceholder": "For example: orders-dev",
+        "applicationNamePlaceholder": "Example: orders-dev",
         "title": "Project Basics",
         "displayName": "Display Name",
         "displayNamePlaceholder": "Example: Orders Service Dev",
@@ -738,7 +738,7 @@
         "envFileNamePlaceholder": "Leave Blank to Skip Writing an Env File"
       },
       "validation": {
-        "applicationNameRequired": "Enter an application name.",
+        "applicationNameRequired": "Application Name Is Required.",
         "applicationNamePattern": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
         "title": "Authority and Path Preview",
         "rootDirectory": "Managed Root",
@@ -965,7 +965,7 @@
       "templateDescription": "Create a managed application from a bundled Compose workspace template.",
       "displayName": "Display Name",
       "applicationName": "Application Name",
-      "applicationNamePlaceholder": "For example: orders-dev",
+      "applicationNamePlaceholder": "Example: orders-dev",
       "canonicalName": "Canonical Project Name",
       "relativeDirectory": "Relative Directory",
       "resolvedDirectory": "Application Directory",

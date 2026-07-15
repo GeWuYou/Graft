@@ -58,7 +58,8 @@ function formatValue(value: unknown): string {
   }
 
   try {
-    return truncate(toSingleLine(JSON.stringify(value)));
+    const serialized = JSON.stringify(value);
+    return serialized === undefined ? '"[unserializable]"' : truncate(toSingleLine(serialized));
   } catch {
     return '"[unserializable]"';
   }

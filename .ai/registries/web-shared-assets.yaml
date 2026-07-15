@@ -185,7 +185,7 @@ assets:
     examples:
       - "web/src/shared/components/assignment/AssignmentDrawer.test.ts"
     related_assets:
-      - "assignment-selection-composable"
+      - "document-fullscreen-composable"
     validation_commands:
       - "cd web && bun run check"
 

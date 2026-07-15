@@ -151,6 +151,7 @@ describe('project realtime payload parsers', () => {
       JSON.stringify({
         data: {
           topic: `project.logs:${APPLICATION_ID}`,
+          application_id: APPLICATION_ID,
           entry: {
             line: 'hello',
             stream: 'stdout',
@@ -170,12 +171,33 @@ describe('project realtime payload parsers', () => {
 
   it('rejects invalid project log payloads', () => {
     expect(
-      parseProjectLogsRealtimePayload(JSON.stringify({ data: { topic: `project.logs:${APPLICATION_ID}`, entry: {} } })),
+      parseProjectLogsRealtimePayload(
+        JSON.stringify({
+          data: { topic: `project.logs:${APPLICATION_ID}`, application_id: APPLICATION_ID, entry: {} },
+        }),
+      ),
     ).toBeNull();
     expect(parseProjectLogsRealtimePayload({ data: {} })).toBeNull();
     expect(
       parseProjectLogsRealtimePayload(
-        JSON.stringify({ data: { topic: `project.runtime:${APPLICATION_ID}`, entry: { line: 'hello' } } }),
+        JSON.stringify({
+          data: {
+            topic: `project.runtime:${APPLICATION_ID}`,
+            application_id: APPLICATION_ID,
+            entry: { line: 'hello' },
+          },
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      parseProjectLogsRealtimePayload(
+        JSON.stringify({
+          data: {
+            topic: `project.logs:${APPLICATION_ID}`,
+            application_id: 'app_01ARZ3NDEKTSV4RRFFQ69G5FAW',
+            entry: { line: 'hello' },
+          },
+        }),
       ),
     ).toBeNull();
   });

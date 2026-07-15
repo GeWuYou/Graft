@@ -58,6 +58,10 @@ type WorkspaceState = {
   sessions: Record<string, WorkspaceSession>;
 };
 
+function createWorkspaceDictionary<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
 /**
  * 创建一个空的工作区会话状态。
  *
@@ -68,8 +72,8 @@ function createSession(): WorkspaceSession {
     activeFileKey: '',
     dirtyFiles: [],
     expandedKeys: [],
-    fileContents: {},
-    nodesByKey: {},
+    fileContents: createWorkspaceDictionary<OpenedWorkspaceFile>(),
+    nodesByKey: createWorkspaceDictionary<WorkspaceNode>(),
     openedTabs: [],
     pendingOperations: [],
     rootKeys: [],
@@ -191,7 +195,7 @@ function logWorkspaceSession(
 }
 
 export const useProjectWorkspaceStore = defineStore('project-workspace', {
-  state: (): WorkspaceState => ({ sessions: {} }),
+  state: (): WorkspaceState => ({ sessions: createWorkspaceDictionary<WorkspaceSession>() }),
   getters: {
     session:
       (state) =>
@@ -300,7 +304,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       const session = this.ensureSession(sessionKey);
       const preservedExpanded = session.expandedKeys;
       const preservedSelected = session.selectedKey;
-      session.nodesByKey = {};
+      session.nodesByKey = createWorkspaceDictionary<WorkspaceNode>();
       session.rootKeys = [];
       this.ingestTree(sessionKey, entries);
       session.expandedKeys = preservedExpanded.filter((key) => Boolean(session.nodesByKey[key]));

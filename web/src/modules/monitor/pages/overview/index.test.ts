@@ -1025,6 +1025,10 @@ describe('MonitorPage', () => {
 
   it('renders no chart when fewer than two samples are available', async () => {
     const response = createServerStatusResponse();
+    response.runtime.runtime_alloc_bytes = 209715200;
+    response.runtime.runtime_heap_in_use_bytes = 104857600;
+    response.runtime.runtime_sys_bytes = 314572800;
+    response.runtime.goroutines = 48;
     response.trend.points = response.trend.points.slice(0, 1);
     monitorApiMocks.getServerStatus.mockResolvedValue(response);
 
@@ -1034,6 +1038,11 @@ describe('MonitorPage', () => {
 
     expect(wrapper.text()).toContain('At least 2 samples are required before the trend chart is shown');
     expect(chartMocks.init).not.toHaveBeenCalled();
+    const runtimeSummary = wrapper.find('[data-trend-overview-section="runtimeSummary"]');
+    expect(runtimeSummary.text()).toContain('200 MB');
+    expect(runtimeSummary.text()).toContain('100 MB');
+    expect(runtimeSummary.text()).toContain('300 MB');
+    expect(runtimeSummary.text()).toContain('48');
   });
 
   it('converts load average to pressure by CPU cores instead of treating load as a percent', async () => {

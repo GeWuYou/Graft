@@ -1142,6 +1142,7 @@ const workspaceEditorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
   newFolder: t('project.create.workspace.newFolder'),
   refresh: t('layout.tagTabs.refresh'),
   rename: t('project.create.workspace.rename'),
+  resizeEditorHeight: t('project.detail.configuration.resizeEditor'),
 }));
 
 function abbreviateWorkspacePath(value?: string | null, maxLength = 16) {
@@ -2352,6 +2353,11 @@ async function runCurrentFileValidation() {
   syntaxCheckLoading.value = true;
 
   try {
+    const modelReady = await waitForActiveEditorModel(current.path, { maxAttempts: 12 });
+    if (!modelReady) {
+      MessagePlugin.error(workspaceCopy.value.fileValidationFailed);
+      return;
+    }
     const markers = await activeWorkspaceEditor()?.waitForDiagnostics?.();
     const errors = normalizeSyntaxErrors(markers);
 
