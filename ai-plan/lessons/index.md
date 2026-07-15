@@ -27,7 +27,7 @@
 | ------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------- | -------------------------------------------------------- |
 | Table/list management pages must use `t-empty` or table empty slots instead of custom small gray empty cards. | `web/AGENTS.md` | LESSON-WEB-UI-EMPTY-STATE-001 | `ai-plan/design/graft-design-system/list-form-detail.md` |
 | User-visible time must bind the current app locale and must not use host-default datetime formatting.         | `web/AGENTS.md` | LESSON-WEB-UI-LOCALE-TIME-001 | `ai-plan/design/architecture/前端架构设计.md`            |
-| Handwritten Go, TypeScript, and Vue changes must receive a value-based comment review before closeout.         | `AGENTS.md`     | LESSON-GOVERNANCE-COMMENT-VALUE-001 | `ai-plan/design/governance/ai/代码注释与模块文档规范.md` |
+| Handwritten Go, TypeScript, and Vue changes must receive a value-based comment review before closeout.         | `AGENTS.md`, `server/AGENTS.md`, `web/AGENTS.md` | LESSON-GOVERNANCE-COMMENT-VALUE-001 | `ai-plan/design/governance/ai/代码注释与模块文档规范.md` |
 
 ## Deprecated / Superseded
 
