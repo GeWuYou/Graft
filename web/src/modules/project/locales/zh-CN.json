@@ -796,9 +796,7 @@
         "recursiveDeleteConfirm": "递归删除",
         "pathConflict": "该路径与已有工作区条目或其子项冲突。",
         "removeFile": "删除文件",
-        "filePath": "相对文件路径",
-        "filePathPlaceholder": "例如 nginx/nginx.conf 或 .env.production",
-        "invalidFilePath": "文件路径必须是唯一的工作区相对路径，且不能包含绝对路径或上级目录。",
+        "invalidFilePath": "名称不能为空，且不能包含 '/'、'.' 或 '..'。",
         "editorAriaLabel": "编辑 {path}"
       },
       "lifecycle": {

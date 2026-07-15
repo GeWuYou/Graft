@@ -1174,7 +1174,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 24, clientY: 24 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('notes.txt');
-    await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await flushPromises();
 
     expect(mocks.postProjectWorkspaceEntry).toHaveBeenCalledWith('1', {
@@ -1183,6 +1183,25 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       path: 'notes.txt',
     });
     expect(mocks.getProjectFiles).toHaveBeenCalledWith('1', { path: undefined, show_hidden: false });
+  });
+
+  it('renames a workspace entry through the shared inline editor', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
+    await wrapper.findAll('[role="menuitem"]')[3].trigger('click');
+    await wrapper.find('input').setValue('runtime.yml');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    await flushPromises();
+
+    expect(mocks.postProjectWorkspaceRename).toHaveBeenCalledWith('1', {
+      path: 'docker-compose.yml',
+      new_path: 'runtime.yml',
+    });
   });
 
   it('saves workspace annotations through the dialog flow', async () => {

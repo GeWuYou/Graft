@@ -801,9 +801,7 @@
         "recursiveDeleteConfirm": "Delete Recursively",
         "pathConflict": "The path conflicts with an existing workspace entry or its descendants.",
         "removeFile": "Remove File",
-        "filePath": "Relative File Path",
-        "filePathPlaceholder": "For example nginx/nginx.conf or .env.production",
-        "invalidFilePath": "The file path must be a unique workspace-relative path without absolute or parent directory segments.",
+        "invalidFilePath": "The name cannot be empty, contain '/', or use '.' or '..'.",
         "editorAriaLabel": "Edit {path}"
       },
       "lifecycle": {

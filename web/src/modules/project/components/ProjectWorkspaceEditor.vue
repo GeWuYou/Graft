@@ -20,7 +20,7 @@
 
           <slot name="tree-feedback" />
           <div class="project-workspace-editor__tree graft-scrollbar" @contextmenu.prevent="openMenu(null, $event)">
-            <template v-if="rows.length">
+            <template v-if="rows.length || inlineEdit">
               <template v-for="row in rows" :key="row.path">
                 <div
                   class="project-workspace-editor__tree-row"
@@ -43,7 +43,20 @@
                   </button>
                   <span v-else class="project-workspace-editor__tree-expander-placeholder" />
 
+                  <t-input
+                    v-if="isInlineRename(row)"
+                    ref="inlineEditInputRef"
+                    class="project-workspace-editor__inline-input"
+                    :status="inlineEdit?.error ? 'error' : 'default'"
+                    :tips="inlineEdit?.error"
+                    :model-value="inlineEdit?.value"
+                    @blur="submitInlineEdit"
+                    @enter="submitInlineEdit"
+                    @keydown="handleInlineEditKeydown"
+                    @update:model-value="updateInlineEditValue"
+                  />
                   <button
+                    v-else
                     class="project-workspace-editor__tree-entry"
                     :data-testid="row.testId"
                     type="button"
@@ -66,6 +79,7 @@
                   <div class="project-workspace-editor__tree-actions">
                     <slot name="entry-actions" :row="row" />
                     <button
+                      v-if="!isInlineRename(row)"
                       class="project-workspace-editor__tree-menu-trigger"
                       type="button"
                       :aria-label="labels.entryActions.replace('{path}', row.path)"
@@ -75,8 +89,52 @@
                     </button>
                   </div>
                 </div>
+                <div
+                  v-if="shouldRenderInlineEntryAfter(row)"
+                  class="project-workspace-editor__tree-row project-workspace-editor__tree-row--inline"
+                  :style="{ '--workspace-tree-depth': String(inlineEntryDepth(row)) }"
+                >
+                  <span class="project-workspace-editor__tree-expander-placeholder" />
+                  <span class="project-workspace-editor__browser-icon" aria-hidden="true">
+                    <folder-icon v-if="inlineEdit?.mode === 'create-directory'" />
+                    <file-icon v-else />
+                  </span>
+                  <t-input
+                    ref="inlineEditInputRef"
+                    class="project-workspace-editor__inline-input"
+                    :status="inlineEdit?.error ? 'error' : 'default'"
+                    :tips="inlineEdit?.error"
+                    :model-value="inlineEdit?.value"
+                    @blur="submitInlineEdit"
+                    @enter="submitInlineEdit"
+                    @keydown="handleInlineEditKeydown"
+                    @update:model-value="updateInlineEditValue"
+                  />
+                </div>
                 <p v-if="row.error && row.expanded" class="project-workspace-editor__tree-error">{{ row.error }}</p>
               </template>
+              <div
+                v-if="shouldRenderRootInlineEntry"
+                class="project-workspace-editor__tree-row project-workspace-editor__tree-row--inline"
+                :style="{ '--workspace-tree-depth': '0' }"
+              >
+                <span class="project-workspace-editor__tree-expander-placeholder" />
+                <span class="project-workspace-editor__browser-icon" aria-hidden="true">
+                  <folder-icon v-if="inlineEdit?.mode === 'create-directory'" />
+                  <file-icon v-else />
+                </span>
+                <t-input
+                  ref="inlineEditInputRef"
+                  class="project-workspace-editor__inline-input"
+                  :status="inlineEdit?.error ? 'error' : 'default'"
+                  :tips="inlineEdit?.error"
+                  :model-value="inlineEdit?.value"
+                  @blur="submitInlineEdit"
+                  @enter="submitInlineEdit"
+                  @keydown="handleInlineEditKeydown"
+                  @update:model-value="updateInlineEditValue"
+                />
+              </div>
             </template>
             <t-empty v-else :description="emptyDescription" />
           </div>
@@ -284,6 +342,14 @@ export type ProjectWorkspaceEditorBuffer = {
   readOnly?: boolean;
 };
 
+export type ProjectWorkspaceInlineEdit = {
+  anchorPath: string | null;
+  error?: string;
+  mode: 'create-file' | 'create-directory' | 'rename';
+  saving?: boolean;
+  value: string;
+};
+
 export type ProjectWorkspaceEditorLabels = {
   annotationAction?: string;
   closeAll: string;
@@ -309,6 +375,7 @@ const props = withDefaults(
     editorHeightStorageKey: string;
     emptyDescription: string;
     fullscreen?: boolean;
+    inlineEdit?: ProjectWorkspaceInlineEdit | null;
     labels: ProjectWorkspaceEditorLabels;
     rows: ProjectWorkspaceEditorRow[];
     selectedPath?: string;
@@ -328,6 +395,7 @@ const props = withDefaults(
   {
     editorDefaultHeight: 520,
     fullscreen: false,
+    inlineEdit: null,
     sidebarMaxWidth: 360,
     sidebarMinWidth: 208,
     sidebarResizable: false,
@@ -347,6 +415,9 @@ const emit = defineEmits<{
     row: ProjectWorkspaceEditorRow | null,
   ];
   'editor-ready': [editor: unknown];
+  'inline-edit-cancel': [];
+  'inline-edit-submit': [];
+  'update:inlineEdit': [value: ProjectWorkspaceInlineEdit | null];
   'select-entry': [row: ProjectWorkspaceEditorRow];
   'tab-action': [action: 'refresh' | 'close-left' | 'close-right' | 'close-other' | 'close-all', path: string];
   'toggle-directory': [row: ProjectWorkspaceEditorRow];
@@ -357,6 +428,7 @@ const emit = defineEmits<{
 }>();
 
 const contextMenuRef = ref<HTMLElement | null>(null);
+const inlineEditInputRef = ref<{ $el?: Element } | HTMLElement | Array<{ $el?: Element } | HTMLElement> | null>(null);
 const activeEditorRef = ref<InstanceType<typeof ProjectMonacoSurface> | null>(null);
 const editorStackRef = ref<HTMLElement | null>(null);
 const mainGridRef = ref<HTMLElement | null>(null);
@@ -371,6 +443,7 @@ const contextMenu = reactive<{ row: ProjectWorkspaceEditorRow | null; visible: b
   y: 0,
 });
 const editorOptions = { fontSize: 13, lineNumbers: 'on' as const, wordWrap: 'off' as const };
+const inlineEdit = computed(() => props.inlineEdit);
 const sidebarGridStyle = computed(() => ({
   '--project-workspace-sidebar-width': `${clampSidebarWidth(props.sidebarWidth)}px`,
 }));
@@ -392,6 +465,51 @@ function openMenu(row: ProjectWorkspaceEditorRow | null, event: MouseEvent, focu
 function emitContextAction(action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete') {
   emit('context-action', action, contextMenu.row);
   contextMenu.visible = false;
+}
+
+function isInlineRename(row: ProjectWorkspaceEditorRow) {
+  return inlineEdit.value?.mode === 'rename' && inlineEdit.value.anchorPath === row.path;
+}
+
+function inlineEntryDepth(row: ProjectWorkspaceEditorRow) {
+  return row.nodeType === 'directory' ? row.depth + 1 : row.depth;
+}
+
+function shouldRenderInlineEntryAfter(row: ProjectWorkspaceEditorRow) {
+  const edit = inlineEdit.value;
+  if (!edit || edit.mode === 'rename' || edit.anchorPath !== row.path) return false;
+  return true;
+}
+
+const shouldRenderRootInlineEntry = computed(() =>
+  Boolean(inlineEdit.value && inlineEdit.value.mode !== 'rename' && !inlineEdit.value.anchorPath),
+);
+
+function updateInlineEditValue(value: string | number) {
+  if (!inlineEdit.value) return;
+  emit('update:inlineEdit', { ...inlineEdit.value, error: '', value: String(value) });
+}
+
+function submitInlineEdit() {
+  if (inlineEdit.value && !inlineEdit.value.saving) emit('inline-edit-submit');
+}
+
+function handleInlineEditKeydown(_value: string | number, context: { e: KeyboardEvent }) {
+  if (context.e.key !== 'Escape') return;
+  context.e.preventDefault();
+  emit('inline-edit-cancel');
+}
+
+function focusInlineEdit() {
+  const refValue = Array.isArray(inlineEditInputRef.value) ? inlineEditInputRef.value.at(-1) : inlineEditInputRef.value;
+  const root = refValue instanceof HTMLElement ? refValue : refValue?.$el;
+  const input = root instanceof HTMLInputElement ? root : root?.querySelector<HTMLInputElement>('input');
+  if (!input) return;
+  input.focus();
+  const value = inlineEdit.value?.value ?? '';
+  const extensionStart = value.lastIndexOf('.');
+  const selectionEnd = inlineEdit.value?.mode === 'rename' && extensionStart > 0 ? extensionStart : value.length;
+  input.setSelectionRange(0, selectionEnd);
 }
 
 function emitTabAction(action: 'refresh' | 'close-left' | 'close-right' | 'close-other' | 'close-all', path: string) {
@@ -462,6 +580,13 @@ defineExpose({
 watch(activeEditorRef, (editor) => {
   if (editor) emit('editor-ready', editor);
 });
+
+watch(
+  () => `${inlineEdit.value?.mode ?? ''}:${inlineEdit.value?.anchorPath ?? ''}`,
+  () => {
+    if (inlineEdit.value) void nextTick(focusInlineEdit);
+  },
+);
 
 function logEditorRenderState(reason: 'mounted' | 'state-changed') {
   const editorStack = editorStackRef.value;
@@ -589,6 +714,8 @@ onBeforeUnmount(() => {
   background: var(--graft-workspace-editor-surface-muted);
   border-color: var(--graft-workspace-editor-border);
   box-shadow: none;
+  display: flex;
+  flex-direction: column;
   height: 100%;
 }
 
@@ -598,6 +725,7 @@ onBeforeUnmount(() => {
 
 .project-workspace-editor__browser-card :deep(.t-card__body) {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-height: 0;
   padding-top: var(--graft-density-gap-8);
@@ -650,6 +778,18 @@ onBeforeUnmount(() => {
 
 .project-workspace-editor__tree-row--readonly {
   opacity: 0.68;
+}
+
+.project-workspace-editor__tree-row--inline {
+  grid-template-columns: 18px 16px minmax(0, 1fr);
+}
+
+.project-workspace-editor__inline-input {
+  min-width: 0;
+}
+
+.project-workspace-editor__inline-input :deep(.t-input) {
+  background: var(--td-bg-color-container);
 }
 
 .project-workspace-editor__tree-expander,

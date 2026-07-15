@@ -75,6 +75,7 @@
             ref="workspaceEditorRef"
             v-model:active-path="activeTabPath"
             v-model:fullscreen="workspaceFullscreen"
+            :inline-edit="workspaceInlineEdit"
             :active-buffer="workspaceEditorActiveBuffer"
             :editor-default-height="editorFrameHeight"
             :editor-aria-label="workspaceCopy.editorAriaLabel"
@@ -98,10 +99,13 @@
             @close-tab="handleCloseTab"
             @context-action="handleWorkspaceEditorContextAction"
             @editor-ready="setActiveWorkspaceEditor"
+            @inline-edit-cancel="cancelWorkspaceInlineEdit"
+            @inline-edit-submit="submitWorkspaceInlineEdit"
             @select-entry="handleWorkspaceEditorEntry"
             @tab-action="handleWorkspaceEditorTabAction"
             @toggle-directory="toggleWorkspaceEditorDirectory"
             @update-content="updateWorkspaceEditorContent"
+            @update:inline-edit="workspaceInlineEdit = $event"
             @update:sidebar-width="updateSidebarWidth"
           >
             <template #tree-actions>
@@ -571,16 +575,6 @@
     </t-dialog>
 
     <t-dialog
-      v-model:visible="workspaceEntryDialog.visible"
-      :header="t('project.create.workspace.filePath')"
-      :confirm-btn="t('project.create.actions.confirm')"
-      :cancel-btn="workspaceCopy.cancelAction"
-      @confirm="submitWorkspaceEntryDialog"
-    >
-      <t-input v-model="workspaceEntryDialog.path" :placeholder="t('project.create.workspace.filePathPlaceholder')" />
-      <t-alert v-if="workspaceEntryDialog.error" theme="error" :message="workspaceEntryDialog.error" />
-    </t-dialog>
-    <t-dialog
       v-model:visible="workspaceDeleteDialog.visible"
       :header="
         workspaceDeleteDialog.stage === 'recursive'
@@ -651,6 +645,7 @@ import ProjectWorkspaceEditor, {
   type ProjectWorkspaceEditorBuffer,
   type ProjectWorkspaceEditorLabels,
   type ProjectWorkspaceEditorRow,
+  type ProjectWorkspaceInlineEdit,
 } from '../../components/ProjectWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
@@ -861,12 +856,7 @@ const workspaceEntryMenu = reactive<{ item: WorkspaceListItem | null; visible: b
   x: 0,
   y: 0,
 });
-const workspaceEntryDialog = reactive<{
-  error: string;
-  mode: 'create-file' | 'create-directory' | 'rename';
-  path: string;
-  visible: boolean;
-}>({ error: '', mode: 'create-file', path: '', visible: false });
+const workspaceInlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
 const workspaceDeleteDialog = reactive<{
   path: string;
   stage: 'initial' | 'recursive';
@@ -1414,10 +1404,9 @@ function handleWorkspaceEditorContextAction(
   row: ProjectWorkspaceEditorRow | null,
 ) {
   workspaceEntryMenu.item = row ? workspaceItemForEditorRow(row) : null;
-  if (action === 'create-file') openWorkspaceEntryDialog('create-file');
-  if (action === 'create-directory') openWorkspaceEntryDialog('create-directory');
+  if (action === 'create-file' || action === 'create-directory') openWorkspaceInlineEdit(action, row);
   if (action === 'annotation' && workspaceEntryMenu.item) handleWorkspaceAnnotation(workspaceEntryMenu.item);
-  if (action === 'rename') openWorkspaceEntryDialog('rename');
+  if (action === 'rename') openWorkspaceInlineEdit('rename', row);
   if (action === 'delete') openWorkspaceDeleteDialog();
 }
 
@@ -1432,64 +1421,85 @@ function handleWorkspaceEditorTabAction(
   if (action === 'close-all') void handleCloseAllFileTabs();
 }
 
-function normalizeWorkspaceEntryPath(path: string) {
-  return String(path || '')
-    .trim()
-    .replace(/^\.\//, '')
-    .replace(/\/+$/, '');
+function normalizeWorkspaceEntryName(value: string) {
+  return String(value || '').trim();
 }
 
-function isSafeWorkspaceEntryPath(path: string) {
-  return (
-    Boolean(path) && !path.startsWith('/') && !path.split('/').some((part) => !part || part === '.' || part === '..')
-  );
+function isSafeWorkspaceEntryName(value: string) {
+  return Boolean(value) && value !== '.' && value !== '..' && !value.includes('/');
 }
 
 function closeWorkspaceEntryMenu() {
   workspaceEntryMenu.visible = false;
 }
 
-function openWorkspaceEntryDialog(mode: 'create-file' | 'create-directory' | 'rename') {
-  workspaceEntryDialog.mode = mode;
-  workspaceEntryDialog.error = '';
-  const target = workspaceEntryMenu.item;
-  if (mode === 'rename') {
-    workspaceEntryDialog.path = target?.relative_path || '';
-  } else {
-    const parent =
-      target?.node_type === 'directory'
-        ? target.relative_path
-        : resolveWorkspaceParentPath(target?.relative_path || '');
-    workspaceEntryDialog.path = parent ? `${parent}/` : '';
-  }
-  workspaceEntryDialog.visible = true;
+function openWorkspaceInlineEdit(
+  mode: 'create-file' | 'create-directory' | 'rename',
+  row: ProjectWorkspaceEditorRow | null,
+) {
+  if (mode === 'rename' && !row) return;
+  workspaceInlineEdit.value = {
+    anchorPath: row?.path ?? null,
+    mode,
+    value: mode === 'rename' ? (row?.name ?? '') : '',
+  };
   closeWorkspaceEntryMenu();
 }
 
-async function submitWorkspaceEntryDialog() {
-  const path = normalizeWorkspaceEntryPath(workspaceEntryDialog.path);
-  const target = workspaceEntryMenu.item;
-  if (!isSafeWorkspaceEntryPath(path)) {
-    workspaceEntryDialog.error = t('project.create.workspace.invalidFilePath');
+function cancelWorkspaceInlineEdit() {
+  workspaceInlineEdit.value = null;
+}
+
+function setWorkspaceInlineEditError(error: string) {
+  if (workspaceInlineEdit.value) workspaceInlineEdit.value = { ...workspaceInlineEdit.value, error, saving: false };
+}
+
+function joinWorkspaceEntryPath(parent: string, name: string) {
+  return parent ? `${parent}/${name}` : name;
+}
+
+async function submitWorkspaceInlineEdit() {
+  const edit = workspaceInlineEdit.value;
+  if (!edit || edit.saving) return;
+  const name = normalizeWorkspaceEntryName(edit.value);
+  if (!name && edit.mode !== 'rename') {
+    cancelWorkspaceInlineEdit();
     return;
   }
+  if (!isSafeWorkspaceEntryName(name)) {
+    setWorkspaceInlineEditError(t('project.create.workspace.invalidFilePath'));
+    return;
+  }
+  const target = workspaceEntryMenu.item;
+  const parent =
+    edit.mode === 'rename'
+      ? resolveWorkspaceParentPath(target?.relative_path || '')
+      : target?.node_type === 'directory'
+        ? target.relative_path
+        : resolveWorkspaceParentPath(target?.relative_path || '');
+  const path = joinWorkspaceEntryPath(parent, name);
+  if (edit.mode === 'rename' && target && path === target.relative_path) {
+    cancelWorkspaceInlineEdit();
+    return;
+  }
+  workspaceInlineEdit.value = { ...edit, error: '', saving: true };
   try {
-    if (workspaceEntryDialog.mode === 'rename') {
+    if (edit.mode === 'rename') {
       if (!target) return;
       await postProjectWorkspaceRename(projectId.value, { path: target.relative_path, new_path: path });
       migrateWorkspaceBuffers(target.relative_path, path);
     } else {
       await postProjectWorkspaceEntry(projectId.value, {
         path,
-        node_type: workspaceEntryDialog.mode === 'create-directory' ? 'directory' : 'file',
-        ...(workspaceEntryDialog.mode === 'create-file' ? { content: '' } : {}),
+        node_type: edit.mode === 'create-directory' ? 'directory' : 'file',
+        ...(edit.mode === 'create-file' ? { content: '' } : {}),
       });
     }
-    workspaceEntryDialog.visible = false;
+    workspaceInlineEdit.value = null;
     await refreshWorkspaceAfterEntryMutation();
-    if (workspaceEntryDialog.mode === 'create-file') await openWorkspaceFile(path);
+    if (edit.mode === 'create-file') await openWorkspaceFile(path);
   } catch (error) {
-    workspaceEntryDialog.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+    setWorkspaceInlineEditError(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
   }
 }
 

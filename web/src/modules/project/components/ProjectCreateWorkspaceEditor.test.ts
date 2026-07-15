@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 
 import ProjectCreateWorkspaceEditor from './ProjectCreateWorkspaceEditor.vue';
 
@@ -79,7 +80,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
     expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').exists()).toBe(true);
   });
 
-  it('creates unrestricted file names through the tree context menu', async () => {
+  it('creates a file from the tree context menu with an inline name', async () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
       global: {
@@ -107,12 +108,94 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
-    await wrapper.find('input').setValue('scripts/start');
-    await wrapper.find('.dialog-confirm').trigger('click');
+    await wrapper.find('input').setValue('start');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
 
     expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
-      expect.arrayContaining([expect.objectContaining({ path: 'scripts/start', node_type: 'file' })]),
+      expect.arrayContaining([expect.objectContaining({ path: 'start', node_type: 'file' })]),
     );
+  });
+
+  it('keeps the root context menu available when the workspace is empty', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [] },
+      global: {
+        stubs: {
+          't-input': {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
+        },
+      },
+    });
+
+    await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
+    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(4);
+
+    await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
+    await wrapper.find('input').setValue('recover.yml');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+
+    expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: 'recover.yml', node_type: 'file' })]),
+    );
+  });
+
+  it('creates a file inside the selected directory instead of inferring a folder type', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: {
+        files: [
+          { path: 'config', content: '', node_type: 'directory' },
+          { path: 'config/app.yaml', content: 'name: app' },
+        ],
+      },
+      global: {
+        stubs: {
+          't-input': {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
+        },
+      },
+    });
+
+    await wrapper.find('.project-workspace-editor__tree-menu-trigger[aria-label="config"]').trigger('click');
+    await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
+    await wrapper.find('input').setValue('dashboard.e2e.json');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+
+    expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: 'config/dashboard.e2e.json', node_type: 'file' })]),
+    );
+  });
+
+  it('preselects a file basename while preserving its extension for inline rename', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      attachTo: document.body,
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+      global: {
+        stubs: {
+          't-input': {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
+        },
+      },
+    });
+
+    await wrapper.find('.project-workspace-editor__tree-menu-trigger[aria-label="compose.yaml"]').trigger('click');
+    await wrapper.findAll('[role="menuitem"]')[2].trigger('click');
+    await nextTick();
+    await nextTick();
+
+    const input = wrapper.find('input').element as HTMLInputElement;
+    expect(input.value).toBe('compose.yaml');
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe('compose'.length);
+    wrapper.unmount();
   });
 
   it('rejects workspace paths that would be ancestors or descendants of existing files', async () => {
@@ -150,14 +233,14 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('scripts');
-    await wrapper.find('.dialog-confirm').trigger('click');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
 
     expect(wrapper.emitted('update:files') ?? []).toHaveLength(initialUpdateCount);
 
     await wrapper.find('.project-workspace-editor__tree-menu-trigger[aria-label="other"]').trigger('click');
     await wrapper.findAll('[role="menuitem"]')[2].trigger('click');
     await wrapper.find('input').setValue('scripts');
-    await wrapper.find('.dialog-confirm').trigger('click');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
 
     expect(wrapper.emitted('update:files') ?? []).toHaveLength(initialUpdateCount);
   });
