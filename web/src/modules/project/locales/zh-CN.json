@@ -787,6 +787,7 @@
         "copyAction": "复制当前文件内容",
         "copySuccess": "已复制当前文件内容。",
         "copyFailed": "无法复制当前文件内容。",
+        "saveSuccess": "工作区草稿已同步保存。",
         "entryActions": "{path} 操作",
         "rename": "重命名",
         "delete": "删除",

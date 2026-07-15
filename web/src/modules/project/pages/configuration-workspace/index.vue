@@ -623,6 +623,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { store } from '@/store/pinia';
 import { createLogger } from '@/utils/logger';
@@ -907,6 +908,23 @@ const canSaveActiveBuffer = computed(() =>
     isFileDirty(activeBuffer.value.path),
   ),
 );
+useKeyboardShortcut(
+  '$mod+KeyS',
+  () => {
+    void saveActiveFile();
+  },
+  {
+    enabled: canSaveActiveBuffer,
+    ignoreRepeat: true,
+    preventDefault: true,
+    target: workspaceRootRef,
+  },
+);
+useKeyboardShortcut('Escape', () => {
+  if (workspaceFullscreen.value) {
+    workspaceFullscreen.value = false;
+  }
+});
 const canSaveAllBuffers = computed(() => Boolean(!saveConfirmLoading.value && dirtyEditableBuffers.value.length));
 const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE_BREAKPOINT);
 const editorFrameHeight = computed(() => Math.max(560, editorViewportHeight.value));
@@ -1148,13 +1166,11 @@ function abbreviateWorkspacePath(value?: string | null, maxLength = 16) {
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleWorkspaceKeydown);
   window.addEventListener('resize', syncWorkspaceViewport);
   void loadWorkspace();
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleWorkspaceKeydown);
   window.removeEventListener('resize', syncWorkspaceViewport);
   if (typeof document !== 'undefined') {
     document.body.style.overflow = '';
@@ -2782,28 +2798,6 @@ function resolveDialog(result: DialogResult) {
   dialogState.visible = false;
   dialogState.resolver = null;
   resolver(result);
-}
-
-function handleWorkspaceKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && workspaceFullscreen.value) {
-    workspaceFullscreen.value = false;
-    return;
-  }
-
-  const root = workspaceRootRef.value;
-  if (!root || !activeBuffer.value || !canSaveActiveBuffer.value) {
-    return;
-  }
-
-  const target = event.target;
-  if (!(target instanceof Node) || !root.contains(target)) {
-    return;
-  }
-
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-    event.preventDefault();
-    void saveActiveFile();
-  }
 }
 
 function normalizeWorkspacePath(path: string) {

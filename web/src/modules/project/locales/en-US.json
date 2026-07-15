@@ -792,6 +792,7 @@
         "copyAction": "Copy Current File Content",
         "copySuccess": "Current file content copied.",
         "copyFailed": "Unable to copy current file content.",
+        "saveSuccess": "Workspace draft saved and synchronized.",
         "entryActions": "Actions for {path}",
         "rename": "Rename",
         "delete": "Delete",

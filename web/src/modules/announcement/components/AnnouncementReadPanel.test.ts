@@ -107,8 +107,15 @@ describe('AnnouncementReadPanel', () => {
     await openCenterButton!.trigger('click');
     expect(wrapper.emitted('open-center')).toHaveLength(1);
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    const escapeEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'Escape',
+      key: 'Escape',
+    });
+    window.dispatchEvent(escapeEvent);
     await nextTick();
+    expect(escapeEvent.defaultPrevented).toBe(false);
     expect(wrapper.emitted('close')).toHaveLength(1);
   });
 

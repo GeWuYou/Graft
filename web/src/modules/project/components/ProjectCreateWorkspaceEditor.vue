@@ -1,5 +1,5 @@
 <template>
-  <section class="project-create-workspace">
+  <section ref="workspaceRoot" class="project-create-workspace">
     <t-alert theme="info" :message="t('project.create.workspace.hint')" />
     <project-workspace-editor
       v-model:active-path="activePath"
@@ -91,6 +91,7 @@ import { CopyIcon, EditIcon, FullscreenExitIcon, FullscreenIcon } from 'tdesign-
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onActivated, reactive, ref, watch } from 'vue';
 
+import { useKeyboardShortcut } from '@/shared/composables';
 import { copyText } from '@/shared/observability';
 import { store } from '@/store/pinia';
 
@@ -116,6 +117,7 @@ const workspaceStore = useProjectWorkspaceStore(store);
 const workspaceSessionKey = 'project-create-workspace';
 const fullscreen = ref(false);
 const inlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
+const workspaceRoot = ref<HTMLElement | null>(null);
 const deleteDialog = reactive({ count: 0, path: '', stage: 'initial' as 'initial' | 'recursive', visible: false });
 
 workspaceStore.ensureSession(workspaceSessionKey);
@@ -170,6 +172,19 @@ const editorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
   const file = workspaceStore.activeFile(workspaceSessionKey);
   return file ? toEditorBuffer(file) : null;
 });
+
+useKeyboardShortcut(
+  '$mod+KeyS',
+  () => {
+    MessagePlugin.success(t('project.create.workspace.saveSuccess'));
+  },
+  {
+    enabled: computed(() => Boolean(editorActiveBuffer.value && !editorActiveBuffer.value.readOnly)),
+    ignoreRepeat: true,
+    preventDefault: true,
+    target: workspaceRoot,
+  },
+);
 
 function toTreeItems(entries: WorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[] {
   return entries.map((entry) => ({

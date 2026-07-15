@@ -28,6 +28,8 @@
     "header": {
       "code": "代码仓库",
       "apiDocs": "API 文档",
+      "enterFullscreen": "进入全屏",
+      "exitFullscreen": "退出全屏",
       "help": "帮助文档",
       "user": "个人中心",
       "signOut": "退出登录",

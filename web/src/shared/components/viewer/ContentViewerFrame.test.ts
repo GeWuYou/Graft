@@ -1,5 +1,5 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import ContentViewerFrame from './ContentViewerFrame.vue';
@@ -23,11 +23,52 @@ describe('ContentViewerFrame', () => {
     expect(wrapper.classes()).toContain('content-viewer-frame--fullscreen');
     expect(document.body.style.overflow).toBe('hidden');
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    const escapeEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'Escape',
+      key: 'Escape',
+    });
+    window.dispatchEvent(escapeEvent);
     await wrapper.vm.$nextTick();
 
+    expect(escapeEvent.defaultPrevented).toBe(false);
     expect(wrapper.classes()).not.toContain('content-viewer-frame--fullscreen');
     expect(document.body.style.overflow).toBe('');
+  });
+
+  it('uses F11 only within the viewer and stops it before a global shortcut can run', async () => {
+    const wrapper = mountFrame();
+    const globalShortcut = vi.fn();
+    window.addEventListener('keydown', globalShortcut);
+
+    try {
+      const outsideEvent = new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        code: 'F11',
+        key: 'F11',
+      });
+      window.dispatchEvent(outsideEvent);
+      expect(outsideEvent.defaultPrevented).toBe(false);
+      expect(wrapper.classes()).not.toContain('content-viewer-frame--fullscreen');
+
+      globalShortcut.mockClear();
+      const viewerEvent = new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        code: 'F11',
+        key: 'F11',
+      });
+      wrapper.element.dispatchEvent(viewerEvent);
+      await wrapper.vm.$nextTick();
+
+      expect(viewerEvent.defaultPrevented).toBe(true);
+      expect(globalShortcut).not.toHaveBeenCalled();
+      expect(wrapper.classes()).toContain('content-viewer-frame--fullscreen');
+    } finally {
+      window.removeEventListener('keydown', globalShortcut);
+    }
   });
 
   it('persists keyboard-driven resize height', async () => {

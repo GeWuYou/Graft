@@ -61,6 +61,7 @@
     "shiki": "^4.3.1",
     "tdesign-icons-vue-next": "^0.4.5",
     "tdesign-vue-next": "^1.20.3",
+    "tinykeys": "^4.0.0",
     "tvision-color": "^1.6.0",
     "vue": "^3.5.39",
     "vue-i18n": "^9.9.1",

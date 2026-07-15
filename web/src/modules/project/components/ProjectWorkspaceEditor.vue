@@ -1,5 +1,9 @@
 <template>
-  <section class="project-workspace-editor" :class="{ 'project-workspace-editor--fullscreen': fullscreen }">
+  <section
+    ref="workspaceEditorRootRef"
+    class="project-workspace-editor"
+    :class="{ 'project-workspace-editor--fullscreen': fullscreen }"
+  >
     <div
       ref="mainGridRef"
       class="project-workspace-editor__main-grid"
@@ -167,6 +171,7 @@
           resize-handle-label="Resize Editor Height"
           :show-header="false"
           :show-fullscreen-button="false"
+          :enable-fullscreen-shortcut="false"
           :storage-key="editorHeightStorageKey"
           fullscreen-surface-padding="none"
           surface-padding="none"
@@ -310,6 +315,7 @@ import { CommandIcon, EllipsisIcon, FileCodeIcon, FileIcon, FolderIcon } from 't
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
+import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
 
 import type { ProjectWorkspaceMonacoLanguage } from '../shared/configuration-workspace';
 import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
@@ -432,6 +438,7 @@ const inlineEditInputRef = ref<{ $el?: Element } | HTMLElement | Array<{ $el?: E
 const activeEditorRef = ref<InstanceType<typeof ProjectMonacoSurface> | null>(null);
 const editorStackRef = ref<HTMLElement | null>(null);
 const mainGridRef = ref<HTMLElement | null>(null);
+const workspaceEditorRootRef = ref<HTMLElement | null>(null);
 let contextMenuTrigger: HTMLElement | null = null;
 let sidebarResizeStartWidth = 0;
 let sidebarResizeStartX = 0;
@@ -447,6 +454,19 @@ const inlineEdit = computed(() => props.inlineEdit);
 const sidebarGridStyle = computed(() => ({
   '--project-workspace-sidebar-width': `${clampSidebarWidth(props.sidebarWidth)}px`,
 }));
+
+useKeyboardShortcut(
+  'F11',
+  (event) => {
+    event.stopPropagation();
+    emit('update:fullscreen', !props.fullscreen);
+  },
+  {
+    ignoreRepeat: true,
+    preventDefault: true,
+    target: workspaceEditorRootRef,
+  },
+);
 
 function changeActivePath(path: string | number) {
   emit('update:activePath', String(path));

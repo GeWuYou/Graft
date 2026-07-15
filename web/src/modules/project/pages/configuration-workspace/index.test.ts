@@ -847,6 +847,39 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
+  it('saves the active dirty file only when Ctrl+S originates in the workspace root', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+
+    const outsideShortcut = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'KeyS',
+      ctrlKey: true,
+      key: 's',
+    });
+    document.body.dispatchEvent(outsideShortcut);
+    await flushPromises();
+
+    expect(outsideShortcut.defaultPrevented).toBe(false);
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+
+    const workspaceShortcut = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'KeyS',
+      ctrlKey: true,
+      key: 's',
+    });
+    wrapper.get('.project-configuration-workspace').element.dispatchEvent(workspaceShortcut);
+    await flushPromises();
+
+    expect(workspaceShortcut.defaultPrevented).toBe(true);
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
+  });
+
   it('renders the workspace header with the standalone route title', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -1104,7 +1137,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.get('.content-viewer-frame-stub').attributes('data-fill-height')).toBe('true');
     expect(document.body.style.overflow).toBe('hidden');
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
     await wrapper.vm.$nextTick();
 
     expect(wrapper.get('.project-configuration-workspace').classes()).not.toContain(
@@ -1795,10 +1828,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === 'Save')
-      ?.trigger('click');
+    wrapper.get('.project-configuration-workspace').element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        code: 'KeyS',
+        ctrlKey: true,
+        key: 's',
+      }),
+    );
     await flushPromises();
 
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();

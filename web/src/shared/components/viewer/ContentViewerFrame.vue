@@ -1,5 +1,9 @@
 <template>
-  <section class="content-viewer-frame" :class="{ 'content-viewer-frame--fullscreen': isFullscreen }">
+  <section
+    ref="viewerRootRef"
+    class="content-viewer-frame"
+    :class="{ 'content-viewer-frame--fullscreen': isFullscreen }"
+  >
     <div v-if="isFullscreen" class="content-viewer-frame__backdrop" />
     <div class="content-viewer-frame__panel" :style="panelStyle">
       <header v-if="showHeaderBar" class="content-viewer-frame__header">
@@ -61,6 +65,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue';
 
+import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
+
 type SurfacePadding = 'none' | 'normal' | 'wide';
 
 const props = withDefaults(
@@ -79,6 +85,7 @@ const props = withDefaults(
     resizable?: boolean;
     showHeader?: boolean;
     showFullscreenButton?: boolean;
+    enableFullscreenShortcut?: boolean;
     storageKey: string;
     surfacePadding?: SurfacePadding;
   }>(),
@@ -94,11 +101,13 @@ const props = withDefaults(
     resizable: true,
     showHeader: true,
     showFullscreenButton: true,
+    enableFullscreenShortcut: true,
     surfacePadding: 'normal',
   },
 );
 
 const slots = useSlots();
+const viewerRootRef = ref<HTMLElement | null>(null);
 const isFullscreen = ref(false);
 const panelHeight = ref(resolveInitialHeight());
 const userResized = ref(false);
@@ -110,6 +119,25 @@ const storedBodyOverflow = ref('');
 const storedHtmlOverflow = ref('');
 const hasLockedDocumentOverflow = ref(false);
 let removeResizeListeners: (() => void) | null = null;
+
+useKeyboardShortcut('Escape', () => {
+  if (isFullscreen.value) {
+    isFullscreen.value = false;
+  }
+});
+useKeyboardShortcut(
+  'F11',
+  (event) => {
+    event.stopPropagation();
+    toggleFullscreen();
+  },
+  {
+    enabled: () => props.enableFullscreenShortcut,
+    ignoreRepeat: true,
+    preventDefault: true,
+    target: viewerRootRef,
+  },
+);
 
 const showHeaderBar = computed(() => props.showHeader && (Boolean(slots.header || slots['header-actions']) || true));
 const currentMinHeight = computed(() =>
@@ -176,13 +204,11 @@ onMounted(() => {
 
   syncViewport();
   window.addEventListener('resize', handleWindowResize);
-  window.addEventListener('keydown', handleWindowKeydown);
 });
 
 onBeforeUnmount(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', handleWindowResize);
-    window.removeEventListener('keydown', handleWindowKeydown);
   }
   stopResize();
   restoreDocumentOverflow();
@@ -256,12 +282,6 @@ function syncViewport() {
 function handleWindowResize() {
   syncViewport();
   writeStoredHeight(panelHeight.value);
-}
-
-function handleWindowKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && isFullscreen.value) {
-    isFullscreen.value = false;
-  }
 }
 
 function toggleFullscreen() {

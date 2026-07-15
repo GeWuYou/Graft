@@ -4,6 +4,10 @@ import { nextTick } from 'vue';
 
 import ProjectCreateWorkspaceEditor from './ProjectCreateWorkspaceEditor.vue';
 
+const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+
+vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
+
 vi.mock('./ProjectMonacoSurface.vue', () => ({
   default: { name: 'ProjectMonacoSurfaceStub', template: '<textarea />' },
 }));
@@ -13,6 +17,37 @@ vi.mock('../shared/page-context', () => ({
 }));
 
 describe('ProjectCreateWorkspaceEditor', () => {
+  it('synchronizes the active workspace draft with Ctrl+S without leaving its workspace scope', async () => {
+    messageMocks.success.mockClear();
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      attachTo: document.body,
+      props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
+    });
+    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    editor.vm.$emit('update-content', '.env', 'APP_PORT=3000');
+    await nextTick();
+
+    const saveEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'KeyS',
+      ctrlKey: true,
+      key: 's',
+    });
+    wrapper.find('textarea').element.dispatchEvent(saveEvent);
+
+    expect(saveEvent.defaultPrevented).toBe(true);
+    expect(messageMocks.success).toHaveBeenCalledWith('project.create.workspace.saveSuccess');
+    expect(wrapper.props('files')).toEqual([{ path: '.env', content: 'APP_PORT=3000' }]);
+
+    messageMocks.success.mockClear();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, code: 'KeyS', ctrlKey: true, key: 's' }),
+    );
+    expect(messageMocks.success).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('keeps hidden and nested files in the managed workspace manifest', async () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: {
@@ -78,6 +113,24 @@ describe('ProjectCreateWorkspaceEditor', () => {
     expect(wrapper.find('[data-testid="workspace-create-format"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-create-copy"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').exists()).toBe(true);
+  });
+
+  it('uses F11 within the workspace to toggle its existing outer fullscreen mode', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
+    });
+
+    const event = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'F11',
+      key: 'F11',
+    });
+    wrapper.find('.project-workspace-editor').element.dispatchEvent(event);
+    await nextTick();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(wrapper.find('.project-workspace-editor').classes()).toContain('project-workspace-editor--fullscreen');
   });
 
   it('keeps file selection when toggling an empty folder', async () => {
