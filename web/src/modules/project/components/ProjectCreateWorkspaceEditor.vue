@@ -249,11 +249,11 @@ function activateTab(path: string) {
 function selectEntry(path: string) {
   const entry = entryAt(path);
   if (!entry) return;
-  workspaceStore.selectNode(workspaceSessionKey, path);
   if (entry.node_type === 'directory') {
     toggleDirectory(path);
     return;
   }
+  workspaceStore.selectNode(workspaceSessionKey, path);
   workspaceStore.openFile(workspaceSessionKey, path, {
     content: entry.content,
     loaded: true,

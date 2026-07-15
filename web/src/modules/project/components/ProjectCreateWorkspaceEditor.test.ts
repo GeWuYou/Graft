@@ -80,6 +80,29 @@ describe('ProjectCreateWorkspaceEditor', () => {
     expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').exists()).toBe(true);
   });
 
+  it('keeps file selection when toggling an empty folder', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: {
+        files: [
+          { path: 'config', content: '', node_type: 'directory' },
+          { path: 'compose.yaml', content: 'services: {}' },
+        ],
+      },
+    });
+
+    await wrapper
+      .findAll('.project-workspace-editor__tree-entry')
+      .find((entry) => entry.text() === 'compose.yaml')
+      ?.trigger('click');
+    expect(wrapper.findAll('.project-workspace-editor__tree-row--selected')).toHaveLength(1);
+    await wrapper
+      .findAll('.project-workspace-editor__tree-entry')
+      .find((entry) => entry.text() === 'config')
+      ?.trigger('click');
+
+    expect(wrapper.findAll('.project-workspace-editor__tree-row--selected')).toHaveLength(1);
+  });
+
   it('creates a file from the tree context menu with an inline name', async () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },

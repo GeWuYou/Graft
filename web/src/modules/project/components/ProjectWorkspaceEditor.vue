@@ -25,8 +25,8 @@
                 <div
                   class="project-workspace-editor__tree-row"
                   :class="{
-                    'project-workspace-editor__tree-row--active': row.path === activePath,
-                    'project-workspace-editor__tree-row--selected': row.path === selectedPath,
+                    'project-workspace-editor__tree-row--selected':
+                      row.nodeType === 'file' && row.path === selectedPath,
                     'project-workspace-editor__tree-row--readonly': row.nodeType === 'file' && row.readOnly,
                   }"
                   :style="{ '--workspace-tree-depth': String(row.depth) }"
@@ -766,10 +766,6 @@ onBeforeUnmount(() => {
   grid-template-columns: 18px minmax(0, 1fr) auto;
   min-width: 0;
   padding-left: calc(var(--workspace-tree-depth, 0) * var(--graft-density-gap-14));
-}
-
-.project-workspace-editor__tree-row--active {
-  background: color-mix(in srgb, var(--td-brand-color-6) 12%, transparent);
 }
 
 .project-workspace-editor__tree-row--selected {

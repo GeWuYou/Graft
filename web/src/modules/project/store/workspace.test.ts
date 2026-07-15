@@ -77,6 +77,67 @@ describe('project workspace store', () => {
     expect(store.session('test').nodesByKey['app/config.yaml'].childKeys).toEqual([]);
   });
 
+  it('keeps selection separate from directory expansion', () => {
+    const store = useProjectWorkspaceStore();
+    store.replaceTree('test', [
+      {
+        editable: true,
+        file_kind: 'text',
+        has_children: false,
+        name: 'compose.yaml',
+        node_type: 'file',
+        readable: true,
+        relative_path: 'compose.yaml',
+      },
+      {
+        editable: false,
+        file_kind: 'directory',
+        has_children: false,
+        name: 'config',
+        node_type: 'directory',
+        readable: true,
+        relative_path: 'config',
+      },
+    ]);
+    store.selectNode('test', 'compose.yaml');
+    store.setExpanded('test', 'config', true);
+
+    expect(store.session('test').selectedKey).toBe('compose.yaml');
+  });
+
+  it('focuses the next tab and expands its ancestors after closing the active file', () => {
+    const store = useProjectWorkspaceStore();
+    store.replaceTree('test', [
+      {
+        editable: true,
+        file_kind: 'config',
+        has_children: false,
+        name: 'dashboard.json',
+        node_type: 'file',
+        readable: true,
+        relative_path: 'config/dashboard.json',
+      },
+      {
+        editable: true,
+        file_kind: 'compose',
+        has_children: false,
+        name: 'compose.yaml',
+        node_type: 'file',
+        readable: true,
+        relative_path: 'compose.yaml',
+      },
+    ]);
+    store.openFile('test', 'config/dashboard.json');
+    store.openFile('test', 'compose.yaml');
+    store.setExpanded('test', 'config', false);
+
+    store.closeFile('test', 'compose.yaml');
+
+    expect(store.session('test').activeFileKey).toBe('config/dashboard.json');
+    expect(store.session('test').selectedKey).toBe('config/dashboard.json');
+    expect(store.session('test').expandedKeys).toContain('config');
+  });
+
   it('keeps configuration and creation sessions isolated when both workspaces stay mounted', () => {
     const store = useProjectWorkspaceStore();
     store.replaceTree('project:shared-postgres', [

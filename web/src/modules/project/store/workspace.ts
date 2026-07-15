@@ -270,7 +270,6 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       session.expandedKeys = expanded
         ? [...new Set([...session.expandedKeys, normalizedKey])]
         : session.expandedKeys.filter((item) => item !== normalizedKey);
-      session.selectedKey = normalizedKey;
     },
     patchNode(sessionKey: string, item: ProjectWorkspaceTreeItem) {
       const key = normalizePath(item.relative_path);
@@ -289,6 +288,13 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       const normalizedKey = normalizePath(key);
       const session = this.ensureSession(sessionKey);
       if (session.nodesByKey[normalizedKey]) session.selectedKey = normalizedKey;
+    },
+    focusFile(sessionKey: string, key: string) {
+      const normalizedKey = normalizePath(key);
+      const session = this.ensureSession(sessionKey);
+      if (session.nodesByKey[normalizedKey]?.node_type !== 'file') return;
+      session.selectedKey = normalizedKey;
+      ensureAncestorsExpanded(session, normalizedKey);
     },
     openFile(sessionKey: string, key: string, content?: Partial<OpenedWorkspaceFile>) {
       const session = this.ensureSession(sessionKey);
@@ -317,8 +323,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       }
       if (!session.openedTabs.includes(normalizedKey)) session.openedTabs.push(normalizedKey);
       session.activeFileKey = normalizedKey;
-      session.selectedKey = normalizedKey;
-      ensureAncestorsExpanded(session, normalizedKey);
+      this.focusFile(sessionKey, normalizedKey);
       logWorkspaceSession('file-opened', sessionKey, session, { path: normalizedKey });
     },
     setFileContent(sessionKey: string, key: string, content: string) {
@@ -350,6 +355,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       session.activeFileKey = session.openedTabs.includes(activeFileKey)
         ? activeFileKey
         : (session.openedTabs.at(-1) ?? '');
+      if (session.activeFileKey) this.focusFile(sessionKey, session.activeFileKey);
       logWorkspaceSession('opened-files-synced', sessionKey, session, { inputFileCount: files.length });
     },
     syncDirtyFile(sessionKey: string, key: string) {
@@ -365,7 +371,10 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       const session = this.ensureSession(sessionKey);
       const normalizedKey = normalizePath(key);
       session.openedTabs = session.openedTabs.filter((path) => path !== normalizedKey);
-      if (session.activeFileKey === normalizedKey) session.activeFileKey = session.openedTabs.at(-1) ?? '';
+      if (session.activeFileKey === normalizedKey) {
+        session.activeFileKey = session.openedTabs.at(-1) ?? '';
+        if (session.activeFileKey) this.focusFile(sessionKey, session.activeFileKey);
+      }
       logWorkspaceSession('file-closed', sessionKey, session, { path: normalizedKey });
     },
   },

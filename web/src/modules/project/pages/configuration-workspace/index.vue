@@ -1239,6 +1239,10 @@ watch(
   { deep: true },
 );
 
+watch(activeTabPath, (path) => {
+  if (path) workspaceStore.focusFile(workspaceSessionKey.value, path);
+});
+
 watch(selectedDiffFilePath, () => {
   if (resultDialogVisible.value && resultDialogMode.value === 'diff') {
     void refreshDiffLineChanges();
@@ -1358,11 +1362,11 @@ function sortWorkspaceItems(items: ProjectWorkspaceTreeItem[]) {
 
 function handleWorkspaceEntry(item: WorkspaceListItem) {
   selectedWorkspacePath.value = item.relative_path;
-  workspaceStore.selectNode(workspaceSessionKey.value, item.relative_path);
   if (item.node_type === 'directory') {
     void toggleWorkspaceDirectory(item);
     return;
   }
+  workspaceStore.selectNode(workspaceSessionKey.value, item.relative_path);
   if (!item.readable) {
     return;
   }
