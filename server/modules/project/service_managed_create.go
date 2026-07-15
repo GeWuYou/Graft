@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,53 +23,41 @@ func (s *Service) CreateManagedProject(
 	request ManagedProjectCreateRequest,
 	actorID *uint64,
 ) (result ManagedProjectCreateResult, err error) {
+	s.applicationNameMu.Lock()
+	defer s.applicationNameMu.Unlock()
 	s.logManagedCreateDiagnostic("create_started",
 		zap.String("application_name", stringValue(request.ApplicationName)),
 		zap.Uint64("runtime_target_id", request.RuntimeTargetID),
 		zap.Int("workspace_entry_count", len(request.WorkspaceEntries)),
 		zap.Bool("reuse_existing_workspace", request.ReuseExistingWorkspace),
 	)
-	validation, err := s.ValidateManagedCreate(ctx, request)
+	validation, normalized, err := s.prepareManagedCreate(ctx, request)
 	if err != nil {
-		s.logManagedCreateDiagnostic("validation_failed", zap.Error(err))
 		return ManagedProjectCreateResult{}, err
 	}
-	s.logManagedCreateDiagnostic("validation_succeeded",
-		zap.String("application_name", stringValue(validation.ApplicationName)),
-		zap.Bool("reused_existing_workspace", validation.ReusedExistingWorkspace),
-	)
-	normalized, err := normalizeManagedCreateRequest(request)
+	restoreItems, err := snapshotManagedCreateWorkspaceIfNeeded(validation, normalized.WorkspaceEntries)
 	if err != nil {
-		s.logManagedCreateDiagnostic("normalization_failed", zap.Error(err))
-		return ManagedProjectCreateResult{}, err
-	}
-	if err := ensureManagedCreatePathsUnderRoot(validation); err != nil {
-		s.logManagedCreateDiagnostic("workspace_boundary_failed", zap.Error(err))
 		return ManagedProjectCreateResult{}, err
 	}
 
-	createdDir, createdFiles, err := writeManagedProjectFiles(validation, normalized)
-	if err != nil {
-		s.logManagedCreateDiagnostic("workspace_materialization_failed", zap.Error(err))
-		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errors.Join(errProjectImportValidation, errProjectWorkspaceWriteFailed), err)
-	}
-	s.logManagedCreateDiagnostic("workspace_materialized", zap.Int("created_file_count", len(createdFiles)))
+	var createdDir string
+	var createdFiles []string
 	shouldCleanup := !validation.ReusedExistingWorkspace
 	defer func() {
 		if shouldCleanup {
 			err = errors.Join(err, cleanupManagedCreate(createdDir, createdFiles))
+		} else if err != nil {
+			err = errors.Join(err, restoreManagedCreateWorkspace(restoreItems))
 		}
 	}()
 
-	parseResult, err := projectcompose.Load(projectcompose.Input{
-		WorkingDirectory: validation.WorkspacePath,
-		ComposeFiles:     []string{validation.ComposeFileAbsolutePath},
-		EnvFiles:         managedCreateEnvFileList(validation.EnvFileAbsolutePath),
-	})
+	materialization, err := s.materializeManagedCreate(validation, normalized)
+	createdDir = materialization.directory
+	createdFiles = materialization.files
 	if err != nil {
-		s.logManagedCreateDiagnostic("compose_parse_failed", zap.Error(err))
-		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errors.Join(errProjectImportValidation, errProjectInvalidCompose), err)
+		return ManagedProjectCreateResult{}, err
 	}
+	parseResult := materialization.parse
 
 	aggregate, now, err := s.createProjectFromWorkspace(ctx, managedCreationCommand(validation, normalized, parseResult, actorID))
 	if err != nil {
@@ -76,6 +65,7 @@ func (s *Service) CreateManagedProject(
 		return ManagedProjectCreateResult{}, err
 	}
 	shouldCleanup = false
+	restoreItems = nil
 	s.logManagedCreateDiagnostic("create_succeeded", zap.Uint64("project_id", aggregate.Project.ID))
 	result = ManagedProjectCreateResult{
 		Validation:           validation,
@@ -87,6 +77,105 @@ func (s *Service) CreateManagedProject(
 		RefreshedAt:          now,
 	}
 	return result, nil
+}
+
+func (s *Service) prepareManagedCreate(ctx context.Context, request ManagedProjectCreateRequest) (ManagedProjectCreateValidationResult, normalizedManagedCreateRequest, error) {
+	validation, err := s.ValidateManagedCreate(ctx, request)
+	if err != nil {
+		s.logManagedCreateDiagnostic("validation_failed", zap.Error(err))
+		return ManagedProjectCreateValidationResult{}, normalizedManagedCreateRequest{}, err
+	}
+	s.logManagedCreateDiagnostic("validation_succeeded",
+		zap.String("application_name", stringValue(validation.ApplicationName)),
+		zap.Bool("reused_existing_workspace", validation.ReusedExistingWorkspace),
+	)
+	normalized, err := normalizeManagedCreateRequest(request)
+	if err != nil {
+		s.logManagedCreateDiagnostic("normalization_failed", zap.Error(err))
+		return ManagedProjectCreateValidationResult{}, normalizedManagedCreateRequest{}, err
+	}
+	if err := ensureManagedCreatePathsUnderRoot(validation); err != nil {
+		s.logManagedCreateDiagnostic("workspace_boundary_failed", zap.Error(err))
+		return ManagedProjectCreateValidationResult{}, normalizedManagedCreateRequest{}, err
+	}
+	return validation, normalized, nil
+}
+
+func snapshotManagedCreateWorkspaceIfNeeded(validation ManagedProjectCreateValidationResult, entries []ManagedWorkspaceEntry) ([]managedCreateRestoreItem, error) {
+	if !validation.ReusedExistingWorkspace {
+		return nil, nil
+	}
+	items, err := snapshotManagedCreateWorkspace(validation.WorkingDirectory, entries)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot reused workspace: %w", err)
+	}
+	return items, nil
+}
+
+func (s *Service) materializeManagedCreate(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (managedCreateMaterialization, error) {
+	createdDir, createdFiles, err := writeManagedProjectFiles(validation, normalized)
+	if err != nil {
+		s.logManagedCreateDiagnostic("workspace_materialization_failed", zap.Error(err))
+		return managedCreateMaterialization{directory: createdDir, files: createdFiles}, fmt.Errorf("%w: %w", errors.Join(errProjectImportValidation, errProjectWorkspaceWriteFailed), err)
+	}
+	s.logManagedCreateDiagnostic("workspace_materialized", zap.Int("created_file_count", len(createdFiles)))
+	parseResult, err := projectcompose.Load(projectcompose.Input{
+		WorkingDirectory: validation.WorkspacePath,
+		ComposeFiles:     []string{validation.ComposeFileAbsolutePath},
+		EnvFiles:         managedCreateEnvFileList(validation.EnvFileAbsolutePath),
+	})
+	if err != nil {
+		s.logManagedCreateDiagnostic("compose_parse_failed", zap.Error(err))
+		return managedCreateMaterialization{directory: createdDir, files: createdFiles}, fmt.Errorf("%w: %w", errors.Join(errProjectImportValidation, errProjectInvalidCompose), err)
+	}
+	return managedCreateMaterialization{directory: createdDir, files: createdFiles, parse: parseResult}, nil
+}
+
+type managedCreateRestoreItem struct {
+	path    string
+	content []byte
+	exists  bool
+}
+
+func snapshotManagedCreateWorkspace(workingDirectory string, entries []ManagedWorkspaceEntry) ([]managedCreateRestoreItem, error) {
+	root, err := openManagedRootFS(workingDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("open existing workspace root: %w", err)
+	}
+	defer func() { _ = closeManagedRootFS(root) }()
+
+	items := make([]managedCreateRestoreItem, 0, len(entries))
+	for _, entry := range entries {
+		if entry.NodeType != "file" {
+			continue
+		}
+		path := filepath.Join(workingDirectory, entry.Path)
+		content, err := root.root.ReadFile(entry.Path)
+		if err == nil {
+			items = append(items, managedCreateRestoreItem{path: path, content: append([]byte(nil), content...), exists: true})
+			continue
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("read existing workspace file %s: %w", entry.Path, err)
+		}
+		items = append(items, managedCreateRestoreItem{path: path})
+	}
+	return items, nil
+}
+
+func restoreManagedCreateWorkspace(items []managedCreateRestoreItem) (err error) {
+	for index := len(items) - 1; index >= 0; index-- {
+		item := items[index]
+		if item.exists {
+			err = errors.Join(err, os.WriteFile(item.path, item.content, managedCreateFileMode))
+			continue
+		}
+		removeErr := os.Remove(item.path)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, removeErr)
+		}
+	}
+	return err
 }
 
 type normalizedManagedCreateRequest struct {
@@ -101,6 +190,12 @@ type normalizedManagedCreateRequest struct {
 	ComposeFilePath    string
 	EnvFilePaths       []string
 	LifecycleConfig    *LifecycleStandardConfig
+}
+
+type managedCreateMaterialization struct {
+	directory string
+	files     []string
+	parse     projectcompose.Result
 }
 
 type normalizedManagedWorkspaceEntry struct {

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"graft/server/internal/config"
+
 	"go.uber.org/zap"
 
 	generated "graft/server/internal/contract/openapi/generated"
@@ -466,6 +468,7 @@ type Service struct {
 	topicIssuers                 realtime.TopicIssuerRegistry
 	streamersMu                  sync.Mutex
 	workspaceMutationMu          sync.Mutex
+	applicationNameMu            sync.Mutex
 	listTopicStreamer            *projectListTopicStreamer
 	runtimeTopicStreamer         *projectRuntimeTopicStreamer
 	lifecycleConfigTopicStreamer *projectLifecycleConfigTopicStreamer
@@ -475,6 +478,7 @@ type Service struct {
 	logger                       *zap.Logger
 	moduleName                   string
 	taskService                  moduleapi.TaskService
+	debugConfig                  config.ProjectConfig
 }
 
 // SetTaskService configures the platform-owned Task Runtime submission boundary.

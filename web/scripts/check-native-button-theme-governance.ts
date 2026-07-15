@@ -82,11 +82,34 @@ function lineNumberForIndex(source: string, index: number): number {
 
 function isNativeButtonSelector(selector: string): boolean {
   const normalized = selector.replace(/\s+/g, ' ').trim();
-  if (!/\bbutton\b/.test(normalized)) {
+  if (!/(?:^|[\s>+~,(])button(?=$|[\s.#:[>+~,)])/.test(normalized)) {
     return false;
   }
 
   return !/(?:\.t-button\b|:deep\(\s*\.t-button\b|\bt-button\b)/.test(normalized);
+}
+
+type ParsedStyleBlock = { selector: string; body: string; offset: number };
+
+function parseStyleBlocks(source: string): ParsedStyleBlock[] {
+  const blocks: ParsedStyleBlock[] = [];
+  const stack: Array<{ selector: string; open: number }> = [];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === '{') {
+      let start = index - 1;
+      while (start >= 0 && !/[;}{]/.test(source[start] ?? '')) start -= 1;
+      const selector = source.slice(start + 1, index).trim();
+      if (selector && !selector.startsWith('@')) stack.push({ selector, open: index });
+    } else if (source[index] === '}' && stack.length) {
+      const block = stack.pop()!;
+      const selector = stack
+        .map((item) => item.selector)
+        .concat(block.selector)
+        .join(' ');
+      blocks.push({ selector, body: source.slice(block.open + 1, index), offset: block.open + 1 });
+    }
+  }
+  return blocks;
 }
 
 function isExactButtonSelector(selector: string): boolean {
@@ -123,20 +146,18 @@ function runStyleBlockAudit(
   block: StyleBlock,
   findings: ThemeGovernanceFinding[],
 ) {
-  for (const match of block.source.matchAll(CSS_BLOCK_PATTERN)) {
-    const selector = match.groups?.selector?.trim() ?? '';
-    if (!isNativeButtonSelector(selector)) {
-      continue;
-    }
+  for (const parsedBlock of parseStyleBlocks(block.source)) {
+    const selector = parsedBlock.selector;
+    if (!isNativeButtonSelector(selector)) continue;
 
-    const body = match.groups?.body ?? '';
+    const body = parsedBlock.body.replace(/\{[\s\S]*?\}/, '');
     for (const colorMatch of body.matchAll(COLOR_DECLARATION_PATTERN)) {
       const value = colorMatch.groups?.value?.trim() ?? '';
       if (isSafeColor(value)) {
         continue;
       }
 
-      const declarationIndex = (match.index ?? 0) + (colorMatch.index ?? 0);
+      const declarationIndex = parsedBlock.offset + (colorMatch.index ?? 0);
       addFinding(findings, {
         file: relative(rootDir, file).replaceAll('\\', '/'),
         line: lineNumberForIndex(source, block.offset + declarationIndex),

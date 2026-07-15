@@ -3,27 +3,32 @@ package project
 import (
 	"testing"
 
+	"graft/server/internal/config"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
 
-func TestIsProjectLogDebugEnabled(t *testing.T) {
-	t.Setenv(projectLogDebugEnvironmentKey, "true")
-	if !isProjectLogDebugEnabled() {
-		t.Fatal("expected project log debug to be enabled")
+func TestLogProjectLogDiagnosticUsesInjectedConfig(t *testing.T) {
+	core, observed := observer.New(zapcore.InfoLevel)
+	service := &Service{logger: zap.New(core), debugConfig: config.ProjectConfig{LogDebug: true}}
+
+	service.logProjectLogDiagnostic("snapshot-started", zap.Uint64("project_id", 7))
+	if entries := observed.All(); len(entries) != 1 {
+		t.Fatalf("expected one diagnostic entry, got %#v", entries)
 	}
 
-	t.Setenv(projectLogDebugEnvironmentKey, "false")
-	if isProjectLogDebugEnabled() {
-		t.Fatal("expected project log debug to be disabled")
+	service.debugConfig.LogDebug = false
+	service.logProjectLogDiagnostic("snapshot-stopped")
+	if entries := observed.All(); len(entries) != 1 {
+		t.Fatalf("expected disabled diagnostics to emit no entry, got %#v", entries)
 	}
 }
 
 func TestLogProjectLogDiagnosticAddsStructuredEvent(t *testing.T) {
-	t.Setenv(projectLogDebugEnvironmentKey, "true")
 	core, observed := observer.New(zapcore.InfoLevel)
-	service := &Service{logger: zap.New(core)}
+	service := &Service{logger: zap.New(core), debugConfig: config.ProjectConfig{LogDebug: true}}
 
 	service.logProjectLogDiagnostic("snapshot-started", zap.Uint64("project_id", 7))
 

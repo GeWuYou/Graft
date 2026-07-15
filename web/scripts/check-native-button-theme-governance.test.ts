@@ -77,4 +77,22 @@ describe('check-native-button-theme-governance', () => {
 
     expect(result.findings).toHaveLength(0);
   });
+
+  it('parses nested selectors and ignores hyphenated icon-button classes', () => {
+    const result = runAuditWithSources({
+      'src/style/reset.less': 'button { color: inherit; font: inherit; }',
+      'src/modules/demo/page.less': `
+.icon-button { color: #000; }
+.toolbar {
+  button.icon-button {
+    &:hover { color: #111; }
+  }
+}
+`,
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]?.selector).toContain('button.icon-button');
+    expect(result.output).toContain('found #111');
+  });
 });

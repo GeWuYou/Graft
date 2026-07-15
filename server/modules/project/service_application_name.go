@@ -1,6 +1,7 @@
 package project
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -153,18 +154,25 @@ func (c *reusableWorkspaceCollector) visit(path string, entry fs.DirEntry, walkE
 	if !entry.Type().IsRegular() {
 		return fmt.Errorf("workspace contains an unsupported entry")
 	}
-	return c.addFile(relative)
+	return c.addFile(relative, entry)
 }
 
-func (c *reusableWorkspaceCollector) addFile(relative string) error {
+func (c *reusableWorkspaceCollector) addFile(relative string, entry fs.DirEntry) error {
+	info, err := entry.Info()
+	if err != nil {
+		return err
+	}
+	if info.Size() > maxWorkspaceFileBytes || c.totalBytes+int(info.Size()) > maxWorkspaceTotalBytes {
+		return fmt.Errorf("workspace exceeds managed-create limits")
+	}
+	if len(c.entries) >= maxWorkspaceEntryCount {
+		return fmt.Errorf("workspace exceeds managed-create limits")
+	}
 	content, err := c.root.ReadFile(relative)
-	if err != nil || !utf8.Valid(content) || strings.Contains(string(content), "\x00") {
+	if err != nil || !utf8.Valid(content) || bytes.Contains(content, []byte{0}) {
 		return fmt.Errorf("workspace contains a non-text file")
 	}
 	c.totalBytes += len(content)
-	if len(c.entries) >= maxWorkspaceEntryCount || len(content) > maxWorkspaceFileBytes || c.totalBytes > maxWorkspaceTotalBytes {
-		return fmt.Errorf("workspace exceeds managed-create limits")
-	}
 	text := string(content)
 	c.entries = append(c.entries, ManagedWorkspaceEntry{Path: relative, NodeType: "file", Content: &text})
 	if isReusableComposeFile(relative) {

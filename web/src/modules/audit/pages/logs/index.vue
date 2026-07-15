@@ -610,11 +610,6 @@ watch(auditLogListQuery.data, async (response) => {
 
 watch(auditLogListQuery.error, (error) => {
   if (!error) return;
-  rows.value = [];
-  total.value = 0;
-  appliedScope.value = null;
-  scopeProjection.value = null;
-  convertibleFilters.value = null;
   logger.error('failed to fetch audit logs', error);
   listError.value = resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed'));
   const correlationId = filters.value.requestId;
@@ -629,7 +624,6 @@ async function fetchAuditLogs() {
   listError.value = '';
   await nextTick();
   await auditLogListQuery.refetch();
-  await openRouteAuditLog();
 }
 
 async function openPolicyDrawer() {
@@ -645,11 +639,15 @@ async function openPolicyDrawer() {
   }
 }
 
+async function invalidateAuditLogQueries() {
+  await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
+  await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
+}
+
 async function savePolicyDefault() {
   try {
     await updateAuditVisibilityDefault({ strategy: policyDefaultStrategy.value });
-    await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
-    await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
+    await invalidateAuditLogQueries();
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.saveSuccess'));
     await fetchAuditLogs();
@@ -758,8 +756,7 @@ async function savePolicyOverride(source: AuditSource, actionKey: string) {
       strategy,
       description: catalogItem.description,
     });
-    await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
-    await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
+    await invalidateAuditLogQueries();
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.saveOverrideSuccess'));
     await fetchAuditLogs();
@@ -771,8 +768,7 @@ async function savePolicyOverride(source: AuditSource, actionKey: string) {
 async function resetPolicyOverride(source: AuditSource, actionKey: string) {
   try {
     await deleteAuditVisibilityOverride(source, actionKey);
-    await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
-    await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
+    await invalidateAuditLogQueries();
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.resetOverrideSuccess'));
     await fetchAuditLogs();

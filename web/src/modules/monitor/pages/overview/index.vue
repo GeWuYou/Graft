@@ -971,9 +971,13 @@ function clearRefreshSchedule() {
   remainingRefreshSeconds.value = null;
 }
 
+let isMounted = false;
+
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
+  if (!isMounted) return;
   stopRefreshTick();
   const result = await refetchOverview();
+  if (!isMounted) return;
   if (!result.error) {
     consecutiveFailures.value = 0;
   } else {
@@ -1899,6 +1903,7 @@ watch(
 );
 
 onMounted(async () => {
+  isMounted = true;
   await fetchServerStatus();
   await nextTick();
   ensureTrendChartResizeObserver();
@@ -1909,6 +1914,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  isMounted = false;
   stopRefreshTick();
   window.removeEventListener('resize', resizeTrendChart);
   document.removeEventListener('visibilitychange', handleVisibilityChange);

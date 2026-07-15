@@ -48,6 +48,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("auth.refresh_cookie_path", defaultRefreshCookiePath)
 	reader.SetDefault("ops.container.runtime", defaultContainerRuntime)
 	reader.SetDefault("ops.container.docker.endpoint", defaultContainerDockerEndpoint)
+	reader.SetDefault("project.log_debug", false)
+	reader.SetDefault("project.managed_create_debug", false)
 }
 
 // resolveDocsEnabled 根据显式配置或环境默认值确定是否启用文档。

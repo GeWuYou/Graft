@@ -94,12 +94,14 @@ async function onCreate() {
     return;
   }
 
+  creating.value = true;
   try {
     const availability = await postProjectApplicationNameAvailability({
       application_name: form.application_name.trim(),
     });
     if (availability.status === 'registered') {
       MessagePlugin.error(t('project.create.validation.applicationNameRegistered'));
+      creating.value = false;
       return;
     }
     if (availability.status === 'reusable_workspace') {
@@ -111,13 +113,14 @@ async function onCreate() {
           display_name: form.display_name.trim(),
         },
       });
+      creating.value = false;
       return;
     }
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
+    creating.value = false;
     return;
   }
-  creating.value = true;
   try {
     const result = await postProjectCreateTemplate(templatePayload(runtimeTargetId.value));
     MessagePlugin.success(t('project.sourceCreate.createSuccess'));
