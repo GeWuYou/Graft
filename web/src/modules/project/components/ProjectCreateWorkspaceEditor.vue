@@ -204,6 +204,7 @@ const workspaceStore = useProjectWorkspaceStore(store);
 const workspaceSessionKey = 'project-create-workspace';
 const fullscreen = ref(false);
 const inlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
+const pendingCreatedFilePath = ref('');
 const workspaceRoot = ref<HTMLElement | null>(null);
 const workspaceEditor = ref<WorkspaceEditorHandle | null>(null);
 const deleteDialog = reactive({ count: 0, path: '', stage: 'initial' as 'initial' | 'recursive', visible: false });
@@ -322,6 +323,13 @@ function synchronizeWorkspace(entries: ProjectWorkspaceDraftEntry[], source: 'fi
     source,
   });
   workspaceStore.replaceTree(workspaceSessionKey, toTreeItems(entries));
+  const pendingEntry = entries.find(
+    (entry) => entry.path === pendingCreatedFilePath.value && entry.node_type !== 'directory',
+  );
+  if (pendingEntry) {
+    activateTab(pendingEntry.path);
+    pendingCreatedFilePath.value = '';
+  }
   if (workspaceStore.activeFile(workspaceSessionKey)) {
     emitProjectWorkspaceDebug('create-sync-complete', {
       activeBufferPresent: true,
@@ -604,9 +612,9 @@ function submitInlineEdit() {
     }
     const entry: ProjectWorkspaceDraftEntry =
       edit.mode === 'create-directory' ? { path, node_type: 'directory' } : { path, content: '', node_type: 'file' };
+    if (edit.mode === 'create-file') pendingCreatedFilePath.value = path;
     files.value = [...files.value, entry];
     inlineEdit.value = null;
-    if (edit.mode === 'create-file') activateTab(path);
     return;
   }
   if (

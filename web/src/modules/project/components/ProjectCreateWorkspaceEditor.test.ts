@@ -289,10 +289,17 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('start');
     wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    await nextTick();
+    await nextTick();
 
     expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
       expect.arrayContaining([expect.objectContaining({ path: 'start', node_type: 'file' })]),
     );
+    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    expect(editor.props('activePath')).toBe('start');
+    expect(editor.props('selectedPath')).toBe('start');
+    expect(editor.props('activeBuffer')).toMatchObject({ path: 'start' });
+    expect(wrapper.find('.project-workspace-editor__tree-row--selected').text()).toContain('start');
   });
 
   it('keeps the root context menu available when the workspace is empty', async () => {
@@ -339,9 +346,11 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.findAll('[role="menuitem"]')[1].trigger('click');
     await wrapper.find('input').setValue('config');
     wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    await nextTick();
 
     const entries = wrapper.emitted('update:files')?.at(-1)?.[0] as Array<Record<string, unknown>>;
     expect(entries.find((entry) => entry.path === 'config')).toEqual({ path: 'config', node_type: 'directory' });
+    expect(wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).props('activePath')).toBe('compose.yaml');
   });
 
   it('creates a file inside the selected directory instead of inferring a folder type', async () => {
@@ -367,10 +376,15 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('dashboard.e2e.json');
     wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    await nextTick();
+    await nextTick();
 
     expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
       expect.arrayContaining([expect.objectContaining({ path: 'config/dashboard.e2e.json', node_type: 'file' })]),
     );
+    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    expect(editor.props('activePath')).toBe('config/dashboard.e2e.json');
+    expect(editor.props('selectedPath')).toBe('config/dashboard.e2e.json');
   });
 
   it('preselects a file basename while preserving its extension for inline rename', async () => {
