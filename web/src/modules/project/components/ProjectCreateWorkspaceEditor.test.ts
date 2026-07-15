@@ -1,15 +1,26 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 import ProjectCreateWorkspaceEditor from './ProjectCreateWorkspaceEditor.vue';
 
-const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+const messageMocks = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() }));
+const monacoDiagnostics = vi.hoisted(() => ({ resolver: (_modelKey: string) => [] as Array<{ severity: number }> }));
 
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
 
 vi.mock('./ProjectMonacoSurface.vue', () => ({
-  default: { name: 'ProjectMonacoSurfaceStub', template: '<textarea />' },
+  default: defineComponent({
+    name: 'ProjectMonacoSurfaceStub',
+    props: { modelKey: { type: String, default: '' } },
+    setup(props, { expose }) {
+      expose({
+        getModelKey: () => props.modelKey,
+        waitForDiagnostics: () => Promise.resolve(monacoDiagnostics.resolver(props.modelKey)),
+      });
+      return () => h('textarea');
+    },
+  }),
 }));
 
 vi.mock('../shared/page-context', () => ({
@@ -110,9 +121,61 @@ describe('ProjectCreateWorkspaceEditor', () => {
     );
     expect(wrapper.find('.project-workspace-editor__tabbar').exists()).toBe(true);
     expect(wrapper.findComponent({ name: 'ProjectMonacoSurfaceStub' }).exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workspace-create-save"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workspace-create-save-all"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workspace-create-validate"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-create-format"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-create-copy"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').exists()).toBe(true);
+  });
+
+  it('saves the active workspace draft directly when syntax validation passes', async () => {
+    monacoDiagnostics.resolver = () => [];
+    messageMocks.success.mockClear();
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+    });
+    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    editor.vm.$emit('update-content', 'compose.yaml', 'services:\n  app:\n    image: nginx');
+    await nextTick();
+
+    await wrapper.find('[data-testid="workspace-create-save"]').trigger('click');
+    await nextTick();
+
+    expect(messageMocks.success).toHaveBeenCalledWith('project.create.workspace.saveSuccess');
+    expect(editor.props('activeBuffer')).toMatchObject({ dirty: false });
+  });
+
+  it('requires confirmation before saving a draft with syntax errors', async () => {
+    monacoDiagnostics.resolver = () => [{ severity: 8 }];
+    messageMocks.success.mockClear();
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+      global: {
+        stubs: {
+          't-dialog': {
+            props: ['visible'],
+            emits: ['confirm', 'update:visible'],
+            template:
+              '<section v-if="visible"><slot /><button class="dialog-confirm" @click="$emit(\'confirm\')">confirm</button></section>',
+          },
+        },
+      },
+    });
+    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    editor.vm.$emit('update-content', 'compose.yaml', 'services: [broken');
+    await nextTick();
+
+    await wrapper.find('[data-testid="workspace-create-save"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.text()).toContain('project.create.workspace.syntaxErrorSaveBody');
+    expect(editor.props('activeBuffer')).toMatchObject({ dirty: true });
+    await wrapper.find('.dialog-confirm').trigger('click');
+    await nextTick();
+
+    expect(messageMocks.success).toHaveBeenCalledWith('project.create.workspace.saveSuccess');
+    expect(editor.props('activeBuffer')).toMatchObject({ dirty: false });
   });
 
   it('uses F11 within the workspace to toggle its existing outer fullscreen mode', async () => {

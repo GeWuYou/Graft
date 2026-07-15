@@ -2,6 +2,7 @@
   <section ref="workspaceRoot" class="project-create-workspace">
     <t-alert theme="info" :message="t('project.create.workspace.hint')" />
     <project-workspace-editor
+      ref="workspaceEditor"
       v-model:active-path="activePath"
       v-model:fullscreen="fullscreen"
       :inline-edit="inlineEdit"
@@ -26,6 +27,57 @@
       @update:inline-edit="inlineEdit = $event"
     >
       <template #editor-actions>
+        <t-tooltip :content="t('project.create.workspace.saveAction')" theme="light">
+          <span>
+            <t-button
+              data-testid="workspace-create-save"
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              :disabled="!canSaveActiveFile"
+              :loading="saveLoading && pendingSave.action === 'current'"
+              @click="saveCurrentFile"
+            >
+              <template #icon><save-icon /></template>
+              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAction') }}</span>
+            </t-button>
+          </span>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.saveAllAction')" theme="light">
+          <span>
+            <t-button
+              data-testid="workspace-create-save-all"
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              :disabled="!canSaveAllFiles"
+              :loading="saveLoading && pendingSave.action === 'all'"
+              @click="saveAllFiles"
+            >
+              <template #icon><file-copy-icon /></template>
+              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAllAction') }}</span>
+            </t-button>
+          </span>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.validateAction')" theme="light">
+          <span>
+            <t-button
+              data-testid="workspace-create-validate"
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              :disabled="!editorActiveBuffer"
+              :loading="validationLoading"
+              @click="validateCurrentFile"
+            >
+              <template #icon><check-circle-icon /></template>
+              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.validateAction') }}</span>
+            </t-button>
+          </span>
+        </t-tooltip>
         <t-tooltip :content="t('project.create.workspace.formatAction')" theme="light">
           <t-button
             data-testid="workspace-create-format"
@@ -60,6 +112,22 @@
     </project-workspace-editor>
 
     <t-dialog
+      v-model:visible="syntaxErrorDialog.visible"
+      theme="warning"
+      :header="t('project.create.workspace.syntaxErrorSaveTitle')"
+      :confirm-btn="t('project.create.workspace.saveWithErrorsAction')"
+      :cancel-btn="t('project.create.actions.cancel')"
+      @confirm="confirmSaveWithSyntaxErrors"
+    >
+      <p>{{ t('project.create.workspace.syntaxErrorSaveBody') }}</p>
+      <ul class="project-create-workspace__syntax-error-list">
+        <li v-for="issue in syntaxErrorDialog.issues" :key="issue.path">
+          {{ t('project.create.workspace.syntaxErrorFile', { count: String(issue.count), path: issue.path }) }}
+        </li>
+      </ul>
+    </t-dialog>
+
+    <t-dialog
       v-model:visible="deleteDialog.visible"
       :header="
         deleteDialog.stage === 'recursive'
@@ -87,15 +155,23 @@
   </section>
 </template>
 <script setup lang="ts">
-import { CopyIcon, EditIcon, FullscreenExitIcon, FullscreenIcon } from 'tdesign-icons-vue-next';
+import {
+  CheckCircleIcon,
+  CopyIcon,
+  EditIcon,
+  FileCopyIcon,
+  FullscreenExitIcon,
+  FullscreenIcon,
+  SaveIcon,
+} from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onActivated, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, reactive, ref, watch } from 'vue';
 
 import { useKeyboardShortcut } from '@/shared/composables';
 import { copyText } from '@/shared/observability';
 import { store } from '@/store/pinia';
 
-import { normalizeTextBlock } from '../shared/configuration-workspace';
+import { normalizeTextBlock, supportsExplicitWorkspaceSyntaxValidation } from '../shared/configuration-workspace';
 import { useProjectPageContext } from '../shared/page-context';
 import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import { type OpenedWorkspaceFile, useProjectWorkspaceStore } from '../store/workspace';
@@ -110,6 +186,16 @@ import ProjectWorkspaceEditor, {
 defineOptions({ name: 'ProjectCreateWorkspaceEditor' });
 
 type WorkspaceDraftEntry = ProjectWorkspaceManifestFile & { node_type?: 'directory' | 'file' };
+type PendingSaveAction = 'all' | 'current' | null;
+type WorkspaceSyntaxMarker = { severity: number };
+type WorkspaceEditorHandle = {
+  getActiveEditor: () => {
+    getModelKey?: () => string;
+    waitForDiagnostics?: (options?: { quietMs?: number; timeoutMs?: number }) => Promise<WorkspaceSyntaxMarker[]>;
+  } | null;
+};
+
+const MONACO_MARKER_ERROR_SEVERITY = 8;
 
 const files = defineModel<WorkspaceDraftEntry[]>('files', { required: true });
 const { t } = useProjectPageContext();
@@ -118,7 +204,15 @@ const workspaceSessionKey = 'project-create-workspace';
 const fullscreen = ref(false);
 const inlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
 const workspaceRoot = ref<HTMLElement | null>(null);
+const workspaceEditor = ref<WorkspaceEditorHandle | null>(null);
 const deleteDialog = reactive({ count: 0, path: '', stage: 'initial' as 'initial' | 'recursive', visible: false });
+const saveLoading = ref(false);
+const validationLoading = ref(false);
+const pendingSave = reactive<{ action: PendingSaveAction; paths: string[] }>({ action: null, paths: [] });
+const syntaxErrorDialog = reactive<{ issues: Array<{ count: number; path: string }>; visible: boolean }>({
+  issues: [],
+  visible: false,
+});
 
 workspaceStore.ensureSession(workspaceSessionKey);
 
@@ -172,14 +266,25 @@ const editorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
   const file = workspaceStore.activeFile(workspaceSessionKey);
   return file ? toEditorBuffer(file) : null;
 });
+const dirtyEditablePaths = computed(() =>
+  workspaceStore.session(workspaceSessionKey).dirtyFiles.filter((path) => {
+    const entry = entryAt(path);
+    return Boolean(entry && entry.node_type !== 'directory');
+  }),
+);
+const canSaveActiveFile = computed(() => {
+  const active = editorActiveBuffer.value;
+  return Boolean(active && !active.readOnly && dirtyEditablePaths.value.includes(active.path));
+});
+const canSaveAllFiles = computed(() => dirtyEditablePaths.value.length > 0);
 
 useKeyboardShortcut(
   '$mod+KeyS',
   () => {
-    MessagePlugin.success(t('project.create.workspace.saveSuccess'));
+    void saveCurrentFile();
   },
   {
-    enabled: computed(() => Boolean(editorActiveBuffer.value && !editorActiveBuffer.value.readOnly)),
+    enabled: canSaveActiveFile,
     ignoreRepeat: true,
     preventDefault: true,
     target: workspaceRoot,
@@ -290,6 +395,130 @@ function formatActiveFile() {
   const activeFile = editorActiveBuffer.value;
   if (!activeFile) return;
   updateContent(activeFile.path, normalizeTextBlock(activeFile.content));
+}
+
+function resolveSavePaths(action: Exclude<PendingSaveAction, null>) {
+  if (action === 'current') {
+    const active = editorActiveBuffer.value;
+    return active && dirtyEditablePaths.value.includes(active.path) ? [active.path] : [];
+  }
+  return [...dirtyEditablePaths.value];
+}
+
+function normalizeSyntaxMarkers(markers: WorkspaceSyntaxMarker[] | undefined) {
+  return (markers ?? []).filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY);
+}
+
+async function waitForActiveEditor(path: string) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (workspaceEditor.value?.getActiveEditor()?.getModelKey?.() === path) return true;
+    await nextTick();
+  }
+  return workspaceEditor.value?.getActiveEditor()?.getModelKey?.() === path;
+}
+
+async function collectSyntaxIssues(paths: string[]) {
+  const activePathBeforeValidation = activePath.value;
+  const issues: Array<{ count: number; path: string }> = [];
+  const skippedPaths: string[] = [];
+
+  for (const path of [...new Set(paths)]) {
+    const file = workspaceStore.session(workspaceSessionKey).fileContents[path];
+    if (!file || !supportsExplicitWorkspaceSyntaxValidation(file.language)) {
+      skippedPaths.push(path);
+      continue;
+    }
+    activateTab(path);
+    if (!(await waitForActiveEditor(path))) continue;
+    const markers = await workspaceEditor.value?.getActiveEditor()?.waitForDiagnostics?.({
+      quietMs: 180,
+      timeoutMs: 1500,
+    });
+    const errors = normalizeSyntaxMarkers(markers);
+    if (errors.length) issues.push({ count: errors.length, path });
+  }
+
+  if (activePathBeforeValidation && activePathBeforeValidation !== activePath.value) {
+    activateTab(activePathBeforeValidation);
+    await waitForActiveEditor(activePathBeforeValidation);
+  }
+  return { issues, skippedPaths };
+}
+
+function notifySkippedSyntaxValidation(paths: string[]) {
+  if (!paths.length) return;
+  MessagePlugin.info(t('project.create.workspace.validateSkipUnsupportedHint', { paths: paths.join(', ') }));
+}
+
+function markPathsSaved(paths: string[]) {
+  for (const path of paths) {
+    const entry = entryAt(path);
+    if (!entry || entry.node_type === 'directory') continue;
+    const content = normalizeTextBlock(entry.content);
+    entry.content = content;
+    workspaceStore.markFileSaved(workspaceSessionKey, path, content);
+  }
+  MessagePlugin.success(t('project.create.workspace.saveSuccess'));
+}
+
+async function saveFiles(action: Exclude<PendingSaveAction, null>) {
+  const paths = resolveSavePaths(action);
+  if (!paths.length || saveLoading.value) return;
+  saveLoading.value = true;
+  try {
+    const { issues, skippedPaths } = await collectSyntaxIssues(paths);
+    notifySkippedSyntaxValidation(skippedPaths);
+    if (issues.length) {
+      pendingSave.action = action;
+      pendingSave.paths = paths;
+      syntaxErrorDialog.issues = issues;
+      syntaxErrorDialog.visible = true;
+      return;
+    }
+    markPathsSaved(paths);
+  } finally {
+    saveLoading.value = false;
+  }
+}
+
+async function saveCurrentFile() {
+  await saveFiles('current');
+}
+
+async function saveAllFiles() {
+  await saveFiles('all');
+}
+
+function confirmSaveWithSyntaxErrors() {
+  if (!pendingSave.action) return;
+  markPathsSaved(pendingSave.paths);
+  pendingSave.action = null;
+  pendingSave.paths = [];
+  syntaxErrorDialog.visible = false;
+  syntaxErrorDialog.issues = [];
+}
+
+async function validateCurrentFile() {
+  const active = editorActiveBuffer.value;
+  if (!active || validationLoading.value) {
+    MessagePlugin.warning(t('project.create.workspace.validateNoFile'));
+    return;
+  }
+  if (!supportsExplicitWorkspaceSyntaxValidation(active.language)) {
+    MessagePlugin.info(t('project.create.workspace.fileValidationUnavailable'));
+    return;
+  }
+  validationLoading.value = true;
+  try {
+    const { issues } = await collectSyntaxIssues([active.path]);
+    if (!issues.length) {
+      MessagePlugin.success(t('project.create.workspace.fileValidationPassed'));
+      return;
+    }
+    MessagePlugin.error(t('project.create.workspace.fileValidationFailed'));
+  } finally {
+    validationLoading.value = false;
+  }
 }
 
 async function copyActiveFile() {
@@ -421,5 +650,19 @@ function confirmDelete() {
   flex-direction: column;
   gap: var(--graft-density-gap-16);
   min-width: 0;
+}
+
+.project-create-workspace__sr-only {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+.project-create-workspace__syntax-error-list {
+  margin: var(--graft-density-gap-12) 0 0;
+  padding-inline-start: var(--graft-density-gap-20);
 }
 </style>

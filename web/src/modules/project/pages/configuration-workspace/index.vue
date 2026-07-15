@@ -656,6 +656,7 @@ import {
   type ProjectWorkspaceMonacoLanguage,
   resolveWorkspaceFileName,
   resolveWorkspaceMonacoLanguage,
+  supportsExplicitWorkspaceSyntaxValidation,
 } from '../../shared/configuration-workspace';
 import {
   projectDriftStatusLabel,
@@ -1957,7 +1958,7 @@ function resolveSyntaxValidationTargets(paths: string[]) {
     if (!file?.editable) {
       continue;
     }
-    if (supportsExplicitSyntaxValidation(file.language)) {
+    if (supportsExplicitWorkspaceSyntaxValidation(file.language)) {
       supportedPaths.push(path);
       continue;
     }
@@ -2348,10 +2349,6 @@ async function handleCloseAllFileTabs() {
   }
 }
 
-function supportsExplicitSyntaxValidation(language: ProjectWorkspaceMonacoLanguage) {
-  return language === 'json' || language === 'yaml';
-}
-
 async function runCurrentFileValidation() {
   const current = activeBuffer.value;
   if (!current) {
@@ -2359,7 +2356,7 @@ async function runCurrentFileValidation() {
     return;
   }
 
-  if (!supportsExplicitSyntaxValidation(current.language)) {
+  if (!supportsExplicitWorkspaceSyntaxValidation(current.language)) {
     MessagePlugin.info(workspaceCopy.value.fileValidationUnavailable);
     return;
   }

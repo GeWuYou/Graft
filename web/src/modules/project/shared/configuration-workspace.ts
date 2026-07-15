@@ -78,6 +78,11 @@ export function hasWorkspaceUnsavedChanges(current: string, saved: string) {
   return normalizeWorkspaceContent(current) !== normalizeWorkspaceContent(saved);
 }
 
+/** Whether Monaco provides an explicit syntax diagnostic for a workspace language. */
+export function supportsExplicitWorkspaceSyntaxValidation(language: ProjectWorkspaceMonacoLanguage) {
+  return language === 'json' || language === 'yaml';
+}
+
 export function resolveWorkspaceFileName(path: string) {
   const normalized = String(path || '').trim();
   if (!normalized) {
