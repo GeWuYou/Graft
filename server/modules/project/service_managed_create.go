@@ -35,7 +35,7 @@ func (s *Service) CreateManagedProject(
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
 	}
-	restoreItems, err := snapshotManagedCreateWorkspaceIfNeeded(validation, normalized.WorkspaceEntries)
+	restoreState, err := snapshotManagedCreateWorkspaceIfNeeded(validation, normalized.WorkspaceEntries)
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
 	}
@@ -43,11 +43,15 @@ func (s *Service) CreateManagedProject(
 	var createdDir string
 	var createdFiles []string
 	shouldCleanup := !validation.ReusedExistingWorkspace
+	// 复用工作区失败时必须先用快照根执行回滚，再关闭根句柄，避免恢复退回到不受约束的绝对路径操作。
 	defer func() {
 		if shouldCleanup {
 			err = errors.Join(err, cleanupManagedCreate(createdDir, createdFiles))
 		} else if err != nil {
-			err = errors.Join(err, restoreManagedCreateWorkspace(restoreItems))
+			err = errors.Join(err, restoreManagedCreateWorkspace(restoreState))
+		}
+		if restoreState != nil {
+			err = errors.Join(err, closeManagedRootFS(restoreState.root))
 		}
 	}()
 
@@ -65,7 +69,9 @@ func (s *Service) CreateManagedProject(
 		return ManagedProjectCreateResult{}, err
 	}
 	shouldCleanup = false
-	restoreItems = nil
+	if restoreState != nil {
+		restoreState.items = nil
+	}
 	s.logManagedCreateDiagnostic("create_succeeded", zap.Uint64("project_id", aggregate.Project.ID))
 	result = ManagedProjectCreateResult{
 		Validation:           validation,
@@ -101,15 +107,25 @@ func (s *Service) prepareManagedCreate(ctx context.Context, request ManagedProje
 	return validation, normalized, nil
 }
 
-func snapshotManagedCreateWorkspaceIfNeeded(validation ManagedProjectCreateValidationResult, entries []ManagedWorkspaceEntry) ([]managedCreateRestoreItem, error) {
+type managedCreateRestoreState struct {
+	// root 在整个创建事务期间保持打开，确保恢复操作绑定到快照时校验过的工作区目录。
+	root  *managedRootFS
+	items []managedCreateRestoreItem
+}
+
+func snapshotManagedCreateWorkspaceIfNeeded(validation ManagedProjectCreateValidationResult, entries []ManagedWorkspaceEntry) (*managedCreateRestoreState, error) {
 	if !validation.ReusedExistingWorkspace {
 		return nil, nil
 	}
-	items, err := snapshotManagedCreateWorkspace(validation.WorkingDirectory, entries)
+	root, err := openManagedRootFS(validation.WorkingDirectory)
 	if err != nil {
-		return nil, fmt.Errorf("snapshot reused workspace: %w", err)
+		return nil, fmt.Errorf("open existing workspace root: %w", err)
 	}
-	return items, nil
+	items, err := snapshotManagedCreateWorkspace(root, entries)
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("snapshot reused workspace: %w", err), closeManagedRootFS(root))
+	}
+	return &managedCreateRestoreState{root: root, items: items}, nil
 }
 
 func (s *Service) materializeManagedCreate(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (managedCreateMaterialization, error) {
@@ -137,40 +153,36 @@ type managedCreateRestoreItem struct {
 	exists  bool
 }
 
-func snapshotManagedCreateWorkspace(workingDirectory string, entries []ManagedWorkspaceEntry) ([]managedCreateRestoreItem, error) {
-	root, err := openManagedRootFS(workingDirectory)
-	if err != nil {
-		return nil, fmt.Errorf("open existing workspace root: %w", err)
-	}
-	defer func() { _ = closeManagedRootFS(root) }()
-
+func snapshotManagedCreateWorkspace(root *managedRootFS, entries []ManagedWorkspaceEntry) ([]managedCreateRestoreItem, error) {
 	items := make([]managedCreateRestoreItem, 0, len(entries))
 	for _, entry := range entries {
 		if entry.NodeType != "file" {
 			continue
 		}
-		path := filepath.Join(workingDirectory, entry.Path)
 		content, err := root.root.ReadFile(entry.Path)
 		if err == nil {
-			items = append(items, managedCreateRestoreItem{path: path, content: append([]byte(nil), content...), exists: true})
+			items = append(items, managedCreateRestoreItem{path: entry.Path, content: append([]byte(nil), content...), exists: true})
 			continue
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("read existing workspace file %s: %w", entry.Path, err)
 		}
-		items = append(items, managedCreateRestoreItem{path: path})
+		items = append(items, managedCreateRestoreItem{path: entry.Path})
 	}
 	return items, nil
 }
 
-func restoreManagedCreateWorkspace(items []managedCreateRestoreItem) (err error) {
-	for index := len(items) - 1; index >= 0; index-- {
-		item := items[index]
+func restoreManagedCreateWorkspace(state *managedCreateRestoreState) (err error) {
+	if state == nil || state.root == nil {
+		return nil
+	}
+	for index := len(state.items) - 1; index >= 0; index-- {
+		item := state.items[index]
 		if item.exists {
-			err = errors.Join(err, os.WriteFile(item.path, item.content, managedCreateFileMode))
+			err = errors.Join(err, state.root.root.WriteFile(item.path, item.content, managedCreateFileMode))
 			continue
 		}
-		removeErr := os.Remove(item.path)
+		removeErr := state.root.root.Remove(item.path)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			err = errors.Join(err, removeErr)
 		}
