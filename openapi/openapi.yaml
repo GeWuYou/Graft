@@ -307,6 +307,8 @@ paths:
     $ref: ./paths/ops-projects.managed-root.yaml
   /api/ops/projects/create/managed/validate:
     $ref: ./paths/ops-projects.create-validate.yaml
+  /api/ops/projects/create/application-name/availability:
+    $ref: ./paths/ops-projects.application-name-availability.yaml
   /api/ops/projects/create/managed:
     $ref: ./paths/ops-projects.create.yaml
   /api/ops/projects/create/template/validate:

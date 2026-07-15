@@ -74,6 +74,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
+	group.POST(projectcontract.ProjectApplicationNameAvailabilityRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleApplicationNameAvailability)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
 	group.POST(projectcontract.ProjectCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
 	group.POST(projectcontract.ProjectCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreate)
@@ -431,6 +432,20 @@ func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
+}
+
+func (r routeRuntime) handleApplicationNameAvailability(ginCtx *gin.Context) {
+	var request generated.PostProjectApplicationNameAvailabilityJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectApplicationNameAvailability(bindPostProjectApplicationNameAvailabilityParams(ginCtx), request)
+	result, err := r.service.CheckApplicationNameAvailability(ginCtx.Request.Context(), ApplicationNameAvailabilityRequest{ApplicationName: request.ApplicationName})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toApplicationNameAvailabilityResponse(result))
 }
 
 func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
@@ -1173,6 +1188,8 @@ func (projectGeneratedHandler) PostProjectImportInspect(generated.PostProjectImp
 func (projectGeneratedHandler) GetProjectManagedRoot(generated.GetProjectManagedRootParams) {}
 func (projectGeneratedHandler) PostProjectCreateValidate(generated.PostProjectCreateValidateParams, generated.PostProjectCreateValidateJSONRequestBody) {
 }
+func (projectGeneratedHandler) PostProjectApplicationNameAvailability(generated.PostProjectApplicationNameAvailabilityParams, generated.PostProjectApplicationNameAvailabilityJSONRequestBody) {
+}
 func (projectGeneratedHandler) PostProjectCreate(generated.PostProjectCreateParams, generated.PostProjectCreateJSONRequestBody) {
 }
 func (projectGeneratedHandler) GetProject(string, generated.GetProjectParams)                 {}
@@ -1603,6 +1620,11 @@ func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectMa
 func bindPostProjectCreateValidateParams(ginCtx *gin.Context) generated.PostProjectCreateValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectCreateValidateParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectApplicationNameAvailabilityParams(ginCtx *gin.Context) generated.PostProjectApplicationNameAvailabilityParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectApplicationNameAvailabilityParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostProjectCreateParams 构造创建项目请求的公共请求头参数。

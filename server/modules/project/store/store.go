@@ -33,7 +33,7 @@ var (
 type Project struct {
 	ID                         uint64
 	ApplicationID              string
-	ApplicationName               *string
+	ApplicationName            *string
 	WorkspacePath              string
 	ComposeProjectName         string
 	ComposeProjectNameSource   string
@@ -128,7 +128,7 @@ type ListResult struct {
 // ImportProjectInput creates or replaces one project registry entry.
 type ImportProjectInput struct {
 	ApplicationID              string
-	ApplicationName               *string
+	ApplicationName            *string
 	WorkspacePath              string
 	ComposeProjectName         string
 	ComposeProjectNameSource   string
@@ -206,6 +206,12 @@ type Repository interface {
 // obligation.
 type ApplicationLookupRepository interface {
 	GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error)
+}
+
+// ApplicationNameLookupRepository resolves a managed application name to a live project.
+// It is used only by the managed-create preflight boundary.
+type ApplicationNameLookupRepository interface {
+	GetByApplicationName(ctx context.Context, applicationName string) (ProjectAggregate, error)
 }
 
 // ApplicationIDBatchLookupRepository resolves public IDs without aggregate loads.

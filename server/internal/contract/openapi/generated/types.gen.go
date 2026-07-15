@@ -2040,6 +2040,27 @@ func (e ProjectActivityAuthority) Valid() bool {
 	}
 }
 
+// Defines values for ProjectApplicationNameAvailabilityResponseStatus.
+const (
+	Available         ProjectApplicationNameAvailabilityResponseStatus = "available"
+	Registered        ProjectApplicationNameAvailabilityResponseStatus = "registered"
+	ReusableWorkspace ProjectApplicationNameAvailabilityResponseStatus = "reusable_workspace"
+)
+
+// Valid indicates whether the value is a known member of the ProjectApplicationNameAvailabilityResponseStatus enum.
+func (e ProjectApplicationNameAvailabilityResponseStatus) Valid() bool {
+	switch e {
+	case Available:
+		return true
+	case Registered:
+		return true
+	case ReusableWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectBatchActionItemAction.
 const (
 	ProjectBatchActionItemActionProjectActionCreate     ProjectBatchActionItemAction = "create"
@@ -7071,6 +7092,26 @@ type EnvelopedProjectActionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectApplicationNameAvailabilityResponse defines model for enveloped-project-application-name-availability-response.
+type EnvelopedProjectApplicationNameAvailabilityResponse struct {
+	// Code Existing canonical response code.
+	Code string                                     `json:"code"`
+	Data ProjectApplicationNameAvailabilityResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectBatchActionResponse defines model for enveloped-project-batch-action-response.
 type EnvelopedProjectBatchActionResponse struct {
 	// Code Existing canonical response code.
@@ -8536,6 +8577,23 @@ type ProjectActionResponseResult string
 // ProjectActivityAuthority defines model for project-activity-authority.
 type ProjectActivityAuthority string
 
+// ProjectApplicationNameAvailabilityRequest defines model for project-application-name-availability-request.
+type ProjectApplicationNameAvailabilityRequest struct {
+	ApplicationName string `json:"application_name"`
+}
+
+// ProjectApplicationNameAvailabilityResponse defines model for project-application-name-availability-response.
+type ProjectApplicationNameAvailabilityResponse struct {
+	ComposeFilePath   *string                                          `json:"compose_file_path,omitempty"`
+	Status            ProjectApplicationNameAvailabilityResponseStatus `json:"status"`
+	WorkspaceEntries  *[]ProjectWorkspaceEntry                         `json:"workspace_entries,omitempty"`
+	WorkspaceNonEmpty bool                                             `json:"workspace_non_empty"`
+	WorkspacePath     string                                           `json:"workspace_path"`
+}
+
+// ProjectApplicationNameAvailabilityResponseStatus defines model for ProjectApplicationNameAvailabilityResponse.Status.
+type ProjectApplicationNameAvailabilityResponseStatus string
+
 // ProjectBatchActionItem defines model for project-batch-action-item.
 type ProjectBatchActionItem struct {
 	Action       ProjectBatchActionItemAction `json:"action"`
@@ -8640,7 +8698,10 @@ type ProjectCreateRequest struct {
 	ComposeFilePath        string                                `json:"compose_file_path"`
 	DisplayName            string                                `json:"display_name"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
+
+	// ReuseExistingWorkspace Explicitly confirms that a previously inspected, unregistered managed directory may receive the submitted workspace changes.
+	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
+	RuntimeTargetId        int64 `json:"runtime_target_id"`
 
 	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
 	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
@@ -8688,7 +8749,10 @@ type ProjectCreateValidateRequest struct {
 	ComposeFilePath        string                                `json:"compose_file_path"`
 	DisplayName            string                                `json:"display_name"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
+
+	// ReuseExistingWorkspace Indicates that validation is for an inspected, unregistered managed directory.
+	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
+	RuntimeTargetId        int64 `json:"runtime_target_id"`
 
 	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
 	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
@@ -11960,6 +12024,16 @@ type PostProjectBatchActionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostProjectApplicationNameAvailabilityParams defines parameters for PostProjectApplicationNameAvailability.
+type PostProjectApplicationNameAvailabilityParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectCreateParams defines parameters for PostProjectCreate.
 type PostProjectCreateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -13115,6 +13189,9 @@ type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
 
 // PostProjectBatchActionsJSONRequestBody defines body for PostProjectBatchActions for application/json ContentType.
 type PostProjectBatchActionsJSONRequestBody = ProjectBatchActionRequest
+
+// PostProjectApplicationNameAvailabilityJSONRequestBody defines body for PostProjectApplicationNameAvailability for application/json ContentType.
+type PostProjectApplicationNameAvailabilityJSONRequestBody = ProjectApplicationNameAvailabilityRequest
 
 // PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
 type PostProjectCreateJSONRequestBody = ProjectCreateRequest

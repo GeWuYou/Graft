@@ -177,25 +177,43 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 // GetByApplicationID resolves the public Application ID without exposing the
 // private database key in a caller-visible contract.
 func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error) {
+	return r.getByLiveIdentifier(ctx, applicationID, "application_id", "application id")
+}
+
+// GetByApplicationName resolves a live managed application name without exposing the private database key.
+func (r *SQLRepository) GetByApplicationName(ctx context.Context, applicationName string) (ProjectAggregate, error) {
+	return r.getByLiveIdentifier(ctx, applicationName, "application_name", "application name")
+}
+
+func (r *SQLRepository) getByLiveIdentifier(ctx context.Context, value, column, label string) (ProjectAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectAggregate{}, err
 	}
-	applicationID = strings.TrimSpace(applicationID)
-	if applicationID == "" {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ProjectAggregate{}, ErrInvalidInput
+	}
+	query, ok := liveProjectIdentifierQueries[column]
+	if !ok {
 		return ProjectAggregate{}, ErrInvalidInput
 	}
 	var projectID int64
-	err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT id FROM compose_projects WHERE application_id = ? AND deleted_at = 0`), applicationID).Scan(&projectID)
+	err := r.db.QueryRowContext(ctx, r.placeholder.rebind(query), value).Scan(&projectID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ProjectAggregate{}, ErrProjectNotFound
 		}
-		return ProjectAggregate{}, fmt.Errorf("get project by application id: %w", err)
+		return ProjectAggregate{}, fmt.Errorf("get project by %s: %w", label, err)
 	}
 	if projectID < 1 {
 		return ProjectAggregate{}, ErrProjectNotFound
 	}
-	return r.Get(ctx, uint64(projectID)) // #nosec G115 -- positivity is checked above.
+	return r.Get(ctx, uint64(projectID)) // #nosec G115 -- positivity is checked immediately above.
+}
+
+var liveProjectIdentifierQueries = map[string]string{
+	"application_id":   `SELECT id FROM compose_projects WHERE application_id = ? AND deleted_at = 0`,
+	"application_name": `SELECT id FROM compose_projects WHERE application_name = ? AND deleted_at = 0`,
 }
 
 // GetIDsByApplicationIDs resolves public application identifiers in one query.

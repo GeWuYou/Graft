@@ -58,6 +58,13 @@ func (s *stubProjectRepository) GetFile(context.Context, uint64, uint64) (projec
 	return projectstore.ProjectFile{}, projectstore.ErrFileNotFound
 }
 
+func (s *stubProjectRepository) GetByApplicationName(_ context.Context, applicationName string) (projectstore.ProjectAggregate, error) {
+	if s.aggregate.Project.ApplicationName == nil || *s.aggregate.Project.ApplicationName != applicationName || s.aggregate.Project.ID == 0 {
+		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+	}
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+}
+
 func (s *stubProjectRepository) ImportProject(_ context.Context, input projectstore.ImportProjectInput) (projectstore.ProjectAggregate, error) {
 	s.importInput = &input
 	if s.aggregate.Project.ID == 0 {
@@ -1937,6 +1944,20 @@ func TestCleanupManagedCreateRemovesCreatedDirectoryWithinParentBoundary(t *test
 	}
 	if _, err := os.Stat(parent); err != nil {
 		t.Fatalf("expected parent directory preserved: %v", err)
+	}
+}
+
+func TestCleanupManagedCreateRemovesNestedWorkspaceDirectories(t *testing.T) {
+	parent := t.TempDir()
+	createdDir := filepath.Join(parent, "orders")
+	if err := os.MkdirAll(filepath.Join(createdDir, "nested", "empty"), 0o750); err != nil {
+		t.Fatalf("create nested workspace: %v", err)
+	}
+	if err := cleanupManagedCreate(createdDir, nil); err != nil {
+		t.Fatalf("cleanup nested managed create: %v", err)
+	}
+	if _, err := os.Stat(createdDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected nested created directory removed, got %v", err)
 	}
 }
 

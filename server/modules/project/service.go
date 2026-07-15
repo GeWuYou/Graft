@@ -394,17 +394,18 @@ type ManagedRootInfo struct {
 
 // ManagedProjectCreateRequest describes Phase 2 managed-create contract payloads.
 type ManagedProjectCreateRequest struct {
-	DisplayName        string
-	RuntimeTargetID    uint64
-	ApplicationName    *string
-	ComposeFileName    string
-	ComposeFileContent string
-	EnvFileName        *string
-	EnvFileContent     *string
-	WorkspaceEntries   []ManagedWorkspaceEntry
-	ComposeFilePath    string
-	EnvFilePaths       []string
-	LifecycleConfig    *LifecycleStandardConfig
+	DisplayName            string
+	RuntimeTargetID        uint64
+	ApplicationName        *string
+	ReuseExistingWorkspace bool
+	ComposeFileName        string
+	ComposeFileContent     string
+	EnvFileName            *string
+	EnvFileContent         *string
+	WorkspaceEntries       []ManagedWorkspaceEntry
+	ComposeFilePath        string
+	EnvFilePaths           []string
+	LifecycleConfig        *LifecycleStandardConfig
 }
 
 // ManagedWorkspaceEntry represents either an arbitrary UTF-8 text file or an empty/non-empty directory.
@@ -431,6 +432,7 @@ type ManagedProjectCreateValidationResult struct {
 	EnvFileAbsolutePath     *string
 	SourceMetadata          map[string]string
 	Warnings                []string
+	ReusedExistingWorkspace bool
 }
 
 // ManagedProjectCreateResult returns the created managed project bootstrap after write + persist.
@@ -1024,7 +1026,12 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
-	workingDirectory, applicationName, err := chooseWorkspacePath(*rootInfo.ConfiguredRootDirectory, normalized.ApplicationName, true)
+	workspace, err := s.resolveManagedCreateWorkspace(
+		ctx,
+		*rootInfo.ConfiguredRootDirectory,
+		normalized.ApplicationName,
+		request.ReuseExistingWorkspace,
+	)
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
@@ -1036,8 +1043,8 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		return ManagedProjectCreateValidationResult{}, err
 	}
 	normalized.ComposeFileContent = composeContent
-	composeFileAbsolutePath := filepath.Join(workingDirectory, normalized.ComposeFileName)
-	envFileAbsolutePath := managedCreateEnvAbsolutePath(workingDirectory, normalized.EnvFileName)
+	composeFileAbsolutePath := filepath.Join(workspace.workingDirectory, normalized.ComposeFileName)
+	envFileAbsolutePath := managedCreateEnvAbsolutePath(workspace.workingDirectory, normalized.EnvFileName)
 	warnings := make([]string, 0, managedCreateWarningsCap)
 	warnings = append(warnings, "Managed create validation checks authority, normalized names, and target paths before any file-write execution.")
 	if normalized.EnvFileName == nil {
@@ -1049,10 +1056,10 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
 		ComposeProjectName:      composeName,
-		ApplicationName:         applicationName,
+		ApplicationName:         workspace.applicationName,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
-		WorkspacePath:           workingDirectory,
-		WorkingDirectory:        workingDirectory,
+		WorkspacePath:           workspace.workingDirectory,
+		WorkingDirectory:        workspace.workingDirectory,
 		CanonicalProjectName:    composeName,
 		ComposeFileName:         normalized.ComposeFileName,
 		EnvFileName:             normalized.EnvFileName,
@@ -1060,12 +1067,37 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		EnvFileAbsolutePath:     envFileAbsolutePath,
 		SourceMetadata: map[string]string{
 			"managed_root_key":          rootInfo.ConfigKey,
-			"application_name":          *applicationName,
+			"application_name":          *workspace.applicationName,
 			"managed_compose_file_name": normalized.ComposeFileName,
 			"managed_env_file_name":     stringValue(normalized.EnvFileName),
 		},
-		Warnings: warnings,
+		Warnings:                warnings,
+		ReusedExistingWorkspace: workspace.exists,
 	}, nil
+}
+
+type managedCreateWorkspace struct {
+	workingDirectory string
+	applicationName  *string
+	exists           bool
+}
+
+func (s *Service) resolveManagedCreateWorkspace(ctx context.Context, root string, applicationName *string, reuse bool) (managedCreateWorkspace, error) {
+	if applicationName == nil {
+		return managedCreateWorkspace{}, errProjectInvalidArgument
+	}
+	if err := s.ensureApplicationNameUnregistered(ctx, *applicationName); err != nil {
+		return managedCreateWorkspace{}, err
+	}
+	workingDirectory := filepath.Join(root, *applicationName)
+	reusable, err := readReusableWorkspace(workingDirectory)
+	if err != nil {
+		return managedCreateWorkspace{}, err
+	}
+	if reusable.exists && !reuse {
+		return managedCreateWorkspace{}, errProjectApplicationNameOccupied
+	}
+	return managedCreateWorkspace{workingDirectory: workingDirectory, applicationName: applicationName, exists: reusable.exists}, nil
 }
 
 func (s *Service) ensureManagedCreateRuntimeNameAvailable(ctx context.Context, runtimeTargetID uint64, composeName string) error {

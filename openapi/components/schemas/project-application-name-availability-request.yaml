@@ -1,0 +1,8 @@
+type: object
+required: [application_name]
+properties:
+  application_name:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: '^[a-z0-9][a-z0-9-]*$'

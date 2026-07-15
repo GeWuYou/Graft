@@ -740,6 +740,7 @@
       "validation": {
         "applicationNameRequired": "请输入应用名。",
         "applicationNamePattern": "应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。",
+        "applicationNameRegistered": "该应用名已经注册，不能继续创建。",
         "title": "Authority 与路径预览",
         "rootDirectory": "Managed Root",
         "configKey": "系统配置键",
@@ -840,6 +841,18 @@
         "createFailed": "托管项目创建失败。",
         "deploySuccess": "项目已在创建后部署。",
         "deployFailed": "项目已创建，但部署失败。"
+      },
+      "reuseDirectory": {
+        "title": "确认复用现有文件夹",
+        "body": "检测到未注册的非空工作区：{path}。现有文件将作为本次创建的初始内容，确认后才会进入编辑器。",
+        "cancel": "返回修改名称",
+        "confirm": "复用文件夹"
+      },
+      "reuseWrite": {
+        "title": "确认写入复用文件夹",
+        "body": "将把编辑器中的新增或修改写入 {path}，未展示的现有文件不会删除。是否继续创建并注册应用？",
+        "cancel": "继续编辑",
+        "confirm": "确认写入并创建"
       }
     },
     "creation": {

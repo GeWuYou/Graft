@@ -2701,6 +2701,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/create/application-name/availability': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Check managed application-name availability
+     * @description Resolves whether an application name is already registered, available for a new workspace, or points to an unregistered managed workspace. This endpoint never writes files.
+     */
+    post: operations['postProjectApplicationNameAvailability'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/create/managed': {
     parameters: {
       query?: never;
@@ -6978,6 +6998,11 @@ export interface components {
       workspace_entries: components['schemas']['project-workspace-entry'][];
       /** @description Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
       compose_file_path: string;
+      /**
+       * @description Indicates that validation is for an inspected, unregistered managed directory.
+       * @default false
+       */
+      reuse_existing_workspace: boolean;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-validate-response': {
@@ -6998,6 +7023,20 @@ export interface components {
     'enveloped-project-create-validate-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-create-validate-response'];
     };
+    'project-application-name-availability-request': {
+      application_name: string;
+    };
+    'project-application-name-availability-response': {
+      /** @enum {string} */
+      status: 'available' | 'registered' | 'reusable_workspace';
+      workspace_path: string;
+      workspace_non_empty: boolean;
+      workspace_entries?: components['schemas']['project-workspace-entry'][];
+      compose_file_path?: string | null;
+    };
+    'enveloped-project-application-name-availability-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-application-name-availability-response'];
+    };
     'project-create-request': {
       display_name: string;
       /** Format: int64 */
@@ -7008,6 +7047,11 @@ export interface components {
       workspace_entries: components['schemas']['project-workspace-entry'][];
       /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
       compose_file_path: string;
+      /**
+       * @description Explicitly confirms that a previously inspected, unregistered managed directory may receive the submitted workspace changes.
+       * @default false
+       */
+      reuse_existing_workspace: boolean;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-response': {
@@ -15102,6 +15146,52 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectApplicationNameAvailability: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-application-name-availability-request'];
+      };
+    };
+    responses: {
+      /** @description Managed application-name availability resolved. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-application-name-availability-response'];
+        };
+      };
+      /** @description Invalid application name or unsafe managed workspace. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

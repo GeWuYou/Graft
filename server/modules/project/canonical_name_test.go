@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -76,14 +77,52 @@ func TestNormalizeManagedCreateRequestRequiresApplicationName(t *testing.T) {
 	}
 }
 
-func TestChooseWorkspacePathSuggestsNextAvailableSuffix(t *testing.T) {
-	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, "demo"), 0o750); err != nil {
-		t.Fatalf("create base workspace: %v", err)
+func TestCheckApplicationNameAvailabilityDistinguishesRegistryAndWorkspace(t *testing.T) {
+	managedRoot := t.TempDir()
+	repository := &stubProjectRepository{}
+	service, err := NewService(repository, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
 	}
-	path, key, err := chooseWorkspacePath(root, stringPointer("demo"), true)
-	if !errors.Is(err, errProjectApplicationNameOccupied) || path != "" || key != nil {
-		t.Fatalf("chooseWorkspacePath = (%q, %v, %v), want conflict", path, key, err)
+
+	result, err := service.CheckApplicationNameAvailability(context.Background(), ApplicationNameAvailabilityRequest{ApplicationName: "demo"})
+	assertApplicationNameAvailability(t, result, err, applicationNameAvailabilityAvailable, false, "")
+	if err := os.Mkdir(filepath.Join(managedRoot, "demo"), 0o750); err != nil {
+		t.Fatalf("create empty workspace: %v", err)
+	}
+	result, err = service.CheckApplicationNameAvailability(context.Background(), ApplicationNameAvailabilityRequest{ApplicationName: "demo"})
+	assertApplicationNameAvailability(t, result, err, applicationNameAvailabilityReusable, false, "")
+	compose := "services: {}\n"
+	if err := os.WriteFile(filepath.Join(managedRoot, "demo", "compose.yaml"), []byte(compose), 0o600); err != nil {
+		t.Fatalf("write reusable compose: %v", err)
+	}
+	result, err = service.CheckApplicationNameAvailability(context.Background(), ApplicationNameAvailabilityRequest{ApplicationName: "demo"})
+	assertApplicationNameAvailability(t, result, err, applicationNameAvailabilityReusable, true, "compose.yaml")
+	repository.aggregate.Project.ID = 7
+	repository.aggregate.Project.ApplicationName = stringPointer("demo")
+	result, err = service.CheckApplicationNameAvailability(context.Background(), ApplicationNameAvailabilityRequest{ApplicationName: "demo"})
+	assertApplicationNameAvailability(t, result, err, applicationNameAvailabilityRegistered, false, "")
+}
+
+func assertApplicationNameAvailability(t *testing.T, result ApplicationNameAvailabilityResult, err error, status string, nonEmpty bool, composePath string) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("check application name availability: %v", err)
+	}
+	if result.Status != status {
+		t.Fatalf("availability status = %q, want %q", result.Status, status)
+	}
+	if result.WorkspaceNonEmpty != nonEmpty {
+		t.Fatalf("workspace non-empty = %t, want %t", result.WorkspaceNonEmpty, nonEmpty)
+	}
+	if composePath == "" {
+		if result.ComposeFilePath != nil {
+			t.Fatalf("unexpected compose path: %q", *result.ComposeFilePath)
+		}
+		return
+	}
+	if result.ComposeFilePath == nil || *result.ComposeFilePath != composePath {
+		t.Fatalf("compose path = %v, want %q", result.ComposeFilePath, composePath)
 	}
 }
 

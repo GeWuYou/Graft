@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -37,7 +36,7 @@ func (s *Service) CreateManagedProject(
 	if err != nil {
 		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	shouldCleanup := true
+	shouldCleanup := !validation.ReusedExistingWorkspace
 	defer func() {
 		if shouldCleanup {
 			err = errors.Join(err, cleanupManagedCreate(createdDir, createdFiles))
@@ -340,40 +339,6 @@ func normalizeApplicationName(requested *string) (*string, error) {
 		return nil, errProjectInvalidApplicationName
 	}
 	return &name, nil
-}
-
-// chooseWorkspacePath selects an available workspace path and key under root.
-// chooseWorkspacePath 为工作区键选择可用路径和键；显式请求遇到已占用的键时返回冲突错误及建议键。
-// requested 不能为 nil。
-// 显式请求的名称已被占用时返回 errProjectApplicationNameOccupied；无法找到可用路径时返回错误。
-func chooseWorkspacePath(root string, requested *string, explicit bool) (string, *string, error) {
-	if requested == nil {
-		return "", nil, errProjectInvalidArgument
-	}
-	base := *requested
-	conflict := false
-	for suffix := 1; suffix < 10000; suffix++ {
-		key := base
-		if suffix > 1 {
-			key = fmt.Sprintf("%s-%d", base, suffix)
-		}
-		path := filepath.Join(root, key)
-		_, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			if explicit && conflict {
-				return "", nil, errProjectApplicationNameOccupied
-			}
-			return path, &key, nil
-		}
-		if err != nil {
-			return "", nil, fmt.Errorf("%w: workspace path unavailable", errProjectInvalidArgument)
-		}
-		if explicit {
-			conflict = true
-			continue
-		}
-	}
-	return "", nil, errProjectConflict
 }
 
 // normalizeManagedWorkspacePath validates and normalizes a relative workspace file path.

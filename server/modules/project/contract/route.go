@@ -57,6 +57,8 @@ const (
 	ProjectManagedRootRoute = "/managed/root"
 	// ProjectCreateValidateRoute identifies the managed-create validation route fragment.
 	ProjectCreateValidateRoute = "/create/managed/validate"
+	// ProjectApplicationNameAvailabilityRoute identifies the managed-create application-name preflight route fragment.
+	ProjectApplicationNameAvailabilityRoute = "/create/application-name/availability"
 	// ProjectCreateRoute identifies the managed-create route fragment.
 	ProjectCreateRoute = "/create/managed"
 	// ProjectCreateTemplateValidateRoute validates a runtime template source without materializing it.

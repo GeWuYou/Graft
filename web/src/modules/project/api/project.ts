@@ -25,6 +25,8 @@ import {
 } from '../contract/paths';
 import type {
   ProjectActionResponse,
+  ProjectApplicationNameAvailabilityRequest,
+  ProjectApplicationNameAvailabilityResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
   ProjectComposeRuntimeTargetCatalogResponse,
@@ -121,6 +123,12 @@ type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
 type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
 type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
 type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
+
+type ProjectApplicationNameAvailabilityPath = (typeof PROJECT_API_PATH)['APPLICATION_NAME_AVAILABILITY'];
+type ProjectApplicationNameAvailabilityOperation = paths[ProjectApplicationNameAvailabilityPath]['post'];
+type ProjectApplicationNameAvailabilityData = NonNullable<
+  ProjectApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
+>;
 
 type ProjectTemplateCreatePath = (typeof PROJECT_API_PATH)['CREATE_TEMPLATE'];
 type ProjectTemplateCreateOperation = paths[ProjectTemplateCreatePath]['post'];
@@ -450,6 +458,14 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
     PROJECT_API_PATH.CREATE,
     payload as ProjectCreatePayload,
   ) as Promise<ProjectCreateResponse>;
+}
+
+/** Checks the managed-root and registry state of an application name before workspace editing. */
+export function postProjectApplicationNameAvailability(payload: ProjectApplicationNameAvailabilityRequest) {
+  return request.post<ProjectApplicationNameAvailabilityData>({
+    url: PROJECT_API_PATH.APPLICATION_NAME_AVAILABILITY,
+    data: payload,
+  }) as Promise<ProjectApplicationNameAvailabilityResponse>;
 }
 
 /**

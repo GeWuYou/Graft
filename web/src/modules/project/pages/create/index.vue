@@ -54,12 +54,31 @@
           >
           <div class="project-create-page__actions">
             <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" :loading="creating" @click="createProject">{{
+            ><t-button theme="primary" :loading="creating" @click="() => createProject()">{{
               t('project.create.actions.create')
             }}</t-button>
           </div>
         </section>
       </t-card>
+      <t-dialog
+        v-model:visible="reuseDirectoryDialogVisible"
+        :header="t('project.create.reuseDirectory.title')"
+        :body="t('project.create.reuseDirectory.body', { path: pendingReusableWorkspace?.workspace_path || '' })"
+        theme="warning"
+        :cancel-btn="t('project.create.reuseDirectory.cancel')"
+        :confirm-btn="t('project.create.reuseDirectory.confirm')"
+        @confirm="confirmReuseDirectory"
+      />
+      <t-dialog
+        v-model:visible="reuseWriteDialogVisible"
+        :header="t('project.create.reuseWrite.title')"
+        :body="t('project.create.reuseWrite.body', { path: reusedWorkspacePath })"
+        theme="warning"
+        :cancel-btn="t('project.create.reuseWrite.cancel')"
+        :confirm-btn="t('project.create.reuseWrite.confirm')"
+        :confirm-loading="creating"
+        @confirm="confirmCreateReuse"
+      />
     </management-page-content>
   </div>
 </template>
@@ -72,7 +91,11 @@ import { useRoute } from 'vue-router';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getProjectWorkspaceDefaults, postProjectCreate } from '../../api/project';
+import {
+  getProjectWorkspaceDefaults,
+  postProjectApplicationNameAvailability,
+  postProjectCreate,
+} from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
@@ -83,6 +106,7 @@ import {
 } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import type {
+  ProjectApplicationNameAvailabilityResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectWorkspaceDraftEntry,
@@ -110,6 +134,11 @@ const workspaceFiles = ref<ProjectWorkspaceDraftEntry[]>([
 const primaryComposePath = ref('compose.yaml');
 const workspaceDefaultsLoading = ref(true);
 const workspaceDefaultsError = ref('');
+const reuseDirectoryDialogVisible = ref(false);
+const reuseWriteDialogVisible = ref(false);
+const pendingReusableWorkspace = ref<ProjectApplicationNameAvailabilityResponse | null>(null);
+const reusingExistingWorkspace = ref(false);
+const reusedWorkspacePath = ref('');
 const formRules: FormProps['rules'] = {
   display_name: [{ required: true, message: t('project.create.validation.displayNameRequired') }],
   application_name: [
@@ -134,6 +163,8 @@ const composePath = computed(
     )?.path,
 );
 onMounted(async () => {
+  if (typeof route.query.display_name === 'string') formData.display_name = route.query.display_name;
+  if (typeof route.query.application_name === 'string') formData.application_name = route.query.application_name;
   try {
     const defaults = await getProjectWorkspaceDefaults();
     if (defaults.workspace_entries?.length) {
@@ -153,11 +184,38 @@ onMounted(async () => {
 });
 async function nextFromIdentity() {
   if ((await formRef.value?.validate()) !== true) return;
+  if (workspaceDefaultsLoading.value) return;
+  if (workspaceDefaultsError.value) {
+    MessagePlugin.error(workspaceDefaultsError.value);
+    return;
+  }
   if (runtimeTargetId.value === null) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
     return;
   }
-  step.value++;
+  try {
+    const availability = await postProjectApplicationNameAvailability({
+      application_name: formData.application_name.trim(),
+    });
+    if (availability.status === 'registered') {
+      MessagePlugin.error(t('project.create.validation.applicationNameRegistered'));
+      return;
+    }
+    if (availability.status === 'reusable_workspace') {
+      pendingReusableWorkspace.value = availability;
+      if (availability.workspace_non_empty) {
+        reuseDirectoryDialogVisible.value = true;
+        return;
+      }
+      useReusableWorkspace(availability);
+    } else {
+      reusingExistingWorkspace.value = false;
+      reusedWorkspacePath.value = '';
+    }
+    step.value++;
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));
+  }
 }
 function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
   return {
@@ -166,7 +224,23 @@ function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
     application_name: formData.application_name.trim(),
     workspace_entries: workspaceFiles.value.map(toProjectWorkspaceEntry),
     compose_file_path: composePath.value as string,
+    reuse_existing_workspace: reusingExistingWorkspace.value,
   };
+}
+function useReusableWorkspace(availability: ProjectApplicationNameAvailabilityResponse) {
+  reusingExistingWorkspace.value = true;
+  reusedWorkspacePath.value = availability.workspace_path;
+  if (availability.workspace_entries?.length) {
+    workspaceFiles.value = availability.workspace_entries.map(toWorkspaceDraftEntry);
+  }
+  if (availability.compose_file_path) primaryComposePath.value = availability.compose_file_path;
+}
+function confirmReuseDirectory() {
+  const availability = pendingReusableWorkspace.value;
+  if (!availability) return;
+  reuseDirectoryDialogVisible.value = false;
+  useReusableWorkspace(availability);
+  step.value++;
 }
 function toWorkspaceDraftEntry(entry: ProjectWorkspaceEntry): ProjectWorkspaceDraftEntry {
   if (entry.node_type === 'directory') {
@@ -195,13 +269,18 @@ function nextFromWorkspace() {
   }
   step.value++;
 }
-async function createProject() {
+async function createProject(confirmedReuse = false) {
   if (runtimeTargetId.value === null) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
     return;
   }
   if (!composePath.value) {
     MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
+    return;
+  }
+
+  if (reusingExistingWorkspace.value && !confirmedReuse) {
+    reuseWriteDialogVisible.value = true;
     return;
   }
   creating.value = true;
@@ -214,6 +293,10 @@ async function createProject() {
   } finally {
     creating.value = false;
   }
+}
+function confirmCreateReuse() {
+  reuseWriteDialogVisible.value = false;
+  void createProject(true);
 }
 function goToSource() {
   navigateToProjectCreateSource(router, route.query);

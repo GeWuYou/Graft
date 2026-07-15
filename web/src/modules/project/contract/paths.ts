@@ -29,6 +29,7 @@ export const PROJECT_API_PATH = {
   DISCOVERY_CANDIDATES: '/api/ops/projects/discovery-candidates',
   MANAGED_ROOT: '/api/ops/projects/managed/root',
   CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
+  APPLICATION_NAME_AVAILABILITY: '/api/ops/projects/create/application-name/availability',
   CREATE: '/api/ops/projects/create/managed',
   CREATE_TEMPLATE_VALIDATE: '/api/ops/projects/create/template/validate',
   CREATE_TEMPLATE: '/api/ops/projects/create/template',
