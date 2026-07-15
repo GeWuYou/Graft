@@ -814,10 +814,6 @@ func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input Imp
 	if input.RuntimeTargetID > 0 {
 		runtimeTargetID = input.RuntimeTargetID
 	}
-	var applicationName any
-	if input.ApplicationName != nil {
-		applicationName = *input.ApplicationName
-	}
 	var projectID uint64
 	err = tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO compose_projects (
 		application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
@@ -827,7 +823,7 @@ func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input Imp
 		created_by, updated_by, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
 	RETURNING id`),
-		input.ApplicationID, applicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
+		input.ApplicationID, input.ApplicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
 		input.DisplayName, runtimeTargetID, input.CanonicalProjectName, input.CanonicalProjectNameSource, input.SourceKind, input.HostScope,
 		input.WorkingDirectory, input.OwnershipMode, string(sourceMetadataJSON), input.LifecycleStrategyKind, input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON), input.LastObservedConfigHash, `{}`, input.LastDriftCheckedAt, input.DriftStatus,
@@ -853,7 +849,7 @@ func composeProjectsUpsertSQL() string {
 		ON CONFLICT (runtime_target_id, compose_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
 			compose_project_name_source = excluded.compose_project_name_source,
-			application_name = excluded.application_name,
+			application_name = COALESCE(excluded.application_name, compose_projects.application_name),
 			workspace_path = excluded.workspace_path,
 			runtime_target_id = excluded.runtime_target_id,
 			canonical_project_name_source = excluded.canonical_project_name_source,

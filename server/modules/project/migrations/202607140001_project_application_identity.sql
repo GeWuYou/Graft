@@ -12,7 +12,12 @@ ALTER TABLE compose_projects
 UPDATE compose_projects
 SET application_id = 'app_' || lpad(upper(to_hex(id)), 26, '0'),
     workspace_path = working_directory,
-    application_name = regexp_replace(lower(regexp_replace(canonical_project_name, '[^a-z0-9]+', '-', 'g')), '(^-|-$)', '', 'g'),
+    application_name = CASE
+      WHEN source_kind <> 'imported' THEN NULLIF(
+        regexp_replace(lower(regexp_replace(canonical_project_name, '[^a-z0-9]+', '-', 'g')), '(^-|-$)', '', 'g'),
+        ''
+      )
+    END,
     compose_project_name = canonical_project_name,
     compose_project_name_source = CASE canonical_project_name_source
       WHEN 'override' THEN 'declared'
