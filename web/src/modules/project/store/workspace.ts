@@ -1,0 +1,327 @@
+import { defineStore } from 'pinia';
+
+import {
+  hasWorkspaceUnsavedChanges,
+  type ProjectWorkspaceMonacoLanguage,
+  resolveWorkspaceFileName,
+  resolveWorkspaceMonacoLanguage,
+} from '../shared/configuration-workspace';
+import type { ProjectWorkspaceFileKind, ProjectWorkspaceTreeItem } from '../types/project';
+
+export type WorkspaceNodeType = 'directory' | 'file';
+
+export type WorkspaceNode = ProjectWorkspaceTreeItem & {
+  childKeys: string[];
+  childrenLoaded: boolean;
+  parentKey: string | null;
+};
+
+export type OpenedWorkspaceFile = {
+  content: string;
+  editable: boolean;
+  error: string;
+  fileKind: ProjectWorkspaceFileKind;
+  language: ProjectWorkspaceMonacoLanguage;
+  loaded: boolean;
+  loading: boolean;
+  name: string;
+  path: string;
+  savedContent: string;
+  saving: boolean;
+};
+
+export type WorkspaceTreeRow = {
+  depth: number;
+  expanded: boolean;
+  item: WorkspaceNode;
+};
+
+export type WorkspacePendingOperation = {
+  key: string;
+  kind: 'create' | 'delete' | 'load' | 'rename' | 'save';
+};
+
+type WorkspaceSession = {
+  activeFileKey: string;
+  dirtyFiles: string[];
+  expandedKeys: string[];
+  fileContents: Record<string, OpenedWorkspaceFile>;
+  nodesByKey: Record<string, WorkspaceNode>;
+  openedTabs: string[];
+  pendingOperations: WorkspacePendingOperation[];
+  rootKeys: string[];
+  selectedKey: string;
+};
+
+type WorkspaceState = {
+  activeSessionKey: string;
+  sessions: Record<string, WorkspaceSession>;
+};
+
+function createSession(): WorkspaceSession {
+  return {
+    activeFileKey: '',
+    dirtyFiles: [],
+    expandedKeys: [],
+    fileContents: {},
+    nodesByKey: {},
+    openedTabs: [],
+    pendingOperations: [],
+    rootKeys: [],
+    selectedKey: '',
+  };
+}
+
+function normalizePath(path: string) {
+  return String(path || '')
+    .trim()
+    .replace(/^\.\//, '')
+    .replace(/\/+$/, '');
+}
+
+function parentKeyForPath(path: string) {
+  const parts = normalizePath(path).split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+}
+
+function sortKeys(nodesByKey: Record<string, WorkspaceNode>, keys: string[]) {
+  return [...keys].sort((left, right) => {
+    const leftNode = nodesByKey[left];
+    const rightNode = nodesByKey[right];
+    if (!leftNode || !rightNode) return left.localeCompare(right);
+    if (leftNode.node_type !== rightNode.node_type) return leftNode.node_type === 'directory' ? -1 : 1;
+    return leftNode.name.localeCompare(rightNode.name, undefined, { sensitivity: 'base' });
+  });
+}
+
+function ensureDirectory(session: WorkspaceSession, key: string) {
+  const normalizedKey = normalizePath(key);
+  if (!normalizedKey) return;
+  const existing = session.nodesByKey[normalizedKey];
+  if (existing) return;
+  const parentKey = parentKeyForPath(normalizedKey);
+  session.nodesByKey[normalizedKey] = {
+    childKeys: [],
+    childrenLoaded: false,
+    editable: false,
+    file_kind: 'directory',
+    has_children: false,
+    name: normalizedKey.split('/').at(-1) || normalizedKey,
+    node_type: 'directory',
+    parentKey,
+    readable: true,
+    relative_path: normalizedKey,
+  };
+  if (parentKey) {
+    ensureDirectory(session, parentKey);
+    const parent = session.nodesByKey[parentKey];
+    if (parent && !parent.childKeys.includes(normalizedKey)) parent.childKeys.push(normalizedKey);
+  } else if (!session.rootKeys.includes(normalizedKey)) {
+    session.rootKeys.push(normalizedKey);
+  }
+}
+
+function ensureAncestorsExpanded(session: WorkspaceSession, key: string) {
+  let parentKey = session.nodesByKey[key]?.parentKey ?? parentKeyForPath(key);
+  while (parentKey) {
+    if (!session.expandedKeys.includes(parentKey)) session.expandedKeys.push(parentKey);
+    parentKey = session.nodesByKey[parentKey]?.parentKey ?? parentKeyForPath(parentKey);
+  }
+}
+
+export const useProjectWorkspaceStore = defineStore('project-workspace', {
+  state: (): WorkspaceState => ({ activeSessionKey: '', sessions: {} }),
+  getters: {
+    activeSession(state): WorkspaceSession {
+      return state.sessions[state.activeSessionKey] ?? createSession();
+    },
+    workspaceTree(): WorkspaceNode[] {
+      return this.activeSession.rootKeys
+        .map((key) => this.activeSession.nodesByKey[key])
+        .filter((node): node is WorkspaceNode => Boolean(node));
+    },
+    visibleTreeRows(): WorkspaceTreeRow[] {
+      const session = this.activeSession;
+      const rows: WorkspaceTreeRow[] = [];
+      const visit = (keys: string[], depth: number) => {
+        for (const key of sortKeys(session.nodesByKey, keys)) {
+          const node = session.nodesByKey[key];
+          if (!node) continue;
+          const expanded = node.node_type === 'directory' && session.expandedKeys.includes(key);
+          rows.push({ depth, expanded, item: node });
+          if (expanded) visit(node.childKeys, depth + 1);
+        }
+      };
+      visit(session.rootKeys, 0);
+      return rows;
+    },
+    openedFiles(): OpenedWorkspaceFile[] {
+      return this.activeSession.openedTabs
+        .map((key) => this.activeSession.fileContents[key])
+        .filter((file): file is OpenedWorkspaceFile => Boolean(file));
+    },
+    activeFile(): OpenedWorkspaceFile | null {
+      return this.activeSession.fileContents[this.activeSession.activeFileKey] ?? null;
+    },
+  },
+  actions: {
+    activateSession(key: string) {
+      if (!this.sessions[key]) this.sessions[key] = createSession();
+      this.activeSessionKey = key;
+    },
+    clearActiveSession() {
+      if (this.activeSessionKey) delete this.sessions[this.activeSessionKey];
+      this.activeSessionKey = '';
+    },
+    ingestTree(entries: ProjectWorkspaceTreeItem[], parentKey: string | null = null, childrenLoaded = true) {
+      const session = this.activeSession;
+      const normalizedParentKey = parentKey ? normalizePath(parentKey) : null;
+      if (normalizedParentKey) ensureDirectory(session, normalizedParentKey);
+      const incomingKeys: string[] = [];
+      for (const entry of entries) {
+        const key = normalizePath(entry.relative_path);
+        if (!key) continue;
+        const inferredParent = parentKeyForPath(key);
+        if (inferredParent) ensureDirectory(session, inferredParent);
+        const resolvedParent = inferredParent ?? normalizedParentKey;
+        const existing = session.nodesByKey[key];
+        session.nodesByKey[key] = {
+          ...existing,
+          ...entry,
+          childKeys: existing?.childKeys ?? [],
+          childrenLoaded: existing?.childrenLoaded ?? false,
+          parentKey: resolvedParent,
+          relative_path: key,
+        };
+        if (resolvedParent) {
+          const parent = session.nodesByKey[resolvedParent];
+          if (parent && !parent.childKeys.includes(key)) parent.childKeys.push(key);
+        } else if (!session.rootKeys.includes(key)) {
+          session.rootKeys.push(key);
+        }
+        incomingKeys.push(key);
+      }
+      if (normalizedParentKey) {
+        const parent = session.nodesByKey[normalizedParentKey];
+        if (parent) {
+          parent.childKeys = sortKeys(session.nodesByKey, incomingKeys);
+          parent.childrenLoaded = childrenLoaded;
+          parent.has_children = incomingKeys.length > 0;
+        }
+      } else {
+        session.rootKeys = sortKeys(
+          session.nodesByKey,
+          Object.keys(session.nodesByKey).filter((key) => !session.nodesByKey[key]?.parentKey),
+        );
+      }
+    },
+    replaceTree(entries: ProjectWorkspaceTreeItem[]) {
+      const session = this.activeSession;
+      const preservedExpanded = session.expandedKeys;
+      const preservedSelected = session.selectedKey;
+      session.nodesByKey = {};
+      session.rootKeys = [];
+      this.ingestTree(entries);
+      session.expandedKeys = preservedExpanded.filter((key) => Boolean(session.nodesByKey[key]));
+      session.selectedKey = session.nodesByKey[preservedSelected] ? preservedSelected : '';
+    },
+    setExpanded(key: string, expanded: boolean) {
+      const session = this.activeSession;
+      const normalizedKey = normalizePath(key);
+      if (!session.nodesByKey[normalizedKey] || session.nodesByKey[normalizedKey].node_type !== 'directory') return;
+      session.expandedKeys = expanded
+        ? [...new Set([...session.expandedKeys, normalizedKey])]
+        : session.expandedKeys.filter((item) => item !== normalizedKey);
+      session.selectedKey = normalizedKey;
+    },
+    patchNode(item: ProjectWorkspaceTreeItem) {
+      const key = normalizePath(item.relative_path);
+      const existing = this.activeSession.nodesByKey[key];
+      if (!existing) return;
+      this.activeSession.nodesByKey[key] = {
+        ...existing,
+        ...item,
+        childKeys: existing.childKeys,
+        parentKey: existing.parentKey,
+        relative_path: key,
+      };
+    },
+    selectNode(key: string) {
+      const normalizedKey = normalizePath(key);
+      if (this.activeSession.nodesByKey[normalizedKey]) this.activeSession.selectedKey = normalizedKey;
+    },
+    openFile(key: string, content?: Partial<OpenedWorkspaceFile>) {
+      const session = this.activeSession;
+      const normalizedKey = normalizePath(key);
+      const node = session.nodesByKey[normalizedKey];
+      if (!node || node.node_type !== 'file') return;
+      if (!session.fileContents[normalizedKey]) {
+        session.fileContents[normalizedKey] = {
+          content: '',
+          editable: node.editable,
+          error: '',
+          fileKind: node.file_kind,
+          language: resolveWorkspaceMonacoLanguage({
+            fileKind: node.file_kind,
+            languageHint: node.language_hint,
+            path: normalizedKey,
+          }),
+          loaded: false,
+          loading: false,
+          name: resolveWorkspaceFileName(normalizedKey),
+          path: normalizedKey,
+          savedContent: '',
+          saving: false,
+          ...content,
+        };
+      }
+      if (!session.openedTabs.includes(normalizedKey)) session.openedTabs.push(normalizedKey);
+      session.activeFileKey = normalizedKey;
+      session.selectedKey = normalizedKey;
+      ensureAncestorsExpanded(session, normalizedKey);
+    },
+    setFileContent(key: string, content: string) {
+      const file = this.activeSession.fileContents[normalizePath(key)];
+      if (!file || !file.editable) return;
+      file.content = content;
+      this.syncDirtyFile(file.path);
+    },
+    markFileSaved(key: string, content?: string) {
+      const file = this.activeSession.fileContents[normalizePath(key)];
+      if (!file) return;
+      file.content = content ?? file.content;
+      file.savedContent = file.content;
+      file.loaded = true;
+      this.syncDirtyFile(file.path);
+    },
+    syncOpenedFiles(files: OpenedWorkspaceFile[], activeFileKey: string) {
+      const session = this.activeSession;
+      session.openedTabs = files.map((file) => file.path);
+      for (const file of files) {
+        session.fileContents[file.path] = { ...file };
+        this.syncDirtyFile(file.path);
+      }
+      for (const path of Object.keys(session.fileContents)) {
+        if (!session.openedTabs.includes(path)) delete session.fileContents[path];
+      }
+      session.activeFileKey = session.openedTabs.includes(activeFileKey)
+        ? activeFileKey
+        : (session.openedTabs.at(-1) ?? '');
+    },
+    syncDirtyFile(key: string) {
+      const session = this.activeSession;
+      const file = session.fileContents[normalizePath(key)];
+      if (!file) return;
+      const dirty = hasWorkspaceUnsavedChanges(file.content, file.savedContent);
+      session.dirtyFiles = dirty
+        ? [...new Set([...session.dirtyFiles, file.path])]
+        : session.dirtyFiles.filter((path) => path !== file.path);
+    },
+    closeFile(key: string) {
+      const session = this.activeSession;
+      const normalizedKey = normalizePath(key);
+      session.openedTabs = session.openedTabs.filter((path) => path !== normalizedKey);
+      if (session.activeFileKey === normalizedKey) session.activeFileKey = session.openedTabs.at(-1) ?? '';
+    },
+  },
+});

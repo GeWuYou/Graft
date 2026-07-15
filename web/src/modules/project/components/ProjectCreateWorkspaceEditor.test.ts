@@ -80,7 +80,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
       },
     });
 
-    await wrapper.find('.project-create-workspace__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
+    await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('scripts/start');
     await wrapper.find('.dialog-confirm').trigger('click');
@@ -122,14 +122,14 @@ describe('ProjectCreateWorkspaceEditor', () => {
     });
 
     const initialUpdateCount = wrapper.emitted('update:files')?.length ?? 0;
-    await wrapper.find('.project-create-workspace__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
+    await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('scripts');
     await wrapper.find('.dialog-confirm').trigger('click');
 
     expect(wrapper.emitted('update:files') ?? []).toHaveLength(initialUpdateCount);
 
-    await wrapper.find('.project-create-workspace__entry-actions[aria-label="other"]').trigger('click');
+    await wrapper.find('.project-workspace-editor__tree-menu-trigger[aria-label="other"]').trigger('click');
     await wrapper.findAll('[role="menuitem"]')[2].trigger('click');
     await wrapper.find('input').setValue('scripts');
     await wrapper.find('.dialog-confirm').trigger('click');
@@ -151,7 +151,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
       },
     });
 
-    const trigger = wrapper.find('.project-create-workspace__entry-actions');
+    const trigger = wrapper.find('.project-workspace-editor__tree-menu-trigger');
     await trigger.trigger('click');
     expect(document.activeElement).toBe(wrapper.findAll('[role="menuitem"]')[0].element);
 
