@@ -513,7 +513,7 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		DisplayName:             result.DisplayName,
 		ComposeProjectName:      result.ComposeProjectName,
-		WorkspaceKey:            result.WorkspaceKey,
+		ApplicationName:         result.ApplicationName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
 		WorkspacePath:           result.WorkspacePath,
 		ComposeFileName:         result.ComposeFileName,
@@ -548,7 +548,7 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 		ApplicationId:           result.ApplicationID,
 		DisplayName:             result.Validation.DisplayName,
 		ComposeProjectName:      result.Validation.ComposeProjectName,
-		WorkspaceKey:            result.Validation.WorkspaceKey,
+		ApplicationName:         result.Validation.ApplicationName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.Validation.OwnershipMode),
 		WorkspacePath:           result.Validation.WorkspacePath,
 		ComposeFileName:         result.Validation.ComposeFileName,
@@ -592,13 +592,13 @@ func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONReque
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
 }
 
 type managedCreateEntriesHTTPParts struct {
 	displayName      string
 	runtimeTargetID  uint64
-	workspaceKey     *string
+	applicationName  *string
 	workspaceEntries []generated.ProjectWorkspaceEntry
 	composeFilePath  string
 	lifecycle        *generated.ProjectLifecycleConfigurationRequest
@@ -629,7 +629,7 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 		return ManagedProjectCreateRequest{}, errProjectInvalidArgument
 	}
 	request := ManagedProjectCreateRequest{
-		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, WorkspaceKey: parts.workspaceKey,
+		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, ApplicationName: parts.applicationName,
 		ComposeFileName: filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
 		WorkspaceEntries: entries,
 	}
@@ -669,7 +669,7 @@ func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONReques
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
 }
 
 // runtimeTargetIDFromGenerated validates and converts a generated runtime target identifier.

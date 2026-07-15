@@ -35,18 +35,44 @@ func TestValidateExplicitCanonicalProjectNameNormalizesValidNames(t *testing.T) 
 	}
 }
 
-func TestNormalizeManagedCreateRequestRejectsInvalidCanonicalProjectName(t *testing.T) {
+func TestNormalizeManagedCreateRequestUsesApplicationNameForComposeIdentity(t *testing.T) {
 	t.Parallel()
 
-	_, err := normalizeManagedCreateRequest(ManagedProjectCreateRequest{
-		DisplayName:              "Demo",
-		CanonicalProjectName:     "CLIProxyAPI",
-		RelativeProjectDirectory: "demo",
-		ComposeFileName:          "compose.yaml",
-		ComposeFileContent:       "services:\n  app:\n    image: nginx:latest\n",
+	compose := "services:\n  app:\n    image: nginx:latest\n"
+	result, err := normalizeManagedCreateRequest(ManagedProjectCreateRequest{
+		DisplayName:        "拉布",
+		ApplicationName:    stringPointer("labby"),
+		ComposeFileName:    "compose.yaml",
+		ComposeFilePath:    "compose.yaml",
+		ComposeFileContent: compose,
+		WorkspaceEntries: []ManagedWorkspaceEntry{
+			{Path: "compose.yaml", NodeType: "file", Content: &compose},
+		},
 	})
-	if err == nil {
-		t.Fatal("expected managed create request to reject invalid canonical project name")
+	if err != nil {
+		t.Fatalf("normalize managed create request: %v", err)
+	}
+	if result.DisplayName != "拉布" || result.ApplicationName == nil || *result.ApplicationName != "labby" {
+		t.Fatalf("unexpected normalized identity: %#v", result)
+	}
+	if !strings.Contains(result.ComposeFileContent, "name: labby") {
+		t.Fatalf("expected Compose name from application name, got %q", result.ComposeFileContent)
+	}
+}
+
+func TestNormalizeManagedCreateRequestRequiresApplicationName(t *testing.T) {
+	t.Parallel()
+
+	for _, applicationName := range []*string{nil, stringPointer("   ")} {
+		_, err := normalizeManagedCreateRequest(ManagedProjectCreateRequest{
+			DisplayName:        "拉布",
+			ApplicationName:    applicationName,
+			ComposeFileName:    "compose.yaml",
+			ComposeFileContent: "services: {}\n",
+		})
+		if !errors.Is(err, errProjectApplicationNameRequired) {
+			t.Fatalf("expected required application-name error, got %v", err)
+		}
 	}
 }
 
@@ -56,7 +82,7 @@ func TestChooseWorkspacePathSuggestsNextAvailableSuffix(t *testing.T) {
 		t.Fatalf("create base workspace: %v", err)
 	}
 	path, key, err := chooseWorkspacePath(root, stringPointer("demo"), true)
-	if !errors.Is(err, errProjectConflict) || !strings.Contains(err.Error(), "suggested=demo-2") || path != "" || key != nil {
+	if !errors.Is(err, errProjectApplicationNameOccupied) || path != "" || key != nil {
 		t.Fatalf("chooseWorkspacePath = (%q, %v, %v), want conflict", path, key, err)
 	}
 }

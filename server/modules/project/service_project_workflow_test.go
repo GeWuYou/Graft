@@ -982,15 +982,14 @@ func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
 	composeContent := "services:\n  web:\n    image: nginx:latest\n"
 	envContent := "FOO=bar\n"
 	result, err := service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName:              "Demo",
-		CanonicalProjectName:     "demo",
-		RelativeProjectDirectory: "demo",
-		ComposeFileName:          "compose.yaml",
-		ComposeFileContent:       composeContent,
-		EnvFileName:              &envName,
-		EnvFileContent:           &envContent,
-		ComposeFilePath:          "compose.yaml",
-		WorkspaceEntries:         []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: &composeContent}, {Path: ".env", NodeType: "file", Content: &envContent}},
+		DisplayName:        "Demo",
+		ApplicationName:    stringPointer("demo"),
+		ComposeFileName:    "compose.yaml",
+		ComposeFileContent: composeContent,
+		EnvFileName:        &envName,
+		EnvFileContent:     &envContent,
+		ComposeFilePath:    "compose.yaml",
+		WorkspaceEntries:   []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: &composeContent}, {Path: ".env", NodeType: "file", Content: &envContent}},
 	}, nil)
 	if err != nil {
 		t.Fatalf("create managed project: %v", err)
@@ -1029,11 +1028,10 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 	}
 
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName:              "Demo",
-		CanonicalProjectName:     "demo",
-		RelativeProjectDirectory: ".",
-		ComposeFileName:          "compose.yaml",
-		ComposeFileContent:       "services:\n  web:\n    image: nginx:latest\n",
+		DisplayName:        "Demo",
+		ApplicationName:    stringPointer("demo"),
+		ComposeFileName:    "compose.yaml",
+		ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
 	}, nil)
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected invalid argument, got %v", err)
@@ -1048,7 +1046,7 @@ func TestCreateManagedProjectMaterializesNestedWorkspaceFiles(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", CanonicalProjectName: "demo", RelativeProjectDirectory: "demo", ComposeFileName: "compose.yaml", ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
+		DisplayName: "Demo", ApplicationName: stringPointer("demo"), ComposeFileName: "compose.yaml", ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
 		ComposeFilePath:  "compose.yaml",
 		WorkspaceEntries: []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: stringPointer("services:\n  web:\n    image: nginx:latest\n")}, {Path: "nginx/nginx.conf", NodeType: "file", Content: stringPointer("events {}\n")}, {Path: ".env.production", NodeType: "file", Content: stringPointer("MODE=production\n")}},
 	}, nil)

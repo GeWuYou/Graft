@@ -23,10 +23,10 @@
                 ><t-input
                   v-model="formData.display_name"
                   :placeholder="t('project.create.form.displayNamePlaceholder')" /></t-form-item
-              ><t-form-item :label="t('project.create.form.workspaceKey')" name="workspace_key"
+              ><t-form-item :label="t('project.create.form.applicationName')" name="application_name"
                 ><t-input
-                  v-model="formData.workspace_key"
-                  :placeholder="t('project.create.form.workspaceKeyPlaceholder')"
+                  v-model="formData.application_name"
+                  :placeholder="t('project.create.form.applicationNamePlaceholder')"
               /></t-form-item>
             </div>
             <div class="project-create-page__actions">
@@ -48,8 +48,8 @@
             ><t-descriptions-item :label="t('project.create.form.displayName')">{{
               formData.display_name
             }}</t-descriptions-item
-            ><t-descriptions-item :label="t('project.create.form.workspaceKey')"
-              ><code>{{ formData.workspace_key || '-' }}</code></t-descriptions-item
+            ><t-descriptions-item :label="t('project.create.form.applicationName')"
+              ><code>{{ formData.application_name || '-' }}</code></t-descriptions-item
             ></t-descriptions
           >
           <div class="project-create-page__actions">
@@ -82,9 +82,14 @@ import {
   refreshProjectCreatePage,
 } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
-import type { ProjectCreateRequest, ProjectCreateResponse, ProjectWorkspaceEntry } from '../../types/project';
+import type {
+  ProjectCreateRequest,
+  ProjectCreateResponse,
+  ProjectWorkspaceDraftEntry,
+  ProjectWorkspaceDraftFile,
+  ProjectWorkspaceEntry,
+} from '../../types/project';
 
-type WorkspaceDraftEntry = Omit<ProjectWorkspaceEntry, 'content'> & { content: string };
 defineOptions({ name: 'ProjectManagedCreateIndex' });
 const { router, tabsRouterStore, t } = useProjectPageContext();
 const route = useRoute();
@@ -97,8 +102,8 @@ const runtimeTargetId = computed(() => {
   const value = Number(raw);
   return Number.isSafeInteger(value) ? value : null;
 });
-const formData = reactive({ display_name: '', workspace_key: '' });
-const workspaceFiles = ref<WorkspaceDraftEntry[]>([
+const formData = reactive({ display_name: '', application_name: '' });
+const workspaceFiles = ref<ProjectWorkspaceDraftEntry[]>([
   { path: 'compose.yaml', node_type: 'file', content: '' },
   { path: '.env', node_type: 'file', content: '' },
 ]);
@@ -107,10 +112,14 @@ const workspaceDefaultsLoading = ref(true);
 const workspaceDefaultsError = ref('');
 const formRules: FormProps['rules'] = {
   display_name: [{ required: true, message: t('project.create.validation.displayNameRequired') }],
-  workspace_key: [
+  application_name: [
     {
-      validator: (value) => !value || /^[a-z0-9][a-z0-9-]*$/.test(String(value)),
-      message: t('project.create.validation.workspaceKeyPattern'),
+      required: true,
+      message: t('project.create.validation.applicationNameRequired'),
+    },
+    {
+      validator: (value) => /^[a-z0-9][a-z0-9-]*$/.test(String(value)),
+      message: t('project.create.validation.applicationNamePattern'),
     },
   ],
 };
@@ -128,7 +137,7 @@ onMounted(async () => {
   try {
     const defaults = await getProjectWorkspaceDefaults();
     if (defaults.workspace_entries?.length) {
-      workspaceFiles.value = defaults.workspace_entries.map((entry) => ({ ...entry, content: entry.content || '' }));
+      workspaceFiles.value = defaults.workspace_entries.map(toWorkspaceDraftEntry);
     }
     if (defaults.compose_file_path) primaryComposePath.value = defaults.compose_file_path;
   } catch (error) {
@@ -154,10 +163,22 @@ function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
   return {
     display_name: formData.display_name.trim(),
     runtime_target_id: runtimeTargetIdValue,
-    ...(formData.workspace_key.trim() ? { workspace_key: formData.workspace_key.trim() } : {}),
-    workspace_entries: workspaceFiles.value,
+    application_name: formData.application_name.trim(),
+    workspace_entries: workspaceFiles.value.map(toProjectWorkspaceEntry),
     compose_file_path: composePath.value as string,
   };
+}
+function toWorkspaceDraftEntry(entry: ProjectWorkspaceEntry): ProjectWorkspaceDraftEntry {
+  if (entry.node_type === 'directory') {
+    return { path: entry.path, node_type: 'directory' };
+  }
+  return { path: entry.path, node_type: 'file', content: entry.content ?? '' };
+}
+function toProjectWorkspaceEntry(entry: ProjectWorkspaceDraftEntry): ProjectWorkspaceEntry {
+  if (entry.node_type === 'directory') {
+    return { path: entry.path, node_type: 'directory' };
+  }
+  return { path: entry.path, node_type: 'file', content: entry.content };
 }
 function nextFromWorkspace() {
   if (workspaceDefaultsLoading.value) return;
@@ -165,7 +186,9 @@ function nextFromWorkspace() {
     MessagePlugin.error(workspaceDefaultsError.value);
     return;
   }
-  const compose = workspaceFiles.value.find((entry) => entry.node_type === 'file' && entry.path === composePath.value);
+  const compose = workspaceFiles.value.find(
+    (entry): entry is ProjectWorkspaceDraftFile => entry.node_type !== 'directory' && entry.path === composePath.value,
+  );
   if (!composePath.value || !compose?.content?.trim()) {
     MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
     return;

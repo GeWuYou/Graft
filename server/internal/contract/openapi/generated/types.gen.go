@@ -4,7 +4,10 @@
 package generated
 
 import (
+	"encoding/json"
 	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
 
 const (
@@ -2936,16 +2939,46 @@ func (e ProjectSourceKind) Valid() bool {
 
 // Defines values for ProjectWorkspaceEntryNodeType.
 const (
-	Directory ProjectWorkspaceEntryNodeType = "directory"
-	File      ProjectWorkspaceEntryNodeType = "file"
+	ProjectWorkspaceEntryNodeTypeDirectory ProjectWorkspaceEntryNodeType = "directory"
+	ProjectWorkspaceEntryNodeTypeFile      ProjectWorkspaceEntryNodeType = "file"
 )
 
 // Valid indicates whether the value is a known member of the ProjectWorkspaceEntryNodeType enum.
 func (e ProjectWorkspaceEntryNodeType) Valid() bool {
 	switch e {
-	case Directory:
+	case ProjectWorkspaceEntryNodeTypeDirectory:
 		return true
-	case File:
+	case ProjectWorkspaceEntryNodeTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectWorkspaceEntryCreateRequest0NodeType.
+const (
+	ProjectWorkspaceEntryCreateRequest0NodeTypeFile ProjectWorkspaceEntryCreateRequest0NodeType = "file"
+)
+
+// Valid indicates whether the value is a known member of the ProjectWorkspaceEntryCreateRequest0NodeType enum.
+func (e ProjectWorkspaceEntryCreateRequest0NodeType) Valid() bool {
+	switch e {
+	case ProjectWorkspaceEntryCreateRequest0NodeTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectWorkspaceEntryCreateRequest1NodeType.
+const (
+	Directory ProjectWorkspaceEntryCreateRequest1NodeType = "directory"
+)
+
+// Valid indicates whether the value is a known member of the ProjectWorkspaceEntryCreateRequest1NodeType enum.
+func (e ProjectWorkspaceEntryCreateRequest1NodeType) Valid() bool {
+	switch e {
+	case Directory:
 		return true
 	default:
 		return false
@@ -8600,6 +8633,9 @@ type ProjectContainerCounts struct {
 
 // ProjectCreateRequest defines model for project-create-request.
 type ProjectCreateRequest struct {
+	// ApplicationName Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one.
+	ApplicationName string `json:"application_name"`
+
 	// ComposeFilePath Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
 	ComposeFilePath        string                                `json:"compose_file_path"`
 	DisplayName            string                                `json:"display_name"`
@@ -8608,15 +8644,13 @@ type ProjectCreateRequest struct {
 
 	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
 	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
-
-	// WorkspaceKey Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
-	WorkspaceKey *string `json:"workspace_key,omitempty"`
 }
 
 // ProjectCreateResponse defines model for project-create-response.
 type ProjectCreateResponse struct {
 	Action                  ProjectCreateResponseAction `json:"action"`
 	ApplicationId           string                      `json:"application_id"`
+	ApplicationName         *string                     `json:"application_name,omitempty"`
 	ComposeFileAbsolutePath string                      `json:"compose_file_absolute_path"`
 	ComposeFileName         string                      `json:"compose_file_name"`
 	ComposeProjectName      string                      `json:"compose_project_name"`
@@ -8636,7 +8670,6 @@ type ProjectCreateResponse struct {
 	SourceMetadata *ProjectSourceMetadata `json:"source_metadata,omitempty"`
 	SourceType     ProjectSourceKind      `json:"source_type"`
 	Warnings       *[]string              `json:"warnings,omitempty"`
-	WorkspaceKey   *string                `json:"workspace_key,omitempty"`
 	WorkspacePath  string                 `json:"workspace_path"`
 }
 
@@ -8648,6 +8681,9 @@ type ProjectCreateResponseResult string
 
 // ProjectCreateValidateRequest defines model for project-create-validate-request.
 type ProjectCreateValidateRequest struct {
+	// ApplicationName Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one.
+	ApplicationName string `json:"application_name"`
+
 	// ComposeFilePath Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
 	ComposeFilePath        string                                `json:"compose_file_path"`
 	DisplayName            string                                `json:"display_name"`
@@ -8656,13 +8692,11 @@ type ProjectCreateValidateRequest struct {
 
 	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
 	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
-
-	// WorkspaceKey Optional single-segment managed workspace key. The server derives and reserves a key when omitted.
-	WorkspaceKey *string `json:"workspace_key,omitempty"`
 }
 
 // ProjectCreateValidateResponse defines model for project-create-validate-response.
 type ProjectCreateValidateResponse struct {
+	ApplicationName         *string                    `json:"application_name,omitempty"`
 	ComposeFileAbsolutePath string                     `json:"compose_file_absolute_path"`
 	ComposeFileName         string                     `json:"compose_file_name"`
 	ComposeProjectName      string                     `json:"compose_project_name"`
@@ -8674,7 +8708,6 @@ type ProjectCreateValidateResponse struct {
 	SourceMetadata          *ProjectSourceMetadata     `json:"source_metadata,omitempty"`
 	SourceType              ProjectSourceKind          `json:"source_type"`
 	Warnings                *[]string                  `json:"warnings,omitempty"`
-	WorkspaceKey            *string                    `json:"workspace_key,omitempty"`
 	WorkspacePath           string                     `json:"workspace_path"`
 }
 
@@ -8732,6 +8765,7 @@ type ProjectDestroyRequest struct {
 type ProjectDetailResponse struct {
 	ActivityAuthority        ProjectActivityAuthority             `json:"activity_authority"`
 	ApplicationId            string                               `json:"application_id"`
+	ApplicationName          *string                              `json:"application_name,omitempty"`
 	ApplicationType          ProjectDetailResponseApplicationType `json:"application_type"`
 	ComposeFiles             []ProjectFileItem                    `json:"compose_files"`
 	ComposeProjectName       string                               `json:"compose_project_name"`
@@ -8755,7 +8789,6 @@ type ProjectDetailResponse struct {
 	ServiceCount   int                          `json:"service_count"`
 	SourceKind     ProjectSourceKind            `json:"source_kind"`
 	SourceMetadata *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
-	WorkspaceKey   *string                      `json:"workspace_key,omitempty"`
 	WorkspacePath  string                       `json:"workspace_path"`
 }
 
@@ -9250,6 +9283,7 @@ type ProjectLifecycleStrategyKind string
 type ProjectListItem struct {
 	ActivityAuthority        ProjectActivityAuthority       `json:"activity_authority"`
 	ApplicationId            string                         `json:"application_id"`
+	ApplicationName          *string                        `json:"application_name,omitempty"`
 	ApplicationType          ProjectListItemApplicationType `json:"application_type"`
 	ComposeProjectName       string                         `json:"compose_project_name"`
 	ComposeProjectNameSource ProjectCanonicalNameSource     `json:"compose_project_name_source"`
@@ -9268,7 +9302,6 @@ type ProjectListItem struct {
 	ServiceCount   int                          `json:"service_count"`
 	SourceKind     ProjectSourceKind            `json:"source_kind"`
 	SourceMetadata *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
-	WorkspaceKey   *string                      `json:"workspace_key,omitempty"`
 	WorkspacePath  string                       `json:"workspace_path"`
 }
 
@@ -9518,11 +9551,13 @@ type ProjectSourceMetadata struct {
 
 // ProjectTemplateCreateRequest defines model for project-template-create-request.
 type ProjectTemplateCreateRequest struct {
+	// ApplicationName Required unique machine-safe application name for the managed directory and Compose project identity.
+	ApplicationName        string                                `json:"application_name"`
 	DisplayName            string                                `json:"display_name"`
 	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
 	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
 
-	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the generated workspace key.
+	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the application name.
 	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
 
 	// TemplateKey Runtime template directory key. Defaults to default.
@@ -9530,7 +9565,6 @@ type ProjectTemplateCreateRequest struct {
 
 	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
 	TemplateVersion *string `json:"template_version,omitempty"`
-	WorkspaceKey    *string `json:"workspace_key,omitempty"`
 }
 
 // ProjectWorkspaceDefaultsResponse defines model for project-workspace-defaults-response.
@@ -9558,7 +9592,35 @@ type ProjectWorkspaceEntry struct {
 type ProjectWorkspaceEntryNodeType string
 
 // ProjectWorkspaceEntryCreateRequest defines model for project-workspace-entry-create-request.
-type ProjectWorkspaceEntryCreateRequest = ProjectWorkspaceEntry
+type ProjectWorkspaceEntryCreateRequest struct {
+	union json.RawMessage
+}
+
+// ProjectWorkspaceEntryCreateRequest0 defines model for .
+type ProjectWorkspaceEntryCreateRequest0 struct {
+	// Content Required UTF-8 text content for file entries.
+	Content  string                                      `json:"content"`
+	NodeType ProjectWorkspaceEntryCreateRequest0NodeType `json:"node_type"`
+
+	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
+
+// ProjectWorkspaceEntryCreateRequest0NodeType defines model for ProjectWorkspaceEntryCreateRequest.0.NodeType.
+type ProjectWorkspaceEntryCreateRequest0NodeType string
+
+// ProjectWorkspaceEntryCreateRequest1 defines model for .
+type ProjectWorkspaceEntryCreateRequest1 struct {
+	// Content Required UTF-8 text content for file entries and omitted for directory entries.
+	Content  *string                                     `json:"content,omitempty"`
+	NodeType ProjectWorkspaceEntryCreateRequest1NodeType `json:"node_type"`
+
+	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
+
+// ProjectWorkspaceEntryCreateRequest1NodeType defines model for ProjectWorkspaceEntryCreateRequest.1.NodeType.
+type ProjectWorkspaceEntryCreateRequest1NodeType string
 
 // ProjectWorkspaceEntryRenameRequest defines model for project-workspace-entry-rename-request.
 type ProjectWorkspaceEntryRenameRequest struct {
@@ -13164,3 +13226,65 @@ type PostUserStatusJSONRequestBody = UpdateUserStatusRequest
 
 // PostUserUpdateJSONRequestBody defines body for PostUserUpdate for application/json ContentType.
 type PostUserUpdateJSONRequestBody = UpdateUserRequest
+
+// AsProjectWorkspaceEntryCreateRequest0 returns the union data inside the ProjectWorkspaceEntryCreateRequest as a ProjectWorkspaceEntryCreateRequest0
+func (t ProjectWorkspaceEntryCreateRequest) AsProjectWorkspaceEntryCreateRequest0() (ProjectWorkspaceEntryCreateRequest0, error) {
+	var body ProjectWorkspaceEntryCreateRequest0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromProjectWorkspaceEntryCreateRequest0 overwrites any union data inside the ProjectWorkspaceEntryCreateRequest as the provided ProjectWorkspaceEntryCreateRequest0
+func (t *ProjectWorkspaceEntryCreateRequest) FromProjectWorkspaceEntryCreateRequest0(v ProjectWorkspaceEntryCreateRequest0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeProjectWorkspaceEntryCreateRequest0 performs a merge with any union data inside the ProjectWorkspaceEntryCreateRequest, using the provided ProjectWorkspaceEntryCreateRequest0
+func (t *ProjectWorkspaceEntryCreateRequest) MergeProjectWorkspaceEntryCreateRequest0(v ProjectWorkspaceEntryCreateRequest0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsProjectWorkspaceEntryCreateRequest1 returns the union data inside the ProjectWorkspaceEntryCreateRequest as a ProjectWorkspaceEntryCreateRequest1
+func (t ProjectWorkspaceEntryCreateRequest) AsProjectWorkspaceEntryCreateRequest1() (ProjectWorkspaceEntryCreateRequest1, error) {
+	var body ProjectWorkspaceEntryCreateRequest1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromProjectWorkspaceEntryCreateRequest1 overwrites any union data inside the ProjectWorkspaceEntryCreateRequest as the provided ProjectWorkspaceEntryCreateRequest1
+func (t *ProjectWorkspaceEntryCreateRequest) FromProjectWorkspaceEntryCreateRequest1(v ProjectWorkspaceEntryCreateRequest1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeProjectWorkspaceEntryCreateRequest1 performs a merge with any union data inside the ProjectWorkspaceEntryCreateRequest, using the provided ProjectWorkspaceEntryCreateRequest1
+func (t *ProjectWorkspaceEntryCreateRequest) MergeProjectWorkspaceEntryCreateRequest1(v ProjectWorkspaceEntryCreateRequest1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ProjectWorkspaceEntryCreateRequest) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ProjectWorkspaceEntryCreateRequest) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}

@@ -75,7 +75,7 @@ func (r *SQLRepository) listProjectsPage(
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+			id, application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
 			runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
@@ -140,7 +140,7 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 	project, err := scanProject(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+			id, application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
 			runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
@@ -770,7 +770,7 @@ func (r *SQLRepository) upsertProject(
 		ctx,
 		r.placeholder.rebind(composeProjectsUpsertSQL()),
 		input.ApplicationID,
-		input.WorkspaceKey,
+		input.ApplicationName,
 		input.WorkspacePath,
 		input.ComposeProjectName,
 		input.ComposeProjectNameSource,
@@ -814,20 +814,20 @@ func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input Imp
 	if input.RuntimeTargetID > 0 {
 		runtimeTargetID = input.RuntimeTargetID
 	}
-	var workspaceKey any
-	if input.WorkspaceKey != nil {
-		workspaceKey = *input.WorkspaceKey
+	var applicationName any
+	if input.ApplicationName != nil {
+		applicationName = *input.ApplicationName
 	}
 	var projectID uint64
 	err = tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO compose_projects (
-		application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+		application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
 		display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 		working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status,
 		lifecycle_config_json, last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 		created_by, updated_by, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
 	RETURNING id`),
-		input.ApplicationID, workspaceKey, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
+		input.ApplicationID, applicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
 		input.DisplayName, runtimeTargetID, input.CanonicalProjectName, input.CanonicalProjectNameSource, input.SourceKind, input.HostScope,
 		input.WorkingDirectory, input.OwnershipMode, string(sourceMetadataJSON), input.LifecycleStrategyKind, input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON), input.LastObservedConfigHash, `{}`, input.LastDriftCheckedAt, input.DriftStatus,
@@ -842,7 +842,7 @@ func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input Imp
 // composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句，并通过 RETURNING 子句返回项目 ID。
 func composeProjectsUpsertSQL() string {
 	return `INSERT INTO compose_projects (
-			application_id, workspace_key, workspace_path, compose_project_name, compose_project_name_source,
+			application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
 			display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
 			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
@@ -853,7 +853,7 @@ func composeProjectsUpsertSQL() string {
 		ON CONFLICT (runtime_target_id, compose_project_name) WHERE deleted_at = 0 DO UPDATE SET
 			display_name = excluded.display_name,
 			compose_project_name_source = excluded.compose_project_name_source,
-			workspace_key = excluded.workspace_key,
+			application_name = excluded.application_name,
 			workspace_path = excluded.workspace_path,
 			runtime_target_id = excluded.runtime_target_id,
 			canonical_project_name_source = excluded.canonical_project_name_source,

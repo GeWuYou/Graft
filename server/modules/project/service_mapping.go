@@ -44,7 +44,7 @@ func toProjectListItemWithManagedRoot(
 		DisplayName:              aggregate.Project.DisplayName,
 		ComposeProjectName:       nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
 		ComposeProjectNameSource: generated.ProjectCanonicalNameSource(nonEmptyString(aggregate.Project.ComposeProjectNameSource, aggregate.Project.CanonicalProjectNameSource)),
-		WorkspaceKey:             aggregate.Project.WorkspaceKey,
+		ApplicationName:             aggregate.Project.ApplicationName,
 		SourceKind:               generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		LifecycleReviewStatus:    generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		SourceMetadata:           buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
@@ -99,7 +99,7 @@ func toProjectDetailResponseWithManagedRoot(
 		SourceMetadata:           buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:        generated.ProjectActivityAuthority(resolveActivityAuthority()),
 		WorkspacePath:            aggregate.Project.WorkspacePath,
-		WorkspaceKey:             aggregate.Project.WorkspaceKey,
+		ApplicationName:             aggregate.Project.ApplicationName,
 	}
 	if aggregate.Project.LastObservedConfigHash != "" {
 		item.LastObservedConfigHash = stringPointer(aggregate.Project.LastObservedConfigHash)

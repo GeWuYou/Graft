@@ -3,6 +3,9 @@
     "project": {
       "error": {
         "invalidArgument": "Invalid project request.",
+        "applicationNameRequired": "Enter an application name.",
+        "invalidApplicationName": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
+        "applicationNameOccupied": "This application name is already in use. Choose another name.",
         "invalidCanonicalProjectName": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
         "conflict": "Project action is blocked by a conflicting project state.",
         "composeProjectNameOccupied": "The Compose project name is already in use on the selected Runtime Target.",
@@ -719,8 +722,8 @@
         "unavailableHint": "The Managed Root Authority Is Not Available Yet. Repair the Upstream System Config Before Creating Projects."
       },
       "form": {
-        "workspaceKey": "Workspace Name",
-        "workspaceKeyPlaceholder": "For example: orders-dev",
+        "applicationName": "Application Name",
+        "applicationNamePlaceholder": "For example: orders-dev",
         "title": "Project Basics",
         "displayName": "Display Name",
         "displayNamePlaceholder": "Example: Orders Service Dev",
@@ -735,7 +738,8 @@
         "envFileNamePlaceholder": "Leave Blank to Skip Writing an Env File"
       },
       "validation": {
-        "workspaceKeyPattern": "Workspace names may contain lowercase letters, numbers, and hyphens only.",
+        "applicationNameRequired": "Enter an application name.",
+        "applicationNamePattern": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
         "title": "Authority and Path Preview",
         "rootDirectory": "Managed Root",
         "configKey": "System Config Key",
@@ -784,6 +788,7 @@
         "filesTitle": "Workspace Files",
         "filesEmpty": "No workspace entries yet.",
         "rootLabel": "Project Files",
+        "resizeFileTreeAriaLabel": "Resize File Tree",
         "selectFile": "Select a file from the workspace tree to edit it.",
         "addFile": "Add File",
         "newFile": "New File",
@@ -959,8 +964,8 @@
     "sourceCreate": {
       "templateDescription": "Create a managed application from a bundled Compose workspace template.",
       "displayName": "Display Name",
-      "workspaceKey": "Workspace Name",
-      "workspaceKeyPlaceholder": "For example: orders-dev",
+      "applicationName": "Application Name",
+      "applicationNamePlaceholder": "For example: orders-dev",
       "canonicalName": "Canonical Project Name",
       "relativeDirectory": "Relative Directory",
       "resolvedDirectory": "Application Directory",

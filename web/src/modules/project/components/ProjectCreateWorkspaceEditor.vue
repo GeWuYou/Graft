@@ -13,6 +13,8 @@
       :labels="editorLabels"
       :rows="editorRows"
       :selected-path="workspaceStore.session(workspaceSessionKey).selectedKey"
+      sidebar-width-storage-key="graft.project.create-workspace.sidebar.width"
+      :sidebar-resize-aria-label="t('project.create.workspace.resizeFileTreeAriaLabel')"
       :tabs="editorTabs"
       :tabs-empty-description="t('project.create.workspace.selectFile')"
       :tree-title="t('project.create.workspace.filesTitle')"
@@ -175,7 +177,7 @@ import { normalizeTextBlock, supportsExplicitWorkspaceSyntaxValidation } from '.
 import { useProjectPageContext } from '../shared/page-context';
 import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import { type OpenedWorkspaceFile, useProjectWorkspaceStore } from '../store/workspace';
-import type { ProjectWorkspaceManifestFile, ProjectWorkspaceTreeItem } from '../types/project';
+import type { ProjectWorkspaceDraftEntry, ProjectWorkspaceTreeItem } from '../types/project';
 import ProjectWorkspaceEditor, {
   type ProjectWorkspaceEditorBuffer,
   type ProjectWorkspaceEditorLabels,
@@ -185,7 +187,6 @@ import ProjectWorkspaceEditor, {
 
 defineOptions({ name: 'ProjectCreateWorkspaceEditor' });
 
-type WorkspaceDraftEntry = ProjectWorkspaceManifestFile & { node_type?: 'directory' | 'file' };
 type PendingSaveAction = 'all' | 'current' | null;
 type WorkspaceSyntaxMarker = { severity: number };
 type WorkspaceEditorHandle = {
@@ -197,7 +198,7 @@ type WorkspaceEditorHandle = {
 
 const MONACO_MARKER_ERROR_SEVERITY = 8;
 
-const files = defineModel<WorkspaceDraftEntry[]>('files', { required: true });
+const files = defineModel<ProjectWorkspaceDraftEntry[]>('files', { required: true });
 const { t } = useProjectPageContext();
 const workspaceStore = useProjectWorkspaceStore(store);
 const workspaceSessionKey = 'project-create-workspace';
@@ -291,7 +292,7 @@ useKeyboardShortcut(
   },
 );
 
-function toTreeItems(entries: WorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[] {
+function toTreeItems(entries: ProjectWorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[] {
   return entries.map((entry) => ({
     editable: entry.node_type !== 'directory',
     file_kind: entry.node_type === 'directory' ? 'directory' : 'text',
@@ -312,7 +313,7 @@ onActivated(() => {
   synchronizeWorkspace(files.value, 'keep-alive-activated');
 });
 
-function synchronizeWorkspace(entries: WorkspaceDraftEntry[], source: 'files-watch' | 'keep-alive-activated') {
+function synchronizeWorkspace(entries: ProjectWorkspaceDraftEntry[], source: 'files-watch' | 'keep-alive-activated') {
   const before = workspaceStore.session(workspaceSessionKey);
   emitProjectWorkspaceDebug('create-sync-start', {
     activeFileKey: before.activeFileKey || '-',
@@ -601,10 +602,9 @@ function submitInlineEdit() {
       setInlineEditError(t('project.create.workspace.pathConflict'));
       return;
     }
-    files.value = [
-      ...files.value,
-      { path, content: '', node_type: edit.mode === 'create-directory' ? 'directory' : 'file' } as WorkspaceDraftEntry,
-    ];
+    const entry: ProjectWorkspaceDraftEntry =
+      edit.mode === 'create-directory' ? { path, node_type: 'directory' } : { path, content: '', node_type: 'file' };
+    files.value = [...files.value, entry];
     inlineEdit.value = null;
     if (edit.mode === 'create-file') activateTab(path);
     return;

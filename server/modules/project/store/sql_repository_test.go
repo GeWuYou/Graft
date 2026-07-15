@@ -220,7 +220,7 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 	mustExec(t, db, `CREATE TABLE compose_projects (
 		id INTEGER PRIMARY KEY,
 		application_id TEXT NOT NULL DEFAULT 'app_00000000000000000000000000',
-		workspace_key TEXT NULL,
+		application_name TEXT NULL,
 		workspace_path TEXT NOT NULL DEFAULT '',
 		compose_project_name TEXT NOT NULL DEFAULT '',
 		compose_project_name_source TEXT NOT NULL DEFAULT 'derived',

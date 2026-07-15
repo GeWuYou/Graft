@@ -84,11 +84,8 @@
             :labels="workspaceEditorLabels"
             :rows="workspaceEditorRows"
             :selected-path="workspaceStore.session(workspaceSessionKey).selectedKey"
-            :sidebar-max-width="SIDEBAR_MAX_WIDTH"
-            :sidebar-min-width="SIDEBAR_MIN_WIDTH"
-            :sidebar-resizable="isSidebarResizable"
             :sidebar-resize-aria-label="workspaceCopy.resizeFileTreeAriaLabel"
-            :sidebar-width="sidebarWidth"
+            sidebar-width-storage-key="graft.project.configuration-workspace.sidebar.width"
             show-annotation-action
             :tab-action-test-id="workspaceFileTabMenuItemTestId"
             :tab-test-id="workspaceFileTabMenuTestId"
@@ -106,7 +103,6 @@
             @toggle-directory="toggleWorkspaceEditorDirectory"
             @update-content="updateWorkspaceEditorContent"
             @update:inline-edit="workspaceInlineEdit = $event"
-            @update:sidebar-width="updateSidebarWidth"
           >
             <template #tree-actions>
               <t-tooltip
@@ -770,12 +766,7 @@ type WorkspaceOpenFile = {
   sizeBytes?: number | null;
 };
 
-const EDITOR_WIDTH_STORAGE_KEY = 'graft.project.configuration-workspace.sidebar.width';
 const EDITOR_HEIGHT_STORAGE_KEY = 'graft.project.configuration-workspace.editor.height.v2';
-const SIDEBAR_MAX_WIDTH = 360;
-const SIDEBAR_MIN_WIDTH = 208;
-const SIDEBAR_DEFAULT_WIDTH = 256;
-const SIDEBAR_COLLAPSE_BREAKPOINT = 1024;
 const MONACO_MARKER_ERROR_SEVERITY = 8;
 
 const logger = createLogger('project.configuration-workspace');
@@ -794,8 +785,6 @@ const browserError = ref('');
 const showHiddenFiles = ref(false);
 const currentWorkspacePath = ref('');
 const selectedWorkspacePath = ref('');
-const sidebarWidth = ref(resolveStoredSidebarWidth());
-const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
 const editorViewportHeight = ref(720);
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
@@ -927,7 +916,6 @@ useKeyboardShortcut('Escape', () => {
   }
 });
 const canSaveAllBuffers = computed(() => Boolean(!saveConfirmLoading.value && dirtyEditableBuffers.value.length));
-const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE_BREAKPOINT);
 const editorFrameHeight = computed(() => Math.max(560, editorViewportHeight.value));
 const hasDirtyFiles = computed(() => dirtyEditableBuffers.value.length > 0);
 const selectedDiffFile = computed(
@@ -2812,41 +2800,11 @@ function resolveWorkspaceParentPath(path: string) {
   return normalizedPath.split('/').slice(0, -1).join('/');
 }
 
-function resolveStoredSidebarWidth() {
-  if (typeof window === 'undefined') {
-    return SIDEBAR_DEFAULT_WIDTH;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(EDITOR_WIDTH_STORAGE_KEY);
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : SIDEBAR_DEFAULT_WIDTH;
-  } catch {
-    return SIDEBAR_DEFAULT_WIDTH;
-  }
-}
-
-function clampSidebarWidth(value: number) {
-  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, Math.round(value)));
-}
-
-function updateSidebarWidth(value: number) {
-  sidebarWidth.value = clampSidebarWidth(value);
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(EDITOR_WIDTH_STORAGE_KEY, String(sidebarWidth.value));
-  } catch {
-    return;
-  }
-}
-
 function syncWorkspaceViewport() {
   if (typeof window === 'undefined') {
     return;
   }
 
-  viewportWidth.value = window.innerWidth;
-  sidebarWidth.value = clampSidebarWidth(sidebarWidth.value);
   syncEditorViewportHeight();
 }
 

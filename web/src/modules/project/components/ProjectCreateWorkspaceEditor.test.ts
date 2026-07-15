@@ -65,7 +65,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
         files: [
           { path: 'compose.yaml', content: 'services: {}' },
           { path: '.env', content: '' },
-          { path: 'nginx', content: '', node_type: 'directory' },
+          { path: 'nginx', node_type: 'directory' },
           { path: 'nginx/nginx.conf', content: 'events {}' },
         ],
       },
@@ -111,14 +111,20 @@ describe('ProjectCreateWorkspaceEditor', () => {
     );
   });
 
-  it('renders an initial file tab and editor for the creation workspace', () => {
+  it('renders a resizable file tree with an initial tab and editor for the creation workspace', () => {
+    window.localStorage.removeItem('graft.project.create-workspace.sidebar.width');
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
 
-    expect(wrapper.find('.project-workspace-editor__main-grid').classes()).not.toContain(
+    expect(wrapper.find('.project-workspace-editor__main-grid').classes()).toContain(
       'project-workspace-editor__main-grid--with-splitter',
     );
+    const splitter = wrapper.get('.project-workspace-editor__splitter');
+    expect(splitter.attributes('role')).toBe('separator');
+    expect(splitter.attributes('aria-valuemin')).toBe('208');
+    expect(splitter.attributes('aria-valuemax')).toBe('360');
+    expect(splitter.attributes('aria-valuenow')).toBe('256');
     expect(wrapper.find('.project-workspace-editor__tabbar').exists()).toBe(true);
     expect(wrapper.findComponent({ name: 'ProjectMonacoSurfaceStub' }).exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-create-save"]').exists()).toBe(true);
@@ -127,6 +133,40 @@ describe('ProjectCreateWorkspaceEditor', () => {
     expect(wrapper.find('[data-testid="workspace-create-format"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-create-copy"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').exists()).toBe(true);
+  });
+
+  it('persists file tree width after pointer and keyboard resizing', async () => {
+    window.localStorage.removeItem('graft.project.create-workspace.sidebar.width');
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      attachTo: document.body,
+      props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
+    });
+    const splitter = wrapper.get('.project-workspace-editor__splitter');
+
+    await splitter.trigger('pointerdown', { clientX: 256 });
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 320 }));
+    window.dispatchEvent(new MouseEvent('pointerup'));
+    await nextTick();
+
+    expect(window.localStorage.getItem('graft.project.create-workspace.sidebar.width')).toBe('320');
+    expect(wrapper.get('.project-workspace-editor__main-grid').attributes('style')).toContain(
+      '--project-workspace-sidebar-width: 320px',
+    );
+
+    await splitter.trigger('keydown', { key: 'End' });
+    expect(window.localStorage.getItem('graft.project.create-workspace.sidebar.width')).toBe('360');
+    wrapper.unmount();
+  });
+
+  it('restores a persisted file tree width for the creation workspace', () => {
+    window.localStorage.setItem('graft.project.create-workspace.sidebar.width', '320');
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
+    });
+
+    expect(wrapper.get('.project-workspace-editor__splitter').attributes('aria-valuenow')).toBe('320');
+    wrapper.unmount();
+    window.localStorage.removeItem('graft.project.create-workspace.sidebar.width');
   });
 
   it('saves the active workspace draft directly when syntax validation passes', async () => {
@@ -200,7 +240,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: {
         files: [
-          { path: 'config', content: '', node_type: 'directory' },
+          { path: 'config', node_type: 'directory' },
           { path: 'compose.yaml', content: 'services: {}' },
         ],
       },
@@ -281,11 +321,34 @@ describe('ProjectCreateWorkspaceEditor', () => {
     );
   });
 
+  it('creates a directory entry without content', async () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+      global: {
+        stubs: {
+          't-input': {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
+        },
+      },
+    });
+
+    await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
+    await wrapper.findAll('[role="menuitem"]')[1].trigger('click');
+    await wrapper.find('input').setValue('config');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+
+    const entries = wrapper.emitted('update:files')?.at(-1)?.[0] as Array<Record<string, unknown>>;
+    expect(entries.find((entry) => entry.path === 'config')).toEqual({ path: 'config', node_type: 'directory' });
+  });
+
   it('creates a file inside the selected directory instead of inferring a folder type', async () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: {
         files: [
-          { path: 'config', content: '', node_type: 'directory' },
+          { path: 'config', node_type: 'directory' },
           { path: 'config/app.yaml', content: 'name: app' },
         ],
       },

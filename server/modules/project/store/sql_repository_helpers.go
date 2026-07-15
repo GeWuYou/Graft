@@ -591,7 +591,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var item Project
 	var lastDriftCheckedAt sql.NullTime
 	var runtimeTargetID sql.NullInt64
-	var workspaceKey sql.NullString
+	var applicationName sql.NullString
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
@@ -601,7 +601,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	if err := scanner.Scan(
 		&item.ID,
 		&item.ApplicationID,
-		&workspaceKey,
+		&applicationName,
 		&item.WorkspacePath,
 		&item.ComposeProjectName,
 		&item.ComposeProjectNameSource,
@@ -632,9 +632,9 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	}
 	item.LastDriftCheckedAt = nullableTime(lastDriftCheckedAt)
 	item.RuntimeTargetID = nullableUint64(runtimeTargetID)
-	if workspaceKey.Valid {
-		value := workspaceKey.String
-		item.WorkspaceKey = &value
+	if applicationName.Valid {
+		value := applicationName.String
+		item.ApplicationName = &value
 	}
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)

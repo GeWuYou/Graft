@@ -6398,7 +6398,7 @@ export interface components {
       runtime_target?: components['schemas']['project-runtime-target-summary'];
       compose_project_name: string;
       compose_project_name_source: components['schemas']['project-canonical-name-source'];
-      workspace_key?: string | null;
+      application_name?: string | null;
       lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
       source_kind: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
@@ -6972,8 +6972,8 @@ export interface components {
       display_name: string;
       /** Format: int64 */
       runtime_target_id: number;
-      /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
-      workspace_key?: string;
+      /** @description Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one. */
+      application_name: string;
       /** @description Complete managed workspace manifest to validate without materializing. */
       workspace_entries: components['schemas']['project-workspace-entry'][];
       /** @description Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
@@ -6985,7 +6985,7 @@ export interface components {
       source_type: components['schemas']['project-source-kind'];
       display_name: string;
       compose_project_name: string;
-      workspace_key?: string | null;
+      application_name?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
       workspace_path: string;
       compose_file_name: string;
@@ -7002,8 +7002,8 @@ export interface components {
       display_name: string;
       /** Format: int64 */
       runtime_target_id: number;
-      /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
-      workspace_key?: string;
+      /** @description Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one. */
+      application_name: string;
       /** @description Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories. */
       workspace_entries: components['schemas']['project-workspace-entry'][];
       /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
@@ -7020,7 +7020,7 @@ export interface components {
       result: 'created';
       display_name: string;
       compose_project_name: string;
-      workspace_key?: string | null;
+      application_name?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
       workspace_path: string;
       compose_file_name: string;
@@ -7045,12 +7045,13 @@ export interface components {
       display_name: string;
       /** Format: int64 */
       runtime_target_id: number;
-      workspace_key?: string;
+      /** @description Required unique machine-safe application name for the managed directory and Compose project identity. */
+      application_name: string;
       /** @description Runtime template directory key. Defaults to default. */
       template_key?: string;
       /** @description Optional operator-defined template version label. Defaults to runtime. */
       template_version?: string;
-      /** @description Safe display provenance for this template instance. Defaults to the generated workspace key. */
+      /** @description Safe display provenance for this template instance. Defaults to the application name. */
       template_instance_name?: string;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
@@ -7182,7 +7183,17 @@ export interface components {
     'enveloped-project-lifecycle-configuration-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-lifecycle-configuration-response'];
     };
-    'project-workspace-entry-create-request': components['schemas']['project-workspace-entry'];
+    'project-workspace-entry-create-request':
+      | (components['schemas']['project-workspace-entry'] & {
+          /** @enum {string} */
+          node_type: 'file';
+          /** @description Required UTF-8 text content for file entries. */
+          content: string;
+        })
+      | (components['schemas']['project-workspace-entry'] & {
+          /** @enum {string} */
+          node_type: 'directory';
+        });
     'project-workspace-entry-rename-request': {
       path: string;
       new_path: string;

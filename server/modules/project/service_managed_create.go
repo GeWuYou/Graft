@@ -13,7 +13,7 @@ import (
 	projectcompose "graft/server/modules/project/compose"
 )
 
-var workspaceKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+var applicationNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
 func (s *Service) CreateManagedProject(
@@ -71,18 +71,17 @@ func (s *Service) CreateManagedProject(
 }
 
 type normalizedManagedCreateRequest struct {
-	DisplayName          string
-	RuntimeTargetID      uint64
-	WorkspaceKey         *string
-	CanonicalProjectName string
-	ComposeFileName      string
-	ComposeFileContent   string
-	EnvFileName          *string
-	EnvFileContent       *string
-	WorkspaceEntries     []ManagedWorkspaceEntry
-	ComposeFilePath      string
-	EnvFilePaths         []string
-	LifecycleConfig      *LifecycleStandardConfig
+	DisplayName        string
+	RuntimeTargetID    uint64
+	ApplicationName    *string
+	ComposeFileName    string
+	ComposeFileContent string
+	EnvFileName        *string
+	EnvFileContent     *string
+	WorkspaceEntries   []ManagedWorkspaceEntry
+	ComposeFilePath    string
+	EnvFilePaths       []string
+	LifecycleConfig    *LifecycleStandardConfig
 }
 
 type normalizedManagedWorkspaceEntry struct {
@@ -103,7 +102,7 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	composeName, composeFileContent, err := ensureComposeProjectName(identity.composeContent, identity.displayName)
+	composeName, composeFileContent, err := ensureComposeProjectName(identity.composeContent, *identity.applicationName)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
@@ -123,18 +122,17 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 		materializedEntries = append(materializedEntries, ManagedWorkspaceEntry{Path: item.Path, NodeType: item.NodeType, Content: content})
 	}
 	return normalizedManagedCreateRequest{
-		DisplayName:          identity.displayName,
-		RuntimeTargetID:      request.RuntimeTargetID,
-		WorkspaceKey:         identity.workspaceKey,
-		CanonicalProjectName: "",
-		ComposeFileName:      identity.composePath,
-		ComposeFileContent:   composeFileContent,
-		EnvFileName:          identity.envName,
-		EnvFileContent:       identity.envContent,
-		WorkspaceEntries:     materializedEntries,
-		ComposeFilePath:      identity.composePath,
-		EnvFilePaths:         append([]string(nil), request.EnvFilePaths...),
-		LifecycleConfig:      request.LifecycleConfig,
+		DisplayName:        identity.displayName,
+		RuntimeTargetID:    request.RuntimeTargetID,
+		ApplicationName:    identity.applicationName,
+		ComposeFileName:    identity.composePath,
+		ComposeFileContent: composeFileContent,
+		EnvFileName:        identity.envName,
+		EnvFileContent:     identity.envContent,
+		WorkspaceEntries:   materializedEntries,
+		ComposeFilePath:    identity.composePath,
+		EnvFilePaths:       append([]string(nil), request.EnvFilePaths...),
+		LifecycleConfig:    request.LifecycleConfig,
 	}, nil
 }
 
@@ -248,7 +246,7 @@ func validateWorkspaceFileContent(content *string) error {
 
 type managedCreateIdentity struct {
 	displayName, composeContent, composePath string
-	workspaceKey                             *string
+	applicationName                          *string
 	envName                                  *string
 	envContent                               *string
 }
@@ -265,27 +263,15 @@ func normalizeManagedCreateIdentity(request ManagedProjectCreateRequest) (manage
 	if displayName == "" || composeContent == "" {
 		return managedCreateIdentity{}, fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
 	}
-	if strings.TrimSpace(request.CanonicalProjectName) != "" {
-		if _, err := validateExplicitCanonicalProjectName(request.CanonicalProjectName); err != nil {
-			return managedCreateIdentity{}, err
-		}
-	}
-	workspaceKey, err := normalizeOrDeriveWorkspaceKey(displayName, request.WorkspaceKey)
+	applicationName, err := normalizeApplicationName(request.ApplicationName)
 	if err != nil {
 		return managedCreateIdentity{}, err
-	}
-	if strings.TrimSpace(request.RelativeProjectDirectory) != "" {
-		legacyKey, err := normalizeManagedRelativeDirectory(request.RelativeProjectDirectory)
-		if err != nil {
-			return managedCreateIdentity{}, err
-		}
-		workspaceKey = &legacyKey
 	}
 	files, err := normalizeManagedCreateFiles(request)
 	if err != nil {
 		return managedCreateIdentity{}, err
 	}
-	return managedCreateIdentity{displayName: displayName, composeContent: composeContent, composePath: files.composePath, workspaceKey: workspaceKey, envName: files.envName, envContent: files.envContent}, nil
+	return managedCreateIdentity{displayName: displayName, composeContent: composeContent, composePath: files.composePath, applicationName: applicationName, envName: files.envName, envContent: files.envContent}, nil
 }
 
 func normalizeManagedCreateFiles(request ManagedProjectCreateRequest) (managedCreateFiles, error) {
@@ -333,29 +319,19 @@ func rejectComposeProjectNameOverride(content *string, composeName string) error
 	return nil
 }
 
-// normalizeOrDeriveWorkspaceKey 返回请求中的工作区键；未提供时根据显示名称生成，并验证其格式。
-// @param displayName 用于派生工作区键的显示名称。
-// @param requested 请求指定的工作区键；为 nil 或空白时根据 displayName 派生。
-// @returns 规范化后的工作区键；如果键为空或格式无效，则返回错误。
-func normalizeOrDeriveWorkspaceKey(displayName string, requested *string) (*string, error) {
-	key := ""
-	if requested != nil {
-		key = strings.TrimSpace(*requested)
+// normalizeApplicationName validates the required machine-safe application name.
+func normalizeApplicationName(requested *string) (*string, error) {
+	if requested == nil {
+		return nil, errProjectApplicationNameRequired
 	}
-	if key == "" {
-		key = strings.ToLower(strings.TrimSpace(displayName))
-		key = strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-				return r
-			}
-			return '-'
-		}, key)
-		key = strings.Trim(key, "-")
+	name := strings.TrimSpace(*requested)
+	if name == "" {
+		return nil, errProjectApplicationNameRequired
 	}
-	if key == "" || !workspaceKeyPattern.MatchString(key) {
-		return nil, fmt.Errorf("%w: invalid workspace key", errProjectInvalidArgument)
+	if !applicationNamePattern.MatchString(name) {
+		return nil, errProjectInvalidApplicationName
 	}
-	return &key, nil
+	return &name, nil
 }
 
 // chooseWorkspacePath selects an available workspace path and key under root.
@@ -377,7 +353,7 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
 			if explicit && conflict {
-				return "", nil, fmt.Errorf("%w: workspace key already exists; suggested=%s", errProjectConflict, key)
+				return "", nil, errProjectApplicationNameOccupied
 			}
 			return path, &key, nil
 		}
@@ -405,28 +381,6 @@ func normalizeManagedWorkspacePath(value string) (string, error) {
 		return "", fmt.Errorf("%w: workspace file path escapes project", errProjectInvalidArgument)
 	}
 	return filepath.ToSlash(cleaned), nil
-}
-
-// normalizeManagedRelativeDirectory 规范化并校验 managed-create 的相对项目目录。
-// 它会去除首尾空白、统一路径分隔符并清理路径，同时确保目录保持在 managed root 下。
-// @param value 待规范化的相对目录。
-// @returns 规范化后的相对目录；当目录为空、为绝对路径或会逃逸 managed root 时返回错误。
-func normalizeManagedRelativeDirectory(value string) (string, error) {
-	relativeDir := strings.TrimSpace(value)
-	if relativeDir == "" {
-		return "", fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
-	}
-	if filepath.IsAbs(relativeDir) || relativeDir == "." || relativeDir == ".." {
-		return "", fmt.Errorf("%w: relative project directory must stay under managed root", errProjectInvalidArgument)
-	}
-	if strings.Contains(relativeDir, `\`) {
-		relativeDir = strings.ReplaceAll(relativeDir, `\`, "/")
-	}
-	relativeDir = filepath.Clean(relativeDir)
-	if relativeDir == "." || strings.HasPrefix(relativeDir, "..") {
-		return "", fmt.Errorf("%w: relative project directory escapes managed root", errProjectInvalidArgument)
-	}
-	return relativeDir, nil
 }
 
 // 它会去除首尾空白并提取最后一个路径段；当结果为空、`.` 或路径分隔符时返回错误。

@@ -22,24 +22,27 @@ import (
 )
 
 var (
-	errProjectServiceUnavailable   = errors.New("project service is unavailable")
-	errProjectInvalidArgument      = errors.New("project invalid argument")
-	errProjectInvalidCanonicalName = errors.New("project invalid canonical name")
-	errProjectNotFound             = errors.New("project not found")
-	errProjectConflict             = errors.New("project conflict")
-	errProjectImportValidation     = errors.New("project import validation failed")
-	errProjectUnsupportedLifecycle = errors.New("project lifecycle is unsupported")
-	errProjectLifecycleReview      = errors.New("project lifecycle configuration review required")
-	errProjectFileNotFound         = errors.New("project file not found")
-	errProjectDestroyBlocked       = errors.New("project destroy blocked by ownership guard")
-	errProjectManagedFlow          = errors.New("project managed flow is unsupported")
-	errProjectDirectoryForbidden   = errors.New("project directory browse forbidden")
-	errProjectInspectionExpired    = errors.New("project inspection expired")
-	errProjectInspectionStale      = errors.New("project inspection stale")
-	errProjectFileHashMismatch     = errors.New("project file hash mismatch")
-	errProjectRuntimeUnavailable   = errors.New("project runtime is unavailable")
-	errProjectComposeNameOccupied  = errors.New("compose project name is already occupied on runtime target")
-	errProjectActorAttribution     = errors.New("project actor attribution required")
+	errProjectServiceUnavailable      = errors.New("project service is unavailable")
+	errProjectInvalidArgument         = errors.New("project invalid argument")
+	errProjectApplicationNameRequired = errors.New("project application name is required")
+	errProjectInvalidApplicationName  = errors.New("project application name is invalid")
+	errProjectApplicationNameOccupied = errors.New("project application name is occupied")
+	errProjectInvalidCanonicalName    = errors.New("project invalid canonical name")
+	errProjectNotFound                = errors.New("project not found")
+	errProjectConflict                = errors.New("project conflict")
+	errProjectImportValidation        = errors.New("project import validation failed")
+	errProjectUnsupportedLifecycle    = errors.New("project lifecycle is unsupported")
+	errProjectLifecycleReview         = errors.New("project lifecycle configuration review required")
+	errProjectFileNotFound            = errors.New("project file not found")
+	errProjectDestroyBlocked          = errors.New("project destroy blocked by ownership guard")
+	errProjectManagedFlow             = errors.New("project managed flow is unsupported")
+	errProjectDirectoryForbidden      = errors.New("project directory browse forbidden")
+	errProjectInspectionExpired       = errors.New("project inspection expired")
+	errProjectInspectionStale         = errors.New("project inspection stale")
+	errProjectFileHashMismatch        = errors.New("project file hash mismatch")
+	errProjectRuntimeUnavailable      = errors.New("project runtime is unavailable")
+	errProjectComposeNameOccupied     = errors.New("compose project name is already occupied on runtime target")
+	errProjectActorAttribution        = errors.New("project actor attribution required")
 )
 
 const (
@@ -391,20 +394,17 @@ type ManagedRootInfo struct {
 
 // ManagedProjectCreateRequest describes Phase 2 managed-create contract payloads.
 type ManagedProjectCreateRequest struct {
-	DisplayName     string
-	RuntimeTargetID uint64
-	WorkspaceKey    *string
-	// Internal source adapters retain these fields while public HTTP contracts use workspace_key.
-	CanonicalProjectName     string
-	RelativeProjectDirectory string
-	ComposeFileName          string
-	ComposeFileContent       string
-	EnvFileName              *string
-	EnvFileContent           *string
-	WorkspaceEntries         []ManagedWorkspaceEntry
-	ComposeFilePath          string
-	EnvFilePaths             []string
-	LifecycleConfig          *LifecycleStandardConfig
+	DisplayName        string
+	RuntimeTargetID    uint64
+	ApplicationName    *string
+	ComposeFileName    string
+	ComposeFileContent string
+	EnvFileName        *string
+	EnvFileContent     *string
+	WorkspaceEntries   []ManagedWorkspaceEntry
+	ComposeFilePath    string
+	EnvFilePaths       []string
+	LifecycleConfig    *LifecycleStandardConfig
 }
 
 // ManagedWorkspaceEntry represents either an arbitrary UTF-8 text file or an empty/non-empty directory.
@@ -420,7 +420,7 @@ type ManagedProjectCreateValidationResult struct {
 	SourceType              string
 	DisplayName             string
 	ComposeProjectName      string
-	WorkspaceKey            *string
+	ApplicationName         *string
 	OwnershipMode           string
 	WorkspacePath           string
 	WorkingDirectory        string
@@ -1024,11 +1024,11 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
-	workingDirectory, workspaceKey, err := chooseWorkspacePath(*rootInfo.ConfiguredRootDirectory, normalized.WorkspaceKey, request.WorkspaceKey != nil && strings.TrimSpace(*request.WorkspaceKey) != "")
+	workingDirectory, applicationName, err := chooseWorkspacePath(*rootInfo.ConfiguredRootDirectory, normalized.ApplicationName, true)
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
-	composeName, composeContent, err := ensureComposeProjectName(normalized.ComposeFileContent, normalized.DisplayName)
+	composeName, composeContent, err := ensureComposeProjectName(normalized.ComposeFileContent, *normalized.ApplicationName)
 	if err != nil {
 		return ManagedProjectCreateValidationResult{}, err
 	}
@@ -1049,7 +1049,7 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
 		ComposeProjectName:      composeName,
-		WorkspaceKey:            workspaceKey,
+		ApplicationName:         applicationName,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
 		WorkspacePath:           workingDirectory,
 		WorkingDirectory:        workingDirectory,
@@ -1060,7 +1060,7 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		EnvFileAbsolutePath:     envFileAbsolutePath,
 		SourceMetadata: map[string]string{
 			"managed_root_key":          rootInfo.ConfigKey,
-			"workspace_key":             *workspaceKey,
+			"application_name":          *applicationName,
 			"managed_compose_file_name": normalized.ComposeFileName,
 			"managed_env_file_name":     stringValue(normalized.EnvFileName),
 		},

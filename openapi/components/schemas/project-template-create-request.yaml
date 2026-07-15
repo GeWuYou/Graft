@@ -3,6 +3,7 @@ additionalProperties: false
 required:
   - display_name
   - runtime_target_id
+  - application_name
 properties:
   display_name:
     type: string
@@ -12,10 +13,11 @@ properties:
     type: integer
     format: int64
     minimum: 1
-  workspace_key:
+  application_name:
     type: string
     maxLength: 255
     pattern: '^[a-z0-9][a-z0-9-]*$'
+    description: Required unique machine-safe application name for the managed directory and Compose project identity.
   template_key:
     type: string
     description: Runtime template directory key. Defaults to default.
@@ -24,6 +26,6 @@ properties:
     description: Optional operator-defined template version label. Defaults to runtime.
   template_instance_name:
     type: string
-    description: Safe display provenance for this template instance. Defaults to the generated workspace key.
+    description: Safe display provenance for this template instance. Defaults to the application name.
   lifecycle_configuration:
     $ref: ./project-lifecycle-configuration-request.yaml

@@ -49,6 +49,12 @@ const (
 	ProjectInvalidFileID ErrorCode = "ops.project.error.invalidFileId"
 	// ProjectInvalidArgument identifies malformed project request input.
 	ProjectInvalidArgument ErrorCode = "ops.project.error.invalidArgument"
+	// ProjectApplicationNameRequired identifies managed-create requests without an application name.
+	ProjectApplicationNameRequired ErrorCode = "ops.project.error.applicationNameRequired"
+	// ProjectInvalidApplicationName identifies application names that are not Compose-safe.
+	ProjectInvalidApplicationName ErrorCode = "ops.project.error.invalidApplicationName"
+	// ProjectApplicationNameOccupied identifies managed application names already reserved by a live project.
+	ProjectApplicationNameOccupied ErrorCode = "ops.project.error.applicationNameOccupied"
 	// ProjectInvalidCanonicalProjectName identifies invalid canonical project names.
 	ProjectInvalidCanonicalProjectName ErrorCode = "ops.project.error.invalidCanonicalProjectName"
 	// ProjectConflict identifies project-registration uniqueness conflicts.

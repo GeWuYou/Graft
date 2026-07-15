@@ -3,6 +3,9 @@
     "project": {
       "error": {
         "invalidArgument": "项目请求参数不合法。",
+        "applicationNameRequired": "请填写应用名。",
+        "invalidApplicationName": "应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。",
+        "applicationNameOccupied": "应用名已被占用，请使用其他应用名。",
         "invalidCanonicalProjectName": "Canonical Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
         "conflict": "当前项目状态存在冲突，无法执行该操作。",
         "composeProjectNameOccupied": "所选运行目标上已有同名 Compose 项目，无法继续操作。",
@@ -719,8 +722,8 @@
         "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建项目。"
       },
       "form": {
-        "workspaceKey": "工作区名称",
-        "workspaceKeyPlaceholder": "例如：orders-dev",
+        "applicationName": "应用名",
+        "applicationNamePlaceholder": "例如：orders-dev",
         "title": "项目基础信息",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
@@ -735,7 +738,8 @@
         "envFileNamePlaceholder": "留空表示本次不写入 Env 文件"
       },
       "validation": {
-        "workspaceKeyPattern": "工作区名称只能包含小写字母、数字和中横线。",
+        "applicationNameRequired": "请输入应用名。",
+        "applicationNamePattern": "应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。",
         "title": "Authority 与路径预览",
         "rootDirectory": "Managed Root",
         "configKey": "系统配置键",
@@ -779,6 +783,7 @@
         "filesTitle": "工作区文件",
         "filesEmpty": "工作区内暂时没有条目。",
         "rootLabel": "项目文件",
+        "resizeFileTreeAriaLabel": "调整文件树宽度",
         "selectFile": "请从工作区文件树中选择要编辑的文件。",
         "addFile": "新增文件",
         "newFile": "新建文件",
@@ -948,8 +953,8 @@
     "sourceCreate": {
       "templateDescription": "从内置 Compose 工作区模板创建托管应用。",
       "displayName": "显示名称",
-      "workspaceKey": "工作区名称",
-      "workspaceKeyPlaceholder": "例如：orders-dev",
+      "applicationName": "应用名",
+      "applicationNamePlaceholder": "例如：orders-dev",
       "canonicalName": "规范项目名称",
       "relativeDirectory": "相对目录",
       "resolvedDirectory": "应用目录",

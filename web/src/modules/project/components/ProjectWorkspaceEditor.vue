@@ -6,8 +6,7 @@
   >
     <div
       ref="mainGridRef"
-      class="project-workspace-editor__main-grid"
-      :class="{ 'project-workspace-editor__main-grid--with-splitter': sidebarResizable }"
+      class="project-workspace-editor__main-grid project-workspace-editor__main-grid--with-splitter"
       :style="sidebarGridStyle"
     >
       <aside class="project-workspace-editor__sidebar">
@@ -146,10 +145,12 @@
       </aside>
 
       <div
-        v-if="sidebarResizable"
         class="project-workspace-editor__splitter"
         role="separator"
         :aria-label="sidebarResizeAriaLabel"
+        :aria-valuemax="resolveSidebarMaxWidth()"
+        :aria-valuemin="sidebarMinWidth"
+        :aria-valuenow="resolvedSidebarWidth"
         aria-orientation="vertical"
         tabindex="0"
         @keydown.end.prevent="setSidebarWidth(resolveSidebarMaxWidth())"
@@ -387,9 +388,8 @@ const props = withDefaults(
     selectedPath?: string;
     sidebarMaxWidth?: number;
     sidebarMinWidth?: number;
-    sidebarResizable?: boolean;
     sidebarResizeAriaLabel?: string;
-    sidebarWidth?: number;
+    sidebarWidthStorageKey?: string;
     showAnnotationAction?: boolean;
     tabActionTestId?: (path: string, action: string) => string;
     tabTestId?: (path: string) => string;
@@ -404,9 +404,8 @@ const props = withDefaults(
     inlineEdit: null,
     sidebarMaxWidth: 360,
     sidebarMinWidth: 208,
-    sidebarResizable: false,
     sidebarResizeAriaLabel: 'Resize file tree',
-    sidebarWidth: 256,
+    sidebarWidthStorageKey: '',
     showAnnotationAction: false,
     selectedPath: '',
     tabActionTestId: undefined,
@@ -430,7 +429,6 @@ const emit = defineEmits<{
   'update:activePath': [path: string];
   'update:fullscreen': [fullscreen: boolean];
   'update-content': [path: string, content: string];
-  'update:sidebarWidth': [width: number];
 }>();
 
 const contextMenuRef = ref<HTMLElement | null>(null);
@@ -451,8 +449,10 @@ const contextMenu = reactive<{ row: ProjectWorkspaceEditorRow | null; visible: b
 });
 const editorOptions = { fontSize: 13, lineNumbers: 'on' as const, wordWrap: 'off' as const };
 const inlineEdit = computed(() => props.inlineEdit);
+const sidebarWidth = ref(resolveStoredSidebarWidth());
+const resolvedSidebarWidth = computed(() => clampSidebarWidth(sidebarWidth.value));
 const sidebarGridStyle = computed(() => ({
-  '--project-workspace-sidebar-width': `${clampSidebarWidth(props.sidebarWidth)}px`,
+  '--project-workspace-sidebar-width': `${resolvedSidebarWidth.value}px`,
 }));
 
 useKeyboardShortcut(
@@ -565,17 +565,23 @@ function clampSidebarWidth(value: number) {
 }
 
 function setSidebarWidth(value: number) {
-  emit('update:sidebarWidth', clampSidebarWidth(value));
+  sidebarWidth.value = clampSidebarWidth(value);
+  if (!props.sidebarWidthStorageKey || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(props.sidebarWidthStorageKey, String(sidebarWidth.value));
+  } catch {
+    return;
+  }
 }
 
 function nudgeSidebarWidth(delta: number) {
-  setSidebarWidth(props.sidebarWidth + delta);
+  setSidebarWidth(resolvedSidebarWidth.value + delta);
 }
 
 function startSidebarResize(event: PointerEvent) {
-  if (!props.sidebarResizable || typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
   sidebarResizeStartX = event.clientX;
-  sidebarResizeStartWidth = clampSidebarWidth(props.sidebarWidth);
+  sidebarResizeStartWidth = resolvedSidebarWidth.value;
   const handlePointerMove = (moveEvent: PointerEvent) => {
     setSidebarWidth(sidebarResizeStartWidth + moveEvent.clientX - sidebarResizeStartX);
   };
@@ -591,6 +597,16 @@ function startSidebarResize(event: PointerEvent) {
 function stopSidebarResize() {
   removeSidebarResizeListeners?.();
   removeSidebarResizeListeners = null;
+}
+
+function resolveStoredSidebarWidth() {
+  if (!props.sidebarWidthStorageKey || typeof window === 'undefined') return 256;
+  try {
+    const parsed = Number(window.localStorage.getItem(props.sidebarWidthStorageKey));
+    return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : 256;
+  } catch {
+    return 256;
+  }
 }
 
 defineExpose({

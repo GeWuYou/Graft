@@ -131,6 +131,8 @@ describe('ProjectCreateIndex', () => {
       workspace_entries: [
         { path: 'compose.yaml', node_type: 'file', content: 'services: {}' },
         { path: '.env', node_type: 'file', content: '' },
+        { path: 'config', node_type: 'directory' },
+        { path: 'config/dashboard.json', node_type: 'file', content: 'null' },
       ],
     });
     routeQuery.runtime_target_id = '7';
@@ -163,7 +165,17 @@ describe('ProjectCreateIndex', () => {
     await flushPromises();
 
     expect(mocks.postProjectCreate).toHaveBeenCalledTimes(1);
-    expect(mocks.postProjectCreate).toHaveBeenCalledWith(expect.objectContaining({ runtime_target_id: 7 }));
+    const request = mocks.postProjectCreate.mock.calls[0]?.[0];
+    expect(request).toEqual(expect.objectContaining({ runtime_target_id: 7 }));
+    expect(request.workspace_entries).toEqual(
+      expect.arrayContaining([
+        { path: 'config', node_type: 'directory' },
+        { path: 'config/dashboard.json', node_type: 'file', content: 'null' },
+      ]),
+    );
+    expect(request.workspace_entries.find((entry: { path: string }) => entry.path === 'config')).not.toHaveProperty(
+      'content',
+    );
   });
 
   it('does not create when the runtime target id is not a safe positive integer', async () => {
