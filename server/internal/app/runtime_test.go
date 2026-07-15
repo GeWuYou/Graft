@@ -84,6 +84,22 @@ type runtimeAppLogRecorderRepo struct {
 	deleted []time.Time
 }
 
+type realtimeRouteTestAuthService struct{}
+
+func (realtimeRouteTestAuthService) CurrentUser(context.Context) (*moduleapi.CurrentUser, error) {
+	return nil, nil
+}
+
+func (realtimeRouteTestAuthService) ParseAccessToken(context.Context, string) (*moduleapi.AccessTokenClaims, error) {
+	return nil, nil
+}
+
+type realtimeRouteTestAuthorizer struct{}
+
+func (realtimeRouteTestAuthorizer) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
+	return nil
+}
+
 func (r *runtimeAppLogRecorderRepo) CreateAppLog(_ context.Context, input logger.CreateAppLogInput) (logger.AppLogRecord, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1273,6 +1289,47 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 		}
 	}
 
+}
+
+func TestRegisterRealtimeSubscriptionRoutesRegistersAuthenticatedTicketEndpoint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	runtime := &Runtime{
+		i18n: i18n.MustNew(config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "en-US",
+			SupportedLocales: []string{"zh-CN", "en-US"},
+		}),
+		server:               httpx.NewServer(zap.NewNop(), &runtimeAccessLogRecorderRepo{}),
+		services:             container.New(),
+		realtimeTopicIssuers: realtime.NewTopicIssuerRegistry(),
+	}
+	if err := runtime.services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
+		return realtimeRouteTestAuthService{}, nil
+	}); err != nil {
+		t.Fatalf("register auth service: %v", err)
+	}
+	if err := runtime.services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(container.Resolver) (any, error) {
+		return realtimeRouteTestAuthorizer{}, nil
+	}); err != nil {
+		t.Fatalf("register authorizer: %v", err)
+	}
+	if err := runtime.registerRealtimeSubscriptionRoutes(); err != nil {
+		t.Fatalf("register realtime subscription routes: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/realtime/subscriptions",
+		strings.NewReader(`{"topic":"project.logs:app_00000000000000000000000006"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	runtime.server.Engine().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected protected realtime ticket endpoint to return %d, got %d: %s", http.StatusUnauthorized, recorder.Code, recorder.Body.String())
+	}
 }
 
 func TestRegisterCoreRoutesReturnsRealtimeGatewayRegistrationError(t *testing.T) {
