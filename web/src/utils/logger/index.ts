@@ -11,6 +11,13 @@ const LOG_LEVEL_ORDER: Record<Exclude<LogLevel, 'silent'>, number> = {
   error: 40,
 };
 
+/**
+ * 规范化模块名称片段。
+ *
+ * @param moduleName - 待规范化的模块名称片段
+ * @returns 去除首尾空白后的模块名称片段
+ * @throws 当模块名称片段去除首尾空白后为空时抛出错误
+ */
 function normalizeModuleSegment(moduleName: string): string {
   const normalized = moduleName.trim();
   if (!normalized) {

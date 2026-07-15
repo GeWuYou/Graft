@@ -27,7 +27,8 @@ func sameWorkingDirectory(left string, right string) bool {
 // toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
 // toProjectListItemWithManagedRoot 将项目聚合及运行时信息转换为项目列表项。
 //
-// toProjectListItemWithManagedRoot 将项目聚合数据转换为项目列表项，包含项目标识、名称、来源元数据、工作区信息、服务数、容器数量、运行时状态和漂移状态。
+// toProjectListItemWithManagedRoot 将项目聚合数据转换为包含来源、工作区、服务、容器、运行时和漂移信息的项目列表项。
+// 返回生成的项目列表项。
 func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -72,7 +73,7 @@ func toProjectDetailResponse(
 }
 
 // toProjectDetailResponseWithManagedRoot builds a detailed project response, including
-// toProjectDetailResponseWithManagedRoot 将项目聚合数据转换为项目详情响应，包含生命周期配置、文件元数据、运行时信息及托管根目录来源元数据。
+// toProjectDetailResponseWithManagedRoot 将项目聚合数据转换为项目详情响应，并包含生命周期配置、文件信息、运行时状态及托管根目录来源元数据。
 func toProjectDetailResponseWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,

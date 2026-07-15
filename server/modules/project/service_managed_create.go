@@ -96,7 +96,9 @@ type normalizedManagedWorkspaceEntry struct {
 //
 // normalizeManagedCreateRequest 校验并规范化受控项目创建请求，生成用于后续创建流程的工作区配置。
 // normalizeManagedCreateRequest 规范化受控项目创建请求及其工作区条目。
-// 当请求字段、路径、工作区条目或 Compose 项目名称无效时返回错误。
+// normalizeManagedCreateRequest 规范化并校验受控项目创建请求，生成可用于创建项目的文件与工作区配置。
+// @param request 待规范化的项目创建请求。
+// @return 规范化后的项目创建请求及可能发生的校验错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	identity, err := normalizeManagedCreateIdentity(request)
 	if err != nil {
@@ -257,6 +259,9 @@ type managedCreateFiles struct {
 	envContent  *string
 }
 
+// normalizeManagedCreateIdentity trims and validates the required managed-project identity and file fields.
+// It returns the normalized display name, application name, compose content and path, and optional
+// environment-file information.
 func normalizeManagedCreateIdentity(request ManagedProjectCreateRequest) (managedCreateIdentity, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	composeContent := strings.TrimSpace(request.ComposeFileContent)
@@ -274,6 +279,7 @@ func normalizeManagedCreateIdentity(request ManagedProjectCreateRequest) (manage
 	return managedCreateIdentity{displayName: displayName, composeContent: composeContent, composePath: files.composePath, applicationName: applicationName, envName: files.envName, envContent: files.envContent}, nil
 }
 
+// normalizeManagedCreateFiles normalizes the compose and optional environment file names and content for a managed project creation request.
 func normalizeManagedCreateFiles(request ManagedProjectCreateRequest) (managedCreateFiles, error) {
 	composePath, err := normalizeManagedFileName(request.ComposeFileName, "compose")
 	if err != nil {
@@ -297,7 +303,7 @@ func normalizeManagedCreateFiles(request ManagedProjectCreateRequest) (managedCr
 }
 
 // rejectComposeProjectNameOverride 检查内容中的 COMPOSE_PROJECT_NAME 是否与指定的 compose 名称一致。
-// content 为 nil 时不执行检查；发现不一致的配置时返回参数错误。
+// rejectComposeProjectNameOverride 校验内容中的 COMPOSE_PROJECT_NAME 配置是否与指定的 Compose 项目名称一致；内容为空或未包含该配置时通过，否则返回参数错误。
 func rejectComposeProjectNameOverride(content *string, composeName string) error {
 	if content == nil {
 		return nil
@@ -319,7 +325,9 @@ func rejectComposeProjectNameOverride(content *string, composeName string) error
 	return nil
 }
 
-// normalizeApplicationName validates the required machine-safe application name.
+// normalizeApplicationName 验证并返回规范化的机器安全应用名称。
+//
+// 名称必须非空，且只能包含小写字母、数字和连字符，并以小写字母或数字开头。
 func normalizeApplicationName(requested *string) (*string, error) {
 	if requested == nil {
 		return nil, errProjectApplicationNameRequired
@@ -337,7 +345,7 @@ func normalizeApplicationName(requested *string) (*string, error) {
 // chooseWorkspacePath selects an available workspace path and key under root.
 // chooseWorkspacePath 为工作区键选择可用路径和键；显式请求遇到已占用的键时返回冲突错误及建议键。
 // requested 不能为 nil。
-// 返回选定的工作区路径、键以及可能的错误。
+// 显式请求的名称已被占用时返回 errProjectApplicationNameOccupied；无法找到可用路径时返回错误。
 func chooseWorkspacePath(root string, requested *string, explicit bool) (string, *string, error) {
 	if requested == nil {
 		return "", nil, errProjectInvalidArgument
@@ -370,7 +378,8 @@ func chooseWorkspacePath(root string, requested *string, explicit bool) (string,
 
 // normalizeManagedWorkspacePath validates and normalizes a relative workspace file path.
 // normalizeManagedWorkspacePath 规范化工作区相对路径，并拒绝空路径、绝对路径、包含反斜杠或逃逸出项目目录的路径。
-// 返回使用斜杠分隔的规范化路径；输入无效时返回错误。
+// normalizeManagedWorkspacePath 规范化工作区相对路径，并返回使用斜杠分隔的路径。
+// 如果路径为空、为绝对路径、包含反斜杠或会逃逸项目目录，则返回错误。
 func normalizeManagedWorkspacePath(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || filepath.IsAbs(value) || strings.Contains(value, `\`) {
@@ -383,7 +392,8 @@ func normalizeManagedWorkspacePath(value string) (string, error) {
 	return filepath.ToSlash(cleaned), nil
 }
 
-// 它会去除首尾空白并提取最后一个路径段；当结果为空、`.` 或路径分隔符时返回错误。
+// normalizeManagedFileName 校验并规范化文件名，去除首尾空白。
+// 返回有效的文件名；输入为空、包含路径、为 "." 或路径分隔符时返回错误。
 func normalizeManagedFileName(value string, label string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" || trimmed == "." || trimmed == string(filepath.Separator) {

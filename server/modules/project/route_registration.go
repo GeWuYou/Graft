@@ -521,7 +521,8 @@ func (r routeRuntime) handleWorkspaceDefaults(ginCtx *gin.Context) {
 
 // toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
 // toTemplateProjectCreateRequest 将模板项目创建请求转换为领域请求。
-// 当生命周期配置无法转换为标准配置时返回错误。
+// toTemplateProjectCreateRequest 将模板项目创建 HTTP 请求转换为领域请求。
+// 生命周期配置无法转换时返回转换错误。
 func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (TemplateProjectCreateRequest, error) {
 	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, ApplicationName: request.ApplicationName, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
 	if request.LifecycleConfiguration != nil {

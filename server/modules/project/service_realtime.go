@@ -254,6 +254,7 @@ func (s *Service) ensureRealtimeAccess(
 	return nil
 }
 
+// 如果主题不包含指定前缀或应用 ID 格式无效，则返回错误。
 func parseProjectRealtimeTopicApplicationID(topic string, prefix string) (string, error) {
 	if !strings.HasPrefix(topic, prefix) {
 		return "", errProjectInvalidArgument
@@ -265,6 +266,7 @@ func parseProjectRealtimeTopicApplicationID(topic string, prefix string) (string
 	return applicationID, nil
 }
 
+// mapProjectRealtimeError maps project errors to realtime subscription errors.
 func mapProjectRealtimeError(err error) error {
 	switch {
 	case errors.Is(err, errProjectNotFound):

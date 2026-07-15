@@ -81,8 +81,8 @@ export function formatDebugLine(flagId: string, event: string, detail: FlatDebug
 /**
  * 初始化全局调试运行时接口。
  *
- * 在浏览器环境下将调试控制对象挂载到 `window.__GRAFT_DEBUG__`，并暴露当前调试状态、
- * 旗标列表以及启用、禁用、设置和清除运行时覆盖的方法。
+ * 在浏览器环境下将调试控制对象挂载到 `window.__GRAFT_DEBUG__`，提供调试状态查询、
+ * 旗标列表管理以及运行时覆盖控制；同时完成调试状态持久化恢复。
  */
 export function initDebugRuntime() {
   const debugStore = useDebugStore(store);

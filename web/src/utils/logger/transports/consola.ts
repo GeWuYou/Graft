@@ -8,14 +8,34 @@ const logger = createConsola();
 const MAX_FIELD_COUNT = 12;
 const MAX_VALUE_LENGTH = 240;
 
+/**
+ * 将字符串中的换行、回车和制表符替换为空格，并移除首尾空白。
+ *
+ * @param value - 待处理的字符串
+ * @returns 规范化后的单行字符串
+ */
 function toSingleLine(value: string) {
   return value.replaceAll(/[\r\n\t]+/g, ' ').trim();
 }
 
+/**
+ * 将字符串截断至最大长度，超出长度时以省略号结尾。
+ *
+ * @param value - 待截断的字符串
+ * @returns 截断后的字符串
+ */
 function truncate(value: string) {
   return value.length > MAX_VALUE_LENGTH ? `${value.slice(0, MAX_VALUE_LENGTH - 3)}...` : value;
 }
 
+/**
+ * 将值格式化为适合日志输出的字符串。
+ *
+ * 字符串会进行单行化和截断；日期转换为 ISO 字符串；无法序列化的值表示为 `"[unserializable]"`。
+ *
+ * @param value - 要格式化的值
+ * @returns 格式化后的字符串
+ */
 function formatValue(value: unknown): string {
   if (value === null) {
     return 'null';
@@ -44,6 +64,14 @@ function formatValue(value: unknown): string {
   }
 }
 
+/**
+ * 将值展开为带前缀的键值字段，并限制字段数量及循环引用的递归处理。
+ *
+ * @param value - 要展开或格式化的值
+ * @param prefix - 当前字段使用的键名前缀
+ * @param fields - 用于收集格式化字段的数组
+ * @param seen - 用于检测循环引用的对象集合
+ */
 function appendFields(value: unknown, prefix: string, fields: string[], seen: WeakSet<object>) {
   if (fields.length >= MAX_FIELD_COUNT) {
     return;
@@ -78,6 +106,12 @@ function appendFields(value: unknown, prefix: string, fields: string[], seen: We
   fields.push(`${prefix}=${formatValue(value)}`);
 }
 
+/**
+ * 将日志事件格式化为包含时间戳、消息及附加字段的单行文本。
+ *
+ * @param event - 要格式化的日志事件
+ * @returns 格式化后的单行日志文本
+ */
 function formatConsolaLine(event: LogEvent) {
   const fields: string[] = [];
   const seen = new WeakSet<object>();
@@ -93,6 +127,11 @@ function formatConsolaLine(event: LogEvent) {
   return fields.length > 0 ? `${eventLine} | ${fields.join(' ')}` : eventLine;
 }
 
+/**
+ * 创建一个将日志事件格式化并路由到 Consola 的传输器。
+ *
+ * @returns 配置完成的 Consola 日志传输器
+ */
 export function createConsolaTransport(): LoggerTransport {
   return {
     log(event) {

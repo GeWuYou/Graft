@@ -168,7 +168,7 @@ func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) Lifec
 	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy, AdditionalArgs: append([]string(nil), config.AdditionalArgs...)}
 }
 
-// managedCreationCommand 构建受管项目创建流程使用的源无关创建命令。
+// managedCreationCommand 根据已验证的项目数据、规范化请求和解析结果构建受管项目的创建命令。
 func managedCreationCommand(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
 	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName}
 }

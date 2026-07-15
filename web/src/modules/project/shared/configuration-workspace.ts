@@ -74,15 +74,33 @@ export function normalizeTextBlock(value: string) {
   return normalized ? `${normalized}\n` : '';
 }
 
+/**
+ * 判断当前内容与已保存内容是否存在未保存的变化。
+ *
+ * @param current - 当前内容
+ * @param saved - 已保存的内容
+ * @returns `true` 表示标准化后的内容不同，`false` 表示相同
+ */
 export function hasWorkspaceUnsavedChanges(current: string, saved: string) {
   return normalizeWorkspaceContent(current) !== normalizeWorkspaceContent(saved);
 }
 
-/** Whether Monaco provides an explicit syntax diagnostic for a workspace language. */
+/**
+ * 判断工作区语言是否支持显式语法校验。
+ *
+ * @param language - 要检查的 Monaco 语言标识
+ * @returns `true` 表示语言支持显式语法校验，`false` 表示不支持
+ */
 export function supportsExplicitWorkspaceSyntaxValidation(language: ProjectWorkspaceMonacoLanguage) {
   return language === 'json' || language === 'yaml';
 }
 
+/**
+ * 从路径中解析工作区文件名。
+ *
+ * @param path - 文件路径；为空时使用 `untitled`
+ * @returns 路径末尾的文件名，或 `untitled`
+ */
 export function resolveWorkspaceFileName(path: string) {
   const normalized = String(path || '').trim();
   if (!normalized) {

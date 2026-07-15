@@ -15,6 +15,12 @@ type Finding = {
   detail: string;
 };
 
+/**
+ * 递归收集目录中符合扫描条件的源文件。
+ *
+ * @param dir - 要遍历的目录路径
+ * @returns 符合扩展名要求且不属于测试文件、声明文件或排除目录的文件绝对路径
+ */
 function walk(dir: string): string[] {
   const files: string[] = [];
 

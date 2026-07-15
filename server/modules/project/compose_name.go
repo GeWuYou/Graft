@@ -10,7 +10,8 @@ import (
 
 // ensureComposeProjectName preserves a declared Compose top-level name or injects
 // ensureComposeProjectName 确保 Compose YAML 包含有效的顶层 name，并在缺少时使用应用名写入。
-// 返回项目名称、处理后的 YAML 内容以及处理错误。
+// ensureComposeProjectName 校验 Compose YAML 的顶层项目名称，并在缺少名称时使用应用名称补充。
+// 返回解析或校验后的项目名称、处理后的 YAML 内容，以及处理过程中遇到的错误。
 func ensureComposeProjectName(content, applicationName string) (string, string, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &root); err != nil {
