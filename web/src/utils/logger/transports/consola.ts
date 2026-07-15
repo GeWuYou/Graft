@@ -2,6 +2,8 @@ import { createConsola } from 'consola';
 
 import type { LogEvent, LoggerTransport } from '@/utils/logger/types';
 
+import { isPlainObject } from '../object';
+
 const logger = createConsola();
 const MAX_FIELD_COUNT = 12;
 const MAX_VALUE_LENGTH = 240;
@@ -40,15 +42,6 @@ function formatValue(value: unknown): string {
   } catch {
     return '"[unserializable]"';
   }
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object') {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
 }
 
 function appendFields(value: unknown, prefix: string, fields: string[], seen: WeakSet<object>) {

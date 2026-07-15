@@ -2,21 +2,14 @@ import { createConsolaTransport } from '@/utils/logger/transports/consola';
 import { noopTransport } from '@/utils/logger/transports/noop';
 import type { LogEvent, Logger, LoggerContext, LoggerTransport, LogLevel } from '@/utils/logger/types';
 
+import { isPlainObject } from './object';
+
 const LOG_LEVEL_ORDER: Record<Exclude<LogLevel, 'silent'>, number> = {
   debug: 10,
   info: 20,
   warn: 30,
   error: 40,
 };
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object') {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
 
 function normalizeModuleSegment(moduleName: string): string {
   const normalized = moduleName.trim();
