@@ -19,6 +19,11 @@ const appLogger = createLogger('app.runtime').withContext({
   component: 'app.bootstrap',
 });
 
+const RESIZE_OBSERVER_LOOP_ERROR_MESSAGES = new Set([
+  'ResizeObserver loop completed with undelivered notifications.',
+  'ResizeObserver loop limit exceeded',
+]);
+
 /**
  * 初始化并挂载应用。
  *
@@ -58,10 +63,9 @@ export function bootstrapApp() {
 }
 
 /**
- * 在浏览器环境中注册全局错误日志监听器。
+ * 在浏览器环境中注册全局运行时错误监听器。
  *
- * 为 `window` 的 `error` 和 `unhandledrejection` 事件添加监听器，并记录未被处理的运行时错误。
- * 已处理的鉴权请求错误和 Monaco 良性取消错误会被拦截，不再继续记录。
+ * 记录未被抑制的脚本错误和未处理的 Promise 拒绝，并拦截 ResizeObserver 循环错误、已处理的鉴权请求错误及 Monaco 良性取消错误。
  */
 function registerGlobalLoggerSinks() {
   if (typeof window === 'undefined') {
@@ -69,7 +73,13 @@ function registerGlobalLoggerSinks() {
   }
 
   window.addEventListener('error', (event) => {
-    appLogger.error(normalizeError(event.error ?? event.message), {
+    const error = event.error ?? event.message;
+    if (isResizeObserverLoopError(error)) {
+      event.preventDefault();
+      return;
+    }
+
+    appLogger.error(normalizeError(error), {
       component: 'window',
       eventType: 'window.error',
       filename: event.filename,
@@ -96,6 +106,22 @@ function registerGlobalLoggerSinks() {
   });
 }
 
+/**
+ * 判断错误是否属于 ResizeObserver 循环类错误。
+ *
+ * @param error - 待检查的错误值
+ * @returns `true` if 错误消息匹配已知的 ResizeObserver 循环错误，`false` otherwise
+ */
+function isResizeObserverLoopError(error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  return RESIZE_OBSERVER_LOOP_ERROR_MESSAGES.has(message.trim());
+}
+
+/**
+ * 将当前路由同步到全局日志上下文。
+ *
+ * @param route - 当前路由路径
+ */
 function syncRouteLoggerContext(route: string) {
   patchGlobalLoggerContext({
     route: route.trim(),

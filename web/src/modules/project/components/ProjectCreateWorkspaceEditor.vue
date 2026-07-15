@@ -1,117 +1,132 @@
 <template>
-  <section class="project-create-workspace">
+  <section ref="workspaceRoot" class="project-create-workspace">
     <t-alert theme="info" :message="t('project.create.workspace.hint')" />
-    <div class="project-create-workspace__layout">
-      <t-card :title="t('project.create.workspace.filesTitle')" bordered class="project-create-workspace__tree-card">
-        <div
-          class="project-create-workspace__tree graft-scrollbar"
-          @contextmenu.prevent="openMenu('', 'directory', $event)"
-        >
-          <div class="project-create-workspace__root-heading">
-            <p class="project-create-workspace__root-label">{{ t('project.create.workspace.rootLabel') }}</p>
-            <button
-              type="button"
-              class="project-create-workspace__entry-actions"
-              :aria-label="
-                t('project.create.workspace.entryActions', { path: t('project.create.workspace.rootLabel') })
-              "
-              @click.stop="openMenu('', 'directory', $event, true)"
-            >
-              <ellipsis-icon />
-            </button>
-          </div>
-          <template v-for="row in treeRows" :key="row.path">
-            <div
-              class="project-create-workspace__tree-row"
-              :class="{ 'project-create-workspace__tree-row--active': row.path === activePath }"
-              :style="{ '--workspace-tree-depth': String(row.depth) }"
-              @contextmenu.prevent.stop="openMenu(row.path, row.nodeType, $event)"
-            >
-              <button
-                class="project-create-workspace__tree-entry"
-                type="button"
-                @click="row.nodeType === 'directory' ? toggleDirectory(row.path) : (activePath = row.path)"
-              >
-                <span v-if="row.nodeType === 'directory'" class="project-create-workspace__tree-expander">{{
-                  isDirectoryExpanded(row.path) ? '▾' : '▸'
-                }}</span>
-                <folder-icon v-if="row.nodeType === 'directory'" />
-                <file-code-icon v-else />
-                <span>{{ row.name }}</span>
-              </button>
-              <button
-                type="button"
-                class="project-create-workspace__entry-actions"
-                :aria-label="t('project.create.workspace.entryActions', { path: row.path })"
-                @click.stop="openMenu(row.path, row.nodeType, $event, true)"
-              >
-                <ellipsis-icon />
-              </button>
-            </div>
-          </template>
-          <t-empty v-if="!treeRows.length" :description="t('project.create.workspace.filesEmpty')" />
-        </div>
-      </t-card>
-      <t-card
-        :title="activeFile?.path || t('project.create.workspace.filesTitle')"
-        bordered
-        class="project-create-workspace__editor-card"
-      >
-        <project-monaco-surface
-          v-if="activeFile"
-          v-model="activeFile.content"
-          :editor-aria-label="t('project.create.workspace.editorAriaLabel', { path: activeFile.path })"
-          :language="activeLanguage"
-          :model-key="`managed-create:${activeFile.path}`"
-        />
-        <t-empty v-else :description="t('project.create.workspace.selectFile')" />
-      </t-card>
-    </div>
-
-    <div
-      v-if="contextMenu.visible"
-      class="project-create-workspace__context-menu"
-      :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
-      role="menu"
-      @keydown.down.prevent="moveMenuFocus(1)"
-      @keydown.end.prevent="moveMenuFocus(-1, true)"
-      @keydown.esc.prevent="closeMenu(true)"
-      @keydown.home.prevent="moveMenuFocus(1, true)"
-      @keydown.up.prevent="moveMenuFocus(-1)"
+    <project-workspace-editor
+      ref="workspaceEditor"
+      v-model:active-path="activePath"
+      v-model:fullscreen="fullscreen"
+      :inline-edit="inlineEdit"
+      :active-buffer="editorActiveBuffer"
+      :editor-aria-label="t('project.create.workspace.editorAriaLabel', { path: '{path}' })"
+      editor-height-storage-key="graft.project.create-workspace.editor.height"
+      :empty-description="t('project.create.workspace.filesEmpty')"
+      :labels="editorLabels"
+      :rows="editorRows"
+      :selected-path="workspaceStore.session(workspaceSessionKey).selectedKey"
+      sidebar-width-storage-key="graft.project.create-workspace.sidebar.width"
+      :sidebar-resize-aria-label="t('project.create.workspace.resizeFileTreeAriaLabel')"
+      :tabs="editorTabs"
+      :tabs-empty-description="t('project.create.workspace.selectFile')"
+      :tree-title="t('project.create.workspace.filesTitle')"
+      :root-label="t('project.create.workspace.rootLabel')"
+      @close-tab="(path) => workspaceStore.closeFile(workspaceSessionKey, path)"
+      @context-action="(action, row) => handleContextAction(action, row?.path ?? null)"
+      @inline-edit-cancel="cancelInlineEdit"
+      @inline-edit-submit="submitInlineEdit"
+      @select-entry="(row) => selectEntry(row.path)"
+      @toggle-directory="(row) => toggleDirectory(row.path)"
+      @update-content="updateContent"
+      @update:inline-edit="inlineEdit = $event"
     >
-      <button ref="firstMenuItem" type="button" role="menuitem" @click="beginCreate('file')">
-        {{ t('project.create.workspace.newFile') }}
-      </button>
-      <button type="button" role="menuitem" @click="beginCreate('directory')">
-        {{ t('project.create.workspace.newFolder') }}
-      </button>
-      <button type="button" role="menuitem" :disabled="!contextMenu.path" @click="beginRename">
-        {{ t('project.create.workspace.rename') }}
-      </button>
-      <button type="button" role="menuitem" :disabled="!contextMenu.path" @click="beginDelete">
-        {{ t('project.create.workspace.delete') }}
-      </button>
-    </div>
+      <template #editor-actions>
+        <t-tooltip :content="t('project.create.workspace.saveAction')" theme="light">
+          <span>
+            <t-button
+              data-testid="workspace-create-save"
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              :disabled="!canSaveActiveFile"
+              :loading="saveLoading && pendingSave.action === 'current'"
+              @click="saveCurrentFile"
+            >
+              <template #icon><save-icon /></template>
+              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAction') }}</span>
+            </t-button>
+          </span>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.saveAllAction')" theme="light">
+          <span>
+            <t-button
+              data-testid="workspace-create-save-all"
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              :disabled="!canSaveAllFiles"
+              :loading="saveLoading && pendingSave.action === 'all'"
+              @click="saveAllFiles"
+            >
+              <template #icon><file-copy-icon /></template>
+              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAllAction') }}</span>
+            </t-button>
+          </span>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.validateAction')" theme="light">
+          <span>
+            <t-button
+              data-testid="workspace-create-validate"
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              :disabled="!editorActiveBuffer"
+              :loading="validationLoading"
+              @click="validateCurrentFile"
+            >
+              <template #icon><check-circle-icon /></template>
+              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.validateAction') }}</span>
+            </t-button>
+          </span>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.formatAction')" theme="light">
+          <t-button
+            data-testid="workspace-create-format"
+            theme="default"
+            variant="text"
+            shape="square"
+            size="small"
+            :disabled="!editorActiveBuffer"
+            @click="formatActiveFile"
+          >
+            <template #icon><edit-icon /></template>
+          </t-button>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.copyAction')" theme="light">
+          <t-button
+            data-testid="workspace-create-copy"
+            theme="default"
+            variant="text"
+            shape="square"
+            size="small"
+            :disabled="!editorActiveBuffer"
+            @click="copyActiveFile"
+          >
+            <template #icon><copy-icon /></template>
+          </t-button>
+        </t-tooltip>
+      </template>
+      <template #fullscreen-icon="{ fullscreen: isFullscreen }">
+        <fullscreen-exit-icon v-if="isFullscreen" />
+        <fullscreen-icon v-else />
+      </template>
+    </project-workspace-editor>
 
     <t-dialog
-      v-model:visible="entryDialog.visible"
-      :header="
-        entryDialog.mode === 'rename'
-          ? t('project.create.workspace.rename')
-          : entryDialog.nodeType === 'directory'
-            ? t('project.create.workspace.newFolder')
-            : t('project.create.workspace.newFile')
-      "
-      :confirm-btn="t('project.create.actions.confirm')"
+      v-model:visible="syntaxErrorDialog.visible"
+      theme="warning"
+      :header="t('project.create.workspace.syntaxErrorSaveTitle')"
+      :confirm-btn="t('project.create.workspace.saveWithErrorsAction')"
       :cancel-btn="t('project.create.actions.cancel')"
-      @confirm="submitEntryDialog"
+      @confirm="confirmSaveWithSyntaxErrors"
     >
-      <t-form>
-        <t-form-item :label="t('project.create.workspace.filePath')">
-          <t-input v-model="entryDialog.path" :placeholder="t('project.create.workspace.filePathPlaceholder')" />
-        </t-form-item>
-      </t-form>
-      <t-alert v-if="entryDialog.error" theme="error" :message="entryDialog.error" />
+      <p>{{ t('project.create.workspace.syntaxErrorSaveBody') }}</p>
+      <ul class="project-create-workspace__syntax-error-list">
+        <li v-for="issue in syntaxErrorDialog.issues" :key="issue.path">
+          {{ t('project.create.workspace.syntaxErrorFile', { count: String(issue.count), path: issue.path }) }}
+        </li>
+      </ul>
     </t-dialog>
 
     <t-dialog
@@ -142,200 +157,503 @@
   </section>
 </template>
 <script setup lang="ts">
-import { EllipsisIcon, FileCodeIcon, FolderIcon } from 'tdesign-icons-vue-next';
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import {
+  CheckCircleIcon,
+  CopyIcon,
+  EditIcon,
+  FileCopyIcon,
+  FullscreenExitIcon,
+  FullscreenIcon,
+  SaveIcon,
+} from 'tdesign-icons-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { computed, nextTick, onActivated, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
-import { resolveWorkspaceMonacoLanguage } from '../shared/configuration-workspace';
+import { useKeyboardShortcut } from '@/shared/composables';
+import { copyText } from '@/shared/observability';
+import { store } from '@/store/pinia';
+
+import { normalizeTextBlock, supportsExplicitWorkspaceSyntaxValidation } from '../shared/configuration-workspace';
 import { useProjectPageContext } from '../shared/page-context';
-import type { ProjectWorkspaceManifestFile } from '../types/project';
-import ProjectMonacoSurface from './ProjectMonacoSurface.vue';
+import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
+import { type OpenedWorkspaceFile, useProjectWorkspaceStore } from '../store/workspace';
+import type { ProjectWorkspaceDraftEntry, ProjectWorkspaceTreeItem } from '../types/project';
+import ProjectWorkspaceEditor, {
+  type ProjectWorkspaceEditorBuffer,
+  type ProjectWorkspaceEditorLabels,
+  type ProjectWorkspaceEditorRow,
+  type ProjectWorkspaceInlineEdit,
+} from './ProjectWorkspaceEditor.vue';
 
 defineOptions({ name: 'ProjectCreateWorkspaceEditor' });
 
-type WorkspaceDraftEntry = ProjectWorkspaceManifestFile & { node_type?: 'directory' | 'file' };
-type TreeRow = { depth: number; name: string; nodeType: 'directory' | 'file'; path: string };
+type PendingSaveAction = 'all' | 'current' | null;
+type WorkspaceSyntaxMarker = { severity: number };
+type WorkspaceEditorHandle = {
+  getActiveEditor: () => {
+    getModelKey?: () => string;
+    waitForDiagnostics?: (options?: { quietMs?: number; timeoutMs?: number }) => Promise<WorkspaceSyntaxMarker[]>;
+  } | null;
+};
 
-const files = defineModel<WorkspaceDraftEntry[]>('files', { required: true });
+const MONACO_MARKER_ERROR_SEVERITY = 8;
+let workspaceSessionSeed = 0;
+
+const files = defineModel<ProjectWorkspaceDraftEntry[]>('files', { required: true });
 const { t } = useProjectPageContext();
-const activePath = ref(files.value.find((entry) => entry.node_type !== 'directory')?.path || '');
-const expandedDirectories = ref<string[]>([]);
-const firstMenuItem = ref<HTMLButtonElement | null>(null);
-const contextMenu = reactive({ nodeType: 'directory' as 'directory' | 'file', path: '', visible: false, x: 0, y: 0 });
-let contextMenuTrigger: HTMLElement | null = null;
-const entryDialog = reactive({
-  error: '',
-  mode: 'create' as 'create' | 'rename',
-  nodeType: 'file' as 'directory' | 'file',
-  path: '',
+const workspaceStore = useProjectWorkspaceStore(store);
+const workspaceSessionKey = `project-create-workspace:${++workspaceSessionSeed}`;
+const fullscreen = ref(false);
+const inlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
+const pendingCreatedFilePath = ref('');
+const workspaceRoot = ref<HTMLElement | null>(null);
+const workspaceEditor = ref<WorkspaceEditorHandle | null>(null);
+const deleteDialog = reactive({ count: 0, path: '', stage: 'initial' as 'initial' | 'recursive', visible: false });
+const saveLoading = ref(false);
+const validationLoading = ref(false);
+const pendingSave = reactive<{ action: PendingSaveAction; paths: string[] }>({ action: null, paths: [] });
+const syntaxErrorDialog = reactive<{ issues: Array<{ count: number; path: string }>; visible: boolean }>({
+  issues: [],
   visible: false,
 });
-const deleteDialog = reactive({ count: 0, path: '', stage: 'initial' as 'initial' | 'recursive', visible: false });
 
-const treeRows = computed(() => {
-  const explicitDirectories = new Set(
-    files.value.filter((entry) => entry.node_type === 'directory').map((entry) => entry.path),
-  );
-  const filePaths = new Set(files.value.filter((entry) => entry.node_type !== 'directory').map((entry) => entry.path));
-  for (const path of filePaths) {
-    const parts = path.split('/');
-    for (let index = 1; index < parts.length; index += 1) explicitDirectories.add(parts.slice(0, index).join('/'));
-  }
-  const directories = [...explicitDirectories].sort((left, right) => left.localeCompare(right));
-  const result: TreeRow[] = [];
-  for (const path of directories)
-    result.push({
-      depth: path.split('/').length - 1,
-      name: path.split('/').at(-1) || path,
-      nodeType: 'directory',
-      path,
-    });
-  for (const path of [...filePaths].sort((left, right) => left.localeCompare(right)))
-    result.push({ depth: path.split('/').length - 1, name: path.split('/').at(-1) || path, nodeType: 'file', path });
-  return result
-    .sort((left, right) => left.path.localeCompare(right.path) || (left.nodeType === 'directory' ? -1 : 1))
-    .filter((row) => {
-      const parents = row.path.split('/').slice(0, -1);
-      return parents.every((_, index) => expandedDirectories.value.includes(parents.slice(0, index + 1).join('/')));
-    });
+workspaceStore.ensureSession(workspaceSessionKey);
+onBeforeUnmount(() => workspaceStore.clearSession(workspaceSessionKey));
+
+const editorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
+  closeAll: t('layout.tagTabs.closeAll'),
+  closeLeft: t('layout.tagTabs.closeLeft'),
+  closeOther: t('layout.tagTabs.closeOther'),
+  closeRight: t('layout.tagTabs.closeRight'),
+  delete: t('project.create.workspace.delete'),
+  entryActions: t('project.create.workspace.entryActions', { path: '{path}' }),
+  exitFullscreen: t('project.detail.configuration.exitFullscreen'),
+  fullscreen: t('project.detail.configuration.fullscreen'),
+  newFile: t('project.create.workspace.newFile'),
+  newFolder: t('project.create.workspace.newFolder'),
+  refresh: t('layout.tagTabs.refresh'),
+  rename: t('project.create.workspace.rename'),
+  resizeEditorHeight: t('project.detail.configuration.resizeEditor'),
+}));
+const activePath = computed({
+  get: () => workspaceStore.session(workspaceSessionKey).activeFileKey,
+  set: (path: string) => activateTab(path),
 });
-const activeFile = computed(() =>
-  files.value.find((entry) => entry.path === activePath.value && entry.node_type !== 'directory'),
+const editorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
+  workspaceStore.visibleTreeRows(workspaceSessionKey).map((row) => ({
+    depth: row.depth,
+    expanded: row.expanded,
+    fileKind: row.item.file_kind,
+    name: row.item.name,
+    nodeType: row.item.node_type,
+    path: row.item.relative_path,
+    readOnly: !row.item.editable,
+  })),
 );
-const activeLanguage = computed(() => resolveWorkspaceMonacoLanguage({ path: activeFile.value?.path }));
+function toEditorBuffer(file: OpenedWorkspaceFile): ProjectWorkspaceEditorBuffer {
+  return {
+    content: file.content,
+    dirty: file.content !== file.savedContent,
+    error: file.error,
+    language: file.language,
+    loading: file.loading,
+    modelKey: file.path,
+    name: file.name,
+    path: file.path,
+    readOnly: !file.editable,
+  };
+}
 
-watch(
-  files,
+const editorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
+  workspaceStore.openedFiles(workspaceSessionKey).map(toEditorBuffer),
+);
+const editorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
+  const file = workspaceStore.activeFile(workspaceSessionKey);
+  return file ? toEditorBuffer(file) : null;
+});
+const dirtyEditablePaths = computed(() =>
+  workspaceStore.session(workspaceSessionKey).dirtyFiles.filter((path) => {
+    const entry = entryAt(path);
+    return Boolean(entry && entry.node_type !== 'directory');
+  }),
+);
+const canSaveActiveFile = computed(() => {
+  const active = editorActiveBuffer.value;
+  return Boolean(active && !active.readOnly && dirtyEditablePaths.value.includes(active.path));
+});
+const canSaveAllFiles = computed(() => dirtyEditablePaths.value.length > 0);
+
+useKeyboardShortcut(
+  '$mod+KeyS',
   () => {
-    if (!activeFile.value) activePath.value = files.value.find((entry) => entry.node_type !== 'directory')?.path || '';
+    void saveCurrentFile();
   },
-  { deep: true },
+  {
+    enabled: canSaveActiveFile,
+    ignoreRepeat: true,
+    preventDefault: true,
+    target: workspaceRoot,
+  },
 );
 
-function normalizePath(path: string) {
-  return path.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+function toTreeItems(entries: ProjectWorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[] {
+  return entries.map((entry) => ({
+    editable: entry.node_type !== 'directory',
+    file_kind: entry.node_type === 'directory' ? 'directory' : 'text',
+    has_children:
+      entry.node_type === 'directory'
+        ? entries.some((candidate) => candidate.path.startsWith(`${entry.path}/`))
+        : false,
+    name: entry.path.split('/').at(-1) || entry.path,
+    node_type: entry.node_type === 'directory' ? 'directory' : 'file',
+    readable: true,
+    relative_path: entry.path,
+  }));
 }
-function isSafePath(path: string) {
-  return (
-    Boolean(path) && !path.startsWith('/') && !path.split('/').some((part) => !part || part === '.' || part === '..')
+
+watch(files, (entries) => synchronizeWorkspace(entries, 'files-watch'), { deep: true, immediate: true });
+
+onActivated(() => {
+  synchronizeWorkspace(files.value, 'keep-alive-activated');
+});
+
+function synchronizeWorkspace(entries: ProjectWorkspaceDraftEntry[], source: 'files-watch' | 'keep-alive-activated') {
+  const before = workspaceStore.session(workspaceSessionKey);
+  emitProjectWorkspaceDebug('create-sync-start', {
+    activeFileKey: before.activeFileKey || '-',
+    entryCount: entries.length,
+    openedTabCount: before.openedTabs.length,
+    source,
+  });
+  workspaceStore.replaceTree(workspaceSessionKey, toTreeItems(entries));
+  const pendingEntry = entries.find(
+    (entry) => entry.path === pendingCreatedFilePath.value && entry.node_type !== 'directory',
   );
+  if (pendingEntry) {
+    activateTab(pendingEntry.path);
+    pendingCreatedFilePath.value = '';
+  }
+  if (workspaceStore.activeFile(workspaceSessionKey)) {
+    emitProjectWorkspaceDebug('create-sync-complete', {
+      activeBufferPresent: true,
+      activeFileKey: workspaceStore.session(workspaceSessionKey).activeFileKey || '-',
+      openedTabCount: workspaceStore.session(workspaceSessionKey).openedTabs.length,
+      source,
+    });
+    return;
+  }
+
+  const activePath = workspaceStore.session(workspaceSessionKey).activeFileKey;
+  const activeEntry = entries.find((entry) => entry.path === activePath && entry.node_type !== 'directory');
+  const firstFile = activeEntry ?? entries.find((entry) => entry.node_type !== 'directory');
+  if (firstFile) activateTab(firstFile.path);
+  const session = workspaceStore.session(workspaceSessionKey);
+  emitProjectWorkspaceDebug('create-sync-complete', {
+    activeBufferPresent: Boolean(workspaceStore.activeFile(workspaceSessionKey)),
+    activeFileKey: session.activeFileKey || '-',
+    openedTabCount: session.openedTabs.length,
+    source,
+  });
 }
-function parentDirectory(path: string, nodeType: 'directory' | 'file') {
+
+function normalizeEntryName(value: string) {
+  return value.trim();
+}
+function isSafeEntryName(value: string) {
+  return Boolean(value) && value !== '.' && value !== '..' && !value.includes('/');
+}
+function parentDirectory(path: string, nodeType?: 'directory' | 'file') {
   if (!path) return '';
   return nodeType === 'directory' ? path : path.split('/').slice(0, -1).join('/');
 }
-function openMenu(path: string, nodeType: 'directory' | 'file', event: MouseEvent, focusMenu = false) {
-  contextMenu.path = path;
-  contextMenu.nodeType = nodeType;
-  contextMenu.x = event.clientX;
-  contextMenu.y = event.clientY;
-  contextMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
-  contextMenu.visible = true;
-  if (focusMenu) void nextTick(() => firstMenuItem.value?.focus());
+function entryAt(path: string) {
+  return files.value.find((entry) => entry.path === path);
 }
-function isDirectoryExpanded(path: string) {
-  return expandedDirectories.value.includes(path);
+function activateTab(path: string) {
+  const entry = entryAt(path);
+  if (!entry || entry.node_type === 'directory') return;
+  workspaceStore.openFile(workspaceSessionKey, path, {
+    content: entry.content,
+    loaded: true,
+    savedContent: entry.content,
+  });
 }
-function toggleDirectory(path: string) {
-  expandedDirectories.value = isDirectoryExpanded(path)
-    ? expandedDirectories.value.filter((value) => value !== path)
-    : [...expandedDirectories.value, path];
-}
-function closeMenu(restoreFocus = false) {
-  contextMenu.visible = false;
-  if (restoreFocus) void nextTick(() => contextMenuTrigger?.focus());
-}
-function moveMenuFocus(direction: 1 | -1, boundary = false) {
-  const items = Array.from(
-    document.querySelectorAll<HTMLButtonElement>('.project-create-workspace__context-menu [role="menuitem"]'),
-  ).filter((item) => !item.disabled);
-  if (!items.length) return;
-  const currentIndex = items.findIndex((item) => item === document.activeElement);
-  const nextIndex = boundary
-    ? direction > 0
-      ? 0
-      : items.length - 1
-    : (currentIndex + direction + items.length) % items.length;
-  items[nextIndex].focus();
-}
-function beginCreate(nodeType: 'directory' | 'file') {
-  entryDialog.mode = 'create';
-  entryDialog.nodeType = nodeType;
-  entryDialog.error = '';
-  const parent = parentDirectory(contextMenu.path, contextMenu.nodeType);
-  entryDialog.path = parent ? `${parent}/` : '';
-  entryDialog.visible = true;
-  closeMenu();
-}
-function beginRename() {
-  entryDialog.mode = 'rename';
-  entryDialog.nodeType = contextMenu.nodeType;
-  entryDialog.error = '';
-  entryDialog.path = contextMenu.path;
-  entryDialog.visible = true;
-  closeMenu();
-}
-function submitEntryDialog() {
-  const path = normalizePath(entryDialog.path);
-  if (!isSafePath(path)) {
-    entryDialog.error = t('project.create.workspace.invalidFilePath');
+function selectEntry(path: string) {
+  const entry = entryAt(path);
+  if (!entry) return;
+  if (entry.node_type === 'directory') {
+    toggleDirectory(path);
     return;
   }
-  const oldPath = contextMenu.path;
-  if (entryDialog.mode === 'create') {
+  workspaceStore.selectNode(workspaceSessionKey, path);
+  workspaceStore.openFile(workspaceSessionKey, path, {
+    content: entry.content,
+    loaded: true,
+    savedContent: entry.content,
+  });
+}
+function toggleDirectory(path: string) {
+  const expanded = workspaceStore.session(workspaceSessionKey).expandedKeys.includes(path);
+  workspaceStore.setExpanded(workspaceSessionKey, path, !expanded);
+}
+function updateContent(path: string, content: string) {
+  const entry = entryAt(path);
+  if (!entry || entry.node_type === 'directory') return;
+  entry.content = content;
+  workspaceStore.setFileContent(workspaceSessionKey, path, content);
+}
+
+function formatActiveFile() {
+  const activeFile = editorActiveBuffer.value;
+  if (!activeFile) return;
+  updateContent(activeFile.path, normalizeTextBlock(activeFile.content));
+}
+
+function resolveSavePaths(action: Exclude<PendingSaveAction, null>) {
+  if (action === 'current') {
+    const active = editorActiveBuffer.value;
+    return active && dirtyEditablePaths.value.includes(active.path) ? [active.path] : [];
+  }
+  return [...dirtyEditablePaths.value];
+}
+
+function normalizeSyntaxMarkers(markers: WorkspaceSyntaxMarker[] | undefined) {
+  return (markers ?? []).filter((marker) => marker.severity === MONACO_MARKER_ERROR_SEVERITY);
+}
+
+async function waitForActiveEditor(path: string) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (workspaceEditor.value?.getActiveEditor()?.getModelKey?.() === path) return true;
+    await nextTick();
+  }
+  return workspaceEditor.value?.getActiveEditor()?.getModelKey?.() === path;
+}
+
+async function collectSyntaxIssues(paths: string[]) {
+  const activePathBeforeValidation = activePath.value;
+  const issues: Array<{ count: number; path: string }> = [];
+  const skippedPaths: string[] = [];
+
+  for (const path of [...new Set(paths)]) {
+    const file = workspaceStore.session(workspaceSessionKey).fileContents[path];
+    if (!file || !supportsExplicitWorkspaceSyntaxValidation(file.language)) {
+      skippedPaths.push(path);
+      continue;
+    }
+    activateTab(path);
+    if (!(await waitForActiveEditor(path))) {
+      return { issues, skippedPaths, unavailablePath: path };
+    }
+    const markers = await workspaceEditor.value?.getActiveEditor()?.waitForDiagnostics?.({
+      quietMs: 180,
+      timeoutMs: 1500,
+    });
+    const errors = normalizeSyntaxMarkers(markers);
+    if (errors.length) issues.push({ count: errors.length, path });
+  }
+
+  if (activePathBeforeValidation && activePathBeforeValidation !== activePath.value) {
+    activateTab(activePathBeforeValidation);
+    await waitForActiveEditor(activePathBeforeValidation);
+  }
+  return { issues, skippedPaths, unavailablePath: '' };
+}
+
+function notifySkippedSyntaxValidation(paths: string[]) {
+  if (!paths.length) return;
+  MessagePlugin.info(t('project.create.workspace.validateSkipUnsupportedHint', { paths: paths.join(', ') }));
+}
+
+function markPathsSaved(paths: string[]) {
+  for (const path of paths) {
+    const entry = entryAt(path);
+    if (!entry || entry.node_type === 'directory') continue;
+    const content = normalizeTextBlock(entry.content);
+    entry.content = content;
+    workspaceStore.markFileSaved(workspaceSessionKey, path, content);
+  }
+  MessagePlugin.success(t('project.create.workspace.saveSuccess'));
+}
+
+async function saveFiles(action: Exclude<PendingSaveAction, null>) {
+  const paths = resolveSavePaths(action);
+  if (!paths.length || saveLoading.value) return;
+  saveLoading.value = true;
+  try {
+    const { issues, skippedPaths, unavailablePath } = await collectSyntaxIssues(paths);
+    notifySkippedSyntaxValidation(skippedPaths);
+    if (unavailablePath) {
+      MessagePlugin.error(t('project.create.workspace.fileValidationFailed'));
+      return;
+    }
+    if (issues.length) {
+      pendingSave.action = action;
+      pendingSave.paths = paths;
+      syntaxErrorDialog.issues = issues;
+      syntaxErrorDialog.visible = true;
+      return;
+    }
+    markPathsSaved(paths);
+  } finally {
+    saveLoading.value = false;
+  }
+}
+
+async function saveCurrentFile() {
+  await saveFiles('current');
+}
+
+async function saveAllFiles() {
+  await saveFiles('all');
+}
+
+function confirmSaveWithSyntaxErrors() {
+  if (!pendingSave.action) return;
+  markPathsSaved(pendingSave.paths);
+  pendingSave.action = null;
+  pendingSave.paths = [];
+  syntaxErrorDialog.visible = false;
+  syntaxErrorDialog.issues = [];
+}
+
+async function validateCurrentFile() {
+  const active = editorActiveBuffer.value;
+  if (!active || validationLoading.value) {
+    MessagePlugin.warning(t('project.create.workspace.validateNoFile'));
+    return;
+  }
+  if (!supportsExplicitWorkspaceSyntaxValidation(active.language)) {
+    MessagePlugin.info(t('project.create.workspace.fileValidationUnavailable'));
+    return;
+  }
+  validationLoading.value = true;
+  try {
+    const { issues, unavailablePath } = await collectSyntaxIssues([active.path]);
+    if (unavailablePath) {
+      MessagePlugin.error(t('project.create.workspace.fileValidationFailed'));
+      return;
+    }
+    if (!issues.length) {
+      MessagePlugin.success(t('project.create.workspace.fileValidationPassed'));
+      return;
+    }
+    MessagePlugin.error(t('project.create.workspace.fileValidationFailed'));
+  } finally {
+    validationLoading.value = false;
+  }
+}
+
+async function copyActiveFile() {
+  const activeFile = editorActiveBuffer.value;
+  if (!activeFile) return;
+  const copied = await copyText(activeFile.content);
+  if (copied) {
+    MessagePlugin.success(t('project.create.workspace.copySuccess'));
+    return;
+  }
+  MessagePlugin.error(t('project.create.workspace.copyFailed'));
+}
+function handleContextAction(
+  action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
+  path: string | null,
+) {
+  if (action === 'annotation') return;
+  if (action === 'delete') {
+    if (!path) return;
+    deleteDialog.path = path;
+    deleteDialog.count = files.value.filter((entry) => entry.path === path || entry.path.startsWith(`${path}/`)).length;
+    deleteDialog.stage = 'initial';
+    deleteDialog.visible = true;
+    return;
+  }
+  if (action === 'rename' && !path) return;
+  inlineEdit.value = {
+    anchorPath: path,
+    mode: action === 'rename' ? 'rename' : action,
+    value: action === 'rename' ? (path?.split('/').at(-1) ?? '') : '',
+  };
+}
+function cancelInlineEdit() {
+  inlineEdit.value = null;
+}
+function setInlineEditError(error: string) {
+  if (inlineEdit.value) inlineEdit.value = { ...inlineEdit.value, error };
+}
+function joinEntryPath(parent: string, name: string) {
+  return parent ? `${parent}/${name}` : name;
+}
+function migrateWorkspaceBuffers(oldPath: string, newPath: string) {
+  const remapPath = (path: string) =>
+    path === oldPath || path.startsWith(`${oldPath}/`) ? `${newPath}${path.slice(oldPath.length)}` : path;
+  const session = workspaceStore.session(workspaceSessionKey);
+  const openedFiles = workspaceStore.openedFiles(workspaceSessionKey).map((file) => {
+    const path = remapPath(file.path);
+    return path === file.path ? file : { ...file, name: path.split('/').at(-1) ?? path, path };
+  });
+  workspaceStore.syncOpenedFiles(workspaceSessionKey, openedFiles, remapPath(session.activeFileKey));
+}
+function submitInlineEdit() {
+  const edit = inlineEdit.value;
+  if (!edit) return;
+  const name = normalizeEntryName(edit.value);
+  if (!name && edit.mode !== 'rename') {
+    cancelInlineEdit();
+    return;
+  }
+  if (!isSafeEntryName(name)) {
+    setInlineEditError(t('project.create.workspace.invalidFilePath'));
+    return;
+  }
+  const oldPath = edit.anchorPath || '';
+  const target = entryAt(oldPath);
+  const path = joinEntryPath(parentDirectory(oldPath, target?.node_type), name);
+  if (edit.mode === 'rename' && path === oldPath) {
+    inlineEdit.value = null;
+    return;
+  }
+  if (edit.mode !== 'rename') {
     if (
       files.value.some(
-        (entry) => entry.path === path || entry.path.startsWith(`${path}/`) || path.startsWith(`${entry.path}/`),
+        (entry) =>
+          entry.path === path ||
+          entry.path.startsWith(`${path}/`) ||
+          (entry.node_type !== 'directory' && path.startsWith(`${entry.path}/`)),
       )
     ) {
-      entryDialog.error = t('project.create.workspace.pathConflict');
+      setInlineEditError(t('project.create.workspace.pathConflict'));
       return;
     }
-    files.value = [
-      ...files.value,
-      entryDialog.nodeType === 'directory'
-        ? ({ path, content: '', node_type: 'directory' } as WorkspaceDraftEntry)
-        : ({ path, content: '', node_type: 'file' } as WorkspaceDraftEntry),
-    ];
-    if (entryDialog.nodeType === 'file') activePath.value = path;
-  } else {
-    if (
-      !oldPath ||
-      path.startsWith(`${oldPath}/`) ||
-      (path !== oldPath &&
-        files.value.some(
-          (entry) =>
-            entry.path !== oldPath &&
-            !entry.path.startsWith(`${oldPath}/`) &&
-            (entry.path === path || entry.path.startsWith(`${path}/`) || path.startsWith(`${entry.path}/`)),
-        ))
-    ) {
-      entryDialog.error = t('project.create.workspace.pathConflict');
-      return;
-    }
-    files.value = files.value.map((entry) =>
-      entry.path === oldPath || entry.path.startsWith(`${oldPath}/`)
-        ? { ...entry, path: `${path}${entry.path.slice(oldPath.length)}` }
-        : entry,
-    );
-    if (activePath.value === oldPath || activePath.value.startsWith(`${oldPath}/`))
-      activePath.value = `${path}${activePath.value.slice(oldPath.length)}`;
-    expandedDirectories.value = expandedDirectories.value.map((value) =>
-      value === oldPath || value.startsWith(`${oldPath}/`) ? `${path}${value.slice(oldPath.length)}` : value,
-    );
+    const entry: ProjectWorkspaceDraftEntry =
+      edit.mode === 'create-directory' ? { path, node_type: 'directory' } : { path, content: '', node_type: 'file' };
+    if (edit.mode === 'create-file') pendingCreatedFilePath.value = path;
+    files.value = [...files.value, entry];
+    inlineEdit.value = null;
+    return;
   }
-  entryDialog.visible = false;
-}
-function beginDelete() {
-  deleteDialog.path = contextMenu.path;
-  deleteDialog.count = files.value.filter(
-    (entry) => entry.path === contextMenu.path || entry.path.startsWith(`${contextMenu.path}/`),
-  ).length;
-  deleteDialog.stage = 'initial';
-  deleteDialog.visible = true;
-  closeMenu();
+  if (
+    !oldPath ||
+    path.startsWith(`${oldPath}/`) ||
+    (path !== oldPath &&
+      files.value.some(
+        (entry) =>
+          (entry.path !== oldPath && !entry.path.startsWith(`${oldPath}/`) && entry.path === path) ||
+          entry.path.startsWith(`${path}/`) ||
+          (entry.node_type !== 'directory' && path.startsWith(`${entry.path}/`)),
+      ))
+  ) {
+    setInlineEditError(t('project.create.workspace.pathConflict'));
+    return;
+  }
+  files.value = files.value.map((entry) =>
+    entry.path === oldPath || entry.path.startsWith(`${oldPath}/`)
+      ? { ...entry, path: `${path}${entry.path.slice(oldPath.length)}` }
+      : entry,
+  );
+  migrateWorkspaceBuffers(oldPath, path);
+  inlineEdit.value = null;
 }
 function confirmDelete() {
-  const target = files.value.find((entry) => entry.path === deleteDialog.path);
+  const target = entryAt(deleteDialog.path);
   if (target?.node_type === 'directory' && deleteDialog.count > 1 && deleteDialog.stage === 'initial') {
     deleteDialog.stage = 'recursive';
     return;
@@ -343,15 +661,9 @@ function confirmDelete() {
   files.value = files.value.filter(
     (entry) => entry.path !== deleteDialog.path && !entry.path.startsWith(`${deleteDialog.path}/`),
   );
-  if (activePath.value === deleteDialog.path || activePath.value.startsWith(`${deleteDialog.path}/`))
-    activePath.value = files.value.find((entry) => entry.node_type !== 'directory')?.path || '';
+  workspaceStore.closeFile(workspaceSessionKey, deleteDialog.path);
   deleteDialog.visible = false;
 }
-function handleDocumentClick() {
-  closeMenu();
-}
-document.addEventListener('click', handleDocumentClick);
-onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick));
 </script>
 <style scoped>
 .project-create-workspace {
@@ -361,140 +673,17 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
   min-width: 0;
 }
 
-.project-create-workspace__layout {
-  display: flex;
-  gap: var(--graft-density-gap-16);
-  min-height: 480px;
-  min-width: 0;
+.project-create-workspace__sr-only {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
 }
 
-.project-create-workspace__tree-card {
-  flex: 0 0 280px;
-}
-
-.project-create-workspace__editor-card {
-  flex: 1;
-  min-width: 0;
-}
-
-.project-create-workspace__tree {
-  min-height: 420px;
-  overflow: auto;
-}
-
-.project-create-workspace__root-label {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-  margin: 0 0 var(--graft-density-gap-8);
-}
-
-.project-create-workspace__root-heading {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--graft-density-gap-8);
-}
-
-.project-create-workspace__root-heading .project-create-workspace__root-label {
-  margin-bottom: 0;
-}
-
-.project-create-workspace__tree-row {
-  align-items: center;
-  display: flex;
-  padding-left: calc(var(--workspace-tree-depth) * var(--graft-density-gap-16));
-}
-
-.project-create-workspace__tree-entry {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--td-radius-default);
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  display: flex;
-  gap: var(--graft-density-gap-8);
-  min-height: 32px;
-  padding: 0 var(--graft-density-gap-8);
-  text-align: left;
-  width: 100%;
-}
-
-.project-create-workspace__entry-actions {
-  background: transparent;
-  border: 0;
-  border-radius: var(--td-radius-default);
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  flex: 0 0 auto;
-  min-height: 32px;
-  min-width: 32px;
-}
-
-.project-create-workspace__entry-actions:focus-visible {
-  outline: 2px solid var(--td-brand-color);
-  outline-offset: -2px;
-}
-
-.project-create-workspace__tree-expander {
-  color: var(--td-text-color-secondary);
-  width: 12px;
-}
-
-.project-create-workspace__tree-row--active .project-create-workspace__tree-entry,
-.project-create-workspace__tree-entry:hover {
-  background: color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
-}
-
-.project-create-workspace__context-menu {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-default);
-  box-shadow: var(--td-shadow-2);
-  display: flex;
-  flex-direction: column;
-  min-width: 152px;
-  padding: var(--graft-density-gap-4);
-  position: fixed;
-  z-index: 1000;
-}
-
-.project-create-workspace__context-menu button {
-  background: transparent;
-  border: 0;
-  border-radius: var(--td-radius-default);
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  min-height: 32px;
-  padding: 0 var(--graft-density-gap-8);
-  text-align: left;
-}
-
-.project-create-workspace__context-menu button:hover:not(:disabled) {
-  background: var(--td-bg-color-container-hover);
-}
-
-.project-create-workspace__editor-card :deep(.t-card__body) {
-  height: 420px;
-  padding: 0;
-}
-
-@media (width <= 768px) {
-  .project-create-workspace__layout {
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .project-create-workspace__tree-card {
-    flex: auto;
-  }
-
-  .project-create-workspace__tree {
-    min-height: 220px;
-  }
-
-  .project-create-workspace__editor-card :deep(.t-card__body) {
-    height: 360px;
-  }
+.project-create-workspace__syntax-error-list {
+  margin: var(--graft-density-gap-12) 0 0;
+  padding-inline-start: var(--graft-density-gap-20);
 }
 </style>

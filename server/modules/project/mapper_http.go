@@ -506,14 +506,14 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 
 // toManagedCreateValidateResponse 将托管项目创建校验结果映射为创建校验响应。
 // toManagedCreateValidateResponse 将托管项目创建校验结果转换为生成的创建校验响应。
-// toManagedCreateValidateResponse 将托管项目创建校验结果转换为项目创建校验响应，并附带可选的环境文件信息、源元数据和警告列表。
+// toManagedCreateValidateResponse 将托管项目创建校验结果转换为项目创建校验响应，并包含可选的环境文件信息、源元数据和警告列表。
 func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
 	response := generated.ProjectCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
 		SourceType:              generated.ProjectSourceKind(result.SourceType),
 		DisplayName:             result.DisplayName,
 		ComposeProjectName:      result.ComposeProjectName,
-		WorkspaceKey:            result.WorkspaceKey,
+		ApplicationName:         result.ApplicationName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
 		WorkspacePath:           result.WorkspacePath,
 		ComposeFileName:         result.ComposeFileName,
@@ -540,7 +540,7 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 // @param result 托管项目创建结果。
 // toManagedCreateResponse 将托管项目创建结果转换为项目创建响应。
 //
-// toManagedCreateResponse 将托管项目创建结果转换为响应，包含项目身份、工作区、配置快照及可选环境文件、来源元数据和警告信息。
+// toManagedCreateResponse 将托管项目创建结果转换为项目创建响应，包含创建结果、项目配置快照及可选环境文件、来源元数据和警告信息。
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
@@ -548,7 +548,7 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 		ApplicationId:           result.ApplicationID,
 		DisplayName:             result.Validation.DisplayName,
 		ComposeProjectName:      result.Validation.ComposeProjectName,
-		WorkspaceKey:            result.Validation.WorkspaceKey,
+		ApplicationName:         result.Validation.ApplicationName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.Validation.OwnershipMode),
 		WorkspacePath:           result.Validation.WorkspacePath,
 		ComposeFileName:         result.Validation.ComposeFileName,
@@ -586,26 +586,27 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 	return response
 }
 
-// toManagedCreateRequest converts a workspace-entry validation request into a managed project creation request. It returns an error when the runtime target ID or workspace entries are invalid.
+// toManagedCreateRequest 将工作区条目校验请求转换为托管项目创建请求；运行时目标 ID 或工作区条目无效时返回错误。
 func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
 }
 
 type managedCreateEntriesHTTPParts struct {
 	displayName      string
 	runtimeTargetID  uint64
-	workspaceKey     *string
+	applicationName  *string
 	workspaceEntries []generated.ProjectWorkspaceEntry
 	composeFilePath  string
 	lifecycle        *generated.ProjectLifecycleConfigurationRequest
 }
 
 // managedCreateRequestFromEntries builds a managed project creation request from workspace entries and lifecycle configuration.
-// It normalizes the compose file path, extracts the matching file content, and returns an invalid-argument error when the compose file is missing.
+// managedCreateRequestFromEntries 将工作区条目转换为托管项目创建请求，并提取 Compose 文件内容。
+// 当 Compose 文件路径无效、工作区条目无效、Compose 文件缺失或生命周期配置无效时返回错误。
 func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (ManagedProjectCreateRequest, error) {
 	composePath, err := normalizeManagedWorkspacePath(parts.composeFilePath)
 	if err != nil {
@@ -629,7 +630,7 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 		return ManagedProjectCreateRequest{}, errProjectInvalidArgument
 	}
 	request := ManagedProjectCreateRequest{
-		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, WorkspaceKey: parts.workspaceKey,
+		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, ApplicationName: parts.applicationName,
 		ComposeFileName: filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
 		WorkspaceEntries: entries,
 	}
@@ -663,13 +664,13 @@ func managedWorkspaceEntryFromGenerated(entry generated.ProjectWorkspaceEntry) (
 	return ManagedWorkspaceEntry{Path: path, NodeType: nodeType, Content: entry.Content}, nil
 }
 
-// toManagedCreateExecuteRequest maps an execute request into the internal managed-create request.
+// toManagedCreateExecuteRequest 将执行请求转换为内部托管项目创建请求，并返回参数校验错误。
 func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, workspaceKey: request.WorkspaceKey, workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
 }
 
 // runtimeTargetIDFromGenerated validates and converts a generated runtime target identifier.

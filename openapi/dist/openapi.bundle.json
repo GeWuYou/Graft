@@ -25647,7 +25647,7 @@
           "compose_project_name_source": {
             "$ref": "#/components/schemas/project-canonical-name-source"
           },
-          "workspace_key": {
+          "application_name": {
             "type": "string",
             "nullable": true
           },
@@ -28056,6 +28056,7 @@
         "required": [
           "display_name",
           "runtime_target_id",
+          "application_name",
           "workspace_entries",
           "compose_file_path"
         ],
@@ -28070,11 +28071,11 @@
             "format": "int64",
             "minimum": 1
           },
-          "workspace_key": {
+          "application_name": {
             "type": "string",
             "maxLength": 255,
             "pattern": "^[a-z0-9][a-z0-9-]*$",
-            "description": "Optional single-segment managed workspace key. The server derives and reserves a key when omitted."
+            "description": "Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one."
           },
           "workspace_entries": {
             "type": "array",
@@ -28121,7 +28122,7 @@
           "compose_project_name": {
             "type": "string"
           },
-          "workspace_key": {
+          "application_name": {
             "type": "string",
             "nullable": true
           },
@@ -28179,6 +28180,7 @@
         "required": [
           "display_name",
           "runtime_target_id",
+          "application_name",
           "workspace_entries",
           "compose_file_path"
         ],
@@ -28193,11 +28195,11 @@
             "format": "int64",
             "minimum": 1
           },
-          "workspace_key": {
+          "application_name": {
             "type": "string",
             "maxLength": 255,
             "pattern": "^[a-z0-9][a-z0-9-]*$",
-            "description": "Optional single-segment managed workspace key. The server derives and reserves a key when omitted."
+            "description": "Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one."
           },
           "workspace_entries": {
             "type": "array",
@@ -28269,7 +28271,7 @@
           "compose_project_name": {
             "type": "string"
           },
-          "workspace_key": {
+          "application_name": {
             "type": "string",
             "nullable": true
           },
@@ -28355,7 +28357,8 @@
         "additionalProperties": false,
         "required": [
           "display_name",
-          "runtime_target_id"
+          "runtime_target_id",
+          "application_name"
         ],
         "properties": {
           "display_name": {
@@ -28368,10 +28371,11 @@
             "format": "int64",
             "minimum": 1
           },
-          "workspace_key": {
+          "application_name": {
             "type": "string",
             "maxLength": 255,
-            "pattern": "^[a-z0-9][a-z0-9-]*$"
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Required unique machine-safe application name for the managed directory and Compose project identity."
           },
           "template_key": {
             "type": "string",
@@ -28383,7 +28387,7 @@
           },
           "template_instance_name": {
             "type": "string",
-            "description": "Safe display provenance for this template instance. Defaults to the generated workspace key."
+            "description": "Safe display provenance for this template instance. Defaults to the application name."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"

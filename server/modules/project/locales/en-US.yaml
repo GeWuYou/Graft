@@ -2,6 +2,9 @@ menu.project.title: Application Management
 ops.project.error.invalidProjectId: Invalid project id.
 ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.
+ops.project.error.applicationNameRequired: Enter an application name.
+ops.project.error.invalidApplicationName: The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.
+ops.project.error.applicationNameOccupied: This application name is already in use. Choose another name.
 ops.project.error.invalidCanonicalProjectName: Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.
 ops.project.error.conflict: Project action is blocked by a conflicting project state.
 ops.project.error.composeProjectNameOccupied: The Compose project name is already in use on the selected Runtime Target.

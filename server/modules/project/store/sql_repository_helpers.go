@@ -586,12 +586,13 @@ func rollbackTx(tx *sql.Tx) {
 //
 // 将查询结果中的可空时间和可空用户 ID 转换为对应的指针字段。
 // scanProject 扫描并组装项目记录，解析可空字段及工作区注释、源元数据和生命周期配置。
+// scanProject 扫描数据库行并解码项目字段，构造完整的 Project。
 // 扫描或数据解码失败时返回错误。
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
 	var lastDriftCheckedAt sql.NullTime
 	var runtimeTargetID sql.NullInt64
-	var workspaceKey sql.NullString
+	var applicationName sql.NullString
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
@@ -601,7 +602,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	if err := scanner.Scan(
 		&item.ID,
 		&item.ApplicationID,
-		&workspaceKey,
+		&applicationName,
 		&item.WorkspacePath,
 		&item.ComposeProjectName,
 		&item.ComposeProjectNameSource,
@@ -632,9 +633,9 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	}
 	item.LastDriftCheckedAt = nullableTime(lastDriftCheckedAt)
 	item.RuntimeTargetID = nullableUint64(runtimeTargetID)
-	if workspaceKey.Valid {
-		value := workspaceKey.String
-		item.WorkspaceKey = &value
+	if applicationName.Valid {
+		value := applicationName.String
+		item.ApplicationName = &value
 	}
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)

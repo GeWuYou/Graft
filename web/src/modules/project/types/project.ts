@@ -48,6 +48,16 @@ export type ProjectCreateValidateResponse = components['schemas']['project-creat
 export type ProjectTemplateCreateRequest = components['schemas']['project-template-create-request'];
 export type ProjectWorkspaceManifestFile = components['schemas']['project-workspace-manifest-file'];
 export type ProjectWorkspaceEntry = components['schemas']['project-workspace-entry'];
+export type ProjectWorkspaceDraftFile = {
+  path: string;
+  node_type?: 'file';
+  content: string;
+};
+export type ProjectWorkspaceDraftDirectory = {
+  path: string;
+  node_type: 'directory';
+};
+export type ProjectWorkspaceDraftEntry = ProjectWorkspaceDraftFile | ProjectWorkspaceDraftDirectory;
 export type ProjectWorkspaceDefaultsResponse = components['schemas']['project-workspace-defaults-response'];
 export type ProjectWorkspaceRenameRequest = components['schemas']['project-workspace-entry-rename-request'];
 export type ProjectConfigurationMetadataResponse = components['schemas']['ProjectConfigurationMetadataResponse'];

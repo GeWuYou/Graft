@@ -53,6 +53,10 @@ vi.mock('@/modules/project/shared/project-monaco-debug', () => ({
   isProjectMonacoBenignCancellationError,
 }));
 
+vi.mock('@/shared/debug/runtime', () => ({
+  initDebugRuntime: vi.fn(),
+}));
+
 vi.mock('./route-guards', () => ({
   registerRouteGuards,
 }));
@@ -85,6 +89,38 @@ describe('bootstrapApp', () => {
     patchGlobalLoggerContext.mockReset();
     useMock.mockReset();
     mountMock.mockReset();
+  });
+
+  it('suppresses ResizeObserver loop notifications from the global runtime error sink', async () => {
+    const { bootstrapApp } = await import('./index');
+
+    bootstrapApp();
+
+    const event = new ErrorEvent('error', {
+      cancelable: true,
+      error: new Error('ResizeObserver loop completed with undelivered notifications.'),
+      message: 'ResizeObserver loop completed with undelivered notifications.',
+    });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('continues to report unrelated window errors', async () => {
+    const { bootstrapApp } = await import('./index');
+
+    bootstrapApp();
+
+    window.dispatchEvent(
+      new ErrorEvent('error', {
+        cancelable: true,
+        error: new Error('unexpected runtime failure'),
+        message: 'unexpected runtime failure',
+      }),
+    );
+
+    expect(loggerError).toHaveBeenCalled();
   });
 
   it('heals persisted tab refresh residue before mounting the app', async () => {

@@ -1086,6 +1086,9 @@ Configuration workspace 的 authority 需要拆成两层：
 - Workspace authority
   - File tree、editor open/read、dirty state、save 与 preview diff 全部围绕同一套 workspace file model 运作
   - 同一文件树编辑器同时服务创建向导中的本地 workspace draft 和已创建项目的持久化 workspace；差异仅在数据源与保存时机，不得形成两套文件树交互或文件类型规则
+  - Web 侧唯一状态真值是 `ProjectWorkspaceStore` 的规范化节点模型：`nodesByKey`、`rootKeys` 与每个目录的 `childKeys` 共同表达层级；`expandedKeys`、`selectedKey`、`openedTabs`、`activeFileKey`、文件内容与 dirty 状态同属该 Store。
+  - `WorkspaceTree` 只能消费 Store 生成的可见节点行，不得从 path、flat list、`parent_path` 或组件局部 state 重建父子关系；Monaco 只能消费 `activeFile`，不得修改 Tree。目录展开、深层文件打开、创建、重命名、删除与 reload 都由 Store action 维护祖先展开、选择和打开 buffer。
+  - Create 与 Configuration 只在 `WorkspaceEditor` 外提供各自 toolbar 和数据源适配；编辑器本身不得按页面类型分支。
   - 左侧文件树、编辑器文件打开、保存能力全部来自 `working_directory` 的真实目录浏览/读写接口
   - `compose_project_files`、`lifecycle_configuration`、`compose_files` 与固定文件名都不能决定工作台文件成员资格
   - Compose metadata 只允许 enrich workspace entry 的 `file_kind` / tooltip / lifecycle overlay，不拥有文件内容 authority

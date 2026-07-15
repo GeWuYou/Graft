@@ -46,7 +46,7 @@ func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	}
 
 	result, err := service.CreateTemplateProject(context.Background(), TemplateProjectCreateRequest{
-		DisplayName: "Template project", CanonicalProjectName: "template-project", RelativeProjectDirectory: "template-project", TemplateKey: defaultTemplateKey, TemplateVersion: defaultTemplateVersion,
+		DisplayName: "Template project", ApplicationName: stringPointer("template-project"), TemplateKey: defaultTemplateKey, TemplateVersion: defaultTemplateVersion,
 	}, nil)
 	if err != nil {
 		t.Fatalf("create template project: %v", err)
@@ -113,7 +113,7 @@ func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorks
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
+		DisplayName: "Demo", RuntimeTargetID: 7, ApplicationName: stringPointer("demo"), ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
 		t.Fatalf("expected compose name conflict, got %v", err)
@@ -137,7 +137,7 @@ func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
+		DisplayName: "Demo", RuntimeTargetID: 7, ApplicationName: stringPointer("demo"), ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if err != nil {
 		t.Fatalf("create managed project: %v", err)

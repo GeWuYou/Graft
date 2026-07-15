@@ -29,7 +29,7 @@ properties:
     type: string
   compose_project_name_source:
     $ref: ./project-canonical-name-source.yaml
-  workspace_key:
+  application_name:
     type: string
     nullable: true
   lifecycle_review_status:

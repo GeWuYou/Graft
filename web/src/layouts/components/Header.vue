@@ -26,6 +26,22 @@
           <notice />
 
           <div class="header-operation-item">
+            <t-tooltip placement="bottom" :content="documentFullscreenLabel">
+              <t-button
+                data-testid="header-document-fullscreen-toggle"
+                theme="default"
+                shape="square"
+                variant="text"
+                :aria-label="documentFullscreenLabel"
+                :disabled="!isDocumentFullscreenSupported"
+                @click="toggleDocumentFullscreen"
+              >
+                <fullscreen-exit-icon v-if="isDocumentFullscreen" />
+                <fullscreen-icon v-else />
+              </t-button>
+            </t-tooltip>
+          </div>
+          <div class="header-operation-item">
             <t-tooltip placement="bottom" :content="t('layout.header.code')">
               <t-button theme="default" shape="square" variant="text" @click="navToGitHub">
                 <t-icon name="logo-github" />
@@ -81,7 +97,14 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ChevronDownIcon, PaletteIcon, PoweroffIcon, UserCircleIcon } from 'tdesign-icons-vue-next';
+import {
+  ChevronDownIcon,
+  FullscreenExitIcon,
+  FullscreenIcon,
+  PaletteIcon,
+  PoweroffIcon,
+  UserCircleIcon,
+} from 'tdesign-icons-vue-next';
 import type { PropType } from 'vue';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -95,6 +118,7 @@ import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
 import { BrandIdentity } from '@/shared/components/brand';
 import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
+import { useDocumentFullscreen, useKeyboardShortcut } from '@/shared/composables';
 import { useSettingStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/utils/types';
 
@@ -137,6 +161,28 @@ const router = useRouter();
 const settingStore = useSettingStore();
 const user = useAuthSessionStore();
 const { goHome } = useShellNavigation();
+const documentFullscreen = useDocumentFullscreen();
+const isDocumentFullscreen = computed(() => documentFullscreen.isFullscreen.value);
+const isDocumentFullscreenSupported = computed(() => documentFullscreen.isSupported.value);
+
+const documentFullscreenLabel = computed(() =>
+  t(isDocumentFullscreen.value ? 'layout.header.exitFullscreen' : 'layout.header.enterFullscreen'),
+);
+
+const toggleDocumentFullscreen = () => {
+  void documentFullscreen.toggle();
+};
+
+useKeyboardShortcut('F11', toggleDocumentFullscreen, {
+  enabled: documentFullscreen.isSupported,
+  ignoreRepeat: true,
+  preventDefault: true,
+});
+useKeyboardShortcut('Control+Meta+KeyF', toggleDocumentFullscreen, {
+  enabled: documentFullscreen.isSupported,
+  ignoreRepeat: true,
+  preventDefault: true,
+});
 
 const toggleSettingPanel = () => {
   settingStore.openThemeWorkbench('overview');

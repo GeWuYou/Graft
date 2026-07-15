@@ -13,14 +13,14 @@
       >
     </management-page-header>
     <t-card :bordered="true"
-      ><t-form :data="form" layout="vertical" @submit="onCreate"
+      ><t-form ref="formRef" :data="form" :rules="formRules" layout="vertical" @submit="onCreate"
         ><div class="source-create__grid">
           <t-form-item :label="t('project.sourceCreate.displayName')" name="display_name"
             ><t-input v-model="form.display_name" /></t-form-item
-          ><t-form-item :label="t('project.sourceCreate.workspaceKey')" name="workspace_key"
+          ><t-form-item :label="t('project.sourceCreate.applicationName')" name="application_name"
             ><t-input
-              v-model="form.workspace_key"
-              :placeholder="t('project.sourceCreate.workspaceKeyPlaceholder')" /></t-form-item
+              v-model="form.application_name"
+              :placeholder="t('project.sourceCreate.applicationNamePlaceholder')" /></t-form-item
           ><t-form-item :label="t('project.sourceCreate.template')" name="template_key"
             ><t-select v-model="templateForm.template_key" :options="templateOptions"
           /></t-form-item>
@@ -35,7 +35,7 @@
   </management-page-content>
 </template>
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next';
+import { type FormInstanceFunctions, type FormProps, MessagePlugin } from 'tdesign-vue-next';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -52,11 +52,22 @@ const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const creating = ref(false);
+const formRef = ref<FormInstanceFunctions | null>(null);
 const runtimeTargetId = computed(() => {
   const raw = route.query.runtime_target_id;
   return typeof raw === 'string' && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : null;
 });
-const form = reactive({ display_name: '', workspace_key: '' });
+const form = reactive({ display_name: '', application_name: '' });
+const formRules: FormProps['rules'] = {
+  display_name: [{ required: true, message: t('project.create.validation.displayNameRequired') }],
+  application_name: [
+    { required: true, message: t('project.create.validation.applicationNameRequired') },
+    {
+      validator: (value) => /^[a-z0-9][a-z0-9-]*$/.test(String(value)),
+      message: t('project.create.validation.applicationNamePattern'),
+    },
+  ],
+};
 const templateForm = reactive({ template_key: 'empty-compose', template_version: 'v1', template_instance_name: '' });
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
@@ -65,13 +76,14 @@ function templatePayload(runtimeTargetIdValue: number): ProjectTemplateCreateReq
   return {
     display_name: form.display_name.trim(),
     runtime_target_id: runtimeTargetIdValue,
-    ...(form.workspace_key.trim() ? { workspace_key: form.workspace_key.trim() } : {}),
+    application_name: form.application_name.trim(),
     template_key: templateForm.template_key === 'empty-compose' ? 'empty-compose' : undefined,
     template_version: templateForm.template_version === 'v1' ? 'v1' : undefined,
     template_instance_name: templateForm.template_instance_name.trim() || undefined,
   };
 }
 async function onCreate() {
+  if ((await formRef.value?.validate()) !== true) return;
   if (runtimeTargetId.value === null) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
     goToSource();

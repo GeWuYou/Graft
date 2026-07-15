@@ -28,7 +28,7 @@ type CreationCommand struct {
 	ParseResult                projectcompose.Result
 	ActorID                    *uint64
 	RuntimeTargetID            uint64
-	WorkspaceKey               *string
+	ApplicationName               *string
 }
 
 // createProjectFromWorkspace persists the common project aggregate after a source
@@ -56,7 +56,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	strictCreate := command.SourceKind == projectcontract.SourceKindManaged.String() || command.SourceKind == projectcontract.SourceKindTemplate.String()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
 		ApplicationID:              newApplicationID(),
-		WorkspaceKey:               command.WorkspaceKey,
+		ApplicationName:               command.ApplicationName,
 		WorkspacePath:              strings.TrimSpace(command.WorkingDirectory),
 		ComposeProjectName:         strings.TrimSpace(command.CanonicalProjectName),
 		ComposeProjectNameSource:   composeProjectNameSource(command.CanonicalProjectNameSource),
@@ -168,7 +168,7 @@ func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) Lifec
 	return LifecycleStandardConfig{Profiles: append([]string(nil), config.Profiles...), DownBeforeRedeploy: config.DownBeforeRedeploy, PullBeforeRedeploy: config.PullBeforeRedeploy, BuildBeforeUp: config.BuildBeforeUp, ForceRecreate: config.ForceRecreate, RemoveOrphans: config.RemoveOrphans, WaitAfterUp: config.WaitAfterUp, WaitTimeoutSeconds: config.WaitTimeoutSeconds, RenewAnonVolumes: config.RenewAnonVolumes, PruneImagesAfterRedeploy: config.PruneImagesAfterRedeploy, AdditionalArgs: append([]string(nil), config.AdditionalArgs...)}
 }
 
-// managedCreationCommand 构建受管项目创建流程使用的源无关创建命令。
+// managedCreationCommand 根据已验证的项目数据、规范化请求和解析结果构建受管项目的创建命令。
 func managedCreationCommand(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
-	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, WorkspaceKey: validation.WorkspaceKey}
+	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName}
 }

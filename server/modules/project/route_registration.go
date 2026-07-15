@@ -455,7 +455,7 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 type templateProjectCreateHTTP struct {
 	DisplayName            string                                          `json:"display_name"`
 	RuntimeTargetID        uint64                                          `json:"runtime_target_id"`
-	WorkspaceKey           *string                                         `json:"workspace_key"`
+	ApplicationName        *string                                         `json:"application_name"`
 	TemplateKey            string                                          `json:"template_key"`
 	TemplateVersion        string                                          `json:"template_version"`
 	TemplateInstanceName   string                                          `json:"template_instance_name"`
@@ -521,9 +521,10 @@ func (r routeRuntime) handleWorkspaceDefaults(ginCtx *gin.Context) {
 
 // toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
 // toTemplateProjectCreateRequest 将模板项目创建请求转换为领域请求。
-// 当生命周期配置无法转换为标准配置时返回错误。
+// toTemplateProjectCreateRequest 将模板项目创建 HTTP 请求转换为领域请求。
+// 生命周期配置无法转换时返回转换错误。
 func toTemplateProjectCreateRequest(request templateProjectCreateHTTP) (TemplateProjectCreateRequest, error) {
-	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
+	result := TemplateProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, ApplicationName: request.ApplicationName, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
 	if request.LifecycleConfiguration != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration)
 		if err != nil {
@@ -1063,6 +1064,9 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 }
 
 func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, action ActionResult) bool {
+	if r.writeApplicationNameError(ginCtx, err) {
+		return true
+	}
 	switch {
 	case errors.Is(err, errProjectFileNotFound):
 		r.writeFileNotFoundError(ginCtx)
@@ -1087,6 +1091,20 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 			"code":         mapLifecycleErrorCode(err),
 			"actionResult": toActionResponse(action),
 		})
+	default:
+		return false
+	}
+	return true
+}
+
+func (r routeRuntime) writeApplicationNameError(ginCtx *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, errProjectApplicationNameRequired):
+		r.writeLocalizedProjectError(ginCtx, http.StatusBadRequest, projectcontract.ProjectApplicationNameRequired.String())
+	case errors.Is(err, errProjectInvalidApplicationName):
+		r.writeLocalizedProjectError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidApplicationName.String())
+	case errors.Is(err, errProjectApplicationNameOccupied):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectApplicationNameOccupied.String())
 	default:
 		return false
 	}

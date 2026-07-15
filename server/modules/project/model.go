@@ -10,7 +10,7 @@ import "time"
 type Record struct {
 	ID                         uint64
 	ApplicationID              string
-	WorkspaceKey               *string
+	ApplicationName               *string
 	WorkspacePath              string
 	ComposeProjectName         string
 	ComposeProjectNameSource   string

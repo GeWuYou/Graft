@@ -185,7 +185,7 @@ assets:
     examples:
       - "web/src/shared/components/assignment/AssignmentDrawer.test.ts"
     related_assets:
-      - "assignment-selection-composable"
+      - "document-fullscreen-composable"
     validation_commands:
       - "cd web && bun run check"
 
@@ -202,6 +202,34 @@ assets:
       - "web/src/shared/components/assignment/AssignmentDrawer.test.ts"
     related_assets:
       - "assignment-components"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "keyboard-shortcut-composable"
+    type: "frontend-composable"
+    path: "web/src/shared/composables/useKeyboardShortcut.ts"
+    owner: "web/shared"
+    purpose: "Lifecycle-safe tinykeys adapter for scoped keyboard shortcuts with reactive enablement and optional browser-default suppression."
+    use_when:
+      - "Project, Announcement, or ContentViewerFrame needs a common keyboard shortcut without handwritten window keydown listeners."
+    do_not_use_when:
+      - "The event is not a keyboard shortcut or carries module-private shortcut semantics that cannot be expressed by a callback."
+    related_assets:
+      - "assignment-selection-composable"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "document-fullscreen-composable"
+    type: "frontend-composable"
+    path: "web/src/shared/composables/useDocumentFullscreen.ts"
+    owner: "web/shared"
+    purpose: "SSR-safe browser Fullscreen API adapter with reactive document state and lifecycle-safe operations for shell and reusable viewer surfaces."
+    use_when:
+      - "A shell or shared surface needs to enter, exit, or observe browser document fullscreen without owning API event lifecycle."
+    do_not_use_when:
+      - "The feature is only a component-local visual layout state and does not use the browser Fullscreen API."
+    related_assets:
+      - "keyboard-shortcut-composable"
     validation_commands:
       - "cd web && bun run check"
 

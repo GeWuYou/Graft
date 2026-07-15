@@ -156,25 +156,6 @@
                 />
               </article>
 
-              <article class="trend-runtime-summary" data-trend-overview-section="runtimeSummary">
-                <header class="trend-section-header">
-                  <div class="trend-section-header__copy">
-                    <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.runtimeSummaryTitle') }}</h3>
-                  </div>
-                </header>
-                <div class="trend-runtime-summary__grid">
-                  <article
-                    v-for="metric in runtimeSummaryMetrics"
-                    :key="metric.key"
-                    class="trend-runtime-summary__item"
-                    :data-runtime-summary-item="metric.key"
-                  >
-                    <span class="trend-runtime-summary__label">{{ metric.shortLabel }}</span>
-                    <strong class="trend-runtime-summary__value">{{ metric.currentValue }}</strong>
-                  </article>
-                </div>
-              </article>
-
               <article class="trend-runtime-summary" data-trend-overview-section="requestPerformance">
                 <header class="trend-section-header">
                   <div class="trend-section-header__copy">
@@ -310,79 +291,55 @@
               />
             </div>
           </transition>
+
+          <article class="trend-runtime-summary" data-trend-overview-section="runtimeSummary">
+            <header class="trend-section-header">
+              <div class="trend-section-header__copy">
+                <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.runtimeSummaryTitle') }}</h3>
+              </div>
+              <t-button theme="primary" variant="text" size="small" @click="openServiceStatus">
+                {{ t('monitor.serverStatus.openServiceStatus') }}
+              </t-button>
+            </header>
+            <div class="trend-runtime-summary__grid">
+              <article
+                v-for="metric in runtimeSummaryMetrics"
+                :key="metric.key"
+                class="trend-runtime-summary__item"
+                :data-runtime-summary-item="metric.key"
+              >
+                <span class="trend-runtime-summary__label">{{ metric.shortLabel }}</span>
+                <strong class="trend-runtime-summary__value">{{ metric.currentValue }}</strong>
+              </article>
+            </div>
+          </article>
         </div>
       </section-card>
 
       <section-card
         class="server-status-overview-layout__status"
-        :title="t('monitor.serverStatus.runtimeStatusTitle')"
-        :description="t('monitor.serverStatus.runtimeStatusSubtitle')"
+        :title="t('monitor.serverStatus.runtimeStatusDependenciesTitle')"
         :min-height="520"
       >
+        <template #actions>
+          <t-button theme="primary" variant="text" size="small" @click="openDependencies">
+            {{ t('monitor.serverStatus.openDependencies') }}
+          </t-button>
+        </template>
         <div v-if="serverStatus" class="status-sidebar__content">
-          <section
-            v-if="monitorAnomalies.length > 0"
-            class="status-sidebar__section"
-            data-status-sidebar-group="anomalies"
-          >
-            <header class="status-sidebar__section-header">
-              <h3 class="status-sidebar__section-title">{{ t('monitor.serverStatus.anomaliesTitle') }}</h3>
-            </header>
-            <div class="anomaly-list">
-              <article
-                v-for="anomaly in monitorAnomalies.slice(0, 3)"
-                :key="`${anomaly.anomaly_key}:${anomaly.scope_ref}`"
-                class="anomaly-item"
-                :data-anomaly-key="anomaly.anomaly_key"
-              >
-                <div class="anomaly-item__header">
-                  <strong class="anomaly-item__summary">{{ anomaly.summary }}</strong>
-                  <t-tag :theme="anomalySeverityTheme(anomaly.severity)" variant="light">
-                    {{ anomalySeverityLabel(anomaly.severity) }}
-                  </t-tag>
-                </div>
-                <p v-if="anomalyEvidenceHint(anomaly)" class="anomaly-item__hint">
-                  {{ anomalyEvidenceHint(anomaly) }}
-                </p>
-                <t-button
-                  v-if="firstAvailableEvidenceLink(anomaly)"
-                  size="small"
-                  theme="primary"
-                  variant="text"
-                  class="anomaly-item__action"
-                  @click="openAnomalyEvidence(anomaly)"
-                >
-                  {{ t('monitor.serverStatus.openAuditEvidence') }}
-                </t-button>
-              </article>
-            </div>
-          </section>
-
-          <section class="status-sidebar__section" data-status-sidebar-group="dependencies">
-            <header class="status-sidebar__section-header">
-              <h3 class="status-sidebar__section-title">
-                {{ t('monitor.serverStatus.runtimeStatusDependenciesTitle') }}
-              </h3>
-            </header>
-            <div class="status-sidebar__summary-link">
-              <strong>{{ dependencyHealthSummary }}</strong>
-              <t-button theme="primary" variant="text" size="small" @click="openDependencies">
-                {{ t('monitor.serverStatus.openDependencies') }}
-              </t-button>
-            </div>
-          </section>
-
-          <section class="status-sidebar__section" data-status-sidebar-group="request-performance">
-            <header class="status-sidebar__section-header">
-              <h3 class="status-sidebar__section-title">{{ t('monitor.serverStatus.requestPerformanceTitle') }}</h3>
-            </header>
-            <div class="status-sidebar__summary-link">
-              <strong>{{ requestPerformanceSummary }}</strong>
-              <t-button theme="primary" variant="text" size="small" @click="openRequestPerformance">
-                {{ t('monitor.serverStatus.openRequestPerformance') }}
-              </t-button>
-            </div>
-          </section>
+          <dependency-health-card
+            v-for="service in overviewDependencyCards"
+            :key="service.key"
+            variant="summary"
+            :service-key="service.key"
+            :title="service.name"
+            :description="service.description"
+            :status="service.status"
+            :status-label="service.statusLabel"
+            :primary-metric="service.primaryMetric"
+            :pool="service.pool"
+            :diagnostics-title="t('monitor.dependenciesPage.diagnostics.title')"
+          />
         </div>
         <t-empty v-else :description="t('monitor.serverStatus.empty')" />
       </section-card>
@@ -401,7 +358,6 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import type { TChartColor } from '@/config/color';
-import { buildAuditEvidenceTargetLocation } from '@/modules/audit/contract/deep-link';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { RefreshControlBar } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -409,24 +365,29 @@ import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
 import { getRequestPerformance } from '../../api/request-performance';
 import { getServerStatus } from '../../api/server-status';
+import DependencyHealthCard, {
+  type DependencyHealthMetric,
+  type DependencyHealthPool,
+} from '../../components/DependencyHealthCard.vue';
 import MetricUsageBar from '../../components/MetricUsageBar.vue';
 import SectionCard from '../../components/SectionCard.vue';
 import type { ServerStatusTone } from '../../components/server-status-ui';
 import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
 import SummaryMetricCard from '../../components/SummaryMetricCard.vue';
 import { useMonitorRefreshPreferences } from '../../composables/use-monitor-refresh-preferences';
-import { normalizeMonitorOriginContext } from '../../contract/navigation';
 import type { MonitorRefreshInterval } from '../../contract/refresh';
 import type { MonitorTrendRange } from '../../contract/trend';
 import { MONITOR_TREND_RANGE } from '../../contract/trend';
+import {
+  formatDependencyPoolUsage,
+  formatPoolCount,
+  poolUsagePercent,
+  poolUsageStatus,
+} from '../../shared/pool-metrics';
+import { formatLatency, normalizeDependencyStatus } from '../../shared/server-status-snapshot';
 import { formatChartTimeOnly } from '../../shared/time-display';
 import type { RequestPerformanceResponse } from '../../types/request-performance';
-import type {
-  EvidenceLink,
-  ServerStatusAnomaly,
-  ServerStatusResponse,
-  ServerStatusTrendPoint,
-} from '../../types/server-status';
+import type { ServerStatusAnomaly, ServerStatusResponse, ServerStatusTrendPoint } from '../../types/server-status';
 
 defineOptions({
   name: 'MonitorServerStatusOverviewIndex',
@@ -506,6 +467,16 @@ interface TrendOverviewSection {
   infoText?: string;
   helperText?: string;
   metrics: TrendMetricDefinition[];
+}
+
+interface OverviewDependencyCard {
+  key: string;
+  name: string;
+  description: string;
+  status: ServerStatusTone;
+  statusLabel: string;
+  primaryMetric: DependencyHealthMetric;
+  pool: DependencyHealthPool;
 }
 
 const { t, locale } = useI18n();
@@ -638,7 +609,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-runtimeAlloc',
-      currentValue: formatBytes(latestTrendPoint.value?.runtime_alloc_bytes ?? 0),
+      currentValue: formatBytes(serverStatus.value?.runtime.runtime_alloc_bytes ?? 0),
       values: points.map((point) => point.runtime_alloc_bytes),
     },
     {
@@ -656,7 +627,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-runtimeHeap',
-      currentValue: formatBytes(latestTrendPoint.value?.runtime_heap_in_use_bytes ?? 0),
+      currentValue: formatBytes(serverStatus.value?.runtime.runtime_heap_in_use_bytes ?? 0),
       values: points.map((point) => point.runtime_heap_in_use_bytes),
     },
     {
@@ -674,7 +645,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-runtimeSys',
-      currentValue: formatBytes(latestTrendPoint.value?.runtime_sys_bytes ?? 0),
+      currentValue: formatBytes(serverStatus.value?.runtime.runtime_sys_bytes ?? 0),
       values: points.map((point) => point.runtime_sys_bytes),
     },
     {
@@ -692,7 +663,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       visibleInSmallMultiples: true,
       visibleInFocus: true,
       chartKey: 'multi-goroutines',
-      currentValue: formatCountValue(latestTrendPoint.value?.goroutines ?? null),
+      currentValue: formatCountValue(serverStatus.value?.runtime.goroutines ?? null),
       values: points.map((point) => point.goroutines),
     },
   ];
@@ -743,7 +714,10 @@ const overviewTrendSections = computed<TrendOverviewSection[]>(() => [
   },
 ]);
 const runtimeSummaryMetrics = computed(() =>
-  trendMetricConfigs.value.filter((metric) => metric.group === 'goRuntime').slice(0, 4),
+  trendMetricConfigs.value
+    .filter((metric) => metric.group === 'goRuntime')
+    .slice(0, 4)
+    .map((metric) => ({ ...metric, shortLabel: serviceSummaryMetricLabel(metric.key) })),
 );
 const smallMultipleMetrics = computed(() =>
   trendMetricConfigs.value.filter((metric) => metric.visibleInSmallMultiples),
@@ -900,25 +874,6 @@ const metricCards = computed<MetricCard[]>(() => {
   ];
 });
 
-const dependencyHealthSummary = computed(() => {
-  const summary = serverStatus.value?.summary;
-  if (!summary) return t('monitor.serverStatus.runtimeStatusNotAvailable');
-  const total = summary.healthy_dependencies + summary.degraded_dependencies + summary.disabled_dependencies;
-  return t('monitor.serverStatus.dependencyHealthSummary', {
-    healthy: String(summary.healthy_dependencies),
-    total: String(total),
-    attention: String(summary.degraded_dependencies),
-  });
-});
-const requestPerformanceSummary = computed(() => {
-  const summary = requestPerformance.value?.summary;
-  if (!summary) return t('monitor.serverStatus.runtimeStatusNotAvailable');
-  return t('monitor.serverStatus.requestPerformanceSummary', {
-    rps: summary.requests_per_second.toFixed(2),
-    p95: summary.p95_latency_ms.toFixed(0),
-    errors: formatRequestErrorRate(summary.error_5xx_rate),
-  });
-});
 const requestPerformanceMetrics = computed(() => {
   const summary = requestPerformance.value?.summary;
   return [
@@ -927,12 +882,41 @@ const requestPerformanceMetrics = computed(() => {
       label: t('monitor.requestPerformance.summary.rps'),
       value: summary ? `${summary.requests_per_second.toFixed(2)} RPS` : '--',
     },
-    { key: 'p95', label: 'P95', value: summary ? `${summary.p95_latency_ms.toFixed(0)} ms` : '--' },
+    {
+      key: 'latency',
+      label: t('monitor.requestPerformance.summary.latency'),
+      value: summary
+        ? `${t('monitor.requestPerformance.summary.p50')} ${summary.p50_latency_ms.toFixed(0)} ms / ${t('monitor.requestPerformance.summary.p95')} ${summary.p95_latency_ms.toFixed(0)} ms`
+        : '--',
+    },
     {
       key: 'errors',
       label: t('monitor.requestPerformance.summary.errors'),
       value: summary ? formatRequestErrorRate(summary.error_5xx_rate) : '--',
     },
+    {
+      key: 'slow',
+      label: t('monitor.requestPerformance.summary.slow'),
+      value: summary ? String(summary.slow_request_count) : '--',
+    },
+  ];
+});
+const overviewDependencyCards = computed<OverviewDependencyCard[]>(() => {
+  const dependencies = serverStatus.value?.dependencies;
+
+  return [
+    buildOverviewDependencyCard({
+      key: 'postgresql',
+      name: t('monitor.serverStatus.postgresqlLabel'),
+      description: t('monitor.dependenciesPage.postgresqlSubtitle'),
+      dependency: dependencies?.database,
+    }),
+    buildOverviewDependencyCard({
+      key: 'redis',
+      name: t('monitor.serverStatus.redisLabel'),
+      description: t('monitor.dependenciesPage.redisSubtitle'),
+      dependency: dependencies?.redis,
+    }),
   ];
 });
 const toolbarStatus = computed<ServerStatusTone>(() => {
@@ -1120,8 +1104,134 @@ function openDependencies() {
   void router.push({ path: '/observability/dependencies' });
 }
 
+function openServiceStatus() {
+  void router.push({ path: '/observability/service-status' });
+}
+
 function openRequestPerformance() {
   void router.push({ path: '/observability/request-performance' });
+}
+
+function serviceSummaryMetricLabel(metric: FocusMetric) {
+  switch (metric) {
+    case 'runtimeAlloc':
+      return t('monitor.serverStatus.serviceSummaryRuntimeAlloc');
+    case 'runtimeHeap':
+      return t('monitor.serverStatus.serviceSummaryRuntimeHeap');
+    case 'runtimeSys':
+      return t('monitor.serverStatus.serviceSummaryRuntimeSys');
+    case 'goroutines':
+      return t('monitor.serverStatus.serviceSummaryGoroutines');
+    default:
+      return '';
+  }
+}
+
+function buildOverviewDependencyCard(options: {
+  key: string;
+  name: string;
+  description: string;
+  dependency?: ServerStatusResponse['dependencies']['database'];
+}): OverviewDependencyCard {
+  const pool = options.dependency?.pool;
+  const usagePercent = pool ? poolUsagePercent(pool) : null;
+  const usageText = pool ? formatDependencyPoolUsage(pool, dependencyNoDataText()) : dependencyNoDataText();
+  const usagePercentText = usagePercent === null ? dependencyNoDataText() : `${usagePercent.toFixed(0)}%`;
+  const status = overviewDependencyTone(options.dependency?.status ?? undefined);
+
+  return {
+    key: options.key,
+    name: options.name,
+    description: options.description,
+    status,
+    statusLabel: overviewDependencyStatusLabel(status),
+    primaryMetric: {
+      label: t('monitor.dependenciesPage.fields.latency'),
+      value: formatLatency(options.dependency?.latency_ms),
+      description: t('monitor.dependenciesPage.fieldDescriptions.latency'),
+    },
+    pool: {
+      title: t('monitor.dependenciesPage.pool.title'),
+      stateTitle: t('monitor.dependenciesPage.pool.stateTitle'),
+      usageText,
+      usagePercent,
+      usagePercentText,
+      usageStatus: poolUsageStatus(usagePercent),
+      usageLabel: t('monitor.dependenciesPage.pool.usageLabel', { label: options.name }),
+      usageTooltip: t('monitor.dependenciesPage.pool.usageTooltip', {
+        label: options.name,
+        value: usageText,
+        percent: usagePercentText,
+      }),
+      summary: overviewDependencyPoolSummary(usagePercent),
+      emptyText: dependencyNoDataText(),
+      items: [
+        {
+          key: 'inUse',
+          label: t('monitor.dependenciesPage.pool.inUse'),
+          value: formatPoolCount(pool?.in_use_connections, dependencyNoDataText()),
+        },
+        {
+          key: 'idle',
+          label: t('monitor.dependenciesPage.pool.idle'),
+          value: formatPoolCount(pool?.idle_connections, dependencyNoDataText()),
+        },
+        {
+          key: 'open',
+          label: t('monitor.dependenciesPage.pool.open'),
+          value: formatPoolCount(pool?.open_connections, dependencyNoDataText()),
+        },
+        {
+          key: 'capacity',
+          label: t('monitor.dependenciesPage.pool.capacity'),
+          value: formatPoolCount(pool?.capacity, dependencyNoDataText()),
+        },
+      ],
+    },
+  };
+}
+
+function overviewDependencyTone(status?: string | null): ServerStatusTone {
+  switch (normalizeDependencyStatus(status ?? undefined)) {
+    case 'healthy':
+      return 'healthy';
+    case 'abnormal':
+      return 'error';
+    case 'notConfigured':
+      return 'disabled';
+    default:
+      return 'unknown';
+  }
+}
+
+function overviewDependencyStatusLabel(status: ServerStatusTone) {
+  switch (status) {
+    case 'healthy':
+      return t('monitor.dependenciesPage.statusHealthy');
+    case 'error':
+      return t('monitor.dependenciesPage.statusAbnormal');
+    case 'disabled':
+      return t('monitor.dependenciesPage.statusNotConfigured');
+    default:
+      return t('monitor.dependenciesPage.statusUnknown');
+  }
+}
+
+function overviewDependencyPoolSummary(percent: number | null) {
+  switch (poolUsageStatus(percent)) {
+    case 'danger':
+      return t('monitor.dependenciesPage.pool.riskCritical');
+    case 'warning':
+      return t('monitor.dependenciesPage.pool.riskWarning');
+    case 'healthy':
+      return t('monitor.dependenciesPage.pool.riskHealthy');
+    default:
+      return t('monitor.dependenciesPage.pool.riskUnknown');
+  }
+}
+
+function dependencyNoDataText() {
+  return t('monitor.serverStatus.metricUsageNoData');
 }
 
 function formatRequestErrorRate(value: number) {
@@ -1294,55 +1404,6 @@ function buildMetricUsage(options: {
     tooltip,
     loading: options.loading ?? false,
   };
-}
-
-function anomalySeverityTheme(severity?: string) {
-  return severity === 'critical' ? 'danger' : 'warning';
-}
-
-function anomalySeverityLabel(severity?: string) {
-  return severity === 'critical'
-    ? t('monitor.serverStatus.anomalySeverityCritical')
-    : t('monitor.serverStatus.anomalySeverityWarning');
-}
-
-function firstAvailableEvidenceLink(anomaly: ServerStatusAnomaly): EvidenceLink | undefined {
-  return anomaly.evidence_links.find(
-    (item) =>
-      item.link_state === 'available' &&
-      ((item.target_kind === 'audit_incident' && item.incident_seed?.event_id) || item.audit_context),
-  );
-}
-
-function anomalyEvidenceHint(anomaly: ServerStatusAnomaly) {
-  const available = firstAvailableEvidenceLink(anomaly);
-  if (available) {
-    return available.reason ?? '';
-  }
-
-  return anomaly.evidence_links[0]?.reason ?? t('monitor.serverStatus.auditEvidenceUnavailable');
-}
-
-function openAnomalyEvidence(anomaly: ServerStatusAnomaly) {
-  const link = firstAvailableEvidenceLink(anomaly);
-  if (!link) {
-    return;
-  }
-
-  const target = buildAuditEvidenceTargetLocation(
-    link,
-    normalizeMonitorOriginContext({
-      view: 'overview',
-      trendRange: selectedTrendRange.value,
-      anomalyKey: anomaly.anomaly_key,
-      scopeRef: anomaly.scope_ref,
-    }),
-  );
-  if (!target) {
-    return;
-  }
-
-  void router.push(target);
 }
 
 function formatPercent(percent: number | null) {

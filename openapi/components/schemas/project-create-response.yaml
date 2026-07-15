@@ -33,7 +33,7 @@ properties:
     type: string
   compose_project_name:
     type: string
-  workspace_key:
+  application_name:
     type: string
     nullable: true
   ownership_mode:

@@ -12,15 +12,13 @@ import (
 
 // TemplateProjectCreateRequest selects one operator-managed workspace template.
 type TemplateProjectCreateRequest struct {
-	DisplayName              string
-	RuntimeTargetID          uint64
-	WorkspaceKey             *string
-	CanonicalProjectName     string
-	RelativeProjectDirectory string
-	TemplateKey              string
-	TemplateVersion          string
-	TemplateInstanceName     string
-	LifecycleConfig          *LifecycleStandardConfig
+	DisplayName          string
+	RuntimeTargetID      uint64
+	ApplicationName      *string
+	TemplateKey          string
+	TemplateVersion      string
+	TemplateInstanceName string
+	LifecycleConfig      *LifecycleStandardConfig
 }
 
 // CreateTemplateProject materializes an operator-managed runtime template and registers it through the shared pipeline.
@@ -78,7 +76,7 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 	if err != nil {
 		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: sourceType, HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: metadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, WorkspaceKey: validation.WorkspaceKey})
+	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: "generated", SourceKind: sourceType, HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: metadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName})
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
 	}
@@ -115,9 +113,9 @@ func (s *Service) resolveTemplateWorkspace(ctx context.Context, request Template
 	composePath := "compose.yaml"
 	instance := strings.TrimSpace(request.TemplateInstanceName)
 	if instance == "" {
-		instance = stringValue(request.WorkspaceKey)
+		instance = stringValue(request.ApplicationName)
 	}
-	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, WorkspaceKey: request.WorkspaceKey, ComposeFileName: composePath, ComposeFileContent: composeContent, ComposeFilePath: composePath, WorkspaceEntries: workspaceEntries, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
+	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, ApplicationName: request.ApplicationName, ComposeFileName: composePath, ComposeFileContent: composeContent, ComposeFilePath: composePath, WorkspaceEntries: workspaceEntries, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
 }
 
 // loadTemplateCreateEntries 加载指定模板的工作区条目，并返回其 compose.yaml 内容。

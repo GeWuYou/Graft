@@ -2,6 +2,8 @@ import { createConsolaTransport } from '@/utils/logger/transports/consola';
 import { noopTransport } from '@/utils/logger/transports/noop';
 import type { LogEvent, Logger, LoggerContext, LoggerTransport, LogLevel } from '@/utils/logger/types';
 
+import { isPlainObject } from './object';
+
 const LOG_LEVEL_ORDER: Record<Exclude<LogLevel, 'silent'>, number> = {
   debug: 10,
   info: 20,
@@ -9,15 +11,13 @@ const LOG_LEVEL_ORDER: Record<Exclude<LogLevel, 'silent'>, number> = {
   error: 40,
 };
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object') {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
+/**
+ * 规范化模块名称片段。
+ *
+ * @param moduleName - 待规范化的模块名称片段
+ * @returns 去除首尾空白后的模块名称片段
+ * @throws 当模块名称片段去除首尾空白后为空时抛出错误
+ */
 function normalizeModuleSegment(moduleName: string): string {
   const normalized = moduleName.trim();
   if (!normalized) {

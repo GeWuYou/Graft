@@ -1,9 +1,12 @@
 import { useDebugStore } from '@/store/modules/debug';
 import { store } from '@/store/pinia';
+import { createLogger } from '@/utils/logger';
 
 import { DEBUG_FLAG_REGISTRY } from './registry';
 
 type FlatDebugDetail = Record<string, unknown>;
+
+const logger = createLogger('debug.runtime');
 
 /**
  * 判断值是否为普通对象。
@@ -78,8 +81,8 @@ export function formatDebugLine(flagId: string, event: string, detail: FlatDebug
 /**
  * 初始化全局调试运行时接口。
  *
- * 在浏览器环境下将调试控制对象挂载到 `window.__GRAFT_DEBUG__`，并暴露当前调试状态、
- * 旗标列表以及启用、禁用、设置和清除运行时覆盖的方法。
+ * 在浏览器环境下将调试控制对象挂载到 `window.__GRAFT_DEBUG__`，提供调试状态查询、
+ * 旗标列表管理以及运行时覆盖控制；同时完成调试状态持久化恢复。
  */
 export function initDebugRuntime() {
   const debugStore = useDebugStore(store);
@@ -120,10 +123,16 @@ export function initDebugRuntime() {
         'window.__GRAFT_DEBUG__.state()',
         'window.__GRAFT_DEBUG__.enable("tabs")',
         'window.__GRAFT_DEBUG__.enable("project.logs")',
+        'window.__GRAFT_DEBUG__.enable("project.workspace")',
         'window.__GRAFT_DEBUG__.disable("project.monaco")',
         'window.__GRAFT_DEBUG__.clear()',
       ].join('\n'),
   };
+
+  emitDebugLog('project.workspace', 'runtime-ready', {
+    enabled: debugStore.isEnabled('project.workspace'),
+    runtimeOverride: debugStore.runtimeOverrides['project.workspace'] ?? 'none',
+  });
 }
 
 /**
@@ -148,5 +157,5 @@ export function emitDebugLog(flagId: string, event: string, detail: FlatDebugDet
     return;
   }
 
-  console.debug(formatDebugLine(flagId, event, detail));
+  logger.debug(formatDebugLine(flagId, event, detail));
 }

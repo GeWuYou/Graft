@@ -6,6 +6,7 @@ import type { ProjectWorkspaceFileContentResponse } from '../../types/project';
 import ProjectConfigurationWorkspaceIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
+  deleteProjectWorkspaceEntry: vi.fn(),
   error: vi.fn(),
   getProject: vi.fn(),
   getProjectConfiguration: vi.fn(),
@@ -13,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   getProjectFiles: vi.fn(),
   info: vi.fn(),
   postProjectDeploy: vi.fn(),
+  postProjectWorkspaceEntry: vi.fn(),
+  postProjectWorkspaceRename: vi.fn(),
   putProjectFileAnnotation: vi.fn(),
   putProjectFileContent: vi.fn(),
   success: vi.fn(),
@@ -160,11 +163,14 @@ type PendingProjectDetail = {
 };
 
 vi.mock('../../api/project', () => ({
+  deleteProjectWorkspaceEntry: mocks.deleteProjectWorkspaceEntry,
   getProject: mocks.getProject,
   getProjectConfiguration: mocks.getProjectConfiguration,
   getProjectFileContent: mocks.getProjectFileContent,
   getProjectFiles: mocks.getProjectFiles,
   postProjectDeploy: mocks.postProjectDeploy,
+  postProjectWorkspaceEntry: mocks.postProjectWorkspaceEntry,
+  postProjectWorkspaceRename: mocks.postProjectWorkspaceRename,
   putProjectFileAnnotation: mocks.putProjectFileAnnotation,
   putProjectFileContent: mocks.putProjectFileContent,
 }));
@@ -570,7 +576,7 @@ const TTabsStub = defineComponent({
     value: { type: String, default: '' },
   },
   setup(_props, { slots }) {
-    return () => h('div', { class: 't-tabs-stub' }, slots.default?.());
+    return () => h('div', { class: 't-tabs-stub' }, [slots.default?.(), slots.action?.()]);
   },
 });
 
@@ -825,6 +831,9 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     mocks.postProjectDeploy.mockResolvedValue({
       message: 'deployed',
     });
+    mocks.postProjectWorkspaceEntry.mockResolvedValue({ path: 'notes.txt' });
+    mocks.postProjectWorkspaceRename.mockResolvedValue({ path: 'renamed.txt' });
+    mocks.deleteProjectWorkspaceEntry.mockResolvedValue({ path: 'docker-compose.yml' });
   });
 
   it('loads the root file list and opens the first file buffer', async () => {
@@ -836,6 +845,39 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'services:\n  api:\n    image: app\n',
     );
+  });
+
+  it('saves the active dirty file only when Ctrl+S originates in the workspace root', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+
+    const outsideShortcut = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'KeyS',
+      ctrlKey: true,
+      key: 's',
+    });
+    document.body.dispatchEvent(outsideShortcut);
+    await flushPromises();
+
+    expect(outsideShortcut.defaultPrevented).toBe(false);
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+
+    const workspaceShortcut = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'KeyS',
+      ctrlKey: true,
+      key: 's',
+    });
+    wrapper.get('.project-configuration-workspace').element.dispatchEvent(workspaceShortcut);
+    await flushPromises();
+
+    expect(workspaceShortcut.defaultPrevented).toBe(true);
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
   });
 
   it('renders the workspace header with the standalone route title', async () => {
@@ -1086,7 +1128,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(wrapper.get('.content-viewer-frame-stub').attributes('data-fill-height')).toBe('false');
 
-    await wrapper.get('.content-viewer-header-actions button:nth-of-type(2)').trigger('click');
+    await wrapper.get('[data-testid="workspace-fullscreen-toggle"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('.project-configuration-workspace').classes()).toContain(
@@ -1095,7 +1137,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.get('.content-viewer-frame-stub').attributes('data-fill-height')).toBe('true');
     expect(document.body.style.overflow).toBe('hidden');
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
     await wrapper.vm.$nextTick();
 
     expect(wrapper.get('.project-configuration-workspace').classes()).not.toContain(
@@ -1119,6 +1161,11 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__editor-head').exists()).toBe(false);
     expect(wrapper.find('.project-configuration-workspace__browser-toolbar').exists()).toBe(false);
@@ -1130,15 +1177,19 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    expect(wrapper.find('.project-configuration-workspace__tree.graft-scrollbar').exists()).toBe(true);
+    expect(wrapper.find('.project-workspace-editor__tree.graft-scrollbar').exists()).toBe(true);
     const hiddenToggle = wrapper.get('[data-testid="workspace-show-hidden-toggle"]');
     expect(hiddenToggle.element.parentElement?.getAttribute('data-tooltip-content')).toBe(
       'project.configurationWorkspace.copy.showHiddenAction',
     );
     expect(hiddenToggle.text()).toBe('');
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     const annotationButton = wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]');
-    expect(annotationButton.element.parentElement?.getAttribute('data-tooltip-content')).toBe('Edit Annotation');
+    expect(annotationButton.text()).toBe('Edit Annotation');
 
     await annotationButton.trigger('click');
     expect(
@@ -1149,10 +1200,51 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     ).toBe('true');
   });
 
+  it('creates a workspace file through the shared tree context menu and refreshes the browser', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 24, clientY: 24 });
+    await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
+    await wrapper.find('input').setValue('notes.txt');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    await flushPromises();
+
+    expect(mocks.postProjectWorkspaceEntry).toHaveBeenCalledWith('1', {
+      content: '',
+      node_type: 'file',
+      path: 'notes.txt',
+    });
+    expect(mocks.getProjectFiles).toHaveBeenCalledWith('1', { path: undefined, show_hidden: false });
+  });
+
+  it('renames a workspace entry through the shared inline editor', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
+    await wrapper.findAll('[role="menuitem"]')[3].trigger('click');
+    await wrapper.find('input').setValue('runtime.yml');
+    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    await flushPromises();
+
+    expect(mocks.postProjectWorkspaceRename).toHaveBeenCalledWith('1', {
+      path: 'docker-compose.yml',
+      new_path: 'runtime.yml',
+    });
+  });
+
   it('saves workspace annotations through the dialog flow', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
     await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
@@ -1177,6 +1269,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
     await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
@@ -1191,6 +1287,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
     await wrapper.findAll('textarea').at(-1)!.setValue('更新备注');
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
@@ -1421,6 +1521,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('.env');
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-folder').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-command').exists()).toBe(true);
   });
 
   it('shows the syntax file list for save all when multiple files have syntax errors', async () => {
@@ -1451,6 +1553,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('app.yaml');
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-folder').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-file-code').exists()).toBe(true);
   });
 
   it('rechecks unresolved files so the first batch validation still includes every error file', async () => {
@@ -1724,10 +1828,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === 'Save')
-      ?.trigger('click');
+    wrapper.get('.project-configuration-workspace').element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        code: 'KeyS',
+        ctrlKey: true,
+        key: 's',
+      }),
+    );
     await flushPromises();
 
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
@@ -1822,6 +1931,18 @@ function mountWorkspace() {
         TDrawer: createTStub('TDrawer'),
         TEmpty: createTStub('TEmpty'),
         TLoading: createTStub('TLoading'),
+        TInput: defineComponent({
+          name: 'TInputStub',
+          props: { modelValue: { type: String, default: '' } },
+          emits: ['update:modelValue'],
+          setup(props, { emit }) {
+            return () =>
+              h('input', {
+                value: props.modelValue,
+                onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+              });
+          },
+        }),
         TSpace: createTStub('TSpace'),
         TTabPanel: TTabPanelStub,
         TTabs: TTabsStub,

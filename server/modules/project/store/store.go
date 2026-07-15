@@ -33,7 +33,7 @@ var (
 type Project struct {
 	ID                         uint64
 	ApplicationID              string
-	WorkspaceKey               *string
+	ApplicationName               *string
 	WorkspacePath              string
 	ComposeProjectName         string
 	ComposeProjectNameSource   string
@@ -128,7 +128,7 @@ type ListResult struct {
 // ImportProjectInput creates or replaces one project registry entry.
 type ImportProjectInput struct {
 	ApplicationID              string
-	WorkspaceKey               *string
+	ApplicationName               *string
 	WorkspacePath              string
 	ComposeProjectName         string
 	ComposeProjectNameSource   string

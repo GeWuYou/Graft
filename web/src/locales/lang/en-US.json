@@ -28,6 +28,8 @@
     "header": {
       "code": "Code Repository",
       "apiDocs": "API Docs",
+      "enterFullscreen": "Enter Fullscreen",
+      "exitFullscreen": "Exit Fullscreen",
       "help": "Document",
       "user": "Profile",
       "signOut": "Sign Out",

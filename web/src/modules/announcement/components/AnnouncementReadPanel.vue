@@ -57,10 +57,10 @@
   </teleport>
 </template>
 <script setup lang="ts">
-import { onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { MarkdownViewer } from '@/shared/components/markdown';
+import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
 
 import type { AnnouncementViewModel } from '../domain/announcement-presenter';
 
@@ -79,27 +79,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) {
-      window.addEventListener('keydown', handleWindowKeydown);
-    } else {
-      window.removeEventListener('keydown', handleWindowKeydown);
-    }
-  },
-  { immediate: true },
-);
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleWindowKeydown);
+useKeyboardShortcut('Escape', emitClose, {
+  enabled: () => props.visible,
 });
-
-function handleWindowKeydown(event: KeyboardEvent) {
-  if (props.visible && event.key === 'Escape') {
-    emitClose();
-  }
-}
 
 function emitClose() {
   emit('close');

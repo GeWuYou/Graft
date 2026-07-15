@@ -31,9 +31,9 @@ func TestManagedCreateRequestMappersUseCanonicalWorkspaceEntries(t *testing.T) {
 	compose := "services: {}\n"
 	readme := "workspace notes\n"
 	entries := []generated.ProjectWorkspaceEntry{
-		{Path: "config", NodeType: generated.Directory},
-		{Path: "config/readme", NodeType: generated.File, Content: &readme},
-		{Path: "compose/compose.yaml", NodeType: generated.File, Content: &compose},
+		{Path: "config", NodeType: generated.ProjectWorkspaceEntryNodeTypeDirectory},
+		{Path: "config/readme", NodeType: generated.ProjectWorkspaceEntryNodeTypeFile, Content: &readme},
+		{Path: "compose/compose.yaml", NodeType: generated.ProjectWorkspaceEntryNodeTypeFile, Content: &compose},
 	}
 	request, err := toManagedCreateExecuteRequest(generated.PostProjectCreateJSONRequestBody{
 		DisplayName:      "Demo",
@@ -60,7 +60,7 @@ func TestManagedCreateRequestMapperRejectsMissingPrimaryComposeEntry(t *testing.
 		RuntimeTargetId: 1,
 		ComposeFilePath: "compose.yaml",
 		WorkspaceEntries: []generated.ProjectWorkspaceEntry{
-			{Path: "README", NodeType: generated.File, Content: &content},
+			{Path: "README", NodeType: generated.ProjectWorkspaceEntryNodeTypeFile, Content: &content},
 		},
 	})
 	if !errors.Is(err, errProjectInvalidArgument) {

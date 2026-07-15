@@ -30,7 +30,7 @@
       <p class="dependency-health-card__pool-summary" :data-pool-risk="pool.usageStatus">{{ pool.summary }}</p>
     </section>
 
-    <section class="dependency-health-card__pool-state" :aria-label="pool.stateTitle">
+    <section v-if="variant === 'full'" class="dependency-health-card__pool-state" :aria-label="pool.stateTitle">
       <span class="dependency-health-card__section-label">{{ pool.stateTitle }}</span>
       <dl class="dependency-health-card__pool-grid">
         <div v-for="item in pool.items" :key="item.key" class="dependency-health-card__pool-item">
@@ -40,7 +40,7 @@
       </dl>
     </section>
 
-    <footer class="dependency-health-card__actions">
+    <footer v-if="variant === 'full'" class="dependency-health-card__actions">
       <t-button
         class="dependency-health-card__diagnostic-action"
         variant="text"
@@ -89,16 +89,23 @@ export type DependencyHealthDiagnostics = {
   items: DependencyHealthPoolItem[];
 };
 
-defineProps<{
-  serviceKey: string;
-  title: string;
-  description?: string;
-  status: ServerStatusTone;
-  statusLabel: string;
-  primaryMetric: DependencyHealthMetric;
-  pool: DependencyHealthPool;
-  diagnosticsTitle: string;
-}>();
+withDefaults(
+  defineProps<{
+    serviceKey: string;
+    variant?: 'full' | 'summary';
+    title: string;
+    description?: string;
+    status: ServerStatusTone;
+    statusLabel: string;
+    primaryMetric: DependencyHealthMetric;
+    pool: DependencyHealthPool;
+    diagnosticsTitle: string;
+  }>(),
+  {
+    description: '',
+    variant: 'full',
+  },
+);
 
 const emit = defineEmits<{
   (event: 'show-diagnostics'): void;

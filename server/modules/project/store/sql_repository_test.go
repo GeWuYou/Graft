@@ -191,6 +191,14 @@ func TestSQLRepositoryUpdateWorkspaceAnnotationPreservesConcurrentChanges(t *tes
 	}
 }
 
+func TestComposeProjectsUpsertSQLPreservesApplicationNameWhenExcludedValueIsNull(t *testing.T) {
+	t.Parallel()
+
+	if !strings.Contains(composeProjectsUpsertSQL(), "application_name = COALESCE(excluded.application_name, compose_projects.application_name)") {
+		t.Fatal("expected upsert SQL to preserve an existing application name when the import omits it")
+	}
+}
+
 func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	t.Helper()
 
@@ -220,7 +228,7 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 	mustExec(t, db, `CREATE TABLE compose_projects (
 		id INTEGER PRIMARY KEY,
 		application_id TEXT NOT NULL DEFAULT 'app_00000000000000000000000000',
-		workspace_key TEXT NULL,
+		application_name TEXT NULL,
 		workspace_path TEXT NOT NULL DEFAULT '',
 		compose_project_name TEXT NOT NULL DEFAULT '',
 		compose_project_name_source TEXT NOT NULL DEFAULT 'derived',

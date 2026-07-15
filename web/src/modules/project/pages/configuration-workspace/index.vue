@@ -71,355 +71,179 @@
             </t-card>
           </section>
 
-          <section ref="workspaceShellRef" class="project-configuration-workspace__main-grid">
-            <aside class="project-configuration-workspace__sidebar" :style="sidebarPaneStyle">
-              <t-card class="project-configuration-workspace__browser-card" bordered>
-                <template #header>
-                  <div class="project-configuration-workspace__section-head">
-                    <h2>{{ workspaceCopy.fileTreeTitle }}</h2>
-                    <t-tooltip
-                      :content="showHiddenFiles ? workspaceCopy.hideHiddenAction : workspaceCopy.showHiddenAction"
-                      placement="bottom"
-                      theme="light"
-                    >
-                      <t-button
-                        class="project-configuration-workspace__tree-toolbar-button"
-                        theme="default"
-                        variant="text"
-                        shape="square"
-                        size="small"
-                        :data-testid="showHiddenFiles ? 'workspace-hide-hidden-toggle' : 'workspace-show-hidden-toggle'"
-                        @click="showHiddenFiles = !showHiddenFiles"
-                      >
-                        <template #icon>
-                          <browse-off-icon v-if="showHiddenFiles" />
-                          <browse-icon v-else />
-                        </template>
-                      </t-button>
-                    </t-tooltip>
-                  </div>
-                </template>
-
-                <t-alert
-                  v-if="browserError"
-                  class="project-configuration-workspace__browser-alert"
-                  theme="error"
-                  :message="browserError"
-                />
-
-                <t-loading :loading="browserLoading" size="small">
-                  <div
-                    class="project-configuration-workspace__tree graft-scrollbar"
-                    @contextmenu.prevent="openWorkspaceEntryMenu(null, $event)"
-                  >
-                    <button
-                      type="button"
-                      class="project-configuration-workspace__tree-menu-trigger"
-                      :aria-label="
-                        t('project.create.workspace.entryActions', { path: workspaceCopy.workspaceRootLabel })
-                      "
-                      @click.stop="openWorkspaceEntryMenu(null, $event, true)"
-                    >
-                      <ellipsis-icon />
-                    </button>
-                    <template v-if="workspaceFlatRows.length">
-                      <template v-for="row in workspaceFlatRows" :key="row.item.relative_path || row.item.name">
-                        <div
-                          class="project-configuration-workspace__tree-row"
-                          :class="{
-                            'project-configuration-workspace__tree-row--active': isWorkspaceItemActive(row.item),
-                            'project-configuration-workspace__tree-row--readonly':
-                              row.item.node_type === 'file' && (!row.item.readable || !row.item.editable),
-                          }"
-                          :style="{ '--workspace-tree-depth': String(row.depth) }"
-                          @contextmenu.prevent.stop="openWorkspaceEntryMenu(row.item, $event)"
-                        >
-                          <button
-                            v-if="row.item.node_type === 'directory'"
-                            class="project-configuration-workspace__tree-expander"
-                            type="button"
-                            :aria-expanded="row.expanded"
-                            @click.stop="toggleWorkspaceDirectory(row.item)"
-                          >
-                            <span class="project-configuration-workspace__tree-expander-icon">
-                              {{ row.expanded ? '▾' : '▸' }}
-                            </span>
-                          </button>
-                          <span v-else class="project-configuration-workspace__tree-expander-placeholder" />
-
-                          <button
-                            type="button"
-                            class="project-configuration-workspace__tree-menu-trigger"
-                            :aria-label="t('project.create.workspace.entryActions', { path: row.item.relative_path })"
-                            @click.stop="openWorkspaceEntryMenu(row.item, $event, true)"
-                          >
-                            <ellipsis-icon />
-                          </button>
-
-                          <button
-                            class="project-configuration-workspace__tree-entry"
-                            :data-testid="workspaceEntryTestId(row.item)"
-                            type="button"
-                            @click="handleWorkspaceEntry(row.item)"
-                          >
-                            <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
-                              <folder-icon v-if="row.item.node_type === 'directory'" />
-                              <span
-                                v-else-if="row.item.file_kind === 'compose'"
-                                class="project-configuration-workspace__docker-icon"
-                              >
-                                <svg viewBox="0 0 24 24" role="presentation">
-                                  <path
-                                    d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
-                                    fill="currentColor"
-                                  />
-                                </svg>
-                              </span>
-                              <command-icon v-else-if="row.item.file_kind === 'env'" />
-                              <file-code-icon
-                                v-else-if="row.item.file_kind === 'config' || row.item.file_kind === 'text'"
-                              />
-                              <file-icon v-else />
-                            </span>
-                            <t-tooltip
-                              v-if="workspaceItemTooltip(row.item)"
-                              :content="workspaceItemTooltip(row.item)"
-                              placement="top-left"
-                              theme="light"
-                            >
-                              <span class="project-configuration-workspace__browser-main">
-                                <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
-                              </span>
-                            </t-tooltip>
-                            <span v-else class="project-configuration-workspace__browser-main">
-                              <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
-                            </span>
-                          </button>
-
-                          <div
-                            class="project-configuration-workspace__tree-actions"
-                            :class="{
-                              'project-configuration-workspace__tree-actions--visible': Boolean(row.item.project_note),
-                            }"
-                          >
-                            <t-tooltip :content="workspaceCopy.annotationAction" theme="light">
-                              <t-button
-                                class="project-configuration-workspace__annotation-button"
-                                theme="default"
-                                variant="text"
-                                shape="square"
-                                size="small"
-                                tag="div"
-                                :data-testid="workspaceAnnotationTestId(row.item)"
-                                @click.stop="handleWorkspaceAnnotation(row.item)"
-                              >
-                                <template #icon>
-                                  <edit-1-icon />
-                                </template>
-                              </t-button>
-                            </t-tooltip>
-                          </div>
-                        </div>
-                        <p
-                          v-if="row.error && row.expanded"
-                          class="project-configuration-workspace__tree-error"
-                          :style="{ '--workspace-tree-depth': String(row.depth + 1) }"
-                        >
-                          {{ row.error }}
-                        </p>
-                      </template>
-                    </template>
-                    <t-empty v-else :description="workspaceCopy.filesEmpty" />
-                  </div>
-                </t-loading>
-              </t-card>
-            </aside>
-
-            <div
-              v-if="isSidebarResizable"
-              class="project-configuration-workspace__splitter"
-              role="separator"
-              :aria-label="workspaceCopy.resizeFileTreeAriaLabel"
-              aria-orientation="vertical"
-              tabindex="0"
-              @pointerdown.prevent="startSidebarResize"
-            >
-              <span class="project-configuration-workspace__splitter-grip" />
-            </div>
-
-            <div ref="editorStackHostRef" class="project-configuration-workspace__editor-stack">
-              <content-viewer-frame
-                :default-height="editorFrameHeight"
-                :exit-fullscreen-label="workspaceCopy.exitFullscreenAction"
-                :fill-height="workspaceFullscreen"
-                :fullscreen-label="workspaceCopy.fullscreenAction"
-                fullscreen-surface-padding="none"
-                resize-handle-label="Resize Editor Height"
-                :resizable="!workspaceFullscreen"
-                :show-fullscreen-button="false"
-                :storage-key="EDITOR_HEIGHT_STORAGE_KEY"
-                surface-padding="none"
+          <project-workspace-editor
+            ref="workspaceEditorRef"
+            v-model:active-path="activeTabPath"
+            v-model:fullscreen="workspaceFullscreen"
+            :inline-edit="workspaceInlineEdit"
+            :active-buffer="workspaceEditorActiveBuffer"
+            :editor-default-height="editorFrameHeight"
+            :editor-aria-label="workspaceCopy.editorAriaLabel"
+            :editor-height-storage-key="EDITOR_HEIGHT_STORAGE_KEY"
+            :empty-description="workspaceCopy.filesEmpty"
+            :labels="workspaceEditorLabels"
+            :rows="workspaceEditorRows"
+            :selected-path="workspaceStore.session(workspaceSessionKey).selectedKey"
+            :sidebar-resize-aria-label="workspaceCopy.resizeFileTreeAriaLabel"
+            sidebar-width-storage-key="graft.project.configuration-workspace.sidebar.width"
+            show-annotation-action
+            :tab-action-test-id="workspaceFileTabMenuItemTestId"
+            :tab-test-id="workspaceFileTabMenuTestId"
+            :tabs="workspaceEditorTabs"
+            :tabs-empty-description="workspaceCopy.tabsEmpty"
+            :tree-title="workspaceCopy.fileTreeTitle"
+            :root-label="workspaceCopy.workspaceRootLabel"
+            @close-tab="handleCloseTab"
+            @context-action="handleWorkspaceEditorContextAction"
+            @editor-ready="setActiveWorkspaceEditor"
+            @inline-edit-cancel="cancelWorkspaceInlineEdit"
+            @inline-edit-submit="submitWorkspaceInlineEdit"
+            @select-entry="handleWorkspaceEditorEntry"
+            @tab-action="handleWorkspaceEditorTabAction"
+            @toggle-directory="toggleWorkspaceEditorDirectory"
+            @update-content="updateWorkspaceEditorContent"
+            @update:inline-edit="workspaceInlineEdit = $event"
+          >
+            <template #tree-actions>
+              <t-tooltip
+                :content="showHiddenFiles ? workspaceCopy.hideHiddenAction : workspaceCopy.showHiddenAction"
+                placement="bottom"
+                theme="light"
               >
-                <template #header-actions>
-                  <t-space size="small" break-line>
-                    <t-button theme="default" variant="outline" :disabled="!activeBuffer" @click="reloadActiveFile">
-                      {{ workspaceCopy.reloadAction }}
-                    </t-button>
-                    <t-button theme="default" variant="outline" @click="workspaceFullscreen = !workspaceFullscreen">
-                      {{ workspaceFullscreen ? workspaceCopy.exitFullscreenAction : workspaceCopy.fullscreenAction }}
-                    </t-button>
-                    <t-button
-                      theme="default"
-                      variant="outline"
-                      :loading="Boolean(activeBuffer?.saving)"
-                      :disabled="!canSaveActiveBuffer"
-                      @click="saveActiveFile"
-                    >
-                      {{ workspaceCopy.saveAction }}
-                    </t-button>
-                    <t-button
-                      theme="default"
-                      variant="outline"
-                      :loading="saveConfirmLoading && pendingWorkspaceAction === 'save-all'"
-                      :disabled="!canSaveAllBuffers"
-                      @click="saveAllFiles"
-                    >
-                      {{ workspaceCopy.saveAllAction }}
-                    </t-button>
-                    <t-button
-                      theme="default"
-                      variant="outline"
-                      :loading="syntaxCheckLoading"
-                      :disabled="!activeBuffer"
-                      @click="runCurrentFileValidation"
-                    >
-                      {{ workspaceCopy.validateAction }}
-                    </t-button>
-                    <t-button theme="primary" :loading="deployLoading" @click="runProjectDeploy">
-                      {{ workspaceCopy.deployAction }}
-                    </t-button>
-                  </t-space>
-                </template>
-
-                <div class="project-configuration-workspace__editor-surface">
-                  <t-tabs
-                    v-if="openTabBuffers.length"
-                    v-model:value="activeTabPath"
-                    class="project-configuration-workspace__tabs"
-                    theme="card"
-                  >
-                    <t-tab-panel
-                      v-for="tab in openTabBuffers"
-                      :key="tab.path"
-                      :value="tab.path"
-                      removable
-                      @remove="handleCloseTab(tab.path)"
-                    >
-                      <template #label>
-                        <t-dropdown
-                          trigger="context-menu"
-                          :hide-after-item-click="true"
-                          :min-column-width="128"
-                          :popup-props="{
-                            onVisibleChange: (visible: boolean, ctx: PopupVisibleChangeContext) =>
-                              handleFileTabMenuClick(visible, ctx, tab.path),
-                            visible: activeFileTabPathForMenu === tab.path,
-                          }"
-                          :data-testid="workspaceFileTabMenuTestId(tab.path)"
-                        >
-                          <span class="project-configuration-workspace__tab-label">
-                            <span v-if="isFileDirty(tab.path)" class="project-configuration-workspace__tab-dirty"
-                              >●</span
-                            >
-                            <span>{{ tab.name }}</span>
-                          </span>
-                          <template #dropdown>
-                            <t-dropdown-menu>
-                              <t-dropdown-item
-                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'refresh')"
-                                @click="() => handleRefreshFileTab(tab.path)"
-                              >
-                                {{ t('layout.tagTabs.refresh') }}
-                              </t-dropdown-item>
-                              <t-dropdown-item
-                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-left')"
-                                :disabled="!hasClosableFileTabsAhead(tab.path)"
-                                @click="() => handleCloseFileTabsAhead(tab.path)"
-                              >
-                                {{ t('layout.tagTabs.closeLeft') }}
-                              </t-dropdown-item>
-                              <t-dropdown-item
-                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-right')"
-                                :disabled="!hasClosableFileTabsBehind(tab.path)"
-                                @click="() => handleCloseFileTabsBehind(tab.path)"
-                              >
-                                {{ t('layout.tagTabs.closeRight') }}
-                              </t-dropdown-item>
-                              <t-dropdown-item
-                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-other')"
-                                :disabled="!hasClosableOtherFileTabs(tab.path)"
-                                @click="() => handleCloseOtherFileTabs(tab.path)"
-                              >
-                                {{ t('layout.tagTabs.closeOther') }}
-                              </t-dropdown-item>
-                              <t-dropdown-item
-                                :data-testid="workspaceFileTabMenuItemTestId(tab.path, 'close-all')"
-                                :disabled="!hasClosableFileTabs"
-                                @click="handleCloseAllFileTabs"
-                              >
-                                {{ t('layout.tagTabs.closeAll') }}
-                              </t-dropdown-item>
-                            </t-dropdown-menu>
-                          </template>
-                        </t-dropdown>
-                      </template>
-                    </t-tab-panel>
-                  </t-tabs>
-
-                  <t-alert
-                    v-if="activeBuffer && !activeBuffer.editable"
-                    class="project-configuration-workspace__editor-alert"
-                    theme="warning"
-                    :message="workspaceCopy.readonlyHint"
-                  />
-                  <t-alert
-                    v-if="activeBuffer?.fileKind === 'env'"
-                    class="project-configuration-workspace__editor-alert"
-                    theme="info"
-                    :message="workspaceCopy.envRedeployHint"
-                  />
-                  <t-alert
-                    v-if="activeBuffer?.error"
-                    class="project-configuration-workspace__editor-alert"
-                    theme="error"
-                    :message="activeBuffer.error"
-                  />
-
-                  <div v-if="activeBuffer" class="project-configuration-workspace__editor-stage">
-                    <t-loading
-                      class="project-configuration-workspace__editor-loading"
-                      :loading="activeBuffer.loading"
-                      size="small"
-                    >
-                      <project-monaco-surface
-                        v-if="!activeBuffer.error"
-                        ref="activeEditorRef"
-                        v-model="activeBuffer.content"
-                        class="project-configuration-workspace__monaco-editor"
-                        :editor-aria-label="workspaceCopy.editorAriaLabel"
-                        :language="activeBuffer.language"
-                        :model-key="activeBuffer.path"
-                        :options="editorOptions"
-                        :read-only="!activeBuffer.editable"
-                        test-id="workspace-monaco-editor"
-                      />
-                    </t-loading>
-                  </div>
-                  <t-empty v-else :description="workspaceCopy.tabsEmpty" />
-                </div>
-              </content-viewer-frame>
-            </div>
-          </section>
+                <t-button
+                  class="project-configuration-workspace__tree-toolbar-button"
+                  theme="default"
+                  variant="text"
+                  shape="square"
+                  size="small"
+                  :data-testid="showHiddenFiles ? 'workspace-hide-hidden-toggle' : 'workspace-show-hidden-toggle'"
+                  @click="showHiddenFiles = !showHiddenFiles"
+                >
+                  <template #icon>
+                    <browse-off-icon v-if="showHiddenFiles" />
+                    <browse-icon v-else />
+                  </template>
+                </t-button>
+              </t-tooltip>
+            </template>
+            <template #tree-feedback>
+              <t-alert
+                v-if="browserError"
+                class="project-configuration-workspace__browser-alert"
+                theme="error"
+                :message="browserError"
+              />
+              <t-loading :loading="browserLoading" size="small" />
+            </template>
+            <template #editor-actions>
+              <t-tooltip :content="workspaceCopy.reloadAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :disabled="!activeBuffer"
+                    @click="reloadActiveFile"
+                    ><template #icon><refresh-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.reloadAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
+              <t-tooltip :content="workspaceCopy.saveAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="Boolean(activeBuffer?.saving)"
+                    :disabled="!canSaveActiveBuffer"
+                    @click="saveActiveFile"
+                    ><template #icon><save-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.saveAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
+              <t-tooltip :content="workspaceCopy.saveAllAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="saveConfirmLoading && pendingWorkspaceAction === 'save-all'"
+                    :disabled="!canSaveAllBuffers"
+                    @click="saveAllFiles"
+                    ><template #icon><file-copy-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.saveAllAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
+              <t-tooltip :content="workspaceCopy.validateAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="syntaxCheckLoading"
+                    :disabled="!activeBuffer"
+                    @click="runCurrentFileValidation"
+                    ><template #icon><check-circle-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.validateAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
+              <t-tooltip :content="workspaceCopy.deployAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="primary"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="deployLoading"
+                    @click="runProjectDeploy"
+                    ><template #icon><cloud-upload-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.deployAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
+            </template>
+            <template #fullscreen-icon="{ fullscreen }"
+              ><fullscreen-exit-icon v-if="fullscreen" /><fullscreen-icon v-else
+            /></template>
+            <template #editor-feedback>
+              <t-alert
+                v-if="activeBuffer && !activeBuffer.editable"
+                class="project-configuration-workspace__editor-alert"
+                theme="warning"
+                :message="workspaceCopy.readonlyHint"
+              />
+              <t-alert
+                v-if="activeBuffer?.fileKind === 'env'"
+                class="project-configuration-workspace__editor-alert"
+                theme="info"
+                :message="workspaceCopy.envRedeployHint"
+              />
+              <t-alert
+                v-if="activeBuffer?.error"
+                class="project-configuration-workspace__editor-alert"
+                theme="error"
+                :message="activeBuffer.error"
+              />
+            </template>
+          </project-workspace-editor>
         </template>
 
         <t-empty v-else-if="!workspaceError" :description="t('project.list.retry')" />
@@ -746,50 +570,6 @@
       />
     </t-dialog>
 
-    <div
-      v-if="workspaceEntryMenu.visible"
-      class="project-configuration-workspace__context-menu"
-      :style="{ left: `${workspaceEntryMenu.x}px`, top: `${workspaceEntryMenu.y}px` }"
-      role="menu"
-      @keydown.down.prevent="moveWorkspaceEntryMenuFocus(1)"
-      @keydown.end.prevent="moveWorkspaceEntryMenuFocus(-1, true)"
-      @keydown.esc.prevent="closeWorkspaceEntryMenu(true)"
-      @keydown.home.prevent="moveWorkspaceEntryMenuFocus(1, true)"
-      @keydown.up.prevent="moveWorkspaceEntryMenuFocus(-1)"
-    >
-      <button
-        ref="firstWorkspaceEntryMenuItem"
-        type="button"
-        role="menuitem"
-        @click="openWorkspaceEntryDialog('create-file')"
-      >
-        {{ t('project.create.workspace.newFile') }}
-      </button>
-      <button type="button" role="menuitem" @click="openWorkspaceEntryDialog('create-directory')">
-        {{ t('project.create.workspace.newFolder') }}
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        :disabled="!workspaceEntryMenu.item"
-        @click="openWorkspaceEntryDialog('rename')"
-      >
-        {{ t('project.create.workspace.rename') }}
-      </button>
-      <button type="button" role="menuitem" :disabled="!workspaceEntryMenu.item" @click="openWorkspaceDeleteDialog">
-        {{ t('project.create.workspace.delete') }}
-      </button>
-    </div>
-    <t-dialog
-      v-model:visible="workspaceEntryDialog.visible"
-      :header="t('project.create.workspace.filePath')"
-      :confirm-btn="t('project.create.actions.confirm')"
-      :cancel-btn="workspaceCopy.cancelAction"
-      @confirm="submitWorkspaceEntryDialog"
-    >
-      <t-input v-model="workspaceEntryDialog.path" :placeholder="t('project.create.workspace.filePathPlaceholder')" />
-      <t-alert v-if="workspaceEntryDialog.error" theme="error" :message="workspaceEntryDialog.error" />
-    </t-dialog>
     <t-dialog
       v-model:visible="workspaceDeleteDialog.visible"
       :header="
@@ -823,21 +603,25 @@ import {
   ArrowUpIcon,
   BrowseIcon,
   BrowseOffIcon,
+  CheckCircleIcon,
+  CloudUploadIcon,
   CommandIcon,
-  Edit1Icon,
-  EllipsisIcon,
   FileCodeIcon,
-  FileIcon,
+  FileCopyIcon,
   FolderIcon,
+  FullscreenExitIcon,
+  FullscreenIcon,
+  RefreshIcon,
+  SaveIcon,
 } from 'tdesign-icons-vue-next';
-import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
-import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
+import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { store } from '@/store/pinia';
 import { createLogger } from '@/utils/logger';
 
 import {
@@ -854,6 +638,12 @@ import {
 } from '../../api/project';
 import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.vue';
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
+import ProjectWorkspaceEditor, {
+  type ProjectWorkspaceEditorBuffer,
+  type ProjectWorkspaceEditorLabels,
+  type ProjectWorkspaceEditorRow,
+  type ProjectWorkspaceInlineEdit,
+} from '../../components/ProjectWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   hasWorkspaceUnsavedChanges,
@@ -862,6 +652,7 @@ import {
   type ProjectWorkspaceMonacoLanguage,
   resolveWorkspaceFileName,
   resolveWorkspaceMonacoLanguage,
+  supportsExplicitWorkspaceSyntaxValidation,
 } from '../../shared/configuration-workspace';
 import {
   projectDriftStatusLabel,
@@ -872,6 +663,7 @@ import {
 import { buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import { formatProjectMonacoDebugMessage, isProjectMonacoDebugEnabled } from '../../shared/project-monaco-debug';
+import { useProjectWorkspaceStore } from '../../store/workspace';
 import type {
   ProjectDetailResponseWithLifecycle,
   ProjectWorkspaceFileContentResponse,
@@ -894,12 +686,6 @@ type WorkspaceDialogButton = {
   variant: 'base' | 'outline';
 };
 type WorkspaceListItem = ProjectWorkspaceTreeItem;
-type WorkspaceFlatRow = {
-  depth: number;
-  error: string;
-  expanded: boolean;
-  item: WorkspaceListItem;
-};
 type DiffTreeRow = {
   depth: number;
   file: WorkspacePreviewDiffFile | null;
@@ -963,6 +749,7 @@ type MonacoViewerHandle = {
   revealMarker?: (marker: WorkspaceSyntaxMarker | null | undefined) => boolean;
   waitForDiagnostics?: (options?: { quietMs?: number; timeoutMs?: number }) => Promise<WorkspaceSyntaxMarker[]>;
 };
+type WorkspaceEditorHandle = { getActiveEditor: () => MonacoViewerHandle | null };
 type WorkspaceOpenFile = {
   content: string;
   readable: boolean;
@@ -979,32 +766,25 @@ type WorkspaceOpenFile = {
   sizeBytes?: number | null;
 };
 
-const EDITOR_WIDTH_STORAGE_KEY = 'graft.project.configuration-workspace.sidebar.width';
 const EDITOR_HEIGHT_STORAGE_KEY = 'graft.project.configuration-workspace.editor.height.v2';
-const SIDEBAR_MAX_WIDTH = 360;
-const SIDEBAR_MIN_WIDTH = 208;
-const SIDEBAR_DEFAULT_WIDTH = 256;
-const SIDEBAR_COLLAPSE_BREAKPOINT = 1024;
 const MONACO_MARKER_ERROR_SEVERITY = 8;
 
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
 const { t, tabsRouterStore } = useProjectPageContext();
+const workspaceStore = useProjectWorkspaceStore(store);
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
-const workspaceShellRef = ref<HTMLElement | null>(null);
-const editorStackHostRef = ref<HTMLElement | null>(null);
+const workspaceEditorRef = ref<WorkspaceEditorHandle | null>(null);
+const activeEditorRef = ref<MonacoViewerHandle | null>(null);
 const workspaceLoading = ref(false);
 const workspaceError = ref('');
 const workspaceReady = computed(() => Boolean(detailRecord.value && metadata.value && !workspaceError.value));
 const browserLoading = ref(false);
 const browserError = ref('');
 const showHiddenFiles = ref(false);
-const rootWorkspaceItems = ref<WorkspaceListItem[]>([]);
 const currentWorkspacePath = ref('');
 const selectedWorkspacePath = ref('');
-const sidebarWidth = ref(resolveStoredSidebarWidth());
-const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
 const editorViewportHeight = ref(720);
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
@@ -1013,7 +793,6 @@ const resultDialogVisible = ref(false);
 const resultDialogMode = ref<ResultDialogMode>('diff');
 const resultDialogFullscreen = ref(false);
 const diffViewerReady = ref(false);
-const activeEditorRef = ref<MonacoViewerHandle | null>(null);
 const diffViewerRef = ref<MonacoViewerHandle | null>(null);
 const syntaxViewerRef = ref<MonacoViewerHandle | null>(null);
 const activeFileTabPathForMenu = ref<string | null>(null);
@@ -1034,7 +813,6 @@ const pendingWorkspaceActionPaths = ref<string[]>([]);
 const openTabs = ref<string[]>([]);
 const activeTabPath = ref('');
 const openFileMap = reactive(new Map<string, WorkspaceOpenFile>());
-const directoryChildrenMap = reactive(new Map<string, WorkspaceListItem[]>());
 const directoryBrowseStateMap = reactive(new Map<string, { hasMoreHidden: boolean; parentPath: string | null }>());
 const directoryErrorMap = reactive(new Map<string, string>());
 const directoryLoadingMap = reactive(new Map<string, boolean>());
@@ -1069,27 +847,12 @@ const workspaceEntryMenu = reactive<{ item: WorkspaceListItem | null; visible: b
   x: 0,
   y: 0,
 });
-const workspaceEntryDialog = reactive<{
-  error: string;
-  mode: 'create-file' | 'create-directory' | 'rename';
-  path: string;
-  visible: boolean;
-}>({ error: '', mode: 'create-file', path: '', visible: false });
+const workspaceInlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
 const workspaceDeleteDialog = reactive<{
   path: string;
   stage: 'initial' | 'recursive';
   visible: boolean;
 }>({ path: '', stage: 'initial', visible: false });
-const firstWorkspaceEntryMenuItem = ref<HTMLButtonElement | null>(null);
-let workspaceEntryMenuTrigger: HTMLElement | null = null;
-let removeSidebarResizeListeners: (() => void) | null = null;
-
-const editorOptions = {
-  fontSize: 13,
-  lineNumbers: 'on' as const,
-  wordWrap: 'off' as const,
-};
-
 const readonlyOptions = {
   fontSize: 13,
   lineNumbers: 'on' as const,
@@ -1101,6 +864,7 @@ const readonlyOptions = {
 
 const workspaceCopy = computed(() => resolveConfigurationWorkspaceCopy((key) => String(t(key))));
 const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''));
+const workspaceSessionKey = computed(() => `project:${projectId.value}`);
 const fallbackDisplayName = computed(() => {
   const queryName = typeof route.query.name === 'string' ? route.query.name.trim() : '';
   return queryName;
@@ -1134,11 +898,24 @@ const canSaveActiveBuffer = computed(() =>
     isFileDirty(activeBuffer.value.path),
   ),
 );
-const canSaveAllBuffers = computed(() => Boolean(!saveConfirmLoading.value && dirtyEditableBuffers.value.length));
-const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE_BREAKPOINT);
-const sidebarPaneStyle = computed(() =>
-  isSidebarResizable.value ? { width: `${clampSidebarWidth(sidebarWidth.value)}px` } : undefined,
+useKeyboardShortcut(
+  '$mod+KeyS',
+  () => {
+    void saveActiveFile();
+  },
+  {
+    enabled: canSaveActiveBuffer,
+    ignoreRepeat: true,
+    preventDefault: true,
+    target: workspaceRootRef,
+  },
 );
+useKeyboardShortcut('Escape', () => {
+  if (workspaceFullscreen.value) {
+    workspaceFullscreen.value = false;
+  }
+});
+const canSaveAllBuffers = computed(() => Boolean(!saveConfirmLoading.value && dirtyEditableBuffers.value.length));
 const editorFrameHeight = computed(() => Math.max(560, editorViewportHeight.value));
 const hasDirtyFiles = computed(() => dirtyEditableBuffers.value.length > 0);
 const selectedDiffFile = computed(
@@ -1285,19 +1062,10 @@ const resultDialogStyle = computed(() =>
       },
 );
 const workspaceItemMap = computed(() => {
-  const itemMap = new Map<string, WorkspaceListItem>();
-  const appendEntries = (items: WorkspaceListItem[]) => {
-    for (const item of items) {
-      itemMap.set(item.relative_path, item);
-    }
-  };
-
-  appendEntries(rootWorkspaceItems.value);
-  for (const items of directoryChildrenMap.values()) {
-    appendEntries(items);
-  }
-
-  return itemMap;
+  return new Map(Object.entries(workspaceStore.session(workspaceSessionKey.value).nodesByKey)) as Map<
+    string,
+    WorkspaceListItem
+  >;
 });
 const currentWorkspaceDirectoryPath = computed(() => {
   if (selectedWorkspacePath.value) {
@@ -1318,7 +1086,64 @@ const currentWorkspacePathLabel = computed(
 );
 const workingDirectoryDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.workspace_path));
 const currentWorkspacePathDisplay = computed(() => abbreviateWorkspacePath(currentWorkspacePathLabel.value));
-const workspaceFlatRows = computed(() => flattenWorkspaceRows(rootWorkspaceItems.value, 0));
+const workspaceEditorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
+  workspaceStore.visibleTreeRows(workspaceSessionKey.value).map((row) => ({
+    depth: row.depth,
+    expanded: row.expanded,
+    error: directoryErrorMap.get(row.item.relative_path) ?? '',
+    fileKind: row.item.file_kind,
+    name: row.item.name,
+    nodeType: row.item.node_type,
+    path: row.item.relative_path,
+    readOnly: row.item.node_type === 'file' && (!row.item.readable || !row.item.editable),
+    testId: workspaceEntryTestId(row.item),
+    tooltip: workspaceItemTooltip(row.item),
+  })),
+);
+const workspaceEditorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
+  workspaceStore.openedFiles(workspaceSessionKey.value).map((tab) => ({
+    content: tab.content,
+    dirty: isFileDirty(tab.path),
+    error: tab.error,
+    language: tab.language,
+    loading: tab.loading,
+    modelKey: tab.path,
+    name: tab.name,
+    path: tab.path,
+    readOnly: !tab.editable,
+  })),
+);
+const workspaceEditorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
+  const tab = workspaceStore.activeFile(workspaceSessionKey.value);
+  if (!tab) return null;
+  return {
+    content: tab.content,
+    dirty: isFileDirty(tab.path),
+    error: tab.error,
+    language: tab.language,
+    loading: tab.loading,
+    modelKey: tab.path,
+    name: tab.name,
+    path: tab.path,
+    readOnly: !tab.editable,
+  };
+});
+const workspaceEditorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
+  annotationAction: workspaceCopy.value.annotationAction,
+  closeAll: t('layout.tagTabs.closeAll'),
+  closeLeft: t('layout.tagTabs.closeLeft'),
+  closeOther: t('layout.tagTabs.closeOther'),
+  closeRight: t('layout.tagTabs.closeRight'),
+  delete: t('project.create.workspace.delete'),
+  entryActions: t('project.create.workspace.entryActions', { path: '{path}' }),
+  exitFullscreen: workspaceCopy.value.exitFullscreenAction,
+  fullscreen: workspaceCopy.value.fullscreenAction,
+  newFile: t('project.create.workspace.newFile'),
+  newFolder: t('project.create.workspace.newFolder'),
+  refresh: t('layout.tagTabs.refresh'),
+  rename: t('project.create.workspace.rename'),
+  resizeEditorHeight: t('project.detail.configuration.resizeEditor'),
+}));
 
 function abbreviateWorkspacePath(value?: string | null, maxLength = 16) {
   const normalized = value?.trim() || '-';
@@ -1331,15 +1156,12 @@ function abbreviateWorkspacePath(value?: string | null, maxLength = 16) {
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleWorkspaceKeydown);
   window.addEventListener('resize', syncWorkspaceViewport);
   void loadWorkspace();
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleWorkspaceKeydown);
   window.removeEventListener('resize', syncWorkspaceViewport);
-  stopSidebarResize();
   if (typeof document !== 'undefined') {
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
@@ -1347,11 +1169,9 @@ onBeforeUnmount(() => {
 });
 
 watch(showHiddenFiles, () => {
-  rootWorkspaceItems.value = [];
   currentWorkspacePath.value = '';
   selectedWorkspacePath.value = '';
   expandedDirectoryPaths.value = [];
-  directoryChildrenMap.clear();
   directoryBrowseStateMap.clear();
   directoryErrorMap.clear();
   directoryLoadingMap.clear();
@@ -1368,6 +1188,14 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  openFileMap,
+  () => workspaceStore.syncOpenedFiles(workspaceSessionKey.value, openTabBuffers.value, activeTabPath.value),
+  { deep: true },
+);
+
+watch(activeTabPath, (path) => workspaceStore.syncOpenedFiles(workspaceSessionKey.value, openTabBuffers.value, path));
 
 watch(resultDialogVisible, (visible) => {
   if (visible) {
@@ -1417,6 +1245,10 @@ watch(
   { deep: true },
 );
 
+watch(activeTabPath, (path) => {
+  if (path) workspaceStore.focusFile(workspaceSessionKey.value, path);
+});
+
 watch(selectedDiffFilePath, () => {
   if (resultDialogVisible.value && resultDialogMode.value === 'diff') {
     void refreshDiffLineChanges();
@@ -1449,6 +1281,8 @@ async function loadWorkspace() {
 
   workspaceLoading.value = true;
   workspaceError.value = '';
+  workspaceStore.clearSession(workspaceSessionKey.value);
+  workspaceStore.ensureSession(workspaceSessionKey.value);
   try {
     const [detail, configurationMetadata] = await Promise.all([
       getProject(projectId.value),
@@ -1492,15 +1326,15 @@ async function loadWorkspaceDirectory(path: string, options?: { root?: boolean }
     });
 
     if (options?.root) {
-      rootWorkspaceItems.value = items;
       currentWorkspacePath.value = response.current_path || '';
+      workspaceStore.replaceTree(workspaceSessionKey.value, items);
     } else {
-      directoryChildrenMap.set(normalizedPath, items);
       currentWorkspacePath.value = normalizedPath;
+      workspaceStore.ingestTree(workspaceSessionKey.value, items, normalizedPath);
     }
 
     if (!activeTabPath.value && options?.root) {
-      const firstFile = rootWorkspaceItems.value.find((item) => item.node_type === 'file')?.relative_path;
+      const firstFile = items.find((item) => item.node_type === 'file')?.relative_path;
       if (firstFile) {
         await openWorkspaceFile(firstFile);
       }
@@ -1538,94 +1372,144 @@ function handleWorkspaceEntry(item: WorkspaceListItem) {
     void toggleWorkspaceDirectory(item);
     return;
   }
+  workspaceStore.selectNode(workspaceSessionKey.value, item.relative_path);
   if (!item.readable) {
     return;
   }
   void openWorkspaceFile(item.relative_path, item);
 }
 
-function normalizeWorkspaceEntryPath(path: string) {
-  return String(path || '')
-    .trim()
-    .replace(/^\.\//, '')
-    .replace(/\/+$/, '');
+function workspaceItemForEditorRow(row: ProjectWorkspaceEditorRow) {
+  return workspaceItemMap.value.get(row.path) ?? null;
 }
 
-function isSafeWorkspaceEntryPath(path: string) {
-  return (
-    Boolean(path) && !path.startsWith('/') && !path.split('/').some((part) => !part || part === '.' || part === '..')
-  );
+function handleWorkspaceEditorEntry(row: ProjectWorkspaceEditorRow) {
+  const item = workspaceItemForEditorRow(row);
+  if (item) handleWorkspaceEntry(item);
 }
 
-function openWorkspaceEntryMenu(item: WorkspaceListItem | null, event: MouseEvent, focusMenu = false) {
-  workspaceEntryMenu.item = item;
-  workspaceEntryMenu.x = event.clientX;
-  workspaceEntryMenu.y = event.clientY;
-  workspaceEntryMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
-  workspaceEntryMenu.visible = true;
-  if (focusMenu) void nextTick(() => firstWorkspaceEntryMenuItem.value?.focus());
+function toggleWorkspaceEditorDirectory(row: ProjectWorkspaceEditorRow) {
+  const item = workspaceItemForEditorRow(row);
+  if (item) void toggleWorkspaceDirectory(item);
 }
 
-function closeWorkspaceEntryMenu(restoreFocus = false) {
-  workspaceEntryMenu.visible = false;
-  if (restoreFocus) void nextTick(() => workspaceEntryMenuTrigger?.focus());
-}
-
-function moveWorkspaceEntryMenuFocus(direction: 1 | -1, boundary = false) {
-  const items = Array.from(
-    document.querySelectorAll<HTMLButtonElement>('.project-configuration-workspace__context-menu [role="menuitem"]'),
-  ).filter((item) => !item.disabled);
-  if (!items.length) return;
-  const currentIndex = items.findIndex((item) => item === document.activeElement);
-  const nextIndex = boundary
-    ? direction > 0
-      ? 0
-      : items.length - 1
-    : (currentIndex + direction + items.length) % items.length;
-  items[nextIndex].focus();
-}
-
-function openWorkspaceEntryDialog(mode: 'create-file' | 'create-directory' | 'rename') {
-  workspaceEntryDialog.mode = mode;
-  workspaceEntryDialog.error = '';
-  const target = workspaceEntryMenu.item;
-  if (mode === 'rename') {
-    workspaceEntryDialog.path = target?.relative_path || '';
-  } else {
-    const parent =
-      target?.node_type === 'directory'
-        ? target.relative_path
-        : resolveWorkspaceParentPath(target?.relative_path || '');
-    workspaceEntryDialog.path = parent ? `${parent}/` : '';
+function updateWorkspaceEditorContent(path: string, content: string) {
+  const buffer = openFileMap.get(path);
+  if (buffer) {
+    buffer.content = content;
+    workspaceStore.setFileContent(workspaceSessionKey.value, path, content);
   }
-  workspaceEntryDialog.visible = true;
+}
+
+function activeWorkspaceEditor() {
+  return activeEditorRef.value ?? workspaceEditorRef.value?.getActiveEditor() ?? null;
+}
+
+function setActiveWorkspaceEditor(editor: unknown) {
+  activeEditorRef.value = editor as MonacoViewerHandle;
+}
+
+function handleWorkspaceEditorContextAction(
+  action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
+  row: ProjectWorkspaceEditorRow | null,
+) {
+  workspaceEntryMenu.item = row ? workspaceItemForEditorRow(row) : null;
+  if (action === 'create-file' || action === 'create-directory') openWorkspaceInlineEdit(action, row);
+  if (action === 'annotation' && workspaceEntryMenu.item) handleWorkspaceAnnotation(workspaceEntryMenu.item);
+  if (action === 'rename') openWorkspaceInlineEdit('rename', row);
+  if (action === 'delete') openWorkspaceDeleteDialog();
+}
+
+function handleWorkspaceEditorTabAction(
+  action: 'refresh' | 'close-left' | 'close-right' | 'close-other' | 'close-all',
+  path: string,
+) {
+  if (action === 'refresh') void handleRefreshFileTab(path);
+  if (action === 'close-left') void handleCloseFileTabsAhead(path);
+  if (action === 'close-right') void handleCloseFileTabsBehind(path);
+  if (action === 'close-other') void handleCloseOtherFileTabs(path);
+  if (action === 'close-all') void handleCloseAllFileTabs();
+}
+
+function normalizeWorkspaceEntryName(value: string) {
+  return String(value || '').trim();
+}
+
+function isSafeWorkspaceEntryName(value: string) {
+  return Boolean(value) && value !== '.' && value !== '..' && !value.includes('/');
+}
+
+function closeWorkspaceEntryMenu() {
+  workspaceEntryMenu.visible = false;
+}
+
+function openWorkspaceInlineEdit(
+  mode: 'create-file' | 'create-directory' | 'rename',
+  row: ProjectWorkspaceEditorRow | null,
+) {
+  if (mode === 'rename' && !row) return;
+  workspaceInlineEdit.value = {
+    anchorPath: row?.path ?? null,
+    mode,
+    value: mode === 'rename' ? (row?.name ?? '') : '',
+  };
   closeWorkspaceEntryMenu();
 }
 
-async function submitWorkspaceEntryDialog() {
-  const path = normalizeWorkspaceEntryPath(workspaceEntryDialog.path);
-  const target = workspaceEntryMenu.item;
-  if (!isSafeWorkspaceEntryPath(path)) {
-    workspaceEntryDialog.error = t('project.create.workspace.invalidFilePath');
+function cancelWorkspaceInlineEdit() {
+  workspaceInlineEdit.value = null;
+}
+
+function setWorkspaceInlineEditError(error: string) {
+  if (workspaceInlineEdit.value) workspaceInlineEdit.value = { ...workspaceInlineEdit.value, error, saving: false };
+}
+
+function joinWorkspaceEntryPath(parent: string, name: string) {
+  return parent ? `${parent}/${name}` : name;
+}
+
+async function submitWorkspaceInlineEdit() {
+  const edit = workspaceInlineEdit.value;
+  if (!edit || edit.saving) return;
+  const name = normalizeWorkspaceEntryName(edit.value);
+  if (!name && edit.mode !== 'rename') {
+    cancelWorkspaceInlineEdit();
     return;
   }
+  if (!isSafeWorkspaceEntryName(name)) {
+    setWorkspaceInlineEditError(t('project.create.workspace.invalidFilePath'));
+    return;
+  }
+  const target = workspaceEntryMenu.item;
+  const parent =
+    edit.mode === 'rename'
+      ? resolveWorkspaceParentPath(target?.relative_path || '')
+      : target?.node_type === 'directory'
+        ? target.relative_path
+        : resolveWorkspaceParentPath(target?.relative_path || '');
+  const path = joinWorkspaceEntryPath(parent, name);
+  if (edit.mode === 'rename' && target && path === target.relative_path) {
+    cancelWorkspaceInlineEdit();
+    return;
+  }
+  workspaceInlineEdit.value = { ...edit, error: '', saving: true };
   try {
-    if (workspaceEntryDialog.mode === 'rename') {
+    if (edit.mode === 'rename') {
       if (!target) return;
       await postProjectWorkspaceRename(projectId.value, { path: target.relative_path, new_path: path });
       migrateWorkspaceBuffers(target.relative_path, path);
     } else {
       await postProjectWorkspaceEntry(projectId.value, {
         path,
-        node_type: workspaceEntryDialog.mode === 'create-directory' ? 'directory' : 'file',
-        ...(workspaceEntryDialog.mode === 'create-file' ? { content: '' } : {}),
+        node_type: edit.mode === 'create-directory' ? 'directory' : 'file',
+        ...(edit.mode === 'create-file' ? { content: '' } : {}),
       });
     }
-    workspaceEntryDialog.visible = false;
+    workspaceInlineEdit.value = null;
     await refreshWorkspaceAfterEntryMutation();
-    if (workspaceEntryDialog.mode === 'create-file') await openWorkspaceFile(path);
+    if (edit.mode === 'create-file') await openWorkspaceFile(path);
   } catch (error) {
-    workspaceEntryDialog.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+    setWorkspaceInlineEditError(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
   }
 }
 
@@ -1663,8 +1547,6 @@ async function confirmWorkspaceEntryDelete() {
 }
 
 async function refreshWorkspaceAfterEntryMutation() {
-  rootWorkspaceItems.value = [];
-  directoryChildrenMap.clear();
   directoryBrowseStateMap.clear();
   directoryErrorMap.clear();
   directoryLoadingMap.clear();
@@ -1733,10 +1615,6 @@ function workspaceEntryTestId(item: WorkspaceListItem) {
   }`;
 }
 
-function workspaceAnnotationTestId(item: WorkspaceListItem) {
-  return `${workspaceEntryTestId(item)}-annotation`;
-}
-
 function workspaceFileTabMenuTestId(path: string) {
   return `workspace-file-tab-menu-${workspaceEntryTestId({ relative_path: path, name: path } as WorkspaceListItem)}`;
 }
@@ -1759,34 +1637,15 @@ async function toggleWorkspaceDirectory(item: WorkspaceListItem) {
   selectedWorkspacePath.value = path;
   if (expandedDirectoryPaths.value.includes(path)) {
     expandedDirectoryPaths.value = expandedDirectoryPaths.value.filter((value) => value !== path);
+    workspaceStore.setExpanded(workspaceSessionKey.value, path, false);
     return;
   }
 
   expandedDirectoryPaths.value = [...expandedDirectoryPaths.value, path];
-  if (!directoryChildrenMap.has(path) && item.has_children) {
+  workspaceStore.setExpanded(workspaceSessionKey.value, path, true);
+  if (!workspaceStore.session(workspaceSessionKey.value).nodesByKey[path]?.childrenLoaded && item.has_children) {
     await loadWorkspaceDirectory(path);
   }
-}
-
-function flattenWorkspaceRows(items: WorkspaceListItem[], depth: number) {
-  const rows: WorkspaceFlatRow[] = [];
-
-  for (const item of items) {
-    const path = item.relative_path;
-    const expanded = item.node_type === 'directory' && expandedDirectoryPaths.value.includes(path);
-    rows.push({
-      depth,
-      error: directoryErrorMap.get(path) ?? '',
-      expanded,
-      item,
-    });
-
-    if (expanded) {
-      rows.push(...flattenWorkspaceRows(directoryChildrenMap.get(path) ?? [], depth + 1));
-    }
-  }
-
-  return rows;
 }
 
 function workspaceItemTooltip(item?: WorkspaceListItem | null) {
@@ -1800,13 +1659,6 @@ function workspaceItemTooltip(item?: WorkspaceListItem | null) {
 
   const tooltip = String(item.tooltip ?? '').trim();
   return tooltip || '';
-}
-
-function isWorkspaceItemActive(item: WorkspaceListItem) {
-  return (
-    (activeTabPath.value && activeTabPath.value === item.relative_path) ||
-    selectedWorkspacePath.value === item.relative_path
-  );
 }
 
 function handleWorkspaceAnnotation(item: WorkspaceListItem) {
@@ -1851,14 +1703,7 @@ function patchWorkspaceItem(nextItem: WorkspaceListItem) {
     return;
   }
 
-  rootWorkspaceItems.value = replaceWorkspaceItem(rootWorkspaceItems.value, nextItem);
-  for (const [path, items] of directoryChildrenMap.entries()) {
-    directoryChildrenMap.set(path, replaceWorkspaceItem(items, nextItem));
-  }
-}
-
-function replaceWorkspaceItem(items: WorkspaceListItem[], nextItem: WorkspaceListItem) {
-  return items.map((item) => (item.relative_path === nextItem.relative_path ? nextItem : item));
+  workspaceStore.patchNode(workspaceSessionKey.value, nextItem);
 }
 
 let latestOpenRequestPath = '';
@@ -2059,7 +1904,7 @@ async function collectActiveEditorSyntaxErrors(options?: { retries?: number }) {
   const maxRetries = Math.max(0, options?.retries ?? 0);
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    const markers = await activeEditorRef.value?.waitForDiagnostics?.({
+    const markers = await activeWorkspaceEditor()?.waitForDiagnostics?.({
       quietMs: 180,
       timeoutMs: 1500,
     });
@@ -2076,18 +1921,18 @@ async function waitForActiveEditorModel(path: string, options?: { maxAttempts?: 
   const maxAttempts = Math.max(1, options?.maxAttempts ?? 6);
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (activeEditorRef.value?.getModelKey?.() === path) {
+    if (activeWorkspaceEditor()?.getModelKey?.() === path) {
       return true;
     }
 
     await nextTick();
   }
 
-  return activeEditorRef.value?.getModelKey?.() === path;
+  return activeWorkspaceEditor()?.getModelKey?.() === path;
 }
 
 function failClosedToBoundActiveEditorModel() {
-  const boundModelKey = activeEditorRef.value?.getModelKey?.();
+  const boundModelKey = activeWorkspaceEditor()?.getModelKey?.();
   if (boundModelKey) {
     activeTabPath.value = boundModelKey;
   }
@@ -2102,7 +1947,7 @@ function resolveSyntaxValidationTargets(paths: string[]) {
     if (!file?.editable) {
       continue;
     }
-    if (supportsExplicitSyntaxValidation(file.language)) {
+    if (supportsExplicitWorkspaceSyntaxValidation(file.language)) {
       supportedPaths.push(path);
       continue;
     }
@@ -2448,22 +2293,6 @@ async function saveTabsByPaths(paths: string[]) {
   return true;
 }
 
-function hasClosableFileTabsAhead(path: string) {
-  const index = openTabs.value.indexOf(path);
-  return index > 0;
-}
-
-function hasClosableFileTabsBehind(path: string) {
-  const index = openTabs.value.indexOf(path);
-  return index !== -1 && index < openTabs.value.length - 1;
-}
-
-function hasClosableOtherFileTabs(path: string) {
-  return openTabs.value.length > 1 && openTabs.value.some((item) => item !== path);
-}
-
-const hasClosableFileTabs = computed(() => openTabs.value.length > 0);
-
 async function handleRefreshFileTab(path: string) {
   await reloadWorkspaceFile(path);
   activeFileTabPathForMenu.value = null;
@@ -2509,21 +2338,6 @@ async function handleCloseAllFileTabs() {
   }
 }
 
-function handleFileTabMenuClick(visible: boolean, ctx: PopupVisibleChangeContext, path: string) {
-  if (visible) {
-    activeFileTabPathForMenu.value = path;
-    return;
-  }
-
-  if (activeFileTabPathForMenu.value === path || ctx.trigger === 'document') {
-    activeFileTabPathForMenu.value = null;
-  }
-}
-
-function supportsExplicitSyntaxValidation(language: ProjectWorkspaceMonacoLanguage) {
-  return language === 'json' || language === 'yaml';
-}
-
 async function runCurrentFileValidation() {
   const current = activeBuffer.value;
   if (!current) {
@@ -2531,7 +2345,7 @@ async function runCurrentFileValidation() {
     return;
   }
 
-  if (!supportsExplicitSyntaxValidation(current.language)) {
+  if (!supportsExplicitWorkspaceSyntaxValidation(current.language)) {
     MessagePlugin.info(workspaceCopy.value.fileValidationUnavailable);
     return;
   }
@@ -2539,7 +2353,12 @@ async function runCurrentFileValidation() {
   syntaxCheckLoading.value = true;
 
   try {
-    const markers = await activeEditorRef.value?.waitForDiagnostics?.();
+    const modelReady = await waitForActiveEditorModel(current.path, { maxAttempts: 12 });
+    if (!modelReady) {
+      MessagePlugin.error(workspaceCopy.value.fileValidationFailed);
+      return;
+    }
+    const markers = await activeWorkspaceEditor()?.waitForDiagnostics?.();
     const errors = normalizeSyntaxErrors(markers);
 
     if (!errors.length) {
@@ -2972,28 +2791,6 @@ function resolveDialog(result: DialogResult) {
   resolver(result);
 }
 
-function handleWorkspaceKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && workspaceFullscreen.value) {
-    workspaceFullscreen.value = false;
-    return;
-  }
-
-  const root = workspaceRootRef.value;
-  if (!root || !activeBuffer.value || !canSaveActiveBuffer.value) {
-    return;
-  }
-
-  const target = event.target;
-  if (!(target instanceof Node) || !root.contains(target)) {
-    return;
-  }
-
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-    event.preventDefault();
-    void saveActiveFile();
-  }
-}
-
 function normalizeWorkspacePath(path: string) {
   return String(path || '')
     .replace(/\\/g, '/')
@@ -3009,45 +2806,11 @@ function resolveWorkspaceParentPath(path: string) {
   return normalizedPath.split('/').slice(0, -1).join('/');
 }
 
-function resolveStoredSidebarWidth() {
-  if (typeof window === 'undefined') {
-    return SIDEBAR_DEFAULT_WIDTH;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(EDITOR_WIDTH_STORAGE_KEY);
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : SIDEBAR_DEFAULT_WIDTH;
-  } catch {
-    return SIDEBAR_DEFAULT_WIDTH;
-  }
-}
-
-function clampSidebarWidth(value: number) {
-  const shellWidth = workspaceShellRef.value?.clientWidth || 1280;
-  const maxWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, shellWidth - 420));
-  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(maxWidth, Math.round(value)));
-}
-
-function writeStoredSidebarWidth(value: number) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(EDITOR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(value)));
-  } catch {
-    return;
-  }
-}
-
 function syncWorkspaceViewport() {
   if (typeof window === 'undefined') {
     return;
   }
 
-  viewportWidth.value = window.innerWidth;
-  sidebarWidth.value = clampSidebarWidth(sidebarWidth.value);
   syncEditorViewportHeight();
 }
 
@@ -3056,45 +2819,7 @@ function syncEditorViewportHeight() {
     return;
   }
 
-  const editorTop = editorStackHostRef.value?.getBoundingClientRect().top ?? 320;
-  editorViewportHeight.value = Math.max(560, Math.floor(window.innerHeight - editorTop - 40));
-}
-
-function startSidebarResize(event: PointerEvent) {
-  if (!isSidebarResizable.value || typeof window === 'undefined') {
-    return;
-  }
-
-  stopSidebarResize();
-
-  const shellBounds = workspaceShellRef.value?.getBoundingClientRect();
-  if (!shellBounds) {
-    return;
-  }
-
-  const handlePointerMove = (moveEvent: PointerEvent) => {
-    sidebarWidth.value = clampSidebarWidth(moveEvent.clientX - shellBounds.left);
-  };
-
-  const handlePointerUp = () => {
-    writeStoredSidebarWidth(sidebarWidth.value);
-    stopSidebarResize();
-  };
-
-  document.body.classList.add('graft-resizing');
-  window.addEventListener('pointermove', handlePointerMove);
-  window.addEventListener('pointerup', handlePointerUp, { once: true });
-  removeSidebarResizeListeners = () => {
-    document.body.classList.remove('graft-resizing');
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', handlePointerUp);
-  };
-  handlePointerMove(event);
-}
-
-function stopSidebarResize() {
-  removeSidebarResizeListeners?.();
-  removeSidebarResizeListeners = null;
+  editorViewportHeight.value = Math.max(560, Math.floor(window.innerHeight - 360));
 }
 </script>
 <style scoped lang="less">
@@ -3144,6 +2869,16 @@ function stopSidebarResize() {
   --graft-workspace-editor-diff-removed: color-mix(in srgb, var(--td-error-color-5) 18%, transparent);
   --graft-workspace-tab-indicator: var(--td-brand-color-6);
   --graft-workspace-tab-hover: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
+}
+
+.project-configuration-workspace__sr-only {
+  height: 1px;
+  margin: calc(-1 * var(--graft-theme-density-scale));
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .project-configuration-workspace--fullscreen {

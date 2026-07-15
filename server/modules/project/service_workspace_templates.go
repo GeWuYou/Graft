@@ -221,10 +221,10 @@ func listWorkspaceTemplates(applicationRoot string) ([]WorkspaceTemplate, error)
 	return result, nil
 }
 
-// validTemplateKey reports whether the trimmed key matches the workspace template key format.
+// validTemplateKey 确定去除首尾空白后的键是否符合应用名称格式。
 func validTemplateKey(key string) bool {
 	key = strings.TrimSpace(key)
-	return workspaceKeyPattern.MatchString(key)
+	return applicationNamePattern.MatchString(key)
 }
 
 // loadWorkspaceTemplate 加载指定工作区模板中的文件和目录条目，并按路径排序。

@@ -3,7 +3,6 @@ package project
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -173,14 +172,15 @@ func (s *Service) issueProjectScopedRealtimeSubscription(
 	prefix string,
 	ensureStreaming func(string, uint64) error,
 ) (realtime.SubscriptionResponse, error) {
-	projectID, err := parseProjectRealtimeTopicID(topic, prefix)
+	applicationID, err := parseProjectRealtimeTopicApplicationID(topic, prefix)
 	if err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
 	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ProjectViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, err
 	}
-	if _, err := s.Get(ctx, projectID); err != nil {
+	projectID, err := s.ResolveApplicationID(ctx, applicationID)
+	if err != nil {
 		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
 	}
 	if err := ensureStreaming(topic, projectID); err != nil {
@@ -194,12 +194,16 @@ func (s *Service) issueProjectLogsRealtimeSubscription(
 	request realtime.SubscriptionRequest,
 	topic string,
 ) (realtime.SubscriptionResponse, error) {
-	projectID, err := parseProjectRealtimeTopicID(topic, projectcontract.ProjectLogsTopicPrefix)
+	applicationID, err := parseProjectRealtimeTopicApplicationID(topic, projectcontract.ProjectLogsTopicPrefix)
 	if err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
 	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ProjectViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, err
+	}
+	projectID, err := s.ResolveApplicationID(ctx, applicationID)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
 	}
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -250,18 +254,19 @@ func (s *Service) ensureRealtimeAccess(
 	return nil
 }
 
-func parseProjectRealtimeTopicID(topic string, prefix string) (uint64, error) {
-	raw := strings.TrimSpace(strings.TrimPrefix(topic, prefix))
-	if raw == "" {
-		return 0, errProjectInvalidArgument
+// 如果主题不包含指定前缀或应用 ID 格式无效，则返回错误。
+func parseProjectRealtimeTopicApplicationID(topic string, prefix string) (string, error) {
+	if !strings.HasPrefix(topic, prefix) {
+		return "", errProjectInvalidArgument
 	}
-	value, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || value == 0 {
-		return 0, errProjectInvalidArgument
+	applicationID := strings.TrimSpace(strings.TrimPrefix(topic, prefix))
+	if !isApplicationID(applicationID) {
+		return "", errProjectInvalidArgument
 	}
-	return value, nil
+	return applicationID, nil
 }
 
+// mapProjectRealtimeError maps project errors to realtime subscription errors.
 func mapProjectRealtimeError(err error) error {
 	switch {
 	case errors.Is(err, errProjectNotFound):
