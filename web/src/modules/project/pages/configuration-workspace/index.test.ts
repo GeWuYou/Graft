@@ -1469,6 +1469,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(wrapper.find('.project-configuration-workspace__diff-sidebar').exists()).toBe(true);
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('.env');
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-folder').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-command').exists()).toBe(true);
   });
 
   it('shows the syntax file list for save all when multiple files have syntax errors', async () => {
@@ -1499,6 +1501,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
     expect(wrapper.text()).toContain('docker-compose.yml');
     expect(wrapper.text()).toContain('app.yaml');
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-folder').exists()).toBe(true);
+    expect(wrapper.find('.project-configuration-workspace__diff-sidebar .t-icon-file-code').exists()).toBe(true);
   });
 
   it('rechecks unresolved files so the first batch validation still includes every error file', async () => {
