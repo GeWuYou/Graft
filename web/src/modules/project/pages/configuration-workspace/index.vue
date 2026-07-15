@@ -83,7 +83,12 @@
             :labels="workspaceEditorLabels"
             :rows="workspaceEditorRows"
             :selected-path="workspaceStore.activeSession.selectedKey"
-            :sidebar-style="sidebarPaneStyle"
+            :sidebar-max-width="SIDEBAR_MAX_WIDTH"
+            :sidebar-min-width="SIDEBAR_MIN_WIDTH"
+            :sidebar-resizable="isSidebarResizable"
+            :sidebar-resize-aria-label="workspaceCopy.resizeFileTreeAriaLabel"
+            :sidebar-width="sidebarWidth"
+            show-annotation-action
             :tab-action-test-id="workspaceFileTabMenuItemTestId"
             :tab-test-id="workspaceFileTabMenuTestId"
             :tabs="workspaceEditorTabs"
@@ -97,6 +102,7 @@
             @tab-action="handleWorkspaceEditorTabAction"
             @toggle-directory="toggleWorkspaceEditorDirectory"
             @update-content="updateWorkspaceEditorContent"
+            @update:sidebar-width="updateSidebarWidth"
           >
             <template #tree-actions>
               <t-tooltip
@@ -129,58 +135,94 @@
               />
               <t-loading :loading="browserLoading" size="small" />
             </template>
-            <template #entry-actions="{ row }">
-              <t-tooltip :content="workspaceCopy.annotationAction" theme="light">
-                <t-button
-                  v-if="workspaceItemForEditorRow(row)"
-                  class="project-configuration-workspace__annotation-button"
-                  theme="default"
-                  variant="text"
-                  shape="square"
-                  size="small"
-                  tag="div"
-                  :data-testid="workspaceAnnotationTestId(workspaceItemForEditorRow(row)!)"
-                  @click.stop="handleWorkspaceAnnotation(workspaceItemForEditorRow(row)!)"
-                >
-                  <template #icon><edit-1-icon /></template>
-                </t-button>
-              </t-tooltip>
-            </template>
             <template #editor-actions>
-              <t-button theme="default" variant="outline" :disabled="!activeBuffer" @click="reloadActiveFile">
-                {{ workspaceCopy.reloadAction }}
-              </t-button>
-              <t-button
-                theme="default"
-                variant="outline"
-                :loading="Boolean(activeBuffer?.saving)"
-                :disabled="!canSaveActiveBuffer"
-                @click="saveActiveFile"
+              <t-tooltip :content="workspaceCopy.reloadAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :disabled="!activeBuffer"
+                    @click="reloadActiveFile"
+                    ><template #icon><refresh-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.reloadAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
               >
-                {{ workspaceCopy.saveAction }}
-              </t-button>
-              <t-button
-                theme="default"
-                variant="outline"
-                :loading="saveConfirmLoading && pendingWorkspaceAction === 'save-all'"
-                :disabled="!canSaveAllBuffers"
-                @click="saveAllFiles"
+              <t-tooltip :content="workspaceCopy.saveAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="Boolean(activeBuffer?.saving)"
+                    :disabled="!canSaveActiveBuffer"
+                    @click="saveActiveFile"
+                    ><template #icon><save-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.saveAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
               >
-                {{ workspaceCopy.saveAllAction }}
-              </t-button>
-              <t-button
-                theme="default"
-                variant="outline"
-                :loading="syntaxCheckLoading"
-                :disabled="!activeBuffer"
-                @click="runCurrentFileValidation"
+              <t-tooltip :content="workspaceCopy.saveAllAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="saveConfirmLoading && pendingWorkspaceAction === 'save-all'"
+                    :disabled="!canSaveAllBuffers"
+                    @click="saveAllFiles"
+                    ><template #icon><file-copy-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.saveAllAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
               >
-                {{ workspaceCopy.validateAction }}
-              </t-button>
-              <t-button theme="primary" :loading="deployLoading" @click="runProjectDeploy">
-                {{ workspaceCopy.deployAction }}
-              </t-button>
+              <t-tooltip :content="workspaceCopy.validateAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="default"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="syntaxCheckLoading"
+                    :disabled="!activeBuffer"
+                    @click="runCurrentFileValidation"
+                    ><template #icon><check-circle-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.validateAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
+              <t-tooltip :content="workspaceCopy.deployAction" theme="light"
+                ><span
+                  ><t-button
+                    theme="primary"
+                    variant="text"
+                    shape="square"
+                    size="small"
+                    :loading="deployLoading"
+                    @click="runProjectDeploy"
+                    ><template #icon><cloud-upload-icon /></template
+                    ><span class="project-configuration-workspace__sr-only">{{
+                      workspaceCopy.deployAction
+                    }}</span></t-button
+                  ></span
+                ></t-tooltip
+              >
             </template>
+            <template #fullscreen-icon="{ fullscreen }"
+              ><fullscreen-exit-icon v-if="fullscreen" /><fullscreen-icon v-else
+            /></template>
             <template #editor-feedback>
               <t-alert
                 v-if="activeBuffer && !activeBuffer.editable"
@@ -571,10 +613,13 @@ import {
   ArrowUpIcon,
   BrowseIcon,
   BrowseOffIcon,
-  CommandIcon,
-  Edit1Icon,
-  FileCodeIcon,
-  FolderIcon,
+  CheckCircleIcon,
+  CloudUploadIcon,
+  FileCopyIcon,
+  FullscreenExitIcon,
+  FullscreenIcon,
+  RefreshIcon,
+  SaveIcon,
 } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
@@ -740,8 +785,6 @@ const workspaceStore = useProjectWorkspaceStore(store);
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
 const workspaceEditorRef = ref<WorkspaceEditorHandle | null>(null);
-const workspaceShellRef = ref<HTMLElement | null>(null);
-const editorStackHostRef = ref<HTMLElement | null>(null);
 const activeEditorRef = ref<MonacoViewerHandle | null>(null);
 const workspaceLoading = ref(false);
 const workspaceError = ref('');
@@ -872,9 +915,6 @@ const canSaveActiveBuffer = computed(() =>
 );
 const canSaveAllBuffers = computed(() => Boolean(!saveConfirmLoading.value && dirtyEditableBuffers.value.length));
 const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_COLLAPSE_BREAKPOINT);
-const sidebarPaneStyle = computed(() =>
-  isSidebarResizable.value ? { width: `${clampSidebarWidth(sidebarWidth.value)}px` } : undefined,
-);
 const editorFrameHeight = computed(() => Math.max(560, editorViewportHeight.value));
 const hasDirtyFiles = computed(() => dirtyEditableBuffers.value.length > 0);
 const selectedDiffFile = computed(
@@ -1085,6 +1125,7 @@ const workspaceEditorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null
   };
 });
 const workspaceEditorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
+  annotationAction: workspaceCopy.value.annotationAction,
   closeAll: t('layout.tagTabs.closeAll'),
   closeLeft: t('layout.tagTabs.closeLeft'),
   closeOther: t('layout.tagTabs.closeOther'),
@@ -1357,12 +1398,13 @@ function setActiveWorkspaceEditor(editor: unknown) {
 }
 
 function handleWorkspaceEditorContextAction(
-  action: 'create-file' | 'create-directory' | 'rename' | 'delete',
+  action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
   row: ProjectWorkspaceEditorRow | null,
 ) {
   workspaceEntryMenu.item = row ? workspaceItemForEditorRow(row) : null;
   if (action === 'create-file') openWorkspaceEntryDialog('create-file');
   if (action === 'create-directory') openWorkspaceEntryDialog('create-directory');
+  if (action === 'annotation' && workspaceEntryMenu.item) handleWorkspaceAnnotation(workspaceEntryMenu.item);
   if (action === 'rename') openWorkspaceEntryDialog('rename');
   if (action === 'delete') openWorkspaceDeleteDialog();
 }
@@ -1539,10 +1581,6 @@ function workspaceEntryTestId(item: WorkspaceListItem) {
       .replace(/^-+|-+$/g, '')
       .toLowerCase() || 'root'
   }`;
-}
-
-function workspaceAnnotationTestId(item: WorkspaceListItem) {
-  return `${workspaceEntryTestId(item)}-annotation`;
 }
 
 function workspaceFileTabMenuTestId(path: string) {
@@ -2772,9 +2810,17 @@ function resolveStoredSidebarWidth() {
 }
 
 function clampSidebarWidth(value: number) {
-  const shellWidth = workspaceShellRef.value?.clientWidth || 1280;
-  const maxWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, shellWidth - 420));
-  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(maxWidth, Math.round(value)));
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, Math.round(value)));
+}
+
+function updateSidebarWidth(value: number) {
+  sidebarWidth.value = clampSidebarWidth(value);
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(EDITOR_WIDTH_STORAGE_KEY, String(sidebarWidth.value));
+  } catch {
+    return;
+  }
 }
 
 function syncWorkspaceViewport() {
@@ -2792,8 +2838,7 @@ function syncEditorViewportHeight() {
     return;
   }
 
-  const editorTop = editorStackHostRef.value?.getBoundingClientRect().top ?? 320;
-  editorViewportHeight.value = Math.max(560, Math.floor(window.innerHeight - editorTop - 40));
+  editorViewportHeight.value = Math.max(560, Math.floor(window.innerHeight - 360));
 }
 </script>
 <style scoped lang="less">
@@ -2843,6 +2888,16 @@ function syncEditorViewportHeight() {
   --graft-workspace-editor-diff-removed: color-mix(in srgb, var(--td-error-color-5) 18%, transparent);
   --graft-workspace-tab-indicator: var(--td-brand-color-6);
   --graft-workspace-tab-hover: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
+}
+
+.project-configuration-workspace__sr-only {
+  height: 1px;
+  margin: calc(-1 * var(--graft-theme-density-scale));
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .project-configuration-workspace--fullscreen {

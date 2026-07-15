@@ -67,7 +67,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { store } from '@/store/pinia';
 
 import { useProjectPageContext } from '../shared/page-context';
-import { useProjectWorkspaceStore } from '../store/workspace';
+import { type OpenedWorkspaceFile, useProjectWorkspaceStore } from '../store/workspace';
 import type { ProjectWorkspaceManifestFile, ProjectWorkspaceTreeItem } from '../types/project';
 import ProjectWorkspaceEditor, {
   type ProjectWorkspaceEditorBuffer,
@@ -124,8 +124,8 @@ const editorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
     readOnly: !row.item.editable,
   })),
 );
-const editorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
-  workspaceStore.openedFiles.map((file) => ({
+function toEditorBuffer(file: OpenedWorkspaceFile): ProjectWorkspaceEditorBuffer {
+  return {
     content: file.content,
     dirty: file.content !== file.savedContent,
     error: file.error,
@@ -135,23 +135,13 @@ const editorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
     name: file.name,
     path: file.path,
     readOnly: !file.editable,
-  })),
-);
+  };
+}
+
+const editorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() => workspaceStore.openedFiles.map(toEditorBuffer));
 const editorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
   const file = workspaceStore.activeFile;
-  return file
-    ? {
-        content: file.content,
-        dirty: file.content !== file.savedContent,
-        error: file.error,
-        language: file.language,
-        loading: file.loading,
-        modelKey: file.path,
-        name: file.name,
-        path: file.path,
-        readOnly: !file.editable,
-      }
-    : null;
+  return file ? toEditorBuffer(file) : null;
 });
 const dialogTitle = computed(() =>
   entryDialog.mode === 'rename'
@@ -228,7 +218,11 @@ function updateContent(path: string, content: string) {
   entry.content = content;
   workspaceStore.setFileContent(path, content);
 }
-function handleContextAction(action: 'create-file' | 'create-directory' | 'rename' | 'delete', path: string | null) {
+function handleContextAction(
+  action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
+  path: string | null,
+) {
+  if (action === 'annotation') return;
   contextPath.value = path;
   if (action === 'delete') {
     if (!path) return;

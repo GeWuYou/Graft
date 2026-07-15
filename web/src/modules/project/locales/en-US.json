@@ -109,7 +109,7 @@
         "editorAriaLabel": "Project File Editor",
         "envRedeployHint": "Environment variable changes usually require a project redeploy before they take effect.",
         "fileTreeHint": "Use the compact workspace tree to inspect files, expand directories, and keep editor space focused on the active buffer.",
-        "fileTreeTitle": "Project Files",
+        "fileTreeTitle": "Application Files",
         "filesEmpty": "No files are available in this directory.",
         "exitFullscreenAction": "Exit Fullscreen",
         "fullscreenAction": "Fullscreen",
@@ -158,7 +158,7 @@
         "validateNextAction": "Next",
         "validatePreviousAction": "Previous",
         "validateSkipUnsupportedHint": "Files without supported syntax diagnostics are skipped silently during save.",
-        "workspaceRootLabel": "Project Root",
+        "workspaceRootLabel": "Application Root",
         "tabsEmpty": "No file is open yet.",
         "validateAction": "Validate"
       }

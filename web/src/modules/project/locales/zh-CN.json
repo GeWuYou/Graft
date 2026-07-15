@@ -109,7 +109,7 @@
         "editorAriaLabel": "项目文件编辑器",
         "envRedeployHint": "修改环境变量后通常需要重新部署项目才能生效。",
         "fileTreeHint": "使用紧凑文件树浏览工作台文件，按需展开目录，把更多宽度留给右侧编辑区。",
-        "fileTreeTitle": "项目文件",
+        "fileTreeTitle": "应用文件",
         "filesEmpty": "当前目录没有可浏览的文件。",
         "exitFullscreenAction": "退出全屏",
         "fullscreenAction": "全屏",
@@ -158,7 +158,7 @@
         "validateNextAction": "下一处",
         "validatePreviousAction": "上一处",
         "validateSkipUnsupportedHint": "保存时会静默跳过不支持语法诊断的文件。",
-        "workspaceRootLabel": "项目根目录",
+        "workspaceRootLabel": "应用根目录",
         "tabsEmpty": "当前还没有打开文件。",
         "validateAction": "校验"
       }

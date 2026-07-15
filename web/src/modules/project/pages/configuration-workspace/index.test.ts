@@ -576,7 +576,7 @@ const TTabsStub = defineComponent({
     value: { type: String, default: '' },
   },
   setup(_props, { slots }) {
-    return () => h('div', { class: 't-tabs-stub' }, slots.default?.());
+    return () => h('div', { class: 't-tabs-stub' }, [slots.default?.(), slots.action?.()]);
   },
 });
 
@@ -1128,6 +1128,11 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     expect(wrapper.find('[data-testid="workspace-entry-docker-compose-yml-annotation"]').exists()).toBe(true);
     expect(wrapper.find('.project-configuration-workspace__editor-head').exists()).toBe(false);
     expect(wrapper.find('.project-configuration-workspace__browser-toolbar').exists()).toBe(false);
@@ -1146,8 +1151,12 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
     expect(hiddenToggle.text()).toBe('');
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     const annotationButton = wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]');
-    expect(annotationButton.element.parentElement?.getAttribute('data-tooltip-content')).toBe('Edit Annotation');
+    expect(annotationButton.text()).toBe('Edit Annotation');
 
     await annotationButton.trigger('click');
     expect(
@@ -1180,6 +1189,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
     await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
@@ -1204,6 +1217,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
     await wrapper.findAll('textarea').at(-1)!.setValue('Updated note');
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
@@ -1218,6 +1235,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
     await flushPromises();
 
+    await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
+      clientX: 24,
+      clientY: 24,
+    });
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml-annotation"]').trigger('click');
     await wrapper.findAll('textarea').at(-1)!.setValue('更新备注');
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');

@@ -77,6 +77,7 @@ const props = withDefaults(
     mobileMinHeight?: number;
     resizeHandleLabel: string;
     resizable?: boolean;
+    showHeader?: boolean;
     showFullscreenButton?: boolean;
     storageKey: string;
     surfacePadding?: SurfacePadding;
@@ -91,6 +92,7 @@ const props = withDefaults(
     mobileBreakpoint: 768,
     mobileMinHeight: 420,
     resizable: true,
+    showHeader: true,
     showFullscreenButton: true,
     surfacePadding: 'normal',
   },
@@ -109,7 +111,7 @@ const storedHtmlOverflow = ref('');
 const hasLockedDocumentOverflow = ref(false);
 let removeResizeListeners: (() => void) | null = null;
 
-const showHeaderBar = computed(() => Boolean(slots.header || slots['header-actions']) || true);
+const showHeaderBar = computed(() => props.showHeader && (Boolean(slots.header || slots['header-actions']) || true));
 const currentMinHeight = computed(() =>
   viewportWidth.value <= props.mobileBreakpoint ? props.mobileMinHeight : props.minHeight,
 );
