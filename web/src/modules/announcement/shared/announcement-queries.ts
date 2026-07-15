@@ -14,7 +14,7 @@ import type { MyAnnouncementListQuery } from '../types/announcement';
 const ANNOUNCEMENT_QUERY_SCOPE = ['announcement'] as const;
 const MY_ANNOUNCEMENTS_QUERY_SCOPE = [...ANNOUNCEMENT_QUERY_SCOPE, 'my'] as const;
 
-export const announcementQueryKeys = {
+const announcementQueryKeys = {
   myAnnouncementList: (query: MyAnnouncementListQuery) =>
     [
       ...MY_ANNOUNCEMENTS_QUERY_SCOPE,
