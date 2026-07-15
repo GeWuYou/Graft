@@ -49,6 +49,12 @@ const (
 	ProjectInvalidFileID ErrorCode = "ops.project.error.invalidFileId"
 	// ProjectInvalidArgument identifies malformed project request input.
 	ProjectInvalidArgument ErrorCode = "ops.project.error.invalidArgument"
+	// ProjectInvalidCompose identifies invalid Compose content in a managed create request.
+	ProjectInvalidCompose ErrorCode = "ops.project.error.invalidCompose"
+	// ProjectWorkspaceUnsafe identifies a managed workspace that cannot be safely reused.
+	ProjectWorkspaceUnsafe ErrorCode = "ops.project.error.workspaceUnsafe"
+	// ProjectWorkspaceWriteFailed identifies a managed workspace that could not be materialized.
+	ProjectWorkspaceWriteFailed ErrorCode = "ops.project.error.workspaceWriteFailed"
 	// ProjectApplicationNameRequired identifies managed-create requests without an application name.
 	ProjectApplicationNameRequired ErrorCode = "ops.project.error.applicationNameRequired"
 	// ProjectInvalidApplicationName identifies application names that are not Compose-safe.

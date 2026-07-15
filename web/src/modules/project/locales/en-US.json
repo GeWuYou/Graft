@@ -3,6 +3,9 @@
     "project": {
       "error": {
         "invalidArgument": "Invalid project request.",
+        "invalidCompose": "Compose configuration is invalid.",
+        "workspaceUnsafe": "The existing application workspace is not a safe directory.",
+        "workspaceWriteFailed": "The application workspace could not be written.",
         "applicationNameRequired": "Enter an application name.",
         "invalidApplicationName": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
         "applicationNameOccupied": "This application name is already in use. Choose another name.",

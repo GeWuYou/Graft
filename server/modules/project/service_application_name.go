@@ -97,26 +97,30 @@ func readReusableWorkspace(root string) (reusableWorkspaceResult, error) {
 		return reusableWorkspaceResult{}, nil
 	}
 	if err != nil {
-		return reusableWorkspaceResult{}, fmt.Errorf("%w: workspace path unavailable", errProjectInvalidArgument)
+		return reusableWorkspaceResult{}, managedWorkspaceUnsafeError("workspace path unavailable")
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-		return reusableWorkspaceResult{}, fmt.Errorf("%w: workspace path is not a safe directory", errProjectInvalidArgument)
+		return reusableWorkspaceResult{}, managedWorkspaceUnsafeError("workspace path is not a safe directory")
 	}
 	rootFS, err := os.OpenRoot(root)
 	if err != nil {
-		return reusableWorkspaceResult{}, fmt.Errorf("%w: open managed workspace", errProjectInvalidArgument)
+		return reusableWorkspaceResult{}, managedWorkspaceUnsafeError("open managed workspace")
 	}
 	defer func() { _ = rootFS.Close() }()
 	collector := reusableWorkspaceCollector{root: rootFS, rootPath: root, entries: make([]ManagedWorkspaceEntry, 0), composeCandidates: make([]string, 0, 1)}
 	err = filepath.WalkDir(root, collector.visit)
 	if err != nil {
-		return reusableWorkspaceResult{}, fmt.Errorf("%w: %v", errProjectInvalidArgument, err)
+		return reusableWorkspaceResult{}, fmt.Errorf("%w: %v", errors.Join(errProjectInvalidArgument, errProjectWorkspaceUnsafe), err)
 	}
 	sort.Slice(collector.entries, func(i, j int) bool { return collector.entries[i].Path < collector.entries[j].Path })
 	if len(collector.composeCandidates) == 1 {
 		return reusableWorkspaceResult{entries: collector.entries, composeFilePath: stringPointer(collector.composeCandidates[0]), nonEmpty: len(collector.entries) > 0, exists: true}, nil
 	}
 	return reusableWorkspaceResult{entries: collector.entries, nonEmpty: len(collector.entries) > 0, exists: true}, nil
+}
+
+func managedWorkspaceUnsafeError(reason string) error {
+	return fmt.Errorf("%w: %s", errors.Join(errProjectInvalidArgument, errProjectWorkspaceUnsafe), reason)
 }
 
 type reusableWorkspaceCollector struct {

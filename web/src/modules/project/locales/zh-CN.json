@@ -3,6 +3,9 @@
     "project": {
       "error": {
         "invalidArgument": "项目请求参数不合法。",
+        "invalidCompose": "Compose 配置无效。",
+        "workspaceUnsafe": "已有应用工作区不是安全目录。",
+        "workspaceWriteFailed": "应用工作区写入失败。",
         "applicationNameRequired": "请填写应用名。",
         "invalidApplicationName": "应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。",
         "applicationNameOccupied": "应用名已被占用，请使用其他应用名。",

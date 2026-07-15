@@ -15124,7 +15124,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-create-validate-response'];
         };
       };
-      /** @description Invalid managed create request. */
+      /** @description Invalid managed create input, Compose configuration, managed-root authority, or reusable-workspace safety. The response code identifies the safe failure category and the trace id correlates the server diagnostic log. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15226,7 +15226,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-create-response'];
         };
       };
-      /** @description Invalid managed create request. */
+      /** @description Invalid managed create input, Compose configuration, managed-root authority, or workspace materialization. The response code identifies the safe failure category and the trace id correlates the server diagnostic log. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

@@ -142,24 +142,24 @@ func buildListOrderBy(sortExpression string) string {
 func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 	input = trimImportInput(input)
 	if err := validateRequiredImportFields(input); err != nil {
-		return ImportProjectInput{}, ErrInvalidInput
+		return ImportProjectInput{}, fmt.Errorf("validate required project fields: %w", err)
 	}
 	if err := validateImportContracts(input); err != nil {
-		return ImportProjectInput{}, err
+		return ImportProjectInput{}, fmt.Errorf("validate project contracts: %w", err)
 	}
 	files, err := normalizeFiles(input.Files)
 	if err != nil {
-		return ImportProjectInput{}, err
+		return ImportProjectInput{}, fmt.Errorf("validate project files: %w", err)
 	}
 	input.Files = files
 	snapshot, err := normalizeSnapshot(input.Snapshot)
 	if err != nil {
-		return ImportProjectInput{}, err
+		return ImportProjectInput{}, fmt.Errorf("validate project snapshot: %w", err)
 	}
 	input.Snapshot = snapshot
 	metadata, err := normalizeSourceMetadata(input.SourceMetadata)
 	if err != nil {
-		return ImportProjectInput{}, err
+		return ImportProjectInput{}, fmt.Errorf("validate project source metadata: %w", err)
 	}
 	input.SourceMetadata = metadata
 	normalizeTemporalPointers(&input.LastDriftCheckedAt)
@@ -411,19 +411,19 @@ func normalizeTemporalPointers(values ...**time.Time) {
 func validateImportContracts(input ImportProjectInput) error {
 	switch {
 	case !isValidCanonicalProjectNameSource(input.CanonicalProjectNameSource):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported canonical project name source %q: %w", input.CanonicalProjectNameSource, ErrInvalidInput)
 	case !isValidSourceKind(input.SourceKind):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported project source kind %q: %w", input.SourceKind, ErrInvalidInput)
 	case !isValidHostScope(input.HostScope):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported project host scope %q: %w", input.HostScope, ErrInvalidInput)
 	case !isValidOwnershipMode(input.OwnershipMode):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported project ownership mode %q: %w", input.OwnershipMode, ErrInvalidInput)
 	case !isValidLifecycleStrategyKind(input.LifecycleStrategyKind):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported project lifecycle strategy %q: %w", input.LifecycleStrategyKind, ErrInvalidInput)
 	case !isValidLifecycleReviewStatus(input.LifecycleReviewStatus):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported project lifecycle review status %q: %w", input.LifecycleReviewStatus, ErrInvalidInput)
 	case !isValidDriftStatus(input.DriftStatus):
-		return ErrInvalidInput
+		return fmt.Errorf("unsupported project drift status %q: %w", input.DriftStatus, ErrInvalidInput)
 	default:
 		return nil
 	}

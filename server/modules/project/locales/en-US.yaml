@@ -2,6 +2,9 @@ menu.project.title: Application Management
 ops.project.error.invalidProjectId: Invalid project id.
 ops.project.error.invalidFileId: Invalid project file id.
 ops.project.error.invalidArgument: Invalid project request.
+ops.project.error.invalidCompose: Compose configuration is invalid.
+ops.project.error.workspaceUnsafe: The existing application workspace is not a safe directory.
+ops.project.error.workspaceWriteFailed: The application workspace could not be written.
 ops.project.error.applicationNameRequired: Enter an application name.
 ops.project.error.invalidApplicationName: The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.
 ops.project.error.applicationNameOccupied: This application name is already in use. Choose another name.

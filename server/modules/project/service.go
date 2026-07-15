@@ -31,6 +31,11 @@ var (
 	errProjectNotFound                = errors.New("project not found")
 	errProjectConflict                = errors.New("project conflict")
 	errProjectImportValidation        = errors.New("project import validation failed")
+	errProjectManagedRootUnconfigured = errors.New("project managed root is unconfigured")
+	errProjectManagedRootInvalid      = errors.New("project managed root is invalid")
+	errProjectInvalidCompose          = errors.New("project compose configuration is invalid")
+	errProjectWorkspaceUnsafe         = errors.New("project managed workspace is unsafe")
+	errProjectWorkspaceWriteFailed    = errors.New("project managed workspace write failed")
 	errProjectUnsupportedLifecycle    = errors.New("project lifecycle is unsupported")
 	errProjectLifecycleReview         = errors.New("project lifecycle configuration review required")
 	errProjectFileNotFound            = errors.New("project file not found")
@@ -1019,7 +1024,10 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		return ManagedProjectCreateValidationResult{}, err
 	}
 	if rootInfo.Status != projectcontract.ManagedRootStatusReady.String() || rootInfo.ConfiguredRootDirectory == nil {
-		return ManagedProjectCreateValidationResult{}, fmt.Errorf("%w: %s", errProjectInvalidArgument, projectcontract.ProjectManagedRootUnconfigured.String())
+		if rootInfo.Status == projectcontract.ManagedRootStatusInvalid.String() {
+			return ManagedProjectCreateValidationResult{}, errProjectManagedRootInvalid
+		}
+		return ManagedProjectCreateValidationResult{}, errProjectManagedRootUnconfigured
 	}
 
 	normalized, err := normalizeManagedCreateRequest(request)
@@ -1051,6 +1059,8 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		warnings = append(warnings, "No env file is declared; create execution will only materialize the compose file.")
 	}
 
+	sourceMetadata := managedCreateSourceMetadata(rootInfo.ConfigKey, *workspace.applicationName, normalized.ComposeFileName, normalized.EnvFileName)
+
 	return ManagedProjectCreateValidationResult{
 		ManagedRoot:             rootInfo,
 		SourceType:              "managed",
@@ -1065,15 +1075,22 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		EnvFileName:             normalized.EnvFileName,
 		ComposeFileAbsolutePath: composeFileAbsolutePath,
 		EnvFileAbsolutePath:     envFileAbsolutePath,
-		SourceMetadata: map[string]string{
-			"managed_root_key":          rootInfo.ConfigKey,
-			"application_name":          *workspace.applicationName,
-			"managed_compose_file_name": normalized.ComposeFileName,
-			"managed_env_file_name":     stringValue(normalized.EnvFileName),
-		},
+		SourceMetadata:          sourceMetadata,
 		Warnings:                warnings,
 		ReusedExistingWorkspace: workspace.exists,
 	}, nil
+}
+
+func managedCreateSourceMetadata(rootKey, applicationName, composeFileName string, envFileName *string) map[string]string {
+	metadata := map[string]string{
+		"managed_root_key":          rootKey,
+		"application_name":          applicationName,
+		"managed_compose_file_name": composeFileName,
+	}
+	if envFileName != nil {
+		metadata["managed_env_file_name"] = *envFileName
+	}
+	return metadata
 }
 
 type managedCreateWorkspace struct {
@@ -1228,7 +1245,7 @@ func mapStoreError(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, projectstore.ErrInvalidInput):
-		return errProjectInvalidArgument
+		return fmt.Errorf("%w: %w", errProjectInvalidArgument, err)
 	case errors.Is(err, projectstore.ErrProjectNotFound):
 		return errProjectNotFound
 	case errors.Is(err, projectstore.ErrProjectConflict):

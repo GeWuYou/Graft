@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"go.uber.org/zap"
+
 	projectcompose "graft/server/modules/project/compose"
 )
 
@@ -20,22 +22,37 @@ func (s *Service) CreateManagedProject(
 	request ManagedProjectCreateRequest,
 	actorID *uint64,
 ) (result ManagedProjectCreateResult, err error) {
+	s.logManagedCreateDiagnostic("create_started",
+		zap.String("application_name", stringValue(request.ApplicationName)),
+		zap.Uint64("runtime_target_id", request.RuntimeTargetID),
+		zap.Int("workspace_entry_count", len(request.WorkspaceEntries)),
+		zap.Bool("reuse_existing_workspace", request.ReuseExistingWorkspace),
+	)
 	validation, err := s.ValidateManagedCreate(ctx, request)
 	if err != nil {
+		s.logManagedCreateDiagnostic("validation_failed", zap.Error(err))
 		return ManagedProjectCreateResult{}, err
 	}
+	s.logManagedCreateDiagnostic("validation_succeeded",
+		zap.String("application_name", stringValue(validation.ApplicationName)),
+		zap.Bool("reused_existing_workspace", validation.ReusedExistingWorkspace),
+	)
 	normalized, err := normalizeManagedCreateRequest(request)
 	if err != nil {
+		s.logManagedCreateDiagnostic("normalization_failed", zap.Error(err))
 		return ManagedProjectCreateResult{}, err
 	}
 	if err := ensureManagedCreatePathsUnderRoot(validation); err != nil {
+		s.logManagedCreateDiagnostic("workspace_boundary_failed", zap.Error(err))
 		return ManagedProjectCreateResult{}, err
 	}
 
 	createdDir, createdFiles, err := writeManagedProjectFiles(validation, normalized)
 	if err != nil {
-		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		s.logManagedCreateDiagnostic("workspace_materialization_failed", zap.Error(err))
+		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errors.Join(errProjectImportValidation, errProjectWorkspaceWriteFailed), err)
 	}
+	s.logManagedCreateDiagnostic("workspace_materialized", zap.Int("created_file_count", len(createdFiles)))
 	shouldCleanup := !validation.ReusedExistingWorkspace
 	defer func() {
 		if shouldCleanup {
@@ -49,14 +66,17 @@ func (s *Service) CreateManagedProject(
 		EnvFiles:         managedCreateEnvFileList(validation.EnvFileAbsolutePath),
 	})
 	if err != nil {
-		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		s.logManagedCreateDiagnostic("compose_parse_failed", zap.Error(err))
+		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errors.Join(errProjectImportValidation, errProjectInvalidCompose), err)
 	}
 
 	aggregate, now, err := s.createProjectFromWorkspace(ctx, managedCreationCommand(validation, normalized, parseResult, actorID))
 	if err != nil {
+		s.logManagedCreateDiagnostic("registry_persist_failed", zap.Error(err))
 		return ManagedProjectCreateResult{}, err
 	}
 	shouldCleanup = false
+	s.logManagedCreateDiagnostic("create_succeeded", zap.Uint64("project_id", aggregate.Project.ID))
 	result = ManagedProjectCreateResult{
 		Validation:           validation,
 		SourceType:           "managed",
