@@ -19,6 +19,11 @@ const appLogger = createLogger('app.runtime').withContext({
   component: 'app.bootstrap',
 });
 
+const RESIZE_OBSERVER_LOOP_ERROR_MESSAGES = new Set([
+  'ResizeObserver loop completed with undelivered notifications.',
+  'ResizeObserver loop limit exceeded',
+]);
+
 /**
  * 初始化并挂载应用。
  *
@@ -69,7 +74,13 @@ function registerGlobalLoggerSinks() {
   }
 
   window.addEventListener('error', (event) => {
-    appLogger.error(normalizeError(event.error ?? event.message), {
+    const error = event.error ?? event.message;
+    if (isResizeObserverLoopError(error)) {
+      event.preventDefault();
+      return;
+    }
+
+    appLogger.error(normalizeError(error), {
       component: 'window',
       eventType: 'window.error',
       filename: event.filename,
@@ -94,6 +105,11 @@ function registerGlobalLoggerSinks() {
       eventType: 'window.unhandledrejection',
     });
   });
+}
+
+function isResizeObserverLoopError(error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  return RESIZE_OBSERVER_LOOP_ERROR_MESSAGES.has(message.trim());
 }
 
 function syncRouteLoggerContext(route: string) {
