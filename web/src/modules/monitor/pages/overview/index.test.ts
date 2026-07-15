@@ -147,22 +147,40 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.trendMetricInventory': 'Trend metrics',
   'monitor.serverStatus.trendMetricInventoryValue': '{count} metrics grouped as {groups}.',
   'monitor.serverStatus.focusMetricLabel': 'Focus metric',
-  'monitor.serverStatus.dependencyCardTitle': 'Dependency Status',
-  'monitor.serverStatus.runtimeStatusTitle': 'Runtime status',
-  'monitor.serverStatus.runtimeStatusSubtitle': 'Summary of service, dependencies, and sampling status',
-  'monitor.serverStatus.anomaliesTitle': 'Active anomalies',
-  'monitor.serverStatus.anomalySeverityWarning': 'Warning',
-  'monitor.serverStatus.anomalySeverityCritical': 'Critical',
-  'monitor.serverStatus.openAuditEvidence': 'Open audit evidence',
-  'monitor.serverStatus.auditEvidenceUnavailable': 'Audit evidence is unavailable for this anomaly.',
   'monitor.serverStatus.runtimeStatusDependenciesTitle': 'Dependencies',
   'monitor.serverStatus.requestPerformanceTitle': 'Request performance',
+  'monitor.serverStatus.openServiceStatus': 'Open service status',
   'monitor.serverStatus.openDependencies': 'Open dependencies',
   'monitor.serverStatus.openRequestPerformance': 'Open request performance',
   'monitor.serverStatus.dependencyHealthSummary': '{healthy} of {total} healthy · {attention} need attention',
   'monitor.serverStatus.requestPerformanceSummary': '{rps} RPS · P95 {p95} ms · 5xx {errors}',
   'monitor.requestPerformance.summary.rps': 'Request rate',
+  'monitor.requestPerformance.summary.latency': 'Latency Profile',
+  'monitor.requestPerformance.summary.p50': 'P50',
+  'monitor.requestPerformance.summary.p95': 'P95',
   'monitor.requestPerformance.summary.errors': '5xx error rate',
+  'monitor.requestPerformance.summary.slow': 'Slow requests',
+  'monitor.dependenciesPage.postgresqlSubtitle': 'Primary relational database health',
+  'monitor.dependenciesPage.redisSubtitle': 'Cache and lightweight KV health',
+  'monitor.dependenciesPage.statusHealthy': 'Healthy',
+  'monitor.dependenciesPage.statusAbnormal': 'Abnormal',
+  'monitor.dependenciesPage.statusNotConfigured': 'Not configured',
+  'monitor.dependenciesPage.statusUnknown': 'Unknown',
+  'monitor.dependenciesPage.fields.latency': 'Response latency',
+  'monitor.dependenciesPage.fieldDescriptions.latency': 'Most recent probe response duration.',
+  'monitor.dependenciesPage.pool.title': 'Connection pool',
+  'monitor.dependenciesPage.pool.stateTitle': 'Pool state',
+  'monitor.dependenciesPage.pool.usageLabel': '{label} pool usage',
+  'monitor.dependenciesPage.pool.usageTooltip': '{label} pool {value} · usage {percent}',
+  'monitor.dependenciesPage.pool.inUse': 'In use',
+  'monitor.dependenciesPage.pool.idle': 'Idle',
+  'monitor.dependenciesPage.pool.open': 'Total connections',
+  'monitor.dependenciesPage.pool.capacity': 'Max connections',
+  'monitor.dependenciesPage.pool.riskHealthy': 'Pool pressure is normal',
+  'monitor.dependenciesPage.pool.riskWarning': 'Pool is approaching a high watermark',
+  'monitor.dependenciesPage.pool.riskCritical': 'Pool is close to exhaustion',
+  'monitor.dependenciesPage.pool.riskUnknown': 'Pool data is unavailable',
+  'monitor.dependenciesPage.diagnostics.title': 'Advanced diagnostics',
   'monitor.serverStatus.dependencyPoolLabel': 'Pool',
   'monitor.serverStatus.dependencyPoolDetail': 'In use {inUse} · Idle {idle} · Open {open} · Max {capacity}',
   'monitor.serverStatus.dependencyPoolUsageLabel': '{label} pool',
@@ -190,7 +208,11 @@ const translations = vi.hoisted((): Record<string, string> => ({
     'CPU and server memory share a 0-100% scale for quick pressure checks.',
   'monitor.serverStatus.trendGroupSystemLoadInfo':
     'Load is separated from percentage-based resources to avoid mixed semantics on one axis.',
-  'monitor.serverStatus.runtimeSummaryTitle': 'Runtime Summary',
+  'monitor.serverStatus.runtimeSummaryTitle': 'Service Status Summary',
+  'monitor.serverStatus.serviceSummaryRuntimeAlloc': 'Runtime Allocated',
+  'monitor.serverStatus.serviceSummaryRuntimeHeap': 'Heap In Use',
+  'monitor.serverStatus.serviceSummaryRuntimeSys': 'Runtime System Memory',
+  'monitor.serverStatus.serviceSummaryGoroutines': 'Goroutines',
   'monitor.serverStatus.infoActionLabel': 'Info',
   'monitor.serverStatus.currentValue': 'Current value',
   'monitor.serverStatus.unitLabel': 'Unit',
@@ -756,10 +778,6 @@ function metricUsageBar(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-card-key="${key}"] [data-usage-status]`);
 }
 
-function sidebarGroupText(wrapper: VueWrapper, key: string) {
-  return wrapper.find(`[data-status-sidebar-group="${key}"]`).text();
-}
-
 function getLatestChartOption<T = unknown>() {
   return chartMocks.setOption.mock.calls.at(-1)?.[0] as T;
 }
@@ -828,7 +846,7 @@ describe('MonitorPage', () => {
     vi.useRealTimers();
   });
 
-  it('loads server status and renders the unified overview shell with trend and runtime sidebar', async () => {
+  it('loads server status and renders service, request, and dependency summaries', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
 
     const wrapper = mountMonitorPage();
@@ -842,8 +860,6 @@ describe('MonitorPage', () => {
     expect(wrapper.text()).toContain('Trend window');
     expect(wrapper.text()).toContain('Refresh now');
     expect(wrapper.text()).toContain('Pause auto refresh');
-    expect(wrapper.text()).toContain('Active anomalies');
-    expect(wrapper.text()).toContain('Open audit evidence');
     expect(wrapper.text()).toContain('Load');
     expect(wrapper.text()).toContain('CPU');
     expect(wrapper.text()).toContain('Memory');
@@ -853,9 +869,20 @@ describe('MonitorPage', () => {
     expect(wrapper.text()).toContain('47%');
     expect(wrapper.text()).toContain('Used 15.1 GB / Total 32.0 GB');
     expect(wrapper.text()).not.toContain('RAM');
-    expect(wrapper.text()).toContain('Runtime Summary');
-    expect(wrapper.text()).toContain('Runtime status');
-    expect(wrapper.text()).not.toContain('Dependency Status');
+    expect(wrapper.text()).toContain('Service Status Summary');
+    expect(wrapper.text()).toContain('Open service status');
+    expect(wrapper.text()).toContain('Runtime Allocated');
+    expect(wrapper.text()).toContain('Heap In Use');
+    expect(wrapper.text()).toContain('Runtime System Memory');
+    expect(wrapper.text()).toContain('Goroutines');
+    expect(wrapper.text()).toContain('Latency Profile');
+    expect(wrapper.text()).toContain('P50 12 ms / P95 30 ms');
+    expect(wrapper.text()).toContain('Slow requests');
+    expect(wrapper.text()).toContain('PostgreSQL');
+    expect(wrapper.text()).toContain('Redis');
+    expect(wrapper.findAll('.dependency-health-card')).toHaveLength(2);
+    expect(wrapper.find('.dependency-health-card__pool-state').exists()).toBe(false);
+    expect(wrapper.find('.dependency-health-card__actions').exists()).toBe(false);
     expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
     expect(wrapper.findAll('.server-status-overview-layout__trend')).toHaveLength(1);
     expect(wrapper.findAll('.server-status-overview-layout__status')).toHaveLength(1);
@@ -921,14 +948,6 @@ describe('MonitorPage', () => {
     expect(diskCardText).not.toContain('Root partition ·');
     expect(diskCardText).not.toContain('/ 11.8 GB / 59.9 GB');
 
-    expect(wrapper.findAll('[data-status-sidebar-group]')).toHaveLength(3);
-    expect(sidebarGroupText(wrapper, 'anomalies')).toContain('Active anomalies');
-    expect(sidebarGroupText(wrapper, 'anomalies')).toContain('CPU usage reached 84.2% in the current monitor window.');
-    expect(sidebarGroupText(wrapper, 'anomalies')).toContain('Open audit evidence');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Dependencies');
-    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Open dependencies');
-    expect(sidebarGroupText(wrapper, 'request-performance')).toContain('Open request performance');
-
     const option = getLatestChartOption<{
       series: Array<{ name: string; yAxisIndex?: number; data: number[] }>;
       yAxis: Array<{ name?: string; axisLabel?: { formatter?: (value: number) => string } }>;
@@ -943,7 +962,7 @@ describe('MonitorPage', () => {
     expect(wrapper.findAll('[data-trend-overview-section]')).toHaveLength(4);
     expect(wrapper.find('[data-trend-overview-section="resourceUsage"]').text()).toContain('Resource Usage');
     expect(wrapper.find('[data-trend-overview-section="systemLoad"]').text()).toContain('System Load');
-    expect(wrapper.find('[data-trend-overview-section="runtimeSummary"]').text()).toContain('Runtime Summary');
+    expect(wrapper.find('[data-trend-overview-section="runtimeSummary"]').text()).toContain('Service Status Summary');
     expect(wrapper.find('[data-trend-overview-section="runtimeSummary"]').text()).not.toContain('Reference: 8 cores');
     expect(wrapper.find('[data-trend-legend-group="resourceUsage"]').text()).toContain('CPU usage');
     expect(wrapper.find('[data-trend-legend-group="resourceUsage"]').text()).toContain('Server memory');
@@ -981,13 +1000,12 @@ describe('MonitorPage', () => {
 
     const allOverviewText = wrapper.text();
     expect(allOverviewText).toContain('7 metrics grouped as Resource Usage / System Load / Go Runtime.');
-    expect(allOverviewText).toContain('Runtime Alloc');
-    expect(allOverviewText).toContain('Heap');
-    expect(allOverviewText).toContain('Runtime Sys');
-    expect(allOverviewText).toContain('Goroutines');
+    expect(allOverviewText).toContain('Runtime Allocated');
+    expect(allOverviewText).toContain('Heap In Use');
+    expect(allOverviewText).toContain('Runtime System Memory');
   });
 
-  it('preserves monitor origin when opening audit evidence from an anomaly', async () => {
+  it('opens the service status, request performance, and dependency pages from overview summaries', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
 
     const wrapper = mountMonitorPage();
@@ -995,40 +1013,14 @@ describe('MonitorPage', () => {
 
     routerMocks.push.mockReset();
 
-    const actionButtons = wrapper.findAll('button').filter((button) => button.text().includes('Open audit evidence'));
-    expect(actionButtons).toHaveLength(1);
+    const actionButtons = wrapper.findAll('button');
+    await actionButtons.find((button) => button.text().includes('Open service status'))!.trigger('click');
+    await actionButtons.find((button) => button.text().includes('Open request performance'))!.trigger('click');
+    await actionButtons.find((button) => button.text().includes('Open dependencies'))!.trigger('click');
 
-    await actionButtons[0]!.trigger('click');
-
-    expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/security/audit/incidents/42',
-      query: {
-        monitorView: 'overview',
-        monitorTrendRange: '10m',
-        monitorAnomalyKey: 'resource_cpu_pressure',
-        monitorScopeRef: 'runtime.cpu',
-      },
-    });
-  });
-
-  it('opens the audit incident drilldown from backend-owned anomaly evidence links', async () => {
-    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
-
-    const wrapper = mountMonitorPage();
-    await flushPromises();
-    await nextTick();
-
-    await wrapper.get('[data-anomaly-key="resource_cpu_pressure"] button').trigger('click');
-
-    expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/security/audit/incidents/42',
-      query: {
-        monitorView: 'overview',
-        monitorTrendRange: '10m',
-        monitorAnomalyKey: 'resource_cpu_pressure',
-        monitorScopeRef: 'runtime.cpu',
-      },
-    });
+    expect(routerMocks.push).toHaveBeenCalledWith({ path: '/observability/service-status' });
+    expect(routerMocks.push).toHaveBeenCalledWith({ path: '/observability/request-performance' });
+    expect(routerMocks.push).toHaveBeenCalledWith({ path: '/observability/dependencies' });
   });
 
   it('renders no chart when fewer than two samples are available', async () => {
