@@ -1,9 +1,12 @@
 import { useDebugStore } from '@/store/modules/debug';
 import { store } from '@/store/pinia';
+import { createLogger } from '@/utils/logger';
 
 import { DEBUG_FLAG_REGISTRY } from './registry';
 
 type FlatDebugDetail = Record<string, unknown>;
+
+const logger = createLogger('debug.runtime');
 
 /**
  * 判断值是否为普通对象。
@@ -154,5 +157,5 @@ export function emitDebugLog(flagId: string, event: string, detail: FlatDebugDet
     return;
   }
 
-  console.debug(formatDebugLine(flagId, event, detail));
+  logger.debug(formatDebugLine(flagId, event, detail));
 }
