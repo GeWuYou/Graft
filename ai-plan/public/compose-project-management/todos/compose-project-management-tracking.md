@@ -341,3 +341,9 @@ Compose Project Management
   "closeout_status": "git-source-roadmap-card-documentation-complete"
 }
 ```
+
+## 2026-07-15 Workspace Editor Diagnostics
+
+- Added the default-off `project.workspace` local diagnostic flag for managed-create and configuration workspace sessions, file trees, tab buffers, and editor render dimensions. Logged details exclude workspace file contents.
+- The managed-create editor now provides localized format and copy actions for the active file, while the shared editor only allocates splitter grid space when resizing is enabled.
+- Validation passed: `git diff --check` and `cd web && bun run check`.

@@ -69,8 +69,14 @@ describe('ProjectCreateWorkspaceEditor', () => {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
 
+    expect(wrapper.find('.project-workspace-editor__main-grid').classes()).not.toContain(
+      'project-workspace-editor__main-grid--with-splitter',
+    );
     expect(wrapper.find('.project-workspace-editor__tabbar').exists()).toBe(true);
     expect(wrapper.findComponent({ name: 'ProjectMonacoSurfaceStub' }).exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workspace-create-format"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workspace-create-copy"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').exists()).toBe(true);
   });
 
   it('creates unrestricted file names through the tree context menu', async () => {

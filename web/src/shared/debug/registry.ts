@@ -1,4 +1,5 @@
-export type DebugFlagId = 'tabs' | 'tabs.layout' | 'tabs.store' | 'project.logs' | 'project.monaco';
+export type DebugFlagId =
+  'tabs' | 'tabs.layout' | 'tabs.store' | 'project.logs' | 'project.monaco' | 'project.workspace';
 
 export type DebugFlagDefinition = {
   defaultEnabled: boolean;
@@ -58,6 +59,18 @@ export const DEBUG_FLAG_REGISTRY = [
       'src/modules/project/shared/project-monaco-debug.ts',
       'src/modules/project/shared/project-monaco.ts',
       'src/modules/project/components/ProjectMonacoSurface.vue',
+    ],
+    defaultEnabled: false,
+  },
+  {
+    flagId: 'project.workspace',
+    envKeys: ['VITE_DEBUG_PROJECT_WORKSPACE'],
+    owner: 'project creation and configuration workspace runtime',
+    summary: '项目工作台会话、文件树、标签缓冲区与共享编辑器渲染状态诊断日志。',
+    relatedPaths: [
+      'src/modules/project/store/workspace.ts',
+      'src/modules/project/components/ProjectCreateWorkspaceEditor.vue',
+      'src/modules/project/components/ProjectWorkspaceEditor.vue',
     ],
     defaultEnabled: false,
   },

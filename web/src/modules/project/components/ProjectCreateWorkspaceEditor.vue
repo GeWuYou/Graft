@@ -20,7 +20,40 @@
       @select-entry="(row) => selectEntry(row.path)"
       @toggle-directory="(row) => toggleDirectory(row.path)"
       @update-content="updateContent"
-    />
+    >
+      <template #editor-actions>
+        <t-tooltip :content="t('project.create.workspace.formatAction')" theme="light">
+          <t-button
+            data-testid="workspace-create-format"
+            theme="default"
+            variant="text"
+            shape="square"
+            size="small"
+            :disabled="!editorActiveBuffer"
+            @click="formatActiveFile"
+          >
+            <template #icon><edit-icon /></template>
+          </t-button>
+        </t-tooltip>
+        <t-tooltip :content="t('project.create.workspace.copyAction')" theme="light">
+          <t-button
+            data-testid="workspace-create-copy"
+            theme="default"
+            variant="text"
+            shape="square"
+            size="small"
+            :disabled="!editorActiveBuffer"
+            @click="copyActiveFile"
+          >
+            <template #icon><copy-icon /></template>
+          </t-button>
+        </t-tooltip>
+      </template>
+      <template #fullscreen-icon="{ fullscreen: isFullscreen }">
+        <fullscreen-exit-icon v-if="isFullscreen" />
+        <fullscreen-icon v-else />
+      </template>
+    </project-workspace-editor>
 
     <t-dialog
       v-model:visible="entryDialog.visible"
@@ -63,11 +96,16 @@
   </section>
 </template>
 <script setup lang="ts">
+import { CopyIcon, EditIcon, FullscreenExitIcon, FullscreenIcon } from 'tdesign-icons-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onActivated, reactive, ref, watch } from 'vue';
 
+import { copyText } from '@/shared/observability';
 import { store } from '@/store/pinia';
 
+import { normalizeTextBlock } from '../shared/configuration-workspace';
 import { useProjectPageContext } from '../shared/page-context';
+import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import { type OpenedWorkspaceFile, useProjectWorkspaceStore } from '../store/workspace';
 import type { ProjectWorkspaceManifestFile, ProjectWorkspaceTreeItem } from '../types/project';
 import ProjectWorkspaceEditor, {
@@ -170,20 +208,42 @@ function toTreeItems(entries: WorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[]
   }));
 }
 
-watch(files, (entries) => synchronizeWorkspace(entries), { deep: true, immediate: true });
+watch(files, (entries) => synchronizeWorkspace(entries, 'files-watch'), { deep: true, immediate: true });
 
 onActivated(() => {
-  synchronizeWorkspace(files.value);
+  synchronizeWorkspace(files.value, 'keep-alive-activated');
 });
 
-function synchronizeWorkspace(entries: WorkspaceDraftEntry[]) {
+function synchronizeWorkspace(entries: WorkspaceDraftEntry[], source: 'files-watch' | 'keep-alive-activated') {
+  const before = workspaceStore.session(workspaceSessionKey);
+  emitProjectWorkspaceDebug('create-sync-start', {
+    activeFileKey: before.activeFileKey || '-',
+    entryCount: entries.length,
+    openedTabCount: before.openedTabs.length,
+    source,
+  });
   workspaceStore.replaceTree(workspaceSessionKey, toTreeItems(entries));
-  if (workspaceStore.activeFile(workspaceSessionKey)) return;
+  if (workspaceStore.activeFile(workspaceSessionKey)) {
+    emitProjectWorkspaceDebug('create-sync-complete', {
+      activeBufferPresent: true,
+      activeFileKey: workspaceStore.session(workspaceSessionKey).activeFileKey || '-',
+      openedTabCount: workspaceStore.session(workspaceSessionKey).openedTabs.length,
+      source,
+    });
+    return;
+  }
 
   const activePath = workspaceStore.session(workspaceSessionKey).activeFileKey;
   const activeEntry = entries.find((entry) => entry.path === activePath && entry.node_type !== 'directory');
   const firstFile = activeEntry ?? entries.find((entry) => entry.node_type !== 'directory');
   if (firstFile) activateTab(firstFile.path);
+  const session = workspaceStore.session(workspaceSessionKey);
+  emitProjectWorkspaceDebug('create-sync-complete', {
+    activeBufferPresent: Boolean(workspaceStore.activeFile(workspaceSessionKey)),
+    activeFileKey: session.activeFileKey || '-',
+    openedTabCount: session.openedTabs.length,
+    source,
+  });
 }
 
 function normalizePath(path: string) {
@@ -233,6 +293,23 @@ function updateContent(path: string, content: string) {
   if (!entry || entry.node_type === 'directory') return;
   entry.content = content;
   workspaceStore.setFileContent(workspaceSessionKey, path, content);
+}
+
+function formatActiveFile() {
+  const activeFile = editorActiveBuffer.value;
+  if (!activeFile) return;
+  updateContent(activeFile.path, normalizeTextBlock(activeFile.content));
+}
+
+async function copyActiveFile() {
+  const activeFile = editorActiveBuffer.value;
+  if (!activeFile) return;
+  const copied = await copyText(activeFile.content);
+  if (copied) {
+    MessagePlugin.success(t('project.create.workspace.copySuccess'));
+    return;
+  }
+  MessagePlugin.error(t('project.create.workspace.copyFailed'));
 }
 function handleContextAction(
   action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',

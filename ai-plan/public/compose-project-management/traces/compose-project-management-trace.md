@@ -457,3 +457,9 @@
 - Web 创建流程已落地为 `Deployment Type -> Runtime Target -> Source`。当前只展示真实具备 Compose capability 的 Local Docker；未支持的部署模型和 Git 使用本地化禁用提示，不建立占位 API 或路由。
 - 列表、详情、配置和导入页面已同步公开 Application contract；技术目录与 Canonical Project Name 不再作为新建表单输入。返回列表与刷新动作均使用已本地化的明确文案。
 - 验证通过：`git diff --check`、`python3 scripts/validate_sql_migrations.py`、`cd web && bun run openapi:types:check`、`cd web && bun run lint:i18n`、`cd web && bun run check`、`cd server && go run ./cmd/graft validate backend`。浏览器 QA 未执行，因为本机缺少 Playwright 的 `chrome-for-testing`。
+
+## 2026-07-15 Workspace editor diagnostics
+
+- Added a default-off `project.workspace` diagnostic flag for workspace session transitions and shared editor render state. Diagnostic payloads include only paths, counts, booleans, and dimensions; workspace file contents remain excluded.
+- Managed-create gained localized format and copy actions for the active file. The shared workspace grid no longer reserves splitter space when resizing is unavailable.
+- Validation passed: `git diff --check` and `cd web && bun run check`.

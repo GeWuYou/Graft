@@ -1,6 +1,11 @@
 <template>
   <section class="project-workspace-editor" :class="{ 'project-workspace-editor--fullscreen': fullscreen }">
-    <div ref="mainGridRef" class="project-workspace-editor__main-grid" :style="sidebarGridStyle">
+    <div
+      ref="mainGridRef"
+      class="project-workspace-editor__main-grid"
+      :class="{ 'project-workspace-editor__main-grid--with-splitter': sidebarResizable }"
+      :style="sidebarGridStyle"
+    >
       <aside class="project-workspace-editor__sidebar">
         <t-card bordered class="project-workspace-editor__browser-card">
           <template #header>
@@ -94,7 +99,7 @@
         <span class="project-workspace-editor__splitter-grip" />
       </div>
 
-      <div class="project-workspace-editor__editor-stack">
+      <div ref="editorStackRef" class="project-workspace-editor__editor-stack">
         <content-viewer-frame
           :default-height="editorDefaultHeight"
           :exit-fullscreen-label="labels.exitFullscreen"
@@ -244,11 +249,12 @@
 </template>
 <script setup lang="ts">
 import { CommandIcon, EllipsisIcon, FileCodeIcon, FileIcon, FolderIcon } from 'tdesign-icons-vue-next';
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 
 import type { ProjectWorkspaceMonacoLanguage } from '../shared/configuration-workspace';
+import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import ProjectMonacoSurface from './ProjectMonacoSurface.vue';
 
 defineOptions({ name: 'ProjectWorkspaceEditor' });
@@ -352,6 +358,7 @@ const emit = defineEmits<{
 
 const contextMenuRef = ref<HTMLElement | null>(null);
 const activeEditorRef = ref<InstanceType<typeof ProjectMonacoSurface> | null>(null);
+const editorStackRef = ref<HTMLElement | null>(null);
 const mainGridRef = ref<HTMLElement | null>(null);
 let contextMenuTrigger: HTMLElement | null = null;
 let sidebarResizeStartWidth = 0;
@@ -456,6 +463,29 @@ watch(activeEditorRef, (editor) => {
   if (editor) emit('editor-ready', editor);
 });
 
+function logEditorRenderState(reason: 'mounted' | 'state-changed') {
+  const editorStack = editorStackRef.value;
+  emitProjectWorkspaceDebug('editor-render-state', {
+    activeBufferPath: props.activeBuffer?.path ?? '-',
+    activeBufferPresent: Boolean(props.activeBuffer),
+    activePath: props.activePath || '-',
+    editorHeight: editorStack?.clientHeight ?? 0,
+    editorWidth: editorStack?.clientWidth ?? 0,
+    reason,
+    tabCount: props.tabs.length,
+  });
+}
+
+onMounted(() => {
+  void nextTick(() => logEditorRenderState('mounted'));
+});
+
+watch(
+  () => [props.activePath, props.activeBuffer?.path ?? '', props.activeBuffer?.loading ?? false, props.tabs.length],
+  () => void nextTick(() => logEditorRenderState('state-changed')),
+  { immediate: true },
+);
+
 function handleDocumentClick() {
   closeContextMenu();
 }
@@ -518,8 +548,12 @@ onBeforeUnmount(() => {
 .project-workspace-editor__main-grid {
   display: grid;
   gap: var(--graft-density-gap-12) 0;
-  grid-template-columns: var(--project-workspace-sidebar-width) 6px minmax(0, 1fr);
+  grid-template-columns: var(--project-workspace-sidebar-width) minmax(0, 1fr);
   min-height: 520px;
+}
+
+.project-workspace-editor__main-grid--with-splitter {
+  grid-template-columns: var(--project-workspace-sidebar-width) 6px minmax(0, 1fr);
 }
 
 .project-workspace-editor__sidebar,

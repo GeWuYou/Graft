@@ -6,6 +6,7 @@ import {
   resolveWorkspaceFileName,
   resolveWorkspaceMonacoLanguage,
 } from '../shared/configuration-workspace';
+import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import type { ProjectWorkspaceFileKind, ProjectWorkspaceTreeItem } from '../types/project';
 
 export type WorkspaceNodeType = 'directory' | 'file';
@@ -128,6 +129,23 @@ function ensureAncestorsExpanded(session: WorkspaceSession, key: string) {
   }
 }
 
+function logWorkspaceSession(
+  event: string,
+  sessionKey: string,
+  session: WorkspaceSession,
+  detail: Record<string, unknown> = {},
+) {
+  emitProjectWorkspaceDebug(event, {
+    activeFileKey: session.activeFileKey || '-',
+    bufferCount: Object.keys(session.fileContents).length,
+    openedTabCount: session.openedTabs.length,
+    selectedKey: session.selectedKey || '-',
+    sessionKey,
+    treeNodeCount: Object.keys(session.nodesByKey).length,
+    ...detail,
+  });
+}
+
 export const useProjectWorkspaceStore = defineStore('project-workspace', {
   state: (): WorkspaceState => ({ sessions: {} }),
   getters: {
@@ -178,7 +196,10 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
   },
   actions: {
     ensureSession(key: string) {
-      if (!this.sessions[key]) this.sessions[key] = createSession();
+      if (!this.sessions[key]) {
+        this.sessions[key] = createSession();
+        logWorkspaceSession('session-created', key, this.sessions[key]);
+      }
       return this.sessions[key];
     },
     clearSession(key: string) {
@@ -240,6 +261,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       this.ingestTree(sessionKey, entries);
       session.expandedKeys = preservedExpanded.filter((key) => Boolean(session.nodesByKey[key]));
       session.selectedKey = session.nodesByKey[preservedSelected] ? preservedSelected : '';
+      logWorkspaceSession('tree-replaced', sessionKey, session, { entryCount: entries.length });
     },
     setExpanded(sessionKey: string, key: string, expanded: boolean) {
       const session = this.ensureSession(sessionKey);
@@ -297,6 +319,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       session.activeFileKey = normalizedKey;
       session.selectedKey = normalizedKey;
       ensureAncestorsExpanded(session, normalizedKey);
+      logWorkspaceSession('file-opened', sessionKey, session, { path: normalizedKey });
     },
     setFileContent(sessionKey: string, key: string, content: string) {
       const session = this.ensureSession(sessionKey);
@@ -327,6 +350,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       session.activeFileKey = session.openedTabs.includes(activeFileKey)
         ? activeFileKey
         : (session.openedTabs.at(-1) ?? '');
+      logWorkspaceSession('opened-files-synced', sessionKey, session, { inputFileCount: files.length });
     },
     syncDirtyFile(sessionKey: string, key: string) {
       const session = this.ensureSession(sessionKey);
@@ -342,6 +366,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       const normalizedKey = normalizePath(key);
       session.openedTabs = session.openedTabs.filter((path) => path !== normalizedKey);
       if (session.activeFileKey === normalizedKey) session.activeFileKey = session.openedTabs.at(-1) ?? '';
+      logWorkspaceSession('file-closed', sessionKey, session, { path: normalizedKey });
     },
   },
 });

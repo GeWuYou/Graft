@@ -120,10 +120,16 @@ export function initDebugRuntime() {
         'window.__GRAFT_DEBUG__.state()',
         'window.__GRAFT_DEBUG__.enable("tabs")',
         'window.__GRAFT_DEBUG__.enable("project.logs")',
+        'window.__GRAFT_DEBUG__.enable("project.workspace")',
         'window.__GRAFT_DEBUG__.disable("project.monaco")',
         'window.__GRAFT_DEBUG__.clear()',
       ].join('\n'),
   };
+
+  emitDebugLog('project.workspace', 'runtime-ready', {
+    enabled: debugStore.isEnabled('project.workspace'),
+    runtimeOverride: debugStore.runtimeOverrides['project.workspace'] ?? 'none',
+  });
 }
 
 /**
