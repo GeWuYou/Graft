@@ -380,6 +380,9 @@ Prefer the repository skills below when their trigger matches the task:
     and enforce token/theme/i18n/visible-copy constraints before implementation
 - `graft-validation-runner`
   - use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
+- `graft-comment-governance`
+  - use before closeout for every task that changes handwritten Go, TypeScript, or Vue code; it applies the canonical
+    Chinese comment-value rules and records the comment review without creating a second lint or documentation truth
 - `graft-ai-plan-governance`
   - use when changing `ai-plan/**` router documents, active-topic recovery materials, templates, catalog coverage, or
     bounded `ai-plan` validators; it keeps root `AGENTS.md` as startup truth and `ai-plan/AGENTS.md` as
@@ -1035,6 +1038,7 @@ A task is done only when all relevant items below are satisfied:
   `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - any introduced compatibility branch records why direct authority repair was not completed in the same slice
 - affected code has the required comments and documentation
+- every changed handwritten Go, TypeScript, or Vue file has completed the `graft-comment-governance` closeout review
 - affected code follows the applicable subdomain execution-truth document
 - the changed area passed direct validation, or the exact validation gap was reported
 - `server` work reached its completion state only after the backend entrypoints required by `server/AGENTS.md`

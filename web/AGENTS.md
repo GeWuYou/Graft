@@ -34,6 +34,9 @@ authority-first overlay：
   - 当任务涉及路由名、路径、权限码、存储键、请求头、认证方案、错误码、稳定状态枚举或跨模块 typed contract 时必须读取
 - `../ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
   - 当任务涉及 `VITE_*`、System Config 消费、功能开关或配置 ownership 时必须读取
+- `../ai-plan/design/governance/ai/代码注释与模块文档规范.md`
+  - 当任务修改手写 TypeScript、Vue、组件文档或注释时必须读取；任何手写 TS/Vue 改动都必须在 closeout 前执行
+    `../.agents/skills/graft-comment-governance/SKILL.md`
 
 如代码与文档分叉，先更新文档或在同一改动中一起更新。
 
@@ -433,6 +436,8 @@ bun run check
 执行规则：
 
 - 功能完成、任务完成、准备合并时，必须跑完整 `bun run check`
+- 完成态还必须记录 `graft-comment-governance` 对手写 TS/Vue 改动的回执；该回执审查注释价值与同步性，不替代
+  `bun run check` 或新增独立注释 lint
 - 中间迭代可先跑最小直接验证，但不能把局部验证当作完成态
 - 默认完成态要求 `typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部零 warning
 - `hygiene:check` 进入完成态后，`deadcode`、约定范围内的 `dupcode`、以及非白名单固定字号必须同时为 0
