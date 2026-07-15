@@ -1,5 +1,34 @@
 # Backend Lessons
 
+## LESSON-BACKEND-TASK-OWNER-001：跨模块 Task owner 必须使用资源公开稳定标识
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `server/internal/moduleapi/task.go`
+  - `server/modules/*` 中提交或授权 Task 的 consumer
+  - 消费 Task 历史的 `web/src/modules/*`
+- Source:
+  - 2026-07-15 应用管理状态入口以 `application_id` 查询最近 Task，但 Project 仍把内部数值 `id` 写入 `compose_project` owner，导致授权路径返回隐藏式 404。
+- Problem:
+  业务模块新增公开资源标识后只更新 HTTP 和前端消费面，未同步 Task owner 的创建、授权与历史数据，会让同一资源在跨模块能力中同时使用公开 ID 和私有主键，产生不可访问的历史记录或错误的资源不存在响应。
+- Correct pattern:
+  `TaskOwner` 保持通用 `type + id` 契约，由每个 consumer 选择其公开、不可变且可授权解析的资源标识。Project 的 `compose_project` owner 使用 `application_id`；consumer 同步迁移提交、owner authorizer、历史 Task 数据和前端查询，Task module 不反向依赖 Project 实现。
+- Anti-pattern:
+  将模块私有数值主键写入通用 Task owner；为前端临时暴露私有主键；或让 Task module 为某个业务模块增加 owner 类型分支与兼容解析。
+- Enforcement:
+  新增或迁移 consumer owner 标识时，测试 Task 提交、owner authorization 和前端 owner-scoped 查询使用同一公开 ID。历史数据变更必须由拥有 `tasks` 表的 Task migration 回填，并保持其它 owner type 与无法映射记录不变。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: yes
+- Related:
+  - `server/modules/project/service_lifecycle.go`
+  - `server/modules/project/task_authorizer.go`
+  - `server/modules/task/migrations/202607150003_project_task_owner_application_id.sql`
+  - `ai-plan/design/architecture/任务执行运行时设计.md`
+- Updated at:
+  2026-07-15
+
 ## LESSON-BACKEND-SAVED-VIEW-001：分页保存视图必须分离通用存储与消费页面语义
 
 - Status: active
@@ -62,7 +91,7 @@
 ## LESSON-BACKEND-MIGRATION-VERSION-001：已执行 Atlas migration 版本不能追加新 DDL
 
 - Status: active
-- Level: L1
+- Level: L2
 - Applies to:
   - `server/modules/*/migrations/**`
   - `server/internal/*/migrations/**`
@@ -70,22 +99,23 @@
 - Source:
   - 2026-06-05 scheduler 启动缺少 `scheduled_tasks` 表的修复
   - 2026-06-11 用户指出不应修改已执行的 `202606050002_scheduler_scheduled_tasks.sql`，应通过新 migration 修复
+  - 2026-07-15 access-log WebSocket 回填修复：撤回对已提交 `202607150001` 的改写，改为追加 `202607150002`
 - Problem:
   `202606050001_scheduler_task_runs.sql` 先被执行并记录到 Atlas revision，后来同一个 version 文件又追加了 `scheduled_tasks` 表 DDL。数据库 revision 已经推进到该 version，Atlas 显示无 pending migration，但实际 schema 没有新追加的表，导致 scheduler Boot seed 内置任务时报 `relation "scheduled_tasks" does not exist`。
 - Correct pattern:
-  一旦某个 Atlas migration version 可能已经执行，后续 schema 增量必须新增更高 version 的补丁 migration；补丁 migration 可使用 `IF NOT EXISTS` 修复当前缺口，但不得依赖 Atlas 重放旧 version。
+  已提交、共享或进入 CI 的 versioned migration 默认视为可能已执行，后续 DDL 或数据修复必须新增更高 version 的补丁 migration；补丁 migration 可使用 `IF NOT EXISTS` 修复当前缺口，但不得依赖 Atlas 重放旧 version。仅在先通过配置的本地数据库核验 Atlas revision、并能证明本轮所有相关环境均未执行该 version 时，才允许改写该未执行文件。
 - Anti-pattern:
   在已经执行过的 migration version 文件里追加表、列、索引或注释，然后只更新 `atlas.sum`，期待已有数据库自动补齐新增 DDL。
 - Enforcement:
-  修复缺失 schema 时先用 `atlas migrate status` 和 `atlas schema inspect` 区分 revision 状态与实际结构；若 revision 已到目标 version 但结构缺失，必须新增后续 migration，并在验证中应用迁移、检查结构、启动对应模块。提交前必须检查 `git diff -- server/**/migrations/*.sql`，确认没有修改已可能执行的历史 migration 文件。
+  修改历史 migration 前先使用配置的本地数据库执行 `atlas migrate status`，并检查 revision 与实际 schema；本地未执行不能单独推翻共享 migration 可能已执行的默认假设。若不能证明所有相关环境均未执行，必须新增后续 migration。提交前必须检查 `git diff -- server/**/migrations/*.sql`，确认没有修改已可能执行的历史 migration 文件。
 - Promotion:
   - AGENTS.md: no
-  - Design doc: no
+  - Design doc: yes
 - Related:
   - `server/modules/scheduler/migrations/202606050002_scheduler_scheduled_tasks.sql`
   - `server/modules/scheduler/migrations/atlas.sum`
 - Updated at:
-  2026-06-11
+  2026-07-15
 
 ## LESSON-BACKEND-HTTPX-CONTEXT-001：守卫发布安全审计前必须先写回增强后的请求上下文
 

@@ -1,0 +1,36 @@
+name: Maintenance task / 维护任务
+description: Track refactoring, tests, dependencies, CI, or governance work. / 跟踪重构、测试、依赖、CI 或治理工作。
+title: "[Maintenance]: "
+labels: [maintenance]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / 动机
+      description: Explain the maintenance need and the risk or cost of leaving it unresolved. / 说明维护需求，以及不处理的风险或成本。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / 范围
+      description: Identify affected components, contracts, workflows, or documents. / 指明受影响的组件、契约、工作流或文档。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria / 验收标准
+      description: List observable completion conditions. / 列出可验证的完成条件。
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals / 非目标
+      description: State what this task intentionally does not cover. / 说明该任务刻意不覆盖的内容。
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation and rollout / 验证与发布
+      description: Describe required checks, migrations, compatibility, or rollout considerations. / 描述所需检查、迁移、兼容性或发布考虑。

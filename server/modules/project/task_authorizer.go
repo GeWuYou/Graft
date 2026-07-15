@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"strconv"
 
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
@@ -16,11 +15,7 @@ func (a projectTaskOwnerAuthorizer) AuthorizeTaskOwner(ctx context.Context, acto
 	if actor == nil || a.service == nil || a.service.authorizer == nil {
 		return errProjectActorAttribution
 	}
-	projectID, err := strconv.ParseUint(owner.ID, 10, 64)
-	if err != nil || projectID == 0 {
-		return errProjectInvalidArgument
-	}
-	if _, err := a.service.Get(ctx, projectID); err != nil {
+	if _, err := a.service.ResolveApplicationID(ctx, owner.ID); err != nil {
 		return err
 	}
 	permission := projectcontract.ProjectViewPermission.String()

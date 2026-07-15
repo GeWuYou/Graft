@@ -18,6 +18,8 @@ func (s scanAccessLogTestScanner) Scan(dest ...any) error {
 			*target = s.values[index].(int64)
 		case *string:
 			*target = s.values[index].(string)
+		case *AccessLogConnectionType:
+			*target = s.values[index].(AccessLogConnectionType)
 		case *int:
 			*target = s.values[index].(int)
 		case *sql.NullString:
@@ -42,6 +44,7 @@ func TestScanAccessLogRejectsNegativeID(t *testing.T) {
 		"GET",
 		"/healthz",
 		sql.NullString{},
+		AccessLogConnectionTypeHTTP,
 		200,
 		int64(1),
 		sql.NullString{},
@@ -61,6 +64,35 @@ func TestScanAccessLogRejectsNegativeID(t *testing.T) {
 	}
 }
 
+func TestScanAccessLogPreservesWebSocketConnectionType(t *testing.T) {
+	now := time.Date(2026, 6, 29, 8, 0, 0, 0, time.UTC)
+	record, err := scanAccessLog(scanAccessLogTestScanner{values: []any{
+		int64(1),
+		"req-1",
+		sql.NullString{},
+		"GET",
+		"/ws",
+		sql.NullString{String: "/ws", Valid: true},
+		AccessLogConnectionTypeWebSocket,
+		101,
+		int64(1),
+		sql.NullString{},
+		sql.NullString{},
+		sql.NullInt64{},
+		sql.NullString{},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		now,
+		now,
+	}})
+	if err != nil {
+		t.Fatalf("scan access log: %v", err)
+	}
+	if record.ConnectionType != AccessLogConnectionTypeWebSocket {
+		t.Fatalf("expected WebSocket connection type, got %q", record.ConnectionType)
+	}
+}
+
 func TestScanAccessLogRejectsNegativeUserID(t *testing.T) {
 	now := time.Date(2026, 6, 29, 8, 0, 0, 0, time.UTC)
 	_, err := scanAccessLog(scanAccessLogTestScanner{values: []any{
@@ -70,6 +102,7 @@ func TestScanAccessLogRejectsNegativeUserID(t *testing.T) {
 		"GET",
 		"/healthz",
 		sql.NullString{},
+		AccessLogConnectionTypeHTTP,
 		200,
 		int64(1),
 		sql.NullString{},

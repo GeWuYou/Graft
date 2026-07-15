@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately / 私密报告安全漏洞
+    url: https://github.com/GeWuYou/Graft/security/advisories/new
+    about: Do not disclose security vulnerabilities in public issues. / 请勿在公开 Issue 中披露安全漏洞。

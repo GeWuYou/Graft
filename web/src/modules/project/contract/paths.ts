@@ -25,6 +25,7 @@ export const PROJECT_API_PATH = {
   IMPORT: '/api/ops/projects/import',
   CREATION_METHODS: '/api/ops/projects/creation-methods',
   COMPOSE_RUNTIME_TARGETS: '/api/ops/projects/create/runtime-targets',
+  CREATE_WORKSPACE_DEFAULTS: '/api/ops/projects/create/workspace-defaults',
   DISCOVERY_CANDIDATES: '/api/ops/projects/discovery-candidates',
   MANAGED_ROOT: '/api/ops/projects/managed/root',
   CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
@@ -41,6 +42,8 @@ export const PROJECT_API_PATH = {
   FILES: '/api/ops/projects/{id}/files',
   FILES_CONTENT: '/api/ops/projects/{id}/files/content',
   FILES_ANNOTATION: '/api/ops/projects/{id}/files/annotation',
+  FILES_ENTRIES: '/api/ops/projects/{id}/files/entries',
+  FILES_RENAME: '/api/ops/projects/{id}/files/rename',
   LIFECYCLE_CONFIGURATION: '/api/ops/projects/{id}/lifecycle-configuration',
   REFRESH: '/api/ops/projects/{id}/refresh',
   DEPLOY: '/api/ops/projects/{id}/deploy',
@@ -150,6 +153,26 @@ export function buildProjectFilesContentApiPath(id: string | number) {
  */
 export function buildProjectFilesAnnotationApiPath(id: string | number) {
   return PROJECT_API_PATH.FILES_ANNOTATION.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
+ * 构建项目文件条目接口路径。
+ *
+ * @param id - 项目标识符
+ * @returns 替换项目标识符后的文件条目接口路径
+ */
+export function buildProjectFilesEntriesApiPath(id: string | number) {
+  return PROJECT_API_PATH.FILES_ENTRIES.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
+ * 构建项目文件重命名接口的路径。
+ *
+ * @param id - 项目标识符
+ * @returns 已替换并进行 URL 编码的接口路径
+ */
+export function buildProjectFilesRenameApiPath(id: string | number) {
+  return PROJECT_API_PATH.FILES_RENAME.replace('{id}', encodeProjectPathParam(id));
 }
 
 /**

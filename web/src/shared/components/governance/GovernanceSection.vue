@@ -1,8 +1,10 @@
 <template>
   <section class="governance-section" :data-section-kind="kind" :style="sectionStyle">
-    <header v-if="title || description || $slots.actions" class="governance-section__header">
+    <header v-if="title || description || $slots.title || $slots.actions" class="governance-section__header">
       <div class="governance-section__copy">
-        <h2 v-if="title" class="governance-section__title">{{ title }}</h2>
+        <h2 v-if="title || $slots.title" class="governance-section__title">
+          <slot name="title">{{ title }}</slot>
+        </h2>
         <p v-if="description" class="governance-section__description">{{ description }}</p>
       </div>
       <div v-if="$slots.actions" class="governance-section__actions">

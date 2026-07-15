@@ -64,6 +64,27 @@ func configDefinitions() []configregistry.Definition {
 		projectWorkspaceHiddenDirectoriesDefinition(),
 		projectWorkspaceFileTooltipRulesDefinition(),
 		projectWorkspaceDirectoryTooltipRulesDefinition(),
+		projectBlankCreatePrefillDefaultTemplateDefinition(),
+	}
+}
+
+// projectBlankCreatePrefillDefaultTemplateDefinition returns the configuration definition for enabling the default template when creating a blank project.
+func projectBlankCreatePrefillDefaultTemplateDefinition() configregistry.Definition {
+	return configregistry.Definition{
+		Key:                 projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfig.String(),
+		Module:              moduleID,
+		Domain:              projectConfigDomain,
+		DomainKey:           projectConfigDomainKey,
+		Group:               projectConfigGroupCreate,
+		GroupKey:            projectcontract.ApplicationCreateConfigGroupTitle.String(),
+		GroupDescriptionKey: projectcontract.ApplicationCreateConfigGroupDescription.String(),
+		TitleKey:            projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigTitle.String(),
+		DescriptionKey:      projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigDescription.String(),
+		Type:                configregistry.ValueTypeBoolean,
+		Schema:              json.RawMessage(`{"type":"boolean","x-i18n":{"titleKey":"` + projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigTitle.String() + `","descriptionKey":"` + projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigDescription.String() + `"}}`),
+		DefaultValue:        mustRawJSON(true),
+		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
+		Permission:          projectcontract.ProjectCreatePermission.String(),
 	}
 }
 

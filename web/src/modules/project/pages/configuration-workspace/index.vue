@@ -108,104 +108,129 @@
                 />
 
                 <t-loading :loading="browserLoading" size="small">
-                  <div v-if="workspaceFlatRows.length" class="project-configuration-workspace__tree graft-scrollbar">
-                    <template v-for="row in workspaceFlatRows" :key="row.item.relative_path || row.item.name">
-                      <div
-                        class="project-configuration-workspace__tree-row"
-                        :class="{
-                          'project-configuration-workspace__tree-row--active': isWorkspaceItemActive(row.item),
-                          'project-configuration-workspace__tree-row--readonly':
-                            row.item.node_type === 'file' && (!row.item.readable || !row.item.editable),
-                        }"
-                        :style="{ '--workspace-tree-depth': String(row.depth) }"
-                      >
-                        <button
-                          v-if="row.item.node_type === 'directory'"
-                          class="project-configuration-workspace__tree-expander"
-                          type="button"
-                          :aria-expanded="row.expanded"
-                          @click.stop="toggleWorkspaceDirectory(row.item)"
+                  <div
+                    class="project-configuration-workspace__tree graft-scrollbar"
+                    @contextmenu.prevent="openWorkspaceEntryMenu(null, $event)"
+                  >
+                    <button
+                      type="button"
+                      class="project-configuration-workspace__tree-menu-trigger"
+                      :aria-label="
+                        t('project.create.workspace.entryActions', { path: workspaceCopy.workspaceRootLabel })
+                      "
+                      @click.stop="openWorkspaceEntryMenu(null, $event, true)"
+                    >
+                      <ellipsis-icon />
+                    </button>
+                    <template v-if="workspaceFlatRows.length">
+                      <template v-for="row in workspaceFlatRows" :key="row.item.relative_path || row.item.name">
+                        <div
+                          class="project-configuration-workspace__tree-row"
+                          :class="{
+                            'project-configuration-workspace__tree-row--active': isWorkspaceItemActive(row.item),
+                            'project-configuration-workspace__tree-row--readonly':
+                              row.item.node_type === 'file' && (!row.item.readable || !row.item.editable),
+                          }"
+                          :style="{ '--workspace-tree-depth': String(row.depth) }"
+                          @contextmenu.prevent.stop="openWorkspaceEntryMenu(row.item, $event)"
                         >
-                          <span class="project-configuration-workspace__tree-expander-icon">
-                            {{ row.expanded ? '▾' : '▸' }}
-                          </span>
-                        </button>
-                        <span v-else class="project-configuration-workspace__tree-expander-placeholder" />
-
-                        <button
-                          class="project-configuration-workspace__tree-entry"
-                          :data-testid="workspaceEntryTestId(row.item)"
-                          type="button"
-                          @click="handleWorkspaceEntry(row.item)"
-                        >
-                          <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
-                            <folder-icon v-if="row.item.node_type === 'directory'" />
-                            <span
-                              v-else-if="row.item.file_kind === 'compose'"
-                              class="project-configuration-workspace__docker-icon"
-                            >
-                              <svg viewBox="0 0 24 24" role="presentation">
-                                <path
-                                  d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
-                                  fill="currentColor"
-                                />
-                              </svg>
-                            </span>
-                            <command-icon v-else-if="row.item.file_kind === 'env'" />
-                            <file-code-icon
-                              v-else-if="row.item.file_kind === 'config' || row.item.file_kind === 'text'"
-                            />
-                            <file-icon v-else />
-                          </span>
-                          <t-tooltip
-                            v-if="workspaceItemTooltip(row.item)"
-                            :content="workspaceItemTooltip(row.item)"
-                            placement="top-left"
-                            theme="light"
+                          <button
+                            v-if="row.item.node_type === 'directory'"
+                            class="project-configuration-workspace__tree-expander"
+                            type="button"
+                            :aria-expanded="row.expanded"
+                            @click.stop="toggleWorkspaceDirectory(row.item)"
                           >
-                            <span class="project-configuration-workspace__browser-main">
+                            <span class="project-configuration-workspace__tree-expander-icon">
+                              {{ row.expanded ? '▾' : '▸' }}
+                            </span>
+                          </button>
+                          <span v-else class="project-configuration-workspace__tree-expander-placeholder" />
+
+                          <button
+                            type="button"
+                            class="project-configuration-workspace__tree-menu-trigger"
+                            :aria-label="t('project.create.workspace.entryActions', { path: row.item.relative_path })"
+                            @click.stop="openWorkspaceEntryMenu(row.item, $event, true)"
+                          >
+                            <ellipsis-icon />
+                          </button>
+
+                          <button
+                            class="project-configuration-workspace__tree-entry"
+                            :data-testid="workspaceEntryTestId(row.item)"
+                            type="button"
+                            @click="handleWorkspaceEntry(row.item)"
+                          >
+                            <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
+                              <folder-icon v-if="row.item.node_type === 'directory'" />
+                              <span
+                                v-else-if="row.item.file_kind === 'compose'"
+                                class="project-configuration-workspace__docker-icon"
+                              >
+                                <svg viewBox="0 0 24 24" role="presentation">
+                                  <path
+                                    d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
+                                    fill="currentColor"
+                                  />
+                                </svg>
+                              </span>
+                              <command-icon v-else-if="row.item.file_kind === 'env'" />
+                              <file-code-icon
+                                v-else-if="row.item.file_kind === 'config' || row.item.file_kind === 'text'"
+                              />
+                              <file-icon v-else />
+                            </span>
+                            <t-tooltip
+                              v-if="workspaceItemTooltip(row.item)"
+                              :content="workspaceItemTooltip(row.item)"
+                              placement="top-left"
+                              theme="light"
+                            >
+                              <span class="project-configuration-workspace__browser-main">
+                                <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
+                              </span>
+                            </t-tooltip>
+                            <span v-else class="project-configuration-workspace__browser-main">
                               <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
                             </span>
-                          </t-tooltip>
-                          <span v-else class="project-configuration-workspace__browser-main">
-                            <span class="project-configuration-workspace__browser-title">{{ row.item.name }}</span>
-                          </span>
-                        </button>
+                          </button>
 
-                        <div
-                          class="project-configuration-workspace__tree-actions"
-                          :class="{
-                            'project-configuration-workspace__tree-actions--visible': Boolean(row.item.project_note),
-                          }"
-                        >
-                          <t-tooltip :content="workspaceCopy.annotationAction" theme="light">
-                            <t-button
-                              class="project-configuration-workspace__annotation-button"
-                              theme="default"
-                              variant="text"
-                              shape="square"
-                              size="small"
-                              tag="div"
-                              :data-testid="workspaceAnnotationTestId(row.item)"
-                              @click.stop="handleWorkspaceAnnotation(row.item)"
-                            >
-                              <template #icon>
-                                <edit-1-icon />
-                              </template>
-                            </t-button>
-                          </t-tooltip>
+                          <div
+                            class="project-configuration-workspace__tree-actions"
+                            :class="{
+                              'project-configuration-workspace__tree-actions--visible': Boolean(row.item.project_note),
+                            }"
+                          >
+                            <t-tooltip :content="workspaceCopy.annotationAction" theme="light">
+                              <t-button
+                                class="project-configuration-workspace__annotation-button"
+                                theme="default"
+                                variant="text"
+                                shape="square"
+                                size="small"
+                                tag="div"
+                                :data-testid="workspaceAnnotationTestId(row.item)"
+                                @click.stop="handleWorkspaceAnnotation(row.item)"
+                              >
+                                <template #icon>
+                                  <edit-1-icon />
+                                </template>
+                              </t-button>
+                            </t-tooltip>
+                          </div>
                         </div>
-                      </div>
-                      <p
-                        v-if="row.error && row.expanded"
-                        class="project-configuration-workspace__tree-error"
-                        :style="{ '--workspace-tree-depth': String(row.depth + 1) }"
-                      >
-                        {{ row.error }}
-                      </p>
+                        <p
+                          v-if="row.error && row.expanded"
+                          class="project-configuration-workspace__tree-error"
+                          :style="{ '--workspace-tree-depth': String(row.depth + 1) }"
+                        >
+                          {{ row.error }}
+                        </p>
+                      </template>
                     </template>
+                    <t-empty v-else :description="workspaceCopy.filesEmpty" />
                   </div>
-                  <t-empty v-else :description="workspaceCopy.filesEmpty" />
                 </t-loading>
               </t-card>
             </aside>
@@ -720,6 +745,76 @@
         :placeholder="workspaceItemTooltip(annotationDialogState.target)"
       />
     </t-dialog>
+
+    <div
+      v-if="workspaceEntryMenu.visible"
+      class="project-configuration-workspace__context-menu"
+      :style="{ left: `${workspaceEntryMenu.x}px`, top: `${workspaceEntryMenu.y}px` }"
+      role="menu"
+      @keydown.down.prevent="moveWorkspaceEntryMenuFocus(1)"
+      @keydown.end.prevent="moveWorkspaceEntryMenuFocus(-1, true)"
+      @keydown.esc.prevent="closeWorkspaceEntryMenu(true)"
+      @keydown.home.prevent="moveWorkspaceEntryMenuFocus(1, true)"
+      @keydown.up.prevent="moveWorkspaceEntryMenuFocus(-1)"
+    >
+      <button
+        ref="firstWorkspaceEntryMenuItem"
+        type="button"
+        role="menuitem"
+        @click="openWorkspaceEntryDialog('create-file')"
+      >
+        {{ t('project.create.workspace.newFile') }}
+      </button>
+      <button type="button" role="menuitem" @click="openWorkspaceEntryDialog('create-directory')">
+        {{ t('project.create.workspace.newFolder') }}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        :disabled="!workspaceEntryMenu.item"
+        @click="openWorkspaceEntryDialog('rename')"
+      >
+        {{ t('project.create.workspace.rename') }}
+      </button>
+      <button type="button" role="menuitem" :disabled="!workspaceEntryMenu.item" @click="openWorkspaceDeleteDialog">
+        {{ t('project.create.workspace.delete') }}
+      </button>
+    </div>
+    <t-dialog
+      v-model:visible="workspaceEntryDialog.visible"
+      :header="t('project.create.workspace.filePath')"
+      :confirm-btn="t('project.create.actions.confirm')"
+      :cancel-btn="workspaceCopy.cancelAction"
+      @confirm="submitWorkspaceEntryDialog"
+    >
+      <t-input v-model="workspaceEntryDialog.path" :placeholder="t('project.create.workspace.filePathPlaceholder')" />
+      <t-alert v-if="workspaceEntryDialog.error" theme="error" :message="workspaceEntryDialog.error" />
+    </t-dialog>
+    <t-dialog
+      v-model:visible="workspaceDeleteDialog.visible"
+      :header="
+        workspaceDeleteDialog.stage === 'recursive'
+          ? t('project.create.workspace.recursiveDeleteTitle')
+          : t('project.create.workspace.delete')
+      "
+      :confirm-btn="
+        workspaceDeleteDialog.stage === 'recursive'
+          ? t('project.create.workspace.recursiveDeleteConfirm')
+          : t('project.create.actions.confirm')
+      "
+      :cancel-btn="workspaceCopy.cancelAction"
+      @confirm="confirmWorkspaceEntryDelete"
+    >
+      <p>
+        {{
+          workspaceDeleteDialog.stage === 'recursive'
+            ? t('project.create.workspace.recursiveDeleteBody', {
+                path: workspaceDeleteDialog.path,
+              })
+            : t('project.create.workspace.deleteBody', { path: workspaceDeleteDialog.path })
+        }}
+      </p>
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -730,6 +825,7 @@ import {
   BrowseOffIcon,
   CommandIcon,
   Edit1Icon,
+  EllipsisIcon,
   FileCodeIcon,
   FileIcon,
   FolderIcon,
@@ -745,11 +841,14 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { createLogger } from '@/utils/logger';
 
 import {
+  deleteProjectWorkspaceEntry,
   getProject,
   getProjectConfiguration,
   getProjectFileContent,
   getProjectFiles,
   postProjectDeploy,
+  postProjectWorkspaceEntry,
+  postProjectWorkspaceRename,
   putProjectFileAnnotation,
   putProjectFileContent,
 } from '../../api/project';
@@ -964,6 +1063,25 @@ const annotationDialogState = reactive<{
   value: '',
   visible: false,
 });
+const workspaceEntryMenu = reactive<{ item: WorkspaceListItem | null; visible: boolean; x: number; y: number }>({
+  item: null,
+  visible: false,
+  x: 0,
+  y: 0,
+});
+const workspaceEntryDialog = reactive<{
+  error: string;
+  mode: 'create-file' | 'create-directory' | 'rename';
+  path: string;
+  visible: boolean;
+}>({ error: '', mode: 'create-file', path: '', visible: false });
+const workspaceDeleteDialog = reactive<{
+  path: string;
+  stage: 'initial' | 'recursive';
+  visible: boolean;
+}>({ path: '', stage: 'initial', visible: false });
+const firstWorkspaceEntryMenuItem = ref<HTMLButtonElement | null>(null);
+let workspaceEntryMenuTrigger: HTMLElement | null = null;
 let removeSidebarResizeListeners: (() => void) | null = null;
 
 const editorOptions = {
@@ -1424,6 +1542,185 @@ function handleWorkspaceEntry(item: WorkspaceListItem) {
     return;
   }
   void openWorkspaceFile(item.relative_path, item);
+}
+
+function normalizeWorkspaceEntryPath(path: string) {
+  return String(path || '')
+    .trim()
+    .replace(/^\.\//, '')
+    .replace(/\/+$/, '');
+}
+
+function isSafeWorkspaceEntryPath(path: string) {
+  return (
+    Boolean(path) && !path.startsWith('/') && !path.split('/').some((part) => !part || part === '.' || part === '..')
+  );
+}
+
+function openWorkspaceEntryMenu(item: WorkspaceListItem | null, event: MouseEvent, focusMenu = false) {
+  workspaceEntryMenu.item = item;
+  workspaceEntryMenu.x = event.clientX;
+  workspaceEntryMenu.y = event.clientY;
+  workspaceEntryMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  workspaceEntryMenu.visible = true;
+  if (focusMenu) void nextTick(() => firstWorkspaceEntryMenuItem.value?.focus());
+}
+
+function closeWorkspaceEntryMenu(restoreFocus = false) {
+  workspaceEntryMenu.visible = false;
+  if (restoreFocus) void nextTick(() => workspaceEntryMenuTrigger?.focus());
+}
+
+function moveWorkspaceEntryMenuFocus(direction: 1 | -1, boundary = false) {
+  const items = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.project-configuration-workspace__context-menu [role="menuitem"]'),
+  ).filter((item) => !item.disabled);
+  if (!items.length) return;
+  const currentIndex = items.findIndex((item) => item === document.activeElement);
+  const nextIndex = boundary
+    ? direction > 0
+      ? 0
+      : items.length - 1
+    : (currentIndex + direction + items.length) % items.length;
+  items[nextIndex].focus();
+}
+
+function openWorkspaceEntryDialog(mode: 'create-file' | 'create-directory' | 'rename') {
+  workspaceEntryDialog.mode = mode;
+  workspaceEntryDialog.error = '';
+  const target = workspaceEntryMenu.item;
+  if (mode === 'rename') {
+    workspaceEntryDialog.path = target?.relative_path || '';
+  } else {
+    const parent =
+      target?.node_type === 'directory'
+        ? target.relative_path
+        : resolveWorkspaceParentPath(target?.relative_path || '');
+    workspaceEntryDialog.path = parent ? `${parent}/` : '';
+  }
+  workspaceEntryDialog.visible = true;
+  closeWorkspaceEntryMenu();
+}
+
+async function submitWorkspaceEntryDialog() {
+  const path = normalizeWorkspaceEntryPath(workspaceEntryDialog.path);
+  const target = workspaceEntryMenu.item;
+  if (!isSafeWorkspaceEntryPath(path)) {
+    workspaceEntryDialog.error = t('project.create.workspace.invalidFilePath');
+    return;
+  }
+  try {
+    if (workspaceEntryDialog.mode === 'rename') {
+      if (!target) return;
+      await postProjectWorkspaceRename(projectId.value, { path: target.relative_path, new_path: path });
+      migrateWorkspaceBuffers(target.relative_path, path);
+    } else {
+      await postProjectWorkspaceEntry(projectId.value, {
+        path,
+        node_type: workspaceEntryDialog.mode === 'create-directory' ? 'directory' : 'file',
+        ...(workspaceEntryDialog.mode === 'create-file' ? { content: '' } : {}),
+      });
+    }
+    workspaceEntryDialog.visible = false;
+    await refreshWorkspaceAfterEntryMutation();
+    if (workspaceEntryDialog.mode === 'create-file') await openWorkspaceFile(path);
+  } catch (error) {
+    workspaceEntryDialog.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+  }
+}
+
+function openWorkspaceDeleteDialog() {
+  const target = workspaceEntryMenu.item;
+  if (!target) return;
+  workspaceDeleteDialog.path = target.relative_path;
+  workspaceDeleteDialog.stage = 'initial';
+  workspaceDeleteDialog.visible = true;
+  closeWorkspaceEntryMenu();
+}
+
+async function confirmWorkspaceEntryDelete() {
+  const target = workspaceItemMap.value.get(workspaceDeleteDialog.path);
+  const needsRecursiveConfirm = target?.node_type === 'directory' && target.has_children;
+  if (needsRecursiveConfirm && workspaceDeleteDialog.stage === 'initial') {
+    workspaceDeleteDialog.stage = 'recursive';
+    return;
+  }
+  try {
+    const affectedPaths = openTabs.value.filter(
+      (path) => path === workspaceDeleteDialog.path || path.startsWith(`${workspaceDeleteDialog.path}/`),
+    );
+    if (!(await confirmWorkspaceBufferDeletion(affectedPaths))) return;
+    await deleteProjectWorkspaceEntry(projectId.value, {
+      path: workspaceDeleteDialog.path,
+      recursive: workspaceDeleteDialog.stage === 'recursive',
+    });
+    workspaceDeleteDialog.visible = false;
+    removeWorkspaceBuffers(affectedPaths);
+    await refreshWorkspaceAfterEntryMutation();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
+  }
+}
+
+async function refreshWorkspaceAfterEntryMutation() {
+  rootWorkspaceItems.value = [];
+  directoryChildrenMap.clear();
+  directoryBrowseStateMap.clear();
+  directoryErrorMap.clear();
+  directoryLoadingMap.clear();
+  expandedDirectoryPaths.value = [];
+  await loadWorkspaceDirectory('', { root: true });
+}
+
+function migrateWorkspaceBuffers(oldPath: string, newPath: string) {
+  const remappedPaths = new Map<string, string>();
+  for (const path of openTabs.value) {
+    if (path === oldPath || path.startsWith(`${oldPath}/`)) {
+      remappedPaths.set(path, `${newPath}${path.slice(oldPath.length)}`);
+    }
+  }
+  for (const [path, nextPath] of remappedPaths) {
+    const buffer = openFileMap.get(path);
+    if (!buffer) continue;
+    openFileMap.delete(path);
+    buffer.path = nextPath;
+    buffer.name = resolveWorkspaceFileName(nextPath);
+    openFileMap.set(nextPath, buffer);
+  }
+  if (!remappedPaths.size) return;
+  openTabs.value = openTabs.value.map((path) => remappedPaths.get(path) ?? path);
+  activeTabPath.value = remappedPaths.get(activeTabPath.value) ?? activeTabPath.value;
+  activeFileTabPathForMenu.value = activeFileTabPathForMenu.value
+    ? (remappedPaths.get(activeFileTabPathForMenu.value) ?? activeFileTabPathForMenu.value)
+    : null;
+  latestOpenRequestPath = remappedPaths.get(latestOpenRequestPath) ?? latestOpenRequestPath;
+}
+
+function removeWorkspaceBuffers(paths: string[]) {
+  const removedPathSet = new Set(paths);
+  if (!removedPathSet.size) return;
+  removedPathSet.forEach((path) => openFileMap.delete(path));
+  openTabs.value = openTabs.value.filter((path) => !removedPathSet.has(path));
+  if (removedPathSet.has(activeTabPath.value)) activeTabPath.value = openTabs.value.at(-1) ?? '';
+  if (activeFileTabPathForMenu.value && removedPathSet.has(activeFileTabPathForMenu.value)) {
+    activeFileTabPathForMenu.value = null;
+  }
+}
+
+async function confirmWorkspaceBufferDeletion(paths: string[]) {
+  const dirtyPaths = paths.filter((path) => isFileDirty(path));
+  if (!dirtyPaths.length) return true;
+  const action = await openDialog({
+    body: workspaceCopy.value.dirtyProjectActionBody,
+    buttons: [
+      { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
+      { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
+      { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+    ],
+    title: workspaceCopy.value.dirtyProjectActionTitle,
+  });
+  if (action === 'cancel') return false;
+  return action !== 'save' || saveTabsByPaths(dirtyPaths);
 }
 
 function workspaceEntryTestId(item: WorkspaceListItem) {
@@ -3109,6 +3406,32 @@ function stopSidebarResize() {
   color: var(--td-text-color-primary);
 }
 
+.project-configuration-workspace__tree-menu-trigger {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  width: 30px;
+}
+
+.project-configuration-workspace__tree-menu-trigger:hover,
+.project-configuration-workspace__tree-menu-trigger:focus-visible {
+  background: var(--td-bg-color-container-hover);
+  color: var(--td-text-color-primary);
+}
+
+.project-configuration-workspace__tree-menu-trigger:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: -2px;
+}
+
 .project-configuration-workspace__browser-icon {
   align-items: center;
   color: var(--td-text-color-secondary);
@@ -3615,6 +3938,34 @@ function stopSidebarResize() {
 
 .project-configuration-workspace__dialog-body {
   margin: 0;
+}
+
+.project-configuration-workspace__context-menu {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-border);
+  border-radius: var(--td-radius-default);
+  box-shadow: var(--td-shadow-2);
+  display: flex;
+  flex-direction: column;
+  min-width: 152px;
+  padding: var(--graft-density-gap-4);
+  position: fixed;
+  z-index: 1000;
+}
+
+.project-configuration-workspace__context-menu button {
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-primary);
+  cursor: pointer;
+  min-height: 32px;
+  padding: 0 var(--graft-density-gap-8);
+  text-align: left;
+}
+
+.project-configuration-workspace__context-menu button:hover:not(:disabled) {
+  background: var(--td-bg-color-container-hover);
 }
 
 @media (width <= 1024px) {

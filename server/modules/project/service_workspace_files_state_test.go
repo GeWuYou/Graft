@@ -119,3 +119,49 @@ func TestSaveProjectFileContentRejectsBinaryWorkspaceFile(t *testing.T) {
 		t.Fatalf("expected errProjectInvalidArgument, got %v", err)
 	}
 }
+
+func TestDeleteProjectWorkspaceEntryRejectsTrackedLifecycleInput(t *testing.T) {
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ProjectAggregate{
+		Project: projectstore.Project{ID: 1, WorkingDirectory: workingDirectory},
+		Files:   []projectstore.ProjectFile{{AbsolutePath: composePath}},
+	}})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := service.deleteProjectWorkspaceEntry(context.Background(), 1, "compose.yaml", false); !errors.Is(err, errProjectConflict) {
+		t.Fatalf("expected tracked input conflict, got %v", err)
+	}
+	if _, err := os.Stat(composePath); err != nil {
+		t.Fatalf("tracked lifecycle input was deleted: %v", err)
+	}
+}
+
+func TestRenameProjectWorkspaceEntryRejectsTrackedLifecycleInput(t *testing.T) {
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ProjectAggregate{
+		Project: projectstore.Project{ID: 1, WorkingDirectory: workingDirectory},
+		Files:   []projectstore.ProjectFile{{AbsolutePath: composePath}},
+	}})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	err = service.renameProjectWorkspaceEntry(context.Background(), 1, workspaceEntryRenameRequest{
+		Path:    "compose.yaml",
+		NewPath: "docker-compose.yaml",
+	})
+	if !errors.Is(err, errProjectConflict) {
+		t.Fatalf("expected tracked input conflict, got %v", err)
+	}
+	if _, err := os.Stat(composePath); err != nil {
+		t.Fatalf("tracked lifecycle input was renamed: %v", err)
+	}
+}

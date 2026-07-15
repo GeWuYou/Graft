@@ -2,7 +2,7 @@ get:
   tags: [monitor]
   summary: Read request performance snapshot
   operationId: getMonitorRequestPerformance
-  description: Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.
+  description: Returns an aggregated normal HTTP request-performance snapshot for the selected bounded time range. Successfully upgraded WebSocket connections are retained as access-log facts but excluded because their duration is connection lifetime rather than request latency.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

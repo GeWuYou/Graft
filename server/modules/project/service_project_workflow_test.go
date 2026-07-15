@@ -979,14 +979,18 @@ func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
 	}
 
 	envName := ".env"
+	composeContent := "services:\n  web:\n    image: nginx:latest\n"
+	envContent := "FOO=bar\n"
 	result, err := service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
 		DisplayName:              "Demo",
 		CanonicalProjectName:     "demo",
 		RelativeProjectDirectory: "demo",
 		ComposeFileName:          "compose.yaml",
-		ComposeFileContent:       "services:\n  web:\n    image: nginx:latest\n",
+		ComposeFileContent:       composeContent,
 		EnvFileName:              &envName,
-		EnvFileContent:           stringPointer("FOO=bar\n"),
+		EnvFileContent:           &envContent,
+		ComposeFilePath:          "compose.yaml",
+		WorkspaceEntries:         []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: &composeContent}, {Path: ".env", NodeType: "file", Content: &envContent}},
 	}, nil)
 	if err != nil {
 		t.Fatalf("create managed project: %v", err)
@@ -1045,7 +1049,8 @@ func TestCreateManagedProjectMaterializesNestedWorkspaceFiles(t *testing.T) {
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
 		DisplayName: "Demo", CanonicalProjectName: "demo", RelativeProjectDirectory: "demo", ComposeFileName: "compose.yaml", ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
-		WorkspaceFiles: []ManagedWorkspaceFile{{Path: "compose.yaml", Content: "services:\n  web:\n    image: nginx:latest\n"}, {Path: "nginx/nginx.conf", Content: "events {}\n"}, {Path: ".env.production", Content: "MODE=production\n"}},
+		ComposeFilePath:  "compose.yaml",
+		WorkspaceEntries: []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: stringPointer("services:\n  web:\n    image: nginx:latest\n")}, {Path: "nginx/nginx.conf", NodeType: "file", Content: stringPointer("events {}\n")}, {Path: ".env.production", NodeType: "file", Content: stringPointer("MODE=production\n")}},
 	}, nil)
 	if err != nil {
 		t.Fatalf("create managed workspace: %v", err)

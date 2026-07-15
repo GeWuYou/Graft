@@ -1,0 +1,6 @@
+type: object
+additionalProperties: false
+required: [path, new_path]
+properties:
+  path: { type: string, minLength: 1, maxLength: 1024 }
+  new_path: { type: string, minLength: 1, maxLength: 1024 }

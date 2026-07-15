@@ -313,6 +313,8 @@ paths:
     $ref: ./paths/ops-projects.create-template-validate.yaml
   /api/ops/projects/create/template:
     $ref: ./paths/ops-projects.create-template.yaml
+  /api/ops/projects/create/workspace-defaults:
+    $ref: ./paths/ops-projects.workspace-defaults.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
   /api/ops/projects/{id}/overview:
@@ -321,6 +323,10 @@ paths:
     $ref: ./paths/ops-projects.logs.yaml
   /api/ops/projects/{id}/lifecycle-configuration:
     $ref: ./paths/ops-projects.lifecycle-configuration.yaml
+  /api/ops/projects/{id}/files/entries:
+    $ref: ./paths/ops-projects.workspace-entries.yaml
+  /api/ops/projects/{id}/files/rename:
+    $ref: ./paths/ops-projects.workspace-rename.yaml
   /api/ops/projects/{id}/services:
     $ref: ./paths/ops-projects.services.yaml
   /api/ops/projects/{id}/configuration:
@@ -949,6 +955,12 @@ components:
       $ref: ./components/schemas/project-create-request.yaml
     ProjectWorkspaceManifestFile:
       $ref: ./components/schemas/project-workspace-manifest-file.yaml
+    ProjectWorkspaceEntry:
+      $ref: ./components/schemas/project-workspace-entry.yaml
+    ProjectWorkspaceDefaultsResponse:
+      $ref: ./components/schemas/project-workspace-defaults-response.yaml
+    EnvelopedProjectWorkspaceDefaultsResponse:
+      $ref: ./components/schemas/enveloped-project-workspace-defaults-response.yaml
     ProjectImportValidateRequest:
       $ref: ./components/schemas/project-import-validate-request.yaml
     ProjectImportValidateResponse:

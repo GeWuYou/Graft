@@ -33,6 +33,10 @@ func composeTargetReader(state moduleapi.ComposeProjectNameState) stubComposeRun
 	return stubComposeRuntimeTargetReader{target: moduleapi.ComposeRuntimeTargetSummary{ID: 7, Available: state != moduleapi.ComposeProjectNameStateUnavailable}, state: state}
 }
 
+func managedWorkspaceEntries(compose string) []ManagedWorkspaceEntry {
+	return []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: &compose}}
+}
+
 func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	managedRoot := t.TempDir()
 	repository := &stubProjectRepository{}
@@ -61,6 +65,43 @@ func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	}
 }
 
+func TestValidateTemplateProjectDoesNotSeedDefaultTemplate(t *testing.T) {
+	root := t.TempDir()
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: root}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.ValidateTemplateProject(context.Background(), TemplateProjectCreateRequest{DisplayName: "Template project"})
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected unavailable template error, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "templates")); !os.IsNotExist(statErr) {
+		t.Fatalf("validation must not create template files, stat error = %v", statErr)
+	}
+}
+
+func TestResolveTemplateWorkspaceRejectsUnsupportedVersion(t *testing.T) {
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: t.TempDir()}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, _, err = service.resolveTemplateWorkspace(context.Background(), TemplateProjectCreateRequest{TemplateVersion: "v2"}, false)
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected unsupported version rejection, got %v", err)
+	}
+}
+
+func TestBlankCreatePrefillDefaultTemplatePropagatesConfigErrors(t *testing.T) {
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{err: errors.New("config unavailable")}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	_, err = service.blankCreatePrefillDefaultTemplate(context.Background())
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected configuration failure to propagate, got %v", err)
+	}
+}
+
 func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorkspace(t *testing.T) {
 	managedRoot := t.TempDir()
 	repository := &stubProjectRepository{}
@@ -72,7 +113,7 @@ func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorks
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n",
+		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
 		t.Fatalf("expected compose name conflict, got %v", err)
@@ -96,7 +137,7 @@ func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
-		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n",
+		DisplayName: "Demo", RuntimeTargetID: 7, ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if err != nil {
 		t.Fatalf("create managed project: %v", err)

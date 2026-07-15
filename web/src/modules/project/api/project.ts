@@ -9,6 +9,8 @@ import {
   buildProjectFilesAnnotationApiPath,
   buildProjectFilesApiPath,
   buildProjectFilesContentApiPath,
+  buildProjectFilesEntriesApiPath,
+  buildProjectFilesRenameApiPath,
   buildProjectLifecycleConfigurationApiPath,
   buildProjectLogsApiPath,
   buildProjectOverviewApiPath,
@@ -45,6 +47,8 @@ import type {
   ProjectServicesResponse,
   ProjectTaskReceipt,
   ProjectTemplateCreateRequest,
+  ProjectWorkspaceDefaultsResponse,
+  ProjectWorkspaceEntry,
   ProjectWorkspaceFileAnnotationRequest,
   ProjectWorkspaceFileAnnotationResponse,
   ProjectWorkspaceFileContentQuery,
@@ -53,6 +57,7 @@ import type {
   ProjectWorkspaceFileSaveResponse,
   ProjectWorkspaceFilesQuery,
   ProjectWorkspaceFilesResponse,
+  ProjectWorkspaceRenameRequest,
 } from '../types/project';
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -284,6 +289,45 @@ export function getProjectServices(id: GetProjectServicesPathParams['id']) {
   return request.get<GetProjectServicesData>({
     url: buildProjectServicesApiPath(id),
   }) as Promise<ProjectServicesResponse>;
+}
+
+/**
+ * 获取创建项目工作区所需的默认配置。
+ *
+ * @returns 项目工作区默认配置响应
+ */
+export function getProjectWorkspaceDefaults() {
+  return request.get<ProjectWorkspaceDefaultsResponse>({ url: PROJECT_API_PATH.CREATE_WORKSPACE_DEFAULTS });
+}
+
+/**
+ * 在项目工作区中创建条目。
+ *
+ * @param id - 项目标识
+ * @param payload - 要创建的工作区条目信息
+ */
+export function postProjectWorkspaceEntry(id: string | number, payload: ProjectWorkspaceEntry) {
+  return request.post({ url: buildProjectFilesEntriesApiPath(id), data: payload });
+}
+
+/**
+ * 重命名项目工作区中的条目。
+ *
+ * @param id - 项目标识
+ * @param payload - 工作区条目的重命名参数
+ */
+export function postProjectWorkspaceRename(id: string | number, payload: ProjectWorkspaceRenameRequest) {
+  return request.post({ url: buildProjectFilesRenameApiPath(id), data: payload });
+}
+
+/**
+ * 删除项目工作区中的文件或目录。
+ *
+ * @param id - 项目标识
+ * @param query - 要删除的路径及可选的递归删除设置
+ */
+export function deleteProjectWorkspaceEntry(id: string | number, query: { path: string; recursive?: boolean }) {
+  return request.delete({ url: buildProjectFilesEntriesApiPath(id), params: query });
 }
 
 /**

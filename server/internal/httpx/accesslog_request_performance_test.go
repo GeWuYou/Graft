@@ -127,6 +127,7 @@ func seedRequestPerformanceAccessLogs(t *testing.T, repository AccessLogReposito
 		{RequestID: "in-window-4", Method: "GET", Path: "/api/reports", Route: "/api/reports", StatusCode: 502, DurationMS: 1500, OccurredAt: base.Add(time.Minute + 5*time.Second)},
 		{RequestID: "in-window-5", Method: "GET", Path: "/api/reports", Route: "/api/reports", StatusCode: 404, DurationMS: 20, OccurredAt: base.Add(time.Minute + 10*time.Second)},
 		{RequestID: "in-window-6", Method: "GET", Path: "/healthz", Route: "/healthz", StatusCode: 302, DurationMS: 50, OccurredAt: base.Add(time.Minute + 15*time.Second)},
+		{RequestID: "websocket", Method: "GET", Path: "/ws", Route: "/ws", ConnectionType: AccessLogConnectionTypeWebSocket, StatusCode: 101, DurationMS: 750000, OccurredAt: base.Add(time.Minute + 20*time.Second)},
 		{RequestID: "outside-window", Method: "GET", Path: "/api/ignored", Route: "/api/ignored", StatusCode: 500, DurationMS: 9999, OccurredAt: base.Add(3 * time.Minute)},
 	}
 	if _, err := repository.CreateAccessLogs(context.Background(), inputs); err != nil {

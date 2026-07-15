@@ -219,6 +219,37 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 	}
 }
 
+func TestAccessLogMiddlewareClassifiesWebSocketUpgrades(t *testing.T) {
+	testCases := []struct {
+		name           string
+		status         int
+		connection     string
+		wantConnection AccessLogConnectionType
+	}{
+		{name: "successful upgrade", status: http.StatusSwitchingProtocols, connection: "keep-alive, Upgrade", wantConnection: AccessLogConnectionTypeWebSocket},
+		{name: "failed upgrade", status: http.StatusUnauthorized, connection: "Upgrade", wantConnection: AccessLogConnectionTypeHTTP},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			repo := &stubAccessLogRepository{}
+			server := NewServer(zap.NewNop(), repo)
+			server.Engine().GET("/ws", func(ctx *gin.Context) {
+				ctx.Status(testCase.status)
+			})
+
+			request := httptest.NewRequest(http.MethodGet, "/ws", nil)
+			request.Header.Set("Connection", testCase.connection)
+			request.Header.Set("Upgrade", "websocket")
+			server.Engine().ServeHTTP(httptest.NewRecorder(), request)
+
+			if len(repo.created) != 1 || repo.created[0].ConnectionType != testCase.wantConnection {
+				t.Fatalf("expected connection type %q, got %#v", testCase.wantConnection, repo.created)
+			}
+		})
+	}
+}
+
 func TestAccessLogMiddlewareSuppressesConsoleForSuccessButPersists(t *testing.T) {
 	core, recorded := observer.New(zapcore.InfoLevel)
 	repo := &stubAccessLogRepository{}

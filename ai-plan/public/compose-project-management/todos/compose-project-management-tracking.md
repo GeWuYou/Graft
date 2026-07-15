@@ -24,6 +24,8 @@ Compose Project Management
 
 ## Current Recovery Point
 
+- PR #156 修复迁移约束：已提交 `202607150001` 保持不可变，WebSocket 历史回填修复以新增 `202607150002` 落地；迁移治理已同步为“先核验 Atlas revision，无法证明所有环境未执行时一律追加”。
+
 - Phase 0 已完成：
   - Compose Project authority 文档已落地
   - active topic / tracking / trace / startup prompt 已落地

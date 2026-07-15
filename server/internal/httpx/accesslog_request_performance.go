@@ -20,6 +20,7 @@ const (
 	requestPerformanceLatencySampleLimit = 1024
 	requestPerformanceWindowStartArg     = 1
 	requestPerformanceWindowEndArg       = 2
+	requestPerformanceConnectionTypeArg  = 3
 	requestPerformanceUnmatchedRoute     = "<unmatched>"
 )
 
@@ -66,7 +67,7 @@ func (r *accessLogRepository) ReadRequestPerformance(
 	windowEnd := query.WindowEnd.UTC()
 	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT occurred_at, method, route, status_code, duration_ms
 		FROM access_logs
-		WHERE occurred_at >= %s AND occurred_at < %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg)), windowStart, windowEnd)
+		WHERE occurred_at >= %s AND occurred_at < %s AND connection_type = %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP)
 	if err != nil {
 		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("query request performance access logs: %w", err)
 	}

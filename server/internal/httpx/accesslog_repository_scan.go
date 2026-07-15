@@ -14,7 +14,7 @@ type accessLogScanner interface {
 
 // scanAccessLog 将一行访问日志扫描并组装为 AccessLog。
 // 如果扫描失败，返回空的 AccessLog 和错误；如果日志 ID 小于 0 或用户 ID 不能转换为有效的非负值，也返回错误。
-// @returns 扫描并填充后的 AccessLog，以及对应的错误。
+// It returns an error if scanning fails or an identifier is invalid.
 func scanAccessLog(scanner accessLogScanner) (AccessLog, error) {
 	var (
 		id           int64
@@ -37,6 +37,7 @@ func scanAccessLog(scanner accessLogScanner) (AccessLog, error) {
 		&record.Method,
 		&record.Path,
 		&route,
+		&record.ConnectionType,
 		&record.StatusCode,
 		&record.DurationMS,
 		&clientIP,
@@ -60,6 +61,7 @@ func scanAccessLog(scanner accessLogScanner) (AccessLog, error) {
 	}
 	record.TraceID = traceID.String
 	record.Route = route.String
+	record.ConnectionType = normalizeAccessLogConnectionType(record.ConnectionType)
 	record.ClientIP = clientIP.String
 	record.UserAgent = userAgent.String
 	record.Username = username.String

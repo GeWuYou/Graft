@@ -80,6 +80,17 @@ type workspaceFileState struct {
 	Editable     bool
 }
 
+type workspaceEntryCreateRequest struct {
+	Path     string
+	NodeType string
+	Content  *string
+}
+
+type workspaceEntryRenameRequest struct {
+	Path    string
+	NewPath string
+}
+
 type workspaceTreeBuildContext struct {
 	RootPath              string
 	TrackedKinds          map[string]string
@@ -202,6 +213,8 @@ func (s *Service) saveProjectFileContent(
 	path string,
 	request workspaceFileSaveRequest,
 ) (workspaceFileSaveResult, error) {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return workspaceFileSaveResult{}, err
@@ -241,6 +254,185 @@ func (s *Service) saveProjectFileContent(
 		ContentHash:  hashString(normalized),
 		SizeBytes:    int64(len(normalized)),
 	}, nil
+}
+
+func (s *Service) createProjectWorkspaceEntry(ctx context.Context, projectID uint64, request workspaceEntryCreateRequest) error {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
+	relativePath, root, err := s.openProjectWorkspaceRoot(ctx, projectID, request.Path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = closeManagedRootFS(root) }()
+	if err := validateWorkspaceEntryRequest(request); err != nil {
+		return err
+	}
+	if err := ensureWorkspaceEntryAbsent(root, relativePath); err != nil {
+		return err
+	}
+	if err := ensureWorkspaceParent(root, relativePath); err != nil {
+		return err
+	}
+	if request.NodeType == "directory" {
+		return mapWorkspacePathError(root.root.MkdirAll(relativePath, managedCreateDirMode))
+	}
+	return mapWorkspacePathError(root.root.WriteFile(relativePath, []byte(*request.Content), managedCreateFileMode))
+}
+
+func (s *Service) renameProjectWorkspaceEntry(ctx context.Context, projectID uint64, request workspaceEntryRenameRequest) error {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	rootDir, source, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, request.Path)
+	if err != nil {
+		return err
+	}
+	if workspaceMutationContainsTrackedLifecycleInput(aggregate, source) {
+		return errProjectConflict
+	}
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return mapWorkspacePathError(err)
+	}
+	defer func() { _ = closeManagedRootFS(root) }()
+	destination, err := normalizeManagedWorkspacePath(request.NewPath)
+	if err != nil {
+		return err
+	}
+	if err := ensureWorkspaceEntrySafe(root, source); err != nil {
+		return err
+	}
+	if err := ensureWorkspaceEntryAbsent(root, destination); err != nil {
+		return err
+	}
+	if err := ensureWorkspaceParent(root, destination); err != nil {
+		return err
+	}
+	if err := root.root.Rename(source, destination); err != nil {
+		return mapWorkspacePathError(err)
+	}
+	return nil
+}
+
+func (s *Service) openProjectWorkspaceRoot(ctx context.Context, projectID uint64, path string) (string, *managedRootFS, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return "", nil, err
+	}
+	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
+	if err != nil {
+		return "", nil, err
+	}
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return "", nil, mapWorkspacePathError(err)
+	}
+	return relativePath, root, nil
+}
+
+// validateWorkspaceEntryRequest validates a workspace entry creation request, including its node type and file content constraints.
+func validateWorkspaceEntryRequest(request workspaceEntryCreateRequest) error {
+	if request.NodeType != "file" && request.NodeType != "directory" {
+		return errProjectInvalidArgument
+	}
+	if request.NodeType == "directory" {
+		if request.Content != nil {
+			return errProjectInvalidArgument
+		}
+		return nil
+	}
+	if request.Content == nil || !utf8.ValidString(*request.Content) || strings.Contains(*request.Content, "\x00") {
+		return errProjectInvalidArgument
+	}
+	return nil
+}
+
+// ensureWorkspaceEntryAbsent verifies that the specified workspace path does not exist.
+// It returns an error if the path exists or cannot be inspected.
+func ensureWorkspaceEntryAbsent(root *managedRootFS, path string) error {
+	if _, err := root.root.Lstat(path); err == nil {
+		return errProjectConflict
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return mapWorkspacePathError(err)
+	}
+	return nil
+}
+
+// ensureWorkspaceEntrySafe verifies that a workspace entry exists and is not a symbolic link.
+func ensureWorkspaceEntrySafe(root *managedRootFS, path string) error {
+	info, err := root.root.Lstat(path)
+	if err != nil {
+		return mapWorkspacePathError(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return errProjectInvalidArgument
+	}
+	return nil
+}
+
+// ensureWorkspaceParent creates the parent directory for the specified workspace path.
+func ensureWorkspaceParent(root *managedRootFS, path string) error {
+	parent := filepath.Dir(path)
+	if parent == "." {
+		return nil
+	}
+	return mapWorkspacePathError(root.root.MkdirAll(parent, managedCreateDirMode))
+}
+
+func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uint64, path string, recursive bool) error {
+	s.workspaceMutationMu.Lock()
+	defer s.workspaceMutationMu.Unlock()
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
+	if err != nil {
+		return err
+	}
+	if workspaceMutationContainsTrackedLifecycleInput(aggregate, relativePath) {
+		return errProjectConflict
+	}
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return mapWorkspacePathError(err)
+	}
+	defer func() { _ = closeManagedRootFS(root) }()
+	info, err := root.root.Lstat(relativePath)
+	if err != nil {
+		return mapWorkspacePathError(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return errProjectInvalidArgument
+	}
+	if info.IsDir() {
+		if recursive {
+			return mapWorkspacePathError(root.root.RemoveAll(relativePath))
+		}
+		return mapWorkspacePathError(root.root.Remove(relativePath))
+	}
+	return mapWorkspacePathError(root.root.Remove(relativePath))
+}
+
+// workspaceMutationContainsTrackedLifecycleInput prevents moving or removing files that active lifecycle commands still reference.
+func workspaceMutationContainsTrackedLifecycleInput(aggregate projectstore.ProjectAggregate, path string) bool {
+	for _, file := range aggregate.Files {
+		relative, err := filepath.Rel(aggregate.Project.WorkingDirectory, file.AbsolutePath)
+		if err != nil {
+			continue
+		}
+		relative, err = normalizeManagedWorkspacePath(relative)
+		if err != nil {
+			continue
+		}
+		if relative == path || strings.HasPrefix(relative, path+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) updateProjectWorkspaceAnnotation(

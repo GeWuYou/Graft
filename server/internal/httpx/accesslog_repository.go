@@ -29,41 +29,53 @@ const (
 
 // AccessLog describes one persisted canonical access-log record.
 type AccessLog struct {
-	ID           uint64
-	RequestID    string
-	TraceID      string
-	Method       string
-	Path         string
-	Route        string
-	StatusCode   int
-	DurationMS   int64
-	ClientIP     string
-	UserAgent    string
-	UserID       *uint64
-	Username     string
-	RequestSize  *int64
-	ResponseSize *int64
-	StartedAt    time.Time
-	OccurredAt   time.Time
+	ID             uint64
+	RequestID      string
+	TraceID        string
+	Method         string
+	Path           string
+	Route          string
+	ConnectionType AccessLogConnectionType
+	StatusCode     int
+	DurationMS     int64
+	ClientIP       string
+	UserAgent      string
+	UserID         *uint64
+	Username       string
+	RequestSize    *int64
+	ResponseSize   *int64
+	StartedAt      time.Time
+	OccurredAt     time.Time
 }
+
+// AccessLogConnectionType identifies whether an access record completed as a normal HTTP request or a WebSocket connection.
+type AccessLogConnectionType string
+
+const (
+	// AccessLogConnectionTypeHTTP represents a normal request-response HTTP exchange.
+	AccessLogConnectionTypeHTTP AccessLogConnectionType = "http"
+	// AccessLogConnectionTypeWebSocket represents a request that successfully upgraded to WebSocket.
+	AccessLogConnectionTypeWebSocket AccessLogConnectionType = "websocket"
+)
 
 // CreateAccessLogInput describes the canonical request facts persisted by the runtime owner.
 type CreateAccessLogInput struct {
-	RequestID    string
-	TraceID      string
-	Method       string
-	Path         string
-	Route        string
-	StatusCode   int
-	DurationMS   int64
-	ClientIP     string
-	UserAgent    string
-	UserID       *uint64
-	Username     string
-	RequestSize  *int64
-	ResponseSize *int64
-	StartedAt    time.Time
-	OccurredAt   time.Time
+	RequestID      string
+	TraceID        string
+	Method         string
+	Path           string
+	Route          string
+	ConnectionType AccessLogConnectionType
+	StatusCode     int
+	DurationMS     int64
+	ClientIP       string
+	UserAgent      string
+	UserID         *uint64
+	Username       string
+	RequestSize    *int64
+	ResponseSize   *int64
+	StartedAt      time.Time
+	OccurredAt     time.Time
 }
 
 // AccessLogRepository owns durable persistence for canonical access logs.
@@ -333,6 +345,7 @@ func (r *accessLogRepository) GetAccessLogByID(ctx context.Context, id uint64) (
 		method,
 		path,
 		route,
+		connection_type,
 		status_code,
 		duration_ms,
 		client_ip,

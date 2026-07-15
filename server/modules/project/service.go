@@ -401,16 +401,17 @@ type ManagedProjectCreateRequest struct {
 	ComposeFileContent       string
 	EnvFileName              *string
 	EnvFileContent           *string
-	WorkspaceFiles           []ManagedWorkspaceFile
+	WorkspaceEntries         []ManagedWorkspaceEntry
 	ComposeFilePath          string
 	EnvFilePaths             []string
 	LifecycleConfig          *LifecycleStandardConfig
 }
 
-// ManagedWorkspaceFile is one text file in a managed create draft.
-type ManagedWorkspaceFile struct {
-	Path    string
-	Content string
+// ManagedWorkspaceEntry represents either an arbitrary UTF-8 text file or an empty/non-empty directory.
+type ManagedWorkspaceEntry struct {
+	Path     string
+	NodeType string
+	Content  *string
 }
 
 // ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.
@@ -457,6 +458,7 @@ type Service struct {
 	realtimeHub                  realtime.Hub
 	topicIssuers                 realtime.TopicIssuerRegistry
 	streamersMu                  sync.Mutex
+	workspaceMutationMu          sync.Mutex
 	listTopicStreamer            *projectListTopicStreamer
 	runtimeTopicStreamer         *projectRuntimeTopicStreamer
 	lifecycleConfigTopicStreamer *projectLifecycleConfigTopicStreamer

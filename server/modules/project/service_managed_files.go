@@ -17,7 +17,8 @@ type managedRootFS struct {
 // 它会写入 compose 文件，并在提供环境文件路径和内容时写入 env 文件。
 // @param validation 包含工作目录以及各文件绝对路径的校验结果。
 // @param normalized 包含要写入的规范化文件内容。
-// writeManagedProjectFiles 创建工作目录并写入工作区文件，返回工作目录、已创建文件的绝对路径及可能发生的错误。
+// writeManagedProjectFiles 创建工作目录并将工作区条目写入其中。
+// 返回清理后的工作目录、已创建文件的绝对路径以及可能发生的错误。
 func writeManagedProjectFiles(
 	validation ManagedProjectCreateValidationResult,
 	normalized normalizedManagedCreateRequest,
@@ -41,23 +42,48 @@ func writeManagedProjectFiles(
 		err = errors.Join(err, workingRoot.Close())
 	}()
 	createdFiles = []string{}
-	workspaceFiles, err := normalizeManagedWorkspaceFiles(normalized.WorkspaceFiles, normalized.ComposeFileName, normalized.ComposeFileContent, normalized.EnvFileName, normalized.EnvFileContent)
-	if err != nil {
+	if err := materializeWorkspaceEntries(workingRoot, normalized.WorkspaceEntries, workingDirectory, &createdFiles); err != nil {
 		return workingDirectory, createdFiles, err
 	}
-	for _, item := range workspaceFiles {
-		parent := filepath.Dir(item.Path)
-		if parent != "." {
-			if err := workingRoot.MkdirAll(parent, managedCreateDirMode); err != nil {
-				return workingDirectory, createdFiles, fmt.Errorf("create workspace parent: %w", err)
-			}
-		}
-		if err := workingRoot.WriteFile(item.Path, []byte(item.Content), managedCreateFileMode); err != nil {
-			return workingDirectory, createdFiles, fmt.Errorf("write workspace file: %w", err)
-		}
-		createdFiles = append(createdFiles, filepath.Join(workingDirectory, item.Path))
-	}
 	return workingDirectory, createdFiles, nil
+}
+
+// materializeWorkspaceEntries creates workspace entries and records the absolute paths of created files. It stops at the first materialization error.
+func materializeWorkspaceEntries(root *os.Root, entries []ManagedWorkspaceEntry, workingDirectory string, createdFiles *[]string) error {
+	for _, entry := range entries {
+		if err := materializeWorkspaceEntry(root, entry); err != nil {
+			return err
+		}
+		if entry.NodeType == "file" {
+			*createdFiles = append(*createdFiles, filepath.Join(workingDirectory, entry.Path))
+		}
+	}
+	return nil
+}
+
+// materializeWorkspaceEntry creates a workspace directory or writes a workspace file
+// under root according to the entry definition. Directory entries are created
+// recursively; file entries require content.
+func materializeWorkspaceEntry(root *os.Root, entry ManagedWorkspaceEntry) error {
+	parent := filepath.Dir(entry.Path)
+	if parent != "." {
+		if err := root.MkdirAll(parent, managedCreateDirMode); err != nil {
+			return fmt.Errorf("create workspace parent: %w", err)
+		}
+	}
+	if entry.NodeType == "directory" {
+		if err := root.MkdirAll(entry.Path, managedCreateDirMode); err != nil {
+			return fmt.Errorf("create workspace directory: %w", err)
+		}
+		return nil
+	}
+	if entry.Content == nil {
+		return fmt.Errorf("write workspace file: content is required")
+	}
+	if err := root.WriteFile(entry.Path, []byte(*entry.Content), managedCreateFileMode); err != nil {
+		return fmt.Errorf("write workspace file: %w", err)
+	}
+	return nil
 }
 
 // cleanupManagedCreate 清理受管创建过程中生成的文件和目录。

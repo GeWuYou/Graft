@@ -6,31 +6,43 @@ import (
 )
 
 // normalizeCreateAccessLogInput 将创建访问日志的输入规范化为 AccessLog。
-// 它会清洗文本字段、克隆指针字段，并将时间字段统一为 UTC 后返回。
+// normalizeCreateAccessLogInput 将创建访问日志输入规范化为 AccessLog。
+// 文本、路径、路由和连接类型按访问日志规则处理，指针字段进行复制，时间字段统一为 UTC。
+// 返回规范化后的访问日志记录。
 func normalizeCreateAccessLogInput(input CreateAccessLogInput) AccessLog {
 	requestID := sanitizeAccessLogStableText(input.RequestID)
 	traceID := normalizeAccessLogTraceID(sanitizeAccessLogStableText(input.TraceID), requestID)
 
 	return AccessLog{
-		RequestID:    requestID,
-		TraceID:      traceID,
-		Method:       sanitizeAccessLogStableText(input.Method),
-		Path:         sanitizeAccessLogPath(input.Path),
-		Route:        sanitizeAccessLogRoute(input.Route),
-		StatusCode:   input.StatusCode,
-		DurationMS:   input.DurationMS,
-		ClientIP:     sanitizeAccessLogStableText(input.ClientIP),
-		UserAgent:    sanitizeAccessLogFreeText(input.UserAgent),
-		UserID:       cloneUint64Pointer(input.UserID),
-		Username:     sanitizeAccessLogStableText(input.Username),
-		RequestSize:  cloneInt64Pointer(input.RequestSize),
-		ResponseSize: cloneInt64Pointer(input.ResponseSize),
-		StartedAt:    normalizeStartedAt(input.StartedAt, input.OccurredAt),
-		OccurredAt:   normalizeOccurredAt(input.OccurredAt),
+		RequestID:      requestID,
+		TraceID:        traceID,
+		Method:         sanitizeAccessLogStableText(input.Method),
+		Path:           sanitizeAccessLogPath(input.Path),
+		Route:          sanitizeAccessLogRoute(input.Route),
+		ConnectionType: normalizeAccessLogConnectionType(input.ConnectionType),
+		StatusCode:     input.StatusCode,
+		DurationMS:     input.DurationMS,
+		ClientIP:       sanitizeAccessLogStableText(input.ClientIP),
+		UserAgent:      sanitizeAccessLogFreeText(input.UserAgent),
+		UserID:         cloneUint64Pointer(input.UserID),
+		Username:       sanitizeAccessLogStableText(input.Username),
+		RequestSize:    cloneInt64Pointer(input.RequestSize),
+		ResponseSize:   cloneInt64Pointer(input.ResponseSize),
+		StartedAt:      normalizeStartedAt(input.StartedAt, input.OccurredAt),
+		OccurredAt:     normalizeOccurredAt(input.OccurredAt),
 	}
 }
 
-// 当 startedAt 为空时，返回规范化后的 occurredAt；否则返回 startedAt 的 UTC 时间。
+// normalizeAccessLogConnectionType 将连接类型规范化为 WebSocket 或 HTTP。
+// 返回 WebSocket 输入对应的 WebSocket，其余输入均返回 HTTP。
+func normalizeAccessLogConnectionType(value AccessLogConnectionType) AccessLogConnectionType {
+	if value == AccessLogConnectionTypeWebSocket {
+		return AccessLogConnectionTypeWebSocket
+	}
+	return AccessLogConnectionTypeHTTP
+}
+
+// normalizeStartedAt 返回统一为 UTC 的开始时间；当 startedAt 为零值时，使用规范化后的 occurredAt。
 func normalizeStartedAt(startedAt time.Time, occurredAt time.Time) time.Time {
 	if startedAt.IsZero() {
 		return normalizeOccurredAt(occurredAt)

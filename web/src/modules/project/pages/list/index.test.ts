@@ -897,20 +897,27 @@ describe('Project list page', () => {
   });
 
   it('opens the latest owner task directly from a settled runtime status', async () => {
+    const applicationID = 'app_01ARZ3NDEKTSV4RRFFQ69G5FAV';
     taskRequestMocks.get.mockResolvedValue({
-      items: [{ id: 19, owner_id: '1', owner_type: 'compose_project', status: 'success' }],
+      items: [{ id: 19, owner_id: applicationID, owner_type: 'compose_project', status: 'success' }],
       limit: 1,
+      offset: 0,
+      total: 1,
+    });
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [buildProjectRow({ application_id: applicationID })],
+      limit: 20,
       offset: 0,
       total: 1,
     });
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="project-runtime-status-1"]').trigger('click');
+    await wrapper.get(`[data-testid="project-runtime-status-${applicationID}"]`).trigger('click');
     await flushPromises();
 
     expect(taskRequestMocks.get).toHaveBeenCalledWith({
-      params: { limit: 1, owner_id: '1', owner_type: 'compose_project' },
+      params: { limit: 1, owner_id: applicationID, owner_type: 'compose_project' },
       url: '/api/tasks',
     });
     const taskDrawer = wrapper.getComponent({ name: 'TaskDetailDrawer' });

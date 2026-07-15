@@ -38,7 +38,7 @@
           <project-create-workspace-editor v-model:files="workspaceFiles" />
           <div class="project-create-page__actions">
             <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" @click="step++">{{ t('project.create.actions.review') }}</t-button>
+            ><t-button theme="primary" @click="nextFromWorkspace">{{ t('project.create.actions.review') }}</t-button>
           </div>
         </section>
         <section v-else>
@@ -66,13 +66,13 @@
 <script setup lang="ts">
 import type { FormInstanceFunctions, FormProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { postProjectCreate } from '../../api/project';
+import { getProjectWorkspaceDefaults, postProjectCreate } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
@@ -82,7 +82,9 @@ import {
   refreshProjectCreatePage,
 } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
-import type { ProjectCreateRequest, ProjectCreateResponse, ProjectWorkspaceManifestFile } from '../../types/project';
+import type { ProjectCreateRequest, ProjectCreateResponse, ProjectWorkspaceEntry } from '../../types/project';
+
+type WorkspaceDraftEntry = Omit<ProjectWorkspaceEntry, 'content'> & { content: string };
 defineOptions({ name: 'ProjectManagedCreateIndex' });
 const { router, tabsRouterStore, t } = useProjectPageContext();
 const route = useRoute();
@@ -96,9 +98,13 @@ const runtimeTargetId = computed(() => {
   return Number.isSafeInteger(value) ? value : null;
 });
 const formData = reactive({ display_name: '', workspace_key: '' });
-const workspaceFiles = ref<ProjectWorkspaceManifestFile[]>([
-  { path: 'compose.yaml', content: t('project.create.workspace.defaultCompose.unit') },
+const workspaceFiles = ref<WorkspaceDraftEntry[]>([
+  { path: 'compose.yaml', node_type: 'file', content: '' },
+  { path: '.env', node_type: 'file', content: '' },
 ]);
+const primaryComposePath = ref('compose.yaml');
+const workspaceDefaultsLoading = ref(true);
+const workspaceDefaultsError = ref('');
 const formRules: FormProps['rules'] = {
   display_name: [{ required: true, message: t('project.create.validation.displayNameRequired') }],
   workspace_key: [
@@ -112,8 +118,30 @@ const stepOptions = computed(() =>
   ['identity', 'workspace', 'review'].map((key) => ({ title: t(`project.create.steps.${key}`) })),
 );
 const composePath = computed(
-  () => workspaceFiles.value.find((file) => /(^|\/)(compose|docker-compose)(\..+)?\.ya?ml$/i.test(file.path))?.path,
+  () =>
+    workspaceFiles.value.find((entry) => entry.node_type === 'file' && entry.path === primaryComposePath.value)?.path ||
+    workspaceFiles.value.find(
+      (entry) => entry.node_type === 'file' && /(^|\/)(compose|docker-compose)(\..+)?\.ya?ml$/i.test(entry.path),
+    )?.path,
 );
+onMounted(async () => {
+  try {
+    const defaults = await getProjectWorkspaceDefaults();
+    if (defaults.workspace_entries?.length) {
+      workspaceFiles.value = defaults.workspace_entries.map((entry) => ({ ...entry, content: entry.content || '' }));
+    }
+    if (defaults.compose_file_path) primaryComposePath.value = defaults.compose_file_path;
+  } catch (error) {
+    workspaceDefaultsError.value = resolveLocalizedErrorMessage(
+      t,
+      error,
+      t('project.create.workspace.defaultsLoadFailed'),
+    );
+    MessagePlugin.error(workspaceDefaultsError.value);
+  } finally {
+    workspaceDefaultsLoading.value = false;
+  }
+});
 async function nextFromIdentity() {
   if ((await formRef.value?.validate()) !== true) return;
   if (runtimeTargetId.value === null) {
@@ -123,16 +151,26 @@ async function nextFromIdentity() {
   step.value++;
 }
 function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
-  const compose = workspaceFiles.value.find((file) => file.path === composePath.value);
   return {
     display_name: formData.display_name.trim(),
     runtime_target_id: runtimeTargetIdValue,
     ...(formData.workspace_key.trim() ? { workspace_key: formData.workspace_key.trim() } : {}),
-    compose_file_name: composePath.value as string,
-    compose_file_content: compose?.content || '',
-    workspace_files: workspaceFiles.value,
-    compose_file_path: composePath.value,
+    workspace_entries: workspaceFiles.value,
+    compose_file_path: composePath.value as string,
   };
+}
+function nextFromWorkspace() {
+  if (workspaceDefaultsLoading.value) return;
+  if (workspaceDefaultsError.value) {
+    MessagePlugin.error(workspaceDefaultsError.value);
+    return;
+  }
+  const compose = workspaceFiles.value.find((entry) => entry.node_type === 'file' && entry.path === composePath.value);
+  if (!composePath.value || !compose?.content?.trim()) {
+    MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
+    return;
+  }
+  step.value++;
 }
 async function createProject() {
   if (runtimeTargetId.value === null) {

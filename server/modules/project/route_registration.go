@@ -35,7 +35,8 @@ const minimumProjectListLimit = 1
 // registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
 // registerRoutes 注册项目模块的 HTTP 路由。
 // registerRoutes 注册项目 API 路由及其请求 ID、权限校验中间件。
-// 当上下文或路由器为空时跳过注册并返回 nil；当项目服务缺失或认证依赖解析失败时返回错误。
+// registerRoutes 注册项目 API 路由及其权限与请求 ID 中间件。
+// 当上下文或路由器为空时跳过注册；项目服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -76,6 +77,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
 	group.POST(projectcontract.ProjectCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
 	group.POST(projectcontract.ProjectCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreate)
+	group.GET(projectcontract.ProjectWorkspaceDefaultsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleWorkspaceDefaults)
 	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleDetail)
 	group.GET(projectcontract.ProjectOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleOverview)
 	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleServices)
@@ -86,6 +88,9 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
 	group.PUT(projectcontract.ProjectWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
+	group.POST(projectcontract.ProjectWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleCreateProjectWorkspaceEntry)
+	group.POST(projectcontract.ProjectWorkspaceRenameRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleRenameProjectWorkspaceEntry)
+	group.DELETE(projectcontract.ProjectWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeleteProjectWorkspaceEntry)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
 	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
@@ -493,6 +498,27 @@ func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
 }
 
+func (r routeRuntime) handleWorkspaceDefaults(ginCtx *gin.Context) {
+	result, err := r.service.WorkspaceDefaults(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	templates := make([]gin.H, 0, len(result.Templates))
+	for _, template := range result.Templates {
+		templates = append(templates, gin.H{"key": template.Key, "display_name": template.DisplayName})
+	}
+	entries := make([]gin.H, 0, len(result.WorkspaceEntries))
+	for _, entry := range result.WorkspaceEntries {
+		item := gin.H{"path": entry.Path, "node_type": entry.NodeType}
+		if entry.Content != nil {
+			item["content"] = *entry.Content
+		}
+		entries = append(entries, item)
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"templates": templates, "default_template_key": result.DefaultTemplateKey, "workspace_entries": entries, "compose_file_path": result.ComposeFilePath})
+}
+
 // toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
 // toTemplateProjectCreateRequest 将模板项目创建请求转换为领域请求。
 // 当生命周期配置无法转换为标准配置时返回错误。
@@ -701,6 +727,66 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 		Tooltip:         optionalString(result.Tooltip),
 		TooltipSource:   optionalTooltipSource(result.TooltipSource),
 	})
+}
+
+type workspaceEntryMutationHTTP struct {
+	Path     string  `json:"path"`
+	NodeType string  `json:"node_type"`
+	Content  *string `json:"content"`
+}
+type workspaceEntryRenameHTTP struct {
+	Path    string `json:"path"`
+	NewPath string `json:"new_path"`
+}
+
+func (r routeRuntime) handleCreateProjectWorkspaceEntry(ginCtx *gin.Context) {
+	projectID, _, ok := r.bindProjectID(ginCtx)
+	if !ok {
+		return
+	}
+	var request workspaceEntryMutationHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	if err := r.service.createProjectWorkspaceEntry(ginCtx.Request.Context(), projectID, workspaceEntryCreateRequest(request)); err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	ginCtx.Status(http.StatusCreated)
+}
+
+func (r routeRuntime) handleRenameProjectWorkspaceEntry(ginCtx *gin.Context) {
+	projectID, _, ok := r.bindProjectID(ginCtx)
+	if !ok {
+		return
+	}
+	var request workspaceEntryRenameHTTP
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	if err := r.service.renameProjectWorkspaceEntry(ginCtx.Request.Context(), projectID, workspaceEntryRenameRequest(request)); err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	ginCtx.Status(http.StatusNoContent)
+}
+
+func (r routeRuntime) handleDeleteProjectWorkspaceEntry(ginCtx *gin.Context) {
+	projectID, _, ok := r.bindProjectID(ginCtx)
+	if !ok {
+		return
+	}
+	path := strings.TrimSpace(ginCtx.Query("path"))
+	recursive, err := strconv.ParseBool(ginCtx.DefaultQuery("recursive", "false"))
+	if path == "" || err != nil {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	if err := r.service.deleteProjectWorkspaceEntry(ginCtx.Request.Context(), projectID, path, recursive); err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	ginCtx.Status(http.StatusNoContent)
 }
 
 func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {

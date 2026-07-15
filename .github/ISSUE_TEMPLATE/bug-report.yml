@@ -1,0 +1,71 @@
+name: Bug report / 缺陷报告
+description: Report behavior that does not work as expected. / 报告不符合预期的行为。
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Graft. Do not include passwords, tokens, personal data, or unreported security vulnerabilities.
+
+        感谢你帮助改进 Graft。请勿提交密码、令牌、个人数据或尚未公开的安全漏洞。
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area / 影响范围
+      options:
+        - Server / 服务端
+        - Web / 前端
+        - Deployment or runtime / 部署或运行时
+        - API or contract / API 或契约
+        - Documentation / 文档
+        - Other / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary / 问题概述
+      description: Briefly describe what is broken and who is affected. / 简要说明故障现象及受影响对象。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: Provide the smallest reliable sequence. / 提供最小且稳定的复现步骤。
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / 实际行为
+      description: Include sanitized errors, screenshots, or logs when useful. / 可附脱敏后的错误信息、截图或日志。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / 环境信息
+      description: Include Graft version or commit, installation method, OS, browser, and relevant dependency versions. / 请提供 Graft 版本或提交、安装方式、操作系统、浏览器及相关依赖版本。
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist / 提交确认
+      options:
+        - label: I searched existing issues and removed sensitive information. / 我已搜索现有 Issue，并移除了敏感信息。
+          required: true
+        - label: This is not an unreported security vulnerability. / 这不是尚未公开的安全漏洞。
+          required: true

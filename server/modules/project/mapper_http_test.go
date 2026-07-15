@@ -26,6 +26,48 @@ func TestManagedCreateRequestMappersRejectUnsupportedLifecycleStrategy(t *testin
 	}
 }
 
+func TestManagedCreateRequestMappersUseCanonicalWorkspaceEntries(t *testing.T) {
+	t.Parallel()
+	compose := "services: {}\n"
+	readme := "workspace notes\n"
+	entries := []generated.ProjectWorkspaceEntry{
+		{Path: "config", NodeType: generated.Directory},
+		{Path: "config/readme", NodeType: generated.File, Content: &readme},
+		{Path: "compose/compose.yaml", NodeType: generated.File, Content: &compose},
+	}
+	request, err := toManagedCreateExecuteRequest(generated.PostProjectCreateJSONRequestBody{
+		DisplayName:      "Demo",
+		RuntimeTargetId:  1,
+		ComposeFilePath:  "compose/compose.yaml",
+		WorkspaceEntries: entries,
+	})
+	if err != nil {
+		t.Fatalf("map canonical workspace entries: %v", err)
+	}
+	if request.ComposeFilePath != "compose/compose.yaml" || request.ComposeFileName != "compose.yaml" || request.ComposeFileContent != compose {
+		t.Fatalf("unexpected primary compose mapping: %#v", request)
+	}
+	if len(request.WorkspaceEntries) != len(entries) || request.WorkspaceEntries[0].NodeType != "directory" || request.WorkspaceEntries[1].Content == nil || *request.WorkspaceEntries[1].Content != readme {
+		t.Fatalf("unexpected workspace entry mapping: %#v", request.WorkspaceEntries)
+	}
+}
+
+func TestManagedCreateRequestMapperRejectsMissingPrimaryComposeEntry(t *testing.T) {
+	t.Parallel()
+	content := "text"
+	_, err := toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody{
+		DisplayName:     "Demo",
+		RuntimeTargetId: 1,
+		ComposeFilePath: "compose.yaml",
+		WorkspaceEntries: []generated.ProjectWorkspaceEntry{
+			{Path: "README", NodeType: generated.File, Content: &content},
+		},
+	})
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected missing compose entry error, got %v", err)
+	}
+}
+
 func TestTemplateProjectCreateRequestRejectsUnsupportedLifecycleStrategy(t *testing.T) {
 	t.Parallel()
 

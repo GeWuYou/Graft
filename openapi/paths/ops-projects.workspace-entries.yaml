@@ -1,0 +1,38 @@
+post:
+  tags: [project]
+  summary: Create a file or directory in a project workspace
+  operationId: postProjectWorkspaceEntry
+  parameters:
+    - $ref: ../components/parameters/project-id-path.yaml
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/project-workspace-entry-create-request.yaml }
+  responses:
+    '201': { description: Workspace entry created. }
+    '400': { description: Invalid workspace entry request. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Workspace entry already exists. }
+delete:
+  tags: [project]
+  summary: Delete a project workspace file or directory
+  operationId: deleteProjectWorkspaceEntry
+  parameters:
+    - $ref: ../components/parameters/project-id-path.yaml
+    - name: path
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 1024 }
+    - name: recursive
+      in: query
+      required: false
+      schema: { type: boolean, default: false }
+  security: [{ bearerAuth: [] }]
+  responses:
+    '204': { description: Workspace entry deleted. }
+    '400': { description: Invalid workspace entry request. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

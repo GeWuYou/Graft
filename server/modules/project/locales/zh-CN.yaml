@@ -49,6 +49,8 @@ systemConfig.project.ops.project.workspace.hidden_directories.description: 配�
 systemConfig.project.ops.project.workspace.hidden_directories.placeholder: 输入目录名后回车，例如 node_modules、.git
 systemConfig.project.ops.project.workspace.file_tooltip_rules.title: 工作台文件默认提示规则
 systemConfig.project.ops.project.workspace.file_tooltip_rules.description: 配置工作台文件名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
+systemConfig.project.ops.project.create.blank_prefill_default_template.title: 空白项目预填默认模板
+systemConfig.project.ops.project.create.blank_prefill_default_template.description: 启用后，空白项目创建会以 templates/default 的完整工作区为初始内容；关闭后仅创建空的 .env 和 compose.yaml 文件。
 systemConfig.project.ops.project.workspace.directory_tooltip_rules.title: 工作台目录默认提示规则
 systemConfig.project.ops.project.workspace.directory_tooltip_rules.description: 配置工作台目录名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
 systemConfig.groups.ops.project.import: 项目导入

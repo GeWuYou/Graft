@@ -6,11 +6,13 @@ import ProjectCreateIndex from './index.vue';
 
 const routeQuery = vi.hoisted(() => ({ runtime_target_id: '7' as string | string[] }));
 const mocks = vi.hoisted(() => ({
+  getProjectWorkspaceDefaults: vi.fn(),
   postProjectCreate: vi.fn(),
   push: vi.fn(),
 }));
 
 vi.mock('../../api/project', () => ({
+  getProjectWorkspaceDefaults: mocks.getProjectWorkspaceDefaults,
   postProjectCreate: mocks.postProjectCreate,
   postProjectDeploy: vi.fn(),
 }));
@@ -124,6 +126,13 @@ function mountPage() {
 describe('ProjectCreateIndex', () => {
   beforeEach(() => {
     mocks.postProjectCreate.mockClear();
+    mocks.getProjectWorkspaceDefaults.mockResolvedValue({
+      compose_file_path: 'compose.yaml',
+      workspace_entries: [
+        { path: 'compose.yaml', node_type: 'file', content: 'services: {}' },
+        { path: '.env', node_type: 'file', content: '' },
+      ],
+    });
     routeQuery.runtime_target_id = '7';
     mocks.postProjectCreate.mockResolvedValue({
       application_id: 'app_42',

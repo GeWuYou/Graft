@@ -27,6 +27,10 @@ const (
 	ProjectWorkspaceFileContentRoute = "/:id/files/content"
 	// ProjectWorkspaceFileAnnotationRoute identifies the path-based workspace annotation write route fragment.
 	ProjectWorkspaceFileAnnotationRoute = "/:id/files/annotation"
+	// ProjectWorkspaceEntryRoute identifies project workspace entry mutation routes.
+	ProjectWorkspaceEntryRoute = "/:id/files/entries"
+	// ProjectWorkspaceRenameRoute identifies project workspace entry rename routes.
+	ProjectWorkspaceRenameRoute = "/:id/files/rename"
 	// ProjectImportValidateRoute identifies the import validation route fragment.
 	ProjectImportValidateRoute = "/import/validate"
 	// ProjectImportRuntimeCandidatesRoute identifies the runtime-driven import candidate list route fragment.
@@ -55,10 +59,12 @@ const (
 	ProjectCreateValidateRoute = "/create/managed/validate"
 	// ProjectCreateRoute identifies the managed-create route fragment.
 	ProjectCreateRoute = "/create/managed"
-	// ProjectCreateTemplateValidateRoute validates a bundled template source without materializing it.
+	// ProjectCreateTemplateValidateRoute validates a runtime template source without materializing it.
 	ProjectCreateTemplateValidateRoute = "/create/template/validate"
 	// ProjectCreateTemplateRoute identifies the future template source route fragment.
 	ProjectCreateTemplateRoute = "/create/template"
+	// ProjectWorkspaceDefaultsRoute returns server-owned blank workspace defaults and available templates.
+	ProjectWorkspaceDefaultsRoute = "/create/workspace-defaults"
 	// ProjectRefreshRoute identifies the static refresh route fragment.
 	ProjectRefreshRoute = "/:id/refresh"
 	// ProjectUpRoute identifies the compose up route fragment.

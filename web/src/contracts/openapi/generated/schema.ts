@@ -958,7 +958,7 @@ export interface paths {
     };
     /**
      * Read request performance snapshot
-     * @description Returns an aggregated HTTP request-performance snapshot for the selected bounded time range.
+     * @description Returns an aggregated normal HTTP request-performance snapshot for the selected bounded time range. Successfully upgraded WebSocket connections are retained as access-log facts but excluded because their duration is connection lifetime rather than request latency.
      */
     get: operations['getMonitorRequestPerformance'];
     put?: never;
@@ -2731,8 +2731,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Validate a bundled template project source
-     * @description Validates the selected bundled template and eventual managed-root target without writing it.
+     * Validate a runtime template project source
+     * @description Validates the selected Application Root template directory and eventual managed-root target without writing it.
      */
     post: operations['postProjectCreateTemplateValidate'];
     delete?: never;
@@ -2751,10 +2751,27 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Create a managed Compose project from a bundled template
-     * @description Materializes one explicit bundled text workspace template under the managed root, then registers it without running Compose lifecycle commands.
+     * Create a managed Compose project from a runtime template directory
+     * @description Materializes one operator-managed text workspace template from Application Root templates/<template-key> under the managed root, then registers it without running Compose lifecycle commands.
      */
     post: operations['postProjectCreateTemplate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/workspace-defaults': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get blank project workspace defaults and runtime templates */
+    get: operations['getProjectWorkspaceDefaults'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -2832,6 +2849,41 @@ export interface paths {
      */
     put: operations['putProjectLifecycleConfiguration'];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/files/entries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a file or directory in a project workspace */
+    post: operations['postProjectWorkspaceEntry'];
+    /** Delete a project workspace file or directory */
+    delete: operations['deleteProjectWorkspaceEntry'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/files/rename': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Rename a project workspace file or directory */
+    post: operations['postProjectWorkspaceEntryRename'];
     delete?: never;
     options?: never;
     head?: never;
@@ -3420,6 +3472,9 @@ export interface components {
     ProjectServicesResponse: components['schemas']['project-services-response'];
     ProjectCreateRequest: components['schemas']['project-create-request'];
     ProjectWorkspaceManifestFile: components['schemas']['project-workspace-manifest-file'];
+    ProjectWorkspaceEntry: components['schemas']['project-workspace-entry'];
+    ProjectWorkspaceDefaultsResponse: components['schemas']['project-workspace-defaults-response'];
+    EnvelopedProjectWorkspaceDefaultsResponse: components['schemas']['enveloped-project-workspace-defaults-response'];
     ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
     ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
     ProjectImportResponse: components['schemas']['project-import-response'];
@@ -6905,11 +6960,13 @@ export interface components {
     'enveloped-project-managed-root-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-managed-root-response'];
     };
-    'project-workspace-manifest-file': {
-      /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
+    'project-workspace-entry': {
+      /** @description Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected. */
       path: string;
-      /** @description UTF-8 text content to materialize for the file. */
-      content: string;
+      /** @enum {string} */
+      node_type: 'file' | 'directory';
+      /** @description Required UTF-8 text content for file entries and omitted for directory entries. */
+      content?: string | null;
     };
     'project-create-validate-request': {
       display_name: string;
@@ -6917,14 +6974,10 @@ export interface components {
       runtime_target_id: number;
       /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
       workspace_key?: string;
-      compose_file_name: string;
-      env_file_name?: string | null;
-      /** @description Complete managed workspace text manifest to validate without materializing. */
-      workspace_files?: components['schemas']['project-workspace-manifest-file'][];
+      /** @description Complete managed workspace manifest to validate without materializing. */
+      workspace_entries: components['schemas']['project-workspace-entry'][];
       /** @description Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
-      compose_file_path?: string;
-      /** @description Workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace. */
-      env_file_paths?: string[];
+      compose_file_path: string;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-validate-response': {
@@ -6951,18 +7004,10 @@ export interface components {
       runtime_target_id: number;
       /** @description Optional single-segment managed workspace key. The server derives and reserves a key when omitted. */
       workspace_key?: string;
-      compose_file_name: string;
-      /** @description Initial Compose YAML content to materialize in the managed project directory. */
-      compose_file_content: string;
-      env_file_name?: string | null;
-      /** @description Optional initial env file content. It is ignored when env_file_name is omitted. */
-      env_file_content?: string | null;
-      /** @description Complete managed workspace text manifest. When omitted, legacy compose/env fields are converted to the manifest. */
-      workspace_files?: components['schemas']['project-workspace-manifest-file'][];
-      /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. Defaults to compose_file_name during compatibility transition. */
-      compose_file_path?: string;
-      /** @description Explicit workspace-relative env file references. The server normalizes each path and rejects paths that escape the workspace. */
-      env_file_paths?: string[];
+      /** @description Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories. */
+      workspace_entries: components['schemas']['project-workspace-entry'][];
+      /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
+      compose_file_path: string;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
     };
     'project-create-response': {
@@ -7001,13 +7046,25 @@ export interface components {
       /** Format: int64 */
       runtime_target_id: number;
       workspace_key?: string;
-      /** @description Explicit bundled template key. Defaults to empty-compose. */
+      /** @description Runtime template directory key. Defaults to default. */
       template_key?: string;
-      /** @description Explicit bundled template version. Defaults to v1. */
+      /** @description Optional operator-defined template version label. Defaults to runtime. */
       template_version?: string;
       /** @description Safe display provenance for this template instance. Defaults to the generated workspace key. */
       template_instance_name?: string;
       lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
+    };
+    'project-workspace-defaults-response': {
+      templates: {
+        key: string;
+        display_name: string;
+      }[];
+      default_template_key: string;
+      workspace_entries: components['schemas']['project-workspace-entry'][];
+      compose_file_path: string;
+    };
+    'enveloped-project-workspace-defaults-response': {
+      data: components['schemas']['project-workspace-defaults-response'];
     };
     'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-detail-response'];
@@ -7124,6 +7181,11 @@ export interface components {
     };
     'enveloped-project-lifecycle-configuration-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-lifecycle-configuration-response'];
+    };
+    'project-workspace-entry-create-request': components['schemas']['project-workspace-entry'];
+    'project-workspace-entry-rename-request': {
+      path: string;
+      new_path: string;
     };
     'project-service-item': {
       service_name: string;
@@ -7437,6 +7499,12 @@ export interface components {
        * @example 0
        */
       abnormal_services?: number;
+    };
+    'project-workspace-manifest-file': {
+      /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
+      path: string;
+      /** @description UTF-8 text content to materialize for the file. */
+      content: string;
     };
   };
   responses: {
@@ -15170,6 +15238,36 @@ export interface operations {
       403: components['responses']['forbidden'];
     };
   };
+  getProjectWorkspaceDefaults: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Server-owned blank workspace defaults. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-workspace-defaults-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
   getProject: {
     parameters: {
       query?: never;
@@ -15413,6 +15511,121 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectWorkspaceEntry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-workspace-entry-create-request'];
+      };
+    };
+    responses: {
+      /** @description Workspace entry created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid workspace entry request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Workspace entry already exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteProjectWorkspaceEntry: {
+    parameters: {
+      query: {
+        path: string;
+        recursive?: boolean;
+      };
+      header?: never;
+      path: {
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Workspace entry deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid workspace entry request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postProjectWorkspaceEntryRename: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-workspace-entry-rename-request'];
+      };
+    };
+    responses: {
+      /** @description Workspace entry renamed. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid workspace entry request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Workspace entry already exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getProjectServices: {

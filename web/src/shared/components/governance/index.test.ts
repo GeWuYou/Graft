@@ -92,4 +92,15 @@ describe('governance dashboard primitives', () => {
     expect(panel.text()).toContain('Investigation entry');
     expect(panel.find('[data-testid="action"]').exists()).toBe(true);
   });
+
+  it('uses the optional title slot without removing the section heading', () => {
+    const section = mount(GovernanceSection, {
+      props: { title: 'Fallback title' },
+      slots: { title: '<span data-testid="custom-title">Latency <small>P95</small></span>' },
+    });
+
+    expect(section.find('.governance-section__title').exists()).toBe(true);
+    expect(section.find('[data-testid="custom-title"]').text()).toContain('Latency P95');
+    expect(section.text()).not.toContain('Fallback title');
+  });
 });

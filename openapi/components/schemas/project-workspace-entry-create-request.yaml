@@ -1,0 +1,22 @@
+oneOf:
+  - allOf:
+      - $ref: ./project-workspace-entry.yaml
+      - type: object
+        required: [path, node_type, content]
+        properties:
+          node_type:
+            type: string
+            enum: [file]
+          content:
+            type: string
+            description: Required UTF-8 text content for file entries.
+  - allOf:
+      - $ref: ./project-workspace-entry.yaml
+      - type: object
+        required: [path, node_type]
+        properties:
+          node_type:
+            type: string
+            enum: [directory]
+        not:
+          required: [content]
