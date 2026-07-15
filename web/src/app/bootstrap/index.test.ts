@@ -134,7 +134,7 @@ describe('bootstrapApp', () => {
       route: '/login',
     });
     expect(healPersistedState).toHaveBeenCalledTimes(1);
-    expect(useMock).toHaveBeenCalledTimes(3);
+    expect(useMock).toHaveBeenCalledTimes(4);
     expect(useMock.mock.invocationCallOrder[0]).toBeLessThan(healPersistedState.mock.invocationCallOrder[0]);
     expect(registerPermissionDirective).toHaveBeenCalledTimes(1);
     expect(mountMock).toHaveBeenCalledWith('#app');

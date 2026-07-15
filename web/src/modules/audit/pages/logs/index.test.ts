@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { localDateTimeToUtcIso, normalizeRouteRangeForPageState } from '@/shared/observability';
+import { clearQueryCache } from '@/shared/query';
 
 import type { AuditLogListResponse } from '../../types/audit';
 import AuditLogsPage from './index.vue';
@@ -459,6 +460,7 @@ const i18n = createI18n({
 
 describe('AuditLogsPage', () => {
   beforeEach(() => {
+    clearQueryCache();
     deleteAuditSavedViewMock.mockReset();
     deleteAuditVisibilityOverrideMock.mockReset();
     getAuditLogsMock.mockReset();

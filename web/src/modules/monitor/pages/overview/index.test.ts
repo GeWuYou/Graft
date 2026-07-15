@@ -1,3 +1,4 @@
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
@@ -740,6 +741,7 @@ function mountWithGlobalStubs(component: object, options: { attachTo?: Element }
   return mount(component, {
     attachTo: options.attachTo,
     global: {
+      plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
       stubs: {
         't-button': buttonStub,
         't-card': passthroughStub,

@@ -40,6 +40,7 @@
     "@iconify-icons/lucide": "^1.2.135",
     "@iconify-icons/tabler": "^1.2.95",
     "@iconify/vue": "^5.0.1",
+    "@tanstack/vue-query": "^5.101.2",
     "@vueuse/core": "^14.2.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",

@@ -282,6 +282,25 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "frontend-query-client"
+    type: "frontend-utility"
+    path: "web/src/shared/query"
+    owner: "web/shared"
+    purpose: "Application-wide TanStack Query client with bounded server-data cache defaults and session-bound cache clearing."
+    use_when:
+      - "Adding a module-owned query or mutation for server-owned HTTP data."
+      - "Invalidating or updating cached server snapshots after a mutation or realtime event."
+    do_not_use_when:
+      - "Storing route query, form drafts, table presentation preferences, selection state, or editor buffers."
+      - "Bypassing module API wrappers or the canonical Axios request client."
+    examples:
+      - "web/src/app/bootstrap/index.ts"
+      - "web/src/modules/auth/store/session.ts"
+    related_assets:
+      - "request-client"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "shared-css-color-parser"
     type: "frontend-utility"
     path: "web/src/shared/theme/css-color.ts"

@@ -347,6 +347,7 @@
   </server-status-page-shell>
 </template>
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query';
 import { LineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
@@ -488,9 +489,6 @@ const {
   selectedRefreshInterval,
   toggleAutoRefresh: toggleSharedAutoRefresh,
 } = useMonitorRefreshPreferences();
-const loading = ref(false);
-const serverStatus = ref<ServerStatusResponse | null>(null);
-const requestPerformance = ref<RequestPerformanceResponse | null>(null);
 const selectedTrendRange = ref<TrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
 const selectedTrendMode = ref<TrendMode>('overview');
 const selectedFocusMetric = ref<FocusMetric>('cpu');
@@ -501,9 +499,29 @@ const isPageVisible = ref(typeof document === 'undefined' ? true : document.visi
 const trendChartRefs = ref<Partial<Record<TrendChartKey, HTMLDivElement | null>>>({});
 let refreshTickTimer: number | null = null;
 let nextRefreshAt: number | null = null;
-let pendingTrendRange: TrendRange | null = null;
 const trendCharts = new Map<TrendChartKey, echarts.ECharts>();
 let trendChartResizeObserver: ResizeObserver | null = null;
+
+const {
+  data: overviewSnapshot,
+  isFetching: loading,
+  refetch: refetchOverview,
+} = useQuery({
+  queryKey: computed(() => ['monitor', 'overview', selectedTrendRange.value]),
+  queryFn: async () => {
+    const [serverStatus, requestPerformance] = await Promise.all([
+      getServerStatus(selectedTrendRange.value),
+      getRequestPerformance(selectedTrendRange.value),
+    ]);
+    return { serverStatus, requestPerformance };
+  },
+  enabled: false,
+  retry: false,
+});
+const serverStatus = computed<ServerStatusResponse | null>(() => overviewSnapshot.value?.serverStatus ?? null);
+const requestPerformance = computed<RequestPerformanceResponse | null>(
+  () => overviewSnapshot.value?.requestPerformance ?? null,
+);
 
 const trendRangeOptions = computed(() => [
   { label: t('monitor.serverStatus.trendRange10Minutes'), value: MONITOR_TREND_RANGE.TEN_MINUTES },
@@ -954,52 +972,26 @@ function clearRefreshSchedule() {
 }
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
-  const requestedTrendRange = selectedTrendRange.value;
-  if (loading.value) {
-    pendingTrendRange = requestedTrendRange;
-    return;
-  }
-
-  let shouldRefetch = false;
-  pendingTrendRange = null;
   stopRefreshTick();
-  loading.value = true;
-
-  try {
-    const [status, performance] = await Promise.all([
-      getServerStatus(requestedTrendRange),
-      getRequestPerformance(requestedTrendRange),
-    ]);
-    serverStatus.value = status;
-    requestPerformance.value = performance;
+  const result = await refetchOverview();
+  if (!result.error) {
     consecutiveFailures.value = 0;
-  } catch (error) {
+  } else {
     const previousFailures = consecutiveFailures.value;
     consecutiveFailures.value += 1;
 
     if (options.manual || previousFailures === 0) {
-      const message = resolveLocalizedErrorMessage(t, error, t('monitor.serverStatus.loadFailed'));
+      const message = resolveLocalizedErrorMessage(t, result.error, t('monitor.serverStatus.loadFailed'));
       openCorrelationErrorNotification({
         router,
         title: t('audit.correlation.errorTitle'),
         message,
-        requestId: requestIdFromError(error),
+        requestId: requestIdFromError(result.error),
         translate: t,
       });
     }
-  } finally {
-    loading.value = false;
-
-    if (pendingTrendRange && pendingTrendRange !== requestedTrendRange) {
-      shouldRefetch = true;
-    } else {
-      scheduleNextRefresh();
-    }
   }
-
-  if (shouldRefetch) {
-    void fetchServerStatus();
-  }
+  scheduleNextRefresh();
 }
 
 function toggleAutoRefresh() {

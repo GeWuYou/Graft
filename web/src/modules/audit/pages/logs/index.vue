@@ -191,8 +191,9 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onActivated, onDeactivated, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { LocationQueryValue } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
@@ -221,6 +222,7 @@ import {
   normalizeSorters,
   openLogDetailRow,
 } from '@/shared/observability';
+import { queryClient } from '@/shared/query';
 import { getPermissionStore } from '@/store/modules/permission';
 import { createLogger } from '@/utils/logger';
 
@@ -312,14 +314,12 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const loading = ref(false);
 const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const detailInitialTab = ref<'context' | 'metadata' | 'raw'>('context');
-const latestRequestSeq = ref(0);
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
 const pagination = ref({
@@ -434,15 +434,25 @@ const reportDetailLoadError = (error: unknown) => {
 const auditSavedViews = useSavedQueryViews<AuditSavedQueryViewState, number>({
   adapter: {
     list: async () =>
-      (await getAuditSavedViews()).map((view) => normalizeSavedQueryView<AuditSavedQueryState, number>(view)),
-    create: async (input) =>
-      normalizeSavedQueryView<AuditSavedQueryState, number>(await postAuditSavedView(toAuditSavedViewRequest(input))),
-    update: async (id, input) =>
-      normalizeSavedQueryView<AuditSavedQueryState, number>(
-        await putAuditSavedView(id, toAuditSavedViewRequest(input)),
-      ),
+      (
+        await queryClient.fetchQuery({
+          queryKey: ['audit', 'saved-views'],
+          queryFn: getAuditSavedViews,
+        })
+      ).map((view) => normalizeSavedQueryView<AuditSavedQueryState, number>(view)),
+    create: async (input) => {
+      const view = await postAuditSavedView(toAuditSavedViewRequest(input));
+      await queryClient.invalidateQueries({ queryKey: ['audit', 'saved-views'] });
+      return normalizeSavedQueryView<AuditSavedQueryState, number>(view);
+    },
+    update: async (id, input) => {
+      const view = await putAuditSavedView(id, toAuditSavedViewRequest(input));
+      await queryClient.invalidateQueries({ queryKey: ['audit', 'saved-views'] });
+      return normalizeSavedQueryView<AuditSavedQueryState, number>(view);
+    },
     remove: async (id) => {
       await deleteAuditSavedView(id);
+      await queryClient.invalidateQueries({ queryKey: ['audit', 'saved-views'] });
     },
   },
   applyView: async (view) => {
@@ -577,44 +587,49 @@ function buildQuery(): AuditLogQuery {
   return query;
 }
 
-async function fetchAuditLogs() {
-  const requestSeq = ++latestRequestSeq.value;
-  loading.value = true;
-  listError.value = '';
+const auditLogListQuery = useQuery(
+  {
+    queryKey: computed(() => ['audit', 'log-list', buildQuery()]),
+    queryFn: () => getAuditLogs(buildQuery()),
+    enabled: computed(() => routeHydrated.value && canSyncAuditRoute('query-enabled')),
+  },
+  queryClient,
+);
+const loading = computed(() => auditLogListQuery.isFetching.value);
 
-  try {
-    const response = await getAuditLogs(buildQuery());
-    if (requestSeq !== latestRequestSeq.value) {
-      return;
-    }
-    rows.value = response.items;
-    total.value = response.total;
-    appliedScope.value = response.applied_scope ?? null;
-    scopeProjection.value = response.scope_projection ?? null;
-    convertibleFilters.value = response.convertible_filters ?? null;
-    await openRouteAuditLog();
-  } catch (error) {
-    if (requestSeq !== latestRequestSeq.value) {
-      return;
-    }
-    rows.value = [];
-    total.value = 0;
-    appliedScope.value = null;
-    scopeProjection.value = null;
-    convertibleFilters.value = null;
-    logger.error('failed to fetch audit logs', error);
-    listError.value = resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed'));
-    const correlationId = filters.value.requestId;
-    MessagePlugin.error(
-      correlationId
-        ? formatMessageWithCorrelation(listError.value, describeCorrelationId(t, correlationId))
-        : listError.value,
-    );
-  } finally {
-    if (requestSeq === latestRequestSeq.value) {
-      loading.value = false;
-    }
-  }
+watch(auditLogListQuery.data, async (response) => {
+  if (!response) return;
+  listError.value = '';
+  rows.value = response.items;
+  total.value = response.total;
+  appliedScope.value = response.applied_scope ?? null;
+  scopeProjection.value = response.scope_projection ?? null;
+  convertibleFilters.value = response.convertible_filters ?? null;
+  await openRouteAuditLog();
+});
+
+watch(auditLogListQuery.error, (error) => {
+  if (!error) return;
+  rows.value = [];
+  total.value = 0;
+  appliedScope.value = null;
+  scopeProjection.value = null;
+  convertibleFilters.value = null;
+  logger.error('failed to fetch audit logs', error);
+  listError.value = resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed'));
+  const correlationId = filters.value.requestId;
+  MessagePlugin.error(
+    correlationId
+      ? formatMessageWithCorrelation(listError.value, describeCorrelationId(t, correlationId))
+      : listError.value,
+  );
+});
+
+async function fetchAuditLogs() {
+  listError.value = '';
+  await nextTick();
+  await auditLogListQuery.refetch();
+  await openRouteAuditLog();
 }
 
 async function openPolicyDrawer() {
@@ -633,6 +648,8 @@ async function openPolicyDrawer() {
 async function savePolicyDefault() {
   try {
     await updateAuditVisibilityDefault({ strategy: policyDefaultStrategy.value });
+    await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
+    await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.saveSuccess'));
     await fetchAuditLogs();
@@ -642,7 +659,10 @@ async function savePolicyDefault() {
 }
 
 async function loadPolicySnapshot() {
-  const response = await getAuditVisibilityPolicy();
+  const response = await queryClient.fetchQuery({
+    queryKey: ['audit', 'visibility-policy'],
+    queryFn: getAuditVisibilityPolicy,
+  });
   policyDefaultStrategy.value = response.default.strategy;
   policyCatalog.value = response.catalog;
   policyOverrides.value = response.overrides;
@@ -738,6 +758,8 @@ async function savePolicyOverride(source: AuditSource, actionKey: string) {
       strategy,
       description: catalogItem.description,
     });
+    await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
+    await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.saveOverrideSuccess'));
     await fetchAuditLogs();
@@ -749,6 +771,8 @@ async function savePolicyOverride(source: AuditSource, actionKey: string) {
 async function resetPolicyOverride(source: AuditSource, actionKey: string) {
   try {
     await deleteAuditVisibilityOverride(source, actionKey);
+    await queryClient.invalidateQueries({ queryKey: ['audit', 'visibility-policy'] });
+    await queryClient.invalidateQueries({ queryKey: ['audit', 'log-list'] });
     await loadPolicySnapshot();
     MessagePlugin.success(t('audit.logList.policy.resetOverrideSuccess'));
     await fetchAuditLogs();
@@ -849,7 +873,7 @@ async function openRouteAuditLog() {
 
   await openLogDetailRow(
     { id: auditLogId },
-    getAuditLogDetail,
+    (id) => queryClient.fetchQuery({ queryKey: ['audit', 'log-detail', id], queryFn: () => getAuditLogDetail(id) }),
     detailRecord,
     detailDrawerVisible,
     reportDetailLoadError,
@@ -858,7 +882,13 @@ async function openRouteAuditLog() {
 
 async function openDetailDrawer(row: AuditLogListItem) {
   detailInitialTab.value = 'context';
-  await openLogDetailRow(row, getAuditLogDetail, detailRecord, detailDrawerVisible, reportDetailLoadError);
+  await openLogDetailRow(
+    row,
+    (id) => queryClient.fetchQuery({ queryKey: ['audit', 'log-detail', id], queryFn: () => getAuditLogDetail(id) }),
+    detailRecord,
+    detailDrawerVisible,
+    reportDetailLoadError,
+  );
 }
 
 function auditRequestId(row: AuditLogListItem) {
@@ -1092,7 +1122,6 @@ async function syncFromCurrentRoute(reason: string) {
     await router.replace(canonicalLocation);
     return;
   }
-  await fetchAuditLogs();
 }
 
 watch(

@@ -153,27 +153,22 @@ import {
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import {
-  getAnnouncementUnreadCount,
-  getMyAnnouncements,
-  markAllAnnouncementsRead,
-  markAnnouncementRead,
-} from '../../api/announcement';
 import AnnouncementReadPanel from '../../components/AnnouncementReadPanel.vue';
 import { emitAnnouncementChanged, onAnnouncementChanged } from '../../contract/refresh';
 import { type AnnouncementViewModel, presentAnnouncement } from '../../domain/announcement-presenter';
+import {
+  invalidateMyAnnouncementQueries,
+  useAnnouncementUnreadCountQuery,
+  useMarkAllAnnouncementsReadMutation,
+  useMarkAnnouncementReadMutation,
+  useMyAnnouncementsQuery,
+} from '../../shared/announcement-queries';
 
 const { locale, t } = useI18n();
 
-const loading = ref(false);
-const markingAllRead = ref(false);
 const markingReadId = ref<number | null>(null);
-const listError = ref('');
-const rows = ref<AnnouncementViewModel[]>([]);
 const readPanelRecord = ref<AnnouncementViewModel | null>(null);
 const readPanelVisible = ref(false);
-const total = ref(0);
-const unreadCount = ref(0);
 const pagination = reactive({
   current: 1,
   pageSize: 20,
@@ -182,9 +177,26 @@ const filters = reactive({
   unreadOnly: false,
 });
 let stopAnnouncementChanged: (() => void) | undefined;
-let suppressNextChangedRefresh = false;
-
-const presentedRows = computed(() => rows.value);
+const announcementListQueryInput = computed(() => ({
+  page: pagination.current,
+  page_size: pagination.pageSize,
+  unread_only: filters.unreadOnly || undefined,
+}));
+const announcementListQuery = useMyAnnouncementsQuery(announcementListQueryInput);
+const unreadCountQuery = useAnnouncementUnreadCountQuery();
+const markAnnouncementReadMutation = useMarkAnnouncementReadMutation();
+const markAllAnnouncementsReadMutation = useMarkAllAnnouncementsReadMutation();
+const loading = computed(() => announcementListQuery.isFetching.value);
+const markingAllRead = computed(() => markAllAnnouncementsReadMutation.isPending.value);
+const listError = computed(() => {
+  const error = announcementListQuery.error.value;
+  return error ? resolveLocalizedErrorMessage(t, error, t('announcement.user.loadFailed')) : '';
+});
+const presentedRows = computed<AnnouncementViewModel[]>(() =>
+  (announcementListQuery.data.value?.items ?? []).map((item) => presentAnnouncement(item, t, locale.value)),
+);
+const total = computed(() => announcementListQuery.data.value?.total ?? 0);
+const unreadCount = computed(() => unreadCountQuery.data.value?.count ?? 0);
 const canMarkAllRead = computed(() => unreadCount.value > 0 && !markingAllRead.value);
 const emptyTitle = computed(() =>
   filters.unreadOnly ? t('announcement.user.emptyUnreadTitle') : t('announcement.user.emptyTitle'),
@@ -194,7 +206,6 @@ const emptyDescription = computed(() =>
 );
 
 onMounted(() => {
-  void fetchAnnouncements();
   stopAnnouncementChanged = onAnnouncementChanged(handleAnnouncementChanged);
 });
 
@@ -204,44 +215,25 @@ onBeforeUnmount(() => {
 
 watch(() => filters.unreadOnly, handleUnreadOnlyChange);
 watch(
-  () => `${pagination.current}:${pagination.pageSize}`,
-  () => void fetchAnnouncements(),
+  () => announcementListQuery.error.value,
+  (error) => {
+    if (error) {
+      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.user.loadFailed')));
+    }
+  },
 );
 
 async function fetchAnnouncements() {
-  loading.value = true;
-  listError.value = '';
-  try {
-    const [page, count] = await Promise.all([
-      getMyAnnouncements({
-        page: pagination.current,
-        page_size: pagination.pageSize,
-        unread_only: filters.unreadOnly || undefined,
-      }),
-      getAnnouncementUnreadCount(),
-    ]);
-    rows.value = page.items.map((item) => presentAnnouncement(item, t, locale.value));
-    total.value = page.total;
-    unreadCount.value = count.count;
-    pagination.current = page.page || pagination.current;
-    pagination.pageSize = page.page_size || pagination.pageSize;
-  } catch (error) {
-    listError.value = resolveLocalizedErrorMessage(t, error, t('announcement.user.loadFailed'));
-    rows.value = [];
-    MessagePlugin.error(listError.value);
-  } finally {
-    loading.value = false;
-  }
+  await Promise.all([announcementListQuery.refetch(), unreadCountQuery.refetch()]);
 }
 
 async function markRead(id: number) {
-  markingReadId.value = id;
   try {
-    const updated = await markAnnouncementRead(id);
+    markingReadId.value = id;
+    const updated = await markAnnouncementReadMutation.mutateAsync(id);
     const updatedView = presentAnnouncement(updated, t, locale.value);
     readPanelRecord.value = readPanelRecord.value?.id === id ? updatedView : readPanelRecord.value;
-    await fetchAnnouncements();
-    emitLocalAnnouncementChanged();
+    emitAnnouncementChanged();
     MessagePlugin.success(t('announcement.user.markReadSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.user.markReadFailed')));
@@ -271,16 +263,12 @@ async function markReadFromPanel() {
 }
 
 async function markAllRead() {
-  markingAllRead.value = true;
   try {
-    await markAllAnnouncementsRead();
-    await fetchAnnouncements();
-    emitLocalAnnouncementChanged();
+    await markAllAnnouncementsReadMutation.mutateAsync();
+    emitAnnouncementChanged();
     MessagePlugin.success(t('announcement.user.markAllReadSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.user.markAllReadFailed')));
-  } finally {
-    markingAllRead.value = false;
   }
 }
 
@@ -289,23 +277,12 @@ function handleUnreadOnlyChange() {
 }
 
 function handleAnnouncementChanged() {
-  if (suppressNextChangedRefresh) {
-    return;
-  }
-  void fetchAnnouncements();
-}
-
-function emitLocalAnnouncementChanged() {
-  suppressNextChangedRefresh = true;
-  emitAnnouncementChanged();
-  queueMicrotask(() => {
-    suppressNextChangedRefresh = false;
-  });
+  void invalidateMyAnnouncementQueries();
 }
 
 function setCurrentPageAndMaybeFetch(page: number) {
   if (pagination.current === page) {
-    void fetchAnnouncements();
+    void announcementListQuery.refetch();
     return;
   }
 
