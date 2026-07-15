@@ -246,6 +246,13 @@ i18n 与标题规则：
 - `Audit` 页面到 future `Log Explorer` 的跳转只能依赖 canonical correlation fields，例如 `requestId`、`traceId`、`actorId`、bounded time window；不得在前端发明第二套 investigation authority
 - 涉及多字段检索、筛选构建器、URL query 回填、详情抽屉联动的增强列表页时，优先判断是否属于 `query-builder-list-detail` 页型，并同步遵循 `web/docs/frontend-log-page-guidelines.md`
 
+服务端数据规则：
+
+- AI 设计或修改页面数据流时，先区分 server state 与 UI/client state；发现重复 HTTP、手工请求状态、手工 refresh / 去重 / 轮询或 realtime 后 HTTP 刷新时，必须先评估 `@tanstack/vue-query`
+- QueryClient 只使用 `web/src/shared/query/**` 的平台实例；query key、query function 和 mutation 继续由所属 `modules/<name>/**` 拥有，且 query function 只能调用模块 `api/**`
+- URL query、表单草稿、选择状态、表格列偏好、Monaco/xterm 实例和 WebSocket 流不进入 Query cache；登出或鉴权失效必须清空 server-data cache
+- 未经独立性能/维护性证据，不引入 `@tanstack/vue-table`、`@tanstack/vue-virtual`、`@tanstack/vue-router` 或 `@tanstack/vue-form` 来替换已有效的 TDesign / Vue 原生能力
+
 壳层 Footer 约定：
 
 - 全局布局默认提供统一 Footer 与底部安全留白

@@ -16,6 +16,8 @@
 - 只在当前 owned scope 内修改；发现 authority 在上游时，先升级任务范围，不做下游补丁伪完成。
 - 没有明确要求时，不做顺手修复、顺手重命名、顺手升级依赖或顺手整理结构。
 - 以最小闭环完成当前切片：规则、实现、必要测试、closeout 证据。
+- 前端页面的数据流设计先区分 server state 与 UI/client state；出现重复请求、手工 loading/error/data、手工 refresh / 去重 / 轮询或 realtime 后 HTTP 刷新时，先按 `ai-plan/design/architecture/前端架构设计.md` 评估 `@tanstack/vue-query`。
+- 不把 TanStack 当作默认替换方案：Table、Virtual、Router 和 Form 只有在既有能力被可复核的性能或维护性证据否定后才可进入独立设计。
 
 ## 3. Agent 禁区
 
@@ -109,6 +111,8 @@ AI closeout:
 - 是否严格留在 owned scope
 - 是否存在机会主义修复
 - 是否新增 TODO 泄漏、伪实现或静默 fallback
+- 前端 server state 是否已优先评估 Query，且未把 URL、草稿、选择或编辑器实例放进 query cache
+- 是否有证据支持 Table、Virtual、Router 或 Form 的新增 TanStack 依赖
 - closeout 是否给出 summary / risk / validation / rollback
 - 如果任务来自 PR review，是否明确覆盖 `Outside diff range comments`、`Nitpick comments` 和其它 folded
   latest-review findings，而不是只处理 open threads 或高优先级子集

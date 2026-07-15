@@ -25,6 +25,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/navigation-ia-resource-route-refactor/README.md`
 - `saved-query-views`
   - Recovery entry: `ai-plan/public/saved-query-views/README.md`
+- `tanstack-adoption-followups`
+  - Recovery entry: `ai-plan/public/tanstack-adoption-followups/README.md`
 
 ## Archive Location
 
