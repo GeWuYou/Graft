@@ -64,6 +64,15 @@ describe('ProjectCreateWorkspaceEditor', () => {
     );
   });
 
+  it('renders an initial file tab and editor for the creation workspace', () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
+    });
+
+    expect(wrapper.find('.project-workspace-editor__tabbar').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'ProjectMonacoSurfaceStub' }).exists()).toBe(true);
+  });
+
   it('creates unrestricted file names through the tree context menu', async () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },

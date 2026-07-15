@@ -63,7 +63,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onActivated, reactive, ref, watch } from 'vue';
 
 import { store } from '@/store/pinia';
 
@@ -170,17 +170,21 @@ function toTreeItems(entries: WorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[]
   }));
 }
 
-watch(
-  files,
-  (entries) => {
-    workspaceStore.replaceTree(workspaceSessionKey, toTreeItems(entries));
-    if (!workspaceStore.activeFile(workspaceSessionKey)) {
-      const firstFile = entries.find((entry) => entry.node_type !== 'directory');
-      if (firstFile) activateTab(firstFile.path);
-    }
-  },
-  { deep: true, immediate: true },
-);
+watch(files, (entries) => synchronizeWorkspace(entries), { deep: true, immediate: true });
+
+onActivated(() => {
+  synchronizeWorkspace(files.value);
+});
+
+function synchronizeWorkspace(entries: WorkspaceDraftEntry[]) {
+  workspaceStore.replaceTree(workspaceSessionKey, toTreeItems(entries));
+  if (workspaceStore.activeFile(workspaceSessionKey)) return;
+
+  const activePath = workspaceStore.session(workspaceSessionKey).activeFileKey;
+  const activeEntry = entries.find((entry) => entry.path === activePath && entry.node_type !== 'directory');
+  const firstFile = activeEntry ?? entries.find((entry) => entry.node_type !== 'directory');
+  if (firstFile) activateTab(firstFile.path);
+}
 
 function normalizePath(path: string) {
   return path.trim().replace(/^\.\//, '').replace(/\/+$/, '');
