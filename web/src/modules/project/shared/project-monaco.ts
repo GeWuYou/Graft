@@ -12,7 +12,7 @@ import 'monaco-editor/min/vs/editor/editor.main.css';
 
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { configureMonacoYaml } from 'monaco-yaml';
-import { nextTick, onBeforeUnmount, onMounted } from 'vue';
+import { nextTick, onActivated, onBeforeUnmount, onMounted } from 'vue';
 
 import { createLogger } from '@/utils/logger';
 
@@ -539,6 +539,12 @@ export function useProjectMonacoLifecycle(options: {
     applyTheme();
     observeThemeMode();
     void options.createEditor();
+  });
+
+  // Monaco keeps one active theme for every standalone editor. Reapply the
+  // host's tokens when a KeepAlive-cached workspace becomes visible again.
+  onActivated(() => {
+    applyTheme();
   });
 
   onBeforeUnmount(() => {

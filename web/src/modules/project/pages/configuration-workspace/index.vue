@@ -82,7 +82,7 @@
             :empty-description="workspaceCopy.filesEmpty"
             :labels="workspaceEditorLabels"
             :rows="workspaceEditorRows"
-            :selected-path="workspaceStore.activeSession.selectedKey"
+            :selected-path="workspaceStore.session(workspaceSessionKey).selectedKey"
             :sidebar-max-width="SIDEBAR_MAX_WIDTH"
             :sidebar-min-width="SIDEBAR_MIN_WIDTH"
             :sidebar-resizable="isSidebarResizable"
@@ -883,6 +883,7 @@ const readonlyOptions = {
 
 const workspaceCopy = computed(() => resolveConfigurationWorkspaceCopy((key) => String(t(key))));
 const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''));
+const workspaceSessionKey = computed(() => `project:${projectId.value}`);
 const fallbackDisplayName = computed(() => {
   const queryName = typeof route.query.name === 'string' ? route.query.name.trim() : '';
   return queryName;
@@ -1064,7 +1065,10 @@ const resultDialogStyle = computed(() =>
       },
 );
 const workspaceItemMap = computed(() => {
-  return new Map(Object.entries(workspaceStore.activeSession.nodesByKey)) as Map<string, WorkspaceListItem>;
+  return new Map(Object.entries(workspaceStore.session(workspaceSessionKey.value).nodesByKey)) as Map<
+    string,
+    WorkspaceListItem
+  >;
 });
 const currentWorkspaceDirectoryPath = computed(() => {
   if (selectedWorkspacePath.value) {
@@ -1086,7 +1090,7 @@ const currentWorkspacePathLabel = computed(
 const workingDirectoryDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.workspace_path));
 const currentWorkspacePathDisplay = computed(() => abbreviateWorkspacePath(currentWorkspacePathLabel.value));
 const workspaceEditorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
-  workspaceStore.visibleTreeRows.map((row) => ({
+  workspaceStore.visibleTreeRows(workspaceSessionKey.value).map((row) => ({
     depth: row.depth,
     expanded: row.expanded,
     error: directoryErrorMap.get(row.item.relative_path) ?? '',
@@ -1100,7 +1104,7 @@ const workspaceEditorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
   })),
 );
 const workspaceEditorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
-  workspaceStore.openedFiles.map((tab) => ({
+  workspaceStore.openedFiles(workspaceSessionKey.value).map((tab) => ({
     content: tab.content,
     dirty: isFileDirty(tab.path),
     error: tab.error,
@@ -1113,7 +1117,7 @@ const workspaceEditorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
   })),
 );
 const workspaceEditorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
-  const tab = workspaceStore.activeFile;
+  const tab = workspaceStore.activeFile(workspaceSessionKey.value);
   if (!tab) return null;
   return {
     content: tab.content,
@@ -1189,9 +1193,13 @@ watch(
   { immediate: true },
 );
 
-watch(openFileMap, () => workspaceStore.syncOpenedFiles(openTabBuffers.value, activeTabPath.value), { deep: true });
+watch(
+  openFileMap,
+  () => workspaceStore.syncOpenedFiles(workspaceSessionKey.value, openTabBuffers.value, activeTabPath.value),
+  { deep: true },
+);
 
-watch(activeTabPath, (path) => workspaceStore.syncOpenedFiles(openTabBuffers.value, path));
+watch(activeTabPath, (path) => workspaceStore.syncOpenedFiles(workspaceSessionKey.value, openTabBuffers.value, path));
 
 watch(resultDialogVisible, (visible) => {
   if (visible) {
@@ -1273,7 +1281,8 @@ async function loadWorkspace() {
 
   workspaceLoading.value = true;
   workspaceError.value = '';
-  workspaceStore.activateSession(`project:${projectId.value}`);
+  workspaceStore.clearSession(workspaceSessionKey.value);
+  workspaceStore.ensureSession(workspaceSessionKey.value);
   try {
     const [detail, configurationMetadata] = await Promise.all([
       getProject(projectId.value),
@@ -1318,10 +1327,10 @@ async function loadWorkspaceDirectory(path: string, options?: { root?: boolean }
 
     if (options?.root) {
       currentWorkspacePath.value = response.current_path || '';
-      workspaceStore.replaceTree(items);
+      workspaceStore.replaceTree(workspaceSessionKey.value, items);
     } else {
       currentWorkspacePath.value = normalizedPath;
-      workspaceStore.ingestTree(items, normalizedPath);
+      workspaceStore.ingestTree(workspaceSessionKey.value, items, normalizedPath);
     }
 
     if (!activeTabPath.value && options?.root) {
@@ -1359,7 +1368,7 @@ function sortWorkspaceItems(items: ProjectWorkspaceTreeItem[]) {
 
 function handleWorkspaceEntry(item: WorkspaceListItem) {
   selectedWorkspacePath.value = item.relative_path;
-  workspaceStore.selectNode(item.relative_path);
+  workspaceStore.selectNode(workspaceSessionKey.value, item.relative_path);
   if (item.node_type === 'directory') {
     void toggleWorkspaceDirectory(item);
     return;
@@ -1388,7 +1397,7 @@ function updateWorkspaceEditorContent(path: string, content: string) {
   const buffer = openFileMap.get(path);
   if (buffer) {
     buffer.content = content;
-    workspaceStore.setFileContent(path, content);
+    workspaceStore.setFileContent(workspaceSessionKey.value, path, content);
   }
 }
 
@@ -1608,13 +1617,13 @@ async function toggleWorkspaceDirectory(item: WorkspaceListItem) {
   selectedWorkspacePath.value = path;
   if (expandedDirectoryPaths.value.includes(path)) {
     expandedDirectoryPaths.value = expandedDirectoryPaths.value.filter((value) => value !== path);
-    workspaceStore.setExpanded(path, false);
+    workspaceStore.setExpanded(workspaceSessionKey.value, path, false);
     return;
   }
 
   expandedDirectoryPaths.value = [...expandedDirectoryPaths.value, path];
-  workspaceStore.setExpanded(path, true);
-  if (!workspaceStore.activeSession.nodesByKey[path]?.childrenLoaded && item.has_children) {
+  workspaceStore.setExpanded(workspaceSessionKey.value, path, true);
+  if (!workspaceStore.session(workspaceSessionKey.value).nodesByKey[path]?.childrenLoaded && item.has_children) {
     await loadWorkspaceDirectory(path);
   }
 }
@@ -1674,7 +1683,7 @@ function patchWorkspaceItem(nextItem: WorkspaceListItem) {
     return;
   }
 
-  workspaceStore.patchNode(nextItem);
+  workspaceStore.patchNode(workspaceSessionKey.value, nextItem);
 }
 
 let latestOpenRequestPath = '';

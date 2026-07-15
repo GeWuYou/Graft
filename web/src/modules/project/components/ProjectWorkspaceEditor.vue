@@ -300,7 +300,7 @@ const props = withDefaults(
     activePath: string;
     editorAriaLabel: string;
     editorDefaultHeight?: number;
-    editorHeightStorageKey?: string;
+    editorHeightStorageKey: string;
     emptyDescription: string;
     fullscreen?: boolean;
     labels: ProjectWorkspaceEditorLabels;
@@ -321,7 +321,6 @@ const props = withDefaults(
   }>(),
   {
     editorDefaultHeight: 520,
-    editorHeightStorageKey: undefined,
     fullscreen: false,
     sidebarMaxWidth: 360,
     sidebarMinWidth: 208,
@@ -470,6 +469,50 @@ onBeforeUnmount(() => {
 <style scoped>
 .project-workspace-editor {
   min-width: 0;
+
+  --graft-workspace-editor-surface: color-mix(
+    in srgb,
+    var(--td-bg-color-container) 84%,
+    var(--graft-shell-content-bg, var(--td-bg-color-page)) 16%
+  );
+  --graft-workspace-editor-surface-raised: color-mix(
+    in srgb,
+    var(--graft-workspace-editor-surface) 82%,
+    var(--td-bg-color-container-hover) 18%
+  );
+  --graft-workspace-editor-surface-muted: color-mix(
+    in srgb,
+    var(--graft-workspace-editor-surface) 78%,
+    var(--graft-shell-content-bg, var(--td-bg-color-page)) 22%
+  );
+  --graft-workspace-editor-border: color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  --graft-workspace-editor-foreground: var(--td-text-color-primary);
+  --graft-workspace-editor-foreground-muted: color-mix(
+    in srgb,
+    var(--td-text-color-secondary) 92%,
+    var(--td-text-color-primary)
+  );
+  --graft-workspace-editor-foreground-subtle: color-mix(in srgb, var(--td-text-color-placeholder) 78%, transparent);
+  --graft-workspace-editor-accent: var(--td-brand-color-6);
+  --graft-workspace-editor-line-highlight: color-mix(in srgb, var(--td-brand-color-6) 13%, transparent);
+  --graft-workspace-editor-selection: color-mix(in srgb, var(--td-brand-color-6) 28%, transparent);
+  --graft-workspace-editor-selection-inactive: color-mix(in srgb, var(--td-brand-color-6) 18%, transparent);
+  --graft-workspace-editor-indent-guide: color-mix(in srgb, var(--td-text-color-placeholder) 24%, transparent);
+  --graft-workspace-editor-indent-guide-active: color-mix(
+    in srgb,
+    var(--td-brand-color-6) 30%,
+    var(--td-component-stroke)
+  );
+  --graft-workspace-editor-find-match: color-mix(in srgb, var(--td-brand-color-6) 24%, var(--td-warning-color-1));
+  --graft-workspace-editor-find-match-border: color-mix(
+    in srgb,
+    var(--td-brand-color-6) 52%,
+    var(--td-component-stroke)
+  );
+  --graft-workspace-editor-diff-added: color-mix(in srgb, var(--td-success-color-5) 18%, transparent);
+  --graft-workspace-editor-diff-removed: color-mix(in srgb, var(--td-error-color-5) 18%, transparent);
+  --graft-workspace-tab-hover: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
+  --graft-workspace-tab-indicator: var(--td-brand-color-6);
 }
 
 .project-workspace-editor__main-grid {
@@ -509,13 +552,21 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__browser-card {
+  background: var(--graft-workspace-editor-surface-muted);
+  border-color: var(--graft-workspace-editor-border);
+  box-shadow: none;
   height: 100%;
+}
+
+.project-workspace-editor__browser-card :deep(.t-card__header) {
+  padding-bottom: var(--graft-density-gap-8);
 }
 
 .project-workspace-editor__browser-card :deep(.t-card__body) {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding-top: var(--graft-density-gap-8);
 }
 
 .project-workspace-editor__browser-heading {
@@ -556,7 +607,7 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__tree-row--active {
-  background: color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
+  background: color-mix(in srgb, var(--td-brand-color-6) 12%, transparent);
 }
 
 .project-workspace-editor__tree-row--selected {
@@ -653,9 +704,9 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__editor-stack {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-default);
+  background: var(--graft-workspace-editor-surface);
+  border: 1px solid var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-large);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -663,6 +714,7 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__editor-surface {
+  background: var(--graft-workspace-editor-surface);
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -670,8 +722,8 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__tabbar {
-  background: var(--td-bg-color-container);
-  border-bottom: 1px solid var(--td-component-border);
+  background: var(--graft-workspace-editor-surface-raised);
+  border-bottom: 1px solid var(--graft-workspace-editor-border);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   min-width: 0;
@@ -685,7 +737,7 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__tabbar :deep(.t-tabs__header) {
-  background: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 4%, transparent), transparent);
   border-bottom: 0;
   margin: 0;
   padding: 0;
@@ -702,7 +754,27 @@ onBeforeUnmount(() => {
 }
 
 .project-workspace-editor__tabbar :deep(.t-tabs__nav-item) {
+  border-top: 2px solid transparent;
   min-height: 42px;
+}
+
+.project-workspace-editor__tabbar :deep(.t-tabs__bar) {
+  display: none;
+}
+
+.project-workspace-editor__tabbar :deep(.t-tabs__nav-item:hover) {
+  background: var(--graft-workspace-tab-hover);
+  color: var(--td-text-color-primary);
+}
+
+.project-workspace-editor__tabbar :deep(.t-tabs__nav-item.t-is-active) {
+  background: color-mix(in srgb, var(--td-brand-color-6) 6%, transparent);
+  border-top-color: var(--graft-workspace-tab-indicator);
+  color: var(--td-text-color-primary);
+}
+
+.project-workspace-editor__tabbar :deep(.t-tabs__nav-item + .t-tabs__nav-item) {
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--graft-workspace-editor-border) 72%, transparent);
 }
 
 .project-workspace-editor__tabbar :deep(.t-tabs__content) {

@@ -1,4 +1,6 @@
+import { mount } from '@vue/test-utils';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { useDebugStore } from '@/store/modules/debug';
 import { store } from '@/store/pinia';
@@ -9,7 +11,7 @@ import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 const originalQueryCommandSupported = document.queryCommandSupported;
 document.queryCommandSupported = vi.fn(() => false);
-const { createProjectMonacoRelayoutBridge } = await import('./project-monaco');
+const { createProjectMonacoRelayoutBridge, useProjectMonacoLifecycle } = await import('./project-monaco');
 
 function resetProjectMonacoDebugState() {
   const debugStore = useDebugStore(store);
@@ -170,4 +172,53 @@ describe('project-monaco relayout bridge', () => {
     expect(layout).toHaveBeenCalledTimes(1);
     expect(settled).toBe(true);
   }, 20000);
+});
+
+describe('project-monaco lifecycle', () => {
+  it('reapplies the active workspace theme when a KeepAlive surface is reactivated', async () => {
+    const visible = ref(true);
+    const host = document.createElement('div');
+    host.style.setProperty('--graft-workspace-editor-surface', 'rgb(255 255 255)');
+    document.body.appendChild(host);
+
+    const setTheme = vi.fn();
+    const monacoInstance = {
+      editor: {
+        defineTheme: vi.fn(),
+        setTheme,
+      },
+    } as never;
+
+    const MonacoLifecycleSurface = defineComponent({
+      name: 'MonacoLifecycleSurface',
+      setup() {
+        useProjectMonacoLifecycle({
+          createEditor: () => undefined,
+          disposeEditor: () => undefined,
+          getMonaco: () => monacoInstance,
+          getThemeHost: () => host,
+        });
+        return () => h('div');
+      },
+    });
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          return () => h(KeepAlive, null, () => (visible.value ? h(MonacoLifecycleSurface) : null));
+        },
+      }),
+    );
+    await nextTick();
+    const initialThemeApplications = setTheme.mock.calls.length;
+
+    visible.value = false;
+    await nextTick();
+    visible.value = true;
+    await nextTick();
+
+    expect(setTheme.mock.calls.length).toBeGreaterThan(initialThemeApplications);
+    wrapper.unmount();
+    host.remove();
+  });
 });

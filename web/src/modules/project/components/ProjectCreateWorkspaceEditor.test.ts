@@ -54,6 +54,16 @@ describe('ProjectCreateWorkspaceEditor', () => {
     expect(wrapper.text()).toContain('nginx.conf');
   });
 
+  it('provides a stable editor-height storage key to the shared viewer frame', () => {
+    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+      props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
+    });
+
+    expect(wrapper.findComponent({ name: 'ContentViewerFrame' }).props('storageKey')).toBe(
+      'graft.project.create-workspace.editor.height',
+    );
+  });
+
   it('creates unrestricted file names through the tree context menu', async () => {
     const wrapper = mount(ProjectCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },

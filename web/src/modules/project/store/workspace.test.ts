@@ -8,8 +8,8 @@ describe('project workspace store', () => {
 
   it('normalizes arbitrary nested paths into one parent-child tree', () => {
     const store = useProjectWorkspaceStore();
-    store.activateSession('test');
-    store.replaceTree([
+    store.ensureSession('test');
+    store.replaceTree('test', [
       {
         editable: true,
         file_kind: 'text',
@@ -39,9 +39,9 @@ describe('project workspace store', () => {
       },
     ]);
 
-    expect(store.workspaceTree.map((node) => node.relative_path)).toEqual(['app', 'sql']);
-    store.setExpanded('sql', true);
-    expect(store.visibleTreeRows.map((row) => row.item.relative_path)).toEqual([
+    expect(store.workspaceTree('test').map((node) => node.relative_path)).toEqual(['app', 'sql']);
+    store.setExpanded('test', 'sql', true);
+    expect(store.visibleTreeRows('test').map((row) => row.item.relative_path)).toEqual([
       'app',
       'sql',
       'sql/data.sql',
@@ -51,8 +51,8 @@ describe('project workspace store', () => {
 
   it('keeps editor state separate while opening a deep file expands its ancestors', () => {
     const store = useProjectWorkspaceStore();
-    store.activateSession('test');
-    store.replaceTree([
+    store.ensureSession('test');
+    store.replaceTree('test', [
       {
         editable: true,
         file_kind: 'config',
@@ -64,12 +64,60 @@ describe('project workspace store', () => {
       },
     ]);
 
-    store.openFile('app/config.yaml', { content: 'enabled: true', loaded: true, savedContent: 'enabled: true' });
-    store.setFileContent('app/config.yaml', 'enabled: false');
+    store.openFile('test', 'app/config.yaml', {
+      content: 'enabled: true',
+      loaded: true,
+      savedContent: 'enabled: true',
+    });
+    store.setFileContent('test', 'app/config.yaml', 'enabled: false');
 
-    expect(store.activeFile?.content).toBe('enabled: false');
-    expect(store.activeSession.expandedKeys).toContain('app');
-    expect(store.activeSession.dirtyFiles).toEqual(['app/config.yaml']);
-    expect(store.activeSession.nodesByKey['app/config.yaml'].childKeys).toEqual([]);
+    expect(store.activeFile('test')?.content).toBe('enabled: false');
+    expect(store.session('test').expandedKeys).toContain('app');
+    expect(store.session('test').dirtyFiles).toEqual(['app/config.yaml']);
+    expect(store.session('test').nodesByKey['app/config.yaml'].childKeys).toEqual([]);
+  });
+
+  it('keeps configuration and creation sessions isolated when both workspaces stay mounted', () => {
+    const store = useProjectWorkspaceStore();
+    store.replaceTree('project:shared-postgres', [
+      {
+        editable: true,
+        file_kind: 'compose',
+        has_children: false,
+        name: 'docker-compose.yml',
+        node_type: 'file',
+        readable: true,
+        relative_path: 'docker-compose.yml',
+      },
+    ]);
+    store.openFile('project:shared-postgres', 'docker-compose.yml', {
+      content: 'services:\n  postgres: {}',
+      loaded: true,
+      savedContent: 'services:\n  postgres: {}',
+    });
+
+    store.replaceTree('project-create-workspace', [
+      {
+        editable: true,
+        file_kind: 'env',
+        has_children: false,
+        name: '.env',
+        node_type: 'file',
+        readable: true,
+        relative_path: '.env',
+      },
+    ]);
+    store.openFile('project-create-workspace', '.env', {
+      content: 'APP_PORT=8080',
+      loaded: true,
+      savedContent: 'APP_PORT=8080',
+    });
+    store.setFileContent('project-create-workspace', '.env', 'APP_PORT=3000');
+
+    expect(store.activeFile('project:shared-postgres')?.content).toBe('services:\n  postgres: {}');
+    expect(store.openedFiles('project:shared-postgres').map((file) => file.path)).toEqual(['docker-compose.yml']);
+    expect(store.activeFile('project-create-workspace')?.content).toBe('APP_PORT=3000');
+    expect(store.session('project:shared-postgres').dirtyFiles).toEqual([]);
+    expect(store.session('project-create-workspace').dirtyFiles).toEqual(['.env']);
   });
 });

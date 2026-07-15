@@ -54,7 +54,6 @@ type WorkspaceSession = {
 };
 
 type WorkspaceState = {
-  activeSessionKey: string;
   sessions: Record<string, WorkspaceSession>;
 };
 
@@ -130,51 +129,68 @@ function ensureAncestorsExpanded(session: WorkspaceSession, key: string) {
 }
 
 export const useProjectWorkspaceStore = defineStore('project-workspace', {
-  state: (): WorkspaceState => ({ activeSessionKey: '', sessions: {} }),
+  state: (): WorkspaceState => ({ sessions: {} }),
   getters: {
-    activeSession(state): WorkspaceSession {
-      return state.sessions[state.activeSessionKey] ?? createSession();
-    },
-    workspaceTree(): WorkspaceNode[] {
-      return this.activeSession.rootKeys
-        .map((key) => this.activeSession.nodesByKey[key])
-        .filter((node): node is WorkspaceNode => Boolean(node));
-    },
-    visibleTreeRows(): WorkspaceTreeRow[] {
-      const session = this.activeSession;
-      const rows: WorkspaceTreeRow[] = [];
-      const visit = (keys: string[], depth: number) => {
-        for (const key of sortKeys(session.nodesByKey, keys)) {
-          const node = session.nodesByKey[key];
-          if (!node) continue;
-          const expanded = node.node_type === 'directory' && session.expandedKeys.includes(key);
-          rows.push({ depth, expanded, item: node });
-          if (expanded) visit(node.childKeys, depth + 1);
-        }
-      };
-      visit(session.rootKeys, 0);
-      return rows;
-    },
-    openedFiles(): OpenedWorkspaceFile[] {
-      return this.activeSession.openedTabs
-        .map((key) => this.activeSession.fileContents[key])
-        .filter((file): file is OpenedWorkspaceFile => Boolean(file));
-    },
-    activeFile(): OpenedWorkspaceFile | null {
-      return this.activeSession.fileContents[this.activeSession.activeFileKey] ?? null;
-    },
+    session:
+      (state) =>
+      (key: string): WorkspaceSession => {
+        return state.sessions[key] ?? createSession();
+      },
+    workspaceTree:
+      (state) =>
+      (sessionKey: string): WorkspaceNode[] => {
+        const session = state.sessions[sessionKey] ?? createSession();
+        return session.rootKeys
+          .map((key) => session.nodesByKey[key])
+          .filter((node): node is WorkspaceNode => Boolean(node));
+      },
+    visibleTreeRows:
+      (state) =>
+      (sessionKey: string): WorkspaceTreeRow[] => {
+        const session = state.sessions[sessionKey] ?? createSession();
+        const rows: WorkspaceTreeRow[] = [];
+        const visit = (keys: string[], depth: number) => {
+          for (const key of sortKeys(session.nodesByKey, keys)) {
+            const node = session.nodesByKey[key];
+            if (!node) continue;
+            const expanded = node.node_type === 'directory' && session.expandedKeys.includes(key);
+            rows.push({ depth, expanded, item: node });
+            if (expanded) visit(node.childKeys, depth + 1);
+          }
+        };
+        visit(session.rootKeys, 0);
+        return rows;
+      },
+    openedFiles:
+      (state) =>
+      (sessionKey: string): OpenedWorkspaceFile[] => {
+        const session = state.sessions[sessionKey] ?? createSession();
+        return session.openedTabs
+          .map((key) => session.fileContents[key])
+          .filter((file): file is OpenedWorkspaceFile => Boolean(file));
+      },
+    activeFile:
+      (state) =>
+      (sessionKey: string): OpenedWorkspaceFile | null => {
+        const session = state.sessions[sessionKey] ?? createSession();
+        return session.fileContents[session.activeFileKey] ?? null;
+      },
   },
   actions: {
-    activateSession(key: string) {
+    ensureSession(key: string) {
       if (!this.sessions[key]) this.sessions[key] = createSession();
-      this.activeSessionKey = key;
+      return this.sessions[key];
     },
-    clearActiveSession() {
-      if (this.activeSessionKey) delete this.sessions[this.activeSessionKey];
-      this.activeSessionKey = '';
+    clearSession(key: string) {
+      delete this.sessions[key];
     },
-    ingestTree(entries: ProjectWorkspaceTreeItem[], parentKey: string | null = null, childrenLoaded = true) {
-      const session = this.activeSession;
+    ingestTree(
+      sessionKey: string,
+      entries: ProjectWorkspaceTreeItem[],
+      parentKey: string | null = null,
+      childrenLoaded = true,
+    ) {
+      const session = this.ensureSession(sessionKey);
       const normalizedParentKey = parentKey ? normalizePath(parentKey) : null;
       if (normalizedParentKey) ensureDirectory(session, normalizedParentKey);
       const incomingKeys: string[] = [];
@@ -215,18 +231,18 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         );
       }
     },
-    replaceTree(entries: ProjectWorkspaceTreeItem[]) {
-      const session = this.activeSession;
+    replaceTree(sessionKey: string, entries: ProjectWorkspaceTreeItem[]) {
+      const session = this.ensureSession(sessionKey);
       const preservedExpanded = session.expandedKeys;
       const preservedSelected = session.selectedKey;
       session.nodesByKey = {};
       session.rootKeys = [];
-      this.ingestTree(entries);
+      this.ingestTree(sessionKey, entries);
       session.expandedKeys = preservedExpanded.filter((key) => Boolean(session.nodesByKey[key]));
       session.selectedKey = session.nodesByKey[preservedSelected] ? preservedSelected : '';
     },
-    setExpanded(key: string, expanded: boolean) {
-      const session = this.activeSession;
+    setExpanded(sessionKey: string, key: string, expanded: boolean) {
+      const session = this.ensureSession(sessionKey);
       const normalizedKey = normalizePath(key);
       if (!session.nodesByKey[normalizedKey] || session.nodesByKey[normalizedKey].node_type !== 'directory') return;
       session.expandedKeys = expanded
@@ -234,11 +250,12 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         : session.expandedKeys.filter((item) => item !== normalizedKey);
       session.selectedKey = normalizedKey;
     },
-    patchNode(item: ProjectWorkspaceTreeItem) {
+    patchNode(sessionKey: string, item: ProjectWorkspaceTreeItem) {
       const key = normalizePath(item.relative_path);
-      const existing = this.activeSession.nodesByKey[key];
+      const session = this.ensureSession(sessionKey);
+      const existing = session.nodesByKey[key];
       if (!existing) return;
-      this.activeSession.nodesByKey[key] = {
+      session.nodesByKey[key] = {
         ...existing,
         ...item,
         childKeys: existing.childKeys,
@@ -246,12 +263,13 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         relative_path: key,
       };
     },
-    selectNode(key: string) {
+    selectNode(sessionKey: string, key: string) {
       const normalizedKey = normalizePath(key);
-      if (this.activeSession.nodesByKey[normalizedKey]) this.activeSession.selectedKey = normalizedKey;
+      const session = this.ensureSession(sessionKey);
+      if (session.nodesByKey[normalizedKey]) session.selectedKey = normalizedKey;
     },
-    openFile(key: string, content?: Partial<OpenedWorkspaceFile>) {
-      const session = this.activeSession;
+    openFile(sessionKey: string, key: string, content?: Partial<OpenedWorkspaceFile>) {
+      const session = this.ensureSession(sessionKey);
       const normalizedKey = normalizePath(key);
       const node = session.nodesByKey[normalizedKey];
       if (!node || node.node_type !== 'file') return;
@@ -280,26 +298,28 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
       session.selectedKey = normalizedKey;
       ensureAncestorsExpanded(session, normalizedKey);
     },
-    setFileContent(key: string, content: string) {
-      const file = this.activeSession.fileContents[normalizePath(key)];
+    setFileContent(sessionKey: string, key: string, content: string) {
+      const session = this.ensureSession(sessionKey);
+      const file = session.fileContents[normalizePath(key)];
       if (!file || !file.editable) return;
       file.content = content;
-      this.syncDirtyFile(file.path);
+      this.syncDirtyFile(sessionKey, file.path);
     },
-    markFileSaved(key: string, content?: string) {
-      const file = this.activeSession.fileContents[normalizePath(key)];
+    markFileSaved(sessionKey: string, key: string, content?: string) {
+      const session = this.ensureSession(sessionKey);
+      const file = session.fileContents[normalizePath(key)];
       if (!file) return;
       file.content = content ?? file.content;
       file.savedContent = file.content;
       file.loaded = true;
-      this.syncDirtyFile(file.path);
+      this.syncDirtyFile(sessionKey, file.path);
     },
-    syncOpenedFiles(files: OpenedWorkspaceFile[], activeFileKey: string) {
-      const session = this.activeSession;
+    syncOpenedFiles(sessionKey: string, files: OpenedWorkspaceFile[], activeFileKey: string) {
+      const session = this.ensureSession(sessionKey);
       session.openedTabs = files.map((file) => file.path);
       for (const file of files) {
         session.fileContents[file.path] = { ...file };
-        this.syncDirtyFile(file.path);
+        this.syncDirtyFile(sessionKey, file.path);
       }
       for (const path of Object.keys(session.fileContents)) {
         if (!session.openedTabs.includes(path)) delete session.fileContents[path];
@@ -308,8 +328,8 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         ? activeFileKey
         : (session.openedTabs.at(-1) ?? '');
     },
-    syncDirtyFile(key: string) {
-      const session = this.activeSession;
+    syncDirtyFile(sessionKey: string, key: string) {
+      const session = this.ensureSession(sessionKey);
       const file = session.fileContents[normalizePath(key)];
       if (!file) return;
       const dirty = hasWorkspaceUnsavedChanges(file.content, file.savedContent);
@@ -317,8 +337,8 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         ? [...new Set([...session.dirtyFiles, file.path])]
         : session.dirtyFiles.filter((path) => path !== file.path);
     },
-    closeFile(key: string) {
-      const session = this.activeSession;
+    closeFile(sessionKey: string, key: string) {
+      const session = this.ensureSession(sessionKey);
       const normalizedKey = normalizePath(key);
       session.openedTabs = session.openedTabs.filter((path) => path !== normalizedKey);
       if (session.activeFileKey === normalizedKey) session.activeFileKey = session.openedTabs.at(-1) ?? '';
