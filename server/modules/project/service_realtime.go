@@ -267,7 +267,7 @@ func parseProjectRealtimeTopicApplicationID(topic string, prefix string) (string
 	return applicationID, nil
 }
 
-// mapProjectRealtimeError maps project errors to realtime subscription errors.
+// mapProjectRealtimeError 将项目错误映射为实时订阅错误，保持订阅接口的外部错误语义稳定。
 func mapProjectRealtimeError(err error) error {
 	switch {
 	case errors.Is(err, errProjectNotFound):

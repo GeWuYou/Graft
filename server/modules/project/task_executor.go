@@ -86,8 +86,8 @@ func (e *composeStageExecutor) Cancel(_ context.Context, run moduleapi.StageRun)
 	return nil
 }
 
-// registerProjectTaskExecutors registers project Compose stage executors and the task-owner authorizer.
-// It returns an error if the task runtime registrar is unavailable or any registration fails.
+// registerProjectTaskExecutors 注册项目 Compose 阶段执行器和任务 owner 鉴权器。
+// 任务运行时注册器不可用或任一注册失败时返回错误。
 func registerProjectTaskExecutors(registrar moduleapi.TaskRuntimeRegistrar, service *Service) error {
 	if registrar == nil {
 		return errors.New("task runtime registrar is unavailable")

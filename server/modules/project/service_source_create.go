@@ -10,7 +10,7 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 )
 
-// TemplateProjectCreateRequest selects one operator-managed workspace template.
+// TemplateProjectCreateRequest 选择一个由操作员管理的工作区模板。
 type TemplateProjectCreateRequest struct {
 	DisplayName          string
 	RuntimeTargetID      uint64
@@ -21,7 +21,7 @@ type TemplateProjectCreateRequest struct {
 	LifecycleConfig      *LifecycleStandardConfig
 }
 
-// CreateTemplateProject materializes an operator-managed runtime template and registers it through the shared pipeline.
+// CreateTemplateProject 将操作员管理的运行时模板物化为工作区，并通过共享流水线登记项目。
 func (s *Service) CreateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
 	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request, true)
 	if err != nil {
@@ -30,7 +30,7 @@ func (s *Service) CreateTemplateProject(ctx context.Context, request TemplatePro
 	return s.createMaterializedSourceProject(ctx, workspace, projectcontract.SourceKindTemplate.String(), metadata, actorID)
 }
 
-// ValidateTemplateProject checks a runtime template and its eventual managed-root target without writing it.
+// ValidateTemplateProject 校验运行时模板及其最终受管根目录目标，不写入工作区。
 func (s *Service) ValidateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest) (ManagedProjectCreateValidationResult, error) {
 	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request, false)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 	return ManagedProjectCreateResult{Validation: validation, SourceType: sourceType, ProjectID: aggregate.Project.ID, ApplicationID: aggregate.Project.ApplicationID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
 }
 
-// resolveTemplateWorkspace loads a complete runtime template directory into one managed creation request.
+// resolveTemplateWorkspace 将完整运行时模板目录加载为一个受管创建请求。
 func (s *Service) resolveTemplateWorkspace(ctx context.Context, request TemplateProjectCreateRequest, seedDefault bool) (ManagedProjectCreateRequest, map[string]string, error) {
 	key := strings.TrimSpace(request.TemplateKey)
 	if key == "" {

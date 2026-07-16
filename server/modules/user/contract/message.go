@@ -9,6 +9,6 @@ func (k MenuMessageKey) String() string {
 }
 
 const (
-	// UserListMenuTitle identifies the localized title for the user list menu.
+	// UserListMenuTitle 标识用户列表菜单的本地化标题键。
 	UserListMenuTitle MenuMessageKey = "menu.security.users.title"
 )

@@ -6,53 +6,53 @@ func JoinRoute(group, fragment string) string {
 }
 
 const (
-	// RoleListMenuPath identifies the canonical role-management UI menu path.
+	// RoleListMenuPath 标识角色管理页面的规范菜单路径。
 	RoleListMenuPath = "/security/roles"
-	// PermissionListMenuPath identifies the canonical permission-management UI menu path.
+	// PermissionListMenuPath 标识权限管理页面的规范菜单路径。
 	PermissionListMenuPath = "/security/permissions"
 
-	// RolesGroup identifies the role-management route group.
+	// RolesGroup 标识角色管理路由组。
 	RolesGroup = "/roles"
-	// RoleCollection identifies the collection endpoint route fragment on the roles group.
+	// RoleCollection 标识角色集合接口在角色路由组下的路径片段。
 	RoleCollection = ""
-	// RoleDetailRoute identifies the single-role detail endpoint route fragment.
+	// RoleDetailRoute 标识单个角色详情接口的路径片段。
 	RoleDetailRoute = "/:id"
-	// RoleUpdateRoute identifies the role update endpoint route fragment.
+	// RoleUpdateRoute 标识角色更新接口的路径片段。
 	RoleUpdateRoute = "/:id/update"
-	// RoleStatusRoute identifies the role status endpoint route fragment.
+	// RoleStatusRoute 标识角色状态更新接口的路径片段。
 	RoleStatusRoute = "/:id/status"
-	// RoleDeleteRoute identifies the role soft-delete endpoint route fragment.
+	// RoleDeleteRoute 标识角色软删除接口的路径片段。
 	RoleDeleteRoute = "/:id/delete"
-	// RolePermissionReplaceRoute identifies the role-permission replace endpoint route fragment.
+	// RolePermissionReplaceRoute 标识覆盖角色权限绑定接口的路径片段。
 	RolePermissionReplaceRoute = "/:id/permissions/replace"
-	// RolePermissionAddRoute identifies the role-permission add endpoint route fragment.
+	// RolePermissionAddRoute 标识追加角色权限绑定接口的路径片段。
 	RolePermissionAddRoute = "/:id/permissions/add"
-	// RolePermissionRemoveRoute identifies the role-permission remove endpoint route fragment.
+	// RolePermissionRemoveRoute 标识移除角色权限绑定接口的路径片段。
 	RolePermissionRemoveRoute = "/:id/permissions/remove"
-	// RolePermissionBindingRoute identifies the role-permission binding snapshot endpoint route fragment.
+	// RolePermissionBindingRoute 标识角色权限绑定快照接口的路径片段。
 	RolePermissionBindingRoute = "/:id/permissions"
 
-	// PermissionsGroup identifies the permission-management route group.
+	// PermissionsGroup 标识权限管理路由组。
 	PermissionsGroup = "/permissions"
-	// PermissionCollection identifies the collection endpoint route fragment on the permissions group.
+	// PermissionCollection 标识权限集合接口在权限路由组下的路径片段。
 	PermissionCollection = ""
-	// PermissionDetailRoute identifies the single-permission detail endpoint route fragment.
+	// PermissionDetailRoute 标识单个权限详情接口的路径片段。
 	PermissionDetailRoute = "/:id"
 
-	// UsersGroup identifies the user-role assignment route group owned by the rbac module.
+	// UsersGroup 标识由 rbac 模块拥有的用户角色绑定路由组。
 	UsersGroup = "/users"
-	// UserRoleBindingRoute identifies the user-role binding snapshot endpoint route fragment.
+	// UserRoleBindingRoute 标识用户角色绑定快照接口的路径片段。
 	UserRoleBindingRoute = "/:id/roles"
-	// UserRoleReplaceRoute identifies the user-role replace endpoint route fragment.
+	// UserRoleReplaceRoute 标识覆盖用户角色绑定接口的路径片段。
 	UserRoleReplaceRoute = "/:id/roles/replace"
-	// UserRoleAddRoute identifies the user-role add endpoint route fragment.
+	// UserRoleAddRoute 标识追加用户角色绑定接口的路径片段。
 	UserRoleAddRoute = "/:id/roles/add"
-	// UserRoleRemoveRoute identifies the user-role remove endpoint route fragment.
+	// UserRoleRemoveRoute 标识移除用户角色绑定接口的路径片段。
 	UserRoleRemoveRoute = "/:id/roles/remove"
-	// BatchUserRoleReplaceRoute identifies the batch user-role replace endpoint route fragment.
+	// BatchUserRoleReplaceRoute 标识批量覆盖用户角色绑定接口的路径片段。
 	BatchUserRoleReplaceRoute = "/roles/replace"
-	// BatchUserRoleAddRoute identifies the batch user-role add endpoint route fragment.
+	// BatchUserRoleAddRoute 标识批量追加用户角色绑定接口的路径片段。
 	BatchUserRoleAddRoute = "/roles/add"
-	// BatchUserRoleRemoveRoute identifies the batch user-role remove endpoint route fragment.
+	// BatchUserRoleRemoveRoute 标识批量移除用户角色绑定接口的路径片段。
 	BatchUserRoleRemoveRoute = "/roles/remove"
 )

@@ -1,104 +1,104 @@
 package contract
 
 const (
-	// ProjectAPIGroup is the API route group for Compose project management.
+	// ProjectAPIGroup 标识 Compose 项目管理 API 路由组。
 	ProjectAPIGroup = "/ops/projects"
-	// ProjectCollectionRoute identifies the project list route fragment.
+	// ProjectCollectionRoute 标识项目列表接口的路径片段。
 	ProjectCollectionRoute = ""
-	// ProjectSavedViewsRoute identifies the project-list saved-view collection route.
+	// ProjectSavedViewsRoute 标识项目列表保存视图集合接口的路径片段。
 	ProjectSavedViewsRoute = "/saved-views"
-	// ProjectSavedViewRoute identifies one project-list saved view.
+	// ProjectSavedViewRoute 标识单个项目列表保存视图接口的路径片段。
 	ProjectSavedViewRoute = "/saved-views/:viewId"
-	// ProjectDetailRoute identifies one project summary route fragment.
+	// ProjectDetailRoute 标识单个项目摘要接口的路径片段。
 	ProjectDetailRoute = "/:id"
-	// ProjectServicesRoute identifies the project services aggregation route fragment.
+	// ProjectServicesRoute 标识项目服务聚合接口的路径片段。
 	ProjectServicesRoute = "/:id/services"
-	// ProjectLogsRoute identifies the project-owned aggregated logs route fragment.
+	// ProjectLogsRoute 标识项目聚合日志接口的路径片段。
 	ProjectLogsRoute = "/:id/logs"
-	// ProjectOverviewRoute identifies the project runtime overview route fragment.
+	// ProjectOverviewRoute 标识项目运行时概览接口的路径片段。
 	ProjectOverviewRoute = "/:id/overview"
-	// ProjectConfigurationRoute identifies the project configuration metadata route fragment.
+	// ProjectConfigurationRoute 标识项目配置元数据接口的路径片段。
 	ProjectConfigurationRoute = "/:id/configuration"
-	// ProjectConfigurationPreviewRoute identifies the normalized configuration preview route fragment.
+	// ProjectConfigurationPreviewRoute 标识规范化配置预览接口的路径片段。
 	ProjectConfigurationPreviewRoute = "/:id/configuration/preview"
-	// ProjectWorkspaceFilesRoute identifies the lazy-loaded project-root file tree route fragment.
+	// ProjectWorkspaceFilesRoute 标识按需加载项目根目录文件树接口的路径片段。
 	ProjectWorkspaceFilesRoute = "/:id/files"
-	// ProjectWorkspaceFileContentRoute identifies the path-based project file read/write route fragment.
+	// ProjectWorkspaceFileContentRoute 标识按路径读写项目文件接口的路径片段。
 	ProjectWorkspaceFileContentRoute = "/:id/files/content"
-	// ProjectWorkspaceFileAnnotationRoute identifies the path-based workspace annotation write route fragment.
+	// ProjectWorkspaceFileAnnotationRoute 标识按路径写入工作区注释接口的路径片段。
 	ProjectWorkspaceFileAnnotationRoute = "/:id/files/annotation"
-	// ProjectWorkspaceEntryRoute identifies project workspace entry mutation routes.
+	// ProjectWorkspaceEntryRoute 标识项目工作区条目变更接口的路径片段。
 	ProjectWorkspaceEntryRoute = "/:id/files/entries"
-	// ProjectWorkspaceRenameRoute identifies project workspace entry rename routes.
+	// ProjectWorkspaceRenameRoute 标识项目工作区条目重命名接口的路径片段。
 	ProjectWorkspaceRenameRoute = "/:id/files/rename"
-	// ProjectImportValidateRoute identifies the import validation route fragment.
+	// ProjectImportValidateRoute 标识项目导入校验接口的路径片段。
 	ProjectImportValidateRoute = "/import/validate"
-	// ProjectImportRuntimeCandidatesRoute identifies the runtime-driven import candidate list route fragment.
+	// ProjectImportRuntimeCandidatesRoute 标识运行时驱动的导入候选列表接口路径片段。
 	ProjectImportRuntimeCandidatesRoute = "/import/runtime-candidates"
-	// ProjectImportRuntimeInspectRoute identifies the runtime-driven import inspection route fragment.
+	// ProjectImportRuntimeInspectRoute 标识运行时驱动的导入检查接口路径片段。
 	ProjectImportRuntimeInspectRoute = "/import/runtime-inspect"
-	// ProjectImportInspectRoute identifies the import inspection route fragment.
+	// ProjectImportInspectRoute 标识项目导入检查接口的路径片段。
 	ProjectImportInspectRoute = "/import/inspect"
-	// ProjectImportRoute identifies the import-and-register route fragment.
+	// ProjectImportRoute 标识项目导入并注册接口的路径片段。
 	ProjectImportRoute = "/import"
-	// ProjectImportDirectorySourcesRoute identifies the available import directory source roots route fragment.
+	// ProjectImportDirectorySourcesRoute 标识可用导入目录源根接口的路径片段。
 	ProjectImportDirectorySourcesRoute = "/import/directory-sources"
-	// ProjectImportDirectoriesRoute identifies the root-relative import directory browse route fragment.
+	// ProjectImportDirectoriesRoute 标识按根目录相对路径浏览导入目录接口的路径片段。
 	ProjectImportDirectoriesRoute = "/import/directories"
-	// ProjectCreationMethodsRoute identifies the project creation-method catalog route fragment.
+	// ProjectCreationMethodsRoute 标识项目创建方式目录接口的路径片段。
 	ProjectCreationMethodsRoute = "/creation-methods"
-	// ProjectDiscoveryCandidatesRoute identifies the bounded discovery-candidate preview route fragment.
+	// ProjectDiscoveryCandidatesRoute 标识有界发现候选预览接口的路径片段。
 	ProjectDiscoveryCandidatesRoute = "/discovery-candidates"
-	// ProjectCreationMethodSelectorRoute identifies the creation-method selector route fragment.
+	// ProjectCreationMethodSelectorRoute 标识创建方式选择器接口的路径片段。
 	ProjectCreationMethodSelectorRoute = "/create"
-	// ProjectComposeRuntimeTargetsRoute identifies the selectable runtime-target catalog for Compose creation.
+	// ProjectComposeRuntimeTargetsRoute 标识 Compose 创建可选运行时目标目录接口的路径片段。
 	ProjectComposeRuntimeTargetsRoute = "/create/runtime-targets"
-	// ProjectManagedRootRoute identifies the managed-root metadata route fragment.
+	// ProjectManagedRootRoute 标识受管根目录元数据接口的路径片段。
 	ProjectManagedRootRoute = "/managed/root"
-	// ProjectCreateValidateRoute identifies the managed-create validation route fragment.
+	// ProjectCreateValidateRoute 标识受管创建校验接口的路径片段。
 	ProjectCreateValidateRoute = "/create/managed/validate"
-	// ProjectApplicationNameAvailabilityRoute identifies the managed-create application-name preflight route fragment.
+	// ProjectApplicationNameAvailabilityRoute 标识受管创建应用名称预检接口的路径片段。
 	ProjectApplicationNameAvailabilityRoute = "/create/application-name/availability"
-	// ProjectCreateRoute identifies the managed-create route fragment.
+	// ProjectCreateRoute 标识受管创建接口的路径片段。
 	ProjectCreateRoute = "/create/managed"
 	// ProjectCreateTemplateValidateRoute validates a runtime template source without materializing it.
 	ProjectCreateTemplateValidateRoute = "/create/template/validate"
-	// ProjectCreateTemplateRoute identifies the future template source route fragment.
+	// ProjectCreateTemplateRoute 标识模板来源创建接口的路径片段。
 	ProjectCreateTemplateRoute = "/create/template"
-	// ProjectWorkspaceDefaultsRoute returns server-owned blank workspace defaults and available templates.
+	// ProjectWorkspaceDefaultsRoute 标识返回服务端拥有的空白工作区默认值和可用模板的接口路径片段。
 	ProjectWorkspaceDefaultsRoute = "/create/workspace-defaults"
-	// ProjectRefreshRoute identifies the static refresh route fragment.
+	// ProjectRefreshRoute 标识静态刷新接口的路径片段。
 	ProjectRefreshRoute = "/:id/refresh"
-	// ProjectUpRoute identifies the compose up route fragment.
+	// ProjectUpRoute 标识 Compose 启动接口的路径片段。
 	ProjectUpRoute = "/:id/up"
-	// ProjectStopRoute identifies the compose stop route fragment.
+	// ProjectStopRoute 标识 Compose 停止接口的路径片段。
 	ProjectStopRoute = "/:id/stop"
-	// ProjectRestartRoute identifies the compose restart route fragment.
+	// ProjectRestartRoute 标识 Compose 重启接口的路径片段。
 	ProjectRestartRoute = "/:id/restart"
-	// ProjectRedeployRoute identifies the compose redeploy route fragment.
+	// ProjectRedeployRoute 标识 Compose 重部署接口的路径片段。
 	ProjectRedeployRoute = "/:id/redeploy"
-	// ProjectLifecycleConfigurationRoute identifies the lifecycle configuration route fragment.
+	// ProjectLifecycleConfigurationRoute 标识项目生命周期配置接口的路径片段。
 	ProjectLifecycleConfigurationRoute = "/:id/lifecycle-configuration"
-	// ProjectUnregisterRoute identifies the unregister route fragment.
+	// ProjectUnregisterRoute 标识项目注销接口的路径片段。
 	ProjectUnregisterRoute = "/:id/unregister"
-	// ProjectDestroyRoute identifies the guarded destroy route fragment.
+	// ProjectDestroyRoute 标识受保护销毁接口的路径片段。
 	ProjectDestroyRoute = "/:id/destroy"
-	// ProjectBatchActionsRoute identifies the batch-action route fragment.
+	// ProjectBatchActionsRoute 标识批量动作接口的路径片段。
 	ProjectBatchActionsRoute = "/batch-actions"
-	// ProjectDeployRoute identifies the managed configuration deploy route fragment.
+	// ProjectDeployRoute 标识受管配置部署接口的路径片段。
 	ProjectDeployRoute = "/:id/deploy"
-	// ProjectMenuRootPath identifies the web menu root path for operations.
+	// ProjectMenuRootPath 标识运维页面的 Web 菜单根路径。
 	ProjectMenuRootPath = "/applications/projects"
-	// ProjectMenuPath identifies the canonical web menu path for Compose project management.
+	// ProjectMenuPath 标识 Compose 项目管理的规范 Web 菜单路径。
 	ProjectMenuPath = ProjectMenuRootPath
-	// ProjectCreationMenuPath identifies the global creation-method selector route path.
+	// ProjectCreationMenuPath 标识全局创建方式选择器路由路径。
 	ProjectCreationMenuPath = ProjectMenuRootPath + "/create"
-	// ProjectBlankCreateMenuPath identifies the blank-project create route path.
+	// ProjectBlankCreateMenuPath 标识空白项目创建路由路径。
 	ProjectBlankCreateMenuPath = ProjectCreationMenuPath + "/blank"
-	// ProjectTemplateCreateMenuPath identifies the template source create route path.
+	// ProjectTemplateCreateMenuPath 标识模板来源创建路由路径。
 	ProjectTemplateCreateMenuPath = ProjectCreationMenuPath + "/template"
-	// ProjectImportCreateMenuPath identifies the import-project create route path.
+	// ProjectImportCreateMenuPath 标识导入项目创建路由路径。
 	ProjectImportCreateMenuPath = ProjectCreationMenuPath + "/import"
-	// ProjectDiscoveryCandidatesMenuPath identifies the hidden discovery-candidate preview route path.
+	// ProjectDiscoveryCandidatesMenuPath 标识隐藏的发现候选预览路由路径。
 	ProjectDiscoveryCandidatesMenuPath = ProjectCreationMenuPath + "/discovery"
 )

@@ -176,7 +176,7 @@ func (s *Service) destroyAfterGuard(
 	}, nil
 }
 
-// UnsupportedLifecycleAction returns an explicit batch-2 blocked action result.
+// UnsupportedLifecycleAction 返回明确标记为当前阶段阻断的生命周期动作结果。
 func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
 	return ActionResult{
 		ProjectID:    projectID,

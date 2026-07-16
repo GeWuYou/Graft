@@ -129,7 +129,7 @@ func buildProjectAggregates(
 	return items
 }
 
-// Get returns one registered project aggregate.
+// Get 返回一个已登记的项目聚合；不存在或项目已软删除时返回 ErrProjectNotFound。
 func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectAggregate{}, err
@@ -175,13 +175,12 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 	return aggregate, nil
 }
 
-// GetByApplicationID resolves the public Application ID without exposing the
-// private database key in a caller-visible contract.
+// GetByApplicationID 根据公开 Application ID 解析项目，不向调用方暴露模块私有数据库主键。
 func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error) {
 	return r.getByLiveIdentifier(ctx, applicationID, "application_id", "application id")
 }
 
-// GetByApplicationName resolves a live managed application name without exposing the private database key.
+// GetByApplicationName 根据存活的受管应用名称解析项目，不向调用方暴露模块私有数据库主键。
 func (r *SQLRepository) GetByApplicationName(ctx context.Context, applicationName string) (ProjectAggregate, error) {
 	return r.getByLiveIdentifier(ctx, applicationName, "application_name", "application name")
 }
@@ -217,7 +216,7 @@ var liveProjectIdentifierQueries = map[string]string{
 	"application_name": `SELECT id FROM compose_projects WHERE application_name = ? AND deleted_at = 0`,
 }
 
-// GetIDsByApplicationIDs resolves public application identifiers in one query.
+// GetIDsByApplicationIDs 在一次查询中解析公开应用标识，避免为批量请求逐项读取聚合。
 func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error) {
 	result := make(map[string]uint64, len(applicationIDs))
 	if len(applicationIDs) == 0 {
@@ -255,7 +254,7 @@ func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationI
 	return result, nil
 }
 
-// GetFile returns one file within the requested project scope.
+// GetFile 返回指定项目范围内的一个文件；项目或文件不存在时返回对应错误。
 func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID uint64) (ProjectFile, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectFile{}, err
@@ -405,7 +404,7 @@ func (r *SQLRepository) UpdateLifecycleConfig(ctx context.Context, input UpdateL
 	return r.Get(ctx, input.ProjectID)
 }
 
-// UpdateWorkspaceAnnotation updates or removes one workspace annotation on the owning project row.
+// UpdateWorkspaceAnnotation 更新或删除项目行上的一个工作区注释，注释归属始终由项目记录限定。
 func (r *SQLRepository) UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ProjectAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectAggregate{}, err
@@ -579,7 +578,7 @@ func buildListWhere(query ListQuery) ([]string, []any) {
 	return where, args
 }
 
-// BackfillRuntimeTarget assigns the discovered Local Docker target to historical unbound local records.
+// BackfillRuntimeTarget 为历史上未绑定运行时目标的本地项目补齐已发现的 Local Docker 目标。
 func (r *SQLRepository) BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error {
 	if err := r.ensureReady(); err != nil {
 		return err

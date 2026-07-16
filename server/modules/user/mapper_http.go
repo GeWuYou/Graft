@@ -116,8 +116,8 @@ func toUserListItem(user userstore.User, roles []moduleapi.RoleSummary) (userLis
 	}, nil
 }
 
-// toGeneratedSessionSummariesFromCapability converts authentication session summaries to generated session summaries, applying the configured limit.
-// The returned summaries preserve the source order and include each session's identifier, creation time, expiration time, and current-session status.
+// toGeneratedSessionSummariesFromCapability 将 auth 提供的会话摘要转换为 OpenAPI 会话摘要，并应用调用方指定的数量上限。
+// 返回值保留来源顺序及会话标识、创建时间、过期时间和当前会话标记，避免 HTTP 映射层重新推断会话语义。
 func toGeneratedSessionSummariesFromCapability(
 	sessions []moduleapi.AuthSessionSummary,
 	options userSessionListOptions,

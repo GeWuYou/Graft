@@ -14,7 +14,7 @@ type userRepository struct {
 	client *ent.Client
 }
 
-// NewUserRepository builds the user module's Ent-backed user repository.
+// NewUserRepository 构建 user 模块基于 Ent 的用户仓储；客户端为空时返回错误。
 func NewUserRepository(client *ent.Client) (userstore.UserRepository, error) {
 	return newUserRepository(client)
 }

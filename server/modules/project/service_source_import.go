@@ -12,7 +12,7 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// CreationMethodCatalog returns creation methods without executing a method-specific workflow.
+// CreationMethodCatalog 返回创建方式及其可用性，不执行具体创建流程。
 func (s *Service) CreationMethodCatalog(ctx context.Context) (CreationMethodCatalogResult, error) {
 	managedRoot, err := s.ManagedRoot(ctx)
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *Service) CreationMethodCatalog(ctx context.Context) (CreationMethodCata
 	return CreationMethodCatalogResult{Items: items}, nil
 }
 
-// DiscoveryCandidates returns bounded local discovery candidates without auto-registering projects.
+// DiscoveryCandidates 返回有界的本地发现候选，不自动登记项目。
 func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesResult, error) {
 	managedRoot, err := s.ManagedRoot(ctx)
 	if err != nil {
@@ -70,7 +70,7 @@ func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesR
 	return result, nil
 }
 
-// ImportDirectorySources returns operator-allowlisted import roots plus managed-root injection.
+// ImportDirectorySources 返回操作员允许的导入根目录，并补充受管根目录来源。
 func (s *Service) ImportDirectorySources(ctx context.Context) (ImportDirectorySourceResult, error) {
 	roots, err := s.importRootDefinitions(ctx)
 	if err != nil {
@@ -90,7 +90,7 @@ func (s *Service) ImportDirectorySources(ctx context.Context) (ImportDirectorySo
 	return result, nil
 }
 
-// ListRuntimeImportCandidates returns runtime-driven Compose import candidates while keeping project as the inspect owner.
+// ListRuntimeImportCandidates 返回运行时驱动的 Compose 导入候选，同时保持 project 为检查权威 owner。
 func (s *Service) ListRuntimeImportCandidates(
 	ctx context.Context,
 	query RuntimeImportCandidateListQuery,
@@ -126,7 +126,7 @@ func (s *Service) ListRuntimeImportCandidates(
 	return buildRuntimeImportCandidatesResult(items, query), nil
 }
 
-// InspectRuntimeCandidate resolves a runtime candidate and reuses the inspect/import pipeline for preview generation.
+// InspectRuntimeCandidate 解析运行时候选，并复用检查/导入流水线生成预览。
 func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeImportInspectRequest) (RuntimeImportInspectResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
@@ -181,7 +181,7 @@ func listProjectConflictScanItems(
 	}
 }
 
-// BrowseImportDirectories returns a bounded root-relative directory listing for import flows.
+// BrowseImportDirectories 返回导入流程所需的有界根目录相对目录列表。
 func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirectoryBrowseQuery) (ImportDirectoryBrowseResult, error) {
 	query = normalizeDirectoryBrowseQuery(query)
 	root, err := s.resolveImportRoot(ctx, query.Provider, query.RootID)
@@ -215,7 +215,7 @@ func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirec
 	}, nil
 }
 
-// InspectImportDirectory discovers files, parses compose once, and stores a short-lived inspection session.
+// InspectImportDirectory 发现目录文件、只解析一次 Compose，并保存短期检查会话。
 func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInspectRequest) (ImportInspectResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
@@ -252,7 +252,7 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 	return importInspectResultFromSession(request.DirectoryRef, session), nil
 }
 
-// ImportByInspection validates inspection freshness and persists the inspected project.
+// ImportByInspection 校验检查会话的新鲜度后持久化已检查项目。
 func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
 	if s.inspectCache == nil {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired

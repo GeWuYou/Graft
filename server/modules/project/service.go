@@ -76,7 +76,7 @@ const (
 	importRuntimeReasonConfigFilesNotAccessible = "config_files_not_accessible"
 )
 
-// ListQuery describes project list filters.
+// ListQuery 描述项目列表筛选条件。
 type ListQuery struct {
 	Limit   int
 	Offset  int
@@ -91,7 +91,7 @@ type ListQuery struct {
 	DriftStatus     string
 }
 
-// ImportRequest describes batch-2 import validate and import payloads.
+// ImportRequest 描述当前阶段导入校验和导入请求载荷。
 type ImportRequest struct {
 	WorkingDirectory             string
 	DisplayName                  *string
@@ -101,7 +101,7 @@ type ImportRequest struct {
 	ActorID                      *uint64
 }
 
-// ListResult returns a paginated project list.
+// ListResult 返回分页项目列表。
 type ListResult struct {
 	Items  []generated.ProjectListItem
 	Total  int
@@ -109,17 +109,17 @@ type ListResult struct {
 	Offset int
 }
 
-// CreationMethodCatalogResult returns the available Compose project creation methods.
+// CreationMethodCatalogResult 返回可用的 Compose 项目创建方式。
 type CreationMethodCatalogResult struct {
 	Items []generated.ProjectCreationMethod
 }
 
-// ComposeRuntimeTargets returns registered runtime targets that implement the Compose capability contract.
+// ComposeRuntimeTargets 返回实现 Compose 能力契约的已注册运行时目标。
 func (s *Service) ComposeRuntimeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
 	return s.listComposeTargets(ctx)
 }
 
-// ActivityAuthority identifies the stable project activity authority contract.
+// ActivityAuthority 标识稳定的项目活动权威契约。
 type ActivityAuthority string
 
 const (
@@ -129,7 +129,7 @@ const (
 	ProjectActivityAuthorityBackendPlanned ActivityAuthority = "backend-planned"
 )
 
-// DiscoveryCandidateResult returns one bounded directory-scan or auto-discovery preview candidate.
+// DiscoveryCandidateResult 返回一个有界目录扫描或自动发现预览候选。
 type DiscoveryCandidateResult struct {
 	CandidateKey               string
 	CandidateKind              string
@@ -154,7 +154,7 @@ type DiscoveryCandidateResult struct {
 	Conflicts                  []string
 }
 
-// DiscoveryCandidatesResult returns the bounded scan/discovery candidate authority surface.
+// DiscoveryCandidatesResult 返回有界扫描/发现候选权威表面。
 type DiscoveryCandidatesResult struct {
 	SourceType            string
 	AuthorityRoot         *string
@@ -164,7 +164,7 @@ type DiscoveryCandidatesResult struct {
 	Items                 []DiscoveryCandidateResult
 }
 
-// ImportValidationResult returns the static import validation result.
+// ImportValidationResult 返回静态导入校验结果。
 type ImportValidationResult struct {
 	CanonicalProjectName       string
 	CanonicalProjectNameSource string
@@ -181,7 +181,7 @@ type ImportValidationResult struct {
 	InspectionID               *string
 }
 
-// ConfigurationMetadataResult returns readonly configuration metadata.
+// ConfigurationMetadataResult 返回只读配置元数据。
 type ConfigurationMetadataResult struct {
 	ProjectID          uint64
 	ComposeFiles       []generated.ProjectFileItem
@@ -191,7 +191,7 @@ type ConfigurationMetadataResult struct {
 	DiagnosticsSummary []string
 }
 
-// ConfigurationPreviewResult returns readonly normalized compose preview.
+// ConfigurationPreviewResult 返回只读规范化 Compose 配置预览。
 type ConfigurationPreviewResult struct {
 	ProjectID             uint64
 	CanonicalProjectName  string
@@ -200,7 +200,7 @@ type ConfigurationPreviewResult struct {
 	RefreshedAt           *time.Time
 }
 
-// ConfigurationFileResult returns readonly raw file content.
+// ConfigurationFileResult 返回只读原始文件内容。
 type ConfigurationFileResult struct {
 	FileID       uint64
 	Kind         string
@@ -269,7 +269,7 @@ type workspaceFileSaveResult struct {
 	SizeBytes    int64
 }
 
-// LifecycleStrategyKind identifies the internal lifecycle strategy owner.
+// LifecycleStrategyKind 标识内部生命周期策略 owner。
 type LifecycleStrategyKind string
 
 const (
@@ -283,7 +283,7 @@ const (
 	maxLifecycleWaitTimeoutSeconds     = 3600
 )
 
-// LifecycleReviewStatus identifies whether a lifecycle config can execute.
+// LifecycleReviewStatus 标识生命周期配置是否可以执行。
 type LifecycleReviewStatus string
 
 const (
@@ -293,7 +293,7 @@ const (
 	LifecycleReviewStatusConfirmed LifecycleReviewStatus = "confirmed"
 )
 
-// LifecycleStandardConfig stores editable standard compose execution options.
+// LifecycleStandardConfig 保存可编辑的标准 Compose 执行选项。
 type LifecycleStandardConfig struct {
 	Profiles                 []string
 	DownBeforeRedeploy       bool
@@ -308,7 +308,7 @@ type LifecycleStandardConfig struct {
 	AdditionalArgs           []string
 }
 
-// LifecycleConfiguration stores the project-owned lifecycle execution configuration.
+// LifecycleConfiguration 保存项目拥有的生命周期执行配置。
 type LifecycleConfiguration struct {
 	StrategyKind LifecycleStrategyKind
 	ReviewStatus LifecycleReviewStatus
@@ -318,7 +318,7 @@ type LifecycleConfiguration struct {
 	Standard     LifecycleStandardConfig
 }
 
-// DeployResult returns bounded managed deploy output.
+// DeployResult 返回有界的受管部署结果。
 type DeployResult struct {
 	ProjectID            uint64
 	Action               string
@@ -333,7 +333,7 @@ type DeployResult struct {
 	GuardResults         []GuardResult
 }
 
-// ActionResult returns bounded phase-1 action status.
+// ActionResult 返回第一阶段有界动作状态。
 type ActionResult struct {
 	ProjectID    uint64
 	Action       generated.ProjectActionResponseAction
@@ -343,7 +343,7 @@ type ActionResult struct {
 	GuardResults []GuardResult
 }
 
-// BatchActionRequest describes one project batch-action execution.
+// BatchActionRequest 描述一次项目批量动作执行。
 type BatchActionRequest struct {
 	Action                      generated.ProjectBatchActionRequestAction
 	ProjectIDs                  []uint64
@@ -355,13 +355,13 @@ type BatchActionRequest struct {
 	ActorID                     *uint64
 }
 
-// BatchActionItemResult returns one per-project batch-action result.
+// BatchActionItemResult 返回一个项目的批量动作结果。
 type BatchActionItemResult struct {
 	ActionResult
 	Skipped bool
 }
 
-// BatchActionResult returns the aggregate batch-action outcome with per-item results.
+// BatchActionResult 返回带逐项目结果的批量动作汇总结果。
 type BatchActionResult struct {
 	TotalCount     int
 	CompletedCount int
@@ -370,14 +370,14 @@ type BatchActionResult struct {
 	Items          []BatchActionItemResult
 }
 
-// GuardResult is the stable structured contract for blocked/guarded project actions.
+// GuardResult 是项目动作被阻断或受保护时使用的稳定结构化契约。
 type GuardResult struct {
 	Code       string
 	MessageKey *string
 	Detail     *string
 }
 
-// DestroyRequest describes guarded destroy options.
+// DestroyRequest 描述受保护销毁选项。
 type DestroyRequest struct {
 	RemoveNamedVolumes          bool
 	AutoUnregister              bool
@@ -387,7 +387,7 @@ type DestroyRequest struct {
 	ActorID                     *uint64
 }
 
-// ManagedRootInfo returns bounded managed-root contract metadata.
+// ManagedRootInfo 返回有界的受管根目录契约元数据。
 type ManagedRootInfo struct {
 	SourceType              string
 	Status                  string
@@ -399,7 +399,7 @@ type ManagedRootInfo struct {
 	StatusReason            *string
 }
 
-// ManagedProjectCreateRequest describes Phase 2 managed-create contract payloads.
+// ManagedProjectCreateRequest 描述受管创建契约载荷。
 type ManagedProjectCreateRequest struct {
 	DisplayName            string
 	RuntimeTargetID        uint64
@@ -415,14 +415,14 @@ type ManagedProjectCreateRequest struct {
 	LifecycleConfig        *LifecycleStandardConfig
 }
 
-// ManagedWorkspaceEntry represents either an arbitrary UTF-8 text file or an empty/non-empty directory.
+// ManagedWorkspaceEntry 表示任意 UTF-8 文本文件或空/非空目录。
 type ManagedWorkspaceEntry struct {
 	Path     string
 	NodeType string
 	Content  *string
 }
 
-// ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.
+// ManagedProjectCreateValidationResult 返回创建契约校验元数据，不写入文件。
 type ManagedProjectCreateValidationResult struct {
 	ManagedRoot             ManagedRootInfo
 	SourceType              string
@@ -442,7 +442,7 @@ type ManagedProjectCreateValidationResult struct {
 	ReusedExistingWorkspace bool
 }
 
-// ManagedProjectCreateResult returns the created managed project bootstrap after write + persist.
+// ManagedProjectCreateResult 返回文件写入并持久化后的受管项目启动信息。
 type ManagedProjectCreateResult struct {
 	Validation           ManagedProjectCreateValidationResult
 	SourceType           string
@@ -453,7 +453,7 @@ type ManagedProjectCreateResult struct {
 	RefreshedAt          time.Time
 }
 
-// Service owns project registry, import, and readonly refresh/configuration use cases.
+// Service 拥有项目注册、导入及只读刷新/配置用例。
 type Service struct {
 	repository                   projectstore.Repository
 	runtimeReader                moduleapi.ContainerProjectRuntimeReader
@@ -481,7 +481,7 @@ type Service struct {
 	debugConfig                  config.ProjectConfig
 }
 
-// SetTaskService configures the platform-owned Task Runtime submission boundary.
+// SetTaskService 配置平台拥有的 Task Runtime 提交边界。
 func (s *Service) SetTaskService(service moduleapi.TaskService) {
 	if s != nil {
 		s.taskService = service
@@ -506,7 +506,7 @@ func NewService(repository projectstore.Repository, options ...ServiceOption) (*
 	return service, nil
 }
 
-// ServiceOption customizes project service dependencies.
+// ServiceOption 定制项目服务依赖。
 type ServiceOption interface{ apply(*Service) }
 
 type serviceOptionFunc func(*Service)

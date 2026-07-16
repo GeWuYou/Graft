@@ -1,4 +1,4 @@
-// Package compose provides bounded static compose parsing for project import and refresh.
+// Package compose 提供项目导入和刷新使用的有界静态 Compose 解析能力。
 package compose
 
 import (

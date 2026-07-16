@@ -1,5 +1,4 @@
-// Package locales exposes read-only embedded locale descriptors for the rbac
-// module.
+// Package locales 提供 rbac 模块只读的内嵌本地化资源描述。
 package locales
 
 import (
@@ -12,8 +11,7 @@ import (
 //go:embed *.yaml
 var embeddedLocaleFiles embed.FS
 
-// EmbeddedLocaleResources exposes read-only locale descriptors for the rbac
-// module. Parsing and registration stay centralized in i18n.
+// EmbeddedLocaleResources 返回 rbac 模块只读的内嵌本地化资源描述；解析和注册仍由 i18n 集中负责。
 func EmbeddedLocaleResources() ([]i18n.EmbeddedLocaleResource, error) {
 	resources, err := i18n.EmbeddedLocaleResourcesFromFS(embeddedLocaleFiles, i18n.Namespace("rbac"))
 	if err != nil {

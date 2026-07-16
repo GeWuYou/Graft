@@ -6,8 +6,7 @@ import (
 	userstore "graft/server/modules/user/store"
 )
 
-// toEntID converts the stable uint64 identifier used by the user module into
-// the current Ent int primary key.
+// toEntID 将 user 模块使用的稳定 uint64 标识转换为当前 Ent 的 int 主键。
 func toEntID(id uint64) (int, error) {
 	if id == 0 || id > math.MaxInt {
 		return 0, userstore.ErrInvalidID

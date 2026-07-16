@@ -46,7 +46,7 @@ type importAllowedRootConfig struct {
 	Path  string `json:"path"`
 }
 
-// ImportDirectorySource describes one allowed import root exposed to the folder picker.
+// ImportDirectorySource 描述文件选择器可使用的一个允许导入根目录。
 type ImportDirectorySource struct {
 	Provider    string `json:"provider"`
 	RootID      string `json:"root_id"`
@@ -56,12 +56,12 @@ type ImportDirectorySource struct {
 	Managed     bool   `json:"managed"`
 }
 
-// ImportDirectorySourceResult returns the available import roots.
+// ImportDirectorySourceResult 返回当前可用的导入根目录集合。
 type ImportDirectorySourceResult struct {
 	Items []ImportDirectorySource `json:"items"`
 }
 
-// ImportDirectoryBrowseQuery defines one bounded root-relative browse request.
+// ImportDirectoryBrowseQuery 定义一个有界的根目录相对浏览请求。
 type ImportDirectoryBrowseQuery struct {
 	Provider string
 	RootID   string
@@ -72,7 +72,7 @@ type ImportDirectoryBrowseQuery struct {
 	Order    string
 }
 
-// ImportDirectoryItem describes one browsable directory item.
+// ImportDirectoryItem 描述一个可浏览的目录条目。
 type ImportDirectoryItem struct {
 	Name       string     `json:"name"`
 	Path       string     `json:"path"`
@@ -80,7 +80,7 @@ type ImportDirectoryItem struct {
 	ModifiedAt *time.Time `json:"modified_at,omitempty"`
 }
 
-// ImportDirectoryBrowseResult returns a bounded directory page.
+// ImportDirectoryBrowseResult 返回一页有界的目录浏览结果。
 type ImportDirectoryBrowseResult struct {
 	Provider    string                `json:"provider"`
 	RootID      string                `json:"root_id"`
@@ -94,21 +94,21 @@ type ImportDirectoryBrowseResult struct {
 	Items       []ImportDirectoryItem `json:"directories"`
 }
 
-// ImportDirectoryReference identifies a root-relative directory for inspect/import.
+// ImportDirectoryReference 标识用于检查或导入的根目录相对目录。
 type ImportDirectoryReference struct {
 	Provider string `json:"provider"`
 	RootID   string `json:"root_id"`
 	Path     string `json:"path"`
 }
 
-// ImportInspectRequest captures one inspect request for an import directory.
+// ImportInspectRequest 描述针对导入目录的一次检查请求。
 type ImportInspectRequest struct {
 	DirectoryRef                 ImportDirectoryReference `json:"directory_ref"`
 	DisplayName                  *string                  `json:"display_name,omitempty"`
 	CanonicalProjectNameOverride *string                  `json:"canonical_project_name_override,omitempty"`
 }
 
-// ImportInspectResult returns the discovered files and preview derived from one inspect.
+// ImportInspectResult 返回一次检查发现的文件及其派生预览。
 type ImportInspectResult struct {
 	InspectionID               string                   `json:"inspection_id"`
 	DirectoryRef               ImportDirectoryReference `json:"directory_ref"`
@@ -127,14 +127,14 @@ type ImportInspectResult struct {
 	ValidationStatus           string                   `json:"validation_status"`
 }
 
-// RuntimeImportContainerCounts describes bounded runtime member counts for one import candidate.
+// RuntimeImportContainerCounts 描述一个导入候选的有界运行时成员计数。
 type RuntimeImportContainerCounts struct {
 	Running int `json:"running"`
 	Stopped int `json:"stopped"`
 	Total   int `json:"total"`
 }
 
-// RuntimeImportCandidate describes one runtime-driven Compose import candidate.
+// RuntimeImportCandidate 描述一个由运行时发现的 Compose 导入候选。
 type RuntimeImportCandidate struct {
 	CandidateKey           string                       `json:"candidate_key"`
 	CanonicalProjectName   string                       `json:"canonical_project_name"`
@@ -151,7 +151,7 @@ type RuntimeImportCandidate struct {
 	Warnings               []string                     `json:"warnings"`
 }
 
-// RuntimeImportCandidateAvailability filters runtime candidates by import readiness.
+// RuntimeImportCandidateAvailability 按导入就绪状态筛选运行时候选。
 type RuntimeImportCandidateAvailability string
 
 const (
@@ -161,7 +161,7 @@ const (
 	runtimeImportCandidatesDefaultLimit                                              = 10
 )
 
-// RuntimeImportCandidateListQuery describes list filters for runtime import candidates.
+// RuntimeImportCandidateListQuery 描述运行时导入候选列表的筛选条件。
 type RuntimeImportCandidateListQuery struct {
 	Availability *RuntimeImportCandidateAvailability `json:"availability,omitempty"`
 	Keyword      string                              `json:"keyword,omitempty"`
@@ -169,7 +169,7 @@ type RuntimeImportCandidateListQuery struct {
 	Offset       int                                 `json:"offset"`
 }
 
-// RuntimeImportCandidateFilterCounts summarizes candidate counts for each availability bucket.
+// RuntimeImportCandidateFilterCounts 汇总各导入就绪分组中的候选数量。
 type RuntimeImportCandidateFilterCounts struct {
 	All         int `json:"all"`
 	Ready       int `json:"ready"`
@@ -177,7 +177,7 @@ type RuntimeImportCandidateFilterCounts struct {
 	Unavailable int `json:"unavailable"`
 }
 
-// RuntimeImportCandidatesResult returns the current runtime import candidates.
+// RuntimeImportCandidatesResult 返回当前运行时导入候选及其分组统计。
 type RuntimeImportCandidatesResult struct {
 	Items        []RuntimeImportCandidate           `json:"items"`
 	Total        int                                `json:"total"`
@@ -186,14 +186,14 @@ type RuntimeImportCandidatesResult struct {
 	FilterCounts RuntimeImportCandidateFilterCounts `json:"filter_counts"`
 }
 
-// RuntimeImportInspectRequest captures one inspect request for a runtime candidate.
+// RuntimeImportInspectRequest 描述针对一个运行时候选的检查请求。
 type RuntimeImportInspectRequest struct {
 	CandidateKey                 string  `json:"candidate_key"`
 	DisplayName                  *string `json:"display_name,omitempty"`
 	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
 }
 
-// RuntimeImportMember returns one runtime member row for the inspect preview.
+// RuntimeImportMember 描述检查预览中的一个运行时成员行。
 type RuntimeImportMember struct {
 	ContainerID   string `json:"container_id"`
 	ContainerName string `json:"container_name"`
@@ -201,7 +201,7 @@ type RuntimeImportMember struct {
 	State         string `json:"state"`
 }
 
-// RuntimeImportNetworkResource returns one structured network resource row for runtime import inspect.
+// RuntimeImportNetworkResource 描述运行时导入检查中的一个结构化网络资源行。
 type RuntimeImportNetworkResource struct {
 	Name           string   `json:"name"`
 	Driver         *string  `json:"driver"`
@@ -213,7 +213,7 @@ type RuntimeImportNetworkResource struct {
 	ServiceCount   int      `json:"service_count"`
 }
 
-// RuntimeImportVolumeResource returns one structured volume resource row for runtime import inspect.
+// RuntimeImportVolumeResource 描述运行时导入检查中的一个结构化卷资源行。
 type RuntimeImportVolumeResource struct {
 	Name           string   `json:"name"`
 	Driver         *string  `json:"driver"`
@@ -224,7 +224,7 @@ type RuntimeImportVolumeResource struct {
 	ContainerCount int      `json:"container_count"`
 }
 
-// RuntimeImportInspectResult returns the inspect preview for one runtime candidate.
+// RuntimeImportInspectResult 返回一个运行时候选的检查预览及其短期检查会话标识。
 type RuntimeImportInspectResult struct {
 	InspectionID               string                         `json:"inspection_id"`
 	ExpiresAt                  time.Time                      `json:"expires_at"`
@@ -246,7 +246,7 @@ type RuntimeImportInspectResult struct {
 	LifecycleConfiguration     LifecycleStandardConfig        `json:"lifecycle_configuration"`
 }
 
-// ImportExecuteRequest finalizes an import from a prior inspection snapshot.
+// ImportExecuteRequest 根据之前的检查快照完成一次导入。
 type ImportExecuteRequest struct {
 	InspectionID                 string                   `json:"inspection_id"`
 	DisplayName                  *string                  `json:"display_name,omitempty"`
@@ -255,7 +255,7 @@ type ImportExecuteRequest struct {
 	ActorID                      *uint64                  `json:"-"`
 }
 
-// FileView exposes one discovered compose/env file in inspect responses.
+// FileView 在检查响应中暴露一个已发现的 Compose 或环境文件。
 type FileView struct {
 	Kind             string  `json:"kind"`
 	Role             string  `json:"role"`
