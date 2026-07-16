@@ -36,6 +36,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 		"GRAFT_REDIS_CONN_MAX_IDLE_TIME=15m",
 		"GRAFT_REDIS_CONN_MAX_LIFETIME=1h",
 		"GRAFT_LOG_LEVEL=debug",
+		"GRAFT_LOG_CATEGORIES=docker.stats=true",
 		"GRAFT_LOG_FORMAT=json",
 		"GRAFT_LOG_COLOR=never",
 		"GRAFT_GIN_MODE=release",
@@ -70,6 +71,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertEqual(t, "Redis connection max lifetime from .env", cfg.Redis.ConnMaxLifetime, time.Hour)
 	assertEqual(t, "log format from .env", cfg.Log.Format, LogFormatJSON)
 	assertEqual(t, "log color from .env", cfg.Log.Color, LogColorNever)
+	assertEqual(t, "log categories from .env", cfg.Log.Categories, "docker.stats=true")
 	assertEqual(t, "gin mode from .env", cfg.Runtime.GinMode, GinModeRelease)
 	assertEqual(t, "access log console policy from .env", cfg.HTTPX.AccessLogConsole, AccessLogConsoleErrorOnly)
 	assertEqual(t, "access log slow threshold from .env", cfg.HTTPX.AccessLogSlowThresholdMS, int64(2500))
@@ -733,6 +735,13 @@ func TestValidateRejectsInvalidLogAndGinEnums(t *testing.T) {
 		wantErr string
 	}{
 		{
+			name: "log level",
+			mutate: func(cfg *Config) {
+				cfg.Log.Level = "verbose"
+			},
+			wantErr: `unsupported GRAFT_LOG_LEVEL value "verbose"`,
+		},
+		{
 			name: "log format",
 			mutate: func(cfg *Config) {
 				cfg.Log.Format = "pretty"
@@ -762,6 +771,22 @@ func TestValidateRejectsInvalidLogAndGinEnums(t *testing.T) {
 
 			assertValidateError(t, cfg, testCase.wantErr)
 		})
+	}
+}
+
+func TestValidateAcceptsTraceLogLevelAndCategorySnapshot(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Log.Level = "TRACE"
+	cfg.Log.Categories = "docker.stats=true"
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate trace config: %v", err)
+	}
+	if cfg.Log.Level != "trace" {
+		t.Fatalf("normalized level = %q, want trace", cfg.Log.Level)
+	}
+	if cfg.Log.Categories != "docker.stats=true" {
+		t.Fatalf("categories = %q", cfg.Log.Categories)
 	}
 }
 

@@ -81,6 +81,7 @@ var backendMigrationVersionRunner = runValidateMigrationVersions
 var backendReleaseRunner = runValidateRelease
 var buildReleaseInfoSnapshot = buildinfo.Current
 var backendLocaleOwnershipGuardRunner = runValidateServerLocaleOwnership
+var backendLogCategoryGovernanceRunner = runValidateLogCategoryGovernance
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
 
@@ -234,7 +235,7 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	case defaultOpenAPIStage:
 		return backendOpenAPIRunner(cmd, opts.openapiSpec)
 	case "lint":
-		if err := backendLocaleOwnershipGuardRunner(cmd); err != nil {
+		if err := runBackendLintGuards(cmd); err != nil {
 			return err
 		}
 		return backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig)
@@ -245,6 +246,30 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	default:
 		return fmt.Errorf("unsupported backend validation stage %q: expected openapi, lint, buildtest, or full", stage)
 	}
+}
+
+// runValidateLogCategoryGovernance 校验业务代码不会绕过 logger typed category 常量。
+func runValidateLogCategoryGovernance(cmd *cobra.Command) error {
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for log category governance guard: %w", err)
+	}
+
+	scriptPath := filepath.Join(repoRoot, "scripts", "check_log_category_governance.py")
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--root", repoRoot); err != nil {
+		return fmt.Errorf("run log category governance guard: %w", err)
+	}
+	return nil
+}
+
+func runBackendLintGuards(cmd *cobra.Command) error {
+	if err := backendLocaleOwnershipGuardRunner(cmd); err != nil {
+		return err
+	}
+	if err := backendLogCategoryGovernanceRunner(cmd); err != nil {
+		return err
+	}
+	return nil
 }
 
 func validateBackendStageOptions(stage string, smoke bool) error {
@@ -275,7 +300,7 @@ func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) e
 	if err := backendOpenAPIRunner(cmd, opts.openapiSpec); err != nil {
 		return err
 	}
-	if err := backendLocaleOwnershipGuardRunner(cmd); err != nil {
+	if err := runBackendLintGuards(cmd); err != nil {
 		return err
 	}
 	if err := backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig); err != nil {

@@ -3,6 +3,7 @@ required:
   - id
   - occurred_at
   - severity
+  - category
   - component
   - message
   - operation
@@ -22,6 +23,8 @@ properties:
   severity:
     type: string
     enum: [debug, info, warn, error]
+  category:
+    type: string
   component:
     type: string
   message:

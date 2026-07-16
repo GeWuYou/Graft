@@ -88,6 +88,12 @@ const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
     options: severityOptions.value,
   },
   {
+    key: 'category',
+    kind: 'text',
+    label: t('appLog.builder.fields.category'),
+    placeholder: t('appLog.filters.category'),
+  },
+  {
     key: 'component',
     kind: 'text',
     label: t('appLog.builder.fields.component'),
@@ -121,6 +127,7 @@ const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
 
 const fieldValues = computed<Record<string, string | string[]>>(() => ({
   severity: props.modelValue.severity,
+  category: props.modelValue.category,
   component: props.modelValue.component,
   operation: props.modelValue.operation,
   requestId: props.modelValue.requestId,

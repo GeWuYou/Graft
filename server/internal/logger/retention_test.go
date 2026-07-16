@@ -124,7 +124,7 @@ func TestAppLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 
 func TestAppLogRetentionCleanerWritesCompletedAppLog(t *testing.T) {
 	repo := &appLogRetentionRepoRecorder{deleted: 7}
-	appLog := NewAppLogger(zap.NewNop(), WithAppLogRepository(repo))
+	appLog := NewAppLogger(newEnabledAppLogTestLogger(), WithAppLogRepository(repo))
 	cleaner, err := newAppLogRetentionCleaner(
 		zap.NewNop(),
 		appLog,
@@ -152,7 +152,7 @@ func TestAppLogRetentionCleanerWritesCompletedAppLog(t *testing.T) {
 
 func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
 	repo := &appLogRetentionRepoRecorder{err: errors.New("boom")}
-	appLog := NewAppLogger(zap.NewNop(), WithAppLogRepository(repo))
+	appLog := NewAppLogger(newEnabledAppLogTestLogger(), WithAppLogRepository(repo))
 	cleaner, err := newAppLogRetentionCleaner(
 		zap.NewNop(),
 		appLog,

@@ -4840,6 +4840,7 @@ type AppLogBatchDeleteRequest struct {
 
 // AppLogDetailResponse defines model for app-log-detail-response.
 type AppLogDetailResponse struct {
+	Category   string                       `json:"category"`
 	Component  string                       `json:"component"`
 	Error      string                       `json:"error"`
 	Fields     map[string]string            `json:"fields"`
@@ -11147,10 +11148,13 @@ type GetAppLogsParams struct {
 	// OccurredTo Inclusive canonical occurrence-time upper bound on `occurred_at`.
 	OccurredTo *time.Time                `form:"occurred_to,omitempty" json:"occurred_to,omitempty"`
 	Severity   *GetAppLogsParamsSeverity `form:"severity,omitempty" json:"severity,omitempty"`
-	Component  *string                   `form:"component,omitempty" json:"component,omitempty"`
-	Operation  *string                   `form:"operation,omitempty" json:"operation,omitempty"`
-	RequestId  *string                   `form:"request_id,omitempty" json:"request_id,omitempty"`
-	TraceId    *string                   `form:"trace_id,omitempty" json:"trace_id,omitempty"`
+
+	// Category Category text for durable App Log records. The server validates it against the logger Category Registry.
+	Category  *string `form:"category,omitempty" json:"category,omitempty"`
+	Component *string `form:"component,omitempty" json:"component,omitempty"`
+	Operation *string `form:"operation,omitempty" json:"operation,omitempty"`
+	RequestId *string `form:"request_id,omitempty" json:"request_id,omitempty"`
+	TraceId   *string `form:"trace_id,omitempty" json:"trace_id,omitempty"`
 
 	// Keyword Canonical fuzzy match applied to component, operation, message, and error.
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`

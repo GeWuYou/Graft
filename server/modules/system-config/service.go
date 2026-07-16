@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"graft/server/internal/cachex"
 	"graft/server/internal/cachex/keys"
+	"graft/server/internal/logger"
 
 	"graft/server/internal/configregistry"
 	"graft/server/internal/moduleapi"
@@ -579,7 +580,7 @@ func (s *Service) logInvalidationWarning(msg string, err error) {
 	if s == nil || s.logger == nil || err == nil {
 		return
 	}
-	s.logger.Warn(msg, zap.Error(err))
+	logger.Category(s.logger, logger.CategoryRuntimeCache).Warn(msg, zap.Error(err))
 }
 
 func (s *Service) logSnapshotInvalidation(observation snapshotInvalidationObservation) {
@@ -596,14 +597,14 @@ func (s *Service) logSnapshotInvalidation(observation snapshotInvalidationObserv
 	if !observation.UpdatedAt.IsZero() {
 		fields = append(fields, zap.Time("updatedAt", observation.UpdatedAt))
 	}
-	s.logger.Debug("system-config snapshot cache invalidated", fields...)
+	logger.Category(s.logger, logger.CategoryRuntimeCache).Debug("system-config snapshot cache invalidated", fields...)
 }
 
 func (s *Service) logSnapshotDebug(msg string, fields ...zap.Field) {
 	if s == nil || s.logger == nil {
 		return
 	}
-	s.logger.Debug(msg, fields...)
+	logger.Category(s.logger, logger.CategoryRuntimeCache).Debug(msg, fields...)
 }
 
 func (s *snapshotCacheStats) recordHit() {

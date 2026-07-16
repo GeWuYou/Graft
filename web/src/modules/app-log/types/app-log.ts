@@ -18,6 +18,7 @@ export type AppLogQuery = {
   occurred_from?: string;
   occurred_to?: string;
   severity?: AppLogSeverity;
+  category?: string;
   component?: string;
   operation?: string;
   request_id?: string;
@@ -31,6 +32,7 @@ export type AppLogFilterState = {
   keyword: string;
   occurredRange: string[];
   severity: '' | AppLogSeverity;
+  category: string;
   component: string;
   operation: string;
   requestId: string;

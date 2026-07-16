@@ -9,6 +9,7 @@ export type AppLogRouteQuery = Partial<{
   occurred_from: string;
   occurred_to: string;
   severity: string;
+  category: string;
   component: string;
   operation: string;
   request_id: string;
@@ -22,6 +23,7 @@ const APP_LOG_QUERY_KEYS = [
   'occurred_from',
   'occurred_to',
   'severity',
+  'category',
   'component',
   'operation',
   'request_id',

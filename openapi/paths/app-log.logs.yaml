@@ -34,6 +34,11 @@ get:
       schema:
         type: string
         enum: [debug, info, warn, error]
+    - name: category
+      in: query
+      description: Category text for durable App Log records. The server validates it against the logger Category Registry.
+      schema:
+        type: string
     - name: component
       in: query
       schema:

@@ -123,6 +123,7 @@ vi.mock('../../components/AppLogTable.vue', () => ({
 
 function appLog(id: number): AppLogItem {
   return {
+    category: 'application',
     component: 'app',
     error: '',
     fields: {},
@@ -191,5 +192,15 @@ describe('AppLogListIndex', () => {
     expect(wrapper.get('[data-testid="total"]').text()).toBe('1');
     expect(mocks.messageError).toHaveBeenCalledWith('appLog.page.loadFailed');
     expect(mocks.loggerError).toHaveBeenCalledWith('failed to fetch app logs', error);
+  });
+
+  it('preserves an arbitrary category deep-link until server validation', async () => {
+    routeState.query = { category: 'future.category' };
+    mocks.getAppLogs.mockResolvedValue(response([]));
+
+    mountPage();
+    await flushPromises();
+
+    expect(mocks.getAppLogs).toHaveBeenCalledWith(expect.objectContaining({ category: 'future.category' }));
   });
 });

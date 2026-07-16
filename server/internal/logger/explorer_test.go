@@ -86,6 +86,24 @@ func TestBindAppLogListQueryRejectsInvalidSorter(t *testing.T) {
 	}
 }
 
+func TestBindAppLogListQueryParsesCategory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ginCtx.Request = httptest.NewRequest("GET", "/api/app-log?category=runtime.metrics", nil)
+
+	query, invalidField := bindAppLogListQuery(ginCtx)
+	if invalidField != "" || query.Category != CategoryRuntimeMetrics {
+		t.Fatalf("expected runtime.metrics category, got query=%#v invalid=%q", query, invalidField)
+	}
+
+	invalidContext, _ := gin.CreateTestContext(httptest.NewRecorder())
+	invalidContext.Request = httptest.NewRequest("GET", "/api/app-log?category=unknown", nil)
+	_, invalidField = bindAppLogListQuery(invalidContext)
+	if invalidField != "category" {
+		t.Fatalf("expected category validation error, got %q", invalidField)
+	}
+}
+
 func TestHandleDeleteAppLogPublishesAuditEvent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &explorerDeleteRepoRecorder{}

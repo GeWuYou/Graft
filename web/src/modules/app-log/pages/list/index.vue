@@ -164,10 +164,11 @@ type AppLogSavedQueryViewState = {
   queryState: AppLogSavedQueryState;
   visibleColumns: string[];
 };
-const DEFAULT_VISIBLE_COLUMNS = ['occurred_at', 'severity', 'component', 'operation', 'message'];
+const DEFAULT_VISIBLE_COLUMNS = ['occurred_at', 'severity', 'category', 'component', 'operation', 'message'];
 const TROUBLESHOOTING_VISIBLE_COLUMNS = [
   'occurred_at',
   'severity',
+  'category',
   'component',
   'operation',
   'message',
@@ -219,6 +220,7 @@ const sortOptions = computed(() => [
 const columnSettingOptions = computed(() => [
   { label: t('appLog.columns.occurredAt'), value: 'occurred_at' },
   { label: t('appLog.columns.severity'), value: 'severity' },
+  { label: t('appLog.columns.category'), value: 'category' },
   { label: t('appLog.columns.component'), value: 'component' },
   { label: t('appLog.columns.operation'), value: 'operation' },
   { label: t('appLog.columns.message'), value: 'message' },
@@ -280,6 +282,7 @@ function createDefaultFilters(): AppLogFilterState {
     keyword: '',
     occurredRange: [],
     severity: '',
+    category: '',
     component: '',
     operation: '',
     requestId: '',
@@ -298,6 +301,7 @@ function buildQuery(): AppLogQuery {
 
   if (filters.value.keyword) query.keyword = filters.value.keyword;
   if (filters.value.severity) query.severity = filters.value.severity;
+  if (filters.value.category) query.category = filters.value.category;
   if (filters.value.component) query.component = filters.value.component;
   if (filters.value.operation) query.operation = filters.value.operation;
   if (filters.value.requestId) query.request_id = filters.value.requestId;
@@ -497,6 +501,7 @@ function applyRouteFilters() {
     occurred_from: occurredFrom = '',
     occurred_to: occurredTo = '',
     severity = '',
+    category = '',
     component = '',
     operation = '',
     request_id: requestId = '',
@@ -511,6 +516,7 @@ function applyRouteFilters() {
     occurredRange: normalizeRouteRangeForPageState([occurredFrom, occurredTo]),
     severity:
       severity === 'debug' || severity === 'info' || severity === 'warn' || severity === 'error' ? severity : '',
+    category,
     component,
     operation,
     requestId,
@@ -532,6 +538,7 @@ function buildRouteQuery() {
     occurred_from: occurredRange[0],
     occurred_to: occurredRange[1],
     severity: filters.value.severity,
+    category: filters.value.category,
     component: filters.value.component,
     operation: filters.value.operation,
     request_id: filters.value.requestId,
@@ -562,6 +569,7 @@ watch(
     route.query.occurred_from,
     route.query.occurred_to,
     route.query.severity,
+    route.query.category,
     route.query.component,
     route.query.operation,
     route.query.request_id,
@@ -618,6 +626,7 @@ function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {
       state.severity === 'debug' || state.severity === 'info' || state.severity === 'warn' || state.severity === 'error'
         ? state.severity
         : '',
+    category: state.category ?? '',
     component: state.component ?? '',
     operation: state.operation ?? '',
     requestId: state.request_id ?? '',

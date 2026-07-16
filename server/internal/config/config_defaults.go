@@ -34,6 +34,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("log.level", defaultLogLevel)
 	reader.SetDefault("log.format", string(LogFormatAuto))
 	reader.SetDefault("log.color", string(LogColorAuto))
+	reader.SetDefault("log.categories", "")
 	reader.SetDefault("log.app_log_persist", defaultAppLogPersistence)
 	reader.SetDefault("gin.mode", string(GinModeAuto))
 	reader.SetDefault("runtime.dev_allow_dirty_migration_bootstrap", defaultDevAllowDirtyMigrationBootstrapForEnv(reader.GetString("app.env")))

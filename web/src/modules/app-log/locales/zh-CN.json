@@ -67,6 +67,7 @@
     },
     "filters": {
       "occurredRange": "发生时间",
+      "category": "类别",
       "component": "组件",
       "operation": "事件",
       "requestId": "请求 ID",
@@ -75,6 +76,7 @@
       "message": "消息",
       "error": "错误",
       "allSeverity": "全部级别",
+      "allCategories": "全部类别",
       "sortOccurredAt": "发生时间",
       "sortSeverity": "级别",
       "sortComponent": "组件",
@@ -96,6 +98,7 @@
         "timeRange": "时间范围",
         "sorterBuilder": "排序方式",
         "severity": "级别",
+        "category": "类别",
         "component": "组件",
         "operation": "事件",
         "requestId": "请求 ID",
@@ -106,6 +109,7 @@
     "columns": {
       "occurredAt": "发生时间",
       "severity": "级别",
+      "category": "类别",
       "component": "组件",
       "operation": "事件 Key",
       "message": "消息",

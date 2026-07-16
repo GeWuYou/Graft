@@ -20,6 +20,7 @@ var appLogSavedViewColumns = map[string]struct{}{
 
 var appLogSavedViewQueryFields = map[string]httpx.SavedViewQueryValueKind{
 	"occurred_from": httpx.SavedViewQueryString, "occurred_to": httpx.SavedViewQueryString, "severity": httpx.SavedViewQueryString,
+	"category":  httpx.SavedViewQueryString,
 	"component": httpx.SavedViewQueryString, "operation": httpx.SavedViewQueryString, "request_id": httpx.SavedViewQueryString,
 	"trace_id": httpx.SavedViewQueryString, "keyword": httpx.SavedViewQueryString, "message": httpx.SavedViewQueryString,
 	"error": httpx.SavedViewQueryString, "sort": httpx.SavedViewQueryStringSlice,

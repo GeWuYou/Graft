@@ -14,6 +14,7 @@ import (
 	mobyclient "github.com/moby/moby/client"
 	"go.uber.org/zap"
 
+	"graft/server/internal/logger"
 	"graft/server/internal/logger/logsafe"
 )
 
@@ -423,36 +424,42 @@ type dockerCPUCalculation struct {
 }
 
 func (r *DockerRuntime) logDockerCPUCalculation(containerID string, stats container.StatsResponse, cpuPercent float64, ok bool) {
-	if r == nil || r.logger == nil || !r.logger.Core().Enabled(zap.DebugLevel) {
+	if r == nil || r.logger == nil {
 		return
 	}
-	calculation := dockerCPUCalculation{
-		containerID:    strings.TrimSpace(containerID),
-		totalUsage:     stats.CPUStats.CPUUsage.TotalUsage,
-		preTotalUsage:  stats.PreCPUStats.CPUUsage.TotalUsage,
-		systemUsage:    stats.CPUStats.SystemUsage,
-		preSystemUsage: stats.PreCPUStats.SystemUsage,
-		onlineCPUs:     dockerStatsOnlineCPUs(stats),
-		cpuPercent:     cpuPercent,
+	categoryLog := logger.Category(r.logger, logger.CategoryDockerStats)
+	if !categoryLog.Enabled(logger.TraceLevel) {
+		return
 	}
-	if stats.CPUStats.CPUUsage.TotalUsage > stats.PreCPUStats.CPUUsage.TotalUsage {
-		calculation.cpuDelta = stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage
-	}
-	if stats.CPUStats.SystemUsage > stats.PreCPUStats.SystemUsage {
-		calculation.systemDelta = stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage
-	}
-	logsafe.Debug(r.logger, "container cpu stats calculation",
-		zap.String("container", calculation.containerID),
-		zap.Uint64("totalUsage", calculation.totalUsage),
-		zap.Uint64("preTotalUsage", calculation.preTotalUsage),
-		zap.Uint64("systemUsage", calculation.systemUsage),
-		zap.Uint64("preSystemUsage", calculation.preSystemUsage),
-		zap.Uint32("onlineCPUs", calculation.onlineCPUs),
-		zap.Uint64("cpuDelta", calculation.cpuDelta),
-		zap.Uint64("systemDelta", calculation.systemDelta),
-		zap.Float64("cpuPercent", calculation.cpuPercent),
-		zap.Bool("calculated", ok),
-	)
+	categoryLog.TraceLazy("container cpu stats calculation", func() []zap.Field {
+		calculation := dockerCPUCalculation{
+			containerID:    strings.TrimSpace(containerID),
+			totalUsage:     stats.CPUStats.CPUUsage.TotalUsage,
+			preTotalUsage:  stats.PreCPUStats.CPUUsage.TotalUsage,
+			systemUsage:    stats.CPUStats.SystemUsage,
+			preSystemUsage: stats.PreCPUStats.SystemUsage,
+			onlineCPUs:     dockerStatsOnlineCPUs(stats),
+			cpuPercent:     cpuPercent,
+		}
+		if stats.CPUStats.CPUUsage.TotalUsage > stats.PreCPUStats.CPUUsage.TotalUsage {
+			calculation.cpuDelta = stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage
+		}
+		if stats.CPUStats.SystemUsage > stats.PreCPUStats.SystemUsage {
+			calculation.systemDelta = stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage
+		}
+		return []zap.Field{
+			zap.String("container", calculation.containerID),
+			zap.Uint64("totalUsage", calculation.totalUsage),
+			zap.Uint64("preTotalUsage", calculation.preTotalUsage),
+			zap.Uint64("systemUsage", calculation.systemUsage),
+			zap.Uint64("preSystemUsage", calculation.preSystemUsage),
+			zap.Uint32("onlineCPUs", calculation.onlineCPUs),
+			zap.Uint64("cpuDelta", calculation.cpuDelta),
+			zap.Uint64("systemDelta", calculation.systemDelta),
+			zap.Float64("cpuPercent", calculation.cpuPercent),
+			zap.Bool("calculated", ok),
+		}
+	})
 }
 
 // unavailableResourceSummary 生成一个不可用的资源摘要。

@@ -5305,6 +5305,7 @@ export interface components {
       occurred_at: string;
       /** @enum {string} */
       severity: 'debug' | 'info' | 'warn' | 'error';
+      category: string;
       component: string;
       message: string;
       operation: string;
@@ -11896,6 +11897,8 @@ export interface operations {
         /** @description Inclusive canonical occurrence-time upper bound on `occurred_at`. */
         occurred_to?: string;
         severity?: 'debug' | 'info' | 'warn' | 'error';
+        /** @description Category text for durable App Log records. The server validates it against the logger Category Registry. */
+        category?: string;
         component?: string;
         operation?: string;
         request_id?: string;

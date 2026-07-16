@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"graft/server/internal/logger"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 	containercontract "graft/server/modules/container/contract"
@@ -218,7 +219,7 @@ func (m *runtimeEventManager) runSource(ctx context.Context, source loadedRuntim
 	})
 	if err != nil && !errors.Is(err, context.Canceled) {
 		m.recordSourceStreamError(source.name, err)
-		m.logger.Warn(
+		logger.Category(m.logger, logger.CategoryDockerEvents).Warn(
 			"container runtime event stream stopped with error",
 			zap.String("source", source.name),
 			zap.Error(err),
@@ -357,7 +358,7 @@ func (m *runtimeEventManager) LogCandidateDrop(candidate RuntimeEventCandidate, 
 	if m == nil || m.logger == nil || err == nil {
 		return
 	}
-	m.logger.Warn(
+	logger.Category(m.logger, logger.CategoryDockerEvents).Warn(
 		"drop invalid container runtime event candidate",
 		zap.String("resourceID", logsafe.SanitizeText(strings.TrimSpace(candidate.ResourceID))),
 		zap.String("eventType", candidate.EventType.String()),

@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"graft/server/internal/logger"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 )
@@ -108,7 +109,7 @@ func (s *projectLifecycleConfigTopicStreamer) EnsureTopic(topic string, projectI
 		s.start(topic)
 	}, func(string) {
 		if err := s.stop(context.Background(), topic); err != nil {
-			s.logger.Warn(
+			logger.Category(s.logger, logger.CategoryComposeRuntime).Warn(
 				"stop project lifecycle configuration stream failed",
 				zap.String("topic", logsafe.SanitizeText(topic)),
 				zap.Error(err),
@@ -204,7 +205,7 @@ func (s *projectLifecycleConfigTopicStreamer) publish(topic string, projectID ui
 	defer cancel()
 	payload, err := s.service.buildProjectLifecycleConfigRealtimePayload(ctx, topic, projectID)
 	if err != nil {
-		s.logger.Warn(
+		logger.Category(s.logger, logger.CategoryComposeRuntime).Warn(
 			"publish project lifecycle configuration snapshot failed",
 			zap.String("topic", logsafe.SanitizeText(topic)),
 			zap.Error(err),

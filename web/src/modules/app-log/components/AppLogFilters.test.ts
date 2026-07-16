@@ -58,12 +58,14 @@ const i18n = createI18n({
         filters: {
           occurredRange: '发生时间',
           severity: '级别',
+          category: '类别',
           component: '组件',
           operation: '操作',
           requestId: '请求 ID',
           message: '消息',
           error: '错误',
           allSeverity: '全部级别',
+          allCategories: '全部类别',
           sortOccurredAt: '发生时间',
           sortSeverity: '级别',
           sortComponent: '组件',
@@ -85,6 +87,7 @@ const i18n = createI18n({
             timeRange: '时间范围',
             sorterBuilder: '排序方式',
             severity: '级别',
+            category: '类别',
             component: '组件',
             operation: '操作',
             requestId: '请求 ID',
@@ -101,6 +104,7 @@ const baseFilters: AppLogFilterState = {
   keyword: '',
   occurredRange: [],
   severity: '',
+  category: '',
   component: '',
   operation: '',
   requestId: '',
@@ -118,6 +122,7 @@ describe('AppLogFilters', () => {
           ...baseFilters,
           occurredRange: ['2026-06-04 10:00:00', '2026-06-04 11:00:00'],
           severity: 'error',
+          category: 'runtime.metrics',
           component: 'modules.auth.route',
         },
         presets: [],
@@ -135,6 +140,7 @@ describe('AppLogFilters', () => {
       '发生时间: 2026-06-04 10:00:00 ~ 2026-06-04 11:00:00',
     );
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('级别: ERROR');
+    expect(tags.map((tag: { label: string }) => tag.label)).toContain('类别: runtime.metrics');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('组件: modules.auth.route');
 
     const timeFields = JSON.parse(wrapper.get('[data-testid="time-fields"]').text());

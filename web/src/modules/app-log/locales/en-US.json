@@ -67,6 +67,7 @@
     },
     "filters": {
       "occurredRange": "Occurrence Time",
+      "category": "Category",
       "component": "Component",
       "operation": "Event",
       "requestId": "Request ID",
@@ -75,6 +76,7 @@
       "message": "Message",
       "error": "Error",
       "allSeverity": "All Severities",
+      "allCategories": "All Categories",
       "sortOccurredAt": "Occurrence Time",
       "sortSeverity": "Severity",
       "sortComponent": "Component",
@@ -96,6 +98,7 @@
         "timeRange": "Time Range",
         "sorterBuilder": "Sort Order",
         "severity": "Severity",
+        "category": "Category",
         "component": "Component",
         "operation": "Event",
         "requestId": "Request ID",
@@ -106,6 +109,7 @@
     "columns": {
       "occurredAt": "Occurred At",
       "severity": "Severity",
+      "category": "Category",
       "component": "Component",
       "operation": "Event Key",
       "message": "Message",
