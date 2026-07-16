@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 
+import { queryClient } from '@/shared/query';
+
 import type { NotificationItem } from '../../types/notification';
 import NotificationListIndex from './index.vue';
 
@@ -232,6 +234,8 @@ function mountPage() {
 describe('NotificationListIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
+    mocks.getNotifications.mockResolvedValue({ items: [], page: 1, page_size: 20, total: 0 });
     resetRoute({});
   });
 

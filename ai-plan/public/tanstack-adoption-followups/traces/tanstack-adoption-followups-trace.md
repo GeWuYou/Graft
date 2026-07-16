@@ -47,3 +47,24 @@
   met, and any non-Query adoption is now guarded by evidence, metrics, and rollback. The Work Contract has
   `closeout.archive: false`, so the topic remains in place and is marked `archive-ready` without changing the public
   topic index.
+
+## 2026-07-16 Reopened Evidence Audit
+
+- Reopened the topic after finding a remaining page-local notification list HTTP snapshot. The bounded
+  `notification-list-query-migration` moves only that paginated list to a module-owned key; the header bell, route
+  filters, detail drawer, selection, and mutation flags remain outside Query cache.
+- Pending follow-up batches are `rbac-query-migration`, `system-config-query-migration`, and
+  `remaining-query-no-go-review`. The previously recorded Table, Virtual, Form, and Router no-go decision remains in
+  force unless a new evidence-backed proposal meets its metrics and rollback requirements.
+
+## 2026-07-16 Notification List Query Migration
+
+- Migrated `web/src/modules/notification/pages/list/index.vue` from page-local rows, total, loading, error, and
+  refresh state to `notificationQueryKeys.list(normalizedQuery)`. Its query function calls only the existing
+  `getNotifications` module API wrapper.
+- Route filters, pagination controls, detail drawer state, selected record, mutation flags, and header refresh event
+  remain outside the Query cache. A single-read response updates cached rows directly; unread-filtered pages and
+  bulk/delete changes invalidate module list variants so pagination stays server-authoritative.
+- Reference: [TanStack Query keys](https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys),
+  [updates from mutation responses](https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses),
+  and [query invalidation](https://tanstack.com/query/latest/docs/framework/vue/guides/query-invalidation).

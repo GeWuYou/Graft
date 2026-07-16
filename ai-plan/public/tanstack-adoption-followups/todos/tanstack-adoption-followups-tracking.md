@@ -34,6 +34,10 @@ closeout:
 - P1 `standard-crud-query-migration` migrated the user-management list to a module-owned Query key and direct cache
   updates after list-affecting mutations. Filters, pagination, selection, form drafts, and lazy role-catalog behavior
   remain page-local UI state.
+- The topic reopened on 2026-07-16 after an evidence audit found that the notification list still maintained a
+  page-local server snapshot. `notification-list-query-migration` is complete: its normalized module key owns the
+  paginated snapshot, single-read responses update known rows directly, and bulk/delete operations invalidate list
+  variants rather than maintaining a page-local copy.
 
 ## Final Non-Query Decision
 
@@ -77,11 +81,16 @@ closeout:
   "completed_batches": [
     "standard-crud-query-migration",
     "resource-detail-query-migration",
-    "non-query-go-no-go"
+    "non-query-go-no-go",
+    "notification-list-query-migration"
   ],
-  "pending_batches": [],
+  "pending_batches": [
+    "rbac-query-migration",
+    "system-config-query-migration",
+    "remaining-query-no-go-review"
+  ],
   "current_batch": null,
-  "next_batch": null,
-  "closeout_status": "archive-ready"
+  "next_batch": "rbac-query-migration",
+  "closeout_status": "active"
 }
 ```

@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: complete only evidence-backed medium-risk TanStack Query migrations after the P0 rollout.
-- Current status: `archive-ready`.
+- Current status: `active` (reopened after evidence audit identified additional bounded list snapshots).
 - Task class: `web`.
 - Intake summary: long-running frontend architecture evolution with shared guidance and bounded module batches.
 - Canonical authority:
@@ -33,8 +33,10 @@ Out of scope:
 
 - P0 QueryClient, announcement, monitor, access-log, app-log, and audit migrations landed in commit `5acd17d8`.
 - P1 standard CRUD and resource-detail migrations landed in commits `344f9b15` and `7b38485a`.
-- The final `non-query-go-no-go` batch completed its archive-readiness check. Table, Virtual, Form, and Router remain
-  deliberately unadopted; no next batch is pending.
+- The final `non-query-go-no-go` batch remains valid: Table, Virtual, Form, and Router are deliberately unadopted.
+- The reopened `notification-list-query-migration` batch is complete: its paginated list is now module-owned Query
+  state while notification UI state remains local. Pending batches are `rbac-query-migration`,
+  `system-config-query-migration`, and `remaining-query-no-go-review`.
 
 ## Non-Query Decision
 

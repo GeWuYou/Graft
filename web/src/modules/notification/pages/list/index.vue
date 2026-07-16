@@ -10,7 +10,7 @@
     :reload-label="t('notification.action.refresh')"
     :retry-label="t('notification.action.refresh')"
     :source="{ labelKey: 'notification.page.eyebrow', fallback: t('notification.page.eyebrow') }"
-    @reload="fetchNotifications"
+    @reload="notificationsQuery.refetch"
   >
     <template #actions>
       <t-button theme="primary" :disabled="!canMarkAllRead" :loading="markingAll" @click="markAllRead">
@@ -65,7 +65,7 @@
 <script setup lang="ts">
 import type { TabValue } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -76,19 +76,18 @@ import {
   normalizePageStateRangeForRoute,
   normalizeRouteRangeForPageState,
 } from '@/shared/observability';
-import { createLogger } from '@/utils/logger';
 
-import {
-  deleteNotification,
-  getNotifications,
-  markNotificationRead,
-  markNotificationsReadAll,
-} from '../../api/notification';
+import { deleteNotification, markNotificationRead, markNotificationsReadAll } from '../../api/notification';
 import NotificationDetailDrawer from '../../components/NotificationDetailDrawer.vue';
 import NotificationFilters from '../../components/NotificationFilters.vue';
 import NotificationTable from '../../components/NotificationTable.vue';
 import { resolveNotificationNavigationLocation } from '../../contract/navigation';
 import { requestNotificationHeaderRefresh } from '../../contract/refresh';
+import {
+  invalidateNotificationListQueries,
+  updateNotificationListCaches,
+  useNotificationsQuery,
+} from '../../shared/notification-list-query';
 import { NOTIFICATION_MVP_SOURCE_MODULES } from '../../shared/presentation';
 import type {
   NotificationFilterState,
@@ -104,21 +103,28 @@ defineOptions({
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const logger = createLogger('notification.list');
 
-const loading = ref(false);
+/** 通知列表快照归 Query cache；路由筛选与详情抽屉仍是页面本地交互状态。 */
 const markingAll = ref(false);
 const markingDetailRead = ref(false);
-const listError = ref('');
-const rows = ref<NotificationItem[]>([]);
-const total = ref(0);
 const detailVisible = ref(false);
 const detailRecord = ref<NotificationItem | null>(null);
-const filters = ref<NotificationFilterState>(createDefaultFilters());
+const filters = ref<NotificationFilterState>(createFiltersFromRoute());
 const pagination = ref({
   current: 1,
   pageSize: 20,
 });
+
+const notificationListQuery = computed(buildQuery);
+const notificationsQuery = useNotificationsQuery(notificationListQuery);
+const rows = computed(() => notificationsQuery.data.value?.items ?? []);
+const total = computed(() => notificationsQuery.data.value?.total ?? 0);
+const loading = computed(() => notificationsQuery.isFetching.value);
+const listError = computed(() =>
+  notificationsQuery.error.value
+    ? resolveLocalizedErrorMessage(t, notificationsQuery.error.value, t('notification.messages.loadFailed'))
+    : '',
+);
 
 const sourceModules = computed(() =>
   Array.from(
@@ -139,11 +145,6 @@ const emptyDescription = computed(() =>
   hasActiveFilters.value ? t('notification.empty.filteredDescription') : t('notification.empty.description'),
 );
 
-onMounted(() => {
-  hydrateFromRoute();
-  void fetchNotifications();
-});
-
 watch(
   () => route.query.delivery_id,
   () => {
@@ -158,6 +159,8 @@ watch(
   },
 );
 
+watch(rows, openRouteDelivery, { immediate: true });
+
 function createDefaultFilters(): NotificationFilterState {
   return {
     category: '',
@@ -168,10 +171,10 @@ function createDefaultFilters(): NotificationFilterState {
   };
 }
 
-function hydrateFromRoute() {
+function createFiltersFromRoute(): NotificationFilterState {
   const status = parseStatus(route.query.status);
-  filters.value = {
-    ...filters.value,
+  return {
+    ...createDefaultFilters(),
     category: parseCategory(route.query.category),
     severity: parseSeverity(route.query.severity),
     sourceModule: firstRouteQueryString(route.query.source_module),
@@ -181,6 +184,10 @@ function hydrateFromRoute() {
       firstRouteQueryValue(route.query.occurred_to),
     ]),
   };
+}
+
+function hydrateFromRoute() {
+  filters.value = createFiltersFromRoute();
 }
 
 function firstRouteQueryValue(value: unknown) {
@@ -227,26 +234,6 @@ function buildQuery(): NotificationListQuery {
   return query;
 }
 
-async function fetchNotifications() {
-  loading.value = true;
-  listError.value = '';
-  try {
-    const response = await getNotifications(buildQuery());
-    rows.value = response.items;
-    total.value = response.total;
-    pagination.value.current = response.page;
-    pagination.value.pageSize = response.page_size;
-    openRouteDelivery();
-  } catch (error) {
-    logger.error('failed to fetch notifications', error);
-    rows.value = [];
-    total.value = 0;
-    listError.value = resolveLocalizedErrorMessage(t, error, t('notification.messages.loadFailed'));
-  } finally {
-    loading.value = false;
-  }
-}
-
 function openRouteDelivery() {
   const deliveryId = Number(firstRouteQueryValue(route.query.delivery_id));
   if (!Number.isFinite(deliveryId)) return;
@@ -276,25 +263,21 @@ function handleStatusChange(value: TabValue) {
   filters.value.status = parseStatus(value);
   pagination.value.current = 1;
   syncRouteQuery();
-  void fetchNotifications();
 }
 
 function handleSearch() {
   pagination.value.current = 1;
   syncRouteQuery();
-  void fetchNotifications();
 }
 
 function resetFilters() {
   filters.value = createDefaultFilters();
   pagination.value.current = 1;
   syncRouteQuery();
-  void fetchNotifications();
 }
 
 function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.value = page;
-  void fetchNotifications();
 }
 
 function openDetail(row: NotificationItem) {
@@ -336,7 +319,7 @@ async function markOneRead(row: NotificationItem) {
   }
   try {
     const updated = await markNotificationRead(row.delivery_id);
-    rows.value = rows.value.map((item) => (item.delivery_id === updated.delivery_id ? updated : item));
+    updateNotificationListCaches(updated);
     if (detailRecord.value?.delivery_id === updated.delivery_id) {
       detailRecord.value = updated;
     }
@@ -346,7 +329,7 @@ async function markOneRead(row: NotificationItem) {
       if (isDetailRecord) {
         await closeDetailAndConsumeRoute();
       }
-      await fetchNotifications();
+      await invalidateNotificationListQueries();
     }
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('notification.messages.markReadFailed')));
@@ -369,7 +352,7 @@ async function markAllRead() {
     });
     requestNotificationHeaderRefresh();
     MessagePlugin.success(t('notification.messages.markAllReadSuccess'));
-    await fetchNotifications();
+    await invalidateNotificationListQueries();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('notification.messages.markAllReadFailed')));
   } finally {
@@ -380,8 +363,7 @@ async function markAllRead() {
 async function deleteRow(row: NotificationItem) {
   try {
     await deleteNotification(row.delivery_id);
-    rows.value = rows.value.filter((item) => item.delivery_id !== row.delivery_id);
-    total.value = Math.max(0, total.value - 1);
+    await invalidateNotificationListQueries();
     if (detailRecord.value?.delivery_id === row.delivery_id) {
       await closeDetailAndConsumeRoute();
     }
