@@ -831,7 +831,10 @@
         "description": "Confirm the Compose lifecycle configuration owned by the project after creation.",
         "authorityHint": "Create saves lifecycle configuration only; it does not deploy or start containers.",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "Command Preview"
+        "commandPreviewTitle": "Command Preview",
+        "defaultsLoadFailed": "Failed to load lifecycle defaults.",
+        "configured": "Default lifecycle configuration confirmed",
+        "configuredWithAdditionalArgs": "Lifecycle configuration confirmed with additional startup arguments"
       },
       "review": {
         "title": "Review Creation",

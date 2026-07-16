@@ -7107,6 +7107,7 @@ export interface components {
       default_template_key: string;
       workspace_entries: components['schemas']['project-workspace-entry'][];
       compose_file_path: string;
+      lifecycle_configuration: components['schemas']['project-lifecycle-configuration-request'];
     };
     'enveloped-project-workspace-defaults-response': {
       data: components['schemas']['project-workspace-defaults-response'];

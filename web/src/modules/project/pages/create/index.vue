@@ -41,6 +41,22 @@
             ><t-button theme="primary" @click="nextFromWorkspace">{{ t('project.create.actions.review') }}</t-button>
           </div>
         </section>
+        <section v-else-if="step === 2">
+          <project-lifecycle-configuration-step
+            v-if="lifecycleDraft"
+            v-model:draft="lifecycleDraft"
+            :title="t('project.create.lifecycle.title')"
+            :description="t('project.create.lifecycle.description')"
+            :authority-message="t('project.create.lifecycle.authorityHint')"
+            :configuration-title="t('project.create.lifecycle.configurationTitle')"
+            :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
+            :back-label="t('project.create.actions.back')"
+            :continue-label="t('project.create.actions.review')"
+            @back="step--"
+            @continue="nextFromLifecycle"
+          />
+          <t-alert v-else theme="error" :message="lifecycleConfigError" />
+        </section>
         <section v-else>
           <h2>{{ t('project.create.review.title') }}</h2>
           <p>{{ t('project.create.review.noAutoDeploy') }}</p>
@@ -50,7 +66,9 @@
             }}</t-descriptions-item
             ><t-descriptions-item :label="t('project.create.form.applicationName')"
               ><code>{{ formData.application_name || '-' }}</code></t-descriptions-item
-            ></t-descriptions
+            ><t-descriptions-item :label="t('project.create.lifecycle.configurationTitle')">
+              {{ lifecycleSummary }}
+            </t-descriptions-item></t-descriptions
           >
           <div class="project-create-page__actions">
             <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
@@ -97,7 +115,9 @@ import {
   postProjectCreate,
 } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
+import ProjectLifecycleConfigurationStep from '../../components/ProjectLifecycleConfigurationStep.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { buildBlankLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
 import {
   appendResolvedTab,
   buildDetailTitleWithFallback,
@@ -109,6 +129,7 @@ import type {
   ProjectApplicationNameAvailabilityResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
+  ProjectLifecycleConfigurationDraft,
   ProjectWorkspaceDraftEntry,
   ProjectWorkspaceDraftFile,
   ProjectWorkspaceEntry,
@@ -135,6 +156,9 @@ const workspaceFiles = ref<ProjectWorkspaceDraftEntry[]>([
 const primaryComposePath = ref('compose.yaml');
 const workspaceDefaultsLoading = ref(true);
 const workspaceDefaultsError = ref('');
+const workspaceDefaults = ref<Awaited<ReturnType<typeof getProjectWorkspaceDefaults>> | null>(null);
+const lifecycleDraft = ref<ProjectLifecycleConfigurationDraft | null>(null);
+const lifecycleConfigError = ref('');
 const reuseDirectoryDialogVisible = ref(false);
 const reuseWriteDialogVisible = ref(false);
 const pendingReusableWorkspace = ref<ProjectApplicationNameAvailabilityResponse | null>(null);
@@ -154,8 +178,14 @@ const formRules: FormProps['rules'] = {
   ],
 };
 const stepOptions = computed(() =>
-  ['identity', 'workspace', 'review'].map((key) => ({ title: t(`project.create.steps.${key}`) })),
+  ['identity', 'workspace', 'lifecycle', 'review'].map((key) => ({ title: t(`project.create.steps.${key}`) })),
 );
+const lifecycleSummary = computed(() => {
+  if (!lifecycleDraft.value) return '-';
+  return lifecycleDraft.value.additional_args.trim()
+    ? t('project.create.lifecycle.configuredWithAdditionalArgs')
+    : t('project.create.lifecycle.configured');
+});
 const composePath = computed(
   () =>
     workspaceFiles.value.find((entry) => entry.node_type === 'file' && entry.path === primaryComposePath.value)?.path ||
@@ -172,6 +202,7 @@ onMounted(async () => {
       workspaceFiles.value = defaults.workspace_entries.map(toWorkspaceDraftEntry);
     }
     if (defaults.compose_file_path) primaryComposePath.value = defaults.compose_file_path;
+    workspaceDefaults.value = defaults;
   } catch (error) {
     workspaceDefaultsError.value = resolveLocalizedErrorMessage(
       t,
@@ -219,6 +250,9 @@ async function nextFromIdentity() {
   }
 }
 function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
+  if (!lifecycleDraft.value) {
+    throw new Error('missing lifecycle configuration');
+  }
   return {
     display_name: formData.display_name.trim(),
     runtime_target_id: runtimeTargetIdValue,
@@ -226,6 +260,7 @@ function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
     workspace_entries: workspaceFiles.value.map(toProjectWorkspaceEntry),
     compose_file_path: composePath.value as string,
     reuse_existing_workspace: reusingExistingWorkspace.value,
+    lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
   };
 }
 function useReusableWorkspace(availability: ProjectApplicationNameAvailabilityResponse) {
@@ -268,6 +303,23 @@ function nextFromWorkspace() {
     MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
     return;
   }
+  if (!workspaceDefaults.value?.lifecycle_configuration) {
+    lifecycleConfigError.value = t('project.create.lifecycle.defaultsLoadFailed');
+    MessagePlugin.error(lifecycleConfigError.value);
+    return;
+  }
+  lifecycleDraft.value = buildBlankLifecycleConfigurationDraft(workspaceDefaults.value, {
+    composeFilePath: composePath.value,
+    canonicalProjectName: formData.application_name.trim(),
+  });
+  step.value++;
+}
+function nextFromLifecycle() {
+  if (!lifecycleDraft.value) {
+    lifecycleConfigError.value = t('project.create.lifecycle.defaultsLoadFailed');
+    MessagePlugin.error(lifecycleConfigError.value);
+    return;
+  }
   step.value++;
 }
 async function createProject(confirmedReuse = false) {
@@ -277,6 +329,10 @@ async function createProject(confirmedReuse = false) {
   }
   if (!composePath.value) {
     MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
+    return;
+  }
+  if (!lifecycleDraft.value) {
+    MessagePlugin.error(t('project.create.lifecycle.defaultsLoadFailed'));
     return;
   }
 

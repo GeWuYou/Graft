@@ -549,7 +549,13 @@ func (r routeRuntime) handleWorkspaceDefaults(ginCtx *gin.Context) {
 		}
 		entries = append(entries, item)
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"templates": templates, "default_template_key": result.DefaultTemplateKey, "workspace_entries": entries, "compose_file_path": result.ComposeFilePath})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{
+		"templates":               templates,
+		"default_template_key":    result.DefaultTemplateKey,
+		"workspace_entries":       entries,
+		"compose_file_path":       result.ComposeFilePath,
+		"lifecycle_configuration": toGeneratedLifecycleConfigurationRequest(result.LifecycleConfig),
+	})
 }
 
 // toTemplateProjectCreateRequest 将 HTTP 模板创建请求转换为领域请求。

@@ -50,6 +50,7 @@ type WorkspaceDefaultsResult struct {
 	DefaultTemplateKey string
 	WorkspaceEntries   []WorkspaceEntry
 	ComposeFilePath    string
+	LifecycleConfig    LifecycleStandardConfig
 }
 
 // WorkspaceDefaults 返回空白创建使用的服务端初始工作区和可用运行时模板。
@@ -76,7 +77,13 @@ func (s *Service) WorkspaceDefaults(ctx context.Context) (WorkspaceDefaultsResul
 			return WorkspaceDefaultsResult{}, err
 		}
 	}
-	return WorkspaceDefaultsResult{Templates: templates, DefaultTemplateKey: defaultTemplateKey, WorkspaceEntries: entries, ComposeFilePath: "compose.yaml"}, nil
+	return WorkspaceDefaultsResult{
+		Templates:          templates,
+		DefaultTemplateKey: defaultTemplateKey,
+		WorkspaceEntries:   entries,
+		ComposeFilePath:    "compose.yaml",
+		LifecycleConfig:    defaultLifecycleStandardConfig(),
+	}, nil
 }
 
 func (s *Service) applicationRootDirectory(ctx context.Context) (string, error) {

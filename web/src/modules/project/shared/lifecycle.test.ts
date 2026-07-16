@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildBlankLifecycleConfigurationDraft,
   buildImportLifecycleConfigurationDraft,
   buildLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
@@ -37,6 +38,35 @@ function createProjectDetail(additionalArgs: string[] = []) {
 }
 
 describe('project lifecycle helpers', () => {
+  it('hydrates blank-create lifecycle defaults into a command-preview draft', () => {
+    const draft = buildBlankLifecycleConfigurationDraft(
+      {
+        lifecycle_configuration: {
+          strategy_kind: 'standard',
+          profiles: ['web'],
+          down_before_redeploy: true,
+          pull_before_redeploy: false,
+          build_before_up: false,
+          force_recreate: false,
+          remove_orphans: true,
+          wait_after_up: false,
+          wait_timeout_seconds: 120,
+          renew_anon_volumes: false,
+          prune_images_after_redeploy: false,
+          additional_args: ['--progress', 'plain'],
+        },
+      },
+      { composeFilePath: 'compose.yaml', canonicalProjectName: 'orders-dev' },
+    );
+
+    expect(draft.additional_args).toBe('--progress plain');
+    expect(resolveLifecycleCommandSteps(draft, 'up')).toEqual([
+      expect.objectContaining({
+        command: 'docker compose -f compose.yaml --profile web -p orders-dev up -d --remove-orphans --progress plain',
+      }),
+    ]);
+  });
+
   it('preserves additional argv boundaries through lifecycle requests and inspection drafts', () => {
     const firstDraft = buildLifecycleConfigurationDraft(createProjectDetail());
     firstDraft.additional_args = "--progress 'plain output'";

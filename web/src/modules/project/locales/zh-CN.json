@@ -826,7 +826,10 @@
         "description": "确认创建后由项目持有的 Compose 生命周期配置。",
         "authorityHint": "创建只保存生命周期配置，不会执行部署或启动容器。",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "命令预览"
+        "commandPreviewTitle": "命令预览",
+        "defaultsLoadFailed": "无法加载生命周期默认配置。",
+        "configured": "已确认默认生命周期配置",
+        "configuredWithAdditionalArgs": "已确认生命周期配置，并包含额外启动参数"
       },
       "review": {
         "title": "审核创建",

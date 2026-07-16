@@ -57,6 +57,17 @@ vi.mock('../../components/ProjectLifecycleConfigurationReview.vue', () => ({
   }),
 }));
 
+vi.mock('../../components/ProjectLifecycleConfigurationStep.vue', () => ({
+  default: defineComponent({
+    name: 'ProjectLifecycleConfigurationStepStub',
+    props: { continueLabel: { type: String, default: '' } },
+    emits: ['continue'],
+    setup(props, { emit }) {
+      return () => h('button', { onClick: () => emit('continue') }, props.continueLabel);
+    },
+  }),
+}));
+
 const WrapperStub = defineComponent({
   name: 'WrapperStub',
   setup(_props, { slots }) {
@@ -131,6 +142,20 @@ describe('ProjectCreateIndex', () => {
     mocks.postProjectCreate.mockClear();
     mocks.getProjectWorkspaceDefaults.mockResolvedValue({
       compose_file_path: 'compose.yaml',
+      lifecycle_configuration: {
+        strategy_kind: 'standard',
+        profiles: [],
+        down_before_redeploy: true,
+        pull_before_redeploy: false,
+        build_before_up: false,
+        force_recreate: false,
+        remove_orphans: true,
+        wait_after_up: false,
+        wait_timeout_seconds: 120,
+        renew_anon_volumes: false,
+        prune_images_after_redeploy: false,
+        additional_args: [],
+      },
       workspace_entries: [
         { path: 'compose.yaml', node_type: 'file', content: 'services: {}' },
         { path: '.env', node_type: 'file', content: '' },
@@ -168,6 +193,11 @@ describe('ProjectCreateIndex', () => {
     await flushPromises();
     await wrapper
       .findAll('button')
+      .find((button) => button.text().includes('project.create.actions.review'))
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
       .find((button) => button.text().includes('project.create.actions.create'))
       ?.trigger('click');
     await flushPromises();
@@ -175,6 +205,14 @@ describe('ProjectCreateIndex', () => {
     expect(mocks.postProjectCreate).toHaveBeenCalledTimes(1);
     const request = mocks.postProjectCreate.mock.calls[0]?.[0];
     expect(request).toEqual(expect.objectContaining({ runtime_target_id: 7 }));
+    expect(request.lifecycle_configuration).toEqual(
+      expect.objectContaining({
+        strategy_kind: 'standard',
+        down_before_redeploy: true,
+        remove_orphans: true,
+        additional_args: [],
+      }),
+    );
     expect(request.workspace_entries).toEqual(
       expect.arrayContaining([
         { path: 'config', node_type: 'directory' },
