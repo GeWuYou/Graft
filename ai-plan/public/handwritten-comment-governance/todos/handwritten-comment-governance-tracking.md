@@ -29,7 +29,7 @@ requires:
   roadmap: false
   adr: false
 execution:
-  engine: graft-multi-agent-loop
+  engine: graft-multi-agent-batch
   dispatch_skill: graft-multi-agent-batch
 bootstrap:
   targets:
@@ -43,7 +43,8 @@ closeout:
 
 - startup preflight completed; initial read-only inventory sized the candidate source at 1701 files and comment-bearing files at 868.
 - Verified worker configuration: `model=gpt-5.6-luna`, `reasoning_effort=medium`.
-- Next step: continue from the residual inventory of untouched server modules and web modules; archive readiness is not yet established.
+- This wave completed semantic inventory and comment governance for three mutually exclusive module groups; archive readiness is not yet established.
+- Next step: classify the remaining comment-bearing module files and define the next disjoint batch.
 
 ## Task Checklist
 
@@ -71,17 +72,28 @@ closeout:
     "fourth-wave remaining core modules and scheduled-task",
     "current-session eight-wave parallel residual governance",
     "current-session four-worker residual module governance",
-    "current-session three-worker residual module governance"
+    "current-session three-worker residual module governance",
+    "current-session residual module inventory and governance"
   ],
   "pending_batches": [
-    "residual inventory for untouched server modules and web modules"
+    "remaining semantic classification for server and web module comments"
   ],
-  "current_batch": "residual implementation wave and archive-readiness review",
-  "next_batch": "read-only inventory then mutually exclusive server/web residual slices",
+  "current_batch": "three-worker residual module inventory and governance",
+  "next_batch": "remaining semantic classification then mutually exclusive server/web residual slices",
   "closeout_status": "handoff-required",
-  "validation_note": "accepted web commit 8d28ed95 and server union commit b2304976; server full validation passed with 0 lint issues and all Go tests; web bun run check passed with 223 test files / 1410 tests and release build; git diff --check passed; server worker commit boundaries were not independently provable because both workers shared the index; residual heuristic inventory remains, so archive-ready is not claimed"
+  "validation_note": "accepted scoped commits 538892be, 8859fbc7, and f5d73db2; server full validation passed with 0 lint issues and all Go tests; web bun run check passed all pre-test gates but ended with 2 pre-existing failures in dashboard quick actions and project configuration workspace (221/223 files, 1408/1410 tests); git diff --check passed; residual heuristic inventory reports 317 server module and 156 web module comment-bearing files, so archive-ready is not claimed"
 }
 ```
+
+## 2026-07-16 residual module inventory and governance
+
+- Startup preflight was rerun with `cross-boundary` task class, parent-topic recovery, and verified worker configuration `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false`.
+- Used `$graft-multi-agent-batch` directly with three mutually exclusive workers: server announcement/notification/security/scheduler/runtime-target/saved-view/system-config, server audit/container/project, and web access-log/app-log/container/task module scopes.
+- Accepted scoped commits `538892be`, `8859fbc7`, and `f5d73db2`; commit path review confirmed each changed file stayed inside its worker scope, with no generated, third-party, migration, build, or script paths.
+- Each worker completed `$graft-comment-governance` and `$graft-commit`. Decisions covered updated and removed mechanical comments across constraint, business-rule, lifecycle, cache, and external-behavior categories.
+- Main-agent validation passed: `cd server && go run ./cmd/graft validate backend` reported migration/contract/locale gates passing, backend lint `0 issues`, and all Go tests; `git diff --check` passed.
+- `cd web && bun run check` passed formatting, typecheck, OpenAPI, i18n, lint, style, hygiene, and governance stages, then reported 221/223 test files and 1408/1410 tests passing; the two failures are existing dashboard quick-actions and configuration-workspace tests outside this wave's changed files.
+- Residual heuristic inventory now reports 317 server module and 156 web module comment-bearing files requiring semantic classification. This remains an audit signal, not a comment-count acceptance target; archive readiness remains pending.
 
 ## 2026-07-16 residual implementation wave and archive-readiness review
 

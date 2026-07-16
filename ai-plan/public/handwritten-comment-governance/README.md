@@ -13,8 +13,9 @@
   - `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
   - `.agents/skills/graft-comment-governance/SKILL.md`
 - Completed so far: startup preflight, G115 lint repair, mixed-commit reconciliation, and eight parallel comment-governance waves
-- Current status detail: residual inventory wave completed; archive-readiness remains pending because untouched
-  server module and web module scopes still contain audit candidates.
+- Current status detail: the latest residual module wave completed with three scoped commits; archive-readiness remains
+  pending because semantic classification is still required for 317 server module and 156 web module comment-bearing
+  files.
 
 ## Recovery Receipt
 
@@ -49,9 +50,9 @@ Out of scope:
 ## Current Recovery Point
 
 - 已完成启动收据、权威文档读取、G115 修复提交 `e3806925` 和混合提交范围复核；未改写 `e9fb50d4` / `249280ed` 历史。
-- 本回合已完成八个不重叠波次；每个 worker 均完成 scoped commit，主 Agent 保留编排层模型证据 `gpt-5.6-luna/medium`。
-- backend lint 已通过；web 全量检查仅剩既有 `configuration-workspace` 测试失败。
-- Next step: continue from the residual inventory of untouched server modules and web modules; archive readiness is not yet established.
+- 本回合已完成三块互斥模块治理；每个 worker 均完成 `graft-comment-governance` 与 scoped commit，主 Agent 保留编排层模型证据 `gpt-5.6-luna/medium/fork_context=false`。
+- backend full validation 已通过；web 全量检查的治理前置阶段已通过，测试阶段保留既有 `DashboardQuickActions` 与 `configuration-workspace` 两个失败。
+- Next step: continue semantic classification of the remaining server and web module comments; archive readiness is not yet established.
 
 ## Work Intake
 
@@ -62,7 +63,7 @@ Out of scope:
 ## Pending Batch Direction
 
 - 已完成波次：project workspace/canonical/project boundary、auth、system-config/task、web project、web shared/request、web auth/dashboard/monitor。
-- 后续批次：对剩余 server module 与 web module 候选继续做只读 inventory 后再冻结互斥写集；本回合已完成约 20% 的可审计增量，停止并交接。
+- 后续批次：对剩余 server module 与 web module 候选继续做语义 inventory 后再冻结互斥写集；本回合完成可审计增量，停止并交接。
 
 ## Validation Targets
 

@@ -97,3 +97,12 @@
 - Main-agent acceptance confirmed the final worktree is clean, the union file set remains within the two server scopes, and no generated, third-party, migration, build, or scripts paths changed.
 - Cross-boundary validation passed: backend validation reported 0 lint issues and all Go tests; web check reported 223 passing test files and 1410 passing tests plus release build; `git diff --check` passed.
 - Archive readiness remains pending because residual candidates still require read-only semantic inventory and the server worker commit evidence is not independently scoped. This session stops at the requested auditable progress increment and hands off through the existing startup prompt.
+
+## 2026-07-16 residual module inventory and governance
+
+- Reran startup preflight for `cross-boundary` with parent-topic recovery and verified the orchestration surface: `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false`.
+- Used `$graft-multi-agent-batch` directly, with three disjoint module workers covering server announcement/notification/security/scheduler/runtime-target/saved-view/system-config, server audit/container/project, and web access-log/app-log/container/task.
+- Accepted worker commits `538892be`, `8859fbc7`, and `f5d73db2`. Main-agent scope review confirmed exact paths remained in declared write sets and no generated, third-party, migration, build, or `scripts/**` paths were modified.
+- All workers completed `$graft-comment-governance` and `$graft-commit`. The receipts recorded updated or removed decisions for constraint, business-rule, lifecycle, cache, and external-behavior comments.
+- Server validation passed with migration/contract/locale gates, backend lint `0 issues`, and all Go tests. Web validation passed all pre-test gates; Vitest ended with 221/223 files and 1408/1410 tests passing, with existing failures in `DashboardQuickActions.test.ts` and `configuration-workspace/index.test.ts`. `git diff --check` passed.
+- Post-wave heuristic inventory reports 317 server module and 156 web module comment-bearing files. This is a residual audit signal only; archive readiness remains pending and the topic stays active.
