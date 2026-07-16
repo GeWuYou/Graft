@@ -91,6 +91,7 @@ func newProjectLifecycleConfigTopicStreamer(
 }
 
 func (s *projectLifecycleConfigTopicStreamer) EnsureTopic(topic string, projectID uint64) error {
+	// 生命周期配置流与运行时流共享订阅驱动，但保留独立状态以隔离各自的发布和关闭责任。
 	if s == nil {
 		return errors.New("project lifecycle configuration topic streamer is unavailable")
 	}
@@ -144,6 +145,7 @@ func (s *projectLifecycleConfigTopicStreamer) Close(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 	var closeErr error
+	// 只有停止成功才移除主题登记；超时保留状态，避免遗留协程失去可追踪的所有权。
 	for _, topic := range topics {
 		stopErr := s.stop(ctx, topic)
 		closeErr = errors.Join(closeErr, stopErr)

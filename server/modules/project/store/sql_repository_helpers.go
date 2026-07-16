@@ -79,9 +79,8 @@ func (r *SQLRepository) ensureReady() error {
 	return nil
 }
 
-// normalizeListQuery 规范化列表查询参数。
 // normalizeListQuery 规范化项目列表查询条件，并将分页参数限制在允许范围内。
-// 无效的排序、筛选值、关键字或运行目标 ID 会返回 ErrInvalidInput；缺省或超出范围的分页参数会被调整为允许值。
+// 排序值只允许稳定的 created_at + id 组合；无效筛选、关键字或运行目标 ID 返回 ErrInvalidInput。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	normalizedSort, err := normalizeProjectListSort(query.Sort)
 	if err != nil {
@@ -114,8 +113,8 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	return query, nil
 }
 
-// normalizeProjectListSort trims and validates a project list sort expression.
-// It returns the normalized sort expression or ErrInvalidInput for unsupported values.
+// normalizeProjectListSort 校验项目列表排序表达式，并返回可安全映射到固定 SQL 子句的值。
+// 不支持的表达式返回 ErrInvalidInput，避免请求值进入 ORDER BY。
 func normalizeProjectListSort(raw string) (string, error) {
 	switch strings.TrimSpace(raw) {
 	case "", ProjectListSortCreatedAtDesc:
@@ -127,8 +126,8 @@ func normalizeProjectListSort(raw string) (string, error) {
 	}
 }
 
-// buildListOrderBy maps the validated project-list sort expression to a fixed SQL fragment.
-// buildListOrderBy 根据排序表达式生成项目列表的固定 SQL 排序子句，并使用 ID 降序作为并列排序。
+// buildListOrderBy 将已校验的项目列表排序表达式映射为固定 SQL 子句。
+// created_at 相同时始终使用 ID 降序作为并列排序，保证分页结果稳定。
 func buildListOrderBy(sortExpression string) string {
 	if sortExpression == ProjectListSortCreatedAtAsc {
 		return "created_at ASC, id DESC"

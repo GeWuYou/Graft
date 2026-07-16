@@ -82,6 +82,7 @@ func newProjectListTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *
 }
 
 func (s *projectListTopicStreamer) EnsureTopic(topic string) error {
+	// 主题只登记一次；真正的刷新协程由订阅观察器在首个订阅到来时启动。
 	if s == nil {
 		return errors.New("project list topic streamer is unavailable")
 	}
@@ -133,6 +134,7 @@ func (s *projectListTopicStreamer) Close(ctx context.Context) error {
 	s.mu.Unlock()
 
 	var closeErr error
+	// 先请求停止并等待协程，再注销观察器，避免关闭后仍有发布回调访问状态。
 	for _, topic := range topics {
 		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
 		s.mu.Lock()
@@ -153,6 +155,7 @@ func (s *projectListTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
+	// 每个主题最多保留一个运行实例；runID 用于防止旧协程清理新一轮运行状态。
 	runCtx, cancel := context.WithCancel(context.Background())
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)

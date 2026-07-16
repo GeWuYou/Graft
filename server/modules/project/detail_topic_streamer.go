@@ -89,6 +89,7 @@ func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, servic
 }
 
 func (s *projectRuntimeTopicStreamer) EnsureTopic(topic string, projectID uint64) error {
+	// 主题记录先于观察器注册，保证并发订阅不会重复创建运行实例；无订阅时不启动刷新协程。
 	if s == nil {
 		return errors.New("project runtime topic streamer is unavailable")
 	}
@@ -138,6 +139,7 @@ func (s *projectRuntimeTopicStreamer) Close(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 	var closeErr error
+	// 关闭必须等待正在执行的发布完成；超时主题保留登记，便于后续继续收敛资源。
 	for _, topic := range topics {
 		stopErr := s.stop(ctx, topic)
 		closeErr = errors.Join(closeErr, stopErr)
@@ -162,6 +164,7 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
+	// runID 防止旧一轮协程在取消后覆盖新一轮主题状态。
 	runCtx, cancel := context.WithCancel(context.Background())
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)

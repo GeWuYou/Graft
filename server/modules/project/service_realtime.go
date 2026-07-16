@@ -48,7 +48,7 @@ type projectLogsRealtimePayload struct {
 	Entry generated.ProjectLogEntry `json:"entry"`
 }
 
-// IssueSubscription issues project-owned realtime topic subscriptions.
+// IssueSubscription 为项目模块主题签发实时订阅票据，并在签发前校验主题格式、项目归属和查看权限。
 func (s *Service) IssueSubscription(
 	ctx context.Context,
 	request realtime.SubscriptionRequest,
@@ -81,6 +81,7 @@ func (s *Service) registerRealtimeTopics() error {
 	if s.topicIssuers == nil {
 		return errors.New("realtime topic issuer registry is unavailable")
 	}
+	// 先注册精确主题，再注册带前缀的项目主题；注册表按声明顺序解析匹配关系。
 	if err := s.topicIssuers.Register(projectcontract.ProjectListSummaryTopic, s); err != nil {
 		return err
 	}
@@ -93,7 +94,7 @@ func (s *Service) registerRealtimeTopics() error {
 	return s.topicIssuers.Register(projectcontract.ProjectLogsTopicPrefix, s)
 }
 
-// Close releases project-owned realtime streaming resources.
+// Close 停止项目模块拥有的实时流，并等待各流退出或返回调用方提供的关闭上下文错误。
 func (s *Service) Close(ctx context.Context) error {
 	if s == nil {
 		return nil

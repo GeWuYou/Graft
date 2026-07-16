@@ -85,6 +85,7 @@ func newProjectLogTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *S
 }
 
 func (s *projectLogTopicStreamer) EnsureTopic(topic string, projectID uint64, query LogQuery) error {
+	// 日志流保存首次登记时的查询条件；重复订阅只增加观察者引用，不重建流参数。
 	if s == nil {
 		return errors.New("project log topic streamer is unavailable")
 	}
@@ -134,6 +135,7 @@ func (s *projectLogTopicStreamer) Close(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 	var closeErr error
+	// 先取消并等待日志读取，再注销观察器，保证外部运行时句柄不会在关闭后继续被使用。
 	for _, topic := range topics {
 		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
 		s.mu.Lock()

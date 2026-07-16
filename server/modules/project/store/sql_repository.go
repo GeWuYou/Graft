@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-// SQLRepository persists project registry state in module-owned SQL tables.
+// SQLRepository 持久化项目模块拥有的注册表、文件快照和生命周期配置。
+// 对外项目读取以 deleted_at = 0 的存活记录为边界，写入通过事务保持项目主记录与其文件/快照一致。
 type SQLRepository struct {
 	db          *sql.DB
 	placeholder placeholderStyle
@@ -20,10 +21,8 @@ const (
 	workspaceAnnotationUpdateRetryLimit = 3
 )
 
-// NewSQLRepository 创建一个基于 SQL 的项目仓库。
-// 当 db 为空时返回错误；否则返回可用于访问项目数据的仓库实例，并根据数据库类型确定占位符样式。
-// @param db 数据库连接池。
-// @returns SQL 仓库实例及错误信息。
+// NewSQLRepository 创建一个基于 SQL 的项目仓库，并根据数据库类型选择占位符样式。
+// db 为空时返回错误；返回的仓库只允许访问模块拥有的项目表。
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("project repository requires a non-nil sql db")
@@ -31,7 +30,8 @@ func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	return &SQLRepository{db: db, placeholder: detectPlaceholderStyle(db)}, nil
 }
 
-// List returns one page of registered projects.
+// List 返回一页存活项目及其文件、快照聚合结果。
+// 查询先使用同一过滤条件计算总数，再按白名单排序表达式分页；附属文件和快照通过批量查询装配，避免逐项目查询。
 func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	if err := r.ensureReady(); err != nil {
 		return ListResult{}, err
@@ -71,6 +71,7 @@ func (r *SQLRepository) listProjectsPage(
 	query ListQuery,
 	total int,
 ) ([]Project, []uint64, error) {
+	// 排序片段只能来自 normalizeListQuery 的白名单，避免把请求值直接拼入 SQL。
 	argsWithPage := append(append([]any(nil), args...), query.Limit, query.Offset)
 	rows, err := r.db.QueryContext(
 		ctx,
@@ -287,7 +288,8 @@ func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID ui
 	return item, nil
 }
 
-// ImportProject creates or replaces one live project registry row.
+// ImportProject 在一个事务中创建或替换存活项目，并同步替换文件与快照。
+// 提交前任一步骤失败都会回滚，提交后再读取完整聚合，确保调用方看到的是数据库已确认的状态。
 func (r *SQLRepository) ImportProject(ctx context.Context, input ImportProjectInput) (ProjectAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectAggregate{}, err
@@ -324,7 +326,8 @@ func (r *SQLRepository) ImportProject(ctx context.Context, input ImportProjectIn
 	return r.Get(ctx, projectID)
 }
 
-// RefreshProject updates one existing project's snapshot and drift metadata.
+// RefreshProject 在一个事务中更新项目快照、漂移元数据及文件投影。
+// 项目必须在事务内仍为存活记录；事务提交后才重新读取聚合结果。
 func (r *SQLRepository) RefreshProject(ctx context.Context, input RefreshProjectInput) (ProjectAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectAggregate{}, err
@@ -357,7 +360,7 @@ func (r *SQLRepository) RefreshProject(ctx context.Context, input RefreshProject
 	return r.Get(ctx, input.ProjectID)
 }
 
-// UpdateLifecycleConfig updates one existing project's saved lifecycle configuration.
+// UpdateLifecycleConfig 更新存活项目保存的生命周期配置，并保留配置确认状态这一持久化契约。
 func (r *SQLRepository) UpdateLifecycleConfig(ctx context.Context, input UpdateLifecycleConfigInput) (ProjectAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return ProjectAggregate{}, err
@@ -501,7 +504,8 @@ func (r *SQLRepository) loadWorkspaceAnnotationsJSON(ctx context.Context, projec
 	return raw, nil
 }
 
-// UnregisterProject soft-deletes one live project registry row without deleting host files.
+// UnregisterProject 软删除一条存活项目记录，但不删除宿主机文件。
+// 该边界允许后续审计或人工恢复引用历史注册信息，同时由 deleted_at 过滤后续业务读取。
 func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterProjectInput) error {
 	if err := r.ensureReady(); err != nil {
 		return err
@@ -550,9 +554,8 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 	return nil
 }
 
-// buildListWhere 构建项目列表查询的 WHERE 条件和参数。
-// buildListWhere 构建项目列表查询的过滤条件及其参数，始终排除已删除项目，并按需筛选来源类型、漂移状态、关键字和运行时目标。
-// 返回条件片段及其对应的参数值。
+// buildListWhere 构建项目列表查询的过滤条件及参数。
+// 条件始终排除已删除项目；关键字会转义 LIKE 通配符，避免用户输入改变匹配语义。
 func buildListWhere(query ListQuery) ([]string, []any) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, projectListWhereArgCapacity)
@@ -608,6 +611,7 @@ func (r *SQLRepository) replaceRefreshFiles(ctx context.Context, tx *sql.Tx, inp
 }
 
 func (r *SQLRepository) listFiles(ctx context.Context, projectID uint64) ([]ProjectFile, error) {
+	// order_index 表示导入时的文件顺序，id 只用于处理并列顺序，不能改为按路径排序。
 	projectDBID, err := toDBID(projectID)
 	if err != nil {
 		return nil, err

@@ -103,14 +103,8 @@ func permissionItems(moduleName string) []permission.Item {
 	}
 }
 
-// registerMenu 为项目模块注册菜单项。
-// 当 registry 为空时，返回错误；否则注册“Operations”根菜单和“Compose Projects”列表菜单，并将 moduleName 作为模块标识写入菜单项。
-// @param moduleName 模块名称。
-// registerMenu 注册项目模块的菜单项。
-//
-// @param moduleName 菜单项所属的模块名称。
-// registerMenu 注册项目模块的菜单项。
-// 当菜单注册表不可用时返回错误，否则返回 nil。
+// registerMenu 注册项目模块的菜单项；菜单注册表不可用时返回错误。
+// moduleName 写入每个菜单项的模块归属，供权限和模块装配边界保持一致。
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
