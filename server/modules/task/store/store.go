@@ -42,8 +42,8 @@ type Repository interface {
 	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
 }
 
-// StageClaim 是由持久化 running 状态表示的独占 worker 领取结果。
-// Task Runtime 不另建租约记录；worker 只有在 compare-and-swap 持续确认 Stage 为 running 时才拥有该领取权。
+// StageClaim 是由持久化 running 状态表示的 worker 领取结果。
+// Task Runtime 不另建租约记录；数据库行锁与状态迁移共同防止并发 worker 重复领取同一阶段。
 type StageClaim struct {
 	Task  taskmodel.Task
 	Stage taskmodel.Stage

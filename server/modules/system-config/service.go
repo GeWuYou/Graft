@@ -44,7 +44,7 @@ const (
 	snapshotInvalidationSourceManual snapshotInvalidationSource = "manual"
 )
 
-// ValueSnapshot 是一个配置项有效值的服务读模型，并保留默认值或用户覆盖状态。
+// ValueSnapshot 是配置定义与用户覆盖值合并后的读模型；敏感配置的三个值字段对外始终为空。
 type ValueSnapshot struct {
 	Definition     configregistry.Definition
 	EffectiveValue json.RawMessage
@@ -60,7 +60,7 @@ type ValueSnapshot struct {
 	Masked         bool
 }
 
-// ValueStatus 描述配置项当前使用模块默认值还是用户覆盖值。
+// ValueStatus 描述有效值来自模块默认值还是已持久化的用户覆盖值。
 type ValueStatus string
 
 const (
@@ -159,7 +159,7 @@ func (s *Service) setUserService(users moduleapi.UserService) {
 	s.users = users
 }
 
-// List 返回所有已注册配置定义与用户覆盖值合并后的结果。
+// List 返回所有已注册配置的有效值；返回结果来自同一份覆盖快照，避免同一响应内混用不同读取时刻的数据。
 func (s *Service) List(ctx context.Context) ([]ValueSnapshot, error) {
 	cache, err := s.loadOverrideSnapshot(ctx)
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *Service) List(ctx context.Context) ([]ValueSnapshot, error) {
 	return items, nil
 }
 
-// Get 按已注册配置 key 返回一个有效配置值。
+// Get 按已注册配置 key 返回有效值；未注册 key 不会回退到调用方提供的任意默认值。
 func (s *Service) Get(ctx context.Context, key string) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
@@ -190,7 +190,7 @@ func (s *Service) Get(ctx context.Context, key string) (ValueSnapshot, error) {
 	return s.snapshotFromCache(ctx, definition, cache)
 }
 
-// ResolveDefaultConfig 为 scheduler job definition 提供有效的对象型配置值。
+// ResolveDefaultConfig 为 scheduler job definition 提供当前有效的 JSON 配置；敏感配置拒绝进入调度器解析路径。
 func (s *Service) ResolveDefaultConfig(ctx context.Context, key string) (string, error) {
 	item, err := s.Get(ctx, key)
 	if err != nil {
@@ -218,7 +218,7 @@ func (s *Service) IsBooleanConfigEnabled(ctx context.Context, key string, fallba
 	return value
 }
 
-// Update 保存一个已注册配置 key 的用户覆盖值，并在写入前执行类型与 Schema 校验。
+// Update 校验后保存已注册配置 key 的用户覆盖值；持久化成功后立即失效快照，使后续读取不再使用旧值。
 func (s *Service) Update(ctx context.Context, key string, value json.RawMessage, userID *uint64) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
@@ -234,7 +234,7 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage,
 	return s.Get(ctx, definition.Key)
 }
 
-// Reset 删除一个已注册配置 key 的用户覆盖值，使模块默认值重新生效。
+// Reset 删除已注册配置 key 的用户覆盖值并失效快照，使模块默认值重新生效。
 func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {

@@ -18,12 +18,12 @@ type Module struct {
 	runtime    *Runtime
 }
 
-// NewModule 基于模块自有仓储创建 Task Runtime 模块；仓储是状态机事实的持久化权威。
+// NewModule 基于模块自有仓储创建 Task Runtime；仓储是状态机事实的权威，worker 内存状态不能替代它。
 func NewModule(repository taskstore.Repository) *Module {
 	return &Module{repository: repository, runtime: NewRuntime(repository)}
 }
 
-// Register 校验并发布 Task Runtime 能力，供消费模块注册阶段执行器和提交不可变 TaskPlan。
+// Register 发布 Task Runtime 能力；消费模块必须在 Boot 前完成执行器和 owner 授权器注册。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.repository == nil {
 		return errors.New("task module repository is unavailable")
@@ -67,7 +67,7 @@ func (m *Module) configureRealtime(ctx *module.Context) error {
 	return m.runtime.RegisterRealtimeTopics()
 }
 
-// Boot 在消费模块完成阶段执行器注册后先执行崩溃恢复，再启动模块自有的进程内 worker 池。
+// Boot 在消费模块完成执行器注册后先执行崩溃恢复，再启动 worker 池；无法证明外部副作用完成的阶段先标为 unknown。
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.runtime == nil || ctx == nil || ctx.LifecycleContext == nil {
 		return errors.New("task module boot context is unavailable")
@@ -75,7 +75,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return m.runtime.Start(ctx.LifecycleContext)
 }
 
-// Shutdown 协作停止活跃执行器和模块自有 worker；在途外部副作用无法证明完成时由恢复流程标记为 unknown。
+// Shutdown 协作停止活跃执行器和 worker；超时或无法证明完成的外部副作用留待下次恢复流程标为 unknown。
 func (m *Module) Shutdown(ctx *module.Context) error {
 	if m == nil || m.runtime == nil {
 		return nil

@@ -29,7 +29,7 @@ var taskTransitions = map[moduleapi.TaskStatus]map[moduleapi.TaskStatus]struct{}
 	},
 }
 
-// CanTransitionTask 判断持久化 Task 是否允许从当前状态迁移到目标状态。
+// CanTransitionTask 判断持久化 Task 是否允许从当前状态迁移到目标状态；终态没有隐式回退路径。
 func CanTransitionTask(from moduleapi.TaskStatus, to moduleapi.TaskStatus) bool {
 	allowed, exists := taskTransitions[from]
 	if !exists {
@@ -47,7 +47,7 @@ func ValidateTaskTransition(from moduleapi.TaskStatus, to moduleapi.TaskStatus) 
 	return fmt.Errorf("%w: task %q -> %q", ErrInvalidTransition, from, to)
 }
 
-// CanTransitionStage 判断持久化 Stage 是否允许当前生命周期迁移；failed 和 unknown 只能回到 pending 以触发受控重试。
+// CanTransitionStage 判断 Stage 是否允许生命周期迁移；failed 和 unknown 只能回到 pending 触发受控重试。
 func CanTransitionStage(from moduleapi.StageStatus, to moduleapi.StageStatus) bool {
 	switch from {
 	case moduleapi.StageStatusPending:

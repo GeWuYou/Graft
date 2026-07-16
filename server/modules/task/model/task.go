@@ -8,7 +8,7 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-// Task 表示一次消费模块所有 TaskPlan 的持久化执行；状态与时间字段以仓储记录为准。
+// Task 表示消费模块提交的一次持久化 TaskPlan 执行；状态和结果字段由 Runtime 持续更新。
 type Task struct {
 	ID                uint64
 	Type              moduleapi.TaskType
@@ -31,7 +31,7 @@ type Task struct {
 	UpdatedAt         time.Time
 }
 
-// Stage 表示不可变计划中的一个阶段及其当前执行状态；计划字段不因重试而重写。
+// Stage 表示冻结计划中的一个阶段及其当前执行状态；计划字段创建后不因重试而重写。
 type Stage struct {
 	ID             uint64
 	TaskID         uint64

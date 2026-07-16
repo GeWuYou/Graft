@@ -48,7 +48,7 @@ type runningStage struct {
 	cancel   context.CancelFunc
 }
 
-// NewRuntime 创建一个任务运行时，并初始化其工作线程配置、执行器与授权器注册表以及唤醒通道。
+// NewRuntime 创建任务运行时，并初始化执行器、owner 授权器和 worker 唤醒通道。
 func NewRuntime(repository taskstore.Repository) *Runtime {
 	return &Runtime{
 		repository:  repository,
@@ -100,7 +100,7 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 	return nil
 }
 
-// Submit 在原子保存不可变 TaskPlan 前校验消费模块所有的执行器引用；dispatcher 只从 PostgreSQL 观察提交事实。
+// Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
@@ -343,7 +343,7 @@ func (r *Runtime) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop 请求 worker 和运行中执行器停止，并等待其拥有的 goroutine；无法确认已完成的外部工作保守地留待恢复为 unknown。
+// Stop 请求 worker 和运行中执行器停止并等待其 goroutine；无法确认完成的外部工作留待恢复为 unknown。
 func (r *Runtime) Stop(ctx context.Context) error {
 	if r == nil {
 		return nil
