@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: complete only evidence-backed medium-risk TanStack Query migrations after the P0 rollout.
-- Current status: `active-planned`.
+- Current status: `archive-ready`.
 - Task class: `web`.
 - Intake summary: long-running frontend architecture evolution with shared guidance and bounded module batches.
 - Canonical authority:
@@ -32,7 +32,20 @@ Out of scope:
 ## Current Recovery Point
 
 - P0 QueryClient, announcement, monitor, access-log, app-log, and audit migrations landed in commit `5acd17d8`.
-- Next batch: classify and migrate one P1 standard CRUD group; do not start a broad multi-module rewrite.
+- P1 standard CRUD and resource-detail migrations landed in commits `344f9b15` and `7b38485a`.
+- The final `non-query-go-no-go` batch completed its archive-readiness check. Table, Virtual, Form, and Router remain
+  deliberately unadopted; no next batch is pending.
+
+## Non-Query Decision
+
+- Do not add TanStack Table, Virtual, Form, or Router for framework symmetry. The current authorities are TDesign
+  Table/Form, the existing LogViewer realtime/virtualized path, and Vue Router; no measured performance or
+  maintenance deficiency was found in this topic.
+- Reconsider Table, Virtual, or Form only with a reproduced deficiency, a before/after acceptance metric that names
+  the affected interaction, and a rollback that removes the new dependency and restores the existing authority.
+- Reconsider Router only after the frontend architecture authority changes. Any proposal must show why Vue Router can
+  no longer own route registration and navigation semantics, define route/navigation acceptance metrics, and retain a
+  reversible migration path.
 
 ## Work Intake
 

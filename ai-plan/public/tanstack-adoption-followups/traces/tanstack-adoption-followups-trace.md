@@ -30,3 +30,20 @@
 - Reference: TanStack Query requires query keys to identify cached data independently and documents dependent/lazy
   query enabling at https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys and
   https://tanstack.com/query/latest/docs/framework/vue/guides/dependent-queries.
+
+## 2026-07-16 Non-Query Go/No-Go And Archive Readiness
+
+- Decided no-go for TanStack Table, Virtual, Form, and Router. `web/package.json` and `web/bun.lock` do not contain
+  the four packages, while the current authorities remain TDesign Table/Form, Vue Router, and the existing LogViewer
+  realtime/virtualized behavior. No concrete measured performance or maintenance deficiency was found.
+- This is not a permanent prohibition. Table, Virtual, or Form may be reconsidered only after an owner records a
+  reproducible baseline, target interaction/data shape, before/after acceptance metrics, and a rollback that removes
+  the dependency and restores the current authority. Useful upstream references are the [Table overview](https://tanstack.com/table/latest/docs/overview),
+  [Virtual introduction](https://tanstack.com/virtual/latest/docs/introduction), and [Form Vue quick start](https://tanstack.com/form/latest/docs/framework/vue/quick-start).
+- Router remains no-go unless frontend architecture authority first changes. A future proposal must prove a Vue Router
+  route-registry or navigation deficiency, define route/navigation metrics, and preserve a reversible migration path;
+  see the [TanStack Router Vue quick start](https://tanstack.com/router/latest/docs/framework/vue/quick-start).
+- Final archive-readiness check passed: all three P1 batches are complete; Query acceptance conditions are recorded as
+  met, and any non-Query adoption is now guarded by evidence, metrics, and rollback. The Work Contract has
+  `closeout.archive: false`, so the topic remains in place and is marked `archive-ready` without changing the public
+  topic index.

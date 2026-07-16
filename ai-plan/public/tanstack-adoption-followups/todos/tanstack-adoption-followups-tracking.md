@@ -35,10 +35,22 @@ closeout:
   updates after list-affecting mutations. Filters, pagination, selection, form drafts, and lazy role-catalog behavior
   remain page-local UI state.
 
-## Pending Batches
+## Final Non-Query Decision
 
-1. `non-query-go-no-go`
-   - Record evidence for Table, Virtual, and Form only when a concrete performance or maintenance problem exists; Router is rejected unless architecture authority changes.
+- `non-query-go-no-go` is complete. Do not add `@tanstack/vue-table`, `@tanstack/vue-virtual`,
+  `@tanstack/vue-form`, or `@tanstack/vue-router` in this topic.
+- Evidence: none of those packages is present in `web/package.json` or `web/bun.lock`; the application already uses
+  TDesign tables/forms, Vue Router, and its existing LogViewer realtime/virtualized implementation. This review found
+  no concrete measured performance or maintenance deficiency that would justify a parallel authority.
+- Future Table, Virtual, or Form proposal: record a reproducible baseline, an affected interaction and data shape,
+  target acceptance metrics (for example p95 interaction latency, dropped-frame rate, retained selection/focus, or
+  maintenance reduction), and a rollback that removes the package and restores the current TDesign or LogViewer path.
+- Future Router proposal: first revise the frontend architecture authority; then prove a navigation or route-registry
+  deficiency in Vue Router, define route/navigation acceptance metrics, and retain a reversible migration path.
+- References for a future evidence-backed proposal: [TanStack Table overview](https://tanstack.com/table/latest/docs/overview),
+  [TanStack Virtual overview](https://tanstack.com/virtual/latest/docs/introduction),
+  [TanStack Form Vue guide](https://tanstack.com/form/latest/docs/framework/vue/quick-start), and
+  [TanStack Router Vue guide](https://tanstack.com/router/latest/docs/framework/vue/quick-start).
 
 ## Acceptance Conditions
 
@@ -47,18 +59,29 @@ closeout:
 - No duplicate Pinia/page-local server snapshot remains after a migrated batch.
 - Any non-Query TanStack adoption has written evidence, acceptance metrics, and an explicit rollback path.
 
+## Archive-Readiness Check
+
+- Passed on 2026-07-16: Query batches use module API wrappers, normalized module keys, direct cache updates or
+  invalidation, and the shared logout-safe QueryClient lifecycle.
+- Passed on 2026-07-16: migrated pages retain no duplicate Pinia or page-local server snapshot; filters, selection,
+  drafts, streams, and other UI-local concerns remain outside Query cache.
+- Passed on 2026-07-16: non-Query tools have an explicit no-go decision. Any future adoption is gated by written
+  evidence, measurable acceptance criteria, and rollback.
+- The Work Contract sets `closeout.archive: false`; retain this topic in place as `archive-ready` and do not change
+  `ai-plan/public/README.md` or move the topic directory.
+
 ## Loop Batch State
 
 ```json
 {
   "completed_batches": [
-    "p0-query-foundation-and-high-yield-consumers",
     "standard-crud-query-migration",
-    "resource-detail-query-migration"
+    "resource-detail-query-migration",
+    "non-query-go-no-go"
   ],
-  "pending_batches": ["non-query-go-no-go"],
+  "pending_batches": [],
   "current_batch": null,
-  "next_batch": "non-query-go-no-go",
-  "closeout_status": "active"
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
