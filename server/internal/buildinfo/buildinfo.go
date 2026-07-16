@@ -1,4 +1,4 @@
-// Package buildinfo exposes the canonical server build identity surface.
+// Package buildinfo 提供服务端构建身份信息的规范化读取边界。
 package buildinfo
 
 import "strings"
@@ -17,7 +17,7 @@ var (
 	gitTreeState = defaultGitTreeState
 )
 
-// Info is the canonical build metadata baseline for the server artifact.
+// Info 是服务端构建产物使用的规范化构建元数据快照。
 type Info struct {
 	Version      string
 	GitCommit    string
@@ -25,7 +25,7 @@ type Info struct {
 	GitTreeState string
 }
 
-// Current constructs the current build identity from package-level variables, applying default fallbacks for empty fields.
+// Current 从包级构建变量生成当前构建身份，并为空字段应用默认回退值。
 func Current() Info {
 	return Normalize(Info{
 		Version:      version,
@@ -40,18 +40,18 @@ func Normalize(info Info) Info {
 	return normalize(info)
 }
 
-// IsOfficialRelease reports whether the current identity looks like a tagged release build.
+// IsOfficialRelease 根据版本字段是否仍为开发默认值判断当前构建是否像带标签的正式发布版本。
 func (i Info) IsOfficialRelease() bool {
 	normalized := normalize(i)
 	return normalized.Version != defaultVersion
 }
 
-// IsDirty reports whether the injected tree state explicitly marks the build as dirty.
+// IsDirty 仅在注入的 Git 工作树状态明确为 dirty 时报告构建包含未提交变更。
 func (i Info) IsDirty() bool {
 	return strings.EqualFold(normalize(i).GitTreeState, "dirty")
 }
 
-// normalize returns a normalized copy of info with canonical field values, applying fallback defaults to empty or invalid fields.
+// normalize 返回规范化副本；空字段和无法识别的字段会回退到稳定默认值。
 func normalize(info Info) Info {
 	info.Version = normalizeField(info.Version, defaultVersion)
 	info.GitCommit = normalizeField(info.GitCommit, defaultGitCommit)
@@ -69,8 +69,7 @@ func normalizeField(value string, fallback string) string {
 	return trimmed
 }
 
-// normalizeTreeState returns a canonical representation of the given git tree state value.
-// The result is either "clean", "dirty", or the default unknown state.
+// normalizeTreeState 将 Git 工作树状态规范化为 clean、dirty 或默认的 unknown。
 func normalizeTreeState(value string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(value))
 	switch trimmed {

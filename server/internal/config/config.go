@@ -335,7 +335,7 @@ func validateAppConfig(c *Config) error {
 	return nil
 }
 
-// validateHTTPConfig validates that the HTTP server address is configured.
+// validateHTTPConfig 验证 HTTP 服务监听地址已配置。
 func validateHTTPConfig(c *Config) error {
 	if strings.TrimSpace(c.HTTP.Addr) == "" {
 		return errors.New("GRAFT_HTTP_ADDR is required")
@@ -366,7 +366,7 @@ func validateHTTPXConfig(c *Config) error {
 	return nil
 }
 
-// validateAuditConfig validates audit configuration and always succeeds.
+// validateAuditConfig 保留审计启动配置边界；当前配置没有额外校验约束。
 func validateAuditConfig(_ *Config) error {
 	return nil
 }
@@ -553,9 +553,8 @@ func validateAuthConfig(c *Config) error {
 	return nil
 }
 
-// validateContainerConfig validates container configuration fields.
-// validateContainerConfig validates and normalizes the container runtime and Docker endpoint configuration.
-// It returns an error when the runtime is unsupported or the Docker endpoint is empty.
+// validateContainerConfig 校验并规范化容器运行时和 Docker endpoint；
+// 运行时不受支持或 endpoint 为空时返回错误。
 func validateContainerConfig(c *Config) error {
 	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
 	if c.Container.Runtime == "" {
@@ -615,7 +614,7 @@ func ResolveLogFormat(appEnv string, format LogFormat) LogFormat {
 	}
 }
 
-// ResolveLogColor reports whether the effective console encoder should colorize log levels.
+// ResolveLogColor 根据有效日志格式、显式颜色策略和应用环境判断 console 编码器是否应使用 ANSI 颜色。
 func ResolveLogColor(appEnv string, format LogFormat, color LogColor) bool {
 	if ResolveLogFormat(appEnv, format) != LogFormatConsole {
 		return false
@@ -653,7 +652,7 @@ func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	}
 }
 
-// ResolveAccessLogConsolePolicy returns the effective access-log console policy.
+// ResolveAccessLogConsolePolicy 返回有效的访问日志控制台输出策略。
 // 当未显式指定策略时，局部环境返回 error_only，其它环境返回 never。
 func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy) AccessLogConsolePolicy {
 	switch normalizeAccessLogConsolePolicy(policy) {
@@ -689,8 +688,7 @@ func normalizeLogColor(color LogColor) LogColor {
 	return normalizeStringEnum(color, LogColorAuto, LogColorAlways, LogColorNever)
 }
 
-// normalizeGinMode 将输入规范化为支持的 Gin 模式值。
-// @returns 规范化后的 GinMode；当输入不匹配任何支持值时返回 `auto`。
+// normalizeGinMode 将输入规范化为支持的 Gin 模式值；无法识别时返回 auto。
 func normalizeGinMode(mode GinMode) GinMode {
 	return normalizeStringEnum(mode, GinModeAuto, GinModeDebug, GinModeRelease, GinModeTest)
 }

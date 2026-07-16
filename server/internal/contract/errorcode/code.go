@@ -1,4 +1,4 @@
-// Package errorcode defines stable API response code contracts shared by the server runtime.
+// Package errorcode 定义服务端运行时共享的稳定 API 响应码契约。
 package errorcode
 
 import (
@@ -7,10 +7,10 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 )
 
-// Code identifies a stable response code contract.
+// Code 标识稳定的 API 响应码契约。
 type Code string
 
-// String returns the canonical response code value.
+// String 返回规范响应码字符串。
 func (c Code) String() string {
 	return string(c)
 }
@@ -108,7 +108,7 @@ var messageKeyCodes = map[messagecontract.Key]Code{
 	messagecontract.UserProtectedDefaultAdminImmutable:   UserProtectedDefaultAdminImmutable,
 }
 
-// FromMessageKey resolves the canonical response code for a stable message key.
+// FromMessageKey 将稳定消息键解析为规范响应码；未登记的键按规范化后的键名生成回退值。
 func FromMessageKey(key messagecontract.Key) Code {
 	if code, ok := messageKeyCodes[key]; ok {
 		return code

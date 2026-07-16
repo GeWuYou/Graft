@@ -1,27 +1,27 @@
-// Package httpheader defines stable HTTP header contracts shared by the server runtime.
+// Package httpheader 定义服务端运行时共享的稳定 HTTP 请求头契约。
 package httpheader
 
-// Name identifies a stable HTTP header contract name.
+// Name 标识稳定的 HTTP 请求头契约名称。
 type Name string
 
-// String returns the wire-format header name.
+// String 返回线上协议使用的请求头名称。
 func (n Name) String() string {
 	return string(n)
 }
 
 const (
-	// AcceptLanguage carries the standard request locale preferences.
+	// AcceptLanguage 携带标准 HTTP 请求的语言偏好。
 	AcceptLanguage Name = "Accept-Language"
 
-	// Authorization carries the caller authentication scheme and token.
+	// Authorization 携带调用方的认证方案和令牌。
 	Authorization Name = "Authorization"
 
-	// Locale carries the platform-specific explicit locale override.
+	// Locale 携带平台定义的显式语言区域覆盖值。
 	Locale Name = "X-Graft-Locale"
 
-	// RequestID carries the stable request identifier echoed across the response envelope.
+	// RequestID 携带稳定请求标识，并在响应封套中回显。
 	RequestID Name = "X-Request-Id"
 
-	// TraceID carries a legacy-compatible upstream trace identifier fallback.
+	// TraceID 携带兼容旧调用方的上游追踪标识回退值。
 	TraceID Name = "X-Trace-Id"
 )

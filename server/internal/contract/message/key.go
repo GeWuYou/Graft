@@ -1,10 +1,10 @@
-// Package message defines stable localized message-key contracts shared by the server runtime.
+// Package message 定义服务端运行时共享的稳定本地化消息键契约。
 package message
 
-// Key identifies a stable localized message contract key.
+// Key 标识稳定的本地化消息契约键。
 type Key string
 
-// String returns the canonical message key value.
+// String 返回规范消息键字符串。
 func (k Key) String() string {
 	return string(k)
 }

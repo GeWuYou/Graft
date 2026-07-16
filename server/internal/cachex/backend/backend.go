@@ -1,4 +1,4 @@
-// Package backend provides cachex backend adapters.
+// Package backend 提供 cachex 使用的后端适配器契约与实现。
 package backend
 
 import (
@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-// Entry is the backend-neutral stored cache payload.
+// Entry 是与具体后端无关的缓存存储载荷；Value 由实现负责防止外部修改。
 type Entry struct {
 	Value     []byte
 	ExpiresAt time.Time
 }
 
-// Backend defines the minimal mechanical storage operations required by cachex.
+// Backend 定义 cachex 所需的最小机械存储操作，并以 bool 区分未命中与后端错误。
 type Backend interface {
 	Name() string
 	Get(context.Context, string) (Entry, bool, error)

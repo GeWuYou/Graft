@@ -10,13 +10,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisOptions configures the cachex Redis backend adapter.
+// RedisOptions 配置 cachex 的 Redis 后端适配器。
 type RedisOptions struct {
 	Prefix string
 	Now    func() time.Time
 }
 
-// Redis adapts go-redis to the cachex mechanical backend contract.
+// Redis 将 go-redis 适配为 cachex 的机械后端契约。
 type Redis struct {
 	client redis.Cmdable
 	prefix string
@@ -41,12 +41,12 @@ func NewRedis(client redis.Cmdable, options RedisOptions) (*Redis, error) {
 	}, nil
 }
 
-// Name returns the backend name.
+// Name 返回后端标识 redis，供缓存指标区分存储实现。
 func (r *Redis) Name() string {
 	return "redis"
 }
 
-// Get returns one stored Redis entry when present.
+// Get 返回存在的 Redis 缓存项，并把 Redis TTL 转换为绝对过期时间。
 func (r *Redis) Get(ctx context.Context, key string) (Entry, bool, error) {
 	value, err := r.client.Get(ctx, r.prefixed(key)).Bytes()
 	if errors.Is(err, redis.Nil) {
@@ -68,7 +68,7 @@ func (r *Redis) Get(ctx context.Context, key string) (Entry, bool, error) {
 	return entry, true, nil
 }
 
-// Set writes one entry to Redis.
+// Set 将缓存项写入 Redis；已过期项直接删除，避免写入失效值。
 func (r *Redis) Set(ctx context.Context, key string, entry Entry) error {
 	if !entry.ExpiresAt.IsZero() && !entry.ExpiresAt.After(r.now()) {
 		return r.Delete(ctx, key)
@@ -85,7 +85,7 @@ func (r *Redis) Set(ctx context.Context, key string, entry Entry) error {
 	return r.client.Set(ctx, r.prefixed(key), cloneBytes(entry.Value), ttl).Err()
 }
 
-// Delete removes one entry from Redis.
+// Delete 删除 Redis 中的指定缓存项；Redis 对不存在键的处理保持为成功。
 func (r *Redis) Delete(ctx context.Context, key string) error {
 	return r.client.Del(ctx, r.prefixed(key)).Err()
 }
@@ -98,7 +98,7 @@ func (r *Redis) prefixed(key string) string {
 	return r.prefix + ":" + key
 }
 
-// cloneBytes returns a deep copy of value, or nil if value is empty.
+// cloneBytes 深拷贝字节切片；空输入返回 nil 以保持空载荷语义。
 func cloneBytes(value []byte) []byte {
 	if len(value) == 0 {
 		return nil

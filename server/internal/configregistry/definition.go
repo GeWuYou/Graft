@@ -1,4 +1,4 @@
-// Package configregistry owns module-registered system configuration definitions.
+// Package configregistry 管理模块注册的系统配置定义，并保持配置元数据的稳定注册边界。
 package configregistry
 
 import (
@@ -16,40 +16,38 @@ const maskedPlaceholder = "******"
 
 var keyPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$`)
 
-// ValueType identifies the JSON value shape accepted by one config definition.
+// ValueType 标识配置定义允许的 JSON 值形状。
 type ValueType string
 
 const (
-	// ValueTypeString accepts JSON string values.
+	// ValueTypeString 接受 JSON 字符串值。
 	ValueTypeString ValueType = "string"
-	// ValueTypeNumber accepts JSON number values.
+	// ValueTypeNumber 接受 JSON 数字值。
 	ValueTypeNumber ValueType = "number"
-	// ValueTypeInteger accepts JSON integer values.
+	// ValueTypeInteger 接受 JSON 整数值。
 	ValueTypeInteger ValueType = "integer"
-	// ValueTypeBoolean accepts JSON boolean values.
+	// ValueTypeBoolean 接受 JSON 布尔值。
 	ValueTypeBoolean ValueType = "boolean"
-	// ValueTypeObject accepts JSON object values.
+	// ValueTypeObject 接受 JSON 对象值。
 	ValueTypeObject ValueType = "object"
-	// ValueTypeArray accepts JSON array values.
+	// ValueTypeArray 接受 JSON 数组值。
 	ValueTypeArray ValueType = "array"
 )
 
-// RuntimeApplyMode identifies how a changed config value is expected to apply at runtime.
+// RuntimeApplyMode 标识配置值变更在运行时生效的方式。
 type RuntimeApplyMode string
 
 const (
-	// RuntimeApplyModeUnknown means the current authority owners have not classified apply semantics yet.
+	// RuntimeApplyModeUnknown 表示当前 authority owner 尚未分类该配置的生效语义。
 	RuntimeApplyModeUnknown RuntimeApplyMode = "unknown"
-	// RuntimeApplyModeRuntimeHot means the next runtime read should observe the new effective value without restart.
+	// RuntimeApplyModeRuntimeHot 表示下一次运行时读取即可观察新值，无需重启。
 	RuntimeApplyModeRuntimeHot RuntimeApplyMode = "runtime_hot"
-	// RuntimeApplyModeRestartRequired means the persisted value changes immediately, but runtime behavior changes only after restart.
+	// RuntimeApplyModeRestartRequired 表示持久化值立即变化，但运行时行为要到重启后才变化。
 	RuntimeApplyModeRestartRequired RuntimeApplyMode = "restart_required"
 )
 
-// Definition declares one module-owned system configuration key.
-//
-// Definitions are registered by modules during Register. They are canonical
-// metadata and must not be copied into system_config_values as database truth.
+// Definition 声明一个模块拥有的系统配置键；模块在 Register 阶段注册它，
+// 它是配置元数据真相，不应复制到 system_config_values 作为数据库真相。
 type Definition struct {
 	Key                 string
 	Module              string
@@ -77,7 +75,7 @@ type Definition struct {
 	Order               int
 }
 
-// Snapshot returns an immutable copy safe for callers to retain.
+// Snapshot 返回可安全长期持有的副本；可变 JSON 与标签切片会被复制。
 func (d Definition) Snapshot() Definition {
 	cloned := d
 	cloned.Schema = cloneRawMessage(d.Schema)
@@ -86,16 +84,12 @@ func (d Definition) Snapshot() Definition {
 	return cloned
 }
 
-// MaskedPlaceholder returns the canonical masked value sentinel for sensitive values.
+// MaskedPlaceholder 返回敏感配置值使用的规范脱敏占位符。
 func MaskedPlaceholder() string {
 	return maskedPlaceholder
 }
 
-// validateDefinition validates a configuration definition and returns
-// validateDefinition 验证配置定义。
-//
-// 检查定义的键、必需元数据、值类型、运行时应用模式、Schema 和默认值是否有效。
-// 若任何验证失败则返回错误，否则返回 nil。
+// validateDefinition 验证配置键、必需元数据、值类型、运行时应用模式、Schema 和默认值。
 func validateDefinition(definition Definition) error {
 	key := strings.TrimSpace(definition.Key)
 	if key == "" {
@@ -140,7 +134,7 @@ func validateRequiredDefinitionMetadata(definition Definition, key string) error
 	return nil
 }
 
-// validValueTypes returns all valid ValueType values.
+// validValueTypes 返回所有允许的 ValueType 值。
 func validValueTypes() []ValueType {
 	return []ValueType{
 		ValueTypeString,
@@ -161,8 +155,7 @@ func validRuntimeApplyModes() []RuntimeApplyMode {
 	}
 }
 
-// validateJSONObject validates that raw is either empty or a valid JSON object.
-// validateJSONObject validates that raw is empty or valid JSON representing a JSON object.
+// validateJSONObject 验证 raw 为空或表示 JSON 对象；数组、标量和非法 JSON 均返回错误。
 func validateJSONObject(raw json.RawMessage, label string, key string) error {
 	if len(raw) == 0 {
 		return nil
@@ -208,7 +201,7 @@ func validateValueSchema(valueType ValueType, schema json.RawMessage, value json
 	}
 }
 
-// InvalidJSONShape returns the expected shape name when value does not match the definition type.
+// InvalidJSONShape 在值与定义类型不匹配时返回期望的 JSON 形状名称。
 func InvalidJSONShape(value any, valueType ValueType) string {
 	switch valueType {
 	case ValueTypeString:

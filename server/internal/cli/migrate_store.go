@@ -197,7 +197,7 @@ func isAtlasRevisionTableMissingError(err error) bool {
 		strings.Contains(message, "relation \"atlas_schema_revisions\" does not exist")
 }
 
-// 当 partial_hashes 存在时，会将其解析为字符串列表；当类型值无法转换时返回错误。
+// scanAtlasRevision 将数据库行转换为 Atlas 修订；partial_hashes 解析失败或类型值非法时返回错误。
 func scanAtlasRevision(scan func(dest ...any) error) (*atlasmigrate.Revision, error) {
 	var (
 		version         string
@@ -258,8 +258,7 @@ func scanAtlasRevision(scan func(dest ...any) error) (*atlasmigrate.Revision, er
 	}, nil
 }
 
-// revisionTypeToInt64 将修订类型转换为 int64。
-// @returns 成功时返回对应的 int64；若值超出 int64 可表示范围，则返回错误。
+// revisionTypeToInt64 将修订类型转换为数据库使用的 int64；超出可表示范围时返回错误。
 func revisionTypeToInt64(value atlasmigrate.RevisionType) (int64, error) {
 	raw := uint64(value)
 	if raw > math.MaxInt64 {
@@ -281,7 +280,7 @@ type atlasCommandLogger struct {
 	stderr io.Writer
 }
 
-// newAtlasCommandLogger creates an Atlas logger that writes to the command's standard output and error streams, or returns a no-op logger if the command is nil.
+// newAtlasCommandLogger 创建将 Atlas 日志写入命令标准输出和错误流的 logger；命令为空时返回空操作 logger。
 func newAtlasCommandLogger(cmd *cobra.Command) atlasmigrate.Logger {
 	if cmd == nil {
 		return atlasmigrate.NopLogger{}
