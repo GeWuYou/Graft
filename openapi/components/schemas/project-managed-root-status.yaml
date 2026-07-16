@@ -1,6 +1,0 @@
-type: string
-enum: [unconfigured, ready, invalid]
-x-enum-varnames:
-  - ProjectManagedRootStatusUnconfigured
-  - ProjectManagedRootStatusReady
-  - ProjectManagedRootStatusInvalid

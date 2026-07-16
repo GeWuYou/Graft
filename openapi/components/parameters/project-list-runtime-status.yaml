@@ -1,6 +1,0 @@
-name: runtime_status
-in: query
-required: false
-description: Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.
-schema:
-  $ref: ../schemas/project-runtime-status.yaml

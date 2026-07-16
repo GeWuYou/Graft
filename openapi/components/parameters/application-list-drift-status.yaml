@@ -1,0 +1,6 @@
+name: drift_status
+in: query
+required: false
+description: Optional application drift-status filter.
+schema:
+  $ref: ../schemas/application-drift-status.yaml

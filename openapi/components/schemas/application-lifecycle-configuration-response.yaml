@@ -1,0 +1,27 @@
+type: object
+required:
+  - application_id
+  - lifecycle_review_status
+  - workspace_path
+  - compose_project_name
+  - compose_files
+  - lifecycle_configuration
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  lifecycle_review_status:
+    $ref: ./application-lifecycle-review-status.yaml
+  workspace_path:
+    type: string
+    description: Read-only working directory authority reused by lifecycle command generation.
+  compose_project_name:
+    type: string
+    description: Read-only application runtime identity used for explicit `docker compose -p`.
+  compose_files:
+    type: array
+    items:
+      $ref: ./application-file-item.yaml
+    description: Ordered tracked Compose files reused by lifecycle command generation.
+  lifecycle_configuration:
+    $ref: ./application-lifecycle-configuration.yaml
+additionalProperties: false

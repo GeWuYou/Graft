@@ -1,0 +1,6 @@
+name: application_type
+in: query
+required: false
+description: Optional application type. Compose is the only currently supported type.
+schema:
+  $ref: ../schemas/application-type.yaml

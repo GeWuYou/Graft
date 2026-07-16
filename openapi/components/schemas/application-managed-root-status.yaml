@@ -1,0 +1,6 @@
+type: string
+enum: [unconfigured, ready, invalid]
+x-enum-varnames:
+  - ApplicationManagedRootStatusUnconfigured
+  - ApplicationManagedRootStatusReady
+  - ApplicationManagedRootStatusInvalid

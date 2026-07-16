@@ -1,0 +1,27 @@
+type: object
+required:
+  - status
+  - source_type
+  - config_key
+  - ownership_mode
+  - create_permission
+  - supports_managed_create
+properties:
+  status:
+    $ref: ./application-managed-root-status.yaml
+  source_type:
+    $ref: ./application-source-type.yaml
+  config_key:
+    type: string
+  configured_root_directory:
+    type: string
+    nullable: true
+  ownership_mode:
+    $ref: ./application-ownership-mode.yaml
+  create_permission:
+    type: string
+  supports_managed_create:
+    type: boolean
+  status_reason:
+    type: string
+    nullable: true

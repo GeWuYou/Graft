@@ -1,0 +1,6 @@
+type: string
+enum: [imported, managed, template]
+x-enum-varnames:
+  - ApplicationSourceTypeImported
+  - ApplicationSourceTypeManaged
+  - ApplicationSourceTypeTemplate

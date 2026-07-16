@@ -1,0 +1,7 @@
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    required: [data]
+    properties:
+      data:
+        $ref: ./application-compose-runtime-target-catalog-response.yaml

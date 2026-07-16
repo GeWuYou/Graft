@@ -1,0 +1,6 @@
+name: availability
+in: query
+required: false
+description: Optional runtime import availability filter.
+schema:
+  $ref: ../schemas/application-import-runtime-candidate-availability.yaml

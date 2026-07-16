@@ -1,9 +1,0 @@
-type: object
-required: [code, msg, data]
-properties:
-  code:
-    type: integer
-  msg:
-    type: string
-  data:
-    $ref: ./project-log-response.yaml

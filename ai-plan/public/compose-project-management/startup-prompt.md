@@ -21,6 +21,15 @@ Topic objective:
 
 - 持续推进 Compose Project Management，直到该主题达到 `archive-ready`、进入 `blocked`，或必须重新定义 bounded batches。
 
+Application migration authority:
+
+- public resource、UI route、HTTP path 与 OpenAPI schema/type 统一使用 Application
+- canonical routes 是 `/applications/**` 与 `/api/ops/applications/**`，路径参数是 `applicationId`
+- generic table 是 `applications`，当前 `application_type=compose`
+- canonical fields 是 `source_type`、`compose_project_name`、`workspace_path`；`host_scope` 不属于 Application
+- 不保留 Project alias、redirect、deprecated field 或 compatibility contract
+- 历史 versioned migration SQL 不得修改，只能新增前向迁移
+
 Locked architecture decisions:
 
 1. `Project` 是 Compose Project 的管理与聚合层，不是新的 Runtime。

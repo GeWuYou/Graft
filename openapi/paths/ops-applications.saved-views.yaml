@@ -1,0 +1,52 @@
+get:
+  tags: [application]
+  summary: List private application-list saved views
+  operationId: getApplicationSavedViews
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Current user's saved application-list views.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-saved-view-list-response.yaml
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+post:
+  tags: [application]
+  summary: Create a private application-list saved view
+  operationId: postApplicationSavedView
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/application-saved-view-request.yaml
+  responses:
+    '201':
+      description: Saved view created.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-saved-view.yaml
+    '400':
+      description: Invalid saved-view state.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409':
+      description: Duplicate saved-view name.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }

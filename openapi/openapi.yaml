@@ -30,7 +30,7 @@ tags:
   - name: announcements
   - name: container
     description: 容器管理
-  - name: project
+  - name: application
     description: Compose 项目管理
   - name: runtime-target
     description: 运行目标管理
@@ -269,12 +269,12 @@ paths:
     $ref: ./paths/ops-docker-volumes.detail.yaml
   /api/ops/docker/system:
     $ref: ./paths/ops-docker-system.yaml
-  /api/ops/projects:
-    $ref: ./paths/ops-projects.collection.yaml
-  /api/ops/projects/saved-views:
-    $ref: ./paths/ops-projects.saved-views.yaml
-  /api/ops/projects/saved-views/{viewId}:
-    $ref: ./paths/ops-projects.saved-view.yaml
+  /api/ops/applications:
+    $ref: ./paths/ops-applications.collection.yaml
+  /api/ops/applications/saved-views:
+    $ref: ./paths/ops-applications.saved-views.yaml
+  /api/ops/applications/saved-views/{viewId}:
+    $ref: ./paths/ops-applications.saved-view.yaml
   /api/runtime-targets:
     $ref: ./paths/runtime-targets.collection.yaml
   /api/runtime-targets/discover-local-docker:
@@ -283,80 +283,80 @@ paths:
     $ref: ./paths/runtime-targets.detail.yaml
   /api/runtime-targets/{id}/refresh:
     $ref: ./paths/runtime-targets.refresh.yaml
-  /api/ops/projects/import/validate:
-    $ref: ./paths/ops-projects.import-validate.yaml
-  /api/ops/projects/import/runtime-candidates:
-    $ref: ./paths/ops-projects.import-runtime-candidates.yaml
-  /api/ops/projects/import/runtime-inspect:
-    $ref: ./paths/ops-projects.import-runtime-inspect.yaml
-  /api/ops/projects/import/inspect:
-    $ref: ./paths/ops-projects.import-inspect.yaml
-  /api/ops/projects/import:
-    $ref: ./paths/ops-projects.import.yaml
-  /api/ops/projects/import/directory-sources:
-    $ref: ./paths/ops-projects.import-directory-sources.yaml
-  /api/ops/projects/import/directories:
-    $ref: ./paths/ops-projects.import-directories.yaml
-  /api/ops/projects/creation-methods:
-    $ref: ./paths/ops-projects.creation-methods.yaml
-  /api/ops/projects/create/runtime-targets:
-    $ref: ./paths/ops-projects.compose-runtime-targets.yaml
-  /api/ops/projects/discovery-candidates:
-    $ref: ./paths/ops-projects.discovery-candidates.yaml
-  /api/ops/projects/managed/root:
-    $ref: ./paths/ops-projects.managed-root.yaml
-  /api/ops/projects/create/managed/validate:
-    $ref: ./paths/ops-projects.create-validate.yaml
-  /api/ops/projects/create/application-name/availability:
-    $ref: ./paths/ops-projects.application-name-availability.yaml
-  /api/ops/projects/create/managed:
-    $ref: ./paths/ops-projects.create.yaml
-  /api/ops/projects/create/template/validate:
-    $ref: ./paths/ops-projects.create-template-validate.yaml
-  /api/ops/projects/create/template:
-    $ref: ./paths/ops-projects.create-template.yaml
-  /api/ops/projects/create/workspace-defaults:
-    $ref: ./paths/ops-projects.workspace-defaults.yaml
-  /api/ops/projects/{id}:
-    $ref: ./paths/ops-projects.detail.yaml
-  /api/ops/projects/{id}/overview:
-    $ref: ./paths/ops-projects.overview.yaml
-  /api/ops/projects/{id}/logs:
-    $ref: ./paths/ops-projects.logs.yaml
-  /api/ops/projects/{id}/lifecycle-configuration:
-    $ref: ./paths/ops-projects.lifecycle-configuration.yaml
-  /api/ops/projects/{id}/files/entries:
-    $ref: ./paths/ops-projects.workspace-entries.yaml
-  /api/ops/projects/{id}/files/rename:
-    $ref: ./paths/ops-projects.workspace-rename.yaml
-  /api/ops/projects/{id}/services:
-    $ref: ./paths/ops-projects.services.yaml
-  /api/ops/projects/{id}/configuration:
-    $ref: ./paths/ops-projects.configuration.yaml
-  /api/ops/projects/{id}/configuration/preview:
-    $ref: ./paths/ops-projects.configuration-preview.yaml
-  /api/ops/projects/{id}/files:
-    $ref: ./paths/ops-projects.files.yaml
-  /api/ops/projects/{id}/files/content:
-    $ref: ./paths/ops-projects.file-content.yaml
-  /api/ops/projects/{id}/files/annotation:
-    $ref: ./paths/ops-projects.file-annotation.yaml
-  /api/ops/projects/{id}/refresh:
-    $ref: ./paths/ops-projects.refresh.yaml
-  /api/ops/projects/{id}/up:
-    $ref: ./paths/ops-projects.up.yaml
-  /api/ops/projects/{id}/stop:
-    $ref: ./paths/ops-projects.stop.yaml
-  /api/ops/projects/{id}/restart:
-    $ref: ./paths/ops-projects.restart.yaml
-  /api/ops/projects/{id}/redeploy:
-    $ref: ./paths/ops-projects.redeploy.yaml
-  /api/ops/projects/batch-actions:
-    $ref: ./paths/ops-projects.batch-actions.yaml
-  /api/ops/projects/{id}/unregister:
-    $ref: ./paths/ops-projects.unregister.yaml
-  /api/ops/projects/{id}/destroy:
-    $ref: ./paths/ops-projects.destroy.yaml
+  /api/ops/applications/import/validate:
+    $ref: ./paths/ops-applications.import-validate.yaml
+  /api/ops/applications/import/runtime-candidates:
+    $ref: ./paths/ops-applications.import-runtime-candidates.yaml
+  /api/ops/applications/import/runtime-inspect:
+    $ref: ./paths/ops-applications.import-runtime-inspect.yaml
+  /api/ops/applications/import/inspect:
+    $ref: ./paths/ops-applications.import-inspect.yaml
+  /api/ops/applications/import:
+    $ref: ./paths/ops-applications.import.yaml
+  /api/ops/applications/import/directory-sources:
+    $ref: ./paths/ops-applications.import-directory-sources.yaml
+  /api/ops/applications/import/directories:
+    $ref: ./paths/ops-applications.import-directories.yaml
+  /api/ops/applications/creation-methods:
+    $ref: ./paths/ops-applications.creation-methods.yaml
+  /api/ops/applications/create/runtime-targets:
+    $ref: ./paths/ops-applications.compose-runtime-targets.yaml
+  /api/ops/applications/discovery-candidates:
+    $ref: ./paths/ops-applications.discovery-candidates.yaml
+  /api/ops/applications/managed/root:
+    $ref: ./paths/ops-applications.managed-root.yaml
+  /api/ops/applications/create/managed/validate:
+    $ref: ./paths/ops-applications.create-validate.yaml
+  /api/ops/applications/create/application-name/availability:
+    $ref: ./paths/ops-applications.application-name-availability.yaml
+  /api/ops/applications/create/managed:
+    $ref: ./paths/ops-applications.create.yaml
+  /api/ops/applications/create/template/validate:
+    $ref: ./paths/ops-applications.create-template-validate.yaml
+  /api/ops/applications/create/template:
+    $ref: ./paths/ops-applications.create-template.yaml
+  /api/ops/applications/create/workspace-defaults:
+    $ref: ./paths/ops-applications.workspace-defaults.yaml
+  /api/ops/applications/{applicationId}:
+    $ref: ./paths/ops-applications.detail.yaml
+  /api/ops/applications/{applicationId}/overview:
+    $ref: ./paths/ops-applications.overview.yaml
+  /api/ops/applications/{applicationId}/logs:
+    $ref: ./paths/ops-applications.logs.yaml
+  /api/ops/applications/{applicationId}/lifecycle-configuration:
+    $ref: ./paths/ops-applications.lifecycle-configuration.yaml
+  /api/ops/applications/{applicationId}/files/entries:
+    $ref: ./paths/ops-applications.workspace-entries.yaml
+  /api/ops/applications/{applicationId}/files/rename:
+    $ref: ./paths/ops-applications.workspace-rename.yaml
+  /api/ops/applications/{applicationId}/services:
+    $ref: ./paths/ops-applications.services.yaml
+  /api/ops/applications/{applicationId}/configuration:
+    $ref: ./paths/ops-applications.configuration.yaml
+  /api/ops/applications/{applicationId}/configuration/preview:
+    $ref: ./paths/ops-applications.configuration-preview.yaml
+  /api/ops/applications/{applicationId}/files:
+    $ref: ./paths/ops-applications.files.yaml
+  /api/ops/applications/{applicationId}/files/content:
+    $ref: ./paths/ops-applications.file-content.yaml
+  /api/ops/applications/{applicationId}/files/annotation:
+    $ref: ./paths/ops-applications.file-annotation.yaml
+  /api/ops/applications/{applicationId}/refresh:
+    $ref: ./paths/ops-applications.refresh.yaml
+  /api/ops/applications/{applicationId}/up:
+    $ref: ./paths/ops-applications.up.yaml
+  /api/ops/applications/{applicationId}/stop:
+    $ref: ./paths/ops-applications.stop.yaml
+  /api/ops/applications/{applicationId}/restart:
+    $ref: ./paths/ops-applications.restart.yaml
+  /api/ops/applications/{applicationId}/redeploy:
+    $ref: ./paths/ops-applications.redeploy.yaml
+  /api/ops/applications/batch-actions:
+    $ref: ./paths/ops-applications.batch-actions.yaml
+  /api/ops/applications/{applicationId}/unregister:
+    $ref: ./paths/ops-applications.unregister.yaml
+  /api/ops/applications/{applicationId}/destroy:
+    $ref: ./paths/ops-applications.destroy.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -877,202 +877,204 @@ components:
       $ref: ./components/schemas/enveloped-docker-volume-list-response.yaml
     EnvelopedContainerRuntimeInfo:
       $ref: ./components/schemas/enveloped-container-runtime-info.yaml
-    ProjectSourceKind:
-      $ref: ./components/schemas/project-source-kind.yaml
-    ProjectCreationMethodType:
-      $ref: ./components/schemas/project-creation-method-type.yaml
-    ProjectCreationMethodAvailability:
-      $ref: ./components/schemas/project-creation-method-availability.yaml
-    ProjectCreationMethod:
-      $ref: ./components/schemas/project-creation-method.yaml
-    ProjectCreationMethodCatalogResponse:
-      $ref: ./components/schemas/project-creation-method-catalog-response.yaml
-    ProjectComposeRuntimeTarget:
-      $ref: ./components/schemas/project-compose-runtime-target.yaml
-    ProjectComposeRuntimeTargetCatalogResponse:
-      $ref: ./components/schemas/project-compose-runtime-target-catalog-response.yaml
-    ProjectSourceMetadata:
-      $ref: ./components/schemas/project-source-metadata.yaml
-    ProjectHostScope:
-      $ref: ./components/schemas/project-host-scope.yaml
-    ProjectOwnershipMode:
-      $ref: ./components/schemas/project-ownership-mode.yaml
-    ProjectDriftStatus:
-      $ref: ./components/schemas/project-drift-status.yaml
-    ProjectCanonicalNameSource:
-      $ref: ./components/schemas/project-canonical-name-source.yaml
-    ProjectFileKind:
-      $ref: ./components/schemas/project-file-kind.yaml
-    ProjectFileRole:
-      $ref: ./components/schemas/project-file-role.yaml
-    ProjectFileItem:
-      $ref: ./components/schemas/project-file-item.yaml
-    ProjectContainerCounts:
-      $ref: ./components/schemas/project-container-counts.yaml
-    ProjectRuntimeStatus:
-      $ref: ./components/schemas/project-runtime-status.yaml
-    ProjectLifecycleStrategyKind:
-      $ref: ./components/schemas/project-lifecycle-strategy-kind.yaml
-    ProjectLifecycleReviewStatus:
-      $ref: ./components/schemas/project-lifecycle-review-status.yaml
-    ProjectLifecycleCommandStep:
-      $ref: ./components/schemas/project-lifecycle-command-step.yaml
-    ProjectLifecycleGeneratedCommand:
-      $ref: ./components/schemas/project-lifecycle-generated-command.yaml
-    ProjectLifecycleConfiguration:
-      $ref: ./components/schemas/project-lifecycle-configuration.yaml
-    ProjectLifecycleConfigurationRequest:
-      $ref: ./components/schemas/project-lifecycle-configuration-request.yaml
-    ProjectLifecycleConfigurationResponse:
-      $ref: ./components/schemas/project-lifecycle-configuration-response.yaml
-    ProjectListItem:
-      $ref: ./components/schemas/project-list-item.yaml
-    ProjectListResponse:
-      $ref: ./components/schemas/project-list-response.yaml
-    ProjectDetailResponse:
-      $ref: ./components/schemas/project-detail-response.yaml
-    ProjectLogEntryStream:
-      $ref: ./components/schemas/project-log-entry-stream.yaml
-    ProjectLogEntrySource:
-      $ref: ./components/schemas/project-log-entry-source.yaml
-    ProjectLogEntry:
-      $ref: ./components/schemas/project-log-entry.yaml
-    ProjectLogResponse:
-      $ref: ./components/schemas/project-log-response.yaml
-    ProjectOverviewHealthSummary:
-      $ref: ./components/schemas/project-overview-health-summary.yaml
-    ProjectOverviewResourceSummary:
-      $ref: ./components/schemas/project-overview-resource-summary.yaml
-    ProjectOverviewServiceItem:
-      $ref: ./components/schemas/project-overview-service-item.yaml
-    ProjectOverviewResponse:
-      $ref: ./components/schemas/project-overview-response.yaml
-    ProjectServiceItem:
-      $ref: ./components/schemas/project-service-item.yaml
-    ProjectServicesResponse:
-      $ref: ./components/schemas/project-services-response.yaml
-    ProjectCreateRequest:
-      $ref: ./components/schemas/project-create-request.yaml
-    ProjectWorkspaceManifestFile:
-      $ref: ./components/schemas/project-workspace-manifest-file.yaml
-    ProjectWorkspaceEntry:
-      $ref: ./components/schemas/project-workspace-entry.yaml
-    ProjectWorkspaceDefaultsResponse:
-      $ref: ./components/schemas/project-workspace-defaults-response.yaml
-    EnvelopedProjectWorkspaceDefaultsResponse:
-      $ref: ./components/schemas/enveloped-project-workspace-defaults-response.yaml
-    ProjectImportValidateRequest:
-      $ref: ./components/schemas/project-import-validate-request.yaml
-    ProjectImportValidateResponse:
-      $ref: ./components/schemas/project-import-validate-response.yaml
-    ProjectImportResponse:
-      $ref: ./components/schemas/project-import-response.yaml
-    ProjectImportDirectorySource:
-      $ref: ./components/schemas/project-import-directory-source.yaml
-    ProjectImportDirectorySourcesResponse:
-      $ref: ./components/schemas/project-import-directory-sources-response.yaml
-    ProjectImportDirectoryReference:
-      $ref: ./components/schemas/project-import-directory-reference.yaml
-    ProjectImportDirectoryItem:
-      $ref: ./components/schemas/project-import-directory-item.yaml
-    ProjectImportDirectoriesResponse:
-      $ref: ./components/schemas/project-import-directories-response.yaml
-    ProjectImportInspectFileItem:
-      $ref: ./components/schemas/project-import-inspect-file-item.yaml
-    ProjectImportInspectRequest:
-      $ref: ./components/schemas/project-import-inspect-request.yaml
-    ProjectImportInspectResponse:
-      $ref: ./components/schemas/project-import-inspect-response.yaml
-    ProjectImportRequest:
-      $ref: ./components/schemas/project-import-request.yaml
-    ProjectConfigurationMetadataResponse:
-      $ref: ./components/schemas/project-configuration-metadata-response.yaml
-    ProjectConfigurationPreviewResponse:
-      $ref: ./components/schemas/project-configuration-preview-response.yaml
-    ProjectFileTreeNodeType:
-      $ref: ./components/schemas/project-file-tree-node-type.yaml
-    ProjectWorkspaceFileKind:
-      $ref: ./components/schemas/project-workspace-file-kind.yaml
-    ProjectFileTreeItem:
-      $ref: ./components/schemas/project-file-tree-item.yaml
-    ProjectFileAnnotationRequest:
-      $ref: ./components/schemas/project-file-annotation-request.yaml
-    ProjectFilesResponse:
-      $ref: ./components/schemas/project-files-response.yaml
-    ProjectFileContentResponse:
-      $ref: ./components/schemas/project-file-content-response.yaml
-    ProjectFileSaveRequest:
-      $ref: ./components/schemas/project-file-save-request.yaml
-    ProjectFileSaveResponse:
-      $ref: ./components/schemas/project-file-save-response.yaml
-    ProjectDestroyRequest:
-      $ref: ./components/schemas/project-destroy-request.yaml
-    ProjectActionResponse:
-      $ref: ./components/schemas/project-action-response.yaml
-    ProjectBatchActionRequest:
-      $ref: ./components/schemas/project-batch-action-request.yaml
-    ProjectBatchActionItem:
-      $ref: ./components/schemas/project-batch-action-item.yaml
-    ProjectBatchActionResponse:
-      $ref: ./components/schemas/project-batch-action-response.yaml
-    ProjectSavedView:
-      $ref: ./components/schemas/project-saved-view.yaml
-    ProjectSavedViewRequest:
-      $ref: ./components/schemas/project-saved-view-request.yaml
-    ProjectSavedViewListResponse:
-      $ref: ./components/schemas/project-saved-view-list-response.yaml
+    ApplicationSourceType:
+      $ref: ./components/schemas/application-source-type.yaml
+    ApplicationCreationMethodType:
+      $ref: ./components/schemas/application-creation-method-type.yaml
+    ApplicationCreationMethodAvailability:
+      $ref: ./components/schemas/application-creation-method-availability.yaml
+    ApplicationCreationMethod:
+      $ref: ./components/schemas/application-creation-method.yaml
+    ApplicationCreationMethodCatalogResponse:
+      $ref: ./components/schemas/application-creation-method-catalog-response.yaml
+    ApplicationComposeRuntimeTarget:
+      $ref: ./components/schemas/application-compose-runtime-target.yaml
+    ApplicationComposeRuntimeTargetCatalogResponse:
+      $ref: ./components/schemas/application-compose-runtime-target-catalog-response.yaml
+    ApplicationSourceMetadata:
+      $ref: ./components/schemas/application-source-metadata.yaml
+    ApplicationType:
+      $ref: ./components/schemas/application-type.yaml
+    ApplicationId:
+      $ref: ./components/schemas/application-id.yaml
+    ApplicationOwnershipMode:
+      $ref: ./components/schemas/application-ownership-mode.yaml
+    ApplicationDriftStatus:
+      $ref: ./components/schemas/application-drift-status.yaml
+    ApplicationComposeProjectNameSource:
+      $ref: ./components/schemas/application-compose-project-name-source.yaml
+    ApplicationFileKind:
+      $ref: ./components/schemas/application-file-kind.yaml
+    ApplicationFileRole:
+      $ref: ./components/schemas/application-file-role.yaml
+    ApplicationFileItem:
+      $ref: ./components/schemas/application-file-item.yaml
+    ApplicationContainerCounts:
+      $ref: ./components/schemas/application-container-counts.yaml
+    ApplicationRuntimeStatus:
+      $ref: ./components/schemas/application-runtime-status.yaml
+    ApplicationLifecycleStrategyKind:
+      $ref: ./components/schemas/application-lifecycle-strategy-kind.yaml
+    ApplicationLifecycleReviewStatus:
+      $ref: ./components/schemas/application-lifecycle-review-status.yaml
+    ApplicationLifecycleCommandStep:
+      $ref: ./components/schemas/application-lifecycle-command-step.yaml
+    ApplicationLifecycleGeneratedCommand:
+      $ref: ./components/schemas/application-lifecycle-generated-command.yaml
+    ApplicationLifecycleConfiguration:
+      $ref: ./components/schemas/application-lifecycle-configuration.yaml
+    ApplicationLifecycleConfigurationRequest:
+      $ref: ./components/schemas/application-lifecycle-configuration-request.yaml
+    ApplicationLifecycleConfigurationResponse:
+      $ref: ./components/schemas/application-lifecycle-configuration-response.yaml
+    ApplicationListItem:
+      $ref: ./components/schemas/application-list-item.yaml
+    ApplicationListResponse:
+      $ref: ./components/schemas/application-list-response.yaml
+    ApplicationDetailResponse:
+      $ref: ./components/schemas/application-detail-response.yaml
+    ApplicationLogEntryStream:
+      $ref: ./components/schemas/application-log-entry-stream.yaml
+    ApplicationLogEntrySource:
+      $ref: ./components/schemas/application-log-entry-source.yaml
+    ApplicationLogEntry:
+      $ref: ./components/schemas/application-log-entry.yaml
+    ApplicationLogResponse:
+      $ref: ./components/schemas/application-log-response.yaml
+    ApplicationOverviewHealthSummary:
+      $ref: ./components/schemas/application-overview-health-summary.yaml
+    ApplicationOverviewResourceSummary:
+      $ref: ./components/schemas/application-overview-resource-summary.yaml
+    ApplicationOverviewServiceItem:
+      $ref: ./components/schemas/application-overview-service-item.yaml
+    ApplicationOverviewResponse:
+      $ref: ./components/schemas/application-overview-response.yaml
+    ApplicationServiceItem:
+      $ref: ./components/schemas/application-service-item.yaml
+    ApplicationServicesResponse:
+      $ref: ./components/schemas/application-services-response.yaml
+    ApplicationCreateRequest:
+      $ref: ./components/schemas/application-create-request.yaml
+    ApplicationWorkspaceManifestFile:
+      $ref: ./components/schemas/application-workspace-manifest-file.yaml
+    ApplicationWorkspaceEntry:
+      $ref: ./components/schemas/application-workspace-entry.yaml
+    ApplicationWorkspaceDefaultsResponse:
+      $ref: ./components/schemas/application-workspace-defaults-response.yaml
+    EnvelopedApplicationWorkspaceDefaultsResponse:
+      $ref: ./components/schemas/enveloped-application-workspace-defaults-response.yaml
+    ApplicationImportValidateRequest:
+      $ref: ./components/schemas/application-import-validate-request.yaml
+    ApplicationImportValidateResponse:
+      $ref: ./components/schemas/application-import-validate-response.yaml
+    ApplicationImportResponse:
+      $ref: ./components/schemas/application-import-response.yaml
+    ApplicationImportDirectorySource:
+      $ref: ./components/schemas/application-import-directory-source.yaml
+    ApplicationImportDirectorySourcesResponse:
+      $ref: ./components/schemas/application-import-directory-sources-response.yaml
+    ApplicationImportDirectoryReference:
+      $ref: ./components/schemas/application-import-directory-reference.yaml
+    ApplicationImportDirectoryItem:
+      $ref: ./components/schemas/application-import-directory-item.yaml
+    ApplicationImportDirectoriesResponse:
+      $ref: ./components/schemas/application-import-directories-response.yaml
+    ApplicationImportInspectFileItem:
+      $ref: ./components/schemas/application-import-inspect-file-item.yaml
+    ApplicationImportInspectRequest:
+      $ref: ./components/schemas/application-import-inspect-request.yaml
+    ApplicationImportInspectResponse:
+      $ref: ./components/schemas/application-import-inspect-response.yaml
+    ApplicationImportRequest:
+      $ref: ./components/schemas/application-import-request.yaml
+    ApplicationConfigurationMetadataResponse:
+      $ref: ./components/schemas/application-configuration-metadata-response.yaml
+    ApplicationConfigurationPreviewResponse:
+      $ref: ./components/schemas/application-configuration-preview-response.yaml
+    ApplicationFileTreeNodeType:
+      $ref: ./components/schemas/application-file-tree-node-type.yaml
+    ApplicationWorkspaceFileKind:
+      $ref: ./components/schemas/application-workspace-file-kind.yaml
+    ApplicationFileTreeItem:
+      $ref: ./components/schemas/application-file-tree-item.yaml
+    ApplicationFileAnnotationRequest:
+      $ref: ./components/schemas/application-file-annotation-request.yaml
+    ApplicationFilesResponse:
+      $ref: ./components/schemas/application-files-response.yaml
+    ApplicationFileContentResponse:
+      $ref: ./components/schemas/application-file-content-response.yaml
+    ApplicationFileSaveRequest:
+      $ref: ./components/schemas/application-file-save-request.yaml
+    ApplicationFileSaveResponse:
+      $ref: ./components/schemas/application-file-save-response.yaml
+    ApplicationDestroyRequest:
+      $ref: ./components/schemas/application-destroy-request.yaml
+    ApplicationActionResponse:
+      $ref: ./components/schemas/application-action-response.yaml
+    ApplicationBatchActionRequest:
+      $ref: ./components/schemas/application-batch-action-request.yaml
+    ApplicationBatchActionItem:
+      $ref: ./components/schemas/application-batch-action-item.yaml
+    ApplicationBatchActionResponse:
+      $ref: ./components/schemas/application-batch-action-response.yaml
+    ApplicationSavedView:
+      $ref: ./components/schemas/application-saved-view.yaml
+    ApplicationSavedViewRequest:
+      $ref: ./components/schemas/application-saved-view-request.yaml
+    ApplicationSavedViewListResponse:
+      $ref: ./components/schemas/application-saved-view-list-response.yaml
     SavedView:
       $ref: ./components/schemas/saved-view.yaml
     SavedViewRequest:
       $ref: ./components/schemas/saved-view-request.yaml
     SavedViewListResponse:
       $ref: ./components/schemas/saved-view-list-response.yaml
-    EnvelopedProjectListResponse:
-      $ref: ./components/schemas/enveloped-project-list-response.yaml
-    EnvelopedProjectCreationMethodCatalogResponse:
-      $ref: ./components/schemas/enveloped-project-creation-method-catalog-response.yaml
-    EnvelopedProjectComposeRuntimeTargetCatalogResponse:
-      $ref: ./components/schemas/enveloped-project-compose-runtime-target-catalog-response.yaml
-    EnvelopedProjectDetailResponse:
-      $ref: ./components/schemas/enveloped-project-detail-response.yaml
-    EnvelopedProjectLogResponse:
-      $ref: ./components/schemas/enveloped-project-log-response.yaml
-    EnvelopedProjectOverviewResponse:
-      $ref: ./components/schemas/enveloped-project-overview-response.yaml
-    EnvelopedProjectLifecycleConfigurationResponse:
-      $ref: ./components/schemas/enveloped-project-lifecycle-configuration-response.yaml
-    EnvelopedProjectServicesResponse:
-      $ref: ./components/schemas/enveloped-project-services-response.yaml
-    EnvelopedProjectConfigurationMetadataResponse:
-      $ref: ./components/schemas/enveloped-project-configuration-metadata-response.yaml
-    EnvelopedProjectConfigurationPreviewResponse:
-      $ref: ./components/schemas/enveloped-project-configuration-preview-response.yaml
-    EnvelopedProjectFilesResponse:
-      $ref: ./components/schemas/enveloped-project-files-response.yaml
-    EnvelopedProjectFileContentResponse:
-      $ref: ./components/schemas/enveloped-project-file-content-response.yaml
-    EnvelopedProjectFileTreeItemResponse:
-      $ref: ./components/schemas/enveloped-project-file-tree-item-response.yaml
-    EnvelopedProjectFileSaveResponse:
-      $ref: ./components/schemas/enveloped-project-file-save-response.yaml
-    EnvelopedProjectImportValidateResponse:
-      $ref: ./components/schemas/enveloped-project-import-validate-response.yaml
-    EnvelopedProjectImportResponse:
-      $ref: ./components/schemas/enveloped-project-import-response.yaml
-    EnvelopedProjectImportDirectorySourcesResponse:
-      $ref: ./components/schemas/enveloped-project-import-directory-sources-response.yaml
-    EnvelopedProjectImportDirectoriesResponse:
-      $ref: ./components/schemas/enveloped-project-import-directories-response.yaml
-    EnvelopedProjectImportInspectResponse:
-      $ref: ./components/schemas/enveloped-project-import-inspect-response.yaml
-    EnvelopedProjectActionResponse:
-      $ref: ./components/schemas/enveloped-project-action-response.yaml
-    EnvelopedProjectBatchActionResponse:
-      $ref: ./components/schemas/enveloped-project-batch-action-response.yaml
-    EnvelopedProjectSavedView:
-      $ref: ./components/schemas/enveloped-project-saved-view.yaml
-    EnvelopedProjectSavedViewListResponse:
-      $ref: ./components/schemas/enveloped-project-saved-view-list-response.yaml
+    EnvelopedApplicationListResponse:
+      $ref: ./components/schemas/enveloped-application-list-response.yaml
+    EnvelopedApplicationCreationMethodCatalogResponse:
+      $ref: ./components/schemas/enveloped-application-creation-method-catalog-response.yaml
+    EnvelopedApplicationComposeRuntimeTargetCatalogResponse:
+      $ref: ./components/schemas/enveloped-application-compose-runtime-target-catalog-response.yaml
+    EnvelopedApplicationDetailResponse:
+      $ref: ./components/schemas/enveloped-application-detail-response.yaml
+    EnvelopedApplicationLogResponse:
+      $ref: ./components/schemas/enveloped-application-log-response.yaml
+    EnvelopedApplicationOverviewResponse:
+      $ref: ./components/schemas/enveloped-application-overview-response.yaml
+    EnvelopedApplicationLifecycleConfigurationResponse:
+      $ref: ./components/schemas/enveloped-application-lifecycle-configuration-response.yaml
+    EnvelopedApplicationServicesResponse:
+      $ref: ./components/schemas/enveloped-application-services-response.yaml
+    EnvelopedApplicationConfigurationMetadataResponse:
+      $ref: ./components/schemas/enveloped-application-configuration-metadata-response.yaml
+    EnvelopedApplicationConfigurationPreviewResponse:
+      $ref: ./components/schemas/enveloped-application-configuration-preview-response.yaml
+    EnvelopedApplicationFilesResponse:
+      $ref: ./components/schemas/enveloped-application-files-response.yaml
+    EnvelopedApplicationFileContentResponse:
+      $ref: ./components/schemas/enveloped-application-file-content-response.yaml
+    EnvelopedApplicationFileTreeItemResponse:
+      $ref: ./components/schemas/enveloped-application-file-tree-item-response.yaml
+    EnvelopedApplicationFileSaveResponse:
+      $ref: ./components/schemas/enveloped-application-file-save-response.yaml
+    EnvelopedApplicationImportValidateResponse:
+      $ref: ./components/schemas/enveloped-application-import-validate-response.yaml
+    EnvelopedApplicationImportResponse:
+      $ref: ./components/schemas/enveloped-application-import-response.yaml
+    EnvelopedApplicationImportDirectorySourcesResponse:
+      $ref: ./components/schemas/enveloped-application-import-directory-sources-response.yaml
+    EnvelopedApplicationImportDirectoriesResponse:
+      $ref: ./components/schemas/enveloped-application-import-directories-response.yaml
+    EnvelopedApplicationImportInspectResponse:
+      $ref: ./components/schemas/enveloped-application-import-inspect-response.yaml
+    EnvelopedApplicationActionResponse:
+      $ref: ./components/schemas/enveloped-application-action-response.yaml
+    EnvelopedApplicationBatchActionResponse:
+      $ref: ./components/schemas/enveloped-application-batch-action-response.yaml
+    EnvelopedApplicationSavedView:
+      $ref: ./components/schemas/enveloped-application-saved-view.yaml
+    EnvelopedApplicationSavedViewListResponse:
+      $ref: ./components/schemas/enveloped-application-saved-view-list-response.yaml
     EnvelopedSavedView:
       $ref: ./components/schemas/enveloped-saved-view.yaml
     EnvelopedSavedViewListResponse:
@@ -1145,28 +1147,28 @@ components:
       $ref: ./components/parameters/runtime-target-id-path.yaml
     container-mount-id-path:
       $ref: ./components/parameters/container-mount-id-path.yaml
-    project-list-limit:
-      $ref: ./components/parameters/project-list-limit.yaml
-    project-list-offset:
-      $ref: ./components/parameters/project-list-offset.yaml
-    project-list-source-kind:
-      $ref: ./components/parameters/project-list-source-kind.yaml
-    project-list-drift-status:
-      $ref: ./components/parameters/project-list-drift-status.yaml
-    project-id-path:
-      $ref: ./components/parameters/project-id-path.yaml
-    project-saved-view-id-path:
-      $ref: ./components/parameters/project-saved-view-id.yaml
+    application-list-limit:
+      $ref: ./components/parameters/application-list-limit.yaml
+    application-list-offset:
+      $ref: ./components/parameters/application-list-offset.yaml
+    application-list-source-type:
+      $ref: ./components/parameters/application-list-source-type.yaml
+    application-list-drift-status:
+      $ref: ./components/parameters/application-list-drift-status.yaml
+    application-id-path:
+      $ref: ./components/parameters/application-id-path.yaml
+    application-saved-view-id-path:
+      $ref: ./components/parameters/application-saved-view-id.yaml
     saved-view-id-path:
       $ref: ./components/parameters/saved-view-id.yaml
-    project-workspace-path-query:
-      $ref: ./components/parameters/project-workspace-path-query.yaml
-    project-workspace-show-hidden-query:
-      $ref: ./components/parameters/project-workspace-show-hidden-query.yaml
+    application-workspace-path-query:
+      $ref: ./components/parameters/application-workspace-path-query.yaml
+    application-workspace-show-hidden-query:
+      $ref: ./components/parameters/application-workspace-show-hidden-query.yaml
     container-logs-tail:
       $ref: ./components/parameters/container-logs-tail.yaml
-    project-logs-tail:
-      $ref: ./components/parameters/project-logs-tail.yaml
+    application-logs-tail:
+      $ref: ./components/parameters/application-logs-tail.yaml
     container-logs-since:
       $ref: ./components/parameters/container-logs-since.yaml
     container-logs-timestamps:

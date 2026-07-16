@@ -1,0 +1,26 @@
+get:
+  tags: [application]
+  summary: List Compose application creation methods
+  operationId: getApplicationCreationMethods
+  description: Returns the currently supported ways to create a Compose application. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Application creation method catalog.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-creation-method-catalog-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

@@ -1,8 +1,0 @@
-allOf:
-  - $ref: ./api-envelope.yaml
-  - type: object
-    required:
-      - data
-    properties:
-      data:
-        $ref: ./project-import-runtime-candidates-response.yaml

@@ -1,0 +1,25 @@
+type: object
+required:
+  - total_count
+  - completed_count
+  - blocked_count
+  - skipped_count
+  - items
+properties:
+  total_count:
+    type: integer
+    minimum: 0
+  completed_count:
+    type: integer
+    minimum: 0
+  blocked_count:
+    type: integer
+    minimum: 0
+  skipped_count:
+    type: integer
+    minimum: 0
+  items:
+    type: array
+    items:
+      $ref: ./application-batch-action-item.yaml
+additionalProperties: false

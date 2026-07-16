@@ -1,0 +1,4 @@
+type: object
+required: [data]
+properties:
+  data: { $ref: ./application-workspace-defaults-response.yaml }

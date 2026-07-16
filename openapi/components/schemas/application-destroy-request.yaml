@@ -1,0 +1,20 @@
+type: object
+required:
+  - remove_named_volumes
+  - delete_workspace
+  - confirm_application_id
+properties:
+  remove_named_volumes:
+    type: boolean
+    default: false
+  auto_unregister:
+    type: boolean
+    default: false
+  image_prune:
+    type: boolean
+    default: false
+  delete_workspace:
+    type: boolean
+    default: false
+  confirm_application_id:
+    $ref: ./application-id.yaml

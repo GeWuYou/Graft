@@ -1,6 +1,0 @@
-type: string
-enum: [primary, override, env]
-x-enum-varnames:
-  - ProjectFileRolePrimary
-  - ProjectFileRoleOverride
-  - ProjectFileRoleEnv

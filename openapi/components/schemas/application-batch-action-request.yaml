@@ -1,0 +1,37 @@
+type: object
+required:
+  - action
+  - application_ids
+properties:
+  action:
+    type: string
+    enum: [start, stop, restart, unregister, redeploy, destroy]
+    x-enum-varnames:
+      - ApplicationBatchActionRequestActionStart
+      - ApplicationBatchActionRequestActionStop
+      - ApplicationBatchActionRequestActionRestart
+      - ApplicationBatchActionRequestActionUnregister
+      - ApplicationBatchActionRequestActionRedeploy
+      - ApplicationBatchActionRequestActionDestroy
+  application_ids:
+    type: array
+    minItems: 1
+    maxItems: 100
+    items:
+      $ref: ./application-id.yaml
+  remove_named_volumes:
+    type: boolean
+    default: false
+  auto_unregister:
+    type: boolean
+    default: false
+  image_prune:
+    type: boolean
+    default: false
+  delete_workspace_path:
+    type: boolean
+    default: false
+  confirm_compose_project_name:
+    type: string
+    minLength: 1
+additionalProperties: false

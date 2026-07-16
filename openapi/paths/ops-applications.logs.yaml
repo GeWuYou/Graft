@@ -1,0 +1,53 @@
+get:
+  tags: [application]
+  summary: Read application-owned aggregated logs
+  operationId: getApplicationLogs
+  description: >
+    Returns application-owned aggregated log entries sourced from the application's current container members. Container
+    remains the runtime authority for per-container log transport, while Application owns the multi-container aggregation,
+    source attribution, and application detail integration. The canonical realtime companion topic is `application.logs:<id>`.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/application-id-path.yaml
+    - $ref: ../components/parameters/application-logs-tail.yaml
+    - $ref: ../components/parameters/container-logs-since.yaml
+    - $ref: ../components/parameters/container-logs-timestamps.yaml
+    - $ref: ../components/parameters/container-logs-stdout.yaml
+    - $ref: ../components/parameters/container-logs-stderr.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: Application aggregated logs.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-log-response.yaml
+    "400":
+      description: Invalid application id or log query.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    "401":
+      $ref: ../components/responses/unauthorized.yaml
+    "403":
+      $ref: ../components/responses/forbidden.yaml
+    "404":
+      description: Application record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    "500":
+      $ref: ../components/responses/internal-server-error.yaml

@@ -1,0 +1,25 @@
+type: object
+additionalProperties: false
+properties:
+  managed_root_key:
+    type: string
+    description: Canonical config key that owns the managed application root.
+  managed_relative_directory:
+    type: string
+    description: Relative directory currently owned by the managed application root.
+  managed_compose_file_name:
+    type: string
+    description: Canonical managed compose file name tracked by application authority.
+  managed_env_file_name:
+    type: string
+    nullable: true
+    description: Optional managed env file name tracked by application authority.
+  template_key:
+    type: string
+    description: Planned stable template identifier for a future template-backed application source.
+  template_version:
+    type: string
+    description: Planned template version or release channel.
+  template_instance_name:
+    type: string
+    description: Planned template instance name used to derive a managed working directory.

@@ -2337,7 +2337,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects': {
+  '/api/ops/applications': {
     parameters: {
       query?: never;
       header?: never;
@@ -2346,9 +2346,9 @@ export interface paths {
     };
     /**
      * List applications
-     * @description Returns application projections. Compose remains the only supported application type and Runtime Target remains the target/provider authority.
+     * @description Returns application applicationions. Compose remains the only supported application type and Runtime Target remains the target/provider authority.
      */
-    get: operations['getProjects'];
+    get: operations['getApplications'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2357,25 +2357,25 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/saved-views': {
+  '/api/ops/applications/saved-views': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** List private project-list saved views */
-    get: operations['getProjectSavedViews'];
+    /** List private application-list saved views */
+    get: operations['getApplicationSavedViews'];
     put?: never;
-    /** Create a private project-list saved view */
-    post: operations['postProjectSavedView'];
+    /** Create a private application-list saved view */
+    post: operations['postApplicationSavedView'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/saved-views/{viewId}': {
+  '/api/ops/applications/saved-views/{viewId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -2383,11 +2383,11 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
-    /** Update a private project-list saved view */
-    put: operations['putProjectSavedView'];
+    /** Update a private application-list saved view */
+    put: operations['putApplicationSavedView'];
     post?: never;
-    /** Delete a private project-list saved view */
-    delete: operations['deleteProjectSavedView'];
+    /** Delete a private application-list saved view */
+    delete: operations['deleteApplicationSavedView'];
     options?: never;
     head?: never;
     patch?: never;
@@ -2461,7 +2461,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import/validate': {
+  '/api/ops/applications/import/validate': {
     parameters: {
       query?: never;
       header?: never;
@@ -2471,17 +2471,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Validate a Compose project import
-     * @description Validates Compose import inputs, file discovery, and static parsing without persisting a project record.
+     * Validate a Compose application import
+     * @description Validates Compose import inputs, file discovery, and static parsing without persisting a application record.
      */
-    post: operations['postProjectImportValidate'];
+    post: operations['postApplicationImportValidate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import/runtime-candidates': {
+  '/api/ops/applications/import/runtime-candidates': {
     parameters: {
       query?: never;
       header?: never;
@@ -2492,7 +2492,7 @@ export interface paths {
      * List runtime Compose import candidates
      * @description Returns Compose import candidates derived from container runtime metadata, including both importable and unavailable candidates.
      */
-    get: operations['getProjectImportRuntimeCandidates'];
+    get: operations['getApplicationImportRuntimeCandidates'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2501,7 +2501,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import/runtime-inspect': {
+  '/api/ops/applications/import/runtime-inspect': {
     parameters: {
       query?: never;
       header?: never;
@@ -2512,16 +2512,16 @@ export interface paths {
     put?: never;
     /**
      * Inspect one runtime Compose import candidate
-     * @description Resolves one ready runtime candidate into an inspect preview while reusing the project-owned import inspection pipeline.
+     * @description Resolves one ready runtime candidate into an inspect preview while reusing the application-owned import inspection pipeline.
      */
-    post: operations['postProjectImportRuntimeInspect'];
+    post: operations['postApplicationImportRuntimeInspect'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import/inspect': {
+  '/api/ops/applications/import/inspect': {
     parameters: {
       query?: never;
       header?: never;
@@ -2532,16 +2532,16 @@ export interface paths {
     put?: never;
     /**
      * Inspect one import directory
-     * @description Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation. Previewable naming or ownership conflicts are reported inside the 200 response body rather than as transport-level 409 errors.
+     * @description Discovers compose and env files under the selected directory, parses the Compose application once, and returns a short-lived inspection snapshot for later import confirmation. Previewable naming or ownership conflicts are reported inside the 200 response body rather than as transport-level 409 errors.
      */
-    post: operations['postProjectImportInspect'];
+    post: operations['postApplicationImportInspect'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import': {
+  '/api/ops/applications/import': {
     parameters: {
       query?: never;
       header?: never;
@@ -2551,17 +2551,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Import and register a Compose project
-     * @description Imports an existing Compose project into the Graft project registry.
+     * Import and register a Compose application
+     * @description Imports an existing Compose application into the Graft application registry.
      */
-    post: operations['postProjectImport'];
+    post: operations['postApplicationImport'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import/directory-sources': {
+  '/api/ops/applications/import/directory-sources': {
     parameters: {
       query?: never;
       header?: never;
@@ -2570,9 +2570,9 @@ export interface paths {
     };
     /**
      * List allowed import directory roots
-     * @description Returns operator-allowlisted local directory roots plus managed-root injection for the managed project import flow.
+     * @description Returns operator-allowlisted local directory roots plus managed-root injection for the managed application import flow.
      */
-    get: operations['getProjectImportDirectorySources'];
+    get: operations['getApplicationImportDirectorySources'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2581,7 +2581,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/import/directories': {
+  '/api/ops/applications/import/directories': {
     parameters: {
       query?: never;
       header?: never;
@@ -2592,7 +2592,7 @@ export interface paths {
      * Browse import directories under one allowed root
      * @description Returns a bounded root-relative directory listing for import flows. The backend only returns directories and rejects traversal outside configured roots.
      */
-    get: operations['getProjectImportDirectories'];
+    get: operations['getApplicationImportDirectories'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2601,7 +2601,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/creation-methods': {
+  '/api/ops/applications/creation-methods': {
     parameters: {
       query?: never;
       header?: never;
@@ -2609,10 +2609,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List Compose project creation methods
-     * @description Returns the currently supported ways to create a Compose project. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
+     * List Compose application creation methods
+     * @description Returns the currently supported ways to create a Compose application. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
      */
-    get: operations['getProjectCreationMethods'];
+    get: operations['getApplicationCreationMethods'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2621,7 +2621,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/runtime-targets': {
+  '/api/ops/applications/create/runtime-targets': {
     parameters: {
       query?: never;
       header?: never;
@@ -2632,7 +2632,7 @@ export interface paths {
      * List selectable Compose runtime targets
      * @description Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready.
      */
-    get: operations['getProjectComposeRuntimeTargets'];
+    get: operations['getApplicationComposeRuntimeTargets'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2641,7 +2641,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/discovery-candidates': {
+  '/api/ops/applications/discovery-candidates': {
     parameters: {
       query?: never;
       header?: never;
@@ -2649,10 +2649,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List bounded project discovery candidates
-     * @description Returns local directory-scan and auto-discovery candidate previews under the current project authority without auto-registering projects or changing runtime ownership.
+     * List bounded application discovery candidates
+     * @description Returns local directory-scan and auto-discovery candidate previews under the current application authority without auto-registering applications or changing runtime ownership.
      */
-    get: operations['getProjectDiscoveryCandidates'];
+    get: operations['getApplicationDiscoveryCandidates'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2661,7 +2661,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/managed/root': {
+  '/api/ops/applications/managed/root': {
     parameters: {
       query?: never;
       header?: never;
@@ -2669,10 +2669,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Get managed project source authority
-     * @description Returns the canonical managed source authority used by the managed project create flow.
+     * Get managed application source authority
+     * @description Returns the canonical managed source authority used by the managed application create flow.
      */
-    get: operations['getProjectManagedRoot'];
+    get: operations['getApplicationManagedRoot'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2681,7 +2681,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/managed/validate': {
+  '/api/ops/applications/create/managed/validate': {
     parameters: {
       query?: never;
       header?: never;
@@ -2691,17 +2691,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Validate a managed Compose project create request
-     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a project.
+     * Validate a managed Compose application create request
+     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a application.
      */
-    post: operations['postProjectCreateValidate'];
+    post: operations['postApplicationCreateValidate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/application-name/availability': {
+  '/api/ops/applications/create/application-name/availability': {
     parameters: {
       query?: never;
       header?: never;
@@ -2714,14 +2714,14 @@ export interface paths {
      * Check managed application-name availability
      * @description Resolves whether an application name is already registered, available for a new workspace, or points to an unregistered managed workspace. This endpoint never writes files.
      */
-    post: operations['postProjectApplicationNameAvailability'];
+    post: operations['postApplicationNameAvailability'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/managed': {
+  '/api/ops/applications/create/managed': {
     parameters: {
       query?: never;
       header?: never;
@@ -2731,17 +2731,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Submit a managed Compose project create request
-     * @description Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.
+     * Submit a managed Compose application create request
+     * @description Creates one managed Compose application under the configured managed root, writes the requested Compose and optional env files, and persists the application registry bootstrap.
      */
-    post: operations['postProjectCreate'];
+    post: operations['postApplicationCreate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/template/validate': {
+  '/api/ops/applications/create/template/validate': {
     parameters: {
       query?: never;
       header?: never;
@@ -2751,17 +2751,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Validate a runtime template project source
+     * Validate a runtime template application source
      * @description Validates the selected Application Root template directory and eventual managed-root target without writing it.
      */
-    post: operations['postProjectCreateTemplateValidate'];
+    post: operations['postApplicationCreateTemplateValidate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/template': {
+  '/api/ops/applications/create/template': {
     parameters: {
       query?: never;
       header?: never;
@@ -2771,25 +2771,25 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Create a managed Compose project from a runtime template directory
+     * Create a managed Compose application from a runtime template directory
      * @description Materializes one operator-managed text workspace template from Application Root templates/<template-key> under the managed root, then registers it without running Compose lifecycle commands.
      */
-    post: operations['postProjectCreateTemplate'];
+    post: operations['postApplicationCreateTemplate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/workspace-defaults': {
+  '/api/ops/applications/create/workspace-defaults': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Get blank project workspace defaults and runtime templates */
-    get: operations['getProjectWorkspaceDefaults'];
+    /** Get blank application workspace defaults and runtime templates */
+    get: operations['getApplicationWorkspaceDefaults'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2798,15 +2798,15 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}': {
+  '/api/ops/applications/{applicationId}': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Get one Compose project summary */
-    get: operations['getProject'];
+    /** Get one Compose application summary */
+    get: operations['getApplication'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2815,27 +2815,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/overview': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get Compose project runtime overview
-     * @description Returns the Project-owned overview dashboard projection backed by the bounded container runtime resource aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics, and raw runtime inspection.
-     */
-    get: operations['getProjectOverview'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/ops/projects/{id}/logs': {
+  '/api/ops/applications/{applicationId}/overview': {
     parameters: {
       query?: never;
       header?: never;
@@ -2843,10 +2823,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Read project-owned aggregated logs
-     * @description Returns project-owned aggregated log entries sourced from the project's current container members. Container remains the runtime authority for per-container log transport, while Project owns the multi-container aggregation, source attribution, and project detail integration. The canonical realtime companion topic is `project.logs:<id>`.
+     * Get Compose application runtime overview
+     * @description Returns the Application-owned overview dashboard applicationion backed by the bounded container runtime resource aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics, and raw runtime inspection.
      */
-    get: operations['getProjectLogs'];
+    get: operations['getApplicationOverview'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2855,7 +2835,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/lifecycle-configuration': {
+  '/api/ops/applications/{applicationId}/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read application-owned aggregated logs
+     * @description Returns application-owned aggregated log entries sourced from the application's current container members. Container remains the runtime authority for per-container log transport, while Application owns the multi-container aggregation, source attribution, and application detail integration. The canonical realtime companion topic is `application.logs:<id>`.
+     */
+    get: operations['getApplicationLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/{applicationId}/lifecycle-configuration': {
     parameters: {
       query?: never;
       header?: never;
@@ -2864,10 +2864,10 @@ export interface paths {
     };
     get?: never;
     /**
-     * Save one project's lifecycle configuration
-     * @description Saves the canonical lifecycle configuration for one registered local project, regenerates lifecycle command previews, and confirms imported-project defaults so later `up`, `stop`, `restart`, and `redeploy` actions can reuse one project-owned compose strategy instead of guessing raw shell commands.
+     * Save one application's lifecycle configuration
+     * @description Saves the canonical lifecycle configuration for one registered local application, regenerates lifecycle command previews, and confirms imported-application defaults so later `up`, `stop`, `restart`, and `redeploy` actions can reuse one application-owned compose strategy instead of guessing raw shell commands.
      */
-    put: operations['putProjectLifecycleConfiguration'];
+    put: operations['putApplicationLifecycleConfiguration'];
     post?: never;
     delete?: never;
     options?: never;
@@ -2875,7 +2875,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/files/entries': {
+  '/api/ops/applications/{applicationId}/files/entries': {
     parameters: {
       query?: never;
       header?: never;
@@ -2884,16 +2884,16 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Create a file or directory in a project workspace */
-    post: operations['postProjectWorkspaceEntry'];
-    /** Delete a project workspace file or directory */
-    delete: operations['deleteProjectWorkspaceEntry'];
+    /** Create a file or directory in a application workspace */
+    post: operations['postApplicationWorkspaceEntry'];
+    /** Delete a application workspace file or directory */
+    delete: operations['deleteApplicationWorkspaceEntry'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/files/rename': {
+  '/api/ops/applications/{applicationId}/files/rename': {
     parameters: {
       query?: never;
       header?: never;
@@ -2902,15 +2902,15 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Rename a project workspace file or directory */
-    post: operations['postProjectWorkspaceEntryRename'];
+    /** Rename a application workspace file or directory */
+    post: operations['postApplicationWorkspaceEntryRename'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/services': {
+  '/api/ops/applications/{applicationId}/services': {
     parameters: {
       query?: never;
       header?: never;
@@ -2918,10 +2918,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Get Compose project service aggregation
-     * @description Returns Project-owned static service definitions plus bounded container membership counts. Container remains the runtime authority for detail, logs, events, stats, and shell.
+     * Get Compose application service aggregation
+     * @description Returns Application-owned static service definitions plus bounded container membership counts. Container remains the runtime authority for detail, logs, events, stats, and shell.
      */
-    get: operations['getProjectServices'];
+    get: operations['getApplicationServices'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2930,15 +2930,15 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/configuration': {
+  '/api/ops/applications/{applicationId}/configuration': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Get Compose project configuration metadata */
-    get: operations['getProjectConfiguration'];
+    /** Get Compose application configuration metadata */
+    get: operations['getApplicationConfiguration'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2947,7 +2947,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/configuration/preview': {
+  '/api/ops/applications/{applicationId}/configuration/preview': {
     parameters: {
       query?: never;
       header?: never;
@@ -2955,7 +2955,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get normalized Compose configuration preview */
-    get: operations['getProjectConfigurationPreview'];
+    get: operations['getApplicationConfigurationPreview'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2964,15 +2964,15 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/files': {
+  '/api/ops/applications/{applicationId}/files': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Browse project working_directory files */
-    get: operations['getProjectFiles'];
+    /** Browse application workspace_path files */
+    get: operations['getApplicationFiles'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2981,17 +2981,17 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/files/content': {
+  '/api/ops/applications/{applicationId}/files/content': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Read one project working_directory file */
-    get: operations['getProjectFileContent'];
-    /** Save one project working_directory file */
-    put: operations['putProjectFileContent'];
+    /** Read one application workspace_path file */
+    get: operations['getApplicationFileContent'];
+    /** Save one application workspace_path file */
+    put: operations['putApplicationFileContent'];
     post?: never;
     delete?: never;
     options?: never;
@@ -2999,7 +2999,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/files/annotation': {
+  '/api/ops/applications/{applicationId}/files/annotation': {
     parameters: {
       query?: never;
       header?: never;
@@ -3007,8 +3007,8 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
-    /** Update one project workspace file or directory annotation */
-    put: operations['putProjectFileAnnotation'];
+    /** Update one application workspace file or directory annotation */
+    put: operations['putApplicationFileAnnotation'];
     post?: never;
     delete?: never;
     options?: never;
@@ -3016,7 +3016,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/refresh': {
+  '/api/ops/applications/{applicationId}/refresh': {
     parameters: {
       query?: never;
       header?: never;
@@ -3025,15 +3025,15 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Refresh a Compose project snapshot */
-    post: operations['postProjectRefresh'];
+    /** Refresh a Compose application snapshot */
+    post: operations['postApplicationRefresh'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/up': {
+  '/api/ops/applications/{applicationId}/up': {
     parameters: {
       query?: never;
       header?: never;
@@ -3043,17 +3043,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Run docker compose up for a registered project
-     * @description Runs the saved lifecycle configuration `up` command preview for the selected project.
+     * Run docker compose up for a registered application
+     * @description Runs the saved lifecycle configuration `up` command preview for the selected application.
      */
-    post: operations['postProjectUp'];
+    post: operations['postApplicationUp'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/stop': {
+  '/api/ops/applications/{applicationId}/stop': {
     parameters: {
       query?: never;
       header?: never;
@@ -3063,17 +3063,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Run docker compose stop for a registered project
-     * @description Runs the saved lifecycle configuration `stop` command preview for the selected project.
+     * Run docker compose stop for a registered application
+     * @description Runs the saved lifecycle configuration `stop` command preview for the selected application.
      */
-    post: operations['postProjectStop'];
+    post: operations['postApplicationStop'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/restart': {
+  '/api/ops/applications/{applicationId}/restart': {
     parameters: {
       query?: never;
       header?: never;
@@ -3083,17 +3083,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Run docker compose restart for a registered project
-     * @description Runs the saved lifecycle configuration `restart` command preview for the selected project.
+     * Run docker compose restart for a registered application
+     * @description Runs the saved lifecycle configuration `restart` command preview for the selected application.
      */
-    post: operations['postProjectRestart'];
+    post: operations['postApplicationRestart'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/redeploy': {
+  '/api/ops/applications/{applicationId}/redeploy': {
     parameters: {
       query?: never;
       header?: never;
@@ -3103,17 +3103,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Redeploy a registered project
-     * @description Submits the saved project lifecycle configuration for asynchronous execution on the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
+     * Redeploy a registered application
+     * @description Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
      */
-    post: operations['postProjectRedeploy'];
+    post: operations['postApplicationRedeploy'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/batch-actions': {
+  '/api/ops/applications/batch-actions': {
     parameters: {
       query?: never;
       header?: never;
@@ -3123,17 +3123,17 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Execute project actions in batch
-     * @description Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Nonexistent project_id values fail the request with 404, while skipped applies only to existing projects for which the requested action is not applicable.
+     * Execute application actions in batch
+     * @description Executes one action for selected application ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Nonexistent application_id values fail the request with 404, while skipped applies only to existing applications for which the requested action is not applicable.
      */
-    post: operations['postProjectBatchActions'];
+    post: operations['postApplicationBatchActions'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/unregister': {
+  '/api/ops/applications/{applicationId}/unregister': {
     parameters: {
       query?: never;
       header?: never;
@@ -3142,15 +3142,15 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Unregister a Compose project */
-    post: operations['postProjectUnregister'];
+    /** Unregister a Compose application */
+    post: operations['postApplicationUnregister'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/destroy': {
+  '/api/ops/applications/{applicationId}/destroy': {
     parameters: {
       query?: never;
       header?: never;
@@ -3160,10 +3160,10 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Destroy a Compose project with ownership guards
-     * @description Destroys a registered project only when ownership guards allow the requested destructive steps. The project module must not bypass container runtime authority or delete external directories by default.
+     * Destroy a Compose application with ownership guards
+     * @description Destroys a registered application only when ownership guards allow the requested destructive steps. The application module must not bypass container runtime authority or delete external directories by default.
      */
-    post: operations['postProjectDestroy'];
+    post: operations['postApplicationDestroy'];
     delete?: never;
     options?: never;
     head?: never;
@@ -3433,104 +3433,105 @@ export interface components {
     EnvelopedDockerVolume: components['schemas']['enveloped-docker-volume'];
     EnvelopedDockerVolumeListResponse: components['schemas']['enveloped-docker-volume-list-response'];
     EnvelopedContainerRuntimeInfo: components['schemas']['enveloped-container-runtime-info'];
-    ProjectSourceKind: components['schemas']['project-source-kind'];
-    ProjectCreationMethodType: components['schemas']['project-creation-method-type'];
-    ProjectCreationMethodAvailability: components['schemas']['project-creation-method-availability'];
-    ProjectCreationMethod: components['schemas']['project-creation-method'];
-    ProjectCreationMethodCatalogResponse: components['schemas']['project-creation-method-catalog-response'];
-    ProjectComposeRuntimeTarget: components['schemas']['project-compose-runtime-target'];
-    ProjectComposeRuntimeTargetCatalogResponse: components['schemas']['project-compose-runtime-target-catalog-response'];
-    ProjectSourceMetadata: components['schemas']['project-source-metadata'];
-    ProjectHostScope: components['schemas']['project-host-scope'];
-    ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
-    ProjectDriftStatus: components['schemas']['project-drift-status'];
-    ProjectCanonicalNameSource: components['schemas']['project-canonical-name-source'];
-    ProjectFileKind: components['schemas']['project-file-kind'];
-    ProjectFileRole: components['schemas']['project-file-role'];
-    ProjectFileItem: components['schemas']['project-file-item'];
-    ProjectContainerCounts: components['schemas']['project-container-counts'];
-    ProjectRuntimeStatus: components['schemas']['project-runtime-status'];
-    ProjectLifecycleStrategyKind: components['schemas']['project-lifecycle-strategy-kind'];
-    ProjectLifecycleReviewStatus: components['schemas']['project-lifecycle-review-status'];
-    ProjectLifecycleCommandStep: components['schemas']['project-lifecycle-command-step'];
-    ProjectLifecycleGeneratedCommand: components['schemas']['project-lifecycle-generated-command'];
-    ProjectLifecycleConfiguration: components['schemas']['project-lifecycle-configuration'];
-    ProjectLifecycleConfigurationRequest: components['schemas']['project-lifecycle-configuration-request'];
-    ProjectLifecycleConfigurationResponse: components['schemas']['project-lifecycle-configuration-response'];
-    ProjectListItem: components['schemas']['project-list-item'];
-    ProjectListResponse: components['schemas']['project-list-response'];
-    ProjectDetailResponse: components['schemas']['project-detail-response'];
-    ProjectLogEntryStream: components['schemas']['project-log-entry-stream'];
-    ProjectLogEntrySource: components['schemas']['project-log-entry-source'];
-    ProjectLogEntry: components['schemas']['project-log-entry'];
-    ProjectLogResponse: components['schemas']['project-log-response'];
-    ProjectOverviewHealthSummary: components['schemas']['project-overview-health-summary'];
-    ProjectOverviewResourceSummary: components['schemas']['project-overview-resource-summary'];
-    ProjectOverviewServiceItem: components['schemas']['project-overview-service-item'];
-    ProjectOverviewResponse: components['schemas']['project-overview-response'];
-    ProjectServiceItem: components['schemas']['project-service-item'];
-    ProjectServicesResponse: components['schemas']['project-services-response'];
-    ProjectCreateRequest: components['schemas']['project-create-request'];
-    ProjectWorkspaceManifestFile: components['schemas']['project-workspace-manifest-file'];
-    ProjectWorkspaceEntry: components['schemas']['project-workspace-entry'];
-    ProjectWorkspaceDefaultsResponse: components['schemas']['project-workspace-defaults-response'];
-    EnvelopedProjectWorkspaceDefaultsResponse: components['schemas']['enveloped-project-workspace-defaults-response'];
-    ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
-    ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
-    ProjectImportResponse: components['schemas']['project-import-response'];
-    ProjectImportDirectorySource: components['schemas']['project-import-directory-source'];
-    ProjectImportDirectorySourcesResponse: components['schemas']['project-import-directory-sources-response'];
-    ProjectImportDirectoryReference: components['schemas']['project-import-directory-reference'];
-    ProjectImportDirectoryItem: components['schemas']['project-import-directory-item'];
-    ProjectImportDirectoriesResponse: components['schemas']['project-import-directories-response'];
-    ProjectImportInspectFileItem: components['schemas']['project-import-inspect-file-item'];
-    ProjectImportInspectRequest: components['schemas']['project-import-inspect-request'];
-    ProjectImportInspectResponse: components['schemas']['project-import-inspect-response'];
-    ProjectImportRequest: components['schemas']['project-import-request'];
-    ProjectConfigurationMetadataResponse: components['schemas']['project-configuration-metadata-response'];
-    ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
-    ProjectFileTreeNodeType: components['schemas']['project-file-tree-node-type'];
-    ProjectWorkspaceFileKind: components['schemas']['project-workspace-file-kind'];
-    ProjectFileTreeItem: components['schemas']['project-file-tree-item'];
-    ProjectFileAnnotationRequest: components['schemas']['project-file-annotation-request'];
-    ProjectFilesResponse: components['schemas']['project-files-response'];
-    ProjectFileContentResponse: components['schemas']['project-file-content-response'];
-    ProjectFileSaveRequest: components['schemas']['project-file-save-request'];
-    ProjectFileSaveResponse: components['schemas']['project-file-save-response'];
-    ProjectDestroyRequest: components['schemas']['project-destroy-request'];
-    ProjectActionResponse: components['schemas']['project-action-response'];
-    ProjectBatchActionRequest: components['schemas']['project-batch-action-request'];
-    ProjectBatchActionItem: components['schemas']['project-batch-action-item'];
-    ProjectBatchActionResponse: components['schemas']['project-batch-action-response'];
-    ProjectSavedView: components['schemas']['project-saved-view'];
-    ProjectSavedViewRequest: components['schemas']['project-saved-view-request'];
-    ProjectSavedViewListResponse: components['schemas']['project-saved-view-list-response'];
+    ApplicationSourceType: components['schemas']['application-source-type'];
+    ApplicationCreationMethodType: components['schemas']['application-creation-method-type'];
+    ApplicationCreationMethodAvailability: components['schemas']['application-creation-method-availability'];
+    ApplicationCreationMethod: components['schemas']['application-creation-method'];
+    ApplicationCreationMethodCatalogResponse: components['schemas']['application-creation-method-catalog-response'];
+    ApplicationComposeRuntimeTarget: components['schemas']['application-compose-runtime-target'];
+    ApplicationComposeRuntimeTargetCatalogResponse: components['schemas']['application-compose-runtime-target-catalog-response'];
+    ApplicationSourceMetadata: components['schemas']['application-source-metadata'];
+    ApplicationType: components['schemas']['application-type'];
+    ApplicationId: components['schemas']['application-id'];
+    ApplicationOwnershipMode: components['schemas']['application-ownership-mode'];
+    ApplicationDriftStatus: components['schemas']['application-drift-status'];
+    ApplicationComposeProjectNameSource: components['schemas']['application-compose-project-name-source'];
+    ApplicationFileKind: components['schemas']['application-file-kind'];
+    ApplicationFileRole: components['schemas']['application-file-role'];
+    ApplicationFileItem: components['schemas']['application-file-item'];
+    ApplicationContainerCounts: components['schemas']['application-container-counts'];
+    ApplicationRuntimeStatus: components['schemas']['application-runtime-status'];
+    ApplicationLifecycleStrategyKind: components['schemas']['application-lifecycle-strategy-kind'];
+    ApplicationLifecycleReviewStatus: components['schemas']['application-lifecycle-review-status'];
+    ApplicationLifecycleCommandStep: components['schemas']['application-lifecycle-command-step'];
+    ApplicationLifecycleGeneratedCommand: components['schemas']['application-lifecycle-generated-command'];
+    ApplicationLifecycleConfiguration: components['schemas']['application-lifecycle-configuration'];
+    ApplicationLifecycleConfigurationRequest: components['schemas']['application-lifecycle-configuration-request'];
+    ApplicationLifecycleConfigurationResponse: components['schemas']['application-lifecycle-configuration-response'];
+    ApplicationListItem: components['schemas']['application-list-item'];
+    ApplicationListResponse: components['schemas']['application-list-response'];
+    ApplicationDetailResponse: components['schemas']['application-detail-response'];
+    ApplicationLogEntryStream: components['schemas']['application-log-entry-stream'];
+    ApplicationLogEntrySource: components['schemas']['application-log-entry-source'];
+    ApplicationLogEntry: components['schemas']['application-log-entry'];
+    ApplicationLogResponse: components['schemas']['application-log-response'];
+    ApplicationOverviewHealthSummary: components['schemas']['application-overview-health-summary'];
+    ApplicationOverviewResourceSummary: components['schemas']['application-overview-resource-summary'];
+    ApplicationOverviewServiceItem: components['schemas']['application-overview-service-item'];
+    ApplicationOverviewResponse: components['schemas']['application-overview-response'];
+    ApplicationServiceItem: components['schemas']['application-service-item'];
+    ApplicationServicesResponse: components['schemas']['application-services-response'];
+    ApplicationCreateRequest: components['schemas']['application-create-request'];
+    ApplicationWorkspaceManifestFile: components['schemas']['application-workspace-manifest-file'];
+    ApplicationWorkspaceEntry: components['schemas']['application-workspace-entry'];
+    ApplicationWorkspaceDefaultsResponse: components['schemas']['application-workspace-defaults-response'];
+    EnvelopedApplicationWorkspaceDefaultsResponse: components['schemas']['enveloped-application-workspace-defaults-response'];
+    ApplicationImportValidateRequest: components['schemas']['application-import-validate-request'];
+    ApplicationImportValidateResponse: components['schemas']['application-import-validate-response'];
+    ApplicationImportResponse: components['schemas']['application-import-response'];
+    ApplicationImportDirectorySource: components['schemas']['application-import-directory-source'];
+    ApplicationImportDirectorySourcesResponse: components['schemas']['application-import-directory-sources-response'];
+    ApplicationImportDirectoryReference: components['schemas']['application-import-directory-reference'];
+    ApplicationImportDirectoryItem: components['schemas']['application-import-directory-item'];
+    ApplicationImportDirectoriesResponse: components['schemas']['application-import-directories-response'];
+    ApplicationImportInspectFileItem: components['schemas']['application-import-inspect-file-item'];
+    ApplicationImportInspectRequest: components['schemas']['application-import-inspect-request'];
+    ApplicationImportInspectResponse: components['schemas']['application-import-inspect-response'];
+    ApplicationImportRequest: components['schemas']['application-import-request'];
+    ApplicationConfigurationMetadataResponse: components['schemas']['application-configuration-metadata-response'];
+    ApplicationConfigurationPreviewResponse: components['schemas']['application-configuration-preview-response'];
+    ApplicationFileTreeNodeType: components['schemas']['application-file-tree-node-type'];
+    ApplicationWorkspaceFileKind: components['schemas']['application-workspace-file-kind'];
+    ApplicationFileTreeItem: components['schemas']['application-file-tree-item'];
+    ApplicationFileAnnotationRequest: components['schemas']['application-file-annotation-request'];
+    ApplicationFilesResponse: components['schemas']['application-files-response'];
+    ApplicationFileContentResponse: components['schemas']['application-file-content-response'];
+    ApplicationFileSaveRequest: components['schemas']['application-file-save-request'];
+    ApplicationFileSaveResponse: components['schemas']['application-file-save-response'];
+    ApplicationDestroyRequest: components['schemas']['application-destroy-request'];
+    ApplicationActionResponse: components['schemas']['application-action-response'];
+    ApplicationBatchActionRequest: components['schemas']['application-batch-action-request'];
+    ApplicationBatchActionItem: components['schemas']['application-batch-action-item'];
+    ApplicationBatchActionResponse: components['schemas']['application-batch-action-response'];
+    ApplicationSavedView: components['schemas']['application-saved-view'];
+    ApplicationSavedViewRequest: components['schemas']['application-saved-view-request'];
+    ApplicationSavedViewListResponse: components['schemas']['application-saved-view-list-response'];
     SavedView: components['schemas']['saved-view'];
     SavedViewRequest: components['schemas']['saved-view-request'];
     SavedViewListResponse: components['schemas']['saved-view-list-response'];
-    EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
-    EnvelopedProjectCreationMethodCatalogResponse: components['schemas']['enveloped-project-creation-method-catalog-response'];
-    EnvelopedProjectComposeRuntimeTargetCatalogResponse: components['schemas']['enveloped-project-compose-runtime-target-catalog-response'];
-    EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
-    EnvelopedProjectLogResponse: components['schemas']['enveloped-project-log-response'];
-    EnvelopedProjectOverviewResponse: components['schemas']['enveloped-project-overview-response'];
-    EnvelopedProjectLifecycleConfigurationResponse: components['schemas']['enveloped-project-lifecycle-configuration-response'];
-    EnvelopedProjectServicesResponse: components['schemas']['enveloped-project-services-response'];
-    EnvelopedProjectConfigurationMetadataResponse: components['schemas']['enveloped-project-configuration-metadata-response'];
-    EnvelopedProjectConfigurationPreviewResponse: components['schemas']['enveloped-project-configuration-preview-response'];
-    EnvelopedProjectFilesResponse: components['schemas']['enveloped-project-files-response'];
-    EnvelopedProjectFileContentResponse: components['schemas']['enveloped-project-file-content-response'];
-    EnvelopedProjectFileTreeItemResponse: components['schemas']['enveloped-project-file-tree-item-response'];
-    EnvelopedProjectFileSaveResponse: components['schemas']['enveloped-project-file-save-response'];
-    EnvelopedProjectImportValidateResponse: components['schemas']['enveloped-project-import-validate-response'];
-    EnvelopedProjectImportResponse: components['schemas']['enveloped-project-import-response'];
-    EnvelopedProjectImportDirectorySourcesResponse: components['schemas']['enveloped-project-import-directory-sources-response'];
-    EnvelopedProjectImportDirectoriesResponse: components['schemas']['enveloped-project-import-directories-response'];
-    EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
-    EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
-    EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
-    EnvelopedProjectSavedView: components['schemas']['enveloped-project-saved-view'];
-    EnvelopedProjectSavedViewListResponse: components['schemas']['enveloped-project-saved-view-list-response'];
+    EnvelopedApplicationListResponse: components['schemas']['enveloped-application-list-response'];
+    EnvelopedApplicationCreationMethodCatalogResponse: components['schemas']['enveloped-application-creation-method-catalog-response'];
+    EnvelopedApplicationComposeRuntimeTargetCatalogResponse: components['schemas']['enveloped-application-compose-runtime-target-catalog-response'];
+    EnvelopedApplicationDetailResponse: components['schemas']['enveloped-application-detail-response'];
+    EnvelopedApplicationLogResponse: components['schemas']['enveloped-application-log-response'];
+    EnvelopedApplicationOverviewResponse: components['schemas']['enveloped-application-overview-response'];
+    EnvelopedApplicationLifecycleConfigurationResponse: components['schemas']['enveloped-application-lifecycle-configuration-response'];
+    EnvelopedApplicationServicesResponse: components['schemas']['enveloped-application-services-response'];
+    EnvelopedApplicationConfigurationMetadataResponse: components['schemas']['enveloped-application-configuration-metadata-response'];
+    EnvelopedApplicationConfigurationPreviewResponse: components['schemas']['enveloped-application-configuration-preview-response'];
+    EnvelopedApplicationFilesResponse: components['schemas']['enveloped-application-files-response'];
+    EnvelopedApplicationFileContentResponse: components['schemas']['enveloped-application-file-content-response'];
+    EnvelopedApplicationFileTreeItemResponse: components['schemas']['enveloped-application-file-tree-item-response'];
+    EnvelopedApplicationFileSaveResponse: components['schemas']['enveloped-application-file-save-response'];
+    EnvelopedApplicationImportValidateResponse: components['schemas']['enveloped-application-import-validate-response'];
+    EnvelopedApplicationImportResponse: components['schemas']['enveloped-application-import-response'];
+    EnvelopedApplicationImportDirectorySourcesResponse: components['schemas']['enveloped-application-import-directory-sources-response'];
+    EnvelopedApplicationImportDirectoriesResponse: components['schemas']['enveloped-application-import-directories-response'];
+    EnvelopedApplicationImportInspectResponse: components['schemas']['enveloped-application-import-inspect-response'];
+    EnvelopedApplicationActionResponse: components['schemas']['enveloped-application-action-response'];
+    EnvelopedApplicationBatchActionResponse: components['schemas']['enveloped-application-batch-action-response'];
+    EnvelopedApplicationSavedView: components['schemas']['enveloped-application-saved-view'];
+    EnvelopedApplicationSavedViewListResponse: components['schemas']['enveloped-application-saved-view-list-response'];
     EnvelopedSavedView: components['schemas']['enveloped-saved-view'];
     EnvelopedSavedViewListResponse: components['schemas']['enveloped-saved-view-list-response'];
     RuntimeTarget: components['schemas']['runtime-target'];
@@ -6339,16 +6340,26 @@ export interface components {
     'enveloped-container-runtime-info': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-runtime-info'];
     };
-    /** @enum {string} */
-    'project-source-kind': 'imported' | 'managed' | 'template';
     /**
-     * @description Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+     * @description Public Application deployment type. Compose is the only currently supported value.
      * @enum {string}
      */
-    'project-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
+    'application-type': 'compose';
     /** @enum {string} */
-    'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
-    'project-runtime-target-summary': {
+    'application-source-type': 'imported' | 'managed' | 'template';
+    /**
+     * @description Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+     * @enum {string}
+     */
+    'application-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
+    /** @enum {string} */
+    'application-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
+    /**
+     * @description Stable public Graft Application identifier.
+     * @example app_01JZ5R6M7N8P9Q0R1S2T3V4W5X
+     */
+    'application-id': string;
+    'application-runtime-target-summary': {
       /** Format: int64 */
       id: number;
       display_name: string;
@@ -6356,22 +6367,22 @@ export interface components {
       provider: 'docker';
     };
     /** @enum {string} */
-    'project-canonical-name-source': 'computed' | 'override';
+    'application-compose-project-name-source': 'computed' | 'override';
     /**
      * @description Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
      * @enum {string}
      */
-    'project-lifecycle-review-status': 'review_required' | 'confirmed';
-    'project-source-metadata': {
-      /** @description Canonical config key that owns the managed project root. */
+    'application-lifecycle-review-status': 'review_required' | 'confirmed';
+    'application-source-metadata': {
+      /** @description Canonical config key that owns the managed application root. */
       managed_root_key?: string;
-      /** @description Relative directory currently owned by the managed project root. */
+      /** @description Relative directory currently owned by the managed application root. */
       managed_relative_directory?: string;
-      /** @description Canonical managed compose file name tracked by project authority. */
+      /** @description Canonical managed compose file name tracked by application authority. */
       managed_compose_file_name?: string;
-      /** @description Optional managed env file name tracked by project authority. */
+      /** @description Optional managed env file name tracked by application authority. */
       managed_env_file_name?: string | null;
-      /** @description Planned stable template identifier for a future template-backed project source. */
+      /** @description Planned stable template identifier for a future template-backed application source. */
       template_key?: string;
       /** @description Planned template version or release channel. */
       template_version?: string;
@@ -6379,50 +6390,46 @@ export interface components {
       template_instance_name?: string;
     };
     /** @enum {string} */
-    'project-activity-authority': 'frontend-fanout' | 'backend-planned';
+    'application-activity-authority': 'frontend-fanout' | 'backend-planned';
     /** @enum {string} */
-    'project-host-scope': 'local';
-    /** @enum {string} */
-    'project-ownership-mode': 'external' | 'managed-root-dedicated';
-    'project-container-counts': {
+    'application-ownership-mode': 'external' | 'managed-root-dedicated';
+    'application-container-counts': {
       running: number;
       stopped: number;
       transitioning: number;
       issue: number;
       total: number;
     };
-    'project-list-item': {
-      application_id: string;
+    'application-list-item': {
+      application_id: components['schemas']['application-id'];
       display_name: string;
-      /** @enum {string} */
-      application_type: 'compose';
-      runtime_target?: components['schemas']['project-runtime-target-summary'];
+      application_type: components['schemas']['application-type'];
+      runtime_target?: components['schemas']['application-runtime-target-summary'];
       compose_project_name: string;
-      compose_project_name_source: components['schemas']['project-canonical-name-source'];
+      compose_project_name_source: components['schemas']['application-compose-project-name-source'];
       application_name?: string | null;
-      lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
-      source_kind: components['schemas']['project-source-kind'];
-      source_metadata?: components['schemas']['project-source-metadata'];
-      activity_authority: components['schemas']['project-activity-authority'];
-      host_scope: components['schemas']['project-host-scope'];
-      ownership_mode: components['schemas']['project-ownership-mode'];
+      lifecycle_review_status: components['schemas']['application-lifecycle-review-status'];
+      source_type: components['schemas']['application-source-type'];
+      source_metadata?: components['schemas']['application-source-metadata'];
+      activity_authority: components['schemas']['application-activity-authority'];
+      ownership_mode: components['schemas']['application-ownership-mode'];
       workspace_path: string;
-      /** @description Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority. */
-      runtime_status?: components['schemas']['project-runtime-status'];
+      /** @description Aggregated application status for overview consumption only. It must not become a replacement for container runtime detail authority. */
+      runtime_status?: components['schemas']['application-runtime-status'];
       service_count: number;
-      container_counts: components['schemas']['project-container-counts'];
-      drift_status: components['schemas']['project-drift-status'];
+      container_counts: components['schemas']['application-container-counts'];
+      drift_status: components['schemas']['application-drift-status'];
     };
-    'project-list-response': {
-      items: components['schemas']['project-list-item'][];
+    'application-list-response': {
+      items: components['schemas']['application-list-item'][];
       total: number;
       limit: number;
       offset: number;
     };
-    'enveloped-project-list-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-list-response'];
+    'enveloped-application-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-list-response'];
     };
-    'project-saved-view': {
+    'application-saved-view': {
       /** Format: int64 */
       id: number;
       name: string;
@@ -6437,15 +6444,15 @@ export interface components {
       /** Format: date-time */
       updated_at: string;
     };
-    'project-saved-view-list-response': {
-      items: components['schemas']['project-saved-view'][];
+    'application-saved-view-list-response': {
+      items: components['schemas']['application-saved-view'][];
     };
-    'enveloped-project-saved-view-list-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-saved-view-list-response'];
+    'enveloped-application-saved-view-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-saved-view-list-response'];
     };
-    'project-saved-view-request': {
+    'application-saved-view-request': {
       name: string;
-      /** @description Project-list filter state. The server validates this payload for the project saved-view surface. */
+      /** @description Application-list filter state. The server validates this payload for the application saved-view surface. */
       query_state: {
         keyword?: string;
         /** @enum {string} */
@@ -6454,10 +6461,10 @@ export interface components {
         runtime_target_id?: number;
         /** @enum {string} */
         provider?: 'docker';
-        source_kind?: components['schemas']['project-source-kind'];
-        runtime_status?: components['schemas']['project-runtime-status'];
-        drift_status?: components['schemas']['project-drift-status'];
-        /** @description Optional project-list sort expression; omitted values use created_at:desc. */
+        source_type?: components['schemas']['application-source-type'];
+        runtime_status?: components['schemas']['application-runtime-status'];
+        drift_status?: components['schemas']['application-drift-status'];
+        /** @description Optional application-list sort expression; omitted values use created_at:desc. */
         sort?: ('created_at:desc' | 'created_at:asc')[];
       };
       page_size: number;
@@ -6474,8 +6481,8 @@ export interface components {
         | 'operation'
       )[];
     };
-    'enveloped-project-saved-view': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-saved-view'];
+    'enveloped-application-saved-view': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-saved-view'];
     };
     'runtime-target-count-metric': {
       available: boolean;
@@ -6550,6 +6557,14 @@ export interface components {
       data: components['schemas']['runtime-target-list-response'];
     };
     'runtime-target': components['schemas']['runtime-target-summary'] & {
+      health: {
+        /** @enum {string} */
+        status: 'healthy' | 'unavailable';
+        /** Format: date-time */
+        lastCheckedAt: string | null;
+        /** @description Sanitized connection diagnostic; empty when healthy. */
+        diagnostic: string;
+      };
       /** @description Provider-specific typed extension selected by the provider discriminator. */
       providerDetails: {
         /** @enum {string} */
@@ -6570,35 +6585,35 @@ export interface components {
     'enveloped-runtime-target-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target'];
     };
-    'project-import-validate-request': {
-      working_directory: string;
+    'application-import-validate-request': {
+      workspace_path: string;
       /** @description Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file. */
       compose_files?: string[];
       env_files?: string[];
       display_name?: string;
-      canonical_project_name_override?: string | null;
+      compose_project_name_override?: string | null;
     };
     /** @enum {string} */
-    'project-file-kind': 'compose' | 'env';
+    'application-file-kind': 'compose' | 'env';
     /** @enum {string} */
-    'project-file-role': 'primary' | 'override' | 'env';
-    'project-file-item': {
+    'application-file-role': 'primary' | 'override' | 'env';
+    'application-file-item': {
       /** Format: int64 */
       id: number;
-      kind: components['schemas']['project-file-kind'];
-      role: components['schemas']['project-file-role'];
+      kind: components['schemas']['application-file-kind'];
+      role: components['schemas']['application-file-role'];
       absolute_path: string;
       display_path: string;
       order_index: number;
       /** @description Most recently observed file hash. Empty string means the system has not observed one yet. */
       last_observed_hash?: string;
     };
-    'project-import-validate-response': {
-      working_directory: string;
-      compose_files: components['schemas']['project-file-item'][];
-      env_files: components['schemas']['project-file-item'][];
-      canonical_project_name: string;
-      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+    'application-import-validate-response': {
+      workspace_path: string;
+      compose_files: components['schemas']['application-file-item'][];
+      env_files: components['schemas']['application-file-item'][];
+      compose_project_name: string;
+      compose_project_name_source: components['schemas']['application-compose-project-name-source'];
       normalized_preview_summary?: {
         config_hash?: string;
         declared_service_names?: string[];
@@ -6607,62 +6622,62 @@ export interface components {
       warnings: string[];
       conflicts: string[];
     };
-    'enveloped-project-import-validate-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-validate-response'];
+    'enveloped-application-import-validate-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-validate-response'];
     };
     /** @enum {string} */
-    'project-import-runtime-candidate-availability': 'ready' | 'imported' | 'unavailable';
+    'application-import-runtime-candidate-availability': 'ready' | 'imported' | 'unavailable';
     /** @enum {string} */
-    'project-import-runtime-candidate-status':
+    'application-import-runtime-candidate-status':
       'ready' | 'already_imported' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
     /** @enum {string} */
-    'project-import-runtime-working-directory-source': 'runtime_label' | 'derived_from_config_files';
-    'project-import-runtime-candidate': {
+    'application-import-runtime-workspace-path-source': 'runtime_label' | 'derived_from_config_files';
+    'application-import-runtime-candidate': {
       candidate_key: string;
-      canonical_project_name: string;
-      status: components['schemas']['project-import-runtime-candidate-status'];
+      compose_project_name: string;
+      status: components['schemas']['application-import-runtime-candidate-status'];
       status_reason_codes: string[];
       importable: boolean;
       /** @description Future-extensible runtime type resolved by the container runtime authority. */
       runtime_type: string;
       runtime_version?: string | null;
-      working_directory: string;
-      working_directory_source: components['schemas']['project-import-runtime-working-directory-source'];
+      workspace_path: string;
+      workspace_path_source: components['schemas']['application-import-runtime-workspace-path-source'];
       config_files: string[];
       service_names: string[];
-      container_counts: components['schemas']['project-container-counts'];
+      container_counts: components['schemas']['application-container-counts'];
       warnings: string[];
     };
-    'project-import-runtime-candidate-filter-counts': {
+    'application-import-runtime-candidate-filter-counts': {
       all: number;
       ready: number;
       imported: number;
       unavailable: number;
     };
-    'project-import-runtime-candidates-response': {
-      items: components['schemas']['project-import-runtime-candidate'][];
+    'application-import-runtime-candidates-response': {
+      items: components['schemas']['application-import-runtime-candidate'][];
       total: number;
       limit: number;
       offset: number;
-      filter_counts: components['schemas']['project-import-runtime-candidate-filter-counts'];
+      filter_counts: components['schemas']['application-import-runtime-candidate-filter-counts'];
     };
-    'enveloped-project-import-runtime-candidates-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-runtime-candidates-response'];
+    'enveloped-application-import-runtime-candidates-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-runtime-candidates-response'];
     };
-    'project-import-runtime-inspect-request': {
+    'application-import-runtime-inspect-request': {
       candidate_key: string;
       display_name?: string;
-      canonical_project_name_override?: string | null;
+      compose_project_name_override?: string | null;
     };
-    'project-import-inspect-file-item': {
-      kind: components['schemas']['project-file-kind'];
-      role: components['schemas']['project-file-role'];
+    'application-import-inspect-file-item': {
+      kind: components['schemas']['application-file-kind'];
+      role: components['schemas']['application-file-role'];
       absolute_path: string;
       display_path: string;
       order_index: number;
       last_observed_hash?: string | null;
     };
-    'project-import-runtime-network-resource': {
+    'application-import-runtime-network-resource': {
       name: string;
       driver: string | null;
       scope: string | null;
@@ -6672,7 +6687,7 @@ export interface components {
       services: string[];
       service_count: number;
     };
-    'project-import-runtime-volume-resource': {
+    'application-import-runtime-volume-resource': {
       name: string;
       driver: string | null;
       anonymous: boolean;
@@ -6681,19 +6696,19 @@ export interface components {
       containers: string[];
       container_count: number;
     };
-    'project-import-runtime-member': {
+    'application-import-runtime-member': {
       container_id: string;
       container_name: string;
       service_name: string;
       state: string;
     };
     /**
-     * @description Canonical lifecycle execution strategy kind owned by the project module.
+     * @description Canonical lifecycle execution strategy kind owned by the application module.
      * @enum {string}
      */
-    'project-lifecycle-strategy-kind': 'standard';
-    'project-lifecycle-configuration-request': {
-      strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
+    'application-lifecycle-strategy-kind': 'standard';
+    'application-lifecycle-configuration-request': {
+      strategy_kind: components['schemas']['application-lifecycle-strategy-kind'];
       profiles: string[];
       down_before_redeploy: boolean;
       pull_before_redeploy: boolean;
@@ -6707,10 +6722,10 @@ export interface components {
       prune_images_after_redeploy: boolean;
       /** @default false */
       renew_anon_volumes: boolean;
-      /** @description Bounded extra argv tokens appended to docker compose up; shell expressions and project identity flags are rejected by the server. */
+      /** @description Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server. */
       additional_args?: string[];
     };
-    'project-import-runtime-inspect-response': {
+    'application-import-runtime-inspect-response': {
       inspection_id: string;
       /**
        * Format: date-time
@@ -6718,45 +6733,45 @@ export interface components {
        */
       expires_at: string;
       candidate_key: string;
-      resolved_working_directory: string;
-      canonical_project_name: string;
-      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      resolved_workspace_path: string;
+      compose_project_name: string;
+      compose_project_name_source: components['schemas']['application-compose-project-name-source'];
       display_name_suggested: string;
-      compose_files: components['schemas']['project-import-inspect-file-item'][];
-      env_files: components['schemas']['project-import-inspect-file-item'][];
+      compose_files: components['schemas']['application-import-inspect-file-item'][];
+      env_files: components['schemas']['application-import-inspect-file-item'][];
       services: string[];
-      networks: components['schemas']['project-import-runtime-network-resource'][];
-      volumes: components['schemas']['project-import-runtime-volume-resource'][];
-      runtime_members: components['schemas']['project-import-runtime-member'][];
+      networks: components['schemas']['application-import-runtime-network-resource'][];
+      volumes: components['schemas']['application-import-runtime-volume-resource'][];
+      runtime_members: components['schemas']['application-import-runtime-member'][];
       config_hash: string;
       warnings: string[];
       conflicts: string[];
       /** @enum {string} */
       validation_status: 'ready' | 'conflict';
-      lifecycle_configuration: components['schemas']['project-lifecycle-configuration-request'];
+      lifecycle_configuration: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'enveloped-project-import-runtime-inspect-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-runtime-inspect-response'];
+    'enveloped-application-import-runtime-inspect-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-runtime-inspect-response'];
     };
-    'project-import-directory-reference': {
+    'application-import-directory-reference': {
       provider: string;
       root_id: string;
       path: string;
     };
-    'project-import-inspect-request': {
-      directory_ref: components['schemas']['project-import-directory-reference'];
+    'application-import-inspect-request': {
+      directory_ref: components['schemas']['application-import-directory-reference'];
       display_name?: string;
-      canonical_project_name_override?: string | null;
+      compose_project_name_override?: string | null;
     };
-    'project-import-inspect-response': {
+    'application-import-inspect-response': {
       inspection_id: string;
-      directory_ref: components['schemas']['project-import-directory-reference'];
-      resolved_working_directory: string;
-      canonical_project_name: string;
-      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      directory_ref: components['schemas']['application-import-directory-reference'];
+      resolved_workspace_path: string;
+      compose_project_name: string;
+      compose_project_name_source: components['schemas']['application-compose-project-name-source'];
       display_name_suggested: string;
-      compose_files: components['schemas']['project-import-inspect-file-item'][];
-      env_files: components['schemas']['project-import-inspect-file-item'][];
+      compose_files: components['schemas']['application-import-inspect-file-item'][];
+      env_files: components['schemas']['application-import-inspect-file-item'][];
       services: string[];
       networks: string[];
       volumes: string[];
@@ -6766,31 +6781,31 @@ export interface components {
       /** @enum {string} */
       validation_status: 'ready' | 'conflict';
     };
-    'enveloped-project-import-inspect-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-inspect-response'];
+    'enveloped-application-import-inspect-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-inspect-response'];
     };
-    'project-import-request': {
+    'application-import-request': {
       inspection_id: string;
       display_name?: string;
-      canonical_project_name_override?: string | null;
-      lifecycle_configuration: components['schemas']['project-lifecycle-configuration-request'];
+      compose_project_name_override?: string | null;
+      lifecycle_configuration: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'project-lifecycle-command-step': {
+    'application-lifecycle-command-step': {
       /** @enum {string} */
       kind: 'down' | 'pull' | 'up' | 'stop' | 'restart' | 'prune';
       argv: string[];
       /** @description Human-readable command preview derived from the canonical lifecycle configuration. */
       display_command: string;
     };
-    'project-lifecycle-generated-command': {
+    'application-lifecycle-generated-command': {
       /** @enum {string} */
       action: 'up' | 'stop' | 'restart' | 'redeploy';
-      steps: components['schemas']['project-lifecycle-command-step'][];
+      steps: components['schemas']['application-lifecycle-command-step'][];
       /** @description Combined preview for the selected lifecycle action. */
       display_command: string;
     };
-    'project-lifecycle-configuration': {
-      strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
+    'application-lifecycle-configuration': {
+      strategy_kind: components['schemas']['application-lifecycle-strategy-kind'];
       profiles: string[];
       down_before_redeploy: boolean;
       pull_before_redeploy: boolean;
@@ -6806,23 +6821,23 @@ export interface components {
       renew_anon_volumes: boolean;
       additional_args: string[];
       generated_commands: {
-        up: components['schemas']['project-lifecycle-generated-command'];
-        stop: components['schemas']['project-lifecycle-generated-command'];
-        restart: components['schemas']['project-lifecycle-generated-command'];
-        redeploy: components['schemas']['project-lifecycle-generated-command'];
+        up: components['schemas']['application-lifecycle-generated-command'];
+        stop: components['schemas']['application-lifecycle-generated-command'];
+        restart: components['schemas']['application-lifecycle-generated-command'];
+        redeploy: components['schemas']['application-lifecycle-generated-command'];
       };
     };
-    'project-detail-response': components['schemas']['project-list-item'] & {
-      source_metadata?: components['schemas']['project-source-metadata'];
-      lifecycle_configuration: components['schemas']['project-lifecycle-configuration'];
+    'application-detail-response': components['schemas']['application-list-item'] & {
+      source_metadata?: components['schemas']['application-source-metadata'];
+      lifecycle_configuration: components['schemas']['application-lifecycle-configuration'];
       last_observed_config_hash?: string;
       /** Format: date-time */
       last_drift_checked_at?: string | null;
-      compose_files: components['schemas']['project-file-item'][];
-      env_files: components['schemas']['project-file-item'][];
+      compose_files: components['schemas']['application-file-item'][];
+      env_files: components['schemas']['application-file-item'][];
     };
-    'project-import-response': {
-      project: components['schemas']['project-detail-response'];
+    'application-import-response': {
+      application: components['schemas']['application-detail-response'];
       snapshot_summary: {
         config_hash: string;
         /** Format: date-time */
@@ -6830,10 +6845,10 @@ export interface components {
         declared_service_count?: number;
       };
     };
-    'enveloped-project-import-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-response'];
+    'enveloped-application-import-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-response'];
     };
-    'project-import-directory-source': {
+    'application-import-directory-source': {
       provider: string;
       root_id: string;
       /** @description Stable root label shown in the folder picker source selector. */
@@ -6845,19 +6860,19 @@ export interface components {
       /** @description Whether this source is the managed-root injection rather than a static allowlisted root. */
       managed: boolean;
     };
-    'project-import-directory-sources-response': {
-      items: components['schemas']['project-import-directory-source'][];
+    'application-import-directory-sources-response': {
+      items: components['schemas']['application-import-directory-source'][];
     };
-    'enveloped-project-import-directory-sources-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-directory-sources-response'];
+    'enveloped-application-import-directory-sources-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-directory-sources-response'];
     };
-    'project-import-directory-item': {
+    'application-import-directory-item': {
       name: string;
       path: string;
       /** Format: date-time */
       modified_at?: string;
     };
-    'project-import-directories-response': {
+    'application-import-directories-response': {
       provider: string;
       root_id: string;
       current_path: string;
@@ -6867,28 +6882,28 @@ export interface components {
       has_more: boolean;
       sort_by: string;
       order: string;
-      directories: components['schemas']['project-import-directory-item'][];
+      directories: components['schemas']['application-import-directory-item'][];
     };
-    'enveloped-project-import-directories-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-import-directories-response'];
+    'enveloped-application-import-directories-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-import-directories-response'];
     };
     /** @enum {string} */
-    'project-creation-method-type': 'blank' | 'template' | 'import';
+    'application-creation-method-type': 'blank' | 'template' | 'import';
     /** @enum {string} */
-    'project-creation-method-availability': 'ready' | 'blocked';
-    'project-creation-method': {
-      method: components['schemas']['project-creation-method-type'];
-      availability: components['schemas']['project-creation-method-availability'];
+    'application-creation-method-availability': 'ready' | 'blocked';
+    'application-creation-method': {
+      method: components['schemas']['application-creation-method-type'];
+      availability: components['schemas']['application-creation-method-availability'];
       /** @description Stable reason code when the creation method is blocked. */
       blocked_reason?: string | null;
     };
-    'project-creation-method-catalog-response': {
-      items: components['schemas']['project-creation-method'][];
+    'application-creation-method-catalog-response': {
+      items: components['schemas']['application-creation-method'][];
     };
-    'enveloped-project-creation-method-catalog-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-creation-method-catalog-response'];
+    'enveloped-application-creation-method-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-creation-method-catalog-response'];
     };
-    'project-compose-runtime-target': {
+    'application-compose-runtime-target': {
       /** Format: int64 */
       runtime_target_id: number;
       display_name: string;
@@ -6898,70 +6913,67 @@ export interface components {
       readiness: 'ready' | 'runtime_unavailable';
       capabilities: string[];
     };
-    'project-compose-runtime-target-catalog-response': {
+    'application-compose-runtime-target-catalog-response': {
       /** @enum {string} */
       deployment_type: 'compose';
-      items: components['schemas']['project-compose-runtime-target'][];
+      items: components['schemas']['application-compose-runtime-target'][];
     };
-    'enveloped-project-compose-runtime-target-catalog-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-compose-runtime-target-catalog-response'];
+    'enveloped-application-compose-runtime-target-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-compose-runtime-target-catalog-response'];
     };
     /** @enum {string} */
-    'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
+    'application-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
     /** @enum {string} */
-    'project-discovery-candidate-status': 'ready' | 'conflict' | 'skipped';
-    'project-discovery-candidate': {
+    'application-discovery-candidate-status': 'ready' | 'conflict' | 'skipped';
+    'application-discovery-candidate': {
       candidate_key: string;
-      candidate_kind: components['schemas']['project-discovery-candidate-kind'];
-      source_kind: components['schemas']['project-source-kind'];
-      /** @description Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value. */
-      source_type?: components['schemas']['project-source-kind'];
-      source_metadata?: components['schemas']['project-source-metadata'];
+      candidate_kind: components['schemas']['application-discovery-candidate-kind'];
+      source_type: components['schemas']['application-source-type'];
+      source_metadata?: components['schemas']['application-source-metadata'];
       display_name: string;
-      canonical_project_name: string;
-      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
-      working_directory: string;
-      ownership_mode: components['schemas']['project-ownership-mode'];
-      host_scope: components['schemas']['project-host-scope'];
-      status: components['schemas']['project-discovery-candidate-status'];
+      compose_project_name: string;
+      compose_project_name_source: components['schemas']['application-compose-project-name-source'];
+      workspace_path: string;
+      ownership_mode: components['schemas']['application-ownership-mode'];
+      status: components['schemas']['application-discovery-candidate-status'];
       /** @enum {string} */
       recommended_action: 'review' | 'import';
       status_reason?: string | null;
-      compose_files: components['schemas']['project-file-item'][];
-      env_files: components['schemas']['project-file-item'][];
+      compose_files: components['schemas']['application-file-item'][];
+      env_files: components['schemas']['application-file-item'][];
       declared_service_names: string[];
       service_count: number;
       config_hash: string;
       warnings: string[];
       conflicts: string[];
     };
-    'project-discovery-candidates-response': {
-      source_type: components['schemas']['project-source-kind'];
+    'application-discovery-candidates-response': {
+      source_type: components['schemas']['application-source-type'];
       authority_root: string | null;
       supports_scan: boolean;
       supports_auto_discovery: boolean;
       status_reason?: string | null;
-      items: components['schemas']['project-discovery-candidate'][];
+      items: components['schemas']['application-discovery-candidate'][];
     };
-    'enveloped-project-discovery-candidates-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-discovery-candidates-response'];
+    'enveloped-application-discovery-candidates-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-discovery-candidates-response'];
     };
     /** @enum {string} */
-    'project-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
-    'project-managed-root-response': {
-      status: components['schemas']['project-managed-root-status'];
-      source_type: components['schemas']['project-source-kind'];
+    'application-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
+    'application-managed-root-response': {
+      status: components['schemas']['application-managed-root-status'];
+      source_type: components['schemas']['application-source-type'];
       config_key: string;
       configured_root_directory?: string | null;
-      ownership_mode: components['schemas']['project-ownership-mode'];
+      ownership_mode: components['schemas']['application-ownership-mode'];
       create_permission: string;
       supports_managed_create: boolean;
       status_reason?: string | null;
     };
-    'enveloped-project-managed-root-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-managed-root-response'];
+    'enveloped-application-managed-root-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-managed-root-response'];
     };
-    'project-workspace-entry': {
+    'application-workspace-entry': {
       /** @description Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected. */
       path: string;
       /** @enum {string} */
@@ -6969,14 +6981,14 @@ export interface components {
       /** @description Required UTF-8 text content for file entries and omitted for directory entries. */
       content?: string | null;
     };
-    'project-create-validate-request': {
+    'application-create-validate-request': {
       display_name: string;
       /** Format: int64 */
       runtime_target_id: number;
       /** @description Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one. */
       application_name: string;
       /** @description Complete managed workspace manifest to validate without materializing. */
-      workspace_entries: components['schemas']['project-workspace-entry'][];
+      workspace_entries: components['schemas']['application-workspace-entry'][];
       /** @description Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
       compose_file_path: string;
       /**
@@ -6984,48 +6996,48 @@ export interface components {
        * @default false
        */
       reuse_existing_workspace: boolean;
-      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
+      lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'project-create-validate-response': {
-      managed_root: components['schemas']['project-managed-root-response'];
-      source_type: components['schemas']['project-source-kind'];
+    'application-create-validate-response': {
+      managed_root: components['schemas']['application-managed-root-response'];
+      source_type: components['schemas']['application-source-type'];
       display_name: string;
       compose_project_name: string;
       application_name?: string | null;
-      ownership_mode: components['schemas']['project-ownership-mode'];
+      ownership_mode: components['schemas']['application-ownership-mode'];
       workspace_path: string;
       compose_file_name: string;
       env_file_name?: string | null;
       compose_file_absolute_path: string;
       env_file_absolute_path?: string | null;
-      source_metadata?: components['schemas']['project-source-metadata'];
+      source_metadata?: components['schemas']['application-source-metadata'];
       warnings?: string[];
     };
-    'enveloped-project-create-validate-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-create-validate-response'];
+    'enveloped-application-create-validate-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-create-validate-response'];
     };
-    'project-application-name-availability-request': {
+    'application-name-availability-request': {
       application_name: string;
     };
-    'project-application-name-availability-response': {
+    'application-name-availability-response': {
       /** @enum {string} */
       status: 'available' | 'registered' | 'reusable_workspace';
       workspace_path: string;
       workspace_non_empty: boolean;
-      workspace_entries?: components['schemas']['project-workspace-entry'][];
+      workspace_entries?: components['schemas']['application-workspace-entry'][];
       compose_file_path?: string | null;
     };
-    'enveloped-project-application-name-availability-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-application-name-availability-response'];
+    'enveloped-application-name-availability-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-name-availability-response'];
     };
-    'project-create-request': {
+    'application-create-request': {
       display_name: string;
       /** Format: int64 */
       runtime_target_id: number;
       /** @description Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one. */
       application_name: string;
       /** @description Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories. */
-      workspace_entries: components['schemas']['project-workspace-entry'][];
+      workspace_entries: components['schemas']['application-workspace-entry'][];
       /** @description Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace. */
       compose_file_path: string;
       /**
@@ -7033,12 +7045,13 @@ export interface components {
        * @default false
        */
       reuse_existing_workspace: boolean;
-      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
+      lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'project-create-response': {
-      managed_root: components['schemas']['project-managed-root-response'];
-      source_type: components['schemas']['project-source-kind'];
-      application_id: string;
+    'application-create-response': {
+      managed_root: components['schemas']['application-managed-root-response'];
+      source_type: components['schemas']['application-source-type'];
+      application_type: components['schemas']['application-type'];
+      application_id: components['schemas']['application-id'];
       /** @enum {string} */
       action: 'create';
       /** @enum {string} */
@@ -7046,13 +7059,13 @@ export interface components {
       display_name: string;
       compose_project_name: string;
       application_name?: string | null;
-      ownership_mode: components['schemas']['project-ownership-mode'];
+      ownership_mode: components['schemas']['application-ownership-mode'];
       workspace_path: string;
       compose_file_name: string;
       compose_file_absolute_path: string;
       env_file_name?: string | null;
       env_file_absolute_path?: string | null;
-      source_metadata?: components['schemas']['project-source-metadata'];
+      source_metadata?: components['schemas']['application-source-metadata'];
       snapshot_summary: {
         config_hash: string;
         /** Format: date-time */
@@ -7063,14 +7076,14 @@ export interface components {
       message?: string | null;
       warnings?: string[];
     };
-    'enveloped-project-create-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-create-response'];
+    'enveloped-application-create-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-create-response'];
     };
-    'project-template-create-request': {
+    'application-template-create-request': {
       display_name: string;
       /** Format: int64 */
       runtime_target_id: number;
-      /** @description Required unique machine-safe application name for the managed directory and Compose project identity. */
+      /** @description Required unique machine-safe application name for the managed directory and Compose application identity. */
       application_name: string;
       /** @description Runtime template directory key. Defaults to default. */
       template_key?: string;
@@ -7078,25 +7091,25 @@ export interface components {
       template_version?: string;
       /** @description Safe display provenance for this template instance. Defaults to the application name. */
       template_instance_name?: string;
-      lifecycle_configuration?: components['schemas']['project-lifecycle-configuration-request'];
+      lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'project-workspace-defaults-response': {
+    'application-workspace-defaults-response': {
       templates: {
         key: string;
         display_name: string;
       }[];
       default_template_key: string;
-      workspace_entries: components['schemas']['project-workspace-entry'][];
+      workspace_entries: components['schemas']['application-workspace-entry'][];
       compose_file_path: string;
-      lifecycle_configuration: components['schemas']['project-lifecycle-configuration-request'];
+      lifecycle_configuration: components['schemas']['application-lifecycle-configuration-request'];
     };
-    'enveloped-project-workspace-defaults-response': {
-      data: components['schemas']['project-workspace-defaults-response'];
+    'enveloped-application-workspace-defaults-response': {
+      data: components['schemas']['application-workspace-defaults-response'];
     };
-    'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-detail-response'];
+    'enveloped-application-detail-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-detail-response'];
     };
-    'project-overview-health-summary': {
+    'application-overview-health-summary': {
       healthy_service_count: number;
       healthy_container_count: number;
       unhealthy_container_count: number;
@@ -7105,7 +7118,7 @@ export interface components {
       networks_count: number;
       volumes_count: number;
     };
-    'project-overview-resource-summary': {
+    'application-overview-resource-summary': {
       /** @description True when at least one runtime member contributed backend resource stats to this overview snapshot. */
       stats_available: boolean;
       stats_available_container_count: number;
@@ -7120,7 +7133,7 @@ export interface components {
       /** Format: int64 */
       tx_bytes: number;
     };
-    'project-overview-service-item': {
+    'application-overview-service-item': {
       service_name: string;
       image?: string | null;
       /** @enum {string} */
@@ -7145,43 +7158,42 @@ export interface components {
       /** Format: int64 */
       memory_limit_bytes: number;
     };
-    'project-overview-response': {
-      application_id: string;
+    'application-overview-response': {
+      application_id: components['schemas']['application-id'];
       compose_project_name: string;
       /** Format: date-time */
       collected_at?: string | null;
-      health: components['schemas']['project-overview-health-summary'];
-      resources: components['schemas']['project-overview-resource-summary'];
-      services: components['schemas']['project-overview-service-item'][];
+      health: components['schemas']['application-overview-health-summary'];
+      resources: components['schemas']['application-overview-resource-summary'];
+      services: components['schemas']['application-overview-service-item'][];
     };
-    'enveloped-project-overview-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-overview-response'];
+    'enveloped-application-overview-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-overview-response'];
     };
-    'project-log-entry-source': {
+    'application-log-entry-source': {
       container_id: string;
       container_name: string;
       service_name: string;
     };
     /**
-     * @description Canonical runtime stream that produced the aggregated project log entry.
+     * @description Canonical runtime stream that produced the aggregated application log entry.
      * @enum {string}
      */
-    'project-log-entry-stream': 'stdout' | 'stderr';
-    'project-log-entry': {
+    'application-log-entry-stream': 'stdout' | 'stderr';
+    'application-log-entry': {
       container_id: string;
       container_name: string;
       service_name: string;
-      source: components['schemas']['project-log-entry-source'];
+      source: components['schemas']['application-log-entry-source'];
       line: string;
       /** Format: date-time */
       occurred_at: string;
-      stream: components['schemas']['project-log-entry-stream'];
+      stream: components['schemas']['application-log-entry-stream'];
     };
-    'project-log-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
-      entries: components['schemas']['project-log-entry'][];
+    'application-log-response': {
+      application_id: components['schemas']['application-id'];
+      compose_project_name: string;
+      entries: components['schemas']['application-log-entry'][];
       tail: number;
       since?: string | null;
       timestamps: boolean;
@@ -7189,42 +7201,41 @@ export interface components {
       stderr: boolean;
       truncated: boolean;
     };
-    'enveloped-project-log-response': {
+    'enveloped-application-log-response': {
       code: number;
       msg: string;
-      data: components['schemas']['project-log-response'];
+      data: components['schemas']['application-log-response'];
     };
-    'project-lifecycle-configuration-response': {
-      /** Format: int64 */
-      project_id: number;
-      lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
+    'application-lifecycle-configuration-response': {
+      application_id: components['schemas']['application-id'];
+      lifecycle_review_status: components['schemas']['application-lifecycle-review-status'];
       /** @description Read-only working directory authority reused by lifecycle command generation. */
-      working_directory: string;
-      /** @description Read-only project runtime identity used for explicit `docker compose -p`. */
-      canonical_project_name: string;
+      workspace_path: string;
+      /** @description Read-only application runtime identity used for explicit `docker compose -p`. */
+      compose_project_name: string;
       /** @description Ordered tracked Compose files reused by lifecycle command generation. */
-      compose_files: components['schemas']['project-file-item'][];
-      lifecycle_configuration: components['schemas']['project-lifecycle-configuration'];
+      compose_files: components['schemas']['application-file-item'][];
+      lifecycle_configuration: components['schemas']['application-lifecycle-configuration'];
     };
-    'enveloped-project-lifecycle-configuration-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-lifecycle-configuration-response'];
+    'enveloped-application-lifecycle-configuration-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-lifecycle-configuration-response'];
     };
-    'project-workspace-entry-create-request':
-      | (components['schemas']['project-workspace-entry'] & {
+    'application-workspace-entry-create-request':
+      | (components['schemas']['application-workspace-entry'] & {
           /** @enum {string} */
           node_type: 'file';
           /** @description Required UTF-8 text content for file entries. */
           content: string;
         })
-      | (components['schemas']['project-workspace-entry'] & {
+      | (components['schemas']['application-workspace-entry'] & {
           /** @enum {string} */
           node_type: 'directory';
         });
-    'project-workspace-entry-rename-request': {
+    'application-workspace-entry-rename-request': {
       path: string;
       new_path: string;
     };
-    'project-service-item': {
+    'application-service-item': {
       service_name: string;
       image?: string | null;
       build_context?: string | null;
@@ -7239,49 +7250,46 @@ export interface components {
       running_count: number;
       stopped_count: number;
     };
-    'project-services-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
-      items: components['schemas']['project-service-item'][];
+    'application-services-response': {
+      application_id: components['schemas']['application-id'];
+      compose_project_name: string;
+      items: components['schemas']['application-service-item'][];
     };
-    'enveloped-project-services-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-services-response'];
+    'enveloped-application-services-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-services-response'];
     };
-    'project-configuration-metadata-response': {
-      /** Format: int64 */
-      project_id: number;
-      compose_files: components['schemas']['project-file-item'][];
-      env_files: components['schemas']['project-file-item'][];
-      ownership_mode: components['schemas']['project-ownership-mode'];
-      drift_status: components['schemas']['project-drift-status'];
+    'application-configuration-metadata-response': {
+      application_id: components['schemas']['application-id'];
+      compose_files: components['schemas']['application-file-item'][];
+      env_files: components['schemas']['application-file-item'][];
+      ownership_mode: components['schemas']['application-ownership-mode'];
+      drift_status: components['schemas']['application-drift-status'];
       /** @description Bounded configuration diagnostics summary for readonly UI display. */
       diagnostics_summary?: string[];
     };
-    'enveloped-project-configuration-metadata-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-configuration-metadata-response'];
+    'enveloped-application-configuration-metadata-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-configuration-metadata-response'];
     };
-    'project-configuration-preview-response': {
-      /** Format: int64 */
-      project_id: number;
-      canonical_project_name: string;
+    'application-configuration-preview-response': {
+      application_id: components['schemas']['application-id'];
+      compose_project_name: string;
       normalized_compose_yaml: string;
       config_hash: string;
       /** Format: date-time */
       refreshed_at?: string | null;
     };
-    'enveloped-project-configuration-preview-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-configuration-preview-response'];
+    'enveloped-application-configuration-preview-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-configuration-preview-response'];
     };
     /** @enum {string} */
-    'project-file-tree-node-type': 'file' | 'directory';
+    'application-file-tree-node-type': 'file' | 'directory';
     /** @enum {string} */
-    'project-workspace-file-kind': 'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
-    'project-file-tree-item': {
+    'application-workspace-file-kind': 'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
+    'application-file-tree-item': {
       name: string;
       relative_path: string;
-      node_type: components['schemas']['project-file-tree-node-type'];
-      file_kind: components['schemas']['project-workspace-file-kind'];
+      node_type: components['schemas']['application-file-tree-node-type'];
+      file_kind: components['schemas']['application-workspace-file-kind'];
       readable: boolean;
       editable: boolean;
       /** @description Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext. */
@@ -7292,26 +7300,24 @@ export interface components {
       has_children: boolean;
       tooltip?: string | null;
       /** @enum {string|null} */
-      tooltip_source?: 'project-note' | 'default-rule' | null;
-      project_note?: string | null;
+      tooltip_source?: 'application-note' | 'default-rule' | null;
+      application_note?: string | null;
     };
-    'project-files-response': {
-      /** Format: int64 */
-      project_id: number;
+    'application-files-response': {
+      application_id: components['schemas']['application-id'];
       root_path: string;
       current_path: string;
       parent_path?: string | null;
       has_more_hidden: boolean;
-      items: components['schemas']['project-file-tree-item'][];
+      items: components['schemas']['application-file-tree-item'][];
     };
-    'enveloped-project-files-response': {
-      data: components['schemas']['project-files-response'];
+    'enveloped-application-files-response': {
+      data: components['schemas']['application-files-response'];
     };
-    'project-file-content-response': {
-      /** Format: int64 */
-      project_id: number;
+    'application-file-content-response': {
+      application_id: components['schemas']['application-id'];
       relative_path: string;
-      file_kind: components['schemas']['project-workspace-file-kind'];
+      file_kind: components['schemas']['application-workspace-file-kind'];
       /** @description Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext. */
       language_hint: string;
       readable: boolean;
@@ -7322,15 +7328,14 @@ export interface components {
       /** Format: int64 */
       size_bytes: number;
     };
-    'enveloped-project-file-content-response': {
-      data: components['schemas']['project-file-content-response'];
+    'enveloped-application-file-content-response': {
+      data: components['schemas']['application-file-content-response'];
     };
-    'project-file-save-request': {
+    'application-file-save-request': {
       content: string;
     };
-    'project-file-save-response': {
-      /** Format: int64 */
-      project_id: number;
+    'application-file-save-response': {
+      application_id: components['schemas']['application-id'];
       relative_path: string;
       /** Format: date-time */
       saved_at: string;
@@ -7338,23 +7343,22 @@ export interface components {
       /** Format: int64 */
       size_bytes: number;
     };
-    'enveloped-project-file-save-response': {
-      data: components['schemas']['project-file-save-response'];
+    'enveloped-application-file-save-response': {
+      data: components['schemas']['application-file-save-response'];
     };
-    'project-file-annotation-request': {
+    'application-file-annotation-request': {
       annotation?: string | null;
     };
-    'enveloped-project-file-tree-item-response': {
-      data: components['schemas']['project-file-tree-item'];
+    'enveloped-application-file-tree-item-response': {
+      data: components['schemas']['application-file-tree-item'];
     };
-    'project-guard-result': {
+    'application-guard-result': {
       code: string;
       message_key?: string | null;
       detail?: string | null;
     };
-    'project-action-response': {
-      /** Format: int64 */
-      project_id: number;
+    'application-action-response': {
+      application_id: components['schemas']['application-id'];
       /** @enum {string} */
       action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'redeploy';
       /** @enum {string} */
@@ -7362,10 +7366,10 @@ export interface components {
       message_key?: string;
       message?: string;
       /** @description Structured guard outcomes such as ownership blocks or skipped destructive steps. */
-      guard_results?: components['schemas']['project-guard-result'][];
+      guard_results?: components['schemas']['application-guard-result'][];
     };
-    'enveloped-project-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-action-response'];
+    'enveloped-application-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-action-response'];
     };
     /** @description Receipt returned when a business action accepts asynchronous Task submission. */
     'task-receipt': {
@@ -7376,10 +7380,10 @@ export interface components {
     'enveloped-task-receipt': components['schemas']['api-envelope'] & {
       data: components['schemas']['task-receipt'];
     };
-    'project-batch-action-request': {
+    'application-batch-action-request': {
       /** @enum {string} */
       action: 'start' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy';
-      application_ids: string[];
+      application_ids: components['schemas']['application-id'][];
       /** @default false */
       remove_named_volumes: boolean;
       /** @default false */
@@ -7387,12 +7391,11 @@ export interface components {
       /** @default false */
       image_prune: boolean;
       /** @default false */
-      delete_working_directory: boolean;
-      confirm_canonical_project_name?: string;
+      delete_workspace_path: boolean;
+      confirm_compose_project_name?: string;
     };
-    'project-batch-action-item': {
-      /** Format: int64 */
-      project_id: number;
+    'application-batch-action-item': {
+      application_id: components['schemas']['application-id'];
       /** @enum {string} */
       action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'redeploy';
       /** @enum {string} */
@@ -7400,19 +7403,19 @@ export interface components {
       skipped: boolean;
       message_key?: string;
       message?: string;
-      guard_results?: components['schemas']['project-guard-result'][];
+      guard_results?: components['schemas']['application-guard-result'][];
     };
-    'project-batch-action-response': {
+    'application-batch-action-response': {
       total_count: number;
       completed_count: number;
       blocked_count: number;
       skipped_count: number;
-      items: components['schemas']['project-batch-action-item'][];
+      items: components['schemas']['application-batch-action-item'][];
     };
-    'enveloped-project-batch-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-batch-action-response'];
+    'enveloped-application-batch-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-batch-action-response'];
     };
-    'project-destroy-request': {
+    'application-destroy-request': {
       /** @default false */
       remove_named_volumes: boolean;
       /** @default false */
@@ -7421,7 +7424,7 @@ export interface components {
       image_prune: boolean;
       /** @default false */
       delete_workspace: boolean;
-      confirm_application_id: string;
+      confirm_application_id: components['schemas']['application-id'];
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -7517,7 +7520,7 @@ export interface components {
        */
       abnormal_services?: number;
     };
-    'project-workspace-manifest-file': {
+    'application-workspace-manifest-file': {
       /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
       path: string;
       /** @description UTF-8 text content to materialize for the file. */
@@ -7607,26 +7610,26 @@ export interface components {
     'runtime-target-id-path': number;
     /** @description Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path. */
     'container-mount-id-path': string;
-    /** @description Optional maximum number of projects to return. The runtime accepts values from 1 to 100. */
-    'project-list-limit': number;
-    /** @description Optional zero-based offset for projects. */
-    'project-list-offset': number;
-    /** @description Optional project source filter. */
-    'project-list-source-kind': components['schemas']['project-source-kind'];
-    /** @description Optional project drift-status filter. */
-    'project-list-drift-status': components['schemas']['project-drift-status'];
-    /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-    'project-id-path': string;
-    'project-saved-view-id-path': string;
+    /** @description Optional maximum number of applications to return. The runtime accepts values from 1 to 100. */
+    'application-list-limit': number;
+    /** @description Optional zero-based offset for applications. */
+    'application-list-offset': number;
+    /** @description Optional application source filter. */
+    'application-list-source-type': components['schemas']['application-source-type'];
+    /** @description Optional application drift-status filter. */
+    'application-list-drift-status': components['schemas']['application-drift-status'];
+    /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+    'application-id-path': components['schemas']['application-id'];
+    'application-saved-view-id-path': string;
     'saved-view-id-path': string;
-    /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
-    'project-workspace-path-query': string;
+    /** @description Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory. */
+    'application-workspace-path-query': string;
     /** @description Whether the workspace should include directories and dot entries hidden by default. */
-    'project-workspace-show-hidden-query': boolean;
+    'application-workspace-show-hidden-query': boolean;
     /** @description Number of log lines to return from the end of the stream. */
     'container-logs-tail': number;
-    /** @description Number of aggregated project log lines to return from the end of the project stream. */
-    'project-logs-tail': number;
+    /** @description Number of aggregated application log lines to return from the end of the application stream. */
+    'application-logs-tail': number;
     /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
     'container-logs-since': string;
     /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */
@@ -7644,27 +7647,27 @@ export interface components {
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
-    'project-list-keyword': string;
+    'application-list-keyword': string;
     /** @description Optional application type. Compose is the only currently supported type. */
-    'project-list-application-type': 'compose';
+    'application-list-application-type': components['schemas']['application-type'];
     /** @description Optional Docker Runtime Target identifier. The target and provider filters are conjunctive. */
-    'project-list-runtime-target-id': number;
+    'application-list-runtime-target-id': number;
     /** @description Optional Runtime Target provider. Docker is the only current Compose provider. */
-    'project-list-provider': 'docker';
+    'application-list-provider': 'docker';
     /** @description Optional derived Compose runtime status filter, evaluated by the server before it returns the list page. */
-    'project-list-runtime-status': components['schemas']['project-runtime-status'];
-    /** @description Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc. */
-    'project-list-sort': ('created_at:desc' | 'created_at:asc')[];
+    'application-list-runtime-status': components['schemas']['application-runtime-status'];
+    /** @description Repeated application-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc. */
+    'application-list-sort': ('created_at:desc' | 'created_at:asc')[];
     /** @description Private saved-view identifier. */
-    'project-saved-view-id': number;
-    /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
-    'project-import-runtime-candidate-list-keyword': string;
+    'application-saved-view-id': number;
+    /** @description Optional case-insensitive keyword matched against application name, working directory, compose files, runtime, service names, and candidate diagnostics. */
+    'application-import-runtime-candidate-list-keyword': string;
     /** @description Optional runtime import availability filter. */
-    'project-import-runtime-candidate-list-availability': components['schemas']['project-import-runtime-candidate-availability'];
+    'application-import-runtime-candidate-list-availability': components['schemas']['application-import-runtime-candidate-availability'];
     /** @description Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100. */
-    'project-import-runtime-candidate-list-limit': number;
+    'application-import-runtime-candidate-list-limit': number;
     /** @description Optional zero-based offset for runtime import candidates. */
-    'project-import-runtime-candidate-list-offset': number;
+    'application-import-runtime-candidate-list-offset': number;
   };
   requestBodies: never;
   headers: {
@@ -14209,29 +14212,29 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjects: {
+  getApplications: {
     parameters: {
       query?: {
-        /** @description Optional maximum number of projects to return. The runtime accepts values from 1 to 100. */
-        limit?: components['parameters']['project-list-limit'];
-        /** @description Optional zero-based offset for projects. */
-        offset?: components['parameters']['project-list-offset'];
+        /** @description Optional maximum number of applications to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['application-list-limit'];
+        /** @description Optional zero-based offset for applications. */
+        offset?: components['parameters']['application-list-offset'];
         /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
-        keyword?: components['parameters']['project-list-keyword'];
+        keyword?: components['parameters']['application-list-keyword'];
         /** @description Optional application type. Compose is the only currently supported type. */
-        application_type?: components['parameters']['project-list-application-type'];
+        application_type?: components['parameters']['application-list-application-type'];
         /** @description Optional Docker Runtime Target identifier. The target and provider filters are conjunctive. */
-        runtime_target_id?: components['parameters']['project-list-runtime-target-id'];
+        runtime_target_id?: components['parameters']['application-list-runtime-target-id'];
         /** @description Optional Runtime Target provider. Docker is the only current Compose provider. */
-        provider?: components['parameters']['project-list-provider'];
-        /** @description Optional project source filter. */
-        source_kind?: components['parameters']['project-list-source-kind'];
+        provider?: components['parameters']['application-list-provider'];
+        /** @description Optional application source filter. */
+        source_type?: components['parameters']['application-list-source-type'];
         /** @description Optional derived Compose runtime status filter, evaluated by the server before it returns the list page. */
-        runtime_status?: components['parameters']['project-list-runtime-status'];
-        /** @description Optional project drift-status filter. */
-        drift_status?: components['parameters']['project-list-drift-status'];
-        /** @description Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc. */
-        sort?: components['parameters']['project-list-sort'];
+        runtime_status?: components['parameters']['application-list-runtime-status'];
+        /** @description Optional application drift-status filter. */
+        drift_status?: components['parameters']['application-list-drift-status'];
+        /** @description Repeated application-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc. */
+        sort?: components['parameters']['application-list-sort'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -14247,14 +14250,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Compose project list. */
+      /** @description Compose application list. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-list-response'];
+          'application/json': components['schemas']['enveloped-application-list-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -14262,7 +14265,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectSavedViews: {
+  getApplicationSavedViews: {
     parameters: {
       query?: never;
       header?: {
@@ -14279,20 +14282,20 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Current user's saved project-list views. */
+      /** @description Current user's saved application-list views. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-saved-view-list-response'];
+          'application/json': components['schemas']['enveloped-application-saved-view-list-response'];
         };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
     };
   };
-  postProjectSavedView: {
+  postApplicationSavedView: {
     parameters: {
       query?: never;
       header?: {
@@ -14309,7 +14312,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-saved-view-request'];
+        'application/json': components['schemas']['application-saved-view-request'];
       };
     };
     responses: {
@@ -14319,7 +14322,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-saved-view'];
+          'application/json': components['schemas']['enveloped-application-saved-view'];
         };
       };
       /** @description Invalid saved-view state. */
@@ -14344,7 +14347,7 @@ export interface operations {
       };
     };
   };
-  putProjectSavedView: {
+  putApplicationSavedView: {
     parameters: {
       query?: never;
       header?: {
@@ -14358,13 +14361,13 @@ export interface operations {
       };
       path: {
         /** @description Private saved-view identifier. */
-        viewId: components['parameters']['project-saved-view-id'];
+        viewId: components['parameters']['application-saved-view-id'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-saved-view-request'];
+        'application/json': components['schemas']['application-saved-view-request'];
       };
     };
     responses: {
@@ -14374,7 +14377,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-saved-view'];
+          'application/json': components['schemas']['enveloped-application-saved-view'];
         };
       };
       /** @description Invalid saved-view state. */
@@ -14408,7 +14411,7 @@ export interface operations {
       };
     };
   };
-  deleteProjectSavedView: {
+  deleteApplicationSavedView: {
     parameters: {
       query?: never;
       header?: {
@@ -14422,7 +14425,7 @@ export interface operations {
       };
       path: {
         /** @description Private saved-view identifier. */
-        viewId: components['parameters']['project-saved-view-id'];
+        viewId: components['parameters']['application-saved-view-id'];
       };
       cookie?: never;
     };
@@ -14609,7 +14612,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectImportValidate: {
+  postApplicationImportValidate: {
     parameters: {
       query?: never;
       header?: {
@@ -14626,7 +14629,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-import-validate-request'];
+        'application/json': components['schemas']['application-import-validate-request'];
       };
     };
     responses: {
@@ -14637,7 +14640,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-validate-response'];
+          'application/json': components['schemas']['enveloped-application-import-validate-response'];
         };
       };
       /** @description Invalid import validation request. */
@@ -14652,7 +14655,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Import conflicts with an existing registered project. */
+      /** @description Import conflicts with an existing registered application. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -14665,17 +14668,17 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectImportRuntimeCandidates: {
+  getApplicationImportRuntimeCandidates: {
     parameters: {
       query?: {
-        /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
-        keyword?: components['parameters']['project-import-runtime-candidate-list-keyword'];
+        /** @description Optional case-insensitive keyword matched against application name, working directory, compose files, runtime, service names, and candidate diagnostics. */
+        keyword?: components['parameters']['application-import-runtime-candidate-list-keyword'];
         /** @description Optional runtime import availability filter. */
-        availability?: components['parameters']['project-import-runtime-candidate-list-availability'];
+        availability?: components['parameters']['application-import-runtime-candidate-list-availability'];
         /** @description Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100. */
-        limit?: components['parameters']['project-import-runtime-candidate-list-limit'];
+        limit?: components['parameters']['application-import-runtime-candidate-list-limit'];
         /** @description Optional zero-based offset for runtime import candidates. */
-        offset?: components['parameters']['project-import-runtime-candidate-list-offset'];
+        offset?: components['parameters']['application-import-runtime-candidate-list-offset'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -14698,7 +14701,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-runtime-candidates-response'];
+          'application/json': components['schemas']['enveloped-application-import-runtime-candidates-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -14706,7 +14709,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectImportRuntimeInspect: {
+  postApplicationImportRuntimeInspect: {
     parameters: {
       query?: never;
       header?: {
@@ -14723,7 +14726,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-import-runtime-inspect-request'];
+        'application/json': components['schemas']['application-import-runtime-inspect-request'];
       };
     };
     responses: {
@@ -14734,7 +14737,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-runtime-inspect-response'];
+          'application/json': components['schemas']['enveloped-application-import-runtime-inspect-response'];
         };
       };
       /** @description Invalid runtime candidate inspection request. */
@@ -14752,7 +14755,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectImportInspect: {
+  postApplicationImportInspect: {
     parameters: {
       query?: never;
       header?: {
@@ -14769,7 +14772,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-import-inspect-request'];
+        'application/json': components['schemas']['application-import-inspect-request'];
       };
     };
     responses: {
@@ -14780,7 +14783,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-inspect-response'];
+          'application/json': components['schemas']['enveloped-application-import-inspect-response'];
         };
       };
       /** @description Invalid inspection request. */
@@ -14798,7 +14801,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectImport: {
+  postApplicationImport: {
     parameters: {
       query?: never;
       header?: {
@@ -14815,18 +14818,18 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-import-request'];
+        'application/json': components['schemas']['application-import-request'];
       };
     };
     responses: {
-      /** @description Imported and registered project. */
+      /** @description Imported and registered application. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-response'];
+          'application/json': components['schemas']['enveloped-application-import-response'];
         };
       };
       /** @description Invalid import request. */
@@ -14841,7 +14844,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Import conflicts with an existing registered project. */
+      /** @description Import conflicts with an existing registered application. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -14854,7 +14857,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectImportDirectorySources: {
+  getApplicationImportDirectorySources: {
     parameters: {
       query?: never;
       header?: {
@@ -14878,7 +14881,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-directory-sources-response'];
+          'application/json': components['schemas']['enveloped-application-import-directory-sources-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -14886,7 +14889,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectImportDirectories: {
+  getApplicationImportDirectories: {
     parameters: {
       query: {
         /** @description Import directory provider key. MVP supports only `local`. */
@@ -14920,7 +14923,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-import-directories-response'];
+          'application/json': components['schemas']['enveloped-application-import-directories-response'];
         };
       };
       /** @description Invalid browse query. */
@@ -14938,7 +14941,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectCreationMethods: {
+  getApplicationCreationMethods: {
     parameters: {
       query?: never;
       header?: {
@@ -14955,14 +14958,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project creation method catalog. */
+      /** @description Application creation method catalog. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-creation-method-catalog-response'];
+          'application/json': components['schemas']['enveloped-application-creation-method-catalog-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -14970,7 +14973,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectComposeRuntimeTargets: {
+  getApplicationComposeRuntimeTargets: {
     parameters: {
       query?: never;
       header?: never;
@@ -14985,7 +14988,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-compose-runtime-target-catalog-response'];
+          'application/json': components['schemas']['enveloped-application-compose-runtime-target-catalog-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -14993,7 +14996,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectDiscoveryCandidates: {
+  getApplicationDiscoveryCandidates: {
     parameters: {
       query?: never;
       header?: {
@@ -15010,14 +15013,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project discovery candidate preview list. */
+      /** @description Application discovery candidate preview list. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-discovery-candidates-response'];
+          'application/json': components['schemas']['enveloped-application-discovery-candidates-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -15025,7 +15028,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectManagedRoot: {
+  getApplicationManagedRoot: {
     parameters: {
       query?: never;
       header?: {
@@ -15049,7 +15052,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-managed-root-response'];
+          'application/json': components['schemas']['enveloped-application-managed-root-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -15057,7 +15060,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectCreateValidate: {
+  postApplicationCreateValidate: {
     parameters: {
       query?: never;
       header?: {
@@ -15074,7 +15077,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-create-validate-request'];
+        'application/json': components['schemas']['application-create-validate-request'];
       };
     };
     responses: {
@@ -15085,7 +15088,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-create-validate-response'];
+          'application/json': components['schemas']['enveloped-application-create-validate-response'];
         };
       };
       /** @description Invalid managed create input, Compose configuration, managed-root authority, or reusable-workspace safety. The response code identifies the safe failure category and the trace id correlates the server diagnostic log. */
@@ -15113,7 +15116,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectApplicationNameAvailability: {
+  postApplicationNameAvailability: {
     parameters: {
       query?: never;
       header?: {
@@ -15130,7 +15133,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-application-name-availability-request'];
+        'application/json': components['schemas']['application-name-availability-request'];
       };
     };
     responses: {
@@ -15141,7 +15144,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-application-name-availability-response'];
+          'application/json': components['schemas']['enveloped-application-name-availability-response'];
         };
       };
       /** @description Invalid application name or unsafe managed workspace. */
@@ -15159,7 +15162,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectCreate: {
+  postApplicationCreate: {
     parameters: {
       query?: never;
       header?: {
@@ -15176,18 +15179,18 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-create-request'];
+        'application/json': components['schemas']['application-create-request'];
       };
     };
     responses: {
-      /** @description Managed Compose project created and registered. */
+      /** @description Managed Compose application created and registered. */
       201: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-create-response'];
+          'application/json': components['schemas']['enveloped-application-create-response'];
         };
       };
       /** @description Invalid managed create input, Compose configuration, managed-root authority, or workspace materialization. The response code identifies the safe failure category and the trace id correlates the server diagnostic log. */
@@ -15215,7 +15218,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectCreateTemplateValidate: {
+  postApplicationCreateTemplateValidate: {
     parameters: {
       query?: never;
       header?: {
@@ -15232,7 +15235,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-template-create-request'];
+        'application/json': components['schemas']['application-template-create-request'];
       };
     };
     responses: {
@@ -15242,7 +15245,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-create-validate-response'];
+          'application/json': components['schemas']['enveloped-application-create-validate-response'];
         };
       };
       /** @description Invalid template create validation request. */
@@ -15259,7 +15262,7 @@ export interface operations {
       403: components['responses']['forbidden'];
     };
   };
-  postProjectCreateTemplate: {
+  postApplicationCreateTemplate: {
     parameters: {
       query?: never;
       header?: {
@@ -15276,17 +15279,17 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-template-create-request'];
+        'application/json': components['schemas']['application-template-create-request'];
       };
     };
     responses: {
-      /** @description Template workspace materialized and project registered. */
+      /** @description Template workspace materialized and application registered. */
       201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-create-response'];
+          'application/json': components['schemas']['enveloped-application-create-response'];
         };
       };
       /** @description Invalid template create request. */
@@ -15303,7 +15306,7 @@ export interface operations {
       403: components['responses']['forbidden'];
     };
   };
-  getProjectWorkspaceDefaults: {
+  getApplicationWorkspaceDefaults: {
     parameters: {
       query?: never;
       header?: {
@@ -15326,14 +15329,14 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-workspace-defaults-response'];
+          'application/json': components['schemas']['enveloped-application-workspace-defaults-response'];
         };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
     };
   };
-  getProject: {
+  getApplication: {
     parameters: {
       query?: never;
       header?: {
@@ -15346,24 +15349,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Compose project summary. */
+      /** @description Compose application summary. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-detail-response'];
+          'application/json': components['schemas']['enveloped-application-detail-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15375,7 +15378,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15388,7 +15391,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectOverview: {
+  getApplicationOverview: {
     parameters: {
       query?: never;
       header?: {
@@ -15401,24 +15404,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Compose project overview projection. */
+      /** @description Compose application overview applicationion. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-overview-response'];
+          'application/json': components['schemas']['enveloped-application-overview-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15430,7 +15433,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15443,11 +15446,11 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectLogs: {
+  getApplicationLogs: {
     parameters: {
       query?: {
-        /** @description Number of aggregated project log lines to return from the end of the project stream. */
-        tail?: components['parameters']['project-logs-tail'];
+        /** @description Number of aggregated application log lines to return from the end of the application stream. */
+        tail?: components['parameters']['application-logs-tail'];
         /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
         since?: components['parameters']['container-logs-since'];
         /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */
@@ -15467,24 +15470,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project aggregated logs. */
+      /** @description Application aggregated logs. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-log-response'];
+          'application/json': components['schemas']['enveloped-application-log-response'];
         };
       };
-      /** @description Invalid project id or log query. */
+      /** @description Invalid application id or log query. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15496,7 +15499,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15509,7 +15512,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  putProjectLifecycleConfiguration: {
+  putApplicationLifecycleConfiguration: {
     parameters: {
       query?: never;
       header?: {
@@ -15522,14 +15525,14 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-lifecycle-configuration-request'];
+        'application/json': components['schemas']['application-lifecycle-configuration-request'];
       };
     };
     responses: {
@@ -15540,10 +15543,10 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-lifecycle-configuration-response'];
+          'application/json': components['schemas']['enveloped-application-lifecycle-configuration-response'];
         };
       };
-      /** @description Invalid project id or lifecycle configuration payload. */
+      /** @description Invalid application id or lifecycle configuration payload. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15555,7 +15558,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15565,7 +15568,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Lifecycle configuration update blocked by project authority or bounded host-scope guards. */
+      /** @description Lifecycle configuration update blocked by application authority or bounded host-scope guards. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15578,19 +15581,19 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectWorkspaceEntry: {
+  postApplicationWorkspaceEntry: {
     parameters: {
       query?: never;
       header?: never;
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-workspace-entry-create-request'];
+        'application/json': components['schemas']['application-workspace-entry-create-request'];
       };
     };
     responses: {
@@ -15619,7 +15622,7 @@ export interface operations {
       };
     };
   };
-  deleteProjectWorkspaceEntry: {
+  deleteApplicationWorkspaceEntry: {
     parameters: {
       query: {
         path: string;
@@ -15627,8 +15630,8 @@ export interface operations {
       };
       header?: never;
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
@@ -15652,19 +15655,19 @@ export interface operations {
       403: components['responses']['forbidden'];
     };
   };
-  postProjectWorkspaceEntryRename: {
+  postApplicationWorkspaceEntryRename: {
     parameters: {
       query?: never;
       header?: never;
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-workspace-entry-rename-request'];
+        'application/json': components['schemas']['application-workspace-entry-rename-request'];
       };
     };
     responses: {
@@ -15693,7 +15696,7 @@ export interface operations {
       };
     };
   };
-  getProjectServices: {
+  getApplicationServices: {
     parameters: {
       query?: never;
       header?: {
@@ -15706,24 +15709,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Compose project service aggregation. */
+      /** @description Compose application service aggregation. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-services-response'];
+          'application/json': components['schemas']['enveloped-application-services-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15735,7 +15738,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15748,7 +15751,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectConfiguration: {
+  getApplicationConfiguration: {
     parameters: {
       query?: never;
       header?: {
@@ -15761,8 +15764,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
@@ -15775,10 +15778,10 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-configuration-metadata-response'];
+          'application/json': components['schemas']['enveloped-application-configuration-metadata-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15790,7 +15793,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15803,7 +15806,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectConfigurationPreview: {
+  getApplicationConfigurationPreview: {
     parameters: {
       query?: never;
       header?: {
@@ -15816,8 +15819,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
@@ -15830,10 +15833,10 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-configuration-preview-response'];
+          'application/json': components['schemas']['enveloped-application-configuration-preview-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15845,7 +15848,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15858,13 +15861,13 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectFiles: {
+  getApplicationFiles: {
     parameters: {
       query?: {
-        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
-        path?: components['parameters']['project-workspace-path-query'];
+        /** @description Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['application-workspace-path-query'];
         /** @description Whether the workspace should include directories and dot entries hidden by default. */
-        show_hidden?: components['parameters']['project-workspace-show-hidden-query'];
+        show_hidden?: components['parameters']['application-workspace-show-hidden-query'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15876,24 +15879,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project working_directory file tree page. */
+      /** @description Application workspace_path file tree page. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-files-response'];
+          'application/json': components['schemas']['enveloped-application-files-response'];
         };
       };
-      /** @description Invalid project id or path query. */
+      /** @description Invalid application id or path query. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15905,7 +15908,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15918,11 +15921,11 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectFileContent: {
+  getApplicationFileContent: {
     parameters: {
       query?: {
-        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
-        path?: components['parameters']['project-workspace-path-query'];
+        /** @description Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['application-workspace-path-query'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15934,24 +15937,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project file content response. */
+      /** @description Application file content response. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-file-content-response'];
+          'application/json': components['schemas']['enveloped-application-file-content-response'];
         };
       };
-      /** @description Invalid project id or file path. */
+      /** @description Invalid application id or file path. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15963,7 +15966,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record or target file not found. */
+      /** @description Application record or target file not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15976,11 +15979,11 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  putProjectFileContent: {
+  putApplicationFileContent: {
     parameters: {
       query?: {
-        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
-        path?: components['parameters']['project-workspace-path-query'];
+        /** @description Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['application-workspace-path-query'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15992,28 +15995,28 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-file-save-request'];
+        'application/json': components['schemas']['application-file-save-request'];
       };
     };
     responses: {
-      /** @description Project file saved to working_directory. */
+      /** @description Application file saved to workspace_path. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-file-save-response'];
+          'application/json': components['schemas']['enveloped-application-file-save-response'];
         };
       };
-      /** @description Invalid project id, file path, or save payload. */
+      /** @description Invalid application id, file path, or save payload. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16025,7 +16028,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record or target file not found. */
+      /** @description Application record or target file not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16038,11 +16041,11 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  putProjectFileAnnotation: {
+  putApplicationFileAnnotation: {
     parameters: {
       query?: {
-        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
-        path?: components['parameters']['project-workspace-path-query'];
+        /** @description Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['application-workspace-path-query'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -16054,28 +16057,28 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-file-annotation-request'];
+        'application/json': components['schemas']['application-file-annotation-request'];
       };
     };
     responses: {
-      /** @description Updated project workspace tree item with resolved tooltip and annotation state. */
+      /** @description Updated application workspace tree item with resolved tooltip and annotation state. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-file-tree-item-response'];
+          'application/json': components['schemas']['enveloped-application-file-tree-item-response'];
         };
       };
-      /** @description Invalid project id, path, or annotation payload. */
+      /** @description Invalid application id, path, or annotation payload. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16087,7 +16090,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record or target path not found. */
+      /** @description Application record or target path not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16100,7 +16103,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectRefresh: {
+  postApplicationRefresh: {
     parameters: {
       query?: never;
       header?: {
@@ -16113,8 +16116,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
@@ -16127,10 +16130,10 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-application-action-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16142,7 +16145,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16155,7 +16158,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectUp: {
+  postApplicationUp: {
     parameters: {
       query?: never;
       header?: {
@@ -16168,14 +16171,14 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project up Task accepted. */
+      /** @description Application up Task accepted. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16185,7 +16188,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16197,7 +16200,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16220,7 +16223,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectStop: {
+  postApplicationStop: {
     parameters: {
       query?: never;
       header?: {
@@ -16233,14 +16236,14 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project stop Task accepted. */
+      /** @description Application stop Task accepted. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16250,7 +16253,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16262,7 +16265,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16285,7 +16288,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectRestart: {
+  postApplicationRestart: {
     parameters: {
       query?: never;
       header?: {
@@ -16298,14 +16301,14 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project restart Task accepted. */
+      /** @description Application restart Task accepted. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16315,7 +16318,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16327,7 +16330,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16350,7 +16353,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectRedeploy: {
+  postApplicationRedeploy: {
     parameters: {
       query?: never;
       header?: {
@@ -16363,14 +16366,14 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project redeploy Task accepted. */
+      /** @description Application redeploy Task accepted. */
       202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16380,7 +16383,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16392,7 +16395,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16402,7 +16405,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Redeploy Task submission blocked by lifecycle review guards or project lifecycle guards. */
+      /** @description Redeploy Task submission blocked by lifecycle review guards or application lifecycle guards. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16415,7 +16418,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectBatchActions: {
+  postApplicationBatchActions: {
     parameters: {
       query?: never;
       header?: {
@@ -16432,18 +16435,18 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-batch-action-request'];
+        'application/json': components['schemas']['application-batch-action-request'];
       };
     };
     responses: {
-      /** @description Project batch action result. */
+      /** @description Application batch action result. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-batch-action-response'];
+          'application/json': components['schemas']['enveloped-application-batch-action-response'];
         };
       };
       /** @description Invalid batch action request. */
@@ -16458,7 +16461,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more requested project_id values do not match an existing project record. */
+      /** @description One or more requested application_id values do not match an existing application record. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16471,7 +16474,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectUnregister: {
+  postApplicationUnregister: {
     parameters: {
       query?: never;
       header?: {
@@ -16484,24 +16487,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Project unregister action result. */
+      /** @description Application unregister action result. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-application-action-response'];
         };
       };
-      /** @description Invalid project id. */
+      /** @description Invalid application id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16513,7 +16516,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16526,7 +16529,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectDestroy: {
+  postApplicationDestroy: {
     parameters: {
       query?: never;
       header?: {
@@ -16539,28 +16542,28 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
+        /** @description Public Graft application identifier. The internal application registry key is never accepted on HTTP routes. */
+        applicationId: components['parameters']['application-id-path'];
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-destroy-request'];
+        'application/json': components['schemas']['application-destroy-request'];
       };
     };
     responses: {
-      /** @description Project destroy action result. */
+      /** @description Application destroy action result. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
+          'application/json': components['schemas']['enveloped-application-action-response'];
         };
       };
-      /** @description Invalid project id or destroy request body. */
+      /** @description Invalid application id or destroy request body. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -16572,7 +16575,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record not found. */
+      /** @description Application record not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

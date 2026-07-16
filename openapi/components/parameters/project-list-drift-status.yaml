@@ -1,6 +1,0 @@
-name: drift_status
-in: query
-required: false
-description: Optional project drift-status filter.
-schema:
-  $ref: ../schemas/project-drift-status.yaml

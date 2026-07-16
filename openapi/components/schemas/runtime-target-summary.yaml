@@ -37,6 +37,9 @@ properties:
       status:
         type: string
         enum: [healthy, unavailable]
+        x-enum-varnames:
+          - RuntimeTargetSummaryHealthStatusHealthy
+          - RuntimeTargetSummaryHealthStatusUnavailable
       lastCheckedAt:
         type: string
         format: date-time

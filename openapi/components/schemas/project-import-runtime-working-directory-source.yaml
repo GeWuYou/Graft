@@ -1,5 +1,0 @@
-type: string
-enum: [runtime_label, derived_from_config_files]
-x-enum-varnames:
-  - ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel
-  - ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles

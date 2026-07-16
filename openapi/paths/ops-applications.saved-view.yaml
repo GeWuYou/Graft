@@ -1,0 +1,59 @@
+put:
+  tags: [application]
+  summary: Update a private application-list saved view
+  operationId: putApplicationSavedView
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/application-saved-view-id.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/application-saved-view-request.yaml
+  responses:
+    '200':
+      description: Saved view updated.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-saved-view.yaml
+    '400':
+      description: Invalid saved-view state.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404':
+      description: Saved view was not found.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '409':
+      description: Duplicate saved-view name.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+delete:
+  tags: [application]
+  summary: Delete a private application-list saved view
+  operationId: deleteApplicationSavedView
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/application-saved-view-id.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '204': { description: Saved view deleted. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404':
+      description: Saved view was not found.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
