@@ -11,32 +11,14 @@ export const CONTAINER_REALTIME_TOPIC = {
 
 export type ContainerRealtimeTopicPrefix = (typeof CONTAINER_REALTIME_TOPIC)[keyof typeof CONTAINER_REALTIME_TOPIC];
 
-/**
- * 生成容器实时统计主题名称。
- *
- * @param containerId - 容器标识
- * @returns 拼接 `STATS_PREFIX` 与 `containerId` 后得到的主题名称
- */
 export function buildContainerStatsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.STATS_PREFIX}${containerId}`;
 }
 
-/**
- * 生成容器日志的实时主题名称。
- *
- * @param containerId - 容器 ID
- * @returns 拼接日志主题前缀与 `containerId` 后得到的主题名称
- */
 export function buildContainerLogsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.LOGS_PREFIX}${containerId}`;
 }
 
-/**
- * 生成容器事件实时主题名称。
- *
- * @param containerId - 容器标识
- * @returns 由事件主题前缀和 `containerId` 拼接得到的主题名称
- */
 export function buildContainerEventsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.EVENTS_PREFIX}${containerId}`;
 }

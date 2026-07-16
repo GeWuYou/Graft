@@ -6,12 +6,6 @@ import {
 } from '../contract/realtime';
 import type { ContainerResourceSummary } from '../types/container';
 
-/**
- * 判断值是否为对象。
- *
- * @param value - 待检查的值
- * @returns `true` 如果值为真且类型为 `object`，`false` 否则
- */
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object');
 }
@@ -42,30 +36,14 @@ function parseRealtimeEventData(raw: unknown) {
   }
 }
 
-/**
- * 生成容器实时统计的主题名称。
- *
- * @param containerId - 容器标识
- * @returns 由 `containerId` 生成的主题名称
- */
 export function buildContainerStatsTopic(containerId: string) {
   return buildContainerStatsTopicName(containerId);
 }
 
-/**
- * 构建容器列表实时统计主题。
- *
- * @returns 容器列表实时统计主题名称。
- */
 export function buildContainerListStatsTopic() {
   return CONTAINER_REALTIME_TOPIC.LIST_STATS;
 }
 
-/**
- * 构建容器仪表盘汇总实时主题。
- *
- * @returns 容器仪表盘汇总实时主题名称
- */
 export function buildContainerDashboardSummaryTopic() {
   return getContainerDashboardSummaryTopicName();
 }

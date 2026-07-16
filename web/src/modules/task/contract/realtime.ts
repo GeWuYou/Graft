@@ -19,12 +19,6 @@ export type TaskRealtimeNotification = Readonly<{
   type: string;
 }>;
 
-/**
- * 根据任务 ID 构建任务实时主题名称。
- *
- * @param taskId - 任务 ID
- * @returns 由任务主题前缀和任务 ID 组成的主题名称
- */
 export function buildTaskRealtimeTopicName(taskId: number) {
   return `${taskRealtimeTopicPrefix}${taskId}`;
 }
