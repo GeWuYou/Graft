@@ -1,28 +1,28 @@
 package contract
 
 const (
-	// AnnouncementGroup identifies the announcement management API route group.
+	// AnnouncementGroup 标识公告管理 API 的路由组。
 	AnnouncementGroup = "/announcements"
-	// AnnouncementCollectionRoute identifies the management collection route fragment.
+	// AnnouncementCollectionRoute 标识公告管理集合路由片段。
 	AnnouncementCollectionRoute = ""
-	// AnnouncementDetailRoute identifies one management announcement route fragment.
+	// AnnouncementDetailRoute 标识单条公告管理路由片段。
 	AnnouncementDetailRoute = "/:id"
-	// AnnouncementPublishRoute identifies the management publish action route fragment.
+	// AnnouncementPublishRoute 标识公告发布操作的路由片段。
 	AnnouncementPublishRoute = "/:id/publish"
-	// AnnouncementArchiveRoute identifies the management archive action route fragment.
+	// AnnouncementArchiveRoute 标识公告归档操作的路由片段。
 	AnnouncementArchiveRoute = "/:id/archive"
 
-	// MyAnnouncementGroup identifies current-user announcement API routes.
+	// MyAnnouncementGroup 标识当前用户公告 API 的路由组。
 	MyAnnouncementGroup = "/my/announcements"
-	// MyAnnouncementCollectionRoute identifies the current-user announcement collection route fragment.
+	// MyAnnouncementCollectionRoute 标识当前用户公告集合路由片段。
 	MyAnnouncementCollectionRoute = ""
-	// MyAnnouncementReadRoute identifies the current-user mark-read route fragment.
+	// MyAnnouncementReadRoute 标识当前用户标记已读的路由片段。
 	MyAnnouncementReadRoute = "/:id/read"
-	// MyAnnouncementReadAllRoute identifies the current-user mark-all-read route fragment.
+	// MyAnnouncementReadAllRoute 标识当前用户全部标记已读的路由片段。
 	MyAnnouncementReadAllRoute = "/read-all"
-	// MyAnnouncementUnreadCountRoute identifies the current-user unread-count route fragment.
+	// MyAnnouncementUnreadCountRoute 标识当前用户未读数量的路由片段。
 	MyAnnouncementUnreadCountRoute = "/unread-count"
 
-	// AnnouncementMenuPath identifies the canonical announcement management menu path.
+	// AnnouncementMenuPath 标识公告管理菜单的规范路径。
 	AnnouncementMenuPath = "/platform/announcements"
 )

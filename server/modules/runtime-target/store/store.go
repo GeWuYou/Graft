@@ -1,4 +1,4 @@
-// Package store owns runtime-target persistence queries.
+// Package store 负责 runtime-target 的持久化查询。
 package store
 
 import (
@@ -77,7 +77,7 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	return Page{Items: items, Total: total}, nil
 }
 
-// scanTargets reads the runtime-target list projection and always closes its result set.
+// scanTargets 读取 runtime-target 列表投影，并始终关闭结果集以释放数据库资源。
 func scanTargets(rows *sql.Rows) ([]Target, error) {
 	defer func() { _ = rows.Close() }()
 	items := []Target{}

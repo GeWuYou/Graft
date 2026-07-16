@@ -1,5 +1,4 @@
-// Package locales exposes read-only embedded locale descriptors for the
-// scheduler module.
+// Package locales 为 scheduler 模块提供只读的内嵌语言资源描述。
 package locales
 
 import (
@@ -12,8 +11,7 @@ import (
 //go:embed *.yaml
 var embeddedLocaleFiles embed.FS
 
-// EmbeddedLocaleResources exposes read-only locale descriptors for the
-// scheduler module. Parsing and registration stay centralized in i18n.
+// EmbeddedLocaleResources 暴露 scheduler 模块的只读语言资源描述；解析和注册仍由 i18n 服务集中负责。
 func EmbeddedLocaleResources() ([]i18n.EmbeddedLocaleResource, error) {
 	resources, err := i18n.EmbeddedLocaleResourcesFromFS(embeddedLocaleFiles, i18n.Namespace("scheduler"))
 	if err != nil {

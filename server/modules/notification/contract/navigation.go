@@ -2,7 +2,7 @@ package contract
 
 // NavigationKind 标识通知稳定的导航目标契约。
 //
-// Canonical owner: server/modules/notification/contract.
+// 规范权威归属：server/modules/notification/contract。
 // 导航值由本包作为唯一权威维护，直到本包明确标记替换或移除。
 type NavigationKind string
 
@@ -12,20 +12,15 @@ func (k NavigationKind) String() string {
 }
 
 const (
-	// NavigationAuditIncident targets an audit incident detail.
-	// Lifecycle: stable.
+	// NavigationAuditIncident 指向 audit 异常详情；生命周期为 stable。
 	NavigationAuditIncident NavigationKind = "AUDIT_INCIDENT"
-	// NavigationAuditLog targets an audit log detail.
-	// Lifecycle: stable.
+	// NavigationAuditLog 指向 audit 日志详情；生命周期为 stable。
 	NavigationAuditLog NavigationKind = "AUDIT_LOG"
-	// NavigationSchedulerRun targets a scheduled task run detail.
-	// Lifecycle: stable.
+	// NavigationSchedulerRun 指向定时任务运行详情；生命周期为 stable。
 	NavigationSchedulerRun NavigationKind = "SCHEDULER_RUN"
-	// NavigationSystemConfigItem is reserved for a system config item.
-	// Lifecycle: experimental.
+	// NavigationSystemConfigItem 预留给 system-config 配置项；生命周期为 experimental。
 	NavigationSystemConfigItem NavigationKind = "SYSTEM_CONFIG_ITEM"
-	// NavigationModuleRuntimeItem is reserved for a module runtime detail.
-	// Lifecycle: experimental.
+	// NavigationModuleRuntimeItem 预留给模块运行时详情；生命周期为 experimental。
 	NavigationModuleRuntimeItem NavigationKind = "MODULE_RUNTIME_ITEM"
 )
 

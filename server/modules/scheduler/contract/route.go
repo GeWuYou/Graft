@@ -1,28 +1,28 @@
 package contract
 
 const (
-	// ScheduledTasksGroup identifies the scheduled task API route group.
+	// ScheduledTasksGroup 标识定时任务 API 的路由组。
 	ScheduledTasksGroup = "/scheduled-tasks"
-	// ScheduledTaskCollectionRoute identifies the scheduled task collection route fragment.
+	// ScheduledTaskCollectionRoute 标识定时任务集合路由片段。
 	ScheduledTaskCollectionRoute = ""
-	// ScheduledTaskJobDefinitionsRoute identifies the creatable job definition collection route fragment.
+	// ScheduledTaskJobDefinitionsRoute 标识可创建作业定义集合的路由片段。
 	ScheduledTaskJobDefinitionsRoute = "/job-definitions"
-	// ScheduledTaskJobDefinitionDetailRoute identifies one job definition route fragment.
+	// ScheduledTaskJobDefinitionDetailRoute 标识单个作业定义的路由片段。
 	ScheduledTaskJobDefinitionDetailRoute = "/job-definitions/:jobKey"
-	// ScheduledTaskDetailRoute identifies the scheduled task detail route fragment.
+	// ScheduledTaskDetailRoute 标识定时任务详情路由片段。
 	ScheduledTaskDetailRoute = "/:taskKey"
-	// ScheduledTaskEnableRoute identifies the scheduled task enable route fragment.
+	// ScheduledTaskEnableRoute 标识启用定时任务的路由片段。
 	ScheduledTaskEnableRoute = "/:taskKey/enable"
-	// ScheduledTaskDisableRoute identifies the scheduled task disable route fragment.
+	// ScheduledTaskDisableRoute 标识停用定时任务的路由片段。
 	ScheduledTaskDisableRoute = "/:taskKey/disable"
-	// ScheduledTaskRunRoute identifies the manual run route fragment.
+	// ScheduledTaskRunRoute 标识手动运行定时任务的路由片段。
 	ScheduledTaskRunRoute = "/:taskKey/run"
-	// ScheduledTaskActionRoute identifies one backend-defined task action route fragment.
+	// ScheduledTaskActionRoute 标识后端定义的单个任务操作路由片段。
 	ScheduledTaskActionRoute = "/:taskKey/actions/:actionKey"
-	// ScheduledTaskRunsRoute identifies the scheduled task run history route fragment.
+	// ScheduledTaskRunsRoute 标识定时任务运行历史的路由片段。
 	ScheduledTaskRunsRoute = "/:taskKey/runs"
-	// ScheduledTaskRunDetailRoute identifies one run-history detail route fragment.
+	// ScheduledTaskRunDetailRoute 标识单条运行历史详情的路由片段。
 	ScheduledTaskRunDetailRoute = "/runs/:runID"
-	// ScheduledTaskMenuPath identifies the canonical scheduled task menu path.
+	// ScheduledTaskMenuPath 标识定时任务菜单的规范路径。
 	ScheduledTaskMenuPath = "/platform/scheduled-tasks"
 )

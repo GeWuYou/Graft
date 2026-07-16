@@ -1,4 +1,4 @@
-// Package runtimetarget owns persisted runtime connection identities and discovery facts.
+// Package runtimetarget 负责持久化运行时连接身份和发现事实。
 package runtimetarget
 
 import (
