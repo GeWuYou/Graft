@@ -8,6 +8,7 @@ const managementRouteTitle = localizeRouteTitleKey('announcement.route.managemen
 const managementBreadcrumbTitle = localizeRouteTitleKey('announcement.route.management.breadcrumb');
 const userRouteTitle = localizeRouteTitleKey('announcement.route.user.title');
 
+/** 公告管理页进入平台菜单；用户公告中心作为菜单外全局路由挂到管理页的导航层级下。 */
 export const announcementBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
     ...ANNOUNCEMENT_BOOTSTRAP_ROUTE.MANAGEMENT,

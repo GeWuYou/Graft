@@ -74,6 +74,7 @@
   </div>
 </template>
 <script setup lang="ts">
+/** 顶栏入口维护轻量未读摘要；展开时读取预览，刷新事件由壳层广播并在卸载时解除订阅。 */
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';

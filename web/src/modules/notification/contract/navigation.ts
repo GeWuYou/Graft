@@ -27,6 +27,8 @@ function payloadText(payload: Record<string, unknown>, key: string) {
 /**
  * 解析通知导航对应的路由位置。
  *
+ * 通知导航只解析已声明的稳定类型；无法安全定位资源时返回空值，由调用方保留原通知上下文。
+ *
  * @param navigation - 通知导航信息
  * @returns 匹配到的路由位置；对于不支持的类型返回 `null`
  */

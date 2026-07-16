@@ -1237,7 +1237,7 @@ function persistVisibleColumnKeys(keys: string[]) {
   try {
     window.localStorage.setItem(ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY, JSON.stringify(keys));
   } catch {
-    // Column settings are a convenience preference; list rendering must not depend on storage availability.
+    // 列设置只是便利偏好；存储不可用时仍必须保持列表渲染和操作可用。
   }
 }
 

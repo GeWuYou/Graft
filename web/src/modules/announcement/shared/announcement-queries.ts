@@ -27,7 +27,7 @@ const announcementQueryKeys = {
   unreadCount: () => [...MY_ANNOUNCEMENTS_QUERY_SCOPE, 'unread-count'] as const,
 };
 
-/** Invalidates current-account announcement data after a read-state change. */
+/** 已读状态变化后失效当前账号的公告列表与未读数，恢复服务端权威快照。 */
 export async function invalidateMyAnnouncementQueries() {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: announcementQueryKeys.myAnnouncementLists() }),

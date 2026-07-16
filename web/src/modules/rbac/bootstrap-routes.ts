@@ -8,6 +8,7 @@ const roleListBreadcrumbTitle = localizeRouteTitleKey('rbac.route.roleList.bread
 const permissionListRouteTitle = localizeRouteTitleKey('rbac.route.permissionList.title');
 const permissionListBreadcrumbTitle = localizeRouteTitleKey('rbac.route.permissionList.breadcrumb');
 
+/** RBAC 页面通过模块注册面接入动态菜单，路由元数据只声明壳层所需的标题和页面类型。 */
 export const rbacBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
     ...RBAC_BOOTSTRAP_ROUTE.ROLE_LIST,

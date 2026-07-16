@@ -10,6 +10,7 @@
   />
 </template>
 <script setup lang="ts">
+/** 弹窗只负责当前会话的未读候选与已读联动；列表快照仍由模块 API 和 Query 边界维护。 */
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -106,7 +107,7 @@ function rememberDismissedId(id: number) {
   try {
     window.localStorage.setItem(POPUP_DISMISSAL_STORAGE_KEY, JSON.stringify([...dismissedIds]));
   } catch {
-    // Popup dismissal still works for the current session when storage is unavailable.
+    // 持久化不可用时仍保留内存集合，保证当前会话不会重复弹出已关闭的公告。
   }
 }
 </script>
