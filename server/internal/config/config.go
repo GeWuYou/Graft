@@ -47,72 +47,72 @@ const (
 )
 
 const (
-	// EnvAppEnv names the process environment variable that selects the runtime environment.
+	// EnvAppEnv 是选择运行环境的进程环境变量名。
 	EnvAppEnv = "GRAFT_APP_ENV"
-	// EnvLogLevel names the process environment variable that selects the zap severity threshold.
+	// EnvLogLevel 是选择 zap 日志级别的进程环境变量名。
 	EnvLogLevel = "GRAFT_LOG_LEVEL"
-	// EnvLogFormat names the process environment variable that selects console or JSON output.
+	// EnvLogFormat 是选择 console 或 JSON 输出格式的进程环境变量名。
 	EnvLogFormat = "GRAFT_LOG_FORMAT"
-	// EnvLogColor names the process environment variable that controls ANSI level colors.
+	// EnvLogColor 是控制日志级别 ANSI 颜色的进程环境变量名。
 	EnvLogColor = "GRAFT_LOG_COLOR"
-	// EnvGinMode names the process environment variable that selects the Gin framework mode.
+	// EnvGinMode 是选择 Gin 运行模式的进程环境变量名。
 	EnvGinMode = "GRAFT_GIN_MODE"
-	// EnvAccessLogConsole names the process environment variable that controls access-log console emission.
+	// EnvAccessLogConsole 是控制访问日志是否输出到进程日志的环境变量名。
 	EnvAccessLogConsole = "GRAFT_ACCESS_LOG_CONSOLE"
-	// EnvAccessLogSlowThresholdMS names the process environment variable that controls slow access-log visibility.
+	// EnvAccessLogSlowThresholdMS 是控制慢访问日志阈值的进程环境变量名。
 	EnvAccessLogSlowThresholdMS   = "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS"
 	defaultAccessLogSlowThreshold = 1000 * time.Millisecond
 )
 
-// LogFormat describes the runtime encoder format selected for zap output.
+// LogFormat 描述 zap 输出使用的运行时编码格式。
 type LogFormat string
 
 const (
-	// LogFormatAuto lets the runtime choose console for local-like environments and JSON otherwise.
+	// LogFormatAuto 让运行时在本地类环境使用 console，其它环境使用 JSON。
 	LogFormatAuto LogFormat = "auto"
-	// LogFormatConsole selects zap console encoding.
+	// LogFormatConsole 选择 zap console 编码。
 	LogFormatConsole LogFormat = "console"
-	// LogFormatJSON selects zap JSON encoding.
+	// LogFormatJSON 选择 zap JSON 编码。
 	LogFormatJSON LogFormat = "json"
 )
 
-// LogColor describes whether console log levels should include ANSI color.
+// LogColor 描述 console 日志级别是否包含 ANSI 颜色。
 type LogColor string
 
 const (
-	// LogColorAuto enables colors only for local-like console output.
+	// LogColorAuto 仅为本地类环境的 console 输出启用颜色。
 	LogColorAuto LogColor = "auto"
-	// LogColorAlways enables ANSI colors for console output.
+	// LogColorAlways 为 console 输出启用 ANSI 颜色。
 	LogColorAlways LogColor = "always"
-	// LogColorNever disables ANSI colors.
+	// LogColorNever 禁用 ANSI 颜色。
 	LogColorNever LogColor = "never"
 )
 
-// GinMode describes the Gin framework mode selected before engine creation.
+// GinMode 描述创建 Gin engine 前确定的框架运行模式。
 type GinMode string
 
 const (
-	// GinModeAuto lets the runtime choose debug, test, or release from the app environment.
+	// GinModeAuto 让运行时根据应用环境选择 debug、test 或 release。
 	GinModeAuto GinMode = "auto"
-	// GinModeDebug selects Gin debug mode.
+	// GinModeDebug 选择 Gin debug 模式。
 	GinModeDebug GinMode = "debug"
-	// GinModeRelease selects Gin release mode.
+	// GinModeRelease 选择 Gin release 模式。
 	GinModeRelease GinMode = "release"
-	// GinModeTest selects Gin test mode.
+	// GinModeTest 选择 Gin test 模式。
 	GinModeTest GinMode = "test"
 )
 
-// AccessLogConsolePolicy controls whether request facts are emitted to the process logger.
+// AccessLogConsolePolicy 控制请求事实是否输出到进程日志，同时不改变持久化策略。
 type AccessLogConsolePolicy string
 
 const (
-	// AccessLogConsoleAuto lets the runtime choose a quiet console policy from the app environment.
+	// AccessLogConsoleAuto 让运行时根据应用环境选择较安静的 console 策略。
 	AccessLogConsoleAuto AccessLogConsolePolicy = "auto"
-	// AccessLogConsoleAlways emits every access log to the process logger.
+	// AccessLogConsoleAlways 将每条访问日志输出到进程日志。
 	AccessLogConsoleAlways AccessLogConsolePolicy = "always"
-	// AccessLogConsoleNever suppresses process-log emission while keeping persistence.
+	// AccessLogConsoleNever 抑制进程日志输出，但保留访问日志持久化。
 	AccessLogConsoleNever AccessLogConsolePolicy = "never"
-	// AccessLogConsoleErrorOnly emits only error or slow access logs to the process logger.
+	// AccessLogConsoleErrorOnly 仅将错误或慢访问日志输出到进程日志。
 	AccessLogConsoleErrorOnly AccessLogConsolePolicy = "error_only"
 )
 
@@ -154,7 +154,7 @@ type HTTPXConfig struct {
 	WebSocketAllowedOrigins  []string
 }
 
-// AuditConfig reserves core-provided audit startup settings.
+// AuditConfig 预留 core 提供的审计启动配置边界。
 type AuditConfig struct{}
 
 // DocsConfig 控制 OpenAPI 文档与文档页面的公开策略。
@@ -236,7 +236,7 @@ type ContainerConfig struct {
 	DockerEndpoint string
 }
 
-// ProjectConfig describes project-module diagnostic switches loaded with the core config snapshot.
+// ProjectConfig 描述随 core 配置快照加载的 project 模块诊断开关。
 type ProjectConfig struct {
 	LogDebug           bool
 	ManagedCreateDebug bool
@@ -270,12 +270,12 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// DefaultDiskUsagePath resolves the runtime disk root for the current GOOS.
+// DefaultDiskUsagePath 根据当前 GOOS 解析运行时磁盘根目录。
 func DefaultDiskUsagePath(goos string) string {
 	return DefaultDiskUsagePathForGOOS(goos, os.Getenv)
 }
 
-// DefaultDiskUsagePathForGOOS resolves the runtime disk root for a specific GOOS.
+// DefaultDiskUsagePathForGOOS 根据指定 GOOS 解析运行时磁盘根目录。
 func DefaultDiskUsagePathForGOOS(goos string, lookupEnv func(string) string) string {
 	if goos != "windows" {
 		return "/"

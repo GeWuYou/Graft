@@ -1,4 +1,4 @@
-// Package cachex provides a mechanical cache layer for core-owned runtime services.
+// Package cachex 为 core-owned runtime service 提供机械缓存能力。
 package cachex
 
 import (
@@ -12,7 +12,7 @@ import (
 	"graft/server/internal/cachex/keys"
 )
 
-// Cache performs read-through and write-through cache operations for one cache namespace.
+// Cache 在一个命名空间内提供读穿透、写入和按键加载语义。
 type Cache struct {
 	name    string
 	keyRoot string
@@ -22,7 +22,7 @@ type Cache struct {
 	group   *Group
 }
 
-// Name returns the stable cache name under the owning manager.
+// Name 返回由所属 Manager 分配的稳定缓存名称。
 func (c *Cache) Name() string {
 	if c == nil {
 		return ""
@@ -31,7 +31,7 @@ func (c *Cache) Name() string {
 	return c.name
 }
 
-// Get loads one item from the configured backend.
+// Get 从后端读取一项；未命中时返回 false，不把“未找到”视为错误。
 func (c *Cache) Get(ctx context.Context, key keys.Key) (Item, bool, error) {
 	if err := c.validate(); err != nil {
 		return Item{}, false, err
@@ -58,7 +58,7 @@ func (c *Cache) Get(ctx context.Context, key keys.Key) (Item, bool, error) {
 	return itemFromEntry(entry), true, nil
 }
 
-// Set writes one item into the configured backend.
+// Set 校验并规范化缓存项后写入后端，必要时补齐默认 TTL。
 func (c *Cache) Set(ctx context.Context, key keys.Key, item Item) error {
 	if err := c.validate(); err != nil {
 		return err
@@ -81,7 +81,7 @@ func (c *Cache) Set(ctx context.Context, key keys.Key, item Item) error {
 	return err
 }
 
-// Delete removes one item from the configured backend.
+// Delete 从配置的后端删除一项。
 func (c *Cache) Delete(ctx context.Context, key keys.Key) error {
 	if err := c.validate(); err != nil {
 		return err
@@ -99,7 +99,7 @@ func (c *Cache) Delete(ctx context.Context, key keys.Key) error {
 	return err
 }
 
-// GetOrLoad returns a cached item or executes the loader once per key on misses.
+// GetOrLoad 返回缓存项；未命中时通过 singleflight 保证同一键只有一个加载器执行。
 func (c *Cache) GetOrLoad(ctx context.Context, key keys.Key, loader Loader) (Item, error) {
 	if loader == nil {
 		return Item{}, ErrLoaderRequired

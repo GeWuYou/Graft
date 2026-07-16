@@ -7,7 +7,7 @@ import (
 	"graft/server/internal/cachex/backend"
 )
 
-// Manager owns one mechanical cache backend and provisions named caches on top of it.
+// Manager 持有一个机械缓存后端，并在其上创建带命名空间的缓存视图。
 type Manager struct {
 	backend   backend.Backend
 	metrics   Metrics
@@ -15,9 +15,7 @@ type Manager struct {
 	namespace string
 }
 
-// NewManager 从提供的选项创建一个缓存管理器。
-// 它验证命名空间（去除空格后）和后端均不为空；若验证失败则返回错误。
-// NewManager 从提供的选项创建一个 Manager，验证命名空间非空且后端非空。若指标或分组未提供，则使用默认实现。
+// NewManager 从选项创建 Manager；命名空间和后端不能为空，指标与 singleflight 分组缺省时使用默认实现。
 func NewManager(options ManagerOptions) (*Manager, error) {
 	namespace := strings.TrimSpace(options.Namespace)
 	if namespace == "" {
@@ -45,7 +43,7 @@ func NewManager(options ManagerOptions) (*Manager, error) {
 	}, nil
 }
 
-// BackendName returns the current backend adapter name.
+// BackendName 返回当前后端适配器名称；Manager 不可用时返回空字符串。
 func (m *Manager) BackendName() string {
 	if m == nil || m.backend == nil {
 		return ""
@@ -54,7 +52,7 @@ func (m *Manager) BackendName() string {
 	return m.backend.Name()
 }
 
-// NewCache provisions one named cache view using manager-owned mechanical dependencies.
+// NewCache 创建一个继承 Manager 后端、指标和 singleflight 依赖的命名缓存视图。
 func (m *Manager) NewCache(name string, options ...Option) (*Cache, error) {
 	if m == nil {
 		return nil, fmt.Errorf("cache manager is unavailable")

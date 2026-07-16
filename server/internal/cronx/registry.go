@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// JobCategory is the stable execution category for a Job Definition.
+// JobCategory 是 Job Definition 的稳定执行分类。
 type JobCategory string
 
-// Supported Job Definition categories.
+// JobCategory 的受支持取值，空值在运行时按 custom 处理。
 const (
 	JobCategoryRetention    JobCategory = "retention"
 	JobCategorySync         JobCategory = "sync"
@@ -50,7 +50,7 @@ type Job struct {
 	DefaultConfig string
 	// DefaultConfigKey 指向拥有 DefaultConfig 真相的非敏感 object 型 system-config definition。
 	DefaultConfigKey string
-	// Actions are backend-defined one-shot operations available for this Job Definition.
+	// Actions 是该 Job Definition 可执行的后端定义一次性操作。
 	Actions []JobAction
 	// Schedule 保存默认 cron 表达式语义，当前阶段仅做声明透传。
 	Schedule string
@@ -60,16 +60,16 @@ type Job struct {
 	//
 	// Deprecated: use ModuleKey for new Job Definition declarations.
 	Module string
-	// Handler is the scheduler execution entrypoint. configJSON is effective_config.
+	// Handler 是调度器执行入口，configJSON 为合并后的 effective_config。
 	Handler func(ctx context.Context, configJSON string) (JobRunResult, error)
-	// Run is the no-config execution fallback for simple internal jobs.
+	// Run 是简单内部任务的无配置执行回退入口。
 	//
 	// 模块应在 Register 阶段显式提供该函数，而不是在 Boot 阶段隐式拼装
 	// 或依赖全局单例回填执行体。
 	Run func(ctx context.Context) error
 }
 
-// JobAction describes one backend-defined operation available for a Job Definition.
+// JobAction 描述 Job Definition 可用的一个后端定义操作。
 type JobAction struct {
 	Key            string
 	TitleKey       string
@@ -79,7 +79,7 @@ type JobAction struct {
 	Handler        func(ctx context.Context, configJSON string) (JobRunResult, error)
 }
 
-// JobRunResult is the structured outcome a scheduler job should persist.
+// JobRunResult 是调度任务应持久化的结构化执行结果。
 type JobRunResult struct {
 	Summary          string         `json:"summary,omitempty"`
 	Stage            string         `json:"stage,omitempty"`
@@ -89,7 +89,7 @@ type JobRunResult struct {
 	Warnings         []string       `json:"warnings,omitempty"`
 }
 
-// RuntimeKey returns the visible stable task key.
+// RuntimeKey 返回运行时使用的稳定任务键，Key 为空时回退到 Name。
 func (j Job) RuntimeKey() string {
 	if key := strings.TrimSpace(j.Key); key != "" {
 		return key
@@ -97,7 +97,7 @@ func (j Job) RuntimeKey() string {
 	return strings.TrimSpace(j.Name)
 }
 
-// RuntimeModuleKey returns the Job Definition module key.
+// RuntimeModuleKey 返回 Job Definition 的模块键，ModuleKey 为空时回退到历史 Module。
 func (j Job) RuntimeModuleKey() string {
 	if moduleKey := strings.TrimSpace(j.ModuleKey); moduleKey != "" {
 		return moduleKey
@@ -105,7 +105,7 @@ func (j Job) RuntimeModuleKey() string {
 	return strings.TrimSpace(j.Module)
 }
 
-// RuntimeCategory returns the stable category for this Job Definition.
+// RuntimeCategory 返回 Job Definition 的稳定分类，未设置时使用 custom。
 func (j Job) RuntimeCategory() JobCategory {
 	if strings.TrimSpace(string(j.Category)) == "" {
 		return JobCategoryCustom
@@ -113,7 +113,7 @@ func (j Job) RuntimeCategory() JobCategory {
 	return j.Category
 }
 
-// RuntimeTitle returns the default display title.
+// RuntimeTitle 返回默认展示标题，标题为空时回退到运行时任务键。
 func (j Job) RuntimeTitle() string {
 	if title := strings.TrimSpace(j.Title); title != "" {
 		return title
@@ -121,7 +121,7 @@ func (j Job) RuntimeTitle() string {
 	return j.RuntimeKey()
 }
 
-// RuntimeDescription returns the default description.
+// RuntimeDescription 返回默认说明，说明为空时回退到运行时标题。
 func (j Job) RuntimeDescription() string {
 	if description := strings.TrimSpace(j.Description); description != "" {
 		return description
@@ -129,12 +129,12 @@ func (j Job) RuntimeDescription() string {
 	return j.RuntimeTitle()
 }
 
-// RuntimeTitleKey returns the stable i18n key for the job title.
+// RuntimeTitleKey 返回任务标题使用的稳定 i18n key。
 func (j Job) RuntimeTitleKey() string {
 	return strings.TrimSpace(j.TitleKey)
 }
 
-// RuntimeShortTitle returns the compact default display title.
+// RuntimeShortTitle 返回紧凑场景使用的默认标题。
 func (j Job) RuntimeShortTitle() string {
 	if title := strings.TrimSpace(j.ShortTitle); title != "" {
 		return title
@@ -142,17 +142,17 @@ func (j Job) RuntimeShortTitle() string {
 	return j.RuntimeTitle()
 }
 
-// RuntimeShortTitleKey returns the stable i18n key for the compact title.
+// RuntimeShortTitleKey 返回紧凑标题使用的稳定 i18n key。
 func (j Job) RuntimeShortTitleKey() string {
 	return strings.TrimSpace(j.ShortTitleKey)
 }
 
-// RuntimeDescriptionKey returns the stable i18n key for the job description.
+// RuntimeDescriptionKey 返回任务说明使用的稳定 i18n key。
 func (j Job) RuntimeDescriptionKey() string {
 	return strings.TrimSpace(j.DescriptionKey)
 }
 
-// RuntimeDefaultConfig returns stable JSON for default job config.
+// RuntimeDefaultConfig 返回任务默认配置 JSON，未设置时返回空对象。
 func (j Job) RuntimeDefaultConfig() string {
 	if config := strings.TrimSpace(j.DefaultConfig); config != "" {
 		return config
@@ -160,7 +160,7 @@ func (j Job) RuntimeDefaultConfig() string {
 	return "{}"
 }
 
-// RuntimeConfigSchema returns stable JSON for the job config schema.
+// RuntimeConfigSchema 返回任务配置模式 JSON，未设置时返回空对象。
 func (j Job) RuntimeConfigSchema() string {
 	if schema := strings.TrimSpace(j.ConfigSchema); schema != "" {
 		return schema
@@ -168,7 +168,7 @@ func (j Job) RuntimeConfigSchema() string {
 	return "{}"
 }
 
-// Invoke executes the registered handler with the given effective Scheduled Task config.
+// Invoke 使用给定的 effective_config 执行任务；Handler 优先，Run 作为无配置回退。
 func (j Job) Invoke(ctx context.Context, configJSON string) (JobRunResult, error) {
 	if j.Handler != nil {
 		return j.Handler(ctx, configJSON)
