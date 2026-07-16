@@ -201,7 +201,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    *
    * @param name - 查询视图名称，首尾空白会被移除
    * @param mode - 保存模式，创建新视图或更新当前选中的视图
-   * @returns `true` if 保存成功，`false` otherwise
+   * @returns 保存成功时为 `true`，否则为 `false`
    */
   async function save(name: string, mode: 'create' | 'update') {
     const normalizedName = name.trim();

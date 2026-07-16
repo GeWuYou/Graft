@@ -47,7 +47,7 @@ const activeTabRoute = computed(() => {
 const shouldKeepActiveViewAlive = computed(() => {
   const tabRoute = activeTabRoute.value;
   const keepAliveConfig = tabRoute?.meta?.keepAlive ?? route.meta?.keepAlive;
-  const isRouteKeepAlive = isUndefined(keepAliveConfig) || (isBoolean(keepAliveConfig) && keepAliveConfig); // 默认开启keepalive
+  const isRouteKeepAlive = isUndefined(keepAliveConfig) || (isBoolean(keepAliveConfig) && keepAliveConfig);
   return Boolean(tabRoute?.isAlive) && isRouteKeepAlive;
 });
 

@@ -12,7 +12,7 @@ const logger = createLogger('debug.runtime');
  * 判断值是否为普通对象。
  *
  * @param value - 要检查的值
- * @returns `true` if `value` is a plain object, `false` otherwise.
+ * @returns 当 `value` 为普通对象时返回 `true`，否则返回 `false`。
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Object.prototype.toString.call(value) === '[object Object]';
