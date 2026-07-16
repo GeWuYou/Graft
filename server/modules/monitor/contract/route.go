@@ -1,47 +1,47 @@
 package contract
 
-// JoinRoute combines a route group path with a route fragment.
+// JoinRoute 将路由分组路径与片段拼接为规范 API 路径。
 func JoinRoute(group, fragment string) string {
 	return group + fragment
 }
 
 const (
-	// MonitorGroup identifies the monitor route group.
+	// MonitorGroup 标识 monitor API 的路由分组。
 	MonitorGroup = "/monitor"
 
-	// ServerStatusRoute identifies the server-status API route fragment.
+	// ServerStatusRoute 标识服务器状态 API 路由片段。
 	ServerStatusRoute = "/server-status"
 
-	// MonitorMenuRoot identifies the canonical monitor bootstrap root path.
+	// MonitorMenuRoot 标识 monitor bootstrap 使用的规范根路径。
 	MonitorMenuRoot = "/server"
 
-	// OverviewRoute identifies the overview route fragment under server-status.
+	// OverviewRoute 标识服务器状态下的概览路由片段。
 	OverviewRoute = "/overview"
 
-	// ServiceStatusRoute identifies the service-status route fragment under server-status.
+	// ServiceStatusRoute 标识服务器状态下的服务状态路由片段。
 	ServiceStatusRoute = "/service-status"
 
-	// DependenciesRoute identifies the dependencies route fragment under server-status.
+	// DependenciesRoute 标识服务器状态下的依赖路由片段。
 	DependenciesRoute = "/dependencies"
 
-	// RequestPerformanceRoute identifies the request-performance API route fragment.
+	// RequestPerformanceRoute 标识请求性能 API 路由片段。
 	RequestPerformanceRoute = "/request-performance"
 
-	// RequestPerformanceRangeQueryKey identifies the request-performance range query parameter.
+	// RequestPerformanceRangeQueryKey 标识请求性能范围查询参数。
 	RequestPerformanceRangeQueryKey = "range"
 
-	// ServerStatusMenuPath identifies the Observability UI route prefix.
+	// ServerStatusMenuPath 标识 Observability UI 的服务器状态路径前缀。
 	ServerStatusMenuPath = "/observability"
 
-	// ServerStatusOverviewMenuPath identifies the canonical overview menu path.
+	// ServerStatusOverviewMenuPath 标识规范概览菜单路径。
 	ServerStatusOverviewMenuPath = ServerStatusMenuPath + OverviewRoute
 
-	// ServerStatusServiceStatusMenuPath identifies the canonical service-status menu path.
+	// ServerStatusServiceStatusMenuPath 标识规范服务状态菜单路径。
 	ServerStatusServiceStatusMenuPath = ServerStatusMenuPath + ServiceStatusRoute
 
-	// ServerStatusDependenciesMenuPath identifies the canonical dependencies menu path.
+	// ServerStatusDependenciesMenuPath 标识规范依赖菜单路径。
 	ServerStatusDependenciesMenuPath = ServerStatusMenuPath + DependenciesRoute
 
-	// RequestPerformanceMenuPath identifies the canonical request-performance menu path.
+	// RequestPerformanceMenuPath 标识规范请求性能菜单路径。
 	RequestPerformanceMenuPath = ServerStatusMenuPath + RequestPerformanceRoute
 )
