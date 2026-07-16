@@ -20,5 +20,5 @@ export const API_CODE = {
 
 export type ApiCode = (typeof API_CODE)[keyof typeof API_CODE];
 
-// Backend responses may still contain compatibility or not-yet-modeled codes.
+// 后端可能先于前端发布新增响应码；保留未知字符串，避免错误处理把合法响应误判为类型不匹配。
 export type ApiResponseCode = string;

@@ -1,12 +1,4 @@
-/**
- * Normalizes a dashboard route path.
- *
- * Removes query and hash fragments, ensures the path starts with a single forward slash,
- * and removes trailing slashes (except for the root path `/`).
- *
- * @param path - The route path to normalize
- * @returns The normalized path, or an empty string if the input is empty after trimming.
- */
+/** 统一 dashboard 路径契约，移除 query/hash、收敛首尾斜杠，避免菜单路径比较受输入写法影响。 */
 
 export function normalizeDashboardRoutePath(path: string) {
   const trimmed = path.trim();
@@ -19,17 +11,7 @@ export function normalizeDashboardRoutePath(path: string) {
   return withLeadingSlash === '/' ? withLeadingSlash : withLeadingSlash.replace(/\/+$/, '');
 }
 
-/**
- * Normalizes a route path formed by joining a parent path with a child route path.
- *
- * If `routePath` is absolute (starts with `/`), it is normalized independently.
- * If `routePath` is empty, only `parentPath` is normalized. Otherwise, both paths
- * are joined with a `/` separator and the result is normalized.
- *
- * @param parentPath - The base route path
- * @param routePath - The route path to join with the parent
- * @returns The normalized joined dashboard route path
- */
+/** 按绝对子路径优先、相对路径拼接的规则构造 dashboard 路径，供菜单和快捷入口共享同一语义。 */
 export function normalizeJoinedDashboardRoutePath(parentPath: string, routePath: string) {
   if (routePath.startsWith('/')) {
     return normalizeDashboardRoutePath(routePath);
