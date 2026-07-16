@@ -15,6 +15,8 @@ Overlay note:
 
 ## Active Topics
 
+- `handwritten-comment-governance`
+  - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`
   - Recovery entry: `ai-plan/public/compose-project-management/README.md`
 - `rbac-feature-and-nplusone-hardening`
