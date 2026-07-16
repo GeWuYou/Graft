@@ -689,6 +689,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 
 // 当 ID 为空时返回 true；当 ID 小于 1 或不对应已知目标时返回 false。
 func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.ComposeRuntimeTargetSummary) bool {
+	// nil 表示未指定筛选；非 nil 值必须命中已发现的运行时目标，避免把未知 ID 当作有效过滤条件。
 	if id == nil {
 		return true
 	}
@@ -707,6 +708,7 @@ func (s *Service) listRuntimeStatusPage(
 	query ListQuery,
 	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 ) (ListResult, error) {
+	// 运行时状态是容器 authority 的派生筛选，必须先筛选完整结果再分页，避免页内数量漂移。
 	matched := make([]generated.ProjectListItem, 0)
 	offset := 0
 	for {
@@ -764,6 +766,7 @@ func (s *Service) listComposeTargets(ctx context.Context) ([]moduleapi.ComposeRu
 
 // runtimeTargetLookup indexes valid runtime-target summaries by ID.
 func runtimeTargetLookup(targets []moduleapi.ComposeRuntimeTargetSummary) map[uint64]moduleapi.ComposeRuntimeTargetSummary {
+	// 仅索引合法的非零目标 ID；重复 ID 由后一次发现结果覆盖，保持最新的启动期摘要。
 	byID := make(map[uint64]moduleapi.ComposeRuntimeTargetSummary, len(targets))
 	for _, target := range targets {
 		if target.ID > 0 {
@@ -1199,6 +1202,7 @@ func applyGeneratedServiceMembers(target *generated.ProjectServiceItem, items []
 }
 
 func (s *Service) repositoryOrErr() (projectstore.Repository, error) {
+	// repository 是服务的持久化 authority；缺失时返回稳定错误而不是让调用方触发 nil pointer。
 	if s == nil || s.repository == nil {
 		return nil, errProjectServiceUnavailable
 	}
@@ -1227,6 +1231,7 @@ func (s *Service) ResolveApplicationID(ctx context.Context, applicationID string
 }
 
 func (s *Service) getAggregate(ctx context.Context, projectID uint64) (projectstore.ProjectAggregate, error) {
+	// 所有详情、刷新和生命周期操作共享聚合读取入口，确保项目、文件与快照使用同一份存储视图。
 	repository, err := s.repositoryOrErr()
 	if err != nil {
 		return projectstore.ProjectAggregate{}, err

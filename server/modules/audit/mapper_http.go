@@ -12,6 +12,7 @@ import (
 )
 
 func toAuditLogListResponse(result auditListResult) (map[string]any, error) {
+	// 列表响应保留审计查询的分页元数据，并通过统一 item mapper 传播嵌套字段转换错误。
 	items := make([]generated.AuditLogListItem, 0, len(result.Items))
 	for _, item := range result.Items {
 		converted, err := toAuditLogListItem(item)
@@ -133,6 +134,7 @@ func addStringSliceField(target map[string]any, key string, values []string) {
 
 // 返回转换后的事件响应；任一嵌套数据转换失败时返回错误。
 func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error) {
+	// incident 响应聚合事件、actor、resource 和 request 四类证据，任一转换失败都阻断响应。
 	seedEvent, err := toAuditLogListItem(result.SeedEvent)
 	if err != nil {
 		return nil, err
@@ -415,6 +417,7 @@ func optionalAuditObservedAt(value *time.Time) any {
 }
 
 func toAuditEvidenceLinks(links []auditstore.EvidenceLink) ([]map[string]any, error) {
+	// 证据链接是审计调查的跨模块入口，映射时保留 link kind 与时间窗口等可追溯字段。
 	converted := make([]map[string]any, 0, len(links))
 	for _, link := range links {
 		entry, err := toAuditEvidenceLink(link)

@@ -328,6 +328,7 @@ func (c *Config) Validate() error {
 }
 
 func validateAppConfig(c *Config) error {
+	// 应用名参与日志、模块标识和运行时诊断，禁止以空白值启动以避免产生不可追踪实例。
 	if strings.TrimSpace(c.App.Name) == "" {
 		return errors.New("GRAFT_APP_NAME is required")
 	}
@@ -397,6 +398,7 @@ func validateLogConfig(c *Config) error {
 }
 
 func validateRuntimeConfig(c *Config) error {
+	// 先规范化环境输入，再将 Gin 模式限制在显式支持的枚举内，避免框架自行解释未知值。
 	c.Runtime.GinMode = GinMode(strings.ToLower(strings.TrimSpace(string(c.Runtime.GinMode))))
 	if c.Runtime.GinMode == "" {
 		c.Runtime.GinMode = GinModeAuto
@@ -427,6 +429,7 @@ func validateModulesConfig(c *Config) error {
 }
 
 func validateDatabaseConfig(c *Config) error {
+	// 数据库配置只校验启动所需的静态约束；连接可用性由数据库资源构造阶段负责确认。
 	if strings.TrimSpace(c.Database.Driver) != defaultDatabaseDriver {
 		return fmt.Errorf("unsupported database driver %q: only postgres is supported", c.Database.Driver)
 	}
@@ -450,6 +453,7 @@ func validateDatabaseConfig(c *Config) error {
 }
 
 func validateRedisConfig(c *Config) error {
+	// Redis 连接池边界在启动前固定，负数值会导致客户端行为不可预测，因此在配置阶段拒绝。
 	if strings.TrimSpace(c.Redis.Addr) == "" {
 		return errors.New("GRAFT_REDIS_ADDR is required")
 	}

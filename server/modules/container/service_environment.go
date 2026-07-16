@@ -39,6 +39,7 @@ func environmentPlainAccessAllowed(ctx context.Context) bool {
 }
 
 func (s *service) environmentDisplayPolicy(ctx context.Context) containercontract.EnvironmentPolicy {
+	// System Config 是运行时策略的权威来源；读取失败时保留启动时的默认值，避免详情接口因配置中心暂时不可用而失败。
 	fallback := defaultContainerEnvironmentPolicy
 	if s != nil && s.environmentPolicy != "" {
 		fallback = s.environmentPolicy
@@ -353,6 +354,7 @@ var sensitiveEnvironmentKeyMarkers = []string{
 }
 
 func (s *service) normalizeLogQuery(ctx context.Context, query LogQuery) (LogQuery, error) {
+	// 日志尾部数量受 System Config 与模块硬上限共同约束，未指定输出流时默认同时返回 stdout 和 stderr。
 	defaultTail, maxTail := s.effectiveLogTailBounds(ctx)
 	if query.Tail == 0 {
 		query.Tail = defaultTail
@@ -581,6 +583,7 @@ func effectiveHealth(item Summary) string {
 }
 
 func parseLogSince(raw string) (string, error) {
+	// since 同时接受 RFC3339 时间和相对时长；相对时长转换为 UTC Unix 秒供 Docker API 使用。
 	value := strings.TrimSpace(raw)
 	if value == "" {
 		return "", nil

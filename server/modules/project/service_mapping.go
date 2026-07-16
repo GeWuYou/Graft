@@ -316,6 +316,7 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 
 // 返回的文件先按 OrderIndex 升序排列，OrderIndex 相同时按 ID 升序排列。
 func filterFiles(files []projectstore.ProjectFile, kind string) []projectstore.ProjectFile {
+	// 过滤结果按顺序字段稳定排序，确保 API 文件列表与 Compose 参数顺序一致。
 	items := make([]projectstore.ProjectFile, 0)
 	for _, item := range files {
 		if item.Kind == kind {
@@ -342,6 +343,7 @@ func collectFilesByKind(files []projectstore.ProjectFile, kind string) []string 
 }
 
 func (s *Service) loadFromAggregate(aggregate projectstore.ProjectAggregate) (projectcompose.Result, error) {
+	// Compose 解析只消费聚合中的静态文件投影，不读取运行时容器状态，保证刷新结果可重现。
 	return projectcompose.Load(projectcompose.Input{
 		WorkingDirectory: aggregate.Project.WorkingDirectory,
 		ComposeFiles:     collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),

@@ -241,6 +241,7 @@ func composeMetadata(labels map[string]string) (composeOrchestratorMetadata, boo
 }
 
 func composeConfigFiles(raw string) []string {
+	// Compose 标签以逗号分隔配置文件；逐项清理并去重，避免把运行时标签噪声暴露到详情响应。
 	if strings.TrimSpace(raw) == "" {
 		return nil
 	}
@@ -331,6 +332,7 @@ func dockerHealth(inspect container.InspectResponse) string {
 
 // health state is unavailable, status is set to unavailable.
 func dockerHealthcheck(inspect container.InspectResponse) *Healthcheck {
+	// 没有可执行的健康检查命令时返回 nil，保持“未配置”和“已配置但未通过”的语义可区分。
 	command := dockerHealthcheckCommand(inspect)
 	if len(command) == 0 {
 		return nil
@@ -476,6 +478,7 @@ func actionResultFromDetail(detail Detail, ref Ref, action string, statusBefore 
 }
 
 func dockerState(inspect container.InspectResponse) (string, string, string) {
+	// Docker 的 State 可能缺失；此处统一生成未知状态，避免详情映射在部分检查响应上发生空指针。
 	if inspect.State == nil {
 		return "unknown", "", ""
 	}
