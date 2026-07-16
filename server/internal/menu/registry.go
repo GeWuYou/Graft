@@ -11,9 +11,9 @@ import (
 type NodeKind string
 
 const (
-	// NodeKindGroup identifies a non-navigable navigation group.
+	// NodeKindGroup 表示不可直接导航的领域分组。
 	NodeKindGroup NodeKind = "group"
-	// NodeKindEntry identifies a navigable page entry.
+	// NodeKindEntry 表示可导航的页面条目。
 	NodeKindEntry NodeKind = "entry"
 
 	visitUnseen uint8 = iota
@@ -28,11 +28,11 @@ const (
 	domainOrderSecurity       = 60
 	domainOrderPlatform       = 70
 
-	// RuntimeSectionKey identifies the visual-only runtime sidebar section.
+	// RuntimeSectionKey 是仅影响侧边栏展示的运行时分区键。
 	RuntimeSectionKey = "runtime"
-	// AccessControlSectionKey identifies the visual-only access-control sidebar section.
+	// AccessControlSectionKey 是仅影响侧边栏展示的访问控制分区键。
 	AccessControlSectionKey = "access-control"
-	// AccessControlSectionTitleKey identifies the localized access-control section title.
+	// AccessControlSectionTitleKey 是访问控制分区标题的本地化键。
 	AccessControlSectionTitleKey = "menu.section.access_control"
 )
 
@@ -44,10 +44,9 @@ type Item struct {
 	Kind       NodeKind
 	Title      string
 	TitleKey   string
-	// SectionKey optionally assigns an item to a visual-only sidebar section.
-	// It is display metadata, never a menu node, route, permission, or identity.
+	// SectionKey 可选地把菜单项归入仅影响侧边栏展示的分区；它不是菜单节点、路由、权限或身份标识。
 	SectionKey string
-	// SectionTitleKey is the stable localization key for SectionKey.
+	// SectionTitleKey 是 SectionKey 对应的稳定本地化键。
 	SectionTitleKey string
 	Path            string
 	Icon            string
@@ -94,7 +93,7 @@ func (r *Registry) Items() []Item {
 	return items
 }
 
-// Validate rejects malformed navigation graphs before bootstrap emits them.
+// Validate 在 bootstrap 输出菜单前拒绝结构不完整或存在环的导航图。
 func (r *Registry) Validate() error {
 	items := r.Items()
 	byCode := make(map[string]Item, len(items))
@@ -207,7 +206,6 @@ func validateCycles(items map[string]Item) error {
 	return nil
 }
 
-// RegisterDomainGroups 向 r 注册稳定的顶层导航领域分组。
 // RegisterDomainGroups 注册预定义的顶层领域菜单分组；当注册表为 nil 时忽略操作。
 func RegisterDomainGroups(r *Registry) {
 	if r == nil {

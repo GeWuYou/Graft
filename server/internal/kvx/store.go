@@ -23,13 +23,13 @@ type Item struct {
 type Store interface {
 	// Put writes one value with the given TTL. A zero TTL means no expiration.
 	Put(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	// Get returns one stored value when present.
+	// Get 读取一个值；未命中返回 false。
 	Get(ctx context.Context, key string) (Item, bool, error)
-	// Delete removes one stored value.
+	// Delete 删除一个值；键不存在时仍视为成功。
 	Delete(ctx context.Context, key string) error
-	// CompareAndSwap replaces one value only when the current bytes still match.
+	// CompareAndSwap 仅在当前字节值一致时替换值，具体实现必须保持原子性。
 	CompareAndSwap(ctx context.Context, key string, oldValue []byte, newValue []byte, ttl time.Duration) (bool, error)
-	// CompareAndDelete removes one value only when the current bytes still match.
+	// CompareAndDelete 仅在当前字节值一致时删除值，具体实现必须保持原子性。
 	CompareAndDelete(ctx context.Context, key string, oldValue []byte) (bool, error)
 }
 
@@ -50,7 +50,7 @@ func validateKey(key string) error {
 	return nil
 }
 
-// validateTTL validates that ttl is not negative.
+// validateTTL 验证 TTL 不为负数。
 func validateTTL(ttl time.Duration) error {
 	if ttl < 0 {
 		return ErrNegativeTTL
@@ -58,8 +58,7 @@ func validateTTL(ttl time.Duration) error {
 	return nil
 }
 
-// cloneBytes returns a deep copy of the provided byte slice, or nil if the input is nil.
-// When the input is an empty slice, it returns an empty copy rather than nil.
+// cloneBytes 返回字节切片的深拷贝；nil 保持为 nil，空切片仍保持为空切片。
 func cloneBytes(value []byte) []byte {
 	if value == nil {
 		return nil

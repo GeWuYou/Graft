@@ -17,19 +17,19 @@ type StageExecutorType string
 type TaskStatus string
 
 const (
-	// TaskStatusPending marks a submitted Task waiting for dispatch.
+	// TaskStatusPending 表示已提交但等待调度的 Task。
 	TaskStatusPending TaskStatus = "pending"
-	// TaskStatusScheduled marks a Task that cannot run before its scheduled time.
+	// TaskStatusScheduled 表示 Task 尚未到达计划执行时间。
 	TaskStatusScheduled TaskStatus = "scheduled"
-	// TaskStatusRunning marks a Task with an active Stage.
+	// TaskStatusRunning 表示 Task 当前有正在执行的 Stage。
 	TaskStatusRunning TaskStatus = "running"
-	// TaskStatusSuccess marks a successfully completed Task.
+	// TaskStatusSuccess 表示 Task 已成功完成。
 	TaskStatusSuccess TaskStatus = "success"
-	// TaskStatusFailed marks a Task with a terminal failed Stage.
+	// TaskStatusFailed 表示 Task 因终态失败的 Stage 结束。
 	TaskStatusFailed TaskStatus = "failed"
-	// TaskStatusCancelled marks a cooperatively cancelled Task.
+	// TaskStatusCancelled 表示 Task 已被协作式取消。
 	TaskStatusCancelled TaskStatus = "cancelled"
-	// TaskStatusNeedsAttention marks a Task that needs operator reconciliation.
+	// TaskStatusNeedsAttention 表示 Task 需要操作员人工对账或处置。
 	TaskStatusNeedsAttention TaskStatus = "needs_attention"
 )
 
@@ -37,19 +37,19 @@ const (
 type StageStatus string
 
 const (
-	// StageStatusPending marks a Stage waiting for its turn.
+	// StageStatusPending 表示等待执行顺序轮到自己的 Stage。
 	StageStatusPending StageStatus = "pending"
-	// StageStatusRunning marks a Stage currently held by a worker.
+	// StageStatusRunning 表示当前由 worker 持有并执行的 Stage。
 	StageStatusRunning StageStatus = "running"
-	// StageStatusSuccess marks a successfully completed Stage.
+	// StageStatusSuccess 表示 Stage 已成功完成。
 	StageStatusSuccess StageStatus = "success"
-	// StageStatusFailed marks a terminal failed Stage.
+	// StageStatusFailed 表示已进入失败终态的 Stage。
 	StageStatusFailed StageStatus = "failed"
-	// StageStatusSkipped marks a plan Stage intentionally not run.
+	// StageStatusSkipped 表示计划中被明确跳过、未实际执行的 Stage。
 	StageStatusSkipped StageStatus = "skipped"
-	// StageStatusCancelled marks a cooperatively cancelled Stage.
+	// StageStatusCancelled 表示 Stage 已被协作式取消。
 	StageStatusCancelled StageStatus = "cancelled"
-	// StageStatusUnknown marks an interrupted Stage whose external result is indeterminate.
+	// StageStatusUnknown 表示 Stage 被中断且外部执行结果无法确定。
 	StageStatusUnknown StageStatus = "unknown"
 )
 
@@ -57,9 +57,9 @@ const (
 type StageRecoveryPolicy string
 
 const (
-	// StageRecoveryManualReconcile requires an operator decision after an interrupted Stage.
+	// StageRecoveryManualReconcile 要求中断后由操作员决定如何处置 Stage。
 	StageRecoveryManualReconcile StageRecoveryPolicy = "manual_reconcile"
-	// StageRecoveryRetryIfIdempotent permits retry only when the consumer has declared the Stage idempotent.
+	// StageRecoveryRetryIfIdempotent 仅在消费者声明 Stage 幂等时允许重试。
 	StageRecoveryRetryIfIdempotent StageRecoveryPolicy = "retry_if_idempotent"
 )
 

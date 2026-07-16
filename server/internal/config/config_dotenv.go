@@ -59,8 +59,8 @@ func findDotenvPath() (string, error) {
 
 // dotenvSearchDirs 生成从起始目录向上用于查找 dotenv 文件的目录列表。
 // 当起始目录为空白时，返回 nil；当到达文件系统根目录或命中边界目录时停止。
-// @param start 起始目录。
-// @returns 可用于搜索 dotenv 文件的目录列表。
+// 参数：start 是起始目录。
+// 返回值：可用于搜索 dotenv 文件的目录列表。
 func dotenvSearchDirs(start string) []string {
 	if strings.TrimSpace(start) == "" {
 		return nil

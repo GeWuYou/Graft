@@ -2,7 +2,6 @@ package config
 
 import "strings"
 
-// parseLocaleList 将逗号分隔的地域字符串解析为规范化的地域值。
 // parseLocaleList 将逗号分隔的区域设置字符串解析为规范化列表。
 // 结果会去除首尾空白、空项和重复值。
 func parseLocaleList(raw string) []string {

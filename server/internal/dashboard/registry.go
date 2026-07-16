@@ -8,14 +8,14 @@ import (
 	"sync"
 )
 
-// Registry stores dashboard contributions in registration order.
+// Registry 按注册顺序保存 dashboard 贡献，并用读写锁保护快照读取与注册过程。
 type Registry struct {
 	mu                sync.RWMutex
 	widgetDefinitions map[string]WidgetDefinition
 	widgetOrder       []string
 }
 
-// NewRegistry creates an empty dashboard contribution registry.
+// NewRegistry 创建空的 dashboard 贡献注册表。
 func NewRegistry() *Registry {
 	return &Registry{
 		widgetDefinitions: make(map[string]WidgetDefinition),
@@ -23,7 +23,7 @@ func NewRegistry() *Registry {
 	}
 }
 
-// Register validates and stores one widget contribution.
+// Register 校验并保存一个 widget 贡献；重复 ID 会被拒绝。
 func (r *Registry) Register(definition WidgetDefinition) error {
 	if r == nil {
 		return errors.New("dashboard registry is unavailable")
@@ -43,7 +43,7 @@ func (r *Registry) Register(definition WidgetDefinition) error {
 	return nil
 }
 
-// Get returns one registered widget definition snapshot.
+// Get 返回一个已注册 widget 定义的副本，调用方不能通过副本修改注册表。
 func (r *Registry) Get(id string) (WidgetDefinition, bool) {
 	if r == nil {
 		return WidgetDefinition{}, false
@@ -59,7 +59,7 @@ func (r *Registry) Get(id string) (WidgetDefinition, bool) {
 	return cloneDefinition(definition), true
 }
 
-// Items returns registered widget definitions ordered by order then id.
+// Items 返回按 order、id 排序的 widget 定义副本。
 func (r *Registry) Items() []WidgetDefinition {
 	if r == nil {
 		return nil

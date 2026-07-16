@@ -127,8 +127,7 @@ func New(cfg config.I18nConfig) (*Service, error) {
 	return service, nil
 }
 
-// MustNew is a test-oriented helper for callers that expect a static i18n
-// fixture and prefer setup failure over plumbing errors through each test body.
+// MustNew 是面向测试的构造辅助函数；静态 i18n fixture 创建失败时立即 panic。
 func MustNew(cfg config.I18nConfig) *Service {
 	service, err := New(cfg)
 	if err != nil {
@@ -410,12 +409,8 @@ func (s *Service) RegisteredMessageKeys(namespace Namespace, locale LocaleTag) [
 	return keys
 }
 
-// RegisteredMessageKeyIDs returns canonical message IDs currently registered for
-// a bare message key in the given locale.
-//
-// This is intended for diagnostics and governance tests that validate external
-// descriptors, such as menu title keys, without coupling those descriptors to a
-// runtime namespace lookup path.
+// RegisteredMessageKeyIDs 返回指定 locale 中当前为裸消息键登记的 canonical message ID。
+// 该方法仅供诊断和治理测试确认外部描述符，不让描述符依赖运行时 namespace 查找路径。
 func (s *Service) RegisteredMessageKeyIDs(locale LocaleTag, key MessageKey) []string {
 	normalizedLocale, err := s.normalizeSupportedLocale(string(locale))
 	if err != nil {
@@ -446,11 +441,8 @@ func (s *Service) RegisteredMessageKeyIDs(locale LocaleTag, key MessageKey) []st
 	return keys
 }
 
-// RegisteredMessageResources returns canonical message IDs and texts registered
-// for a bare message key in the given locale.
-//
-// Like RegisteredMessageKeyIDs, this is intended for diagnostics and governance
-// tests that need to prove descriptors resolve to real catalog messages.
+// RegisteredMessageResources 返回指定 locale 中当前为裸消息键登记的 canonical message ID 和文本。
+// 该方法与 RegisteredMessageKeyIDs 一样，仅供诊断和治理测试证明描述符能解析到真实 catalog 消息。
 func (s *Service) RegisteredMessageResources(locale LocaleTag, key MessageKey) []MessageResource {
 	normalizedLocale, err := s.normalizeSupportedLocale(string(locale))
 	if err != nil {

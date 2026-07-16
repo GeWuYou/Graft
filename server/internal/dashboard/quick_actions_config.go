@@ -39,7 +39,7 @@ const (
 	quickActionsConfigSchema = `{"type":"object","properties":{"enabled":{"type":"boolean","default":true,"x-i18n":{"titleKey":"systemConfig.fields.dashboardQuickActions.enabled.title","descriptionKey":"systemConfig.fields.dashboardQuickActions.enabled.description"}},"maxItems":{"type":"integer","minimum":1,"maximum":24,"default":4,"x-i18n":{"titleKey":"systemConfig.fields.dashboardQuickActions.maxItems.title","descriptionKey":"systemConfig.fields.dashboardQuickActions.maxItems.description"}},"strategy":{"type":"string","enum":["most_used","recent","hybrid"],"default":"hybrid","x-i18n":{"titleKey":"systemConfig.fields.dashboardQuickActions.strategy.title","descriptionKey":"systemConfig.fields.dashboardQuickActions.strategy.description","enumLabels":{"most_used":{"labelKey":"systemConfig.options.dashboardQuickActionStrategy.mostUsed","descriptionKey":"systemConfig.options.dashboardQuickActionStrategyDescriptions.mostUsed"},"recent":{"labelKey":"systemConfig.options.dashboardQuickActionStrategy.recent","descriptionKey":"systemConfig.options.dashboardQuickActionStrategyDescriptions.recent"},"hybrid":{"labelKey":"systemConfig.options.dashboardQuickActionStrategy.hybrid","descriptionKey":"systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid"}}}}},"required":["enabled","maxItems","strategy"],"additionalProperties":false,"x-i18n":{"titleKey":"systemConfig.items.dashboardQuickActions.title","descriptionKey":"systemConfig.items.dashboardQuickActions.description"}}`
 )
 
-// RegisterQuickActionsConfigDefinitions registers the dashboard quick-actions configuration definition with the provided registry. It returns an error if the registry is nil or if registration fails.
+// RegisterQuickActionsConfigDefinitions 向给定注册表登记 dashboard 快捷操作配置定义；注册表为空或登记失败时返回错误。
 func RegisterQuickActionsConfigDefinitions(registry *configregistry.Registry) error {
 	if registry == nil {
 		return errors.New("config registry is required")
@@ -78,7 +78,7 @@ func RegisterQuickActionsConfigDefinitions(registry *configregistry.Registry) er
 	return nil
 }
 
-// RegisterQuickActionsConfigMessages verifies that all required i18n message keys are registered in the provided localizer for dashboard quick-actions configuration display across supported locales. It returns an error if any required key is missing for any locale.
+// RegisterQuickActionsConfigMessages 校验所有支持语言的 dashboard 快捷操作配置展示键均已登记；任一语言缺少键时返回错误。
 func RegisterQuickActionsConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
@@ -94,7 +94,7 @@ func RegisterQuickActionsConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-// quickActionsConfigMessageKeys returns the list of message keys required for i18n configuration of dashboard quick actions.
+// quickActionsConfigMessageKeys 返回 dashboard 快捷操作配置所需的 i18n 消息键列表。
 func quickActionsConfigMessageKeys() []string {
 	return []string{
 		quickActionsConfigGroupKey,

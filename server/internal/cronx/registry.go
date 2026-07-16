@@ -58,7 +58,7 @@ type Job struct {
 	DefaultEnabled bool
 	// Module 标记任务来源模块，方便在启动失败或停机清理时定位责任边界。
 	//
-	// Deprecated: use ModuleKey for new Job Definition declarations.
+	// Module 是历史模块归属字段；新 Job Definition 必须使用 ModuleKey。
 	Module string
 	// Handler 是调度器执行入口，configJSON 为合并后的 effective_config。
 	Handler func(ctx context.Context, configJSON string) (JobRunResult, error)

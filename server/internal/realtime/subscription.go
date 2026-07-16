@@ -18,21 +18,21 @@ const defaultSubscriptionTicketTTL = 30 * time.Second
 const initialTopicIssuerCapacity = 4
 
 var (
-	// ErrTopicRequired reports that the realtime topic is missing.
+	// ErrTopicRequired 表示缺少实时主题。
 	ErrTopicRequired   = errors.New("realtime topic required")
-	// ErrTopicNotFound reports that no issuer owns the requested topic.
+	// ErrTopicNotFound 表示没有签发器拥有请求的主题。
 	ErrTopicNotFound   = errors.New("realtime topic not found")
-	// ErrTopicForbidden reports that the caller cannot subscribe to the requested topic.
+	// ErrTopicForbidden 表示调用方无权订阅请求的主题。
 	ErrTopicForbidden  = errors.New("realtime topic forbidden")
-	// ErrTopicConflict reports a transient failure while preparing the topic subscription.
+	// ErrTopicConflict 表示准备主题订阅时发生暂时性冲突。
 	ErrTopicConflict   = errors.New("realtime topic unavailable")
-	// ErrIssuerRequired reports that a topic issuer dependency is missing.
+	// ErrIssuerRequired 表示缺少主题签发器依赖。
 	ErrIssuerRequired  = errors.New("realtime subscription issuer is required")
-	// ErrDuplicateIssuer reports that the same topic prefix was registered more than once.
+	// ErrDuplicateIssuer 表示同一主题前缀被重复注册。
 	ErrDuplicateIssuer = errors.New("realtime subscription issuer already registered")
 )
 
-// SubscriptionRequest carries normalized request context for topic subscription issuance.
+// SubscriptionRequest 携带签发主题订阅信息所需的规范化请求上下文。
 type SubscriptionRequest struct {
 	Topic       string
 	RequestAuth moduleapi.RequestAuthContext
@@ -40,7 +40,7 @@ type SubscriptionRequest struct {
 	UserAgent   string
 }
 
-// SubscriptionResponse returns the websocket bootstrap data for a realtime topic.
+// SubscriptionResponse 返回实时主题的 WebSocket 引导数据。
 type SubscriptionResponse struct {
 	Topic        string    `json:"topic"`
 	Ticket       string    `json:"ticket"`
@@ -48,12 +48,12 @@ type SubscriptionResponse struct {
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
-// SubscriptionIssuer issues websocket bootstrap data for one bounded topic family.
+// SubscriptionIssuer 为一个受限主题族签发 WebSocket 引导数据。
 type SubscriptionIssuer interface {
 	IssueSubscription(ctx context.Context, request SubscriptionRequest) (SubscriptionResponse, error)
 }
 
-// TopicIssuerRegistry resolves topic prefixes to their owning issuer.
+// TopicIssuerRegistry 将主题前缀解析到其拥有者签发器。
 type TopicIssuerRegistry interface {
 	Register(prefix string, issuer SubscriptionIssuer) error
 	Resolve(topic string) (SubscriptionIssuer, bool)
@@ -127,12 +127,12 @@ func (r *topicIssuerRegistry) Resolve(topic string) (SubscriptionIssuer, bool) {
 	return matched, matched != nil
 }
 
-// TicketIssuer delegates bounded websocket ticket issuance to the realtime auth service.
+// TicketIssuer 将受限 WebSocket 票据签发委托给实时认证服务。
 type TicketIssuer struct {
 	Tickets realtimeauth.Service
 }
 
-// IssueTopicTicket issues a bounded websocket ticket for the requested topic.
+// IssueTopicTicket 为请求的主题签发受限 WebSocket 票据。
 func (i TicketIssuer) IssueTopicTicket(
 	ctx context.Context,
 	request SubscriptionRequest,

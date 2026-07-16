@@ -2,8 +2,6 @@ package config
 
 import "github.com/spf13/viper"
 
-// readConfig 从 viper 配置读取并组装 Config。
-//
 // 它会填充应用、HTTP、HTTPX、审计、文档、模块、数据库、Redis、日志、运行时、i18n、鉴权和容器相关配置。
 //
 // readConfig 从 Viper 实例读取配置并组装为 Config；调用方应先完成默认值和环境变量绑定。

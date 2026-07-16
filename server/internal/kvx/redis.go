@@ -39,24 +39,20 @@ redis.call("DEL", KEYS[1])
 return 1
 `)
 
-// RedisOptions configures the Redis-backed KV adapter.
+// RedisOptions 配置基于 Redis 的 KV 适配器。
 type RedisOptions struct {
 	Prefix string
 	Now    func() time.Time
 }
 
-// Redis adapts go-redis to the mechanical KV contract.
+// Redis 将 go-redis 适配为无业务语义的 KV 契约。
 type Redis struct {
 	client redis.Cmdable
 	prefix string
 	now    func() time.Time
 }
 
-// NewRedis initializes a Redis-backed KV store with the provided client and options.
-// It returns an error if client is nil.
-// NewRedis creates a new Redis adapter using the provided client and options.
-// It returns an error if the client is nil. If options.Now is nil, it defaults
-// to time.Now().UTC().
+// NewRedis 使用给定客户端和选项创建 Redis 适配器；客户端为空时返回错误，未提供时钟时使用 UTC 系统时钟。
 func NewRedis(client redis.Cmdable, options RedisOptions) (*Redis, error) {
 	if client == nil {
 		return nil, errors.New("kv redis client is required")
@@ -74,7 +70,7 @@ func NewRedis(client redis.Cmdable, options RedisOptions) (*Redis, error) {
 	}, nil
 }
 
-// Put writes one value into Redis with the given TTL.
+// Put 向 Redis 写入一个值；零 TTL 表示不过期。
 func (r *Redis) Put(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	if err := validateKey(key); err != nil {
 		return err
@@ -90,7 +86,7 @@ func (r *Redis) Put(ctx context.Context, key string, value []byte, ttl time.Dura
 	return nil
 }
 
-// Get reads one value from Redis when present.
+// Get 读取 Redis 中的值；未命中不视为错误，并返回 false。
 func (r *Redis) Get(ctx context.Context, key string) (Item, bool, error) {
 	if err := validateKey(key); err != nil {
 		return Item{}, false, err
@@ -117,7 +113,7 @@ func (r *Redis) Get(ctx context.Context, key string) (Item, bool, error) {
 	return item, true, nil
 }
 
-// Delete removes one Redis value.
+// Delete 删除 Redis 中的值；键不存在时仍视为成功。
 func (r *Redis) Delete(ctx context.Context, key string) error {
 	if err := validateKey(key); err != nil {
 		return err
@@ -130,7 +126,7 @@ func (r *Redis) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// CompareAndSwap updates one Redis value only when the current bytes still match.
+// CompareAndSwap 通过 Redis 脚本仅在当前字节值一致时原子更新值。
 func (r *Redis) CompareAndSwap(ctx context.Context, key string, oldValue []byte, newValue []byte, ttl time.Duration) (bool, error) {
 	if err := validateKey(key); err != nil {
 		return false, err
@@ -155,7 +151,7 @@ func (r *Redis) CompareAndSwap(ctx context.Context, key string, oldValue []byte,
 	return result == 1, nil
 }
 
-// CompareAndDelete removes one Redis value only when the current bytes still match.
+// CompareAndDelete 通过 Redis 脚本仅在当前字节值一致时原子删除值。
 func (r *Redis) CompareAndDelete(ctx context.Context, key string, oldValue []byte) (bool, error) {
 	if err := validateKey(key); err != nil {
 		return false, err
@@ -182,7 +178,7 @@ func (r *Redis) prefixed(key string) string {
 	return r.prefix + ":" + key
 }
 
-// ttlMilliseconds converts a duration to milliseconds. It returns 0 for durations of 0 or less, 1 for positive durations less than a millisecond, and otherwise returns the duration in milliseconds.
+// ttlMilliseconds 将 TTL 转为 Redis 脚本使用的毫秒数；正数但不足 1 毫秒时取 1，非正数取 0 表示不过期。
 func ttlMilliseconds(ttl time.Duration) int64 {
 	if ttl <= 0 {
 		return 0

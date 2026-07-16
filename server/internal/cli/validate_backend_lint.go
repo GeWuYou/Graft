@@ -36,7 +36,7 @@ func runBackendLint(cmd *cobra.Command, lintConfig string, testLintConfig string
 
 // buildBackendLintGateArgs 生成后端 lint 的变更范围门控参数。
 // 它会解析当前 HEAD、确定 base ref，并计算 merge-base 作为扫描起点。
-// @return 以 `--new-from-rev=<mergeBase>` 和 `--whole-files` 组成的参数列表；或在解析失败时返回错误。
+// 返回值：由 `--new-from-rev=<mergeBase>` 和 `--whole-files` 组成的参数列表；解析失败时返回错误。
 func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
 	workingDir, err := resolveBackendModuleRoot()
 	if err != nil {
@@ -70,7 +70,7 @@ func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
 
 // resolveBackendLintBaseRef 解析后端 lint 使用的基准引用及其来源。
 // 优先读取 `defaultLintBaseRefEnv`，其次读取 `githubBaseRefEnv`；否则从 `origin/HEAD` 解析默认远程分支。
-// @returns 规范化后的基准引用、其来源标识，以及错误。
+// 返回值：规范化后的基准引用、来源标识和错误。
 func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, string, error) {
 	if baseRef := strings.TrimSpace(backendGetenv(defaultLintBaseRefEnv)); baseRef != "" {
 		return normalizeBackendLintBaseRef(baseRef), defaultLintBaseRefEnv, nil

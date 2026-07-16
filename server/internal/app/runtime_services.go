@@ -285,8 +285,6 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 	})
 }
 
-// shutdownModules 按启动逆序关闭模块，并聚合所有关闭错误。
-//
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
 // shutdownModules 按启动顺序的逆序关闭模块，并汇总关闭过程中出现的错误。
 // 它会为模块停机创建一个带超时的上下文，并继续关闭后续模块，即使前面的模块关闭失败。
