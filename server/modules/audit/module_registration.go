@@ -116,7 +116,7 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 	}, nil
 }
 
-// registerAuditService registers the audit service and its security reader with the module service container.
+// registerAuditService 将审计服务及其安全读取器注册到模块服务容器。
 func registerAuditService(ctx *module.Context, reader *Service) error {
 	if ctx == nil || ctx.Services == nil {
 		return errors.New("module context services are unavailable")

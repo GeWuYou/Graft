@@ -1,4 +1,4 @@
-// Package store defines audit-module-owned persistence contracts.
+// Package store 定义审计模块拥有的持久化契约、审计事实 DTO 和证据读取模型。
 package store
 
 import (
@@ -17,63 +17,63 @@ var (
 	ErrAuditValidation = errors.New("audit validation failed")
 )
 
-// AuditSource identifies where one audit candidate originated.
+// AuditSource 标识审计候选记录的来源边界。
 type AuditSource string
 
 const (
-	// AuditSourceRequest marks request-derived candidates.
+	// AuditSourceRequest 表示由 HTTP 请求派生的候选记录。
 	AuditSourceRequest AuditSource = "REQUEST"
-	// AuditSourceSecurityEvent marks auth/authz security-event candidates.
+	// AuditSourceSecurityEvent 表示由认证或授权安全事件派生的候选记录。
 	AuditSourceSecurityEvent AuditSource = "SECURITY_EVENT"
-	// AuditSourceDomainEvent marks module-published business events.
+	// AuditSourceDomainEvent 表示由业务模块发布的领域事件派生的候选记录。
 	AuditSourceDomainEvent AuditSource = "DOMAIN_EVENT"
 )
 
-// AuditPolicyEffect describes the final effect of one policy rule.
+// AuditPolicyEffect 描述策略规则对候选记录产生的最终效果。
 type AuditPolicyEffect string
 
 const (
-	// AuditPolicyEffectInclude writes a candidate into the audit log.
+	// AuditPolicyEffectInclude 表示候选记录通过策略并落入审计日志。
 	AuditPolicyEffectInclude AuditPolicyEffect = "include"
-	// AuditPolicyEffectExclude drops a candidate before audit persistence.
+	// AuditPolicyEffectExclude 表示候选记录在持久化前被策略丢弃。
 	AuditPolicyEffectExclude AuditPolicyEffect = "exclude"
 )
 
-// AuditVisibilityStrategy describes how one audit event should be persisted and exposed.
+// AuditVisibilityStrategy 描述审计事件的持久化方式和默认读面可见性。
 type AuditVisibilityStrategy string
 
 const (
-	// AuditVisibilityStrategyVisible persists the event and includes it in default read surfaces.
+	// AuditVisibilityStrategyVisible 持久化事件，并纳入默认审计读取面。
 	AuditVisibilityStrategyVisible AuditVisibilityStrategy = "visible"
-	// AuditVisibilityStrategyHidden persists the event but excludes it from default read surfaces.
+	// AuditVisibilityStrategyHidden 持久化事件，但从默认审计读取面排除，保留供授权调查使用。
 	AuditVisibilityStrategyHidden AuditVisibilityStrategy = "hidden"
-	// AuditVisibilityStrategyIgnore drops the event before persistence.
+	// AuditVisibilityStrategyIgnore 在持久化前丢弃事件，不形成审计证据记录。
 	AuditVisibilityStrategyIgnore AuditVisibilityStrategy = "ignore"
 )
 
-// AuditVisibilityScope describes which visibility slice a list query wants to read.
+// AuditVisibilityScope 描述列表查询要读取的审计可见性范围。
 type AuditVisibilityScope string
 
 const (
-	// AuditVisibilityScopeDefault returns only default-visible audit records.
+	// AuditVisibilityScopeDefault 只返回默认可见的审计记录。
 	AuditVisibilityScopeDefault AuditVisibilityScope = "default"
-	// AuditVisibilityScopeAll returns both visible and hidden records.
+	// AuditVisibilityScopeAll 返回可见和隐藏的审计记录，通常需要管理权限。
 	AuditVisibilityScopeAll AuditVisibilityScope = "all"
-	// AuditVisibilityScopeHiddenOnly returns only hidden records.
+	// AuditVisibilityScopeHiddenOnly 只返回隐藏的审计记录，通常需要管理权限。
 	AuditVisibilityScopeHiddenOnly AuditVisibilityScope = "hidden_only"
 )
 
-// AuditPolicyMatchType describes the route/event match mode supported in MVP.
+// AuditPolicyMatchType 描述 MVP 支持的路由或事件匹配方式。
 type AuditPolicyMatchType string
 
 const (
-	// AuditPolicyMatchTypeExact requires an exact match.
+	// AuditPolicyMatchTypeExact 要求来源和动作完全匹配。
 	AuditPolicyMatchTypeExact AuditPolicyMatchType = "exact"
-	// AuditPolicyMatchTypePrefix requires a prefix match.
+	// AuditPolicyMatchTypePrefix 要求动作以前缀匹配。
 	AuditPolicyMatchTypePrefix AuditPolicyMatchType = "prefix"
 )
 
-// AuditRiskLevel classifies the relative severity of one audit event.
+// AuditRiskLevel 描述审计事件的相对风险等级。
 type AuditRiskLevel string
 
 const (
@@ -87,7 +87,7 @@ const (
 	AuditRiskLevelCritical AuditRiskLevel = "CRITICAL"
 )
 
-// AuditResult normalizes the outcome of one audit event.
+// AuditResult 归一化审计事件的结果，供列表、概览和通知共用。
 type AuditResult string
 
 const (
@@ -101,7 +101,7 @@ const (
 	AuditResultError AuditResult = "ERROR"
 )
 
-// AuditBusinessCategory identifies backend-owned editable business semantics for audit list filtering.
+// AuditBusinessCategory 标识由后端拥有、可编辑的审计列表业务分类。
 type AuditBusinessCategory string
 
 const (
@@ -121,7 +121,7 @@ const (
 	AuditBusinessCategoryCriticalSecurity AuditBusinessCategory = "critical_security"
 )
 
-// AuditLog is the audit module's stable DTO for a persisted audit record.
+// AuditLog 是审计模块对外稳定的持久化审计记录 DTO；其 Metadata 保留脱敏后的调查上下文。
 type AuditLog struct {
 	ID               uint64
 	Source           AuditSource
@@ -152,7 +152,7 @@ type AuditLog struct {
 	CreatedAt        time.Time
 }
 
-// AuditTarget is the canonical typed target exposed by audit read models.
+// AuditTarget 是审计读取模型对外暴露的规范化目标对象。
 type AuditTarget struct {
 	Kind     string
 	Type     string
@@ -161,7 +161,7 @@ type AuditTarget struct {
 	RouteRef string
 }
 
-// CreateAuditLogInput describes the minimum fields required to persist an audit record.
+// CreateAuditLogInput 描述持久化审计事实所需的最小输入。
 type CreateAuditLogInput struct {
 	ActorUserID      *uint64
 	ActorUsername    string
@@ -180,7 +180,7 @@ type CreateAuditLogInput struct {
 	CreatedAt        time.Time
 }
 
-// AuditCandidate is the normalized input evaluated before one audit record is written.
+// AuditCandidate 是写入审计记录前经过来源和字段归一化、等待策略评估的候选事实。
 type AuditCandidate struct {
 	Source           AuditSource
 	Visibility       AuditVisibilityStrategy
@@ -207,7 +207,7 @@ type AuditCandidate struct {
 	CreatedAt        time.Time
 }
 
-// AuditPolicyRule is the module-owned persistence DTO for one policy rule.
+// AuditPolicyRule 是审计模块拥有的单条策略规则持久化 DTO。
 type AuditPolicyRule struct {
 	ID            uint64
 	Name          string
@@ -227,14 +227,14 @@ type AuditPolicyRule struct {
 	UpdatedAt     time.Time
 }
 
-// AuditPolicyDecision is the stable result returned by the evaluator.
+// AuditPolicyDecision 是策略评估器返回的稳定决策结果。
 type AuditPolicyDecision struct {
 	Matched bool
 	Allowed bool
 	Rule    *AuditPolicyRule
 }
 
-// AuditVisibilityDefault stores the module-owned global default strategy for audit events.
+// AuditVisibilityDefault 保存审计事件的模块级全局默认策略。
 type AuditVisibilityDefault struct {
 	Key           string
 	Strategy      AuditVisibilityStrategy
@@ -243,13 +243,13 @@ type AuditVisibilityDefault struct {
 	UpdatedByName string
 }
 
-// AuditVisibilityActor records the operator metadata attached to a visibility policy write.
+// AuditVisibilityActor 保存可见性策略写入时附带的操作者快照。
 type AuditVisibilityActor struct {
 	UserID   *uint64
 	Username string
 }
 
-// AuditVisibilityOverride stores one source+action visibility override owned by the audit module.
+// AuditVisibilityOverride 保存审计模块拥有的单个来源加动作可见性覆盖规则。
 type AuditVisibilityOverride struct {
 	ID            uint64
 	Source        AuditSource
@@ -264,7 +264,7 @@ type AuditVisibilityOverride struct {
 	UpdatedByName string
 }
 
-// UpsertAuditVisibilityOverrideInput describes one audit-owned source+action visibility override mutation.
+// UpsertAuditVisibilityOverrideInput 描述一次由审计模块拥有的来源加动作可见性覆盖变更。
 type UpsertAuditVisibilityOverrideInput struct {
 	Source      AuditSource
 	ActionKey   string
@@ -273,7 +273,7 @@ type UpsertAuditVisibilityOverrideInput struct {
 	Actor       AuditVisibilityActor
 }
 
-// AuditEventCatalogItem describes one selectable event/action in the audit strategy editor.
+// AuditEventCatalogItem 描述策略编辑器中的一个可选事件或动作目录项。
 type AuditEventCatalogItem struct {
 	Source            AuditSource
 	ActionKey         string
@@ -285,14 +285,14 @@ type AuditEventCatalogItem struct {
 	Overridden        bool
 }
 
-// AuditVisibilityPolicySnapshot is the audit-owned read model for strategy management.
+// AuditVisibilityPolicySnapshot 是审计模块拥有的策略管理读取模型；目录项以最终覆盖策略为准。
 type AuditVisibilityPolicySnapshot struct {
 	Default   AuditVisibilityDefault
 	Overrides []AuditVisibilityOverride
 	Catalog   []AuditEventCatalogItem
 }
 
-// ListAuditLogsQuery describes the audit module's stable repository-side query contract.
+// ListAuditLogsQuery 描述审计模块稳定的仓储查询契约；仓储不会隐式补时间范围。
 type ListAuditLogsQuery struct {
 	ActorUserID         *uint64
 	Keyword             string
@@ -324,13 +324,13 @@ type ListAuditLogsQuery struct {
 	Offset              int
 }
 
-// ListAuditLogsResult returns a bounded page plus total count for future API pagination.
+// ListAuditLogsResult 返回有界分页结果及总数，供 API 层构造稳定分页响应。
 type ListAuditLogsResult struct {
 	Items []AuditLog
 	Total int
 }
 
-// AuditTimePreset identifies the supported relative time preset.
+// AuditTimePreset 标识审计查询支持的相对时间窗口。
 type AuditTimePreset string
 
 const (
@@ -342,7 +342,7 @@ const (
 	AuditTimePresetLast30Days AuditTimePreset = "last_30d"
 )
 
-// OverviewSummary aggregates audit activity counts for the selected window.
+// OverviewSummary 汇总选定时间窗口内的审计活动数量。
 type OverviewSummary struct {
 	TotalLogs           int
 	FailedOperations    int
@@ -350,7 +350,7 @@ type OverviewSummary struct {
 	SensitiveOperations int
 }
 
-// OverviewItem is one recent event preview shown in the overview workbench.
+// OverviewItem 是概览工作台展示的一条近期事件摘要。
 type OverviewItem struct {
 	ID               uint64
 	Source           AuditSource
@@ -368,7 +368,7 @@ type OverviewItem struct {
 	CreatedAt        time.Time
 }
 
-// OverviewRiskGroup is one bounded backend-owned risk grouping summary.
+// OverviewRiskGroup 是后端按固定边界计算的一组风险聚合摘要。
 type OverviewRiskGroup struct {
 	Key       string
 	LabelKey  string
@@ -376,7 +376,7 @@ type OverviewRiskGroup struct {
 	RiskLevel AuditRiskLevel
 }
 
-// OverviewTrendPoint is one server-computed bucket in the overview trend series.
+// OverviewTrendPoint 是概览趋势序列中的一个服务端计算桶。
 type OverviewTrendPoint struct {
 	BucketStart    time.Time
 	BucketEnd      time.Time
@@ -386,14 +386,14 @@ type OverviewTrendPoint struct {
 	SecurityEvents int
 }
 
-// OverviewTrend describes the fixed-bucket trend shape for the selected window.
+// OverviewTrend 描述选定时间窗口的固定桶趋势结构。
 type OverviewTrend struct {
 	BucketUnit string
 	BucketSize int
 	Points     []OverviewTrendPoint
 }
 
-// OverviewSecurityTimelineItem is one bounded recent security event preview.
+// OverviewSecurityTimelineItem 是受数量边界限制的近期安全事件摘要。
 type OverviewSecurityTimelineItem struct {
 	ID               uint64
 	CreatedAt        time.Time
@@ -408,7 +408,7 @@ type OverviewSecurityTimelineItem struct {
 	ResourceType     string
 }
 
-// AuditOverview groups window-level counters with the recent slices used by the overview page.
+// AuditOverview 将窗口计数与概览页面使用的近期事件切片组合为读取模型。
 type AuditOverview struct {
 	TimePreset       AuditTimePreset
 	Summary          OverviewSummary
@@ -420,12 +420,12 @@ type AuditOverview struct {
 	SensitiveOps     []OverviewItem
 }
 
-// IncidentSeed identifies one stable audit-owned incident entrypoint.
+// IncidentSeed 标识一个由审计模块拥有的稳定事故入口事件。
 type IncidentSeed struct {
 	EventID uint64
 }
 
-// AuditIncidentSummary describes the aggregate incident computed from one seed event.
+// AuditIncidentSummary 描述基于入口事件聚合得到的事故摘要。
 type AuditIncidentSummary struct {
 	IncidentKey       string
 	Title             string
@@ -436,7 +436,7 @@ type AuditIncidentSummary struct {
 	CorrelationReason string
 }
 
-// AuditIncidentActor aggregates one related actor inside the bounded incident context.
+// AuditIncidentActor 聚合受限事故上下文中的一个关联操作者。
 type AuditIncidentActor struct {
 	ActorUserID      *uint64
 	ActorUsername    string
@@ -444,7 +444,7 @@ type AuditIncidentActor struct {
 	EventCount       int
 }
 
-// AuditIncidentResource aggregates one related resource inside the bounded incident context.
+// AuditIncidentResource 聚合受限事故上下文中的一个关联资源。
 type AuditIncidentResource struct {
 	ResourceType string
 	ResourceID   string
@@ -452,7 +452,7 @@ type AuditIncidentResource struct {
 	EventCount   int
 }
 
-// AuditIncidentRequest aggregates one related request inside the bounded incident context.
+// AuditIncidentRequest 聚合受限事故上下文中的一个关联请求。
 type AuditIncidentRequest struct {
 	RequestID  string
 	EventCount int
@@ -460,7 +460,7 @@ type AuditIncidentRequest struct {
 	EndedAt    time.Time
 }
 
-// MonitorContextState records whether bounded monitor participation is available to the incident read model.
+// MonitorContextState 记录事故读取模型是否获得受限的 monitor 参与证据。
 type MonitorContextState string
 
 const (
@@ -472,7 +472,7 @@ const (
 	MonitorContextStateUnavailable MonitorContextState = "unavailable"
 )
 
-// AuditIncidentMonitorContext returns the bounded monitor participation state attached to one incident.
+// AuditIncidentMonitorContext 保存附加到事故上的受限 monitor 参与状态。
 type AuditIncidentMonitorContext struct {
 	State         MonitorContextState
 	Summary       string
@@ -484,13 +484,13 @@ type AuditIncidentMonitorContext struct {
 	EvidenceLinks []EvidenceLink
 }
 
-// EvidenceLinkTimeWindow keeps canonical bounded evidence timing for drilldown links.
+// EvidenceLinkTimeWindow 保存下钻链接使用的规范化、受限证据时间范围。
 type EvidenceLinkTimeWindow struct {
 	CreatedFrom time.Time
 	CreatedTo   time.Time
 }
 
-// AuditEvidenceContext points consumers at canonical audit evidence filters.
+// AuditEvidenceContext 将消费者指向规范化的审计证据筛选条件。
 type AuditEvidenceContext struct {
 	Action       string
 	ActionPrefix string
@@ -505,12 +505,12 @@ type AuditEvidenceContext struct {
 	CreatedTo    *time.Time
 }
 
-// IncidentSeedLink points at one stable audit incident seed event.
+// IncidentSeedLink 指向一个稳定的审计事故入口事件。
 type IncidentSeedLink struct {
 	EventID uint64
 }
 
-// EvidenceLink is the canonical cross-surface evidence link DTO reused by audit and monitor.
+// EvidenceLink 是 audit 与 monitor 复用的规范化跨页面证据链接 DTO。
 type EvidenceLink struct {
 	TargetKind   string
 	LinkState    string
@@ -521,7 +521,7 @@ type EvidenceLink struct {
 	IncidentSeed *IncidentSeedLink
 }
 
-// AuditIncident is the canonical incident drilldown payload owned by the audit module.
+// AuditIncident 是审计模块拥有的事故下钻规范载荷；monitor 只能作为受限证据参与其中。
 type AuditIncident struct {
 	SeedEvent        AuditLog
 	Incident         AuditIncidentSummary
@@ -532,7 +532,7 @@ type AuditIncident struct {
 	MonitorContext   AuditIncidentMonitorContext
 }
 
-// AuditRepository exposes the audit module's persistence contract.
+// AuditRepository 暴露审计模块的持久化契约，调用方不得绕过它直接依赖审计表结构。
 type AuditRepository interface {
 	CreateAuditLog(ctx context.Context, input CreateAuditLogInput) (AuditLog, error)
 	ListAuditLogs(ctx context.Context, query ListAuditLogsQuery) (ListAuditLogsResult, error)

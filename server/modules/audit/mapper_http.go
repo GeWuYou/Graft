@@ -123,7 +123,7 @@ func toConvertibleFiltersMap(filters *drilldown.ConvertibleFilters) map[string]a
 	return converted
 }
 
-// addStringSliceField adds a copy of a non-empty string slice to target under key.
+// addStringSliceField 将非空字符串切片的副本写入目标映射，避免响应映射与内部切片共享。
 func addStringSliceField(target map[string]any, key string, values []string) {
 	if len(values) == 0 {
 		return
@@ -582,7 +582,7 @@ func appendAuditLogActorUserID(converted *generated.AuditLogListItem, actorUserI
 }
 
 // appendAuditLogMetadata decodes raw audit metadata and assigns it to the converted audit log item.
-// It returns an error when the metadata is not valid JSON.
+// 当元数据不是有效 JSON 时返回错误。
 func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata json.RawMessage) error {
 	if len(rawMetadata) == 0 {
 		return nil
@@ -597,7 +597,7 @@ func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata j
 }
 
 // mustConvertAuditGeneratedID converts an unsigned identifier to int64 when it fits.
-// It returns an error if the identifier exceeds the maximum int64 value.
+// 当标识符超出 int64 可表示范围时返回错误。
 func mustConvertAuditGeneratedID(id uint64, label string) (int64, error) {
 	if id > math.MaxInt64 {
 		return 0, fmt.Errorf("%s exceeds int64: %d", label, id)

@@ -24,9 +24,8 @@ const (
 	auditLogsQueryRiskLevels   = "risk_levels"
 )
 
-// Registers an audit risk events dashboard widget.
-// It returns nil if ctx or ctx.DashboardRegistry is nil.
 // registerAuditDashboardWidget 将审计风险事件小组件注册到仪表盘注册表中；注册失败时返回包装后的错误。
+// 当仪表盘注册表不存在时直接跳过，避免可选展示面阻断审计核心能力注册。
 func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 	if ctx == nil || ctx.DashboardRegistry == nil {
 		return nil

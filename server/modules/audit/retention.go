@@ -212,7 +212,7 @@ func cleanupFailureResult(operation string, err error, cutoff time.Time, config 
 	}
 }
 
-// decodeRetentionJobConfig decodes the given JSON string into a retention job configuration, using default values for any missing or invalid fields.
+// decodeRetentionJobConfig 解码保留期任务配置；缺失或无效字段回退到审计模块默认值。
 func decodeRetentionJobConfig(configJSON string) retentionJobConfig {
 	config := retentionJobConfig{RetentionDays: auditLogRetentionDefaultDays, BatchSize: auditLogRetentionDefaultBatchSize}
 	_ = json.Unmarshal([]byte(configJSON), &config)
@@ -225,7 +225,6 @@ func decodeRetentionJobConfig(configJSON string) retentionJobConfig {
 	return config
 }
 
-// RegisterAuditLogRetentionConfigDefinition registers the audit log retention configuration definition with the provided registry.
 // registerAuditLogRetentionConfigDefinition 注册审计日志保留清理的配置定义。
 // 如果注册表为 nil 或注册失败，则返回错误。
 func registerAuditLogRetentionConfigDefinition(registry *configregistry.Registry) error {
@@ -259,7 +258,8 @@ func registerAuditLogRetentionConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-// registerAuditLogRetentionCleanupJob registers the audit log retention cleanup job and its dry-run action.
+// registerAuditLogRetentionCleanupJob 注册审计日志保留清理任务及其 dry-run 操作。
+// 清理任务只删除早于显式 cutoff 的记录，dry-run 复用同一 cutoff 计算和查询路径而不执行删除。
 func registerAuditLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,

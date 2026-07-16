@@ -48,7 +48,8 @@ func NewModule(repo auditstore.AuditRepository) (*Module, error) {
 	return moduleInstance, nil
 }
 
-// NewModuleWithDrilldown creates the audit module with a drilldown-enabled read service.
+// NewModuleWithDrilldown 创建带范围下钻读取服务的审计模块。
+// 下钻服务只影响读取范围解析，不改变审计记录的落库事实。
 func NewModuleWithDrilldown(
 	repo auditstore.AuditRepository,
 	drilldownService *drilldown.Service[ListQuery, ListQuery],
@@ -179,7 +180,8 @@ func consumeAuditRecordEvent(
 	return nil
 }
 
-// Boot resolves optional cross-module capabilities after all modules have completed Register.
+// Boot 在所有模块完成 Register 后绑定可选的跨模块能力。
+// monitor 证据和通知发布器均在此阶段解析，缺少可选服务不会阻止审计模块启动。
 func (p *Module) Boot(ctx *module.Context) error {
 	if p == nil || ctx == nil || ctx.Services == nil {
 		return nil
@@ -246,6 +248,7 @@ func requestAuditMiddleware(
 	}
 
 	return func(ctx *gin.Context) {
+		// 先让业务处理器完成，审计记录才能携带最终状态码、响应结果和错误信息。
 		ctx.Next()
 
 		candidate := requestAuditCandidate(ctx)

@@ -1,9 +1,9 @@
 package contract
 
-// PermissionCode identifies a stable audit module permission contract.
+// PermissionCode 标识审计模块稳定的权限契约。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回用于权限校验和 HTTP 契约的权限码。
 func (c PermissionCode) String() string {
 	return string(c)
 }

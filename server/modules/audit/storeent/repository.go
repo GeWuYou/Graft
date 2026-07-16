@@ -152,7 +152,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 	return record, nil
 }
 
-// ListAuditLogs returns a stable page of audit records plus total count.
+// ListAuditLogs 返回稳定分页的审计记录及总数；默认查询只读取可见记录。
 func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAuditLogsQuery) (auditstore.ListAuditLogsResult, error) {
 	if err := validateListAuditLogsQuery(query); err != nil {
 		return auditstore.ListAuditLogsResult{}, err
@@ -222,7 +222,7 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	return auditstore.ListAuditLogsResult{Items: items, Total: total}, nil
 }
 
-// ReadAuditLog returns one immutable audit evidence record by id.
+// ReadAuditLog 按 ID 返回一条不可变的审计证据记录。
 func (r *repository) ReadAuditLog(ctx context.Context, id uint64) (auditstore.AuditLog, error) {
 	if r == nil || r.db == nil {
 		return auditstore.AuditLog{}, errors.New("audit repository is unavailable")
@@ -234,7 +234,7 @@ func (r *repository) ReadAuditLog(ctx context.Context, id uint64) (auditstore.Au
 	return r.readAuditLogByID(ctx, id)
 }
 
-// DeleteAuditLogsBefore deletes audit records older than the caller-owned retention cutoff.
+// DeleteAuditLogsBefore 删除早于调用方提供的保留期 cutoff 的审计记录，不自行推导保留期。
 func (r *repository) DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("audit repository is unavailable")
@@ -319,7 +319,7 @@ func (r *repository) ReadAuditOverview(ctx context.Context, preset auditstore.Au
 	}, nil
 }
 
-// ReadIncident returns the audit-owned incident drilldown derived from one seed event.
+// ReadIncident 根据一个入口事件返回由审计模块拥有的事故下钻模型。
 func (r *repository) ReadIncident(ctx context.Context, eventID uint64) (auditstore.AuditIncident, error) {
 	if r == nil || r.db == nil {
 		return auditstore.AuditIncident{}, errors.New("audit repository is unavailable")

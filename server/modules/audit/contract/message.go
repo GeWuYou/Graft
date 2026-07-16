@@ -1,17 +1,17 @@
 package contract
 
-// MenuMessageKey identifies a stable audit module menu title message key.
+// MenuMessageKey 标识审计模块菜单标题使用的稳定消息键。
 type MenuMessageKey string
 
-// TargetLabelMessageKey identifies a stable localized label for one built-in audit target type.
+// TargetLabelMessageKey 标识内置审计目标类型使用的稳定本地化标签键。
 type TargetLabelMessageKey string
 
-// String returns the canonical menu message key value.
+// String 返回规范化的菜单消息键值。
 func (k MenuMessageKey) String() string {
 	return string(k)
 }
 
-// String returns the canonical target-label message key value.
+// String 返回规范化的目标标签消息键值。
 func (k TargetLabelMessageKey) String() string {
 	return string(k)
 }
