@@ -308,10 +308,17 @@ function nextFromWorkspace() {
     MessagePlugin.error(lifecycleConfigError.value);
     return;
   }
-  lifecycleDraft.value = buildBlankLifecycleConfigurationDraft(workspaceDefaults.value, {
-    composeFilePath: composePath.value,
-    canonicalProjectName: formData.application_name.trim(),
-  });
+  const composeFilePath = composePath.value;
+  const canonicalProjectName = formData.application_name.trim();
+  if (!lifecycleDraft.value) {
+    lifecycleDraft.value = buildBlankLifecycleConfigurationDraft(workspaceDefaults.value, {
+      composeFilePath,
+      canonicalProjectName,
+    });
+  } else {
+    lifecycleDraft.value.compose_files = [composeFilePath];
+    lifecycleDraft.value.canonical_project_name = canonicalProjectName;
+  }
   step.value++;
 }
 function nextFromLifecycle() {

@@ -2,15 +2,20 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import type { ProjectLifecycleConfigurationDraft } from '../../types/project';
 import ProjectCreateIndex from './index.vue';
 
-const routeQuery = vi.hoisted(() => ({ runtime_target_id: '7' as string | string[] }));
+const routeQuery = vi.hoisted(() => ({
+  runtime_target_id: '7' as string | string[],
+  application_name: undefined as string | undefined,
+}));
 const mocks = vi.hoisted(() => ({
   getProjectWorkspaceDefaults: vi.fn(),
   postProjectApplicationNameAvailability: vi.fn(),
   postProjectCreate: vi.fn(),
   push: vi.fn(),
 }));
+const lifecycleStepDraft = vi.hoisted(() => ({ value: null as ProjectLifecycleConfigurationDraft | null }));
 
 vi.mock('../../api/project', () => ({
   getProjectWorkspaceDefaults: mocks.getProjectWorkspaceDefaults,
@@ -59,10 +64,18 @@ vi.mock('../../components/ProjectLifecycleConfigurationReview.vue', () => ({
 vi.mock('../../components/ProjectLifecycleConfigurationStep.vue', () => ({
   default: defineComponent({
     name: 'ProjectLifecycleConfigurationStepStub',
-    props: { continueLabel: { type: String, default: '' } },
-    emits: ['continue'],
+    props: {
+      continueLabel: { type: String, default: '' },
+      draft: { type: Object, required: true },
+    },
+    emits: ['back', 'continue'],
     setup(props, { emit }) {
-      return () => h('button', { onClick: () => emit('continue') }, props.continueLabel);
+      lifecycleStepDraft.value = props.draft as ProjectLifecycleConfigurationDraft;
+      return () =>
+        h('div', [
+          h('button', { onClick: () => emit('back') }, 'project.create.actions.back'),
+          h('button', { onClick: () => emit('continue') }, props.continueLabel),
+        ]);
     },
   }),
 }));
@@ -163,6 +176,8 @@ describe('ProjectCreateIndex', () => {
       ],
     });
     routeQuery.runtime_target_id = '7';
+    delete routeQuery.application_name;
+    lifecycleStepDraft.value = null;
     mocks.postProjectApplicationNameAvailability.mockResolvedValue({
       status: 'available',
       workspace_path: '/var/lib/graft/applications/demo-project',
@@ -232,6 +247,50 @@ describe('ProjectCreateIndex', () => {
     await flushPromises();
 
     expect(mocks.postProjectCreate).not.toHaveBeenCalled();
+  });
+
+  it('keeps lifecycle edits when returning from the lifecycle step', async () => {
+    routeQuery.application_name = 'demo-project';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('project.create.actions.next'))
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('project.create.actions.next'))
+      ?.trigger('click');
+    await flushPromises();
+
+    const draft = lifecycleStepDraft.value;
+    expect(draft).not.toBeNull();
+    if (!draft) return;
+    draft.profiles = ['production'];
+    draft.additional_args = "--label 'release channel'";
+    draft.wait_after_up = true;
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('project.create.actions.back'))
+      ?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('project.create.actions.next'))
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(lifecycleStepDraft.value).toMatchObject({
+      compose_files: ['compose.yaml'],
+      canonical_project_name: 'demo-project',
+      profiles: ['production'],
+      additional_args: "--label 'release channel'",
+      wait_after_up: true,
+    });
   });
 
   it('returns to the source page with the current query', async () => {
