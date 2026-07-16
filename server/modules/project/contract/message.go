@@ -156,6 +156,10 @@ const (
 	ApplicationCreationMethodViewPermission PermissionCode = "ops.application.creation-method.view"
 	// ApplicationDiscoveryViewPermission 允许执行有界目录扫描并查看发现候选。
 	ApplicationDiscoveryViewPermission PermissionCode = "ops.application.discovery.view"
+	// ApplicationTemplateManagePermission 允许维护 Application 模板草稿与归档状态。
+	ApplicationTemplateManagePermission PermissionCode = "ops.application.template.manage"
+	// ApplicationTemplatePublishPermission 允许发布不可变 Application 模板版本。
+	ApplicationTemplatePublishPermission PermissionCode = "ops.application.template.publish"
 	// ApplicationDeployPermission 允许比较、校验并部署受管应用配置。
 	ApplicationDeployPermission PermissionCode = "ops.application.deploy"
 )

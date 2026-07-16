@@ -2798,6 +2798,112 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/applications/templates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List published compatible Application templates */
+    get: operations['getApplicationTemplates'];
+    put?: never;
+    /** Create an empty Application template draft */
+    post: operations['postApplicationTemplate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/import-legacy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Explicitly import one legacy Application Root template directory as a draft */
+    post: operations['postApplicationTemplateImportLegacy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/{templateId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    /** Get an Application template draft or latest published version */
+    get: operations['getApplicationTemplate'];
+    /** Update an editable Application template draft */
+    put: operations['putApplicationTemplate'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/{templateId}/derive': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Derive an editable draft from a published template version */
+    post: operations['postApplicationTemplateDerive'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/{templateId}/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Publish an Application template draft as an immutable version */
+    post: operations['postApplicationTemplatePublish'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/{templateId}/archive': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Archive an Application template */
+    post: operations['postApplicationTemplateArchive'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/{applicationId}': {
     parameters: {
       query?: never;
@@ -7105,6 +7211,46 @@ export interface components {
     };
     'enveloped-application-workspace-defaults-response': {
       data: components['schemas']['application-workspace-defaults-response'];
+    };
+    'application-template-version': {
+      template_version_id: string;
+      version_number: number;
+      /** @enum {string} */
+      status: 'draft' | 'published';
+      definition_schema_version: number;
+      definition: {
+        [key: string]: unknown;
+      };
+      /** Format: date-time */
+      published_at?: string | null;
+    };
+    'application-template-response': {
+      template_id: string;
+      display_name: string;
+      description: string;
+      /** @enum {string} */
+      deployment_adapter_kind: 'compose';
+      /** Format: date-time */
+      archived_at?: string | null;
+      version: components['schemas']['application-template-version'];
+    };
+    'application-template-list-response': {
+      items: components['schemas']['application-template-response'][];
+    };
+    'enveloped-application-template-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-template-list-response'];
+    };
+    'application-template-draft-request': {
+      display_name: string;
+      description?: string;
+      /** @enum {string} */
+      deployment_adapter_kind: 'compose';
+      definition_schema_version: number;
+      /** @description Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset. */
+      definition: Record<string, never>;
+    };
+    'enveloped-application-template-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-template-response'];
     };
     'enveloped-application-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-detail-response'];
@@ -15331,6 +15477,270 @@ export interface operations {
         content: {
           'application/json': components['schemas']['enveloped-application-workspace-defaults-response'];
         };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getApplicationTemplates: {
+    parameters: {
+      query?: {
+        deployment_adapter_kind?: 'compose';
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Published Application templates. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postApplicationTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['application-template-draft-request'];
+      };
+    };
+    responses: {
+      /** @description Application template draft created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      /** @description Invalid template draft input. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postApplicationTemplateImportLegacy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          key: string;
+          display_name?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Legacy directory imported as a draft. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      /** @description Invalid legacy template directory or draft input. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getApplicationTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Application template detail. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Application template not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putApplicationTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['application-template-draft-request'];
+      };
+    };
+    responses: {
+      /** @description Application template draft updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      /** @description Invalid template draft input. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Template is archived or has no editable draft. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  postApplicationTemplateDerive: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          template_version_id: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Derived template draft. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description A draft already exists or source is not published. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  postApplicationTemplatePublish: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Published immutable template version. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description No editable draft exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  postApplicationTemplateArchive: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Template archived. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];

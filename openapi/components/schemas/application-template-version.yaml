@@ -1,0 +1,14 @@
+type: object
+required: [template_version_id, version_number, status, definition_schema_version, definition]
+properties:
+  template_version_id: { type: string }
+  version_number: { type: integer, minimum: 1 }
+  status: { type: string, enum: [draft, published] }
+  definition_schema_version: { type: integer, minimum: 1 }
+  definition:
+    type: object
+    additionalProperties: true
+  published_at:
+    type: string
+    format: date-time
+    nullable: true

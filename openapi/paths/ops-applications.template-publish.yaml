@@ -1,0 +1,18 @@
+post:
+  tags: [application]
+  summary: Publish an Application template draft as an immutable version
+  operationId: postApplicationTemplatePublish
+  parameters:
+    - name: templateId
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Published immutable template version.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: No editable draft exists. }

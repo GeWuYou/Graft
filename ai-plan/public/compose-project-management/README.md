@@ -17,6 +17,7 @@
 - 通用持久化主表固定为 `applications`，当前 `deployment_adapter_kind=compose`；公开字段固定为 `source_type`、
   `compose_project_name`、`workspace_path`，`host_scope` 不再属于 Application authority。
 - `Compose Project Name` 继续作为技术 deployment identity；公开 ID 继续为 `app_<ULID>`。
+- Application Template 是按 `deployment_adapter_kind` 保存的通用、版本化创建蓝图；当前只有 Compose adapter 实现。模板不绑定 Docker、Podman 或 Swarm，Runtime Target capability 决定实际执行模式。模板只能从空白草稿或已发布版本派生，明确禁止从现有 Application 克隆。
 - 历史 versioned migration SQL 不得修改；server 实现只能新增前向迁移完成表、列与数据搬迁。
 
 ## Recovery Receipt

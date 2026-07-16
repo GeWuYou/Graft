@@ -31,9 +31,17 @@ type LifecycleStrategyKind string
 // LifecycleReviewStatus 标识稳定的生命周期配置审核状态契约。
 type LifecycleReviewStatus string
 
+// ApplicationTemplateStatus 标识模板版本的可编辑与发布状态。
+type ApplicationTemplateStatus string
+
 const (
 	// DeploymentAdapterKindCompose 表示由 Compose Specification 驱动的应用定义。
 	DeploymentAdapterKindCompose DeploymentAdapterKind = "compose"
+
+	// ApplicationTemplateStatusDraft 表示可由模板管理员编辑的版本。
+	ApplicationTemplateStatusDraft ApplicationTemplateStatus = "draft"
+	// ApplicationTemplateStatusPublished 表示不可变且可供创建者使用的版本。
+	ApplicationTemplateStatusPublished ApplicationTemplateStatus = "published"
 
 	// SourceTypeImported 表示导入 Graft 的外部 Compose 应用。
 	SourceTypeImported SourceType = "imported"
@@ -91,6 +99,9 @@ const (
 
 // String 返回线格式值，供跨边界契约序列化。
 func (v DeploymentAdapterKind) String() string { return string(v) }
+
+// String 返回线格式模板版本状态。
+func (v ApplicationTemplateStatus) String() string { return string(v) }
 
 // String 返回线格式值，供跨边界契约序列化。
 func (v SourceType) String() string { return string(v) }

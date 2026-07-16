@@ -59,19 +59,19 @@ func (e AnnouncementLevel) Valid() bool {
 
 // Defines values for AnnouncementStatus.
 const (
-	Archived  AnnouncementStatus = "archived"
-	Draft     AnnouncementStatus = "draft"
-	Published AnnouncementStatus = "published"
+	AnnouncementStatusArchived  AnnouncementStatus = "archived"
+	AnnouncementStatusDraft     AnnouncementStatus = "draft"
+	AnnouncementStatusPublished AnnouncementStatus = "published"
 )
 
 // Valid indicates whether the value is a known member of the AnnouncementStatus enum.
 func (e AnnouncementStatus) Valid() bool {
 	switch e {
-	case Archived:
+	case AnnouncementStatusArchived:
 		return true
-	case Draft:
+	case AnnouncementStatusDraft:
 		return true
-	case Published:
+	case AnnouncementStatusPublished:
 		return true
 	default:
 		return false
@@ -1011,6 +1011,54 @@ func (e ApplicationSourceType) Valid() bool {
 	case ApplicationSourceTypeManaged:
 		return true
 	case ApplicationSourceTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateDraftRequestDeploymentAdapterKind.
+const (
+	ApplicationTemplateDraftRequestDeploymentAdapterKindCompose ApplicationTemplateDraftRequestDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateDraftRequestDeploymentAdapterKind enum.
+func (e ApplicationTemplateDraftRequestDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case ApplicationTemplateDraftRequestDeploymentAdapterKindCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateResponseDeploymentAdapterKind.
+const (
+	ApplicationTemplateResponseDeploymentAdapterKindCompose ApplicationTemplateResponseDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateResponseDeploymentAdapterKind enum.
+func (e ApplicationTemplateResponseDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case ApplicationTemplateResponseDeploymentAdapterKindCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateVersionStatus.
+const (
+	ApplicationTemplateVersionStatusDraft     ApplicationTemplateVersionStatus = "draft"
+	ApplicationTemplateVersionStatusPublished ApplicationTemplateVersionStatus = "published"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateVersionStatus enum.
+func (e ApplicationTemplateVersionStatus) Valid() bool {
+	switch e {
+	case ApplicationTemplateVersionStatusDraft:
+		return true
+	case ApplicationTemplateVersionStatusPublished:
 		return true
 	default:
 		return false
@@ -4509,6 +4557,21 @@ func (e GetApplicationImportDirectoriesParamsOrder) Valid() bool {
 	}
 }
 
+// Defines values for GetApplicationTemplatesParamsDeploymentAdapterKind.
+const (
+	Compose GetApplicationTemplatesParamsDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationTemplatesParamsDeploymentAdapterKind enum.
+func (e GetApplicationTemplatesParamsDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case Compose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainersParamsState.
 const (
 	GetContainersParamsStateContainerListStateCreated    GetContainersParamsState = "created"
@@ -5875,6 +5938,50 @@ type ApplicationTemplateCreateRequest struct {
 	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
 	TemplateVersion *string `json:"template_version,omitempty"`
 }
+
+// ApplicationTemplateDraftRequest defines model for application-template-draft-request.
+type ApplicationTemplateDraftRequest struct {
+	// Definition Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.
+	Definition              map[string]interface{}                               `json:"definition"`
+	DefinitionSchemaVersion int                                                  `json:"definition_schema_version"`
+	DeploymentAdapterKind   ApplicationTemplateDraftRequestDeploymentAdapterKind `json:"deployment_adapter_kind"`
+	Description             *string                                              `json:"description,omitempty"`
+	DisplayName             string                                               `json:"display_name"`
+}
+
+// ApplicationTemplateDraftRequestDeploymentAdapterKind defines model for ApplicationTemplateDraftRequest.DeploymentAdapterKind.
+type ApplicationTemplateDraftRequestDeploymentAdapterKind string
+
+// ApplicationTemplateListResponse defines model for application-template-list-response.
+type ApplicationTemplateListResponse struct {
+	Items []ApplicationTemplateResponse `json:"items"`
+}
+
+// ApplicationTemplateResponse defines model for application-template-response.
+type ApplicationTemplateResponse struct {
+	ArchivedAt            *time.Time                                       `json:"archived_at,omitempty"`
+	DeploymentAdapterKind ApplicationTemplateResponseDeploymentAdapterKind `json:"deployment_adapter_kind"`
+	Description           string                                           `json:"description"`
+	DisplayName           string                                           `json:"display_name"`
+	TemplateId            string                                           `json:"template_id"`
+	Version               ApplicationTemplateVersion                       `json:"version"`
+}
+
+// ApplicationTemplateResponseDeploymentAdapterKind defines model for ApplicationTemplateResponse.DeploymentAdapterKind.
+type ApplicationTemplateResponseDeploymentAdapterKind string
+
+// ApplicationTemplateVersion defines model for application-template-version.
+type ApplicationTemplateVersion struct {
+	Definition              map[string]interface{}           `json:"definition"`
+	DefinitionSchemaVersion int                              `json:"definition_schema_version"`
+	PublishedAt             *time.Time                       `json:"published_at,omitempty"`
+	Status                  ApplicationTemplateVersionStatus `json:"status"`
+	TemplateVersionId       string                           `json:"template_version_id"`
+	VersionNumber           int                              `json:"version_number"`
+}
+
+// ApplicationTemplateVersionStatus defines model for ApplicationTemplateVersion.Status.
+type ApplicationTemplateVersionStatus string
 
 // ApplicationType Public Application deployment adapter kind. Compose is the only currently supported value.
 type ApplicationType string
@@ -7903,6 +8010,46 @@ type EnvelopedApplicationServicesResponse struct {
 	// Code Existing canonical response code.
 	Code string                      `json:"code"`
 	Data ApplicationServicesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationTemplateListResponse defines model for enveloped-application-template-list-response.
+type EnvelopedApplicationTemplateListResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data ApplicationTemplateListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationTemplateResponse defines model for enveloped-application-template-response.
+type EnvelopedApplicationTemplateResponse struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data ApplicationTemplateResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11952,6 +12099,32 @@ type PutApplicationSavedViewParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetApplicationTemplatesParams defines parameters for GetApplicationTemplates.
+type GetApplicationTemplatesParams struct {
+	DeploymentAdapterKind *GetApplicationTemplatesParamsDeploymentAdapterKind `form:"deployment_adapter_kind,omitempty" json:"deployment_adapter_kind,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationTemplatesParamsDeploymentAdapterKind defines parameters for GetApplicationTemplates.
+type GetApplicationTemplatesParamsDeploymentAdapterKind string
+
+// PostApplicationTemplateImportLegacyJSONBody defines parameters for PostApplicationTemplateImportLegacy.
+type PostApplicationTemplateImportLegacyJSONBody struct {
+	DisplayName *string `json:"display_name,omitempty"`
+	Key         string  `json:"key"`
+}
+
+// PostApplicationTemplateDeriveJSONBody defines parameters for PostApplicationTemplateDerive.
+type PostApplicationTemplateDeriveJSONBody struct {
+	TemplateVersionId string `json:"template_version_id"`
+}
+
 // GetApplicationParams defines parameters for GetApplication.
 type GetApplicationParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -13087,6 +13260,18 @@ type PostApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
 
 // PutApplicationSavedViewJSONRequestBody defines body for PutApplicationSavedView for application/json ContentType.
 type PutApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
+
+// PostApplicationTemplateJSONRequestBody defines body for PostApplicationTemplate for application/json ContentType.
+type PostApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
+
+// PostApplicationTemplateImportLegacyJSONRequestBody defines body for PostApplicationTemplateImportLegacy for application/json ContentType.
+type PostApplicationTemplateImportLegacyJSONRequestBody PostApplicationTemplateImportLegacyJSONBody
+
+// PutApplicationTemplateJSONRequestBody defines body for PutApplicationTemplate for application/json ContentType.
+type PutApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
+
+// PostApplicationTemplateDeriveJSONRequestBody defines body for PostApplicationTemplateDerive for application/json ContentType.
+type PostApplicationTemplateDeriveJSONRequestBody PostApplicationTemplateDeriveJSONBody
 
 // PostApplicationDestroyJSONRequestBody defines body for PostApplicationDestroy for application/json ContentType.
 type PostApplicationDestroyJSONRequestBody = ApplicationDestroyRequest

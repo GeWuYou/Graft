@@ -479,3 +479,9 @@
 
 - `deployment_adapter_kind` 是 Application 定义格式、模板定义和生命周期语义的 canonical field，当前唯一运行值为 `compose`。Provider 和 Runtime Target 不再被误称为 Application Type。
 - Adapter 目录固定为 Compose、Helm、Kustomize、Nomad Job；未实现 Adapter 只可作为不可操作路线图。Swarm 是 Compose Adapter 在具备 `docker_stack_deploy` capability 的 Docker Swarm Target 上的执行模式，不是独立选择项。
+
+## 2026-07-17 Generic Application Template backend
+
+- Application Template 已收敛为按 `deployment_adapter_kind` 管理的 versioned creation blueprint；通用表不包含 Compose、Docker、Podman 或 Swarm 专属列，Compose definition 由 adapter 解释工作区、Compose 文件路径和 lifecycle preset。
+- 模板版本有 draft/published 生命周期：每个模板最多一个 draft，发布版本由数据库触发器保护为不可变；草稿只能空白创建或从已发布版本派生，明确不允许从现有 Application clone。
+- 旧 `Application Root/templates/<key>` 仅保留管理员显式导入为草稿的路径；内置 Compose baseline 通过模块 Boot 的幂等 service path 持久化，日常创建不应回退读取目录。

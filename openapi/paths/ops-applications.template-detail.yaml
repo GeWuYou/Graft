@@ -1,0 +1,37 @@
+parameters:
+  - name: templateId
+    in: path
+    required: true
+    schema: { type: string, pattern: '^tpl_[0-9A-HJKMNP-TV-Z]{26}$' }
+get:
+  tags: [application]
+  summary: Get an Application template draft or latest published version
+  operationId: getApplicationTemplate
+  responses:
+    '200':
+      description: Application template detail.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Application template not found. }
+put:
+  tags: [application]
+  summary: Update an editable Application template draft
+  operationId: putApplicationTemplate
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/application-template-draft-request.yaml }
+  responses:
+    '200':
+      description: Application template draft updated.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '400': { description: Invalid template draft input. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Template is archived or has no editable draft. }

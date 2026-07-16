@@ -13598,6 +13598,350 @@
         }
       }
     },
+    "/api/ops/applications/templates": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "List published compatible Application templates",
+        "operationId": "getApplicationTemplates",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "deployment_adapter_kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "compose"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published Application templates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create an empty Application template draft",
+        "operationId": "postApplicationTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/application-template-draft-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application template draft created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid template draft input."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/import-legacy": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Explicitly import one legacy Application Root template directory as a draft",
+        "operationId": "postApplicationTemplateImportLegacy",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "display_name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Legacy directory imported as a draft.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid legacy template directory or draft input."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}": {
+      "parameters": [
+        {
+          "name": "templateId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^tpl_[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Get an Application template draft or latest published version",
+        "operationId": "getApplicationTemplate",
+        "responses": {
+          "200": {
+            "description": "Application template detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Update an editable Application template draft",
+        "operationId": "putApplicationTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/application-template-draft-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application template draft updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid template draft input."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Template is archived or has no editable draft."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/derive": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Derive an editable draft from a published template version",
+        "operationId": "postApplicationTemplateDerive",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "template_version_id"
+                ],
+                "properties": {
+                  "template_version_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Derived template draft.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "A draft already exists or source is not published."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/publish": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Publish an Application template draft as an immutable version",
+        "operationId": "postApplicationTemplatePublish",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published immutable template version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "No editable draft exists."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/archive": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Archive an Application template",
+        "operationId": "postApplicationTemplateArchive",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Template archived."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
     "/api/ops/applications/{applicationId}": {
       "get": {
         "tags": [
@@ -28552,6 +28896,162 @@
             "$ref": "#/components/schemas/application-workspace-defaults-response"
           }
         }
+      },
+      "application-template-version": {
+        "type": "object",
+        "required": [
+          "template_version_id",
+          "version_number",
+          "status",
+          "definition_schema_version",
+          "definition"
+        ],
+        "properties": {
+          "template_version_id": {
+            "type": "string"
+          },
+          "version_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "definition_schema_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "definition": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "application-template-response": {
+        "type": "object",
+        "required": [
+          "template_id",
+          "display_name",
+          "description",
+          "deployment_adapter_kind",
+          "version"
+        ],
+        "properties": {
+          "template_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "deployment_adapter_kind": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "archived_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "version": {
+            "$ref": "#/components/schemas/application-template-version"
+          }
+        }
+      },
+      "application-template-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-template-response"
+            }
+          }
+        }
+      },
+      "enveloped-application-template-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-template-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "application-template-draft-request": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "deployment_adapter_kind",
+          "definition_schema_version",
+          "definition"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "description": {
+            "type": "string"
+          },
+          "deployment_adapter_kind": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "definition_schema_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "definition": {
+            "type": "object",
+            "description": "Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset."
+          }
+        }
+      },
+      "enveloped-application-template-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-template-response"
+              }
+            }
+          }
+        ]
       },
       "enveloped-application-detail-response": {
         "allOf": [

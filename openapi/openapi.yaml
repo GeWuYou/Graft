@@ -317,6 +317,18 @@ paths:
     $ref: ./paths/ops-applications.create-template.yaml
   /api/ops/applications/create/workspace-defaults:
     $ref: ./paths/ops-applications.workspace-defaults.yaml
+  /api/ops/applications/templates:
+    $ref: ./paths/ops-applications.templates.yaml
+  /api/ops/applications/templates/import-legacy:
+    $ref: ./paths/ops-applications.templates.import-legacy.yaml
+  /api/ops/applications/templates/{templateId}:
+    $ref: ./paths/ops-applications.template-detail.yaml
+  /api/ops/applications/templates/{templateId}/derive:
+    $ref: ./paths/ops-applications.template-derive.yaml
+  /api/ops/applications/templates/{templateId}/publish:
+    $ref: ./paths/ops-applications.template-publish.yaml
+  /api/ops/applications/templates/{templateId}/archive:
+    $ref: ./paths/ops-applications.template-archive.yaml
   /api/ops/applications/{applicationId}:
     $ref: ./paths/ops-applications.detail.yaml
   /api/ops/applications/{applicationId}/overview:

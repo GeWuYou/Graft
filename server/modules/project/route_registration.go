@@ -51,6 +51,8 @@ const minimumProjectListLimit = 1
 
 // registerRoutes 为项目模块注册 HTTP 路由，并统一挂载请求 ID、审计和权限校验中间件。
 // 当上下文或路由器为空时跳过注册；项目服务缺失或认证依赖解析失败时返回错误。
+//
+//nolint:funlen // Application routes deliberately remain visible in one registration boundary.
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -93,6 +95,15 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ApplicationCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
 	group.POST(projectcontract.ApplicationCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleTemplateCreate)
 	group.GET(projectcontract.ApplicationWorkspaceDefaultsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleWorkspaceDefaults)
+	// Template static routes precede /:applicationId so the Application detail route cannot capture them.
+	group.GET(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplates)
+	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCreateTemplateDraft)
+	group.POST(projectcontract.ApplicationTemplateLegacyImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleImportLegacyTemplate)
+	group.GET(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateDetail)
+	group.PUT(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleUpdateTemplateDraft)
+	group.POST(projectcontract.ApplicationTemplateDeriveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleDeriveTemplateDraft)
+	group.POST(projectcontract.ApplicationTemplatePublishRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), routes.handlePublishTemplateDraft)
+	group.POST(projectcontract.ApplicationTemplateArchiveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleArchiveTemplate)
 	group.GET(projectcontract.ApplicationDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleDetail)
 	group.GET(projectcontract.ApplicationOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleOverview)
 	group.GET(projectcontract.ApplicationServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleServices)
@@ -1094,6 +1105,7 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 	ginCtx.Abort()
 }
 
+//nolint:cyclop // Explicit error classes preserve localized HTTP semantics at the route boundary.
 func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, action ActionResult) bool {
 	if r.writeProjectInputError(ginCtx, err) {
 		return true
@@ -1122,6 +1134,10 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 			"code":         mapLifecycleErrorCode(err),
 			"actionResult": toActionResponse(action),
 		})
+	case errors.Is(err, errProjectTemplateArchived), errors.Is(err, errProjectTemplateUnpublished), errors.Is(err, projectstore.ErrTemplateConflict), errors.Is(err, projectstore.ErrTemplateDraftNotFound), errors.Is(err, projectstore.ErrTemplatePublishedState):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ApplicationConflict.String())
+	case errors.Is(err, projectstore.ErrTemplateNotFound):
+		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ApplicationNotFound.String())
 	default:
 		return false
 	}

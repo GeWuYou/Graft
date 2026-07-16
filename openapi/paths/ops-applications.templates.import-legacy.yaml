@@ -1,0 +1,23 @@
+post:
+  tags: [application]
+  summary: Explicitly import one legacy Application Root template directory as a draft
+  operationId: postApplicationTemplateImportLegacy
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [key]
+          properties:
+            key: { type: string }
+            display_name: { type: string }
+  responses:
+    '201':
+      description: Legacy directory imported as a draft.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '400': { description: Invalid legacy template directory or draft input. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

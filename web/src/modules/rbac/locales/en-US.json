@@ -455,6 +455,14 @@
       "runtimeTargetRefresh": {
         "display": "Refresh Runtime Targets",
         "description": "Allows refreshing runtime target availability and capabilities."
+      },
+      "applicationTemplateManage": {
+        "display": "Manage Application Templates",
+        "description": "Create, edit, derive, import, and archive reusable Application templates."
+      },
+      "applicationTemplatePublish": {
+        "display": "Publish Application Templates",
+        "description": "Publish immutable Application template versions for creators."
       }
     },
     "roles": {

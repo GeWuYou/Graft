@@ -363,3 +363,9 @@ Compose Project Management
 - [x] 公共 Application 字段由 `application_type` 一次性迁移为 `deployment_adapter_kind`，当前唯一有效值为 `compose`；新增前向 SQL migration 保留既有数据，不保留 DTO、URL 或 query alias。
 - [x] 创建首步改为 Deployment Adapter picker：Compose 可操作；Helm、Kustomize、Nomad Job 仅为不可聚焦路线图卡片；移除 Swarm 卡片。
 - [x] Compose Adapter 解析 `compose_execution` 与 `docker_stack_deploy` capability；Swarm 被收敛为未来 Docker Swarm Target 上的 Docker Stack 执行模式。
+
+## 2026-07-17 Generic Application Template Backend
+
+- [x] `application-template-backend-and-contract`：新增 adapter-kind 通用模板与版本持久化，草稿/发布不可变模型、单草稿约束、管理员显式旧目录导入及内置 Compose 基线的幂等持久化。
+- [x] Application 模板 API 固定在 `/api/ops/applications/templates/**`，静态路由排在 `/:applicationId` 前；创建者只读取已发布模板，管理和发布使用独立权限。
+- [ ] 后续批次：将模板目录与统一 Application 创建编辑器接入，并删除旧运行时目录模板创建 API。

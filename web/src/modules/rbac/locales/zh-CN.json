@@ -455,6 +455,14 @@
       "runtimeTargetRefresh": {
         "display": "刷新运行目标",
         "description": "允许重新探测运行目标可用性与能力。"
+      },
+      "applicationTemplateManage": {
+        "display": "管理应用模板",
+        "description": "创建、编辑、派生、导入和归档可复用的应用模板。"
+      },
+      "applicationTemplatePublish": {
+        "display": "发布应用模板",
+        "description": "发布供创建者使用的不可变应用模板版本。"
       }
     },
     "roles": {
