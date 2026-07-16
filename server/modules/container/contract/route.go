@@ -1,54 +1,54 @@
 package contract
 
 const (
-	// ContainerAPIGroup is the API route group for container management.
+	// ContainerAPIGroup 是容器管理 API 的根路由组，供模块路由注册与前端请求共同使用。
 	ContainerAPIGroup = "/ops/containers"
-	// ContainerCollectionRoute is the collection route fragment.
+	// ContainerCollectionRoute 是容器集合路由片段，与 API 根路由组拼接后表示容器列表资源。
 	ContainerCollectionRoute = ""
-	// ContainerDashboardSummaryRoute is the dashboard summary route fragment.
+	// ContainerDashboardSummaryRoute 是容器仪表盘摘要路由片段。
 	ContainerDashboardSummaryRoute = "/dashboard-summary"
-	// ContainerDetailRoute is the detail route fragment.
+	// ContainerDetailRoute 是容器详情路由片段。
 	ContainerDetailRoute = "/:id"
-	// ContainerEventsRoute is the runtime events route fragment.
+	// ContainerEventsRoute 是容器运行时事件路由片段。
 	ContainerEventsRoute = "/:id/events"
-	// ContainerLogsRoute is the log route fragment.
+	// ContainerLogsRoute 是容器日志路由片段。
 	ContainerLogsRoute = "/:id/logs"
-	// ContainerShellSessionsRoute is the shell session issue route fragment.
+	// ContainerShellSessionsRoute 是容器 Shell 会话签发路由片段。
 	ContainerShellSessionsRoute = "/:id/shell/sessions"
-	// ContainerShellWebSocketRoute is the shell websocket route fragment.
+	// ContainerShellWebSocketRoute 是容器 Shell WebSocket 连接路由片段。
 	ContainerShellWebSocketRoute = "/:id/shell/ws"
-	// ContainerMountUsageRoute is the mount usage route fragment.
+	// ContainerMountUsageRoute 是容器挂载使用量路由片段。
 	ContainerMountUsageRoute = "/:id/mounts/usage"
-	// ContainerMountUsageRefreshRoute is the mount usage refresh route fragment.
+	// ContainerMountUsageRefreshRoute 是刷新容器挂载使用量的路由片段。
 	ContainerMountUsageRefreshRoute = "/:id/mounts/:mountId/usage/refresh"
-	// ContainerStartRoute is the start action route fragment.
+	// ContainerStartRoute 是启动容器动作的路由片段。
 	ContainerStartRoute = "/:id/start"
-	// ContainerStopRoute is the stop action route fragment.
+	// ContainerStopRoute 是停止容器动作的路由片段。
 	ContainerStopRoute = "/:id/stop"
-	// ContainerRestartRoute is the restart action route fragment.
+	// ContainerRestartRoute 是重启容器动作的路由片段。
 	ContainerRestartRoute = "/:id/restart"
-	// ContainerRemoveRoute is the remove action route fragment.
+	// ContainerRemoveRoute 是移除容器动作的路由片段。
 	ContainerRemoveRoute = "/:id/remove"
-	// ContainerBatchActionsRoute is the batch action route fragment.
+	// ContainerBatchActionsRoute 是容器批量动作的路由片段。
 	ContainerBatchActionsRoute = "/batch-actions"
-	// DockerAPIGroup is the read-only Docker-native resource API route group.
+	// DockerAPIGroup 是只读 Docker 原生资源 API 的根路由组。
 	DockerAPIGroup = "/ops/docker"
-	// DockerImagesRoute is the Docker image collection route fragment.
+	// DockerImagesRoute 是 Docker 镜像集合路由片段。
 	DockerImagesRoute = "/images"
-	// DockerImageRoute is the Docker image detail route fragment.
+	// DockerImageRoute 是 Docker 镜像详情路由片段。
 	DockerImageRoute = "/images/:id"
-	// DockerNetworksRoute is the Docker network collection route fragment.
+	// DockerNetworksRoute 是 Docker 网络集合路由片段。
 	DockerNetworksRoute = "/networks"
-	// DockerNetworkRoute is the Docker network detail route fragment.
+	// DockerNetworkRoute 是 Docker 网络详情路由片段。
 	DockerNetworkRoute = "/networks/:id"
-	// DockerVolumesRoute is the Docker volume collection route fragment.
+	// DockerVolumesRoute 是 Docker 卷集合路由片段。
 	DockerVolumesRoute = "/volumes"
-	// DockerVolumeRoute is the Docker volume detail route fragment.
+	// DockerVolumeRoute 是 Docker 卷详情路由片段。
 	DockerVolumeRoute = "/volumes/:id"
-	// DockerSystemRoute is the Docker system information route fragment.
+	// DockerSystemRoute 是 Docker 系统信息路由片段。
 	DockerSystemRoute = "/system"
-	// ContainerMenuRootPath is the web menu root path for operations.
+	// ContainerMenuRootPath 是运维侧容器菜单的根路径。
 	ContainerMenuRootPath = "/infrastructure/docker/containers"
-	// ContainerMenuPath is the web menu path for container management.
+	// ContainerMenuPath 是容器管理菜单路径，与前端路由和后端菜单注册保持一致。
 	ContainerMenuPath = "/infrastructure/docker/containers"
 )

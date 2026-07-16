@@ -1,38 +1,43 @@
 package contract
 
-// ErrorCode identifies a stable project module error-code contract.
+// ErrorCode 表示项目模块对外稳定的错误码契约。
 //
-// Canonical owner: server/modules/project/contract.
+// 规范 owner：server/modules/project/contract。
 type ErrorCode string
 
-// MessageKey identifies a stable project module localization key contract.
+// MessageKey 表示项目模块对外稳定的本地化消息键契约。
 //
-// Canonical owner: server/modules/project/contract.
+// 规范 owner：server/modules/project/contract。
 type MessageKey string
 
-// PermissionCode identifies a stable project module permission contract.
+// PermissionCode 表示项目模块对外稳定的权限码契约。
 //
-// Canonical owner: server/modules/project/contract.
+// 规范 owner：server/modules/project/contract。
 type PermissionCode string
 
-// ConfigKey identifies a stable project module system-config contract.
+// ConfigKey 表示项目模块对外稳定的系统配置键契约。
 //
-// Canonical owner: server/modules/project/contract.
+// 规范 owner：server/modules/project/contract。
 type ConfigKey string
 
-// ConfigMessageKey identifies a stable project system-config localization key contract.
+// ConfigMessageKey 表示项目系统配置使用的稳定本地化消息键契约。
 //
-// Canonical owner: server/modules/project/contract.
+// 规范 owner：server/modules/project/contract。
 type ConfigMessageKey string
 
+// String 返回错误码的稳定线值，供 HTTP 错误响应和本地化查找使用。
 func (c ErrorCode) String() string { return string(c) }
 
+// String 返回消息键的稳定线值，供本地化资源查找使用。
 func (c MessageKey) String() string { return string(c) }
 
+// String 返回权限码的稳定线值，供权限注册和鉴权匹配使用。
 func (c PermissionCode) String() string { return string(c) }
 
+// String 返回配置键的稳定线值，供系统配置注册和读取使用。
 func (c ConfigKey) String() string { return string(c) }
 
+// String 返回配置消息键的稳定线值，供系统配置本地化资源查找使用。
 func (c ConfigMessageKey) String() string { return string(c) }
 
 const (

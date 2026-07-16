@@ -9,9 +9,12 @@ import (
 	taskstore "graft/server/modules/task/store"
 )
 
+// moduleID 是任务模块在编译期模块注册表中的稳定标识，必须与依赖声明和迁移目录一致。
 const moduleID = "task"
 
-// NewModuleSpec 返回任务模块的规格定义，包括模块标识、依赖模块、迁移路径以及基于 SQL 数据库构建模块实例的构建器。
+// NewModuleSpec 返回任务模块的规格定义。
+//
+// 规格声明任务模块的稳定标识、依赖模块和迁移路径；构建器从服务容器解析 SQL 数据库，并在依赖缺失或仓储创建失败时返回错误。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
