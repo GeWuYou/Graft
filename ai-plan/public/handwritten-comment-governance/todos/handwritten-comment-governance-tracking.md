@@ -70,7 +70,8 @@ closeout:
     "third-wave audit/container/web container-monitor comments",
     "fourth-wave remaining core modules and scheduled-task",
     "current-session eight-wave parallel residual governance",
-    "current-session four-worker residual module governance"
+    "current-session four-worker residual module governance",
+    "current-session three-worker residual module governance"
   ],
   "pending_batches": [
     "residual inventory for untouched server modules and web modules"
@@ -78,9 +79,18 @@ closeout:
   "current_batch": "residual implementation wave and archive-readiness review",
   "next_batch": "read-only inventory then mutually exclusive server/web residual slices",
   "closeout_status": "handoff-required",
-  "validation_note": "accepted scoped commits 3a55c8a5, c9871355, and 1b3f6957; server full validation passed with 0 lint issues and all Go tests; web bun run check passed with 223 test files / 1410 tests; git diff --check passed; residual heuristic inventory still reports 409 candidate module files, so archive-ready is not claimed"
+  "validation_note": "accepted web commit 8d28ed95 and server union commit b2304976; server full validation passed with 0 lint issues and all Go tests; web bun run check passed with 223 test files / 1410 tests and release build; git diff --check passed; server worker commit boundaries were not independently provable because both workers shared the index; residual heuristic inventory remains, so archive-ready is not claimed"
 }
 ```
+
+## 2026-07-16 residual implementation wave and archive-readiness review
+
+- Startup preflight was rerun with `cross-boundary` task class, parent-topic recovery, and verified orchestration configuration `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false`.
+- Dispatched three mutually exclusive module workers through `$graft-multi-agent-batch`: server announcement/notification/security/rbac/task, server audit/project/user/system-config/scheduled-task, and web monitor/project/task/system-config/shared residual modules.
+- Accepted the web worker commit `8d28ed95` covering 6 Vue files. The two server workers produced the union commit `b2304976` covering 10 Go files; its files stay inside the union of their declared scopes, but shared-index staging made per-worker commit ownership unverifiable. No history rewrite or rollback was performed.
+- All workers completed `$graft-comment-governance`; the web worker completed `$graft-commit`; the server workers reported `owned-scope conflict` and the main agent recorded that exception explicitly.
+- Main-agent validation passed: `cd server && go run ./cmd/graft validate backend` with migration/contract/locale gates, backend lint `0 issues`, and all Go tests; `cd web && bun run check` with formatting, typecheck, OpenAPI, i18n, lint, style, hygiene, 223 test files / 1410 tests, and release build; `git diff --check` passed.
+- Archive readiness remains pending. The residual heuristic inventory still requires semantic classification of untouched candidates; this wave is an auditable progress increment, not a comment-count acceptance claim.
 
 ## 2026-07-16 residual inventory and archive-readiness review
 

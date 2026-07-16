@@ -88,3 +88,12 @@
   "closeout_status": "handoff-required"
 }
 ```
+
+## 2026-07-16 residual implementation wave and archive-readiness review
+
+- Reran startup preflight for `cross-boundary` with parent-topic recovery and verified `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false` on the orchestration surface.
+- Used `$graft-multi-agent-batch` directly with three disjoint module workers. The server workers covered announcement/notification/security/rbac/task and audit/project/user/system-config/scheduled-task; the frontend worker covered residual monitor/project/task/system-config/shared files.
+- Web worker completed `$graft-comment-governance` and `$graft-commit`, producing `8d28ed95` with 6 Vue files. Server workers completed governance review but concurrent staging produced the union commit `b2304976` with 10 Go files from both declared scopes; this is recorded as an owned-scope conflict rather than two independently scoped commits.
+- Main-agent acceptance confirmed the final worktree is clean, the union file set remains within the two server scopes, and no generated, third-party, migration, build, or scripts paths changed.
+- Cross-boundary validation passed: backend validation reported 0 lint issues and all Go tests; web check reported 223 passing test files and 1410 passing tests plus release build; `git diff --check` passed.
+- Archive readiness remains pending because residual candidates still require read-only semantic inventory and the server worker commit evidence is not independently scoped. This session stops at the requested auditable progress increment and hands off through the existing startup prompt.
