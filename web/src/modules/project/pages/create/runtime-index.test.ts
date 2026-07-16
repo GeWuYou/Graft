@@ -22,7 +22,7 @@ vi.mock('../../shared/navigation', () => ({
 }));
 
 describe('ApplicationRuntimeIndex', () => {
-  it('renders the deployment models with their current availability', () => {
+  it('renders deployment adapters and keeps unsupported adapters non-focusable', () => {
     const wrapper = mount(ApplicationRuntimeIndex, {
       global: {
         stubs: {
@@ -36,20 +36,21 @@ describe('ApplicationRuntimeIndex', () => {
     });
 
     expect(wrapper.text()).toContain('project.deployment.items.compose.title');
-    expect(wrapper.text()).toContain('project.deployment.items.swarm.title');
-    expect(wrapper.text()).toContain('project.deployment.items.kubernetes.title');
-    expect(wrapper.text()).toContain('project.deployment.items.nomad.title');
+    expect(wrapper.text()).toContain('project.deployment.items.helm.title');
+    expect(wrapper.text()).toContain('project.deployment.items.kustomize.title');
+    expect(wrapper.text()).toContain('project.deployment.items.nomadJob.title');
     expect(wrapper.text()).toContain('project.deployment.recommended');
     expect(wrapper.text()).toContain('project.deployment.comingSoon');
     expect(wrapper.text()).toContain('project.deployment.comingSoonHelper');
     expect(wrapper.text()).toContain('project.deployment.items.compose.capabilities.0');
-    expect(wrapper.text()).toContain('project.deployment.items.swarm.capabilities.2');
-    expect(wrapper.text()).toContain('project.deployment.items.kubernetes.capabilities.2');
-    expect(wrapper.text()).toContain('project.deployment.items.nomad.capabilities.1');
+    expect(wrapper.text()).toContain('project.deployment.items.helm.capabilities.2');
+    expect(wrapper.text()).toContain('project.deployment.items.kustomize.capabilities.1');
+    expect(wrapper.text()).toContain('project.deployment.items.nomadJob.capabilities.1');
 
     expect(wrapper.findAll('.project-deployment-card--disabled')).toHaveLength(3);
     expect(wrapper.get('[data-testid="project-deployment-compose"]').attributes('aria-disabled')).toBeUndefined();
-    for (const deployment of ['swarm', 'kubernetes', 'nomad']) {
+    expect(wrapper.find('[data-testid="project-deployment-swarm"]').exists()).toBe(false);
+    for (const deployment of ['helm', 'kustomize', 'nomad-job']) {
       const card = wrapper.get(`[data-testid="project-deployment-${deployment}"]`);
       expect(card.attributes('aria-disabled')).toBe('true');
       expect(card.attributes('role')).toBeUndefined();

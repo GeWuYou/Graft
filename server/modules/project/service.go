@@ -84,13 +84,13 @@ type ListQuery struct {
 	Offset  int
 	Keyword string
 	// Sort 只接受应用列表白名单排序表达式；空值使用 created_at:desc。
-	Sort            string
-	ApplicationType string
-	RuntimeTargetID *int64
-	Provider        string
-	SourceType      string
-	RuntimeStatus   string
-	DriftStatus     string
+	Sort                  string
+	DeploymentAdapterKind string
+	RuntimeTargetID       *int64
+	Provider              string
+	SourceType            string
+	RuntimeStatus         string
+	DriftStatus           string
 }
 
 // ImportRequest 描述当前阶段导入校验和导入请求载荷。
@@ -635,7 +635,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if err != nil {
 		return ListResult{}, err
 	}
-	if query.ApplicationType != "" && query.ApplicationType != "compose" {
+	if query.DeploymentAdapterKind != "" && query.DeploymentAdapterKind != projectcontract.DeploymentAdapterKindCompose.String() {
 		return ListResult{}, errProjectInvalidArgument
 	}
 	if query.Provider != "" && query.Provider != "docker" {
@@ -725,7 +725,7 @@ func (s *Service) mapProjectListItems(
 	for _, item := range items {
 		runtimeSummary, runtimeErr := s.runtimeSummary(ctx, item)
 		mapped := toProjectListItemWithManagedRoot(item, managedRootDirectory, &runtimeSummary, runtimeErr)
-		mapped.ApplicationType = generated.ApplicationTypeCompose
+		mapped.DeploymentAdapterKind = generated.DeploymentAdapterKindCompose
 		if item.Application.RuntimeTargetID != nil {
 			if target, ok := targetByID[*item.Application.RuntimeTargetID]; ok {
 				mapped.RuntimeTarget = &generated.ApplicationRuntimeTargetSummary{Id: target.ID, DisplayName: target.DisplayName, Provider: generated.ApplicationRuntimeTargetSummaryProvider(target.Provider)}

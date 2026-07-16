@@ -906,15 +906,15 @@ func (e ApplicationRuntimeTargetSummaryProvider) Valid() bool {
 	}
 }
 
-// Defines values for ApplicationSavedViewRequestQueryStateApplicationType.
+// Defines values for ApplicationSavedViewRequestQueryStateDeploymentAdapterKind.
 const (
-	ApplicationSavedViewRequestQueryStateApplicationTypeCompose ApplicationSavedViewRequestQueryStateApplicationType = "compose"
+	ApplicationSavedViewRequestQueryStateDeploymentAdapterKindCompose ApplicationSavedViewRequestQueryStateDeploymentAdapterKind = "compose"
 )
 
-// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateApplicationType enum.
-func (e ApplicationSavedViewRequestQueryStateApplicationType) Valid() bool {
+// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateDeploymentAdapterKind enum.
+func (e ApplicationSavedViewRequestQueryStateDeploymentAdapterKind) Valid() bool {
 	switch e {
-	case ApplicationSavedViewRequestQueryStateApplicationTypeCompose:
+	case ApplicationSavedViewRequestQueryStateDeploymentAdapterKindCompose:
 		return true
 	default:
 		return false
@@ -1019,13 +1019,13 @@ func (e ApplicationSourceType) Valid() bool {
 
 // Defines values for ApplicationType.
 const (
-	ApplicationTypeCompose ApplicationType = "compose"
+	DeploymentAdapterKindCompose ApplicationType = "compose"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationType enum.
 func (e ApplicationType) Valid() bool {
 	switch e {
-	case ApplicationTypeCompose:
+	case DeploymentAdapterKindCompose:
 		return true
 	default:
 		return false
@@ -4951,23 +4951,23 @@ type ApplicationCreateResponse struct {
 	Action ApplicationCreateResponseAction `json:"action"`
 
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId `json:"application_id"`
-	ApplicationName *string       `json:"application_name,omitempty"`
+	ApplicationId           ApplicationId `json:"application_id"`
+	ApplicationName         *string       `json:"application_name,omitempty"`
+	ComposeFileAbsolutePath string        `json:"compose_file_absolute_path"`
+	ComposeFileName         string        `json:"compose_file_name"`
+	ComposeProjectName      string        `json:"compose_project_name"`
 
-	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
-	ApplicationType         ApplicationType                 `json:"application_type"`
-	ComposeFileAbsolutePath string                          `json:"compose_file_absolute_path"`
-	ComposeFileName         string                          `json:"compose_file_name"`
-	ComposeProjectName      string                          `json:"compose_project_name"`
-	DisplayName             string                          `json:"display_name"`
-	EnvFileAbsolutePath     *string                         `json:"env_file_absolute_path,omitempty"`
-	EnvFileName             *string                         `json:"env_file_name,omitempty"`
-	ManagedRoot             ApplicationManagedRootResponse  `json:"managed_root"`
-	Message                 *string                         `json:"message,omitempty"`
-	MessageKey              *string                         `json:"message_key,omitempty"`
-	OwnershipMode           ApplicationOwnershipMode        `json:"ownership_mode"`
-	Result                  ApplicationCreateResponseResult `json:"result"`
-	SnapshotSummary         struct {
+	// DeploymentAdapterKind Public Application deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind ApplicationType                 `json:"deployment_adapter_kind"`
+	DisplayName           string                          `json:"display_name"`
+	EnvFileAbsolutePath   *string                         `json:"env_file_absolute_path,omitempty"`
+	EnvFileName           *string                         `json:"env_file_name,omitempty"`
+	ManagedRoot           ApplicationManagedRootResponse  `json:"managed_root"`
+	Message               *string                         `json:"message,omitempty"`
+	MessageKey            *string                         `json:"message_key,omitempty"`
+	OwnershipMode         ApplicationOwnershipMode        `json:"ownership_mode"`
+	Result                ApplicationCreateResponseResult `json:"result"`
+	SnapshotSummary       struct {
 		ConfigHash           string    `json:"config_hash"`
 		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
 		RefreshedAt          time.Time `json:"refreshed_at"`
@@ -5055,21 +5055,21 @@ type ApplicationDetailResponse struct {
 	ActivityAuthority ApplicationActivityAuthority `json:"activity_authority"`
 
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId `json:"application_id"`
-	ApplicationName *string       `json:"application_name,omitempty"`
-
-	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
-	ApplicationType          ApplicationType                     `json:"application_type"`
+	ApplicationId            ApplicationId                       `json:"application_id"`
+	ApplicationName          *string                             `json:"application_name,omitempty"`
 	ComposeFiles             []ApplicationFileItem               `json:"compose_files"`
 	ComposeProjectName       string                              `json:"compose_project_name"`
 	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
 	ContainerCounts          ApplicationContainerCounts          `json:"container_counts"`
-	DisplayName              string                              `json:"display_name"`
-	DriftStatus              ApplicationDriftStatus              `json:"drift_status"`
-	EnvFiles                 []ApplicationFileItem               `json:"env_files"`
-	LastDriftCheckedAt       *time.Time                          `json:"last_drift_checked_at,omitempty"`
-	LastObservedConfigHash   *string                             `json:"last_observed_config_hash,omitempty"`
-	LifecycleConfiguration   ApplicationLifecycleConfiguration   `json:"lifecycle_configuration"`
+
+	// DeploymentAdapterKind Public Application deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind  ApplicationType                   `json:"deployment_adapter_kind"`
+	DisplayName            string                            `json:"display_name"`
+	DriftStatus            ApplicationDriftStatus            `json:"drift_status"`
+	EnvFiles               []ApplicationFileItem             `json:"env_files"`
+	LastDriftCheckedAt     *time.Time                        `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash *string                           `json:"last_observed_config_hash,omitempty"`
+	LifecycleConfiguration ApplicationLifecycleConfiguration `json:"lifecycle_configuration"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
@@ -5573,16 +5573,16 @@ type ApplicationListItem struct {
 	ActivityAuthority ApplicationActivityAuthority `json:"activity_authority"`
 
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId `json:"application_id"`
-	ApplicationName *string       `json:"application_name,omitempty"`
-
-	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
-	ApplicationType          ApplicationType                     `json:"application_type"`
+	ApplicationId            ApplicationId                       `json:"application_id"`
+	ApplicationName          *string                             `json:"application_name,omitempty"`
 	ComposeProjectName       string                              `json:"compose_project_name"`
 	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
 	ContainerCounts          ApplicationContainerCounts          `json:"container_counts"`
-	DisplayName              string                              `json:"display_name"`
-	DriftStatus              ApplicationDriftStatus              `json:"drift_status"`
+
+	// DeploymentAdapterKind Public Application deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind ApplicationType        `json:"deployment_adapter_kind"`
+	DisplayName           string                 `json:"display_name"`
+	DriftStatus           ApplicationDriftStatus `json:"drift_status"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
@@ -5778,10 +5778,10 @@ type ApplicationSavedViewRequest struct {
 
 	// QueryState Application-list filter state. The server validates this payload for the application saved-view surface.
 	QueryState struct {
-		ApplicationType *ApplicationSavedViewRequestQueryStateApplicationType `json:"application_type,omitempty"`
-		DriftStatus     *ApplicationDriftStatus                               `json:"drift_status,omitempty"`
-		Keyword         *string                                               `json:"keyword,omitempty"`
-		Provider        *ApplicationSavedViewRequestQueryStateProvider        `json:"provider,omitempty"`
+		DeploymentAdapterKind *ApplicationSavedViewRequestQueryStateDeploymentAdapterKind `json:"deployment_adapter_kind,omitempty"`
+		DriftStatus           *ApplicationDriftStatus                                     `json:"drift_status,omitempty"`
+		Keyword               *string                                                     `json:"keyword,omitempty"`
+		Provider              *ApplicationSavedViewRequestQueryStateProvider              `json:"provider,omitempty"`
 
 		// RuntimeStatus Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 		RuntimeStatus   *ApplicationRuntimeStatus `json:"runtime_status,omitempty"`
@@ -5794,8 +5794,8 @@ type ApplicationSavedViewRequest struct {
 	VisibleColumns []ApplicationSavedViewRequestVisibleColumns `json:"visible_columns"`
 }
 
-// ApplicationSavedViewRequestQueryStateApplicationType defines model for ApplicationSavedViewRequest.QueryState.ApplicationType.
-type ApplicationSavedViewRequestQueryStateApplicationType string
+// ApplicationSavedViewRequestQueryStateDeploymentAdapterKind defines model for ApplicationSavedViewRequest.QueryState.DeploymentAdapterKind.
+type ApplicationSavedViewRequestQueryStateDeploymentAdapterKind string
 
 // ApplicationSavedViewRequestQueryStateProvider defines model for ApplicationSavedViewRequest.QueryState.Provider.
 type ApplicationSavedViewRequestQueryStateProvider string
@@ -5876,7 +5876,7 @@ type ApplicationTemplateCreateRequest struct {
 	TemplateVersion *string `json:"template_version,omitempty"`
 }
 
-// ApplicationType Public Application deployment type. Compose is the only currently supported value.
+// ApplicationType Public Application deployment adapter kind. Compose is the only currently supported value.
 type ApplicationType string
 
 // ApplicationWorkspaceDefaultsResponse defines model for application-workspace-defaults-response.
@@ -10765,7 +10765,7 @@ type ApplicationImportRuntimeCandidateListLimit = int
 // ApplicationImportRuntimeCandidateListOffset defines model for application-import-runtime-candidate-list-offset.
 type ApplicationImportRuntimeCandidateListOffset = int
 
-// ApplicationListApplicationType Public Application deployment type. Compose is the only currently supported value.
+// ApplicationListApplicationType Public Application deployment adapter kind. Compose is the only currently supported value.
 type ApplicationListApplicationType = ApplicationType
 
 // ApplicationListDriftStatus defines model for application-list-drift-status.
@@ -11678,8 +11678,8 @@ type GetApplicationsParams struct {
 	// Keyword Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.
 	Keyword *ApplicationListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
 
-	// ApplicationType Optional application type. Compose is the only currently supported type.
-	ApplicationType *ApplicationListApplicationType `form:"application_type,omitempty" json:"application_type,omitempty"`
+	// DeploymentAdapterKind Optional deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind *ApplicationListApplicationType `form:"deployment_adapter_kind,omitempty" json:"deployment_adapter_kind,omitempty"`
 
 	// RuntimeTargetId Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.
 	RuntimeTargetId *ApplicationListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`

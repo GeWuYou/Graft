@@ -1,5 +1,5 @@
 type: string
 enum: [compose]
-description: Public Application deployment type. Compose is the only currently supported value.
+description: Public Application deployment adapter kind. Compose is the only currently supported value.
 x-enum-varnames:
-  - ApplicationTypeCompose
+  - DeploymentAdapterKindCompose

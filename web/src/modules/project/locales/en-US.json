@@ -189,7 +189,7 @@
       "stoppedApplications": "Stopped {count}",
       "runtimeTargetUnavailable": "No Runtime Target",
       "runtimeTargetsLoadFailed": "Failed to load runtime targets.",
-      "applicationType": {
+      "deploymentAdapterKind": {
         "compose": "Compose"
       },
       "provider": {
@@ -214,7 +214,7 @@
       },
       "filters": {
         "searchPlaceholder": "Search Display Name, Compose Project Name, or Workspace Path",
-        "applicationType": "Application Type",
+        "deploymentAdapterKind": "Deployment Adapter",
         "provider": "Provider",
         "runtimeTarget": "Runtime Target",
         "sourceType": "Source",
@@ -222,7 +222,7 @@
         "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
         "allSourceTypes": "All Sources",
-        "allApplicationTypes": "All Application Types",
+        "allDeploymentAdapterKinds": "All Deployment Adapters",
         "allProviders": "All Providers",
         "allRuntimeTargets": "All Runtime Targets",
         "allRuntimeStatuses": "All Runtime Statuses",
@@ -245,7 +245,7 @@
       "columns": {
         "selection": "Select",
         "name": "Application",
-        "applicationType": "Application Type",
+        "deploymentAdapterKind": "Deployment Adapter",
         "runtimeTarget": "Runtime Target",
         "provider": "Provider",
         "source": "Source",
@@ -941,32 +941,32 @@
     },
     "deployment": {
       "eyebrow": "Create Application",
-      "description": "Select the application deployment model.",
+      "description": "Select the deployment adapter for the application definition.",
       "backToApplicationManagement": "Back to Application Management",
       "recommended": "Recommended",
       "comingSoon": "Coming Soon",
       "selectCompose": "Select Compose",
-      "comingSoonHelper": "Creation is not supported yet. This deployment model will be available in a future release.",
+      "comingSoonHelper": "No compatible runtime target capability is available yet.",
       "items": {
         "compose": {
           "title": "Compose",
           "description": "Based on the Compose Specification",
           "capabilities": ["Docker / Podman", "Multi-container Applications", "compose.yaml"]
         },
-        "swarm": {
-          "title": "Swarm",
-          "description": "Docker Stack",
-          "capabilities": ["Docker Cluster", "Docker Stack", "Rolling Updates"]
+        "helm": {
+          "title": "Helm",
+          "description": "Kubernetes Chart",
+          "capabilities": ["Chart Definition", "Kubernetes Target", "Versioned Releases"]
         },
-        "kubernetes": {
-          "title": "Kubernetes",
-          "description": "Cluster Workloads",
-          "capabilities": ["Cluster Workloads", "Deployment / Pod", "Helm"]
+        "kustomize": {
+          "title": "Kustomize",
+          "description": "Kubernetes YAML Base",
+          "capabilities": ["YAML Definition", "Kubernetes Target"]
         },
-        "nomad": {
-          "title": "Nomad",
-          "description": "Job",
-          "capabilities": ["HashiCorp Ecosystem", "Job Scheduling"]
+        "nomadJob": {
+          "title": "Nomad Job",
+          "description": "Nomad Job File",
+          "capabilities": ["Job Definition", "HashiCorp Ecosystem"]
         }
       }
     },

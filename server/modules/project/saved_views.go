@@ -17,14 +17,14 @@ var projectListSavedViewColumns = map[string]struct{}{
 }
 
 type projectListQueryState struct {
-	Keyword         *string  `json:"keyword"`
-	ApplicationType *string  `json:"application_type"`
-	RuntimeTargetID *int64   `json:"runtime_target_id"`
-	Provider        *string  `json:"provider"`
-	SourceType      *string  `json:"source_type"`
-	RuntimeStatus   *string  `json:"runtime_status"`
-	DriftStatus     *string  `json:"drift_status"`
-	Sort            []string `json:"sort"`
+	Keyword               *string  `json:"keyword"`
+	DeploymentAdapterKind *string  `json:"deployment_adapter_kind"`
+	RuntimeTargetID       *int64   `json:"runtime_target_id"`
+	Provider              *string  `json:"provider"`
+	SourceType            *string  `json:"source_type"`
+	RuntimeStatus         *string  `json:"runtime_status"`
+	DriftStatus           *string  `json:"drift_status"`
+	Sort                  []string `json:"sort"`
 }
 
 // savedViewRequest 保存 Application 列表路由接受的消费方特定视图状态。
@@ -102,7 +102,7 @@ func validateProjectListQueryState(queryState json.RawMessage) error {
 func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
 	for key := range raw {
 		switch key {
-		case "keyword", "application_type", "runtime_target_id", "provider", "source_type", "runtime_status", "drift_status", "sort":
+		case "keyword", "deployment_adapter_kind", "runtime_target_id", "provider", "source_type", "runtime_status", "drift_status", "sort":
 		default:
 			return false
 		}
@@ -151,7 +151,7 @@ func validProjectListQueryStateEnums(state projectListQueryState) bool {
 }
 
 func validProjectListStaticEnums(state projectListQueryState) bool {
-	return (state.ApplicationType == nil || *state.ApplicationType == "compose") && (state.Provider == nil || *state.Provider == "docker")
+	return (state.DeploymentAdapterKind == nil || *state.DeploymentAdapterKind == "compose") && (state.Provider == nil || *state.Provider == "docker")
 }
 
 func validProjectListGeneratedEnums(state projectListQueryState) bool {
@@ -168,7 +168,7 @@ func validProjectListGeneratedEnums(state projectListQueryState) bool {
 }
 
 func validProjectListQueryStateStrings(state projectListQueryState) bool {
-	for _, value := range []*string{state.Keyword, state.ApplicationType, state.Provider, state.SourceType, state.RuntimeStatus, state.DriftStatus} {
+	for _, value := range []*string{state.Keyword, state.DeploymentAdapterKind, state.Provider, state.SourceType, state.RuntimeStatus, state.DriftStatus} {
 		if value != nil && strings.TrimSpace(*value) == "" {
 			return false
 		}

@@ -15,7 +15,7 @@
       </management-page-header>
 
       <div class="project-deployment-page__grid">
-        <template v-for="item in deploymentTypes" :key="item.key">
+        <template v-for="item in deploymentAdapters" :key="item.key">
           <t-card
             bordered
             :hover-shadow="item.available"
@@ -81,19 +81,18 @@ import { useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 
-import dockerIcon from '../../assets/runtime/docker.svg?url';
 import kubernetesIcon from '../../assets/runtime/kubernetes.svg?url';
 import nomadIcon from '../../assets/runtime/nomad.svg?url';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { useApplicationCreateRouteNavigation } from '../../shared/navigation';
 
-defineOptions({ name: 'ApplicationDeploymentTypeIndex' });
-// 创建流程的运行时选择页只负责展示能力目录并保留路由上下文，具体目标由下一页加载。
+defineOptions({ name: 'ApplicationDeploymentAdapterIndex' });
+// 此页选择定义格式适配器；运行目标在下一页按其能力过滤，不能把 Provider 或 Swarm 当作适配器。
 
 const { t } = useI18n();
 const router = useRouter();
 const navigateApplicationCreateRoute = useApplicationCreateRouteNavigation(router);
-const deploymentTypes = [
+const deploymentAdapters = [
   {
     key: 'compose',
     available: true,
@@ -110,55 +109,57 @@ const deploymentTypes = [
     ],
   },
   {
-    key: 'swarm',
-    available: false,
-    glyph: 'swarm',
-    glyphNodes: 6,
-    iconSrc: dockerIcon,
-    titleKey: 'project.deployment.items.swarm.title',
-    descriptionKey: 'project.deployment.items.swarm.description',
-    statusKey: 'project.deployment.comingSoon',
-    capabilityKeys: [
-      'project.deployment.items.swarm.capabilities.0',
-      'project.deployment.items.swarm.capabilities.1',
-      'project.deployment.items.swarm.capabilities.2',
-    ],
-  },
-  {
-    key: 'kubernetes',
+    key: 'helm',
     available: false,
     glyph: 'kubernetes',
     glyphNodes: 5,
     iconSrc: kubernetesIcon,
-    titleKey: 'project.deployment.items.kubernetes.title',
-    descriptionKey: 'project.deployment.items.kubernetes.description',
+    titleKey: 'project.deployment.items.helm.title',
+    descriptionKey: 'project.deployment.items.helm.description',
     statusKey: 'project.deployment.comingSoon',
     capabilityKeys: [
-      'project.deployment.items.kubernetes.capabilities.0',
-      'project.deployment.items.kubernetes.capabilities.1',
-      'project.deployment.items.kubernetes.capabilities.2',
+      'project.deployment.items.helm.capabilities.0',
+      'project.deployment.items.helm.capabilities.1',
+      'project.deployment.items.helm.capabilities.2',
     ],
   },
   {
-    key: 'nomad',
+    key: 'kustomize',
+    available: false,
+    glyph: 'kubernetes',
+    glyphNodes: 5,
+    iconSrc: kubernetesIcon,
+    titleKey: 'project.deployment.items.kustomize.title',
+    descriptionKey: 'project.deployment.items.kustomize.description',
+    statusKey: 'project.deployment.comingSoon',
+    capabilityKeys: [
+      'project.deployment.items.kustomize.capabilities.0',
+      'project.deployment.items.kustomize.capabilities.1',
+    ],
+  },
+  {
+    key: 'nomad-job',
     available: false,
     glyph: 'nomad',
     glyphNodes: 4,
     iconSrc: nomadIcon,
-    titleKey: 'project.deployment.items.nomad.title',
-    descriptionKey: 'project.deployment.items.nomad.description',
+    titleKey: 'project.deployment.items.nomadJob.title',
+    descriptionKey: 'project.deployment.items.nomadJob.description',
     statusKey: 'project.deployment.comingSoon',
-    capabilityKeys: ['project.deployment.items.nomad.capabilities.0', 'project.deployment.items.nomad.capabilities.1'],
+    capabilityKeys: [
+      'project.deployment.items.nomadJob.capabilities.0',
+      'project.deployment.items.nomadJob.capabilities.1',
+    ],
   },
 ] as const;
 
-type DeploymentType = (typeof deploymentTypes)[number]['key'];
+type DeploymentAdapter = (typeof deploymentAdapters)[number]['key'];
 
 function goToApplicationList() {
   void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
 }
 
-function selectDeployment(deployment: DeploymentType) {
+function selectDeployment(deployment: DeploymentAdapter) {
   navigateApplicationCreateRoute(
     { name: PROJECT_BOOTSTRAP_ROUTE.CREATE_RUNTIME_TARGET.pageRouteName, query: { deployment } },
     'project.route.createRuntimeTarget.title',
@@ -235,22 +236,6 @@ function selectDeployment(deployment: DeploymentType) {
   height: 32px;
   object-fit: contain;
   width: 48px;
-}
-
-.project-deployment-card__glyph--swarm {
-  grid-template-columns: repeat(3, 8px);
-}
-
-.project-deployment-card__glyph--swarm::before {
-  left: 8px;
-  top: 13px;
-  width: 39px;
-}
-
-.project-deployment-card__glyph--swarm::after {
-  height: 21px;
-  left: 26px;
-  top: 5px;
 }
 
 .project-deployment-card__glyph--kubernetes {

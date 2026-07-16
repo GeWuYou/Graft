@@ -126,16 +126,16 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	}
 	applicationGeneratedHandler{}.GetApplications(params)
 	result, err := r.service.List(ginCtx.Request.Context(), ListQuery{
-		Limit:           intPtrValue(params.Limit),
-		Offset:          intPtrValue(params.Offset),
-		Keyword:         stringPtrValue(params.Keyword),
-		Sort:            projectListSortParamValue(params.Sort),
-		ApplicationType: stringPtrValue(params.ApplicationType),
-		RuntimeTargetID: params.RuntimeTargetId,
-		Provider:        stringPtrValue(params.Provider),
-		SourceType:      stringPtrValue(params.SourceType),
-		RuntimeStatus:   stringPtrValue(params.RuntimeStatus),
-		DriftStatus:     stringPtrValue(params.DriftStatus),
+		Limit:                 intPtrValue(params.Limit),
+		Offset:                intPtrValue(params.Offset),
+		Keyword:               stringPtrValue(params.Keyword),
+		Sort:                  projectListSortParamValue(params.Sort),
+		DeploymentAdapterKind: stringPtrValue(params.DeploymentAdapterKind),
+		RuntimeTargetID:       params.RuntimeTargetId,
+		Provider:              stringPtrValue(params.Provider),
+		SourceType:            stringPtrValue(params.SourceType),
+		RuntimeStatus:         stringPtrValue(params.RuntimeStatus),
+		DriftStatus:           stringPtrValue(params.DriftStatus),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -1271,7 +1271,7 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetAppl
 	}
 	params.SourceType = filters.SourceType
 	params.DriftStatus = filters.DriftStatus
-	params.ApplicationType = filters.ApplicationType
+	params.DeploymentAdapterKind = filters.DeploymentAdapterKind
 	params.Provider = filters.Provider
 	params.RuntimeStatus = filters.RuntimeStatus
 	query := ginCtx.Request.URL.Query()
@@ -1349,12 +1349,12 @@ func bindListFilterParams(ginCtx *gin.Context, ctx *module.Context) (generated.G
 	}
 	params.SourceType = sourceKind
 	params.DriftStatus = driftStatus
-	applicationType, ok := optionalValidatedEnumQuery(query.Get("application_type"), generated.ApplicationType.Valid)
+	deploymentAdapterKind, ok := optionalValidatedEnumQuery(query.Get("deployment_adapter_kind"), generated.ApplicationListApplicationType.Valid)
 	if !ok {
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetApplicationsParams{}, false
 	}
-	params.ApplicationType = applicationType
+	params.DeploymentAdapterKind = deploymentAdapterKind
 	provider, ok := optionalValidatedEnumQuery(query.Get("provider"), generated.GetApplicationsParamsProvider.Valid)
 	if !ok {
 		abortInvalidQuery(ginCtx, ctx)

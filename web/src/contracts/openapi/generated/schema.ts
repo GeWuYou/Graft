@@ -3441,7 +3441,7 @@ export interface components {
     ApplicationComposeRuntimeTarget: components['schemas']['application-compose-runtime-target'];
     ApplicationComposeRuntimeTargetCatalogResponse: components['schemas']['application-compose-runtime-target-catalog-response'];
     ApplicationSourceMetadata: components['schemas']['application-source-metadata'];
-    ApplicationType: components['schemas']['application-type'];
+    DeploymentAdapterKind: components['schemas']['application-type'];
     ApplicationId: components['schemas']['application-id'];
     ApplicationOwnershipMode: components['schemas']['application-ownership-mode'];
     ApplicationDriftStatus: components['schemas']['application-drift-status'];
@@ -6341,7 +6341,7 @@ export interface components {
       data: components['schemas']['container-runtime-info'];
     };
     /**
-     * @description Public Application deployment type. Compose is the only currently supported value.
+     * @description Public Application deployment adapter kind. Compose is the only currently supported value.
      * @enum {string}
      */
     'application-type': 'compose';
@@ -6403,7 +6403,7 @@ export interface components {
     'application-list-item': {
       application_id: components['schemas']['application-id'];
       display_name: string;
-      application_type: components['schemas']['application-type'];
+      deployment_adapter_kind: components['schemas']['application-type'];
       runtime_target?: components['schemas']['application-runtime-target-summary'];
       compose_project_name: string;
       compose_project_name_source: components['schemas']['application-compose-project-name-source'];
@@ -6456,7 +6456,7 @@ export interface components {
       query_state: {
         keyword?: string;
         /** @enum {string} */
-        application_type?: 'compose';
+        deployment_adapter_kind?: 'compose';
         /** Format: int64 */
         runtime_target_id?: number;
         /** @enum {string} */
@@ -7050,7 +7050,7 @@ export interface components {
     'application-create-response': {
       managed_root: components['schemas']['application-managed-root-response'];
       source_type: components['schemas']['application-source-type'];
-      application_type: components['schemas']['application-type'];
+      deployment_adapter_kind: components['schemas']['application-type'];
       application_id: components['schemas']['application-id'];
       /** @enum {string} */
       action: 'create';
@@ -7648,7 +7648,7 @@ export interface components {
     'saved-view-id': number;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
     'application-list-keyword': string;
-    /** @description Optional application type. Compose is the only currently supported type. */
+    /** @description Optional deployment adapter kind. Compose is the only currently supported value. */
     'application-list-application-type': components['schemas']['application-type'];
     /** @description Optional Docker Runtime Target identifier. The target and provider filters are conjunctive. */
     'application-list-runtime-target-id': number;
@@ -14221,8 +14221,8 @@ export interface operations {
         offset?: components['parameters']['application-list-offset'];
         /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
         keyword?: components['parameters']['application-list-keyword'];
-        /** @description Optional application type. Compose is the only currently supported type. */
-        application_type?: components['parameters']['application-list-application-type'];
+        /** @description Optional deployment adapter kind. Compose is the only currently supported value. */
+        deployment_adapter_kind?: components['parameters']['application-list-application-type'];
         /** @description Optional Docker Runtime Target identifier. The target and provider filters are conjunctive. */
         runtime_target_id?: components['parameters']['application-list-runtime-target-id'];
         /** @description Optional Runtime Target provider. Docker is the only current Compose provider. */

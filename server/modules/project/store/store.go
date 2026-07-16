@@ -33,7 +33,7 @@ var (
 type Application struct {
 	ApplicationRecordID      uint64
 	ApplicationID            string
-	ApplicationType          string
+	DeploymentAdapterKind    string
 	ApplicationName          *string
 	WorkspacePath            string
 	ComposeProjectName       string
@@ -125,7 +125,7 @@ type ListResult struct {
 // ImportApplicationInput 描述创建或替换一条应用注册记录的输入。
 type ImportApplicationInput struct {
 	ApplicationID            string
-	ApplicationType          string
+	DeploymentAdapterKind    string
 	ApplicationName          *string
 	WorkspacePath            string
 	ComposeProjectName       string

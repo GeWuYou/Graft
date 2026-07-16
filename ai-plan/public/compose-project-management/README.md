@@ -14,7 +14,7 @@
 - 用户已批准一次性完整迁移：产品、UI、HTTP 与 OpenAPI 公开资源统一为 `Application`。
 - canonical UI/API route 固定为 `/applications/**` 与 `/api/ops/applications/**`，路径参数使用 `applicationId`；
   不保留 Project alias、redirect 或 deprecated contract。
-- 通用持久化主表固定为 `applications`，当前 `application_type=compose`；公开字段固定为 `source_type`、
+- 通用持久化主表固定为 `applications`，当前 `deployment_adapter_kind=compose`；公开字段固定为 `source_type`、
   `compose_project_name`、`workspace_path`，`host_scope` 不再属于 Application authority。
 - `Compose Project Name` 继续作为技术 deployment identity；公开 ID 继续为 `app_<ULID>`。
 - 历史 versioned migration SQL 不得修改；server 实现只能新增前向迁移完成表、列与数据搬迁。

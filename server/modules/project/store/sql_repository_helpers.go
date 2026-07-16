@@ -161,7 +161,7 @@ func validateImportInput(input ImportApplicationInput) (ImportApplicationInput, 
 
 // trimImportInput 去除导入项目输入中字符串字段及来源元数据值的首尾空白。
 func trimImportInput(input ImportApplicationInput) ImportApplicationInput {
-	input.ApplicationType = strings.TrimSpace(input.ApplicationType)
+	input.DeploymentAdapterKind = strings.TrimSpace(input.DeploymentAdapterKind)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.ComposeProjectName = strings.TrimSpace(input.ComposeProjectName)
 	input.ComposeProjectNameSource = strings.TrimSpace(input.ComposeProjectNameSource)
@@ -182,7 +182,7 @@ func trimImportInput(input ImportApplicationInput) ImportApplicationInput {
 // 若任一必填字段为空，返回 ErrInvalidInput。
 func validateRequiredImportFields(input ImportApplicationInput) error {
 	required := []string{
-		input.ApplicationType,
+		input.DeploymentAdapterKind,
 		input.DisplayName,
 		input.ComposeProjectName,
 		input.ComposeProjectNameSource,
@@ -392,8 +392,8 @@ func normalizeTemporalPointers(values ...**time.Time) {
 
 func validateImportContracts(input ImportApplicationInput) error {
 	switch {
-	case input.ApplicationType != projectcontract.ApplicationTypeCompose.String():
-		return fmt.Errorf("unsupported application type %q: %w", input.ApplicationType, ErrInvalidInput)
+	case input.DeploymentAdapterKind != projectcontract.DeploymentAdapterKindCompose.String():
+		return fmt.Errorf("unsupported deployment adapter %q: %w", input.DeploymentAdapterKind, ErrInvalidInput)
 	case !isValidComposeProjectNameSource(input.ComposeProjectNameSource):
 		return fmt.Errorf("unsupported canonical application name source %q: %w", input.ComposeProjectNameSource, ErrInvalidInput)
 	case !isValidSourceType(input.SourceType):
@@ -579,7 +579,7 @@ func scanApplication(scanner interface{ Scan(dest ...any) error }) (Application,
 	if err := scanner.Scan(
 		&item.ApplicationRecordID,
 		&item.ApplicationID,
-		&item.ApplicationType,
+		&item.DeploymentAdapterKind,
 		&applicationName,
 		&item.WorkspacePath,
 		&item.ComposeProjectName,

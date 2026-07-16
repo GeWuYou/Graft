@@ -264,9 +264,9 @@
           </t-tag>
         </template>
 
-        <template #applicationType="{ row }">
+        <template #deploymentAdapterKind="{ row }">
           <t-tag theme="primary" variant="light-outline">
-            {{ applicationTypeLabel(projectRow(row).application_type) }}
+            {{ deploymentAdapterLabel(projectRow(row).deployment_adapter_kind) }}
           </t-tag>
         </template>
 
@@ -475,10 +475,10 @@ import {
 import { acquireApplicationListRealtime, releaseApplicationListRealtime } from '../../shared/list-realtime';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
-  ApplicationApplicationType,
   ApplicationBatchAction,
   ApplicationBatchActionItem,
   ApplicationBatchActionResponse,
+  ApplicationDeploymentAdapterKind,
   ApplicationDestroyRequest,
   ApplicationDetailResponse,
   ApplicationDriftStatus,
@@ -527,7 +527,7 @@ type ApplicationResourceBadge = {
   icon: string;
 };
 type ApplicationFilterFieldKey =
-  'applicationType' | 'provider' | 'runtimeTargetId' | 'sourceType' | 'driftStatus' | 'runtimeStatus';
+  'deploymentAdapterKind' | 'provider' | 'runtimeTargetId' | 'sourceType' | 'driftStatus' | 'runtimeStatus';
 type ApplicationBuilderFieldKey = 'sorterBuilder' | ApplicationFilterFieldKey;
 type ApplicationSortBy = 'created_at';
 type ApplicationFilterState = ApplicationFilters & {
@@ -551,7 +551,7 @@ const pagination = ref({
 const filters = ref<ApplicationFilterState>(createDefaultFilters());
 const runtimeTargets = ref<RuntimeTarget[]>([]);
 const columnDrawerVisible = ref(false);
-const selectedApplicationFilterField = ref<ApplicationBuilderFieldKey>('applicationType');
+const selectedApplicationFilterField = ref<ApplicationBuilderFieldKey>('deploymentAdapterKind');
 
 const sourceTypeOptions: ApplicationSourceType[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ApplicationDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
@@ -581,14 +581,14 @@ const filteredRuntimeTargets = computed(() =>
 const projectFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   { key: 'sorterBuilder', kind: 'special', label: t('project.list.filters.sorterBuilder') },
   {
-    key: 'applicationType',
+    key: 'deploymentAdapterKind',
     kind: 'select',
-    label: t('project.list.filters.applicationType'),
+    label: t('project.list.filters.deploymentAdapterKind'),
     options: [
-      { label: t('project.list.filters.allApplicationTypes'), value: 'all' },
-      { label: t('project.list.applicationType.compose'), value: 'compose' },
+      { label: t('project.list.filters.allDeploymentAdapterKinds'), value: 'all' },
+      { label: t('project.list.deploymentAdapterKind.compose'), value: 'compose' },
     ],
-    placeholder: t('project.list.filters.applicationType'),
+    placeholder: t('project.list.filters.deploymentAdapterKind'),
   },
   {
     key: 'provider',
@@ -642,7 +642,7 @@ const projectFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(
   },
 ]);
 const projectFilterFieldValues = computed<Record<ApplicationFilterFieldKey, string>>(() => ({
-  applicationType: filters.value.applicationType,
+  deploymentAdapterKind: filters.value.deploymentAdapterKind,
   provider: filters.value.provider,
   runtimeTargetId: filters.value.runtimeTargetId ? String(filters.value.runtimeTargetId) : '',
   sourceType: filters.value.sourceType,
@@ -679,7 +679,12 @@ const configurableColumns = computed<TableProps['columns']>(() => [
     align: 'center',
   },
   { colKey: 'name', title: t('project.list.columns.name'), width: 300 },
-  { colKey: 'applicationType', title: t('project.list.columns.applicationType'), width: 128, align: 'center' },
+  {
+    colKey: 'deploymentAdapterKind',
+    title: t('project.list.columns.deploymentAdapterKind'),
+    width: 144,
+    align: 'center',
+  },
   { colKey: 'runtimeTarget', title: t('project.list.columns.runtimeTarget'), width: 180 },
   { colKey: 'provider', title: t('project.list.columns.provider'), width: 128, align: 'center' },
   { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
@@ -691,7 +696,7 @@ const configurableColumns = computed<TableProps['columns']>(() => [
 const visibleColumnKeys = ref([
   'row-select',
   'name',
-  'applicationType',
+  'deploymentAdapterKind',
   'runtimeTarget',
   'provider',
   'source',
@@ -777,7 +782,7 @@ const headerStatusSummaryItems = computed(() =>
 const hasActiveFilters = computed(
   () =>
     Boolean(filters.value.keyword.trim()) ||
-    filters.value.applicationType !== 'all' ||
+    filters.value.deploymentAdapterKind !== 'all' ||
     (typeof filters.value.runtimeTargetId === 'number' && filters.value.runtimeTargetId > 0) ||
     filters.value.provider !== 'all' ||
     filters.value.sourceType !== 'all' ||
@@ -840,8 +845,8 @@ function sourceTypeLabel(value: ApplicationSourceType) {
   return projectSourceTypeLabel(t, value);
 }
 
-function applicationTypeLabel(value: ApplicationApplicationType) {
-  return t(`project.list.applicationType.${value}`);
+function deploymentAdapterLabel(value: ApplicationDeploymentAdapterKind) {
+  return t(`project.list.deploymentAdapterKind.${value}`);
 }
 
 function providerLabel(value: ApplicationProvider) {
@@ -996,7 +1001,8 @@ async function fetchApplications() {
     };
     assignEncodedSorters(query, filters.value.sorters, projectSortOptions.value);
     if (filters.value.keyword.trim()) query.keyword = filters.value.keyword.trim();
-    if (filters.value.applicationType !== 'all') query.application_type = filters.value.applicationType;
+    if (filters.value.deploymentAdapterKind !== 'all')
+      query.deployment_adapter_kind = filters.value.deploymentAdapterKind;
     if (filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0) {
       query.runtime_target_id = filters.value.runtimeTargetId;
     }
@@ -1326,7 +1332,7 @@ function resetFilters() {
 function createDefaultFilters(): ApplicationFilterState {
   return {
     keyword: '',
-    applicationType: 'all',
+    deploymentAdapterKind: 'all',
     runtimeTargetId: undefined,
     provider: 'all',
     sourceType: 'all',
@@ -1350,7 +1356,9 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
 function currentSavedViewQueryState(): ApplicationSavedViewQueryState {
   return {
     ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
-    ...(filters.value.applicationType !== 'all' ? { application_type: filters.value.applicationType } : {}),
+    ...(filters.value.deploymentAdapterKind !== 'all'
+      ? { deployment_adapter_kind: filters.value.deploymentAdapterKind }
+      : {}),
     ...(filters.value.runtimeTargetId && filters.value.runtimeTargetId > 0
       ? { runtime_target_id: filters.value.runtimeTargetId }
       : {}),
@@ -1384,7 +1392,7 @@ function applyApplicationSavedQueryView(savedState: ApplicationSavedQueryViewSta
   );
   filters.value = {
     keyword: state.keyword ?? '',
-    applicationType: state.application_type ?? 'all',
+    deploymentAdapterKind: state.deployment_adapter_kind ?? 'all',
     runtimeTargetId: state.runtime_target_id,
     provider: state.provider ?? 'all',
     sourceType: state.source_type ?? 'all',
@@ -1407,7 +1415,7 @@ function updateApplicationFilterField(payload: { key: string; value: string | st
     filters.value.runtimeTargetId = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
     return;
   }
-  if (key === 'applicationType') filters.value.applicationType = value === 'compose' ? 'compose' : 'all';
+  if (key === 'deploymentAdapterKind') filters.value.deploymentAdapterKind = value === 'compose' ? 'compose' : 'all';
   if (key === 'provider') filters.value.provider = value === 'docker' ? 'docker' : 'all';
   if (key === 'sourceType') {
     filters.value.sourceType = sourceTypeOptions.includes(value as ApplicationSourceType)

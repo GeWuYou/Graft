@@ -2,7 +2,7 @@ type: object
 required:
   - managed_root
   - source_type
-  - application_type
+  - deployment_adapter_kind
   - application_id
   - action
   - result
@@ -18,7 +18,7 @@ properties:
     $ref: ./application-managed-root-response.yaml
   source_type:
     $ref: ./application-source-type.yaml
-  application_type:
+  deployment_adapter_kind:
     $ref: ./application-type.yaml
   application_id:
     $ref: ./application-id.yaml

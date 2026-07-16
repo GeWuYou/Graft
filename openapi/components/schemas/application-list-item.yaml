@@ -2,7 +2,7 @@ type: object
 required:
   - application_id
   - display_name
-  - application_type
+  - deployment_adapter_kind
   - compose_project_name
   - compose_project_name_source
   - lifecycle_review_status
@@ -18,7 +18,7 @@ properties:
     $ref: ./application-id.yaml
   display_name:
     type: string
-  application_type:
+  deployment_adapter_kind:
     $ref: ./application-type.yaml
   runtime_target:
     $ref: ./application-runtime-target-summary.yaml

@@ -53,7 +53,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	strictCreate := command.SourceType == projectcontract.SourceTypeManaged.String() || command.SourceType == projectcontract.SourceTypeTemplate.String()
 	aggregate, err := repository.ImportApplication(ctx, projectstore.ImportApplicationInput{
 		ApplicationID:            newApplicationID(),
-		ApplicationType:          projectcontract.ApplicationTypeCompose.String(),
+		DeploymentAdapterKind:    projectcontract.DeploymentAdapterKindCompose.String(),
 		ApplicationName:          command.ApplicationName,
 		WorkspacePath:            strings.TrimSpace(command.WorkspacePath),
 		ComposeProjectName:       strings.TrimSpace(command.ComposeProjectName),

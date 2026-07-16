@@ -123,7 +123,7 @@ type GetApplicationListOperation = paths[ApplicationListPath]['get'];
 
 export type ApplicationListQuery = NonNullable<GetApplicationListOperation['parameters']['query']>;
 
-export type ApplicationApplicationType = ApplicationListItem['application_type'];
+export type ApplicationDeploymentAdapterKind = ApplicationListItem['deployment_adapter_kind'];
 export type ApplicationProvider = NonNullable<ApplicationListItem['runtime_target']>['provider'];
 export type ApplicationSavedView = components['schemas']['application-saved-view'];
 export type ApplicationSavedViewRequest = components['schemas']['application-saved-view-request'];
@@ -131,7 +131,7 @@ export type ApplicationSavedViewQueryState = ApplicationSavedViewRequest['query_
 
 export type ApplicationFilters = {
   keyword: string;
-  applicationType: ApplicationApplicationType | 'all';
+  deploymentAdapterKind: ApplicationDeploymentAdapterKind | 'all';
   runtimeTargetId: number | undefined;
   provider: ApplicationProvider | 'all';
   sourceType: ApplicationSourceType | 'all';

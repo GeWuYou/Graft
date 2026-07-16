@@ -893,7 +893,7 @@ components:
       $ref: ./components/schemas/application-compose-runtime-target-catalog-response.yaml
     ApplicationSourceMetadata:
       $ref: ./components/schemas/application-source-metadata.yaml
-    ApplicationType:
+    DeploymentAdapterKind:
       $ref: ./components/schemas/application-type.yaml
     ApplicationId:
       $ref: ./components/schemas/application-id.yaml

@@ -16258,7 +16258,7 @@
       "ApplicationSourceMetadata": {
         "$ref": "#/components/schemas/application-source-metadata"
       },
-      "ApplicationType": {
+      "DeploymentAdapterKind": {
         "$ref": "#/components/schemas/application-type"
       },
       "ApplicationId": {
@@ -25411,9 +25411,9 @@
         "enum": [
           "compose"
         ],
-        "description": "Public Application deployment type. Compose is the only currently supported value.",
+        "description": "Public Application deployment adapter kind. Compose is the only currently supported value.",
         "x-enum-varnames": [
-          "ApplicationTypeCompose"
+          "DeploymentAdapterKindCompose"
         ]
       },
       "application-source-type": {
@@ -25612,7 +25612,7 @@
         "required": [
           "application_id",
           "display_name",
-          "application_type",
+          "deployment_adapter_kind",
           "compose_project_name",
           "compose_project_name_source",
           "lifecycle_review_status",
@@ -25631,7 +25631,7 @@
           "display_name": {
             "type": "string"
           },
-          "application_type": {
+          "deployment_adapter_kind": {
             "$ref": "#/components/schemas/application-type"
           },
           "runtime_target": {
@@ -25836,7 +25836,7 @@
                 "minLength": 1,
                 "maxLength": 128
               },
-              "application_type": {
+              "deployment_adapter_kind": {
                 "type": "string",
                 "enum": [
                   "compose"
@@ -28323,7 +28323,7 @@
         "required": [
           "managed_root",
           "source_type",
-          "application_type",
+          "deployment_adapter_kind",
           "application_id",
           "action",
           "result",
@@ -28342,7 +28342,7 @@
           "source_type": {
             "$ref": "#/components/schemas/application-source-type"
           },
-          "application_type": {
+          "deployment_adapter_kind": {
             "$ref": "#/components/schemas/application-type"
           },
           "application_id": {
@@ -30908,10 +30908,10 @@
         }
       },
       "application-list-application-type": {
-        "name": "application_type",
+        "name": "deployment_adapter_kind",
         "in": "query",
         "required": false,
-        "description": "Optional application type. Compose is the only currently supported type.",
+        "description": "Optional deployment adapter kind. Compose is the only currently supported value.",
         "schema": {
           "$ref": "#/components/schemas/application-type"
         }

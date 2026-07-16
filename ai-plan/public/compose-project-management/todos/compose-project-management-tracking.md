@@ -357,3 +357,9 @@ Compose Project Management
 - [x] persistence authority 固定为 generic `applications`；历史 versioned migration SQL 保持不可修改，后续由
   server owned slice 新增前向迁移。
 - [x] OpenAPI source 与 generated server/web artifacts 由 canonical generation commands 同步。
+
+## 2026-07-17 Deployment Adapter Authority Repair
+
+- [x] 公共 Application 字段由 `application_type` 一次性迁移为 `deployment_adapter_kind`，当前唯一有效值为 `compose`；新增前向 SQL migration 保留既有数据，不保留 DTO、URL 或 query alias。
+- [x] 创建首步改为 Deployment Adapter picker：Compose 可操作；Helm、Kustomize、Nomad Job 仅为不可聚焦路线图卡片；移除 Swarm 卡片。
+- [x] Compose Adapter 解析 `compose_execution` 与 `docker_stack_deploy` capability；Swarm 被收敛为未来 Docker Swarm Target 上的 Docker Stack 执行模式。

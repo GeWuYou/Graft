@@ -227,7 +227,7 @@ func createApplicationStoreSchema(t *testing.T, db *sql.DB) {
 	mustExec(t, db, `CREATE TABLE applications (
 		application_record_id INTEGER PRIMARY KEY,
 		application_id TEXT NOT NULL DEFAULT 'app_00000000000000000000000000',
-		application_type TEXT NOT NULL DEFAULT 'compose',
+		deployment_adapter_kind TEXT NOT NULL DEFAULT 'compose',
 		application_name TEXT NULL,
 		workspace_path TEXT NOT NULL DEFAULT '',
 		compose_project_name TEXT NOT NULL DEFAULT '',

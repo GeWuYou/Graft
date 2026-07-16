@@ -189,7 +189,7 @@
       "stoppedApplications": "已停止 {count}",
       "runtimeTargetUnavailable": "未关联运行目标",
       "runtimeTargetsLoadFailed": "加载运行目标失败。",
-      "applicationType": {
+      "deploymentAdapterKind": {
         "compose": "Compose"
       },
       "provider": {
@@ -214,7 +214,7 @@
       },
       "filters": {
         "searchPlaceholder": "搜索展示名、Canonical 名或工作区路径",
-        "applicationType": "应用类型",
+        "deploymentAdapterKind": "部署适配器",
         "provider": "提供者",
         "runtimeTarget": "运行目标",
         "sourceType": "来源",
@@ -222,7 +222,7 @@
         "driftStatus": "同步状态",
         "refreshStatus": "刷新状态",
         "allSourceTypes": "全部来源",
-        "allApplicationTypes": "全部应用类型",
+        "allDeploymentAdapterKinds": "全部部署适配器",
         "allProviders": "全部提供者",
         "allRuntimeTargets": "全部运行目标",
         "allRuntimeStatuses": "全部运行状态",
@@ -245,7 +245,7 @@
       "columns": {
         "selection": "选择",
         "name": "应用",
-        "applicationType": "应用类型",
+        "deploymentAdapterKind": "部署适配器",
         "runtimeTarget": "运行目标",
         "provider": "提供者",
         "source": "来源",
@@ -941,32 +941,32 @@
     },
     "deployment": {
       "eyebrow": "创建应用",
-      "description": "选择应用的部署模型。",
+      "description": "选择应用定义使用的部署适配器。",
       "backToApplicationManagement": "返回应用管理",
       "recommended": "推荐",
       "comingSoon": "即将推出",
       "selectCompose": "选择 Compose",
-      "comingSoonHelper": "暂不支持创建，未来版本将提供支持。",
+      "comingSoonHelper": "当前没有可用的运行目标能力，未来版本将提供支持。",
       "items": {
         "compose": {
           "title": "Compose",
           "description": "基于 Compose Specification",
           "capabilities": ["Docker / Podman", "多容器应用", "compose.yaml"]
         },
-        "swarm": {
-          "title": "Swarm",
-          "description": "Docker Stack",
-          "capabilities": ["Docker 集群", "Docker Stack", "滚动更新"]
+        "helm": {
+          "title": "Helm",
+          "description": "Kubernetes Chart",
+          "capabilities": ["Chart 定义", "Kubernetes 目标", "版本化发布"]
         },
-        "kubernetes": {
-          "title": "Kubernetes",
-          "description": "集群工作负载",
-          "capabilities": ["集群工作负载", "Deployment / Pod", "Helm"]
+        "kustomize": {
+          "title": "Kustomize",
+          "description": "Kubernetes YAML Base",
+          "capabilities": ["YAML 定义", "Kubernetes 目标"]
         },
-        "nomad": {
-          "title": "Nomad",
-          "description": "Job",
-          "capabilities": ["HashiCorp 生态", "Job 调度"]
+        "nomadJob": {
+          "title": "Nomad Job",
+          "description": "Nomad Job 文件",
+          "capabilities": ["Job 定义", "HashiCorp 生态"]
         }
       }
     },

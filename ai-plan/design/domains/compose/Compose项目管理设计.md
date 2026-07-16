@@ -7,7 +7,7 @@
 - 产品对象、UI route、HTTP resource、OpenAPI schema/type 与参数语义统一使用 `Application`。
 - canonical UI route 为 `/applications/**`，canonical HTTP route 为 `/api/ops/applications/**`；资源路径参数固定为
   `applicationId`，公开 ID 固定为 `app_<ULID>`。
-- 持久化主表统一为通用 `applications`，当前记录固定 `application_type=compose`。`Compose Project Name` 仅表示
+- 持久化主表统一为通用 `applications`，当前记录固定 `deployment_adapter_kind=compose`。`Compose Project Name` 仅表示
   Compose deployment identity，不再决定产品对象或公开资源名称。
 - 公开字段固定为 `source_type`、`compose_project_name`、`workspace_path`；`host_scope` 不属于 Application
   authority，运行位置由 `runtime_target_id` 表达。
@@ -29,7 +29,7 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 
 每个 Compose Application 绑定一个具备 Compose 执行和 Workspace 访问能力的 `runtime_target_id`。当前实现只允许 Local Docker；未来 Local/Remote Docker、Local/Remote Podman 或 Containerd target 只有在对应 Provider adapter 报告真实能力后才可选择。`applications.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史本地记录。该桥的 authority 是 Runtime Target，影响者是 Application 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
 
-`/applications` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `application_type=compose` 的实现和生命周期能力；列表必须首先展示应用类型、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
+`/applications` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `deployment_adapter_kind=compose` 的实现和生命周期能力；列表必须首先展示部署适配器、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
 
 菜单图标统一由 web 的 Iconify resolver 消费 server descriptor identifier：常规导航使用 Lucide，专业补充使用 Tabler，品牌使用静态 Iconify 数据。Docker 必须使用 Tabler 的 Docker brand glyph，不能以通用 server/container 图标代替；Iconify 不得通过运行时 CDN 加载图标。
 
@@ -89,8 +89,8 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - `Project`
   - 仅指历史实现 module/package 名称或 Compose 原生技术术语；不再是公开产品对象、HTTP resource、schema/type
     或持久化主表名称。
-- `Deployment Type`
-  - 应用模型与文件/生命周期语义，例如 `compose`、`swarm`、`kubernetes`、`nomad`。Compose 基于 Compose Specification；Docker 和 Podman 不是 Deployment Type，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
+- `Deployment Adapter`
+  - 应用定义格式、校验与生命周期语义，例如 `compose`、`helm`、`kustomize`、`nomad-job`。Compose 基于 Compose Specification；Docker、Podman、Docker Swarm 与 Kubernetes 不是 Adapter，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
 - `Application Source`
   - 在已选择 Deployment Type 和 Runtime Target 后，取得或构建 Application Workspace 的方式；当前 Compose 可执行来源为 `blank`、`template`、`import`。`git` 仅可作为禁用的路线图卡片出现，不是当前创建方式。Source 不是 Deployment Type、Provider 或菜单对象。
 - `Runtime Target`
@@ -122,13 +122,13 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 ```text
 Application list
   -> Create Application
-  -> Deployment Type
+  -> Deployment Adapter
   -> Runtime Target
   -> Application Source
   -> Workspace / registry creation
 ```
 
-首期 Deployment Type 页展示 `Compose`（基于 Compose Specification）、`Swarm`（Docker Stack）、`Kubernetes`（Deployment/Pod）与 `Nomad`（Job）。仅 `Compose` 可点击；其它卡片必须禁用、不可键盘触发，并在 hover/focus 说明“暂不支持”。它们是产品路线图，不得生成菜单、OpenAPI catalog、Provider contract、持久化枚举值或空实现 API。
+首期 Deployment Adapter 页展示 `Compose`（基于 Compose Specification）、`Helm`、`Kustomize` 与 `Nomad Job`。仅 `Compose` 可点击；其它卡片必须禁用、不可键盘触发。它们是产品路线图，不得生成菜单、OpenAPI catalog、持久化枚举值或空实现 API。Swarm 不是 Adapter 或 Template 类型：未来它是 Compose Adapter 在具备 `docker_stack_deploy` capability 的 Docker Swarm Target 上选择的执行模式。
 
 选择 Compose 后进入 Runtime Target 页，只列出已登记、健康且具备 `compose_execution` 与 `workspace_access` capability 的 Target；当前是 Local Docker。该页复用运行目标卡片的 Provider 标识与交互，不虚构 Remote Docker、Podman 或 Containerd 卡片。随后才进入 Source：`blank`、`template`、`git`、`import`。其中 Git 必须是禁用、不可键盘触发的路线图卡片，并在 hover/focus 通过本地化 tooltip 显示“暂不支持”；它没有路由、API、创建方式枚举、持久化来源类型或占位页面。其余三个来源才取得或物化 Workspace，并进入同一 Compose Project creation pipeline。
 
@@ -136,8 +136,8 @@ UI route 的 canonical 语义固定为：
 
 | UI route | 页面和约束 |
 | --- | --- |
-| `/applications/create` | Deployment Type picker；不在 URL 中暴露 Provider hierarchy |
-| `/applications/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Type picker |
+| `/applications/create` | Deployment Adapter picker；不在 URL 中暴露 Provider hierarchy |
+| `/applications/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Adapter picker |
 | `/applications/create/source?deployment=compose&runtime_target_id=<target-id>` | Compose Source picker；无效或缺失选择回到上一步 |
 | `/applications/create/blank?deployment=compose&runtime_target_id=<target-id>` | Compose 空白 Workspace 向导 |
 | `/applications/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose 模板向导 |
@@ -407,7 +407,7 @@ web Project Activity tab
 - `id`（内部数值主键）
 - `application_id`（对外 `app_<ULID>`，不可变且唯一）
 - `display_name`
-- `application_type`
+- `deployment_adapter_kind`
   - 当前固定 `compose`
 - `compose_project_name`
 - `compose_project_name_source`
@@ -436,7 +436,7 @@ web Project Activity tab
   - `wait_after_up`
   - `prune_images_after_redeploy`
 
-上述 `application_id`、`application_type`、`source_type`、`workspace_key`、`workspace_path` 与
+上述 `application_id`、`deployment_adapter_kind`、`source_type`、`workspace_key`、`workspace_path` 与
 `compose_project_name` 是 canonical 字段。旧 `source_kind`、`canonical_project_name`、`working_directory`、
 `host_scope` 与 `relative_project_directory` 只能作为历史迁移输入被一次性搬迁，不得进入新 contract、UI 或兼容层。
 
@@ -487,7 +487,7 @@ Phase 1 推荐三张模块自有表：
 
 用途：
 
-- 通用 Application 注册真相；当前 `application_type` 固定为 `compose`
+- 通用 Application 注册真相；当前 `deployment_adapter_kind` 固定为 `compose`
 - Source / Ownership / Drift / Refresh 元数据
 
 不存：
@@ -917,7 +917,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 - `application_id`
 - `display_name`
-- `application_type`
+- `deployment_adapter_kind`
 - `compose_project_name`
 - `source_type`
 - `ownership_mode`
@@ -1860,7 +1860,7 @@ IA guardrail:
 
 ## 18. 当前来源范围与扩展口
 
-当前公开且可执行的 Deployment Type 只有 `compose`，它基于 Compose Specification，不是 Docker Provider 的同义词。Deployment Type picker 只为它提供可点击入口；Swarm、Kubernetes 与 Nomad 在各自真实 Target、Provider capability、lifecycle 和 Source adapter 落地前保持 disabled placeholder。Podman 不是 Deployment Type；它在未来作为 Compose Runtime Target Provider 接入。
+当前公开且可执行的 Deployment Adapter 只有 `compose`，它基于 Compose Specification，不是 Docker Provider 的同义词。Adapter picker 只为它提供可点击入口；Helm、Kustomize 与 Nomad Job 在真实 Target capability、lifecycle 和 source adapter 落地前保持 disabled placeholder。Podman 不是 Adapter；它在未来作为 Compose Runtime Target Provider 接入。Docker Swarm 也不是 Adapter，而是 Compose Adapter 的 `docker-stack` 执行模式。
 
 当前公开且可执行的 Compose Application Source 只有：
 

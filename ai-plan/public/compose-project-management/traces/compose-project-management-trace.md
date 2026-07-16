@@ -474,3 +474,8 @@
 - Compose Project Name 继续表示技术 deployment identity；`app_<ULID>` 继续表示公开稳定 Application ID。
 - Generic persistence authority 固定为 `applications`。历史 versioned migration SQL 没有修改；server migration
   与 implementation consumer 迁移由各自 owned slice 完成。
+
+## 2026-07-17 Deployment adapter authority repair
+
+- `deployment_adapter_kind` 是 Application 定义格式、模板定义和生命周期语义的 canonical field，当前唯一运行值为 `compose`。Provider 和 Runtime Target 不再被误称为 Application Type。
+- Adapter 目录固定为 Compose、Helm、Kustomize、Nomad Job；未实现 Adapter 只可作为不可操作路线图。Swarm 是 Compose Adapter 在具备 `docker_stack_deploy` capability 的 Docker Swarm Target 上的执行模式，不是独立选择项。
