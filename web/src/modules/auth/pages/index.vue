@@ -33,6 +33,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// 认证页只编排登录/注册视图与受限会话反馈，会话写入仍由 auth store 统一拥有。
 import { ref } from 'vue';
 
 import { MESSAGE_KEY } from '@/contracts/api/messages';

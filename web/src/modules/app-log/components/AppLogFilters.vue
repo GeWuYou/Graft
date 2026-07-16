@@ -7,6 +7,7 @@
   </advanced-query-filter-builder-frame>
 </template>
 <script setup lang="ts">
+// 筛选器只维护应用日志查询草稿，不能绕过列表页直接读取或修改服务端状态。
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 

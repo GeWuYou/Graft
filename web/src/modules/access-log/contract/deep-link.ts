@@ -44,6 +44,7 @@ const ACCESS_LOG_QUERY_KEYS = [
 ] as const;
 type AccessLogQueryKey = (typeof ACCESS_LOG_QUERY_KEYS)[number];
 
+/** 只保留已批准的日志筛选字段，避免 URL 查询参数成为第二套 API 契约。 */
 export function parseAccessLogRouteQuery(query: LocationQuery | AccessLogRouteQuery): AccessLogRouteQuery {
   return parseLogRouteQuery<AccessLogRouteQuery>(query, ACCESS_LOG_QUERY_KEYS);
 }

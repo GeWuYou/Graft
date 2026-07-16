@@ -2,6 +2,7 @@ import type { ComposerTranslation } from 'vue-i18n';
 
 import type { AppLogItem, AppLogSeverity } from '../types/app-log';
 
+/** 将应用日志字段转换为稳定的主题、关联信息和字段计数展示。 */
 export function appLogSeverityTheme(severity: AppLogSeverity) {
   switch (severity) {
     case 'error':

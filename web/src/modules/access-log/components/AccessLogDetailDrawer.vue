@@ -89,6 +89,7 @@
   </t-drawer>
 </template>
 <script setup lang="ts">
+// 详情抽屉只消费选中的访问日志并提供证据复制，不修改审计记录。
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';

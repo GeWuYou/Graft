@@ -82,6 +82,7 @@
   </section>
 </template>
 <script setup lang="ts">
+// 渲染器按服务端 widget 类型选择受控组件，未知类型进入可见的无效状态。
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 

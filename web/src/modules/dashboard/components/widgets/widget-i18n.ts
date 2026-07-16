@@ -15,6 +15,7 @@ export function hasDashboardTranslation(key?: string) {
   return translated !== key;
 }
 
+/** 优先使用稳定 i18n key，同时保留服务端展示值作为受控回退。 */
 export function resolveDashboardText(key?: string, fallback?: string, defaultText = DEFAULT_DASHBOARD_TEXT) {
   if (hasText(key)) {
     const translated = t(key);

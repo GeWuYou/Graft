@@ -63,6 +63,7 @@ function isHealthItem(value: unknown): value is DashboardHealthPayload['items'][
   return hasRequiredStrings(value, ['key', 'label_key', 'label']) && isRecord(value) && isHealthStatus(value.status);
 }
 
+// widget payload 来自后端可扩展数据，先按 widget 类型校验再交给组件渲染。
 export function asStatGroupPayload(value: unknown): DashboardStatGroupPayload | null {
   return hasValidItems(value, isStatGroupItem) ? (value as DashboardStatGroupPayload) : null;
 }

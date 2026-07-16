@@ -73,6 +73,7 @@
   </section>
 </template>
 <script setup lang="ts">
+// 首页汇总服务端摘要、widget 和壳层快捷入口；各 widget 的 payload 校验留在 widget 边界内。
 import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';

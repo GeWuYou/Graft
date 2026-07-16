@@ -3,6 +3,7 @@ import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import { RUNTIME_TARGET_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
+/** 列表是导航入口，详情作为菜单外全局路由挂在同一父路径下。 */
 export const runtimeTargetBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
     ...RUNTIME_TARGET_BOOTSTRAP_ROUTE.LIST,

@@ -39,6 +39,7 @@
   </section>
 </template>
 <script setup lang="ts">
+// 历史表格只负责 owner-scoped 任务记录的分页展示，当前任务观察生命周期由详情抽屉拥有。
 import type { TableProps } from 'tdesign-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';

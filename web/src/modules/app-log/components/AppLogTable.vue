@@ -58,6 +58,7 @@
   </advanced-query-paged-table>
 </template>
 <script setup lang="ts">
+// 表格呈现应用日志并派发选择/删除事件，批量操作的权限和请求由上层列表负责。
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';

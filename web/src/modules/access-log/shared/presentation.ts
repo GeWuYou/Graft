@@ -2,6 +2,7 @@ import type { ComposerTranslation } from 'vue-i18n';
 
 import type { AccessLogItem, AccessLogSortBy } from '../types/access-log';
 
+/** 将访问日志的原始字段归一为表格和详情面板共用的展示语义。 */
 export function buildAccessLogSortOptions(t: ComposerTranslation) {
   return [
     { label: t('accessLog.filters.sortStartedAt'), value: 'started_at' },

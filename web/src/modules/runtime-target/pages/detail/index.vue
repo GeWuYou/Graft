@@ -96,6 +96,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// 详情页展示 provider-owned 运行时投影；刷新只请求后端重新探测，不在前端改写运行时事实。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
 import { computed, defineComponent, h, onMounted, type PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';

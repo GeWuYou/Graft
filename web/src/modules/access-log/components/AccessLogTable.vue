@@ -84,6 +84,7 @@
   </advanced-query-paged-table>
 </template>
 <script setup lang="ts">
+// 表格只负责日志行的呈现与操作事件派发，不拥有查询条件或服务端数据缓存。
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';

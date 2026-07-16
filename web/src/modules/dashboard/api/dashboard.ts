@@ -18,6 +18,7 @@ type GetDashboardWidgetOperation = paths[DashboardWidgetPath]['get'];
 type GetDashboardWidgetEnvelope = GetDashboardWidgetOperation['responses'][200]['content']['application/json'];
 type GetDashboardWidgetData = NonNullable<GetDashboardWidgetEnvelope['data']>;
 
+/** 仪表盘 API 只返回服务端摘要和 widget 数据，页面不得复制成另一套契约。 */
 export function getDashboardSummary() {
   return request.get<GetDashboardSummaryData>({
     url: DASHBOARD_API_PATH.SUMMARY,

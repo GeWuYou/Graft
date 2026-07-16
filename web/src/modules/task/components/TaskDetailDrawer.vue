@@ -97,6 +97,7 @@
   </t-drawer>
 </template>
 <script setup lang="ts">
+// 任务详情抽屉消费可观察任务状态，并把取消、重试和日志查看动作交回任务 API 边界。
 import type { StepItemProps } from 'tdesign-vue-next';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
