@@ -30,6 +30,20 @@ describe('system config query cache', () => {
     });
     expect(getSystemConfigs).not.toHaveBeenCalled();
   });
+
+  it('increments the cached total when inserting a new item', () => {
+    queryClient.setQueryData(systemConfigQueryKeys.list(), {
+      items: [systemConfigItem()],
+      total: 3,
+    });
+
+    upsertSystemConfigCache(systemConfigItem({ key: 'server.http.timeout' }));
+
+    expect(queryClient.getQueryData(systemConfigQueryKeys.list())).toMatchObject({
+      total: 4,
+      items: expect.arrayContaining([expect.objectContaining({ key: 'server.http.timeout' })]),
+    });
+  });
 });
 
 function systemConfigItem(overrides: Partial<SystemConfigItem> = {}): SystemConfigItem {

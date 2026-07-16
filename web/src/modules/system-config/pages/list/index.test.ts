@@ -1273,6 +1273,46 @@ describe('system config list page', () => {
       value: expectedValue,
     });
   });
+
+  it('preserves a collapsed domain after saving a config cache update', async () => {
+    const dashboardItem = dashboardQuickActionItems()[0];
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        dashboardItem,
+        notificationConfigItem({
+          key: 'notification.enabled',
+          titleKey: 'systemConfig.notification.notification.enabled.title',
+          title: 'Notification enabled',
+          descriptionKey: 'systemConfig.notification.notification.enabled.description',
+          description: 'Enable in-app notifications.',
+          type: 'boolean',
+          configSchema: { type: 'boolean' },
+          effectiveValue: 'true',
+          defaultValue: 'true',
+          order: 130,
+        }),
+      ],
+      total: 2,
+    });
+    apiMocks.updateSystemConfig.mockResolvedValue({ ...dashboardItem, effective_value: '{"enabled":false}' });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const dashboardDomain = wrapper
+      .findAll('[data-test-id="tree-domain-toggle"]')
+      .find((node) => node.text().includes('工作台配置'));
+    expect(dashboardDomain).toBeDefined();
+    await dashboardDomain!.trigger('click');
+    expect(dashboardDomain!.attributes('data-expanded')).toBe('false');
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+    await wrapper.find('button[data-test-id="dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test-id="tree-domain-toggle"]').attributes('data-expanded')).toBe('false');
+  });
 });
 
 function mountPage() {
@@ -1444,10 +1484,30 @@ function mountPage() {
         }),
         TTree: defineComponent({
           name: 'TTree',
-          props: ['data'],
-          setup(props, { slots }) {
+          props: ['data', 'expanded'],
+          emits: ['active', 'expand'],
+          setup(props, { emit, slots }) {
             const renderNode = (node: Record<string, unknown>): VNode =>
               h('li', { 'data-tree-node': node.children ? 'domain' : 'group' }, [
+                node.children
+                  ? h(
+                      'button',
+                      {
+                        'data-expanded': String((props.expanded as unknown[]).includes(node.value)),
+                        'data-test-id': 'tree-domain-toggle',
+                        onClick: () => {
+                          const expanded = props.expanded as unknown[];
+                          emit(
+                            'expand',
+                            expanded.includes(node.value)
+                              ? expanded.filter((key) => key !== node.value)
+                              : [...expanded, node.value],
+                          );
+                        },
+                      },
+                      node.label as string,
+                    )
+                  : null,
                 slots.label?.({
                   node: {
                     data: node,

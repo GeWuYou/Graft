@@ -31,6 +31,6 @@ export function upsertSystemConfigCache(updated: SystemConfigItem) {
       items.push(updated);
     }
 
-    return { ...current, items };
+    return { ...current, items, total: index >= 0 ? current.total : current.total + 1 };
   });
 }

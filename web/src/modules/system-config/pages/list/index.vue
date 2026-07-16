@@ -48,6 +48,7 @@
             hover
             expand-on-click-node
             @active="handleTreeActive"
+            @expand="handleTreeExpand"
           >
             <template #label="{ node }">
               <span class="system-config-tree-node">
@@ -499,6 +500,7 @@ const errorMessage = computed(() =>
 );
 const activeGroupKey = ref('');
 const expandedDomainKeys = ref<TreeNodeValue[]>([]);
+let hasInitializedDomainExpansion = false;
 const groupSearchKeyword = ref('');
 const editorVisible = ref(false);
 const editingItem = ref<SystemConfigItem | null>(null);
@@ -665,7 +667,14 @@ watch(
     if (!activeGroupKey.value || !groupedConfigs.value.some((group) => group.key === activeGroupKey.value)) {
       activeGroupKey.value = groupedConfigs.value[0]?.key ?? '';
     }
-    expandedDomainKeys.value = domains.value.map((domain) => domain.key);
+    if (!hasInitializedDomainExpansion) {
+      expandedDomainKeys.value = domains.value.map((domain) => domain.key);
+      hasInitializedDomainExpansion = domains.value.length > 0;
+      return;
+    }
+
+    const domainKeys = new Set(domains.value.map((domain) => domain.key));
+    expandedDomainKeys.value = expandedDomainKeys.value.filter((key) => domainKeys.has(String(key)));
   },
   { immediate: true },
 );
@@ -679,6 +688,10 @@ function handleTreeActive(value: TreeNodeValue[]) {
   if (groupedConfigs.value.some((group) => group.key === selected)) {
     activeGroupKey.value = selected;
   }
+}
+
+function handleTreeExpand(value: TreeNodeValue[]) {
+  expandedDomainKeys.value = value;
 }
 
 function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem, previousSearchText = '') {

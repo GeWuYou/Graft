@@ -13,6 +13,7 @@ export type NormalizedPermissionFilters = Required<PermissionFilters>;
 
 export const rbacQueryKeys = {
   permissionCatalog: () => [...RBAC_QUERY_SCOPE, 'permission-catalog'] as const,
+  permissionListScope: () => [...RBAC_QUERY_SCOPE, 'permissions'] as const,
   permissionList: (filters: NormalizedPermissionFilters) => [...RBAC_QUERY_SCOPE, 'permissions', filters] as const,
   roles: () => [...RBAC_QUERY_SCOPE, 'roles'] as const,
 };
@@ -64,7 +65,11 @@ export function updateRoleListCache(updateItems: (items: RoleListItem[]) => Role
   );
 }
 
-/** 角色权限绑定会改变角色摘要，失效角色列表以恢复服务端权威数据。 */
+/** 角色权限绑定会同时改变角色摘要和权限绑定计数，失效相关快照以恢复服务端权威数据。 */
 export function invalidateRolesQuery() {
-  return queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() });
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() }),
+    queryClient.invalidateQueries({ queryKey: rbacQueryKeys.permissionCatalog() }),
+    queryClient.invalidateQueries({ queryKey: rbacQueryKeys.permissionListScope() }),
+  ]);
 }

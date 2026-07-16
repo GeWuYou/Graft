@@ -324,7 +324,7 @@ const permissionListQuery = usePermissionListQuery(
   computed(() => ({ keyword: filters.value.keyword, module: filters.value.module })),
 );
 const permissions = computed(() => permissionListQuery.data.value?.items ?? []);
-const loading = computed(() => permissionListQuery.isLoading.value);
+const loading = computed(() => permissionListQuery.isFetching.value);
 const listError = computed(() =>
   permissionListQuery.isError.value
     ? resolveLocalizedErrorMessage(t, permissionListQuery.error.value, t('rbac.permissionList.loadFailed'))

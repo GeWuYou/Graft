@@ -329,8 +329,8 @@ async function markOneRead(row: NotificationItem) {
       if (isDetailRecord) {
         await closeDetailAndConsumeRoute();
       }
-      await invalidateNotificationListQueries();
     }
+    await invalidateNotificationListQueries();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('notification.messages.markReadFailed')));
   } finally {

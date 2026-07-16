@@ -697,7 +697,7 @@ const permissionCatalogQuery = usePermissionCatalogQuery(canReadPermissions);
 const roles = computed(() => rolesQuery.data.value?.items ?? []);
 const permissions = computed(() => permissionCatalogQuery.data.value?.items ?? []);
 const loading = computed(
-  () => rolesQuery.isLoading.value || (canReadPermissions.value && permissionCatalogQuery.isLoading.value),
+  () => rolesQuery.isFetching.value || (canReadPermissions.value && permissionCatalogQuery.isFetching.value),
 );
 const listError = computed(() =>
   rolesQuery.isError.value
@@ -709,6 +709,11 @@ const permissionCatalogError = computed(() =>
     ? resolveLocalizedErrorMessage(t, permissionCatalogQuery.error.value, t('rbac.roleList.permissionLoadFailed'))
     : '',
 );
+watch(permissionCatalogError, (message) => {
+  if (message) {
+    MessagePlugin.warning(message);
+  }
+});
 const canAssignPermissions = computed(
   () => canReadPermissions.value && permissionStore.hasPermission(permissionCodes.ROLE_PERMISSION_ASSIGN),
 );

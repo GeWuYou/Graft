@@ -50,18 +50,25 @@ export function useNotificationsQuery(query: MaybeRef<NotificationListQuery>) {
   );
 }
 
-/** 将单条已读 mutation 的响应精确写回已缓存且包含该通知的列表快照。 */
+/** 将单条状态 mutation 同步到缓存，并移除已不再符合筛选条件的列表项。 */
 export function updateNotificationListCaches(updated: NotificationItem) {
-  queryClient.setQueriesData<NotificationListResponse>({ queryKey: notificationQueryKeys.lists() }, (current) => {
-    if (!current || !current.items.some((item) => item.delivery_id === updated.delivery_id)) {
-      return current;
-    }
+  for (const [queryKey, current] of queryClient.getQueriesData<NotificationListResponse>({
+    queryKey: notificationQueryKeys.lists(),
+  })) {
+    if (!current || !current.items.some((item) => item.delivery_id === updated.delivery_id)) continue;
 
-    return {
+    const query = queryKey[2] as NormalizedNotificationListQuery;
+    const items = current.items.flatMap((item) => {
+      if (item.delivery_id !== updated.delivery_id) return [item];
+      return query.status === 'unread' && updated.status !== 'unread' ? [] : [updated];
+    });
+
+    queryClient.setQueryData(queryKey, {
       ...current,
-      items: current.items.map((item) => (item.delivery_id === updated.delivery_id ? updated : item)),
-    };
-  });
+      items,
+      total: current.total - (items.length === current.items.length ? 0 : 1),
+    });
+  }
 }
 
 /** 批量或筛选结果变化时失效模块列表，避免以局部行操作伪造不完整分页快照。 */
