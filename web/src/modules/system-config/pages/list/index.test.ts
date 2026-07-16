@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref, type VNode } from 'vue';
 
 import { formatCompactDateTime } from '@/shared/components/management';
+import { queryClient } from '@/shared/query';
 
 import SystemConfigListPage from './index.vue';
 
@@ -283,6 +284,7 @@ vi.mock('vue-i18n', () => ({
 
 describe('system config list page', () => {
   beforeEach(() => {
+    queryClient.clear();
     vi.clearAllMocks();
     const items = dashboardQuickActionItems();
     apiMocks.getSystemConfigs.mockResolvedValue({

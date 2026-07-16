@@ -43,6 +43,9 @@ closeout:
   role-permission mutations invalidate the role list because the API does not return a complete updated summary.
   Permission detail loading remains an explicit drawer session request, while filters, pagination, selections, drafts,
   tabs, and drawer visibility remain page-local.
+- `system-config-query-migration` is complete: the configuration collection now uses one module-owned Query key.
+  Tree selection, search, editor visibility and drafts, saving/resetting flags, and schema validation remain page
+  local. Update and reset responses precisely replace their matching collection entries in Query cache.
 
 ## Final Non-Query Decision
 
@@ -88,14 +91,14 @@ closeout:
     "resource-detail-query-migration",
     "non-query-go-no-go",
     "notification-list-query-migration",
-    "rbac-query-migration"
+    "rbac-query-migration",
+    "system-config-query-migration"
   ],
   "pending_batches": [
-    "system-config-query-migration",
     "remaining-query-no-go-review"
   ],
   "current_batch": null,
-  "next_batch": "system-config-query-migration",
+  "next_batch": "remaining-query-no-go-review",
   "closeout_status": "active"
 }
 ```

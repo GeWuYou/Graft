@@ -81,3 +81,14 @@
 - Reference: [Query keys](https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys),
   [updates from mutation responses](https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses),
   and [query invalidation](https://tanstack.com/query/latest/docs/framework/vue/guides/query-invalidation).
+
+## 2026-07-16 System Config Query Migration
+
+- Migrated the system-config collection from page-local `items`, `loading`, and error state to the module-owned
+  `systemConfigQueryKeys.list()` Query snapshot. Its query function calls only the existing `getSystemConfigs` module
+  API wrapper.
+- Group search and selection, expanded tree nodes, editor visibility and drafts, schema validation, and saving/reset
+  flags remain page-local. Update and reset API responses precisely replace the matching cached item, rather than
+  retaining a second mutable collection in the page.
+- Reference: [TanStack Query keys](https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys) and
+  [updates from mutation responses](https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses).

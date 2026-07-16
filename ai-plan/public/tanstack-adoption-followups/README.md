@@ -36,8 +36,9 @@ Out of scope:
 - The final `non-query-go-no-go` batch remains valid: Table, Virtual, Form, and Router are deliberately unadopted.
 - The reopened `notification-list-query-migration` and `rbac-query-migration` batches are complete. RBAC role lists,
   role-editor permission catalogs, and filtered permission lists are module-owned Query state; filters, pagination,
-  drawers, drafts, selections, and detail sessions remain local. Pending batches are `system-config-query-migration`
-  and `remaining-query-no-go-review`.
+  drawers, drafts, selections, and detail sessions remain local. The system-config collection is now a module-owned
+  Query snapshot; group search and selection, editor drafts, visibility, and mutation flags remain local. The only
+  pending batch is `remaining-query-no-go-review`.
 
 ## Non-Query Decision
 
