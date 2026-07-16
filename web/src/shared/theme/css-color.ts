@@ -138,7 +138,7 @@ function parseSrgbColor(value: string): ParsedCssColor | null {
   );
 }
 
-/** 先处理无须浏览器的颜色语法，再用 DOM 解析命名色等浏览器支持的格式。 */
+/** 先处理无须浏览器的颜色语法；浏览器专属颜色在 SSR、测试或无 DOM 环境中明确返回 `null`。 */
 export function normalizeCssColorValue(value: string) {
   const trimmed = value.trim();
 
@@ -184,7 +184,7 @@ export function normalizeCssColorValue(value: string) {
   return resolved || null;
 }
 
-/** 解析常见颜色语法，并在必要时借助浏览器计算样式把可识别颜色转为结构化结果。 */
+/** 将稳定可解析的颜色语法转换为结构化结果，命名色等浏览器格式交由 DOM 解析后再转换。 */
 export function parseResolvedCssColor(value: string) {
   const trimmed = value.trim();
 
