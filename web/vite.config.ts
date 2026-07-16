@@ -125,8 +125,7 @@ export function createViteConfig(mode: string): UserConfig {
   return {
     base,
     build: {
-      // Monaco and YAML worker code is intentionally isolated into a dedicated vendor chunk.
-      // Keep the warning visible for unusually large bundles while allowing the current Monaco split.
+      // Monaco 与 YAML worker 代码需独立成 vendor chunk；当前拆分会产生较大包体，因此保留可见的体积告警并提高阈值。
       chunkSizeWarningLimit: 3900,
       rollupOptions: {
         onwarn(warning, warn) {
