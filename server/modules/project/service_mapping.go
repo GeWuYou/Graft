@@ -24,11 +24,7 @@ func sameWorkingDirectory(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
-// toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
-// toProjectListItemWithManagedRoot 将项目聚合及运行时信息转换为项目列表项。
-//
-// toProjectListItemWithManagedRoot 将项目聚合数据转换为包含来源、工作区、服务、容器、运行时和漂移信息的项目列表项。
-// 返回生成的项目列表项。
+// toProjectListItemWithManagedRoot 将项目聚合数据转换为项目列表项，并在可用时补充运行时容器摘要。
 func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -45,7 +41,7 @@ func toProjectListItemWithManagedRoot(
 		DisplayName:              aggregate.Project.DisplayName,
 		ComposeProjectName:       nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
 		ComposeProjectNameSource: generated.ProjectCanonicalNameSource(nonEmptyString(aggregate.Project.ComposeProjectNameSource, aggregate.Project.CanonicalProjectNameSource)),
-		ApplicationName:             aggregate.Project.ApplicationName,
+		ApplicationName:          aggregate.Project.ApplicationName,
 		SourceKind:               generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		LifecycleReviewStatus:    generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		SourceMetadata:           buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
@@ -72,8 +68,7 @@ func toProjectDetailResponse(
 	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary, runtimeErr)
 }
 
-// toProjectDetailResponseWithManagedRoot builds a detailed project response, including
-// toProjectDetailResponseWithManagedRoot 将项目聚合数据转换为项目详情响应，并包含生命周期配置、文件信息、运行时状态及托管根目录来源元数据。
+// toProjectDetailResponseWithManagedRoot 将项目聚合数据转换为详情响应，并包含生命周期配置、文件、运行时状态及托管根目录来源元数据。
 func toProjectDetailResponseWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
@@ -100,7 +95,7 @@ func toProjectDetailResponseWithManagedRoot(
 		SourceMetadata:           buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:        generated.ProjectActivityAuthority(resolveActivityAuthority()),
 		WorkspacePath:            aggregate.Project.WorkspacePath,
-		ApplicationName:             aggregate.Project.ApplicationName,
+		ApplicationName:          aggregate.Project.ApplicationName,
 	}
 	if aggregate.Project.LastObservedConfigHash != "" {
 		item.LastObservedConfigHash = stringPointer(aggregate.Project.LastObservedConfigHash)
@@ -230,8 +225,6 @@ func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
 	return base
 }
 
-// buildLifecycleUpArgv 构建用于启动 Compose 服务的命令参数，并根据标准配置添加相应选项。
-// buildLifecycleUpArgv 构建 Compose 后台启动命令的参数列表，并根据标准配置追加可选选项。
 // buildLifecycleUpArgv 构建用于后台启动 Compose 服务的命令参数列表，并包含配置的启动选项及附加参数。
 func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []string {
 	args := append(append([]string(nil), base...), "up", "-d")
@@ -280,7 +273,7 @@ func toGeneratedFiles(files []projectstore.ProjectFile) []generated.ProjectFileI
 	return items
 }
 
-// 将 compose 投影文件转换为生成的项目文件项列表。
+// toGeneratedFilesFromCompose 将 Compose 投影文件转换为生成的项目文件项列表。
 func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []generated.ProjectFileItem {
 	items := make([]generated.ProjectFileItem, 0, len(files))
 	for index, item := range files {
@@ -314,9 +307,8 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 	return items
 }
 
-// 返回的文件先按 OrderIndex 升序排列，OrderIndex 相同时按 ID 升序排列。
+// filterFiles 按文件类型筛选记录，并按 OrderIndex、ID 稳定排序，以保持 API 文件列表与 Compose 参数顺序一致。
 func filterFiles(files []projectstore.ProjectFile, kind string) []projectstore.ProjectFile {
-	// 过滤结果按顺序字段稳定排序，确保 API 文件列表与 Compose 参数顺序一致。
 	items := make([]projectstore.ProjectFile, 0)
 	for _, item := range files {
 		if item.Kind == kind {
@@ -368,18 +360,12 @@ func normalizeSnapshotJSON(raw []byte) []byte {
 	return encoded
 }
 
-// yamlJSONRoundTrip 将 JSON 数据解析到目标值。
-//
-// @param raw 要解析的数据。
-// @param target 接收解析结果的目标值。
-// @returns 解析过程中返回的错误。
+// yamlJSONRoundTrip 将 JSON 数据解析到目标值，并返回解析错误。
 func yamlJSONRoundTrip(raw []byte, target any) error {
 	return json.Unmarshal(raw, target)
 }
 
-// digestServiceNames 计算服务名称集合的稳定摘要。
-// digestServiceNames 对服务名按字典序排序后计算摘要。
-// 返回排序后的名称序列对应的 SHA-256 十六进制字符串。
+// digestServiceNames 按字典序排列服务名后计算稳定的 SHA-256 十六进制摘要。
 func digestServiceNames(names []string) string {
 	normalized := append([]string(nil), names...)
 	sort.Strings(normalized)
@@ -399,10 +385,7 @@ func mustWriteDigestFragment(writer io.Writer, value []byte) {
 	}
 }
 
-// buildRefreshProjectInput 组装项目刷新持久化输入，包含刷新状态、快照、文件与操作者信息。
-// buildRefreshProjectInput 构建用于刷新项目存储记录的输入。
-// buildRefreshProjectInput 构建项目刷新持久化输入，包含配置文件、归一化快照、服务摘要、漂移状态及操作者信息。
-// 返回的输入将漂移状态标记为干净，并记录配置哈希与刷新时间。
+// buildRefreshProjectInput 构建项目刷新持久化输入，记录配置文件、归一化快照、服务摘要、干净的漂移状态、配置哈希、刷新时间和操作者。
 func buildRefreshProjectInput(
 	projectID uint64,
 	parseResult projectcompose.Result,
@@ -447,9 +430,7 @@ func normalizeTextBlock(value string) string {
 	return joined + "\n"
 }
 
-// nonEmptyString 在 primary 为空白时返回 fallback。
-//
-// @return primary 经修剪后非空时返回其原值；否则返回 fallback。
+// nonEmptyString 返回去除首尾空白后的 primary；若其为空则返回 fallback。
 func nonEmptyString(primary string, fallback string) string {
 	if strings.TrimSpace(primary) != "" {
 		return primary
@@ -457,9 +438,7 @@ func nonEmptyString(primary string, fallback string) string {
 	return fallback
 }
 
-// stringPointer 返回一个指向非空白字符串的指针。
-//
-// 如果输入经修剪后为空，则返回 nil。
+// stringPointer 返回去除首尾空白后的字符串指针；输入为空白时返回 nil。
 func stringPointer(value string) *string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -481,7 +460,7 @@ func stringValue(value *string) string {
 	return *value
 }
 
-// mapManagedCreationMethodAvailability maps managed-root status to creation-method availability.
+// mapManagedCreationMethodAvailability 将托管根状态映射为创建方式可用性。
 func mapManagedCreationMethodAvailability(status string) string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
@@ -508,9 +487,7 @@ func managedRootCreationBlockedReason(status string) *string {
 	}
 }
 
-// toGeneratedSourceMetadata 将源元数据映射为生成的项目来源元数据。
-//
-// toGeneratedSourceMetadata 将已知来源元数据字段转换为生成的来源元数据；没有可映射的字段时返回 nil。
+// toGeneratedSourceMetadata 将已知来源元数据字段转换为生成的项目来源元数据；没有可映射字段时返回 nil。
 func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
 	if len(metadata) == 0 {
 		return nil
@@ -539,8 +516,7 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 	*target = &value
 }
 
-// buildListSourceMetadataWithManagedRoot 为项目列表构建来源元数据。
-// buildListSourceMetadataWithManagedRoot 构建项目列表中的来源元数据；优先使用项目已存储的可映射元数据，托管来源在缺少该元数据时根据托管根目录生成，否则返回 nil。
+// buildListSourceMetadataWithManagedRoot 构建项目列表来源元数据，优先使用已存储字段，并在托管来源缺少字段时根据托管根目录补充。
 func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
 		return metadata
@@ -553,9 +529,7 @@ func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggreg
 	}
 }
 
-// buildDetailSourceMetadataWithManagedRoot 返回项目详情来源元数据。
-// buildDetailSourceMetadataWithManagedRoot 构建项目详情的来源元数据；优先使用项目中可映射的来源信息，并为托管来源补充托管根目录元数据。
-// 如果无法生成来源元数据，则返回 nil。
+// buildDetailSourceMetadataWithManagedRoot 构建项目详情来源元数据，优先使用已存储来源信息，并为托管来源补充托管根目录信息；无法生成时返回 nil。
 func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
 		return metadata
@@ -568,13 +542,7 @@ func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggr
 	}
 }
 
-// buildManagedSourceMetadata 生成托管项目的来源元数据。
-// buildManagedSourceMetadata 构建托管项目的来源元数据，包含托管根标识、相对目录以及已登记的 Compose 和环境文件名。// @param aggregate 项目聚合数据。
-// @param managedRootDirectory 托管根目录。
-// buildManagedSourceMetadata 为托管项目构建来源元数据。
-// @param aggregate 项目聚合数据。
-// @param managedRootDirectory 托管根目录。
-// @returns 托管项目的来源元数据。
+// buildManagedSourceMetadata 为托管项目构建来源元数据，包含托管根标识、相对目录及已登记的 Compose 和环境文件名。
 func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
@@ -656,8 +624,7 @@ func uniqueStrings(items []string) []string {
 }
 
 // normalizeListLimit 将列表限制值规范到默认值或最大值范围内。
-//
-// @returns 规范后的列表限制值：当输入小于等于 0 时返回默认值，超过最大值时返回最大值，否则返回原值。
+// 规范后的值在输入小于等于 0 时取默认值，超过最大值时取最大值，否则保留原值。
 func normalizeListLimit(value int) int {
 	switch {
 	case value <= 0:

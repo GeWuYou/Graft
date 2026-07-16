@@ -75,15 +75,14 @@ func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImpo
 	return members
 }
 
-// toCreationMethodCatalogResponse converts creation-method availability into an OpenAPI response.
+// toCreationMethodCatalogResponse 将创建方式可用性转换为 OpenAPI 响应。
 func toCreationMethodCatalogResponse(result CreationMethodCatalogResult) generated.ProjectCreationMethodCatalogResponse {
 	return generated.ProjectCreationMethodCatalogResponse{
 		Items: append([]generated.ProjectCreationMethod(nil), result.Items...),
 	}
 }
 
-// toDiscoveryCandidatesResponse 将内部发现候选结果转换为 OpenAPI 响应。
-// toDiscoveryCandidatesResponse 将发现候选结果转换为 OpenAPI 发现候选响应，并保留候选项及结果级的可选字段。
+// toDiscoveryCandidatesResponse 将发现候选结果转换为 OpenAPI 响应，并保留候选项及结果级可选字段。
 func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.ProjectDiscoveryCandidatesResponse {
 	items := make([]generated.ProjectDiscoveryCandidate, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -203,8 +202,7 @@ func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) ge
 	}
 }
 
-// lifecycleStandardConfigFromGenerated converts a generated lifecycle configuration request to a standard lifecycle configuration.
-// It returns an error when the requested strategy kind is not standard.
+// lifecycleStandardConfigFromGenerated 将生成的生命周期配置请求转换为标准配置；策略类型不是 standard 时返回错误。
 func lifecycleStandardConfigFromGenerated(config generated.ProjectLifecycleConfigurationRequest) (LifecycleStandardConfig, error) {
 	if config.StrategyKind != generated.ProjectLifecycleStrategyKindStandard {
 		return LifecycleStandardConfig{}, errProjectInvalidArgument
@@ -279,7 +277,6 @@ func toConfigurationMetadataResponse(result ConfigurationMetadataResult) generat
 }
 
 // toConfigurationPreviewResponse 将配置预览结果转换为项目配置预览响应。
-//
 // ProjectId 通过 mustGeneratedID 转换，其余字段按原样复制。
 func toConfigurationPreviewResponse(result ConfigurationPreviewResult) generated.ProjectConfigurationPreviewResponse {
 	return generated.ProjectConfigurationPreviewResponse{
@@ -419,9 +416,7 @@ func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 	return response
 }
 
-// toTaskReceiptResponse exposes the accepted Task Runtime receipt on Project
-// toTaskReceiptResponse 从操作结果的守卫结果中提取有效的任务 ID。
-// 找到正整数任务 ID 时返回包含该 ID 的待处理回执，否则返回不含任务 ID 的待处理回执。
+// toTaskReceiptResponse 从操作结果的守卫结果中提取正整数任务 ID，构建待处理任务回执；未找到时仅返回待处理状态。
 func toTaskReceiptResponse(result ActionResult) generated.TaskReceipt {
 	for _, guard := range result.GuardResults {
 		if guard.Code != "task_id" || guard.Detail == nil {
@@ -482,10 +477,7 @@ func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult
 	return result
 }
 
-// toManagedRootResponse 将托管根信息转换为项目托管根响应。
-//
-// toManagedRootResponse 将托管根目录信息转换为 OpenAPI 响应。
-// 可用时包含已配置的根目录和状态原因。
+// toManagedRootResponse 将托管根目录信息转换为 OpenAPI 响应，并在可用时附带配置目录和状态原因。
 func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
 	response := generated.ProjectManagedRootResponse{
 		SourceType:            generated.ProjectSourceKind(info.SourceType),
@@ -504,9 +496,7 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 	return response
 }
 
-// toManagedCreateValidateResponse 将托管项目创建校验结果映射为创建校验响应。
-// toManagedCreateValidateResponse 将托管项目创建校验结果转换为生成的创建校验响应。
-// toManagedCreateValidateResponse 将托管项目创建校验结果转换为项目创建校验响应，并包含可选的环境文件信息、源元数据和警告列表。
+// toManagedCreateValidateResponse 将托管项目创建校验结果转换为项目创建校验响应，并包含可选的环境文件、来源元数据和告警。
 func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
 	response := generated.ProjectCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
@@ -535,12 +525,7 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 	return response
 }
 
-// toManagedCreateResponse 将托管项目创建结果转换为创建响应。
-// toManagedCreateResponse 将托管项目创建结果转换为创建响应，并包含项目快照摘要及可选的环境文件、源元数据和警告。
-// @param result 托管项目创建结果。
-// toManagedCreateResponse 将托管项目创建结果转换为项目创建响应。
-//
-// toManagedCreateResponse 将托管项目创建结果转换为项目创建响应，包含创建结果、项目配置快照及可选环境文件、来源元数据和警告信息。
+// toManagedCreateResponse 将托管项目创建结果转换为项目创建响应，包含创建结果、配置快照及可选环境文件、来源元数据和告警。
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
@@ -605,7 +590,6 @@ type managedCreateEntriesHTTPParts struct {
 	reuseExistingWorkspace bool
 }
 
-// managedCreateRequestFromEntries builds a managed project creation request from workspace entries and lifecycle configuration.
 // managedCreateRequestFromEntries 将工作区条目转换为托管项目创建请求，并提取 Compose 文件内容。
 // 当 Compose 文件路径无效、工作区条目无效、Compose 文件缺失或生命周期配置无效时返回错误。
 func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (ManagedProjectCreateRequest, error) {
@@ -646,8 +630,7 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 	return request, nil
 }
 
-// managedWorkspaceEntryFromGenerated validates and converts a generated workspace entry into its internal representation.
-// It normalizes the path and requires file entries to include content while directory entries must omit it.
+// managedWorkspaceEntryFromGenerated 将生成的工作区条目转换为内部表示；文件必须包含内容，目录必须省略内容。
 func managedWorkspaceEntryFromGenerated(entry generated.ProjectWorkspaceEntry) (ManagedWorkspaceEntry, error) {
 	path, err := normalizeManagedWorkspacePath(entry.Path)
 	if err != nil {
@@ -694,8 +677,7 @@ func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityRes
 	return response
 }
 
-// runtimeTargetIDFromGenerated validates and converts a generated runtime target identifier.
-// It returns an error when the identifier is less than 1.
+// runtimeTargetIDFromGenerated 校验并转换运行时目标标识；标识小于 1 时返回参数错误。
 func runtimeTargetIDFromGenerated(value int64) (uint64, error) {
 	if value < 1 {
 		return 0, errProjectInvalidArgument
@@ -794,9 +776,7 @@ func optionalRFC3339Time(value string) *time.Time {
 }
 
 // optionalStringSlice 在切片非空时返回其拷贝指针。
-//
-// @param items 要包装的字符串切片。
-// @returns 切片为空时返回 nil；否则返回一个包含原始内容拷贝的字符串切片指针。
+// items 为空时返回 nil，否则返回其底层数据拷贝的指针。
 func optionalStringSlice(items []string) *[]string {
 	if len(items) == 0 {
 		return nil

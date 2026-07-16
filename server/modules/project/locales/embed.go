@@ -1,5 +1,4 @@
-// Package locales exposes read-only embedded locale descriptors for the project
-// module.
+// Package locales 提供 project 模块只读的内嵌语言资源描述。
 package locales
 
 import (
