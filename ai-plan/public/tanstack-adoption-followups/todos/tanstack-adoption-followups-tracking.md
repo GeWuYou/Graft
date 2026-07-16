@@ -46,6 +46,13 @@ closeout:
 - `system-config-query-migration` is complete: the configuration collection now uses one module-owned Query key.
   Tree selection, search, editor visibility and drafts, saving/resetting flags, and schema validation remain page
   local. Update and reset responses precisely replace their matching collection entries in Query cache.
+- `remaining-query-no-go-review` is complete. No additional migration met the topic's independent non-streaming
+  snapshot threshold. Runtime-target list data is reconciled from a realtime topic; runtime-target detail refreshes
+  provider-owned health/resource state. Container and project pages coordinate realtime topics, command refreshes,
+  log batches, or workspace/editor sessions. Scheduled-task list/detail/runs shares pagination, per-row run-history
+  enrichment, mutations, and active drawer sessions. The notification bell deliberately refreshes a short unread
+  preview only while visible, and project-create targets/methods are route-scoped setup choices. These remain local
+  lifecycle state rather than a second Query migration target.
 
 ## Final Non-Query Decision
 
@@ -79,6 +86,10 @@ closeout:
   drafts, streams, and other UI-local concerns remain outside Query cache.
 - Passed on 2026-07-16: non-Query tools have an explicit no-go decision. Any future adoption is gated by written
   evidence, measurable acceptance criteria, and rollback.
+- Passed on 2026-07-16: the final remaining-surface review found no safe, high-value Query candidate. A future
+  proposal must first isolate an API snapshot from its realtime, refresh, command, or interaction-session owner and
+  then define a normalized key, invalidation/update path, and a test that proves cache ownership without retaining a
+  duplicate local snapshot.
 - The Work Contract sets `closeout.archive: false`; retain this topic in place as `archive-ready` and do not change
   `ai-plan/public/README.md` or move the topic directory.
 
@@ -92,13 +103,12 @@ closeout:
     "non-query-go-no-go",
     "notification-list-query-migration",
     "rbac-query-migration",
-    "system-config-query-migration"
-  ],
-  "pending_batches": [
+    "system-config-query-migration",
     "remaining-query-no-go-review"
   ],
+  "pending_batches": [],
   "current_batch": null,
-  "next_batch": "remaining-query-no-go-review",
-  "closeout_status": "active"
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

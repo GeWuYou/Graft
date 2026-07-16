@@ -92,3 +92,19 @@
   retaining a second mutable collection in the page.
 - Reference: [TanStack Query keys](https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys) and
   [updates from mutation responses](https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses).
+
+## 2026-07-16 Remaining Query Surface Review And Archive Readiness
+
+- Audited runtime-target, scheduled-task, task/log viewer, notification-bell, project, and container surfaces after
+  the P1 migrations. No further independent non-streaming snapshot justified a Query migration.
+- Runtime-target list uses a realtime topic to reconcile the current page, while its detail refresh is a
+  provider-owned health/resource refresh command. Container and project list/detail surfaces coordinate realtime
+  topics, command refreshes, log snapshot batching, or workspace/editor drafts. Caching these pages would blur the
+  existing update and session authority.
+- Scheduled-task list/detail/runs is intentionally one interaction flow: the list enriches rows with per-task run
+  histories and mutations synchronize active detail/edit drawers. Notification bell state is a visible-only unread
+  preview that explicitly refreshes on opening or header events. Project-create target and method responses are
+  route-scoped setup choices. None provides a durable shared snapshot that benefits from Query ownership.
+- The topic is `archive-ready`. The Work Contract remains `closeout.archive: false`, so it stays in place and no
+  public-topic index entry is moved. Future work must establish a separate normalized snapshot boundary, mutation or
+  invalidation policy, and a regression test before revisiting any of these no-go surfaces.

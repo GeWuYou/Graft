@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: complete only evidence-backed medium-risk TanStack Query migrations after the P0 rollout.
-- Current status: `active` (reopened after evidence audit identified additional bounded list snapshots).
+- Current status: `archive-ready` (all evidence-backed P1 Query batches and the final remaining-surface review are complete).
 - Task class: `web`.
 - Intake summary: long-running frontend architecture evolution with shared guidance and bounded module batches.
 - Canonical authority:
@@ -38,7 +38,11 @@ Out of scope:
   role-editor permission catalogs, and filtered permission lists are module-owned Query state; filters, pagination,
   drawers, drafts, selections, and detail sessions remain local. The system-config collection is now a module-owned
   Query snapshot; group search and selection, editor drafts, visibility, and mutation flags remain local. The only
-  pending batch is `remaining-query-no-go-review`.
+  remaining-surface audit is also complete. Runtime-target, container, project, scheduled-task, task/log viewer, and
+  notification-bell surfaces did not provide another independent cache candidate: their snapshots are coupled to
+  realtime subscriptions, refresh/command protocols, editor or drawer sessions, or intentionally fresh ephemeral
+  interactions. Project creation target/method selections are route-scoped setup sessions, so caching them would not
+  improve a stable shared server-state boundary.
 
 ## Non-Query Decision
 
