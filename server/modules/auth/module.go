@@ -15,8 +15,7 @@ import (
 // Module 是 auth 模块的认证与会话生命周期运行时入口。
 type Module struct{ client *authent.Client }
 
-// NewModule 创建 auth 模块实例。
-// 如果提供客户端，则使用第一个客户端初始化模块。
+// NewModule 创建 auth 模块实例；客户端由模块规格的 Builder 注入，缺失客户端时 Register 会拒绝启动。
 func NewModule(client ...*authent.Client) *Module {
 	module := &Module{}
 	if len(client) > 0 {
@@ -107,7 +106,7 @@ func (p *Module) Boot(ctx *module.Context) error {
 	return ensureDefaultAdmin(ctx.LifecycleContext, ctx.I18n, credentials, identity, rbacBootstrap, ctx.PermissionRegistry.Items())
 }
 
-// Shutdown 当前没有额外资源需要释放。
+// Shutdown 释放 auth 不拥有的资源；数据库客户端生命周期由模块运行时统一管理。
 func (p *Module) Shutdown(_ *module.Context) error {
 	return nil
 }

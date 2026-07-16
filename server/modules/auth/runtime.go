@@ -16,53 +16,53 @@ import (
 )
 
 var (
-	// ErrTokenSigningKeyRequired 表示未配置 token 签名密钥。
+	// ErrTokenSigningKeyRequired 表示 token manager 无法在没有签名密钥时安全启动。
 	ErrTokenSigningKeyRequired = errors.New("token signing key is required")
-	// ErrSessionIDRequired 表示 token 必须包含会话标识。
+	// ErrSessionIDRequired 表示 access/refresh token 必须绑定服务端 session。
 	ErrSessionIDRequired = errors.New("session id is required")
-	// ErrTokenIDRequired 表示 refresh token 必须包含 token 标识。
+	// ErrTokenIDRequired 表示 refresh token 必须包含用于轮换和吊销的唯一 token 标识。
 	ErrTokenIDRequired = errors.New("token id is required")
-	// ErrInvalidAccessToken 表示 access token 格式错误或校验无效。
+	// ErrInvalidAccessToken 表示 access token 格式、签名或 claims 校验失败。
 	ErrInvalidAccessToken = errors.New("invalid access token")
-	// ErrExpiredAccessToken 表示 access token 已过期。
+	// ErrExpiredAccessToken 表示 access token 已过期，调用方应重新认证或刷新会话。
 	ErrExpiredAccessToken = errors.New("expired access token")
-	// ErrRefreshTokenRequired 表示请求必须提供 refresh token。
+	// ErrRefreshTokenRequired 表示 refresh 流程未从请求中取得 token。
 	ErrRefreshTokenRequired = errors.New("refresh token is required")
-	// ErrInvalidRefreshToken 表示 refresh token 格式错误或校验无效。
+	// ErrInvalidRefreshToken 表示 refresh token 格式、签名、claims 或服务端 session 校验失败。
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-	// ErrExpiredRefreshToken 表示 refresh token 已过期。
+	// ErrExpiredRefreshToken 表示 refresh token 已过期，不能继续轮换 session。
 	ErrExpiredRefreshToken = errors.New("expired refresh token")
 )
 
-// AccessTokenSubject 是签发单个 access token 所需的最小主体信息。
+// AccessTokenSubject 描述 access token 的用户和服务端 session 绑定关系。
 type AccessTokenSubject struct {
 	UserID       uint64
 	SessionID    string
 	TokenVersion int
 }
 
-// RefreshTokenSubject 是签发单个 refresh token 所需的最小主体信息。
+// RefreshTokenSubject 描述 refresh token 的用户、session 和轮换标识；TokenID 用于服务端吊销状态关联。
 type RefreshTokenSubject struct {
 	UserID    uint64
 	SessionID string
 	TokenID   string
 }
 
-// AccessTokenManager 负责 auth 所有 access token 的签发与解析。
+// AccessTokenManager 负责 access token 的签发与解析；Parse 只验证 JWT，不替代服务端 session 状态校验。
 type AccessTokenManager struct {
 	secret []byte
 	ttl    time.Duration
 	now    func() time.Time
 }
 
-// RefreshTokenManager 负责 auth 所有 refresh token 的签发与解析。
+// RefreshTokenManager 负责 refresh token 的签发与解析；有效 token 仍须由 auth service 对照持久化 session 校验。
 type RefreshTokenManager struct {
 	secret []byte
 	ttl    time.Duration
 	now    func() time.Time
 }
 
-// CookieManager 负责 refresh cookie 的读取、写入和清除语义。
+// CookieManager 统一 refresh token 的 HttpOnly cookie 行为，包含路径、Secure、SameSite 和过期清除策略。
 type CookieManager struct {
 	name     string
 	path     string
@@ -122,7 +122,7 @@ func NewRefreshTokenManager(auth config.AuthConfig) (*RefreshTokenManager, error
 	}, nil
 }
 
-// NewCookieManager 根据认证配置创建 refresh cookie 管理器。
+// NewCookieManager 根据认证配置创建 refresh cookie 管理器；未识别的 SameSite 值回退为 Lax。
 func NewCookieManager(auth config.AuthConfig) CookieManager {
 	return CookieManager{
 		name:     auth.RefreshCookieName,
@@ -282,7 +282,7 @@ func (m *RefreshTokenManager) Parse(token string) (*RefreshTokenSubject, error) 
 	}, nil
 }
 
-// WriteRefreshCookie 写入当前 refresh token cookie。
+// WriteRefreshCookie 以 HttpOnly cookie 写入 refresh token，并使用 token 到期时间计算 cookie 生命周期。
 func (m CookieManager) WriteRefreshCookie(ctx *gin.Context, token string, expiresAt time.Time) {
 	if ctx == nil {
 		return
@@ -300,7 +300,7 @@ func (m CookieManager) WriteRefreshCookie(ctx *gin.Context, token string, expire
 	)
 }
 
-// ClearRefreshCookie 清除当前 refresh token cookie。
+// ClearRefreshCookie 通过同名、同路径的过期 cookie 清除 refresh token。
 func (m CookieManager) ClearRefreshCookie(ctx *gin.Context) {
 	if ctx == nil {
 		return
@@ -318,7 +318,7 @@ func (m CookieManager) ClearRefreshCookie(ctx *gin.Context) {
 	)
 }
 
-// ReadRefreshCookie 读取当前 refresh token cookie；cookie 缺失时返回 refresh token 必填错误。
+// ReadRefreshCookie 读取并裁剪 refresh cookie；缺失、空值或 nil 请求上下文统一返回 ErrRefreshTokenRequired。
 func (m CookieManager) ReadRefreshCookie(ctx *gin.Context) (string, error) {
 	if ctx == nil {
 		return "", ErrRefreshTokenRequired

@@ -13,8 +13,8 @@ import (
 	authstore "graft/server/modules/auth/store"
 )
 
-// ensureDefaultAdmin 确保默认管理员账户、凭据及其 RBAC 权限已完成配置。
-// 缺少必要依赖、配置账户或权限失败时返回错误。
+// ensureDefaultAdmin 按 user 提供的 profile identity 初始化 auth credential，再向 RBAC 写入默认访问权限。
+// 该流程允许重复执行，但不会覆盖已变更的默认管理员密码；依赖或本地化权限资源缺失时返回错误。
 func ensureDefaultAdmin(ctx context.Context, localizer *i18n.Service, credentials authstore.CredentialStore, identity moduleapi.UserIdentityProvider, rbac moduleapi.RBACBootstrapService, permissions []permission.Item) error {
 	if credentials == nil || identity == nil {
 		return errors.New("auth default-admin dependencies are unavailable")
@@ -86,10 +86,7 @@ func requireDefaultAdminPasswordChange(ctx context.Context, credentials authstor
 	return nil
 }
 
-// permissionSeedsFromItems 根据权限条目构建包含本地化显示文本和描述的权限种子。
-// 如果本地化服务缺失、显示文案键为空或对应资源未注册，则返回错误。
-//
-// 返回构建的权限种子列表及可能发生的错误。
+// permissionSeedsFromItems 将权限注册项转换为 RBAC bootstrap 所需的本地化种子；缺少稳定显示键或资源时拒绝引导。
 func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) ([]moduleapi.PermissionSeed, error) {
 	if localizer == nil {
 		return nil, errors.New("permission seed localization requires i18n service")

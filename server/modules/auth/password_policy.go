@@ -15,12 +15,11 @@ const (
 
 type passwordPolicy struct{}
 
-// newPasswordPolicy 返回一个零值的 passwordPolicy。
 func newPasswordPolicy() passwordPolicy {
 	return passwordPolicy{}
 }
 
-// ValidateNewPassword 校验一次新密码是否满足当前 MVP 固定策略。
+// ValidateNewPassword 校验密码长度、字母和数字组成，并拒绝使用默认管理员密码。
 func (passwordPolicy) ValidateNewPassword(newPassword string) error {
 	if newPassword == defaultAdminPassword {
 		return errPasswordReuseForbidden

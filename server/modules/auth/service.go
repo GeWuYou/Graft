@@ -10,8 +10,7 @@ import (
 	authstore "graft/server/modules/auth/store"
 )
 
-// authService 承担认证运行时职责。用户模块仍拥有 profile identity authority，
-// credential 与 refresh-session 持久化则由 auth 通过窄化 store 接口负责。
+// authService 承担认证运行时职责：user 模块提供 profile identity，auth 通过窄化 store 接口拥有 credential 与 refresh session 状态。
 type authService struct {
 	credentials     authstore.CredentialStore
 	sessions        authstore.SessionStore

@@ -14,7 +14,7 @@ import (
 	authstore "graft/server/modules/auth/store"
 )
 
-// ResetDefaultAdminForDevelopment 仅在 local/test 环境恢复默认管理员的凭据、会话和默认访问权限。
+// ResetDefaultAdminForDevelopment 仅在 local/test 环境恢复默认管理员 credential、吊销 session 并重建默认访问权限；生产环境调用会被拒绝。
 func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService, permissions []permission.Item) error {
 	if !isDevelopmentResetEnv(os.Getenv("GRAFT_APP_ENV")) {
 		return fmt.Errorf("reset default admin is only available in local/test environments, got %q", strings.TrimSpace(os.Getenv("GRAFT_APP_ENV")))

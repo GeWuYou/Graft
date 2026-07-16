@@ -96,7 +96,7 @@ func (s authService) LoginWithRefresh(ctx context.Context, username string, pass
 	}, nil
 }
 
-// RefreshWithRotation 校验 refresh token 并完成一次会话轮换。
+// RefreshWithRotation 校验 refresh token 与服务端 session，并原子轮换 session；旧 token 和其 access token 随后不可继续使用。
 func (s authService) RefreshWithRotation(ctx context.Context, refreshToken string) (refreshResult, error) {
 	if err := s.ensureRefreshDependencies(); err != nil {
 		return refreshResult{}, err
@@ -129,7 +129,7 @@ func (s authService) RefreshWithRotation(ctx context.Context, refreshToken strin
 	return s.issueRefreshRotationResult(record, credential, nextSession)
 }
 
-// LogoutCurrentSession 读取当前 refresh token 对应的会话并吊销它。
+// LogoutCurrentSession 吊销 refresh token 对应的服务端 session；调用方随后应清除浏览器 cookie。
 func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken string) error {
 	if err := s.ensureLogoutDependencies(); err != nil {
 		return err
