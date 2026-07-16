@@ -189,6 +189,7 @@ const deleting = ref(false);
 const listError = ref('');
 const rows = ref<AppLogItem[]>([]);
 const total = ref(0);
+const hasLoadedList = ref(false);
 const detailVisible = ref(false);
 const detailRecord = ref<AppLogItem | null>(null);
 const detailInitialTab = ref<'fields' | 'raw'>('fields');
@@ -330,8 +331,11 @@ watch(appLogListQuery.error, (error) => {
   if (!error) return;
   logger.error('failed to fetch app logs', error);
   listError.value = resolveAppLogErrorMessage(t, error, t('appLog.page.loadFailed'));
-  rows.value = [];
-  total.value = 0;
+  // 后台刷新失败时，vue-query 仍保留最近一次成功响应，避免列表因瞬时错误闪退为空。
+  if (!hasLoadedList.value) {
+    rows.value = [];
+    total.value = 0;
+  }
   MessagePlugin.error(listError.value);
 });
 
@@ -342,6 +346,7 @@ async function fetchAppLogs() {
 }
 
 function applyListResponse(response: Awaited<ReturnType<typeof getAppLogs>>) {
+  hasLoadedList.value = true;
   rows.value = response.items;
   total.value = response.total;
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => rows.value.some((row) => row.id === Number(key)));
