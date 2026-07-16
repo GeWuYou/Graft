@@ -188,12 +188,6 @@ type ProjectUpdateSavedViewData = NonNullable<
   ProjectSavedViewOperation['responses'][200]['content']['application/json']['data']
 >;
 
-/**
- * 规范化项目列表查询参数。
- *
- * @param query - 项目列表查询条件
- * @returns 传入的查询条件；未提供时返回 `undefined`
- */
 function normalizeProjectListQuery(query?: ProjectListQuery): GetProjectListQuery | undefined {
   if (!query) {
     return undefined;
@@ -202,12 +196,6 @@ function normalizeProjectListQuery(query?: ProjectListQuery): GetProjectListQuer
   return query satisfies GetProjectListQuery;
 }
 
-/**
- * 获取项目列表。
- *
- * @param query - 列表查询条件
- * @returns 项目列表数据
- */
 export function getProjects(query?: ProjectListQuery) {
   return request.get<GetProjectListData>({
     url: PROJECT_API_PATH.LIST,
@@ -215,22 +203,12 @@ export function getProjects(query?: ProjectListQuery) {
   }) as Promise<ProjectListResponseWithLifecycle>;
 }
 
-/**
- * 获取项目已保存视图列表。
- *
- * @returns 项目已保存视图数组；响应缺少列表数据时返回空数组。
- */
+/** 后端未返回视图数组时按空集合处理，避免可选的保存视图阻断项目列表。 */
 export async function getProjectSavedViews(): Promise<ProjectSavedView[]> {
   const data = await request.get<ProjectSavedViewsData>({ url: PROJECT_API_PATH.SAVED_VIEWS });
   return data.items ?? [];
 }
 
-/**
- * 创建项目已保存视图。
- *
- * @param payload - 已保存视图的创建数据
- * @returns 创建后的项目已保存视图
- */
 export function postProjectSavedView(payload: ProjectSavedViewRequest) {
   return request.post<ProjectCreateSavedViewData>({
     url: PROJECT_API_PATH.SAVED_VIEWS,
@@ -238,13 +216,6 @@ export function postProjectSavedView(payload: ProjectSavedViewRequest) {
   }) as Promise<ProjectSavedView>;
 }
 
-/**
- * 更新指定的项目已保存视图。
- *
- * @param viewId - 要更新的已保存视图 ID
- * @param payload - 已保存视图的更新数据
- * @returns 更新后的项目已保存视图
- */
 export function putProjectSavedView(viewId: number, payload: ProjectSavedViewRequest) {
   return request.put<ProjectUpdateSavedViewData>({
     url: buildProjectSavedViewApiPath(viewId),
@@ -252,22 +223,10 @@ export function putProjectSavedView(viewId: number, payload: ProjectSavedViewReq
   }) as Promise<ProjectSavedView>;
 }
 
-/**
- * 删除指定的项目已保存视图。
- *
- * @param viewId - 要删除的已保存视图标识
- * @returns 删除请求的响应结果
- */
 export function deleteProjectSavedView(viewId: number) {
   return request.delete({ url: buildProjectSavedViewApiPath(viewId) });
 }
 
-/**
- * 获取项目详情。
- *
- * @param id - 项目 ID
- * @returns 项目详情数据
- */
 export function getProject(id: GetProjectDetailPathParams['id']) {
   return request.get<GetProjectDetailData>({
     url: buildProjectDetailApiPath(id),
@@ -287,76 +246,34 @@ export function getProjectLogs(id: GetProjectLogsPathParams['id'], query?: GetPr
   }) as Promise<ProjectLogResponse>;
 }
 
-/**
- * 获取项目的服务信息。
- *
- * @param id - 项目 ID
- * @returns 项目服务信息响应
- */
 export function getProjectServices(id: GetProjectServicesPathParams['id']) {
   return request.get<GetProjectServicesData>({
     url: buildProjectServicesApiPath(id),
   }) as Promise<ProjectServicesResponse>;
 }
 
-/**
- * 获取创建项目工作区所需的默认配置。
- *
- * @returns 项目工作区默认配置响应
- */
 export function getProjectWorkspaceDefaults() {
   return request.get<ProjectWorkspaceDefaultsResponse>({ url: PROJECT_API_PATH.CREATE_WORKSPACE_DEFAULTS });
 }
 
-/**
- * 在项目工作区中创建条目。
- *
- * @param id - 项目标识
- * @param payload - 要创建的工作区条目信息
- */
 export function postProjectWorkspaceEntry(id: string | number, payload: ProjectWorkspaceEntry) {
   return request.post({ url: buildProjectFilesEntriesApiPath(id), data: payload });
 }
 
-/**
- * 重命名项目工作区中的条目。
- *
- * @param id - 项目标识
- * @param payload - 工作区条目的重命名参数
- */
 export function postProjectWorkspaceRename(id: string | number, payload: ProjectWorkspaceRenameRequest) {
   return request.post({ url: buildProjectFilesRenameApiPath(id), data: payload });
 }
 
-/**
- * 删除项目工作区中的文件或目录。
- *
- * @param id - 项目标识
- * @param query - 要删除的路径及可选的递归删除设置
- */
 export function deleteProjectWorkspaceEntry(id: string | number, query: { path: string; recursive?: boolean }) {
   return request.delete({ url: buildProjectFilesEntriesApiPath(id), params: query });
 }
 
-/**
- * 获取项目配置元数据。
- *
- * @param id - 项目 ID
- * @returns 项目配置元数据。
- */
 export function getProjectConfiguration(id: GetProjectConfigurationPathParams['id']) {
   return request.get<GetProjectConfigurationData>({
     url: buildProjectConfigurationApiPath(id),
   }) as Promise<ProjectConfigurationMetadataResponse>;
 }
 
-/**
- * 获取项目工作区文件列表。
- *
- * @param id - 项目 ID
- * @param query - 文件列表查询条件
- * @returns 项目工作区文件列表响应
- */
 export function getProjectFiles(id: string, query?: ProjectWorkspaceFilesQuery) {
   return request.get<ProjectWorkspaceFilesResponse>({
     url: buildProjectFilesApiPath(id),
@@ -364,13 +281,6 @@ export function getProjectFiles(id: string, query?: ProjectWorkspaceFilesQuery) 
   }) as Promise<ProjectWorkspaceFilesResponse>;
 }
 
-/**
- * 获取项目工作区文件的内容。
- *
- * @param id - 项目标识
- * @param query - 文件内容查询参数
- * @returns 项目工作区文件内容响应
- */
 export function getProjectFileContent(id: string, query: ProjectWorkspaceFileContentQuery) {
   return request.get<ProjectWorkspaceFileContentResponse>({
     url: buildProjectFilesContentApiPath(id),
@@ -378,14 +288,6 @@ export function getProjectFileContent(id: string, query: ProjectWorkspaceFileCon
   }) as Promise<ProjectWorkspaceFileContentResponse>;
 }
 
-/**
- * 保存项目工作区文件内容。
- *
- * @param id - 项目标识
- * @param query - 文件内容查询参数
- * @param payload - 要保存的文件内容
- * @returns 文件保存结果
- */
 export function putProjectFileContent(
   id: string,
   query: ProjectWorkspaceFileContentQuery,
@@ -398,14 +300,6 @@ export function putProjectFileContent(
   }) as Promise<ProjectWorkspaceFileSaveResponse>;
 }
 
-/**
- * 更新项目文件的注释信息。
- *
- * @param id - 项目 ID
- * @param query - 文件定位查询条件
- * @param payload - 注释内容
- * @returns 保存后的文件注释信息
- */
 export function putProjectFileAnnotation(
   id: string,
   query: ProjectWorkspaceFileContentQuery,
@@ -418,41 +312,24 @@ export function putProjectFileAnnotation(
   }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
 }
 
-/**
- * 获取项目创建方式目录。
- *
- * @returns 项目创建方式目录信息。
- */
 export function getProjectCreationMethods() {
   return request.get<GetProjectCreationMethodsData>({
     url: PROJECT_API_PATH.CREATION_METHODS,
   }) as Promise<ProjectCreationMethodCatalogResponse>;
 }
 
-/** 返回可用于 Compose 工作区的运行时目标；调用方据此限制工作区创建入口。 */
 export function getProjectComposeRuntimeTargets() {
   return request.get<GetProjectComposeRuntimeTargetsData>({
     url: PROJECT_API_PATH.COMPOSE_RUNTIME_TARGETS,
   }) as Promise<ProjectComposeRuntimeTargetCatalogResponse>;
 }
 
-/**
- * 获取项目的发现候选列表。
- *
- * @returns 项目发现候选列表。
- */
 export function getProjectDiscoveryCandidates() {
   return request.get<GetProjectDiscoveryCandidatesData>({
     url: PROJECT_API_PATH.DISCOVERY_CANDIDATES,
   }) as Promise<ProjectDiscoveryCandidatesResponse>;
 }
 
-/**
- * 创建项目。
- *
- * @param payload - 创建项目所需的请求内容
- * @returns 创建结果响应
- */
 export function postProjectCreate(payload: ProjectCreateRequest) {
   return postProjectAction<ProjectCreateData>(
     PROJECT_API_PATH.CREATE,
@@ -460,7 +337,6 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
   ) as Promise<ProjectCreateResponse>;
 }
 
-/** 在进入工作区编辑前校验应用名称对应的托管根目录与注册状态。 */
 export function postProjectApplicationNameAvailability(payload: ProjectApplicationNameAvailabilityRequest) {
   return request.post<ProjectApplicationNameAvailabilityData>({
     url: PROJECT_API_PATH.APPLICATION_NAME_AVAILABILITY,
@@ -468,12 +344,6 @@ export function postProjectApplicationNameAvailability(payload: ProjectApplicati
   }) as Promise<ProjectApplicationNameAvailabilityResponse>;
 }
 
-/**
- * 使用模板创建项目。
- *
- * @param payload - 模板创建请求数据
- * @returns 创建项目的响应
- */
 export function postProjectCreateTemplate(payload: ProjectTemplateCreateRequest) {
   return postProjectAction<ProjectTemplateCreateData>(
     PROJECT_API_PATH.CREATE_TEMPLATE,
@@ -481,13 +351,6 @@ export function postProjectCreateTemplate(payload: ProjectTemplateCreateRequest)
   ) as Promise<ProjectCreateResponse>;
 }
 
-/**
- * 发送项目相关的 POST 请求。
- *
- * @param url - 请求地址
- * @param data - 请求体
- * @returns 请求结果
- */
 function postProjectAction<T>(url: string, data?: unknown) {
   return request.post<T>({
     url,
@@ -495,63 +358,26 @@ function postProjectAction<T>(url: string, data?: unknown) {
   });
 }
 
-/**
- * 部署指定项目。
- *
- * @param id - 项目 ID
- * @returns 部署操作的响应结果
- */
 export function postProjectDeploy(id: ProjectDeployPathParams['id']) {
   return postProjectAction<ProjectDeployData>(buildProjectDeployApiPath(id)) as Promise<ProjectDeployResponse>;
 }
 
-/**
- * 启动指定项目。
- *
- * @param id - 项目 ID
- * @returns 项目启动任务回执
- */
 export function postProjectUp(id: ProjectUpPathParams['id']) {
   return postProjectAction<ProjectUpData>(buildProjectUpApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
-/**
- * 停止指定项目。
- *
- * @param id - 项目 ID
- * @returns 项目任务回执
- */
 export function postProjectStop(id: ProjectStopPathParams['id']) {
   return postProjectAction<ProjectStopData>(buildProjectStopApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
-/**
- * 重启指定项目。
- *
- * @param id - 项目 ID
- * @returns 重启操作的响应结果
- */
 export function postProjectRestart(id: ProjectRestartPathParams['id']) {
   return postProjectAction<ProjectRestartData>(buildProjectRestartApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
-/**
- * 重新部署指定项目。
- *
- * @param id - 项目 ID
- * @returns 重新部署操作的响应结果
- */
 export function postProjectRedeploy(id: ProjectRedeployPathParams['id']) {
   return postProjectAction<ProjectRedeployData>(buildProjectRedeployApiPath(id)) as Promise<ProjectTaskReceipt>;
 }
 
-/**
- * 更新项目的生命周期配置。
- *
- * @param id - 项目标识
- * @param payload - 要保存的生命周期配置
- * @returns 保存后的项目生命周期配置响应
- */
 export function putProjectLifecycleConfiguration(id: string, payload: ProjectLifecycleConfigurationUpdateRequest) {
   return request.put<ProjectLifecycleConfigurationSavedResponse>({
     url: buildProjectLifecycleConfigurationApiPath(id),
@@ -559,23 +385,10 @@ export function putProjectLifecycleConfiguration(id: string, payload: ProjectLif
   }) as Promise<ProjectLifecycleConfigurationSavedResponse>;
 }
 
-/**
- * 注销指定项目。
- *
- * @param id - 项目 ID
- * @returns 项目操作结果
- */
 export function postProjectUnregister(id: ProjectUnregisterPathParams['id']) {
   return postProjectAction<ProjectUnregisterData>(buildProjectUnregisterApiPath(id)) as Promise<ProjectActionResponse>;
 }
 
-/**
- * 销毁指定项目。
- *
- * @param id - 项目 ID
- * @param payload - 销毁请求内容
- * @returns 销毁操作结果
- */
 export function postProjectDestroy(id: ProjectDestroyPathParams['id'], payload: ProjectDestroyRequest) {
   return postProjectAction<ProjectDestroyData>(
     buildProjectDestroyApiPath(id),
@@ -583,12 +396,6 @@ export function postProjectDestroy(id: ProjectDestroyPathParams['id'], payload: 
   ) as Promise<ProjectActionResponse>;
 }
 
-/**
- * 批量执行项目动作。
- *
- * @param payload - 批量动作请求体
- * @returns 批量动作结果
- */
 export function postProjectBatchActions(payload: ProjectBatchActionRequest) {
   return postProjectAction<ProjectBatchActionsData>(
     PROJECT_API_PATH.BATCH_ACTIONS,

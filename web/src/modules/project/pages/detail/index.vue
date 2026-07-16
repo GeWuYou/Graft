@@ -1835,7 +1835,7 @@ async function refreshProjectServices() {
   try {
     await loadProjectServices(true);
   } catch {
-    // loadProjectServices already reports user-facing feedback.
+    // loadProjectServices 已负责提示失败；刷新入口只需保持详情页可继续交互。
   }
 }
 

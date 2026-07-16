@@ -8,41 +8,18 @@ const PROJECT_REALTIME_TOPIC = {
   LOGS_PREFIX: 'project.logs:',
 } as const;
 
-/**
- * 获取项目列表摘要的实时通信主题名称。
- *
- * @returns 项目列表摘要主题名称
- */
 export function getProjectListSummaryTopicName(): string {
   return PROJECT_REALTIME_TOPIC.LIST_SUMMARY;
 }
 
-/**
- * 构建项目运行时实时通信主题名称。
- *
- * @param projectId - 项目标识
- * @returns 包含项目标识的运行时主题名称
- */
 export function buildProjectRuntimeTopicName(applicationId: string): string {
   return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${applicationId}`;
 }
 
-/**
- * 构建指定应用的项目生命周期配置实时主题名称。
- *
- * @param applicationId - 应用标识
- * @returns 拼接应用标识后的生命周期配置实时主题名称
- */
 export function buildProjectLifecycleConfigTopicName(applicationId: string): string {
   return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
 }
 
-/**
- * 构建指定应用的项目日志实时消息主题名称。
- *
- * @param applicationId - 应用标识
- * @returns 拼接应用标识后的日志主题名称
- */
 export function buildProjectLogsTopicName(applicationId: string): string {
   return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
 }
@@ -90,12 +67,7 @@ export type ProjectListSummaryRealtimePayload = {
   items: ProjectListSummaryRealtimeItem[];
 };
 
-/**
- * 解析项目列表摘要实时消息载荷。
- *
- * @param raw - 待解析的原始消息数据
- * @returns 验证通过的项目列表摘要实时载荷，数据格式无效时返回 `null`
- */
+/** 实时通道是外部输入；结构或主题不匹配时必须丢弃，不能让页面状态被污染。 */
 export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectListSummaryRealtimePayload | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
@@ -120,14 +92,6 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
   return data as ProjectListSummaryRealtimePayload;
 }
 
-/**
- * 校验项目详情实时消息信封，并返回有效的消息数据。
- *
- * @param raw - 待解析的原始实时消息
- * @param expectedTopic - 根据应用标识生成预期主题名称的函数
- * @param validator - 可选的附加消息数据校验函数
- * @returns 校验通过的消息数据，校验失败时返回 `null`
- */
 function parseProjectDetailEnvelopeData(
   raw: unknown,
   expectedTopic: (applicationId: string) => string,
@@ -150,12 +114,6 @@ function parseProjectDetailEnvelopeData(
   return data;
 }
 
-/**
- * 解析项目运行时实时消息载荷。
- *
- * @param raw - 待解析的原始数据
- * @returns 有效的项目运行时实时载荷；数据格式无效时返回 `null`
- */
 export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntimeRealtimePayload | null {
   const data = parseProjectDetailEnvelopeData(
     raw,
@@ -165,23 +123,11 @@ export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntime
   return data as ProjectRuntimeRealtimePayload | null;
 }
 
-/**
- * 解析项目生命周期配置实时消息载荷。
- *
- * @param raw - 待解析的原始消息数据
- * @returns 有效的项目生命周期配置实时载荷，或 `null`（当数据格式无效时）
- */
 export function parseProjectLifecycleConfigRealtimePayload(raw: unknown): ProjectLifecycleConfigRealtimePayload | null {
   const data = parseProjectDetailEnvelopeData(raw, buildProjectLifecycleConfigTopicName);
   return data as ProjectLifecycleConfigRealtimePayload | null;
 }
 
-/**
- * 解析项目日志实时消息载荷。
- *
- * @param raw - 待解析的原始数据
- * @returns 验证通过的项目日志实时载荷；数据格式无效时返回 `null`
- */
 export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealtimePayload | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {

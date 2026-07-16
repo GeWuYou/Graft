@@ -13,54 +13,24 @@ const projectTaskTypeLabelKeys: Readonly<Record<string, string>> = {
   'project.compose.up': 'project.taskTypes.up',
 };
 
-/**
- * 格式化项目时间。
- *
- * @param locale - 本地化标识
- * @param value - 要格式化的时间值
- * @returns 格式化后的时间字符串
- */
 export function formatProjectTime(locale: string, value?: string | null) {
   return formatCompactDateTime(value, locale);
 }
 
-/**
- * 获取项目来源类型的显示文案。
- *
- * @param value - 项目来源类型
- * @returns 对应的项目来源类型文案
- */
 export function projectSourceKindLabel(t: Translate, value: ProjectSourceKind) {
   return t(`project.list.sourceKinds.${value}`);
 }
 
-/**
- * 获取项目漂移状态的显示文案。
- *
- * @returns 与 `project.list.driftStatus.${value}` 对应的翻译结果。
- */
 export function projectDriftStatusLabel(t: Translate, value: ProjectDriftStatus) {
   return t(`project.list.driftStatus.${value}`);
 }
 
-/**
- * 将项目漂移状态映射为主题语义。
- *
- * @param value - 项目漂移状态
- * @returns `success`、`default` 或 `warning` 主题值
- */
 export function projectDriftStatusTheme(value?: ProjectDriftStatus) {
   if (value === 'clean') return 'success';
   if (value === 'unknown') return 'default';
   return 'warning';
 }
 
-/**
- * 将项目运行时状态映射为主题语义。
- *
- * @param value - 项目运行时状态
- * @returns 对应的主题值
- */
 export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return 'success';
   if (value === 'degraded') return 'warning';
@@ -69,12 +39,6 @@ export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
   return 'default';
 }
 
-/**
- * 获取运行时状态对应的本地化展示文案。
- *
- * @param value - 运行时状态；未提供或无法识别时使用未知状态文案
- * @returns 对应运行时状态的本地化文案
- */
 export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return t('project.list.status.runtimeRunning');
   if (value === 'degraded') return t('project.list.status.runtimeDegraded');
@@ -83,12 +47,6 @@ export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeSt
   return t('project.list.status.runtimeUnknown');
 }
 
-/**
- * 将项目任务类型转换为本地化标签。
- *
- * @param taskType - 项目任务类型标识
- * @returns 对应的本地化标签；未识别的任务类型返回 `undefined`
- */
 export function projectTaskTypeLabel(t: Translate, taskType: string) {
   const key = projectTaskTypeLabelKeys[taskType];
   return key ? t(key) : undefined;
@@ -102,13 +60,6 @@ type ProjectLifecycleActionVisibilityOptions = {
   hideLifecycleActions?: boolean;
 };
 
-/**
- * 根据项目运行态决定 lifecycle 动作是否展示。
- *
- * @param value - 项目运行态
- * @param options - 可选展示裁剪参数
- * @returns 每个 lifecycle 动作的展示布尔值
- */
 export function projectLifecycleActionVisibility(
   value?: ProjectRuntimeStatus | null,
   options: ProjectLifecycleActionVisibilityOptions = {},
