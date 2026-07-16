@@ -48,6 +48,15 @@ func (r routeRuntime) handlePublishedTemplates(ginCtx *gin.Context) {
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": templateAggregatesHTTP(items)})
 }
+
+func (r routeRuntime) handleManagedTemplates(ginCtx *gin.Context) {
+	items, err := r.service.ListApplicationTemplates(ginCtx.Request.Context(), true)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"items": templateAggregatesHTTP(items)})
+}
 func (r routeRuntime) handleTemplateDetail(ginCtx *gin.Context) {
 	item, err := r.service.GetApplicationTemplate(ginCtx.Request.Context(), ginCtx.Param("templateId"))
 	if err != nil {

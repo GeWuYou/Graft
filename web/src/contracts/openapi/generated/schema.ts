@@ -2759,6 +2759,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/applications/templates/manage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List all Application templates for management */
+    get: operations['getApplicationManagedTemplates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/templates/import-legacy': {
     parameters: {
       query?: never;
@@ -15340,6 +15357,28 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  getApplicationManagedTemplates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Application template management catalog, including drafts and archived templates. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-list-response'];
+        };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];

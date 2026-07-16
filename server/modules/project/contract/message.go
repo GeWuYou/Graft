@@ -48,6 +48,8 @@ const (
 const (
 	// ApplicationMenuTitle 标识应用管理菜单标题的本地化键。
 	ApplicationMenuTitle MessageKey = "menu.application.title"
+	// ApplicationTemplateMenuTitle 标识应用模板管理菜单标题的本地化键。
+	ApplicationTemplateMenuTitle MessageKey = "menu.application.templates.title"
 	// ApplicationInvalidID 标识路径或载荷中的应用公开标识未通过校验。
 	ApplicationInvalidID ErrorCode = "ops.application.error.invalidApplicationId"
 	// ApplicationInvalidFileID 标识路径中的应用文件标识未通过校验。

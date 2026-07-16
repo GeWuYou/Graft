@@ -138,5 +138,17 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Permission: projectcontract.ApplicationViewPermission.String(),
 		Module:     moduleName,
 	})
+	registry.Register(menu.Item{
+		Code:       "application.templates",
+		ParentCode: "domain.application",
+		Kind:       menu.NodeKindEntry,
+		Title:      "",
+		TitleKey:   projectcontract.ApplicationTemplateMenuTitle.String(),
+		Path:       projectcontract.ApplicationTemplateManagementMenuPath,
+		Icon:       "application",
+		Order:      projectMenuOrderList + 1,
+		Permission: projectcontract.ApplicationTemplateManagePermission.String(),
+		Module:     moduleName,
+	})
 	return nil
 }

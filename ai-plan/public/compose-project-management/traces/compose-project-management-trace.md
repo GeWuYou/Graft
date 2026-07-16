@@ -490,3 +490,10 @@
 
 - 基于模板创建统一进入 `/api/ops/applications/create/managed`：web 用已发布版本快照预填可编辑 workspace 与 lifecycle，提交 `template_version_id`；服务端验证版本为未归档已发布 Compose 模板后写入稳定 `template_id` / `template_version_id` 来源元数据。
 - 删除旧 `/create/template`、`/create/template/validate` 与 `/create/workspace-defaults` API，不保留别名。空白创建改为最小本地 Compose 草稿，移除 runtime directory 模板发现、默认模板 seed 和 `blank_prefill_default_template` 配置 authority。
+
+## 2026-07-17 Application Template management UI
+
+- 新增受 `ops.application.template.manage` 保护的 `/api/ops/applications/templates/manage` 管理目录，并保持创建者的 `/templates` 端点只返回已发布版本。该分离是权限边界而非兼容路径。
+- `/applications/templates` 注册为 Application 域可见菜单；详情页复用受管创建的工作区编辑器和生命周期配置 review，支持空白草稿、显式 legacy import、更新、发布、派生和归档。
+- 发布版本保持不可编辑；详情页会先派生草稿再允许修改。模板从未读取现有 Application，模板创建出的 Application 仍通过 `template_version_id` 保持 provenance。
+- 主题历史仍保留独立的 remote source/activity aggregation 工作，不能因为模板 UI 完成而将整个 compose-project-management topic 标记为 archive-ready。

@@ -33,6 +33,21 @@ describe('project bootstrap route registrations', () => {
     );
   });
 
+  it('registers Application template management as a visible Application route', () => {
+    expect(applicationGlobalRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        path: APPLICATION_ROUTE_PATH.TEMPLATES,
+        routeName: 'ApplicationTemplates',
+        pageRouteName: 'ApplicationTemplateList',
+        meta: expect.objectContaining({
+          hiddenMenu: false,
+          pageKind: 'list',
+          titleKey: 'project.route.templates.title',
+        }),
+      }),
+    );
+  });
+
   it('exposes the three supported project creation routes', () => {
     const paths = applicationGlobalRouteRegistrations.map((route) => route.path);
 

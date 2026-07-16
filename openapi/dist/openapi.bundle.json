@@ -13509,6 +13509,33 @@
         }
       }
     },
+    "/api/ops/applications/templates/manage": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "List all Application templates for management",
+        "operationId": "getApplicationManagedTemplates",
+        "responses": {
+          "200": {
+            "description": "Application template management catalog, including drafts and archived templates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
     "/api/ops/applications/templates/import-legacy": {
       "post": {
         "tags": [

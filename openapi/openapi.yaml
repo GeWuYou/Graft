@@ -313,6 +313,8 @@ paths:
     $ref: ./paths/ops-applications.create.yaml
   /api/ops/applications/templates:
     $ref: ./paths/ops-applications.templates.yaml
+  /api/ops/applications/templates/manage:
+    $ref: ./paths/ops-applications.templates.manage.yaml
   /api/ops/applications/templates/import-legacy:
     $ref: ./paths/ops-applications.templates.import-legacy.yaml
   /api/ops/applications/templates/{templateId}:

@@ -33,7 +33,12 @@ export const APPLICATION_API_PATH = {
   APPLICATION_NAME_AVAILABILITY: '/api/ops/applications/create/application-name/availability',
   CREATE: '/api/ops/applications/create/managed',
   TEMPLATES: '/api/ops/applications/templates',
+  TEMPLATES_MANAGE: '/api/ops/applications/templates/manage',
   TEMPLATE: '/api/ops/applications/templates/{templateId}',
+  TEMPLATE_DERIVE: '/api/ops/applications/templates/{templateId}/derive',
+  TEMPLATE_PUBLISH: '/api/ops/applications/templates/{templateId}/publish',
+  TEMPLATE_ARCHIVE: '/api/ops/applications/templates/{templateId}/archive',
+  TEMPLATE_IMPORT_LEGACY: '/api/ops/applications/templates/import-legacy',
   DETAIL: '/api/ops/applications/{applicationId}',
   OVERVIEW: '/api/ops/applications/{applicationId}/overview',
   LOGS: '/api/ops/applications/{applicationId}/logs',
@@ -66,6 +71,22 @@ export function buildApplicationSavedViewApiPath(viewId: number) {
 
 export function buildApplicationDetailApiPath(applicationId: string) {
   return APPLICATION_API_PATH.DETAIL.replace('{applicationId}', encodeApplicationPathParam(applicationId));
+}
+
+export function buildApplicationTemplateApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplateDeriveApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_DERIVE.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplatePublishApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_PUBLISH.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplateArchiveApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_ARCHIVE.replace('{templateId}', encodeApplicationPathParam(templateId));
 }
 
 export function buildApplicationOverviewApiPath(applicationId: string) {

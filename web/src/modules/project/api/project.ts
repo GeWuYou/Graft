@@ -19,6 +19,10 @@ import {
   buildApplicationSavedViewApiPath,
   buildApplicationServicesApiPath,
   buildApplicationStopApiPath,
+  buildApplicationTemplateApiPath,
+  buildApplicationTemplateArchiveApiPath,
+  buildApplicationTemplateDeriveApiPath,
+  buildApplicationTemplatePublishApiPath,
   buildApplicationUnregisterApiPath,
   buildApplicationUpApiPath,
 } from '../contract/paths';
@@ -46,6 +50,8 @@ import type {
   ApplicationSavedViewRequest,
   ApplicationServicesResponse,
   ApplicationTaskReceipt,
+  ApplicationTemplate,
+  ApplicationTemplateDraftRequest,
   ApplicationTemplateListResponse,
   ApplicationWorkspaceEntry,
   ApplicationWorkspaceFileAnnotationRequest,
@@ -132,6 +138,7 @@ type GetApplicationTemplatesOperation = paths[ApplicationTemplatesPath]['get'];
 type GetApplicationTemplatesData = NonNullable<
   GetApplicationTemplatesOperation['responses'][200]['content']['application/json']['data']
 >;
+type ApplicationTemplateResponseEnvelope = { data: ApplicationTemplate };
 type ApplicationUpOperation = paths[(typeof APPLICATION_API_PATH)['UP']]['post'];
 type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
 type ApplicationUpData = NonNullable<ApplicationUpEnvelope['data']>;
@@ -340,6 +347,62 @@ export function getApplicationTemplates() {
   return request.get<GetApplicationTemplatesData>({
     url: APPLICATION_API_PATH.TEMPLATES,
   }) as Promise<ApplicationTemplateListResponse>;
+}
+
+/** 管理目录会返回草稿与归档项，只能由模板管理页面在已授权上下文中消费。 */
+export async function getApplicationManagedTemplates(): Promise<ApplicationTemplateListResponse> {
+  const data = await request.get<GetApplicationTemplatesData>({ url: APPLICATION_API_PATH.TEMPLATES_MANAGE });
+  return data as ApplicationTemplateListResponse;
+}
+
+export async function getApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {
+  const response = await request.get<ApplicationTemplateResponseEnvelope>({
+    url: buildApplicationTemplateApiPath(templateId),
+  });
+  return response.data;
+}
+
+export async function postApplicationTemplate(payload: ApplicationTemplateDraftRequest) {
+  const response = await request.post<ApplicationTemplateResponseEnvelope>({
+    url: APPLICATION_API_PATH.TEMPLATES,
+    data: payload,
+  });
+  return response.data;
+}
+
+export async function putApplicationTemplate(templateId: string, payload: ApplicationTemplateDraftRequest) {
+  const response = await request.put<ApplicationTemplateResponseEnvelope>({
+    url: buildApplicationTemplateApiPath(templateId),
+    data: payload,
+  });
+  return response.data;
+}
+
+export async function postApplicationTemplateDerive(templateId: string, templateVersionId: string) {
+  const response = await request.post<ApplicationTemplateResponseEnvelope>({
+    url: buildApplicationTemplateDeriveApiPath(templateId),
+    data: { template_version_id: templateVersionId },
+  });
+  return response.data;
+}
+
+export async function postApplicationTemplatePublish(templateId: string) {
+  const response = await request.post<ApplicationTemplateResponseEnvelope>({
+    url: buildApplicationTemplatePublishApiPath(templateId),
+  });
+  return response.data;
+}
+
+export function postApplicationTemplateArchive(templateId: string) {
+  return request.post({ url: buildApplicationTemplateArchiveApiPath(templateId) });
+}
+
+export async function postApplicationTemplateLegacyImport(payload: { key: string; display_name?: string }) {
+  const response = await request.post<ApplicationTemplateResponseEnvelope>({
+    url: APPLICATION_API_PATH.TEMPLATE_IMPORT_LEGACY,
+    data: payload,
+  });
+  return response.data;
 }
 
 function postApplicationAction<T>(url: string, data?: unknown) {

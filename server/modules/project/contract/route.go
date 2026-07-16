@@ -7,6 +7,8 @@ const (
 	ApplicationCollectionRoute = ""
 	// ApplicationTemplatesRoute 必须在 /:applicationId 前注册，避免被应用详情动态路由吞掉。
 	ApplicationTemplatesRoute = "/templates"
+	// ApplicationTemplateManagementRoute 仅向模板管理员提供完整目录，避免草稿和归档版本泄露给创建者。
+	ApplicationTemplateManagementRoute = "/templates/manage"
 	// ApplicationTemplateDetailRoute 标识模板详情和草稿编辑接口。
 	ApplicationTemplateDetailRoute = "/templates/:templateId"
 	// ApplicationTemplateDeriveRoute 标识从已发布版本派生草稿的接口。
@@ -101,6 +103,8 @@ const (
 	ApplicationBlankCreateMenuPath = ApplicationCreationMenuPath + "/blank"
 	// ApplicationTemplateCreateMenuPath 标识模板来源创建路由路径。
 	ApplicationTemplateCreateMenuPath = ApplicationCreationMenuPath + "/template"
+	// ApplicationTemplateManagementMenuPath 标识 Application 模板管理的规范菜单路径。
+	ApplicationTemplateManagementMenuPath = ApplicationMenuRootPath + "/templates"
 	// ApplicationImportCreateMenuPath 标识导入应用创建路由路径。
 	ApplicationImportCreateMenuPath = ApplicationCreationMenuPath + "/import"
 	// ApplicationDiscoveryCandidatesMenuPath 标识隐藏的发现候选预览路由路径。

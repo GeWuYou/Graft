@@ -1,4 +1,5 @@
 menu.application.title: 应用管理
+menu.application.templates.title: 应用模板
 ops.application.error.invalidApplicationId: 应用标识不合法。
 ops.application.error.invalidFileId: 应用文件标识不合法。
 ops.application.error.invalidArgument: 应用请求参数不合法。
