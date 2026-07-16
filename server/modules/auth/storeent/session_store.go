@@ -149,8 +149,7 @@ func (r *sessionStore) RotateRefreshSession(ctx context.Context, input store.Rot
 // toStoreRefreshSession 将 Ent 刷新会话记录转换为存储层刷新会话模型。
 func toStoreRefreshSession(record *authent.AuthRefreshSession) store.RefreshSession {
 	return store.RefreshSession{
-	//nolint:gosec // Ent ID 来自受控 schema，且保持为正数。
-		ID:                uint64(record.ID),
+		ID:                uint64(record.ID), // #nosec G115 -- Ent ID 来自受控 schema，且保持为正数。
 		UserID:            record.UserID,
 		TokenID:           record.TokenID,
 		ExpiresAt:         record.ExpiresAt,
