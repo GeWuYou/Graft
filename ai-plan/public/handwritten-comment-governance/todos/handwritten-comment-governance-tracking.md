@@ -70,12 +70,11 @@ closeout:
     "fourth-wave remaining core modules and scheduled-task"
   ],
   "pending_batches": [
-    "remaining server modules: monitor, runtime-target, saved-view, and other uncovered packages",
-    "remaining web modules: access-log, app-log, auth, dashboard, runtime-target, security, task, and uncovered shell/shared files"
+    "final mixed-commit scope reconciliation and residual acceptance review"
   ],
-  "current_batch": null,
-  "next_batch": "remaining server and web modules",
-  "closeout_status": "batch-complete",
+  "current_batch": "final mixed-commit scope reconciliation and residual acceptance review",
+  "next_batch": null,
+  "closeout_status": "handoff-required",
   "validation_note": "server module tests passed; backend completion lint is blocked by pre-existing G115 at server/modules/auth/storeent/session_store.go:153; frontend full check has two unrelated existing test failures"
 }
 ```
