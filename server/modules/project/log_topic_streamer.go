@@ -264,21 +264,21 @@ func (s *Service) streamProjectLogs(ctx context.Context, topic string, projectID
 	emittedCount := 0
 	err = s.logReader.StreamProjectLogs(
 		ctx,
-		aggregate.Project.HostScope,
-		aggregate.Project.CanonicalProjectName,
+		localContainerRuntimeScope,
+		aggregate.Application.ComposeProjectName,
 		toContainerProjectLogFollowQuery(normalized),
 		func(entry moduleapi.ContainerProjectLogEntry) error {
 			emittedCount++
 			payload := projectLogsRealtimePayload{
 				Topic: topic,
-				Entry: generated.ProjectLogEntry{
+				Entry: generated.ApplicationLogEntry{
 					ContainerId:   entry.ContainerID,
 					ContainerName: entry.ContainerName,
 					ServiceName:   entry.ServiceName,
 					Line:          entry.Line,
-					Stream:        generated.ProjectLogEntryStream(entry.Stream),
+					Stream:        generated.ApplicationLogEntryStream(entry.Stream),
 					OccurredAt:    parseGeneratedLogTime(entry.OccurredAt),
-					Source: generated.ProjectLogEntrySource{
+					Source: generated.ApplicationLogEntrySource{
 						ContainerId:   entry.ContainerID,
 						ContainerName: entry.ContainerName,
 						ServiceName:   entry.ServiceName,

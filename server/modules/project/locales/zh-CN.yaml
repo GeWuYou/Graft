@@ -1,65 +1,47 @@
-menu.project.title: 项目管理
-ops.project.error.invalidProjectId: 项目标识不合法。
-ops.project.error.invalidFileId: 项目文件标识不合法。
-ops.project.error.invalidArgument: 项目请求参数不合法。
-ops.project.error.invalidCompose: Compose 配置无效。
-ops.project.error.workspaceUnsafe: 已有应用工作区不是安全目录。
-ops.project.error.workspaceWriteFailed: 应用工作区写入失败。
-ops.project.error.applicationNameRequired: 请填写应用名。
-ops.project.error.invalidApplicationName: 应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。
-ops.project.error.applicationNameOccupied: 应用名已被占用，请使用其他应用名。
-ops.project.error.invalidCanonicalProjectName: Canonical Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。
-ops.project.error.conflict: 当前项目状态存在冲突，无法执行该操作。
-ops.project.error.composeProjectNameOccupied: 所选运行目标上已有同名 Compose 项目，无法继续操作。
-ops.project.error.notFound: 未找到对应的项目。
-ops.project.error.unsupportedLifecycle: 当前项目状态不支持该生命周期操作。
-ops.project.error.runtimeUnavailable: 所选运行目标当前不可用。工作区已保留，待运行目标恢复后即可部署。
-ops.project.error.importValidationFailed: 项目导入检查未通过校验。
-ops.project.error.managedRootUnconfigured: 受管项目根目录尚未配置。
-ops.project.error.managedRootInvalid: 受管项目根目录配置无效。
-ops.project.error.managedFlowUnsupported: 当前项目不支持该受管流程操作。
-ops.project.error.sourceUnsupported: 当前阶段不支持该项目来源。
-ops.project.error.directoryBrowseForbidden: 项目导入目录超出允许的根目录范围。
-ops.project.error.inspectionExpired: 项目导入检查已过期。
-ops.project.error.inspectionStale: 项目导入检查结果已与文件系统不一致。
-ops.project.error.savedViewInvalid: 保存视图状态不符合项目列表要求。
-ops.project.error.savedViewConflict: 已存在同名保存视图。
-ops.project.error.savedViewNotFound: 未找到保存视图。
-rbac.permissionCatalog.projectView.display: 查看 Compose 项目
-rbac.permissionCatalog.projectView.description: 读取已注册 Compose 项目的摘要和只读详情。
-rbac.permissionCatalog.projectImport.display: 导入 Compose 项目
-rbac.permissionCatalog.projectImport.description: 校验并导入外部 Compose 项目到项目注册表。
-rbac.permissionCatalog.projectRefresh.display: 刷新 Compose 项目
-rbac.permissionCatalog.projectRefresh.description: 刷新项目快照和只读配置投影视图。
-rbac.permissionCatalog.projectLifecycle.display: 管理 Compose 项目生命周期
-rbac.permissionCatalog.projectLifecycle.description: 执行受限的 Compose 生命周期动作，例如 up、stop 和 restart。
-rbac.permissionCatalog.projectDestroy.display: 注销或销毁 Compose 项目
-rbac.permissionCatalog.projectDestroy.description: 对项目记录执行注销和受保护的销毁动作。
-rbac.permissionCatalog.projectCreate.display: 创建受管 Compose 项目
-rbac.permissionCatalog.projectCreate.description: 查看受管根目录设置，并创建受管 Compose 项目。
-rbac.permissionCatalog.projectCreationMethodView.display: 查看项目创建方式
-rbac.permissionCatalog.projectCreationMethodView.description: 查看当前支持的 Compose 项目创建方式及其可用性。
-rbac.permissionCatalog.projectDiscoveryView.display: 查看项目发现候选项
-rbac.permissionCatalog.projectDiscoveryView.description: 预览本机发现到的 Compose 目录，不直接注册项目。
-rbac.permissionCatalog.projectDeploy.display: 部署受管 Compose 项目草稿
-rbac.permissionCatalog.projectDeploy.description: 对受管项目配置草稿执行 diff、validate 和 deploy。
-ops.project.discovery.candidates.ready: 项目发现候选预览已就绪。
-systemConfig.project.ops.application.root_directory.title: 应用根目录
-systemConfig.project.ops.application.root_directory.description: 受管 Docker Compose 应用创建使用的根目录。留空表示禁用受管创建。
+menu.application.title: 应用管理
+ops.application.error.invalidApplicationId: 应用标识不合法。
+ops.application.error.invalidFileId: 应用文件标识不合法。
+ops.application.error.invalidArgument: 应用请求参数不合法。
+ops.application.error.invalidCompose: Compose 配置无效。
+ops.application.error.workspaceUnsafe: 已有应用工作区不是安全目录。
+ops.application.error.workspaceWriteFailed: 应用工作区写入失败。
+ops.application.error.applicationNameRequired: 请填写应用名。
+ops.application.error.invalidApplicationName: 应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。
+ops.application.error.applicationNameOccupied: 应用名已被占用，请使用其他应用名。
+ops.application.error.invalidComposeProjectName: Compose 项目名称不符合命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。
+ops.application.error.conflict: 当前应用状态存在冲突，无法执行该操作。
+ops.application.error.composeProjectNameOccupied: 所选运行目标上已有同名 Compose 项目名称，无法继续操作。
+ops.application.error.notFound: 未找到对应的应用。
+ops.application.error.unsupportedLifecycle: 当前应用状态不支持该生命周期操作。
+ops.application.error.runtimeUnavailable: 所选运行目标当前不可用。工作区已保留，待运行目标恢复后即可部署。
+ops.application.error.importValidationFailed: 应用导入检查未通过校验。
+ops.application.error.managedRootUnconfigured: 受管应用根目录尚未配置。
+ops.application.error.managedRootInvalid: 受管应用根目录配置无效。
+ops.application.error.managedFlowUnsupported: 当前应用不支持该受管流程操作。
+ops.application.error.sourceUnsupported: 当前阶段不支持该应用来源。
+ops.application.error.directoryBrowseForbidden: 应用导入目录超出允许的根目录范围。
+ops.application.error.inspectionExpired: 应用导入检查已过期。
+ops.application.error.inspectionStale: 应用导入检查结果已与文件系统不一致。
+ops.application.error.savedViewInvalid: 保存视图状态不符合应用列表要求。
+ops.application.error.savedViewConflict: 已存在同名保存视图。
+ops.application.error.savedViewNotFound: 未找到保存视图。
+ops.application.discovery.candidates.ready: 应用发现候选预览已就绪。
+systemConfig.application.ops.application.root_directory.title: 应用根目录
+systemConfig.application.ops.application.root_directory.description: 受管 Docker Compose 应用创建使用的根目录。留空表示禁用受管创建。
 systemConfig.groups.ops.application.create: 应用创建
 systemConfig.groups.ops.application.create.description: 管理受管应用创建流程的 authority 和根目录入口。
-systemConfig.project.ops.project.import.allowed_roots.title: 导入允许根目录
-systemConfig.project.ops.project.import.allowed_roots.description: 配置项目导入流程允许浏览的根目录 JSON 数组字符串。
-systemConfig.project.ops.project.workspace.hidden_directories.title: 工作台默认隐藏目录
-systemConfig.project.ops.project.workspace.hidden_directories.description: 配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。
-systemConfig.project.ops.project.workspace.hidden_directories.placeholder: 输入目录名后回车，例如 node_modules、.git
-systemConfig.project.ops.project.workspace.file_tooltip_rules.title: 工作台文件默认提示规则
-systemConfig.project.ops.project.workspace.file_tooltip_rules.description: 配置工作台文件名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
-systemConfig.project.ops.project.create.blank_prefill_default_template.title: 空白项目预填默认模板
-systemConfig.project.ops.project.create.blank_prefill_default_template.description: 启用后，空白项目创建会以 templates/default 的完整工作区为初始内容；关闭后仅创建空的 .env 和 compose.yaml 文件。
-systemConfig.project.ops.project.workspace.directory_tooltip_rules.title: 工作台目录默认提示规则
-systemConfig.project.ops.project.workspace.directory_tooltip_rules.description: 配置工作台目录名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
-systemConfig.groups.ops.project.import: 项目导入
-systemConfig.groups.ops.project.import.description: 管理导入流程允许浏览的根目录与边界。
-systemConfig.groups.ops.project.workspace: 项目工作台
-systemConfig.groups.ops.project.workspace.description: 管理配置工作台的目录过滤与文件浏览默认行为。
+systemConfig.application.ops.application.import.allowed_roots.title: 导入允许根目录
+systemConfig.application.ops.application.import.allowed_roots.description: 配置应用导入流程允许浏览的根目录 JSON 数组字符串。
+systemConfig.application.ops.application.workspace.hidden_directories.title: 工作台默认隐藏目录
+systemConfig.application.ops.application.workspace.hidden_directories.description: 配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。
+systemConfig.application.ops.application.workspace.hidden_directories.placeholder: 输入目录名后回车，例如 node_modules、.git
+systemConfig.application.ops.application.workspace.file_tooltip_rules.title: 工作台文件默认提示规则
+systemConfig.application.ops.application.workspace.file_tooltip_rules.description: 配置工作台文件名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
+systemConfig.application.ops.application.create.blank_prefill_default_template.title: 空白应用预填默认模板
+systemConfig.application.ops.application.create.blank_prefill_default_template.description: 启用后，空白应用创建会以 templates/default 的完整工作区为初始内容；关闭后仅创建空的 .env 和 compose.yaml 文件。
+systemConfig.application.ops.application.workspace.directory_tooltip_rules.title: 工作台目录默认提示规则
+systemConfig.application.ops.application.workspace.directory_tooltip_rules.description: 配置工作台目录名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
+systemConfig.groups.ops.application.import: 应用导入
+systemConfig.groups.ops.application.import.description: 管理导入流程允许浏览的根目录与边界。
+systemConfig.groups.ops.application.workspace: 应用工作台
+systemConfig.groups.ops.application.workspace.description: 管理配置工作台的目录过滤与文件浏览默认行为。

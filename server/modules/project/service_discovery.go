@@ -43,7 +43,7 @@ func (s *Service) scanDiscoveryCandidates(
 		candidates = append(candidates, candidate)
 	}
 	sort.Slice(candidates, func(i, j int) bool {
-		return strings.Compare(candidates[i].WorkingDirectory, candidates[j].WorkingDirectory) < 0
+		return strings.Compare(candidates[i].WorkspacePath, candidates[j].WorkspacePath) < 0
 	})
 	return candidates, nil
 }
@@ -145,9 +145,9 @@ func (s *Service) buildDiscoveryCandidate(
 		return DiscoveryCandidateResult{}, err
 	}
 	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
-		WorkingDirectory: workingDirectory,
-		ComposeFiles:     discovered.composeFiles,
-		EnvFiles:         discovered.envFiles,
+		WorkspacePath: workingDirectory,
+		ComposeFiles:  discovered.composeFiles,
+		EnvFiles:      discovered.envFiles,
 	})
 	if err != nil {
 		return DiscoveryCandidateResult{}, err
@@ -157,32 +157,30 @@ func (s *Service) buildDiscoveryCandidate(
 	}
 	status, recommendedAction, statusReason := discoveryCandidateStatus(session.Conflicts)
 	return DiscoveryCandidateResult{
-		CandidateKey:  candidateKeyForWorkingDirectory(workingDirectory),
+		CandidateKey:  candidateKeyForWorkspacePath(workingDirectory),
 		CandidateKind: "directory-scan",
-		SourceKind:    projectcontract.SourceKindManaged.String(),
-		SourceType:    projectcontract.SourceKindManaged.String(),
+		SourceType:    projectcontract.SourceTypeManaged.String(),
 		SourceMetadata: map[string]string{
 			"managed_root_key":           configKey,
 			"managed_relative_directory": name,
 			"managed_compose_file_name":  firstProjectFileDisplayName(toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles)),
 			"managed_env_file_name":      firstProjectFileDisplayName(toGeneratedFilesFromCompose(session.ParseResult.EnvFiles)),
 		},
-		DisplayName:                session.CanonicalName,
-		CanonicalProjectName:       session.CanonicalName,
-		CanonicalProjectNameSource: session.CanonicalSource,
-		WorkingDirectory:           session.WorkingDir,
-		OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
-		HostScope:                  projectcontract.HostScopeLocal.String(),
-		Status:                     status,
-		RecommendedAction:          recommendedAction,
-		StatusReason:               statusReason,
-		ComposeFiles:               toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
-		EnvFiles:                   toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
-		DeclaredServiceNames:       append([]string(nil), session.ParseResult.ServiceNames...),
-		ServiceCount:               len(session.ParseResult.ServiceNames),
-		ConfigHash:                 session.ParseResult.ConfigHash,
-		Warnings:                   append([]string(nil), session.Warnings...),
-		Conflicts:                  append([]string(nil), session.Conflicts...),
+		DisplayName:              session.CanonicalName,
+		ComposeProjectName:       session.CanonicalName,
+		ComposeProjectNameSource: session.CanonicalSource,
+		WorkspacePath:            session.WorkingDir,
+		OwnershipMode:            projectcontract.OwnershipModeManagedRootDedicated.String(),
+		Status:                   status,
+		RecommendedAction:        recommendedAction,
+		StatusReason:             statusReason,
+		ComposeFiles:             toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                 toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
+		DeclaredServiceNames:     append([]string(nil), session.ParseResult.ServiceNames...),
+		ServiceCount:             len(session.ParseResult.ServiceNames),
+		ConfigHash:               session.ParseResult.ConfigHash,
+		Warnings:                 append([]string(nil), session.Warnings...),
+		Conflicts:                append([]string(nil), session.Conflicts...),
 	}, nil
 }
 
@@ -197,15 +195,15 @@ func discoveryCandidateStatus(conflicts []string) (string, string, *string) {
 	return "conflict", "review", &reason
 }
 
-// candidateKeyForWorkingDirectory 生成工作目录的扫描候选键。
+// candidateKeyForWorkspacePath 生成工作目录的扫描候选键。
 // @returns 基于修剪后的工作目录生成的键，格式为 `scan:` 加上 SHA-256 摘要前 8 字节的十六进制值。
-func candidateKeyForWorkingDirectory(workingDirectory string) string {
+func candidateKeyForWorkspacePath(workingDirectory string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(workingDirectory)))
 	return "scan:" + hex.EncodeToString(sum[:8])
 }
 
 // firstProjectFileDisplayName 返回首个项目文件展示路径的基名；当列表为空时返回空字符串。
-func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
+func firstProjectFileDisplayName(items []generated.ApplicationFileItem) string {
 	if len(items) == 0 {
 		return ""
 	}
@@ -238,7 +236,7 @@ func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefini
 	if s.configResolver == nil {
 		return fallbackImportRoots(normalizeImportRootDefinitions(nil, managedRoot)), nil
 	}
-	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ProjectImportAllowedRootsConfig.String())
+	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ApplicationImportAllowedRootsConfig.String())
 	if err != nil {
 		return fallbackImportRoots(normalizeImportRootDefinitions(nil, managedRoot)), nil
 	}

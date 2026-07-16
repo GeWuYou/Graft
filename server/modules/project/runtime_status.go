@@ -5,8 +5,8 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-func buildProjectContainerCounts(summary *moduleapi.ContainerProjectRuntimeSummary) generated.ProjectContainerCounts {
-	counts := generated.ProjectContainerCounts{}
+func buildProjectContainerCounts(summary *moduleapi.ContainerProjectRuntimeSummary) generated.ApplicationContainerCounts {
+	counts := generated.ApplicationContainerCounts{}
 	if summary == nil {
 		return counts
 	}
@@ -31,13 +31,13 @@ func buildProjectContainerCounts(summary *moduleapi.ContainerProjectRuntimeSumma
 func deriveProjectRuntimeStatus(
 	summary *moduleapi.ContainerProjectRuntimeSummary,
 	runtimeErr error,
-) *generated.ProjectRuntimeStatus {
+) *generated.ApplicationRuntimeStatus {
 	if runtimeErr != nil {
-		status := generated.ProjectRuntimeStatusUnknown
+		status := generated.ApplicationRuntimeStatusUnknown
 		return &status
 	}
 	if summary == nil || len(summary.Members) == 0 {
-		status := generated.ProjectRuntimeStatusUnknown
+		status := generated.ApplicationRuntimeStatusUnknown
 		return &status
 	}
 
@@ -45,16 +45,16 @@ func deriveProjectRuntimeStatus(
 
 	switch {
 	case counts.Transitioning > 0:
-		status := generated.ProjectRuntimeStatusTransitioning
+		status := generated.ApplicationRuntimeStatusTransitioning
 		return &status
 	case counts.Running == counts.Total:
-		status := generated.ProjectRuntimeStatusRunning
+		status := generated.ApplicationRuntimeStatusRunning
 		return &status
 	case counts.Stopped == counts.Total:
-		status := generated.ProjectRuntimeStatusStopped
+		status := generated.ApplicationRuntimeStatusStopped
 		return &status
 	default:
-		status := generated.ProjectRuntimeStatusDegraded
+		status := generated.ApplicationRuntimeStatusDegraded
 		return &status
 	}
 }

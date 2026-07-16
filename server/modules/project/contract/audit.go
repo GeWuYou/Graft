@@ -1,6 +1,6 @@
 package contract
 
-// AuditAction 标识项目模块稳定的审计动作契约。
+// AuditAction 标识 Application 模块稳定的审计动作契约。
 type AuditAction string
 
 // String 返回规范的审计动作值，供审计事件和本地化查找使用。
@@ -9,28 +9,28 @@ func (a AuditAction) String() string {
 }
 
 const (
-	// ProjectAuditActionUp 标识单项目 Compose 启动审计动作。
-	ProjectAuditActionUp AuditAction = "ops.project.action.up"
-	// ProjectAuditActionStop 标识单项目 Compose 停止审计动作。
-	ProjectAuditActionStop AuditAction = "ops.project.action.stop"
-	// ProjectAuditActionRestart 标识单项目 Compose 重启审计动作。
-	ProjectAuditActionRestart AuditAction = "ops.project.action.restart"
-	// ProjectAuditActionRedeploy 标识单项目 Compose 重部署审计动作。
-	ProjectAuditActionRedeploy AuditAction = "ops.project.action.redeploy"
-	// ProjectAuditActionUnregister 标识单项目注销审计动作。
-	ProjectAuditActionUnregister AuditAction = "ops.project.action.unregister"
-	// ProjectAuditActionDestroy 标识单项目销毁审计动作。
-	ProjectAuditActionDestroy AuditAction = "ops.project.action.destroy"
-	// ProjectAuditActionBatchStart 标识批量启动汇总审计动作。
-	ProjectAuditActionBatchStart AuditAction = "ops.project.action.batch.start"
-	// ProjectAuditActionBatchStop 标识批量停止汇总审计动作。
-	ProjectAuditActionBatchStop AuditAction = "ops.project.action.batch.stop"
-	// ProjectAuditActionBatchRestart 标识批量重启汇总审计动作。
-	ProjectAuditActionBatchRestart AuditAction = "ops.project.action.batch.restart"
-	// ProjectAuditActionBatchRedeploy 标识批量重部署汇总审计动作。
-	ProjectAuditActionBatchRedeploy AuditAction = "ops.project.action.batch.redeploy"
-	// ProjectAuditActionBatchUnregister 标识批量注销汇总审计动作。
-	ProjectAuditActionBatchUnregister AuditAction = "ops.project.action.batch.unregister"
-	// ProjectAuditActionBatchDestroy 标识批量销毁汇总审计动作。
-	ProjectAuditActionBatchDestroy AuditAction = "ops.project.action.batch.destroy"
+	// ApplicationAuditActionUp 标识单应用 Compose 启动审计动作。
+	ApplicationAuditActionUp AuditAction = "ops.application.action.up"
+	// ApplicationAuditActionStop 标识单应用 Compose 停止审计动作。
+	ApplicationAuditActionStop AuditAction = "ops.application.action.stop"
+	// ApplicationAuditActionRestart 标识单应用 Compose 重启审计动作。
+	ApplicationAuditActionRestart AuditAction = "ops.application.action.restart"
+	// ApplicationAuditActionRedeploy 标识单应用 Compose 重部署审计动作。
+	ApplicationAuditActionRedeploy AuditAction = "ops.application.action.redeploy"
+	// ApplicationAuditActionUnregister 标识单应用注销审计动作。
+	ApplicationAuditActionUnregister AuditAction = "ops.application.action.unregister"
+	// ApplicationAuditActionDestroy 标识单应用销毁审计动作。
+	ApplicationAuditActionDestroy AuditAction = "ops.application.action.destroy"
+	// ApplicationAuditActionBatchStart 标识批量启动汇总审计动作。
+	ApplicationAuditActionBatchStart AuditAction = "ops.application.action.batch.start"
+	// ApplicationAuditActionBatchStop 标识批量停止汇总审计动作。
+	ApplicationAuditActionBatchStop AuditAction = "ops.application.action.batch.stop"
+	// ApplicationAuditActionBatchRestart 标识批量重启汇总审计动作。
+	ApplicationAuditActionBatchRestart AuditAction = "ops.application.action.batch.restart"
+	// ApplicationAuditActionBatchRedeploy 标识批量重部署汇总审计动作。
+	ApplicationAuditActionBatchRedeploy AuditAction = "ops.application.action.batch.redeploy"
+	// ApplicationAuditActionBatchUnregister 标识批量注销汇总审计动作。
+	ApplicationAuditActionBatchUnregister AuditAction = "ops.application.action.batch.unregister"
+	// ApplicationAuditActionBatchDestroy 标识批量销毁汇总审计动作。
+	ApplicationAuditActionBatchDestroy AuditAction = "ops.application.action.batch.destroy"
 )

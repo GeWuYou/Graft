@@ -12,8 +12,8 @@ import (
 const (
 	projectConfigDomain          = "ops"
 	projectConfigGroupCreate     = "ops.application.create"
-	projectConfigGroupImport     = "ops.project.import"
-	projectConfigGroupWorkspace  = "ops.project.workspace"
+	projectConfigGroupImport     = "ops.application.import"
+	projectConfigGroupWorkspace  = "ops.application.workspace"
 	projectConfigOrderBase       = 7100
 	minWorkspaceJSONLength       = 2
 	maxManagedRootLength         = 1024
@@ -68,27 +68,25 @@ func configDefinitions() []configregistry.Definition {
 	}
 }
 
-// projectBlankCreatePrefillDefaultTemplateDefinition returns the configuration definition for enabling the default template when creating a blank project.
 func projectBlankCreatePrefillDefaultTemplateDefinition() configregistry.Definition {
 	return configregistry.Definition{
-		Key:                 projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfig.String(),
+		Key:                 projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfig.String(),
 		Module:              moduleID,
 		Domain:              projectConfigDomain,
 		DomainKey:           projectConfigDomainKey,
 		Group:               projectConfigGroupCreate,
 		GroupKey:            projectcontract.ApplicationCreateConfigGroupTitle.String(),
 		GroupDescriptionKey: projectcontract.ApplicationCreateConfigGroupDescription.String(),
-		TitleKey:            projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigTitle.String(),
-		DescriptionKey:      projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigDescription.String(),
+		TitleKey:            projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigTitle.String(),
+		DescriptionKey:      projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigDescription.String(),
 		Type:                configregistry.ValueTypeBoolean,
-		Schema:              json.RawMessage(`{"type":"boolean","x-i18n":{"titleKey":"` + projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigTitle.String() + `","descriptionKey":"` + projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfigDescription.String() + `"}}`),
+		Schema:              json.RawMessage(`{"type":"boolean","x-i18n":{"titleKey":"` + projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigTitle.String() + `","descriptionKey":"` + projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigDescription.String() + `"}}`),
 		DefaultValue:        mustRawJSON(true),
 		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
-		Permission:          projectcontract.ProjectCreatePermission.String(),
+		Permission:          projectcontract.ApplicationCreatePermission.String(),
 	}
 }
 
-// applicationRootDirectoryDefinition returns the configuration definition for the application's root directory.
 func applicationRootDirectoryDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
 		key:                 projectcontract.ApplicationRootDirectoryConfig.String(),
@@ -99,67 +97,66 @@ func applicationRootDirectoryDefinition() configregistry.Definition {
 		descriptionKey:      projectcontract.ApplicationRootDirectoryConfigDescription.String(),
 		schema:              applicationRootDirectorySchema(),
 		defaultValue:        defaultApplicationRootDirectory,
-		permission:          projectcontract.ProjectCreatePermission.String(),
+		permission:          projectcontract.ApplicationCreatePermission.String(),
 	})
 }
 
 func projectImportAllowedRootsDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
-		key:                 projectcontract.ProjectImportAllowedRootsConfig.String(),
+		key:                 projectcontract.ApplicationImportAllowedRootsConfig.String(),
 		group:               projectConfigGroupImport,
-		groupKey:            projectcontract.ProjectImportConfigGroupTitle.String(),
-		groupDescriptionKey: projectcontract.ProjectImportConfigGroupDescription.String(),
-		titleKey:            projectcontract.ProjectImportAllowedRootsConfigTitle.String(),
-		descriptionKey:      projectcontract.ProjectImportAllowedRootsConfigDescription.String(),
+		groupKey:            projectcontract.ApplicationImportConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ApplicationImportConfigGroupDescription.String(),
+		titleKey:            projectcontract.ApplicationImportAllowedRootsConfigTitle.String(),
+		descriptionKey:      projectcontract.ApplicationImportAllowedRootsConfigDescription.String(),
 		schema:              projectImportAllowedRootsSchema(),
 		defaultValue:        defaultImportAllowedRoots,
-		permission:          projectcontract.ProjectImportPermission.String(),
+		permission:          projectcontract.ApplicationImportPermission.String(),
 	})
 }
 
 func projectWorkspaceHiddenDirectoriesDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
-		key:                 projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String(),
+		key:                 projectcontract.ApplicationWorkspaceHiddenDirectoriesConfig.String(),
 		group:               projectConfigGroupWorkspace,
-		groupKey:            projectcontract.ProjectWorkspaceConfigGroupTitle.String(),
-		groupDescriptionKey: projectcontract.ProjectWorkspaceConfigGroupDescription.String(),
-		titleKey:            projectcontract.ProjectWorkspaceHiddenDirectoriesConfigTitle.String(),
-		descriptionKey:      projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
+		groupKey:            projectcontract.ApplicationWorkspaceConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ApplicationWorkspaceConfigGroupDescription.String(),
+		titleKey:            projectcontract.ApplicationWorkspaceHiddenDirectoriesConfigTitle.String(),
+		descriptionKey:      projectcontract.ApplicationWorkspaceHiddenDirectoriesConfigDescription.String(),
 		schema:              projectWorkspaceHiddenDirectoriesSchema(),
 		defaultValue:        defaultWorkspaceHiddenDirectories,
-		permission:          projectcontract.ProjectViewPermission.String(),
+		permission:          projectcontract.ApplicationViewPermission.String(),
 	})
 }
 
 func projectWorkspaceFileTooltipRulesDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
-		key:                 projectcontract.ProjectWorkspaceFileTooltipRulesConfig.String(),
+		key:                 projectcontract.ApplicationWorkspaceFileTooltipRulesConfig.String(),
 		group:               projectConfigGroupWorkspace,
-		groupKey:            projectcontract.ProjectWorkspaceConfigGroupTitle.String(),
-		groupDescriptionKey: projectcontract.ProjectWorkspaceConfigGroupDescription.String(),
-		titleKey:            projectcontract.ProjectWorkspaceFileTooltipRulesConfigTitle.String(),
-		descriptionKey:      projectcontract.ProjectWorkspaceFileTooltipRulesConfigDescription.String(),
-		schema:              projectWorkspaceTooltipRulesSchema(projectcontract.ProjectWorkspaceFileTooltipRulesConfigDescription.String()),
+		groupKey:            projectcontract.ApplicationWorkspaceConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ApplicationWorkspaceConfigGroupDescription.String(),
+		titleKey:            projectcontract.ApplicationWorkspaceFileTooltipRulesConfigTitle.String(),
+		descriptionKey:      projectcontract.ApplicationWorkspaceFileTooltipRulesConfigDescription.String(),
+		schema:              projectWorkspaceTooltipRulesSchema(projectcontract.ApplicationWorkspaceFileTooltipRulesConfigDescription.String()),
 		defaultValue:        defaultWorkspaceFileTooltipRules,
-		permission:          projectcontract.ProjectViewPermission.String(),
+		permission:          projectcontract.ApplicationViewPermission.String(),
 	})
 }
 
 func projectWorkspaceDirectoryTooltipRulesDefinition() configregistry.Definition {
 	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
-		key:                 projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfig.String(),
+		key:                 projectcontract.ApplicationWorkspaceDirectoryTooltipRulesConfig.String(),
 		group:               projectConfigGroupWorkspace,
-		groupKey:            projectcontract.ProjectWorkspaceConfigGroupTitle.String(),
-		groupDescriptionKey: projectcontract.ProjectWorkspaceConfigGroupDescription.String(),
-		titleKey:            projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfigTitle.String(),
-		descriptionKey:      projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfigDescription.String(),
-		schema:              projectWorkspaceTooltipRulesSchema(projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfigDescription.String()),
+		groupKey:            projectcontract.ApplicationWorkspaceConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ApplicationWorkspaceConfigGroupDescription.String(),
+		titleKey:            projectcontract.ApplicationWorkspaceDirectoryTooltipRulesConfigTitle.String(),
+		descriptionKey:      projectcontract.ApplicationWorkspaceDirectoryTooltipRulesConfigDescription.String(),
+		schema:              projectWorkspaceTooltipRulesSchema(projectcontract.ApplicationWorkspaceDirectoryTooltipRulesConfigDescription.String()),
 		defaultValue:        defaultWorkspaceDirectoryTooltipRules,
-		permission:          projectcontract.ProjectViewPermission.String(),
+		permission:          projectcontract.ApplicationViewPermission.String(),
 	})
 }
 
-// buildProjectConfigDefinition constructs a project configuration definition from the provided specification.
 func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregistry.Definition {
 	return configregistry.Definition{
 		Key:                 spec.key,
@@ -185,7 +182,6 @@ func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregist
 	}
 }
 
-// applicationRootDirectorySchema returns the JSON Schema for the application root directory.
 // applicationRootDirectorySchema 返回应用根目录配置的 JSON Schema；空字符串表示禁用应用创建。
 func applicationRootDirectorySchema() string {
 	return fmt.Sprintf(
@@ -208,8 +204,8 @@ func projectWorkspaceHiddenDirectoriesSchema() string {
 	return fmt.Sprintf(
 		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string for configuration workspace directories hidden by default. Each item is a directory basename such as node_modules or .git.","examples":["[\".git\",\"node_modules\",\"dist\"]"],"x-i18n":{"descriptionKey":"%s","placeholderKey":"%s"},"x-graft":{"editor":"string-array-json-list"}}`,
 		maxWorkspaceHiddenDirsLength,
-		projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
-		projectcontract.ProjectWorkspaceHiddenDirectoriesPlaceholder.String(),
+		projectcontract.ApplicationWorkspaceHiddenDirectoriesConfigDescription.String(),
+		projectcontract.ApplicationWorkspaceHiddenDirectoriesPlaceholder.String(),
 	)
 }
 

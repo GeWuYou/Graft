@@ -25,37 +25,37 @@ func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 	}
 }
 
-// lifecycleSeedForManagedProject 返回受管项目在存储层使用的默认生命周期配置。
-func lifecycleSeedForManagedProject() projectstore.LifecycleConfig {
+// lifecycleSeedForManagedApplication 返回受管项目在存储层使用的默认生命周期配置。
+func lifecycleSeedForManagedApplication() projectstore.LifecycleConfig {
 	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
 }
 
 // lifecycleConfigurationFromAggregate 从项目聚合体构建包含项目基本信息及标准生命周期配置的 LifecycleConfiguration。
-func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate) LifecycleConfiguration {
+func lifecycleConfigurationFromAggregate(aggregate projectstore.ApplicationAggregate) LifecycleConfiguration {
 	return LifecycleConfiguration{
 		StrategyKind: LifecycleStrategyKind(nonEmptyString(
-			aggregate.Project.LifecycleStrategyKind,
+			aggregate.Application.LifecycleStrategyKind,
 			projectcontract.LifecycleStrategyKindStandard.String(),
 		)),
 		ReviewStatus: LifecycleReviewStatus(nonEmptyString(
-			aggregate.Project.LifecycleReviewStatus,
+			aggregate.Application.LifecycleReviewStatus,
 			projectcontract.LifecycleReviewStatusReviewRequired.String(),
 		)),
-		WorkingDir:   aggregate.Project.WorkingDirectory,
-		ComposeFiles: collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
-		ProjectName:  aggregate.Project.CanonicalProjectName,
+		WorkingDir:      aggregate.Application.WorkspacePath,
+		ComposeFiles:    collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
+		ApplicationName: aggregate.Application.ComposeProjectName,
 		Standard: LifecycleStandardConfig{
-			Profiles:                 append([]string(nil), aggregate.Project.LifecycleConfig.Profiles...),
-			DownBeforeRedeploy:       aggregate.Project.LifecycleConfig.DownBeforeRedeploy,
-			PullBeforeRedeploy:       aggregate.Project.LifecycleConfig.PullBeforeRedeploy,
-			BuildBeforeUp:            aggregate.Project.LifecycleConfig.BuildBeforeUp,
-			ForceRecreate:            aggregate.Project.LifecycleConfig.ForceRecreate,
-			RemoveOrphans:            aggregate.Project.LifecycleConfig.RemoveOrphans,
-			WaitAfterUp:              aggregate.Project.LifecycleConfig.WaitAfterUp,
-			WaitTimeoutSeconds:       aggregate.Project.LifecycleConfig.WaitTimeoutSeconds,
-			RenewAnonVolumes:         aggregate.Project.LifecycleConfig.RenewAnonVolumes,
-			PruneImagesAfterRedeploy: aggregate.Project.LifecycleConfig.PruneImagesAfterRedeploy,
-			AdditionalArgs:           append([]string(nil), aggregate.Project.LifecycleConfig.AdditionalArgs...),
+			Profiles:                 append([]string(nil), aggregate.Application.LifecycleConfig.Profiles...),
+			DownBeforeRedeploy:       aggregate.Application.LifecycleConfig.DownBeforeRedeploy,
+			PullBeforeRedeploy:       aggregate.Application.LifecycleConfig.PullBeforeRedeploy,
+			BuildBeforeUp:            aggregate.Application.LifecycleConfig.BuildBeforeUp,
+			ForceRecreate:            aggregate.Application.LifecycleConfig.ForceRecreate,
+			RemoveOrphans:            aggregate.Application.LifecycleConfig.RemoveOrphans,
+			WaitAfterUp:              aggregate.Application.LifecycleConfig.WaitAfterUp,
+			WaitTimeoutSeconds:       aggregate.Application.LifecycleConfig.WaitTimeoutSeconds,
+			RenewAnonVolumes:         aggregate.Application.LifecycleConfig.RenewAnonVolumes,
+			PruneImagesAfterRedeploy: aggregate.Application.LifecycleConfig.PruneImagesAfterRedeploy,
+			AdditionalArgs:           append([]string(nil), aggregate.Application.LifecycleConfig.AdditionalArgs...),
 		},
 	}
 }
@@ -170,30 +170,30 @@ func (s *Service) UpdateLifecycleConfiguration(
 	projectID uint64,
 	config LifecycleStandardConfig,
 	actorID *uint64,
-) (projectstore.ProjectAggregate, error) {
+) (projectstore.ApplicationAggregate, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
-		return projectstore.ProjectAggregate{}, err
+		return projectstore.ApplicationAggregate{}, err
 	}
 	normalized, err := normalizeLifecycleStandardConfig(config)
 	if err != nil {
-		return projectstore.ProjectAggregate{}, err
+		return projectstore.ApplicationAggregate{}, err
 	}
 	aggregate, err := repository.UpdateLifecycleConfig(ctx, projectstore.UpdateLifecycleConfigInput{
-		ProjectID:             projectID,
+		ApplicationRecordID:   projectID,
 		LifecycleStrategyKind: projectcontract.LifecycleStrategyKindStandard.String(),
 		LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
 		LifecycleConfig:       toStoreLifecycleConfig(normalized),
 		ActorID:               actorID,
 	})
 	if err != nil {
-		return projectstore.ProjectAggregate{}, mapStoreError(err)
+		return projectstore.ApplicationAggregate{}, mapStoreError(err)
 	}
 	return aggregate, nil
 }
 
-func lifecycleReviewGuard(aggregate projectstore.ProjectAggregate) error {
-	if strings.TrimSpace(aggregate.Project.LifecycleReviewStatus) != projectcontract.LifecycleReviewStatusConfirmed.String() {
+func lifecycleReviewGuard(aggregate projectstore.ApplicationAggregate) error {
+	if strings.TrimSpace(aggregate.Application.LifecycleReviewStatus) != projectcontract.LifecycleReviewStatusConfirmed.String() {
 		return errProjectLifecycleReview
 	}
 	return nil

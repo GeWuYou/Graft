@@ -24,8 +24,7 @@ func (s *Service) publishDetachedAuditEvent(
 		cancel()
 		return
 	}
-	// Batch actions already aggregate to one audit event; detach its publish so
-	// slow synchronous handlers do not extend the user-visible batch request.
+	// 批量动作只发布一条汇总审计事件；脱离请求上下文可避免慢速同步订阅者延长用户可见请求。
 	go func() {
 		defer cancel()
 		s.publishAuditEvent(ctx, event, failureMessage)
@@ -108,7 +107,7 @@ func requestPathFromContext(ctx context.Context) string {
 	return ""
 }
 
-func batchAuditResourceID(action generated.ProjectBatchActionRequestAction, now time.Time) string {
+func batchAuditResourceID(action generated.ApplicationBatchActionRequestAction, now time.Time) string {
 	return "batch:" + strings.TrimSpace(string(action)) + ":" + strconv.FormatInt(now.UnixNano(), 10)
 }
 

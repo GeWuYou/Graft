@@ -11,15 +11,15 @@ import (
 func TestManagedCreateRequestMappersRejectUnsupportedLifecycleStrategy(t *testing.T) {
 	t.Parallel()
 
-	invalidLifecycle := &generated.ProjectLifecycleConfigurationRequest{
-		StrategyKind: generated.ProjectLifecycleStrategyKind("unsupported"),
+	invalidLifecycle := &generated.ApplicationLifecycleConfigurationRequest{
+		StrategyKind: generated.ApplicationLifecycleStrategyKind("unsupported"),
 	}
-	if _, err := toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody{
+	if _, err := toManagedCreateRequest(generated.PostApplicationCreateValidateJSONRequestBody{
 		LifecycleConfiguration: invalidLifecycle,
 	}); !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected invalid lifecycle strategy error from validate mapper, got %v", err)
 	}
-	if _, err := toManagedCreateExecuteRequest(generated.PostProjectCreateJSONRequestBody{
+	if _, err := toManagedCreateExecuteRequest(generated.PostApplicationCreateJSONRequestBody{
 		LifecycleConfiguration: invalidLifecycle,
 	}); !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected invalid lifecycle strategy error from create mapper, got %v", err)
@@ -30,12 +30,12 @@ func TestManagedCreateRequestMappersUseCanonicalWorkspaceEntries(t *testing.T) {
 	t.Parallel()
 	compose := "services: {}\n"
 	readme := "workspace notes\n"
-	entries := []generated.ProjectWorkspaceEntry{
-		{Path: "config", NodeType: generated.ProjectWorkspaceEntryNodeTypeDirectory},
-		{Path: "config/readme", NodeType: generated.ProjectWorkspaceEntryNodeTypeFile, Content: &readme},
-		{Path: "compose/compose.yaml", NodeType: generated.ProjectWorkspaceEntryNodeTypeFile, Content: &compose},
+	entries := []generated.ApplicationWorkspaceEntry{
+		{Path: "config", NodeType: generated.ApplicationWorkspaceEntryNodeTypeDirectory},
+		{Path: "config/readme", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &readme},
+		{Path: "compose/compose.yaml", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &compose},
 	}
-	request, err := toManagedCreateExecuteRequest(generated.PostProjectCreateJSONRequestBody{
+	request, err := toManagedCreateExecuteRequest(generated.PostApplicationCreateJSONRequestBody{
 		DisplayName:      "Demo",
 		RuntimeTargetId:  1,
 		ComposeFilePath:  "compose/compose.yaml",
@@ -55,12 +55,12 @@ func TestManagedCreateRequestMappersUseCanonicalWorkspaceEntries(t *testing.T) {
 func TestManagedCreateRequestMapperRejectsMissingPrimaryComposeEntry(t *testing.T) {
 	t.Parallel()
 	content := "text"
-	_, err := toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody{
+	_, err := toManagedCreateRequest(generated.PostApplicationCreateValidateJSONRequestBody{
 		DisplayName:     "Demo",
 		RuntimeTargetId: 1,
 		ComposeFilePath: "compose.yaml",
-		WorkspaceEntries: []generated.ProjectWorkspaceEntry{
-			{Path: "README", NodeType: generated.ProjectWorkspaceEntryNodeTypeFile, Content: &content},
+		WorkspaceEntries: []generated.ApplicationWorkspaceEntry{
+			{Path: "README", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &content},
 		},
 	})
 	if !errors.Is(err, errProjectInvalidArgument) {
@@ -68,12 +68,12 @@ func TestManagedCreateRequestMapperRejectsMissingPrimaryComposeEntry(t *testing.
 	}
 }
 
-func TestTemplateProjectCreateRequestRejectsUnsupportedLifecycleStrategy(t *testing.T) {
+func TestTemplateApplicationCreateRequestRejectsUnsupportedLifecycleStrategy(t *testing.T) {
 	t.Parallel()
 
-	_, err := toTemplateProjectCreateRequest(templateProjectCreateHTTP{
-		LifecycleConfiguration: &generated.ProjectLifecycleConfigurationRequest{
-			StrategyKind: generated.ProjectLifecycleStrategyKind("unsupported"),
+	_, err := toTemplateApplicationCreateRequest(templateProjectCreateHTTP{
+		LifecycleConfiguration: &generated.ApplicationLifecycleConfigurationRequest{
+			StrategyKind: generated.ApplicationLifecycleStrategyKind("unsupported"),
 		},
 	})
 	if !errors.Is(err, errProjectInvalidArgument) {
@@ -88,13 +88,13 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	internal := true
 	local := "local"
 	result := RuntimeImportInspectResult{
-		InspectionID:               "inspect-1",
-		ExpiresAt:                  time.Date(2026, time.July, 11, 8, 5, 0, 0, time.UTC),
-		CandidateKey:               "runtime:demo",
-		ResolvedWorkingDirectory:   "/srv/demo",
-		CanonicalProjectName:       "demo",
-		CanonicalProjectNameSource: "computed",
-		DisplayNameSuggested:       "Demo",
+		InspectionID:             "inspect-1",
+		ExpiresAt:                time.Date(2026, time.July, 11, 8, 5, 0, 0, time.UTC),
+		CandidateKey:             "runtime:demo",
+		ResolvedWorkspacePath:    "/srv/demo",
+		ComposeProjectName:       "demo",
+		ComposeProjectNameSource: "computed",
+		DisplayNameSuggested:     "Demo",
 		ComposeFiles: []FileView{
 			{AbsolutePath: "/srv/demo/compose.yaml", DisplayPath: "compose.yaml", Kind: "compose", Role: "primary"},
 		},
@@ -128,7 +128,7 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 			{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", State: "running"},
 		},
 		ConfigHash:       "abc123",
-		Warnings:         []string{"working_directory_derived_from_config_files"},
+		Warnings:         []string{"workspace_path_derived_from_config_files"},
 		Conflicts:        []string{},
 		ValidationStatus: "ready",
 	}

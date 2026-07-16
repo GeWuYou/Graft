@@ -289,12 +289,12 @@ func (s *Service) buildProjectRuntimeRealtimePayload(
 		return projectRuntimeRealtimePayload{}, err
 	}
 	return projectRuntimeRealtimePayload{
-		Topic:       topic,
-		ProjectID:   mustGeneratedID(projectID),
-		PublishedAt: time.Now().UTC(),
-		Detail:      detail,
-		Overview:    overview,
-		Services:    services,
+		Topic:         topic,
+		ApplicationID: detail.ApplicationId,
+		PublishedAt:   time.Now().UTC(),
+		Detail:        detail,
+		Overview:      overview,
+		Services:      services,
 	}, nil
 }
 
@@ -313,7 +313,7 @@ func (s *Service) buildProjectListSummaryRealtimePayload(
 			return projectListSummaryRealtimePayload{}, err
 		}
 		for _, item := range result.Items {
-			runtimeStatus := generated.ProjectRuntimeStatusUnknown
+			runtimeStatus := generated.ApplicationRuntimeStatusUnknown
 			if item.RuntimeStatus != nil {
 				runtimeStatus = *item.RuntimeStatus
 			}

@@ -13,38 +13,38 @@ type managedRootFS struct {
 	rootDir string
 }
 
-// writeManagedProjectFiles 在受管根目录中创建工作目录并写入项目文件。
+// writeManagedApplicationFiles 在受管根目录中创建工作目录并写入项目文件。
 // 它会写入 compose 文件，并在提供环境文件路径和内容时写入 env 文件。
 // @param validation 包含工作目录以及各文件绝对路径的校验结果。
 // @param normalized 包含要写入的规范化文件内容。
-// writeManagedProjectFiles 创建工作目录并将工作区条目写入其中。
+// writeManagedApplicationFiles 创建工作目录并将工作区条目写入其中。
 // 返回清理后的工作目录、已创建文件的绝对路径以及可能发生的错误。
-func writeManagedProjectFiles(
-	validation ManagedProjectCreateValidationResult,
+func writeManagedApplicationFiles(
+	validation ManagedApplicationCreateValidationResult,
 	normalized normalizedManagedCreateRequest,
 ) (workingDirectory string, createdFiles []string, err error) {
-	workingDirectory = filepath.Clean(validation.WorkingDirectory)
+	workingDirectory = filepath.Clean(validation.WorkspacePath)
 	_, statErr := os.Lstat(workingDirectory)
 	createdDirectory := errors.Is(statErr, os.ErrNotExist)
 	if statErr != nil && !createdDirectory {
 		return "", nil, fmt.Errorf("inspect working directory: %w", statErr)
 	}
-	parentRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
+	parentRoot, relativeWorkspacePath, err := openManagedApplicationParentRoot(workingDirectory)
 	if err != nil {
 		return "", nil, fmt.Errorf("open managed project parent root: %w", err)
 	}
 	defer func() {
 		err = errors.Join(err, closeManagedRootFS(parentRoot))
 	}()
-	if err := parentRoot.root.MkdirAll(relativeWorkingDirectory, managedCreateDirMode); err != nil {
+	if err := parentRoot.root.MkdirAll(relativeWorkspacePath, managedCreateDirMode); err != nil {
 		return "", nil, fmt.Errorf("create working directory: %w", err)
 	}
 	defer func() {
 		if err != nil && createdDirectory {
-			err = errors.Join(err, parentRoot.root.RemoveAll(relativeWorkingDirectory))
+			err = errors.Join(err, parentRoot.root.RemoveAll(relativeWorkspacePath))
 		}
 	}()
-	workingRoot, err := parentRoot.root.OpenRoot(relativeWorkingDirectory)
+	workingRoot, err := parentRoot.root.OpenRoot(relativeWorkspacePath)
 	if err != nil {
 		return workingDirectory, nil, fmt.Errorf("open working directory: %w", err)
 	}
@@ -58,7 +58,7 @@ func writeManagedProjectFiles(
 	return workingDirectory, createdFiles, nil
 }
 
-// materializeWorkspaceEntries creates workspace entries and records the absolute paths of created files. It stops at the first materialization error.
+// materializeWorkspaceEntries 顺序写入工作区条目并记录已创建文件的绝对路径；首次写入失败即停止。
 func materializeWorkspaceEntries(root *os.Root, entries []ManagedWorkspaceEntry, workingDirectory string, createdFiles *[]string) error {
 	for _, entry := range entries {
 		if err := materializeWorkspaceEntry(root, entry); err != nil {
@@ -71,9 +71,7 @@ func materializeWorkspaceEntries(root *os.Root, entries []ManagedWorkspaceEntry,
 	return nil
 }
 
-// materializeWorkspaceEntry creates a workspace directory or writes a workspace file
-// under root according to the entry definition. Directory entries are created
-// recursively; file entries require content.
+// materializeWorkspaceEntry 在受限根目录内递归创建目录或写入文件；文件条目必须包含内容。
 func materializeWorkspaceEntry(root *os.Root, entry ManagedWorkspaceEntry) error {
 	parent := filepath.Dir(entry.Path)
 	if parent != "." {
@@ -104,7 +102,7 @@ func cleanupManagedCreate(createdDir string, createdFiles []string) (err error) 
 	}
 	fsRoot := (*managedRootFS)(nil)
 	if strings.TrimSpace(createdDir) != "" {
-		fsRoot, _, err = openManagedProjectParentRoot(createdDir)
+		fsRoot, _, err = openManagedApplicationParentRoot(createdDir)
 	} else {
 		fsRoot, err = openManagedRootFSForPaths("", createdFiles...)
 	}
@@ -173,24 +171,24 @@ func openManagedRootFS(rootDir string) (*managedRootFS, error) {
 	return &managedRootFS{root: root, rootDir: absolute}, nil
 }
 
-// openManagedProjectParentRoot 打开工作目录的受管父目录并返回其相对工作目录。
+// openManagedApplicationParentRoot 打开工作目录的受管父目录并返回其相对工作目录。
 // 它会清理并校验工作目录路径，拒绝空路径和无效路径。
 // 返回受管根、工作目录在父目录中的相对名称，以及错误。
-func openManagedProjectParentRoot(workingDirectory string) (*managedRootFS, string, error) {
+func openManagedApplicationParentRoot(workingDirectory string) (*managedRootFS, string, error) {
 	absolute := filepath.Clean(strings.TrimSpace(workingDirectory))
 	if absolute == "" {
 		return nil, "", fmt.Errorf("working directory is required")
 	}
 	parentDir := filepath.Dir(absolute)
-	relativeWorkingDirectory := filepath.Base(absolute)
-	if relativeWorkingDirectory == "." || relativeWorkingDirectory == string(filepath.Separator) || relativeWorkingDirectory == "" {
+	relativeWorkspacePath := filepath.Base(absolute)
+	if relativeWorkspacePath == "." || relativeWorkspacePath == string(filepath.Separator) || relativeWorkspacePath == "" {
 		return nil, "", fmt.Errorf("working directory is invalid")
 	}
 	fsRoot, err := openManagedRootFS(parentDir)
 	if err != nil {
 		return nil, "", fmt.Errorf("open managed project parent %s: %w", parentDir, err)
 	}
-	return fsRoot, relativeWorkingDirectory, nil
+	return fsRoot, relativeWorkspacePath, nil
 }
 
 // openManagedRootFSForPaths 根据根目录或候选路径打开受管根目录。
@@ -260,17 +258,17 @@ func closeManagedRootFS(fsRoot *managedRootFS) error {
 	return nil
 }
 
-// deleteManagedWorkingDirectory 删除受管工作目录中的全部内容。
+// deleteManagedWorkspacePath 删除受管工作目录中的全部内容。
 // 它会打开该工作目录对应的受管根，并移除根下的所有文件和子目录。若打开、删除或关闭过程中发生错误，则返回相应错误。
-func deleteManagedWorkingDirectory(workingDirectory string) (err error) {
-	fsRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
+func deleteManagedWorkspacePath(workingDirectory string) (err error) {
+	fsRoot, relativeWorkspacePath, err := openManagedApplicationParentRoot(workingDirectory)
 	if err != nil {
 		return fmt.Errorf("open managed working directory %s: %w", workingDirectory, err)
 	}
 	defer func() {
 		err = errors.Join(err, closeManagedRootFS(fsRoot))
 	}()
-	if err := fsRoot.root.RemoveAll(relativeWorkingDirectory); err != nil {
+	if err := fsRoot.root.RemoveAll(relativeWorkspacePath); err != nil {
 		return fmt.Errorf("remove managed working directory %s: %w", workingDirectory, err)
 	}
 	return nil

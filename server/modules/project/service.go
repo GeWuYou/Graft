@@ -57,7 +57,7 @@ const (
 	maxProjectListLimit          = 100
 	projectConflictScanSize      = 100
 	projectDiscoveryScanSize     = 8
-	maxWorkspaceAnnotationLength = projectcontract.ProjectWorkspaceAnnotationMaxLength
+	maxWorkspaceAnnotationLength = projectcontract.ApplicationWorkspaceAnnotationMaxLength
 	minLifecycleArgCount         = 2
 	maxCommandOutputSummary      = 120
 	managedCreateWarningsCap     = 2
@@ -66,6 +66,8 @@ const (
 	managedCreateFileMode        = 0o600
 	projectComposeTimeout        = 5 * time.Minute
 	lifecycleRedeployStepCap     = 4
+	// localContainerRuntimeScope 只适配 container 模块当前的本地运行时查询边界，不属于 Application 持久化或公开契约。
+	localContainerRuntimeScope = "local"
 
 	importRuntimeCandidateStatusReady           = "ready"
 	importRuntimeCandidateStatusAlreadyImported = "already_imported"
@@ -76,42 +78,42 @@ const (
 	importRuntimeReasonConfigFilesNotAccessible = "config_files_not_accessible"
 )
 
-// ListQuery 描述项目列表筛选条件。
+// ListQuery 描述应用列表筛选条件。
 type ListQuery struct {
 	Limit   int
 	Offset  int
 	Keyword string
-	// Sort accepts the restricted project-list sort expressions; an empty value uses created_at:desc.
+	// Sort 只接受应用列表白名单排序表达式；空值使用 created_at:desc。
 	Sort            string
 	ApplicationType string
 	RuntimeTargetID *int64
 	Provider        string
-	SourceKind      string
+	SourceType      string
 	RuntimeStatus   string
 	DriftStatus     string
 }
 
 // ImportRequest 描述当前阶段导入校验和导入请求载荷。
 type ImportRequest struct {
-	WorkingDirectory             string
-	DisplayName                  *string
-	ComposeFiles                 []string
-	EnvFiles                     []string
-	CanonicalProjectNameOverride *string
-	ActorID                      *uint64
+	WorkspacePath              string
+	DisplayName                *string
+	ComposeFiles               []string
+	EnvFiles                   []string
+	ComposeProjectNameOverride *string
+	ActorID                    *uint64
 }
 
-// ListResult 返回分页项目列表。
+// ListResult 返回分页应用列表。
 type ListResult struct {
-	Items  []generated.ProjectListItem
+	Items  []generated.ApplicationListItem
 	Total  int
 	Limit  int
 	Offset int
 }
 
-// CreationMethodCatalogResult 返回可用的 Compose 项目创建方式。
+// CreationMethodCatalogResult 返回可用的 Compose 应用创建方式。
 type CreationMethodCatalogResult struct {
-	Items []generated.ProjectCreationMethod
+	Items []generated.ApplicationCreationMethod
 }
 
 // ComposeRuntimeTargets 返回实现 Compose 能力契约的已注册运行时目标。
@@ -119,39 +121,37 @@ func (s *Service) ComposeRuntimeTargets(ctx context.Context) ([]moduleapi.Compos
 	return s.listComposeTargets(ctx)
 }
 
-// ActivityAuthority 标识稳定的项目活动权威契约。
+// ActivityAuthority 标识稳定的应用活动聚合权威契约。
 type ActivityAuthority string
 
 const (
-	// ProjectActivityAuthorityFrontendFanout keeps project activity in frontend fan-out over container authority.
-	ProjectActivityAuthorityFrontendFanout ActivityAuthority = "frontend-fanout"
-	// ProjectActivityAuthorityBackendPlanned reserves a future backend aggregation owner without implementing it yet.
-	ProjectActivityAuthorityBackendPlanned ActivityAuthority = "backend-planned"
+	// ApplicationActivityAuthorityFrontendFanout 表示前端基于 Container 权威数据聚合应用活动。
+	ApplicationActivityAuthorityFrontendFanout ActivityAuthority = "frontend-fanout"
+	// ApplicationActivityAuthorityBackendPlanned 仅保留未来后端聚合权威值，当前不实现第二套活动持久化。
+	ApplicationActivityAuthorityBackendPlanned ActivityAuthority = "backend-planned"
 )
 
 // DiscoveryCandidateResult 返回一个有界目录扫描或自动发现预览候选。
 type DiscoveryCandidateResult struct {
-	CandidateKey               string
-	CandidateKind              string
-	SourceKind                 string
-	SourceType                 string
-	SourceMetadata             map[string]string
-	DisplayName                string
-	CanonicalProjectName       string
-	CanonicalProjectNameSource string
-	WorkingDirectory           string
-	OwnershipMode              string
-	HostScope                  string
-	Status                     string
-	RecommendedAction          string
-	StatusReason               *string
-	ComposeFiles               []generated.ProjectFileItem
-	EnvFiles                   []generated.ProjectFileItem
-	DeclaredServiceNames       []string
-	ServiceCount               int
-	ConfigHash                 string
-	Warnings                   []string
-	Conflicts                  []string
+	CandidateKey             string
+	CandidateKind            string
+	SourceType               string
+	SourceMetadata           map[string]string
+	DisplayName              string
+	ComposeProjectName       string
+	ComposeProjectNameSource string
+	WorkspacePath            string
+	OwnershipMode            string
+	Status                   string
+	RecommendedAction        string
+	StatusReason             *string
+	ComposeFiles             []generated.ApplicationFileItem
+	EnvFiles                 []generated.ApplicationFileItem
+	DeclaredServiceNames     []string
+	ServiceCount             int
+	ConfigHash               string
+	Warnings                 []string
+	Conflicts                []string
 }
 
 // DiscoveryCandidatesResult 返回有界扫描/发现候选权威表面。
@@ -166,35 +166,37 @@ type DiscoveryCandidatesResult struct {
 
 // ImportValidationResult 返回静态导入校验结果。
 type ImportValidationResult struct {
-	CanonicalProjectName       string
-	CanonicalProjectNameSource string
-	WorkingDirectory           string
-	ComposeFiles               []generated.ProjectFileItem
-	EnvFiles                   []generated.ProjectFileItem
-	ServiceCount               int
-	NetworkNames               []string
-	VolumeNames                []string
-	Warnings                   []string
-	Conflicts                  []string
-	ConfigHash                 string
-	DeclaredServiceNames       []string
-	InspectionID               *string
+	ComposeProjectName       string
+	ComposeProjectNameSource string
+	WorkspacePath            string
+	ComposeFiles             []generated.ApplicationFileItem
+	EnvFiles                 []generated.ApplicationFileItem
+	ServiceCount             int
+	NetworkNames             []string
+	VolumeNames              []string
+	Warnings                 []string
+	Conflicts                []string
+	ConfigHash               string
+	DeclaredServiceNames     []string
+	InspectionID             *string
 }
 
 // ConfigurationMetadataResult 返回只读配置元数据。
 type ConfigurationMetadataResult struct {
-	ProjectID          uint64
-	ComposeFiles       []generated.ProjectFileItem
-	EnvFiles           []generated.ProjectFileItem
-	OwnershipMode      string
-	DriftStatus        string
-	DiagnosticsSummary []string
+	ApplicationRecordID uint64
+	ApplicationID       string
+	ComposeFiles        []generated.ApplicationFileItem
+	EnvFiles            []generated.ApplicationFileItem
+	OwnershipMode       string
+	DriftStatus         string
+	DiagnosticsSummary  []string
 }
 
 // ConfigurationPreviewResult 返回只读规范化 Compose 配置预览。
 type ConfigurationPreviewResult struct {
-	ProjectID             uint64
-	CanonicalProjectName  string
+	ApplicationRecordID   uint64
+	ApplicationID         string
+	ComposeProjectName    string
 	ConfigHash            string
 	NormalizedComposeYAML string
 	RefreshedAt           *time.Time
@@ -209,13 +211,11 @@ type ConfigurationFileResult struct {
 	DownloadName string
 }
 
-// workspaceFileBrowseQuery describes one lazy-loaded project-root directory browse request.
 type workspaceFileBrowseQuery struct {
 	Path       string
 	ShowHidden bool
 }
 
-// workspaceFileItem describes one file-tree row returned by the project workspace authority.
 type workspaceFileItem struct {
 	Name            string
 	RelativePath    string
@@ -229,51 +229,50 @@ type workspaceFileItem struct {
 	HasChildren     bool
 	Tooltip         string
 	TooltipSource   string
-	ProjectNote     string
+	ApplicationNote string
 }
 
-// workspaceFilesResult returns one bounded project-root directory page.
 type workspaceFilesResult struct {
-	ProjectID     uint64
-	RootPath      string
-	CurrentPath   string
-	ParentPath    *string
-	HasMoreHidden bool
-	Items         []workspaceFileItem
+	ApplicationRecordID uint64
+	ApplicationID       string
+	RootPath            string
+	CurrentPath         string
+	ParentPath          *string
+	HasMoreHidden       bool
+	Items               []workspaceFileItem
 }
 
-// workspaceFileContentResult returns one path-based project file payload.
 type workspaceFileContentResult struct {
-	ProjectID    uint64
-	RelativePath string
-	FileKind     string
-	LanguageHint string
-	Readable     bool
-	Editable     bool
-	Encoding     string
-	Content      string
-	SizeBytes    int64
+	ApplicationRecordID uint64
+	ApplicationID       string
+	RelativePath        string
+	FileKind            string
+	LanguageHint        string
+	Readable            bool
+	Editable            bool
+	Encoding            string
+	Content             string
+	SizeBytes           int64
 }
 
-// workspaceFileSaveRequest describes one writable project file update request.
 type workspaceFileSaveRequest struct {
 	Content string
 }
 
-// workspaceFileSaveResult returns the saved file projection after one write.
 type workspaceFileSaveResult struct {
-	ProjectID    uint64
-	RelativePath string
-	SavedAt      time.Time
-	ContentHash  string
-	SizeBytes    int64
+	ApplicationRecordID uint64
+	ApplicationID       string
+	RelativePath        string
+	SavedAt             time.Time
+	ContentHash         string
+	SizeBytes           int64
 }
 
 // LifecycleStrategyKind 标识内部生命周期策略 owner。
 type LifecycleStrategyKind string
 
 const (
-	// LifecycleStrategyKindStandard runs bounded docker compose commands from project authority.
+	// LifecycleStrategyKindStandard 表示从应用契约生成有界 Docker Compose 命令。
 	LifecycleStrategyKindStandard LifecycleStrategyKind = "standard"
 )
 
@@ -287,9 +286,9 @@ const (
 type LifecycleReviewStatus string
 
 const (
-	// LifecycleReviewStatusReviewRequired blocks lifecycle execution until the user reviews imported defaults.
+	// LifecycleReviewStatusReviewRequired 表示导入默认值尚未确认，禁止执行生命周期动作。
 	LifecycleReviewStatusReviewRequired LifecycleReviewStatus = "review_required"
-	// LifecycleReviewStatusConfirmed allows lifecycle execution with the persisted configuration.
+	// LifecycleReviewStatusConfirmed 表示持久化配置已确认，可以执行生命周期动作。
 	LifecycleReviewStatusConfirmed LifecycleReviewStatus = "confirmed"
 )
 
@@ -310,34 +309,35 @@ type LifecycleStandardConfig struct {
 
 // LifecycleConfiguration 保存项目拥有的生命周期执行配置。
 type LifecycleConfiguration struct {
-	StrategyKind LifecycleStrategyKind
-	ReviewStatus LifecycleReviewStatus
-	WorkingDir   string
-	ComposeFiles []string
-	ProjectName  string
-	Standard     LifecycleStandardConfig
+	StrategyKind    LifecycleStrategyKind
+	ReviewStatus    LifecycleReviewStatus
+	WorkingDir      string
+	ComposeFiles    []string
+	ApplicationName string
+	Standard        LifecycleStandardConfig
 }
 
 // ActionResult 返回第一阶段有界动作状态。
 type ActionResult struct {
-	ProjectID    uint64
-	Action       generated.ProjectActionResponseAction
-	Result       generated.ProjectActionResponseResult
-	MessageKey   *string
-	Message      *string
-	GuardResults []GuardResult
+	ApplicationRecordID uint64
+	ApplicationID       string
+	Action              generated.ApplicationActionResponseAction
+	Result              generated.ApplicationActionResponseResult
+	MessageKey          *string
+	Message             *string
+	GuardResults        []GuardResult
 }
 
 // BatchActionRequest 描述一次项目批量动作执行。
 type BatchActionRequest struct {
-	Action                      generated.ProjectBatchActionRequestAction
-	ProjectIDs                  []uint64
-	RemoveNamedVolumes          bool
-	AutoUnregister              bool
-	ImagePrune                  bool
-	DeleteWorkingDirectory      bool
-	ConfirmCanonicalProjectName *string
-	ActorID                     *uint64
+	Action                    generated.ApplicationBatchActionRequestAction
+	ApplicationRecordIDs      []uint64
+	RemoveNamedVolumes        bool
+	AutoUnregister            bool
+	ImagePrune                bool
+	DeleteWorkspacePath       bool
+	ConfirmComposeProjectName *string
+	ActorID                   *uint64
 }
 
 // BatchActionItemResult 返回一个项目的批量动作结果。
@@ -364,12 +364,12 @@ type GuardResult struct {
 
 // DestroyRequest 描述受保护销毁选项。
 type DestroyRequest struct {
-	RemoveNamedVolumes          bool
-	AutoUnregister              bool
-	ImagePrune                  bool
-	DeleteWorkingDirectory      bool
-	ConfirmCanonicalProjectName string
-	ActorID                     *uint64
+	RemoveNamedVolumes        bool
+	AutoUnregister            bool
+	ImagePrune                bool
+	DeleteWorkspacePath       bool
+	ConfirmComposeProjectName string
+	ActorID                   *uint64
 }
 
 // ManagedRootInfo 返回有界的受管根目录契约元数据。
@@ -384,8 +384,8 @@ type ManagedRootInfo struct {
 	StatusReason            *string
 }
 
-// ManagedProjectCreateRequest 描述受管创建契约载荷。
-type ManagedProjectCreateRequest struct {
+// ManagedApplicationCreateRequest 描述受管创建契约载荷。
+type ManagedApplicationCreateRequest struct {
 	DisplayName            string
 	RuntimeTargetID        uint64
 	ApplicationName        *string
@@ -407,8 +407,8 @@ type ManagedWorkspaceEntry struct {
 	Content  *string
 }
 
-// ManagedProjectCreateValidationResult 返回创建契约校验元数据，不写入文件。
-type ManagedProjectCreateValidationResult struct {
+// ManagedApplicationCreateValidationResult 返回创建契约校验元数据，不写入文件。
+type ManagedApplicationCreateValidationResult struct {
 	ManagedRoot             ManagedRootInfo
 	SourceType              string
 	DisplayName             string
@@ -416,8 +416,6 @@ type ManagedProjectCreateValidationResult struct {
 	ApplicationName         *string
 	OwnershipMode           string
 	WorkspacePath           string
-	WorkingDirectory        string
-	CanonicalProjectName    string
 	ComposeFileName         string
 	EnvFileName             *string
 	ComposeFileAbsolutePath string
@@ -427,11 +425,11 @@ type ManagedProjectCreateValidationResult struct {
 	ReusedExistingWorkspace bool
 }
 
-// ManagedProjectCreateResult 返回文件写入并持久化后的受管项目启动信息。
-type ManagedProjectCreateResult struct {
-	Validation           ManagedProjectCreateValidationResult
+// ManagedApplicationCreateResult 返回文件写入并持久化后的受管项目启动信息。
+type ManagedApplicationCreateResult struct {
+	Validation           ManagedApplicationCreateValidationResult
 	SourceType           string
-	ProjectID            uint64
+	ApplicationRecordID  uint64
 	ApplicationID        string
 	ConfigHash           string
 	DeclaredServiceCount int
@@ -498,22 +496,21 @@ type serviceOptionFunc func(*Service)
 
 func (f serviceOptionFunc) apply(s *Service) { f(s) }
 
-// WithRuntimeReader 设置容器运行时聚合读取器。
-// 用于提供项目成员运行态汇总所需的运行时边界。
+// WithRuntimeReader 设置容器运行时聚合读取器，为应用成员汇总提供 Container 权威边界。
 func WithRuntimeReader(reader moduleapi.ContainerProjectRuntimeReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.runtimeReader = reader
 	})
 }
 
-// WithResourceReader 设置项目概览资源读取器。
+// WithResourceReader 设置应用概览使用的 Container 资源读取边界。
 func WithResourceReader(reader moduleapi.ContainerProjectResourceReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.resourceReader = reader
 	})
 }
 
-// WithLogReader sets the project log reader.
+// WithLogReader 设置应用聚合日志使用的 Container 日志读取边界。
 func WithLogReader(reader moduleapi.ContainerProjectLogReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.logReader = reader
@@ -527,14 +524,14 @@ func WithSystemConfigResolver(resolver moduleapi.SystemConfigResolver) ServiceOp
 	})
 }
 
-// WithAuthorizer injects the authorization boundary required by realtime topic issuance.
+// WithAuthorizer 注入实时 topic 签发所需的鉴权边界。
 func WithAuthorizer(authorizer moduleapi.Authorizer) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.authorizer = authorizer
 	})
 }
 
-// WithRealtime injects the unified realtime topic issuance dependencies.
+// WithRealtime 注入统一实时 topic 签发依赖。
 func WithRealtime(
 	tickets realtimeauth.Service,
 	hub realtime.Hub,
@@ -547,7 +544,7 @@ func WithRealtime(
 	})
 }
 
-// SetRuntimeReader injects the runtime reader after module registration resolves cross-module services.
+// SetRuntimeReader 在模块注册解析跨模块服务后注入 Container 运行时读取器。
 func (s *Service) SetRuntimeReader(reader moduleapi.ContainerProjectRuntimeReader) {
 	if s == nil {
 		return
@@ -555,7 +552,7 @@ func (s *Service) SetRuntimeReader(reader moduleapi.ContainerProjectRuntimeReade
 	s.runtimeReader = reader
 }
 
-// SetResourceReader injects the resource reader after module registration resolves cross-module services.
+// SetResourceReader 在模块注册解析跨模块服务后注入 Container 资源读取器。
 func (s *Service) SetResourceReader(reader moduleapi.ContainerProjectResourceReader) {
 	if s == nil {
 		return
@@ -563,7 +560,7 @@ func (s *Service) SetResourceReader(reader moduleapi.ContainerProjectResourceRea
 	s.resourceReader = reader
 }
 
-// SetLogReader injects the log reader after module registration resolves cross-module services.
+// SetLogReader 在模块注册解析跨模块服务后注入 Container 日志读取器。
 func (s *Service) SetLogReader(reader moduleapi.ContainerProjectLogReader) {
 	if s == nil {
 		return
@@ -571,7 +568,7 @@ func (s *Service) SetLogReader(reader moduleapi.ContainerProjectLogReader) {
 	s.logReader = reader
 }
 
-// SetSystemConfigResolver injects the system-config resolver after module registration.
+// SetSystemConfigResolver 在模块注册后注入系统配置解析器。
 func (s *Service) SetSystemConfigResolver(resolver moduleapi.SystemConfigResolver) {
 	if s == nil {
 		return
@@ -579,28 +576,28 @@ func (s *Service) SetSystemConfigResolver(resolver moduleapi.SystemConfigResolve
 	s.configResolver = resolver
 }
 
-// SetSavedViewService injects the generic saved-view persistence boundary.
+// SetSavedViewService 注入通用保存视图持久化边界。
 func (s *Service) SetSavedViewService(service moduleapi.SavedViewService) {
 	if s != nil {
 		s.savedViews = service
 	}
 }
 
-// SetRuntimeTargetReader injects the narrow Runtime Target identity authority.
+// SetRuntimeTargetReader 注入窄化的 Runtime Target 身份权威边界。
 func (s *Service) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) {
 	if s != nil {
 		s.runtimeTargets = reader
 	}
 }
 
-// WithRuntimeTargetReader configures the Compose runtime target reader used by the service.
+// WithRuntimeTargetReader 配置服务使用的 Compose Runtime Target 读取器。
 func WithRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.runtimeTargets = reader
 	})
 }
 
-// SetAuthorizer injects the authorizer after module registration.
+// SetAuthorizer 在模块注册后注入鉴权边界。
 func (s *Service) SetAuthorizer(authorizer moduleapi.Authorizer) {
 	if s == nil {
 		return
@@ -608,7 +605,7 @@ func (s *Service) SetAuthorizer(authorizer moduleapi.Authorizer) {
 	s.authorizer = authorizer
 }
 
-// SetRealtime injects the unified realtime dependencies after module registration.
+// SetRealtime 在模块注册后注入统一实时通信依赖。
 func (s *Service) SetRealtime(
 	tickets realtimeauth.Service,
 	hub realtime.Hub,
@@ -622,7 +619,7 @@ func (s *Service) SetRealtime(
 	s.topicIssuers = issuers
 }
 
-// SetAuditPublisher injects the audit event publication dependencies after module registration.
+// SetAuditPublisher 在模块注册后注入审计事件发布依赖。
 func (s *Service) SetAuditPublisher(bus eventbus.Bus, logger *zap.Logger, moduleName string) {
 	if s == nil {
 		return
@@ -632,7 +629,7 @@ func (s *Service) SetAuditPublisher(bus eventbus.Bus, logger *zap.Logger, module
 	s.moduleName = strings.TrimSpace(moduleName)
 }
 
-// List returns one page of registered projects.
+// List 返回一页存活应用注册记录。
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
@@ -642,7 +639,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		return ListResult{}, errProjectInvalidArgument
 	}
 	if query.Provider != "" && query.Provider != "docker" {
-		return ListResult{Items: []generated.ProjectListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
+		return ListResult{Items: []generated.ApplicationListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 	}
 	targets, err := s.listComposeTargets(ctx)
 	if err != nil {
@@ -658,7 +655,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Keyword:         strings.TrimSpace(query.Keyword),
 		Sort:            strings.TrimSpace(query.Sort),
 		RuntimeTargetID: query.RuntimeTargetID,
-		SourceKind:      strings.TrimSpace(query.SourceKind),
+		SourceType:      strings.TrimSpace(query.SourceType),
 		DriftStatus:     strings.TrimSpace(query.DriftStatus),
 	}
 	if query.RuntimeStatus != "" {
@@ -685,7 +682,7 @@ func validRuntimeTargetID(id *int64, targets map[uint64]moduleapi.ComposeRuntime
 	return ok
 }
 
-// listRuntimeStatusPage applies the runtime-owned status filter before pagination.
+// listRuntimeStatusPage 先应用 Runtime Target 权威状态筛选，再执行分页。
 func (s *Service) listRuntimeStatusPage(
 	ctx context.Context,
 	repository projectstore.Repository,
@@ -694,7 +691,7 @@ func (s *Service) listRuntimeStatusPage(
 	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 ) (ListResult, error) {
 	// 运行时状态是容器 authority 的派生筛选，必须先筛选完整结果再分页，避免页内数量漂移。
-	matched := make([]generated.ProjectListItem, 0)
+	matched := make([]generated.ApplicationListItem, 0)
 	offset := 0
 	for {
 		storeQuery.Limit = maxProjectListLimit
@@ -719,19 +716,19 @@ func (s *Service) listRuntimeStatusPage(
 
 func (s *Service) mapProjectListItems(
 	ctx context.Context,
-	items []projectstore.ProjectAggregate,
+	items []projectstore.ApplicationAggregate,
 	targetByID map[uint64]moduleapi.ComposeRuntimeTargetSummary,
 	runtimeStatus string,
-) []generated.ProjectListItem {
+) []generated.ApplicationListItem {
 	managedRootDirectory := s.readyManagedRootDirectory(ctx)
-	mappedItems := make([]generated.ProjectListItem, 0, len(items))
+	mappedItems := make([]generated.ApplicationListItem, 0, len(items))
 	for _, item := range items {
 		runtimeSummary, runtimeErr := s.runtimeSummary(ctx, item)
 		mapped := toProjectListItemWithManagedRoot(item, managedRootDirectory, &runtimeSummary, runtimeErr)
-		mapped.ApplicationType = generated.ProjectListItemApplicationTypeCompose
-		if item.Project.RuntimeTargetID != nil {
-			if target, ok := targetByID[*item.Project.RuntimeTargetID]; ok {
-				mapped.RuntimeTarget = &generated.ProjectRuntimeTargetSummary{Id: target.ID, DisplayName: target.DisplayName, Provider: generated.ProjectRuntimeTargetSummaryProvider(target.Provider)}
+		mapped.ApplicationType = generated.ApplicationTypeCompose
+		if item.Application.RuntimeTargetID != nil {
+			if target, ok := targetByID[*item.Application.RuntimeTargetID]; ok {
+				mapped.RuntimeTarget = &generated.ApplicationRuntimeTargetSummary{Id: target.ID, DisplayName: target.DisplayName, Provider: generated.ApplicationRuntimeTargetSummaryProvider(target.Provider)}
 			}
 		}
 		if runtimeStatus != "" && (mapped.RuntimeStatus == nil || string(*mapped.RuntimeStatus) != runtimeStatus) {
@@ -749,7 +746,6 @@ func (s *Service) listComposeTargets(ctx context.Context) ([]moduleapi.ComposeRu
 	return s.runtimeTargets.ListComposeTargets(ctx)
 }
 
-// runtimeTargetLookup indexes valid runtime-target summaries by ID.
 func runtimeTargetLookup(targets []moduleapi.ComposeRuntimeTargetSummary) map[uint64]moduleapi.ComposeRuntimeTargetSummary {
 	// 仅索引合法的非零目标 ID；重复 ID 由后一次发现结果覆盖，保持最新的启动期摘要。
 	byID := make(map[uint64]moduleapi.ComposeRuntimeTargetSummary, len(targets))
@@ -761,7 +757,7 @@ func runtimeTargetLookup(targets []moduleapi.ComposeRuntimeTargetSummary) map[ui
 	return byID
 }
 
-// BackfillRuntimeTargets binds historical local Compose records after runtime-target Boot discovery.
+// BackfillRuntimeTargets 在 Runtime Target 启动发现完成后，为历史本地 Compose 应用补齐运行目标关联。
 func (s *Service) BackfillRuntimeTargets(ctx context.Context) error {
 	if s == nil || s.repository == nil || s.runtimeTargets == nil {
 		return nil
@@ -779,17 +775,17 @@ func (s *Service) BackfillRuntimeTargets(ctx context.Context) error {
 	return s.repository.BackfillRuntimeTarget(ctx, uint64(target.ID))
 }
 
-// Get returns one project detail payload.
-func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ProjectDetailResponse, error) {
+// Get 返回单个应用详情载荷。
+func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ApplicationDetailResponse, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
-		return generated.ProjectDetailResponse{}, err
+		return generated.ApplicationDetailResponse{}, err
 	}
 	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)
 	return toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), &runtimeSummary, runtimeErr), nil
 }
 
-// ValidateImport resolves static compose inputs and reports bounded import validation results.
+// ValidateImport 解析静态 Compose 输入并返回有界的导入校验结果，不写入注册表。
 func (s *Service) ValidateImport(ctx context.Context, request ImportRequest) (ImportValidationResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
@@ -802,26 +798,26 @@ func (s *Service) ValidateImport(ctx context.Context, request ImportRequest) (Im
 	return s.validationResultFromSession(session), nil
 }
 
-// Import validates and registers one project.
-func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.ProjectImportResponse, error) {
+// Import 校验并注册一个应用。
+func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.ApplicationImportResponse, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
-		return generated.ProjectImportResponse{}, err
+		return generated.ApplicationImportResponse{}, err
 	}
 	session, err := s.inspectImportRequest(ctx, repository, request)
 	if err != nil {
-		return generated.ProjectImportResponse{}, err
+		return generated.ApplicationImportResponse{}, err
 	}
 	lifecycleConfig := defaultLifecycleStandardConfig()
 	return s.importInspectionSession(ctx, session, importInspectionCommitInput{
 		DisplayName:       request.DisplayName,
-		CanonicalOverride: request.CanonicalProjectNameOverride,
+		CanonicalOverride: request.ComposeProjectNameOverride,
 		LifecycleConfig:   &lifecycleConfig,
 		ActorID:           request.ActorID,
 	})
 }
 
-// Refresh reparses and persists the latest static compose snapshot.
+// Refresh 重新解析并持久化应用最新的静态 Compose 快照。
 func (s *Service) Refresh(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
@@ -832,47 +828,48 @@ func (s *Service) Refresh(ctx context.Context, projectID uint64, actorID *uint64
 		return ActionResult{}, mapStoreError(err)
 	}
 	request := ImportRequest{
-		WorkingDirectory: aggregate.Project.WorkingDirectory,
-		DisplayName:      stringPointer(aggregate.Project.DisplayName),
-		ComposeFiles:     collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
-		EnvFiles:         collectFilesByKind(aggregate.Files, projectcontract.FileKindEnv.String()),
-		ActorID:          actorID,
+		WorkspacePath: aggregate.Application.WorkspacePath,
+		DisplayName:   stringPointer(aggregate.Application.DisplayName),
+		ComposeFiles:  collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
+		EnvFiles:      collectFilesByKind(aggregate.Files, projectcontract.FileKindEnv.String()),
+		ActorID:       actorID,
 	}
 	parseResult, _, err := s.parseImportRequest(request)
 	if err != nil {
 		return ActionResult{}, err
 	}
 	now := time.Now().UTC()
-	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, parseResult, now, actorID))
+	updated, err := repository.RefreshApplication(ctx, buildRefreshApplicationInput(projectID, parseResult, now, actorID))
 	if err != nil {
 		return ActionResult{}, mapStoreError(err)
 	}
 	_ = updated
 	return ActionResult{
-		ProjectID:  projectID,
-		Action:     generated.ProjectActionResponseActionProjectActionRefresh,
-		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey: stringPointer(projectcontract.ProjectRefreshCompleted.String()),
-		Message:    stringPointer(projectcontract.ProjectRefreshCompleted.String()),
+		ApplicationRecordID: projectID,
+		ApplicationID:       updated.Application.ApplicationID,
+		Action:              generated.ApplicationActionResponseActionApplicationActionRefresh,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
+		MessageKey:          stringPointer(projectcontract.ApplicationRefreshCompleted.String()),
+		Message:             stringPointer(projectcontract.ApplicationRefreshCompleted.String()),
 	}, nil
 }
 
-// Services returns static service projections plus empty runtime members for batch 2.
-func (s *Service) Services(ctx context.Context, projectID uint64) (generated.ProjectServicesResponse, error) {
+// Services 返回应用的静态服务投影，并合并 Container 权威运行时成员。
+func (s *Service) Services(ctx context.Context, projectID uint64) (generated.ApplicationServicesResponse, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
-		return generated.ProjectServicesResponse{}, err
+		return generated.ApplicationServicesResponse{}, err
 	}
 	parseResult, err := s.loadFromAggregate(aggregate)
 	if err != nil {
-		return generated.ProjectServicesResponse{}, err
+		return generated.ApplicationServicesResponse{}, err
 	}
 	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
 	serviceMembers := membersByService(runtimeSummary.Members)
-	items := make([]generated.ProjectServiceItem, 0, len(parseResult.Services))
+	items := make([]generated.ApplicationServiceItem, 0, len(parseResult.Services))
 	for _, item := range parseResult.Services {
 		members := serviceMembers[item.ServiceName]
-		generatedItem := generated.ProjectServiceItem{
+		generatedItem := generated.ApplicationServiceItem{
 			ServiceName: item.ServiceName,
 		}
 		applyGeneratedServiceMembers(&generatedItem, members)
@@ -896,29 +893,29 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.Pro
 		}
 		items = append(items, generatedItem)
 	}
-	return generated.ProjectServicesResponse{
-		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
-		Items:                items,
-		ProjectId:            mustGeneratedID(projectID),
+	return generated.ApplicationServicesResponse{
+		ComposeProjectName: aggregate.Application.ComposeProjectName,
+		Items:              items,
+		ApplicationId:      aggregate.Application.ApplicationID,
 	}, nil
 }
 
-// Overview returns the project-owned dashboard overview backed by the container module resource aggregate.
-func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.ProjectOverviewResponse, error) {
+// Overview 返回应用概览；运行时资源数据始终来自 Container 模块聚合。
+func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.ApplicationOverviewResponse, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
-		return generated.ProjectOverviewResponse{}, err
+		return generated.ApplicationOverviewResponse{}, err
 	}
 	parseResult, err := s.loadFromAggregate(aggregate)
 	if err != nil {
-		return generated.ProjectOverviewResponse{}, err
+		return generated.ApplicationOverviewResponse{}, err
 	}
 	resourceSummary, _ := s.projectResourceSummary(ctx, aggregate)
 	serviceResources := make(map[string]moduleapi.ContainerProjectServiceResourceSummary, len(resourceSummary.Services))
 	for _, item := range resourceSummary.Services {
 		serviceResources[item.ServiceName] = item
 	}
-	items := make([]generated.ProjectOverviewServiceItem, 0, len(parseResult.Services))
+	items := make([]generated.ApplicationOverviewServiceItem, 0, len(parseResult.Services))
 	healthyServiceCount := 0
 	for _, item := range parseResult.Services {
 		runtimeItem, ok := serviceResources[item.ServiceName]
@@ -931,11 +928,11 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 		}
 		items = append(items, generatedItem)
 	}
-	return generated.ProjectOverviewResponse{
-		ApplicationId:      aggregate.Project.ApplicationID,
-		ComposeProjectName: aggregate.Project.ComposeProjectName,
+	return generated.ApplicationOverviewResponse{
+		ApplicationId:      aggregate.Application.ApplicationID,
+		ComposeProjectName: aggregate.Application.ComposeProjectName,
 		CollectedAt:        optionalRFC3339Time(resourceSummary.CollectedAt),
-		Health: generated.ProjectOverviewHealthSummary{
+		Health: generated.ApplicationOverviewHealthSummary{
 			HealthyServiceCount:     healthyServiceCount,
 			HealthyContainerCount:   resourceSummary.HealthyContainerCount,
 			UnhealthyContainerCount: resourceSummary.UnhealthyContainerCount,
@@ -944,7 +941,7 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 			NetworksCount:           countDeclaredNetworks(parseResult.Services),
 			VolumesCount:            countDeclaredVolumes(parseResult.Services),
 		},
-		Resources: generated.ProjectOverviewResourceSummary{
+		Resources: generated.ApplicationOverviewResourceSummary{
 			StatsAvailable:               resourceSummary.StatsAvailable,
 			StatsAvailableContainerCount: resourceSummary.StatsAvailableContainerCount,
 			CpuPercent:                   resourceSummary.CPUPercent,
@@ -957,7 +954,7 @@ func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.Pro
 	}, nil
 }
 
-// ManagedRoot reports the canonical managed-root authority for future managed-create flows.
+// ManagedRoot 返回受管应用创建流程使用的规范根目录权威信息。
 func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
 	definitionKey := projectcontract.ApplicationRootDirectoryConfig.String()
 	info := ManagedRootInfo{
@@ -965,7 +962,7 @@ func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
 		Status:                projectcontract.ManagedRootStatusUnconfigured.String(),
 		ConfigKey:             definitionKey,
 		OwnershipMode:         projectcontract.OwnershipModeManagedRootDedicated.String(),
-		CreatePermission:      projectcontract.ProjectCreatePermission.String(),
+		CreatePermission:      projectcontract.ApplicationCreatePermission.String(),
 		SupportsManagedCreate: false,
 	}
 	if s.configResolver == nil {
@@ -1009,22 +1006,22 @@ func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
 	return info, nil
 }
 
-// ValidateManagedCreate resolves bounded managed-create paths and naming rules without writing files.
-func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProjectCreateRequest) (ManagedProjectCreateValidationResult, error) {
+// ValidateManagedCreate 校验有界受管创建路径和命名规则，不写入文件。
+func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedApplicationCreateRequest) (ManagedApplicationCreateValidationResult, error) {
 	rootInfo, err := s.ManagedRoot(ctx)
 	if err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 	if rootInfo.Status != projectcontract.ManagedRootStatusReady.String() || rootInfo.ConfiguredRootDirectory == nil {
 		if rootInfo.Status == projectcontract.ManagedRootStatusInvalid.String() {
-			return ManagedProjectCreateValidationResult{}, errProjectManagedRootInvalid
+			return ManagedApplicationCreateValidationResult{}, errProjectManagedRootInvalid
 		}
-		return ManagedProjectCreateValidationResult{}, errProjectManagedRootUnconfigured
+		return ManagedApplicationCreateValidationResult{}, errProjectManagedRootUnconfigured
 	}
 
 	normalized, err := normalizeManagedCreateRequest(request)
 	if err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 	workspace, err := s.resolveManagedCreateWorkspace(
 		ctx,
@@ -1033,14 +1030,14 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		request.ReuseExistingWorkspace,
 	)
 	if err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 	composeName, composeContent, err := ensureComposeProjectName(normalized.ComposeFileContent, *normalized.ApplicationName)
 	if err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 	if err := s.ensureManagedCreateRuntimeNameAvailable(ctx, normalized.RuntimeTargetID, composeName); err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 	normalized.ComposeFileContent = composeContent
 	composeFileAbsolutePath := filepath.Join(workspace.workingDirectory, normalized.ComposeFileName)
@@ -1053,7 +1050,7 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 
 	sourceMetadata := managedCreateSourceMetadata(rootInfo.ConfigKey, *workspace.applicationName, normalized.ComposeFileName, normalized.EnvFileName)
 
-	return ManagedProjectCreateValidationResult{
+	return ManagedApplicationCreateValidationResult{
 		ManagedRoot:             rootInfo,
 		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
@@ -1061,8 +1058,6 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		ApplicationName:         workspace.applicationName,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
 		WorkspacePath:           workspace.workingDirectory,
-		WorkingDirectory:        workspace.workingDirectory,
-		CanonicalProjectName:    composeName,
 		ComposeFileName:         normalized.ComposeFileName,
 		EnvFileName:             normalized.EnvFileName,
 		ComposeFileAbsolutePath: composeFileAbsolutePath,
@@ -1120,32 +1115,30 @@ func (s *Service) ensureManagedCreateRuntimeNameAvailable(ctx context.Context, r
 	return s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, composeName)
 }
 
-// CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
-// Up executes docker compose up -d within the project's registered working directory.
 func (s *Service) runtimeSummary(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 ) (moduleapi.ContainerProjectRuntimeSummary, error) {
 	if s == nil || s.runtimeReader == nil {
 		return moduleapi.ContainerProjectRuntimeSummary{
-			CanonicalProjectName: aggregate.Project.CanonicalProjectName,
+			CanonicalProjectName: aggregate.Application.ComposeProjectName,
 			Members:              []moduleapi.ContainerProjectMember{},
 		}, errProjectRuntimeUnavailable
 	}
-	return s.runtimeReader.ListProjectMembers(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
+	return s.runtimeReader.ListProjectMembers(ctx, localContainerRuntimeScope, aggregate.Application.ComposeProjectName)
 }
 
 func (s *Service) projectResourceSummary(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 ) (moduleapi.ContainerProjectResourceSummary, error) {
 	if s == nil || s.resourceReader == nil {
 		return moduleapi.ContainerProjectResourceSummary{
-			CanonicalProjectName: aggregate.Project.CanonicalProjectName,
+			CanonicalProjectName: aggregate.Application.ComposeProjectName,
 			Services:             []moduleapi.ContainerProjectServiceResourceSummary{},
 		}, errProjectRuntimeUnavailable
 	}
-	return s.resourceReader.ReadProjectResourceSummary(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
+	return s.resourceReader.ReadProjectResourceSummary(ctx, localContainerRuntimeScope, aggregate.Application.ComposeProjectName)
 }
 
 // membersByService 按服务名称对容器运行时成员进行分组。
@@ -1160,11 +1153,11 @@ func membersByService(items []moduleapi.ContainerProjectMember) map[string][]mod
 
 // applyGeneratedServiceMembers 将运行时成员填充到服务项中，并统计运行与停止数量。
 // 当 target 为空时不执行任何操作。
-func applyGeneratedServiceMembers(target *generated.ProjectServiceItem, items []moduleapi.ContainerProjectMember) {
+func applyGeneratedServiceMembers(target *generated.ApplicationServiceItem, items []moduleapi.ContainerProjectMember) {
 	if target == nil {
 		return
 	}
-	//nolint:revive // OpenAPI generated anonymous member field is ContainerId.
+	//nolint:revive // OpenAPI 生成匿名结构字段名固定为 ContainerId，手写映射需保持线格式兼容。
 	type generatedProjectServiceMember = struct {
 		ContainerId   string `json:"container_id"`
 		ContainerName string `json:"container_name"`
@@ -1194,8 +1187,7 @@ func (s *Service) repositoryOrErr() (projectstore.Repository, error) {
 	return s.repository, nil
 }
 
-// ResolveApplicationID resolves the only public Project HTTP identifier to the
-// module-private key used by project-owned tables and task records.
+// ResolveApplicationID 将唯一公开的 Application HTTP 标识解析为模块表和任务内部使用的私有数值键。
 func (s *Service) ResolveApplicationID(ctx context.Context, applicationID string) (uint64, error) {
 	if !isApplicationID(applicationID) {
 		return 0, errProjectInvalidArgument
@@ -1212,27 +1204,27 @@ func (s *Service) ResolveApplicationID(ctx context.Context, applicationID string
 	if err != nil {
 		return 0, mapStoreError(err)
 	}
-	return aggregate.Project.ID, nil
+	return aggregate.Application.ApplicationRecordID, nil
 }
 
-func (s *Service) getAggregate(ctx context.Context, projectID uint64) (projectstore.ProjectAggregate, error) {
+func (s *Service) getAggregate(ctx context.Context, projectID uint64) (projectstore.ApplicationAggregate, error) {
 	// 所有详情、刷新和生命周期操作共享聚合读取入口，确保项目、文件与快照使用同一份存储视图。
 	repository, err := s.repositoryOrErr()
 	if err != nil {
-		return projectstore.ProjectAggregate{}, err
+		return projectstore.ApplicationAggregate{}, err
 	}
 	if projectID == 0 {
-		return projectstore.ProjectAggregate{}, errProjectInvalidArgument
+		return projectstore.ApplicationAggregate{}, errProjectInvalidArgument
 	}
 	aggregate, err := repository.Get(ctx, projectID)
 	if err != nil {
-		return projectstore.ProjectAggregate{}, mapStoreError(err)
+		return projectstore.ApplicationAggregate{}, mapStoreError(err)
 	}
 	return aggregate, nil
 }
 
-// sameWorkingDirectory 判断两个工作目录在去除首尾空白后是否相同。
-// sameWorkingDirectory 判断两个工作目录路径是否相同。
+// sameWorkspacePath 判断两个工作目录在去除首尾空白后是否相同。
+// sameWorkspacePath 判断两个工作目录路径是否相同。
 // @returns 去除首尾空白并忽略大小写后路径相同则为 `true`，否则为 `false`。
 func mapStoreError(err error) error {
 	switch {
@@ -1240,9 +1232,9 @@ func mapStoreError(err error) error {
 		return nil
 	case errors.Is(err, projectstore.ErrInvalidInput):
 		return fmt.Errorf("%w: %w", errProjectInvalidArgument, err)
-	case errors.Is(err, projectstore.ErrProjectNotFound):
+	case errors.Is(err, projectstore.ErrApplicationNotFound):
 		return errProjectNotFound
-	case errors.Is(err, projectstore.ErrProjectConflict):
+	case errors.Is(err, projectstore.ErrApplicationConflict):
 		return errProjectConflict
 	case errors.Is(err, projectstore.ErrFileNotFound):
 		return errProjectFileNotFound

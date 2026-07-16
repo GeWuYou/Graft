@@ -102,5 +102,23 @@ rbac.permissionCatalog.runtimeTargetManage.display: 运行目标管理
 rbac.permissionCatalog.runtimeTargetManage.description: 预留给后续运行目标配置管理能力。
 rbac.permissionCatalog.runtimeTargetRefresh.display: 运行目标刷新
 rbac.permissionCatalog.runtimeTargetRefresh.description: 允许重新探测运行目标可用性与能力。
+rbac.permissionCatalog.applicationView.display: 查看 Compose 应用
+rbac.permissionCatalog.applicationView.description: 读取已注册 Compose 应用的摘要和只读详情。
+rbac.permissionCatalog.applicationImport.display: 导入 Compose 应用
+rbac.permissionCatalog.applicationImport.description: 校验并导入外部 Compose 应用到应用注册表。
+rbac.permissionCatalog.applicationRefresh.display: 刷新 Compose 应用
+rbac.permissionCatalog.applicationRefresh.description: 刷新应用快照和只读配置投影视图。
+rbac.permissionCatalog.applicationLifecycle.display: 管理 Compose 应用生命周期
+rbac.permissionCatalog.applicationLifecycle.description: 执行受限的 Compose 生命周期动作，例如 up、stop 和 restart。
+rbac.permissionCatalog.applicationDestroy.display: 注销或销毁 Compose 应用
+rbac.permissionCatalog.applicationDestroy.description: 对应用记录执行注销和受保护的销毁动作。
+rbac.permissionCatalog.applicationCreate.display: 创建受管 Compose 应用
+rbac.permissionCatalog.applicationCreate.description: 查看受管根目录设置，并创建受管 Compose 应用。
+rbac.permissionCatalog.applicationCreationMethodView.display: 查看应用创建方式
+rbac.permissionCatalog.applicationCreationMethodView.description: 查看当前支持的 Compose 应用创建方式及其可用性。
+rbac.permissionCatalog.applicationDiscoveryView.display: 查看应用发现候选项
+rbac.permissionCatalog.applicationDiscoveryView.description: 预览本机发现到的 Compose 目录，不直接注册应用。
+rbac.permissionCatalog.applicationDeploy.display: 部署受管 Compose 应用草稿
+rbac.permissionCatalog.applicationDeploy.description: 对受管应用配置草稿执行 diff、validate 和 deploy。
 rbac.audit.rolePermissionsAdded: 角色权限已追加
 rbac.audit.rolePermissionsRemoved: 角色权限已移除

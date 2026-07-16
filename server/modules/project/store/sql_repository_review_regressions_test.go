@@ -12,8 +12,8 @@ import (
 func TestComposeProjectsUpsertSQLPlaceholderCountMatchesColumns(t *testing.T) {
 	t.Parallel()
 
-	query := composeProjectsUpsertSQL()
-	columnCount := countDelimitedItems(extractBetween(query, "INSERT INTO compose_projects (", ") VALUES"))
+	query := applicationsUpsertSQL()
+	columnCount := countDelimitedItems(extractBetween(query, "INSERT INTO applications (", ") VALUES"))
 	placeholderCount := strings.Count(extractBetween(query, ") VALUES (", ")\n\t\tON CONFLICT"), "?")
 	if columnCount == 0 || placeholderCount == 0 {
 		t.Fatalf("expected non-empty insert SQL, got %q", query)
@@ -47,10 +47,10 @@ func TestNormalizeListQuerySortDefaultsAndRejectsUnknownValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize default list query: %v", err)
 	}
-	if defaulted.Sort != ProjectListSortCreatedAtDesc {
-		t.Fatalf("expected default sort %q, got %q", ProjectListSortCreatedAtDesc, defaulted.Sort)
+	if defaulted.Sort != ApplicationListSortCreatedAtDesc {
+		t.Fatalf("expected default sort %q, got %q", ApplicationListSortCreatedAtDesc, defaulted.Sort)
 	}
-	for _, sortExpression := range []string{ProjectListSortCreatedAtAsc, ProjectListSortCreatedAtDesc} {
+	for _, sortExpression := range []string{ApplicationListSortCreatedAtAsc, ApplicationListSortCreatedAtDesc} {
 		normalized, normalizeErr := normalizeListQuery(ListQuery{Sort: sortExpression})
 		if normalizeErr != nil || normalized.Sort != sortExpression {
 			t.Fatalf("expected valid sort %q, got %#v, err=%v", sortExpression, normalized, normalizeErr)
@@ -76,19 +76,19 @@ func TestSQLRepositoryListSortsByCreatedAtAndStableID(t *testing.T) {
 		want []uint64
 	}{
 		{name: "default descending", want: []uint64{3, 2, 1}},
-		{name: "explicit descending", sort: ProjectListSortCreatedAtDesc, want: []uint64{3, 2, 1}},
-		{name: "ascending", sort: ProjectListSortCreatedAtAsc, want: []uint64{1, 3, 2}},
+		{name: "explicit descending", sort: ApplicationListSortCreatedAtDesc, want: []uint64{3, 2, 1}},
+		{name: "ascending", sort: ApplicationListSortCreatedAtAsc, want: []uint64{1, 3, 2}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			result, err := repo.List(context.Background(), ListQuery{Limit: 10, Sort: testCase.sort})
 			if err != nil {
-				t.Fatalf("list projects: %v", err)
+				t.Fatalf("list applications: %v", err)
 			}
 			if len(result.Items) != len(testCase.want) {
 				t.Fatalf("expected %d items, got %d", len(testCase.want), len(result.Items))
 			}
 			for index, wantID := range testCase.want {
-				if got := result.Items[index].Project.ID; got != wantID {
+				if got := result.Items[index].Application.ApplicationRecordID; got != wantID {
 					t.Fatalf("item %d: expected id %d, got %d", index, wantID, got)
 				}
 			}
@@ -99,10 +99,10 @@ func TestSQLRepositoryListSortsByCreatedAtAndStableID(t *testing.T) {
 func TestBuildListOrderByUsesWhitelistedExpressions(t *testing.T) {
 	t.Parallel()
 
-	if got := buildListOrderBy(ProjectListSortCreatedAtDesc); got != "created_at DESC, id DESC" {
+	if got := buildListOrderBy(ApplicationListSortCreatedAtDesc); got != "created_at DESC, application_record_id DESC" {
 		t.Fatalf("unexpected descending order clause %q", got)
 	}
-	if got := buildListOrderBy(ProjectListSortCreatedAtAsc); got != "created_at ASC, id DESC" {
+	if got := buildListOrderBy(ApplicationListSortCreatedAtAsc); got != "created_at ASC, application_record_id DESC" {
 		t.Fatalf("unexpected ascending order clause %q", got)
 	}
 }

@@ -9,15 +9,15 @@ import (
 	"testing"
 )
 
-func TestValidateExplicitCanonicalProjectNameRejectsUppercase(t *testing.T) {
+func TestValidateExplicitComposeProjectNameRejectsUppercase(t *testing.T) {
 	t.Parallel()
 
-	if _, err := validateExplicitCanonicalProjectName("CLIProxyAPI"); err == nil {
+	if _, err := validateExplicitComposeProjectName("CLIProxyAPI"); err == nil {
 		t.Fatal("expected uppercase canonical project name to be rejected")
 	}
 }
 
-func TestValidateExplicitCanonicalProjectNameNormalizesValidNames(t *testing.T) {
+func TestValidateExplicitComposeProjectNameNormalizesValidNames(t *testing.T) {
 	t.Parallel()
 
 	for input, want := range map[string]string{
@@ -26,7 +26,7 @@ func TestValidateExplicitCanonicalProjectNameNormalizesValidNames(t *testing.T) 
 		"123abc":         "123abc",
 		"  valid-name  ": "valid-name",
 	} {
-		got, err := validateExplicitCanonicalProjectName(input)
+		got, err := validateExplicitComposeProjectName(input)
 		if err != nil {
 			t.Fatalf("validate %q: %v", input, err)
 		}
@@ -40,7 +40,7 @@ func TestNormalizeManagedCreateRequestUsesApplicationNameForComposeIdentity(t *t
 	t.Parallel()
 
 	compose := "services:\n  app:\n    image: nginx:latest\n"
-	result, err := normalizeManagedCreateRequest(ManagedProjectCreateRequest{
+	result, err := normalizeManagedCreateRequest(ManagedApplicationCreateRequest{
 		DisplayName:        "拉布",
 		ApplicationName:    stringPointer("labby"),
 		ComposeFileName:    "compose.yaml",
@@ -65,7 +65,7 @@ func TestNormalizeManagedCreateRequestRequiresApplicationName(t *testing.T) {
 	t.Parallel()
 
 	for _, applicationName := range []*string{nil, stringPointer("   ")} {
-		_, err := normalizeManagedCreateRequest(ManagedProjectCreateRequest{
+		_, err := normalizeManagedCreateRequest(ManagedApplicationCreateRequest{
 			DisplayName:        "拉布",
 			ApplicationName:    applicationName,
 			ComposeFileName:    "compose.yaml",
@@ -98,8 +98,8 @@ func TestCheckApplicationNameAvailabilityDistinguishesRegistryAndWorkspace(t *te
 	}
 	result, err = service.CheckApplicationNameAvailability(context.Background(), ApplicationNameAvailabilityRequest{ApplicationName: "demo"})
 	assertApplicationNameAvailability(t, result, err, applicationNameAvailabilityReusable, true, "compose.yaml")
-	repository.aggregate.Project.ID = 7
-	repository.aggregate.Project.ApplicationName = stringPointer("demo")
+	repository.aggregate.Application.ApplicationRecordID = 7
+	repository.aggregate.Application.ApplicationName = stringPointer("demo")
 	result, err = service.CheckApplicationNameAvailability(context.Background(), ApplicationNameAvailabilityRequest{ApplicationName: "demo"})
 	assertApplicationNameAvailability(t, result, err, applicationNameAvailabilityRegistered, false, "")
 }
@@ -126,7 +126,7 @@ func assertApplicationNameAvailability(t *testing.T, result ApplicationNameAvail
 	}
 }
 
-func TestParseImportRequestRejectsInvalidCanonicalProjectNameOverride(t *testing.T) {
+func TestParseImportRequestRejectsInvalidComposeProjectNameOverride(t *testing.T) {
 	t.Parallel()
 
 	workingDirectory := t.TempDir()
@@ -139,9 +139,9 @@ func TestParseImportRequestRejectsInvalidCanonicalProjectNameOverride(t *testing
 	override := "CLIProxyAPI"
 	service := Service{}
 	_, _, err := service.parseImportRequest(ImportRequest{
-		WorkingDirectory:             workingDirectory,
-		ComposeFiles:                 []string{composePath},
-		CanonicalProjectNameOverride: &override,
+		WorkspacePath:              workingDirectory,
+		ComposeFiles:               []string{composePath},
+		ComposeProjectNameOverride: &override,
 	})
 	if err == nil {
 		t.Fatal("expected import override to reject invalid canonical project name")

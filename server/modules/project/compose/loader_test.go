@@ -17,18 +17,18 @@ func TestLoadPrefersTopLevelProjectNameAndNormalizesIt(t *testing.T) {
 	}
 
 	result, err := Load(Input{
-		WorkingDirectory: workingDirectory,
-		ComposeFiles:     []string{composePath},
+		WorkspacePath: workingDirectory,
+		ComposeFiles:  []string{composePath},
 	})
 	if err != nil {
 		t.Fatalf("load compose project: %v", err)
 	}
-	if result.CanonicalProjectName != "cliproxyapi" {
-		t.Fatalf("expected normalized top-level project name, got %q", result.CanonicalProjectName)
+	if result.ComposeProjectName != "cliproxyapi" {
+		t.Fatalf("expected normalized top-level project name, got %q", result.ComposeProjectName)
 	}
 }
 
-func TestLoadFallsBackToNormalizedWorkingDirectoryName(t *testing.T) {
+func TestLoadFallsBackToNormalizedWorkspacePathName(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -41,11 +41,11 @@ func TestLoadFallsBackToNormalizedWorkingDirectoryName(t *testing.T) {
 		t.Fatalf("write compose file: %v", err)
 	}
 
-	result, err := Load(Input{WorkingDirectory: workingDirectory, ComposeFiles: []string{composePath}})
+	result, err := Load(Input{WorkspacePath: workingDirectory, ComposeFiles: []string{composePath}})
 	if err != nil {
 		t.Fatalf("load compose project: %v", err)
 	}
-	if result.CanonicalProjectName != "cli-proxy-api" {
-		t.Fatalf("expected normalized working-directory fallback, got %q", result.CanonicalProjectName)
+	if result.ComposeProjectName != "cli-proxy-api" {
+		t.Fatalf("expected normalized working-directory fallback, got %q", result.ComposeProjectName)
 	}
 }

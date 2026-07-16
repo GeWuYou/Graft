@@ -1,102 +1,102 @@
 package contract
 
 const (
-	// ProjectAPIGroup 标识 Compose 项目管理 API 路由组。
-	ProjectAPIGroup = "/ops/projects"
-	// ProjectCollectionRoute 标识项目列表接口的路径片段。
-	ProjectCollectionRoute = ""
-	// ProjectSavedViewsRoute 标识项目列表保存视图集合接口的路径片段。
-	ProjectSavedViewsRoute = "/saved-views"
-	// ProjectSavedViewRoute 标识单个项目列表保存视图接口的路径片段。
-	ProjectSavedViewRoute = "/saved-views/:viewId"
-	// ProjectDetailRoute 标识单个项目摘要接口的路径片段。
-	ProjectDetailRoute = "/:id"
-	// ProjectServicesRoute 标识项目服务聚合接口的路径片段。
-	ProjectServicesRoute = "/:id/services"
-	// ProjectLogsRoute 标识项目聚合日志接口的路径片段。
-	ProjectLogsRoute = "/:id/logs"
-	// ProjectOverviewRoute 标识项目运行时概览接口的路径片段。
-	ProjectOverviewRoute = "/:id/overview"
-	// ProjectConfigurationRoute 标识项目配置元数据接口的路径片段。
-	ProjectConfigurationRoute = "/:id/configuration"
-	// ProjectConfigurationPreviewRoute 标识规范化配置预览接口的路径片段。
-	ProjectConfigurationPreviewRoute = "/:id/configuration/preview"
-	// ProjectWorkspaceFilesRoute 标识按需加载项目根目录文件树接口的路径片段。
-	ProjectWorkspaceFilesRoute = "/:id/files"
-	// ProjectWorkspaceFileContentRoute 标识按路径读写项目文件接口的路径片段。
-	ProjectWorkspaceFileContentRoute = "/:id/files/content"
-	// ProjectWorkspaceFileAnnotationRoute 标识按路径写入工作区注释接口的路径片段。
-	ProjectWorkspaceFileAnnotationRoute = "/:id/files/annotation"
-	// ProjectWorkspaceEntryRoute 标识项目工作区条目变更接口的路径片段。
-	ProjectWorkspaceEntryRoute = "/:id/files/entries"
-	// ProjectWorkspaceRenameRoute 标识项目工作区条目重命名接口的路径片段。
-	ProjectWorkspaceRenameRoute = "/:id/files/rename"
-	// ProjectImportValidateRoute 标识项目导入校验接口的路径片段。
-	ProjectImportValidateRoute = "/import/validate"
-	// ProjectImportRuntimeCandidatesRoute 标识运行时驱动的导入候选列表接口路径片段。
-	ProjectImportRuntimeCandidatesRoute = "/import/runtime-candidates"
-	// ProjectImportRuntimeInspectRoute 标识运行时驱动的导入检查接口路径片段。
-	ProjectImportRuntimeInspectRoute = "/import/runtime-inspect"
-	// ProjectImportInspectRoute 标识项目导入检查接口的路径片段。
-	ProjectImportInspectRoute = "/import/inspect"
-	// ProjectImportRoute 标识项目导入并注册接口的路径片段。
-	ProjectImportRoute = "/import"
-	// ProjectImportDirectorySourcesRoute 标识可用导入目录源根接口的路径片段。
-	ProjectImportDirectorySourcesRoute = "/import/directory-sources"
-	// ProjectImportDirectoriesRoute 标识按根目录相对路径浏览导入目录接口的路径片段。
-	ProjectImportDirectoriesRoute = "/import/directories"
-	// ProjectCreationMethodsRoute 标识项目创建方式目录接口的路径片段。
-	ProjectCreationMethodsRoute = "/creation-methods"
-	// ProjectDiscoveryCandidatesRoute 标识有界发现候选预览接口的路径片段。
-	ProjectDiscoveryCandidatesRoute = "/discovery-candidates"
-	// ProjectCreationMethodSelectorRoute 标识创建方式选择器接口的路径片段。
-	ProjectCreationMethodSelectorRoute = "/create"
-	// ProjectComposeRuntimeTargetsRoute 标识 Compose 创建可选运行时目标目录接口的路径片段。
-	ProjectComposeRuntimeTargetsRoute = "/create/runtime-targets"
-	// ProjectManagedRootRoute 标识受管根目录元数据接口的路径片段。
-	ProjectManagedRootRoute = "/managed/root"
-	// ProjectCreateValidateRoute 标识受管创建校验接口的路径片段。
-	ProjectCreateValidateRoute = "/create/managed/validate"
-	// ProjectApplicationNameAvailabilityRoute 标识受管创建应用名称预检接口的路径片段。
-	ProjectApplicationNameAvailabilityRoute = "/create/application-name/availability"
-	// ProjectCreateRoute 标识受管创建接口的路径片段。
-	ProjectCreateRoute = "/create/managed"
-	// ProjectCreateTemplateValidateRoute validates a runtime template source without materializing it.
-	ProjectCreateTemplateValidateRoute = "/create/template/validate"
-	// ProjectCreateTemplateRoute 标识模板来源创建接口的路径片段。
-	ProjectCreateTemplateRoute = "/create/template"
-	// ProjectWorkspaceDefaultsRoute 标识返回服务端拥有的空白工作区默认值和可用模板的接口路径片段。
-	ProjectWorkspaceDefaultsRoute = "/create/workspace-defaults"
-	// ProjectRefreshRoute 标识静态刷新接口的路径片段。
-	ProjectRefreshRoute = "/:id/refresh"
-	// ProjectUpRoute 标识 Compose 启动接口的路径片段。
-	ProjectUpRoute = "/:id/up"
-	// ProjectStopRoute 标识 Compose 停止接口的路径片段。
-	ProjectStopRoute = "/:id/stop"
-	// ProjectRestartRoute 标识 Compose 重启接口的路径片段。
-	ProjectRestartRoute = "/:id/restart"
-	// ProjectRedeployRoute 标识 Compose 重部署接口的路径片段。
-	ProjectRedeployRoute = "/:id/redeploy"
-	// ProjectLifecycleConfigurationRoute 标识项目生命周期配置接口的路径片段。
-	ProjectLifecycleConfigurationRoute = "/:id/lifecycle-configuration"
-	// ProjectUnregisterRoute 标识项目注销接口的路径片段。
-	ProjectUnregisterRoute = "/:id/unregister"
-	// ProjectDestroyRoute 标识受保护销毁接口的路径片段。
-	ProjectDestroyRoute = "/:id/destroy"
-	// ProjectBatchActionsRoute 标识批量动作接口的路径片段。
-	ProjectBatchActionsRoute = "/batch-actions"
-	// ProjectMenuRootPath 标识运维页面的 Web 菜单根路径。
-	ProjectMenuRootPath = "/applications/projects"
-	// ProjectMenuPath 标识 Compose 项目管理的规范 Web 菜单路径。
-	ProjectMenuPath = ProjectMenuRootPath
-	// ProjectCreationMenuPath 标识全局创建方式选择器路由路径。
-	ProjectCreationMenuPath = ProjectMenuRootPath + "/create"
-	// ProjectBlankCreateMenuPath 标识空白项目创建路由路径。
-	ProjectBlankCreateMenuPath = ProjectCreationMenuPath + "/blank"
-	// ProjectTemplateCreateMenuPath 标识模板来源创建路由路径。
-	ProjectTemplateCreateMenuPath = ProjectCreationMenuPath + "/template"
-	// ProjectImportCreateMenuPath 标识导入项目创建路由路径。
-	ProjectImportCreateMenuPath = ProjectCreationMenuPath + "/import"
-	// ProjectDiscoveryCandidatesMenuPath 标识隐藏的发现候选预览路由路径。
-	ProjectDiscoveryCandidatesMenuPath = ProjectCreationMenuPath + "/discovery"
+	// ApplicationAPIGroup 标识 Compose Application 管理 API 路由组。
+	ApplicationAPIGroup = "/ops/applications"
+	// ApplicationCollectionRoute 标识应用列表接口的路径片段。
+	ApplicationCollectionRoute = ""
+	// ApplicationSavedViewsRoute 标识应用列表保存视图集合接口的路径片段。
+	ApplicationSavedViewsRoute = "/saved-views"
+	// ApplicationSavedViewRoute 标识单个应用列表保存视图接口的路径片段。
+	ApplicationSavedViewRoute = "/saved-views/:viewId"
+	// ApplicationDetailRoute 标识单个应用摘要接口的路径片段。
+	ApplicationDetailRoute = "/:applicationId"
+	// ApplicationServicesRoute 标识应用服务聚合接口的路径片段。
+	ApplicationServicesRoute = "/:applicationId/services"
+	// ApplicationLogsRoute 标识应用聚合日志接口的路径片段。
+	ApplicationLogsRoute = "/:applicationId/logs"
+	// ApplicationOverviewRoute 标识应用运行时概览接口的路径片段。
+	ApplicationOverviewRoute = "/:applicationId/overview"
+	// ApplicationConfigurationRoute 标识应用配置元数据接口的路径片段。
+	ApplicationConfigurationRoute = "/:applicationId/configuration"
+	// ApplicationConfigurationPreviewRoute 标识规范化配置预览接口的路径片段。
+	ApplicationConfigurationPreviewRoute = "/:applicationId/configuration/preview"
+	// ApplicationWorkspaceFilesRoute 标识按需加载应用工作区文件树接口的路径片段。
+	ApplicationWorkspaceFilesRoute = "/:applicationId/files"
+	// ApplicationWorkspaceFileContentRoute 标识按路径读写应用文件接口的路径片段。
+	ApplicationWorkspaceFileContentRoute = "/:applicationId/files/content"
+	// ApplicationWorkspaceFileAnnotationRoute 标识按路径写入工作区注释接口的路径片段。
+	ApplicationWorkspaceFileAnnotationRoute = "/:applicationId/files/annotation"
+	// ApplicationWorkspaceEntryRoute 标识应用工作区条目变更接口的路径片段。
+	ApplicationWorkspaceEntryRoute = "/:applicationId/files/entries"
+	// ApplicationWorkspaceRenameRoute 标识应用工作区条目重命名接口的路径片段。
+	ApplicationWorkspaceRenameRoute = "/:applicationId/files/rename"
+	// ApplicationImportValidateRoute 标识应用导入校验接口的路径片段。
+	ApplicationImportValidateRoute = "/import/validate"
+	// ApplicationImportRuntimeCandidatesRoute 标识运行时驱动的导入候选列表接口路径片段。
+	ApplicationImportRuntimeCandidatesRoute = "/import/runtime-candidates"
+	// ApplicationImportRuntimeInspectRoute 标识运行时驱动的导入检查接口路径片段。
+	ApplicationImportRuntimeInspectRoute = "/import/runtime-inspect"
+	// ApplicationImportInspectRoute 标识应用导入检查接口的路径片段。
+	ApplicationImportInspectRoute = "/import/inspect"
+	// ApplicationImportRoute 标识应用导入并注册接口的路径片段。
+	ApplicationImportRoute = "/import"
+	// ApplicationImportDirectorySourcesRoute 标识可用导入目录源根接口的路径片段。
+	ApplicationImportDirectorySourcesRoute = "/import/directory-sources"
+	// ApplicationImportDirectoriesRoute 标识按根目录相对路径浏览导入目录接口的路径片段。
+	ApplicationImportDirectoriesRoute = "/import/directories"
+	// ApplicationCreationMethodsRoute 标识应用创建方式目录接口的路径片段。
+	ApplicationCreationMethodsRoute = "/creation-methods"
+	// ApplicationDiscoveryCandidatesRoute 标识有界发现候选预览接口的路径片段。
+	ApplicationDiscoveryCandidatesRoute = "/discovery-candidates"
+	// ApplicationCreationMethodSelectorRoute 标识创建方式选择器接口的路径片段。
+	ApplicationCreationMethodSelectorRoute = "/create"
+	// ApplicationComposeRuntimeTargetsRoute 标识 Compose 创建可选运行时目标目录接口的路径片段。
+	ApplicationComposeRuntimeTargetsRoute = "/create/runtime-targets"
+	// ApplicationManagedRootRoute 标识受管根目录元数据接口的路径片段。
+	ApplicationManagedRootRoute = "/managed/root"
+	// ApplicationCreateValidateRoute 标识受管创建校验接口的路径片段。
+	ApplicationCreateValidateRoute = "/create/managed/validate"
+	// ApplicationNameAvailabilityRoute 标识受管创建应用名称预检接口的路径片段。
+	ApplicationNameAvailabilityRoute = "/create/application-name/availability"
+	// ApplicationCreateRoute 标识受管创建接口的路径片段。
+	ApplicationCreateRoute = "/create/managed"
+	// ApplicationCreateTemplateValidateRoute 标识只校验运行时模板来源、不写入工作区的接口路径片段。
+	ApplicationCreateTemplateValidateRoute = "/create/template/validate"
+	// ApplicationCreateTemplateRoute 标识模板来源创建接口的路径片段。
+	ApplicationCreateTemplateRoute = "/create/template"
+	// ApplicationWorkspaceDefaultsRoute 标识返回服务端拥有的空白工作区默认值和可用模板的接口路径片段。
+	ApplicationWorkspaceDefaultsRoute = "/create/workspace-defaults"
+	// ApplicationRefreshRoute 标识静态刷新接口的路径片段。
+	ApplicationRefreshRoute = "/:applicationId/refresh"
+	// ApplicationUpRoute 标识 Compose 启动接口的路径片段。
+	ApplicationUpRoute = "/:applicationId/up"
+	// ApplicationStopRoute 标识 Compose 停止接口的路径片段。
+	ApplicationStopRoute = "/:applicationId/stop"
+	// ApplicationRestartRoute 标识 Compose 重启接口的路径片段。
+	ApplicationRestartRoute = "/:applicationId/restart"
+	// ApplicationRedeployRoute 标识 Compose 重部署接口的路径片段。
+	ApplicationRedeployRoute = "/:applicationId/redeploy"
+	// ApplicationLifecycleConfigurationRoute 标识应用生命周期配置接口的路径片段。
+	ApplicationLifecycleConfigurationRoute = "/:applicationId/lifecycle-configuration"
+	// ApplicationUnregisterRoute 标识应用注销接口的路径片段。
+	ApplicationUnregisterRoute = "/:applicationId/unregister"
+	// ApplicationDestroyRoute 标识受保护销毁接口的路径片段。
+	ApplicationDestroyRoute = "/:applicationId/destroy"
+	// ApplicationBatchActionsRoute 标识批量动作接口的路径片段。
+	ApplicationBatchActionsRoute = "/batch-actions"
+	// ApplicationMenuRootPath 标识运维页面的 Web 菜单根路径。
+	ApplicationMenuRootPath = "/applications"
+	// ApplicationMenuPath 标识 Compose Application 管理的规范 Web 菜单路径。
+	ApplicationMenuPath = ApplicationMenuRootPath
+	// ApplicationCreationMenuPath 标识全局创建方式选择器路由路径。
+	ApplicationCreationMenuPath = ApplicationMenuRootPath + "/create"
+	// ApplicationBlankCreateMenuPath 标识空白应用创建路由路径。
+	ApplicationBlankCreateMenuPath = ApplicationCreationMenuPath + "/blank"
+	// ApplicationTemplateCreateMenuPath 标识模板来源创建路由路径。
+	ApplicationTemplateCreateMenuPath = ApplicationCreationMenuPath + "/template"
+	// ApplicationImportCreateMenuPath 标识导入应用创建路由路径。
+	ApplicationImportCreateMenuPath = ApplicationCreationMenuPath + "/import"
+	// ApplicationDiscoveryCandidatesMenuPath 标识隐藏的发现候选预览路由路径。
+	ApplicationDiscoveryCandidatesMenuPath = ApplicationCreationMenuPath + "/discovery"
 )

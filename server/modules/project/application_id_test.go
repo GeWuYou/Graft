@@ -18,12 +18,12 @@ func TestNewApplicationIDUsesPublicULIDFormat(t *testing.T) {
 
 type applicationLookupRepository struct {
 	projectstore.Repository
-	aggregate projectstore.ProjectAggregate
+	aggregate projectstore.ApplicationAggregate
 }
 
-func (r applicationLookupRepository) GetByApplicationID(_ context.Context, applicationID string) (projectstore.ProjectAggregate, error) {
-	if applicationID != r.aggregate.Project.ApplicationID {
-		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+func (r applicationLookupRepository) GetByApplicationID(_ context.Context, applicationID string) (projectstore.ApplicationAggregate, error) {
+	if applicationID != r.aggregate.Application.ApplicationID {
+		return projectstore.ApplicationAggregate{}, projectstore.ErrApplicationNotFound
 	}
 	return r.aggregate, nil
 }
@@ -31,7 +31,7 @@ func (r applicationLookupRepository) GetByApplicationID(_ context.Context, appli
 func TestResolveApplicationIDUsesPublicLookup(t *testing.T) {
 	t.Parallel()
 	applicationID := newApplicationID()
-	service, err := NewService(applicationLookupRepository{aggregate: projectstore.ProjectAggregate{Project: projectstore.Project{ID: 42, ApplicationID: applicationID}}})
+	service, err := NewService(applicationLookupRepository{aggregate: projectstore.ApplicationAggregate{Application: projectstore.Application{ApplicationRecordID: 42, ApplicationID: applicationID}}})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}

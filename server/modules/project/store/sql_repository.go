@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// SQLRepository 持久化项目模块拥有的注册表、文件快照和生命周期配置。
-// 对外项目读取以 deleted_at = 0 的存活记录为边界，写入通过事务保持项目主记录与其文件/快照一致。
+// SQLRepository 持久化 Application 模块拥有的注册表、文件快照和生命周期配置。
+// 对外读取以 deleted_at = 0 的存活应用为边界，写入通过事务保持应用主记录与文件、快照一致。
 type SQLRepository struct {
 	db          *sql.DB
 	placeholder placeholderStyle
@@ -21,17 +21,17 @@ const (
 	workspaceAnnotationUpdateRetryLimit = 3
 )
 
-// NewSQLRepository 创建一个基于 SQL 的项目仓库，并根据数据库类型选择占位符样式。
-// db 为空时返回错误；返回的仓库只允许访问模块拥有的项目表。
+// NewSQLRepository 创建基于 SQL 的应用仓库，并根据数据库类型选择占位符样式。
+// db 为空时返回错误；返回的仓库只允许访问模块拥有的应用表。
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
-		return nil, errors.New("project repository requires a non-nil sql db")
+		return nil, errors.New("application repository requires a non-nil sql db")
 	}
 	return &SQLRepository{db: db, placeholder: detectPlaceholderStyle(db)}, nil
 }
 
-// List 返回一页存活项目及其文件、快照聚合结果。
-// 查询先使用同一过滤条件计算总数，再按白名单排序表达式分页；附属文件和快照通过批量查询装配，避免逐项目查询。
+// List 返回一页存活应用及其文件、快照聚合结果。
+// 查询先使用同一过滤条件计算总数，再按白名单排序表达式分页；附属文件和快照通过批量查询装配，避免逐应用查询。
 func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	if err := r.ensureReady(); err != nil {
 		return ListResult{}, err
@@ -44,83 +44,83 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 
 	where, args := buildListWhere(query)
 	countSQL := r.placeholder.rebind(`SELECT COUNT(*)
-		FROM compose_projects
+		FROM applications
 		WHERE ` + strings.Join(where, " AND "))
 	var total int
 	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
-		return ListResult{}, fmt.Errorf("count projects: %w", err)
+		return ListResult{}, fmt.Errorf("count applications: %w", err)
 	}
 
-	projects, projectIDs, err := r.listProjectsPage(ctx, where, args, query, total)
+	applications, applicationRecordIDs, err := r.listApplicationsPage(ctx, where, args, query, total)
 	if err != nil {
 		return ListResult{}, err
 	}
 
-	fileMap, snapshotMap, err := r.loadFilesAndSnapshots(ctx, projectIDs)
+	fileMap, snapshotMap, err := r.loadFilesAndSnapshots(ctx, applicationRecordIDs)
 	if err != nil {
 		return ListResult{}, err
 	}
-	items := buildProjectAggregates(projects, fileMap, snapshotMap)
+	items := buildApplicationAggregates(applications, fileMap, snapshotMap)
 	return ListResult{Items: items, Total: total}, nil
 }
 
-func (r *SQLRepository) listProjectsPage(
+func (r *SQLRepository) listApplicationsPage(
 	ctx context.Context,
 	where []string,
 	args []any,
 	query ListQuery,
 	total int,
-) ([]Project, []uint64, error) {
+) ([]Application, []uint64, error) {
 	// 排序片段只能来自 normalizeListQuery 的白名单，避免把请求值直接拼入 SQL。
 	argsWithPage := append(append([]any(nil), args...), query.Limit, query.Offset)
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
-			runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+			application_record_id, application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+			runtime_target_id, display_name, source_type, ownership_mode, source_metadata_json,
+			lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
-		FROM compose_projects
+		FROM applications
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY `+buildListOrderBy(query.Sort)+`
 		LIMIT ? OFFSET ?`),
 		argsWithPage...,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("list projects: %w", err)
+		return nil, nil, fmt.Errorf("list applications: %w", err)
 	}
 	defer closeRows(rows)
 
 	pageCap := listPageCapacity(total, query.Offset, query.Limit)
-	projects := make([]Project, 0, pageCap)
-	projectIDs := make([]uint64, 0, pageCap)
+	applications := make([]Application, 0, pageCap)
+	applicationRecordIDs := make([]uint64, 0, pageCap)
 	for rows.Next() {
-		item, scanErr := scanProject(rows)
+		item, scanErr := scanApplication(rows)
 		if scanErr != nil {
-			return nil, nil, fmt.Errorf("scan project row: %w", scanErr)
+			return nil, nil, fmt.Errorf("scan application row: %w", scanErr)
 		}
-		projects = append(projects, item)
-		projectIDs = append(projectIDs, item.ID)
+		applications = append(applications, item)
+		applicationRecordIDs = append(applicationRecordIDs, item.ApplicationRecordID)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, nil, fmt.Errorf("iterate projects: %w", err)
+		return nil, nil, fmt.Errorf("iterate applications: %w", err)
 	}
-	return projects, projectIDs, nil
+	return applications, applicationRecordIDs, nil
 }
 
-func buildProjectAggregates(
-	projects []Project,
-	fileMap map[uint64][]ProjectFile,
+func buildApplicationAggregates(
+	applications []Application,
+	fileMap map[uint64][]ApplicationFile,
 	snapshotMap map[uint64]Snapshot,
-) []ProjectAggregate {
-	items := make([]ProjectAggregate, 0, len(projects))
-	for _, item := range projects {
-		aggregate := ProjectAggregate{
-			Project: item,
-			Files:   fileMap[item.ID],
+) []ApplicationAggregate {
+	items := make([]ApplicationAggregate, 0, len(applications))
+	for _, item := range applications {
+		aggregate := ApplicationAggregate{
+			Application: item,
+			Files:       fileMap[item.ApplicationRecordID],
 		}
-		if snapshot, ok := snapshotMap[item.ID]; ok {
+		if snapshot, ok := snapshotMap[item.ApplicationRecordID]; ok {
 			snapshotCopy := snapshot
 			aggregate.Snapshot = &snapshotCopy
 		}
@@ -129,45 +129,45 @@ func buildProjectAggregates(
 	return items
 }
 
-// Get 返回一个已登记的项目聚合；不存在或项目已软删除时返回 ErrProjectNotFound。
-func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggregate, error) {
+// Get 返回一个已登记的应用聚合；不存在或应用已软删除时返回 ErrApplicationNotFound。
+func (r *SQLRepository) Get(ctx context.Context, applicationRecordID uint64) (ApplicationAggregate, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	projectDBID, err := toDBID(projectID)
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	project, err := scanProject(r.db.QueryRowContext(
+	application, err := scanApplication(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
-			runtime_target_id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+			application_record_id, application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+			runtime_target_id, display_name, source_type, ownership_mode, source_metadata_json,
+			lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, deleted_by, created_at, updated_at, deleted_at
-		FROM compose_projects
-		WHERE id = ? AND deleted_at = 0`),
+		FROM applications
+		WHERE application_record_id = ? AND deleted_at = 0`),
 		projectDBID,
 	))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProjectAggregate{}, ErrProjectNotFound
+			return ApplicationAggregate{}, ErrApplicationNotFound
 		}
-		return ProjectAggregate{}, fmt.Errorf("get project: %w", err)
+		return ApplicationAggregate{}, fmt.Errorf("get application: %w", err)
 	}
 
-	files, err := r.listFiles(ctx, projectID)
+	files, err := r.listFiles(ctx, applicationRecordID)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	snapshot, err := r.getSnapshot(ctx, projectID)
+	snapshot, err := r.getSnapshot(ctx, applicationRecordID)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	aggregate := ProjectAggregate{
-		Project: project,
-		Files:   files,
+	aggregate := ApplicationAggregate{
+		Application: application,
+		Files:       files,
 	}
 	if snapshot != nil {
 		aggregate.Snapshot = snapshot
@@ -175,49 +175,49 @@ func (r *SQLRepository) Get(ctx context.Context, projectID uint64) (ProjectAggre
 	return aggregate, nil
 }
 
-// GetByApplicationID 根据公开 Application ID 解析项目，不向调用方暴露模块私有数据库主键。
-func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error) {
+// GetByApplicationID 根据公开 Application ID 解析应用，不向调用方暴露模块私有数据库主键。
+func (r *SQLRepository) GetByApplicationID(ctx context.Context, applicationID string) (ApplicationAggregate, error) {
 	return r.getByLiveIdentifier(ctx, applicationID, "application_id", "application id")
 }
 
-// GetByApplicationName 根据存活的受管应用名称解析项目，不向调用方暴露模块私有数据库主键。
-func (r *SQLRepository) GetByApplicationName(ctx context.Context, applicationName string) (ProjectAggregate, error) {
+// GetByApplicationName 根据存活的受管应用名称解析应用，不向调用方暴露模块私有数据库主键。
+func (r *SQLRepository) GetByApplicationName(ctx context.Context, applicationName string) (ApplicationAggregate, error) {
 	return r.getByLiveIdentifier(ctx, applicationName, "application_name", "application name")
 }
 
-func (r *SQLRepository) getByLiveIdentifier(ctx context.Context, value, column, label string) (ProjectAggregate, error) {
+func (r *SQLRepository) getByLiveIdentifier(ctx context.Context, value, column, label string) (ApplicationAggregate, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return ProjectAggregate{}, ErrInvalidInput
+		return ApplicationAggregate{}, ErrInvalidInput
 	}
-	query, ok := liveProjectIdentifierQueries[column]
+	query, ok := liveApplicationIdentifierQueries[column]
 	if !ok {
-		return ProjectAggregate{}, ErrInvalidInput
+		return ApplicationAggregate{}, ErrInvalidInput
 	}
-	var projectID int64
-	err := r.db.QueryRowContext(ctx, r.placeholder.rebind(query), value).Scan(&projectID)
+	var applicationRecordID int64
+	err := r.db.QueryRowContext(ctx, r.placeholder.rebind(query), value).Scan(&applicationRecordID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProjectAggregate{}, ErrProjectNotFound
+			return ApplicationAggregate{}, ErrApplicationNotFound
 		}
-		return ProjectAggregate{}, fmt.Errorf("get project by %s: %w", label, err)
+		return ApplicationAggregate{}, fmt.Errorf("get application by %s: %w", label, err)
 	}
-	if projectID < 1 {
-		return ProjectAggregate{}, ErrProjectNotFound
+	if applicationRecordID < 1 {
+		return ApplicationAggregate{}, ErrApplicationNotFound
 	}
-	return r.Get(ctx, uint64(projectID)) // #nosec G115 -- positivity is checked immediately above.
+	return r.Get(ctx, uint64(applicationRecordID)) // #nosec G115 -- positivity is checked immediately above.
 }
 
-var liveProjectIdentifierQueries = map[string]string{
-	"application_id":   `SELECT id FROM compose_projects WHERE application_id = ? AND deleted_at = 0`,
-	"application_name": `SELECT id FROM compose_projects WHERE application_name = ? AND deleted_at = 0`,
+var liveApplicationIdentifierQueries = map[string]string{
+	"application_id":   `SELECT application_record_id FROM applications WHERE application_id = ? AND deleted_at = 0`,
+	"application_name": `SELECT application_record_id FROM applications WHERE application_name = ? AND deleted_at = 0`,
 }
 
-// GetIDsByApplicationIDs 在一次查询中解析公开应用标识，避免为批量请求逐项读取聚合。
-func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error) {
+// GetRecordIDsByApplicationIDs 在一次查询中解析公开应用标识，避免为批量请求逐项读取聚合。
+func (r *SQLRepository) GetRecordIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error) {
 	result := make(map[string]uint64, len(applicationIDs))
 	if len(applicationIDs) == 0 {
 		return result, nil
@@ -233,158 +233,158 @@ func (r *SQLRepository) GetIDsByApplicationIDs(ctx context.Context, applicationI
 	if len(args) == 0 {
 		return result, nil
 	}
-	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, id FROM compose_projects WHERE deleted_at = 0 AND application_id IN (`+strings.Join(placeholders, ",")+`)`), args...)
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, application_record_id FROM applications WHERE deleted_at = 0 AND application_id IN (`+strings.Join(placeholders, ",")+`)`), args...)
 	if err != nil {
-		return nil, fmt.Errorf("resolve project application ids: %w", err)
+		return nil, fmt.Errorf("resolve application application ids: %w", err)
 	}
 	defer closeRows(rows)
 	for rows.Next() {
 		var applicationID string
-		var projectID int64
-		if err := rows.Scan(&applicationID, &projectID); err != nil {
-			return nil, fmt.Errorf("scan project application id: %w", err)
+		var applicationRecordID int64
+		if err := rows.Scan(&applicationID, &applicationRecordID); err != nil {
+			return nil, fmt.Errorf("scan application application id: %w", err)
 		}
-		if projectID > 0 {
-			result[applicationID] = uint64(projectID)
+		if applicationRecordID > 0 {
+			result[applicationID] = uint64(applicationRecordID)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate project application ids: %w", err)
+		return nil, fmt.Errorf("iterate application application ids: %w", err)
 	}
 	return result, nil
 }
 
-// GetFile 返回指定项目范围内的一个文件；项目或文件不存在时返回对应错误。
-func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID uint64) (ProjectFile, error) {
+// GetFile 返回指定应用范围内的一个文件；应用或文件不存在时返回对应错误。
+func (r *SQLRepository) GetFile(ctx context.Context, applicationRecordID uint64, fileID uint64) (ApplicationFile, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectFile{}, err
+		return ApplicationFile{}, err
 	}
-	projectDBID, err := toDBID(projectID)
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
-		return ProjectFile{}, err
+		return ApplicationFile{}, err
 	}
 	fileDBID, err := toDBID(fileID)
 	if err != nil {
-		return ProjectFile{}, err
+		return ApplicationFile{}, err
 	}
-	item, err := scanProjectFile(r.db.QueryRowContext(
+	item, err := scanApplicationFile(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			f.id, f.project_id, f.kind, f.role, f.absolute_path, f.display_path, f.order_index,
+			f.id, f.application_record_id, f.kind, f.role, f.absolute_path, f.display_path, f.order_index,
 			f.last_observed_hash, f.created_at, f.updated_at
-		FROM compose_project_files f
-		INNER JOIN compose_projects p ON p.id = f.project_id
-		WHERE f.id = ? AND f.project_id = ? AND p.deleted_at = 0`),
+		FROM application_files f
+		INNER JOIN applications p ON p.application_record_id = f.application_record_id
+		WHERE f.id = ? AND f.application_record_id = ? AND p.deleted_at = 0`),
 		fileDBID,
 		projectDBID,
 	))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProjectFile{}, ErrFileNotFound
+			return ApplicationFile{}, ErrFileNotFound
 		}
-		return ProjectFile{}, fmt.Errorf("get project file: %w", err)
+		return ApplicationFile{}, fmt.Errorf("get application file: %w", err)
 	}
 	return item, nil
 }
 
-// ImportProject 在一个事务中创建或替换存活项目，并同步替换文件与快照。
+// ImportApplication 在一个事务中创建或替换存活应用，并同步替换文件与快照。
 // 提交前任一步骤失败都会回滚，提交后再读取完整聚合，确保调用方看到的是数据库已确认的状态。
-func (r *SQLRepository) ImportProject(ctx context.Context, input ImportProjectInput) (ProjectAggregate, error) {
+func (r *SQLRepository) ImportApplication(ctx context.Context, input ImportApplicationInput) (ApplicationAggregate, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	input, err := validateImportInput(input)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return ProjectAggregate{}, fmt.Errorf("begin project import tx: %w", err)
+		return ApplicationAggregate{}, fmt.Errorf("begin application import tx: %w", err)
 	}
 	defer rollbackTx(tx)
 
 	now := time.Now().UTC()
-	var projectID uint64
+	var applicationRecordID uint64
 	if input.StrictCreate {
-		projectID, err = r.createProject(ctx, tx, input, now)
+		applicationRecordID, err = r.createApplication(ctx, tx, input, now)
 	} else {
-		projectID, err = r.upsertProject(ctx, tx, input, now)
+		applicationRecordID, err = r.upsertApplication(ctx, tx, input, now)
 	}
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	if err := r.replaceFiles(ctx, tx, projectID, input.Files, now); err != nil {
-		return ProjectAggregate{}, err
+	if err := r.replaceFiles(ctx, tx, applicationRecordID, input.Files, now); err != nil {
+		return ApplicationAggregate{}, err
 	}
-	if err := r.replaceSnapshot(ctx, tx, projectID, input.Snapshot); err != nil {
-		return ProjectAggregate{}, err
+	if err := r.replaceSnapshot(ctx, tx, applicationRecordID, input.Snapshot); err != nil {
+		return ApplicationAggregate{}, err
 	}
 	if err := tx.Commit(); err != nil {
-		return ProjectAggregate{}, fmt.Errorf("commit project import: %w", err)
+		return ApplicationAggregate{}, fmt.Errorf("commit application import: %w", err)
 	}
-	return r.Get(ctx, projectID)
+	return r.Get(ctx, applicationRecordID)
 }
 
-// RefreshProject 在一个事务中更新项目快照、漂移元数据及文件投影。
-// 项目必须在事务内仍为存活记录；事务提交后才重新读取聚合结果。
-func (r *SQLRepository) RefreshProject(ctx context.Context, input RefreshProjectInput) (ProjectAggregate, error) {
+// RefreshApplication 在一个事务中更新应用快照、漂移元数据及文件投影。
+// 应用必须在事务内仍为存活记录；事务提交后才重新读取聚合结果。
+func (r *SQLRepository) RefreshApplication(ctx context.Context, input RefreshApplicationInput) (ApplicationAggregate, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	input, err := validateRefreshInput(input)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return ProjectAggregate{}, fmt.Errorf("begin project refresh tx: %w", err)
+		return ApplicationAggregate{}, fmt.Errorf("begin application refresh tx: %w", err)
 	}
 	defer rollbackTx(tx)
 
-	if err := r.ensureProjectExists(ctx, tx, input.ProjectID); err != nil {
-		return ProjectAggregate{}, err
+	if err := r.ensureApplicationExists(ctx, tx, input.ApplicationRecordID); err != nil {
+		return ApplicationAggregate{}, err
 	}
 	if err := r.updateRefreshState(ctx, tx, input); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	if err := r.replaceRefreshFiles(ctx, tx, input); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	if err := r.replaceSnapshot(ctx, tx, input.ProjectID, input.Snapshot); err != nil {
-		return ProjectAggregate{}, err
+	if err := r.replaceSnapshot(ctx, tx, input.ApplicationRecordID, input.Snapshot); err != nil {
+		return ApplicationAggregate{}, err
 	}
 	if err := tx.Commit(); err != nil {
-		return ProjectAggregate{}, fmt.Errorf("commit project refresh: %w", err)
+		return ApplicationAggregate{}, fmt.Errorf("commit application refresh: %w", err)
 	}
-	return r.Get(ctx, input.ProjectID)
+	return r.Get(ctx, input.ApplicationRecordID)
 }
 
-// UpdateLifecycleConfig 更新存活项目保存的生命周期配置，并保留配置确认状态这一持久化契约。
-func (r *SQLRepository) UpdateLifecycleConfig(ctx context.Context, input UpdateLifecycleConfigInput) (ProjectAggregate, error) {
+// UpdateLifecycleConfig 更新存活应用保存的生命周期配置，并保留配置确认状态这一持久化契约。
+func (r *SQLRepository) UpdateLifecycleConfig(ctx context.Context, input UpdateLifecycleConfigInput) (ApplicationAggregate, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	input, err := validateUpdateLifecycleConfigInput(input)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	lifecycleConfigJSON, err := encodeLifecycleConfigJSON(input.LifecycleConfig)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	projectDBID, err := toDBID(input.ProjectID)
+	projectDBID, err := toDBID(input.ApplicationRecordID)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	result, err := r.db.ExecContext(
 		ctx,
-		r.placeholder.rebind(`UPDATE compose_projects
+		r.placeholder.rebind(`UPDATE applications
 		SET lifecycle_strategy_kind = ?,
 			lifecycle_review_status = ?,
 			lifecycle_config_json = ?::jsonb,
 			updated_by = ?,
 			updated_at = NOW()
-		WHERE id = ? AND deleted_at = 0`),
+		WHERE application_record_id = ? AND deleted_at = 0`),
 		input.LifecycleStrategyKind,
 		input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON),
@@ -392,41 +392,41 @@ func (r *SQLRepository) UpdateLifecycleConfig(ctx context.Context, input UpdateL
 		projectDBID,
 	)
 	if err != nil {
-		return ProjectAggregate{}, mapWriteErr("update lifecycle config", err)
+		return ApplicationAggregate{}, mapWriteErr("update lifecycle config", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return ProjectAggregate{}, fmt.Errorf("read lifecycle config update rows: %w", err)
+		return ApplicationAggregate{}, fmt.Errorf("read lifecycle config update rows: %w", err)
 	}
 	if rowsAffected == 0 {
-		return ProjectAggregate{}, ErrProjectNotFound
+		return ApplicationAggregate{}, ErrApplicationNotFound
 	}
-	return r.Get(ctx, input.ProjectID)
+	return r.Get(ctx, input.ApplicationRecordID)
 }
 
-// UpdateWorkspaceAnnotation 更新或删除项目行上的一个工作区注释，注释归属始终由项目记录限定。
-func (r *SQLRepository) UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ProjectAggregate, error) {
+// UpdateWorkspaceAnnotation 更新或删除应用行上的一个工作区注释，注释归属始终由应用记录限定。
+func (r *SQLRepository) UpdateWorkspaceAnnotation(ctx context.Context, input UpdateWorkspaceAnnotationInput) (ApplicationAggregate, error) {
 	if err := r.ensureReady(); err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	input, err := validateUpdateWorkspaceAnnotationInput(input)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
-	projectDBID, err := toDBID(input.ProjectID)
+	projectDBID, err := toDBID(input.ApplicationRecordID)
 	if err != nil {
-		return ProjectAggregate{}, err
+		return ApplicationAggregate{}, err
 	}
 	for attempt := 0; attempt < workspaceAnnotationUpdateRetryLimit; attempt++ {
 		updated, err := r.tryUpdateWorkspaceAnnotation(ctx, projectDBID, input)
 		if err != nil {
-			return ProjectAggregate{}, err
+			return ApplicationAggregate{}, err
 		}
 		if updated {
-			return r.Get(ctx, input.ProjectID)
+			return r.Get(ctx, input.ApplicationRecordID)
 		}
 	}
-	return ProjectAggregate{}, ErrProjectConflict
+	return ApplicationAggregate{}, ErrApplicationConflict
 }
 
 func applyWorkspaceAnnotationUpdate(current map[string]string, relativePath string, annotation *string) map[string]string {
@@ -462,11 +462,11 @@ func (r *SQLRepository) tryUpdateWorkspaceAnnotation(
 	}
 	result, err := r.db.ExecContext(
 		ctx,
-		r.placeholder.rebind(`UPDATE compose_projects
+		r.placeholder.rebind(`UPDATE applications
 		SET workspace_annotations_json = `+r.placeholder.jsonParamExpr()+`,
 			updated_by = ?,
 			updated_at = CURRENT_TIMESTAMP
-		WHERE id = ? AND deleted_at = 0 AND workspace_annotations_json = ?`),
+		WHERE application_record_id = ? AND deleted_at = 0 AND workspace_annotations_json = ?`),
 		string(encoded),
 		input.ActorID,
 		projectDBID,
@@ -487,13 +487,13 @@ func (r *SQLRepository) loadWorkspaceAnnotationsJSON(ctx context.Context, projec
 	err := r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT workspace_annotations_json
-		FROM compose_projects
-		WHERE id = ? AND deleted_at = 0`),
+		FROM applications
+		WHERE application_record_id = ? AND deleted_at = 0`),
 		projectDBID,
 	).Scan(&raw)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", ErrProjectNotFound
+			return "", ErrApplicationNotFound
 		}
 		return "", fmt.Errorf("load workspace annotations: %w", err)
 	}
@@ -503,9 +503,9 @@ func (r *SQLRepository) loadWorkspaceAnnotationsJSON(ctx context.Context, projec
 	return raw, nil
 }
 
-// UnregisterProject 软删除一条存活项目记录，但不删除宿主机文件。
+// UnregisterApplication 软删除一条存活应用记录，但不删除工作区文件。
 // 该边界允许后续审计或人工恢复引用历史注册信息，同时由 deleted_at 过滤后续业务读取。
-func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterProjectInput) error {
+func (r *SQLRepository) UnregisterApplication(ctx context.Context, input UnregisterApplicationInput) error {
 	if err := r.ensureReady(); err != nil {
 		return err
 	}
@@ -515,15 +515,15 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin project unregister tx: %w", err)
+		return fmt.Errorf("begin application unregister tx: %w", err)
 	}
 	defer rollbackTx(tx)
 
-	if err := r.ensureProjectExists(ctx, tx, input.ProjectID); err != nil {
+	if err := r.ensureApplicationExists(ctx, tx, input.ApplicationRecordID); err != nil {
 		return err
 	}
 	now := time.Now().UTC().Unix()
-	projectDBID, err := toDBID(input.ProjectID)
+	projectDBID, err := toDBID(input.ApplicationRecordID)
 	if err != nil {
 		return err
 	}
@@ -537,18 +537,18 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		r.placeholder.rebind(`UPDATE compose_projects
+		r.placeholder.rebind(`UPDATE applications
 		SET deleted_at = ?, deleted_by = ?, updated_at = NOW(), updated_by = ?
-		WHERE id = ? AND deleted_at = 0`),
+		WHERE application_record_id = ? AND deleted_at = 0`),
 		now,
 		deletedBy,
 		deletedBy,
 		projectDBID,
 	); err != nil {
-		return fmt.Errorf("unregister project: %w", err)
+		return fmt.Errorf("unregister application: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit project unregister: %w", err)
+		return fmt.Errorf("commit application unregister: %w", err)
 	}
 	return nil
 }
@@ -558,16 +558,16 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 func buildListWhere(query ListQuery) ([]string, []any) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, projectListWhereArgCapacity)
-	if query.SourceKind != "" {
-		where = append(where, "source_kind = ?")
-		args = append(args, query.SourceKind)
+	if query.SourceType != "" {
+		where = append(where, "source_type = ?")
+		args = append(args, query.SourceType)
 	}
 	if query.DriftStatus != "" {
 		where = append(where, "drift_status = ?")
 		args = append(args, query.DriftStatus)
 	}
 	if query.Keyword != "" {
-		where = append(where, "(LOWER(display_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(canonical_project_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(working_directory) LIKE LOWER(?) ESCAPE '\\')")
+		where = append(where, "(LOWER(display_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(compose_project_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(workspace_path) LIKE LOWER(?) ESCAPE '\\')")
 		keyword := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(query.Keyword) + "%"
 		args = append(args, keyword, keyword, keyword)
 	}
@@ -578,7 +578,7 @@ func buildListWhere(query ListQuery) ([]string, []any) {
 	return where, args
 }
 
-// BackfillRuntimeTarget 为历史上未绑定运行时目标的本地项目补齐已发现的 Local Docker 目标。
+// BackfillRuntimeTarget 为历史上未绑定运行时目标的本地应用补齐已发现的 Local Docker 目标。
 func (r *SQLRepository) BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error {
 	if err := r.ensureReady(); err != nil {
 		return err
@@ -587,194 +587,194 @@ func (r *SQLRepository) BackfillRuntimeTarget(ctx context.Context, runtimeTarget
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE compose_projects SET runtime_target_id = ?, updated_at = NOW(), updated_by = 0 WHERE deleted_at = 0 AND host_scope = 'local' AND runtime_target_id IS NULL`), id)
+	_, err = r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE applications SET runtime_target_id = ?, updated_at = NOW(), updated_by = 0 WHERE deleted_at = 0 AND runtime_target_id IS NULL`), id)
 	return err
 }
 
-func (r *SQLRepository) ensureProjectExists(ctx context.Context, tx *sql.Tx, projectID uint64) error {
-	exists, err := r.projectExists(ctx, tx, projectID)
+func (r *SQLRepository) ensureApplicationExists(ctx context.Context, tx *sql.Tx, applicationRecordID uint64) error {
+	exists, err := r.applicationExists(ctx, tx, applicationRecordID)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		return ErrProjectNotFound
+		return ErrApplicationNotFound
 	}
 	return nil
 }
 
-func (r *SQLRepository) replaceRefreshFiles(ctx context.Context, tx *sql.Tx, input RefreshProjectInput) error {
+func (r *SQLRepository) replaceRefreshFiles(ctx context.Context, tx *sql.Tx, input RefreshApplicationInput) error {
 	if len(input.Files) == 0 {
 		return nil
 	}
-	return r.replaceFiles(ctx, tx, input.ProjectID, input.Files, time.Now().UTC())
+	return r.replaceFiles(ctx, tx, input.ApplicationRecordID, input.Files, time.Now().UTC())
 }
 
-func (r *SQLRepository) listFiles(ctx context.Context, projectID uint64) ([]ProjectFile, error) {
+func (r *SQLRepository) listFiles(ctx context.Context, applicationRecordID uint64) ([]ApplicationFile, error) {
 	// order_index 表示导入时的文件顺序，id 只用于处理并列顺序，不能改为按路径排序。
-	projectDBID, err := toDBID(projectID)
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, project_id, kind, role, absolute_path, display_path, order_index,
+			id, application_record_id, kind, role, absolute_path, display_path, order_index,
 			last_observed_hash, created_at, updated_at
-		FROM compose_project_files
-		WHERE project_id = ?
+		FROM application_files
+		WHERE application_record_id = ?
 		ORDER BY order_index ASC, id ASC`),
 		projectDBID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list project files: %w", err)
+		return nil, fmt.Errorf("list application files: %w", err)
 	}
 	defer closeRows(rows)
-	items := make([]ProjectFile, 0)
+	items := make([]ApplicationFile, 0)
 	for rows.Next() {
-		item, scanErr := scanProjectFile(rows)
+		item, scanErr := scanApplicationFile(rows)
 		if scanErr != nil {
-			return nil, fmt.Errorf("scan project file: %w", scanErr)
+			return nil, fmt.Errorf("scan application file: %w", scanErr)
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate project files: %w", err)
+		return nil, fmt.Errorf("iterate application files: %w", err)
 	}
 	return items, nil
 }
 
-func (r *SQLRepository) getSnapshot(ctx context.Context, projectID uint64) (*Snapshot, error) {
-	projectDBID, err := toDBID(projectID)
+func (r *SQLRepository) getSnapshot(ctx context.Context, applicationRecordID uint64) (*Snapshot, error) {
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := scanSnapshot(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			project_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
-		FROM compose_project_snapshots
-		WHERE project_id = ?`),
+			application_record_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
+		FROM application_snapshots
+		WHERE application_record_id = ?`),
 		projectDBID,
 	))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("get project snapshot: %w", err)
+		return nil, fmt.Errorf("get application snapshot: %w", err)
 	}
 	return &item, nil
 }
 
 func (r *SQLRepository) loadFilesAndSnapshots(
 	ctx context.Context,
-	projectIDs []uint64,
-) (map[uint64][]ProjectFile, map[uint64]Snapshot, error) {
-	fileMap := make(map[uint64][]ProjectFile, len(projectIDs))
-	snapshotMap := make(map[uint64]Snapshot, len(projectIDs))
-	if len(projectIDs) == 0 {
+	applicationRecordIDs []uint64,
+) (map[uint64][]ApplicationFile, map[uint64]Snapshot, error) {
+	fileMap := make(map[uint64][]ApplicationFile, len(applicationRecordIDs))
+	snapshotMap := make(map[uint64]Snapshot, len(applicationRecordIDs))
+	if len(applicationRecordIDs) == 0 {
 		return fileMap, snapshotMap, nil
 	}
-	fileMap, err := r.loadFilesByProjectIDs(ctx, projectIDs)
+	fileMap, err := r.loadFilesByApplicationRecordIDs(ctx, applicationRecordIDs)
 	if err != nil {
 		return nil, nil, err
 	}
-	snapshotMap, err = r.loadSnapshotsByProjectIDs(ctx, projectIDs)
+	snapshotMap, err = r.loadSnapshotsByApplicationRecordIDs(ctx, applicationRecordIDs)
 	if err != nil {
 		return nil, nil, err
 	}
 	return fileMap, snapshotMap, nil
 }
 
-func (r *SQLRepository) loadFilesByProjectIDs(
+func (r *SQLRepository) loadFilesByApplicationRecordIDs(
 	ctx context.Context,
-	projectIDs []uint64,
-) (map[uint64][]ProjectFile, error) {
-	for _, id := range projectIDs {
+	applicationRecordIDs []uint64,
+) (map[uint64][]ApplicationFile, error) {
+	for _, id := range applicationRecordIDs {
 		if id == 0 {
 			return nil, ErrInvalidInput
 		}
 	}
-	args, err := toDBArgs(projectIDs)
+	args, err := toDBArgs(applicationRecordIDs)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, project_id, kind, role, absolute_path, display_path, order_index,
+			id, application_record_id, kind, role, absolute_path, display_path, order_index,
 			last_observed_hash, created_at, updated_at
-		FROM compose_project_files
-		WHERE project_id IN (`+placeholderList(len(args))+`)
-		ORDER BY project_id ASC, order_index ASC, id ASC`),
+		FROM application_files
+		WHERE application_record_id IN (`+placeholderList(len(args))+`)
+		ORDER BY application_record_id ASC, order_index ASC, id ASC`),
 		args...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list project files: %w", err)
+		return nil, fmt.Errorf("list application files: %w", err)
 	}
 	defer closeRows(rows)
 
-	fileMap := make(map[uint64][]ProjectFile, len(projectIDs))
+	fileMap := make(map[uint64][]ApplicationFile, len(applicationRecordIDs))
 	for rows.Next() {
-		item, scanErr := scanProjectFileSummary(rows)
+		item, scanErr := scanApplicationFileSummary(rows)
 		if scanErr != nil {
-			return nil, fmt.Errorf("scan project file: %w", scanErr)
+			return nil, fmt.Errorf("scan application file: %w", scanErr)
 		}
-		fileMap[item.ProjectID] = append(fileMap[item.ProjectID], item)
+		fileMap[item.ApplicationRecordID] = append(fileMap[item.ApplicationRecordID], item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate project files: %w", err)
+		return nil, fmt.Errorf("iterate application files: %w", err)
 	}
 	return fileMap, nil
 }
 
-func (r *SQLRepository) loadSnapshotsByProjectIDs(
+func (r *SQLRepository) loadSnapshotsByApplicationRecordIDs(
 	ctx context.Context,
-	projectIDs []uint64,
+	applicationRecordIDs []uint64,
 ) (map[uint64]Snapshot, error) {
-	for _, id := range projectIDs {
+	for _, id := range applicationRecordIDs {
 		if id == 0 {
 			return nil, ErrInvalidInput
 		}
 	}
-	args, err := toDBArgs(projectIDs)
+	args, err := toDBArgs(applicationRecordIDs)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			project_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
-		FROM compose_project_snapshots
-		WHERE project_id IN (`+placeholderList(len(args))+`)
-		ORDER BY project_id ASC`),
+			application_record_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
+		FROM application_snapshots
+		WHERE application_record_id IN (`+placeholderList(len(args))+`)
+		ORDER BY application_record_id ASC`),
 		args...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list project snapshots: %w", err)
+		return nil, fmt.Errorf("list application snapshots: %w", err)
 	}
 	defer closeRows(rows)
 
-	snapshotMap := make(map[uint64]Snapshot, len(projectIDs))
+	snapshotMap := make(map[uint64]Snapshot, len(applicationRecordIDs))
 	for rows.Next() {
 		item, scanErr := scanSnapshot(rows)
 		if scanErr != nil {
-			return nil, fmt.Errorf("scan project snapshot: %w", scanErr)
+			return nil, fmt.Errorf("scan application snapshot: %w", scanErr)
 		}
-		snapshotMap[item.ProjectID] = item
+		snapshotMap[item.ApplicationRecordID] = item
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate project snapshots: %w", err)
+		return nil, fmt.Errorf("iterate application snapshots: %w", err)
 	}
 	return snapshotMap, nil
 }
 
-func (r *SQLRepository) upsertProject(
+func (r *SQLRepository) upsertApplication(
 	ctx context.Context,
 	tx *sql.Tx,
-	input ImportProjectInput,
+	input ImportApplicationInput,
 	now time.Time,
 ) (uint64, error) {
-	var projectID uint64
+	var applicationRecordID uint64
 	lifecycleConfigJSON, err := encodeLifecycleConfigJSON(input.LifecycleConfig)
 	if err != nil {
 		return 0, err
@@ -789,19 +789,16 @@ func (r *SQLRepository) upsertProject(
 	}
 	err = tx.QueryRowContext(
 		ctx,
-		r.placeholder.rebind(composeProjectsUpsertSQL()),
+		r.placeholder.rebind(applicationsUpsertSQL()),
 		input.ApplicationID,
+		input.ApplicationType,
 		input.ApplicationName,
 		input.WorkspacePath,
-		input.ComposeProjectName,
-		input.ComposeProjectNameSource,
 		input.DisplayName,
 		runtimeTargetID,
-		input.CanonicalProjectName,
-		input.CanonicalProjectNameSource,
-		input.SourceKind,
-		input.HostScope,
-		input.WorkingDirectory,
+		input.ComposeProjectName,
+		input.ComposeProjectNameSource,
+		input.SourceType,
 		input.OwnershipMode,
 		string(sourceMetadataJSON),
 		input.LifecycleStrategyKind,
@@ -815,14 +812,14 @@ func (r *SQLRepository) upsertProject(
 		input.ActorID,
 		now,
 		now,
-	).Scan(&projectID)
+	).Scan(&applicationRecordID)
 	if err != nil {
-		return 0, mapWriteErr("upsert project", err)
+		return 0, mapWriteErr("upsert application", err)
 	}
-	return projectID, nil
+	return applicationRecordID, nil
 }
 
-func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input ImportProjectInput, now time.Time) (uint64, error) {
+func (r *SQLRepository) createApplication(ctx context.Context, tx *sql.Tx, input ImportApplicationInput, now time.Time) (uint64, error) {
 	lifecycleConfigJSON, err := encodeLifecycleConfigJSON(input.LifecycleConfig)
 	if err != nil {
 		return 0, err
@@ -835,47 +832,44 @@ func (r *SQLRepository) createProject(ctx context.Context, tx *sql.Tx, input Imp
 	if input.RuntimeTargetID > 0 {
 		runtimeTargetID = input.RuntimeTargetID
 	}
-	var projectID uint64
-	err = tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO compose_projects (
-		application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
-		display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-		working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status,
+	var applicationRecordID uint64
+	err = tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO applications (
+		application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+		display_name, runtime_target_id, source_type, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status,
 		lifecycle_config_json, last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 		created_by, updated_by, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
-	RETURNING id`),
-		input.ApplicationID, input.ApplicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
-		input.DisplayName, runtimeTargetID, input.CanonicalProjectName, input.CanonicalProjectNameSource, input.SourceKind, input.HostScope,
-		input.WorkingDirectory, input.OwnershipMode, string(sourceMetadataJSON), input.LifecycleStrategyKind, input.LifecycleReviewStatus,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
+	RETURNING application_record_id`),
+		input.ApplicationID, input.ApplicationType, input.ApplicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
+		input.DisplayName, runtimeTargetID, input.SourceType, input.OwnershipMode, string(sourceMetadataJSON), input.LifecycleStrategyKind, input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON), input.LastObservedConfigHash, `{}`, input.LastDriftCheckedAt, input.DriftStatus,
 		input.ActorID, input.ActorID, now, now,
-	).Scan(&projectID)
+	).Scan(&applicationRecordID)
 	if err != nil {
-		return 0, mapWriteErr("create project", err)
+		return 0, mapWriteErr("create application", err)
 	}
-	return projectID, nil
+	return applicationRecordID, nil
 }
 
-// composeProjectsUpsertSQL 返回用于插入或更新项目记录的 SQL 语句，并通过 RETURNING 子句返回项目 ID。
-func composeProjectsUpsertSQL() string {
-	return `INSERT INTO compose_projects (
-			application_id, application_name, workspace_path, compose_project_name, compose_project_name_source,
-			display_name, runtime_target_id, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-			working_directory, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+// applicationsUpsertSQL 返回用于插入或更新应用记录的 SQL，并通过 RETURNING 返回内部数值键。
+func applicationsUpsertSQL() string {
+	return `INSERT INTO applications (
+			application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+			display_name, runtime_target_id, source_type, ownership_mode, source_metadata_json,
+			lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 			created_by, updated_by, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (runtime_target_id, compose_project_name) WHERE deleted_at = 0 DO UPDATE SET
+			application_type = excluded.application_type,
 			display_name = excluded.display_name,
-			compose_project_name_source = excluded.compose_project_name_source,
-			application_name = COALESCE(excluded.application_name, compose_projects.application_name),
-			workspace_path = excluded.workspace_path,
+			application_name = COALESCE(excluded.application_name, applications.application_name),
 			runtime_target_id = excluded.runtime_target_id,
-			canonical_project_name_source = excluded.canonical_project_name_source,
-			source_kind = excluded.source_kind,
-			working_directory = excluded.working_directory,
+			compose_project_name_source = excluded.compose_project_name_source,
+			source_type = excluded.source_type,
+			workspace_path = excluded.workspace_path,
 			ownership_mode = excluded.ownership_mode,
 			source_metadata_json = excluded.source_metadata_json,
 			lifecycle_strategy_kind = excluded.lifecycle_strategy_kind,
@@ -886,32 +880,32 @@ func composeProjectsUpsertSQL() string {
 			drift_status = excluded.drift_status,
 			updated_by = excluded.updated_by,
 			updated_at = excluded.updated_at
-		RETURNING id`
+		RETURNING application_record_id`
 }
 
 func (r *SQLRepository) replaceFiles(
 	ctx context.Context,
 	tx *sql.Tx,
-	projectID uint64,
-	files []ProjectFile,
+	applicationRecordID uint64,
+	files []ApplicationFile,
 	now time.Time,
 ) error {
-	projectDBID, err := toDBID(projectID)
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		r.placeholder.rebind(`DELETE FROM compose_project_files WHERE project_id = ?`),
+		r.placeholder.rebind(`DELETE FROM application_files WHERE application_record_id = ?`),
 		projectDBID,
 	); err != nil {
-		return fmt.Errorf("delete project files: %w", err)
+		return fmt.Errorf("delete application files: %w", err)
 	}
 	for _, item := range files {
 		if _, err := tx.ExecContext(
 			ctx,
-			r.placeholder.rebind(`INSERT INTO compose_project_files (
-				project_id, kind, role, absolute_path, display_path, order_index,
+			r.placeholder.rebind(`INSERT INTO application_files (
+				application_record_id, kind, role, absolute_path, display_path, order_index,
 				last_observed_hash, created_at, updated_at
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 			projectDBID,
@@ -924,7 +918,7 @@ func (r *SQLRepository) replaceFiles(
 			now,
 			now,
 		); err != nil {
-			return mapWriteErr("insert project file", err)
+			return mapWriteErr("insert application file", err)
 		}
 	}
 	return nil
@@ -933,29 +927,29 @@ func (r *SQLRepository) replaceFiles(
 func (r *SQLRepository) replaceSnapshot(
 	ctx context.Context,
 	tx *sql.Tx,
-	projectID uint64,
+	applicationRecordID uint64,
 	snapshot *Snapshot,
 ) error {
-	projectDBID, err := toDBID(projectID)
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
 		return err
 	}
 	if snapshot == nil {
 		if _, err := tx.ExecContext(
 			ctx,
-			r.placeholder.rebind(`DELETE FROM compose_project_snapshots WHERE project_id = ?`),
+			r.placeholder.rebind(`DELETE FROM application_snapshots WHERE application_record_id = ?`),
 			projectDBID,
 		); err != nil {
-			return fmt.Errorf("delete project snapshot: %w", err)
+			return fmt.Errorf("delete application snapshot: %w", err)
 		}
 		return nil
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		r.placeholder.rebind(`INSERT INTO compose_project_snapshots (
-			project_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
+		r.placeholder.rebind(`INSERT INTO application_snapshots (
+			application_record_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
 		) VALUES (?, ?::jsonb, ?, ?, ?, ?)
-		ON CONFLICT (project_id) DO UPDATE SET
+		ON CONFLICT (application_record_id) DO UPDATE SET
 			normalized_compose_json = excluded.normalized_compose_json,
 			config_hash = excluded.config_hash,
 			declared_service_count = excluded.declared_service_count,
@@ -968,41 +962,41 @@ func (r *SQLRepository) replaceSnapshot(
 		snapshot.DeclaredServicesDigest,
 		snapshot.RefreshedAt,
 	); err != nil {
-		return mapWriteErr("upsert project snapshot", err)
+		return mapWriteErr("upsert application snapshot", err)
 	}
 	return nil
 }
 
-func (r *SQLRepository) projectExists(ctx context.Context, tx *sql.Tx, projectID uint64) (bool, error) {
-	projectDBID, err := toDBID(projectID)
+func (r *SQLRepository) applicationExists(ctx context.Context, tx *sql.Tx, applicationRecordID uint64) (bool, error) {
+	projectDBID, err := toDBID(applicationRecordID)
 	if err != nil {
 		return false, err
 	}
 	var count int
 	if err := tx.QueryRowContext(
 		ctx,
-		r.placeholder.rebind(`SELECT COUNT(*) FROM compose_projects WHERE id = ? AND deleted_at = 0`),
+		r.placeholder.rebind(`SELECT COUNT(*) FROM applications WHERE application_record_id = ? AND deleted_at = 0`),
 		projectDBID,
 	).Scan(&count); err != nil {
-		return false, fmt.Errorf("check project existence: %w", err)
+		return false, fmt.Errorf("check application existence: %w", err)
 	}
 	return count > 0, nil
 }
 
-func (r *SQLRepository) updateRefreshState(ctx context.Context, tx *sql.Tx, input RefreshProjectInput) error {
-	projectDBID, err := toDBID(input.ProjectID)
+func (r *SQLRepository) updateRefreshState(ctx context.Context, tx *sql.Tx, input RefreshApplicationInput) error {
+	projectDBID, err := toDBID(input.ApplicationRecordID)
 	if err != nil {
 		return err
 	}
 	_, err = tx.ExecContext(
 		ctx,
-		r.placeholder.rebind(`UPDATE compose_projects
+		r.placeholder.rebind(`UPDATE applications
 		SET last_observed_config_hash = ?,
 			last_drift_checked_at = ?,
 			drift_status = ?,
 			updated_by = ?,
 			updated_at = NOW()
-		WHERE id = ? AND deleted_at = 0`),
+		WHERE application_record_id = ? AND deleted_at = 0`),
 		input.LastObservedConfigHash,
 		input.LastDriftCheckedAt,
 		input.DriftStatus,
@@ -1010,7 +1004,7 @@ func (r *SQLRepository) updateRefreshState(ctx context.Context, tx *sql.Tx, inpu
 		projectDBID,
 	)
 	if err != nil {
-		return mapWriteErr("update project refresh state", err)
+		return mapWriteErr("update application refresh state", err)
 	}
 	return nil
 }

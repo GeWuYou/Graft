@@ -1,4 +1,4 @@
-h1:orNVgy/HUZpct+Gz5XmwD+DUUcH0l5EKIbSLtBAnKgs=
+h1:bE/6CMjMcoh3/L86133Fi4pk0X+BtsjInJhCk8ADmmY=
 202606300002_project_registry_baseline.sql h1:wMhlEm4mcpBCjhe7TB6xspANmNgYelvajpJSey5XMFQ=
 202607040002_project_lifecycle_configuration.sql h1:2wWHMP+Dgj1uPbKGwCErBk2fNp/L5ACQ0vRxdu05Or4=
 202607070001_project_workspace_annotations.sql h1:63ERV4kRsaSDD6vxJroLIw2w3iRMmgzW1IPDRvgHeTk=
@@ -13,3 +13,4 @@ h1:orNVgy/HUZpct+Gz5XmwD+DUUcH0l5EKIbSLtBAnKgs=
 202607140001_project_application_identity.sql h1:bVZKeSMm4g6Ng8x1amU6QY0YtmDg96YOkYGnpeqCFBU=
 202607140002_project_application_identity_indexes.sql h1:04CW/qAwAf6DhFZroBEZInv67aOKt/WBDJrh1tmwsN8=
 202607150004_rename_workspace_key_to_application_name.sql h1:76vHT4TTd1MGRbK9pfSiXAzcZ/u0QXs9QpcUYAFxLvA=
+202607160003_application_registry_rename.sql h1:yKJm0vk/BJY9nkTEQphXrpGGauvYfLgolYpY4gpY47s=

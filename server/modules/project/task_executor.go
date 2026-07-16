@@ -14,14 +14,14 @@ import (
 )
 
 const (
-	projectTaskOwnerType = "compose_project"
-	composeStagePrefix   = "project.compose."
-	composeOutputStreams = 2
+	applicationTaskOwnerType = "application"
+	composeStagePrefix       = "application.compose."
+	composeOutputStreams     = 2
 )
 
 type composeStageInput struct {
-	WorkingDirectory string   `json:"working_directory"`
-	Args             []string `json:"args"`
+	WorkspacePath string   `json:"workspace_path"`
+	Args          []string `json:"args"`
 }
 
 type composeStageExecutor struct {
@@ -45,9 +45,9 @@ func (e *composeStageExecutor) Execute(ctx context.Context, run moduleapi.StageR
 	e.cancels[run.StageID()] = cancel
 	e.mu.Unlock()
 	defer func() { e.mu.Lock(); delete(e.cancels, run.StageID()); e.mu.Unlock(); cancel() }()
-	// #nosec G204 -- docker and its argument plan are created by the Project module, never request input.
+	// #nosec G204 -- docker 命令及参数计划均由 Application 模块生成，不直接使用请求输入。
 	command := exec.CommandContext(commandCtx, "docker", input.Args...)
-	command.Dir = input.WorkingDirectory
+	command.Dir = input.WorkspacePath
 	command.Env = os.Environ()
 	stdout, err := command.StdoutPipe()
 	if err != nil {
@@ -65,7 +65,7 @@ func (e *composeStageExecutor) Execute(ctx context.Context, run moduleapi.StageR
 		defer wg.Done()
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
-			// Compose uses stderr for normal progress output; command exit status owns failure semantics.
+			// Compose 会将正常进度写入 stderr；任务成败仍以命令退出状态为准。
 			_ = run.AppendLog(ctx, moduleapi.TaskLogEntry{Stream: stream, Level: "info", Line: scanner.Text()})
 		}
 	}

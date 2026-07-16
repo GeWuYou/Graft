@@ -102,5 +102,23 @@ rbac.permissionCatalog.runtimeTargetManage.display: Runtime Target Manage
 rbac.permissionCatalog.runtimeTargetManage.description: Reserved for future runtime target configuration management.
 rbac.permissionCatalog.runtimeTargetRefresh.display: Runtime Target Refresh
 rbac.permissionCatalog.runtimeTargetRefresh.description: Allows refreshing runtime target availability and capabilities.
+rbac.permissionCatalog.applicationView.display: View Compose Applications
+rbac.permissionCatalog.applicationView.description: Read registered Compose application summaries and readonly details.
+rbac.permissionCatalog.applicationImport.display: Import Compose Applications
+rbac.permissionCatalog.applicationImport.description: Validate and import external Compose applications into the application registry.
+rbac.permissionCatalog.applicationRefresh.display: Refresh Compose Applications
+rbac.permissionCatalog.applicationRefresh.description: Refresh application snapshots and readonly configuration projections.
+rbac.permissionCatalog.applicationLifecycle.display: Manage Compose Application Lifecycle
+rbac.permissionCatalog.applicationLifecycle.description: Run bounded Compose lifecycle actions such as up, stop, and restart.
+rbac.permissionCatalog.applicationDestroy.display: Unregister Or Destroy Compose Applications
+rbac.permissionCatalog.applicationDestroy.description: Run unregister and guarded destroy actions for application records.
+rbac.permissionCatalog.applicationCreate.display: Create Managed Compose Applications
+rbac.permissionCatalog.applicationCreate.description: View managed root settings and create managed Compose applications.
+rbac.permissionCatalog.applicationCreationMethodView.display: View Application Creation Methods
+rbac.permissionCatalog.applicationCreationMethodView.description: View supported Compose application creation methods and their availability.
+rbac.permissionCatalog.applicationDiscoveryView.display: View Application Discovery Candidates
+rbac.permissionCatalog.applicationDiscoveryView.description: Preview discovered local Compose directories without registering an application.
+rbac.permissionCatalog.applicationDeploy.display: Deploy Managed Compose Application Drafts
+rbac.permissionCatalog.applicationDeploy.description: Diff, validate, and deploy managed application configuration drafts.
 rbac.audit.rolePermissionsAdded: Role permissions added
 rbac.audit.rolePermissionsRemoved: Role permissions removed

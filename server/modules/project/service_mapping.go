@@ -20,39 +20,39 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-func sameWorkingDirectory(left string, right string) bool {
+func sameWorkspacePath(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
 // toProjectListItemWithManagedRoot 将项目聚合数据转换为项目列表项，并在可用时补充运行时容器摘要。
 func toProjectListItemWithManagedRoot(
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	managedRootDirectory string,
 	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
 	runtimeErr error,
-) generated.ProjectListItem {
+) generated.ApplicationListItem {
 	serviceCount := 0
 	if aggregate.Snapshot != nil {
 		serviceCount = aggregate.Snapshot.DeclaredServiceCount
 	}
 	counts := buildProjectContainerCounts(runtimeSummary)
-	return generated.ProjectListItem{
-		ApplicationId:            aggregate.Project.ApplicationID,
-		DisplayName:              aggregate.Project.DisplayName,
-		ComposeProjectName:       nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
-		ComposeProjectNameSource: generated.ProjectCanonicalNameSource(nonEmptyString(aggregate.Project.ComposeProjectNameSource, aggregate.Project.CanonicalProjectNameSource)),
-		ApplicationName:          aggregate.Project.ApplicationName,
-		SourceKind:               generated.ProjectSourceKind(aggregate.Project.SourceKind),
-		LifecycleReviewStatus:    generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+	return generated.ApplicationListItem{
+		ApplicationId:            aggregate.Application.ApplicationID,
+		ApplicationType:          generated.ApplicationType(nonEmptyString(aggregate.Application.ApplicationType, projectcontract.ApplicationTypeCompose.String())),
+		DisplayName:              aggregate.Application.DisplayName,
+		ComposeProjectName:       nonEmptyString(aggregate.Application.ComposeProjectName, aggregate.Application.ComposeProjectName),
+		ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(nonEmptyString(aggregate.Application.ComposeProjectNameSource, aggregate.Application.ComposeProjectNameSource)),
+		ApplicationName:          aggregate.Application.ApplicationName,
+		SourceType:               generated.ApplicationSourceType(aggregate.Application.SourceType),
+		LifecycleReviewStatus:    generated.ApplicationLifecycleReviewStatus(nonEmptyString(aggregate.Application.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		SourceMetadata:           buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:        generated.ProjectActivityAuthority(resolveActivityAuthority()),
-		HostScope:                generated.ProjectHostScope(aggregate.Project.HostScope),
-		OwnershipMode:            generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
-		WorkspacePath:            aggregate.Project.WorkspacePath,
+		ActivityAuthority:        generated.ApplicationActivityAuthority(resolveActivityAuthority()),
+		OwnershipMode:            generated.ApplicationOwnershipMode(aggregate.Application.OwnershipMode),
+		WorkspacePath:            aggregate.Application.WorkspacePath,
 		RuntimeStatus:            deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		ServiceCount:             serviceCount,
 		ContainerCounts:          counts,
-		DriftStatus:              generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
+		DriftStatus:              generated.ApplicationDriftStatus(aggregate.Application.DriftStatus),
 	}
 }
 
@@ -61,44 +61,44 @@ func toProjectListItemWithManagedRoot(
 // toProjectDetailResponse 将项目聚合转换为详情响应，并在提供运行时汇总时填充容器运行与停止数量。
 // 当聚合包含快照时，会写入服务数；刷新错误信息和配置哈希仅在存在时写入响应。
 func toProjectDetailResponse(
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
 	runtimeErr error,
-) generated.ProjectDetailResponse {
+) generated.ApplicationDetailResponse {
 	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary, runtimeErr)
 }
 
 // toProjectDetailResponseWithManagedRoot 将项目聚合数据转换为详情响应，并包含生命周期配置、文件、运行时状态及托管根目录来源元数据。
 func toProjectDetailResponseWithManagedRoot(
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	managedRootDirectory string,
 	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
 	runtimeErr error,
-) generated.ProjectDetailResponse {
+) generated.ApplicationDetailResponse {
 	counts := buildProjectContainerCounts(runtimeSummary)
-	item := generated.ProjectDetailResponse{
-		ComposeProjectName:       nonEmptyString(aggregate.Project.ComposeProjectName, aggregate.Project.CanonicalProjectName),
-		ComposeProjectNameSource: generated.ProjectCanonicalNameSource(nonEmptyString(aggregate.Project.ComposeProjectNameSource, aggregate.Project.CanonicalProjectNameSource)),
-		LifecycleReviewStatus:    generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+	item := generated.ApplicationDetailResponse{
+		ApplicationType:          generated.ApplicationType(nonEmptyString(aggregate.Application.ApplicationType, projectcontract.ApplicationTypeCompose.String())),
+		ComposeProjectName:       nonEmptyString(aggregate.Application.ComposeProjectName, aggregate.Application.ComposeProjectName),
+		ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(nonEmptyString(aggregate.Application.ComposeProjectNameSource, aggregate.Application.ComposeProjectNameSource)),
+		LifecycleReviewStatus:    generated.ApplicationLifecycleReviewStatus(nonEmptyString(aggregate.Application.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		LifecycleConfiguration:   toGeneratedProjectLifecycleConfiguration(aggregate),
 		ComposeFiles:             toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
 		ContainerCounts:          counts,
-		DisplayName:              aggregate.Project.DisplayName,
-		DriftStatus:              generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
+		DisplayName:              aggregate.Application.DisplayName,
+		DriftStatus:              generated.ApplicationDriftStatus(aggregate.Application.DriftStatus),
 		EnvFiles:                 toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
-		HostScope:                generated.ProjectHostScope(aggregate.Project.HostScope),
-		ApplicationId:            aggregate.Project.ApplicationID,
-		LastDriftCheckedAt:       aggregate.Project.LastDriftCheckedAt,
-		OwnershipMode:            generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
+		ApplicationId:            aggregate.Application.ApplicationID,
+		LastDriftCheckedAt:       aggregate.Application.LastDriftCheckedAt,
+		OwnershipMode:            generated.ApplicationOwnershipMode(aggregate.Application.OwnershipMode),
 		RuntimeStatus:            deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
-		SourceKind:               generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		SourceType:               generated.ApplicationSourceType(aggregate.Application.SourceType),
 		SourceMetadata:           buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
-		ActivityAuthority:        generated.ProjectActivityAuthority(resolveActivityAuthority()),
-		WorkspacePath:            aggregate.Project.WorkspacePath,
-		ApplicationName:          aggregate.Project.ApplicationName,
+		ActivityAuthority:        generated.ApplicationActivityAuthority(resolveActivityAuthority()),
+		WorkspacePath:            aggregate.Application.WorkspacePath,
+		ApplicationName:          aggregate.Application.ApplicationName,
 	}
-	if aggregate.Project.LastObservedConfigHash != "" {
-		item.LastObservedConfigHash = stringPointer(aggregate.Project.LastObservedConfigHash)
+	if aggregate.Application.LastObservedConfigHash != "" {
+		item.LastObservedConfigHash = stringPointer(aggregate.Application.LastObservedConfigHash)
 	}
 	if aggregate.Snapshot != nil {
 		item.ServiceCount = aggregate.Snapshot.DeclaredServiceCount
@@ -107,29 +107,29 @@ func toProjectDetailResponseWithManagedRoot(
 }
 
 func toProjectLifecycleConfigurationResponse(
-	aggregate projectstore.ProjectAggregate,
-) generated.ProjectLifecycleConfigurationResponse {
+	aggregate projectstore.ApplicationAggregate,
+) generated.ApplicationLifecycleConfigurationResponse {
 	config := lifecycleConfigurationFromAggregate(aggregate)
-	return generated.ProjectLifecycleConfigurationResponse{
-		ProjectId:              mustGeneratedID(aggregate.Project.ID),
-		LifecycleReviewStatus:  generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
-		WorkingDirectory:       aggregate.Project.WorkingDirectory,
-		CanonicalProjectName:   aggregate.Project.CanonicalProjectName,
+	return generated.ApplicationLifecycleConfigurationResponse{
+		ApplicationId:          aggregate.Application.ApplicationID,
+		LifecycleReviewStatus:  generated.ApplicationLifecycleReviewStatus(nonEmptyString(aggregate.Application.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+		WorkspacePath:          aggregate.Application.WorkspacePath,
+		ComposeProjectName:     aggregate.Application.ComposeProjectName,
 		ComposeFiles:           toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
 		LifecycleConfiguration: toGeneratedLifecycleConfiguration(config),
 	}
 }
 
 func toGeneratedProjectLifecycleConfiguration(
-	aggregate projectstore.ProjectAggregate,
-) generated.ProjectLifecycleConfiguration {
+	aggregate projectstore.ApplicationAggregate,
+) generated.ApplicationLifecycleConfiguration {
 	return toGeneratedLifecycleConfiguration(lifecycleConfigurationFromAggregate(aggregate))
 }
 
 // toGeneratedLifecycleConfiguration 将生命周期配置转换为生成的 API 表示形式，包括标准选项、附加参数和生成的命令。
-func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ProjectLifecycleConfiguration {
-	return generated.ProjectLifecycleConfiguration{
-		StrategyKind:             generated.ProjectLifecycleStrategyKind(config.StrategyKind),
+func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ApplicationLifecycleConfiguration {
+	return generated.ApplicationLifecycleConfiguration{
+		StrategyKind:             generated.ApplicationLifecycleStrategyKind(config.StrategyKind),
 		Profiles:                 append([]string(nil), config.Standard.Profiles...),
 		DownBeforeRedeploy:       config.Standard.DownBeforeRedeploy,
 		PullBeforeRedeploy:       config.Standard.PullBeforeRedeploy,
@@ -146,16 +146,16 @@ func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.
 }
 
 func toGeneratedLifecycleCommands(config LifecycleConfiguration) struct {
-	Redeploy generated.ProjectLifecycleGeneratedCommand `json:"redeploy"`
-	Restart  generated.ProjectLifecycleGeneratedCommand `json:"restart"`
-	Stop     generated.ProjectLifecycleGeneratedCommand `json:"stop"`
-	Up       generated.ProjectLifecycleGeneratedCommand `json:"up"`
+	Redeploy generated.ApplicationLifecycleGeneratedCommand `json:"redeploy"`
+	Restart  generated.ApplicationLifecycleGeneratedCommand `json:"restart"`
+	Stop     generated.ApplicationLifecycleGeneratedCommand `json:"stop"`
+	Up       generated.ApplicationLifecycleGeneratedCommand `json:"up"`
 } {
 	return struct {
-		Redeploy generated.ProjectLifecycleGeneratedCommand `json:"redeploy"`
-		Restart  generated.ProjectLifecycleGeneratedCommand `json:"restart"`
-		Stop     generated.ProjectLifecycleGeneratedCommand `json:"stop"`
-		Up       generated.ProjectLifecycleGeneratedCommand `json:"up"`
+		Redeploy generated.ApplicationLifecycleGeneratedCommand `json:"redeploy"`
+		Restart  generated.ApplicationLifecycleGeneratedCommand `json:"restart"`
+		Stop     generated.ApplicationLifecycleGeneratedCommand `json:"stop"`
+		Up       generated.ApplicationLifecycleGeneratedCommand `json:"up"`
 	}{
 		Redeploy: buildGeneratedLifecycleCommand(config, "redeploy"),
 		Restart:  buildGeneratedLifecycleCommand(config, "restart"),
@@ -167,14 +167,14 @@ func toGeneratedLifecycleCommands(config LifecycleConfiguration) struct {
 func buildGeneratedLifecycleCommand(
 	config LifecycleConfiguration,
 	action string,
-) generated.ProjectLifecycleGeneratedCommand {
+) generated.ApplicationLifecycleGeneratedCommand {
 	steps := buildLifecycleCommandSteps(config, action)
 	displayParts := make([]string, 0, len(steps))
 	for _, item := range steps {
 		displayParts = append(displayParts, item.DisplayCommand)
 	}
-	return generated.ProjectLifecycleGeneratedCommand{
-		Action:         generated.ProjectLifecycleGeneratedCommandAction(action),
+	return generated.ApplicationLifecycleGeneratedCommand{
+		Action:         generated.ApplicationLifecycleGeneratedCommandAction(action),
 		Steps:          steps,
 		DisplayCommand: strings.Join(displayParts, "\n"),
 	}
@@ -183,17 +183,17 @@ func buildGeneratedLifecycleCommand(
 func buildLifecycleCommandSteps(
 	config LifecycleConfiguration,
 	action string,
-) []generated.ProjectLifecycleCommandStep {
+) []generated.ApplicationLifecycleCommandStep {
 	base := buildLifecycleBaseArgv(config)
 	switch action {
 	case "up":
-		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
+		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
 	case "stop":
-		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("stop", append(base, "stop"))}
+		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("stop", append(base, "stop"))}
 	case "restart":
-		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("restart", append(base, "restart"))}
+		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("restart", append(base, "restart"))}
 	case "redeploy":
-		steps := make([]generated.ProjectLifecycleCommandStep, 0, lifecycleRedeployStepCap)
+		steps := make([]generated.ApplicationLifecycleCommandStep, 0, lifecycleRedeployStepCap)
 		if config.Standard.DownBeforeRedeploy {
 			steps = append(steps, buildLifecycleCommandStep("down", append(append([]string(nil), base...), "down")))
 		}
@@ -206,7 +206,7 @@ func buildLifecycleCommandSteps(
 		}
 		return steps
 	default:
-		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
+		return []generated.ApplicationLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
 	}
 }
 
@@ -219,8 +219,8 @@ func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
 	for _, profile := range config.Standard.Profiles {
 		base = append(base, "--profile", profile)
 	}
-	if strings.TrimSpace(config.ProjectName) != "" {
-		base = append(base, "-p", config.ProjectName)
+	if strings.TrimSpace(config.ApplicationName) != "" {
+		base = append(base, "-p", config.ApplicationName)
 	}
 	return base
 }
@@ -248,22 +248,22 @@ func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []str
 	return args
 }
 
-func buildLifecycleCommandStep(kind string, argv []string) generated.ProjectLifecycleCommandStep {
-	return generated.ProjectLifecycleCommandStep{
-		Kind:           generated.ProjectLifecycleCommandStepKind(kind),
+func buildLifecycleCommandStep(kind string, argv []string) generated.ApplicationLifecycleCommandStep {
+	return generated.ApplicationLifecycleCommandStep{
+		Kind:           generated.ApplicationLifecycleCommandStepKind(kind),
 		Argv:           append([]string(nil), argv...),
 		DisplayCommand: strings.Join(argv, " "),
 	}
 }
 
 // toGeneratedFiles 将存储的文件记录转换为生成的文件项列表。
-func toGeneratedFiles(files []projectstore.ProjectFile) []generated.ProjectFileItem {
-	items := make([]generated.ProjectFileItem, 0, len(files))
+func toGeneratedFiles(files []projectstore.ApplicationFile) []generated.ApplicationFileItem {
+	items := make([]generated.ApplicationFileItem, 0, len(files))
 	for _, item := range files {
-		items = append(items, generated.ProjectFileItem{
+		items = append(items, generated.ApplicationFileItem{
 			Id:               mustGeneratedID(item.ID),
-			Kind:             generated.ProjectFileKind(item.Kind),
-			Role:             generated.ProjectFileRole(item.Role),
+			Kind:             generated.ApplicationFileKind(item.Kind),
+			Role:             generated.ApplicationFileRole(item.Role),
 			AbsolutePath:     item.AbsolutePath,
 			DisplayPath:      item.DisplayPath,
 			OrderIndex:       item.OrderIndex,
@@ -274,14 +274,14 @@ func toGeneratedFiles(files []projectstore.ProjectFile) []generated.ProjectFileI
 }
 
 // toGeneratedFilesFromCompose 将 Compose 投影文件转换为生成的项目文件项列表。
-func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []generated.ProjectFileItem {
-	items := make([]generated.ProjectFileItem, 0, len(files))
+func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []generated.ApplicationFileItem {
+	items := make([]generated.ApplicationFileItem, 0, len(files))
 	for index, item := range files {
 		hash := item.Hash
-		items = append(items, generated.ProjectFileItem{
+		items = append(items, generated.ApplicationFileItem{
 			Id:               int64(index + 1),
-			Kind:             generated.ProjectFileKind(item.Kind),
-			Role:             generated.ProjectFileRole(item.Role),
+			Kind:             generated.ApplicationFileKind(item.Kind),
+			Role:             generated.ApplicationFileRole(item.Role),
 			AbsolutePath:     item.AbsolutePath,
 			DisplayPath:      item.DisplayPath,
 			OrderIndex:       item.OrderIndex,
@@ -292,10 +292,10 @@ func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []genera
 }
 
 // toStoreFiles 将 compose 和 env 文件投影转换为存储层文件记录。
-func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []projectcompose.FileProjection) []projectstore.ProjectFile {
-	items := make([]projectstore.ProjectFile, 0, len(composeFiles)+len(envFiles))
+func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []projectcompose.FileProjection) []projectstore.ApplicationFile {
+	items := make([]projectstore.ApplicationFile, 0, len(composeFiles)+len(envFiles))
 	for _, item := range append(append([]projectcompose.FileProjection(nil), composeFiles...), envFiles...) {
-		items = append(items, projectstore.ProjectFile{
+		items = append(items, projectstore.ApplicationFile{
 			Kind:             item.Kind,
 			Role:             item.Role,
 			AbsolutePath:     item.AbsolutePath,
@@ -308,8 +308,8 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 }
 
 // filterFiles 按文件类型筛选记录，并按 OrderIndex、ID 稳定排序，以保持 API 文件列表与 Compose 参数顺序一致。
-func filterFiles(files []projectstore.ProjectFile, kind string) []projectstore.ProjectFile {
-	items := make([]projectstore.ProjectFile, 0)
+func filterFiles(files []projectstore.ApplicationFile, kind string) []projectstore.ApplicationFile {
+	items := make([]projectstore.ApplicationFile, 0)
 	for _, item := range files {
 		if item.Kind == kind {
 			items = append(items, item)
@@ -325,7 +325,7 @@ func filterFiles(files []projectstore.ProjectFile, kind string) []projectstore.P
 }
 
 // collectFilesByKind 返回指定类型的文件绝对路径列表。
-func collectFilesByKind(files []projectstore.ProjectFile, kind string) []string {
+func collectFilesByKind(files []projectstore.ApplicationFile, kind string) []string {
 	filtered := filterFiles(files, kind)
 	paths := make([]string, 0, len(filtered))
 	for _, item := range filtered {
@@ -334,12 +334,12 @@ func collectFilesByKind(files []projectstore.ProjectFile, kind string) []string 
 	return paths
 }
 
-func (s *Service) loadFromAggregate(aggregate projectstore.ProjectAggregate) (projectcompose.Result, error) {
+func (s *Service) loadFromAggregate(aggregate projectstore.ApplicationAggregate) (projectcompose.Result, error) {
 	// Compose 解析只消费聚合中的静态文件投影，不读取运行时容器状态，保证刷新结果可重现。
 	return projectcompose.Load(projectcompose.Input{
-		WorkingDirectory: aggregate.Project.WorkingDirectory,
-		ComposeFiles:     collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
-		EnvFiles:         collectFilesByKind(aggregate.Files, projectcontract.FileKindEnv.String()),
+		WorkspacePath: aggregate.Application.WorkspacePath,
+		ComposeFiles:  collectFilesByKind(aggregate.Files, projectcontract.FileKindCompose.String()),
+		EnvFiles:      collectFilesByKind(aggregate.Files, projectcontract.FileKindEnv.String()),
 	})
 }
 
@@ -385,21 +385,21 @@ func mustWriteDigestFragment(writer io.Writer, value []byte) {
 	}
 }
 
-// buildRefreshProjectInput 构建项目刷新持久化输入，记录配置文件、归一化快照、服务摘要、干净的漂移状态、配置哈希、刷新时间和操作者。
-func buildRefreshProjectInput(
+// buildRefreshApplicationInput 构建项目刷新持久化输入，记录配置文件、归一化快照、服务摘要、干净的漂移状态、配置哈希、刷新时间和操作者。
+func buildRefreshApplicationInput(
 	projectID uint64,
 	parseResult projectcompose.Result,
 	now time.Time,
 	actorID *uint64,
-) projectstore.RefreshProjectInput {
-	return projectstore.RefreshProjectInput{
-		ProjectID:              projectID,
+) projectstore.RefreshApplicationInput {
+	return projectstore.RefreshApplicationInput{
+		ApplicationRecordID:    projectID,
 		LastObservedConfigHash: parseResult.ConfigHash,
 		LastDriftCheckedAt:     &now,
 		DriftStatus:            projectcontract.DriftStatusClean.String(),
 		Files:                  toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
 		Snapshot: &projectstore.Snapshot{
-			ProjectID:              projectID,
+			ApplicationRecordID:    projectID,
 			ConfigHash:             parseResult.ConfigHash,
 			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
 			DeclaredServiceCount:   len(parseResult.ServiceNames),
@@ -488,11 +488,11 @@ func managedRootCreationBlockedReason(status string) *string {
 }
 
 // toGeneratedSourceMetadata 将已知来源元数据字段转换为生成的项目来源元数据；没有可映射字段时返回 nil。
-func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
+func toGeneratedSourceMetadata(metadata map[string]string) *generated.ApplicationSourceMetadata {
 	if len(metadata) == 0 {
 		return nil
 	}
-	result := generated.ProjectSourceMetadata{}
+	result := generated.ApplicationSourceMetadata{}
 	assignSourceMetadataField(metadata, "managed_root_key", &result.ManagedRootKey)
 	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
 	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
@@ -500,7 +500,7 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSou
 	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
 	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
 	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
-	if result == (generated.ProjectSourceMetadata{}) {
+	if result == (generated.ApplicationSourceMetadata{}) {
 		return nil
 	}
 	return &result
@@ -517,12 +517,12 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 }
 
 // buildListSourceMetadataWithManagedRoot 构建项目列表来源元数据，优先使用已存储字段，并在托管来源缺少字段时根据托管根目录补充。
-func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
-	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
+func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ApplicationAggregate, managedRootDirectory string) *generated.ApplicationSourceMetadata {
+	if metadata := toGeneratedSourceMetadata(aggregate.Application.SourceMetadata); metadata != nil {
 		return metadata
 	}
-	switch strings.TrimSpace(aggregate.Project.SourceKind) {
-	case projectcontract.SourceKindManaged.String():
+	switch strings.TrimSpace(aggregate.Application.SourceType) {
+	case projectcontract.SourceTypeManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
 	default:
 		return nil
@@ -530,12 +530,12 @@ func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggreg
 }
 
 // buildDetailSourceMetadataWithManagedRoot 构建项目详情来源元数据，优先使用已存储来源信息，并为托管来源补充托管根目录信息；无法生成时返回 nil。
-func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
-	if metadata := toGeneratedSourceMetadata(aggregate.Project.SourceMetadata); metadata != nil {
+func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ApplicationAggregate, managedRootDirectory string) *generated.ApplicationSourceMetadata {
+	if metadata := toGeneratedSourceMetadata(aggregate.Application.SourceMetadata); metadata != nil {
 		return metadata
 	}
-	switch strings.TrimSpace(aggregate.Project.SourceKind) {
-	case projectcontract.SourceKindManaged.String():
+	switch strings.TrimSpace(aggregate.Application.SourceType) {
+	case projectcontract.SourceTypeManaged.String():
 		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
 	default:
 		return nil
@@ -543,13 +543,13 @@ func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggr
 }
 
 // buildManagedSourceMetadata 为托管项目构建来源元数据，包含托管根标识、相对目录及已登记的 Compose 和环境文件名。
-func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+func buildManagedSourceMetadata(aggregate projectstore.ApplicationAggregate, managedRootDirectory string) *generated.ApplicationSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
 	metadata := map[string]string{
 		"managed_root_key": projectcontract.ApplicationRootDirectoryConfig.String(),
 	}
-	if relativePath := deriveManagedRelativeDirectory(managedRootDirectory, aggregate.Project.WorkingDirectory); relativePath != "" {
+	if relativePath := deriveManagedRelativeDirectory(managedRootDirectory, aggregate.Application.WorkspacePath); relativePath != "" {
 		metadata["managed_relative_directory"] = relativePath
 	}
 	if len(composeFiles) > 0 {
@@ -563,7 +563,7 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managed
 
 // resolveActivityAuthority 返回项目活动使用的权威路径，固定为容器所有者前端扇出路径。
 func resolveActivityAuthority() ActivityAuthority {
-	return ProjectActivityAuthorityFrontendFanout
+	return ApplicationActivityAuthorityFrontendFanout
 }
 
 // deriveManagedRelativeDirectory 从工作目录推导托管相对目录。

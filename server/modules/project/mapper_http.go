@@ -13,8 +13,8 @@ import (
 )
 
 // toProjectListResponse 将列表结果转换为项目列表响应，并复制分页信息和条目集合。
-func toProjectListResponse(result ListResult) generated.ProjectListResponse {
-	return generated.ProjectListResponse{
+func toProjectListResponse(result ListResult) generated.ApplicationListResponse {
+	return generated.ApplicationListResponse{
 		Items:  result.Items,
 		Limit:  result.Limit,
 		Offset: result.Offset,
@@ -22,22 +22,22 @@ func toProjectListResponse(result ListResult) generated.ProjectListResponse {
 	}
 }
 
-func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) generated.ProjectImportRuntimeCandidatesResponse {
-	items := make([]generated.ProjectImportRuntimeCandidate, 0, len(result.Items))
+func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) generated.ApplicationImportRuntimeCandidatesResponse {
+	items := make([]generated.ApplicationImportRuntimeCandidate, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, generated.ProjectImportRuntimeCandidate{
-			CandidateKey:           item.CandidateKey,
-			CanonicalProjectName:   item.CanonicalProjectName,
-			Status:                 generated.ProjectImportRuntimeCandidateStatus(item.Status),
-			StatusReasonCodes:      append([]string(nil), item.StatusReasonCodes...),
-			Importable:             item.Importable,
-			RuntimeType:            item.RuntimeType,
-			RuntimeVersion:         item.RuntimeVersion,
-			WorkingDirectory:       item.WorkingDirectory,
-			WorkingDirectorySource: generated.ProjectImportRuntimeWorkingDirectorySource(item.WorkingDirectorySource),
-			ConfigFiles:            append([]string(nil), item.ConfigFiles...),
-			ServiceNames:           append([]string(nil), item.ServiceNames...),
-			ContainerCounts: generated.ProjectContainerCounts{
+		items = append(items, generated.ApplicationImportRuntimeCandidate{
+			CandidateKey:        item.CandidateKey,
+			ComposeProjectName:  item.ComposeProjectName,
+			Status:              generated.ApplicationImportRuntimeCandidateStatus(item.Status),
+			StatusReasonCodes:   append([]string(nil), item.StatusReasonCodes...),
+			Importable:          item.Importable,
+			RuntimeType:         item.RuntimeType,
+			RuntimeVersion:      item.RuntimeVersion,
+			WorkspacePath:       item.WorkspacePath,
+			WorkspacePathSource: generated.ApplicationImportRuntimeWorkspacePathSource(item.WorkspacePathSource),
+			ConfigFiles:         append([]string(nil), item.ConfigFiles...),
+			ServiceNames:        append([]string(nil), item.ServiceNames...),
+			ContainerCounts: generated.ApplicationContainerCounts{
 				Running:       item.ContainerCounts.Running,
 				Stopped:       item.ContainerCounts.Stopped,
 				Transitioning: 0,
@@ -47,12 +47,12 @@ func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) gen
 			Warnings: append([]string(nil), item.Warnings...),
 		})
 	}
-	return generated.ProjectImportRuntimeCandidatesResponse{
+	return generated.ApplicationImportRuntimeCandidatesResponse{
 		Items:  items,
 		Total:  result.Total,
 		Limit:  result.Limit,
 		Offset: result.Offset,
-		FilterCounts: generated.ProjectImportRuntimeCandidateFilterCounts{
+		FilterCounts: generated.ApplicationImportRuntimeCandidateFilterCounts{
 			All:         result.FilterCounts.All,
 			Ready:       result.FilterCounts.Ready,
 			Imported:    result.FilterCounts.Imported,
@@ -62,10 +62,10 @@ func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) gen
 }
 
 // toRuntimeImportMembers 将运行时导入成员转换为 API 响应中的成员列表。
-func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImportRuntimeMember {
-	members := make([]generated.ProjectImportRuntimeMember, 0, len(items))
+func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ApplicationImportRuntimeMember {
+	members := make([]generated.ApplicationImportRuntimeMember, 0, len(items))
 	for _, item := range items {
-		members = append(members, generated.ProjectImportRuntimeMember{
+		members = append(members, generated.ApplicationImportRuntimeMember{
 			ContainerId:   item.ContainerID,
 			ContainerName: item.ContainerName,
 			ServiceName:   item.ServiceName,
@@ -76,50 +76,45 @@ func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImpo
 }
 
 // toCreationMethodCatalogResponse 将创建方式可用性转换为 OpenAPI 响应。
-func toCreationMethodCatalogResponse(result CreationMethodCatalogResult) generated.ProjectCreationMethodCatalogResponse {
-	return generated.ProjectCreationMethodCatalogResponse{
-		Items: append([]generated.ProjectCreationMethod(nil), result.Items...),
+func toCreationMethodCatalogResponse(result CreationMethodCatalogResult) generated.ApplicationCreationMethodCatalogResponse {
+	return generated.ApplicationCreationMethodCatalogResponse{
+		Items: append([]generated.ApplicationCreationMethod(nil), result.Items...),
 	}
 }
 
 // toDiscoveryCandidatesResponse 将发现候选结果转换为 OpenAPI 响应，并保留候选项及结果级可选字段。
-func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.ProjectDiscoveryCandidatesResponse {
-	items := make([]generated.ProjectDiscoveryCandidate, 0, len(result.Items))
+func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.ApplicationDiscoveryCandidatesResponse {
+	items := make([]generated.ApplicationDiscoveryCandidate, 0, len(result.Items))
 	for _, item := range result.Items {
-		candidate := generated.ProjectDiscoveryCandidate{
-			CandidateKey:               item.CandidateKey,
-			CandidateKind:              generated.ProjectDiscoveryCandidateKind(item.CandidateKind),
-			SourceKind:                 generated.ProjectSourceKind(item.SourceKind),
-			DisplayName:                item.DisplayName,
-			CanonicalProjectName:       item.CanonicalProjectName,
-			CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(item.CanonicalProjectNameSource),
-			WorkingDirectory:           item.WorkingDirectory,
-			OwnershipMode:              generated.ProjectOwnershipMode(item.OwnershipMode),
-			HostScope:                  generated.ProjectHostScope(item.HostScope),
-			Status:                     generated.ProjectDiscoveryCandidateStatus(item.Status),
-			RecommendedAction:          generated.ProjectDiscoveryCandidateRecommendedAction(item.RecommendedAction),
-			ComposeFiles:               append([]generated.ProjectFileItem(nil), item.ComposeFiles...),
-			EnvFiles:                   append([]generated.ProjectFileItem(nil), item.EnvFiles...),
-			DeclaredServiceNames:       append([]string(nil), item.DeclaredServiceNames...),
-			ServiceCount:               item.ServiceCount,
-			ConfigHash:                 item.ConfigHash,
-			Warnings:                   append([]string(nil), item.Warnings...),
-			Conflicts:                  append([]string(nil), item.Conflicts...),
+		candidate := generated.ApplicationDiscoveryCandidate{
+			CandidateKey:             item.CandidateKey,
+			CandidateKind:            generated.ApplicationDiscoveryCandidateKind(item.CandidateKind),
+			SourceType:               generated.ApplicationSourceType(item.SourceType),
+			DisplayName:              item.DisplayName,
+			ComposeProjectName:       item.ComposeProjectName,
+			ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(item.ComposeProjectNameSource),
+			WorkspacePath:            item.WorkspacePath,
+			OwnershipMode:            generated.ApplicationOwnershipMode(item.OwnershipMode),
+			Status:                   generated.ApplicationDiscoveryCandidateStatus(item.Status),
+			RecommendedAction:        generated.ApplicationDiscoveryCandidateRecommendedAction(item.RecommendedAction),
+			ComposeFiles:             append([]generated.ApplicationFileItem(nil), item.ComposeFiles...),
+			EnvFiles:                 append([]generated.ApplicationFileItem(nil), item.EnvFiles...),
+			DeclaredServiceNames:     append([]string(nil), item.DeclaredServiceNames...),
+			ServiceCount:             item.ServiceCount,
+			ConfigHash:               item.ConfigHash,
+			Warnings:                 append([]string(nil), item.Warnings...),
+			Conflicts:                append([]string(nil), item.Conflicts...),
 		}
 		if metadata := toGeneratedSourceMetadata(item.SourceMetadata); metadata != nil {
 			candidate.SourceMetadata = metadata
-		}
-		if item.SourceType != "" {
-			sourceType := generated.ProjectSourceKind(item.SourceType)
-			candidate.SourceType = &sourceType
 		}
 		if item.StatusReason != nil {
 			candidate.StatusReason = item.StatusReason
 		}
 		items = append(items, candidate)
 	}
-	response := generated.ProjectDiscoveryCandidatesResponse{
-		SourceType:            generated.ProjectSourceKind(result.SourceType),
+	response := generated.ApplicationDiscoveryCandidatesResponse{
+		SourceType:            generated.ApplicationSourceType(result.SourceType),
 		SupportsScan:          result.SupportsScan,
 		SupportsAutoDiscovery: result.SupportsAutoDiscovery,
 		Items:                 items,
@@ -135,16 +130,16 @@ func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.P
 
 // toImportValidateResponse 将导入校验结果转换为 OpenAPI 响应，并在存在配置哈希或声明的服务名时附带归一化预览摘要。
 // 该响应会复制冲突和告警列表，以避免与输入数据共享底层切片。
-func toImportValidateResponse(result ImportValidationResult) generated.ProjectImportValidateResponse {
-	response := generated.ProjectImportValidateResponse{
-		CanonicalProjectName:       result.CanonicalProjectName,
-		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(result.CanonicalProjectNameSource),
-		ComposeFiles:               result.ComposeFiles,
-		Conflicts:                  append([]string(nil), result.Conflicts...),
-		EnvFiles:                   result.EnvFiles,
-		ServiceCount:               result.ServiceCount,
-		Warnings:                   append([]string(nil), result.Warnings...),
-		WorkingDirectory:           result.WorkingDirectory,
+func toImportValidateResponse(result ImportValidationResult) generated.ApplicationImportValidateResponse {
+	response := generated.ApplicationImportValidateResponse{
+		ComposeProjectName:       result.ComposeProjectName,
+		ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(result.ComposeProjectNameSource),
+		ComposeFiles:             result.ComposeFiles,
+		Conflicts:                append([]string(nil), result.Conflicts...),
+		EnvFiles:                 result.EnvFiles,
+		ServiceCount:             result.ServiceCount,
+		Warnings:                 append([]string(nil), result.Warnings...),
+		WorkspacePath:            result.WorkspacePath,
 	}
 	if result.ConfigHash != "" || len(result.DeclaredServiceNames) > 0 {
 		response.NormalizedPreviewSummary = &struct {
@@ -159,35 +154,35 @@ func toImportValidateResponse(result ImportValidationResult) generated.ProjectIm
 }
 
 // toRuntimeImportInspectResponse 将运行时导入检查结果转换为 OpenAPI 响应。
-func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ProjectImportRuntimeInspectResponse {
-	return generated.ProjectImportRuntimeInspectResponse{
-		InspectionId:               result.InspectionID,
-		ExpiresAt:                  result.ExpiresAt,
-		CandidateKey:               result.CandidateKey,
-		ResolvedWorkingDirectory:   result.ResolvedWorkingDirectory,
-		CanonicalProjectName:       result.CanonicalProjectName,
-		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(result.CanonicalProjectNameSource),
-		DisplayNameSuggested:       result.DisplayNameSuggested,
-		ComposeFiles:               toGeneratedProjectFiles(result.ComposeFiles),
-		EnvFiles:                   toGeneratedProjectFiles(result.EnvFiles),
-		Services:                   append([]string(nil), result.ServiceNames...),
-		Networks:                   toRuntimeImportNetworkResources(result.NetworkResources),
-		Volumes:                    toRuntimeImportVolumeResources(result.VolumeResources),
-		RuntimeMembers:             toRuntimeImportMembers(result.RuntimeMembers),
-		ConfigHash:                 result.ConfigHash,
-		Warnings:                   append([]string(nil), result.Warnings...),
-		Conflicts:                  append([]string(nil), result.Conflicts...),
-		ValidationStatus:           generated.ProjectImportRuntimeInspectResponseValidationStatus(result.ValidationStatus),
-		LifecycleConfiguration:     toGeneratedLifecycleConfigurationRequest(result.LifecycleConfiguration),
+func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ApplicationImportRuntimeInspectResponse {
+	return generated.ApplicationImportRuntimeInspectResponse{
+		InspectionId:             result.InspectionID,
+		ExpiresAt:                result.ExpiresAt,
+		CandidateKey:             result.CandidateKey,
+		ResolvedWorkspacePath:    result.ResolvedWorkspacePath,
+		ComposeProjectName:       result.ComposeProjectName,
+		ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(result.ComposeProjectNameSource),
+		DisplayNameSuggested:     result.DisplayNameSuggested,
+		ComposeFiles:             toGeneratedProjectFiles(result.ComposeFiles),
+		EnvFiles:                 toGeneratedProjectFiles(result.EnvFiles),
+		Services:                 append([]string(nil), result.ServiceNames...),
+		Networks:                 toRuntimeImportNetworkResources(result.NetworkResources),
+		Volumes:                  toRuntimeImportVolumeResources(result.VolumeResources),
+		RuntimeMembers:           toRuntimeImportMembers(result.RuntimeMembers),
+		ConfigHash:               result.ConfigHash,
+		Warnings:                 append([]string(nil), result.Warnings...),
+		Conflicts:                append([]string(nil), result.Conflicts...),
+		ValidationStatus:         generated.ApplicationImportRuntimeInspectResponseValidationStatus(result.ValidationStatus),
+		LifecycleConfiguration:   toGeneratedLifecycleConfigurationRequest(result.LifecycleConfiguration),
 	}
 }
 
 // toGeneratedLifecycleConfigurationRequest 将内部标准生命周期配置转换为 OpenAPI 生命周期配置请求。
 // 返回的请求使用标准策略，并包含配置的配置文件、策略选项和附加参数。
-func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) generated.ProjectLifecycleConfigurationRequest {
+func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) generated.ApplicationLifecycleConfigurationRequest {
 	additionalArgs := append([]string{}, config.AdditionalArgs...)
-	return generated.ProjectLifecycleConfigurationRequest{
-		StrategyKind:             generated.ProjectLifecycleStrategyKindStandard,
+	return generated.ApplicationLifecycleConfigurationRequest{
+		StrategyKind:             generated.ApplicationLifecycleStrategyKindStandard,
 		Profiles:                 append([]string{}, config.Profiles...),
 		DownBeforeRedeploy:       config.DownBeforeRedeploy,
 		PullBeforeRedeploy:       config.PullBeforeRedeploy,
@@ -203,18 +198,18 @@ func toGeneratedLifecycleConfigurationRequest(config LifecycleStandardConfig) ge
 }
 
 // lifecycleStandardConfigFromGenerated 将生成的生命周期配置请求转换为标准配置；策略类型不是 standard 时返回错误。
-func lifecycleStandardConfigFromGenerated(config generated.ProjectLifecycleConfigurationRequest) (LifecycleStandardConfig, error) {
-	if config.StrategyKind != generated.ProjectLifecycleStrategyKindStandard {
+func lifecycleStandardConfigFromGenerated(config generated.ApplicationLifecycleConfigurationRequest) (LifecycleStandardConfig, error) {
+	if config.StrategyKind != generated.ApplicationLifecycleStrategyKindStandard {
 		return LifecycleStandardConfig{}, errProjectInvalidArgument
 	}
 	return toLifecycleConfigurationRequest(config), nil
 }
 
 // toRuntimeImportNetworkResources 将运行时导入网络资源转换为 OpenAPI 网络资源，并复制容器和服务名称切片。
-func toRuntimeImportNetworkResources(items []RuntimeImportNetworkResource) []generated.ProjectImportRuntimeNetworkResource {
-	resources := make([]generated.ProjectImportRuntimeNetworkResource, 0, len(items))
+func toRuntimeImportNetworkResources(items []RuntimeImportNetworkResource) []generated.ApplicationImportRuntimeNetworkResource {
+	resources := make([]generated.ApplicationImportRuntimeNetworkResource, 0, len(items))
 	for _, item := range items {
-		resources = append(resources, generated.ProjectImportRuntimeNetworkResource{
+		resources = append(resources, generated.ApplicationImportRuntimeNetworkResource{
 			Name:           item.Name,
 			Driver:         item.Driver,
 			Scope:          item.Scope,
@@ -228,10 +223,10 @@ func toRuntimeImportNetworkResources(items []RuntimeImportNetworkResource) []gen
 	return resources
 }
 
-func toRuntimeImportVolumeResources(items []RuntimeImportVolumeResource) []generated.ProjectImportRuntimeVolumeResource {
-	resources := make([]generated.ProjectImportRuntimeVolumeResource, 0, len(items))
+func toRuntimeImportVolumeResources(items []RuntimeImportVolumeResource) []generated.ApplicationImportRuntimeVolumeResource {
+	resources := make([]generated.ApplicationImportRuntimeVolumeResource, 0, len(items))
 	for _, item := range items {
-		resources = append(resources, generated.ProjectImportRuntimeVolumeResource{
+		resources = append(resources, generated.ApplicationImportRuntimeVolumeResource{
 			Name:           item.Name,
 			Driver:         item.Driver,
 			Anonymous:      item.Anonymous,
@@ -244,16 +239,16 @@ func toRuntimeImportVolumeResources(items []RuntimeImportVolumeResource) []gener
 	return resources
 }
 
-func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectFileItem {
-	files := make([]generated.ProjectImportInspectFileItem, 0, len(items))
+func toGeneratedProjectFiles(items []FileView) []generated.ApplicationImportInspectFileItem {
+	files := make([]generated.ApplicationImportInspectFileItem, 0, len(items))
 	for _, item := range items {
-		files = append(files, generated.ProjectImportInspectFileItem{
+		files = append(files, generated.ApplicationImportInspectFileItem{
 			AbsolutePath:     item.AbsolutePath,
 			DisplayPath:      item.DisplayPath,
-			Kind:             generated.ProjectFileKind(item.Kind),
+			Kind:             generated.ApplicationFileKind(item.Kind),
 			LastObservedHash: item.LastObservedHash,
 			OrderIndex:       item.OrderIndex,
-			Role:             generated.ProjectFileRole(item.Role),
+			Role:             generated.ApplicationFileRole(item.Role),
 		})
 	}
 	return files
@@ -261,13 +256,13 @@ func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectF
 
 // toConfigurationMetadataResponse 将配置元数据结果转换为 OpenAPI 的项目配置元数据响应。
 // 当诊断摘要非空时，会复制后作为可选字段返回。
-func toConfigurationMetadataResponse(result ConfigurationMetadataResult) generated.ProjectConfigurationMetadataResponse {
-	response := generated.ProjectConfigurationMetadataResponse{
-		ProjectId:     mustGeneratedID(result.ProjectID),
+func toConfigurationMetadataResponse(result ConfigurationMetadataResult) generated.ApplicationConfigurationMetadataResponse {
+	response := generated.ApplicationConfigurationMetadataResponse{
+		ApplicationId: result.ApplicationID,
 		ComposeFiles:  result.ComposeFiles,
 		EnvFiles:      result.EnvFiles,
-		OwnershipMode: generated.ProjectOwnershipMode(result.OwnershipMode),
-		DriftStatus:   generated.ProjectDriftStatus(result.DriftStatus),
+		OwnershipMode: generated.ApplicationOwnershipMode(result.OwnershipMode),
+		DriftStatus:   generated.ApplicationDriftStatus(result.DriftStatus),
 	}
 	if len(result.DiagnosticsSummary) > 0 {
 		summary := append([]string(nil), result.DiagnosticsSummary...)
@@ -276,12 +271,11 @@ func toConfigurationMetadataResponse(result ConfigurationMetadataResult) generat
 	return response
 }
 
-// toConfigurationPreviewResponse 将配置预览结果转换为项目配置预览响应。
-// ProjectId 通过 mustGeneratedID 转换，其余字段按原样复制。
-func toConfigurationPreviewResponse(result ConfigurationPreviewResult) generated.ProjectConfigurationPreviewResponse {
-	return generated.ProjectConfigurationPreviewResponse{
-		ProjectId:             mustGeneratedID(result.ProjectID),
-		CanonicalProjectName:  result.CanonicalProjectName,
+// toConfigurationPreviewResponse 将配置预览结果转换为应用配置预览响应，并保留公开 Application ID。
+func toConfigurationPreviewResponse(result ConfigurationPreviewResult) generated.ApplicationConfigurationPreviewResponse {
+	return generated.ApplicationConfigurationPreviewResponse{
+		ApplicationId:         result.ApplicationID,
+		ComposeProjectName:    result.ComposeProjectName,
 		ConfigHash:            result.ConfigHash,
 		NormalizedComposeYaml: result.NormalizedComposeYAML,
 		RefreshedAt:           result.RefreshedAt,
@@ -289,27 +283,27 @@ func toConfigurationPreviewResponse(result ConfigurationPreviewResult) generated
 }
 
 // toConfigurationFileResponse 返回配置文件响应，包含文件标识、类型、路径、内容和下载名称，并固定为 UTF-8 编码且只读。
-func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.ProjectFilesResponse {
-	items := make([]generated.ProjectFileTreeItem, 0, len(result.Items))
+func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.ApplicationFilesResponse {
+	items := make([]generated.ApplicationFileTreeItem, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, generated.ProjectFileTreeItem{
+		items = append(items, generated.ApplicationFileTreeItem{
 			Name:            item.Name,
 			RelativePath:    item.RelativePath,
-			NodeType:        generated.ProjectFileTreeNodeType(item.NodeType),
-			FileKind:        generated.ProjectWorkspaceFileKind(item.FileKind),
+			NodeType:        generated.ApplicationFileTreeNodeType(item.NodeType),
+			FileKind:        generated.ApplicationWorkspaceFileKind(item.FileKind),
 			Readable:        item.Readable,
 			Editable:        item.Editable,
 			LanguageHint:    item.LanguageHint,
 			SizeBytes:       item.SizeBytes,
 			HiddenByDefault: item.HiddenByDefault,
 			HasChildren:     item.HasChildren,
-			ProjectNote:     optionalString(item.ProjectNote),
+			ApplicationNote: optionalString(item.ApplicationNote),
 			Tooltip:         optionalString(item.Tooltip),
 			TooltipSource:   optionalTooltipSource(item.TooltipSource),
 		})
 	}
-	response := generated.ProjectFilesResponse{
-		ProjectId:     mustGeneratedID(result.ProjectID),
+	response := generated.ApplicationFilesResponse{
+		ApplicationId: result.ApplicationID,
 		RootPath:      result.RootPath,
 		CurrentPath:   result.CurrentPath,
 		HasMoreHidden: result.HasMoreHidden,
@@ -321,34 +315,34 @@ func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.Proj
 	return response
 }
 
-func toProjectWorkspaceFileContentResponse(result workspaceFileContentResult) generated.ProjectFileContentResponse {
-	return generated.ProjectFileContentResponse{
-		ProjectId:    mustGeneratedID(result.ProjectID),
-		RelativePath: result.RelativePath,
-		FileKind:     generated.ProjectWorkspaceFileKind(result.FileKind),
-		LanguageHint: result.LanguageHint,
-		Readable:     result.Readable,
-		Editable:     result.Editable,
-		Encoding:     generated.ProjectFileContentResponseEncoding(result.Encoding),
-		Content:      result.Content,
-		SizeBytes:    result.SizeBytes,
+func toProjectWorkspaceFileContentResponse(result workspaceFileContentResult) generated.ApplicationFileContentResponse {
+	return generated.ApplicationFileContentResponse{
+		ApplicationId: result.ApplicationID,
+		RelativePath:  result.RelativePath,
+		FileKind:      generated.ApplicationWorkspaceFileKind(result.FileKind),
+		LanguageHint:  result.LanguageHint,
+		Readable:      result.Readable,
+		Editable:      result.Editable,
+		Encoding:      generated.ApplicationFileContentResponseEncoding(result.Encoding),
+		Content:       result.Content,
+		SizeBytes:     result.SizeBytes,
 	}
 }
 
 // toProjectWorkspaceFileSaveResponse 将工作区文件保存结果转换为项目文件保存响应。
 // 生成包含项目 ID、相对路径、保存时间、内容哈希和文件大小的响应。
-func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generated.ProjectFileSaveResponse {
-	return generated.ProjectFileSaveResponse{
-		ProjectId:    mustGeneratedID(result.ProjectID),
-		RelativePath: result.RelativePath,
-		SavedAt:      result.SavedAt,
-		ContentHash:  result.ContentHash,
-		SizeBytes:    result.SizeBytes,
+func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generated.ApplicationFileSaveResponse {
+	return generated.ApplicationFileSaveResponse{
+		ApplicationId: result.ApplicationID,
+		RelativePath:  result.RelativePath,
+		SavedAt:       result.SavedAt,
+		ContentHash:   result.ContentHash,
+		SizeBytes:     result.SizeBytes,
 	}
 }
 
 // toLifecycleConfigurationRequest 将生成的生命周期配置请求转换为标准生命周期配置，并复制切片字段以避免共享底层存储。
-func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigurationRequest) LifecycleStandardConfig {
+func toLifecycleConfigurationRequest(request generated.ApplicationLifecycleConfigurationRequest) LifecycleStandardConfig {
 	additionalArgs := []string{}
 	if request.AdditionalArgs != nil {
 		additionalArgs = append(additionalArgs, (*request.AdditionalArgs)...)
@@ -369,11 +363,11 @@ func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigura
 }
 
 // toActionResponse 将动作结果转换为项目动作响应，并包含可选的消息和守卫结果。
-func toActionResponse(result ActionResult) generated.ProjectActionResponse {
-	response := generated.ProjectActionResponse{
-		ProjectId: mustGeneratedID(result.ProjectID),
-		Action:    result.Action,
-		Result:    result.Result,
+func toActionResponse(result ActionResult) generated.ApplicationActionResponse {
+	response := generated.ApplicationActionResponse{
+		ApplicationId: result.ApplicationID,
+		Action:        result.Action,
+		Result:        result.Result,
 	}
 	if result.MessageKey != nil {
 		response.MessageKey = result.MessageKey
@@ -404,14 +398,14 @@ func toTaskReceiptResponse(result ActionResult) generated.TaskReceipt {
 
 // toBatchActionResponse 将批量操作结果转换为 OpenAPI 批量操作响应。
 // 返回包含各状态计数及逐项目操作结果的响应。
-func toBatchActionResponse(result BatchActionResult) generated.ProjectBatchActionResponse {
-	items := make([]generated.ProjectBatchActionItem, 0, len(result.Items))
+func toBatchActionResponse(result BatchActionResult) generated.ApplicationBatchActionResponse {
+	items := make([]generated.ApplicationBatchActionItem, 0, len(result.Items))
 	for _, item := range result.Items {
-		mapped := generated.ProjectBatchActionItem{
-			ProjectId: mustGeneratedID(item.ProjectID),
-			Action:    generated.ProjectBatchActionItemAction(item.Action),
-			Result:    generated.ProjectBatchActionItemResult(item.Result),
-			Skipped:   item.Skipped,
+		mapped := generated.ApplicationBatchActionItem{
+			ApplicationId: item.ApplicationID,
+			Action:        generated.ApplicationBatchActionItemAction(item.Action),
+			Result:        generated.ApplicationBatchActionItemResult(item.Result),
+			Skipped:       item.Skipped,
 		}
 		if item.MessageKey != nil {
 			mapped.MessageKey = item.MessageKey
@@ -425,7 +419,7 @@ func toBatchActionResponse(result BatchActionResult) generated.ProjectBatchActio
 		}
 		items = append(items, mapped)
 	}
-	return generated.ProjectBatchActionResponse{
+	return generated.ApplicationBatchActionResponse{
 		TotalCount:     result.TotalCount,
 		CompletedCount: result.CompletedCount,
 		BlockedCount:   result.BlockedCount,
@@ -434,10 +428,10 @@ func toBatchActionResponse(result BatchActionResult) generated.ProjectBatchActio
 	}
 }
 
-func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult {
-	result := make([]generated.ProjectGuardResult, 0, len(items))
+func toGeneratedGuardResults(items []GuardResult) []generated.ApplicationGuardResult {
+	result := make([]generated.ApplicationGuardResult, 0, len(items))
 	for _, item := range items {
-		mapped := generated.ProjectGuardResult{Code: item.Code}
+		mapped := generated.ApplicationGuardResult{Code: item.Code}
 		if item.MessageKey != nil {
 			mapped.MessageKey = item.MessageKey
 		}
@@ -450,12 +444,12 @@ func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult
 }
 
 // toManagedRootResponse 将托管根目录信息转换为 OpenAPI 响应，并在可用时附带配置目录和状态原因。
-func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
-	response := generated.ProjectManagedRootResponse{
-		SourceType:            generated.ProjectSourceKind(info.SourceType),
-		Status:                generated.ProjectManagedRootStatus(info.Status),
+func toManagedRootResponse(info ManagedRootInfo) generated.ApplicationManagedRootResponse {
+	response := generated.ApplicationManagedRootResponse{
+		SourceType:            generated.ApplicationSourceType(info.SourceType),
+		Status:                generated.ApplicationManagedRootStatus(info.Status),
 		ConfigKey:             info.ConfigKey,
-		OwnershipMode:         generated.ProjectOwnershipMode(info.OwnershipMode),
+		OwnershipMode:         generated.ApplicationOwnershipMode(info.OwnershipMode),
 		CreatePermission:      info.CreatePermission,
 		SupportsManagedCreate: info.SupportsManagedCreate,
 	}
@@ -469,14 +463,14 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 }
 
 // toManagedCreateValidateResponse 将托管项目创建校验结果转换为项目创建校验响应，并包含可选的环境文件、来源元数据和告警。
-func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
-	response := generated.ProjectCreateValidateResponse{
+func toManagedCreateValidateResponse(result ManagedApplicationCreateValidationResult) generated.ApplicationCreateValidateResponse {
+	response := generated.ApplicationCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
-		SourceType:              generated.ProjectSourceKind(result.SourceType),
+		SourceType:              generated.ApplicationSourceType(result.SourceType),
 		DisplayName:             result.DisplayName,
 		ComposeProjectName:      result.ComposeProjectName,
 		ApplicationName:         result.ApplicationName,
-		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
+		OwnershipMode:           generated.ApplicationOwnershipMode(result.OwnershipMode),
 		WorkspacePath:           result.WorkspacePath,
 		ComposeFileName:         result.ComposeFileName,
 		ComposeFileAbsolutePath: result.ComposeFileAbsolutePath,
@@ -498,22 +492,22 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 }
 
 // toManagedCreateResponse 将托管项目创建结果转换为项目创建响应，包含创建结果、配置快照及可选环境文件、来源元数据和告警。
-func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
-	response := generated.ProjectCreateResponse{
+func toManagedCreateResponse(result ManagedApplicationCreateResult) generated.ApplicationCreateResponse {
+	response := generated.ApplicationCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
-		SourceType:              generated.ProjectSourceKind(result.SourceType),
+		SourceType:              generated.ApplicationSourceType(result.SourceType),
 		ApplicationId:           result.ApplicationID,
 		DisplayName:             result.Validation.DisplayName,
 		ComposeProjectName:      result.Validation.ComposeProjectName,
 		ApplicationName:         result.Validation.ApplicationName,
-		OwnershipMode:           generated.ProjectOwnershipMode(result.Validation.OwnershipMode),
+		OwnershipMode:           generated.ApplicationOwnershipMode(result.Validation.OwnershipMode),
 		WorkspacePath:           result.Validation.WorkspacePath,
 		ComposeFileName:         result.Validation.ComposeFileName,
 		ComposeFileAbsolutePath: result.Validation.ComposeFileAbsolutePath,
-		Action:                  generated.ProjectCreateResponseAction("create"),
-		Result:                  generated.ProjectCreateResponseResult("created"),
-		MessageKey:              optionalString(projectcontract.ProjectImported.String()),
-		Message:                 optionalString(projectcontract.ProjectImported.String()),
+		Action:                  generated.ApplicationCreateResponseAction("create"),
+		Result:                  generated.ApplicationCreateResponseResult("created"),
+		MessageKey:              optionalString(projectcontract.ApplicationImported.String()),
+		Message:                 optionalString(projectcontract.ApplicationImported.String()),
 		SnapshotSummary: struct {
 			ConfigHash           string    `json:"config_hash"`
 			DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
@@ -544,10 +538,10 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 }
 
 // toManagedCreateRequest 将工作区条目校验请求转换为托管项目创建请求；运行时目标 ID 或工作区条目无效时返回错误。
-func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) (ManagedProjectCreateRequest, error) {
+func toManagedCreateRequest(request generated.PostApplicationCreateValidateJSONRequestBody) (ManagedApplicationCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {
-		return ManagedProjectCreateRequest{}, err
+		return ManagedApplicationCreateRequest{}, err
 	}
 	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
 }
@@ -556,18 +550,18 @@ type managedCreateEntriesHTTPParts struct {
 	displayName            string
 	runtimeTargetID        uint64
 	applicationName        *string
-	workspaceEntries       []generated.ProjectWorkspaceEntry
+	workspaceEntries       []generated.ApplicationWorkspaceEntry
 	composeFilePath        string
-	lifecycle              *generated.ProjectLifecycleConfigurationRequest
+	lifecycle              *generated.ApplicationLifecycleConfigurationRequest
 	reuseExistingWorkspace bool
 }
 
 // managedCreateRequestFromEntries 将工作区条目转换为托管项目创建请求，并提取 Compose 文件内容。
 // 当 Compose 文件路径无效、工作区条目无效、Compose 文件缺失或生命周期配置无效时返回错误。
-func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (ManagedProjectCreateRequest, error) {
+func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (ManagedApplicationCreateRequest, error) {
 	composePath, err := normalizeManagedWorkspacePath(parts.composeFilePath)
 	if err != nil {
-		return ManagedProjectCreateRequest{}, err
+		return ManagedApplicationCreateRequest{}, err
 	}
 	entries := make([]ManagedWorkspaceEntry, 0, len(parts.workspaceEntries))
 	var composeContent string
@@ -575,7 +569,7 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 	for _, entry := range parts.workspaceEntries {
 		mapped, err := managedWorkspaceEntryFromGenerated(entry)
 		if err != nil {
-			return ManagedProjectCreateRequest{}, err
+			return ManagedApplicationCreateRequest{}, err
 		}
 		entries = append(entries, mapped)
 		if mapped.NodeType == "file" && mapped.Path == composePath && mapped.Content != nil {
@@ -584,9 +578,9 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 		}
 	}
 	if !foundCompose {
-		return ManagedProjectCreateRequest{}, errProjectInvalidArgument
+		return ManagedApplicationCreateRequest{}, errProjectInvalidArgument
 	}
-	request := ManagedProjectCreateRequest{
+	request := ManagedApplicationCreateRequest{
 		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, ApplicationName: parts.applicationName,
 		ReuseExistingWorkspace: parts.reuseExistingWorkspace,
 		ComposeFileName:        filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
@@ -595,7 +589,7 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 	if parts.lifecycle != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
 		if err != nil {
-			return ManagedProjectCreateRequest{}, err
+			return ManagedApplicationCreateRequest{}, err
 		}
 		request.LifecycleConfig = &config
 	}
@@ -603,7 +597,7 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 }
 
 // managedWorkspaceEntryFromGenerated 将生成的工作区条目转换为内部表示；文件必须包含内容，目录必须省略内容。
-func managedWorkspaceEntryFromGenerated(entry generated.ProjectWorkspaceEntry) (ManagedWorkspaceEntry, error) {
+func managedWorkspaceEntryFromGenerated(entry generated.ApplicationWorkspaceEntry) (ManagedWorkspaceEntry, error) {
 	path, err := normalizeManagedWorkspacePath(entry.Path)
 	if err != nil {
 		return ManagedWorkspaceEntry{}, err
@@ -622,17 +616,17 @@ func managedWorkspaceEntryFromGenerated(entry generated.ProjectWorkspaceEntry) (
 }
 
 // toManagedCreateExecuteRequest 将执行请求转换为内部托管项目创建请求，并返回参数校验错误。
-func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) (ManagedProjectCreateRequest, error) {
+func toManagedCreateExecuteRequest(request generated.PostApplicationCreateJSONRequestBody) (ManagedApplicationCreateRequest, error) {
 	runtimeTargetID, err := runtimeTargetIDFromGenerated(request.RuntimeTargetId)
 	if err != nil {
-		return ManagedProjectCreateRequest{}, err
+		return ManagedApplicationCreateRequest{}, err
 	}
 	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
 }
 
-func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityResult) generated.ProjectApplicationNameAvailabilityResponse {
-	response := generated.ProjectApplicationNameAvailabilityResponse{
-		Status:            generated.ProjectApplicationNameAvailabilityResponseStatus(result.Status),
+func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityResult) generated.ApplicationNameAvailabilityResponse {
+	response := generated.ApplicationNameAvailabilityResponse{
+		Status:            generated.ApplicationNameAvailabilityResponseStatus(result.Status),
 		WorkspacePath:     result.WorkspacePath,
 		WorkspaceNonEmpty: result.WorkspaceNonEmpty,
 	}
@@ -640,9 +634,9 @@ func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityRes
 		response.ComposeFilePath = result.ComposeFilePath
 	}
 	if len(result.WorkspaceEntries) > 0 {
-		entries := make([]generated.ProjectWorkspaceEntry, 0, len(result.WorkspaceEntries))
+		entries := make([]generated.ApplicationWorkspaceEntry, 0, len(result.WorkspaceEntries))
 		for _, entry := range result.WorkspaceEntries {
-			entries = append(entries, generated.ProjectWorkspaceEntry{Path: entry.Path, NodeType: generated.ProjectWorkspaceEntryNodeType(entry.NodeType), Content: entry.Content})
+			entries = append(entries, generated.ApplicationWorkspaceEntry{Path: entry.Path, NodeType: generated.ApplicationWorkspaceEntryNodeType(entry.NodeType), Content: entry.Content})
 		}
 		response.WorkspaceEntries = &entries
 	}
@@ -662,14 +656,14 @@ func runtimeTargetIDFromGenerated(value int64) (uint64, error) {
 func toProjectOverviewServiceItem(
 	item projectcompose.ServiceProjection,
 	runtime moduleapi.ContainerProjectServiceResourceSummary,
-) (generated.ProjectOverviewServiceItem, bool) {
+) (generated.ApplicationOverviewServiceItem, bool) {
 	status := projectOverviewServiceStatus(runtime)
 	health := projectOverviewServiceHealth(runtime)
-	return generated.ProjectOverviewServiceItem{
+	return generated.ApplicationOverviewServiceItem{
 		ServiceName:                  item.ServiceName,
 		Image:                        item.Image,
-		Status:                       generated.ProjectOverviewServiceItemStatus(status),
-		Health:                       generated.ProjectOverviewServiceItemHealth(health),
+		Status:                       generated.ApplicationOverviewServiceItemStatus(status),
+		Health:                       generated.ApplicationOverviewServiceItemHealth(health),
 		ContainerCount:               runtime.ContainerCount,
 		RunningCount:                 runtime.RunningCount,
 		StoppedCount:                 runtime.StoppedCount,
@@ -757,11 +751,11 @@ func optionalStringSlice(items []string) *[]string {
 	return &copyItems
 }
 
-func optionalTooltipSource(value string) *generated.ProjectFileTreeItemTooltipSource {
+func optionalTooltipSource(value string) *generated.ApplicationFileTreeItemTooltipSource {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return nil
 	}
-	source := generated.ProjectFileTreeItemTooltipSource(trimmed)
+	source := generated.ApplicationFileTreeItemTooltipSource(trimmed)
 	return &source
 }

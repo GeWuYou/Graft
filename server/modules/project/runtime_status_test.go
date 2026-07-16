@@ -15,7 +15,7 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 		name    string
 		summary *moduleapi.ContainerProjectRuntimeSummary
 		err     error
-		want    generated.ProjectRuntimeStatus
+		want    generated.ApplicationRuntimeStatus
 	}{
 		{
 			name: "unknown on runtime error",
@@ -23,12 +23,12 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 				Members: []moduleapi.ContainerProjectMember{{CanonicalState: "running"}},
 			},
 			err:  errors.New("runtime offline"),
-			want: generated.ProjectRuntimeStatusUnknown,
+			want: generated.ApplicationRuntimeStatusUnknown,
 		},
 		{
 			name:    "unknown without runtime members",
 			summary: &moduleapi.ContainerProjectRuntimeSummary{},
-			want:    generated.ProjectRuntimeStatusUnknown,
+			want:    generated.ApplicationRuntimeStatusUnknown,
 		},
 		{
 			name: "running when all members run",
@@ -38,7 +38,7 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 					{CanonicalState: "running"},
 				},
 			},
-			want: generated.ProjectRuntimeStatusRunning,
+			want: generated.ApplicationRuntimeStatusRunning,
 		},
 		{
 			name: "stopped when all members exited",
@@ -48,7 +48,7 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 					{CanonicalState: "exited"},
 				},
 			},
-			want: generated.ProjectRuntimeStatusStopped,
+			want: generated.ApplicationRuntimeStatusStopped,
 		},
 		{
 			name: "transitioning when any member is transitioning",
@@ -58,7 +58,7 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 					{CanonicalState: "restarting"},
 				},
 			},
-			want: generated.ProjectRuntimeStatusTransitioning,
+			want: generated.ApplicationRuntimeStatusTransitioning,
 		},
 		{
 			name: "degraded for mixed stopped and running members",
@@ -68,7 +68,7 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 					{CanonicalState: "exited"},
 				},
 			},
-			want: generated.ProjectRuntimeStatusDegraded,
+			want: generated.ApplicationRuntimeStatusDegraded,
 		},
 		{
 			name: "degraded for issue members",
@@ -77,7 +77,7 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 					{CanonicalState: "dead"},
 				},
 			},
-			want: generated.ProjectRuntimeStatusDegraded,
+			want: generated.ApplicationRuntimeStatusDegraded,
 		},
 	}
 

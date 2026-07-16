@@ -1,65 +1,47 @@
-menu.project.title: Application Management
-ops.project.error.invalidProjectId: Invalid project id.
-ops.project.error.invalidFileId: Invalid project file id.
-ops.project.error.invalidArgument: Invalid project request.
-ops.project.error.invalidCompose: Compose configuration is invalid.
-ops.project.error.workspaceUnsafe: The existing application workspace is not a safe directory.
-ops.project.error.workspaceWriteFailed: The application workspace could not be written.
-ops.project.error.applicationNameRequired: Enter an application name.
-ops.project.error.invalidApplicationName: The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.
-ops.project.error.applicationNameOccupied: This application name is already in use. Choose another name.
-ops.project.error.invalidCanonicalProjectName: Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.
-ops.project.error.conflict: Project action is blocked by a conflicting project state.
-ops.project.error.composeProjectNameOccupied: The Compose project name is already in use on the selected Runtime Target.
-ops.project.error.notFound: Project was not found.
-ops.project.error.unsupportedLifecycle: Project lifecycle action is not available for the current project state.
-ops.project.error.runtimeUnavailable: The selected Runtime Target is unavailable. The workspace remains registered and can be deployed after the target recovers.
-ops.project.error.importValidationFailed: Project import inspection failed validation.
-ops.project.error.managedRootUnconfigured: Managed project root is not configured.
-ops.project.error.managedRootInvalid: Managed project root is invalid.
-ops.project.error.managedFlowUnsupported: Managed-only project flow is not available for this project.
-ops.project.error.sourceUnsupported: Project source is not supported in the current phase.
-ops.project.error.directoryBrowseForbidden: Project import directory is outside the allowed roots.
-ops.project.error.inspectionExpired: Project import inspection has expired.
-ops.project.error.inspectionStale: Project import inspection no longer matches the filesystem.
-ops.project.error.savedViewInvalid: Saved view state is invalid for the project list.
-ops.project.error.savedViewConflict: A saved view with this name already exists.
-ops.project.error.savedViewNotFound: Saved view was not found.
-rbac.permissionCatalog.projectView.display: View Compose Projects
-rbac.permissionCatalog.projectView.description: Read registered Compose project summaries and readonly details.
-rbac.permissionCatalog.projectImport.display: Import Compose Projects
-rbac.permissionCatalog.projectImport.description: Validate and import external Compose projects into the project registry.
-rbac.permissionCatalog.projectRefresh.display: Refresh Compose Projects
-rbac.permissionCatalog.projectRefresh.description: Refresh project snapshots and readonly configuration projections.
-rbac.permissionCatalog.projectLifecycle.display: Manage Compose Project Lifecycle
-rbac.permissionCatalog.projectLifecycle.description: Run bounded Compose lifecycle actions such as up, stop, and restart.
-rbac.permissionCatalog.projectDestroy.display: Unregister Or Destroy Compose Projects
-rbac.permissionCatalog.projectDestroy.description: Run unregister and guarded destroy actions for project records.
-rbac.permissionCatalog.projectCreate.display: Create Managed Compose Projects
-rbac.permissionCatalog.projectCreate.description: View managed root settings and create managed Compose projects.
-rbac.permissionCatalog.projectCreationMethodView.display: View Project Creation Methods
-rbac.permissionCatalog.projectCreationMethodView.description: View supported Compose project creation methods and their availability.
-rbac.permissionCatalog.projectDiscoveryView.display: View Project Discovery Candidates
-rbac.permissionCatalog.projectDiscoveryView.description: Preview discovered local Compose directories without registering a project.
-rbac.permissionCatalog.projectDeploy.display: Deploy Managed Compose Project Drafts
-rbac.permissionCatalog.projectDeploy.description: Diff, validate, and deploy managed project configuration drafts.
-ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
-systemConfig.project.ops.application.root_directory.title: Application Root Directory
-systemConfig.project.ops.application.root_directory.description: Root directory used for managed Docker Compose application creation. Leave empty to disable managed creation.
+menu.application.title: Application Management
+ops.application.error.invalidApplicationId: Invalid application id.
+ops.application.error.invalidFileId: Invalid application file id.
+ops.application.error.invalidArgument: Invalid application request.
+ops.application.error.invalidCompose: Compose configuration is invalid.
+ops.application.error.workspaceUnsafe: The existing application workspace is not a safe directory.
+ops.application.error.workspaceWriteFailed: The application workspace could not be written.
+ops.application.error.applicationNameRequired: Enter an application name.
+ops.application.error.invalidApplicationName: The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.
+ops.application.error.applicationNameOccupied: This application name is already in use. Choose another name.
+ops.application.error.invalidComposeProjectName: The Compose project name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.
+ops.application.error.conflict: Application action is blocked by a conflicting application state.
+ops.application.error.composeProjectNameOccupied: The Compose project name is already in use on the selected Runtime Target.
+ops.application.error.notFound: Application was not found.
+ops.application.error.unsupportedLifecycle: Application lifecycle action is not available for the current application state.
+ops.application.error.runtimeUnavailable: The selected Runtime Target is unavailable. The workspace remains registered and can be deployed after the target recovers.
+ops.application.error.importValidationFailed: Application import inspection failed validation.
+ops.application.error.managedRootUnconfigured: Managed application root is not configured.
+ops.application.error.managedRootInvalid: Managed application root is invalid.
+ops.application.error.managedFlowUnsupported: Managed-only application flow is not available for this application.
+ops.application.error.sourceUnsupported: Application source is not supported in the current phase.
+ops.application.error.directoryBrowseForbidden: Application import directory is outside the allowed roots.
+ops.application.error.inspectionExpired: Application import inspection has expired.
+ops.application.error.inspectionStale: Application import inspection no longer matches the filesystem.
+ops.application.error.savedViewInvalid: Saved view state is invalid for the application list.
+ops.application.error.savedViewConflict: A saved view with this name already exists.
+ops.application.error.savedViewNotFound: Saved view was not found.
+ops.application.discovery.candidates.ready: Application discovery candidate preview is ready.
+systemConfig.application.ops.application.root_directory.title: Application Root Directory
+systemConfig.application.ops.application.root_directory.description: Root directory used for managed Docker Compose application creation. Leave empty to disable managed creation.
 systemConfig.groups.ops.application.create: Application Create
 systemConfig.groups.ops.application.create.description: Managed application create authority and root workflow.
-systemConfig.project.ops.project.import.allowed_roots.title: Import Allowed Roots
-systemConfig.project.ops.project.import.allowed_roots.description: Configure the JSON array string of root directories that import flows are allowed to browse.
-systemConfig.project.ops.project.workspace.hidden_directories.title: Workspace Hidden Directories
-systemConfig.project.ops.project.workspace.hidden_directories.description: JSON array string of directory basenames hidden by default in the project configuration workspace tree.
-systemConfig.project.ops.project.workspace.hidden_directories.placeholder: Press Enter after each directory name, for example node_modules or .git
-systemConfig.project.ops.project.workspace.file_tooltip_rules.title: Workspace File Tooltip Rules
-systemConfig.project.ops.project.workspace.file_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against file basenames. Later enabled matches override earlier matches.
-systemConfig.project.ops.project.create.blank_prefill_default_template.title: Prefill Blank Projects from Default Template
-systemConfig.project.ops.project.create.blank_prefill_default_template.description: When enabled, blank project creation starts with the complete templates/default workspace. When disabled, it starts with empty .env and compose.yaml files.
-systemConfig.project.ops.project.workspace.directory_tooltip_rules.title: Workspace Directory Tooltip Rules
-systemConfig.project.ops.project.workspace.directory_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against directory basenames. Later enabled matches override earlier matches.
-systemConfig.groups.ops.project.import: Project Import
-systemConfig.groups.ops.project.import.description: Import authority roots and bounded directory browsing.
-systemConfig.groups.ops.project.workspace: Project Workspace
-systemConfig.groups.ops.project.workspace.description: Configuration workspace file-list defaults and editor browse behavior.
+systemConfig.application.ops.application.import.allowed_roots.title: Import Allowed Roots
+systemConfig.application.ops.application.import.allowed_roots.description: Configure the JSON array string of root directories that import flows are allowed to browse.
+systemConfig.application.ops.application.workspace.hidden_directories.title: Workspace Hidden Directories
+systemConfig.application.ops.application.workspace.hidden_directories.description: JSON array string of directory basenames hidden by default in the application configuration workspace tree.
+systemConfig.application.ops.application.workspace.hidden_directories.placeholder: Press Enter after each directory name, for example node_modules or .git
+systemConfig.application.ops.application.workspace.file_tooltip_rules.title: Workspace File Tooltip Rules
+systemConfig.application.ops.application.workspace.file_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against file basenames. Later enabled matches override earlier matches.
+systemConfig.application.ops.application.create.blank_prefill_default_template.title: Prefill Blank Applications from Default Template
+systemConfig.application.ops.application.create.blank_prefill_default_template.description: When enabled, blank application creation starts with the complete templates/default workspace. When disabled, it starts with empty .env and compose.yaml files.
+systemConfig.application.ops.application.workspace.directory_tooltip_rules.title: Workspace Directory Tooltip Rules
+systemConfig.application.ops.application.workspace.directory_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against directory basenames. Later enabled matches override earlier matches.
+systemConfig.groups.ops.application.import: Application Import
+systemConfig.groups.ops.application.import.description: Import authority roots and bounded directory browsing.
+systemConfig.groups.ops.application.workspace: Application Workspace
+systemConfig.groups.ops.application.workspace.description: Configuration workspace file-list defaults and editor browse behavior.

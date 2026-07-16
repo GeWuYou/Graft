@@ -19,8 +19,8 @@ func (a *recordingProjectTaskAuthorizer) Authorize(_ context.Context, _ moduleap
 func TestProjectTaskOwnerAuthorizerUsesPublicApplicationID(t *testing.T) {
 	t.Parallel()
 	applicationID := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
-	service, err := NewService(applicationLookupRepository{aggregate: projectstore.ProjectAggregate{
-		Project: projectstore.Project{ID: 42, ApplicationID: applicationID},
+	service, err := NewService(applicationLookupRepository{aggregate: projectstore.ApplicationAggregate{
+		Application: projectstore.Application{ApplicationRecordID: 42, ApplicationID: applicationID},
 	}})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -32,12 +32,12 @@ func TestProjectTaskOwnerAuthorizerUsesPublicApplicationID(t *testing.T) {
 		context.Background(),
 		&moduleapi.CurrentUser{ID: 7},
 		moduleapi.TaskOwnerActionView,
-		moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: applicationID},
+		moduleapi.TaskOwner{Type: applicationTaskOwnerType, ID: applicationID},
 	)
 	if err != nil {
 		t.Fatalf("authorize public task owner: %v", err)
 	}
-	if authorizer.permission != projectcontract.ProjectViewPermission.String() {
+	if authorizer.permission != projectcontract.ApplicationViewPermission.String() {
 		t.Fatalf("permission = %q", authorizer.permission)
 	}
 
@@ -45,7 +45,7 @@ func TestProjectTaskOwnerAuthorizerUsesPublicApplicationID(t *testing.T) {
 		context.Background(),
 		&moduleapi.CurrentUser{ID: 7},
 		moduleapi.TaskOwnerActionView,
-		moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: "42"},
+		moduleapi.TaskOwner{Type: applicationTaskOwnerType, ID: "42"},
 	)
 	if err == nil {
 		t.Fatal("numeric project ID must not authorize a Task owner")

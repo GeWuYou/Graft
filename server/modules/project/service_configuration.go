@@ -15,12 +15,13 @@ func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (
 		return ConfigurationMetadataResult{}, err
 	}
 	return ConfigurationMetadataResult{
-		ProjectID:          projectID,
-		ComposeFiles:       toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
-		EnvFiles:           toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
-		OwnershipMode:      aggregate.Project.OwnershipMode,
-		DriftStatus:        aggregate.Project.DriftStatus,
-		DiagnosticsSummary: nil,
+		ApplicationRecordID: projectID,
+		ApplicationID:       aggregate.Application.ApplicationID,
+		ComposeFiles:        toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
+		EnvFiles:            toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),
+		OwnershipMode:       aggregate.Application.OwnershipMode,
+		DriftStatus:         aggregate.Application.DriftStatus,
+		DiagnosticsSummary:  nil,
 	}, nil
 }
 
@@ -35,8 +36,9 @@ func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (C
 		return ConfigurationPreviewResult{}, err
 	}
 	return ConfigurationPreviewResult{
-		ProjectID:             projectID,
-		CanonicalProjectName:  aggregate.Project.CanonicalProjectName,
+		ApplicationRecordID:   projectID,
+		ApplicationID:         aggregate.Application.ApplicationID,
+		ComposeProjectName:    aggregate.Application.ComposeProjectName,
 		ConfigHash:            parseResult.ConfigHash,
 		NormalizedComposeYAML: parseResult.NormalizedComposeYAML,
 		RefreshedAt:           snapshotRefreshedAt(aggregate.Snapshot),

@@ -9,7 +9,7 @@ import (
 
 func TestValidateProjectListSavedViewRejectsUnknownConsumerFields(t *testing.T) {
 	t.Parallel()
-	valid, _ := json.Marshal(map[string]string{"source_kind": "managed"})
+	valid, _ := json.Marshal(map[string]string{"source_type": "managed"})
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Managed", QueryState: valid, PageSize: 20, VisibleColumns: []string{"row-select", "name", "runtime", "operation"}}); err != nil {
 		t.Fatalf("valid project saved view rejected: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestValidateProjectListSavedViewRejectsUnknownConsumerFields(t *testing.T) 
 
 func TestValidateProjectListSavedViewAcceptsApplicationFilters(t *testing.T) {
 	t.Parallel()
-	state, _ := json.Marshal(map[string]any{"keyword": "api", "application_type": "compose", "runtime_target_id": 7, "provider": "docker", "runtime_status": "running", "source_kind": "managed", "drift_status": "clean"})
+	state, _ := json.Marshal(map[string]any{"keyword": "api", "application_type": "compose", "runtime_target_id": 7, "provider": "docker", "runtime_status": "running", "source_type": "managed", "drift_status": "clean"})
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Docker API", QueryState: state, PageSize: 50, VisibleColumns: []string{"applicationType", "runtimeTarget", "provider"}}); err != nil {
 		t.Fatalf("valid application filters rejected: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestValidateProjectListSavedViewAcceptsApplicationFilters(t *testing.T) {
 func TestValidateProjectListSavedViewAcceptsOnlyProjectSortExpressions(t *testing.T) {
 	t.Parallel()
 
-	valid, _ := json.Marshal(map[string]any{"sort": []string{projectstore.ProjectListSortCreatedAtAsc}})
+	valid, _ := json.Marshal(map[string]any{"sort": []string{projectstore.ApplicationListSortCreatedAtAsc}})
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Oldest", QueryState: valid, PageSize: 20, VisibleColumns: []string{"name"}}); err != nil {
 		t.Fatalf("valid project sort rejected: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestValidateProjectListSavedViewAcceptsOnlyProjectSortExpressions(t *testin
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Unsafe", QueryState: invalid, PageSize: 20, VisibleColumns: []string{"name"}}); err == nil {
 		t.Fatal("unknown project sort must be rejected")
 	}
-	duplicate, _ := json.Marshal(map[string]any{"sort": []string{projectstore.ProjectListSortCreatedAtDesc, projectstore.ProjectListSortCreatedAtAsc}})
+	duplicate, _ := json.Marshal(map[string]any{"sort": []string{projectstore.ApplicationListSortCreatedAtDesc, projectstore.ApplicationListSortCreatedAtAsc}})
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Duplicate", QueryState: duplicate, PageSize: 20, VisibleColumns: []string{"name"}}); err == nil {
 		t.Fatal("duplicate project sorts must be rejected")
 	}

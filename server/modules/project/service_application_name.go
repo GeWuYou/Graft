@@ -86,7 +86,7 @@ func (s *Service) ensureApplicationNameUnregistered(ctx context.Context, name st
 	if err == nil {
 		return errProjectApplicationNameOccupied
 	}
-	if errors.Is(err, projectstore.ErrProjectNotFound) {
+	if errors.Is(err, projectstore.ErrApplicationNotFound) {
 		return nil
 	}
 	return mapStoreError(err)

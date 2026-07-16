@@ -109,7 +109,7 @@ func (s *Service) blankCreatePrefillDefaultTemplate(ctx context.Context) (bool, 
 	if s == nil || s.configResolver == nil {
 		return true, nil
 	}
-	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ProjectBlankCreatePrefillDefaultTemplateConfig.String())
+	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfig.String())
 	if err != nil {
 		return false, fmt.Errorf("%w: resolve blank-create template prefill: %v", errProjectInvalidArgument, err)
 	}
@@ -286,7 +286,7 @@ func workspaceTemplateEntry(root, path string, entry fs.DirEntry, walkErr error)
 	if err := validateWorkspaceTemplateFile(entry, normalized); err != nil {
 		return WorkspaceEntry{}, false, err
 	}
-	// #nosec G304 -- WalkDir path is anchored to the validated Application Root template directory and rejects symlinks.
+	// #nosec G304 -- WalkDir 路径锚定在已校验的 Application Root 模板目录，并拒绝符号链接。
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return WorkspaceEntry{}, false, err
