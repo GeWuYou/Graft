@@ -20,5 +20,5 @@ export const API_CODE = {
 
 export type ApiCode = (typeof API_CODE)[keyof typeof API_CODE];
 
-// 后端可能先于前端发布新增响应码；保留未知字符串，避免错误处理把合法响应误判为类型不匹配。
+// 后端可先于前端发布新增响应码，因此保留未知字符串，让通用错误处理继续展示服务端返回的信息。
 export type ApiResponseCode = string;

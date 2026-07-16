@@ -128,7 +128,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
           }
 
           if (to.name === PAGE_NOT_FOUND_ROUTE.name) {
-            // 动态添加路由后，此处应当重定向到fullPath，否则会加载404页面内容
+            // 动态路由挂载后必须重新匹配原始地址，否则首次导航仍会停留在占位 404 路由。
             next({ path: to.path, replace: true, query: to.query, hash: to.hash });
             return;
           } else {

@@ -11,9 +11,6 @@ let maxTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const routeLoading = readonly(loading);
 
-/**
- * 清理所有待处理的路由加载计时器。
- */
 function clearTimers() {
   if (minTimer) {
     clearTimeout(minTimer);
@@ -42,17 +39,11 @@ function requestNextFrame() {
   });
 }
 
-/**
- * 立即停止路由加载指示器。
- */
 function stopRouteLoadingNow() {
   clearTimers();
   loading.value = false;
 }
 
-/**
- * 启动路由加载指示器，并在达到最大时长后自动停止。
- */
 export function startRouteLoading() {
   loadingToken += 1;
   loadingStartedAt = Date.now();
@@ -82,9 +73,7 @@ export async function finishRouteLoadingAfterRender() {
   minTimer = setTimeout(stopRouteLoadingNow, remaining);
 }
 
-/**
- * 停止路由加载指示器并取消待处理的完成操作。
- */
+/** 停止路由加载指示器并取消旧导航遗留的完成操作。 */
 export function hideRouteLoading() {
   loadingToken += 1;
   stopRouteLoadingNow();

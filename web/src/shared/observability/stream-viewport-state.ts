@@ -75,32 +75,14 @@ export function resolveStreamViewportState(input: StreamViewportStateResolverInp
   return 'idle';
 }
 
-/**
- * 判断视口状态是否属于忙碌状态。
- *
- * @param state - 要检查的视口状态
- * @returns `state` 属于忙碌状态时返回 `true`，否则返回 `false`
- */
 export function isStreamViewportBusyState(state: StreamViewportState) {
   return STREAM_VIEWPORT_BUSY_STATES.has(state);
 }
 
-/**
- * 判断流视口状态是否属于光标状态。
- *
- * @param state - 要检查的状态
- * @returns `true` 如果该状态属于光标状态集合，`false` 否则
- */
 export function isStreamViewportCursorState(state: StreamViewportState) {
   return STREAM_VIEWPORT_CURSOR_STATES.has(state);
 }
 
-/**
- * 判断输入是否应视为错误。
- *
- * @param error - 待检查的错误值
- * @returns `true` 如果输入包含有效错误内容，`false` 否则
- */
 function hasStreamViewportError(error: unknown) {
   if (error === null || error === undefined) {
     return false;
@@ -111,12 +93,6 @@ function hasStreamViewportError(error: unknown) {
   return true;
 }
 
-/**
- * 解析视口错误消息。
- *
- * @param error - 错误输入值
- * @returns 经过处理的错误消息；字符串会去除首尾空白，`Error` 会返回其 `message`，其他值返回空字符串
- */
 function resolveStreamViewportErrorMessage(error: unknown) {
   if (typeof error === 'string') {
     return error.trim();

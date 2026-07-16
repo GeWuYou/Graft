@@ -17,12 +17,10 @@
       </template>
       <template #operations>
         <div class="operations-container">
-          <!-- 搜索框 -->
           <div v-if="layout !== 'side'" class="header-operation-search">
             <search />
           </div>
 
-          <!-- 全局通知 -->
           <notice />
 
           <div class="header-operation-item">

@@ -41,7 +41,7 @@ function hasStatusCode(error: unknown): error is { status: number } {
   return Boolean(error && typeof error === 'object' && typeof (error as { status?: unknown }).status === 'number');
 }
 
-// 认证、权限和资源不存在属于确定性失败；网络错误及其它状态才进入有限重连流程。
+// 认证、权限和资源不存在属于确定性失败；网络错误及其它状态才进入有限重连流程，避免无意义地重复请求票据。
 function isRetryableTicketError(error: unknown) {
   return !hasStatusCode(error) || !NON_RETRYABLE_STATUS_CODES.has(error.status);
 }

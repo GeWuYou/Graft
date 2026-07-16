@@ -41,8 +41,6 @@ const homeRoute: Array<TRouterInfo> = [
   },
 ];
 
-// 不需要做多标签tabs页缓存的列表 值为每个页面对应的name 如 DashboardDetail
-// const ignoreCacheRoutes = ['DashboardDetail'];
 const ignoreCacheRoutes: string[] = [AUTH_ROUTE_NAME.LOGIN];
 
 /**
@@ -408,7 +406,6 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedRoutes after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
-    // 处理新增
     appendTabRouterList(newRoute: TRouterInfo) {
       logTabsDebug(
         'tabs.store',
@@ -464,7 +461,6 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         getTabKey(tab) === this.activeTabKey ? { ...tab, title } : tab,
       );
     },
-    // 处理关闭当前
     subtractCurrentTabRouter(newRoute: TRouterInfo) {
       const { routeIdx, path, tabKey } = newRoute;
       if (routeIdx === undefined) return;
@@ -480,19 +476,16 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearPageSnapshot(targetKey);
       this.syncPinnedTabsStorage();
     },
-    // 处理关闭右侧
     subtractTabRouterBehind(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
       this.closeTabsByPredicate((route, index) => index > routeIdx && !route.isHome && !route.isPinned);
     },
-    // 处理关闭左侧
     subtractTabRouterAhead(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
       this.closeTabsByPredicate((route, index) => index < routeIdx && !route.isHome && !route.isPinned);
     },
-    // 处理关闭其他
     subtractTabRouterOther(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;

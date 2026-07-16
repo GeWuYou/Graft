@@ -13,7 +13,7 @@ export type LogViewportCommitSchedulerOptions<T> = Readonly<{
 }>;
 
 /**
- * 限制日志视图更新频率，同时保留最新的完整快照。
+ * 限制日志视图更新频率，同时保留最新的完整快照；用户滚动期间延迟提交，避免视口状态被后台流量抢占。
  */
 export class LogViewportCommitScheduler<T> {
   readonly #flushIntervalMs: number;
