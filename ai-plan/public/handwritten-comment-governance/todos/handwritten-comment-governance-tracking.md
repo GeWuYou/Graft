@@ -51,9 +51,18 @@ closeout:
 - [x] Complete first-wave read-only audit and classify exemptions, value categories, and disjoint batch boundaries.
 - [x] Execute eight additional backend and frontend comment governance waves with per-batch validation and scoped commits.
 - [x] Review this residual implementation wave, reconcile its scope, and record archive-readiness blockers.
-- [x] Close the comment-worker commit gap by requiring explicit commit authority, scoped `$graft-commit`, and commit
-  evidence in every changed-comment closeout.
+- [ ] Resolve the comment-worker commit gap by requiring explicit commit authority, scoped `$graft-commit`, and commit
+  evidence in every changed-comment closeout. **Status: blocked.**
 - [ ] Continue residual inventory for untouched server modules and web modules, then rerun archive-readiness review.
+
+### Comment-worker commit evidence blocker
+
+- The server workers' union commit `b2304976` records an owned-scope conflict: the files are within the union of the
+  declared worker scopes, but shared-index staging means per-worker ownership cannot be verified.
+- The available commit evidence is therefore insufficient to prove each worker's scoped ownership independently; the
+  comment-worker commit gap remains blocked, despite the earlier checklist entry having been marked complete.
+- Restore this item to complete only after every worker has verifiable scoped commit evidence covering its own changed
+  files or hunks.
 
 ## Acceptance Conditions
 

@@ -1197,12 +1197,12 @@ Configuration workspace 的 authority 需要拆成两层：
 
 项目级操作语义固定为：
 
-- `validate`、`deploy` 读取的都是当前已保存到磁盘的项目状态，而不是前端内存草稿
+- `validate`、`redeploy` 读取的都是当前已保存到磁盘的项目状态，而不是前端内存草稿
 - 若前端存在未保存文件，必须先提示用户是否保存
 - Preview Diff 固定由 frontend buffer 对磁盘内容做本地 Monaco Diff，不提供后端 `diff` API
-- `deploy` 的未保存提示固定为“检测到未保存的修改，是否先保存？”，并提供 `保存`、`继续使用磁盘版本部署`、`取消`
-- 其中“保存”只把当前未保存内容写回 `working_directory`，不隐含立即生效
-- `deploy` 始终是独立的显式项目级动作，保存不会隐式触发部署
+- `redeploy` 的未保存提示固定为“检测到未保存的修改，是否先保存？”，并提供 `保存`、`继续使用磁盘版本重新部署`、`取消`
+- 其中“保存”只把当前未保存内容写回 `working_directory`，不隐含立即生效，也不自动提交 `redeploy` 任务
+- `redeploy` 始终是独立的显式项目级动作；保存不自动提交任务，必须由用户显式触发 `redeploy`
 
 ## 10.5 Phase 1 明确不提供的 API
 
