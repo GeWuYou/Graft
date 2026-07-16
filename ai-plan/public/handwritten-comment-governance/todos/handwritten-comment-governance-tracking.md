@@ -51,6 +51,8 @@ closeout:
 - [x] Complete first-wave read-only audit and classify exemptions, value categories, and disjoint batch boundaries.
 - [x] Execute eight additional backend and frontend comment governance waves with per-batch validation and scoped commits.
 - [x] Review this residual implementation wave, reconcile its scope, and record archive-readiness blockers.
+- [x] Close the comment-worker commit gap by requiring explicit commit authority, scoped `$graft-commit`, and commit
+  evidence in every changed-comment closeout.
 - [ ] Continue residual inventory for untouched server modules and web modules, then rerun archive-readiness review.
 
 ## Acceptance Conditions
@@ -58,6 +60,8 @@ closeout:
 - All retained or changed comments satisfy the Chinese high-value comment rules and match final implementation.
 - No generated, third-party, migration, or build-artifact source is modified.
 - Every batch has a `comment_governance` receipt, direct validation evidence, and explicit exemptions or risks.
+- Every batch with actual comment changes has a `created`, `not-needed`, or explicit `blocked` commit result with scope
+  evidence; a missing commit result is not a successful closeout.
 - Worker scopes do not overlap and no unknown or pre-existing user changes are committed.
 
 ## Loop Batch State

@@ -106,3 +106,12 @@
 - All workers completed `$graft-comment-governance` and `$graft-commit`. The receipts recorded updated or removed decisions for constraint, business-rule, lifecycle, cache, and external-behavior comments.
 - Server validation passed with migration/contract/locale gates, backend lint `0 issues`, and all Go tests. Web validation passed all pre-test gates; Vitest ended with 221/223 files and 1408/1410 tests passing, with existing failures in `DashboardQuickActions.test.ts` and `configuration-workspace/index.test.ts`. `git diff --check` passed.
 - Post-wave heuristic inventory reports 317 server module and 156 web module comment-bearing files. This is a residual audit signal only; archive readiness remains pending and the topic stays active.
+
+## 2026-07-16 comment-worker commit closure
+
+- Authority review found that `graft-comment-governance` required a comment receipt but did not make the post-validation
+  `$graft-commit` result mandatory for write-capable workers.
+- The governance contract now requires dispatch to declare commit authority, requires a scoped `$graft-commit` after
+  accepted comment changes, and records commit status, scope, title, short SHA, or an explicit blocked reason.
+- The existing `graft-commit` ownership and mixed-worktree rules remain authoritative; no broad staging or compatibility
+  commit path was introduced.
