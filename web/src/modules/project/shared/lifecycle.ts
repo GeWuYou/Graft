@@ -9,8 +9,10 @@ import type {
   ProjectLifecycleConfigurationUpdateRequest,
   ProjectLifecycleGeneratedCommand,
   ProjectLifecycleReviewStatus,
+  ProjectLifecycleStrategyKind,
   ProjectListItemWithLifecycle,
   ProjectSourceKind,
+  ProjectWorkspaceDefaultsResponse,
 } from '../types/project';
 
 const defaultLifecycleWaitTimeoutSeconds = 120;
@@ -315,6 +317,53 @@ function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
   return Math.trunc(value);
 }
 
+type LifecycleDraftSource = {
+  strategy_kind?: ProjectLifecycleStrategyKind;
+  profiles?: string[] | null;
+  down_before_redeploy?: boolean;
+  pull_before_redeploy?: boolean;
+  build_before_up?: boolean;
+  force_recreate?: boolean;
+  remove_orphans?: boolean;
+  wait_after_up?: boolean;
+  wait_timeout_seconds?: number | null;
+  renew_anon_volumes?: boolean;
+  prune_images_after_redeploy?: boolean;
+  additional_args?: string[] | null;
+};
+
+function buildLifecycleDraftFromSource(
+  source: LifecycleDraftSource,
+  options: {
+    workingDirectory: string;
+    composeFiles: string[];
+    canonicalProjectName: string;
+    reviewStatus: ProjectLifecycleReviewStatus;
+  },
+): ProjectLifecycleConfigurationDraft {
+  const config: ProjectLifecycleConfigurationDraft = {
+    strategy_kind: source.strategy_kind ?? 'standard',
+    working_directory: options.workingDirectory,
+    compose_files: options.composeFiles,
+    canonical_project_name: options.canonicalProjectName,
+    profiles: Array.isArray(source.profiles) ? [...source.profiles] : [],
+    down_before_redeploy: source.down_before_redeploy ?? true,
+    pull_before_redeploy: source.pull_before_redeploy ?? false,
+    build_before_up: source.build_before_up ?? false,
+    force_recreate: source.force_recreate ?? false,
+    remove_orphans: source.remove_orphans ?? true,
+    wait_after_up: source.wait_after_up ?? false,
+    wait_timeout_seconds: normalizeWaitTimeoutSeconds(source.wait_timeout_seconds),
+    renew_anon_volumes: source.renew_anon_volumes ?? false,
+    prune_images_after_redeploy: source.prune_images_after_redeploy ?? false,
+    additional_args: formatAdditionalArgs(source.additional_args ?? []),
+    review_status: options.reviewStatus,
+    generated_commands: null,
+  };
+
+  return { ...config, generated_commands: buildClientGeneratedCommands(config) };
+}
+
 function comparableLifecycleDraftState(
   draft: Pick<
     ProjectLifecycleConfigurationDraft,
@@ -381,31 +430,30 @@ export function buildLifecycleConfigurationDraft(
 export function buildImportLifecycleConfigurationDraft(
   result: ProjectImportInspectResponse,
 ): ProjectLifecycleConfigurationDraft {
-  const source = result.lifecycle_configuration;
   const composeFiles = result.compose_files
     .map((file) => file.display_path || file.absolute_path || '')
     .filter(Boolean);
-  const config: ProjectLifecycleConfigurationDraft = {
-    strategy_kind: source.strategy_kind,
-    working_directory: result.resolved_working_directory,
-    compose_files: composeFiles.length ? composeFiles : ['compose.yaml'],
-    canonical_project_name: result.canonical_project_name,
-    profiles: Array.isArray(source.profiles) ? [...source.profiles] : [],
-    down_before_redeploy: source.down_before_redeploy,
-    pull_before_redeploy: source.pull_before_redeploy,
-    build_before_up: source.build_before_up,
-    force_recreate: source.force_recreate,
-    remove_orphans: source.remove_orphans,
-    wait_after_up: source.wait_after_up,
-    wait_timeout_seconds: normalizeWaitTimeoutSeconds(source.wait_timeout_seconds),
-    renew_anon_volumes: source.renew_anon_volumes,
-    prune_images_after_redeploy: source.prune_images_after_redeploy,
-    additional_args: formatAdditionalArgs(source.additional_args),
-    review_status: 'review_required',
-    generated_commands: null,
-  };
+  return buildLifecycleDraftFromSource(result.lifecycle_configuration, {
+    workingDirectory: result.resolved_working_directory,
+    composeFiles: composeFiles.length ? composeFiles : ['compose.yaml'],
+    canonicalProjectName: result.canonical_project_name,
+    reviewStatus: 'review_required',
+  });
+}
 
-  return { ...config, generated_commands: buildClientGeneratedCommands(config) };
+/**
+ * 将服务端下发的空白创建默认配置转换为向导草稿，确保创建页与项目生命周期页使用同一套命令预览规则。
+ */
+export function buildBlankLifecycleConfigurationDraft(
+  defaults: Pick<ProjectWorkspaceDefaultsResponse, 'lifecycle_configuration'>,
+  options: { composeFilePath: string; canonicalProjectName: string; workingDirectory?: string },
+): ProjectLifecycleConfigurationDraft {
+  return buildLifecycleDraftFromSource(defaults.lifecycle_configuration, {
+    workingDirectory: options.workingDirectory ?? '',
+    composeFiles: [options.composeFilePath],
+    canonicalProjectName: options.canonicalProjectName,
+    reviewStatus: 'confirmed',
+  });
 }
 
 export function buildLifecycleConfigurationRequest(

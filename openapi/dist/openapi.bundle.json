@@ -14700,103 +14700,6 @@
         }
       }
     },
-    "/api/ops/projects/{id}/deploy": {
-      "post": {
-        "tags": [
-          "project"
-        ],
-        "summary": "Deploy current saved project configuration state",
-        "operationId": "postProjectDeploy",
-        "description": "Reuses the current saved working_directory state, refreshes the project snapshot, then executes the final compose `up` flow using the saved lifecycle configuration. This route does not save editor buffers for the caller.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "$ref": "#/components/parameters/project-id-path"
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Saved project configuration state deployed.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-deploy-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid project id.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "Project record not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Deploy was blocked by project authority, lifecycle review guards, bounded scope, or lifecycle execution.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
     "/api/ops/projects/{id}/refresh": {
       "post": {
         "tags": [
@@ -28551,7 +28454,8 @@
           "templates",
           "default_template_key",
           "workspace_entries",
-          "compose_file_path"
+          "compose_file_path",
+          "lifecycle_configuration"
         ],
         "properties": {
           "templates": {
@@ -28584,6 +28488,9 @@
           },
           "compose_file_path": {
             "type": "string"
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
         }
       },
@@ -29654,92 +29561,6 @@
           }
         }
       },
-      "project-deploy-response": {
-        "type": "object",
-        "required": [
-          "project_id",
-          "action",
-          "result",
-          "canonical_project_name",
-          "ownership_mode",
-          "config_hash",
-          "refreshed_at"
-        ],
-        "properties": {
-          "project_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "deploy"
-            ],
-            "x-enum-varnames": [
-              "ProjectDeployResponseActionDeploy"
-            ]
-          },
-          "result": {
-            "type": "string",
-            "enum": [
-              "completed"
-            ],
-            "x-enum-varnames": [
-              "ProjectDeployResponseResultCompleted"
-            ]
-          },
-          "canonical_project_name": {
-            "type": "string"
-          },
-          "ownership_mode": {
-            "$ref": "#/components/schemas/project-ownership-mode"
-          },
-          "config_hash": {
-            "type": "string"
-          },
-          "refreshed_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "declared_service_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "message_key": {
-            "type": "string",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "nullable": true
-          },
-          "guard_results": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/project-guard-result"
-            }
-          }
-        }
-      },
-      "enveloped-project-deploy-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/project-deploy-response"
-              }
-            }
-          }
-        ]
-      },
       "project-action-response": {
         "type": "object",
         "required": [
@@ -29763,7 +29584,6 @@
               "unregister",
               "destroy",
               "create",
-              "deploy",
               "redeploy"
             ],
             "x-enum-varnames": [
@@ -29774,7 +29594,6 @@
               "ProjectActionUnregister",
               "ProjectActionDestroy",
               "ProjectActionCreate",
-              "ProjectActionDeploy",
               "ProjectActionRedeploy"
             ]
           },
@@ -29942,7 +29761,6 @@
               "unregister",
               "destroy",
               "create",
-              "deploy",
               "redeploy"
             ],
             "x-enum-varnames": [
@@ -29953,7 +29771,6 @@
               "ProjectActionUnregister",
               "ProjectActionDestroy",
               "ProjectActionCreate",
-              "ProjectActionDeploy",
               "ProjectActionRedeploy"
             ]
           },

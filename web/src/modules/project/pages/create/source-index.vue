@@ -237,8 +237,7 @@ function openMethod(method: ProjectCreationMethodType) {
 }
 
 .project-creation-page__notice,
-.project-creation-page__grid,
-.project-creation-card__body {
+.project-creation-page__grid {
   display: grid;
   gap: var(--graft-density-gap-16);
 }
@@ -249,7 +248,22 @@ function openMethod(method: ProjectCreationMethodType) {
 }
 
 .project-creation-card {
+  display: flex;
+  flex-direction: column;
   min-height: 348px;
+}
+
+.project-creation-card :deep(.t-card__body) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.project-creation-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
 }
 
 .project-creation-card--disabled {
@@ -338,6 +352,10 @@ function openMethod(method: ProjectCreationMethodType) {
 
 .project-creation-card__body :deep(.t-button) {
   justify-self: start;
+}
+
+.project-creation-card__body :deep(.t-space-item:last-child) {
+  margin-top: auto;
 }
 
 .project-creation-card:not(.project-creation-card--disabled) {

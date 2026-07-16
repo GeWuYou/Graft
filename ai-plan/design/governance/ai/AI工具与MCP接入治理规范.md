@@ -179,7 +179,8 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
 - `graft-ai-governance-audit` 保持 broader AI tooling / MCP / skill / inventory drift audit；当同一批次同时修改
   `.agents/skills/**`、`scripts/**` 或本规范时，可与 `graft-ai-plan-governance` 组合使用。
 - `graft-comment-governance` 是手写 Go、TypeScript、Vue 注释的专项 skill；它必须回到
-  `代码注释与模块文档规范.md` 判断注释价值，并在代码任务 closeout 前输出回执，不得把启发式质量判断伪装成
+  `代码注释与模块文档规范.md` 判断注释价值。仅当实际 diff 发生注释变更时，代码任务 closeout 才要求输出
+  注释和 scoped commit 回执；没有注释 diff 时不要求 comment/scoped commit 回执，不得把启发式质量判断伪装成
   comment-count、覆盖率或第二套 lint 门禁。
 - `graft-pr-review` 的完整盘点要求必须贯穿其后续 repair / commit / push 链路；如果一个批次来自 PR review，
   则 `Outside diff range comments`、`Nitpick comments` 和其它 folded latest-review findings 仍然必须在 closeout

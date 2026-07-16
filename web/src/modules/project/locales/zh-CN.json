@@ -90,11 +90,11 @@
         "confirmSaveAllAction": "确认保存全部",
         "confirmSaveAllWithErrorsAction": "仍然保存全部",
         "confirmSaveCurrentAction": "确认保存",
-        "confirmSaveDeployWithErrorsAction": "仍然保存并部署",
+        "confirmSaveRedeployWithErrorsAction": "仍然保存并重新部署",
         "confirmSaveAction": "确认保存",
         "confirmSaveWithErrorsAction": "仍然保存",
         "continueWithDiskAction": "继续使用磁盘版本",
-        "deployAction": "部署项目",
+        "redeployAction": "重新部署项目",
         "diffConfirmBody": "请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。",
         "diffCurrentFileConfirmBody": "请先确认当前文件差异。只有在你确认后，修改才会写入工作目录。",
         "diffCurrentFileTitle": "当前文件差异",
@@ -268,7 +268,7 @@
         "runtimeRunning": "🟢 运行中",
         "runtimeDegraded": "🟡 降级",
         "runtimeStopped": "⚫ 已停止",
-        "runtimeTransitioning": "🔵 过渡中"
+        "runtimeTransitioning": "🟠 过渡中"
       },
       "statusTooltip": {
         "lifecycleReviewRequired": "生命周期配置尚未确认，进入详情完成确认。",
@@ -709,8 +709,7 @@
         "reset": "重置表单",
         "back": "上一步",
         "backToSource": "返回应用来源",
-        "continue": "继续",
-        "review": "查看审核",
+        "next": "下一步",
         "confirm": "确认",
         "cancel": "取消"
       },
@@ -826,7 +825,10 @@
         "description": "确认创建后由项目持有的 Compose 生命周期配置。",
         "authorityHint": "创建只保存生命周期配置，不会执行部署或启动容器。",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "命令预览"
+        "commandPreviewTitle": "命令预览",
+        "defaultsLoadFailed": "无法加载生命周期默认配置。",
+        "configured": "已确认默认生命周期配置",
+        "configuredWithAdditionalArgs": "已确认生命周期配置，并包含额外启动参数"
       },
       "review": {
         "title": "审核创建",

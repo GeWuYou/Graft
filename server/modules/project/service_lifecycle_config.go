@@ -30,7 +30,6 @@ func lifecycleSeedForManagedProject() projectstore.LifecycleConfig {
 	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
 }
 
-// lifecycleConfigurationFromAggregate 将项目聚合体转换为生命周期配置，补充默认的策略类型和审核状态，并收集 Compose 文件。
 // lifecycleConfigurationFromAggregate 从项目聚合体构建包含项目基本信息及标准生命周期配置的 LifecycleConfiguration。
 func lifecycleConfigurationFromAggregate(aggregate projectstore.ProjectAggregate) LifecycleConfiguration {
 	return LifecycleConfiguration{

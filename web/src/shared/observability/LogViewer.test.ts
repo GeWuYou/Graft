@@ -109,6 +109,7 @@ describe('LogViewer', () => {
 
     const line = wrapper.find('.log-viewer__line');
     expect(line.find('.log-viewer__stream-cell').text()).toContain('STDERR');
+    expect(line.find('.log-viewer__stream-pill').classes()).toContain('log-viewer__stream-pill--stderr');
     expect(line.text()).not.toContain('pricing_service.go:461');
   });
 
@@ -194,6 +195,9 @@ describe('LogViewer', () => {
 
     expect(wrapper.find('.log-viewer__summary-title').text()).toContain('ERROR');
     expect(wrapper.find('.log-viewer__summary-title').text()).toContain('STDERR');
+    expect(wrapper.find('.log-viewer__summary-title .log-viewer__stream-pill').classes()).toContain(
+      'log-viewer__stream-pill--stderr',
+    );
     expect(wrapper.find('.log-viewer__field-chips').text()).toContain('request_id=abc');
     expect(wrapper.find('.log-viewer__basic').text()).toContain('输出流');
     expect(wrapper.find('.log-viewer__basic').text()).toContain('STDERR');

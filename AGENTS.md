@@ -382,7 +382,10 @@ Prefer the repository skills below when their trigger matches the task:
   - use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
 - `graft-comment-governance`
   - use before closeout for every task that changes handwritten Go, TypeScript, or Vue code; it applies the canonical
-    Chinese comment-value rules and records the comment review without creating a second lint or documentation truth
+    Chinese comment-value rules, requires a scoped `graft-commit` result after accepted comment changes, and records the
+    comment review without creating a second lint or documentation truth
+  - comment governance does not authorize or create a second commit path; any comment-scoped commit must use a legal
+    root-level commit trigger and satisfy the root startup receipt, ownership, worktree, validation, and staging rules
 - `graft-ai-plan-governance`
   - use when changing `ai-plan/**` router documents, active-topic recovery materials, templates, catalog coverage, or
     bounded `ai-plan` validators; it keeps root `AGENTS.md` as startup truth and `ai-plan/AGENTS.md` as
@@ -890,6 +893,7 @@ Every delegation must specify:
 - any constraints about tests, diagnostics, or compatibility
 - for `graft-multi-agent-loop` rounds, the remaining budget, allowed scopes, and the required human-readable plus JSON
   closeout contract
+- the commit authority and expected scoped commit path for every write-capable subagent
 - whether authority escalation outside the local owned scope is allowed or expected
 
 Authority escalation override:

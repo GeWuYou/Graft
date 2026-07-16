@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import ProjectCreateSourceIndex from './source-index.vue';
+import sourceText from './source-index.vue?raw';
 
 const mocks = vi.hoisted(() => ({
   getProjectCreationMethods: vi.fn(),
@@ -23,6 +24,13 @@ vi.mock('@/shared/localized-api-error', () => ({
 }));
 
 describe('ProjectCreateSourceIndex', () => {
+  it('keeps creation card actions anchored to the bottom of equal-height cards', () => {
+    expect(sourceText).toContain('.project-creation-card :deep(.t-card__body)');
+    expect(sourceText).toContain('flex: 1;');
+    expect(sourceText).toContain('.project-creation-card__body :deep(.t-space-item:last-child)');
+    expect(sourceText).toContain('margin-top: auto;');
+  });
+
   it('returns to runtime target selection with the current query', async () => {
     mocks.getProjectCreationMethods.mockResolvedValue({ items: [] });
     const wrapper = mount(ProjectCreateSourceIndex, {

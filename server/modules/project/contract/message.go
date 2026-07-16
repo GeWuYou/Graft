@@ -129,8 +129,6 @@ const (
 	ProjectManagedCreateValidated MessageKey = "ops.project.create.validated"
 	// ProjectManagedCreateAccepted identifies an accepted managed-create response.
 	ProjectManagedCreateAccepted MessageKey = "ops.project.create.accepted"
-	// ProjectDeployCompleted identifies a successful managed configuration deploy response.
-	ProjectDeployCompleted MessageKey = "ops.project.deploy.completed"
 	// ProjectDiscoveryCandidatesReady identifies a successful discovery-candidate preview response.
 	ProjectDiscoveryCandidatesReady MessageKey = "ops.project.discovery.candidates.ready"
 	// ProjectDirectorySourcesReady identifies a successful import directory-source listing response.

@@ -203,18 +203,18 @@
                   ></span
                 ></t-tooltip
               >
-              <t-tooltip :content="workspaceCopy.deployAction" theme="light"
+              <t-tooltip :content="workspaceCopy.redeployAction" theme="light"
                 ><span
                   ><t-button
                     theme="primary"
                     variant="text"
                     shape="square"
                     size="small"
-                    :loading="deployLoading"
-                    @click="runProjectDeploy"
+                    :loading="redeployLoading"
+                    @click="runProjectRedeploy"
                     ><template #icon><cloud-upload-icon /></template
                     ><span class="project-configuration-workspace__sr-only">{{
-                      workspaceCopy.deployAction
+                      workspaceCopy.redeployAction
                     }}</span></t-button
                   ></span
                 ></t-tooltip
@@ -595,6 +595,11 @@
         }}
       </p>
     </t-dialog>
+    <task-detail-drawer
+      v-model:visible="taskDrawerVisible"
+      :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
+      :task-id="activeTaskId"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -614,10 +619,13 @@ import {
   RefreshIcon,
   SaveIcon,
 } from 'tdesign-icons-vue-next';
+import type { DialogInstance } from 'tdesign-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
+import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -630,7 +638,7 @@ import {
   getProjectConfiguration,
   getProjectFileContent,
   getProjectFiles,
-  postProjectDeploy,
+  postProjectRedeploy,
   postProjectWorkspaceEntry,
   postProjectWorkspaceRename,
   putProjectFileAnnotation,
@@ -659,6 +667,7 @@ import {
   projectDriftStatusTheme,
   projectRuntimeStatusLabel,
   projectRuntimeStatusTheme,
+  projectTaskTypeLabel,
 } from '../../shared/display';
 import { buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
@@ -678,7 +687,7 @@ defineOptions({
 
 type ResultDialogMode = 'diff' | 'syntax';
 type DialogResult = 'cancel' | 'continue-disk' | 'discard' | 'save' | 'save-and-continue';
-type PendingWorkspaceAction = 'deploy' | 'save-all' | 'save-current';
+type PendingWorkspaceAction = 'redeploy' | 'save-all' | 'save-current';
 type WorkspaceDialogButton = {
   label: string;
   result: DialogResult;
@@ -801,7 +810,10 @@ const syntaxValidationResult = ref<WorkspaceSyntaxValidationResult | null>(null)
 const syntaxValidationFiles = ref<WorkspaceSyntaxValidationResult[]>([]);
 const syntaxValidationSkippedPaths = ref<string[]>([]);
 const syntaxCheckLoading = ref(false);
-const deployLoading = ref(false);
+const redeployLoading = ref(false);
+const redeployConfirmOpen = ref(false);
+const activeTaskId = ref<number | null>(null);
+const taskDrawerVisible = ref(false);
 const saveConfirmLoading = ref(false);
 const selectedDiffFilePath = ref('');
 const selectedSyntaxFilePath = ref('');
@@ -939,7 +951,7 @@ const showDiffSidebar = computed(
 const showSyntaxSidebar = computed(
   () =>
     resultDialogMode.value === 'syntax' &&
-    (pendingWorkspaceAction.value === 'save-all' || pendingWorkspaceAction.value === 'deploy') &&
+    (pendingWorkspaceAction.value === 'save-all' || pendingWorkspaceAction.value === 'redeploy') &&
     syntaxValidationFiles.value.length > 0,
 );
 const batchSyntaxValidationDescription = computed(() => {
@@ -1024,8 +1036,8 @@ const resultDialogSummaryItems = computed(() => {
   return items;
 });
 const syntaxConfirmActionLabel = computed(() => {
-  if (pendingWorkspaceAction.value === 'deploy') {
-    return workspaceCopy.value.confirmSaveDeployWithErrorsAction;
+  if (pendingWorkspaceAction.value === 'redeploy') {
+    return workspaceCopy.value.confirmSaveRedeployWithErrorsAction;
   }
   if (pendingWorkspaceAction.value === 'save-all') {
     return workspaceCopy.value.confirmSaveAllWithErrorsAction;
@@ -1033,7 +1045,7 @@ const syntaxConfirmActionLabel = computed(() => {
   return workspaceCopy.value.confirmSaveWithErrorsAction;
 });
 const diffConfirmActionLabel = computed(() => {
-  if (pendingWorkspaceAction.value === 'deploy') {
+  if (pendingWorkspaceAction.value === 'redeploy') {
     return workspaceCopy.value.confirmSaveAllAction;
   }
   if (pendingWorkspaceAction.value === 'save-all') {
@@ -2060,8 +2072,8 @@ async function finalizePendingWorkspaceAction(action: PendingWorkspaceAction, pa
     return false;
   }
 
-  if (action === 'deploy') {
-    await executeProjectDeploy();
+  if (action === 'redeploy') {
+    await executeProjectRedeploy();
   }
 
   return true;
@@ -2444,27 +2456,66 @@ function logWorkspaceDiffDebug(event: string, detail: Record<string, unknown>) {
   logger.debug(`[ConfigurationWorkspaceDiff] ${formatProjectMonacoDebugMessage(event, detail)}`, detail);
 }
 
-async function runProjectDeploy() {
-  if (hasDirtyFiles.value) {
-    await previewBeforeSave('deploy');
+async function runProjectRedeploy() {
+  const confirmed = await confirmProjectRedeploy();
+  if (!confirmed) {
     return;
   }
 
-  await executeProjectDeploy();
+  if (hasDirtyFiles.value) {
+    await previewBeforeSave('redeploy');
+    return;
+  }
+
+  await executeProjectRedeploy();
 }
 
-async function executeProjectDeploy() {
-  deployLoading.value = true;
+function confirmProjectRedeploy() {
+  if (redeployConfirmOpen.value) {
+    return Promise.resolve(false);
+  }
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    redeployConfirmOpen.value = true;
+    const finish = (dialog: DialogInstance, confirmed: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      redeployConfirmOpen.value = false;
+      dialog.destroy();
+      resolve(confirmed);
+    };
+    const dialog = DialogPlugin.confirm({
+      body: t('project.list.actions.confirmRedeployDescription', {
+        name: detailRecord.value?.display_name || fallbackDisplayName.value || projectId.value,
+      }),
+      cancelBtn: t('project.list.actions.cancel'),
+      confirmBtn: { content: t('project.list.actions.confirm'), theme: 'danger' },
+      header: t('project.list.actions.confirmRedeployTitle'),
+      theme: 'danger',
+      onCancel: () => finish(dialog, false),
+      onClose: () => finish(dialog, false),
+      onConfirm: () => finish(dialog, true),
+    });
+  });
+}
+
+async function executeProjectRedeploy() {
+  redeployLoading.value = true;
   try {
-    const response = await postProjectDeploy(projectId.value);
-    MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
+    const receipt = await postProjectRedeploy(projectId.value);
+    activeTaskId.value = receipt.task_id;
+    taskDrawerVisible.value = true;
+    MessagePlugin.success(t('project.list.actions.taskAccepted'));
     diffResult.value = null;
     resultDialogVisible.value = false;
     await loadWorkspaceDirectory('', { root: true });
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   } finally {
-    deployLoading.value = false;
+    redeployLoading.value = false;
   }
 }
 

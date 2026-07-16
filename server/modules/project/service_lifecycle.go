@@ -457,8 +457,6 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 		return projectcontract.ProjectRedeployCompleted
 	case generated.ProjectActionResponseActionProjectActionDestroy:
 		return projectcontract.ProjectDestroyCompleted
-	case generated.ProjectActionResponseActionProjectActionDeploy:
-		return projectcontract.ProjectDeployCompleted
 	case generated.ProjectActionResponseActionProjectActionUnregister:
 		return projectcontract.ProjectUnregisterCompleted
 	default:

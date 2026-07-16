@@ -54,10 +54,13 @@ Batch instructions:
 - Stop when the main Agent judges context insufficient or this session has produced an auditable 20% progress increment.
 - Update topic tracking and trace files with batch transitions.
 - Run the smallest required validation before closeout.
-- Evaluate `$graft-commit` only after validation and only for confirmable owned scope.
+- After validation, require `$graft-commit` for actual comment changes when the worker has explicit commit authority;
+  otherwise the main Agent must run it after accepting the worker result. Use only confirmable owned files or hunks and
+  report ambiguous scope as blocked.
 
 Required closeout:
 
 - Include the `comment_governance` receipt.
-- State model usage evidence, changed scope, exemptions, risks, and validation.
+- State model usage evidence, changed scope, exemptions, risks, validation, and the commit status, scope, title, and
+  short SHA or blocked reason.
 - Use `Next-session startup prompt:` only for terminal states.

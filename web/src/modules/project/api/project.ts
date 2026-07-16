@@ -3,7 +3,6 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
-  buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
   buildProjectFilesAnnotationApiPath,
@@ -34,7 +33,6 @@ import type {
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectCreationMethodCatalogResponse,
-  ProjectDeployResponse,
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
   ProjectDiscoveryCandidatesResponse,
@@ -135,11 +133,6 @@ type ProjectTemplateCreateOperation = paths[ProjectTemplateCreatePath]['post'];
 type ProjectTemplateCreateData = NonNullable<
   ProjectTemplateCreateOperation['responses'][201]['content']['application/json']['data']
 >;
-type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
-type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
-type ProjectDeployData = NonNullable<ProjectDeployEnvelope['data']>;
-type ProjectDeployPathParams = ProjectDeployOperation['parameters']['path'];
-
 type ProjectUpOperation = paths[(typeof PROJECT_API_PATH)['UP']]['post'];
 type ProjectUpEnvelope = ProjectUpOperation['responses'][202]['content']['application/json'];
 type ProjectUpData = NonNullable<ProjectUpEnvelope['data']>;
@@ -356,10 +349,6 @@ function postProjectAction<T>(url: string, data?: unknown) {
     url,
     data,
   });
-}
-
-export function postProjectDeploy(id: ProjectDeployPathParams['id']) {
-  return postProjectAction<ProjectDeployData>(buildProjectDeployApiPath(id)) as Promise<ProjectDeployResponse>;
 }
 
 export function postProjectUp(id: ProjectUpPathParams['id']) {

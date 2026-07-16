@@ -62,7 +62,51 @@ Use non-overlapping roles for a large comment-governance batch:
 
 Respect the available concurrency limit. The main agent owns batch ordering, integration, validation, and final acceptance.
 
+## Commit Gate
+
+Comment governance never grants commit authority by itself. A write-capable comment worker's dispatch contract must
+state whether the worker may commit, but a scoped comment commit is permitted only when all of these preconditions hold:
+
+* the current turn has the `AGENTS.md` startup receipt, including the applicable task class and authority summary;
+* ownership is classified under the root Git workflow, and the exact files or hunks are separable from user, unknown,
+  unrelated, and other-worker changes;
+* the current worktree and branch state have been inspected, and the scope can be staged without broad staging or
+  crossing the worktree's ownership boundary; and
+* there is a legal repository commit trigger: the user explicitly requested a commit, or `graft-task-closeout`
+  decided that the validated owned scope should be committed.
+
+A comment review, worker dispatch, existing dirty worktree, or this skill's `Commit Gate` is not a commit trigger. When
+the preconditions hold, the worker must run `$graft-commit` after its comment review and required validation pass; a
+comment-only implementation is not complete merely because the source diff exists. `$graft-commit` remains subject to
+the root `AGENTS.md` ownership, validation, staging, and mixed-change refusal rules.
+
+Choose the commit scope using the normal `graft-commit` ownership rules:
+
+* If the worker can prove exact file or hunk ownership, create the scoped comment commit.
+* If the comment edits belong to the same owned task but cannot be separated from its implementation hunks, include them
+  in that task's scoped commit through `$graft-commit`.
+* If ownership or hunk separation is ambiguous, do not stage broadly or claim completion. Return a blocked commit result
+  for the main agent to resolve.
+
+When the worker cannot perform the commit because the orchestration layer did not grant authority, the main agent must
+invoke `$graft-commit` after accepting the worker result if ownership and validation are sufficient.
+
 ## Closeout
+
+`commit_status: not-needed` is valid only when no accepted handwritten Go, TypeScript, or Vue comment change exists in
+the reported scope, or when the scope contains only generated, third-party, migration, or build paths explicitly
+exempted by this skill. It must not be used to conceal a missing commit trigger, missing startup receipt, unresolved
+ownership/worktree ambiguity, missing validation, or a commit that the worker was expected to make. If an accepted
+comment change cannot be committed, use `commit_status: blocked` and include this structured field with both values:
+
+```text
+commit_blocked_reason:
+- reason: <concrete blocker>
+- missing_result: <specific commit, validation, ownership, or authorization result still required>
+```
+
+The `reason` and `missing_result` fields are mandatory for `blocked`; use `none` only for statuses where no blocker
+exists.
 
 Report:
 
@@ -73,7 +117,16 @@ comment_governance:
 - value_categories: why | constraint | business-rule | algorithm | external-behavior
 - exemptions: <generated/third-party/migration/build paths or none>
 - delegation_model: <verified model, main-agent takeover, or not-applicable>
+- commit_status: created | not-needed | blocked | pending-main-agent
+- commit_blocked_reason:
+  - reason: <concrete blocker or none>
+  - missing_result: <specific missing result or none>
+- commit_scope: <paths or hunks, or none>
+- commit_title: <title or none>
+- commit_sha: <short SHA or none>
 - validation: <commands and results>
 ```
 
-Do not claim that formatting, lint, or a comment-presence check proves comment quality. Review the changed comments against the final implementation.
+Do not claim that formatting, lint, or a comment-presence check proves comment quality. Review the changed comments
+against the final implementation. A changed comment scope must not be reported as complete while its required commit
+result is missing or unexplained.

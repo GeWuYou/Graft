@@ -6,7 +6,7 @@ const enUSMessages = {
   'project.list.status.runtimeDegraded': '🟡 Degraded',
   'project.list.status.runtimeRunning': '🟢 Running',
   'project.list.status.runtimeStopped': '⚫ Stopped',
-  'project.list.status.runtimeTransitioning': '🔵 Transitioning',
+  'project.list.status.runtimeTransitioning': '🟠 Transitioning',
   'project.list.status.runtimeUnknown': '⚪ Unknown',
 } as const;
 
@@ -14,7 +14,7 @@ const zhCNMessages = {
   'project.list.status.runtimeDegraded': '🟡 降级',
   'project.list.status.runtimeRunning': '🟢 运行中',
   'project.list.status.runtimeStopped': '⚫ 已停止',
-  'project.list.status.runtimeTransitioning': '🔵 过渡中',
+  'project.list.status.runtimeTransitioning': '🟠 过渡中',
   'project.list.status.runtimeUnknown': '⚪ 未知',
 } as const;
 
@@ -30,13 +30,13 @@ describe('project display helpers', () => {
     expect(projectRuntimeStatusLabel(enUSTranslator, 'running')).toBe('🟢 Running');
     expect(projectRuntimeStatusLabel(enUSTranslator, 'degraded')).toBe('🟡 Degraded');
     expect(projectRuntimeStatusLabel(enUSTranslator, 'stopped')).toBe('⚫ Stopped');
-    expect(projectRuntimeStatusLabel(enUSTranslator, 'transitioning')).toBe('🔵 Transitioning');
+    expect(projectRuntimeStatusLabel(enUSTranslator, 'transitioning')).toBe('🟠 Transitioning');
     expect(projectRuntimeStatusLabel(enUSTranslator, 'unknown')).toBe('⚪ Unknown');
 
     expect(projectRuntimeStatusLabel(zhCNTranslator, 'running')).toBe('🟢 运行中');
     expect(projectRuntimeStatusLabel(zhCNTranslator, 'degraded')).toBe('🟡 降级');
     expect(projectRuntimeStatusLabel(zhCNTranslator, 'stopped')).toBe('⚫ 已停止');
-    expect(projectRuntimeStatusLabel(zhCNTranslator, 'transitioning')).toBe('🔵 过渡中');
+    expect(projectRuntimeStatusLabel(zhCNTranslator, 'transitioning')).toBe('🟠 过渡中');
     expect(projectRuntimeStatusLabel(zhCNTranslator)).toBe('⚪ 未知');
   });
 

@@ -90,11 +90,11 @@
         "confirmSaveAllAction": "Confirm",
         "confirmSaveAllWithErrorsAction": "Save All Anyway",
         "confirmSaveCurrentAction": "Confirm",
-        "confirmSaveDeployWithErrorsAction": "Save and Deploy Anyway",
+        "confirmSaveRedeployWithErrorsAction": "Save and Redeploy Anyway",
         "confirmSaveAction": "Confirm",
         "confirmSaveWithErrorsAction": "Save Anyway",
         "continueWithDiskAction": "Continue with Disk Version",
-        "deployAction": "Deploy Project",
+        "redeployAction": "Redeploy Project",
         "diffConfirmBody": "Review the changed files below. Changes will be written to the working directory only after you confirm.",
         "diffCurrentFileConfirmBody": "Review the current file diff below. Changes will be written only after you confirm.",
         "diffCurrentFileTitle": "Current File Diff",
@@ -268,7 +268,7 @@
         "runtimeRunning": "🟢 Running",
         "runtimeDegraded": "🟡 Degraded",
         "runtimeStopped": "⚫ Stopped",
-        "runtimeTransitioning": "🔵 Transitioning"
+        "runtimeTransitioning": "🟠 Transitioning"
       },
       "statusTooltip": {
         "lifecycleReviewRequired": "Lifecycle configuration is not confirmed yet. Open project details to complete the review.",
@@ -709,8 +709,7 @@
         "reset": "Reset Form",
         "back": "Back",
         "backToSource": "Back to Application Source",
-        "continue": "Continue",
-        "review": "Review",
+        "next": "Next",
         "confirm": "Confirm",
         "cancel": "Cancel"
       },
@@ -831,7 +830,10 @@
         "description": "Confirm the Compose lifecycle configuration owned by the project after creation.",
         "authorityHint": "Create saves lifecycle configuration only; it does not deploy or start containers.",
         "configurationTitle": "Lifecycle Configuration",
-        "commandPreviewTitle": "Command Preview"
+        "commandPreviewTitle": "Command Preview",
+        "defaultsLoadFailed": "Failed to load lifecycle defaults.",
+        "configured": "Default lifecycle configuration confirmed",
+        "configuredWithAdditionalArgs": "Lifecycle configuration confirmed with additional startup arguments"
       },
       "review": {
         "title": "Review Creation",

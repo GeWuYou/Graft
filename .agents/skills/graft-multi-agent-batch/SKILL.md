@@ -69,6 +69,7 @@ Use this skill only when all of the following are true:
    - areas it must not touch
    - required validation
    - expected output format
+   - commit authority and expected commit path for write-capable slices
    - verified worker model configuration when an override is required
    - when using the orchestration API, pass `fork_context=false` with explicit `model` and
      `reasoning_effort` overrides; `fork_context=true` inherits the parent model and reasoning effort and must not
@@ -80,8 +81,9 @@ Use this skill only when all of the following are true:
    - do not close, replace, or locally take over the worker only because the main worktree still shows no diff and the
      worker has not emitted final closeout yet
    - after required validation passes, let the owning worker evaluate and perform a scoped `graft-commit` when commit
-     authority is explicit and ownership is provable; stage only exact owned files and exclude topic, skill,
-     other-worker, and unknown changes
+     authority is explicit and ownership is provable; comment-governance workers must follow the comment skill's commit
+     gate and return commit evidence or an explicit blocked result
+   - stage only explicitly owned files or hunks, including a declared worker-owned `SKILL.md` when applicable; exclude unrelated topic changes, unrelated skill changes, other-worker changes, and unknown changes
 9. While subagents run, do only non-overlapping work locally:
    - review returned slices
    - prepare follow-up validation
