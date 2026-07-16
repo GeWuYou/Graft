@@ -43,6 +43,7 @@ export function useServerStatusSnapshot() {
   let refreshTickTimer: number | null = null;
 
   async function refreshSnapshot() {
+    // 先停止倒计时，避免手动刷新或重试与上一轮定时器并发发起请求。
     stopRefreshTick();
 
     if (loading.value) {
@@ -177,6 +178,7 @@ export function useServerStatusSnapshot() {
       return;
     }
 
+    // 服务端连续失败时扩大下一次间隔，并限制上限，避免故障期间形成请求风暴。
     const backoffMultiplier = consecutiveFailures.value > 0 ? 2 ** consecutiveFailures.value : 1;
     const delaySeconds = Math.min(selectedRefreshInterval.value * backoffMultiplier, 5 * 60);
     nextRefreshAt = Date.now() + delaySeconds * 1000;

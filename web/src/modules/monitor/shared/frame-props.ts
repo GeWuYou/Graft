@@ -64,9 +64,9 @@ type MonitorStatusFrameSharedState = Pick<
 type MonitorStatusFrameCommonLabels = Pick<MonitorStatusPageFrameProps, 'errorTitle'>;
 
 /**
- * Builds complete monitor status frame props from separate page, state, and label property groups.
+ * 将页面文案、快照状态和公共标签组合为完整的监控状态页框架属性。
  *
- * @returns A `MonitorStatusPageFrameProps` object with all combined properties.
+ * @returns 合并后的 `MonitorStatusPageFrameProps`
  */
 function buildMonitorStatusFrameBaseProps(args: {
   page: MonitorStatusFramePageCopy;
@@ -94,9 +94,9 @@ type MonitorStatusFrameSharedRefs = {
 type MonitorTranslate = (key: string) => string;
 
 /**
- * Builds monitor status frame properties from page copy, state snapshot, and default translations.
+ * 将页面文案和状态快照组合为监控状态页框架属性，并补齐公共空态与错误文案。
  *
- * @returns A fully populated `MonitorStatusPageFrameProps` object.
+ * @returns 已填充完整的 `MonitorStatusPageFrameProps`
  */
 export function buildStandardMonitorStatusFrameProps(args: {
   t: MonitorTranslate;

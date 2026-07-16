@@ -137,10 +137,10 @@ export const getDockerSystem = () =>
   request.get<DockerSystemData>({ url: CONTAINER_API_PATH.DOCKER_SYSTEM }) as Promise<DockerSystemData>;
 
 /**
- * Retrieves a list of containers.
+ * 获取容器列表。
  *
- * @param query - Optional query parameters for filtering and pagination
- * @returns A Promise that resolves to the container list response data
+ * @param query - 用于筛选、分页和编排来源定位的可选查询条件
+ * @returns 容器列表响应数据
  */
 export function getContainers(query?: ContainerListQueryWithOrchestrator) {
   return request.get<GetContainersData>({
@@ -188,9 +188,10 @@ export function getContainerEvents(containerId: ContainerRuntimeEventsPathParams
 }
 
 /**
- * Retrieves mount usage information for a container.
+ * 获取容器挂载的使用量信息。
  *
- * @returns A list of mount usage data for the container.
+ * @param containerId - 容器 ID
+ * @returns 容器挂载使用量列表
  */
 export function getContainerMountUsage(containerId: ContainerMountUsagePathParams['id']) {
   return request.get<GetContainerMountUsageData>({
@@ -199,11 +200,11 @@ export function getContainerMountUsage(containerId: ContainerMountUsagePathParam
 }
 
 /**
- * Refreshes the mount usage data for a specific container mount.
+ * 刷新指定容器挂载的使用量信息。
  *
- * @param containerId - The container ID
- * @param mountId - The mount ID
- * @returns The refreshed mount usage information
+ * @param containerId - 容器 ID
+ * @param mountId - 挂载 ID
+ * @returns 刷新后的挂载使用量信息
  */
 export function postContainerMountUsageRefresh(
   containerId: ContainerMountUsageRefreshPathParams['id'],
@@ -215,11 +216,11 @@ export function postContainerMountUsageRefresh(
 }
 
 /**
- * Creates a shell session for the specified container.
+ * 为指定容器创建终端会话。
  *
- * @param containerId - The ID of the container
- * @param body - The shell session request parameters
- * @returns The created shell session response
+ * @param containerId - 容器 ID
+ * @param body - 终端会话请求参数
+ * @returns 创建后的终端会话响应
  */
 export function postContainerShellSession(
   containerId: PostContainerShellSessionPathParams['id'],
@@ -232,9 +233,10 @@ export function postContainerShellSession(
 }
 
 /**
- * Starts a container.
+ * 启动容器。
  *
- * @returns The action response.
+ * @param containerId - 容器 ID
+ * @returns 容器操作响应
  */
 export function startContainer(containerId: PostContainerStartPathParams['id']) {
   return request.post<PostContainerStartData>({

@@ -97,7 +97,7 @@ vi.mock('@/shared/components/terminal/WebTerminal.vue', () => ({
             try {
               await connect();
             } catch {
-              // ContainerShellPanel maps connector errors into UI state.
+              // ContainerShellPanel 会把终端连接器错误转换为页面可消费的状态。
             }
             return;
           }

@@ -56,31 +56,31 @@ export function buildContainerEventsApiPath(containerId: string) {
 }
 
 /**
- * Builds the API path for accessing container shell sessions.
+ * 构建容器终端会话接口路径。
  *
- * @param containerId - The container identifier
- * @returns The container shell sessions API path
+ * @param containerId - 容器标识
+ * @returns 容器终端会话接口路径
  */
 export function buildContainerShellSessionsApiPath(containerId: string) {
   return CONTAINER_API_PATH.SHELL_SESSIONS.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 /**
- * Constructs the API path for retrieving mount usage information for a container.
+ * 构建查询容器挂载使用量的接口路径。
  *
- * @param containerId - The container identifier
- * @returns The API path for querying container mount usage
+ * @param containerId - 容器标识
+ * @returns 查询容器挂载使用量的接口路径
  */
 export function buildContainerMountUsageApiPath(containerId: string) {
   return CONTAINER_API_PATH.MOUNTS_USAGE.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 /**
- * Generates an API path for refreshing a container mount's usage.
+ * 构建刷新容器挂载使用量的接口路径，并对容器和挂载标识进行编码。
  *
- * @param containerId - The container's identifier
- * @param mountId - The mount's identifier
- * @returns The API path for mount usage refresh with the container and mount IDs properly encoded
+ * @param containerId - 容器标识
+ * @param mountId - 挂载标识
+ * @returns 刷新挂载使用量的接口路径
  */
 export function buildContainerMountUsageRefreshApiPath(containerId: string, mountId: string) {
   return CONTAINER_API_PATH.MOUNT_USAGE_REFRESH.replace('{id}', encodeContainerPathParam(containerId)).replace(
@@ -90,9 +90,10 @@ export function buildContainerMountUsageRefreshApiPath(containerId: string, moun
 }
 
 /**
- * Builds the API path for starting a container.
+ * 构建启动容器的接口路径。
  *
- * @returns The API path for starting the container
+ * @param containerId - 容器标识
+ * @returns 启动容器的接口路径
  */
 export function buildContainerStartApiPath(containerId: string) {
   return CONTAINER_API_PATH.START.replace('{id}', encodeContainerPathParam(containerId));
