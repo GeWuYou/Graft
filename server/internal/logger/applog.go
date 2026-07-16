@@ -221,6 +221,9 @@ func (l appLogger) Zap() *zap.Logger {
 }
 
 func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) {
+	if !isRegisteredCategory(l.effectiveCategory()) {
+		return
+	}
 	if !appLogCategoryEnabled(l.base.Core(), l.effectiveCategory(), zapLevelForAppLogSeverity(severity)) {
 		return
 	}

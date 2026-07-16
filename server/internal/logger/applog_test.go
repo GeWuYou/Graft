@@ -260,6 +260,21 @@ func TestAppLoggerDisabledCategorySkipsPersistence(t *testing.T) {
 	}
 }
 
+func TestAppLoggerUnregisteredCategorySkipsOutputAndPersistence(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	sink := newAppLoggerSinkRecorder()
+	logger := NewAppLogger(zap.New(core), WithAppLogRepository(sink)).Category(LogCategory("runtime.unknown"))
+
+	logger.Info(context.Background(), "unknown category event")
+	time.Sleep(25 * time.Millisecond)
+	if sink.recordCount() != 0 {
+		t.Fatalf("expected unregistered category to skip durable persistence, got %d records", sink.recordCount())
+	}
+	if len(observed.All()) != 0 {
+		t.Fatalf("expected unregistered category to skip zap output, got %d entries", len(observed.All()))
+	}
+}
+
 func TestAppLoggerDefaultCategoryIsGatedBeforeWriting(t *testing.T) {
 	core, observed := observer.New(zapcore.DebugLevel)
 	disabledCore := logsafe.WrapCore(wrapCategoryCore(CategoryRules{CategoryApplication: false})(core))

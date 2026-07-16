@@ -1,8 +1,8 @@
 ALTER TABLE "app_logs"
-ADD COLUMN "category" varchar(64) NOT NULL DEFAULT 'runtime.stats';
+ADD COLUMN "category" varchar(64) NOT NULL DEFAULT 'application';
 
 UPDATE "app_logs"
-SET "category" = 'runtime.stats'
+SET "category" = 'application'
 WHERE "category" IS NULL OR "category" = '';
 
 -- 类别筛选按发生时间倒序分页，并以主键保持相同时间记录的稳定顺序。

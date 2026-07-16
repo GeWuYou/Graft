@@ -59,9 +59,8 @@ registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output di
 构造字段；其它昂贵计算仍必须由调用者先以 `Enabled(level)` 显式保护。
 
 `AppLogger` 默认绑定 `CategoryApplication`，将低频普通应用事件与 `runtime.stats` 高频诊断分开。默认和显式类别都会在
-消息清洗、字段构建、Zap 输出及 durable queue 之前经过同一 category gate。Batch 3 的错误 `runtime.stats` 默认由
-`202607160002_app_log_application_category.sql` 前向修正为 `application`；该有界兼容假设把 Batch 3 写入的值视作旧默认，
-不重分类有独立可验证来源的未来 runtime statistics 记录。
+消息清洗、字段构建、Zap 输出及 durable queue 之前经过同一 category gate。类别列从首次迁移起默认使用 `application`，后续
+迁移只修正默认值，不重分类已经明确写入的 `runtime.stats` 记录，避免丢失类别来源。
 
 ## AppLogger 采用规则
 

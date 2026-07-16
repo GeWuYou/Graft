@@ -61,6 +61,23 @@ class CategoryCallTests(unittest.TestCase):
         )
         self.assertEqual(findings, [])
 
+    def test_similar_qualified_names_are_not_governed_calls(self) -> None:
+        findings = MODULE.scan_source(
+            Path("server/modules/user/service.go"),
+            'logger.CategoryFactory(base, "runtime.cache")\nmylogger.Category(base, "runtime.cache")\n',
+        )
+        self.assertEqual(findings, [])
+
+    def test_string_constant_category_is_rejected(self) -> None:
+        findings = MODULE.scan_source(
+            Path("server/modules/user/service.go"),
+            'const invalidCategory = "runtime.unknown"\nlogger.Category(base, invalidCategory)\n',
+        )
+        self.assertEqual(
+            [(finding.path, finding.line) for finding in findings],
+            [(Path("server/modules/user/service.go"), 2)],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

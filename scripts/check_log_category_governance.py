@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import sys
 
 
@@ -108,14 +109,34 @@ def find_qualified_call(source: str, marker: str, start: int) -> int | None:
             quote = char
             index += 1
             continue
-        if source.startswith(marker, index):
+        if source.startswith(marker, index) and _has_exact_marker_boundary(source, index, marker):
             return index
         index += 1
     return None
 
 
+def _is_identifier_char(char: str) -> bool:
+    return char.isalnum() or char == "_"
+
+
+def _has_exact_marker_boundary(source: str, index: int, marker: str) -> bool:
+    if index > 0 and (_is_identifier_char(source[index - 1]) or source[index - 1] == "."):
+        return False
+    end = index + len(marker)
+    return end >= len(source) or not _is_identifier_char(source[end])
+
+
+def find_string_constants(source: str) -> set[str]:
+    pattern = re.compile(
+        r"\bconst\s+(?:\(\s*)?([A-Za-z_]\w*)\s+(?:[A-Za-z_]\w*\s+)?="
+        r"\s*(?:\"(?:\\.|[^\"\\])*\"|`[^`]*`)",
+    )
+    return {match.group(1) for match in pattern.finditer(source)}
+
+
 def scan_literal_argument_calls(path: Path, source: str, marker: str, argument_index: int) -> list[Finding]:
     findings: list[Finding] = []
+    string_constants = find_string_constants(source)
     start = 0
     while (marker_index := find_qualified_call(source, marker, start)) is not None:
         open_index = marker_index + len(marker)
@@ -129,8 +150,12 @@ def scan_literal_argument_calls(path: Path, source: str, marker: str, argument_i
             start = open_index + 1
             continue
         arguments = split_call_arguments(source[open_index + 1 : close_index])
-        if len(arguments) > argument_index and arguments[argument_index].lstrip().startswith(('"', '`')):
-            findings.append(Finding(path, source.count("\n", 0, marker_index) + 1))
+        if len(arguments) > argument_index:
+            argument = arguments[argument_index].lstrip()
+            is_literal = argument.startswith(('"', '`'))
+            is_string_constant = re.fullmatch(r"[A-Za-z_]\w*", argument) and argument in string_constants
+            if is_literal or is_string_constant:
+                findings.append(Finding(path, source.count("\n", 0, marker_index) + 1))
         start = close_index + 1
     return findings
 

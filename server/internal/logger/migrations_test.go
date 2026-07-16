@@ -13,10 +13,10 @@ func TestAppLogApplicationCategoryCorrectionMigration(t *testing.T) {
 	}
 
 	contents := string(sql)
-	if !strings.Contains(contents, `SET "category" = 'application'`) || !strings.Contains(contents, `WHERE "category" = 'runtime.stats'`) {
-		t.Fatalf("expected Batch 3 category correction, got %q", contents)
-	}
 	if !strings.Contains(contents, `ALTER COLUMN "category" SET DEFAULT 'application'`) {
 		t.Fatalf("expected application column default correction, got %q", contents)
+	}
+	if strings.Contains(contents, `SET "category" = 'application'`) {
+		t.Fatalf("correction migration must not reclassify explicit categories, got %q", contents)
 	}
 }
