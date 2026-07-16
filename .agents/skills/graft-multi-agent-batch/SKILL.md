@@ -83,7 +83,7 @@ Use this skill only when all of the following are true:
    - after required validation passes, let the owning worker evaluate and perform a scoped `graft-commit` when commit
      authority is explicit and ownership is provable; comment-governance workers must follow the comment skill's commit
      gate and return commit evidence or an explicit blocked result
-   - stage only exact owned files or hunks and exclude topic, skill, other-worker, and unknown changes
+   - stage only explicitly owned files or hunks, including a declared worker-owned `SKILL.md` when applicable; exclude unrelated topic changes, unrelated skill changes, other-worker changes, and unknown changes
 9. While subagents run, do only non-overlapping work locally:
    - review returned slices
    - prepare follow-up validation
