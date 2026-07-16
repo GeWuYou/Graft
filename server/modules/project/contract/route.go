@@ -85,8 +85,6 @@ const (
 	ProjectDestroyRoute = "/:id/destroy"
 	// ProjectBatchActionsRoute 标识批量动作接口的路径片段。
 	ProjectBatchActionsRoute = "/batch-actions"
-	// ProjectDeployRoute 标识受管配置部署接口的路径片段。
-	ProjectDeployRoute = "/:id/deploy"
 	// ProjectMenuRootPath 标识运维页面的 Web 菜单根路径。
 	ProjectMenuRootPath = "/applications/projects"
 	// ProjectMenuPath 标识 Compose 项目管理的规范 Web 菜单路径。

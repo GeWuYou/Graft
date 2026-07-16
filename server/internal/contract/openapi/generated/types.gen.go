@@ -1965,7 +1965,6 @@ func (e NotificationTargetType) Valid() bool {
 // Defines values for ProjectActionResponseAction.
 const (
 	ProjectActionResponseActionProjectActionCreate     ProjectActionResponseAction = "create"
-	ProjectActionResponseActionProjectActionDeploy     ProjectActionResponseAction = "deploy"
 	ProjectActionResponseActionProjectActionDestroy    ProjectActionResponseAction = "destroy"
 	ProjectActionResponseActionProjectActionRedeploy   ProjectActionResponseAction = "redeploy"
 	ProjectActionResponseActionProjectActionRefresh    ProjectActionResponseAction = "refresh"
@@ -1979,8 +1978,6 @@ const (
 func (e ProjectActionResponseAction) Valid() bool {
 	switch e {
 	case ProjectActionResponseActionProjectActionCreate:
-		return true
-	case ProjectActionResponseActionProjectActionDeploy:
 		return true
 	case ProjectActionResponseActionProjectActionDestroy:
 		return true
@@ -2064,7 +2061,6 @@ func (e ProjectApplicationNameAvailabilityResponseStatus) Valid() bool {
 // Defines values for ProjectBatchActionItemAction.
 const (
 	ProjectBatchActionItemActionProjectActionCreate     ProjectBatchActionItemAction = "create"
-	ProjectBatchActionItemActionProjectActionDeploy     ProjectBatchActionItemAction = "deploy"
 	ProjectBatchActionItemActionProjectActionDestroy    ProjectBatchActionItemAction = "destroy"
 	ProjectBatchActionItemActionProjectActionRedeploy   ProjectBatchActionItemAction = "redeploy"
 	ProjectBatchActionItemActionProjectActionRefresh    ProjectBatchActionItemAction = "refresh"
@@ -2078,8 +2074,6 @@ const (
 func (e ProjectBatchActionItemAction) Valid() bool {
 	switch e {
 	case ProjectBatchActionItemActionProjectActionCreate:
-		return true
-	case ProjectBatchActionItemActionProjectActionDeploy:
 		return true
 	case ProjectBatchActionItemActionProjectActionDestroy:
 		return true
@@ -2265,36 +2259,6 @@ func (e ProjectCreationMethodType) Valid() bool {
 	case ProjectCreationMethodTypeImport:
 		return true
 	case ProjectCreationMethodTypeTemplate:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDeployResponseAction.
-const (
-	ProjectDeployResponseActionDeploy ProjectDeployResponseAction = "deploy"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDeployResponseAction enum.
-func (e ProjectDeployResponseAction) Valid() bool {
-	switch e {
-	case ProjectDeployResponseActionDeploy:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDeployResponseResult.
-const (
-	ProjectDeployResponseResultCompleted ProjectDeployResponseResult = "completed"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDeployResponseResult enum.
-func (e ProjectDeployResponseResult) Valid() bool {
-	switch e {
-	case ProjectDeployResponseResultCompleted:
 		return true
 	default:
 		return false
@@ -7252,26 +7216,6 @@ type EnvelopedProjectCreationMethodCatalogResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedProjectDeployResponse defines model for enveloped-project-deploy-response.
-type EnvelopedProjectDeployResponse struct {
-	// Code Existing canonical response code.
-	Code string                `json:"code"`
-	Data ProjectDeployResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedProjectDetailResponse defines model for enveloped-project-detail-response.
 type EnvelopedProjectDetailResponse struct {
 	// Code Existing canonical response code.
@@ -8795,27 +8739,6 @@ type ProjectCreationMethodCatalogResponse struct {
 // ProjectCreationMethodType defines model for project-creation-method-type.
 type ProjectCreationMethodType string
 
-// ProjectDeployResponse defines model for project-deploy-response.
-type ProjectDeployResponse struct {
-	Action               ProjectDeployResponseAction `json:"action"`
-	CanonicalProjectName string                      `json:"canonical_project_name"`
-	ConfigHash           string                      `json:"config_hash"`
-	DeclaredServiceCount *int                        `json:"declared_service_count,omitempty"`
-	GuardResults         *[]ProjectGuardResult       `json:"guard_results,omitempty"`
-	Message              *string                     `json:"message,omitempty"`
-	MessageKey           *string                     `json:"message_key,omitempty"`
-	OwnershipMode        ProjectOwnershipMode        `json:"ownership_mode"`
-	ProjectId            int64                       `json:"project_id"`
-	RefreshedAt          time.Time                   `json:"refreshed_at"`
-	Result               ProjectDeployResponseResult `json:"result"`
-}
-
-// ProjectDeployResponseAction defines model for ProjectDeployResponse.Action.
-type ProjectDeployResponseAction string
-
-// ProjectDeployResponseResult defines model for ProjectDeployResponse.Result.
-type ProjectDeployResponseResult string
-
 // ProjectDestroyRequest defines model for project-destroy-request.
 type ProjectDestroyRequest struct {
 	AutoUnregister       *bool  `json:"auto_unregister,omitempty"`
@@ -9633,9 +9556,10 @@ type ProjectTemplateCreateRequest struct {
 
 // ProjectWorkspaceDefaultsResponse defines model for project-workspace-defaults-response.
 type ProjectWorkspaceDefaultsResponse struct {
-	ComposeFilePath    string `json:"compose_file_path"`
-	DefaultTemplateKey string `json:"default_template_key"`
-	Templates          []struct {
+	ComposeFilePath        string                               `json:"compose_file_path"`
+	DefaultTemplateKey     string                               `json:"default_template_key"`
+	LifecycleConfiguration ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+	Templates              []struct {
 		DisplayName string `json:"display_name"`
 		Key         string `json:"key"`
 	} `json:"templates"`
@@ -12275,16 +12199,6 @@ type GetProjectConfigurationParams struct {
 
 // GetProjectConfigurationPreviewParams defines parameters for GetProjectConfigurationPreview.
 type GetProjectConfigurationPreviewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectDeployParams defines parameters for PostProjectDeploy.
-type PostProjectDeployParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

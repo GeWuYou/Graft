@@ -318,21 +318,6 @@ type LifecycleConfiguration struct {
 	Standard     LifecycleStandardConfig
 }
 
-// DeployResult 返回有界的受管部署结果。
-type DeployResult struct {
-	ProjectID            uint64
-	Action               string
-	Result               string
-	CanonicalProjectName string
-	OwnershipMode        string
-	ConfigHash           string
-	RefreshedAt          time.Time
-	DeclaredServiceCount int
-	MessageKey           *string
-	Message              *string
-	GuardResults         []GuardResult
-}
-
 // ActionResult 返回第一阶段有界动作状态。
 type ActionResult struct {
 	ProjectID    uint64

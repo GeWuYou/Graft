@@ -30,7 +30,7 @@
               /></t-form-item>
             </div>
             <div class="project-create-page__actions">
-              <t-button theme="primary" type="submit">{{ t('project.create.actions.continue') }}</t-button>
+              <t-button theme="primary" type="submit">{{ t('project.create.actions.next') }}</t-button>
             </div></t-form
           >
         </section>
@@ -38,7 +38,7 @@
           <project-create-workspace-editor v-model:files="workspaceFiles" />
           <div class="project-create-page__actions">
             <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" @click="nextFromWorkspace">{{ t('project.create.actions.review') }}</t-button>
+            ><t-button theme="primary" @click="nextFromWorkspace">{{ t('project.create.actions.next') }}</t-button>
           </div>
         </section>
         <section v-else-if="step === 2">
@@ -51,7 +51,7 @@
             :configuration-title="t('project.create.lifecycle.configurationTitle')"
             :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
             :back-label="t('project.create.actions.back')"
-            :continue-label="t('project.create.actions.review')"
+            :continue-label="t('project.create.actions.next')"
             @back="step--"
             @continue="nextFromLifecycle"
           />

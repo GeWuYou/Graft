@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   getProjectFileContent: vi.fn(),
   getProjectFiles: vi.fn(),
   info: vi.fn(),
-  postProjectDeploy: vi.fn(),
+  postProjectRedeploy: vi.fn(),
   postProjectWorkspaceEntry: vi.fn(),
   postProjectWorkspaceRename: vi.fn(),
   putProjectFileAnnotation: vi.fn(),
@@ -70,11 +70,11 @@ const workspaceCopyMessages = {
       'These files still have syntax errors. Saving them may leave the project in a state that later validation or deploy cannot parse correctly.',
     'project.configurationWorkspace.copy.batchFileValidationRiskTitle': 'Save Files with Syntax Errors',
     'project.configurationWorkspace.copy.batchFileValidationTitle': 'File Validation Errors',
-    'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
+    'project.configurationWorkspace.copy.redeployAction': 'Redeploy Project',
     'project.configurationWorkspace.copy.confirmSaveAllAction': 'Confirm Save All',
     'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction': 'Save All Anyway',
     'project.configurationWorkspace.copy.confirmSaveCurrentAction': 'Confirm Save',
-    'project.configurationWorkspace.copy.confirmSaveDeployWithErrorsAction': 'Save and Deploy Anyway',
+    'project.configurationWorkspace.copy.confirmSaveRedeployWithErrorsAction': 'Save and Redeploy Anyway',
     'project.configurationWorkspace.copy.confirmSaveAction': 'Confirm Save',
     'project.configurationWorkspace.copy.confirmSaveWithErrorsAction': 'Save Anyway',
     'project.configurationWorkspace.copy.diffCurrentFileConfirmBody':
@@ -119,10 +119,10 @@ const workspaceCopyMessages = {
     'project.configurationWorkspace.copy.confirmSaveAllAction': '确认保存全部',
     'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction': '仍然保存全部',
     'project.configurationWorkspace.copy.confirmSaveCurrentAction': '确认保存',
-    'project.configurationWorkspace.copy.confirmSaveDeployWithErrorsAction': '仍然保存并部署',
+    'project.configurationWorkspace.copy.confirmSaveRedeployWithErrorsAction': '仍然保存并重新部署',
     'project.configurationWorkspace.copy.confirmSaveAction': '确认保存',
     'project.configurationWorkspace.copy.confirmSaveWithErrorsAction': '仍然保存',
-    'project.configurationWorkspace.copy.deployAction': '部署项目',
+    'project.configurationWorkspace.copy.redeployAction': '重新部署项目',
     'project.configurationWorkspace.copy.diffCurrentFileConfirmBody':
       '请先确认当前文件差异。只有在你确认后，修改才会写入工作目录。',
     'project.configurationWorkspace.copy.diffCurrentFileTitle': '当前文件差异',
@@ -168,7 +168,7 @@ vi.mock('../../api/project', () => ({
   getProjectConfiguration: mocks.getProjectConfiguration,
   getProjectFileContent: mocks.getProjectFileContent,
   getProjectFiles: mocks.getProjectFiles,
-  postProjectDeploy: mocks.postProjectDeploy,
+  postProjectRedeploy: mocks.postProjectRedeploy,
   postProjectWorkspaceEntry: mocks.postProjectWorkspaceEntry,
   postProjectWorkspaceRename: mocks.postProjectWorkspaceRename,
   putProjectFileAnnotation: mocks.putProjectFileAnnotation,
@@ -183,6 +183,32 @@ vi.mock('../../shared/page-context', () => ({
       workspaceCopyMessages[pageContextState.locale as keyof typeof workspaceCopyMessages]?.[
         key as keyof (typeof workspaceCopyMessages)[keyof typeof workspaceCopyMessages]
       ] ?? mocks.t(key),
+  }),
+}));
+
+const dialogMocks = vi.hoisted(() => ({
+  confirm: vi.fn(),
+}));
+
+vi.mock('tdesign-vue-next/es/dialog', () => ({
+  DialogPlugin: {
+    confirm: (options: unknown) => {
+      dialogMocks.confirm(options);
+      return { destroy: vi.fn() };
+    },
+  },
+}));
+
+vi.mock('@/modules/task/contract/task-ui', () => ({
+  TaskDetailDrawer: defineComponent({
+    name: 'TaskDetailDrawerStub',
+    props: {
+      taskId: { type: Number, default: null },
+      visible: { type: Boolean, default: false },
+    },
+    setup(props) {
+      return () => h('div', { 'data-task-id': String(props.taskId ?? ''), 'data-visible': String(props.visible) });
+    },
   }),
 }));
 
@@ -828,8 +854,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       tooltip: 'Existing note',
       tooltip_source: 'project-note',
     });
-    mocks.postProjectDeploy.mockResolvedValue({
-      message: 'deployed',
+    mocks.postProjectRedeploy.mockResolvedValue({
+      task_id: 42,
     });
     mocks.postProjectWorkspaceEntry.mockResolvedValue({ path: 'notes.txt' });
     mocks.postProjectWorkspaceRename.mockResolvedValue({ path: 'renamed.txt' });
@@ -1841,10 +1867,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
-    expect(mocks.postProjectDeploy).not.toHaveBeenCalled();
+    expect(mocks.postProjectRedeploy).not.toHaveBeenCalled();
   });
 
-  it('deploys only after preview confirm saves the dirty draft', async () => {
+  it('confirms and redeploys only after preview confirm saves the dirty draft', async () => {
     pageContextState.locale = 'zh-CN';
     const wrapper = mountWorkspace();
     await flushPromises();
@@ -1852,11 +1878,18 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper
       .findAll('button')
-      .find((button) => button.text().trim() === '部署项目')
+      .find((button) => button.text().trim() === '重新部署项目')
       ?.trigger('click');
     await flushPromises();
 
+    expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
     expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
+
+    const dialogOptions = dialogMocks.confirm.mock.calls[0]?.[0] as { onConfirm?: () => void };
+    dialogOptions.onConfirm?.();
+    await flushPromises();
+
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
@@ -1868,7 +1901,27 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       { content: 'services:\n  api:\n    image: newer\n' },
     );
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
-    expect(mocks.postProjectDeploy).toHaveBeenCalledWith('1');
+    expect(mocks.postProjectRedeploy).toHaveBeenCalledWith('1');
+    expect(wrapper.find('[data-task-id="42"]').attributes('data-visible')).toBe('true');
+  });
+
+  it('does not save or submit a redeploy when the confirmation is cancelled', async () => {
+    pageContextState.locale = 'zh-CN';
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === '重新部署项目')
+      ?.trigger('click');
+    await flushPromises();
+
+    const dialogOptions = dialogMocks.confirm.mock.calls[0]?.[0] as { onCancel?: () => void };
+    dialogOptions.onCancel?.();
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.postProjectRedeploy).not.toHaveBeenCalled();
   });
 
   it('cancels the preview without saving dirty files', async () => {

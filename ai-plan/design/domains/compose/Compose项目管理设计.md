@@ -632,7 +632,7 @@ Lifecycle Configuration 是本地项目统一的生命周期 authority：
 
 - `pull`、`down-before-redeploy`、`prune` 等都收口到 lifecycle configuration
 - `redeploy` 成为统一的 runtime deploy-style lifecycle action
-- managed draft `deploy` 仍保留，但它只负责编排“写回 tracked files + refresh snapshot + 复用 lifecycle configuration 的 final up”
+- Configuration Workspace 只负责将已确认的编辑写回工作目录；文件保存后统一由 `redeploy` 提交 lifecycle Task，不保留独立 `deploy` 动作或接口
 
 ### 8.4A Future Task Runtime Integration
 
@@ -1179,7 +1179,7 @@ Configuration workspace 的 authority 需要拆成两层：
 | `POST` | `/api/ops/projects/{id}/stop`       | 执行 compose stop，仅停止运行中的服务与容器             |
 | `POST` | `/api/ops/projects/{id}/restart`    | 执行 compose restart                                    |
 | `POST` | `/api/ops/projects/{id}/validate`   | 基于当前已保存磁盘状态执行项目级配置校验                |
-| `POST` | `/api/ops/projects/{id}/deploy`     | 基于当前已保存磁盘状态执行项目级部署                    |
+| `POST` | `/api/ops/projects/{id}/redeploy`   | 按已保存 lifecycle configuration 提交项目重新部署任务  |
 | `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录                                            |
 | `POST` | `/api/ops/projects/{id}/destroy`    | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
 
@@ -1302,7 +1302,7 @@ Configuration workspace 的 authority 需要拆成两层：
   - `Services` 只消费静态定义与 container member/count 聚合，并回跳现有 Container Detail
   - `Configuration` 保持 metadata、preview、single-file content 三段只读消费
   - `Activity` 继续只做前端 fan-out，复用现有 container logs/events API
-  - 未新增 backend project logs/events aggregation、managed create/editor/diff/deploy/validate UI
+  - 未新增 backend project logs/events aggregation、managed create/editor/diff/redeploy/validate UI
 
 ## 11. UI 信息架构
 
@@ -1643,7 +1643,6 @@ Configuration：
   - 新增 `PUT /api/ops/projects/{id}/files/content`
   - 新增 `POST /api/ops/projects/{id}/files`、`PATCH /api/ops/projects/{id}/files`、`DELETE /api/ops/projects/{id}/files`，分别承担创建、重命名和显式递归删除
   - 新增 `POST /api/ops/projects/{id}/validate`
-  - 新增 `POST /api/ops/projects/{id}/deploy`
   - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`
   - 移除 `POST /api/ops/projects/{id}/update-deploy` 作为一等 lifecycle action
 - Project module execution owner：`server/modules/project/**`
@@ -1653,12 +1652,12 @@ Configuration：
   - `files` / `files/content` 及文件树变更接口使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束；不以文件扩展名、语言高亮或隐藏目录配置限制创建
   - validate 只针对当前已保存磁盘状态做静态解析，不消费前端未保存草稿
   - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`；运行时导入必须在导入向导内审核服务端提供的默认配置，并与项目注册一起保存为 `confirmed`
-  - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 deploy
-  - deploy 只读取当前已保存磁盘状态、刷新 project snapshot，并复用 project-owned lifecycle configuration 做 final compose `up`
+  - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 redeploy
+  - Configuration Workspace 的重新部署只读取当前已保存磁盘状态，并提交 project-owned lifecycle configuration 的 `redeploy` Task
   - redeploy 成为统一 runtime deploy-style lifecycle action；pull/down/prune 等语义都收口到 lifecycle configuration
   - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - Frontend module owner：`web/src/modules/project/**`
-  - `detail -> configuration` 承载基于真实目录树的文件工作台、多文件编辑、Preview Diff、validate 与 deploy 入口
+  - `detail -> configuration` 承载基于真实目录树的文件工作台、多文件编辑、Preview Diff、validate 与 redeploy 入口
   - Monaco Diff 直接消费 workspace current content 与 frontend buffer proposed content，不再调用 backend diff API
   - `detail -> lifecycle` 承载 lifecycle configuration 编辑、review 提示和 generated command preview
   - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
@@ -1667,8 +1666,8 @@ Configuration：
 
 `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync` 完成后，Phase 2 以同一 topic 内的 bounded batches 达到可审计验收状态：
 
-- managed root create、Compose/Env editor、Preview Diff、validate、deploy 路径均已落地并通过完整验证链
-- `Project` 继续只拥有 project registry、workspace browse/read/save、validate 与 lifecycle/deploy orchestration
+- managed root create、Compose/Env editor、Preview Diff、validate、redeploy 路径均已落地并通过完整验证链
+- `Project` 继续只拥有 project registry、workspace browse/read/save、validate 与 lifecycle/redeploy orchestration
 - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - `Container` 继续保持 runtime authority
 - Topic 不进入 `archive-ready`，因为 Phase 3 仍需按更小的 bounded batches 继续推进

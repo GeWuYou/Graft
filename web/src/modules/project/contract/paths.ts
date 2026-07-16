@@ -47,7 +47,6 @@ export const PROJECT_API_PATH = {
   FILES_RENAME: '/api/ops/projects/{id}/files/rename',
   LIFECYCLE_CONFIGURATION: '/api/ops/projects/{id}/lifecycle-configuration',
   REFRESH: '/api/ops/projects/{id}/refresh',
-  DEPLOY: '/api/ops/projects/{id}/deploy',
   UP: '/api/ops/projects/{id}/up',
   STOP: '/api/ops/projects/{id}/stop',
   RESTART: '/api/ops/projects/{id}/restart',
@@ -106,10 +105,6 @@ export function buildProjectFilesRenameApiPath(id: string | number) {
 
 export function buildProjectLifecycleConfigurationApiPath(id: string | number) {
   return PROJECT_API_PATH.LIFECYCLE_CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
-}
-
-export function buildProjectDeployApiPath(id: string | number) {
-  return PROJECT_API_PATH.DEPLOY.replace('{id}', encodeProjectPathParam(id));
 }
 
 export function buildProjectUpApiPath(id: string | number) {

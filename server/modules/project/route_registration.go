@@ -107,7 +107,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectWorkspaceRenameRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleRenameProjectWorkspaceEntry)
 	group.DELETE(projectcontract.ProjectWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeleteProjectWorkspaceEntry)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
-	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
 	group.POST(projectcontract.ProjectStopRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleStop)
 	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRestart)
@@ -843,24 +842,6 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
-func (r routeRuntime) handleDeploy(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindProjectID(ginCtx)
-	if !ok {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectDeploy(generatedID, bindPostProjectDeployParams(ginCtx))
-	result, err := r.service.DeployConfiguration(
-		ginCtx.Request.Context(),
-		projectID,
-		currentUserIDPointer(ginCtx),
-	)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toDeployResponse(result))
-}
-
 func (r routeRuntime) handleUp(ginCtx *gin.Context) {
 	projectID, generatedID, ok := r.bindProjectID(ginCtx)
 	if !ok {
@@ -1240,7 +1221,6 @@ func (projectGeneratedHandler) PutProjectFileContent(string, generated.PutProjec
 func (projectGeneratedHandler) PutProjectFileAnnotation(string, generated.PutProjectFileAnnotationParams, generated.PutProjectFileAnnotationJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectRefresh(string, generated.PostProjectRefreshParams)   {}
-func (projectGeneratedHandler) PostProjectDeploy(string, generated.PostProjectDeployParams)     {}
 func (projectGeneratedHandler) PostProjectUp(string, generated.PostProjectUpParams)             {}
 func (projectGeneratedHandler) PostProjectStop(string, generated.PostProjectStopParams)         {}
 func (projectGeneratedHandler) PostProjectRestart(string, generated.PostProjectRestartParams)   {}
@@ -1670,12 +1650,6 @@ func bindPostProjectCreateParams(ginCtx *gin.Context) generated.PostProjectCreat
 func bindPostProjectRefreshParams(ginCtx *gin.Context) generated.PostProjectRefreshParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectRefreshParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostProjectDeployParams 构造项目部署接口的通用请求参数。
-func bindPostProjectDeployParams(ginCtx *gin.Context) generated.PostProjectDeployParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectDeployParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostProjectUpParams 组装项目启动接口的请求参数，包含语言环境和请求 ID。

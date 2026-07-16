@@ -23,14 +23,16 @@
           </div>
           <template v-for="definition in lifecycleSwitchHelpDefinitions" :key="definition.key">
             <div class="project-lifecycle-configuration-review__option">
-              <div>
+              <div class="project-lifecycle-configuration-review__option-content">
                 <div class="project-lifecycle-configuration-review__option-title">
                   <span>{{ t(definition.titleKey) }}</span>
                   <lifecycle-help-trigger :definition="definition" :draft="draft" />
                 </div>
                 <p>{{ t(definition.summaryKey) }}</p>
               </div>
-              <t-switch v-model="draft[definition.field]" :aria-label="t(definition.titleKey)" />
+              <div class="project-lifecycle-configuration-review__option-control">
+                <t-switch v-model="draft[definition.field]" :aria-label="t(definition.titleKey)" />
+              </div>
             </div>
             <label
               v-if="definition.key === 'waitAfterUp' && waitTimeoutDefinition.visible?.(draft)"
@@ -105,7 +107,7 @@ const commandPreviews = computed(() =>
 .project-lifecycle-configuration-review__content,
 .project-lifecycle-configuration-review__commands,
 .project-lifecycle-configuration-review__field,
-.project-lifecycle-configuration-review__option > div {
+.project-lifecycle-configuration-review__option-content {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
@@ -143,6 +145,18 @@ const commandPreviews = computed(() =>
   display: flex;
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
+  min-width: 0;
+}
+
+.project-lifecycle-configuration-review__option-control {
+  align-items: center;
+  display: flex;
+  flex: none;
+}
+
+.project-lifecycle-configuration-review__option-control :deep(.t-switch) {
+  flex: none;
+  width: auto;
 }
 
 .project-lifecycle-configuration-review__option-title {
@@ -160,6 +174,17 @@ const commandPreviews = computed(() =>
   .project-lifecycle-configuration-review__grid,
   .project-lifecycle-configuration-review__field-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (width <= 720px) {
+  .project-lifecycle-configuration-review__option {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-lifecycle-configuration-review__option-control {
+    align-self: flex-end;
   }
 }
 </style>

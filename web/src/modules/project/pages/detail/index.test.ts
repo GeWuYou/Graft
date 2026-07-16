@@ -44,7 +44,6 @@ const projectApiMocks = vi.hoisted(() => ({
   getProjectLogs: vi.fn(),
   getProjectOverview: vi.fn(),
   getProjectServices: vi.fn(),
-  postProjectDeploy: vi.fn(),
   postProjectDestroy: vi.fn(),
   postProjectRedeploy: vi.fn(),
   postProjectRestart: vi.fn(),

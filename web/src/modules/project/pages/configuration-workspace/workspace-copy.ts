@@ -9,10 +9,10 @@ type WorkspaceCopy = {
   confirmSaveCurrentAction: string;
   confirmSaveWithErrorsAction: string;
   confirmSaveAllWithErrorsAction: string;
-  confirmSaveDeployWithErrorsAction: string;
+  confirmSaveRedeployWithErrorsAction: string;
   confirmSaveAction: string;
   continueWithDiskAction: string;
-  deployAction: string;
+  redeployAction: string;
   diffCurrentFileTitle: string;
   diffConfirmBody: string;
   diffCurrentFileConfirmBody: string;
@@ -101,10 +101,10 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   confirmSaveCurrentAction: 'project.configurationWorkspace.copy.confirmSaveCurrentAction',
   confirmSaveWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveWithErrorsAction',
   confirmSaveAllWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction',
-  confirmSaveDeployWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveDeployWithErrorsAction',
+  confirmSaveRedeployWithErrorsAction: 'project.configurationWorkspace.copy.confirmSaveRedeployWithErrorsAction',
   confirmSaveAction: 'project.configurationWorkspace.copy.confirmSaveAction',
   continueWithDiskAction: 'project.configurationWorkspace.copy.continueWithDiskAction',
-  deployAction: 'project.configurationWorkspace.copy.deployAction',
+  redeployAction: 'project.configurationWorkspace.copy.redeployAction',
   diffCurrentFileTitle: 'project.configurationWorkspace.copy.diffCurrentFileTitle',
   diffConfirmBody: 'project.configurationWorkspace.copy.diffConfirmBody',
   diffCurrentFileConfirmBody: 'project.configurationWorkspace.copy.diffCurrentFileConfirmBody',

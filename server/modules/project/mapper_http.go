@@ -347,34 +347,6 @@ func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generate
 	}
 }
 
-// 当声明服务数大于等于 0 时包含声明服务数；当消息键、消息或守卫结果存在时一并写入响应。
-func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
-	response := generated.ProjectDeployResponse{
-		ProjectId:            mustGeneratedID(result.ProjectID),
-		Action:               generated.ProjectDeployResponseAction(result.Action),
-		Result:               generated.ProjectDeployResponseResult(result.Result),
-		CanonicalProjectName: result.CanonicalProjectName,
-		OwnershipMode:        generated.ProjectOwnershipMode(result.OwnershipMode),
-		ConfigHash:           result.ConfigHash,
-		RefreshedAt:          result.RefreshedAt,
-	}
-	if result.DeclaredServiceCount >= 0 {
-		count := result.DeclaredServiceCount
-		response.DeclaredServiceCount = &count
-	}
-	if result.MessageKey != nil {
-		response.MessageKey = result.MessageKey
-	}
-	if result.Message != nil {
-		response.Message = result.Message
-	}
-	if len(result.GuardResults) > 0 {
-		items := toGeneratedGuardResults(result.GuardResults)
-		response.GuardResults = &items
-	}
-	return response
-}
-
 // toLifecycleConfigurationRequest 将生成的生命周期配置请求转换为标准生命周期配置，并复制切片字段以避免共享底层存储。
 func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigurationRequest) LifecycleStandardConfig {
 	additionalArgs := []string{}

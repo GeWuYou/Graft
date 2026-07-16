@@ -3016,26 +3016,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/deploy': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Deploy current saved project configuration state
-     * @description Reuses the current saved working_directory state, refreshes the project snapshot, then executes the final compose `up` flow using the saved lifecycle configuration. This route does not save editor buffers for the caller.
-     */
-    post: operations['postProjectDeploy'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ops/projects/{id}/refresh': {
     parameters: {
       query?: never;
@@ -7371,31 +7351,11 @@ export interface components {
       message_key?: string | null;
       detail?: string | null;
     };
-    'project-deploy-response': {
-      /** Format: int64 */
-      project_id: number;
-      /** @enum {string} */
-      action: 'deploy';
-      /** @enum {string} */
-      result: 'completed';
-      canonical_project_name: string;
-      ownership_mode: components['schemas']['project-ownership-mode'];
-      config_hash: string;
-      /** Format: date-time */
-      refreshed_at: string;
-      declared_service_count?: number;
-      message_key?: string | null;
-      message?: string | null;
-      guard_results?: components['schemas']['project-guard-result'][];
-    };
-    'enveloped-project-deploy-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-deploy-response'];
-    };
     'project-action-response': {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'deploy' | 'redeploy';
+      action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'redeploy';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       message_key?: string;
@@ -7433,7 +7393,7 @@ export interface components {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'deploy' | 'redeploy';
+      action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'redeploy';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       skipped: boolean;
@@ -16126,71 +16086,6 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Project record or target path not found. */
       404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postProjectDeploy: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        /** @description Public Graft application identifier. The internal project registry key is never accepted on HTTP routes. */
-        id: components['parameters']['project-id-path'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Saved project configuration state deployed. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-project-deploy-response'];
-        };
-      };
-      /** @description Invalid project id. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description Project record not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description Deploy was blocked by project authority, lifecycle review guards, bounded scope, or lifecycle execution. */
-      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

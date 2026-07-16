@@ -16,7 +16,6 @@ vi.mock('../../api/project', () => ({
   getProjectWorkspaceDefaults: mocks.getProjectWorkspaceDefaults,
   postProjectApplicationNameAvailability: mocks.postProjectApplicationNameAvailability,
   postProjectCreate: mocks.postProjectCreate,
-  postProjectDeploy: vi.fn(),
 }));
 
 vi.mock('vue-router', () => ({
@@ -183,17 +182,17 @@ describe('ProjectCreateIndex', () => {
     await flushPromises();
     await wrapper
       .findAll('button')
-      .find((button) => button.text().includes('project.create.actions.continue'))
+      .find((button) => button.text().includes('project.create.actions.next'))
       ?.trigger('click');
     await flushPromises();
     await wrapper
       .findAll('button')
-      .find((button) => button.text().includes('project.create.actions.review'))
+      .find((button) => button.text().includes('project.create.actions.next'))
       ?.trigger('click');
     await flushPromises();
     await wrapper
       .findAll('button')
-      .find((button) => button.text().includes('project.create.actions.review'))
+      .find((button) => button.text().includes('project.create.actions.next'))
       ?.trigger('click');
     await flushPromises();
     await wrapper
