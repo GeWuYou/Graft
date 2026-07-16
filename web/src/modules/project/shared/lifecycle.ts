@@ -15,13 +15,6 @@ import type {
 
 const defaultLifecycleWaitTimeoutSeconds = 120;
 
-/**
- * 将工作目录前缀从生命周期文件路径中移除。
- *
- * @param path - 待规范化的文件路径
- * @param workingDirectory - 用于匹配并移除的工作目录
- * @returns 去除工作目录前缀后的路径
- */
 function normalizeLifecycleFilePath(path: string, workingDirectory?: string | null) {
   const value = path.trim();
   const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
@@ -45,12 +38,6 @@ function splitProfiles(value: string) {
     .filter(Boolean);
 }
 
-/**
- * 将附加参数字符串解析为命令行参数数组。
- *
- * @param value - 以空白分隔、支持单引号、双引号和反斜杠转义的附加参数字符串
- * @returns 保留每个 argv 边界的参数数组
- */
 function normalizeAdditionalArgs(value: string) {
   const args: string[] = [];
   let current = '';
@@ -117,13 +104,6 @@ function formatAdditionalArgs(values: readonly string[] | null | undefined) {
   return values?.map(formatAdditionalArg).join(' ') ?? '';
 }
 
-/**
- * 将相对生命周期文件路径解析为相对于工作目录的路径。
- *
- * @param path - 要解析的文件路径
- * @param workingDirectory - 用于补全相对路径的工作目录
- * @returns 去除首尾空白后的绝对路径；绝对路径或缺少工作目录时返回原路径
- */
 function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory?: string | null) {
   const value = path.trim();
   const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
@@ -135,13 +115,6 @@ function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory?: strin
   return `${normalizedWorkingDirectory}/${value}`;
 }
 
-/**
- * 构建包含 compose 文件、配置文件、项目名称及配置文件路径的 Docker Compose 基础命令参数。
- *
- * @param config - 项目生命周期配置草稿
- * @param absolutePaths - 是否将 compose 文件路径解析为绝对路径
- * @returns Docker Compose 基础命令参数数组
- */
 function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft, absolutePaths = false) {
   const command = ['docker', 'compose'];
   const normalizePath = absolutePaths ? resolveAbsoluteLifecycleFilePath : normalizeLifecycleFilePath;
@@ -161,13 +134,6 @@ function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft, abs
   return command;
 }
 
-/**
- * 构建用于启动项目的 Docker Compose 命令。
- *
- * @param config - 项目生命周期配置草稿
- * @param absolutePaths - 是否使用 compose 文件的绝对路径
- * @returns 拼接后的 Docker Compose 启动命令
- */
 function buildUpCommand(config: ProjectLifecycleConfigurationDraft, absolutePaths = false) {
   const command = [...buildComposeBaseCommand(config, absolutePaths), 'up', '-d'];
 
@@ -192,25 +158,10 @@ function buildUpCommand(config: ProjectLifecycleConfigurationDraft, absolutePath
   return command.map(formatAdditionalArg).join(' ');
 }
 
-/**
- * 构建指定生命周期操作的 Docker Compose 命令。
- *
- * @param config - 项目生命周期配置草稿
- * @param action - 要执行的操作
- * @returns 包含 Compose 配置参数和操作名称的命令字符串
- */
 function buildSimpleCommand(config: ProjectLifecycleConfigurationDraft, action: 'stop' | 'restart' | 'down') {
   return [...buildComposeBaseCommand(config), action].join(' ');
 }
 
-/**
- * 构建指定生命周期操作的 Docker Compose 命令。
- *
- * @param config - 项目生命周期配置草稿
- * @param action - 要执行的操作
- * @param absolutePaths - 是否在命令中使用 compose 文件的绝对路径
- * @returns 拼接后的 Docker Compose 命令字符串
- */
 function buildSimpleCommandWithPathMode(
   config: ProjectLifecycleConfigurationDraft,
   action: 'stop' | 'restart' | 'down',
@@ -219,12 +170,6 @@ function buildSimpleCommandWithPathMode(
   return [...buildComposeBaseCommand(config, absolutePaths), action].join(' ');
 }
 
-/**
- * 根据生命周期配置生成项目启动、停止、重启和重新部署命令预览。
- *
- * @param config - 用于生成命令的项目生命周期配置草稿
- * @returns 包含相对路径和绝对路径命令的生命周期命令预览
- */
 function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft): ProjectLifecycleCommandPreview {
   const commands: ProjectLifecycleCommandPreview = {
     up: [
@@ -300,12 +245,6 @@ function normalizeComposeFiles(detail: Pick<ProjectDetailResponseWithLifecycle, 
   return files.length > 0 ? files : ['compose.yaml'];
 }
 
-/**
- * 将生命周期步骤类型映射为对应的本地化标题键。
- *
- * @param kind - 生命周期步骤类型
- * @returns 对应的本地化标题键
- */
 function lifecycleStepTitleKey(kind: string) {
   switch (kind) {
     case 'down':
@@ -324,14 +263,6 @@ function lifecycleStepTitleKey(kind: string) {
   }
 }
 
-/**
- * 将生成的 Compose 命令参数格式化为命令字符串，并按需归一化文件路径。
- *
- * @param argv - 命令参数数组
- * @param workingDirectory - Compose 文件的工作目录
- * @param absolutePaths - 是否保留绝对路径模式
- * @returns 格式化后的命令字符串
- */
 function normalizeGeneratedArgvCommand(argv: string[], workingDirectory: string, absolutePaths: boolean) {
   return argv
     .map((arg, index) => {
@@ -344,13 +275,6 @@ function normalizeGeneratedArgvCommand(argv: string[], workingDirectory: string,
     .join(' ');
 }
 
-/**
- * 将生成的生命周期命令映射为可展示的命令步骤。
- *
- * @param command - 生成的生命周期命令；未提供时返回空数组
- * @param workingDirectory - 用于归一化 Compose 文件路径的工作目录
- * @returns 包含标题键、相对路径命令和绝对路径命令的步骤列表
- */
 function mapGeneratedCommand(
   command: ProjectLifecycleGeneratedCommand | undefined,
   workingDirectory: string,
@@ -369,13 +293,6 @@ function mapGeneratedCommand(
   }));
 }
 
-/**
- * 将生成的生命周期命令映射为命令预览。
- *
- * @param config - 包含生成命令配置的项目生命周期配置；缺少该配置时返回 `null`
- * @param workingDirectory - 用于规范化命令中 Compose 文件路径的工作目录
- * @returns 映射后的生命周期命令预览；未提供生成命令时返回 `null`
- */
 function mapGeneratedCommands(
   config: Pick<ProjectLifecycleConfigurationModel, 'generated_commands'> | null | undefined,
   workingDirectory: string,
@@ -391,12 +308,6 @@ function mapGeneratedCommands(
   };
 }
 
-/**
- * 规范化生命周期等待超时时间。
- *
- * @param value - 待规范化的超时时间（秒）
- * @returns 有效的正整数超时时间；输入无效或不大于零时返回默认超时时间
- */
 function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return defaultLifecycleWaitTimeoutSeconds;
@@ -404,12 +315,6 @@ function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
   return Math.trunc(value);
 }
 
-/**
- * 生成用于比较生命周期配置草稿状态的规范化对象。
- *
- * @param draft - 要比较的生命周期配置草稿字段
- * @returns 包含规范化配置值的可比较状态对象
- */
 function comparableLifecycleDraftState(
   draft: Pick<
     ProjectLifecycleConfigurationDraft,
@@ -443,12 +348,6 @@ function comparableLifecycleDraftState(
   };
 }
 
-/**
- * 根据项目详情构建生命周期配置草稿。
- *
- * @param detail - 包含生命周期配置、Compose 文件及项目来源信息的项目详情
- * @returns 应用默认值和规范化处理后的生命周期配置草稿
- */
 export function buildLifecycleConfigurationDraft(
   detail: ProjectDetailResponseWithLifecycle,
 ): ProjectLifecycleConfigurationDraft {
@@ -479,12 +378,6 @@ export function buildLifecycleConfigurationDraft(
   };
 }
 
-/**
- * 从导入检查快照构建可编辑的生命周期配置草稿。
- *
- * @param result - 导入检查结果，包含生命周期配置、工作目录和 Compose 文件信息
- * @returns 包含待审核状态和客户端生成命令预览的生命周期配置草稿
- */
 export function buildImportLifecycleConfigurationDraft(
   result: ProjectImportInspectResponse,
 ): ProjectLifecycleConfigurationDraft {
@@ -515,12 +408,6 @@ export function buildImportLifecycleConfigurationDraft(
   return { ...config, generated_commands: buildClientGeneratedCommands(config) };
 }
 
-/**
- * 将生命周期配置草稿转换为更新请求。
- *
- * @param draft - 要转换的生命周期配置草稿
- * @returns 包含结构化附加 argv 参数的生命周期配置更新请求
- */
 export function buildLifecycleConfigurationRequest(
   draft: ProjectLifecycleConfigurationDraft,
 ): ProjectLifecycleConfigurationUpdateRequest {
@@ -531,13 +418,6 @@ export function buildLifecycleConfigurationRequest(
   };
 }
 
-/**
- * 判断生命周期配置草稿是否相对于基准草稿发生变化。
- *
- * @param current - 当前生命周期配置草稿
- * @param baseline - 用于比较的基准生命周期配置草稿
- * @returns 当前草稿与基准草稿的可比较状态不一致时为 `true`，否则为 `false`
- */
 export function isLifecycleDraftDirty(
   current: ProjectLifecycleConfigurationDraft,
   baseline: ProjectLifecycleConfigurationDraft,
@@ -547,13 +427,6 @@ export function isLifecycleDraftDirty(
   );
 }
 
-/**
- * 获取项目生命周期审核状态的本地化标签。
- *
- * @param t - 用于解析本地化文本的翻译函数
- * @param value - 生命周期审核状态
- * @returns 对应审核状态的本地化标签
- */
 export function projectLifecycleReviewStatusLabel(
   t: (key: string) => string,
   value: ProjectLifecycleReviewStatus | null | undefined,
@@ -577,23 +450,10 @@ export function lifecycleDraftProfilesText(config: Pick<ProjectLifecycleConfigur
   return config.profiles.join(', ');
 }
 
-/**
- * 根据输入文本更新生命周期配置草稿中的配置文件。
- *
- * @param draft - 要更新的生命周期配置草稿
- * @param value - 以逗号分隔的配置文件名称
- */
 export function updateLifecycleDraftProfiles(draft: ProjectLifecycleConfigurationDraft, value: string) {
   draft.profiles = splitProfiles(value);
 }
 
-/**
- * 将生命周期命令步骤合并为可复制的命令文本。
- *
- * @param steps - 要格式化的生命周期命令步骤
- * @param options - 命令格式选项
- * @returns 使用 ` && ` 连接的命令文本
- */
 export function formatLifecycleCommandCopyText(
   steps: ProjectLifecycleCommandStep[],
   options?: { absolutePaths?: boolean },
@@ -604,15 +464,6 @@ export function formatLifecycleCommandCopyText(
     .join(' && ');
 }
 
-/**
- * 解析指定操作对应的生命周期命令步骤。
- *
- * @param config - 生命周期配置草稿
- * @param action - 要解析的生命周期操作
- * @param options - 命令解析选项
- * @param options.preferClientGenerated - 是否优先使用客户端生成的命令
- * @returns 按优先级选定的命令步骤；不存在可用命令时返回空数组
- */
 export function resolveLifecycleCommandSteps(
   config: ProjectLifecycleConfigurationDraft,
   action: ProjectLifecycleActionKey,

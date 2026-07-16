@@ -21,11 +21,6 @@ export type RuntimeTargetPage = RuntimeTargetList;
 
 const runtimeTargetSelectorPageLimit = 100;
 
-/**
- * 获取供现有选择器使用的运行时目标集合。
- *
- * @returns 所有运行时目标的数组
- */
 export async function listRuntimeTargets(): Promise<RuntimeTarget[]> {
   const targets: RuntimeTarget[] = [];
   for (let offset = 0; ; offset += runtimeTargetSelectorPageLimit) {
@@ -37,43 +32,20 @@ export async function listRuntimeTargets(): Promise<RuntimeTarget[]> {
   }
 }
 
-/**
- * 获取分页的运行时目标列表。
- *
- * @param params - 分页参数，包括每页数量和偏移量
- * @returns 运行时目标分页数据
- */
 export async function listRuntimeTargetPage(params: { limit: number; offset: number }): Promise<RuntimeTargetPage> {
   return request.get<RuntimeTargetPage>({
     url: RUNTIME_TARGET_API_PATH.LIST,
     params,
   });
 }
-/**
- * 探测当前服务器上的 Local Docker，并由服务端幂等创建或恢复系统管理目标。
- *
- * @returns 发现的运行时目标，未发现时返回 `null`
- */
 export async function discoverLocalDocker(): Promise<RuntimeTargetDiscoverLocal | null> {
   return request.post<RuntimeTargetDiscoverLocal | null>({ url: RUNTIME_TARGET_API_PATH.DISCOVER_LOCAL_DOCKER });
 }
 
-/**
- * 获取指定运行时目标的 provider-owned 详情投影。
- *
- * @param id - 运行时目标的唯一标识
- * @returns 运行时目标详情
- */
 export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail> {
   return request.get<RuntimeTargetDetail>({ url: runtimeTargetDetailApiPath(id) });
 }
 
-/**
- * 刷新指定的运行时目标。
- *
- * @param id - 运行时目标的标识符
- * @returns 刷新后的 provider-owned 运行时目标详情
- */
 export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRefresh> {
   return request.post<RuntimeTargetRefresh>({ url: runtimeTargetRefreshApiPath(id) });
 }
