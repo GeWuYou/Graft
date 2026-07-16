@@ -1165,7 +1165,7 @@ import { translateCronValidation } from '../../utils/cron-i18n';
 import { formatJsonPreview, type JsonRecord, parseJsonRecord } from '../../utils/json';
 import { parseRunResult, runResultMetricNumber, type ScheduledTaskRunResult } from '../../utils/run-result';
 
-// 定时任务页消费任务与运行记录 API；表单草稿和列设置是页面状态，成功写操作还需刷新通知壳层摘要。
+// 定时任务页通过 API 管理任务、任务定义和运行记录；表单草稿与列设置属于页面状态，runTask 成功路径会刷新通知壳层摘要。
 defineOptions({
   name: 'ScheduledTaskListPage',
 });

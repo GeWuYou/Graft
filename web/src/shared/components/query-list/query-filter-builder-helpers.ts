@@ -98,8 +98,7 @@ export function createAdvancedQueryBuilderListeners<TPreset extends string, TFie
   return {
     'add-sorter': config.addSorter,
     'apply-preset': (preset: string) => config.emitApplyPreset(preset as TPreset),
-    // 关闭条件会把页面恢复到完整默认状态；兼容迁移期自定义构建器 stub 的旧事件。
-    // COMPAT(owner=shared/query-list; cleanup=移除旧构建器 stub 后删除 close-tag 监听; verify=查询构建器单测与 bun run check)
+    // 关闭条件会重置默认状态；close-tag 是 AdvancedQueryFilterBuilder 当前对外事件契约。
     'close-tag': () => config.emitReset(),
     'move-sorter-down': config.moveSorterDown,
     'move-sorter-up': config.moveSorterUp,

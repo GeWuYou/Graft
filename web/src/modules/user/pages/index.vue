@@ -583,7 +583,7 @@ type UserFilters = {
 };
 
 type UserRow = UserListItem & {
-  // 兼容后端尚未统一收口的读取字段；COMPAT(owner=后端用户响应契约; cleanup=所有支持版本都由 canonical 用户响应提供字段后删除; verify=用户页测试与 bun run check)
+  // 兼容读取字段的 canonical owner 是 openapi/components/schemas/user-list-item.yaml；当前 schema 未包含这些历史可选读取字段。COMPAT(owner=openapi/components/schemas/user-list-item.yaml; cleanup=字段正式纳入 canonical schema 且所有支持版本收敛后删除; verify=用户页测试与 bun run check)
   email?: string | null;
   last_login_at?: string | null;
 };
