@@ -1005,7 +1005,14 @@
       }
     },
     "sourceCreate": {
-      "templateDescription": "Create a managed application from a bundled Compose workspace template.",
+      "templateDescription": "Choose a published Compose template version, then confirm its workspace and lifecycle configuration before creation.",
+      "templatesLoadFailed": "Application template catalog could not be loaded.",
+      "emptyTemplates": "No published template is available for this runtime target.",
+      "noDescription": "No template description was provided.",
+      "adapter": "Deployment Adapter",
+      "version": "Template Version",
+      "versionLabel": "Version {version}",
+      "useTemplate": "Use This Template",
       "displayName": "Display Name",
       "applicationName": "Application Name",
       "applicationNamePlaceholder": "Example: orders-dev",

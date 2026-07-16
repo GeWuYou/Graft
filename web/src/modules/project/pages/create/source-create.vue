@@ -5,151 +5,132 @@
       :description="t('project.sourceCreate.templateDescription')"
       :source="{ labelKey: 'project.creation.eyebrow', fallback: t('project.creation.eyebrow') }"
     >
-      <template #actions
-        ><t-space size="small"
-          ><t-button variant="outline" @click="goToSource">{{ t('project.create.actions.backToSource') }}</t-button
-          ><t-button @click="refreshPage">{{ t('project.create.actions.refresh') }}</t-button></t-space
-        ></template
-      >
+      <template #actions>
+        <t-space size="small">
+          <t-button variant="outline" @click="goToSource">{{ t('project.create.actions.backToSource') }}</t-button>
+          <t-button @click="loadTemplates">{{ t('project.create.actions.refresh') }}</t-button>
+        </t-space>
+      </template>
     </management-page-header>
-    <t-card :bordered="true"
-      ><t-form ref="formRef" :data="form" :rules="formRules" layout="vertical" @submit="onCreate"
-        ><div class="source-create__grid">
-          <t-form-item :label="t('project.sourceCreate.displayName')" name="display_name"
-            ><t-input v-model="form.display_name" /></t-form-item
-          ><t-form-item :label="t('project.sourceCreate.applicationName')" name="application_name"
-            ><t-input
-              v-model="form.application_name"
-              :placeholder="t('project.sourceCreate.applicationNamePlaceholder')" /></t-form-item
-          ><t-form-item :label="t('project.sourceCreate.template')" name="template_key"
-            ><t-select v-model="templateForm.template_key" :options="templateOptions"
-          /></t-form-item>
-        </div>
-        <t-space class="source-create__actions"
-          ><t-button theme="primary" type="submit" :loading="creating">{{
-            t('project.sourceCreate.create')
-          }}</t-button></t-space
-        ></t-form
-      ></t-card
-    >
+
+    <t-alert v-if="loadError" theme="warning" :message="loadError" />
+    <div v-else class="source-create__grid" :aria-busy="loading">
+      <t-card v-for="item in templates" :key="item.template_id" bordered class="source-create__card">
+        <template #header>
+          <div class="source-create__header">
+            <div>
+              <h2>{{ item.display_name }}</h2>
+              <p>{{ item.description || t('project.sourceCreate.noDescription') }}</p>
+            </div>
+            <t-tag theme="success" variant="light-outline">{{
+              t('project.sourceCreate.versionLabel', { version: item.version.version_number })
+            }}</t-tag>
+          </div>
+        </template>
+        <t-descriptions size="small" :column="1">
+          <t-descriptions-item :label="t('project.sourceCreate.adapter')">{{
+            item.deployment_adapter_kind
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('project.sourceCreate.version')">{{
+            item.version.template_version_id
+          }}</t-descriptions-item>
+        </t-descriptions>
+        <template #footer>
+          <t-button theme="primary" :loading="selecting === item.template_id" @click="selectTemplate(item)">
+            {{ t('project.sourceCreate.useTemplate') }}
+          </t-button>
+        </template>
+      </t-card>
+      <t-empty v-if="!loading && templates.length === 0" :description="t('project.sourceCreate.emptyTemplates')" />
+    </div>
   </management-page-content>
 </template>
 <script setup lang="ts">
-import { type FormInstanceFunctions, type FormProps, MessagePlugin } from 'tdesign-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { postApplicationApplicationNameAvailability, postApplicationCreateTemplate } from '../../api/project';
+import { getApplicationTemplates } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { navigateToApplicationCreateSource, refreshApplicationCreatePage } from '../../shared/navigation';
-import type { ApplicationTemplateCreateRequest } from '../../types/project';
-// 来源创建页拥有表单和模板草稿，提交前通过服务端校验应用名称与运行时目标。
-defineOptions({ name: 'ApplicationSourceCreate' });
+import { navigateToApplicationCreateSource } from '../../shared/navigation';
+import type { ApplicationTemplate } from '../../types/project';
+
+// 模板目录页只读取创建者可见的发布快照；选择后交由统一受管创建编辑器持有可修改的应用草稿。
+defineOptions({ name: 'ApplicationTemplateCatalog' });
+
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
-const creating = ref(false);
-const formRef = ref<FormInstanceFunctions | null>(null);
-const runtimeTargetId = computed(() => {
-  const raw = route.query.runtime_target_id;
-  return typeof raw === 'string' && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : null;
-});
-const form = reactive({ display_name: '', application_name: '' });
-const formRules: FormProps['rules'] = {
-  display_name: [{ required: true, message: t('project.create.validation.displayNameRequired') }],
-  application_name: [
-    { required: true, message: t('project.create.validation.applicationNameRequired') },
-    {
-      validator: (value) => /^[a-z0-9][a-z0-9-]*$/.test(String(value)),
-      message: t('project.create.validation.applicationNamePattern'),
-    },
-  ],
-};
-const templateForm = reactive({ template_key: 'empty-compose', template_version: 'v1', template_instance_name: '' });
-const templateOptions = computed(() => [
-  { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
-]);
-function templatePayload(runtimeTargetIdValue: number): ApplicationTemplateCreateRequest {
-  return {
-    display_name: form.display_name.trim(),
-    runtime_target_id: runtimeTargetIdValue,
-    application_name: form.application_name.trim(),
-    template_key: templateForm.template_key === 'empty-compose' ? 'empty-compose' : undefined,
-    template_version: templateForm.template_version === 'v1' ? 'v1' : undefined,
-    template_instance_name: templateForm.template_instance_name.trim() || undefined,
-  };
+const templates = ref<ApplicationTemplate[]>([]);
+const loading = ref(false);
+const selecting = ref('');
+const loadError = ref('');
+
+onMounted(() => void loadTemplates());
+
+async function loadTemplates() {
+  loading.value = true;
+  loadError.value = '';
+  try {
+    templates.value = (await getApplicationTemplates()).items.filter(
+      (item) => item.deployment_adapter_kind === 'compose' && item.version.status === 'published',
+    );
+  } catch (error) {
+    loadError.value = resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.templatesLoadFailed'));
+  } finally {
+    loading.value = false;
+  }
 }
-async function onCreate() {
-  if ((await formRef.value?.validate()) !== true) return;
-  if (runtimeTargetId.value === null) {
+
+async function selectTemplate(item: ApplicationTemplate) {
+  if (route.query.deployment !== 'compose' || !/^\d+$/.test(String(route.query.runtime_target_id || ''))) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
     goToSource();
     return;
   }
-  if (templateForm.template_key !== 'empty-compose' || templateForm.template_version !== 'v1') {
-    MessagePlugin.warning(t('project.sourceCreate.template'));
-    return;
-  }
-
-  creating.value = true;
-  try {
-    const availability = await postApplicationApplicationNameAvailability({
-      application_name: form.application_name.trim(),
-    });
-    if (availability.status === 'registered') {
-      MessagePlugin.error(t('project.create.validation.applicationNameRegistered'));
-      creating.value = false;
-      return;
-    }
-    if (availability.status === 'reusable_workspace') {
-      await router.push({
-        name: PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName,
-        query: {
-          ...route.query,
-          application_name: form.application_name.trim(),
-          display_name: form.display_name.trim(),
-        },
-      });
-      creating.value = false;
-      return;
-    }
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
-    creating.value = false;
-    return;
-  }
-  try {
-    const result = await postApplicationCreateTemplate(templatePayload(runtimeTargetId.value));
-    MessagePlugin.success(t('project.sourceCreate.createSuccess'));
-    await router.push({
-      name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-      params: { applicationId: result.application_id },
-    });
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
-  } finally {
-    creating.value = false;
-  }
+  selecting.value = item.template_id;
+  await router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName,
+    query: { ...route.query, template_id: item.template_id, template_version_id: item.version.template_version_id },
+  });
+  selecting.value = '';
 }
+
 function goToSource() {
   navigateToApplicationCreateSource(router, route.query);
-}
-function refreshPage() {
-  refreshApplicationCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);
 }
 </script>
 <style scoped>
 .source-create__grid {
   display: grid;
   gap: var(--graft-density-gap-16);
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  margin-top: var(--graft-density-gap-16);
 }
 
-.source-create__actions {
-  margin-top: var(--graft-density-gap-16);
+.source-create__card {
+  display: flex;
+  flex-direction: column;
+}
+
+.source-create__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+}
+
+.source-create__header h2,
+.source-create__header p {
+  margin: 0;
+}
+
+.source-create__header p {
+  color: var(--td-text-color-secondary);
+  margin-top: var(--graft-density-gap-4);
 }
 </style>

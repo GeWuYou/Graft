@@ -7,6 +7,8 @@ export const APPLICATION_ROUTE_PATH = {
   CREATE_DISCOVERY: '/applications/create/discovery',
   CREATE_BLANK: '/applications/create/blank',
   CREATE_TEMPLATE: '/applications/create/template',
+  TEMPLATES: '/applications/templates',
+  TEMPLATE_DETAIL: '/applications/templates/:templateId',
   DETAIL: '/applications/:applicationId',
   CONFIGURATION_WORKSPACE: '/applications/:applicationId/configuration',
 } as const;
@@ -33,6 +35,8 @@ export const APPLICATION_API_PATH = {
   CREATE: '/api/ops/applications/create/managed',
   CREATE_TEMPLATE_VALIDATE: '/api/ops/applications/create/template/validate',
   CREATE_TEMPLATE: '/api/ops/applications/create/template',
+  TEMPLATES: '/api/ops/applications/templates',
+  TEMPLATE: '/api/ops/applications/templates/{templateId}',
   DETAIL: '/api/ops/applications/{applicationId}',
   OVERVIEW: '/api/ops/applications/{applicationId}/overview',
   LOGS: '/api/ops/applications/{applicationId}/logs',

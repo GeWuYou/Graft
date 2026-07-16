@@ -49,7 +49,10 @@ export type ApplicationApplicationNameAvailabilityRequest =
   components['schemas']['application-name-availability-request'];
 export type ApplicationApplicationNameAvailabilityResponse =
   components['schemas']['application-name-availability-response'];
-export type ApplicationTemplateCreateRequest = components['schemas']['application-template-create-request'];
+export type ApplicationTemplate = components['schemas']['application-template-response'];
+export type ApplicationTemplateVersion = components['schemas']['application-template-version'];
+export type ApplicationTemplateListResponse = components['schemas']['application-template-list-response'];
+export type ApplicationTemplateDraftRequest = components['schemas']['application-template-draft-request'];
 export type ApplicationWorkspaceManifestFile = components['schemas']['application-workspace-manifest-file'];
 export type ApplicationWorkspaceEntry = components['schemas']['application-workspace-entry'];
 export type ApplicationWorkspaceDraftFile = {

@@ -1005,7 +1005,14 @@
       }
     },
     "sourceCreate": {
-      "templateDescription": "从内置 Compose 工作区模板创建托管应用。",
+      "templateDescription": "选择已发布的 Compose 模板版本，然后在创建前确认应用工作区和生命周期配置。",
+      "templatesLoadFailed": "应用模板目录加载失败。",
+      "emptyTemplates": "当前运行目标没有可用的已发布模板。",
+      "noDescription": "未提供模板说明。",
+      "adapter": "部署适配器",
+      "version": "模板版本",
+      "versionLabel": "版本 {version}",
+      "useTemplate": "使用此模板",
       "displayName": "显示名称",
       "applicationName": "应用名",
       "applicationNamePlaceholder": "例如：orders-dev",

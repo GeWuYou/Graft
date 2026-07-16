@@ -40,6 +40,16 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     pageRouteName: 'ApplicationTemplateCreateIndex',
     routeName: 'ApplicationTemplateCreate',
   },
+  TEMPLATES: {
+    path: APPLICATION_ROUTE_PATH.TEMPLATES,
+    pageRouteName: 'ApplicationTemplateList',
+    routeName: 'ApplicationTemplates',
+  },
+  TEMPLATE_DETAIL: {
+    path: APPLICATION_ROUTE_PATH.TEMPLATE_DETAIL,
+    pageRouteName: 'ApplicationTemplateDetail',
+    routeName: 'ApplicationTemplateDetail',
+  },
   DETAIL: {
     path: APPLICATION_ROUTE_PATH.DETAIL,
     pageRouteName: 'ApplicationDetailIndex',

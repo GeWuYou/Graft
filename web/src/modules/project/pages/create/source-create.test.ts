@@ -6,7 +6,7 @@ import ApplicationSourceCreate from './source-create.vue';
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
-  postApplicationCreateTemplate: vi.fn(),
+  getApplicationTemplates: vi.fn().mockResolvedValue({ items: [] }),
   navigateToApplicationCreateSource: vi.fn(),
 }));
 
@@ -16,7 +16,7 @@ vi.mock('vue-router', () => ({
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('tdesign-vue-next', () => ({ MessagePlugin: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
-vi.mock('../../api/project', () => ({ postApplicationCreateTemplate: mocks.postApplicationCreateTemplate }));
+vi.mock('../../api/project', () => ({ getApplicationTemplates: mocks.getApplicationTemplates }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
@@ -35,10 +35,11 @@ describe('ApplicationSourceCreate', () => {
           't-button': { inheritAttrs: false, template: '<button v-bind="$attrs"><slot /></button>' },
           't-space': { template: '<div><slot /></div>' },
           't-card': { template: '<section><slot /></section>' },
-          't-form': { template: '<form><slot /></form>' },
-          't-form-item': { template: '<label><slot /></label>' },
-          't-input': true,
-          't-select': true,
+          't-alert': true,
+          't-empty': true,
+          't-tag': true,
+          't-descriptions': { template: '<div><slot /></div>' },
+          't-descriptions-item': { template: '<div><slot /></div>' },
         },
       },
     });

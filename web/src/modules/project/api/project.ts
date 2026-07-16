@@ -46,7 +46,8 @@ import type {
   ApplicationSavedViewRequest,
   ApplicationServicesResponse,
   ApplicationTaskReceipt,
-  ApplicationTemplateCreateRequest,
+  ApplicationTemplate,
+  ApplicationTemplateListResponse,
   ApplicationWorkspaceDefaultsResponse,
   ApplicationWorkspaceEntry,
   ApplicationWorkspaceFileAnnotationRequest,
@@ -128,10 +129,10 @@ type ApplicationApplicationNameAvailabilityData = NonNullable<
   ApplicationApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
 >;
 
-type ApplicationTemplateCreatePath = (typeof APPLICATION_API_PATH)['CREATE_TEMPLATE'];
-type ApplicationTemplateCreateOperation = paths[ApplicationTemplateCreatePath]['post'];
-type ApplicationTemplateCreateData = NonNullable<
-  ApplicationTemplateCreateOperation['responses'][201]['content']['application/json']['data']
+type ApplicationTemplatesPath = (typeof APPLICATION_API_PATH)['TEMPLATES'];
+type GetApplicationTemplatesOperation = paths[ApplicationTemplatesPath]['get'];
+type GetApplicationTemplatesData = NonNullable<
+  GetApplicationTemplatesOperation['responses'][200]['content']['application/json']['data']
 >;
 type ApplicationUpOperation = paths[(typeof APPLICATION_API_PATH)['UP']]['post'];
 type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
@@ -341,11 +342,16 @@ export function postApplicationApplicationNameAvailability(payload: ApplicationA
   }) as Promise<ApplicationApplicationNameAvailabilityResponse>;
 }
 
-export function postApplicationCreateTemplate(payload: ApplicationTemplateCreateRequest) {
-  return postApplicationAction<ApplicationTemplateCreateData>(
-    APPLICATION_API_PATH.CREATE_TEMPLATE,
-    payload,
-  ) as Promise<ApplicationCreateResponse>;
+export function getApplicationTemplates() {
+  return request.get<GetApplicationTemplatesData>({
+    url: APPLICATION_API_PATH.TEMPLATES,
+  }) as Promise<ApplicationTemplateListResponse>;
+}
+
+export function getApplicationTemplate(templateId: string) {
+  return request.get<ApplicationTemplate>({
+    url: APPLICATION_API_PATH.TEMPLATE.replace('{templateId}', encodeURIComponent(templateId)),
+  }) as Promise<ApplicationTemplate>;
 }
 
 function postApplicationAction<T>(url: string, data?: unknown) {
