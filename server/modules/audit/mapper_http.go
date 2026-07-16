@@ -584,7 +584,7 @@ func appendAuditLogActorUserID(converted *generated.AuditLogListItem, actorUserI
 	return nil
 }
 
-// appendAuditLogMetadata decodes raw audit metadata and assigns it to the converted audit log item.
+// appendAuditLogMetadata 解码原始审计元数据，并写入已转换的审计日志项。
 // 当元数据不是有效 JSON 时返回错误。
 func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata json.RawMessage) error {
 	if len(rawMetadata) == 0 {
@@ -599,7 +599,7 @@ func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata j
 	return nil
 }
 
-// mustConvertAuditGeneratedID converts an unsigned identifier to int64 when it fits.
+// mustConvertAuditGeneratedID 在无符号标识符可表示为 int64 时完成转换。
 // 当标识符超出 int64 可表示范围时返回错误。
 func mustConvertAuditGeneratedID(id uint64, label string) (int64, error) {
 	if id > math.MaxInt64 {

@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	// ErrInvalidInput indicates an announcement store input violates the module persistence contract.
+	// ErrInvalidInput 表示公告 store 输入违反模块持久化契约。
 	ErrInvalidInput = errors.New("announcement invalid input")
-	// ErrAnnouncementNotFound indicates no non-deleted announcement exists for the requested id.
+	// ErrAnnouncementNotFound 表示请求的 ID 不存在未删除的公告记录。
 	ErrAnnouncementNotFound = errors.New("announcement not found")
 )
 

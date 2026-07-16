@@ -53,8 +53,8 @@ type auditLogRetentionCleaner struct {
 	now     func() time.Time
 }
 
-// newAuditLogRetentionCleaner creates an audit log retention cleaner for the specified service.
-// A nil logger is replaced with a no-op logger.
+// newAuditLogRetentionCleaner 为指定服务创建审计日志保留清理器。
+// logger 为空时使用 no-op logger，保证可选清理任务不会影响模块启动。
 func newAuditLogRetentionCleaner(
 	logger *zap.Logger,
 	service *Service,

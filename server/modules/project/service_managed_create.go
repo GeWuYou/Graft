@@ -17,7 +17,7 @@ import (
 
 var applicationNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
-// CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
+// CreateManagedProject 在配置的受管根目录下写入项目文件，并持久化注册表引导记录。
 func (s *Service) CreateManagedProject(
 	ctx context.Context,
 	request ManagedProjectCreateRequest,
@@ -330,7 +330,7 @@ func normalizeManagedWorkspaceEntry(entry ManagedWorkspaceEntry, composePath str
 	return normalizedManagedWorkspaceEntry{Path: path, NodeType: nodeType, Content: entry.Content}, nodeType == "file" && path == composePath, nil
 }
 
-// validateManagedWorkspaceEntry validates a workspace entry's type, uniqueness, ancestor relationships, and content.
+// validateManagedWorkspaceEntry 校验工作区条目的类型、唯一性、祖先关系和内容边界。
 func validateManagedWorkspaceEntry(path, nodeType string, content *string, seen map[string]string) error {
 	if nodeType != "file" && nodeType != "directory" {
 		return fmt.Errorf("%w: invalid workspace entry type", errProjectInvalidArgument)
@@ -356,7 +356,7 @@ func validateWorkspaceEntryRelationships(entries map[string]string) error {
 	return nil
 }
 
-// validateWorkspaceDirectoryContent validates that a workspace directory has no content.
+// validateWorkspaceDirectoryContent 校验工作区目录不携带文件内容。
 func validateWorkspaceDirectoryContent(content *string) error {
 	if content != nil {
 		return fmt.Errorf("%w: workspace directory cannot have content", errProjectInvalidArgument)
@@ -364,7 +364,7 @@ func validateWorkspaceDirectoryContent(content *string) error {
 	return nil
 }
 
-// validateWorkspaceFileContent validates that workspace file content is present, valid UTF-8 text, and contains no NUL characters.
+// validateWorkspaceFileContent 校验工作区文件内容存在、是有效 UTF-8 文本且不包含 NUL 字节。
 func validateWorkspaceFileContent(content *string) error {
 	if content == nil || !utf8.ValidString(*content) || strings.Contains(*content, "\x00") {
 		return fmt.Errorf("%w: workspace file must be UTF-8 text", errProjectInvalidArgument)
@@ -385,9 +385,9 @@ type managedCreateFiles struct {
 	envContent  *string
 }
 
-// normalizeManagedCreateIdentity trims and validates the required managed-project identity and file fields.
-// It returns the normalized display name, application name, compose content and path, and optional
-// environment-file information.
+// normalizeManagedCreateIdentity 修剪并校验受管项目必需的身份和文件字段。
+// 它返回规范化的显示名、应用名、Compose 内容和路径，以及可选的
+// 环境文件信息。
 func normalizeManagedCreateIdentity(request ManagedProjectCreateRequest) (managedCreateIdentity, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	composeContent := strings.TrimSpace(request.ComposeFileContent)
@@ -405,7 +405,7 @@ func normalizeManagedCreateIdentity(request ManagedProjectCreateRequest) (manage
 	return managedCreateIdentity{displayName: displayName, composeContent: composeContent, composePath: files.composePath, applicationName: applicationName, envName: files.envName, envContent: files.envContent}, nil
 }
 
-// normalizeManagedCreateFiles normalizes the compose and optional environment file names and content for a managed project creation request.
+// normalizeManagedCreateFiles 规范化受管项目创建请求中的 Compose 文件及可选环境文件名和内容。
 func normalizeManagedCreateFiles(request ManagedProjectCreateRequest) (managedCreateFiles, error) {
 	composePath, err := normalizeManagedFileName(request.ComposeFileName, "compose")
 	if err != nil {
@@ -468,10 +468,8 @@ func normalizeApplicationName(requested *string) (*string, error) {
 	return &name, nil
 }
 
-// normalizeManagedWorkspacePath validates and normalizes a relative workspace file path.
-// normalizeManagedWorkspacePath 规范化工作区相对路径，并拒绝空路径、绝对路径、包含反斜杠或逃逸出项目目录的路径。
-// normalizeManagedWorkspacePath 规范化工作区相对路径，并返回使用斜杠分隔的路径。
-// 如果路径为空、为绝对路径、包含反斜杠或会逃逸项目目录，则返回错误。
+// normalizeManagedWorkspacePath 校验并规范化相对工作区文件路径。
+// 它拒绝空路径、绝对路径、包含反斜杠或会逃逸项目目录的路径，并返回斜杠分隔的规范路径。
 func normalizeManagedWorkspacePath(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || filepath.IsAbs(value) || strings.Contains(value, `\`) {

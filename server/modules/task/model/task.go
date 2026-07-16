@@ -68,7 +68,7 @@ type Event struct {
 // EventType 标识除 Task 和 Stage 行之外保留的有限事件历史类型。
 type EventType string
 
-// Event 类型常量标识 Task 和 Stage 行无法推导的历史事实。
+// EventType 类型常量标识 Task 和 Stage 行无法推导的历史事实。
 const (
 	EventTypeCreated          EventType = "created"
 	EventTypeCancelRequested  EventType = "cancel_requested"
