@@ -6,7 +6,7 @@ Round context:
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: `none`
+- recovery source: parent topic `handwritten-comment-governance`
 - recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - local execution truth:
   - `server/AGENTS.md`
@@ -43,14 +43,15 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Read-only audit and boundary inventory
-2. Backend and frontend comment governance waves
+1. Read-only residual audit and boundary inventory
+2. Parallel backend and frontend module comment governance waves
 3. Review, integration validation, and archive readiness
 
 Loop instructions:
 
-- Default `loop_mode=topic-completion-loop`.
-- Advance exactly one bounded batch this round.
+- Default `loop_mode=topic-completion-loop`; use `$graft-multi-agent-batch` directly when write sets are disjoint.
+- Prefer multiple non-overlapping worker slices in one batch wave; do not serialize independent modules through loop rounds.
+- Stop when the main Agent judges context insufficient or this session has produced an auditable 20% progress increment.
 - Update topic tracking and trace files with batch transitions.
 - Run the smallest required validation before closeout.
 - Evaluate `$graft-commit` only after validation and only for confirmable owned scope.

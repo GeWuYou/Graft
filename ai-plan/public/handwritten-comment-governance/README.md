@@ -12,14 +12,14 @@
   - `web/AGENTS.md`
   - `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
   - `.agents/skills/graft-comment-governance/SKILL.md`
-- Completed so far: startup preflight, Work Intake bootstrap, model verification, and first-wave dispatch
-- Not started yet: first-wave closeout and main-agent acceptance
+- Completed so far: startup preflight, G115 lint repair, mixed-commit reconciliation, and eight parallel comment-governance waves
+- Not started yet: final residual inventory and archive-readiness decision
 
 ## Recovery Receipt
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: `none`
+- recovery source: parent topic `handwritten-comment-governance`
 - authority summary: 注释语义由仓库注释规范统一定义，server/web 子域规则约束执行与验证边界。
 
 ## Owned Scope
@@ -47,10 +47,10 @@ Out of scope:
 
 ## Current Recovery Point
 
-- 已完成启动收据、权威文档读取和初步文件规模统计。
-- 已验证 worker 配置为 `model=gpt-5.6-luna`、`reasoning_effort=medium`。
-- 第一波已启动：Pascal 只读审计，Kierkegaard 负责 server core 切片，Epicurus 负责 web app/layouts 切片。
-- Next step: 等待各 agent final closeout，随后由主 Agent 复核差异并执行对应验证。
+- 已完成启动收据、权威文档读取、G115 修复提交 `e3806925` 和混合提交范围复核；未改写 `e9fb50d4` / `249280ed` 历史。
+- 本回合已完成八个不重叠波次；每个 worker 均完成 scoped commit，主 Agent 保留编排层模型证据 `gpt-5.6-luna/medium`。
+- backend lint 已通过；web 全量检查仅剩既有 `configuration-workspace` 测试失败。
+- Next step: 做 residual comment inventory、确认没有未知工作树变更，并决定继续波次或 archive-ready。
 
 ## Work Intake
 
@@ -60,8 +60,8 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- 第一波：comment-audit-agent 只读审计，同时执行 server core 与 web app/layouts 不重叠治理。
-- 后续批次：按 audit inventory 继续分配 server 包集合、web 模块/壳层集合和只读 review。
+- 已完成波次：project workspace/canonical/project boundary、auth、system-config/task、web project、web shared/request、web auth/dashboard/monitor。
+- 后续批次：并行派发互斥模块级切片；停止条件改为主 Agent 判断上下文不足，或治理进度达到本会话约 20% 的可审计增量。
 
 ## Validation Targets
 

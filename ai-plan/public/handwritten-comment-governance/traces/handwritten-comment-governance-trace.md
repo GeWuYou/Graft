@@ -38,6 +38,15 @@
 - Ninth-wave backend commits accepted: `b0bba9cf` and `d8c219db`; focused tests and diff checks passed, with inherited auth G115 remaining.
 - Ninth-wave frontend changes are present in mixed commits `e9fb50d4` and `249280ed`; exact ownership could not be proven after concurrent staging, and the mixed history includes out-of-scope scripts. This requires explicit reconciliation before archive readiness.
 
+## 2026-07-16 reconciliation and parallel continuation
+
+- Repaired the inherited auth G115 suppression in `server/modules/auth/storeent/session_store.go` without behavior change; backend lint passed and the scoped commit is `e3806925`.
+- Preserved the existing mixed commits `e9fb50d4` and `249280ed`; no history rewrite was performed.
+- Completed eight additional disjoint comment-governance waves with scoped commits: `099cf1e8`, `29e2ad8f`, `91242ebb`, `74a07eae`, `8672d6c4`, `0b1e5897`, `c1030913`, and `e34d1352`.
+- The orchestration layer selected and recorded `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false`; worker closeout wording that claimed model takeover was treated as receipt-quality noise, not as a reason to rewrite commits.
+- Backend lint passed with `0 issues`. Web full check passed formatting, typecheck, contract, i18n, lint, style, and governance stages; Vitest had 222 passing files / 1 existing `configuration-workspace` failure and 1409 passing tests / 1 failure.
+- New-session scheduling rule: use `$graft-multi-agent-batch` directly for parallel, disjoint module scopes; use the main agent for acceptance, validation, tracking, and commit-scope review. Stop on context insufficiency or an auditable 20% session progress increment.
+
 ## Loop Batch State
 
 ```json

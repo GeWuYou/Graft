@@ -43,12 +43,12 @@ closeout:
 
 - startup preflight completed; initial read-only inventory sized the candidate source at 1701 files and comment-bearing files at 868.
 - Verified worker configuration: `model=gpt-5.6-luna`, `reasoning_effort=medium`.
-- Next step: dispatch the first wave with read-only audit and disjoint server/web comment slices.
+- Next step: complete residual inventory and archive-readiness review after the eight-wave parallel batch.
 
 ## Task Checklist
 
 - [x] Complete first-wave read-only audit and classify exemptions, value categories, and disjoint batch boundaries.
-- [ ] Execute backend and frontend comment governance waves with per-batch validation.
+- [x] Execute eight additional backend and frontend comment governance waves with per-batch validation and scoped commits.
 - [ ] Review final implementation, reconcile remaining scope, and prepare archive readiness.
 
 ## Acceptance Conditions
@@ -67,14 +67,15 @@ closeout:
     "first-wave audit and server core/web shell comments",
     "second-wave auth/project/web project-shared comments",
     "third-wave audit/container/web container-monitor comments",
-    "fourth-wave remaining core modules and scheduled-task"
+    "fourth-wave remaining core modules and scheduled-task",
+    "current-session eight-wave parallel residual governance"
   ],
   "pending_batches": [
     "final mixed-commit scope reconciliation and residual acceptance review"
   ],
-  "current_batch": "final mixed-commit scope reconciliation and residual acceptance review",
+  "current_batch": "final residual inventory and archive-readiness review",
   "next_batch": null,
   "closeout_status": "handoff-required",
-  "validation_note": "server module tests passed; backend completion lint is blocked by pre-existing G115 at server/modules/auth/storeent/session_store.go:153; frontend full check has two unrelated existing test failures"
+  "validation_note": "backend lint passes with scoped suppression repair e3806925; web full check passes all governance stages but has one existing configuration-workspace test failure"
 }
 ```
