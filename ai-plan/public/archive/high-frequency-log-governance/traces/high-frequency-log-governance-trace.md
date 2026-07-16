@@ -53,3 +53,11 @@
   and saved-view values for server Registry validation. No downstream category array/type guard remains.
 - Hardened the bounded Go scanner for the logger APIs named by policy, added bypass regression coverage, and queued
   archive-readiness as the next loop step after final validation and commit.
+
+## 2026-07-16 Archive readiness
+
+- Confirmed the category Registry is the only inventory authority, production Go category calls are typed, and the bounded scanner rejects the governed literal bypass forms.
+- Confirmed disabled categories return before lazy fields, sanitization, serialization, Zap encoding, and durable App Log enqueue; normal high-frequency diagnostics are TRACE while failure logs retain WARN or ERROR.
+- `git diff --check`, `python3 scripts/validate_sql_migrations.py`, `python3 scripts/validate_ai_plan_structure.py`, `python3 scripts/validate_ai_governance.py`, and `cd server && go run ./cmd/graft validate backend` passed.
+- `cd web && bun run check` completed its static gates and App Log tests but failed in the unrelated Project Configuration Workspace test at `src/modules/project/pages/configuration-workspace/index.test.ts:1457`. This archived topic does not claim a full green Web suite.
+- Topic reached `archive-ready`; the active-topic router no longer lists it.

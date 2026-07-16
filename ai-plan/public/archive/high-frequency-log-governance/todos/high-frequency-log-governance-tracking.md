@@ -17,10 +17,10 @@ execution:
   dispatch_skill: graft-multi-agent-task
 bootstrap:
   targets:
-    - ai-plan/public/high-frequency-log-governance/README.md
-    - ai-plan/public/high-frequency-log-governance/startup-prompt.md
-    - ai-plan/public/high-frequency-log-governance/todos/high-frequency-log-governance-tracking.md
-    - ai-plan/public/high-frequency-log-governance/traces/high-frequency-log-governance-trace.md
+    - ai-plan/public/archive/high-frequency-log-governance/README.md
+    - ai-plan/public/archive/high-frequency-log-governance/startup-prompt.md
+    - ai-plan/public/archive/high-frequency-log-governance/todos/high-frequency-log-governance-tracking.md
+    - ai-plan/public/archive/high-frequency-log-governance/traces/high-frequency-log-governance-trace.md
 closeout:
   archive: true
   lessons_review: true
@@ -34,10 +34,9 @@ closeout:
   - `batch-2-high-frequency-migration-and-static-governance`
   - `batch-3-app-log-category-contract`
   - `batch-4-category-authority-repair`
-- current_batch: `batch-4-category-authority-repair`
-- pending_batches:
-  - `archive-readiness-evaluation`
-- next_batch: `archive-readiness-evaluation`
+- current_batch: `archive-readiness-evaluation`
+- pending_batches: `[]`
+- next_batch: `none`
 
 ## Acceptance Conditions
 
@@ -50,7 +49,14 @@ closeout:
 ## Current Risks
 
 - TRACE requires a custom zap level and encoder handling; compatibility must be covered by observer tests.
-- Archive readiness still requires loop-owner acceptance review and scoped commit confirmation.
+- `bun run check` has an unrelated Project Configuration Workspace test failure; topic-owned App Log coverage and all preceding frontend checks pass.
+
+## 2026-07-16 Archive Readiness Receipt
+
+- All five acceptance conditions passed for the owned logger, configuration, App Log/OpenAPI, web-consumer, migration, and static-governance surfaces.
+- `git diff --check`, SQL migration validation, AI plan structure validation, AI governance validation, and the full backend validation entrypoint passed.
+- `cd web && bun run check` failed only in `src/modules/project/pages/configuration-workspace/index.test.ts:1457`, which is outside this topic's owned scope. The failure occurs after App Log tests and all static frontend checks; it is recorded as an external validation gap rather than attributed to this topic.
+- Archive decision: `archive-ready` with the explicit external Web suite gap above.
 - Category literal static checking must remain bounded to production server code and must not become a whole-repository linter.
 
 ## 2026-07-16 Batch 2 Receipt

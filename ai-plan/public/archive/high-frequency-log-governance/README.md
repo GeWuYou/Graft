@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: establish Graft's long-lived `TRACE + Category + Registry` governance for high-frequency runtime logs.
-- Current status: `active`
+- Current status: `archived` on 2026-07-16
 - Task class: `cross-boundary`
 - Intake summary: long-running refactor with a core server authority and downstream App Log/OpenAPI/web consumers.
 - Canonical authority:
@@ -11,13 +11,13 @@
   - `server/internal/config/**`
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
 - Completed so far: Work Intake, architecture decision, Batch 1 logger foundation, Batch 2 high-frequency migration/static governance, Batch 3 App Log category contract, and Batch 4 category-authority repair.
-- Pending: loop-owner archive-readiness evaluation after Batch 4 validation and scoped commit review.
+- Completed: all four implementation batches, final archive-readiness evaluation, and scoped commit review.
 
 ## Recovery Receipt
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: `none`
+- recovery source: `archive`
 - authority summary: `server/internal/logger/**` owns runtime logging; `server/internal/config/**` owns startup configuration; App Log/OpenAPI/web are downstream consumers.
 
 ## Owned Scope
@@ -44,11 +44,13 @@ Out of scope:
 - Batch 3: add App Log category persistence/query contract and downstream OpenAPI/web consumer updates when required by the completed runtime baseline.
 - Batch 4: repair the AppLogger default/gate, migrate the incorrect Batch 3 legacy category, remove downstream category inventories, and harden the bounded literal scanner.
 
-## Current Recovery Point
+## Archive Receipt
 
 - Loop mode: `topic-completion-loop`.
-- Current batch: Batch 4 completed pending validation and scoped commit.
-- Next step: evaluate archive readiness against the topic acceptance conditions.
+- Completed batches: logger foundation, high-frequency migration/static governance, App Log category contract, and category-authority repair.
+- Archive decision: all topic acceptance conditions are met within owned scope.
+- Validation gap: `cd web && bun run check` reached the test suite and failed only in the unrelated `src/modules/project/pages/configuration-workspace/index.test.ts` assertion at line 1457. App Log tests, format, typecheck, generated OpenAPI governance, i18n, lint, stylelint, and hygiene checks passed before that failure.
+- Future work: the project workspace test failure remains owned by the project configuration workspace topic, not this archived logger topic.
 
 ## Work Intake
 
@@ -62,7 +64,7 @@ git diff --check
 cd server && go run ./cmd/graft validate backend
 ```
 
-## Loop Entry
+## Historical Loop Entry
 
-- Preferred entry: `ai-plan/public/high-frequency-log-governance/startup-prompt.md`
-- Preferred execution mode: `$graft-multi-agent-loop`
+- Historical entry: `startup-prompt.md`
+- Execution mode used: `$graft-multi-agent-loop`
