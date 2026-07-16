@@ -6,7 +6,7 @@ import { createLogger } from '@/utils/logger';
 /**
  * 判断是否启用 Project Monaco 调试。
  *
- * @returns `true` 如果已启用 `project.monaco` 调试标志，否则为 `false`。
+ * @returns 如果已启用 `project.monaco` 调试标志则返回 `true`，否则返回 `false`。
  */
 export function isProjectMonacoDebugEnabled() {
   return isDebugFlagEnabled('project.monaco');
@@ -16,7 +16,7 @@ export function isProjectMonacoDebugEnabled() {
  * 判断错误是否为 Monaco 取消错误。
  *
  * @param error - 待检查的错误对象
- * @returns `true` if the error is a `Canceled` 错误且消息为 `Canceled`, `false` otherwise.
+ * @returns 错误名称和消息均符合 Monaco 取消约定时返回 `true`，否则返回 `false`。
  */
 function isProjectMonacoCancellationError(error: unknown) {
   return error instanceof Error && error.name === 'Canceled' && error.message === 'Canceled';
@@ -100,6 +100,7 @@ export function disposeProjectMonacoModelDeferred(
     uri: String(targetModel.uri),
   };
 
+  // 将处置推迟到当前编辑器生命周期回调完成后，避免模型仍被 Monaco 使用时触发取消或重复处置。
   queueMicrotask(() => {
     try {
       targetModel.dispose();
