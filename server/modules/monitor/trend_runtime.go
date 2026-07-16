@@ -19,6 +19,7 @@ import (
 
 	generated "graft/server/internal/contract/openapi/generated"
 	monitoropenapi "graft/server/internal/contract/openapi/monitor"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/statex"
 	statexkeys "graft/server/internal/statex/keys"
@@ -258,7 +259,7 @@ func loadTrendPoints(
 	for _, sample := range samples {
 		var point generated.ServerStatusTrendPoint
 		if err := json.Unmarshal(sample.Payload, &point); err != nil {
-			zap.L().Warn("decode stored monitor trend point failed",
+			logger.Category(zap.L(), logger.CategoryRuntimeMetrics).Warn("decode stored monitor trend point failed",
 				zap.Time("observedAt", sample.ObservedAt),
 				zap.String("storageKey", storageKey),
 				zap.Error(err),
@@ -624,8 +625,8 @@ func logTrendWarning(instance *Module, moduleCtx *module.Context, message string
 	}
 	switch {
 	case instance != nil && instance.logger != nil:
-		instance.logger.Warn(message, fields...)
+		logger.Category(instance.logger, logger.CategoryRuntimeMetrics).Warn(message, fields...)
 	case moduleCtx != nil && moduleCtx.Logger != nil:
-		moduleCtx.Logger.Warn(message, fields...)
+		logger.Category(moduleCtx.Logger, logger.CategoryRuntimeMetrics).Warn(message, fields...)
 	}
 }

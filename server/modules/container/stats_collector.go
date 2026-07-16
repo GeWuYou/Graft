@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	containergen "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/logger"
 	"graft/server/internal/realtime"
 	containercontract "graft/server/modules/container/contract"
 )
@@ -155,18 +156,18 @@ func (c *statsCollector) run(ctx context.Context, done chan struct{}) {
 func (c *statsCollector) collectAndPublish(ctx context.Context) {
 	snapshots, err := c.collect(ctx)
 	if err != nil {
-		c.logger.Warn("collect container stats snapshots failed", zap.Error(err))
+		logger.Category(c.logger, logger.CategoryDockerStats).Warn("collect container stats snapshots failed", zap.Error(err))
 		return
 	}
 	if err := c.publishDashboardSummary(ctx, snapshots); err != nil {
-		c.logger.Warn("publish container dashboard summary snapshot failed", zap.Error(err))
+		logger.Category(c.logger, logger.CategoryDockerStats).Warn("publish container dashboard summary snapshot failed", zap.Error(err))
 	}
 	if err := c.publishList(ctx, snapshots); err != nil {
-		c.logger.Warn("publish container stats list snapshot failed", zap.Error(err))
+		logger.Category(c.logger, logger.CategoryDockerStats).Warn("publish container stats list snapshot failed", zap.Error(err))
 	}
 	for _, snapshot := range snapshots {
 		if err := c.publish(ctx, snapshot); err != nil {
-			c.logger.Warn("publish container stats snapshot failed",
+			logger.Category(c.logger, logger.CategoryDockerStats).Warn("publish container stats snapshot failed",
 				zap.String("containerID", strings.TrimSpace(snapshot.ContainerID)),
 				zap.Error(err),
 			)

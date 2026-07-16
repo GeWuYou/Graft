@@ -32,9 +32,7 @@ Locked decisions:
 
 Current batch plan:
 
-1. Complete the logger Category and TRACE foundation with normative docs and tests.
-2. Migrate high-frequency call sites and add static governance coverage.
-3. Evaluate and implement durable App Log/OpenAPI/web category propagation.
+1. Evaluate and implement durable App Log/OpenAPI/web category propagation.
 
 Loop instructions:
 

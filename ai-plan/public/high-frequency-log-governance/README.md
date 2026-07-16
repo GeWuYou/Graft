@@ -10,8 +10,8 @@
   - `server/internal/logger/**`
   - `server/internal/config/**`
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
-- Completed so far: Work Intake, architecture decision, and Batch 1 logger foundation are complete.
-- Not started yet: Batch 2 high-frequency migration and static governance; Batch 3 App Log/OpenAPI/web contract evaluation.
+- Completed so far: Work Intake, architecture decision, Batch 1 logger foundation, and Batch 2 high-frequency migration/static governance.
+- Not started yet: Batch 3 App Log/OpenAPI/web contract evaluation.
 
 ## Recovery Receipt
 
@@ -40,14 +40,14 @@ Out of scope:
 ## Phase Plan
 
 - Batch 1: bootstrap Category constants/registry, TRACE policy, configuration parsing, thin facade, tests, and normative docs.
-- Batch 2: migrate identified high-frequency call sites and add bounded magic-string/static governance coverage.
+- Batch 2: migrated Docker CPU TRACE diagnostics, periodic/watcher/cache warning categories, and Ent TRACE output; added bounded magic-string/static governance coverage.
 - Batch 3: add App Log category persistence/query contract and downstream OpenAPI/web consumer updates when required by the completed runtime baseline.
 
 ## Current Recovery Point
 
 - Loop mode: `topic-completion-loop`.
-- Current batch: Batch 1 completed.
-- Next step: dispatch Batch 2 high-frequency migration and static-governance worker.
+- Current batch: Batch 2 completed.
+- Next step: dispatch Batch 3 App Log/OpenAPI/web contract worker.
 
 ## Work Intake
 

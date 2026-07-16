@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/logger"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 )
@@ -106,7 +107,7 @@ func (s *projectRuntimeTopicStreamer) EnsureTopic(topic string, projectID uint64
 		s.start(topic)
 	}, func(string) {
 		if err := s.stop(context.Background(), topic); err != nil {
-			s.logger.Warn("stop project runtime stream failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+			logger.Category(s.logger, logger.CategoryComposeRuntime).Warn("stop project runtime stream failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
 		}
 	})
 	if err != nil {
@@ -199,7 +200,7 @@ func (s *projectRuntimeTopicStreamer) publish(topic string, projectID uint64) {
 	defer cancel()
 	payload, err := s.service.buildProjectRuntimeRealtimePayload(ctx, topic, projectID)
 	if err != nil {
-		s.logger.Warn("publish project runtime realtime snapshot failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+		logger.Category(s.logger, logger.CategoryComposeRuntime).Warn("publish project runtime realtime snapshot failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
 		return
 	}
 	s.hub.Publish(topic, payload)

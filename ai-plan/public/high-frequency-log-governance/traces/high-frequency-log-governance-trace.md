@@ -17,3 +17,14 @@
   README, public topic, and Compose documentation.
 - Next batch owns governed high-frequency call-site migration and static literal coverage; App Log/OpenAPI/web remain
   downstream and unchanged.
+
+## 2026-07-16 Batch 2: high-frequency migration and static governance
+
+- Migrated the normal Docker CPU calculation diagnostic to `CategoryDockerStats` TRACE with the required explicit
+  `Enabled(TRACE)` guard and `TraceLazy` field construction.
+- Preserved WARN for collector, event-manager, project stream, monitor trend, and system-config cache failures while
+  categorizing them with typed logger constants; no normal per-tick or cache-hit logs were added.
+- Moved user Ent debug output to `CategoryDatabaseEnt` TRACE and prevented Ent argument formatting when disabled.
+- Added the bounded production-Go `logger.Category` literal guard and attached it to the existing backend lint stage.
+- Batch 3 owns App Log persistence, OpenAPI, and web-consumer contract evaluation; those downstream surfaces remain
+  unchanged in this batch.

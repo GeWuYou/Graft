@@ -31,11 +31,11 @@ closeout:
 - loop_mode: `topic-completion-loop`
 - completed_batches:
   - `batch-1-logger-category-foundation`
-- current_batch: `batch-2-high-frequency-migration-and-static-governance`
-- pending_batches:
   - `batch-2-high-frequency-migration-and-static-governance`
+- current_batch: `batch-3-app-log-category-contract`
+- pending_batches:
   - `batch-3-app-log-category-contract`
-- next_batch: `batch-2-high-frequency-migration-and-static-governance`
+- next_batch: `batch-3-app-log-category-contract`
 
 ## Acceptance Conditions
 
@@ -50,3 +50,14 @@ closeout:
 - TRACE requires a custom zap level and encoder handling; compatibility must be covered by observer tests.
 - App Log persistence currently has no category field and is intentionally not modified before its authority batch.
 - Category literal static checking must remain bounded to production server code and must not become a whole-repository linter.
+
+## 2026-07-16 Batch 2 Receipt
+
+- Migrated Docker CPU calculation diagnostics to `CategoryDockerStats` TRACE with an explicit `Enabled(TRACE)` guard and
+  `TraceLazy`; calculation fields are not built while the category is disabled.
+- Migrated identified collector, runtime event, project topic stream, monitor trend, and system-config cache failure or
+  debug paths to typed categories while preserving their existing severity.
+- Moved user Ent debug output to `CategoryDatabaseEnt` TRACE and guard argument formatting behind category enablement.
+- Added `scripts/check_log_category_governance.py`, limited to handwritten production Go under `server`, and wired it
+  into the existing backend lint stage. The guard rejects `logger.Category(..., "literal")` but permits logger typed
+  constants.

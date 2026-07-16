@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"graft/server/internal/logger"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 )
@@ -99,7 +100,7 @@ func (s *projectListTopicStreamer) EnsureTopic(topic string) error {
 		s.start(topic)
 	}, func(string) {
 		if err := s.stop(context.Background(), topic); err != nil {
-			s.logger.Warn("stop project list stream failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+			logger.Category(s.logger, logger.CategoryComposeRuntime).Warn("stop project list stream failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
 		}
 	})
 	if err != nil {
@@ -189,7 +190,7 @@ func (s *projectListTopicStreamer) publish(topic string) {
 	defer cancel()
 	payload, err := s.service.buildProjectListSummaryRealtimePayload(ctx, topic)
 	if err != nil {
-		s.logger.Warn("publish project list realtime snapshot failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
+		logger.Category(s.logger, logger.CategoryComposeRuntime).Warn("publish project list realtime snapshot failed", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
 		return
 	}
 	s.hub.Publish(topic, payload)

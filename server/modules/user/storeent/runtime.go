@@ -8,6 +8,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"go.uber.org/zap"
 
+	"graft/server/internal/logger"
 	ent "graft/server/modules/user/ent"
 )
 
@@ -28,16 +29,20 @@ func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 	}
 
 	driver := entsql.OpenDB("postgres", sqlDB)
+	categoryLog := logger.Category(runtimeLogger, logger.CategoryDatabaseEnt)
 	return &Runtime{
 		client: ent.NewClient(
 			ent.Driver(driver),
 			ent.Log(func(args ...any) {
+				if !categoryLog.Enabled(logger.TraceLevel) {
+					return
+				}
 				message := strings.TrimSpace(fmt.Sprint(args...))
 				if message == "" {
 					return
 				}
 
-				runtimeLogger.Debug("ent debug",
+				categoryLog.Trace("ent debug",
 					zap.String("module", "user"),
 					zap.String("component", "ent"),
 					zap.String("message", message),
