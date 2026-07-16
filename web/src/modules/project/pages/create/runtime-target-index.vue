@@ -70,22 +70,22 @@ import { useRoute, useRouter } from 'vue-router';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getProjectComposeRuntimeTargets } from '../../api/project';
+import { getApplicationComposeRuntimeTargets } from '../../api/project';
 import dockerIcon from '../../assets/runtime/docker.svg?url';
 import podmanIcon from '../../assets/runtime/podman.svg?url';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { useProjectCreateRouteNavigation } from '../../shared/navigation';
-import type { ProjectComposeRuntimeTarget } from '../../types/project';
+import { useApplicationCreateRouteNavigation } from '../../shared/navigation';
+import type { ApplicationComposeRuntimeTarget } from '../../types/project';
 
-defineOptions({ name: 'ProjectCreateRuntimeTargetIndex' });
+defineOptions({ name: 'ApplicationCreateRuntimeTargetIndex' });
 // Compose 目标页依赖服务端能力目录；缺少合法部署上下文时必须回到创建入口。
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const navigateProjectCreateRoute = useProjectCreateRouteNavigation(router);
+const navigateApplicationCreateRoute = useApplicationCreateRouteNavigation(router);
 const loading = ref(false);
 const loadError = ref('');
-const targets = ref<ProjectComposeRuntimeTarget[]>([]);
+const targets = ref<ApplicationComposeRuntimeTarget[]>([]);
 const deployment = computed(() => (route.query.deployment === 'compose' ? 'compose' : null));
 onMounted(() => {
   if (!deployment.value) {
@@ -98,7 +98,7 @@ async function loadTargets() {
   loading.value = true;
   loadError.value = '';
   try {
-    targets.value = (await getProjectComposeRuntimeTargets()).items;
+    targets.value = (await getApplicationComposeRuntimeTargets()).items;
   } catch (error) {
     loadError.value = resolveLocalizedErrorMessage(t, error, t('project.runtimeTarget.loadFailed'));
   } finally {
@@ -115,7 +115,7 @@ function goToDeploymentModels() {
   });
 }
 function selectTarget(runtimeTargetId: number) {
-  navigateProjectCreateRoute(
+  navigateApplicationCreateRoute(
     {
       name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
       query: { deployment: 'compose', runtime_target_id: String(runtimeTargetId) },

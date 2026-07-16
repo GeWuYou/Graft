@@ -318,15 +318,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 import { useKeyboardShortcut } from '@/shared/composables/useKeyboardShortcut';
 
-import type { ProjectWorkspaceMonacoLanguage } from '../shared/configuration-workspace';
+import type { ApplicationWorkspaceMonacoLanguage } from '../shared/configuration-workspace';
 import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import ProjectMonacoSurface from './ProjectMonacoSurface.vue';
 
-defineOptions({ name: 'ProjectWorkspaceEditor' });
+defineOptions({ name: 'ApplicationWorkspaceEditor' });
 
 // 工作区编辑器消费 store 的树与文件缓冲区，负责视图交互；会话和持久化状态归 store 所有。
 
-export type ProjectWorkspaceEditorRow = {
+export type ApplicationWorkspaceEditorRow = {
   depth: number;
   error?: string;
   expanded?: boolean;
@@ -339,11 +339,11 @@ export type ProjectWorkspaceEditorRow = {
   tooltip?: string;
 };
 
-export type ProjectWorkspaceEditorBuffer = {
+export type ApplicationWorkspaceEditorBuffer = {
   content: string;
   dirty?: boolean;
   error?: string;
-  language: ProjectWorkspaceMonacoLanguage;
+  language: ApplicationWorkspaceMonacoLanguage;
   loading?: boolean;
   modelKey?: string;
   name: string;
@@ -351,7 +351,7 @@ export type ProjectWorkspaceEditorBuffer = {
   readOnly?: boolean;
 };
 
-export type ProjectWorkspaceInlineEdit = {
+export type ApplicationWorkspaceInlineEdit = {
   anchorPath: string | null;
   error?: string;
   mode: 'create-file' | 'create-directory' | 'rename';
@@ -359,7 +359,7 @@ export type ProjectWorkspaceInlineEdit = {
   value: string;
 };
 
-export type ProjectWorkspaceEditorLabels = {
+export type ApplicationWorkspaceEditorLabels = {
   annotationAction?: string;
   closeAll: string;
   closeLeft: string;
@@ -378,16 +378,16 @@ export type ProjectWorkspaceEditorLabels = {
 
 const props = withDefaults(
   defineProps<{
-    activeBuffer: ProjectWorkspaceEditorBuffer | null;
+    activeBuffer: ApplicationWorkspaceEditorBuffer | null;
     activePath: string;
     editorAriaLabel: string;
     editorDefaultHeight?: number;
     editorHeightStorageKey: string;
     emptyDescription: string;
     fullscreen?: boolean;
-    inlineEdit?: ProjectWorkspaceInlineEdit | null;
-    labels: ProjectWorkspaceEditorLabels;
-    rows: ProjectWorkspaceEditorRow[];
+    inlineEdit?: ApplicationWorkspaceInlineEdit | null;
+    labels: ApplicationWorkspaceEditorLabels;
+    rows: ApplicationWorkspaceEditorRow[];
     selectedPath?: string;
     sidebarMaxWidth?: number;
     sidebarMinWidth?: number;
@@ -396,7 +396,7 @@ const props = withDefaults(
     showAnnotationAction?: boolean;
     tabActionTestId?: (path: string, action: string) => string;
     tabTestId?: (path: string) => string;
-    tabs: ProjectWorkspaceEditorBuffer[];
+    tabs: ApplicationWorkspaceEditorBuffer[];
     tabsEmptyDescription: string;
     treeTitle: string;
     rootLabel: string;
@@ -420,15 +420,15 @@ const emit = defineEmits<{
   'close-tab': [path: string];
   'context-action': [
     action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
-    row: ProjectWorkspaceEditorRow | null,
+    row: ApplicationWorkspaceEditorRow | null,
   ];
   'editor-ready': [editor: unknown];
   'inline-edit-cancel': [];
   'inline-edit-submit': [];
-  'update:inlineEdit': [value: ProjectWorkspaceInlineEdit | null];
-  'select-entry': [row: ProjectWorkspaceEditorRow];
+  'update:inlineEdit': [value: ApplicationWorkspaceInlineEdit | null];
+  'select-entry': [row: ApplicationWorkspaceEditorRow];
   'tab-action': [action: 'refresh' | 'close-left' | 'close-right' | 'close-other' | 'close-all', path: string];
-  'toggle-directory': [row: ProjectWorkspaceEditorRow];
+  'toggle-directory': [row: ApplicationWorkspaceEditorRow];
   'update:activePath': [path: string];
   'update:fullscreen': [fullscreen: boolean];
   'update-content': [path: string, content: string];
@@ -444,7 +444,7 @@ let contextMenuTrigger: HTMLElement | null = null;
 let sidebarResizeStartWidth = 0;
 let sidebarResizeStartX = 0;
 let removeSidebarResizeListeners: (() => void) | null = null;
-const contextMenu = reactive<{ row: ProjectWorkspaceEditorRow | null; visible: boolean; x: number; y: number }>({
+const contextMenu = reactive<{ row: ApplicationWorkspaceEditorRow | null; visible: boolean; x: number; y: number }>({
   row: null,
   visible: false,
   x: 0,
@@ -475,7 +475,7 @@ function changeActivePath(path: string | number) {
   emit('update:activePath', String(path));
 }
 
-function openMenu(row: ProjectWorkspaceEditorRow | null, event: MouseEvent, focusMenu = false) {
+function openMenu(row: ApplicationWorkspaceEditorRow | null, event: MouseEvent, focusMenu = false) {
   contextMenu.row = row;
   contextMenu.x = event.clientX;
   contextMenu.y = event.clientY;
@@ -490,15 +490,15 @@ function emitContextAction(action: 'create-file' | 'create-directory' | 'annotat
   contextMenu.visible = false;
 }
 
-function isInlineRename(row: ProjectWorkspaceEditorRow) {
+function isInlineRename(row: ApplicationWorkspaceEditorRow) {
   return inlineEdit.value?.mode === 'rename' && inlineEdit.value.anchorPath === row.path;
 }
 
-function inlineEntryDepth(row: ProjectWorkspaceEditorRow) {
+function inlineEntryDepth(row: ApplicationWorkspaceEditorRow) {
   return row.nodeType === 'directory' ? row.depth + 1 : row.depth;
 }
 
-function shouldRenderInlineEntryAfter(row: ProjectWorkspaceEditorRow) {
+function shouldRenderInlineEntryAfter(row: ApplicationWorkspaceEditorRow) {
   const edit = inlineEdit.value;
   if (!edit || edit.mode === 'rename' || edit.anchorPath !== row.path) return false;
   return true;

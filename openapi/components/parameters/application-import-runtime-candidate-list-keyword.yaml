@@ -1,0 +1,8 @@
+name: keyword
+in: query
+required: false
+description: Optional case-insensitive keyword matched against application name, working directory, compose files, runtime, service names, and candidate diagnostics.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 128

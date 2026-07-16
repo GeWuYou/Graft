@@ -347,3 +347,13 @@ Compose Project Management
 - Added the default-off `project.workspace` local diagnostic flag for managed-create and configuration workspace sessions, file trees, tab buffers, and editor render dimensions. Logged details exclude workspace file contents.
 - The managed-create editor now provides localized format and copy actions for the active file, while the shared editor only allocates splitter grid space when resizing is enabled.
 - Validation passed: `git diff --check` and `cd web && bun run check`.
+
+## 2026-07-16 Application Contract Authority Migration
+
+- [x] 用户批准一次性完整迁移到 Application，不保留 Project alias、redirect、deprecated field 或 compatibility contract。
+- [x] canonical UI/API authority 固定为 `/applications/**`、`/api/ops/applications/**` 与 `applicationId`。
+- [x] canonical public model 固定为 `application_type=compose`、`source_type`、`compose_project_name`、
+  `workspace_path`；`host_scope` 从 Application contract 删除。
+- [x] persistence authority 固定为 generic `applications`；历史 versioned migration SQL 保持不可修改，后续由
+  server owned slice 新增前向迁移。
+- [x] OpenAPI source 与 generated server/web artifacts 由 canonical generation commands 同步。

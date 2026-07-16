@@ -1,38 +1,38 @@
 import { LogBatchBuffer } from '@/shared/observability';
 
-import type { ProjectLogEntry, ProjectLogResponse } from '../types/project';
-import { emitProjectLogDebug } from './project-log-debug';
+import type { ApplicationLogEntry, ApplicationLogResponse } from '../types/project';
+import { emitApplicationLogDebug } from './project-log-debug';
 
 const DEFAULT_LOG_BATCH_FLUSH_INTERVAL_MS = 100;
 const DEFAULT_LOG_BATCH_MAX_SIZE = 32;
 
-type ProjectLogRealtimeBatcherOptions = Readonly<{
+type ApplicationLogRealtimeBatcherOptions = Readonly<{
   lineLimit: number;
   flushIntervalMs?: number;
   maxBatchSize?: number;
-  onCommit: (snapshot: ProjectLogResponse) => void;
+  onCommit: (snapshot: ApplicationLogResponse) => void;
 }>;
 
 /**
- * ProjectLogRealtimeBatcher 在限制日志行数的同时，将高频实时日志合并为稳定的时间序列快照。
+ * ApplicationLogRealtimeBatcher 在限制日志行数的同时，将高频实时日志合并为稳定的时间序列快照。
  *
  * HTTP 快照加载期间到达的实时日志会先暂存，待快照作为基线写入后再合并，避免刷新覆盖已经收到的日志。
  */
-export class ProjectLogRealtimeBatcher {
-  readonly #onCommit: (snapshot: ProjectLogResponse) => void;
-  #base: Omit<ProjectLogResponse, 'entries' | 'tail' | 'truncated'> | null = null;
-  #entries = new Map<string, ProjectLogEntry>();
+export class ApplicationLogRealtimeBatcher {
+  readonly #onCommit: (snapshot: ApplicationLogResponse) => void;
+  #base: Omit<ApplicationLogResponse, 'entries' | 'tail' | 'truncated'> | null = null;
+  #entries = new Map<string, ApplicationLogEntry>();
   #lineLimit: number;
-  #pendingSnapshotEntries = new Map<string, ProjectLogEntry>();
+  #pendingSnapshotEntries = new Map<string, ApplicationLogEntry>();
   #pendingSnapshotTruncated = false;
   #snapshotPending = false;
   #truncated = false;
-  #batchBuffer: LogBatchBuffer<ProjectLogEntry>;
+  #batchBuffer: LogBatchBuffer<ApplicationLogEntry>;
 
-  constructor(options: ProjectLogRealtimeBatcherOptions) {
+  constructor(options: ApplicationLogRealtimeBatcherOptions) {
     this.#lineLimit = options.lineLimit;
     this.#onCommit = options.onCommit;
-    this.#batchBuffer = new LogBatchBuffer<ProjectLogEntry>({
+    this.#batchBuffer = new LogBatchBuffer<ApplicationLogEntry>({
       flushIntervalMs: options.flushIntervalMs ?? DEFAULT_LOG_BATCH_FLUSH_INTERVAL_MS,
       maxBatchSize: options.maxBatchSize ?? DEFAULT_LOG_BATCH_MAX_SIZE,
       onFlush: (entries) => this.#flushEntries(entries),
@@ -42,7 +42,7 @@ export class ProjectLogRealtimeBatcher {
   beginSnapshot(lineLimit: number) {
     this.#lineLimit = normalizeLineLimit(lineLimit);
     this.#snapshotPending = true;
-    emitProjectLogDebug('batcher-snapshot-begin', {
+    emitApplicationLogDebug('batcher-snapshot-begin', {
       lineLimit: this.#lineLimit,
       retainedCount: this.#entries.size,
       bufferedCount: this.#pendingSnapshotEntries.size,
@@ -50,11 +50,11 @@ export class ProjectLogRealtimeBatcher {
     this.#batchBuffer.flush();
   }
 
-  seed(snapshot: ProjectLogResponse) {
+  seed(snapshot: ApplicationLogResponse) {
     this.#lineLimit = normalizeLineLimit(snapshot.tail);
     this.#base = {
-      canonical_project_name: snapshot.canonical_project_name,
-      project_id: snapshot.project_id,
+      compose_project_name: snapshot.compose_project_name,
+      application_id: snapshot.application_id,
       stderr: snapshot.stderr,
       stdout: snapshot.stdout,
       timestamps: snapshot.timestamps,
@@ -68,7 +68,7 @@ export class ProjectLogRealtimeBatcher {
     this.#pendingSnapshotEntries.clear();
     this.#pendingSnapshotTruncated = false;
     this.#snapshotPending = false;
-    emitProjectLogDebug('batcher-snapshot-seeded', {
+    emitApplicationLogDebug('batcher-snapshot-seeded', {
       responseCount: snapshot.entries.length,
       retainedCount: this.#entries.size,
       bufferedCount,
@@ -79,7 +79,7 @@ export class ProjectLogRealtimeBatcher {
     this.#emit();
   }
 
-  enqueue(entry: ProjectLogEntry) {
+  enqueue(entry: ApplicationLogEntry) {
     this.#batchBuffer.append(entry);
   }
 
@@ -111,12 +111,12 @@ export class ProjectLogRealtimeBatcher {
     this.clear();
   }
 
-  #flushEntries(entries: readonly ProjectLogEntry[]) {
+  #flushEntries(entries: readonly ApplicationLogEntry[]) {
     // 快照建立前不能提交局部结果，否则 HTTP 响应会覆盖这段时间内已经到达的实时日志。
     if (this.#snapshotPending) {
       const trimmed = this.#mergeInto(this.#pendingSnapshotEntries, entries);
       this.#pendingSnapshotTruncated ||= trimmed;
-      emitProjectLogDebug('batcher-buffered-before-snapshot', {
+      emitApplicationLogDebug('batcher-buffered-before-snapshot', {
         flushedCount: entries.length,
         bufferedCount: this.#pendingSnapshotEntries.size,
         truncated: this.#pendingSnapshotTruncated,
@@ -126,7 +126,7 @@ export class ProjectLogRealtimeBatcher {
     if (!this.#base) {
       const trimmed = this.#mergeInto(this.#pendingSnapshotEntries, entries);
       this.#pendingSnapshotTruncated ||= trimmed;
-      emitProjectLogDebug('batcher-buffered-without-base', {
+      emitApplicationLogDebug('batcher-buffered-without-base', {
         flushedCount: entries.length,
         bufferedCount: this.#pendingSnapshotEntries.size,
         truncated: this.#pendingSnapshotTruncated,
@@ -135,7 +135,7 @@ export class ProjectLogRealtimeBatcher {
     }
     const previousCount = this.#entries.size;
     this.#merge(entries);
-    emitProjectLogDebug('batcher-flushed', {
+    emitApplicationLogDebug('batcher-flushed', {
       flushedCount: entries.length,
       retainedCount: this.#entries.size,
       deduplicatedCount: Math.max(0, previousCount + entries.length - this.#entries.size),
@@ -145,16 +145,16 @@ export class ProjectLogRealtimeBatcher {
     this.#emit();
   }
 
-  #merge(entries: Iterable<ProjectLogEntry>) {
+  #merge(entries: Iterable<ApplicationLogEntry>) {
     const trimmed = this.#mergeInto(this.#entries, entries);
     this.#truncated ||= trimmed;
   }
 
-  #mergeInto(target: Map<string, ProjectLogEntry>, entries: Iterable<ProjectLogEntry>) {
+  #mergeInto(target: Map<string, ApplicationLogEntry>, entries: Iterable<ApplicationLogEntry>) {
     for (const entry of entries) {
       target.set(projectLogEntryKey(entry), entry);
     }
-    const ordered = orderProjectLogEntries(target.values());
+    const ordered = orderApplicationLogEntries(target.values());
     if (ordered.length > this.#lineLimit) {
       target.clear();
       for (const entry of ordered.slice(-this.#lineLimit)) {
@@ -169,14 +169,14 @@ export class ProjectLogRealtimeBatcher {
     if (!this.#base) {
       return;
     }
-    emitProjectLogDebug('batcher-committed', {
+    emitApplicationLogDebug('batcher-committed', {
       retainedCount: this.#entries.size,
       truncated: this.#truncated,
       lineLimit: this.#lineLimit,
     });
     this.#onCommit({
       ...this.#base,
-      entries: orderProjectLogEntries(this.#entries.values()),
+      entries: orderApplicationLogEntries(this.#entries.values()),
       tail: this.#lineLimit,
       truncated: this.#truncated,
     });
@@ -199,7 +199,7 @@ function normalizeLineLimit(value: number) {
  * @param entry - 要生成键的项目日志条目
  * @returns 由容器、服务、流、发生时间和日志内容组成的去重键
  */
-function projectLogEntryKey(entry: ProjectLogEntry) {
+function projectLogEntryKey(entry: ApplicationLogEntry) {
   return [entry.container_id, entry.service_name, entry.stream, entry.occurred_at, entry.line].join('::');
 }
 
@@ -209,7 +209,7 @@ function projectLogEntryKey(entry: ProjectLogEntry) {
  * @param entries - 待排序的项目日志条目
  * @returns 按发生时间、服务名、容器名、流和日志行依次排序的条目数组
  */
-function orderProjectLogEntries(entries: Iterable<ProjectLogEntry>) {
+function orderApplicationLogEntries(entries: Iterable<ApplicationLogEntry>) {
   return [...entries].sort((left, right) => {
     const timeDiff = compareText(left.occurred_at, right.occurred_at);
     if (timeDiff !== 0) return timeDiff;

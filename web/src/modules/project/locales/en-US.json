@@ -1,41 +1,41 @@
 {
   "ops": {
-    "project": {
+    "application": {
       "error": {
-        "invalidArgument": "Invalid project request.",
+        "invalidArgument": "Invalid application request.",
         "invalidCompose": "Compose configuration is invalid.",
         "workspaceUnsafe": "The existing application workspace is not a safe directory.",
         "workspaceWriteFailed": "The application workspace could not be written.",
         "applicationNameRequired": "Enter an application name.",
         "invalidApplicationName": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
         "applicationNameOccupied": "This application name is already in use. Choose another name.",
-        "invalidCanonicalProjectName": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
-        "conflict": "Project action is blocked by a conflicting project state.",
+        "invalidComposeProjectName": "Compose Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
+        "conflict": "Application action is blocked by a conflicting application state.",
         "composeProjectNameOccupied": "The Compose project name is already in use on the selected Runtime Target.",
-        "notFound": "Project was not found.",
-        "unsupportedLifecycle": "Project lifecycle action is not available for the current project state.",
-        "importValidationFailed": "Project import inspection failed validation.",
-        "managedRootUnconfigured": "Managed project root is not configured.",
-        "managedRootInvalid": "Managed project root is invalid.",
-        "managedFlowUnsupported": "Managed-only project flow is not available for this project.",
-        "sourceUnsupported": "Project source is not supported in the current phase.",
-        "directoryBrowseForbidden": "Project import directory is outside the allowed roots.",
-        "inspectionExpired": "Project import inspection has expired.",
-        "inspectionStale": "Project import inspection no longer matches the filesystem."
+        "notFound": "Application was not found.",
+        "unsupportedLifecycle": "Application lifecycle action is not available for the current application state.",
+        "importValidationFailed": "Application import inspection failed validation.",
+        "managedRootUnconfigured": "Managed application root is not configured.",
+        "managedRootInvalid": "Managed application root is invalid.",
+        "managedFlowUnsupported": "Managed-only application flow is not available for this application.",
+        "sourceUnsupported": "Application source is not supported in the current phase.",
+        "directoryBrowseForbidden": "Application import directory is outside the allowed roots.",
+        "inspectionExpired": "Application import inspection has expired.",
+        "inspectionStale": "Application import inspection no longer matches the filesystem."
       }
     }
   },
   "menu": {
-    "project": {
+    "application": {
       "title": "Application Management"
     }
   },
   "project": {
     "taskTypes": {
-      "up": "Start Project",
-      "stop": "Stop Project",
-      "restart": "Restart Project",
-      "redeploy": "Redeploy Project"
+      "up": "Start Application",
+      "stop": "Stop Application",
+      "restart": "Restart Application",
+      "redeploy": "Redeploy Application"
     },
     "route": {
       "list": {
@@ -43,8 +43,8 @@
         "breadcrumb": "Application Management"
       },
       "createImport": {
-        "title": "Import Existing Project",
-        "breadcrumb": "Import Existing Project"
+        "title": "Import Existing Application",
+        "breadcrumb": "Import Existing Application"
       },
       "create": {
         "title": "Create Application",
@@ -59,8 +59,8 @@
         "breadcrumb": "Choose Application Source"
       },
       "createBlank": {
-        "title": "Create Blank Project",
-        "breadcrumb": "Create Blank Project"
+        "title": "Create Blank Application",
+        "breadcrumb": "Create Blank Application"
       },
       "createDiscovery": {
         "title": "Discovery Candidate Preview",
@@ -71,8 +71,8 @@
         "breadcrumb": "Create From Template"
       },
       "detail": {
-        "title": "Project Detail",
-        "breadcrumb": "Project Detail"
+        "title": "Application Detail",
+        "breadcrumb": "Application Detail"
       },
       "configurationWorkspace": {
         "title": "Configuration Workspace",
@@ -83,7 +83,7 @@
       "copy": {
         "annotationAction": "Edit Annotation",
         "annotationSaveFailed": "Failed to save the annotation.",
-        "batchFileValidationRiskBody": "These files still have syntax errors. Saving them may leave the project in a state that later validation or deploy cannot parse correctly.",
+        "batchFileValidationRiskBody": "These files still have syntax errors. Saving them may leave the application in a state that later validation or deploy cannot parse correctly.",
         "batchFileValidationRiskTitle": "Save Files with Syntax Errors",
         "batchFileValidationTitle": "File Validation Errors",
         "cancelAction": "Cancel",
@@ -94,17 +94,17 @@
         "confirmSaveAction": "Confirm",
         "confirmSaveWithErrorsAction": "Save Anyway",
         "continueWithDiskAction": "Continue with Disk Version",
-        "redeployAction": "Redeploy Project",
-        "diffConfirmBody": "Review the changed files below. Changes will be written to the working directory only after you confirm.",
+        "redeployAction": "Redeploy Application",
+        "diffConfirmBody": "Review the changed files below. Changes will be written to the workspace path only after you confirm.",
         "diffCurrentFileConfirmBody": "Review the current file diff below. Changes will be written only after you confirm.",
         "diffCurrentFileTitle": "Current File Diff",
         "diffEmptyDirectSaveHint": "No file diff was detected. Draft files will be saved directly.",
         "diffTreeTitle": "Changed Files",
-        "diffViewerAriaLabel": "Project Configuration Diff Viewer",
+        "diffViewerAriaLabel": "Application Configuration Diff Viewer",
         "dirtyCloseBody": "This file has unsaved changes. Choose how to proceed before closing it.",
         "dirtyCloseTitle": "Save Changes Before Closing",
-        "dirtyProjectActionBody": "Unsaved changes were detected. Save them before continuing this project action?",
-        "dirtyProjectActionTitle": "Unsaved Changes Detected",
+        "dirtyApplicationActionBody": "Unsaved changes were detected. Save them before continuing this application action?",
+        "dirtyApplicationActionTitle": "Unsaved Changes Detected",
         "fileValidationDescription": "Explicitly check the active file for syntax errors. No result window opens when none are found.",
         "fileValidationEmbeddedHint": "The current file has syntax errors. Review the highlighted locations before saving or deploying.",
         "fileValidationFailed": "Syntax errors were found in the active file.",
@@ -112,8 +112,8 @@
         "fileValidationTitle": "File Validation",
         "fileValidationUnavailable": "Explicit syntax validation is not available for this file type.",
         "discardAction": "Discard",
-        "editorAriaLabel": "Project File Editor",
-        "envRedeployHint": "Environment variable changes usually require a project redeploy before they take effect.",
+        "editorAriaLabel": "Application File Editor",
+        "envRedeployHint": "Environment variable changes usually require a application redeploy before they take effect.",
         "fileTreeHint": "Use the compact workspace tree to inspect files, expand directories, and keep editor space focused on the active buffer.",
         "fileTreeTitle": "Application Files",
         "filesEmpty": "No files are available in this directory.",
@@ -144,7 +144,7 @@
         "saveAndContinueAction": "Save and Continue",
         "saveFailed": "Failed to save the file.",
         "savePartialHint": "Only the current file will be saved.",
-        "saveSuccess": "The file was saved to the working directory.",
+        "saveSuccess": "The file was saved to the workspace path.",
         "saveThenContinueAction": "Save",
         "savingAction": "Saving",
         "selectDiffFile": "Choose a file to inspect its diff",
@@ -153,12 +153,12 @@
         "showHiddenAction": "Show Default Hidden Directories",
         "syntaxErrorCountLabel": "{count} Error(s)",
         "syntaxFileTreeTitle": "Files with Syntax Errors",
-        "syntaxViewerAriaLabel": "Project File Syntax Validation Viewer",
-        "summaryDescription": "Use the project-root workbench to browse files, edit content, save the current file or all drafts, and review syntax errors before writes and deploy.",
+        "syntaxViewerAriaLabel": "Application File Syntax Validation Viewer",
+        "summaryDescription": "Use the application-root workbench to browse files, edit content, save the current file or all drafts, and review syntax errors before writes and deploy.",
         "summaryCurrentPathLabel": "Current Directory",
         "summaryOpenTabsLabel": "Open Tabs",
         "summaryTitle": "Workspace Summary",
-        "summaryWorkingDirectoryLabel": "Working Directory",
+        "summaryWorkingDirectoryLabel": "Workspace Path",
         "upAction": "Up One Level",
         "validateNoFile": "Open a supported file before running validation.",
         "validateNextAction": "Next",
@@ -175,22 +175,26 @@
       "description": "View applications, runtime targets, and providers while runtime information remains provided by its runtime system.",
       "refresh": "Refresh",
       "retry": "Retry",
-      "tableSummary": "{count} Projects",
-      "tableHint": "Project registration manages files and lifecycle; runtime facts remain provided by the container runtime.",
-      "emptyTitle": "No Projects",
-      "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
-      "emptyFilteredDescription": "No Projects Match the Current Filters.",
-      "canonicalNameValue": "Canonical Name {name}",
+      "tableSummary": "{count} Applications",
+      "tableHint": "Application registration manages files and lifecycle; runtime facts remain provided by the container runtime.",
+      "emptyTitle": "No Applications",
+      "emptyDescription": "Import an Existing Compose Application to Start Reviewing Overview, Services, Configuration, and Activity.",
+      "emptyFilteredDescription": "No Applications Match the Current Filters.",
+      "canonicalNameValue": "Compose Project Name {name}",
       "clearFilters": "Clear Filters",
       "columnSettings": "Column Settings",
-      "columnDrawerTitle": "Project Columns",
+      "columnDrawerTitle": "Application Columns",
       "projectCount": "Total {count}",
-      "runningProjects": "Running {count}",
-      "stoppedProjects": "Stopped {count}",
+      "runningApplications": "Running {count}",
+      "stoppedApplications": "Stopped {count}",
       "runtimeTargetUnavailable": "No Runtime Target",
       "runtimeTargetsLoadFailed": "Failed to load runtime targets.",
-      "applicationType": { "compose": "Compose" },
-      "provider": { "docker": "Docker" },
+      "applicationType": {
+        "compose": "Compose"
+      },
+      "provider": {
+        "docker": "Docker"
+      },
       "savedViews": {
         "placeholder": "Quick Filters",
         "save": "Save Filter",
@@ -209,15 +213,15 @@
         "conflict": "A filter with this name already exists."
       },
       "filters": {
-        "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
+        "searchPlaceholder": "Search Display Name, Compose Project Name, or Workspace Path",
         "applicationType": "Application Type",
         "provider": "Provider",
         "runtimeTarget": "Runtime Target",
-        "sourceKind": "Source",
+        "sourceType": "Source",
         "runtimeStatus": "Runtime Status",
         "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
-        "allSourceKinds": "All Sources",
+        "allSourceTypes": "All Sources",
         "allApplicationTypes": "All Application Types",
         "allProviders": "All Providers",
         "allRuntimeTargets": "All Runtime Targets",
@@ -240,7 +244,7 @@
       },
       "columns": {
         "selection": "Select",
-        "name": "Project",
+        "name": "Application",
         "applicationType": "Application Type",
         "runtimeTarget": "Runtime Target",
         "provider": "Provider",
@@ -248,9 +252,9 @@
         "runtime": "Status",
         "resources": "Resources",
         "drift": "Sync Status",
-        "refresh": "Last Project Refresh",
-        "workingDirectory": "Working Directory",
-        "updatedAt": "Last Project Refresh",
+        "refresh": "Last Application Refresh",
+        "workspacePath": "Workspace Path",
+        "updatedAt": "Last Application Refresh",
         "operation": "Operation"
       },
       "resources": {
@@ -271,7 +275,7 @@
         "runtimeTransitioning": "🟠 Transitioning"
       },
       "statusTooltip": {
-        "lifecycleReviewRequired": "Lifecycle configuration is not confirmed yet. Open project details to complete the review.",
+        "lifecycleReviewRequired": "Lifecycle configuration is not confirmed yet. Open application details to complete the review.",
         "taskInProgress": "Task is in progress. Click to view task details.",
         "runtimeUnknown": "Current Page Unknown",
         "runtimeRunning": "Current Page Running",
@@ -280,7 +284,7 @@
         "runtimeTransitioning": "Current Page Transitioning",
         "viewLatestTask": "Click to view the latest task execution."
       },
-      "sourceKinds": {
+      "sourceTypes": {
         "imported": "Imported",
         "managed": "Managed",
         "template": "Template"
@@ -299,7 +303,7 @@
       "actions": {
         "detail": "Detail",
         "operationMenu": "Actions",
-        "import": "Import Existing Project",
+        "import": "Import Existing Application",
         "create": "Create Application",
         "refresh": "Refresh",
         "up": "Up",
@@ -315,26 +319,26 @@
         "updateDeployWarning": "This only works when compose image tags use latest.",
         "destroyDeleteVolumes": "Delete named volumes",
         "destroyAutoUnregister": "Auto unregister",
-        "destroyDeleteProjectFiles": "Delete project files",
-        "refreshSuccess": "Project Refreshed.",
-        "actionSuccess": "Project Action Completed.",
-        "taskAccepted": "Project Task Submitted.",
+        "destroyDeleteApplicationFiles": "Delete application files",
+        "refreshSuccess": "Application Refreshed.",
+        "actionSuccess": "Application Action Completed.",
+        "taskAccepted": "Application Task Submitted.",
         "taskHistoryLoadFailed": "The latest task could not be loaded.",
-        "noTaskHistory": "This project has no task execution records.",
-        "actionFailed": "Project Action Failed.",
-        "confirmUpTitle": "Confirm Project Start",
+        "noTaskHistory": "This application has no task execution records.",
+        "actionFailed": "Application Action Failed.",
+        "confirmUpTitle": "Confirm Application Start",
         "confirmUpDescription": "Start {name}? This brings the registered services and containers up with the current Compose configuration.",
-        "confirmStopTitle": "Confirm Project Stop",
-        "confirmStopDescription": "Stop {name}? This stops the running services and containers in the current project.",
-        "confirmRestartTitle": "Confirm Project Restart",
+        "confirmStopTitle": "Confirm Application Stop",
+        "confirmStopDescription": "Stop {name}? This stops the running services and containers in the current application.",
+        "confirmRestartTitle": "Confirm Application Restart",
         "confirmRestartDescription": "Restart {name}? This interrupts the current runtime and starts it again with the current configuration.",
-        "confirmRedeployTitle": "Confirm Project Redeploy",
+        "confirmRedeployTitle": "Confirm Application Redeploy",
         "confirmRedeployDescription": "Redeploy {name}? This runs stop and start again with the registered compose files.",
-        "confirmUpdateDeployTitle": "Confirm Project Update Deploy",
+        "confirmUpdateDeployTitle": "Confirm Application Update Deploy",
         "confirmUpdateDeployDescription": "Update deploy {name}? This pulls images first, then runs compose up -d.",
         "confirmUnregisterTitle": "Confirm Unregister",
-        "confirmUnregisterDescription": "Unregister {name}? This removes the project registry record but leaves runtime containers untouched.",
-        "confirmDestroyTitle": "Confirm Project Destroy",
+        "confirmUnregisterDescription": "Unregister {name}? This removes the application registry record but leaves runtime containers untouched.",
+        "confirmDestroyTitle": "Confirm Application Destroy",
         "confirmDestroyDescription": "Destroy {name}? Destructive steps are still guarded by ownership rules.",
         "unregisterConfirm": "Unregister {name}? Runtime Containers Stay Untouched.",
         "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
@@ -342,10 +346,10 @@
       "batch": {
         "selected": "{count} Selected",
         "cancelSelection": "Clear Selection",
-        "noSelection": "Select projects first.",
-        "noActionableSelection": "No selected project can run this action.",
+        "noSelection": "Select applications first.",
+        "noActionableSelection": "No selected application can run this action.",
         "scope": "{actionableCount} actionable out of {selectedCount} selected, {skippedCount} skipped.",
-        "skipInapplicable": "Inapplicable projects will be skipped.",
+        "skipInapplicable": "Inapplicable applications will be skipped.",
         "start": "Batch Start",
         "stop": "Batch Stop",
         "restart": "Batch Restart",
@@ -353,14 +357,14 @@
         "redeploy": "Batch Redeploy",
         "updateDeploy": "Batch Update Deploy",
         "destroy": "Batch Destroy",
-        "destroySingleSelection": "Batch destroy requires exactly one selected project.",
-        "startHint": "Start {count} selected projects.",
-        "stopHint": "Stop {count} selected projects.",
-        "restartHint": "Restart {count} selected projects.",
-        "unregisterHint": "Unregister {count} selected projects.",
-        "redeployHint": "Redeploy {count} selected projects.",
-        "updateDeployHint": "Update deploy {count} selected projects.",
-        "destroyHint": "Destroy {count} selected projects.",
+        "destroySingleSelection": "Batch destroy requires exactly one selected application.",
+        "startHint": "Start {count} selected applications.",
+        "stopHint": "Stop {count} selected applications.",
+        "restartHint": "Restart {count} selected applications.",
+        "unregisterHint": "Unregister {count} selected applications.",
+        "redeployHint": "Redeploy {count} selected applications.",
+        "updateDeployHint": "Update deploy {count} selected applications.",
+        "destroyHint": "Destroy {count} selected applications.",
         "startTitle": "Confirm Batch Start",
         "stopTitle": "Confirm Batch Stop",
         "restartTitle": "Confirm Batch Restart",
@@ -368,13 +372,13 @@
         "redeployTitle": "Confirm Batch Redeploy",
         "updateDeployTitle": "Confirm Batch Update Deploy",
         "destroyTitle": "Confirm Batch Destroy",
-        "startConfirm": "Start {count} selected projects?",
-        "stopConfirm": "Stop {count} selected projects?",
-        "restartConfirm": "Restart {count} selected projects?",
-        "unregisterConfirm": "Unregister {count} selected projects?",
-        "redeployConfirm": "Redeploy {count} selected projects?",
-        "updateDeployConfirm": "Update deploy {count} selected projects?",
-        "destroyConfirm": "Destroy {count} selected projects?",
+        "startConfirm": "Start {count} selected applications?",
+        "stopConfirm": "Stop {count} selected applications?",
+        "restartConfirm": "Restart {count} selected applications?",
+        "unregisterConfirm": "Unregister {count} selected applications?",
+        "redeployConfirm": "Redeploy {count} selected applications?",
+        "updateDeployConfirm": "Update deploy {count} selected applications?",
+        "destroyConfirm": "Destroy {count} selected applications?",
         "success": "Batch action completed. {count} completed, {skippedCount} skipped.",
         "partial": "Batch action partially completed. {count} completed, {skippedCount} skipped, {blockedCount} blocked.",
         "failed": "Batch action failed.",
@@ -388,17 +392,17 @@
       }
     },
     "import": {
-      "eyebrow": "Import Project",
-      "description": "Choose a running Compose project, review the inspection, confirm lifecycle configuration, then import.",
+      "eyebrow": "Import Application",
+      "description": "Choose a running Compose application, review the inspection, confirm lifecycle configuration, then import.",
       "meta": {
         "selectedCandidate": "Current Candidate: {name}"
       },
       "steps": {
         "current": "Step {current} / {total}",
         "select": {
-          "shortTitle": "Select Project",
-          "title": "Step 1 · Select Project",
-          "description": "Pick one importable Compose project from the runtime candidate list."
+          "shortTitle": "Select Application",
+          "title": "Step 1 · Select Application",
+          "description": "Pick one importable Compose application from the runtime candidate list."
         },
         "inspect": {
           "shortTitle": "Inspect",
@@ -423,10 +427,10 @@
         "reinspectCandidate": "Inspect Again",
         "refreshInspect": "Refresh Inspect",
         "retryInspect": "Retry Inspect",
-        "import": "Import and Open Project",
+        "import": "Import and Open Application",
         "reset": "Start Over",
         "clearFilters": "Clear Filters",
-        "backToCandidates": "Back to Project Selection",
+        "backToCandidates": "Back to Application Selection",
         "continueToConfirm": "Continue to Confirm",
         "continueToLifecycle": "Configure Lifecycle",
         "confirmLifecycle": "Confirm Lifecycle Configuration",
@@ -449,19 +453,19 @@
         "columnSettings": "Column Settings",
         "columnDrawerTitle": "Candidate Columns",
         "resetColumns": "Reset Default Columns",
-        "searchPlaceholder": "Search by project, working directory, Compose file, or service",
-        "columnProject": "Project",
+        "searchPlaceholder": "Search by application, workspace path, Compose file, or service",
+        "columnApplication": "Application",
         "columnConfigFiles": "Compose Files",
-        "columnWorkingDirectory": "Working Directory",
+        "columnWorkspacePath": "Workspace Path",
         "columnRuntime": "Runtime",
         "columnServices": "Services",
         "columnStatus": "Status",
         "columnReason": "Blocking Reason",
         "columnOperation": "Action",
         "columnOptionLabels": {
-          "project": "Project",
+          "project": "Application",
           "config_files": "Compose Files",
-          "working_directory": "Working Directory",
+          "workspace_path": "Workspace Path",
           "runtime": "Runtime",
           "services": "Services",
           "status": "Status",
@@ -469,8 +473,8 @@
           "operation": "Action"
         },
         "configFiles": "Compose Files",
-        "workingDirectory": "Working Directory",
-        "workingDirectorySource": "Working Directory Source",
+        "workspacePath": "Workspace Path",
+        "workspacePathSource": "Workspace Path Source",
         "runtime": "Runtime Source",
         "serviceNames": "Services",
         "containerCounts": "Container Counts",
@@ -489,7 +493,7 @@
           "broken_compose": "Broken Compose"
         },
         "reason": {
-          "already_imported": "This Project Is Already Imported In Graft",
+          "already_imported": "This Application Is Already Imported In Graft",
           "missing_project_name": "Missing Compose Project Name Metadata",
           "missing_config_files": "Missing Compose Config File Metadata",
           "invalid_config_files": "Compose Config File Metadata Is Invalid",
@@ -502,28 +506,28 @@
           "unavailable": "Inspect Is Not Available Yet"
         },
         "warning": {
-          "working_directory_derived_from_config_files": "The working directory label is missing, so the first Compose file path was used."
+          "working_directory_derived_from_config_files": "The workspace path label is missing, so the first Compose file path was used."
         }
       },
       "directory": {
-        "title": "Inspect Working Directory",
-        "workingDirectory": "Resolved Working Directory",
+        "title": "Inspect Workspace Path",
+        "workspacePath": "Resolved Workspace Path",
         "configFiles": "Compose Files",
         "readonlyHint": "Display Only"
       },
       "form": {
         "title": "Import Options",
-        "authorityHint": "Compose files stay as the import source, while the working directory remains a display hint after Inspect.",
+        "authorityHint": "Compose files stay as the import source, while the workspace path remains a display hint after Inspect.",
         "displayName": "Display Name",
         "displayNamePlaceholder": "For Example: Orders Service Dev",
-        "canonicalProjectNameOverride": "Canonical Project Name Override",
-        "canonicalProjectNameOverridePlaceholder": "Leave Blank to Keep the Inspected Value"
+        "composeProjectNameOverride": "Compose Project Name Override",
+        "composeProjectNameOverridePlaceholder": "Leave Blank to Keep the Inspected Value"
       },
       "lifecycle": {
         "title": "Confirm Lifecycle Configuration",
         "description": "Confirm the Compose strategy used later for start, stop, restart, and redeploy actions.",
         "unavailableTitle": "Lifecycle Configuration Unavailable",
-        "authorityHint": "This configuration is saved with the import, so lifecycle actions are available when the project opens.",
+        "authorityHint": "This configuration is saved with the import, so lifecycle actions are available when the application opens.",
         "configurationTitle": "Lifecycle Configuration",
         "commandPreviewTitle": "Command Preview"
       },
@@ -535,8 +539,8 @@
       "confirm": {
         "title": "Final Review",
         "description": "Use the last step to review and confirm. The display name is still editable, but the import authority stays bound to the current inspection snapshot.",
-        "identityTitle": "Project Identity",
-        "identityHint": "Confirm the display name and optional Canonical Project Name override. All other fields come from the current inspection session.",
+        "identityTitle": "Application Identity",
+        "identityHint": "Confirm the display name and optional Compose Project Name override. All other fields come from the current inspection session.",
         "importSource": "Import Source",
         "importSourceValue": "Running Compose Candidate",
         "candidateKey": "Candidate Key",
@@ -556,21 +560,21 @@
           "networks": "{count} Networks Detected",
           "volumes": "{count} Volumes Detected"
         },
-        "previewTitle": "Project Preview",
+        "previewTitle": "Application Preview",
         "previewWithMore": "{preview} and {count} more",
         "effectsTitle": "Import Effects",
         "effectsDescription": "This screen only states outcomes that are contract-safe for the current import flow. It does not promise extra runtime guarantees.",
-        "noAutoDeploy": "Import registers the inspected workspace and opens the project detail. It does not deploy or start containers automatically.",
+        "noAutoDeploy": "Import registers the inspected workspace and opens the application detail. It does not deploy or start containers automatically.",
         "effects": {
-          "registerProject": "Create and register one Graft project record from the current inspection snapshot",
+          "registerApplication": "Create and register one Graft application record from the current inspection snapshot",
           "useInspection": "Reuse the current inspection discovery for Compose, services, networks, and volumes",
           "applyOverrides": "Apply the display-name edit and optional canonical-name override from this page",
-          "recordDiscoveredResources": "Carry the discovered topology into the import result and open the project detail page afterward"
+          "recordDiscoveredResources": "Carry the discovered topology into the import result and open the application detail page afterward"
         }
       },
       "validation": {
         "displayNameRequired": "Display Name Is Required.",
-        "canonicalProjectNameOverridePattern": "Canonical Project Name Override must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores."
+        "composeProjectNameOverridePattern": "Compose Project Name Override must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores."
       },
       "picker": {
         "title": "Select Server Directory",
@@ -589,7 +593,7 @@
       "preview": {
         "title": "Inspect Preview",
         "overviewTitle": "Overview",
-        "overviewDescription": "Project-level inspect facts and diagnostics stay separate from resource tables.",
+        "overviewDescription": "Application-level inspect facts and diagnostics stay separate from resource tables.",
         "resourcesTitle": "Resources",
         "resourcesDescription": "A single workspace switches between resource tables for the current inspect session.",
         "authorityTitle": "Config and Directory",
@@ -599,8 +603,8 @@
         "resourceSearchPlaceholder": "Search Current Resource Table",
         "resourceColumnSettings": "Column Settings",
         "resourceResetColumns": "Reset Columns",
-        "canonicalProjectName": "Canonical Project Name",
-        "canonicalNameSource": "Canonical Name Source",
+        "composeProjectName": "Compose Project Name",
+        "canonicalNameSource": "Compose Project Name Source",
         "validationStatus": "Validation Status",
         "validationStatusValues": {
           "ready": "Ready",
@@ -690,22 +694,22 @@
         "inspectSuccess": "Inspect Completed.",
         "lifecycleConfigUnavailable": "The server did not return a complete lifecycle configuration, so the import cannot continue. Inspect again, then update the server if it persists.",
         "inspectFailed": "Inspect Failed.",
-        "importSuccess": "Compose Project Imported.",
-        "importFailed": "Compose Project Import Failed."
+        "importSuccess": "Compose Application Imported.",
+        "importFailed": "Compose Application Import Failed."
       }
     },
     "create": {
-      "eyebrow": "Create Blank Project",
-      "title": "Create Blank Project",
+      "eyebrow": "Create Blank Application",
+      "title": "Create Blank Application",
       "description": "Create a new Compose workspace in the managed directory.",
-      "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the project. Create never deploys automatically.",
+      "wizardDescription": "Prepare the complete workspace in the managed root, confirm lifecycle configuration, then register the application. Create never deploys automatically.",
       "actions": {
         "refresh": "Refresh",
         "backToList": "Back to List",
         "refreshAuthority": "Refresh Authority",
         "resetDefaultDirectory": "Reset to Default Directory",
         "validate": "Validate Create Input",
-        "create": "Create and Open Project",
+        "create": "Create and Open Application",
         "reset": "Reset Form",
         "back": "Back",
         "backToSource": "Back to Application Source",
@@ -720,19 +724,19 @@
           "unconfigured": "Managed Root Unconfigured",
           "unknown": "Managed Root Unknown"
         },
-        "readyHint": "This Create Flow Will Materialize Files Under {directory}, and Project Authority Will Own the Working Directory and Snapshot.",
-        "unavailableHint": "The Managed Root Authority Is Not Available Yet. Repair the Upstream System Config Before Creating Projects."
+        "readyHint": "This application will use {directory} as its workspace path. Graft manages the application workspace and configuration snapshot after creation.",
+        "unavailableHint": "The Managed Root Authority Is Not Available Yet. Repair the Upstream System Config Before Creating Applications."
       },
       "form": {
         "applicationName": "Application Name",
         "applicationNamePlaceholder": "Example: orders-dev",
-        "title": "Project Basics",
+        "title": "Application Basics",
         "displayName": "Display Name",
         "displayNamePlaceholder": "Example: Orders Service Dev",
-        "canonicalProjectName": "Canonical Project Name",
-        "canonicalProjectNamePlaceholder": "Example: orders-dev",
-        "relativeProjectDirectory": "Relative Project Directory",
-        "relativeProjectDirectoryPlaceholder": "Example: orders/dev",
+        "composeProjectName": "Compose Project Name",
+        "composeProjectNamePlaceholder": "Example: orders-dev",
+        "relativeApplicationDirectory": "Relative Application Directory",
+        "relativeApplicationDirectoryPlaceholder": "Example: orders/dev",
         "resolvedDirectory": "Application Directory",
         "composeFileName": "Compose File Name",
         "composeFileNamePlaceholder": "Example: compose.yaml",
@@ -747,15 +751,15 @@
         "rootDirectory": "Managed Root",
         "configKey": "System Config Key",
         "createPermission": "Create Permission",
-        "workingDirectory": "Resolved Working Directory",
+        "workspacePath": "Resolved Workspace Path",
         "composePath": "Compose Absolute Path",
         "envPath": "Env Absolute Path",
         "noWarnings": "No Additional Warnings Were Returned.",
         "displayNameRequired": "Display Name Is Required.",
-        "canonicalProjectNameRequired": "Canonical Project Name Is Required.",
-        "canonicalProjectNamePattern": "Canonical Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
-        "relativeDirectoryRequired": "Relative Project Directory Is Required.",
-        "relativeDirectoryPattern": "The Relative Project Directory Must Stay Under the Managed Root and Cannot Traverse Upward.",
+        "composeProjectNameRequired": "Compose Project Name Is Required.",
+        "composeProjectNamePattern": "Compose Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
+        "relativeDirectoryRequired": "Relative Application Directory Is Required.",
+        "relativeDirectoryPattern": "The Relative Application Directory Must Stay Under the Managed Root and Cannot Traverse Upward.",
         "composeFileNameRequired": "Compose File Name Is Required.",
         "envFileNamePattern": "Env File Name Cannot Include Path Separators."
       },
@@ -785,12 +789,14 @@
         "review": "Review"
       },
       "workspace": {
-        "defaultCompose": { "unit": "services:\n  app:\n    image: nginx:alpine" },
+        "defaultCompose": {
+          "unit": "services:\n  app:\n    image: nginx:alpine"
+        },
         "hint": "The complete workspace is materialized in the managed root. Organize text files as needed.",
         "defaultsLoadFailed": "Failed to load workspace defaults.",
         "filesTitle": "Workspace Files",
         "filesEmpty": "No workspace entries yet.",
-        "rootLabel": "Project Files",
+        "rootLabel": "Application Files",
         "resizeFileTreeAriaLabel": "Resize File Tree",
         "selectFile": "Select a file from the workspace tree to edit it.",
         "addFile": "Add File",
@@ -805,7 +811,7 @@
         "saveSuccess": "Workspace draft saved and synchronized.",
         "saveWithErrorsAction": "Save Anyway",
         "syntaxErrorSaveTitle": "Save Files with Syntax Errors",
-        "syntaxErrorSaveBody": "These files contain syntax errors. Continuing saves the current drafts used when the project is created.",
+        "syntaxErrorSaveBody": "These files contain syntax errors. Continuing saves the current drafts used when the application is created.",
         "syntaxErrorFile": "{path} ({count} Error(s))",
         "validateAction": "Validate",
         "validateNoFile": "Open a supported file before running validation.",
@@ -827,7 +833,7 @@
       },
       "lifecycle": {
         "title": "Lifecycle Configuration",
-        "description": "Confirm the Compose lifecycle configuration owned by the project after creation.",
+        "description": "Confirm the Compose lifecycle configuration owned by the application after creation.",
         "authorityHint": "Create saves lifecycle configuration only; it does not deploy or start containers.",
         "configurationTitle": "Lifecycle Configuration",
         "commandPreviewTitle": "Command Preview",
@@ -837,20 +843,20 @@
       },
       "review": {
         "title": "Review Creation",
-        "noAutoDeploy": "Create writes the workspace, registers the project, and synchronizes a read-only runtime summary. It does not deploy automatically.",
-        "workingDirectory": "Target Working Directory",
+        "noAutoDeploy": "Create writes the workspace, registers the application, and synchronizes a read-only runtime summary. It does not deploy automatically.",
+        "workspacePath": "Target Workspace Path",
         "workspaceFiles": "Workspace Files",
-        "deployAfterCreate": "Deploy after the project is created",
-        "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment."
+        "deployAfterCreate": "Deploy after the application is created",
+        "deployPermissionRequired": "You need application deploy permission to deploy after creation. The application can still be created without deployment."
       },
       "messages": {
         "rootLoadFailed": "Managed Root Authority Could Not Be Loaded.",
         "validateSuccess": "Create Input Validated.",
         "validateFailed": "Create Input Validation Failed.",
-        "createSuccess": "Managed Project Created.",
-        "createFailed": "Managed Project Creation Failed.",
-        "deploySuccess": "Project deployed after creation.",
-        "deployFailed": "Project was created, but deployment failed."
+        "createSuccess": "Managed Application Created.",
+        "createFailed": "Managed Application Creation Failed.",
+        "deploySuccess": "Application deployed after creation.",
+        "deployFailed": "Application was created, but deployment failed."
       },
       "reuseDirectory": {
         "title": "Reuse Existing Folder",
@@ -869,11 +875,15 @@
       "eyebrow": "Docker Compose",
       "title": "Choose Application Source",
       "description": "Choose how to initialize this Docker Compose application.",
-      "availability": { "ready": "Available", "blocked": "Unavailable", "comingSoon": "Coming Soon" },
+      "availability": {
+        "ready": "Available",
+        "blocked": "Unavailable",
+        "comingSoon": "Coming Soon"
+      },
       "blockedReasons": {
-        "managed_root_unconfigured": "The managed project root is not configured, so blank projects cannot be created yet.",
-        "managed_root_invalid": "The managed project root configuration is invalid. Repair system configuration before creating a blank project.",
-        "managed_root_unknown": "The managed project root status is unknown. Refresh system configuration and try again.",
+        "managed_root_unconfigured": "The managed application root is not configured, so blank applications cannot be created yet.",
+        "managed_root_invalid": "The managed application root configuration is invalid. Repair system configuration before creating a blank application.",
+        "managed_root_unknown": "The managed application root status is unknown. Refresh system configuration and try again.",
         "unknown": "This creation method is currently unavailable."
       },
       "actions": {
@@ -882,17 +892,19 @@
         "retry": "Retry",
         "backToRuntimeTargets": "Back to Runtime Target"
       },
-      "advanced": { "title": "Advanced Information" },
+      "advanced": {
+        "title": "Advanced Information"
+      },
       "methods": {
         "blank": {
-          "title": "Create Blank Project",
+          "title": "Create Blank Application",
           "description": "Create a new Compose workspace.",
           "benefits": {
-            "workspace": "Creates a dedicated project workspace",
+            "workspace": "Creates a dedicated application workspace",
             "lifecycle": "Initializes standard lifecycle configuration",
             "authority": "Keeps subsequent operations under platform management"
           },
-          "advanced": "Files are materialized under the configured managed project root."
+          "advanced": "Files are materialized under the configured managed application root."
         },
         "template": {
           "title": "Create From Template",
@@ -900,17 +912,17 @@
           "benefits": {
             "workspace": "Initializes from a standard workspace template",
             "lifecycle": "Retains unified lifecycle management",
-            "authority": "Registers the project for platform management"
+            "authority": "Registers the application for platform management"
           },
-          "advanced": "Available templates are shipped by the project module."
+          "advanced": "Available templates are shipped by the application module."
         },
         "import": {
-          "title": "Import Existing Project",
+          "title": "Import Existing Application",
           "description": "Register an existing Compose workspace.",
           "benefits": {
             "detect": "Detects Compose configuration automatically",
-            "preserve": "Preserves the existing directory and project structure",
-            "register": "Registers runtime status under one project record"
+            "preserve": "Preserves the existing directory and application structure",
+            "register": "Registers runtime status under one application record"
           },
           "advanced": "Import reviews directory and runtime information before registration."
         },
@@ -920,9 +932,13 @@
           "unavailableHint": "Git repository creation will be available in a future release."
         }
       },
-      "messages": { "loadFailed": "Project Creation Methods Could Not Be Loaded." }
+      "messages": {
+        "loadFailed": "Application Creation Methods Could Not Be Loaded."
+      }
     },
-    "workflow": { "unsupportedTooltip": "Not Supported Yet" },
+    "workflow": {
+      "unsupportedTooltip": "Not Supported Yet"
+    },
     "deployment": {
       "eyebrow": "Create Application",
       "description": "Select the application deployment model.",
@@ -974,9 +990,18 @@
           "title": "Docker Swarm",
           "description": "Deploy a Swarm cluster application with Docker Stack."
         },
-        "kubernetes": { "title": "Kubernetes", "description": "Manage Kubernetes workloads." },
-        "podmanCompose": { "title": "Podman Compose", "description": "Manage an application with Podman Compose." },
-        "nomad": { "title": "Nomad", "description": "Schedule application workloads with Nomad." }
+        "kubernetes": {
+          "title": "Kubernetes",
+          "description": "Manage Kubernetes workloads."
+        },
+        "podmanCompose": {
+          "title": "Podman Compose",
+          "description": "Manage an application with Podman Compose."
+        },
+        "nomad": {
+          "title": "Nomad",
+          "description": "Schedule application workloads with Nomad."
+        }
       }
     },
     "sourceCreate": {
@@ -984,7 +1009,7 @@
       "displayName": "Display Name",
       "applicationName": "Application Name",
       "applicationNamePlaceholder": "Example: orders-dev",
-      "canonicalName": "Canonical Project Name",
+      "canonicalName": "Compose Project Name",
       "relativeDirectory": "Relative Directory",
       "resolvedDirectory": "Application Directory",
       "resetDefaultDirectory": "Reset to Default Directory",
@@ -996,7 +1021,7 @@
       "template": "Template",
       "emptyComposeTemplate": "Empty Compose v1",
       "instanceName": "Template Instance Name",
-      "lifecycleHint": "The standard project lifecycle configuration is initialized on creation. Creation does not deploy or start containers.",
+      "lifecycleHint": "The standard application lifecycle configuration is initialized on creation. Creation does not deploy or start containers.",
       "validate": "Validate Source",
       "create": "Create Application",
       "validated": "Source and target are valid: {directory}",
@@ -1004,15 +1029,15 @@
       "validateFailed": "Source validation failed.",
       "createSuccess": "Application created.",
       "createFailed": "Application creation failed.",
-      "deployAfterCreate": "Deploy after the project is created",
-      "deployPermissionRequired": "You need project deploy permission to deploy after creation. The project can still be created without deployment.",
-      "deploySuccess": "Project deployed after creation.",
-      "deployFailed": "Project was created, but deployment failed."
+      "deployAfterCreate": "Deploy after the application is created",
+      "deployPermissionRequired": "You need application deploy permission to deploy after creation. The application can still be created without deployment.",
+      "deploySuccess": "Application deployed after creation.",
+      "deployFailed": "Application was created, but deployment failed."
     },
     "discovery": {
-      "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering projects or changing runtime authority.",
+      "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering applications or changing runtime authority.",
       "refresh": "Refresh Candidates",
-      "loadFailed": "Project Discovery Candidates Could Not Be Loaded.",
+      "loadFailed": "Application Discovery Candidates Could Not Be Loaded.",
       "authorityRoot": "Authority Root",
       "capabilities": "Capabilities",
       "capabilitiesReady": "Local Scan and Auto-discovery Preview Are Enabled",
@@ -1020,10 +1045,10 @@
       "candidateKind": "Candidate Kind",
       "recommendedAction": "Recommended Action",
       "serviceCount": "Declared Services",
-      "workingDirectory": "Working Directory",
+      "workspacePath": "Workspace Path",
       "composeFiles": "Compose Files",
       "emptyTitle": "No Candidates",
-      "emptyDescription": "No previewable Compose project candidates were found under the current authority root.",
+      "emptyDescription": "No previewable Compose application candidates were found under the current authority root.",
       "unavailableTitle": "Discovery Preview Unavailable",
       "unavailableDescription": "No discovery preview payload was returned. Refresh the authority and try again.",
       "conflictsValue": "Conflicts: {value}",
@@ -1059,14 +1084,14 @@
         "managed-root-dedicated": "Managed Root Dedicated",
         "external": "External"
       },
-      "eyebrow": "Compose Project",
-      "description": "Project Summary, Runtime Member Links, Lifecycle Controls, and Activity Fan-out.",
-      "openWorkingDirectory": "Working Directory",
-      "titleFallback": "Project Detail",
+      "eyebrow": "Compose Application",
+      "description": "Application Summary, Runtime Member Links, Lifecycle Controls, and Activity Fan-out.",
+      "openWorkingDirectory": "Workspace Path",
+      "titleFallback": "Application Detail",
       "sections": {
         "lifecycle": {
           "title": "Lifecycle",
-          "description": "Project-level up, stop, restart, and unregister actions."
+          "description": "Application-level up, stop, restart, and unregister actions."
         },
         "overview": {
           "title": "Overview",
@@ -1085,9 +1110,9 @@
         "configurationTitle": "Configuration",
         "summaryTitle": "Summary",
         "discoveryTitle": "Discovery",
-        "canonicalName": "Canonical Project Name",
+        "canonicalName": "Compose Project Name",
         "composeFiles": "Compose Files",
-        "workingDirectory": "Working Directory",
+        "workspacePath": "Workspace Path",
         "envFiles": "Env Files",
         "status": "Status",
         "services": "Services",
@@ -1096,13 +1121,13 @@
         "runtimeMembers": "Runtime Members",
         "runningMembers": "Running Members",
         "hostScope": "Host Scope",
-        "lastRefreshAt": "Last Project Refresh",
+        "lastRefreshAt": "Last Application Refresh",
         "hostScopeValues": {
           "local": "Local Host"
         },
         "nameSourceValues": {
           "explicit": "Explicit",
-          "derived-working-directory": "Derived from Working Directory",
+          "derived-working-directory": "Derived from Workspace Path",
           "derived-compose-file": "Derived from Compose File",
           "derived-runtime-label": "Derived from Runtime Label",
           "fallback-display-name": "Fallback Display Name"
@@ -1126,7 +1151,7 @@
         "summary": "{count} {resource} rows.",
         "columnSettings": "Column Settings",
         "resetColumns": "Reset Columns",
-        "loadFailed": "Failed to load project resources.",
+        "loadFailed": "Failed to load application resources.",
         "pagination": {
           "empty": "No resource rows",
           "summary": "{start}-{end} of {total}"
@@ -1139,15 +1164,15 @@
         "empty": {
           "containers": {
             "title": "No Containers",
-            "description": "This Compose project does not currently expose runtime container members."
+            "description": "This Compose application does not currently expose runtime container members."
           },
           "networks": {
             "title": "No Networks",
-            "description": "This Compose project does not currently declare any networks."
+            "description": "This Compose application does not currently declare any networks."
           },
           "volumes": {
             "title": "No Volumes",
-            "description": "This Compose project does not currently declare any volumes."
+            "description": "This Compose application does not currently declare any volumes."
           }
         },
         "columns": {
@@ -1220,10 +1245,10 @@
         "diagnosticUnhealthy": "{count} unhealthy containers need attention.",
         "diagnosticRestartClear": "No container restart loop is currently detected.",
         "diagnosticRestartWarning": "{count} container restarts have been detected.",
-        "diagnosticConfigSynced": "Project configuration matches the latest snapshot.",
-        "diagnosticConfigDrift": "Project configuration status: {status}.",
-        "diagnosticRefreshHealthy": "The latest project refresh completed successfully.",
-        "diagnosticRefreshWarning": "The latest project refresh status is {status}."
+        "diagnosticConfigSynced": "Application configuration matches the latest snapshot.",
+        "diagnosticConfigDrift": "Application configuration status: {status}.",
+        "diagnosticRefreshHealthy": "The latest application refresh completed successfully.",
+        "diagnosticRefreshWarning": "The latest application refresh status is {status}."
       },
       "services": {
         "title": "Services",
@@ -1232,7 +1257,7 @@
         "summary": "{count} Services",
         "loadFailed": "Failed to load services.",
         "emptyTitle": "No Services",
-        "emptyDescription": "This project does not currently expose service definitions.",
+        "emptyDescription": "This application does not currently expose service definitions.",
         "columns": {
           "service": "Service",
           "status": "Status",
@@ -1264,12 +1289,12 @@
           "partialTitle": "Service Action Partially Succeeded",
           "failureDetailTitle": "View Service Action Failure Details",
           "noFailureDetail": "No failure details are available.",
-          "refreshWarning": "The service action was submitted, but project detail refresh failed. Refresh manually."
+          "refreshWarning": "The service action was submitted, but application detail refresh failed. Refresh manually."
         }
       },
       "lifecycle": {
         "title": "Lifecycle",
-        "description": "Review and confirm the compose lifecycle configuration that Graft will reuse for local project actions.",
+        "description": "Review and confirm the compose lifecycle configuration that Graft will reuse for local application actions.",
         "statusTitle": "Lifecycle Status",
         "statusDescription": "Review the confirmed authority that drives command generation and lifecycle guards.",
         "configurationTitle": "Deployment Configuration",
@@ -1287,8 +1312,8 @@
           "redeploy": "Redeploy"
         },
         "generatedCommandsDescriptions": {
-          "up": "Launch the current compose project with the saved strategy.",
-          "stop": "Stop running services without removing project resources.",
+          "up": "Launch the current compose application with the saved strategy.",
+          "stop": "Stop running services without removing application resources.",
           "restart": "Restart the current compose services in place.",
           "redeploy": "Apply the saved redeploy flow, including any optional preparation steps."
         },
@@ -1302,15 +1327,15 @@
             "description": "Choose the standard preflight and cleanup steps that Graft includes around compose up."
           }
         },
-        "runtimeStatus": "Project Status",
+        "runtimeStatus": "Application Status",
         "refreshStatus": "Refresh Status",
         "driftStatus": "Drift Status",
-        "lastRefreshAt": "Last Project Refresh",
+        "lastRefreshAt": "Last Application Refresh",
         "reviewStatus": "Review Status",
         "mode": "Deployment Mode",
         "modeStandard": "Standard Compose",
-        "workingDirectory": "Working Directory",
-        "projectName": "Project Name",
+        "workspacePath": "Workspace Path",
+        "projectName": "Application Name",
         "composeFiles": "Compose Files",
         "profiles": "Profiles",
         "profilesPlaceholder": "App, Monitoring",
@@ -1328,10 +1353,10 @@
         "pruneImagesAfterRedeploy": "Prune Images After Redeploy",
         "optionDescriptions": {
           "downBeforeRedeploy": "Run docker compose down before the redeploy bring-up step.",
-          "pullBeforeRedeploy": "Pull the latest images before reusing the saved compose project definition.",
+          "pullBeforeRedeploy": "Pull the latest images before reusing the saved compose application definition.",
           "buildBeforeUp": "Add --build to docker compose up when the redeploy flow reaches bring-up.",
           "forceRecreate": "Add --force-recreate so all containers are recreated during bring-up.",
-          "removeOrphans": "Add --remove-orphans so docker compose up removes orphaned containers no longer declared by this project.",
+          "removeOrphans": "Add --remove-orphans so docker compose up removes orphaned containers no longer declared by this application.",
           "waitAfterUp": "Add --wait so compose up blocks until declared services report ready.",
           "waitTimeoutSeconds": "Only applies when Wait After Up is enabled. Accepted range: 1 to 3600 seconds.",
           "renewAnonVolumes": "Add --renew-anon-volumes so docker compose up does not reuse anonymous volumes from older containers.",
@@ -1360,22 +1385,22 @@
               "tooltip": "Stop and remove the current Compose resources before the new up runs. This creates a clear downtime window but resets stale container and network state.",
               "effect": "Changes redeploy into a two-step flow: run docker compose down first, then run a fresh docker compose up.",
               "scenarios": "Use it when you need a clean restart or suspect stale containers, networks, or mounts are contaminating the current deployment.",
-              "risks": "This creates an explicit downtime window. Services are unavailable between down and up, and project-scoped resources are removed before startup resumes.",
+              "risks": "This creates an explicit downtime window. Services are unavailable between down and up, and application-scoped resources are removed before startup resumes.",
               "recommendation": "Enable it only when you accept the downtime window and need a full reset instead of an in-place bring-up."
             },
             "pullBeforeRedeploy": {
               "tooltip": "Pull images before reusing the current Compose definition. Best when image tags are updated continuously.",
-              "effect": "Runs docker compose pull before the bring-up phase so the project refreshes its referenced images first.",
+              "effect": "Runs docker compose pull before the bring-up phase so the application refreshes its referenced images first.",
               "scenarios": "Use it when CI regularly pushes images, when tags like latest are reused, or when redeploy should always prefer the newest remote image.",
               "risks": "It adds network time and can pull in an unexpected new image version, which may change behavior or make rollback slower.",
               "recommendation": "Keep it off for pinned immutable tags. Consider enabling it when the deployment flow depends on remote image updates."
             },
             "buildBeforeUp": {
-              "tooltip": "Add --build to up so local images are rebuilt first. Best for projects driven by local Dockerfiles or changed source code.",
+              "tooltip": "Add --build to up so local images are rebuilt first. Best for applications driven by local Dockerfiles or changed source code.",
               "effect": "Adds --build to docker compose up so redeploy rebuilds the local image before starting containers.",
-              "scenarios": "Use it when Dockerfiles, build contexts, dependencies, or application source changed and the project relies on local image builds.",
+              "scenarios": "Use it when Dockerfiles, build contexts, dependencies, or application source changed and the application relies on local image builds.",
               "risks": "It increases deployment time, especially when caches are cold. Build failures also block the redeploy entirely.",
-              "recommendation": "Leave it off unless rebuilding locally is part of the normal deployment path for this project."
+              "recommendation": "Leave it off unless rebuilding locally is part of the normal deployment path for this application."
             },
             "forceRecreate": {
               "tooltip": "Add --force-recreate so containers are rebuilt even if Compose sees no config diff. Useful for flushing bad state, but noisier than a normal up.",
@@ -1388,8 +1413,8 @@
               "tooltip": "Add --remove-orphans so old containers not defined in the current Compose files are cleaned up automatically. Useful after renames, splits, or removals.",
               "effect": "Adds --remove-orphans to docker compose up so containers that no longer exist in the current Compose definition are removed automatically.",
               "scenarios": "Use it after service renames, module splits, service removals, or whenever historical containers should be cleaned up as part of redeploy.",
-              "risks": "It removes leftover containers in the same Compose project scope. If you still rely on one of those undeclared containers, it will be removed as well.",
-              "recommendation": "Recommended. It keeps long-lived Compose projects from accumulating confusing leftovers."
+              "risks": "It removes leftover containers in the same Compose application scope. If you still rely on one of those undeclared containers, it will be removed as well.",
+              "recommendation": "Recommended. It keeps long-lived Compose applications from accumulating confusing leftovers."
             },
             "waitAfterUp": {
               "tooltip": "Add --wait after up. With healthchecks, Compose waits for healthy; without healthchecks, it usually only knows whether containers are running.",
@@ -1413,10 +1438,10 @@
               "recommendation": "Treat this as dangerous. Enable it only when you know what lives in the anonymous volumes and accept losing reuse of the old data."
             },
             "pruneImagesAfterRedeploy": {
-              "tooltip": "Run docker image prune -f after redeploy. This is a Docker host-level cleanup, not something scoped only to the current Compose project.",
+              "tooltip": "Run docker image prune -f after redeploy. This is a Docker host-level cleanup, not something scoped only to the current Compose application.",
               "effect": "Runs docker image prune -f after redeploy so unused images on the Docker host are cleaned up automatically.",
               "scenarios": "Use it on tightly managed hosts with disk pressure and frequent image churn, especially when automatic image cleanup is already an accepted policy.",
-              "risks": "This is a Docker host-level action, not one limited to the current Compose project. It can affect image cache, rollback speed, or later build performance for other workloads on the same host.",
+              "risks": "This is a Docker host-level action, not one limited to the current Compose application. It can affect image cache, rollback speed, or later build performance for other workloads on the same host.",
               "recommendation": "Leave it off unless the host is intentionally managed that way and reclaiming image space is worth the wider side effects."
             }
           }
@@ -1430,7 +1455,7 @@
         "saveFailed": "Lifecycle configuration could not be saved.",
         "waitTimeoutValidation": "Wait timeout must be between 1 and 3600 seconds.",
         "reviewRequiredTitle": "Lifecycle Confirmation Required",
-        "reviewRequiredDescription": "Imported projects must confirm deployment settings before Compose lifecycle actions can run.",
+        "reviewRequiredDescription": "Imported applications must confirm deployment settings before Compose lifecycle actions can run.",
         "reviewRequiredActionBlocked": "Confirm lifecycle settings before running Compose lifecycle actions.",
         "step": {
           "up": "Up",
@@ -1458,11 +1483,11 @@
         "composeEditorTab": "Compose Draft",
         "envEditorTab": "Env Draft",
         "composeEditorTitle": "Compose Draft Editor",
-        "composeEditorDescription": "Edit the Managed Compose Draft Here. Deploy Writes Back to the Tracked Project Files and Then Refreshes the Snapshot.",
+        "composeEditorDescription": "Edit the Managed Compose Draft Here. Deploy Writes Back to the Tracked Application Files and Then Refreshes the Snapshot.",
         "composeEditorPlaceholder": "Enter Compose YAML Content",
         "composeEditorEmpty": "No Compose Draft Content Yet.",
         "envEditorTitle": "Env Draft Editor",
-        "envEditorDescription": "Edit the Optional Env Draft Here. The Project Module Still Owns the Tracked File Boundary.",
+        "envEditorDescription": "Edit the optional environment draft here. It will be saved with the tracked files in the current application workspace.",
         "envEditorPlaceholder": "Enter Env Content",
         "envEditorEmpty": "No Env Draft Content Yet.",
         "backToEditor": "Back to Editor",
@@ -1479,14 +1504,14 @@
         "diffFileUnchanged": "Unchanged",
         "validationTitle": "Validation",
         "validationEmpty": "Run Validate to Inspect the Normalized Draft and Declared Services.",
-        "validateSuccess": "Project Draft Validated.",
-        "validateFailed": "Project Draft Validation Failed.",
-        "deploySuccess": "Project Draft Deployed.",
-        "deployFailed": "Project Draft Deployment Failed.",
-        "deployConfirmTitle": "Deploy Managed Project Draft",
-        "deployConfirmDescription": "Deploying this draft will overwrite the tracked managed files, refresh the project snapshot, and run docker compose up -d.",
-        "managedAuthorityHint": "This is a managed project. Draft editing, diff, validation, and deploy actions stay under project-owned configuration authority.",
-        "externalAuthorityHint": "These actions only apply to managed projects. External projects remain on a read-only configuration surface.",
+        "validateSuccess": "Application Draft Validated.",
+        "validateFailed": "Application Draft Validation Failed.",
+        "deploySuccess": "Application Draft Deployed.",
+        "deployFailed": "Application Draft Deployment Failed.",
+        "deployConfirmTitle": "Deploy Managed Application Draft",
+        "deployConfirmDescription": "Deploying this draft will overwrite the tracked managed files, refresh the application snapshot, and run docker compose up -d.",
+        "managedAuthorityHint": "This is a managed application. Draft editing, diff, validation, and deploy actions stay under application-owned configuration authority.",
+        "externalAuthorityHint": "These actions only apply to managed applications. External applications remain on a read-only configuration surface.",
         "currentHash": "Current Hash",
         "proposedHash": "Proposed Hash",
         "declaredServices": "Declared Services",
@@ -1497,19 +1522,19 @@
         "copySuccess": "Configuration Content Copied.",
         "copyError": "Configuration Content Could Not Be Copied.",
         "fileEmpty": "Select One Compose or Env File to Preview Its Content.",
-        "diffFailed": "Project Draft Diff Failed."
+        "diffFailed": "Application Draft Diff Failed."
       },
       "logs": {
-        "title": "Project Logs",
-        "summary": "Logs are aggregated by the project backend and keep explicit service and container source attribution.",
-        "authorityProjectOwned": "Use this stream to review project logs aggregated from the current containers.",
+        "title": "Application Logs",
+        "summary": "Logs are aggregated by the application backend and keep explicit service and container source attribution.",
+        "authorityApplicationOwned": "Use this stream to review application logs aggregated from the current containers.",
         "emptyTitle": "No Runtime Members",
-        "emptyDescription": "This project does not currently have runtime container members that can provide logs.",
+        "emptyDescription": "This application does not currently have runtime container members that can provide logs.",
         "memberCount": "{count} Sources",
         "logCount": "{count} Log Lines",
         "sinceLabel": "Since",
         "tailLabel": "Tail",
-        "loadFailed": "Project logs could not be loaded.",
+        "loadFailed": "Application logs could not be loaded.",
         "clear": "Clear",
         "copy": "Copy",
         "download": "Download",
@@ -1561,9 +1586,9 @@
         "copyPath": "Copy Path",
         "copyPathSuccess": "Path Copied.",
         "copyPathError": "Path Could Not Be Copied.",
-        "confirmDestroy": "Confirm Canonical Project Name",
+        "confirmDestroy": "Confirm Compose Project Name",
         "removeNamedVolumes": "Also Remove Named Volumes",
-        "deleteWorkingDirectory": "Also Delete Working Directory"
+        "deleteWorkingDirectory": "Also Delete Workspace Path"
       }
     }
   }

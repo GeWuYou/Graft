@@ -10,7 +10,7 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-const projectListSavedViewSurface = "project.list"
+const projectListSavedViewSurface = "application.list"
 
 var projectListSavedViewColumns = map[string]struct{}{
 	"row-select": {}, "name": {}, "applicationType": {}, "runtimeTarget": {}, "provider": {}, "source": {}, "runtime": {}, "resources": {}, "drift": {}, "operation": {},
@@ -21,13 +21,13 @@ type projectListQueryState struct {
 	ApplicationType *string  `json:"application_type"`
 	RuntimeTargetID *int64   `json:"runtime_target_id"`
 	Provider        *string  `json:"provider"`
-	SourceKind      *string  `json:"source_kind"`
+	SourceType      *string  `json:"source_type"`
 	RuntimeStatus   *string  `json:"runtime_status"`
 	DriftStatus     *string  `json:"drift_status"`
 	Sort            []string `json:"sort"`
 }
 
-// savedViewRequest is the project-owned, consumer-specific state accepted by its saved-view routes.
+// savedViewRequest 保存 Application 列表路由接受的消费方特定视图状态。
 type savedViewRequest struct {
 	Name           string          `json:"name"`
 	QueryState     json.RawMessage `json:"query_state"`
@@ -71,8 +71,7 @@ func (s *Service) deleteSavedView(ctx context.Context, ownerUserID, id uint64) e
 	return mapSavedViewError(s.savedViews.Delete(ctx, ownerUserID, projectListSavedViewSurface, id))
 }
 
-// validateProjectListSavedView validates the name, page size, query state, and visible columns of a project list saved-view request.
-// It returns errProjectInvalidArgument when any field is invalid.
+// validateProjectListSavedView 校验应用列表保存视图的名称、页大小、查询状态和可见列；任一字段无效时返回 errProjectInvalidArgument。
 func validateProjectListSavedView(request savedViewRequest) error {
 	if strings.TrimSpace(request.Name) == "" || request.PageSize < 1 || !json.Valid(request.QueryState) {
 		return errProjectInvalidArgument
@@ -99,11 +98,11 @@ func validateProjectListQueryState(queryState json.RawMessage) error {
 	return validateProjectListQueryStateValues(state)
 }
 
-// validProjectListQueryStateFields reports whether all query-state fields are supported.
+// validProjectListQueryStateFields 仅允许 Application 列表契约声明的查询状态字段。
 func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
 	for key := range raw {
 		switch key {
-		case "keyword", "application_type", "runtime_target_id", "provider", "source_kind", "runtime_status", "drift_status", "sort":
+		case "keyword", "application_type", "runtime_target_id", "provider", "source_type", "runtime_status", "drift_status", "sort":
 		default:
 			return false
 		}
@@ -111,7 +110,7 @@ func validProjectListQueryStateFields(raw map[string]json.RawMessage) bool {
 	return true
 }
 
-// validateProjectListQueryStateValues validates the values in a project list query state.
+// validateProjectListQueryStateValues 校验 Application 列表保存视图中的查询状态值。
 func validateProjectListQueryStateValues(state projectListQueryState) error {
 	if !validProjectListQueryStateStrings(state) {
 		return errProjectInvalidArgument
@@ -136,7 +135,7 @@ func validProjectListQueryStateSort(state projectListQueryState) bool {
 		return false
 	}
 	for _, raw := range state.Sort {
-		if !generated.GetProjectsParamsSort(strings.TrimSpace(raw)).Valid() {
+		if !generated.GetApplicationsParamsSort(strings.TrimSpace(raw)).Valid() {
 			return false
 		}
 	}
@@ -156,20 +155,20 @@ func validProjectListStaticEnums(state projectListQueryState) bool {
 }
 
 func validProjectListGeneratedEnums(state projectListQueryState) bool {
-	if state.SourceKind != nil && !generated.ProjectSourceKind(*state.SourceKind).Valid() {
+	if state.SourceType != nil && !generated.ApplicationSourceType(*state.SourceType).Valid() {
 		return false
 	}
-	if state.RuntimeStatus != nil && !generated.ProjectRuntimeStatus(*state.RuntimeStatus).Valid() {
+	if state.RuntimeStatus != nil && !generated.ApplicationRuntimeStatus(*state.RuntimeStatus).Valid() {
 		return false
 	}
-	if state.DriftStatus != nil && !generated.ProjectDriftStatus(*state.DriftStatus).Valid() {
+	if state.DriftStatus != nil && !generated.ApplicationDriftStatus(*state.DriftStatus).Valid() {
 		return false
 	}
 	return true
 }
 
 func validProjectListQueryStateStrings(state projectListQueryState) bool {
-	for _, value := range []*string{state.Keyword, state.ApplicationType, state.Provider, state.SourceKind, state.RuntimeStatus, state.DriftStatus} {
+	for _, value := range []*string{state.Keyword, state.ApplicationType, state.Provider, state.SourceType, state.RuntimeStatus, state.DriftStatus} {
 		if value != nil && strings.TrimSpace(*value) == "" {
 			return false
 		}
@@ -208,7 +207,7 @@ func mapSavedViewError(err error) error {
 
 // projectSavedViewRequestFromGenerated 将生成请求转换为内部保存视图请求，序列化查询状态并保留可见列顺序。
 // 查询状态无法序列化时返回无效参数错误。
-func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequest) (savedViewRequest, error) {
+func projectSavedViewRequestFromGenerated(request generated.ApplicationSavedViewRequest) (savedViewRequest, error) {
 	queryState, err := json.Marshal(request.QueryState)
 	if err != nil {
 		return savedViewRequest{}, errProjectInvalidArgument
@@ -222,13 +221,13 @@ func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequ
 
 // toGeneratedProjectSavedView 将已保存视图转换为生成的项目视图模型。
 // 如果视图 ID 无效或查询状态不是合法 JSON，则返回参数错误。
-func toGeneratedProjectSavedView(view moduleapi.SavedView) (generated.ProjectSavedView, error) {
+func toGeneratedProjectSavedView(view moduleapi.SavedView) (generated.ApplicationSavedView, error) {
 	if view.ID == 0 || view.ID > uint64(^uint64(0)>>1) {
-		return generated.ProjectSavedView{}, errProjectInvalidArgument
+		return generated.ApplicationSavedView{}, errProjectInvalidArgument
 	}
 	queryState := make(map[string]interface{})
 	if err := json.Unmarshal(view.QueryState, &queryState); err != nil {
-		return generated.ProjectSavedView{}, errProjectInvalidArgument
+		return generated.ApplicationSavedView{}, errProjectInvalidArgument
 	}
-	return generated.ProjectSavedView{Id: int64(view.ID), Name: view.Name, QueryState: queryState, PageSize: view.PageSize, VisibleColumns: append([]string(nil), view.VisibleColumns...), CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}, nil
+	return generated.ApplicationSavedView{Id: int64(view.ID), Name: view.Name, QueryState: queryState, PageSize: view.PageSize, VisibleColumns: append([]string(nil), view.VisibleColumns...), CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}, nil
 }

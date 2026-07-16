@@ -19,29 +19,29 @@ func (s *Service) parseImportRequest(
 	request ImportRequest,
 ) (projectcompose.Result, ImportValidationResult, error) {
 	parseResult, err := projectcompose.Load(projectcompose.Input{
-		WorkingDirectory: request.WorkingDirectory,
-		ComposeFiles:     request.ComposeFiles,
-		EnvFiles:         request.EnvFiles,
+		WorkspacePath: request.WorkspacePath,
+		ComposeFiles:  request.ComposeFiles,
+		EnvFiles:      request.EnvFiles,
 	})
 	if err != nil {
 		return projectcompose.Result{}, ImportValidationResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	canonicalName := parseResult.CanonicalProjectName
+	canonicalName := parseResult.ComposeProjectName
 	canonicalNameSource := parseResult.CanonicalNameSource
-	if request.CanonicalProjectNameOverride != nil {
-		override, err := validateExplicitCanonicalProjectName(*request.CanonicalProjectNameOverride)
+	if request.ComposeProjectNameOverride != nil {
+		override, err := validateExplicitComposeProjectName(*request.ComposeProjectNameOverride)
 		if err != nil {
 			return projectcompose.Result{}, ImportValidationResult{}, err
 		}
 		canonicalName = override
-		canonicalNameSource = projectcontract.CanonicalProjectNameSourceOverride.String()
+		canonicalNameSource = projectcontract.ComposeProjectNameSourceOverride.String()
 	}
 	validation := ImportValidationResult{
-		CanonicalProjectName:       canonicalName,
-		CanonicalProjectNameSource: canonicalNameSource,
-		WorkingDirectory:           parseResult.WorkingDirectory,
-		ComposeFiles:               toGeneratedFilesFromCompose(parseResult.ComposeFiles),
-		EnvFiles:                   toGeneratedFilesFromCompose(parseResult.EnvFiles),
+		ComposeProjectName:       canonicalName,
+		ComposeProjectNameSource: canonicalNameSource,
+		WorkspacePath:            parseResult.WorkspacePath,
+		ComposeFiles:             toGeneratedFilesFromCompose(parseResult.ComposeFiles),
+		EnvFiles:                 toGeneratedFilesFromCompose(parseResult.EnvFiles),
 	}
 	return parseResult, validation, nil
 }
@@ -63,12 +63,12 @@ func (s *Service) inspectImportRequest(
 	session := importInspectionSession{
 		DirectoryRef: ImportDirectoryReference{
 			Provider: importProviderLocal,
-			Path:     parseResult.WorkingDirectory,
+			Path:     parseResult.WorkspacePath,
 		},
-		WorkingDir:      parseResult.WorkingDirectory,
-		CanonicalName:   validation.CanonicalProjectName,
-		CanonicalSource: validation.CanonicalProjectNameSource,
-		DisplayName:     defaultImportedDisplayName(request.DisplayName, parseResult.WorkingDirectory, validation.CanonicalProjectName),
+		WorkingDir:      parseResult.WorkspacePath,
+		CanonicalName:   validation.ComposeProjectName,
+		CanonicalSource: validation.ComposeProjectNameSource,
+		DisplayName:     defaultImportedDisplayName(request.DisplayName, parseResult.WorkspacePath, validation.ComposeProjectName),
 		ParseResult:     parseResult,
 		Conflicts:       append([]string(nil), conflicts...),
 		Warnings:        append([]string(nil), parseResult.Warnings...),
@@ -86,19 +86,19 @@ func (s *Service) inspectImportRequest(
 func (s *Service) validationResultFromSession(session importInspectionSession) ImportValidationResult {
 	inspectionID := session.ID
 	return ImportValidationResult{
-		CanonicalProjectName:       session.CanonicalName,
-		CanonicalProjectNameSource: session.CanonicalSource,
-		WorkingDirectory:           session.WorkingDir,
-		ComposeFiles:               toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
-		EnvFiles:                   toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
-		ServiceCount:               len(session.ParseResult.ServiceNames),
-		NetworkNames:               append([]string(nil), session.ParseResult.NetworkNames...),
-		VolumeNames:                append([]string(nil), session.ParseResult.VolumeNames...),
-		Warnings:                   append([]string(nil), session.Warnings...),
-		Conflicts:                  append([]string(nil), session.Conflicts...),
-		ConfigHash:                 session.ParseResult.ConfigHash,
-		DeclaredServiceNames:       append([]string(nil), session.ParseResult.ServiceNames...),
-		InspectionID:               &inspectionID,
+		ComposeProjectName:       session.CanonicalName,
+		ComposeProjectNameSource: session.CanonicalSource,
+		WorkspacePath:            session.WorkingDir,
+		ComposeFiles:             toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                 toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
+		ServiceCount:             len(session.ParseResult.ServiceNames),
+		NetworkNames:             append([]string(nil), session.ParseResult.NetworkNames...),
+		VolumeNames:              append([]string(nil), session.ParseResult.VolumeNames...),
+		Warnings:                 append([]string(nil), session.Warnings...),
+		Conflicts:                append([]string(nil), session.Conflicts...),
+		ConfigHash:               session.ParseResult.ConfigHash,
+		DeclaredServiceNames:     append([]string(nil), session.ParseResult.ServiceNames...),
+		InspectionID:             &inspectionID,
 	}
 }
 
@@ -113,39 +113,39 @@ func (s *Service) importInspectionSession(
 	ctx context.Context,
 	session importInspectionSession,
 	input importInspectionCommitInput,
-) (generated.ProjectImportResponse, error) {
+) (generated.ApplicationImportResponse, error) {
 	if len(session.Conflicts) > 0 {
-		return generated.ProjectImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(session.Conflicts, ", "))
+		return generated.ApplicationImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(session.Conflicts, ", "))
 	}
 	currentRequest := ImportRequest{
-		WorkingDirectory:             session.WorkingDir,
-		ComposeFiles:                 displayPathsFromCompose(session.ParseResult.ComposeFiles),
-		EnvFiles:                     displayPathsFromCompose(session.ParseResult.EnvFiles),
-		DisplayName:                  input.DisplayName,
-		CanonicalProjectNameOverride: input.CanonicalOverride,
-		ActorID:                      input.ActorID,
+		WorkspacePath:              session.WorkingDir,
+		ComposeFiles:               displayPathsFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                   displayPathsFromCompose(session.ParseResult.EnvFiles),
+		DisplayName:                input.DisplayName,
+		ComposeProjectNameOverride: input.CanonicalOverride,
+		ActorID:                    input.ActorID,
 	}
 	freshParse, freshValidation, err := s.parseImportRequest(currentRequest)
 	if err != nil {
-		return generated.ProjectImportResponse{}, err
+		return generated.ApplicationImportResponse{}, err
 	}
 	if !sameFileHashes(session.FileHashes, freshParse) {
-		return generated.ProjectImportResponse{}, errors.Join(errProjectConflict, errProjectFileHashMismatch)
+		return generated.ApplicationImportResponse{}, errors.Join(errProjectConflict, errProjectFileHashMismatch)
 	}
 	if input.LifecycleConfig == nil {
-		return generated.ProjectImportResponse{}, errProjectInvalidArgument
+		return generated.ApplicationImportResponse{}, errProjectInvalidArgument
 	}
 	normalizedLifecycleConfig, err := normalizeLifecycleStandardConfig(*input.LifecycleConfig)
 	if err != nil {
-		return generated.ProjectImportResponse{}, err
+		return generated.ApplicationImportResponse{}, err
 	}
-	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: defaultImportedDisplayName(input.DisplayName, freshParse.WorkingDirectory, freshValidation.CanonicalProjectName), CanonicalProjectName: freshValidation.CanonicalProjectName, CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource, SourceKind: projectcontract.SourceKindImported.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: freshParse.WorkingDirectory, OwnershipMode: projectcontract.OwnershipModeExternal.String(), LifecycleConfig: normalizedLifecycleConfig, ParseResult: freshParse, ActorID: input.ActorID})
+	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: defaultImportedDisplayName(input.DisplayName, freshParse.WorkspacePath, freshValidation.ComposeProjectName), ComposeProjectName: freshValidation.ComposeProjectName, ComposeProjectNameSource: freshValidation.ComposeProjectNameSource, SourceType: projectcontract.SourceTypeImported.String(), WorkspacePath: freshParse.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeExternal.String(), LifecycleConfig: normalizedLifecycleConfig, ParseResult: freshParse, ActorID: input.ActorID})
 	if err != nil {
-		return generated.ProjectImportResponse{}, err
+		return generated.ApplicationImportResponse{}, err
 	}
 
-	response := generated.ProjectImportResponse{
-		Project: toProjectDetailResponse(aggregate, nil, errProjectRuntimeUnavailable),
+	response := generated.ApplicationImportResponse{
+		Application: toProjectDetailResponse(aggregate, nil, errProjectRuntimeUnavailable),
 	}
 	response.SnapshotSummary.ConfigHash = freshParse.ConfigHash
 	response.SnapshotSummary.RefreshedAt = now
@@ -177,14 +177,14 @@ func (s *Service) computeConflicts(
 		return nil, mapStoreError(err)
 	}
 	conflicts := make([]string, 0)
-	targetWD := strings.TrimSpace(validation.WorkingDirectory)
-	targetCanonical := strings.TrimSpace(validation.CanonicalProjectName)
+	targetWD := strings.TrimSpace(validation.WorkspacePath)
+	targetCanonical := strings.TrimSpace(validation.ComposeProjectName)
 	for _, item := range existing.Items {
-		if sameWorkingDirectory(targetWD, item.Project.WorkingDirectory) {
-			conflicts = append(conflicts, "working_directory")
+		if sameWorkspacePath(targetWD, item.Application.WorkspacePath) {
+			conflicts = append(conflicts, "workspace_path")
 		}
-		if strings.EqualFold(item.Project.CanonicalProjectName, targetCanonical) {
-			conflicts = append(conflicts, "canonical_project_name")
+		if strings.EqualFold(item.Application.ComposeProjectName, targetCanonical) {
+			conflicts = append(conflicts, "compose_project_name")
 		}
 	}
 	sort.Strings(conflicts)

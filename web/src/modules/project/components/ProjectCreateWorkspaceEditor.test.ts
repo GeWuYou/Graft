@@ -2,7 +2,7 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
-import ProjectCreateWorkspaceEditor from './ProjectCreateWorkspaceEditor.vue';
+import ApplicationCreateWorkspaceEditor from './ProjectCreateWorkspaceEditor.vue';
 
 const messageMocks = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 const monacoDiagnostics = vi.hoisted(() => ({
@@ -27,12 +27,12 @@ vi.mock('./ProjectMonacoSurface.vue', () => ({
 }));
 
 vi.mock('../shared/page-context', () => ({
-  useProjectPageContext: () => ({ t: (key: string, values?: Record<string, string>) => values?.path || key }),
+  useApplicationPageContext: () => ({ t: (key: string, values?: Record<string, string>) => values?.path || key }),
 }));
 
 enableAutoUnmount(afterEach);
 
-describe('ProjectCreateWorkspaceEditor', () => {
+describe('ApplicationCreateWorkspaceEditor', () => {
   beforeEach(() => {
     localStorage.clear();
     monacoDiagnostics.boundModelKey = '';
@@ -42,11 +42,11 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
   it('synchronizes the active workspace draft with Ctrl+S without leaving its workspace scope', async () => {
     messageMocks.success.mockClear();
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       attachTo: document.body,
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
-    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
     editor.vm.$emit('update-content', '.env', 'APP_PORT=3000');
     await nextTick();
 
@@ -73,7 +73,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('keeps hidden and nested files in the managed workspace manifest', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: {
         files: [
           { path: 'compose.yaml', content: 'services: {}' },
@@ -115,7 +115,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('provides a stable editor-height storage key to the shared viewer frame', () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
 
@@ -126,7 +126,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
   it('renders a resizable file tree with an initial tab and editor for the creation workspace', () => {
     window.localStorage.removeItem('graft.project.create-workspace.sidebar.width');
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
 
@@ -150,7 +150,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
   it('persists file tree width after pointer and keyboard resizing', async () => {
     window.localStorage.removeItem('graft.project.create-workspace.sidebar.width');
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       attachTo: document.body,
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
@@ -173,7 +173,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
   it('restores a persisted file tree width for the creation workspace', () => {
     window.localStorage.setItem('graft.project.create-workspace.sidebar.width', '320');
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
 
@@ -185,10 +185,10 @@ describe('ProjectCreateWorkspaceEditor', () => {
   it('saves the active workspace draft directly when syntax validation passes', async () => {
     monacoDiagnostics.resolver = () => [];
     messageMocks.success.mockClear();
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
     });
-    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
     editor.vm.$emit('update-content', 'compose.yaml', 'services:\n  app:\n    image: nginx');
     await nextTick();
 
@@ -202,7 +202,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   it('requires confirmation before saving a draft with syntax errors', async () => {
     monacoDiagnostics.resolver = () => [{ severity: 8 }];
     messageMocks.success.mockClear();
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
       global: {
         stubs: {
@@ -215,7 +215,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
         },
       },
     });
-    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
     editor.vm.$emit('update-content', 'compose.yaml', 'services: [broken');
     await nextTick();
 
@@ -234,10 +234,10 @@ describe('ProjectCreateWorkspaceEditor', () => {
   it('does not save when the active syntax model cannot bind', async () => {
     messageMocks.error.mockClear();
     messageMocks.success.mockClear();
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
     });
-    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
     editor.vm.$emit('update-content', 'compose.yaml', 'services: [broken');
     await nextTick();
     monacoDiagnostics.boundModelKey = 'other.yaml';
@@ -252,7 +252,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('uses F11 within the workspace to toggle its existing outer fullscreen mode', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },
     });
 
@@ -270,7 +270,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('keeps file selection when toggling an empty folder', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: {
         files: [
           { path: 'config', node_type: 'directory' },
@@ -293,7 +293,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('creates a file from the tree context menu with an inline name', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
       global: {
         stubs: {
@@ -321,14 +321,14 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('start');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await nextTick();
     await nextTick();
 
     expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
       expect.arrayContaining([expect.objectContaining({ path: 'start', node_type: 'file' })]),
     );
-    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
     expect(editor.props('activePath')).toBe('start');
     expect(editor.props('selectedPath')).toBe('start');
     expect(editor.props('activeBuffer')).toMatchObject({ path: 'start' });
@@ -336,7 +336,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('keeps the root context menu available when the workspace is empty', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [] },
       global: {
         stubs: {
@@ -354,7 +354,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
 
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('recover.yml');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
 
     expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
       expect.arrayContaining([expect.objectContaining({ path: 'recover.yml', node_type: 'file' })]),
@@ -362,7 +362,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('creates a directory entry without content', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
       global: {
         stubs: {
@@ -378,16 +378,16 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[1].trigger('click');
     await wrapper.find('input').setValue('config');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await nextTick();
 
     const entries = wrapper.emitted('update:files')?.at(-1)?.[0] as Array<Record<string, unknown>>;
     expect(entries.find((entry) => entry.path === 'config')).toEqual({ path: 'config', node_type: 'directory' });
-    expect(wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).props('activePath')).toBe('compose.yaml');
+    expect(wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).props('activePath')).toBe('compose.yaml');
   });
 
   it('creates a file inside the selected directory instead of inferring a folder type', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: {
         files: [
           { path: 'config', node_type: 'directory' },
@@ -408,20 +408,20 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.find('.project-workspace-editor__tree-menu-trigger[aria-label="config"]').trigger('click');
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('dashboard.e2e.json');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await nextTick();
     await nextTick();
 
     expect(wrapper.emitted('update:files')?.at(-1)?.[0]).toEqual(
       expect.arrayContaining([expect.objectContaining({ path: 'config/dashboard.e2e.json', node_type: 'file' })]),
     );
-    const editor = wrapper.findComponent({ name: 'ProjectWorkspaceEditor' });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
     expect(editor.props('activePath')).toBe('config/dashboard.e2e.json');
     expect(editor.props('selectedPath')).toBe('config/dashboard.e2e.json');
   });
 
   it('preselects a file basename while preserving its extension for inline rename', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       attachTo: document.body,
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
       global: {
@@ -448,7 +448,7 @@ describe('ProjectCreateWorkspaceEditor', () => {
   });
 
   it('rejects workspace paths that would be ancestors or descendants of existing files', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: {
         files: [
           { path: 'scripts/start', content: '#!/bin/sh' },
@@ -482,20 +482,20 @@ describe('ProjectCreateWorkspaceEditor', () => {
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 20, clientY: 20 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('scripts');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
 
     expect(wrapper.emitted('update:files') ?? []).toHaveLength(initialUpdateCount);
 
     await wrapper.find('.project-workspace-editor__tree-menu-trigger[aria-label="other"]').trigger('click');
     await wrapper.findAll('[role="menuitem"]')[2].trigger('click');
     await wrapper.find('input').setValue('scripts');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
 
     expect(wrapper.emitted('update:files') ?? []).toHaveLength(initialUpdateCount);
   });
 
   it('opens the workspace action menu from a keyboard-focusable trigger and restores focus on escape', async () => {
-    const wrapper = mount(ProjectCreateWorkspaceEditor, {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       attachTo: document.body,
       props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
       global: {

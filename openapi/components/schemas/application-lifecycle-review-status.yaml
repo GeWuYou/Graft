@@ -1,0 +1,8 @@
+type: string
+description: >
+  Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import
+  workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
+enum: [review_required, confirmed]
+x-enum-varnames:
+  - ApplicationLifecycleReviewStatusReviewRequired
+  - ApplicationLifecycleReviewStatusConfirmed

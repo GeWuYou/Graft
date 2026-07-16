@@ -1,0 +1,19 @@
+type: object
+required:
+  - application_id
+  - compose_project_name
+  - normalized_compose_yaml
+  - config_hash
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  compose_project_name:
+    type: string
+  normalized_compose_yaml:
+    type: string
+  config_hash:
+    type: string
+  refreshed_at:
+    type: string
+    format: date-time
+    nullable: true

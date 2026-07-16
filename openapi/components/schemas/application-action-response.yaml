@@ -1,0 +1,36 @@
+type: object
+required:
+  - application_id
+  - action
+  - result
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  action:
+    type: string
+    enum: [refresh, up, stop, restart, unregister, destroy, create, redeploy]
+    x-enum-varnames:
+      - ApplicationActionRefresh
+      - ApplicationActionUp
+      - ApplicationActionStop
+      - ApplicationActionRestart
+      - ApplicationActionUnregister
+      - ApplicationActionDestroy
+      - ApplicationActionCreate
+      - ApplicationActionRedeploy
+  result:
+    type: string
+    enum: [accepted, completed, blocked]
+    x-enum-varnames:
+      - ApplicationActionResultAccepted
+      - ApplicationActionResultCompleted
+      - ApplicationActionResultBlocked
+  message_key:
+    type: string
+  message:
+    type: string
+  guard_results:
+    type: array
+    items:
+      $ref: ./application-guard-result.yaml
+    description: Structured guard outcomes such as ownership blocks or skipped destructive steps.

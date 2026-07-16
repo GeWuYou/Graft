@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const PROJECT_MONACO_SURFACE_TEST_STATE_KEY = '__PROJECT_MONACO_SURFACE_TEST_STATE__';
+const APPLICATION_MONACO_SURFACE_TEST_STATE_KEY = '__APPLICATION_MONACO_SURFACE_TEST_STATE__';
 
 function createMockState() {
   const callOrder: string[] = [];
@@ -98,9 +98,9 @@ function createMockState() {
 }
 
 const mockState = createMockState();
-(globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_SURFACE_TEST_STATE_KEY] = mockState;
+(globalThis as typeof globalThis & Record<string, unknown>)[APPLICATION_MONACO_SURFACE_TEST_STATE_KEY] = mockState;
 const getMockState = () =>
-  (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_SURFACE_TEST_STATE_KEY] as ReturnType<
+  (globalThis as typeof globalThis & Record<string, unknown>)[APPLICATION_MONACO_SURFACE_TEST_STATE_KEY] as ReturnType<
     typeof createMockState
   >;
 

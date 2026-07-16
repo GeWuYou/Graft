@@ -1,7 +1,7 @@
 import type {
-  ProjectImportInspectResponse,
-  ProjectImportRuntimeInspectNetworkResource,
-  ProjectImportRuntimeInspectVolumeResource,
+  ApplicationImportInspectResponse,
+  ApplicationImportRuntimeInspectNetworkResource,
+  ApplicationImportRuntimeInspectVolumeResource,
 } from '../types/import';
 
 export type ImportInspectResourceKey = 'containers' | 'networks' | 'volumes';
@@ -32,7 +32,7 @@ export type ImportInspectVolumeRow = {
 const UNKNOWN_RESOURCE_VALUE = '-';
 
 export function normalizeImportInspectNetworkRows(
-  result: ProjectImportInspectResponse | null | undefined,
+  result: ApplicationImportInspectResponse | null | undefined,
 ): ImportInspectNetworkRow[] {
   const resources = normalizeNetworkResources(result);
   if (resources.length) {
@@ -63,7 +63,7 @@ export function normalizeImportInspectNetworkRows(
 }
 
 export function normalizeImportInspectVolumeRows(
-  result: ProjectImportInspectResponse | null | undefined,
+  result: ApplicationImportInspectResponse | null | undefined,
 ): ImportInspectVolumeRow[] {
   const resources = normalizeVolumeResources(result);
   if (resources.length) {
@@ -91,37 +91,37 @@ export function normalizeImportInspectVolumeRows(
   }));
 }
 
-function normalizeNetworkResources(result: ProjectImportInspectResponse | null | undefined) {
+function normalizeNetworkResources(result: ApplicationImportInspectResponse | null | undefined) {
   if (!Array.isArray(result?.networks)) {
-    return [] as ProjectImportRuntimeInspectNetworkResource[];
+    return [] as ApplicationImportRuntimeInspectNetworkResource[];
   }
 
   return result.networks.filter(isNetworkResource);
 }
 
-function normalizeVolumeResources(result: ProjectImportInspectResponse | null | undefined) {
+function normalizeVolumeResources(result: ApplicationImportInspectResponse | null | undefined) {
   if (!Array.isArray(result?.volumes)) {
-    return [] as ProjectImportRuntimeInspectVolumeResource[];
+    return [] as ApplicationImportRuntimeInspectVolumeResource[];
   }
 
   return result.volumes.filter(isVolumeResource);
 }
 
-function isNetworkResource(value: unknown): value is ProjectImportRuntimeInspectNetworkResource {
+function isNetworkResource(value: unknown): value is ApplicationImportRuntimeInspectNetworkResource {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const candidate = value as Partial<ProjectImportRuntimeInspectNetworkResource>;
+  const candidate = value as Partial<ApplicationImportRuntimeInspectNetworkResource>;
   return typeof candidate.name === 'string';
 }
 
-function isVolumeResource(value: unknown): value is ProjectImportRuntimeInspectVolumeResource {
+function isVolumeResource(value: unknown): value is ApplicationImportRuntimeInspectVolumeResource {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const candidate = value as Partial<ProjectImportRuntimeInspectVolumeResource>;
+  const candidate = value as Partial<ApplicationImportRuntimeInspectVolumeResource>;
   return typeof candidate.name === 'string';
 }
 

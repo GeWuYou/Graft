@@ -39,14 +39,14 @@
                 <t-descriptions-item :label="t('project.detail.configuration.ownershipMode')">
                   {{ detailRecord?.ownership_mode || '-' }}
                 </t-descriptions-item>
-                <t-descriptions-item :label="workspaceCopy.summaryWorkingDirectoryLabel">
+                <t-descriptions-item :label="workspaceCopy.summaryWorkspacePathLabel">
                   <t-tooltip :content="detailRecord?.workspace_path || '-'" placement="top-left" theme="light">
                     <code
                       :aria-label="detailRecord?.workspace_path || '-'"
                       class="project-configuration-workspace__summary-technical"
                       data-testid="workspace-working-directory"
                     >
-                      {{ workingDirectoryDisplay }}
+                      {{ workspacePathDisplay }}
                     </code>
                   </t-tooltip>
                 </t-descriptions-item>
@@ -211,7 +211,7 @@
                     shape="square"
                     size="small"
                     :loading="redeployLoading"
-                    @click="runProjectRedeploy"
+                    @click="runApplicationRedeploy"
                     ><template #icon><cloud-upload-icon /></template
                     ><span class="project-configuration-workspace__sr-only">{{
                       workspaceCopy.redeployAction
@@ -633,31 +633,31 @@ import { store } from '@/store/pinia';
 import { createLogger } from '@/utils/logger';
 
 import {
-  deleteProjectWorkspaceEntry,
-  getProject,
-  getProjectConfiguration,
-  getProjectFileContent,
-  getProjectFiles,
-  postProjectRedeploy,
-  postProjectWorkspaceEntry,
-  postProjectWorkspaceRename,
-  putProjectFileAnnotation,
-  putProjectFileContent,
+  deleteApplicationWorkspaceEntry,
+  getApplication,
+  getApplicationConfiguration,
+  getApplicationFileContent,
+  getApplicationFiles,
+  postApplicationRedeploy,
+  postApplicationWorkspaceEntry,
+  postApplicationWorkspaceRename,
+  putApplicationFileAnnotation,
+  putApplicationFileContent,
 } from '../../api/project';
 import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.vue';
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
 import ProjectWorkspaceEditor, {
-  type ProjectWorkspaceEditorBuffer,
-  type ProjectWorkspaceEditorLabels,
-  type ProjectWorkspaceEditorRow,
-  type ProjectWorkspaceInlineEdit,
+  type ApplicationWorkspaceEditorBuffer,
+  type ApplicationWorkspaceEditorLabels,
+  type ApplicationWorkspaceEditorRow,
+  type ApplicationWorkspaceInlineEdit,
 } from '../../components/ProjectWorkspaceEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
+  type ApplicationWorkspaceMonacoLanguage,
   hasWorkspaceUnsavedChanges,
   normalizeTextBlock,
   normalizeWorkspaceContent,
-  type ProjectWorkspaceMonacoLanguage,
   resolveWorkspaceFileName,
   resolveWorkspaceMonacoLanguage,
   supportsExplicitWorkspaceSyntaxValidation,
@@ -670,19 +670,19 @@ import {
   projectTaskTypeLabel,
 } from '../../shared/display';
 import { buildDetailTitleWithFallback } from '../../shared/navigation';
-import { useProjectPageContext } from '../../shared/page-context';
+import { useApplicationPageContext } from '../../shared/page-context';
 import { formatProjectMonacoDebugMessage, isProjectMonacoDebugEnabled } from '../../shared/project-monaco-debug';
 import { useProjectWorkspaceStore } from '../../store/workspace';
 import type {
-  ProjectDetailResponseWithLifecycle,
-  ProjectWorkspaceFileContentResponse,
-  ProjectWorkspaceFileKind,
-  ProjectWorkspaceTreeItem,
+  ApplicationDetailResponseWithLifecycle,
+  ApplicationWorkspaceFileContentResponse,
+  ApplicationWorkspaceFileKind,
+  ApplicationWorkspaceTreeItem,
 } from '../../types/project';
 import { resolveConfigurationWorkspaceCopy, resolveConfigurationWorkspaceCopyKey } from './workspace-copy';
 
 defineOptions({
-  name: 'ProjectConfigurationWorkspaceIndex',
+  name: 'ApplicationConfigurationWorkspaceIndex',
 });
 
 type ResultDialogMode = 'diff' | 'syntax';
@@ -694,7 +694,7 @@ type WorkspaceDialogButton = {
   theme: 'default' | 'primary';
   variant: 'base' | 'outline';
 };
-type WorkspaceListItem = ProjectWorkspaceTreeItem;
+type WorkspaceListItem = ApplicationWorkspaceTreeItem;
 type DiffTreeRow = {
   depth: number;
   file: WorkspacePreviewDiffFile | null;
@@ -707,7 +707,7 @@ type WorkspacePreviewDiffFile = {
   current_content: string;
   current_hash: string;
   display_path: string;
-  kind: ProjectWorkspaceFileKind;
+  kind: ApplicationWorkspaceFileKind;
   path: string;
   proposed_content: string;
   proposed_hash: string;
@@ -734,7 +734,7 @@ type WorkspaceDiffLineChange = {
 type WorkspaceSyntaxValidationResult = {
   content: string;
   fileName: string;
-  language: ProjectWorkspaceMonacoLanguage;
+  language: ApplicationWorkspaceMonacoLanguage;
   markerCount: number;
   markers: WorkspaceSyntaxMarker[];
   modelKey: string;
@@ -764,8 +764,8 @@ type WorkspaceOpenFile = {
   readable: boolean;
   editable: boolean;
   error: string;
-  fileKind: ProjectWorkspaceFileKind;
-  language: ProjectWorkspaceMonacoLanguage;
+  fileKind: ApplicationWorkspaceFileKind;
+  language: ApplicationWorkspaceMonacoLanguage;
   loaded: boolean;
   loading: boolean;
   name: string;
@@ -780,7 +780,7 @@ const MONACO_MARKER_ERROR_SEVERITY = 8;
 
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
-const { t, tabsRouterStore } = useProjectPageContext();
+const { t, tabsRouterStore } = useApplicationPageContext();
 const workspaceStore = useProjectWorkspaceStore(store);
 
 const workspaceRootRef = ref<HTMLElement | null>(null);
@@ -795,8 +795,8 @@ const showHiddenFiles = ref(false);
 const currentWorkspacePath = ref('');
 const selectedWorkspacePath = ref('');
 const editorViewportHeight = ref(720);
-const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
-const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
+const detailRecord = ref<ApplicationDetailResponseWithLifecycle | null>(null);
+const metadata = ref<Awaited<ReturnType<typeof getApplicationConfiguration>> | null>(null);
 const workspaceFullscreen = ref(false);
 const resultDialogVisible = ref(false);
 const resultDialogMode = ref<ResultDialogMode>('diff');
@@ -859,7 +859,7 @@ const workspaceEntryMenu = reactive<{ item: WorkspaceListItem | null; visible: b
   x: 0,
   y: 0,
 });
-const workspaceInlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
+const workspaceInlineEdit = ref<ApplicationWorkspaceInlineEdit | null>(null);
 const workspaceDeleteDialog = reactive<{
   path: string;
   stage: 'initial' | 'recursive';
@@ -875,8 +875,10 @@ const readonlyOptions = {
 };
 
 const workspaceCopy = computed(() => resolveConfigurationWorkspaceCopy((key) => String(t(key))));
-const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''));
-const workspaceSessionKey = computed(() => `project:${projectId.value}`);
+const applicationId = computed(() =>
+  typeof route.params.applicationId === 'string' ? route.params.applicationId : '',
+);
+const workspaceSessionKey = computed(() => `project:${applicationId.value}`);
 const fallbackDisplayName = computed(() => {
   const queryName = typeof route.query.name === 'string' ? route.query.name.trim() : '';
   return queryName;
@@ -1096,9 +1098,9 @@ const currentWorkspaceDirectoryPath = computed(() => {
 const currentWorkspacePathLabel = computed(
   () => currentWorkspaceDirectoryPath.value || workspaceCopy.value.workspaceRootLabel,
 );
-const workingDirectoryDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.workspace_path));
+const workspacePathDisplay = computed(() => abbreviateWorkspacePath(detailRecord.value?.workspace_path));
 const currentWorkspacePathDisplay = computed(() => abbreviateWorkspacePath(currentWorkspacePathLabel.value));
-const workspaceEditorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
+const workspaceEditorRows = computed<ApplicationWorkspaceEditorRow[]>(() =>
   workspaceStore.visibleTreeRows(workspaceSessionKey.value).map((row) => ({
     depth: row.depth,
     expanded: row.expanded,
@@ -1112,7 +1114,7 @@ const workspaceEditorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
     tooltip: workspaceItemTooltip(row.item),
   })),
 );
-const workspaceEditorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
+const workspaceEditorTabs = computed<ApplicationWorkspaceEditorBuffer[]>(() =>
   workspaceStore.openedFiles(workspaceSessionKey.value).map((tab) => ({
     content: tab.content,
     dirty: isFileDirty(tab.path),
@@ -1125,7 +1127,7 @@ const workspaceEditorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
     readOnly: !tab.editable,
   })),
 );
-const workspaceEditorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
+const workspaceEditorActiveBuffer = computed<ApplicationWorkspaceEditorBuffer | null>(() => {
   const tab = workspaceStore.activeFile(workspaceSessionKey.value);
   if (!tab) return null;
   return {
@@ -1140,7 +1142,7 @@ const workspaceEditorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null
     readOnly: !tab.editable,
   };
 });
-const workspaceEditorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
+const workspaceEditorLabels = computed<ApplicationWorkspaceEditorLabels>(() => ({
   annotationAction: workspaceCopy.value.annotationAction,
   closeAll: t('layout.tagTabs.closeAll'),
   closeLeft: t('layout.tagTabs.closeLeft'),
@@ -1286,7 +1288,7 @@ watch(activeTabPath, () => {
 });
 
 async function loadWorkspace() {
-  if (!projectId.value) {
+  if (!applicationId.value) {
     workspaceError.value = t('project.list.retry');
     return;
   }
@@ -1297,8 +1299,8 @@ async function loadWorkspace() {
   workspaceStore.ensureSession(workspaceSessionKey.value);
   try {
     const [detail, configurationMetadata] = await Promise.all([
-      getProject(projectId.value),
-      getProjectConfiguration(projectId.value),
+      getApplication(applicationId.value),
+      getApplicationConfiguration(applicationId.value),
     ]);
     detailRecord.value = detail;
     updateCurrentTabTitle(detail.display_name);
@@ -1326,7 +1328,7 @@ async function loadWorkspaceDirectory(path: string, options?: { root?: boolean }
   }
 
   try {
-    const response = await getProjectFiles(projectId.value, {
+    const response = await getApplicationFiles(applicationId.value, {
       path: normalizedPath || undefined,
       show_hidden: showHiddenFiles.value,
     });
@@ -1369,7 +1371,7 @@ async function loadWorkspaceDirectory(path: string, options?: { root?: boolean }
   }
 }
 
-function sortWorkspaceItems(items: ProjectWorkspaceTreeItem[]) {
+function sortWorkspaceItems(items: ApplicationWorkspaceTreeItem[]) {
   return [...items].sort((left, right) => {
     if (left.node_type !== right.node_type) {
       return left.node_type === 'directory' ? -1 : 1;
@@ -1391,16 +1393,16 @@ function handleWorkspaceEntry(item: WorkspaceListItem) {
   void openWorkspaceFile(item.relative_path, item);
 }
 
-function workspaceItemForEditorRow(row: ProjectWorkspaceEditorRow) {
+function workspaceItemForEditorRow(row: ApplicationWorkspaceEditorRow) {
   return workspaceItemMap.value.get(row.path) ?? null;
 }
 
-function handleWorkspaceEditorEntry(row: ProjectWorkspaceEditorRow) {
+function handleWorkspaceEditorEntry(row: ApplicationWorkspaceEditorRow) {
   const item = workspaceItemForEditorRow(row);
   if (item) handleWorkspaceEntry(item);
 }
 
-function toggleWorkspaceEditorDirectory(row: ProjectWorkspaceEditorRow) {
+function toggleWorkspaceEditorDirectory(row: ApplicationWorkspaceEditorRow) {
   const item = workspaceItemForEditorRow(row);
   if (item) void toggleWorkspaceDirectory(item);
 }
@@ -1423,7 +1425,7 @@ function setActiveWorkspaceEditor(editor: unknown) {
 
 function handleWorkspaceEditorContextAction(
   action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
-  row: ProjectWorkspaceEditorRow | null,
+  row: ApplicationWorkspaceEditorRow | null,
 ) {
   workspaceEntryMenu.item = row ? workspaceItemForEditorRow(row) : null;
   if (action === 'create-file' || action === 'create-directory') openWorkspaceInlineEdit(action, row);
@@ -1457,7 +1459,7 @@ function closeWorkspaceEntryMenu() {
 
 function openWorkspaceInlineEdit(
   mode: 'create-file' | 'create-directory' | 'rename',
-  row: ProjectWorkspaceEditorRow | null,
+  row: ApplicationWorkspaceEditorRow | null,
 ) {
   if (mode === 'rename' && !row) return;
   workspaceInlineEdit.value = {
@@ -1508,10 +1510,10 @@ async function submitWorkspaceInlineEdit() {
   try {
     if (edit.mode === 'rename') {
       if (!target) return;
-      await postProjectWorkspaceRename(projectId.value, { path: target.relative_path, new_path: path });
+      await postApplicationWorkspaceRename(applicationId.value, { path: target.relative_path, new_path: path });
       migrateWorkspaceBuffers(target.relative_path, path);
     } else {
-      await postProjectWorkspaceEntry(projectId.value, {
+      await postApplicationWorkspaceEntry(applicationId.value, {
         path,
         node_type: edit.mode === 'create-directory' ? 'directory' : 'file',
         ...(edit.mode === 'create-file' ? { content: '' } : {}),
@@ -1546,7 +1548,7 @@ async function confirmWorkspaceEntryDelete() {
       (path) => path === workspaceDeleteDialog.path || path.startsWith(`${workspaceDeleteDialog.path}/`),
     );
     if (!(await confirmWorkspaceBufferDeletion(affectedPaths))) return;
-    await deleteProjectWorkspaceEntry(projectId.value, {
+    await deleteApplicationWorkspaceEntry(applicationId.value, {
       path: workspaceDeleteDialog.path,
       recursive: workspaceDeleteDialog.stage === 'recursive',
     });
@@ -1605,13 +1607,13 @@ async function confirmWorkspaceBufferDeletion(paths: string[]) {
   const dirtyPaths = paths.filter((path) => isFileDirty(path));
   if (!dirtyPaths.length) return true;
   const action = await openDialog({
-    body: workspaceCopy.value.dirtyProjectActionBody,
+    body: workspaceCopy.value.dirtyApplicationActionBody,
     buttons: [
       { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
       { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
       { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
     ],
-    title: workspaceCopy.value.dirtyProjectActionTitle,
+    title: workspaceCopy.value.dirtyApplicationActionTitle,
   });
   if (action === 'cancel') return false;
   return action !== 'save' || saveTabsByPaths(dirtyPaths);
@@ -1664,9 +1666,9 @@ function workspaceItemTooltip(item?: WorkspaceListItem | null) {
   if (!item) {
     return '';
   }
-  const projectNote = String(item.project_note ?? '').trim();
-  if (projectNote) {
-    return projectNote;
+  const applicationNote = String(item.application_note ?? '').trim();
+  if (applicationNote) {
+    return applicationNote;
   }
 
   const tooltip = String(item.tooltip ?? '').trim();
@@ -1675,7 +1677,7 @@ function workspaceItemTooltip(item?: WorkspaceListItem | null) {
 
 function handleWorkspaceAnnotation(item: WorkspaceListItem) {
   annotationDialogState.target = item;
-  annotationDialogState.value = String(item.project_note ?? '').trim();
+  annotationDialogState.value = String(item.application_note ?? '').trim();
   annotationDialogState.visible = true;
 }
 
@@ -1696,8 +1698,8 @@ async function saveWorkspaceAnnotation() {
   annotationDialogState.saving = true;
   try {
     const annotation = annotationDialogState.value.trim();
-    const updatedItem = await putProjectFileAnnotation(
-      projectId.value,
+    const updatedItem = await putApplicationFileAnnotation(
+      applicationId.value,
       { path: target.relative_path },
       { annotation: annotation || null },
     );
@@ -1771,7 +1773,7 @@ async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceListIte
   current.loading = true;
   current.error = '';
   try {
-    const response = await getProjectFileContent(projectId.value, { path });
+    const response = await getApplicationFileContent(applicationId.value, { path });
     return hydrateOpenFileFromResponse(path, response, source);
   } catch (error) {
     current.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
@@ -1784,7 +1786,7 @@ async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceListIte
 
 function hydrateOpenFileFromResponse(
   requestedPath: string,
-  response: ProjectWorkspaceFileContentResponse,
+  response: ApplicationWorkspaceFileContentResponse,
   source?: WorkspaceListItem,
 ) {
   const path = response.relative_path || requestedPath;
@@ -1866,7 +1868,7 @@ async function saveWorkspaceFile(path: string, options?: { silent?: boolean }) {
   current.saving = true;
   try {
     const normalizedContent = normalizeTextBlock(current.content);
-    await putProjectFileContent(projectId.value, { path }, { content: normalizedContent });
+    await putApplicationFileContent(applicationId.value, { path }, { content: normalizedContent });
     current.content = normalizedContent;
     current.savedContent = normalizedContent;
     if (!options?.silent) {
@@ -2073,7 +2075,7 @@ async function finalizePendingWorkspaceAction(action: PendingWorkspaceAction, pa
   }
 
   if (action === 'redeploy') {
-    await executeProjectRedeploy();
+    await executeApplicationRedeploy();
   }
 
   return true;
@@ -2175,7 +2177,7 @@ async function reloadWorkspaceFile(path: string) {
   buffer.loading = true;
   buffer.error = '';
   try {
-    const response = await getProjectFileContent(projectId.value, { path: buffer.path });
+    const response = await getApplicationFileContent(applicationId.value, { path: buffer.path });
     hydrateOpenFileFromResponse(buffer.path, response);
   } catch (error) {
     buffer.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
@@ -2201,13 +2203,13 @@ async function closeWorkspaceTabs(paths: string[], options?: { skipBatchDirtyPro
     const dirtyPaths = uniquePaths.filter((path) => isFileDirty(path));
     if (dirtyPaths.length) {
       const action = await openDialog({
-        body: workspaceCopy.value.dirtyProjectActionBody,
+        body: workspaceCopy.value.dirtyApplicationActionBody,
         buttons: [
           { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
           { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
           { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
         ],
-        title: workspaceCopy.value.dirtyProjectActionTitle,
+        title: workspaceCopy.value.dirtyApplicationActionTitle,
       });
       if (action === 'cancel') {
         return false;
@@ -2456,8 +2458,8 @@ function logWorkspaceDiffDebug(event: string, detail: Record<string, unknown>) {
   logger.debug(`[ConfigurationWorkspaceDiff] ${formatProjectMonacoDebugMessage(event, detail)}`, detail);
 }
 
-async function runProjectRedeploy() {
-  const confirmed = await confirmProjectRedeploy();
+async function runApplicationRedeploy() {
+  const confirmed = await confirmApplicationRedeploy();
   if (!confirmed) {
     return;
   }
@@ -2467,10 +2469,10 @@ async function runProjectRedeploy() {
     return;
   }
 
-  await executeProjectRedeploy();
+  await executeApplicationRedeploy();
 }
 
-function confirmProjectRedeploy() {
+function confirmApplicationRedeploy() {
   if (redeployConfirmOpen.value) {
     return Promise.resolve(false);
   }
@@ -2489,7 +2491,7 @@ function confirmProjectRedeploy() {
     };
     const dialog = DialogPlugin.confirm({
       body: t('project.list.actions.confirmRedeployDescription', {
-        name: detailRecord.value?.display_name || fallbackDisplayName.value || projectId.value,
+        name: detailRecord.value?.display_name || fallbackDisplayName.value || applicationId.value,
       }),
       cancelBtn: t('project.list.actions.cancel'),
       confirmBtn: { content: t('project.list.actions.confirm'), theme: 'danger' },
@@ -2502,10 +2504,10 @@ function confirmProjectRedeploy() {
   });
 }
 
-async function executeProjectRedeploy() {
+async function executeApplicationRedeploy() {
   redeployLoading.value = true;
   try {
-    const receipt = await postProjectRedeploy(projectId.value);
+    const receipt = await postApplicationRedeploy(applicationId.value);
     activeTaskId.value = receipt.task_id;
     taskDrawerVisible.value = true;
     MessagePlugin.success(t('project.list.actions.taskAccepted'));

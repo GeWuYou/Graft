@@ -22,15 +22,14 @@ import (
 func TestConfigurationDeployAggregateUsesPreparedComposeFiles(t *testing.T) {
 	t.Parallel()
 
-	aggregate := projectstore.ProjectAggregate{
-		Project: projectstore.Project{
-			ID:                    1,
-			HostScope:             projectcontract.HostScopeLocal.String(),
-			WorkingDirectory:      "/srv/demo",
-			CanonicalProjectName:  "demo",
+	aggregate := projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ApplicationRecordID:   1,
+			WorkspacePath:         "/srv/demo",
+			ComposeProjectName:    "demo",
 			LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
 		},
-		Files: []projectstore.ProjectFile{
+		Files: []projectstore.ApplicationFile{
 			{
 				Kind:         projectcontract.FileKindCompose.String(),
 				Role:         projectcontract.FileRolePrimary.String(),
@@ -38,7 +37,7 @@ func TestConfigurationDeployAggregateUsesPreparedComposeFiles(t *testing.T) {
 				DisplayPath:  "compose.old.yaml",
 			},
 		},
-		Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+		Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 	}
 	parseResult := projectcompose.Result{
 		ComposeFiles: []projectcompose.FileProjection{
@@ -65,9 +64,9 @@ func TestUpdateLifecycleConfigurationReturnsRepositoryAggregate(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID: 77,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 77,
 			},
 		},
 	}
@@ -86,11 +85,11 @@ func TestUpdateLifecycleConfigurationReturnsRepositoryAggregate(t *testing.T) {
 	if repo.getCalls != 0 {
 		t.Fatalf("expected no follow-up Get call, got %d", repo.getCalls)
 	}
-	if result.Project.ID != 77 {
+	if result.Application.ApplicationRecordID != 77 {
 		t.Fatalf("expected repository aggregate to be returned, got %#v", result)
 	}
-	if len(result.Project.LifecycleConfig.Profiles) != 2 || result.Project.LifecycleConfig.Profiles[0] != "blue" || result.Project.LifecycleConfig.Profiles[1] != "green" {
-		t.Fatalf("expected normalized profiles in returned aggregate, got %#v", result.Project.LifecycleConfig.Profiles)
+	if len(result.Application.LifecycleConfig.Profiles) != 2 || result.Application.LifecycleConfig.Profiles[0] != "blue" || result.Application.LifecycleConfig.Profiles[1] != "green" {
+		t.Fatalf("expected normalized profiles in returned aggregate, got %#v", result.Application.LifecycleConfig.Profiles)
 	}
 }
 
@@ -137,7 +136,7 @@ func TestListRuntimeStatusPaginatesFilteredItems(t *testing.T) {
 	result, err := service.List(context.Background(), ListQuery{
 		Limit:         1,
 		Offset:        maxProjectListLimit,
-		RuntimeStatus: string(generated.ProjectRuntimeStatusUnknown),
+		RuntimeStatus: string(generated.ApplicationRuntimeStatusUnknown),
 	})
 	if err != nil {
 		t.Fatalf("list runtime-filtered projects: %v", err)
@@ -153,15 +152,15 @@ func TestListRuntimeStatusPaginatesFilteredItems(t *testing.T) {
 func TestProjectServiceListPassesExplicitSortToRepository(t *testing.T) {
 	t.Parallel()
 
-	repository := &stubProjectRepository{aggregate: projectstore.ProjectAggregate{Project: projectstore.Project{ID: 1}}}
+	repository := &stubProjectRepository{aggregate: projectstore.ApplicationAggregate{Application: projectstore.Application{ApplicationRecordID: 1}}}
 	service, err := NewService(repository)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	if _, err := service.List(context.Background(), ListQuery{Limit: 10, Sort: projectstore.ProjectListSortCreatedAtAsc}); err != nil {
+	if _, err := service.List(context.Background(), ListQuery{Limit: 10, Sort: projectstore.ApplicationListSortCreatedAtAsc}); err != nil {
 		t.Fatalf("list projects: %v", err)
 	}
-	if repository.listInput == nil || repository.listInput.Sort != projectstore.ProjectListSortCreatedAtAsc {
+	if repository.listInput == nil || repository.listInput.Sort != projectstore.ApplicationListSortCreatedAtAsc {
 		t.Fatalf("expected explicit sort to reach repository, got %#v", repository.listInput)
 	}
 }
@@ -176,12 +175,12 @@ func TestListRuntimeImportCandidatesMarksAlreadyImportedBeyondFirstPage(t *testi
 	}
 	repo := &pagedConflictRepository{
 		total: projectConflictScanSize + 1,
-		override: map[int]projectstore.ProjectAggregate{
+		override: map[int]projectstore.ApplicationAggregate{
 			projectConflictScanSize: {
-				Project: projectstore.Project{
-					ID:                   uint64(projectConflictScanSize + 1),
-					CanonicalProjectName: "demo",
-					WorkingDirectory:     tempDir,
+				Application: projectstore.Application{
+					ApplicationRecordID: uint64(projectConflictScanSize + 1),
+					ComposeProjectName:  "demo",
+					WorkspacePath:       tempDir,
 				},
 			},
 		},
@@ -222,13 +221,13 @@ func TestRuntimeImportCandidateExistingConflictMatchesCanonicalNameCaseInsensiti
 	t.Parallel()
 
 	candidate := RuntimeImportCandidate{
-		CanonicalProjectName: "Arcane",
-		WorkingDirectory:     "/srv/runtime/arcane",
+		ComposeProjectName: "Arcane",
+		WorkspacePath:      "/srv/runtime/arcane",
 	}
-	existing := []projectstore.ProjectAggregate{{
-		Project: projectstore.Project{
-			CanonicalProjectName: "arcane",
-			WorkingDirectory:     "/srv/projects/arcane",
+	existing := []projectstore.ApplicationAggregate{{
+		Application: projectstore.Application{
+			ComposeProjectName: "arcane",
+			WorkspacePath:      "/srv/projects/arcane",
 		},
 	}}
 
@@ -308,9 +307,9 @@ func (h *countingTopicMonitorHub) RegisterTopicObserver(
 	onInactive func(string),
 ) (func(), error) {
 	switch topic {
-	case projectcontract.ProjectRuntimeTopicPrefix + "1":
+	case projectcontract.ApplicationRuntimeTopicPrefix + "1":
 		h.runtimeRegisters.Add(1)
-	case projectcontract.ProjectLogsTopicPrefix + "1":
+	case projectcontract.ApplicationLogsTopicPrefix + "1":
 		h.logRegisters.Add(1)
 	}
 	monitor, ok := h.Hub.(realtime.TopicSubscriptionMonitor)
@@ -324,12 +323,11 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				CanonicalProjectName: "demo",
-				HostScope:            "local",
-				WorkingDirectory:     "/srv/demo",
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ComposeProjectName:  "demo",
+				WorkspacePath:       "/srv/demo",
 			},
 		},
 	}
@@ -350,7 +348,7 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			if err := service.ensureProjectRuntimeTopicStreaming(projectcontract.ProjectRuntimeTopicPrefix+"1", 1); err != nil {
+			if err := service.ensureProjectRuntimeTopicStreaming(projectcontract.ApplicationRuntimeTopicPrefix+"1", 1); err != nil {
 				t.Errorf("ensure runtime topic: %v", err)
 			}
 		}()
@@ -358,7 +356,7 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			if err := service.ensureProjectLogsTopicStreaming(projectcontract.ProjectLogsTopicPrefix+"1", 1, LogQuery{Tail: 10, Stdout: true}); err != nil {
+			if err := service.ensureProjectLogsTopicStreaming(projectcontract.ApplicationLogsTopicPrefix+"1", 1, LogQuery{Tail: 10, Stdout: true}); err != nil {
 				t.Errorf("ensure logs topic: %v", err)
 			}
 		}()
@@ -377,11 +375,10 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 func TestLifecycleConfigRealtimePayloadDoesNotReadRuntimeSummary(t *testing.T) {
 	t.Parallel()
 
-	repo := &stubProjectRepository{aggregate: projectstore.ProjectAggregate{Project: projectstore.Project{
-		ID:                   1,
-		CanonicalProjectName: "demo",
-		HostScope:            projectcontract.HostScopeLocal.String(),
-		WorkingDirectory:     "/srv/demo",
+	repo := &stubProjectRepository{aggregate: projectstore.ApplicationAggregate{Application: projectstore.Application{
+		ApplicationRecordID: 1,
+		ComposeProjectName:  "demo",
+		WorkspacePath:       "/srv/demo",
 	}}}
 	runtimeReader := &countingProjectRuntimeReader{}
 	service, err := NewService(repo, WithRuntimeReader(runtimeReader))
@@ -391,7 +388,7 @@ func TestLifecycleConfigRealtimePayloadDoesNotReadRuntimeSummary(t *testing.T) {
 
 	payload, err := service.buildProjectLifecycleConfigRealtimePayload(
 		context.Background(),
-		projectcontract.ProjectLifecycleConfigTopicPrefix+"1",
+		projectcontract.ApplicationLifecycleConfigTopicPrefix+"1",
 		1,
 	)
 	if err != nil {
@@ -443,7 +440,7 @@ func TestProjectRuntimeTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- streamer.EnsureTopic(projectcontract.ProjectRuntimeTopicPrefix+"1", 1)
+		errCh <- streamer.EnsureTopic(projectcontract.ApplicationRuntimeTopicPrefix+"1", 1)
 	}()
 
 	<-hub.registerStarted
@@ -460,14 +457,14 @@ func TestProjectRuntimeTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 	}
 }
 
-//nolint:dupl // The runtime and lifecycle stream types require independent regression coverage.
+//nolint:dupl // 运行时流与生命周期流拥有独立具体类型，需要分别覆盖回归行为。
 func TestProjectRuntimeTopicStreamerCloseKeepsTimedOutStreamRegistered(t *testing.T) {
 	t.Parallel()
 
 	streamCtx, cancelStream := context.WithCancel(context.Background())
 	defer cancelStream()
 	unregisterCalls := atomic.Int32{}
-	topic := projectcontract.ProjectRuntimeTopicPrefix + "1"
+	topic := projectcontract.ApplicationRuntimeTopicPrefix + "1"
 	streamer := &projectRuntimeTopicStreamer{
 		streams: map[string]*projectRuntimeTopicStream{
 			topic: {
@@ -495,14 +492,14 @@ func TestProjectRuntimeTopicStreamerCloseKeepsTimedOutStreamRegistered(t *testin
 	}
 }
 
-//nolint:dupl // The runtime and lifecycle stream types require independent regression coverage.
+//nolint:dupl // 运行时流与生命周期流拥有独立具体类型，需要分别覆盖回归行为。
 func TestProjectLifecycleConfigTopicStreamerCloseKeepsTimedOutStreamRegistered(t *testing.T) {
 	t.Parallel()
 
 	streamCtx, cancelStream := context.WithCancel(context.Background())
 	defer cancelStream()
 	unregisterCalls := atomic.Int32{}
-	topic := projectcontract.ProjectLifecycleConfigTopicPrefix + "1"
+	topic := projectcontract.ApplicationLifecycleConfigTopicPrefix + "1"
 	streamer := &projectLifecycleConfigTopicStreamer{
 		streams: map[string]*projectLifecycleConfigTopicStream{
 			topic: {
@@ -541,7 +538,7 @@ func TestProjectLogTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- streamer.EnsureTopic(projectcontract.ProjectLogsTopicPrefix+"1", 1, LogQuery{Tail: 10, Stdout: true})
+		errCh <- streamer.EnsureTopic(projectcontract.ApplicationLogsTopicPrefix+"1", 1, LogQuery{Tail: 10, Stdout: true})
 	}()
 
 	<-hub.registerStarted
@@ -560,7 +557,7 @@ func TestProjectLogTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
 
 type pagedConflictRepository struct {
 	total     int
-	override  map[int]projectstore.ProjectAggregate
+	override  map[int]projectstore.ApplicationAggregate
 	listCalls []projectstore.ListQuery
 }
 
@@ -572,48 +569,48 @@ func (r *pagedConflictRepository) List(_ context.Context, query projectstore.Lis
 		return projectstore.ListResult{Items: nil, Total: r.total}, nil
 	}
 	end := minInt(query.Offset+query.Limit, r.total)
-	items := make([]projectstore.ProjectAggregate, 0, end-query.Offset)
+	items := make([]projectstore.ApplicationAggregate, 0, end-query.Offset)
 	for index := query.Offset; index < end; index++ {
 		if aggregate, ok := r.override[index]; ok {
 			items = append(items, aggregate)
 			continue
 		}
-		items = append(items, projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				CanonicalProjectName: "project-" + string(rune('a'+(index%26))),
-				WorkingDirectory:     filepath.Join("/srv/projects", "project"),
+		items = append(items, projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ComposeProjectName:  "project-" + string(rune('a'+(index%26))),
+				WorkspacePath:       filepath.Join("/srv/projects", "project"),
 			},
 		})
 	}
 	return projectstore.ListResult{Items: items, Total: r.total}, nil
 }
 
-func (r *pagedConflictRepository) Get(context.Context, uint64) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+func (r *pagedConflictRepository) Get(context.Context, uint64) (projectstore.ApplicationAggregate, error) {
+	return projectstore.ApplicationAggregate{}, projectstore.ErrApplicationNotFound
 }
 
-func (r *pagedConflictRepository) GetFile(context.Context, uint64, uint64) (projectstore.ProjectFile, error) {
-	return projectstore.ProjectFile{}, projectstore.ErrFileNotFound
+func (r *pagedConflictRepository) GetFile(context.Context, uint64, uint64) (projectstore.ApplicationFile, error) {
+	return projectstore.ApplicationFile{}, projectstore.ErrFileNotFound
 }
 
-func (r *pagedConflictRepository) ImportProject(context.Context, projectstore.ImportProjectInput) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
+func (r *pagedConflictRepository) ImportApplication(context.Context, projectstore.ImportApplicationInput) (projectstore.ApplicationAggregate, error) {
+	return projectstore.ApplicationAggregate{}, projectstore.ErrInvalidInput
 }
 
-func (r *pagedConflictRepository) RefreshProject(context.Context, projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
+func (r *pagedConflictRepository) RefreshApplication(context.Context, projectstore.RefreshApplicationInput) (projectstore.ApplicationAggregate, error) {
+	return projectstore.ApplicationAggregate{}, projectstore.ErrInvalidInput
 }
 
-func (r *pagedConflictRepository) UpdateLifecycleConfig(context.Context, projectstore.UpdateLifecycleConfigInput) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
+func (r *pagedConflictRepository) UpdateLifecycleConfig(context.Context, projectstore.UpdateLifecycleConfigInput) (projectstore.ApplicationAggregate, error) {
+	return projectstore.ApplicationAggregate{}, projectstore.ErrInvalidInput
 }
 
-func (r *pagedConflictRepository) UpdateWorkspaceAnnotation(context.Context, projectstore.UpdateWorkspaceAnnotationInput) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, projectstore.ErrInvalidInput
+func (r *pagedConflictRepository) UpdateWorkspaceAnnotation(context.Context, projectstore.UpdateWorkspaceAnnotationInput) (projectstore.ApplicationAggregate, error) {
+	return projectstore.ApplicationAggregate{}, projectstore.ErrInvalidInput
 }
 
-func (r *pagedConflictRepository) UnregisterProject(context.Context, projectstore.UnregisterProjectInput) error {
+func (r *pagedConflictRepository) UnregisterApplication(context.Context, projectstore.UnregisterApplicationInput) error {
 	return projectstore.ErrInvalidInput
 }
 

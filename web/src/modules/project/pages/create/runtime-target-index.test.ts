@@ -1,10 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import ProjectRuntimeTargetIndex from './runtime-target-index.vue';
+import ApplicationRuntimeTargetIndex from './runtime-target-index.vue';
 
 const mocks = vi.hoisted(() => ({
-  getProjectComposeRuntimeTargets: vi.fn(),
+  getApplicationComposeRuntimeTargets: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
   resolve: vi.fn((target) => target),
@@ -14,7 +14,9 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace, resolve: mocks.resolve }),
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
-vi.mock('../../api/project', () => ({ getProjectComposeRuntimeTargets: mocks.getProjectComposeRuntimeTargets }));
+vi.mock('../../api/project', () => ({
+  getApplicationComposeRuntimeTargets: mocks.getApplicationComposeRuntimeTargets,
+}));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
@@ -23,12 +25,12 @@ vi.mock('@/store/modules/tabs-router', () => ({
 }));
 vi.mock('@/utils/route/title', () => ({ localizeRouteTitleKey: (key: string) => key }));
 vi.mock('../../shared/navigation', () => ({
-  useProjectCreateRouteNavigation: () => (target: unknown) => mocks.push(target),
+  useApplicationCreateRouteNavigation: () => (target: unknown) => mocks.push(target),
 }));
 
-describe('ProjectRuntimeTargetIndex', () => {
+describe('ApplicationRuntimeTargetIndex', () => {
   it('renders API targets and preserves the selected Compose deployment in the source route', async () => {
-    mocks.getProjectComposeRuntimeTargets.mockResolvedValue({
+    mocks.getApplicationComposeRuntimeTargets.mockResolvedValue({
       deployment_type: 'compose',
       items: [
         {
@@ -41,7 +43,7 @@ describe('ProjectRuntimeTargetIndex', () => {
         },
       ],
     });
-    const wrapper = mount(ProjectRuntimeTargetIndex, {
+    const wrapper = mount(ApplicationRuntimeTargetIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -57,20 +59,20 @@ describe('ProjectRuntimeTargetIndex', () => {
     expect(wrapper.text()).toContain('Local Docker');
     await wrapper.get('[data-testid="project-runtime-target-1"]').trigger('click');
     expect(mocks.push).toHaveBeenCalledWith({
-      name: 'ProjectCreateSourceIndex',
+      name: 'ApplicationCreateSourceIndex',
       query: { deployment: 'compose', runtime_target_id: '1' },
     });
 
     await wrapper.get('[data-testid="project-runtime-target-back"]').trigger('click');
     expect(mocks.push).toHaveBeenLastCalledWith({
-      name: 'ProjectCreateMethodIndex',
+      name: 'ApplicationCreateMethodIndex',
       query: { deployment: 'compose' },
     });
   });
 
   it('does not transition when an unavailable target card is activated', async () => {
     mocks.push.mockClear();
-    mocks.getProjectComposeRuntimeTargets.mockResolvedValue({
+    mocks.getApplicationComposeRuntimeTargets.mockResolvedValue({
       deployment_type: 'compose',
       items: [
         {
@@ -83,7 +85,7 @@ describe('ProjectRuntimeTargetIndex', () => {
         },
       ],
     });
-    const wrapper = mount(ProjectRuntimeTargetIndex, {
+    const wrapper = mount(ApplicationRuntimeTargetIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -106,7 +108,7 @@ describe('ProjectRuntimeTargetIndex', () => {
 
   it('transitions from an actionable target card to source selection', async () => {
     mocks.push.mockClear();
-    mocks.getProjectComposeRuntimeTargets.mockResolvedValue({
+    mocks.getApplicationComposeRuntimeTargets.mockResolvedValue({
       deployment_type: 'compose',
       items: [
         {
@@ -119,7 +121,7 @@ describe('ProjectRuntimeTargetIndex', () => {
         },
       ],
     });
-    const wrapper = mount(ProjectRuntimeTargetIndex, {
+    const wrapper = mount(ApplicationRuntimeTargetIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -136,7 +138,7 @@ describe('ProjectRuntimeTargetIndex', () => {
     await wrapper.get('[data-testid="project-runtime-target-3"]').trigger('keydown', { key: 'Enter' });
 
     expect(mocks.push).toHaveBeenCalledWith({
-      name: 'ProjectCreateSourceIndex',
+      name: 'ApplicationCreateSourceIndex',
       query: { deployment: 'compose', runtime_target_id: '3' },
     });
   });

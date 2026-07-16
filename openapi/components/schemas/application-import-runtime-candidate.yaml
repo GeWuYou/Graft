@@ -1,0 +1,51 @@
+type: object
+required:
+  - candidate_key
+  - compose_project_name
+  - status
+  - status_reason_codes
+  - importable
+  - runtime_type
+  - workspace_path
+  - workspace_path_source
+  - config_files
+  - service_names
+  - container_counts
+  - warnings
+properties:
+  candidate_key:
+    type: string
+  compose_project_name:
+    type: string
+  status:
+    $ref: ./application-import-runtime-candidate-status.yaml
+  status_reason_codes:
+    type: array
+    items:
+      type: string
+  importable:
+    type: boolean
+  runtime_type:
+    type: string
+    description: Future-extensible runtime type resolved by the container runtime authority.
+  runtime_version:
+    type: string
+    nullable: true
+  workspace_path:
+    type: string
+  workspace_path_source:
+    $ref: ./application-import-runtime-workspace-path-source.yaml
+  config_files:
+    type: array
+    items:
+      type: string
+  service_names:
+    type: array
+    items:
+      type: string
+  container_counts:
+    $ref: ./application-container-counts.yaml
+  warnings:
+    type: array
+    items:
+      type: string

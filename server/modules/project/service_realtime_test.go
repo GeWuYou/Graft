@@ -15,12 +15,12 @@ const realtimeTestApplicationID = "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 type realtimeApplicationRepository struct {
 	projectstore.Repository
-	aggregate projectstore.ProjectAggregate
+	aggregate projectstore.ApplicationAggregate
 }
 
-func (r realtimeApplicationRepository) Get(_ context.Context, projectID uint64) (projectstore.ProjectAggregate, error) {
-	if projectID != r.aggregate.Project.ID {
-		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+func (r realtimeApplicationRepository) Get(_ context.Context, projectID uint64) (projectstore.ApplicationAggregate, error) {
+	if projectID != r.aggregate.Application.ApplicationRecordID {
+		return projectstore.ApplicationAggregate{}, projectstore.ErrApplicationNotFound
 	}
 	return r.aggregate, nil
 }
@@ -28,9 +28,9 @@ func (r realtimeApplicationRepository) Get(_ context.Context, projectID uint64) 
 func (r realtimeApplicationRepository) GetByApplicationID(
 	_ context.Context,
 	applicationID string,
-) (projectstore.ProjectAggregate, error) {
-	if applicationID != r.aggregate.Project.ApplicationID {
-		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+) (projectstore.ApplicationAggregate, error) {
+	if applicationID != r.aggregate.Application.ApplicationID {
+		return projectstore.ApplicationAggregate{}, projectstore.ErrApplicationNotFound
 	}
 	return r.aggregate, nil
 }
@@ -45,8 +45,8 @@ func TestIssueProjectRealtimeSubscriptionsUsePublicApplicationID(t *testing.T) {
 	t.Parallel()
 
 	service, err := NewService(
-		realtimeApplicationRepository{aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{ID: 42, ApplicationID: realtimeTestApplicationID},
+		realtimeApplicationRepository{aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{ApplicationRecordID: 42, ApplicationID: realtimeTestApplicationID},
 		}},
 		WithAuthorizer(realtimeSubscriptionTestAuthorizer{}),
 		WithRealtime(realtimeauth.NewMemoryService(), realtime.NewHub(), realtime.NewTopicIssuerRegistry()),
@@ -61,8 +61,8 @@ func TestIssueProjectRealtimeSubscriptionsUsePublicApplicationID(t *testing.T) {
 	}()
 
 	for _, topic := range []string{
-		projectcontract.ProjectRuntimeTopicPrefix + realtimeTestApplicationID,
-		projectcontract.ProjectLogsTopicPrefix + realtimeTestApplicationID,
+		projectcontract.ApplicationRuntimeTopicPrefix + realtimeTestApplicationID,
+		projectcontract.ApplicationLogsTopicPrefix + realtimeTestApplicationID,
 	} {
 		response, issueErr := service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
 			Topic: topic,

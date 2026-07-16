@@ -18,19 +18,19 @@ func (s *Service) CreationMethodCatalog(ctx context.Context) (CreationMethodCata
 	if err != nil {
 		return CreationMethodCatalogResult{}, err
 	}
-	items := []generated.ProjectCreationMethod{
+	items := []generated.ApplicationCreationMethod{
 		{
-			Method:        generated.ProjectCreationMethodTypeBlank,
-			Availability:  generated.ProjectCreationMethodAvailability(mapManagedCreationMethodAvailability(managedRoot.Status)),
+			Method:        generated.ApplicationCreationMethodTypeBlank,
+			Availability:  generated.ApplicationCreationMethodAvailability(mapManagedCreationMethodAvailability(managedRoot.Status)),
 			BlockedReason: managedRootCreationBlockedReason(managedRoot.Status),
 		},
 		{
-			Method:       generated.ProjectCreationMethodTypeTemplate,
-			Availability: generated.ProjectCreationMethodAvailabilityReady,
+			Method:       generated.ApplicationCreationMethodTypeTemplate,
+			Availability: generated.ApplicationCreationMethodAvailabilityReady,
 		},
 		{
-			Method:       generated.ProjectCreationMethodTypeImport,
-			Availability: generated.ProjectCreationMethodAvailabilityReady,
+			Method:       generated.ApplicationCreationMethodTypeImport,
+			Availability: generated.ApplicationCreationMethodAvailabilityReady,
 		},
 	}
 	return CreationMethodCatalogResult{Items: items}, nil
@@ -43,7 +43,7 @@ func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesR
 		return DiscoveryCandidatesResult{}, err
 	}
 	result := DiscoveryCandidatesResult{
-		SourceType:            projectcontract.SourceKindManaged.String(),
+		SourceType:            projectcontract.SourceTypeManaged.String(),
 		SupportsScan:          false,
 		SupportsAutoDiscovery: false,
 		StatusReason:          managedRoot.StatusReason,
@@ -102,7 +102,7 @@ func (s *Service) ListRuntimeImportCandidates(
 	if s.runtimeReader == nil {
 		return RuntimeImportCandidatesResult{}, errProjectServiceUnavailable
 	}
-	rawCandidates, err := s.runtimeReader.ListImportCandidates(ctx, projectcontract.HostScopeLocal.String())
+	rawCandidates, err := s.runtimeReader.ListImportCandidates(ctx, localContainerRuntimeScope)
 	if err != nil {
 		return RuntimeImportCandidatesResult{}, err
 	}
@@ -165,8 +165,8 @@ func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeIm
 func listProjectConflictScanItems(
 	ctx context.Context,
 	repository projectstore.Repository,
-) ([]projectstore.ProjectAggregate, error) {
-	items := make([]projectstore.ProjectAggregate, 0, projectConflictScanSize)
+) ([]projectstore.ApplicationAggregate, error) {
+	items := make([]projectstore.ApplicationAggregate, 0, projectConflictScanSize)
 	offset := 0
 	for {
 		page, err := repository.List(ctx, projectstore.ListQuery{Limit: projectConflictScanSize, Offset: offset})
@@ -234,11 +234,11 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 		return ImportInspectResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
 	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
-		WorkingDirectory:             absolute,
-		ComposeFiles:                 discovered.composeFiles,
-		EnvFiles:                     discovered.envFiles,
-		DisplayName:                  request.DisplayName,
-		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+		WorkspacePath:              absolute,
+		ComposeFiles:               discovered.composeFiles,
+		EnvFiles:                   discovered.envFiles,
+		DisplayName:                request.DisplayName,
+		ComposeProjectNameOverride: request.ComposeProjectNameOverride,
 	})
 	if err != nil {
 		return ImportInspectResult{}, err
@@ -253,25 +253,25 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 }
 
 // ImportByInspection 校验检查会话的新鲜度后持久化已检查项目。
-func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
+func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ApplicationImportResponse, error) {
 	if s.inspectCache == nil {
-		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+		return generated.ApplicationImportResponse{}, errProjectInspectionExpired
 	}
 	session, ok := s.inspectCache.lookupSession(strings.TrimSpace(request.InspectionID))
 	if !ok {
-		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+		return generated.ApplicationImportResponse{}, errProjectInspectionExpired
 	}
 	response, importErr := s.importInspectionSession(ctx, session, importInspectionCommitInput{
 		DisplayName:       request.DisplayName,
-		CanonicalOverride: request.CanonicalProjectNameOverride,
+		CanonicalOverride: request.ComposeProjectNameOverride,
 		LifecycleConfig:   request.LifecycleConfiguration,
 		ActorID:           request.ActorID,
 	})
 	if importErr != nil {
 		if errors.Is(importErr, errProjectConflict) && errors.Is(importErr, errProjectFileHashMismatch) {
-			return generated.ProjectImportResponse{}, errProjectInspectionStale
+			return generated.ApplicationImportResponse{}, errProjectInspectionStale
 		}
-		return generated.ProjectImportResponse{}, importErr
+		return generated.ApplicationImportResponse{}, importErr
 	}
 	return response, nil
 }

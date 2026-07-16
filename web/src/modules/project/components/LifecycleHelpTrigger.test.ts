@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { lifecycleHelpDefinitions } from '../shared/lifecycle-help';
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 import LifecycleHelpTrigger from './LifecycleHelpTrigger.vue';
 
 const messages: Record<string, string> = {
@@ -88,10 +88,10 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
-const draft: ProjectLifecycleConfigurationDraft = {
+const draft: ApplicationLifecycleConfigurationDraft = {
   additional_args: '',
   build_before_up: false,
-  canonical_project_name: 'compose-demo',
+  compose_project_name: 'compose-demo',
   compose_files: ['compose.yaml'],
   down_before_redeploy: true,
   force_recreate: false,
@@ -105,7 +105,7 @@ const draft: ProjectLifecycleConfigurationDraft = {
   strategy_kind: 'standard',
   wait_after_up: false,
   wait_timeout_seconds: 120,
-  working_directory: '/srv/compose-demo',
+  workspace_path: '/srv/compose-demo',
 };
 
 function mountTrigger() {

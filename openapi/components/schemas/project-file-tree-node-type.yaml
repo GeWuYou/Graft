@@ -1,8 +1,0 @@
-type: string
-enum:
-  - file
-  - directory
-x-enum-varnames:
-  - ProjectFileTreeNodeTypeFile
-  - ProjectFileTreeNodeTypeDirectory
-

@@ -396,41 +396,41 @@
         "display": "删除容器",
         "description": "允许在启用高危操作后删除容器。"
       },
-      "projectView": {
-        "display": "查看 Compose 项目",
-        "description": "读取已注册 Compose 项目的摘要和只读详情。"
+      "applicationView": {
+        "display": "查看 Compose 应用",
+        "description": "读取已注册 Compose 应用的摘要和只读详情。"
       },
-      "projectImport": {
-        "display": "导入 Compose 项目",
-        "description": "校验并导入外部 Compose 项目到项目注册表。"
+      "applicationImport": {
+        "display": "导入 Compose 应用",
+        "description": "校验并导入外部 Compose 应用到应用注册表。"
       },
-      "projectRefresh": {
-        "display": "刷新 Compose 项目",
-        "description": "刷新项目快照和只读配置投影视图。"
+      "applicationRefresh": {
+        "display": "刷新 Compose 应用",
+        "description": "刷新应用快照和只读配置投影视图。"
       },
-      "projectLifecycle": {
-        "display": "管理 Compose 项目生命周期",
-        "description": "执行受限的 Compose 生命周期动作，例如 up、down 和 restart。"
+      "applicationLifecycle": {
+        "display": "管理 Compose 应用生命周期",
+        "description": "执行受限的 Compose 生命周期动作，例如 up、stop 和 restart。"
       },
-      "projectDestroy": {
-        "display": "注销或销毁 Compose 项目",
-        "description": "对项目记录执行注销和受保护的销毁动作。"
+      "applicationDestroy": {
+        "display": "注销或销毁 Compose 应用",
+        "description": "对应用记录执行注销和受保护的销毁动作。"
       },
-      "projectCreate": {
-        "display": "创建受管 Compose 项目",
-        "description": "查看受管根目录设置，并创建受管 Compose 项目。"
+      "applicationCreate": {
+        "display": "创建受管 Compose 应用",
+        "description": "查看受管根目录设置，并创建受管 Compose 应用。"
       },
-      "projectCreationMethodView": {
-        "display": "查看项目创建方式",
-        "description": "查看当前支持的 Compose 项目创建方式及其可用性。"
+      "applicationCreationMethodView": {
+        "display": "查看应用创建方式",
+        "description": "查看当前支持的 Compose 应用创建方式及其可用性。"
       },
-      "projectDiscoveryView": {
-        "display": "查看项目发现候选项",
-        "description": "预览本机发现到的 Compose 目录，不直接注册项目。"
+      "applicationDiscoveryView": {
+        "display": "查看应用发现候选项",
+        "description": "预览本机发现到的 Compose 目录，不直接注册应用。"
       },
-      "projectDeploy": {
-        "display": "部署受管 Compose 项目草稿",
-        "description": "对受管项目配置草稿执行 diff、validate 和 deploy。"
+      "applicationDeploy": {
+        "display": "部署受管 Compose 应用草稿",
+        "description": "对受管应用配置草稿执行 diff、validate 和 deploy。"
       },
       "notificationView": {
         "display": "查看通知",

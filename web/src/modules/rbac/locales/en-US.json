@@ -396,41 +396,41 @@
         "display": "Delete Containers",
         "description": "Allows deleting containers when dangerous actions are enabled."
       },
-      "projectView": {
-        "display": "View Compose Projects",
-        "description": "Read registered Compose project summaries and readonly details."
+      "applicationView": {
+        "display": "View Compose Applications",
+        "description": "Read registered Compose application summaries and readonly details."
       },
-      "projectImport": {
-        "display": "Import Compose Projects",
-        "description": "Validate and import external Compose projects into the project registry."
+      "applicationImport": {
+        "display": "Import Compose Applications",
+        "description": "Validate and import external Compose applications into the application registry."
       },
-      "projectRefresh": {
-        "display": "Refresh Compose Projects",
-        "description": "Refresh project snapshots and readonly configuration projections."
+      "applicationRefresh": {
+        "display": "Refresh Compose Applications",
+        "description": "Refresh application snapshots and readonly configuration projections."
       },
-      "projectLifecycle": {
-        "display": "Manage Compose Project Lifecycle",
-        "description": "Run bounded Compose lifecycle actions such as up, down, and restart."
+      "applicationLifecycle": {
+        "display": "Manage Compose Application Lifecycle",
+        "description": "Run bounded Compose lifecycle actions such as up, stop, and restart."
       },
-      "projectDestroy": {
-        "display": "Unregister Or Destroy Compose Projects",
-        "description": "Run unregister and guarded destroy actions for project records."
+      "applicationDestroy": {
+        "display": "Unregister Or Destroy Compose Applications",
+        "description": "Run unregister and guarded destroy actions for application records."
       },
-      "projectCreate": {
-        "display": "Create Managed Compose Projects",
-        "description": "View managed root settings and create managed Compose projects."
+      "applicationCreate": {
+        "display": "Create Managed Compose Applications",
+        "description": "View managed root settings and create managed Compose applications."
       },
-      "projectCreationMethodView": {
-        "display": "View Project Creation Methods",
-        "description": "View supported Compose project creation methods and their availability."
+      "applicationCreationMethodView": {
+        "display": "View Application Creation Methods",
+        "description": "View supported Compose application creation methods and their availability."
       },
-      "projectDiscoveryView": {
-        "display": "View Project Discovery Candidates",
-        "description": "Preview discovered local Compose directories without registering a project."
+      "applicationDiscoveryView": {
+        "display": "View Application Discovery Candidates",
+        "description": "Preview discovered local Compose directories without registering an application."
       },
-      "projectDeploy": {
-        "display": "Deploy Managed Compose Project Drafts",
-        "description": "Diff, validate, and deploy managed project configuration drafts."
+      "applicationDeploy": {
+        "display": "Deploy Managed Compose Application Drafts",
+        "description": "Diff, validate, and deploy managed application configuration drafts."
       },
       "notificationView": {
         "display": "View Notifications",

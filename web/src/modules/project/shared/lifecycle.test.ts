@@ -10,7 +10,7 @@ import {
   resolveLifecycleCommandSteps,
 } from './lifecycle';
 
-function createProjectDetail(additionalArgs: string[] = []) {
+function createApplicationDetail(additionalArgs: string[] = []) {
   return {
     compose_project_name: 'compose-demo',
     compose_files: [
@@ -32,7 +32,7 @@ function createProjectDetail(additionalArgs: string[] = []) {
       additional_args: additionalArgs,
     },
     lifecycle_review_status: 'confirmed',
-    source_kind: 'manual',
+    source_type: 'manual',
     workspace_path: '/srv/compose-demo',
   } as never;
 }
@@ -56,7 +56,7 @@ describe('project lifecycle helpers', () => {
           additional_args: ['--progress', 'plain'],
         },
       },
-      { composeFilePath: 'compose.yaml', canonicalProjectName: 'orders-dev' },
+      { composeFilePath: 'compose.yaml', composeProjectName: 'orders-dev' },
     );
 
     expect(draft.additional_args).toBe('--progress plain');
@@ -68,7 +68,7 @@ describe('project lifecycle helpers', () => {
   });
 
   it('preserves additional argv boundaries through lifecycle requests and inspection drafts', () => {
-    const firstDraft = buildLifecycleConfigurationDraft(createProjectDetail());
+    const firstDraft = buildLifecycleConfigurationDraft(createApplicationDetail());
     firstDraft.additional_args = "--progress 'plain output'";
 
     expect(resolveLifecycleCommandSteps(firstDraft, 'up')).toEqual([
@@ -96,7 +96,7 @@ describe('project lifecycle helpers', () => {
       additional_args: ['--progress', 'plain output'],
     });
 
-    const refreshedDraft = buildLifecycleConfigurationDraft(createProjectDetail(['--progress', 'plain output']));
+    const refreshedDraft = buildLifecycleConfigurationDraft(createApplicationDetail(['--progress', 'plain output']));
     expect(refreshedDraft.additional_args).toBe("--progress 'plain output'");
     expect(resolveLifecycleCommandSteps(refreshedDraft, 'up')).toEqual([
       {
@@ -110,7 +110,7 @@ describe('project lifecycle helpers', () => {
   });
 
   it('formats copied lifecycle commands with relative or absolute compose paths', () => {
-    const detail = createProjectDetail() as Record<string, unknown>;
+    const detail = createApplicationDetail() as Record<string, unknown>;
     detail.compose_project_name = 'compose-demo-copy-mode';
     const draft = buildLifecycleConfigurationDraft(detail as never);
     draft.pull_before_redeploy = true;
@@ -126,11 +126,11 @@ describe('project lifecycle helpers', () => {
   });
 
   it('uses an empty draft value when persisted additional args are absent', () => {
-    expect(buildLifecycleConfigurationDraft(createProjectDetail()).additional_args).toBe('');
+    expect(buildLifecycleConfigurationDraft(createApplicationDetail()).additional_args).toBe('');
   });
 
   it('applies explicit defaults for newly added lifecycle fields', () => {
-    const detail = createProjectDetail() as Record<string, unknown>;
+    const detail = createApplicationDetail() as Record<string, unknown>;
     const draft = buildLifecycleConfigurationDraft({
       ...detail,
       lifecycle_configuration: {
@@ -152,7 +152,7 @@ describe('project lifecycle helpers', () => {
 
   it('normalizes legacy null import profiles to an empty list', () => {
     const draft = buildImportLifecycleConfigurationDraft({
-      canonical_project_name: 'compose-demo',
+      compose_project_name: 'compose-demo',
       compose_files: [],
       lifecycle_configuration: {
         strategy_kind: 'standard',
@@ -168,7 +168,7 @@ describe('project lifecycle helpers', () => {
         prune_images_after_redeploy: false,
         additional_args: [],
       },
-      resolved_working_directory: '/srv/compose-demo',
+      resolved_workspace_path: '/srv/compose-demo',
     } as never);
 
     expect(draft.profiles).toEqual([]);
@@ -176,7 +176,7 @@ describe('project lifecycle helpers', () => {
 
   it('hydrates inspection additional args without flattening argv boundaries', () => {
     const draft = buildImportLifecycleConfigurationDraft({
-      canonical_project_name: 'compose-demo',
+      compose_project_name: 'compose-demo',
       compose_files: [],
       lifecycle_configuration: {
         strategy_kind: 'standard',
@@ -192,7 +192,7 @@ describe('project lifecycle helpers', () => {
         prune_images_after_redeploy: false,
         additional_args: ['--label', 'release channel'],
       },
-      resolved_working_directory: '/srv/compose-demo',
+      resolved_workspace_path: '/srv/compose-demo',
     } as never);
 
     expect(draft.additional_args).toBe("--label 'release channel'");
@@ -200,8 +200,8 @@ describe('project lifecycle helpers', () => {
   });
 
   it('treats wait-timeout changes as dirty lifecycle state', () => {
-    const baseline = buildLifecycleConfigurationDraft(createProjectDetail());
-    const current = buildLifecycleConfigurationDraft(createProjectDetail());
+    const baseline = buildLifecycleConfigurationDraft(createApplicationDetail());
+    const current = buildLifecycleConfigurationDraft(createApplicationDetail());
 
     current.wait_after_up = true;
     current.wait_timeout_seconds = 180;

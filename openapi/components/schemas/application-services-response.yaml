@@ -1,0 +1,14 @@
+type: object
+required:
+  - application_id
+  - compose_project_name
+  - items
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  compose_project_name:
+    type: string
+  items:
+    type: array
+    items:
+      $ref: ./application-service-item.yaml

@@ -1,0 +1,24 @@
+type: object
+required:
+  - application_id
+  - root_path
+  - current_path
+  - has_more_hidden
+  - items
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  root_path:
+    type: string
+  current_path:
+    type: string
+  parent_path:
+    type: string
+    nullable: true
+  has_more_hidden:
+    type: boolean
+  items:
+    type: array
+    items:
+      $ref: ./application-file-tree-item.yaml
+

@@ -102,6 +102,1017 @@ func (e AppLogDetailResponseSeverity) Valid() bool {
 	}
 }
 
+// Defines values for ApplicationActionResponseAction.
+const (
+	ApplicationActionResponseActionApplicationActionCreate     ApplicationActionResponseAction = "create"
+	ApplicationActionResponseActionApplicationActionDestroy    ApplicationActionResponseAction = "destroy"
+	ApplicationActionResponseActionApplicationActionRedeploy   ApplicationActionResponseAction = "redeploy"
+	ApplicationActionResponseActionApplicationActionRefresh    ApplicationActionResponseAction = "refresh"
+	ApplicationActionResponseActionApplicationActionRestart    ApplicationActionResponseAction = "restart"
+	ApplicationActionResponseActionApplicationActionStop       ApplicationActionResponseAction = "stop"
+	ApplicationActionResponseActionApplicationActionUnregister ApplicationActionResponseAction = "unregister"
+	ApplicationActionResponseActionApplicationActionUp         ApplicationActionResponseAction = "up"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationActionResponseAction enum.
+func (e ApplicationActionResponseAction) Valid() bool {
+	switch e {
+	case ApplicationActionResponseActionApplicationActionCreate:
+		return true
+	case ApplicationActionResponseActionApplicationActionDestroy:
+		return true
+	case ApplicationActionResponseActionApplicationActionRedeploy:
+		return true
+	case ApplicationActionResponseActionApplicationActionRefresh:
+		return true
+	case ApplicationActionResponseActionApplicationActionRestart:
+		return true
+	case ApplicationActionResponseActionApplicationActionStop:
+		return true
+	case ApplicationActionResponseActionApplicationActionUnregister:
+		return true
+	case ApplicationActionResponseActionApplicationActionUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationActionResponseResult.
+const (
+	ApplicationActionResponseResultApplicationActionResultAccepted  ApplicationActionResponseResult = "accepted"
+	ApplicationActionResponseResultApplicationActionResultBlocked   ApplicationActionResponseResult = "blocked"
+	ApplicationActionResponseResultApplicationActionResultCompleted ApplicationActionResponseResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationActionResponseResult enum.
+func (e ApplicationActionResponseResult) Valid() bool {
+	switch e {
+	case ApplicationActionResponseResultApplicationActionResultAccepted:
+		return true
+	case ApplicationActionResponseResultApplicationActionResultBlocked:
+		return true
+	case ApplicationActionResponseResultApplicationActionResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationActivityAuthority.
+const (
+	ApplicationActivityAuthorityBackendPlanned ApplicationActivityAuthority = "backend-planned"
+	ApplicationActivityAuthorityFrontendFanout ApplicationActivityAuthority = "frontend-fanout"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationActivityAuthority enum.
+func (e ApplicationActivityAuthority) Valid() bool {
+	switch e {
+	case ApplicationActivityAuthorityBackendPlanned:
+		return true
+	case ApplicationActivityAuthorityFrontendFanout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationBatchActionItemAction.
+const (
+	ApplicationBatchActionItemActionApplicationActionCreate     ApplicationBatchActionItemAction = "create"
+	ApplicationBatchActionItemActionApplicationActionDestroy    ApplicationBatchActionItemAction = "destroy"
+	ApplicationBatchActionItemActionApplicationActionRedeploy   ApplicationBatchActionItemAction = "redeploy"
+	ApplicationBatchActionItemActionApplicationActionRefresh    ApplicationBatchActionItemAction = "refresh"
+	ApplicationBatchActionItemActionApplicationActionRestart    ApplicationBatchActionItemAction = "restart"
+	ApplicationBatchActionItemActionApplicationActionStop       ApplicationBatchActionItemAction = "stop"
+	ApplicationBatchActionItemActionApplicationActionUnregister ApplicationBatchActionItemAction = "unregister"
+	ApplicationBatchActionItemActionApplicationActionUp         ApplicationBatchActionItemAction = "up"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationBatchActionItemAction enum.
+func (e ApplicationBatchActionItemAction) Valid() bool {
+	switch e {
+	case ApplicationBatchActionItemActionApplicationActionCreate:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionDestroy:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionRedeploy:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionRefresh:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionRestart:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionStop:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionUnregister:
+		return true
+	case ApplicationBatchActionItemActionApplicationActionUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationBatchActionItemResult.
+const (
+	ApplicationBatchActionItemResultApplicationActionResultAccepted  ApplicationBatchActionItemResult = "accepted"
+	ApplicationBatchActionItemResultApplicationActionResultBlocked   ApplicationBatchActionItemResult = "blocked"
+	ApplicationBatchActionItemResultApplicationActionResultCompleted ApplicationBatchActionItemResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationBatchActionItemResult enum.
+func (e ApplicationBatchActionItemResult) Valid() bool {
+	switch e {
+	case ApplicationBatchActionItemResultApplicationActionResultAccepted:
+		return true
+	case ApplicationBatchActionItemResultApplicationActionResultBlocked:
+		return true
+	case ApplicationBatchActionItemResultApplicationActionResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationBatchActionRequestAction.
+const (
+	ApplicationBatchActionRequestActionDestroy    ApplicationBatchActionRequestAction = "destroy"
+	ApplicationBatchActionRequestActionRedeploy   ApplicationBatchActionRequestAction = "redeploy"
+	ApplicationBatchActionRequestActionRestart    ApplicationBatchActionRequestAction = "restart"
+	ApplicationBatchActionRequestActionStart      ApplicationBatchActionRequestAction = "start"
+	ApplicationBatchActionRequestActionStop       ApplicationBatchActionRequestAction = "stop"
+	ApplicationBatchActionRequestActionUnregister ApplicationBatchActionRequestAction = "unregister"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationBatchActionRequestAction enum.
+func (e ApplicationBatchActionRequestAction) Valid() bool {
+	switch e {
+	case ApplicationBatchActionRequestActionDestroy:
+		return true
+	case ApplicationBatchActionRequestActionRedeploy:
+		return true
+	case ApplicationBatchActionRequestActionRestart:
+		return true
+	case ApplicationBatchActionRequestActionStart:
+		return true
+	case ApplicationBatchActionRequestActionStop:
+		return true
+	case ApplicationBatchActionRequestActionUnregister:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationComposeProjectNameSource.
+const (
+	ApplicationComposeProjectNameSourceComputed ApplicationComposeProjectNameSource = "computed"
+	ApplicationComposeProjectNameSourceOverride ApplicationComposeProjectNameSource = "override"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationComposeProjectNameSource enum.
+func (e ApplicationComposeProjectNameSource) Valid() bool {
+	switch e {
+	case ApplicationComposeProjectNameSourceComputed:
+		return true
+	case ApplicationComposeProjectNameSourceOverride:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationComposeRuntimeTargetReadiness.
+const (
+	ApplicationComposeRuntimeTargetReadinessReady              ApplicationComposeRuntimeTargetReadiness = "ready"
+	ApplicationComposeRuntimeTargetReadinessRuntimeUnavailable ApplicationComposeRuntimeTargetReadiness = "runtime_unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationComposeRuntimeTargetReadiness enum.
+func (e ApplicationComposeRuntimeTargetReadiness) Valid() bool {
+	switch e {
+	case ApplicationComposeRuntimeTargetReadinessReady:
+		return true
+	case ApplicationComposeRuntimeTargetReadinessRuntimeUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationComposeRuntimeTargetCatalogResponseDeploymentType.
+const (
+	ApplicationComposeRuntimeTargetCatalogResponseDeploymentTypeCompose ApplicationComposeRuntimeTargetCatalogResponseDeploymentType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationComposeRuntimeTargetCatalogResponseDeploymentType enum.
+func (e ApplicationComposeRuntimeTargetCatalogResponseDeploymentType) Valid() bool {
+	switch e {
+	case ApplicationComposeRuntimeTargetCatalogResponseDeploymentTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationCreateResponseAction.
+const (
+	ApplicationCreateResponseActionCreate ApplicationCreateResponseAction = "create"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationCreateResponseAction enum.
+func (e ApplicationCreateResponseAction) Valid() bool {
+	switch e {
+	case ApplicationCreateResponseActionCreate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationCreateResponseResult.
+const (
+	ApplicationCreateResponseResultCreated ApplicationCreateResponseResult = "created"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationCreateResponseResult enum.
+func (e ApplicationCreateResponseResult) Valid() bool {
+	switch e {
+	case ApplicationCreateResponseResultCreated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationCreationMethodAvailability.
+const (
+	ApplicationCreationMethodAvailabilityBlocked ApplicationCreationMethodAvailability = "blocked"
+	ApplicationCreationMethodAvailabilityReady   ApplicationCreationMethodAvailability = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationCreationMethodAvailability enum.
+func (e ApplicationCreationMethodAvailability) Valid() bool {
+	switch e {
+	case ApplicationCreationMethodAvailabilityBlocked:
+		return true
+	case ApplicationCreationMethodAvailabilityReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationCreationMethodType.
+const (
+	ApplicationCreationMethodTypeBlank    ApplicationCreationMethodType = "blank"
+	ApplicationCreationMethodTypeImport   ApplicationCreationMethodType = "import"
+	ApplicationCreationMethodTypeTemplate ApplicationCreationMethodType = "template"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationCreationMethodType enum.
+func (e ApplicationCreationMethodType) Valid() bool {
+	switch e {
+	case ApplicationCreationMethodTypeBlank:
+		return true
+	case ApplicationCreationMethodTypeImport:
+		return true
+	case ApplicationCreationMethodTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationDiscoveryCandidateRecommendedAction.
+const (
+	ApplicationDiscoveryCandidateActionImport ApplicationDiscoveryCandidateRecommendedAction = "import"
+	ApplicationDiscoveryCandidateActionReview ApplicationDiscoveryCandidateRecommendedAction = "review"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationDiscoveryCandidateRecommendedAction enum.
+func (e ApplicationDiscoveryCandidateRecommendedAction) Valid() bool {
+	switch e {
+	case ApplicationDiscoveryCandidateActionImport:
+		return true
+	case ApplicationDiscoveryCandidateActionReview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationDiscoveryCandidateKind.
+const (
+	ApplicationDiscoveryCandidateKindAutoDiscovery ApplicationDiscoveryCandidateKind = "auto-discovery"
+	ApplicationDiscoveryCandidateKindDirectoryScan ApplicationDiscoveryCandidateKind = "directory-scan"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationDiscoveryCandidateKind enum.
+func (e ApplicationDiscoveryCandidateKind) Valid() bool {
+	switch e {
+	case ApplicationDiscoveryCandidateKindAutoDiscovery:
+		return true
+	case ApplicationDiscoveryCandidateKindDirectoryScan:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationDiscoveryCandidateStatus.
+const (
+	ApplicationDiscoveryCandidateStatusConflict ApplicationDiscoveryCandidateStatus = "conflict"
+	ApplicationDiscoveryCandidateStatusReady    ApplicationDiscoveryCandidateStatus = "ready"
+	ApplicationDiscoveryCandidateStatusSkipped  ApplicationDiscoveryCandidateStatus = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationDiscoveryCandidateStatus enum.
+func (e ApplicationDiscoveryCandidateStatus) Valid() bool {
+	switch e {
+	case ApplicationDiscoveryCandidateStatusConflict:
+		return true
+	case ApplicationDiscoveryCandidateStatusReady:
+		return true
+	case ApplicationDiscoveryCandidateStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationDriftStatus.
+const (
+	ApplicationDriftStatusChanged ApplicationDriftStatus = "changed"
+	ApplicationDriftStatusClean   ApplicationDriftStatus = "clean"
+	ApplicationDriftStatusMissing ApplicationDriftStatus = "missing"
+	ApplicationDriftStatusUnknown ApplicationDriftStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationDriftStatus enum.
+func (e ApplicationDriftStatus) Valid() bool {
+	switch e {
+	case ApplicationDriftStatusChanged:
+		return true
+	case ApplicationDriftStatusClean:
+		return true
+	case ApplicationDriftStatusMissing:
+		return true
+	case ApplicationDriftStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationFileContentResponseEncoding.
+const (
+	ApplicationFileContentResponseEncodingUtf8 ApplicationFileContentResponseEncoding = "utf-8"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationFileContentResponseEncoding enum.
+func (e ApplicationFileContentResponseEncoding) Valid() bool {
+	switch e {
+	case ApplicationFileContentResponseEncodingUtf8:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationFileKind.
+const (
+	ApplicationFileKindCompose ApplicationFileKind = "compose"
+	ApplicationFileKindEnv     ApplicationFileKind = "env"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationFileKind enum.
+func (e ApplicationFileKind) Valid() bool {
+	switch e {
+	case ApplicationFileKindCompose:
+		return true
+	case ApplicationFileKindEnv:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationFileRole.
+const (
+	ApplicationFileRoleEnv      ApplicationFileRole = "env"
+	ApplicationFileRoleOverride ApplicationFileRole = "override"
+	ApplicationFileRolePrimary  ApplicationFileRole = "primary"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationFileRole enum.
+func (e ApplicationFileRole) Valid() bool {
+	switch e {
+	case ApplicationFileRoleEnv:
+		return true
+	case ApplicationFileRoleOverride:
+		return true
+	case ApplicationFileRolePrimary:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationFileTreeItemTooltipSource.
+const (
+	ApplicationNote ApplicationFileTreeItemTooltipSource = "application-note"
+	DefaultRule     ApplicationFileTreeItemTooltipSource = "default-rule"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationFileTreeItemTooltipSource enum.
+func (e ApplicationFileTreeItemTooltipSource) Valid() bool {
+	switch e {
+	case ApplicationNote:
+		return true
+	case DefaultRule:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationFileTreeNodeType.
+const (
+	ApplicationFileTreeNodeTypeDirectory ApplicationFileTreeNodeType = "directory"
+	ApplicationFileTreeNodeTypeFile      ApplicationFileTreeNodeType = "file"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationFileTreeNodeType enum.
+func (e ApplicationFileTreeNodeType) Valid() bool {
+	switch e {
+	case ApplicationFileTreeNodeTypeDirectory:
+		return true
+	case ApplicationFileTreeNodeTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationImportInspectResponseValidationStatus.
+const (
+	ApplicationImportInspectResponseValidationStatusConflict ApplicationImportInspectResponseValidationStatus = "conflict"
+	ApplicationImportInspectResponseValidationStatusReady    ApplicationImportInspectResponseValidationStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationImportInspectResponseValidationStatus enum.
+func (e ApplicationImportInspectResponseValidationStatus) Valid() bool {
+	switch e {
+	case ApplicationImportInspectResponseValidationStatusConflict:
+		return true
+	case ApplicationImportInspectResponseValidationStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationImportRuntimeCandidateAvailability.
+const (
+	ApplicationImportRuntimeCandidateAvailabilityImported    ApplicationImportRuntimeCandidateAvailability = "imported"
+	ApplicationImportRuntimeCandidateAvailabilityReady       ApplicationImportRuntimeCandidateAvailability = "ready"
+	ApplicationImportRuntimeCandidateAvailabilityUnavailable ApplicationImportRuntimeCandidateAvailability = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationImportRuntimeCandidateAvailability enum.
+func (e ApplicationImportRuntimeCandidateAvailability) Valid() bool {
+	switch e {
+	case ApplicationImportRuntimeCandidateAvailabilityImported:
+		return true
+	case ApplicationImportRuntimeCandidateAvailabilityReady:
+		return true
+	case ApplicationImportRuntimeCandidateAvailabilityUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationImportRuntimeCandidateStatus.
+const (
+	ApplicationImportRuntimeCandidateStatusAlreadyImported    ApplicationImportRuntimeCandidateStatus = "already_imported"
+	ApplicationImportRuntimeCandidateStatusBrokenCompose      ApplicationImportRuntimeCandidateStatus = "broken_compose"
+	ApplicationImportRuntimeCandidateStatusIncompleteMetadata ApplicationImportRuntimeCandidateStatus = "incomplete_metadata"
+	ApplicationImportRuntimeCandidateStatusReady              ApplicationImportRuntimeCandidateStatus = "ready"
+	ApplicationImportRuntimeCandidateStatusUnsupportedRuntime ApplicationImportRuntimeCandidateStatus = "unsupported_runtime"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationImportRuntimeCandidateStatus enum.
+func (e ApplicationImportRuntimeCandidateStatus) Valid() bool {
+	switch e {
+	case ApplicationImportRuntimeCandidateStatusAlreadyImported:
+		return true
+	case ApplicationImportRuntimeCandidateStatusBrokenCompose:
+		return true
+	case ApplicationImportRuntimeCandidateStatusIncompleteMetadata:
+		return true
+	case ApplicationImportRuntimeCandidateStatusReady:
+		return true
+	case ApplicationImportRuntimeCandidateStatusUnsupportedRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationImportRuntimeInspectResponseValidationStatus.
+const (
+	Conflict ApplicationImportRuntimeInspectResponseValidationStatus = "conflict"
+	Ready    ApplicationImportRuntimeInspectResponseValidationStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationImportRuntimeInspectResponseValidationStatus enum.
+func (e ApplicationImportRuntimeInspectResponseValidationStatus) Valid() bool {
+	switch e {
+	case Conflict:
+		return true
+	case Ready:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationImportRuntimeWorkspacePathSource.
+const (
+	ApplicationImportRuntimeWorkspacePathSourceDerivedFromConfigFiles ApplicationImportRuntimeWorkspacePathSource = "derived_from_config_files"
+	ApplicationImportRuntimeWorkspacePathSourceRuntimeLabel           ApplicationImportRuntimeWorkspacePathSource = "runtime_label"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationImportRuntimeWorkspacePathSource enum.
+func (e ApplicationImportRuntimeWorkspacePathSource) Valid() bool {
+	switch e {
+	case ApplicationImportRuntimeWorkspacePathSourceDerivedFromConfigFiles:
+		return true
+	case ApplicationImportRuntimeWorkspacePathSourceRuntimeLabel:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationLifecycleCommandStepKind.
+const (
+	ApplicationLifecycleCommandStepKindDown    ApplicationLifecycleCommandStepKind = "down"
+	ApplicationLifecycleCommandStepKindPrune   ApplicationLifecycleCommandStepKind = "prune"
+	ApplicationLifecycleCommandStepKindPull    ApplicationLifecycleCommandStepKind = "pull"
+	ApplicationLifecycleCommandStepKindRestart ApplicationLifecycleCommandStepKind = "restart"
+	ApplicationLifecycleCommandStepKindStop    ApplicationLifecycleCommandStepKind = "stop"
+	ApplicationLifecycleCommandStepKindUp      ApplicationLifecycleCommandStepKind = "up"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationLifecycleCommandStepKind enum.
+func (e ApplicationLifecycleCommandStepKind) Valid() bool {
+	switch e {
+	case ApplicationLifecycleCommandStepKindDown:
+		return true
+	case ApplicationLifecycleCommandStepKindPrune:
+		return true
+	case ApplicationLifecycleCommandStepKindPull:
+		return true
+	case ApplicationLifecycleCommandStepKindRestart:
+		return true
+	case ApplicationLifecycleCommandStepKindStop:
+		return true
+	case ApplicationLifecycleCommandStepKindUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationLifecycleGeneratedCommandAction.
+const (
+	ApplicationLifecycleGeneratedCommandActionRedeploy ApplicationLifecycleGeneratedCommandAction = "redeploy"
+	ApplicationLifecycleGeneratedCommandActionRestart  ApplicationLifecycleGeneratedCommandAction = "restart"
+	ApplicationLifecycleGeneratedCommandActionStop     ApplicationLifecycleGeneratedCommandAction = "stop"
+	ApplicationLifecycleGeneratedCommandActionUp       ApplicationLifecycleGeneratedCommandAction = "up"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationLifecycleGeneratedCommandAction enum.
+func (e ApplicationLifecycleGeneratedCommandAction) Valid() bool {
+	switch e {
+	case ApplicationLifecycleGeneratedCommandActionRedeploy:
+		return true
+	case ApplicationLifecycleGeneratedCommandActionRestart:
+		return true
+	case ApplicationLifecycleGeneratedCommandActionStop:
+		return true
+	case ApplicationLifecycleGeneratedCommandActionUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationLifecycleReviewStatus.
+const (
+	ApplicationLifecycleReviewStatusConfirmed      ApplicationLifecycleReviewStatus = "confirmed"
+	ApplicationLifecycleReviewStatusReviewRequired ApplicationLifecycleReviewStatus = "review_required"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationLifecycleReviewStatus enum.
+func (e ApplicationLifecycleReviewStatus) Valid() bool {
+	switch e {
+	case ApplicationLifecycleReviewStatusConfirmed:
+		return true
+	case ApplicationLifecycleReviewStatusReviewRequired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationLifecycleStrategyKind.
+const (
+	ApplicationLifecycleStrategyKindStandard ApplicationLifecycleStrategyKind = "standard"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationLifecycleStrategyKind enum.
+func (e ApplicationLifecycleStrategyKind) Valid() bool {
+	switch e {
+	case ApplicationLifecycleStrategyKindStandard:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationLogEntryStream.
+const (
+	ApplicationLogEntryStreamStderr ApplicationLogEntryStream = "stderr"
+	ApplicationLogEntryStreamStdout ApplicationLogEntryStream = "stdout"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationLogEntryStream enum.
+func (e ApplicationLogEntryStream) Valid() bool {
+	switch e {
+	case ApplicationLogEntryStreamStderr:
+		return true
+	case ApplicationLogEntryStreamStdout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationManagedRootStatus.
+const (
+	ApplicationManagedRootStatusInvalid      ApplicationManagedRootStatus = "invalid"
+	ApplicationManagedRootStatusReady        ApplicationManagedRootStatus = "ready"
+	ApplicationManagedRootStatusUnconfigured ApplicationManagedRootStatus = "unconfigured"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationManagedRootStatus enum.
+func (e ApplicationManagedRootStatus) Valid() bool {
+	switch e {
+	case ApplicationManagedRootStatusInvalid:
+		return true
+	case ApplicationManagedRootStatusReady:
+		return true
+	case ApplicationManagedRootStatusUnconfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationNameAvailabilityResponseStatus.
+const (
+	ApplicationNameAvailabilityResponseStatusAvailable         ApplicationNameAvailabilityResponseStatus = "available"
+	ApplicationNameAvailabilityResponseStatusRegistered        ApplicationNameAvailabilityResponseStatus = "registered"
+	ApplicationNameAvailabilityResponseStatusReusableWorkspace ApplicationNameAvailabilityResponseStatus = "reusable_workspace"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationNameAvailabilityResponseStatus enum.
+func (e ApplicationNameAvailabilityResponseStatus) Valid() bool {
+	switch e {
+	case ApplicationNameAvailabilityResponseStatusAvailable:
+		return true
+	case ApplicationNameAvailabilityResponseStatusRegistered:
+		return true
+	case ApplicationNameAvailabilityResponseStatusReusableWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationOverviewServiceItemHealth.
+const (
+	ApplicationOverviewServiceItemHealthAttention ApplicationOverviewServiceItemHealth = "attention"
+	ApplicationOverviewServiceItemHealthHealthy   ApplicationOverviewServiceItemHealth = "healthy"
+	ApplicationOverviewServiceItemHealthUnknown   ApplicationOverviewServiceItemHealth = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationOverviewServiceItemHealth enum.
+func (e ApplicationOverviewServiceItemHealth) Valid() bool {
+	switch e {
+	case ApplicationOverviewServiceItemHealthAttention:
+		return true
+	case ApplicationOverviewServiceItemHealthHealthy:
+		return true
+	case ApplicationOverviewServiceItemHealthUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationOverviewServiceItemStatus.
+const (
+	ApplicationOverviewServiceItemStatusDegraded ApplicationOverviewServiceItemStatus = "degraded"
+	ApplicationOverviewServiceItemStatusRunning  ApplicationOverviewServiceItemStatus = "running"
+	ApplicationOverviewServiceItemStatusStopped  ApplicationOverviewServiceItemStatus = "stopped"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationOverviewServiceItemStatus enum.
+func (e ApplicationOverviewServiceItemStatus) Valid() bool {
+	switch e {
+	case ApplicationOverviewServiceItemStatusDegraded:
+		return true
+	case ApplicationOverviewServiceItemStatusRunning:
+		return true
+	case ApplicationOverviewServiceItemStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationOwnershipMode.
+const (
+	ApplicationOwnershipModeExternal             ApplicationOwnershipMode = "external"
+	ApplicationOwnershipModeManagedRootDedicated ApplicationOwnershipMode = "managed-root-dedicated"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationOwnershipMode enum.
+func (e ApplicationOwnershipMode) Valid() bool {
+	switch e {
+	case ApplicationOwnershipModeExternal:
+		return true
+	case ApplicationOwnershipModeManagedRootDedicated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationRuntimeStatus.
+const (
+	ApplicationRuntimeStatusDegraded      ApplicationRuntimeStatus = "degraded"
+	ApplicationRuntimeStatusRunning       ApplicationRuntimeStatus = "running"
+	ApplicationRuntimeStatusStopped       ApplicationRuntimeStatus = "stopped"
+	ApplicationRuntimeStatusTransitioning ApplicationRuntimeStatus = "transitioning"
+	ApplicationRuntimeStatusUnknown       ApplicationRuntimeStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationRuntimeStatus enum.
+func (e ApplicationRuntimeStatus) Valid() bool {
+	switch e {
+	case ApplicationRuntimeStatusDegraded:
+		return true
+	case ApplicationRuntimeStatusRunning:
+		return true
+	case ApplicationRuntimeStatusStopped:
+		return true
+	case ApplicationRuntimeStatusTransitioning:
+		return true
+	case ApplicationRuntimeStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationRuntimeTargetSummaryProvider.
+const (
+	ApplicationRuntimeTargetSummaryProviderDocker ApplicationRuntimeTargetSummaryProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationRuntimeTargetSummaryProvider enum.
+func (e ApplicationRuntimeTargetSummaryProvider) Valid() bool {
+	switch e {
+	case ApplicationRuntimeTargetSummaryProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationSavedViewRequestQueryStateApplicationType.
+const (
+	ApplicationSavedViewRequestQueryStateApplicationTypeCompose ApplicationSavedViewRequestQueryStateApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateApplicationType enum.
+func (e ApplicationSavedViewRequestQueryStateApplicationType) Valid() bool {
+	switch e {
+	case ApplicationSavedViewRequestQueryStateApplicationTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationSavedViewRequestQueryStateProvider.
+const (
+	ApplicationSavedViewRequestQueryStateProviderDocker ApplicationSavedViewRequestQueryStateProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateProvider enum.
+func (e ApplicationSavedViewRequestQueryStateProvider) Valid() bool {
+	switch e {
+	case ApplicationSavedViewRequestQueryStateProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationSavedViewRequestQueryStateSort.
+const (
+	ApplicationSavedViewRequestQueryStateSortCreatedAtAsc  ApplicationSavedViewRequestQueryStateSort = "created_at:asc"
+	ApplicationSavedViewRequestQueryStateSortCreatedAtDesc ApplicationSavedViewRequestQueryStateSort = "created_at:desc"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateSort enum.
+func (e ApplicationSavedViewRequestQueryStateSort) Valid() bool {
+	switch e {
+	case ApplicationSavedViewRequestQueryStateSortCreatedAtAsc:
+		return true
+	case ApplicationSavedViewRequestQueryStateSortCreatedAtDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationSavedViewRequestVisibleColumns.
+const (
+	ApplicationSavedViewRequestVisibleColumnsApplicationType ApplicationSavedViewRequestVisibleColumns = "applicationType"
+	ApplicationSavedViewRequestVisibleColumnsDrift           ApplicationSavedViewRequestVisibleColumns = "drift"
+	ApplicationSavedViewRequestVisibleColumnsName            ApplicationSavedViewRequestVisibleColumns = "name"
+	ApplicationSavedViewRequestVisibleColumnsOperation       ApplicationSavedViewRequestVisibleColumns = "operation"
+	ApplicationSavedViewRequestVisibleColumnsProvider        ApplicationSavedViewRequestVisibleColumns = "provider"
+	ApplicationSavedViewRequestVisibleColumnsResources       ApplicationSavedViewRequestVisibleColumns = "resources"
+	ApplicationSavedViewRequestVisibleColumnsRowSelect       ApplicationSavedViewRequestVisibleColumns = "row-select"
+	ApplicationSavedViewRequestVisibleColumnsRuntime         ApplicationSavedViewRequestVisibleColumns = "runtime"
+	ApplicationSavedViewRequestVisibleColumnsRuntimeTarget   ApplicationSavedViewRequestVisibleColumns = "runtimeTarget"
+	ApplicationSavedViewRequestVisibleColumnsSource          ApplicationSavedViewRequestVisibleColumns = "source"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestVisibleColumns enum.
+func (e ApplicationSavedViewRequestVisibleColumns) Valid() bool {
+	switch e {
+	case ApplicationSavedViewRequestVisibleColumnsApplicationType:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsDrift:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsName:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsOperation:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsProvider:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsResources:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsRowSelect:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsRuntime:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsRuntimeTarget:
+		return true
+	case ApplicationSavedViewRequestVisibleColumnsSource:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationSourceType.
+const (
+	ApplicationSourceTypeImported ApplicationSourceType = "imported"
+	ApplicationSourceTypeManaged  ApplicationSourceType = "managed"
+	ApplicationSourceTypeTemplate ApplicationSourceType = "template"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationSourceType enum.
+func (e ApplicationSourceType) Valid() bool {
+	switch e {
+	case ApplicationSourceTypeImported:
+		return true
+	case ApplicationSourceTypeManaged:
+		return true
+	case ApplicationSourceTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationType.
+const (
+	ApplicationTypeCompose ApplicationType = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationType enum.
+func (e ApplicationType) Valid() bool {
+	switch e {
+	case ApplicationTypeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationWorkspaceEntryNodeType.
+const (
+	ApplicationWorkspaceEntryNodeTypeDirectory ApplicationWorkspaceEntryNodeType = "directory"
+	ApplicationWorkspaceEntryNodeTypeFile      ApplicationWorkspaceEntryNodeType = "file"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationWorkspaceEntryNodeType enum.
+func (e ApplicationWorkspaceEntryNodeType) Valid() bool {
+	switch e {
+	case ApplicationWorkspaceEntryNodeTypeDirectory:
+		return true
+	case ApplicationWorkspaceEntryNodeTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationWorkspaceEntryCreateRequest0NodeType.
+const (
+	ApplicationWorkspaceEntryCreateRequest0NodeTypeFile ApplicationWorkspaceEntryCreateRequest0NodeType = "file"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationWorkspaceEntryCreateRequest0NodeType enum.
+func (e ApplicationWorkspaceEntryCreateRequest0NodeType) Valid() bool {
+	switch e {
+	case ApplicationWorkspaceEntryCreateRequest0NodeTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationWorkspaceEntryCreateRequest1NodeType.
+const (
+	Directory ApplicationWorkspaceEntryCreateRequest1NodeType = "directory"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationWorkspaceEntryCreateRequest1NodeType enum.
+func (e ApplicationWorkspaceEntryCreateRequest1NodeType) Valid() bool {
+	switch e {
+	case Directory:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationWorkspaceFileKind.
+const (
+	ApplicationWorkspaceFileKindBinary      ApplicationWorkspaceFileKind = "binary"
+	ApplicationWorkspaceFileKindCompose     ApplicationWorkspaceFileKind = "compose"
+	ApplicationWorkspaceFileKindConfig      ApplicationWorkspaceFileKind = "config"
+	ApplicationWorkspaceFileKindDirectory   ApplicationWorkspaceFileKind = "directory"
+	ApplicationWorkspaceFileKindEnv         ApplicationWorkspaceFileKind = "env"
+	ApplicationWorkspaceFileKindText        ApplicationWorkspaceFileKind = "text"
+	ApplicationWorkspaceFileKindUnsupported ApplicationWorkspaceFileKind = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationWorkspaceFileKind enum.
+func (e ApplicationWorkspaceFileKind) Valid() bool {
+	switch e {
+	case ApplicationWorkspaceFileKindBinary:
+		return true
+	case ApplicationWorkspaceFileKindCompose:
+		return true
+	case ApplicationWorkspaceFileKindConfig:
+		return true
+	case ApplicationWorkspaceFileKindDirectory:
+		return true
+	case ApplicationWorkspaceFileKindEnv:
+		return true
+	case ApplicationWorkspaceFileKindText:
+		return true
+	case ApplicationWorkspaceFileKindUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditBusinessCategory.
 const (
 	AuditBusinessCategoryAuthFailures        AuditBusinessCategory = "auth_failures"
@@ -1646,22 +2657,22 @@ func (e ErrorResponseSuccess) Valid() bool {
 
 // Defines values for EvidenceLinkLinkState.
 const (
-	EvidenceLinkLinkStateAvailable   EvidenceLinkLinkState = "available"
-	EvidenceLinkLinkStateEmpty       EvidenceLinkLinkState = "empty"
-	EvidenceLinkLinkStateUnavailable EvidenceLinkLinkState = "unavailable"
-	EvidenceLinkLinkStateUnsupported EvidenceLinkLinkState = "unsupported"
+	Available   EvidenceLinkLinkState = "available"
+	Empty       EvidenceLinkLinkState = "empty"
+	Unavailable EvidenceLinkLinkState = "unavailable"
+	Unsupported EvidenceLinkLinkState = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the EvidenceLinkLinkState enum.
 func (e EvidenceLinkLinkState) Valid() bool {
 	switch e {
-	case EvidenceLinkLinkStateAvailable:
+	case Available:
 		return true
-	case EvidenceLinkLinkStateEmpty:
+	case Empty:
 		return true
-	case EvidenceLinkLinkStateUnavailable:
+	case Unavailable:
 		return true
-	case EvidenceLinkLinkStateUnsupported:
+	case Unsupported:
 		return true
 	default:
 		return false
@@ -1956,1047 +2967,6 @@ func (e NotificationTargetType) Valid() bool {
 	case NotificationTargetTypeSYSTEM:
 		return true
 	case NotificationTargetTypeUSER:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectActionResponseAction.
-const (
-	ProjectActionResponseActionProjectActionCreate     ProjectActionResponseAction = "create"
-	ProjectActionResponseActionProjectActionDestroy    ProjectActionResponseAction = "destroy"
-	ProjectActionResponseActionProjectActionRedeploy   ProjectActionResponseAction = "redeploy"
-	ProjectActionResponseActionProjectActionRefresh    ProjectActionResponseAction = "refresh"
-	ProjectActionResponseActionProjectActionRestart    ProjectActionResponseAction = "restart"
-	ProjectActionResponseActionProjectActionStop       ProjectActionResponseAction = "stop"
-	ProjectActionResponseActionProjectActionUnregister ProjectActionResponseAction = "unregister"
-	ProjectActionResponseActionProjectActionUp         ProjectActionResponseAction = "up"
-)
-
-// Valid indicates whether the value is a known member of the ProjectActionResponseAction enum.
-func (e ProjectActionResponseAction) Valid() bool {
-	switch e {
-	case ProjectActionResponseActionProjectActionCreate:
-		return true
-	case ProjectActionResponseActionProjectActionDestroy:
-		return true
-	case ProjectActionResponseActionProjectActionRedeploy:
-		return true
-	case ProjectActionResponseActionProjectActionRefresh:
-		return true
-	case ProjectActionResponseActionProjectActionRestart:
-		return true
-	case ProjectActionResponseActionProjectActionStop:
-		return true
-	case ProjectActionResponseActionProjectActionUnregister:
-		return true
-	case ProjectActionResponseActionProjectActionUp:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectActionResponseResult.
-const (
-	ProjectActionResponseResultProjectActionResultAccepted  ProjectActionResponseResult = "accepted"
-	ProjectActionResponseResultProjectActionResultBlocked   ProjectActionResponseResult = "blocked"
-	ProjectActionResponseResultProjectActionResultCompleted ProjectActionResponseResult = "completed"
-)
-
-// Valid indicates whether the value is a known member of the ProjectActionResponseResult enum.
-func (e ProjectActionResponseResult) Valid() bool {
-	switch e {
-	case ProjectActionResponseResultProjectActionResultAccepted:
-		return true
-	case ProjectActionResponseResultProjectActionResultBlocked:
-		return true
-	case ProjectActionResponseResultProjectActionResultCompleted:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectActivityAuthority.
-const (
-	ProjectActivityAuthorityBackendPlanned ProjectActivityAuthority = "backend-planned"
-	ProjectActivityAuthorityFrontendFanout ProjectActivityAuthority = "frontend-fanout"
-)
-
-// Valid indicates whether the value is a known member of the ProjectActivityAuthority enum.
-func (e ProjectActivityAuthority) Valid() bool {
-	switch e {
-	case ProjectActivityAuthorityBackendPlanned:
-		return true
-	case ProjectActivityAuthorityFrontendFanout:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectApplicationNameAvailabilityResponseStatus.
-const (
-	Available         ProjectApplicationNameAvailabilityResponseStatus = "available"
-	Registered        ProjectApplicationNameAvailabilityResponseStatus = "registered"
-	ReusableWorkspace ProjectApplicationNameAvailabilityResponseStatus = "reusable_workspace"
-)
-
-// Valid indicates whether the value is a known member of the ProjectApplicationNameAvailabilityResponseStatus enum.
-func (e ProjectApplicationNameAvailabilityResponseStatus) Valid() bool {
-	switch e {
-	case Available:
-		return true
-	case Registered:
-		return true
-	case ReusableWorkspace:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectBatchActionItemAction.
-const (
-	ProjectBatchActionItemActionProjectActionCreate     ProjectBatchActionItemAction = "create"
-	ProjectBatchActionItemActionProjectActionDestroy    ProjectBatchActionItemAction = "destroy"
-	ProjectBatchActionItemActionProjectActionRedeploy   ProjectBatchActionItemAction = "redeploy"
-	ProjectBatchActionItemActionProjectActionRefresh    ProjectBatchActionItemAction = "refresh"
-	ProjectBatchActionItemActionProjectActionRestart    ProjectBatchActionItemAction = "restart"
-	ProjectBatchActionItemActionProjectActionStop       ProjectBatchActionItemAction = "stop"
-	ProjectBatchActionItemActionProjectActionUnregister ProjectBatchActionItemAction = "unregister"
-	ProjectBatchActionItemActionProjectActionUp         ProjectBatchActionItemAction = "up"
-)
-
-// Valid indicates whether the value is a known member of the ProjectBatchActionItemAction enum.
-func (e ProjectBatchActionItemAction) Valid() bool {
-	switch e {
-	case ProjectBatchActionItemActionProjectActionCreate:
-		return true
-	case ProjectBatchActionItemActionProjectActionDestroy:
-		return true
-	case ProjectBatchActionItemActionProjectActionRedeploy:
-		return true
-	case ProjectBatchActionItemActionProjectActionRefresh:
-		return true
-	case ProjectBatchActionItemActionProjectActionRestart:
-		return true
-	case ProjectBatchActionItemActionProjectActionStop:
-		return true
-	case ProjectBatchActionItemActionProjectActionUnregister:
-		return true
-	case ProjectBatchActionItemActionProjectActionUp:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectBatchActionItemResult.
-const (
-	ProjectBatchActionItemResultProjectActionResultAccepted  ProjectBatchActionItemResult = "accepted"
-	ProjectBatchActionItemResultProjectActionResultBlocked   ProjectBatchActionItemResult = "blocked"
-	ProjectBatchActionItemResultProjectActionResultCompleted ProjectBatchActionItemResult = "completed"
-)
-
-// Valid indicates whether the value is a known member of the ProjectBatchActionItemResult enum.
-func (e ProjectBatchActionItemResult) Valid() bool {
-	switch e {
-	case ProjectBatchActionItemResultProjectActionResultAccepted:
-		return true
-	case ProjectBatchActionItemResultProjectActionResultBlocked:
-		return true
-	case ProjectBatchActionItemResultProjectActionResultCompleted:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectBatchActionRequestAction.
-const (
-	ProjectBatchActionRequestActionDestroy    ProjectBatchActionRequestAction = "destroy"
-	ProjectBatchActionRequestActionRedeploy   ProjectBatchActionRequestAction = "redeploy"
-	ProjectBatchActionRequestActionRestart    ProjectBatchActionRequestAction = "restart"
-	ProjectBatchActionRequestActionStart      ProjectBatchActionRequestAction = "start"
-	ProjectBatchActionRequestActionStop       ProjectBatchActionRequestAction = "stop"
-	ProjectBatchActionRequestActionUnregister ProjectBatchActionRequestAction = "unregister"
-)
-
-// Valid indicates whether the value is a known member of the ProjectBatchActionRequestAction enum.
-func (e ProjectBatchActionRequestAction) Valid() bool {
-	switch e {
-	case ProjectBatchActionRequestActionDestroy:
-		return true
-	case ProjectBatchActionRequestActionRedeploy:
-		return true
-	case ProjectBatchActionRequestActionRestart:
-		return true
-	case ProjectBatchActionRequestActionStart:
-		return true
-	case ProjectBatchActionRequestActionStop:
-		return true
-	case ProjectBatchActionRequestActionUnregister:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectCanonicalNameSource.
-const (
-	ProjectCanonicalNameSourceComputed ProjectCanonicalNameSource = "computed"
-	ProjectCanonicalNameSourceOverride ProjectCanonicalNameSource = "override"
-)
-
-// Valid indicates whether the value is a known member of the ProjectCanonicalNameSource enum.
-func (e ProjectCanonicalNameSource) Valid() bool {
-	switch e {
-	case ProjectCanonicalNameSourceComputed:
-		return true
-	case ProjectCanonicalNameSourceOverride:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectComposeRuntimeTargetReadiness.
-const (
-	ProjectComposeRuntimeTargetReadinessReady              ProjectComposeRuntimeTargetReadiness = "ready"
-	ProjectComposeRuntimeTargetReadinessRuntimeUnavailable ProjectComposeRuntimeTargetReadiness = "runtime_unavailable"
-)
-
-// Valid indicates whether the value is a known member of the ProjectComposeRuntimeTargetReadiness enum.
-func (e ProjectComposeRuntimeTargetReadiness) Valid() bool {
-	switch e {
-	case ProjectComposeRuntimeTargetReadinessReady:
-		return true
-	case ProjectComposeRuntimeTargetReadinessRuntimeUnavailable:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectComposeRuntimeTargetCatalogResponseDeploymentType.
-const (
-	ProjectComposeRuntimeTargetCatalogResponseDeploymentTypeCompose ProjectComposeRuntimeTargetCatalogResponseDeploymentType = "compose"
-)
-
-// Valid indicates whether the value is a known member of the ProjectComposeRuntimeTargetCatalogResponseDeploymentType enum.
-func (e ProjectComposeRuntimeTargetCatalogResponseDeploymentType) Valid() bool {
-	switch e {
-	case ProjectComposeRuntimeTargetCatalogResponseDeploymentTypeCompose:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectCreateResponseAction.
-const (
-	ProjectCreateResponseActionCreate ProjectCreateResponseAction = "create"
-)
-
-// Valid indicates whether the value is a known member of the ProjectCreateResponseAction enum.
-func (e ProjectCreateResponseAction) Valid() bool {
-	switch e {
-	case ProjectCreateResponseActionCreate:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectCreateResponseResult.
-const (
-	ProjectCreateResponseResultCreated ProjectCreateResponseResult = "created"
-)
-
-// Valid indicates whether the value is a known member of the ProjectCreateResponseResult enum.
-func (e ProjectCreateResponseResult) Valid() bool {
-	switch e {
-	case ProjectCreateResponseResultCreated:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectCreationMethodAvailability.
-const (
-	ProjectCreationMethodAvailabilityBlocked ProjectCreationMethodAvailability = "blocked"
-	ProjectCreationMethodAvailabilityReady   ProjectCreationMethodAvailability = "ready"
-)
-
-// Valid indicates whether the value is a known member of the ProjectCreationMethodAvailability enum.
-func (e ProjectCreationMethodAvailability) Valid() bool {
-	switch e {
-	case ProjectCreationMethodAvailabilityBlocked:
-		return true
-	case ProjectCreationMethodAvailabilityReady:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectCreationMethodType.
-const (
-	ProjectCreationMethodTypeBlank    ProjectCreationMethodType = "blank"
-	ProjectCreationMethodTypeImport   ProjectCreationMethodType = "import"
-	ProjectCreationMethodTypeTemplate ProjectCreationMethodType = "template"
-)
-
-// Valid indicates whether the value is a known member of the ProjectCreationMethodType enum.
-func (e ProjectCreationMethodType) Valid() bool {
-	switch e {
-	case ProjectCreationMethodTypeBlank:
-		return true
-	case ProjectCreationMethodTypeImport:
-		return true
-	case ProjectCreationMethodTypeTemplate:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDetailResponseApplicationType.
-const (
-	ProjectDetailResponseApplicationTypeCompose ProjectDetailResponseApplicationType = "compose"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDetailResponseApplicationType enum.
-func (e ProjectDetailResponseApplicationType) Valid() bool {
-	switch e {
-	case ProjectDetailResponseApplicationTypeCompose:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDiscoveryCandidateRecommendedAction.
-const (
-	ProjectDiscoveryCandidateActionImport ProjectDiscoveryCandidateRecommendedAction = "import"
-	ProjectDiscoveryCandidateActionReview ProjectDiscoveryCandidateRecommendedAction = "review"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDiscoveryCandidateRecommendedAction enum.
-func (e ProjectDiscoveryCandidateRecommendedAction) Valid() bool {
-	switch e {
-	case ProjectDiscoveryCandidateActionImport:
-		return true
-	case ProjectDiscoveryCandidateActionReview:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDiscoveryCandidateKind.
-const (
-	ProjectDiscoveryCandidateKindAutoDiscovery ProjectDiscoveryCandidateKind = "auto-discovery"
-	ProjectDiscoveryCandidateKindDirectoryScan ProjectDiscoveryCandidateKind = "directory-scan"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDiscoveryCandidateKind enum.
-func (e ProjectDiscoveryCandidateKind) Valid() bool {
-	switch e {
-	case ProjectDiscoveryCandidateKindAutoDiscovery:
-		return true
-	case ProjectDiscoveryCandidateKindDirectoryScan:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDiscoveryCandidateStatus.
-const (
-	ProjectDiscoveryCandidateStatusConflict ProjectDiscoveryCandidateStatus = "conflict"
-	ProjectDiscoveryCandidateStatusReady    ProjectDiscoveryCandidateStatus = "ready"
-	ProjectDiscoveryCandidateStatusSkipped  ProjectDiscoveryCandidateStatus = "skipped"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDiscoveryCandidateStatus enum.
-func (e ProjectDiscoveryCandidateStatus) Valid() bool {
-	switch e {
-	case ProjectDiscoveryCandidateStatusConflict:
-		return true
-	case ProjectDiscoveryCandidateStatusReady:
-		return true
-	case ProjectDiscoveryCandidateStatusSkipped:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectDriftStatus.
-const (
-	ProjectDriftStatusChanged ProjectDriftStatus = "changed"
-	ProjectDriftStatusClean   ProjectDriftStatus = "clean"
-	ProjectDriftStatusMissing ProjectDriftStatus = "missing"
-	ProjectDriftStatusUnknown ProjectDriftStatus = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the ProjectDriftStatus enum.
-func (e ProjectDriftStatus) Valid() bool {
-	switch e {
-	case ProjectDriftStatusChanged:
-		return true
-	case ProjectDriftStatusClean:
-		return true
-	case ProjectDriftStatusMissing:
-		return true
-	case ProjectDriftStatusUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectFileContentResponseEncoding.
-const (
-	ProjectFileContentResponseEncodingUtf8 ProjectFileContentResponseEncoding = "utf-8"
-)
-
-// Valid indicates whether the value is a known member of the ProjectFileContentResponseEncoding enum.
-func (e ProjectFileContentResponseEncoding) Valid() bool {
-	switch e {
-	case ProjectFileContentResponseEncodingUtf8:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectFileKind.
-const (
-	ProjectFileKindCompose ProjectFileKind = "compose"
-	ProjectFileKindEnv     ProjectFileKind = "env"
-)
-
-// Valid indicates whether the value is a known member of the ProjectFileKind enum.
-func (e ProjectFileKind) Valid() bool {
-	switch e {
-	case ProjectFileKindCompose:
-		return true
-	case ProjectFileKindEnv:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectFileRole.
-const (
-	ProjectFileRoleEnv      ProjectFileRole = "env"
-	ProjectFileRoleOverride ProjectFileRole = "override"
-	ProjectFileRolePrimary  ProjectFileRole = "primary"
-)
-
-// Valid indicates whether the value is a known member of the ProjectFileRole enum.
-func (e ProjectFileRole) Valid() bool {
-	switch e {
-	case ProjectFileRoleEnv:
-		return true
-	case ProjectFileRoleOverride:
-		return true
-	case ProjectFileRolePrimary:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectFileTreeItemTooltipSource.
-const (
-	DefaultRule ProjectFileTreeItemTooltipSource = "default-rule"
-	ProjectNote ProjectFileTreeItemTooltipSource = "project-note"
-)
-
-// Valid indicates whether the value is a known member of the ProjectFileTreeItemTooltipSource enum.
-func (e ProjectFileTreeItemTooltipSource) Valid() bool {
-	switch e {
-	case DefaultRule:
-		return true
-	case ProjectNote:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectFileTreeNodeType.
-const (
-	ProjectFileTreeNodeTypeDirectory ProjectFileTreeNodeType = "directory"
-	ProjectFileTreeNodeTypeFile      ProjectFileTreeNodeType = "file"
-)
-
-// Valid indicates whether the value is a known member of the ProjectFileTreeNodeType enum.
-func (e ProjectFileTreeNodeType) Valid() bool {
-	switch e {
-	case ProjectFileTreeNodeTypeDirectory:
-		return true
-	case ProjectFileTreeNodeTypeFile:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectHostScope.
-const (
-	ProjectHostScopeLocal ProjectHostScope = "local"
-)
-
-// Valid indicates whether the value is a known member of the ProjectHostScope enum.
-func (e ProjectHostScope) Valid() bool {
-	switch e {
-	case ProjectHostScopeLocal:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectImportInspectResponseValidationStatus.
-const (
-	ProjectImportInspectResponseValidationStatusConflict ProjectImportInspectResponseValidationStatus = "conflict"
-	ProjectImportInspectResponseValidationStatusReady    ProjectImportInspectResponseValidationStatus = "ready"
-)
-
-// Valid indicates whether the value is a known member of the ProjectImportInspectResponseValidationStatus enum.
-func (e ProjectImportInspectResponseValidationStatus) Valid() bool {
-	switch e {
-	case ProjectImportInspectResponseValidationStatusConflict:
-		return true
-	case ProjectImportInspectResponseValidationStatusReady:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectImportRuntimeCandidateAvailability.
-const (
-	ProjectImportRuntimeCandidateAvailabilityImported    ProjectImportRuntimeCandidateAvailability = "imported"
-	ProjectImportRuntimeCandidateAvailabilityReady       ProjectImportRuntimeCandidateAvailability = "ready"
-	ProjectImportRuntimeCandidateAvailabilityUnavailable ProjectImportRuntimeCandidateAvailability = "unavailable"
-)
-
-// Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateAvailability enum.
-func (e ProjectImportRuntimeCandidateAvailability) Valid() bool {
-	switch e {
-	case ProjectImportRuntimeCandidateAvailabilityImported:
-		return true
-	case ProjectImportRuntimeCandidateAvailabilityReady:
-		return true
-	case ProjectImportRuntimeCandidateAvailabilityUnavailable:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectImportRuntimeCandidateStatus.
-const (
-	ProjectImportRuntimeCandidateStatusAlreadyImported    ProjectImportRuntimeCandidateStatus = "already_imported"
-	ProjectImportRuntimeCandidateStatusBrokenCompose      ProjectImportRuntimeCandidateStatus = "broken_compose"
-	ProjectImportRuntimeCandidateStatusIncompleteMetadata ProjectImportRuntimeCandidateStatus = "incomplete_metadata"
-	ProjectImportRuntimeCandidateStatusReady              ProjectImportRuntimeCandidateStatus = "ready"
-	ProjectImportRuntimeCandidateStatusUnsupportedRuntime ProjectImportRuntimeCandidateStatus = "unsupported_runtime"
-)
-
-// Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateStatus enum.
-func (e ProjectImportRuntimeCandidateStatus) Valid() bool {
-	switch e {
-	case ProjectImportRuntimeCandidateStatusAlreadyImported:
-		return true
-	case ProjectImportRuntimeCandidateStatusBrokenCompose:
-		return true
-	case ProjectImportRuntimeCandidateStatusIncompleteMetadata:
-		return true
-	case ProjectImportRuntimeCandidateStatusReady:
-		return true
-	case ProjectImportRuntimeCandidateStatusUnsupportedRuntime:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectImportRuntimeInspectResponseValidationStatus.
-const (
-	Conflict ProjectImportRuntimeInspectResponseValidationStatus = "conflict"
-	Ready    ProjectImportRuntimeInspectResponseValidationStatus = "ready"
-)
-
-// Valid indicates whether the value is a known member of the ProjectImportRuntimeInspectResponseValidationStatus enum.
-func (e ProjectImportRuntimeInspectResponseValidationStatus) Valid() bool {
-	switch e {
-	case Conflict:
-		return true
-	case Ready:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectImportRuntimeWorkingDirectorySource.
-const (
-	ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles ProjectImportRuntimeWorkingDirectorySource = "derived_from_config_files"
-	ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel           ProjectImportRuntimeWorkingDirectorySource = "runtime_label"
-)
-
-// Valid indicates whether the value is a known member of the ProjectImportRuntimeWorkingDirectorySource enum.
-func (e ProjectImportRuntimeWorkingDirectorySource) Valid() bool {
-	switch e {
-	case ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles:
-		return true
-	case ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectLifecycleCommandStepKind.
-const (
-	ProjectLifecycleCommandStepKindDown    ProjectLifecycleCommandStepKind = "down"
-	ProjectLifecycleCommandStepKindPrune   ProjectLifecycleCommandStepKind = "prune"
-	ProjectLifecycleCommandStepKindPull    ProjectLifecycleCommandStepKind = "pull"
-	ProjectLifecycleCommandStepKindRestart ProjectLifecycleCommandStepKind = "restart"
-	ProjectLifecycleCommandStepKindStop    ProjectLifecycleCommandStepKind = "stop"
-	ProjectLifecycleCommandStepKindUp      ProjectLifecycleCommandStepKind = "up"
-)
-
-// Valid indicates whether the value is a known member of the ProjectLifecycleCommandStepKind enum.
-func (e ProjectLifecycleCommandStepKind) Valid() bool {
-	switch e {
-	case ProjectLifecycleCommandStepKindDown:
-		return true
-	case ProjectLifecycleCommandStepKindPrune:
-		return true
-	case ProjectLifecycleCommandStepKindPull:
-		return true
-	case ProjectLifecycleCommandStepKindRestart:
-		return true
-	case ProjectLifecycleCommandStepKindStop:
-		return true
-	case ProjectLifecycleCommandStepKindUp:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectLifecycleGeneratedCommandAction.
-const (
-	ProjectLifecycleGeneratedCommandActionRedeploy ProjectLifecycleGeneratedCommandAction = "redeploy"
-	ProjectLifecycleGeneratedCommandActionRestart  ProjectLifecycleGeneratedCommandAction = "restart"
-	ProjectLifecycleGeneratedCommandActionStop     ProjectLifecycleGeneratedCommandAction = "stop"
-	ProjectLifecycleGeneratedCommandActionUp       ProjectLifecycleGeneratedCommandAction = "up"
-)
-
-// Valid indicates whether the value is a known member of the ProjectLifecycleGeneratedCommandAction enum.
-func (e ProjectLifecycleGeneratedCommandAction) Valid() bool {
-	switch e {
-	case ProjectLifecycleGeneratedCommandActionRedeploy:
-		return true
-	case ProjectLifecycleGeneratedCommandActionRestart:
-		return true
-	case ProjectLifecycleGeneratedCommandActionStop:
-		return true
-	case ProjectLifecycleGeneratedCommandActionUp:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectLifecycleReviewStatus.
-const (
-	ProjectLifecycleReviewStatusConfirmed      ProjectLifecycleReviewStatus = "confirmed"
-	ProjectLifecycleReviewStatusReviewRequired ProjectLifecycleReviewStatus = "review_required"
-)
-
-// Valid indicates whether the value is a known member of the ProjectLifecycleReviewStatus enum.
-func (e ProjectLifecycleReviewStatus) Valid() bool {
-	switch e {
-	case ProjectLifecycleReviewStatusConfirmed:
-		return true
-	case ProjectLifecycleReviewStatusReviewRequired:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectLifecycleStrategyKind.
-const (
-	ProjectLifecycleStrategyKindStandard ProjectLifecycleStrategyKind = "standard"
-)
-
-// Valid indicates whether the value is a known member of the ProjectLifecycleStrategyKind enum.
-func (e ProjectLifecycleStrategyKind) Valid() bool {
-	switch e {
-	case ProjectLifecycleStrategyKindStandard:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectListItemApplicationType.
-const (
-	ProjectListItemApplicationTypeCompose ProjectListItemApplicationType = "compose"
-)
-
-// Valid indicates whether the value is a known member of the ProjectListItemApplicationType enum.
-func (e ProjectListItemApplicationType) Valid() bool {
-	switch e {
-	case ProjectListItemApplicationTypeCompose:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectLogEntryStream.
-const (
-	ProjectLogEntryStreamStderr ProjectLogEntryStream = "stderr"
-	ProjectLogEntryStreamStdout ProjectLogEntryStream = "stdout"
-)
-
-// Valid indicates whether the value is a known member of the ProjectLogEntryStream enum.
-func (e ProjectLogEntryStream) Valid() bool {
-	switch e {
-	case ProjectLogEntryStreamStderr:
-		return true
-	case ProjectLogEntryStreamStdout:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectManagedRootStatus.
-const (
-	ProjectManagedRootStatusInvalid      ProjectManagedRootStatus = "invalid"
-	ProjectManagedRootStatusReady        ProjectManagedRootStatus = "ready"
-	ProjectManagedRootStatusUnconfigured ProjectManagedRootStatus = "unconfigured"
-)
-
-// Valid indicates whether the value is a known member of the ProjectManagedRootStatus enum.
-func (e ProjectManagedRootStatus) Valid() bool {
-	switch e {
-	case ProjectManagedRootStatusInvalid:
-		return true
-	case ProjectManagedRootStatusReady:
-		return true
-	case ProjectManagedRootStatusUnconfigured:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectOverviewServiceItemHealth.
-const (
-	ProjectOverviewServiceItemHealthAttention ProjectOverviewServiceItemHealth = "attention"
-	ProjectOverviewServiceItemHealthHealthy   ProjectOverviewServiceItemHealth = "healthy"
-	ProjectOverviewServiceItemHealthUnknown   ProjectOverviewServiceItemHealth = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the ProjectOverviewServiceItemHealth enum.
-func (e ProjectOverviewServiceItemHealth) Valid() bool {
-	switch e {
-	case ProjectOverviewServiceItemHealthAttention:
-		return true
-	case ProjectOverviewServiceItemHealthHealthy:
-		return true
-	case ProjectOverviewServiceItemHealthUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectOverviewServiceItemStatus.
-const (
-	ProjectOverviewServiceItemStatusDegraded ProjectOverviewServiceItemStatus = "degraded"
-	ProjectOverviewServiceItemStatusRunning  ProjectOverviewServiceItemStatus = "running"
-	ProjectOverviewServiceItemStatusStopped  ProjectOverviewServiceItemStatus = "stopped"
-)
-
-// Valid indicates whether the value is a known member of the ProjectOverviewServiceItemStatus enum.
-func (e ProjectOverviewServiceItemStatus) Valid() bool {
-	switch e {
-	case ProjectOverviewServiceItemStatusDegraded:
-		return true
-	case ProjectOverviewServiceItemStatusRunning:
-		return true
-	case ProjectOverviewServiceItemStatusStopped:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectOwnershipMode.
-const (
-	ProjectOwnershipModeExternal             ProjectOwnershipMode = "external"
-	ProjectOwnershipModeManagedRootDedicated ProjectOwnershipMode = "managed-root-dedicated"
-)
-
-// Valid indicates whether the value is a known member of the ProjectOwnershipMode enum.
-func (e ProjectOwnershipMode) Valid() bool {
-	switch e {
-	case ProjectOwnershipModeExternal:
-		return true
-	case ProjectOwnershipModeManagedRootDedicated:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectRuntimeStatus.
-const (
-	ProjectRuntimeStatusDegraded      ProjectRuntimeStatus = "degraded"
-	ProjectRuntimeStatusRunning       ProjectRuntimeStatus = "running"
-	ProjectRuntimeStatusStopped       ProjectRuntimeStatus = "stopped"
-	ProjectRuntimeStatusTransitioning ProjectRuntimeStatus = "transitioning"
-	ProjectRuntimeStatusUnknown       ProjectRuntimeStatus = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the ProjectRuntimeStatus enum.
-func (e ProjectRuntimeStatus) Valid() bool {
-	switch e {
-	case ProjectRuntimeStatusDegraded:
-		return true
-	case ProjectRuntimeStatusRunning:
-		return true
-	case ProjectRuntimeStatusStopped:
-		return true
-	case ProjectRuntimeStatusTransitioning:
-		return true
-	case ProjectRuntimeStatusUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectRuntimeTargetSummaryProvider.
-const (
-	ProjectRuntimeTargetSummaryProviderDocker ProjectRuntimeTargetSummaryProvider = "docker"
-)
-
-// Valid indicates whether the value is a known member of the ProjectRuntimeTargetSummaryProvider enum.
-func (e ProjectRuntimeTargetSummaryProvider) Valid() bool {
-	switch e {
-	case ProjectRuntimeTargetSummaryProviderDocker:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSavedViewRequestQueryStateApplicationType.
-const (
-	ProjectSavedViewRequestQueryStateApplicationTypeCompose ProjectSavedViewRequestQueryStateApplicationType = "compose"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateApplicationType enum.
-func (e ProjectSavedViewRequestQueryStateApplicationType) Valid() bool {
-	switch e {
-	case ProjectSavedViewRequestQueryStateApplicationTypeCompose:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSavedViewRequestQueryStateProvider.
-const (
-	ProjectSavedViewRequestQueryStateProviderDocker ProjectSavedViewRequestQueryStateProvider = "docker"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateProvider enum.
-func (e ProjectSavedViewRequestQueryStateProvider) Valid() bool {
-	switch e {
-	case ProjectSavedViewRequestQueryStateProviderDocker:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSavedViewRequestQueryStateSort.
-const (
-	ProjectSavedViewRequestQueryStateSortCreatedAtAsc  ProjectSavedViewRequestQueryStateSort = "created_at:asc"
-	ProjectSavedViewRequestQueryStateSortCreatedAtDesc ProjectSavedViewRequestQueryStateSort = "created_at:desc"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSavedViewRequestQueryStateSort enum.
-func (e ProjectSavedViewRequestQueryStateSort) Valid() bool {
-	switch e {
-	case ProjectSavedViewRequestQueryStateSortCreatedAtAsc:
-		return true
-	case ProjectSavedViewRequestQueryStateSortCreatedAtDesc:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSavedViewRequestVisibleColumns.
-const (
-	ProjectSavedViewRequestVisibleColumnsApplicationType ProjectSavedViewRequestVisibleColumns = "applicationType"
-	ProjectSavedViewRequestVisibleColumnsDrift           ProjectSavedViewRequestVisibleColumns = "drift"
-	ProjectSavedViewRequestVisibleColumnsName            ProjectSavedViewRequestVisibleColumns = "name"
-	ProjectSavedViewRequestVisibleColumnsOperation       ProjectSavedViewRequestVisibleColumns = "operation"
-	ProjectSavedViewRequestVisibleColumnsProvider        ProjectSavedViewRequestVisibleColumns = "provider"
-	ProjectSavedViewRequestVisibleColumnsResources       ProjectSavedViewRequestVisibleColumns = "resources"
-	ProjectSavedViewRequestVisibleColumnsRowSelect       ProjectSavedViewRequestVisibleColumns = "row-select"
-	ProjectSavedViewRequestVisibleColumnsRuntime         ProjectSavedViewRequestVisibleColumns = "runtime"
-	ProjectSavedViewRequestVisibleColumnsRuntimeTarget   ProjectSavedViewRequestVisibleColumns = "runtimeTarget"
-	ProjectSavedViewRequestVisibleColumnsSource          ProjectSavedViewRequestVisibleColumns = "source"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSavedViewRequestVisibleColumns enum.
-func (e ProjectSavedViewRequestVisibleColumns) Valid() bool {
-	switch e {
-	case ProjectSavedViewRequestVisibleColumnsApplicationType:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsDrift:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsName:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsOperation:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsProvider:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsResources:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsRowSelect:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsRuntime:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsRuntimeTarget:
-		return true
-	case ProjectSavedViewRequestVisibleColumnsSource:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectSourceKind.
-const (
-	ProjectSourceKindImported ProjectSourceKind = "imported"
-	ProjectSourceKindManaged  ProjectSourceKind = "managed"
-	ProjectSourceKindTemplate ProjectSourceKind = "template"
-)
-
-// Valid indicates whether the value is a known member of the ProjectSourceKind enum.
-func (e ProjectSourceKind) Valid() bool {
-	switch e {
-	case ProjectSourceKindImported:
-		return true
-	case ProjectSourceKindManaged:
-		return true
-	case ProjectSourceKindTemplate:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectWorkspaceEntryNodeType.
-const (
-	ProjectWorkspaceEntryNodeTypeDirectory ProjectWorkspaceEntryNodeType = "directory"
-	ProjectWorkspaceEntryNodeTypeFile      ProjectWorkspaceEntryNodeType = "file"
-)
-
-// Valid indicates whether the value is a known member of the ProjectWorkspaceEntryNodeType enum.
-func (e ProjectWorkspaceEntryNodeType) Valid() bool {
-	switch e {
-	case ProjectWorkspaceEntryNodeTypeDirectory:
-		return true
-	case ProjectWorkspaceEntryNodeTypeFile:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectWorkspaceEntryCreateRequest0NodeType.
-const (
-	ProjectWorkspaceEntryCreateRequest0NodeTypeFile ProjectWorkspaceEntryCreateRequest0NodeType = "file"
-)
-
-// Valid indicates whether the value is a known member of the ProjectWorkspaceEntryCreateRequest0NodeType enum.
-func (e ProjectWorkspaceEntryCreateRequest0NodeType) Valid() bool {
-	switch e {
-	case ProjectWorkspaceEntryCreateRequest0NodeTypeFile:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectWorkspaceEntryCreateRequest1NodeType.
-const (
-	Directory ProjectWorkspaceEntryCreateRequest1NodeType = "directory"
-)
-
-// Valid indicates whether the value is a known member of the ProjectWorkspaceEntryCreateRequest1NodeType enum.
-func (e ProjectWorkspaceEntryCreateRequest1NodeType) Valid() bool {
-	switch e {
-	case Directory:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectWorkspaceFileKind.
-const (
-	ProjectWorkspaceFileKindBinary      ProjectWorkspaceFileKind = "binary"
-	ProjectWorkspaceFileKindCompose     ProjectWorkspaceFileKind = "compose"
-	ProjectWorkspaceFileKindConfig      ProjectWorkspaceFileKind = "config"
-	ProjectWorkspaceFileKindDirectory   ProjectWorkspaceFileKind = "directory"
-	ProjectWorkspaceFileKindEnv         ProjectWorkspaceFileKind = "env"
-	ProjectWorkspaceFileKindText        ProjectWorkspaceFileKind = "text"
-	ProjectWorkspaceFileKindUnsupported ProjectWorkspaceFileKind = "unsupported"
-)
-
-// Valid indicates whether the value is a known member of the ProjectWorkspaceFileKind enum.
-func (e ProjectWorkspaceFileKind) Valid() bool {
-	switch e {
-	case ProjectWorkspaceFileKindBinary:
-		return true
-	case ProjectWorkspaceFileKindCompose:
-		return true
-	case ProjectWorkspaceFileKindConfig:
-		return true
-	case ProjectWorkspaceFileKindDirectory:
-		return true
-	case ProjectWorkspaceFileKindEnv:
-		return true
-	case ProjectWorkspaceFileKindText:
-		return true
-	case ProjectWorkspaceFileKindUnsupported:
 		return true
 	default:
 		return false
@@ -3635,22 +3605,22 @@ func (e ServerStatusAnomalyAnomalyKey) Valid() bool {
 
 // Defines values for ServerStatusAnomalyScopeKind.
 const (
-	Dependency ServerStatusAnomalyScopeKind = "dependency"
-	Module     ServerStatusAnomalyScopeKind = "module"
-	Resource   ServerStatusAnomalyScopeKind = "resource"
-	Runtime    ServerStatusAnomalyScopeKind = "runtime"
+	ServerStatusAnomalyScopeKindDependency ServerStatusAnomalyScopeKind = "dependency"
+	ServerStatusAnomalyScopeKindModule     ServerStatusAnomalyScopeKind = "module"
+	ServerStatusAnomalyScopeKindResource   ServerStatusAnomalyScopeKind = "resource"
+	ServerStatusAnomalyScopeKindRuntime    ServerStatusAnomalyScopeKind = "runtime"
 )
 
 // Valid indicates whether the value is a known member of the ServerStatusAnomalyScopeKind enum.
 func (e ServerStatusAnomalyScopeKind) Valid() bool {
 	switch e {
-	case Dependency:
+	case ServerStatusAnomalyScopeKindDependency:
 		return true
-	case Module:
+	case ServerStatusAnomalyScopeKindModule:
 		return true
-	case Resource:
+	case ServerStatusAnomalyScopeKindResource:
 		return true
-	case Runtime:
+	case ServerStatusAnomalyScopeKindRuntime:
 		return true
 	default:
 		return false
@@ -3857,19 +3827,19 @@ func (e TaskLogEntryLevel) Valid() bool {
 
 // Defines values for TaskLogEntryStream.
 const (
-	TaskLogEntryStreamStderr TaskLogEntryStream = "stderr"
-	TaskLogEntryStreamStdout TaskLogEntryStream = "stdout"
-	TaskLogEntryStreamSystem TaskLogEntryStream = "system"
+	Stderr TaskLogEntryStream = "stderr"
+	Stdout TaskLogEntryStream = "stdout"
+	System TaskLogEntryStream = "system"
 )
 
 // Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
 func (e TaskLogEntryStream) Valid() bool {
 	switch e {
-	case TaskLogEntryStreamStderr:
+	case Stderr:
 		return true
-	case TaskLogEntryStreamStdout:
+	case Stdout:
 		return true
-	case TaskLogEntryStreamSystem:
+	case System:
 		return true
 	default:
 		return false
@@ -3996,6 +3966,21 @@ func (e UpdateUserStatusRequestStatus) Valid() bool {
 	}
 }
 
+// Defines values for ApplicationListProvider.
+const (
+	ApplicationListProviderDocker ApplicationListProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationListProvider enum.
+func (e ApplicationListProvider) Valid() bool {
+	switch e {
+	case ApplicationListProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerListDeploymentType.
 const (
 	ContainerListDeploymentTypeContainerListDeploymentTypeCompose    ContainerListDeploymentType = "compose"
@@ -4074,36 +4059,6 @@ func (e ContainerListState) Valid() bool {
 	case ContainerListStateContainerListStateRunning:
 		return true
 	case ContainerListStateContainerListStateUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectListApplicationType.
-const (
-	ProjectListApplicationTypeCompose ProjectListApplicationType = "compose"
-)
-
-// Valid indicates whether the value is a known member of the ProjectListApplicationType enum.
-func (e ProjectListApplicationType) Valid() bool {
-	switch e {
-	case ProjectListApplicationTypeCompose:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectListProvider.
-const (
-	ProjectListProviderDocker ProjectListProvider = "docker"
-)
-
-// Valid indicates whether the value is a known member of the ProjectListProvider enum.
-func (e ProjectListProvider) Valid() bool {
-	switch e {
-	case ProjectListProviderDocker:
 		return true
 	default:
 		return false
@@ -4485,6 +4440,75 @@ func (e GetNotificationsParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetApplicationsParamsProvider.
+const (
+	GetApplicationsParamsProviderDocker GetApplicationsParamsProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationsParamsProvider enum.
+func (e GetApplicationsParamsProvider) Valid() bool {
+	switch e {
+	case GetApplicationsParamsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetApplicationsParamsSort.
+const (
+	GetApplicationsParamsSortCreatedAtAsc  GetApplicationsParamsSort = "created_at:asc"
+	GetApplicationsParamsSortCreatedAtDesc GetApplicationsParamsSort = "created_at:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationsParamsSort enum.
+func (e GetApplicationsParamsSort) Valid() bool {
+	switch e {
+	case GetApplicationsParamsSortCreatedAtAsc:
+		return true
+	case GetApplicationsParamsSortCreatedAtDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetApplicationImportDirectoriesParamsSort.
+const (
+	ModifiedAt GetApplicationImportDirectoriesParamsSort = "modified_at"
+	Name       GetApplicationImportDirectoriesParamsSort = "name"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationImportDirectoriesParamsSort enum.
+func (e GetApplicationImportDirectoriesParamsSort) Valid() bool {
+	switch e {
+	case ModifiedAt:
+		return true
+	case Name:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetApplicationImportDirectoriesParamsOrder.
+const (
+	Asc  GetApplicationImportDirectoriesParamsOrder = "asc"
+	Desc GetApplicationImportDirectoriesParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationImportDirectoriesParamsOrder enum.
+func (e GetApplicationImportDirectoriesParamsOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainersParamsState.
 const (
 	GetContainersParamsStateContainerListStateCreated    GetContainersParamsState = "created"
@@ -4563,90 +4587,6 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetProjectsParamsApplicationType.
-const (
-	GetProjectsParamsApplicationTypeCompose GetProjectsParamsApplicationType = "compose"
-)
-
-// Valid indicates whether the value is a known member of the GetProjectsParamsApplicationType enum.
-func (e GetProjectsParamsApplicationType) Valid() bool {
-	switch e {
-	case GetProjectsParamsApplicationTypeCompose:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetProjectsParamsProvider.
-const (
-	GetProjectsParamsProviderDocker GetProjectsParamsProvider = "docker"
-)
-
-// Valid indicates whether the value is a known member of the GetProjectsParamsProvider enum.
-func (e GetProjectsParamsProvider) Valid() bool {
-	switch e {
-	case GetProjectsParamsProviderDocker:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetProjectsParamsSort.
-const (
-	GetProjectsParamsSortCreatedAtAsc  GetProjectsParamsSort = "created_at:asc"
-	GetProjectsParamsSortCreatedAtDesc GetProjectsParamsSort = "created_at:desc"
-)
-
-// Valid indicates whether the value is a known member of the GetProjectsParamsSort enum.
-func (e GetProjectsParamsSort) Valid() bool {
-	switch e {
-	case GetProjectsParamsSortCreatedAtAsc:
-		return true
-	case GetProjectsParamsSortCreatedAtDesc:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetProjectImportDirectoriesParamsSort.
-const (
-	ModifiedAt GetProjectImportDirectoriesParamsSort = "modified_at"
-	Name       GetProjectImportDirectoriesParamsSort = "name"
-)
-
-// Valid indicates whether the value is a known member of the GetProjectImportDirectoriesParamsSort enum.
-func (e GetProjectImportDirectoriesParamsSort) Valid() bool {
-	switch e {
-	case ModifiedAt:
-		return true
-	case Name:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetProjectImportDirectoriesParamsOrder.
-const (
-	Asc  GetProjectImportDirectoriesParamsOrder = "asc"
-	Desc GetProjectImportDirectoriesParamsOrder = "desc"
-)
-
-// Valid indicates whether the value is a known member of the GetProjectImportDirectoriesParamsOrder enum.
-func (e GetProjectImportDirectoriesParamsOrder) Valid() bool {
-	switch e {
-	case Asc:
-		return true
-	case Desc:
 		return true
 	default:
 		return false
@@ -4865,6 +4805,1144 @@ type AppLogListResponse struct {
 	PageSize int                    `json:"page_size"`
 	Total    int                    `json:"total"`
 }
+
+// ApplicationActionResponse defines model for application-action-response.
+type ApplicationActionResponse struct {
+	Action ApplicationActionResponseAction `json:"action"`
+
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId `json:"application_id"`
+
+	// GuardResults Structured guard outcomes such as ownership blocks or skipped destructive steps.
+	GuardResults *[]ApplicationGuardResult       `json:"guard_results,omitempty"`
+	Message      *string                         `json:"message,omitempty"`
+	MessageKey   *string                         `json:"message_key,omitempty"`
+	Result       ApplicationActionResponseResult `json:"result"`
+}
+
+// ApplicationActionResponseAction defines model for ApplicationActionResponse.Action.
+type ApplicationActionResponseAction string
+
+// ApplicationActionResponseResult defines model for ApplicationActionResponse.Result.
+type ApplicationActionResponseResult string
+
+// ApplicationActivityAuthority defines model for application-activity-authority.
+type ApplicationActivityAuthority string
+
+// ApplicationBatchActionItem defines model for application-batch-action-item.
+type ApplicationBatchActionItem struct {
+	Action ApplicationBatchActionItemAction `json:"action"`
+
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId                    `json:"application_id"`
+	GuardResults  *[]ApplicationGuardResult        `json:"guard_results,omitempty"`
+	Message       *string                          `json:"message,omitempty"`
+	MessageKey    *string                          `json:"message_key,omitempty"`
+	Result        ApplicationBatchActionItemResult `json:"result"`
+	Skipped       bool                             `json:"skipped"`
+}
+
+// ApplicationBatchActionItemAction defines model for ApplicationBatchActionItem.Action.
+type ApplicationBatchActionItemAction string
+
+// ApplicationBatchActionItemResult defines model for ApplicationBatchActionItem.Result.
+type ApplicationBatchActionItemResult string
+
+// ApplicationBatchActionRequest defines model for application-batch-action-request.
+type ApplicationBatchActionRequest struct {
+	Action                    ApplicationBatchActionRequestAction `json:"action"`
+	ApplicationIds            []ApplicationId                     `json:"application_ids"`
+	AutoUnregister            *bool                               `json:"auto_unregister,omitempty"`
+	ConfirmComposeProjectName *string                             `json:"confirm_compose_project_name,omitempty"`
+	DeleteWorkspacePath       *bool                               `json:"delete_workspace_path,omitempty"`
+	ImagePrune                *bool                               `json:"image_prune,omitempty"`
+	RemoveNamedVolumes        *bool                               `json:"remove_named_volumes,omitempty"`
+}
+
+// ApplicationBatchActionRequestAction defines model for ApplicationBatchActionRequest.Action.
+type ApplicationBatchActionRequestAction string
+
+// ApplicationBatchActionResponse defines model for application-batch-action-response.
+type ApplicationBatchActionResponse struct {
+	BlockedCount   int                          `json:"blocked_count"`
+	CompletedCount int                          `json:"completed_count"`
+	Items          []ApplicationBatchActionItem `json:"items"`
+	SkippedCount   int                          `json:"skipped_count"`
+	TotalCount     int                          `json:"total_count"`
+}
+
+// ApplicationComposeProjectNameSource defines model for application-compose-project-name-source.
+type ApplicationComposeProjectNameSource string
+
+// ApplicationComposeRuntimeTarget defines model for application-compose-runtime-target.
+type ApplicationComposeRuntimeTarget struct {
+	Availability    bool                                     `json:"availability"`
+	Capabilities    []string                                 `json:"capabilities"`
+	DisplayName     string                                   `json:"display_name"`
+	Provider        string                                   `json:"provider"`
+	Readiness       ApplicationComposeRuntimeTargetReadiness `json:"readiness"`
+	RuntimeTargetId int64                                    `json:"runtime_target_id"`
+}
+
+// ApplicationComposeRuntimeTargetReadiness defines model for ApplicationComposeRuntimeTarget.Readiness.
+type ApplicationComposeRuntimeTargetReadiness string
+
+// ApplicationComposeRuntimeTargetCatalogResponse defines model for application-compose-runtime-target-catalog-response.
+type ApplicationComposeRuntimeTargetCatalogResponse struct {
+	DeploymentType ApplicationComposeRuntimeTargetCatalogResponseDeploymentType `json:"deployment_type"`
+	Items          []ApplicationComposeRuntimeTarget                            `json:"items"`
+}
+
+// ApplicationComposeRuntimeTargetCatalogResponseDeploymentType defines model for ApplicationComposeRuntimeTargetCatalogResponse.DeploymentType.
+type ApplicationComposeRuntimeTargetCatalogResponseDeploymentType string
+
+// ApplicationConfigurationMetadataResponse defines model for application-configuration-metadata-response.
+type ApplicationConfigurationMetadataResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId         `json:"application_id"`
+	ComposeFiles  []ApplicationFileItem `json:"compose_files"`
+
+	// DiagnosticsSummary Bounded configuration diagnostics summary for readonly UI display.
+	DiagnosticsSummary *[]string                `json:"diagnostics_summary,omitempty"`
+	DriftStatus        ApplicationDriftStatus   `json:"drift_status"`
+	EnvFiles           []ApplicationFileItem    `json:"env_files"`
+	OwnershipMode      ApplicationOwnershipMode `json:"ownership_mode"`
+}
+
+// ApplicationConfigurationPreviewResponse defines model for application-configuration-preview-response.
+type ApplicationConfigurationPreviewResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId         ApplicationId `json:"application_id"`
+	ComposeProjectName    string        `json:"compose_project_name"`
+	ConfigHash            string        `json:"config_hash"`
+	NormalizedComposeYaml string        `json:"normalized_compose_yaml"`
+	RefreshedAt           *time.Time    `json:"refreshed_at,omitempty"`
+}
+
+// ApplicationContainerCounts defines model for application-container-counts.
+type ApplicationContainerCounts struct {
+	Issue         int `json:"issue"`
+	Running       int `json:"running"`
+	Stopped       int `json:"stopped"`
+	Total         int `json:"total"`
+	Transitioning int `json:"transitioning"`
+}
+
+// ApplicationCreateRequest defines model for application-create-request.
+type ApplicationCreateRequest struct {
+	// ApplicationName Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one.
+	ApplicationName string `json:"application_name"`
+
+	// ComposeFilePath Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
+	ComposeFilePath        string                                    `json:"compose_file_path"`
+	DisplayName            string                                    `json:"display_name"`
+	LifecycleConfiguration *ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+
+	// ReuseExistingWorkspace Explicitly confirms that a previously inspected, unregistered managed directory may receive the submitted workspace changes.
+	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
+	RuntimeTargetId        int64 `json:"runtime_target_id"`
+
+	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
+	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
+}
+
+// ApplicationCreateResponse defines model for application-create-response.
+type ApplicationCreateResponse struct {
+	Action ApplicationCreateResponseAction `json:"action"`
+
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId `json:"application_id"`
+	ApplicationName *string       `json:"application_name,omitempty"`
+
+	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
+	ApplicationType         ApplicationType                 `json:"application_type"`
+	ComposeFileAbsolutePath string                          `json:"compose_file_absolute_path"`
+	ComposeFileName         string                          `json:"compose_file_name"`
+	ComposeProjectName      string                          `json:"compose_project_name"`
+	DisplayName             string                          `json:"display_name"`
+	EnvFileAbsolutePath     *string                         `json:"env_file_absolute_path,omitempty"`
+	EnvFileName             *string                         `json:"env_file_name,omitempty"`
+	ManagedRoot             ApplicationManagedRootResponse  `json:"managed_root"`
+	Message                 *string                         `json:"message,omitempty"`
+	MessageKey              *string                         `json:"message_key,omitempty"`
+	OwnershipMode           ApplicationOwnershipMode        `json:"ownership_mode"`
+	Result                  ApplicationCreateResponseResult `json:"result"`
+	SnapshotSummary         struct {
+		ConfigHash           string    `json:"config_hash"`
+		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
+		RefreshedAt          time.Time `json:"refreshed_at"`
+	} `json:"snapshot_summary"`
+	SourceMetadata *ApplicationSourceMetadata `json:"source_metadata,omitempty"`
+	SourceType     ApplicationSourceType      `json:"source_type"`
+	Warnings       *[]string                  `json:"warnings,omitempty"`
+	WorkspacePath  string                     `json:"workspace_path"`
+}
+
+// ApplicationCreateResponseAction defines model for ApplicationCreateResponse.Action.
+type ApplicationCreateResponseAction string
+
+// ApplicationCreateResponseResult defines model for ApplicationCreateResponse.Result.
+type ApplicationCreateResponseResult string
+
+// ApplicationCreateValidateRequest defines model for application-create-validate-request.
+type ApplicationCreateValidateRequest struct {
+	// ApplicationName Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one.
+	ApplicationName string `json:"application_name"`
+
+	// ComposeFilePath Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
+	ComposeFilePath        string                                    `json:"compose_file_path"`
+	DisplayName            string                                    `json:"display_name"`
+	LifecycleConfiguration *ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+
+	// ReuseExistingWorkspace Indicates that validation is for an inspected, unregistered managed directory.
+	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
+	RuntimeTargetId        int64 `json:"runtime_target_id"`
+
+	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
+	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
+}
+
+// ApplicationCreateValidateResponse defines model for application-create-validate-response.
+type ApplicationCreateValidateResponse struct {
+	ApplicationName         *string                        `json:"application_name,omitempty"`
+	ComposeFileAbsolutePath string                         `json:"compose_file_absolute_path"`
+	ComposeFileName         string                         `json:"compose_file_name"`
+	ComposeProjectName      string                         `json:"compose_project_name"`
+	DisplayName             string                         `json:"display_name"`
+	EnvFileAbsolutePath     *string                        `json:"env_file_absolute_path,omitempty"`
+	EnvFileName             *string                        `json:"env_file_name,omitempty"`
+	ManagedRoot             ApplicationManagedRootResponse `json:"managed_root"`
+	OwnershipMode           ApplicationOwnershipMode       `json:"ownership_mode"`
+	SourceMetadata          *ApplicationSourceMetadata     `json:"source_metadata,omitempty"`
+	SourceType              ApplicationSourceType          `json:"source_type"`
+	Warnings                *[]string                      `json:"warnings,omitempty"`
+	WorkspacePath           string                         `json:"workspace_path"`
+}
+
+// ApplicationCreationMethod defines model for application-creation-method.
+type ApplicationCreationMethod struct {
+	Availability ApplicationCreationMethodAvailability `json:"availability"`
+
+	// BlockedReason Stable reason code when the creation method is blocked.
+	BlockedReason *string                       `json:"blocked_reason,omitempty"`
+	Method        ApplicationCreationMethodType `json:"method"`
+}
+
+// ApplicationCreationMethodAvailability defines model for application-creation-method-availability.
+type ApplicationCreationMethodAvailability string
+
+// ApplicationCreationMethodCatalogResponse defines model for application-creation-method-catalog-response.
+type ApplicationCreationMethodCatalogResponse struct {
+	Items []ApplicationCreationMethod `json:"items"`
+}
+
+// ApplicationCreationMethodType defines model for application-creation-method-type.
+type ApplicationCreationMethodType string
+
+// ApplicationDestroyRequest defines model for application-destroy-request.
+type ApplicationDestroyRequest struct {
+	AutoUnregister *bool `json:"auto_unregister,omitempty"`
+
+	// ConfirmApplicationId Stable public Graft Application identifier.
+	ConfirmApplicationId ApplicationId `json:"confirm_application_id"`
+	DeleteWorkspace      bool          `json:"delete_workspace"`
+	ImagePrune           *bool         `json:"image_prune,omitempty"`
+	RemoveNamedVolumes   bool          `json:"remove_named_volumes"`
+}
+
+// ApplicationDetailResponse defines model for application-detail-response.
+type ApplicationDetailResponse struct {
+	ActivityAuthority ApplicationActivityAuthority `json:"activity_authority"`
+
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId `json:"application_id"`
+	ApplicationName *string       `json:"application_name,omitempty"`
+
+	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
+	ApplicationType          ApplicationType                     `json:"application_type"`
+	ComposeFiles             []ApplicationFileItem               `json:"compose_files"`
+	ComposeProjectName       string                              `json:"compose_project_name"`
+	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
+	ContainerCounts          ApplicationContainerCounts          `json:"container_counts"`
+	DisplayName              string                              `json:"display_name"`
+	DriftStatus              ApplicationDriftStatus              `json:"drift_status"`
+	EnvFiles                 []ApplicationFileItem               `json:"env_files"`
+	LastDriftCheckedAt       *time.Time                          `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash   *string                             `json:"last_observed_config_hash,omitempty"`
+	LifecycleConfiguration   ApplicationLifecycleConfiguration   `json:"lifecycle_configuration"`
+
+	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
+	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
+	OwnershipMode         ApplicationOwnershipMode         `json:"ownership_mode"`
+
+	// RuntimeStatus Aggregated application status for overview consumption only. It must not become a replacement for container runtime detail authority.
+	RuntimeStatus  *ApplicationRuntimeStatus        `json:"runtime_status,omitempty"`
+	RuntimeTarget  *ApplicationRuntimeTargetSummary `json:"runtime_target,omitempty"`
+	ServiceCount   int                              `json:"service_count"`
+	SourceMetadata *ApplicationSourceMetadata       `json:"source_metadata,omitempty"`
+	SourceType     ApplicationSourceType            `json:"source_type"`
+	WorkspacePath  string                           `json:"workspace_path"`
+}
+
+// ApplicationDiscoveryCandidate defines model for application-discovery-candidate.
+type ApplicationDiscoveryCandidate struct {
+	CandidateKey             string                                         `json:"candidate_key"`
+	CandidateKind            ApplicationDiscoveryCandidateKind              `json:"candidate_kind"`
+	ComposeFiles             []ApplicationFileItem                          `json:"compose_files"`
+	ComposeProjectName       string                                         `json:"compose_project_name"`
+	ComposeProjectNameSource ApplicationComposeProjectNameSource            `json:"compose_project_name_source"`
+	ConfigHash               string                                         `json:"config_hash"`
+	Conflicts                []string                                       `json:"conflicts"`
+	DeclaredServiceNames     []string                                       `json:"declared_service_names"`
+	DisplayName              string                                         `json:"display_name"`
+	EnvFiles                 []ApplicationFileItem                          `json:"env_files"`
+	OwnershipMode            ApplicationOwnershipMode                       `json:"ownership_mode"`
+	RecommendedAction        ApplicationDiscoveryCandidateRecommendedAction `json:"recommended_action"`
+	ServiceCount             int                                            `json:"service_count"`
+	SourceMetadata           *ApplicationSourceMetadata                     `json:"source_metadata,omitempty"`
+	SourceType               ApplicationSourceType                          `json:"source_type"`
+	Status                   ApplicationDiscoveryCandidateStatus            `json:"status"`
+	StatusReason             *string                                        `json:"status_reason,omitempty"`
+	Warnings                 []string                                       `json:"warnings"`
+	WorkspacePath            string                                         `json:"workspace_path"`
+}
+
+// ApplicationDiscoveryCandidateRecommendedAction defines model for ApplicationDiscoveryCandidate.RecommendedAction.
+type ApplicationDiscoveryCandidateRecommendedAction string
+
+// ApplicationDiscoveryCandidateKind defines model for application-discovery-candidate-kind.
+type ApplicationDiscoveryCandidateKind string
+
+// ApplicationDiscoveryCandidateStatus defines model for application-discovery-candidate-status.
+type ApplicationDiscoveryCandidateStatus string
+
+// ApplicationDiscoveryCandidatesResponse defines model for application-discovery-candidates-response.
+type ApplicationDiscoveryCandidatesResponse struct {
+	AuthorityRoot         *string                         `json:"authority_root"`
+	Items                 []ApplicationDiscoveryCandidate `json:"items"`
+	SourceType            ApplicationSourceType           `json:"source_type"`
+	StatusReason          *string                         `json:"status_reason,omitempty"`
+	SupportsAutoDiscovery bool                            `json:"supports_auto_discovery"`
+	SupportsScan          bool                            `json:"supports_scan"`
+}
+
+// ApplicationDriftStatus defines model for application-drift-status.
+type ApplicationDriftStatus string
+
+// ApplicationFileAnnotationRequest defines model for application-file-annotation-request.
+type ApplicationFileAnnotationRequest struct {
+	Annotation *string `json:"annotation,omitempty"`
+}
+
+// ApplicationFileContentResponse defines model for application-file-content-response.
+type ApplicationFileContentResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId                          `json:"application_id"`
+	Content       string                                 `json:"content"`
+	Editable      bool                                   `json:"editable"`
+	Encoding      ApplicationFileContentResponseEncoding `json:"encoding"`
+	FileKind      ApplicationWorkspaceFileKind           `json:"file_kind"`
+
+	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
+	LanguageHint string `json:"language_hint"`
+	Readable     bool   `json:"readable"`
+	RelativePath string `json:"relative_path"`
+	SizeBytes    int64  `json:"size_bytes"`
+}
+
+// ApplicationFileContentResponseEncoding defines model for ApplicationFileContentResponse.Encoding.
+type ApplicationFileContentResponseEncoding string
+
+// ApplicationFileItem defines model for application-file-item.
+type ApplicationFileItem struct {
+	AbsolutePath string              `json:"absolute_path"`
+	DisplayPath  string              `json:"display_path"`
+	Id           int64               `json:"id"`
+	Kind         ApplicationFileKind `json:"kind"`
+
+	// LastObservedHash Most recently observed file hash. Empty string means the system has not observed one yet.
+	LastObservedHash *string             `json:"last_observed_hash,omitempty"`
+	OrderIndex       int                 `json:"order_index"`
+	Role             ApplicationFileRole `json:"role"`
+}
+
+// ApplicationFileKind defines model for application-file-kind.
+type ApplicationFileKind string
+
+// ApplicationFileRole defines model for application-file-role.
+type ApplicationFileRole string
+
+// ApplicationFileSaveRequest defines model for application-file-save-request.
+type ApplicationFileSaveRequest struct {
+	Content string `json:"content"`
+}
+
+// ApplicationFileSaveResponse defines model for application-file-save-response.
+type ApplicationFileSaveResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId `json:"application_id"`
+	ContentHash   string        `json:"content_hash"`
+	RelativePath  string        `json:"relative_path"`
+	SavedAt       time.Time     `json:"saved_at"`
+	SizeBytes     int64         `json:"size_bytes"`
+}
+
+// ApplicationFileTreeItem defines model for application-file-tree-item.
+type ApplicationFileTreeItem struct {
+	ApplicationNote *string                      `json:"application_note,omitempty"`
+	Editable        bool                         `json:"editable"`
+	FileKind        ApplicationWorkspaceFileKind `json:"file_kind"`
+	HasChildren     bool                         `json:"has_children"`
+	HiddenByDefault bool                         `json:"hidden_by_default"`
+
+	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
+	LanguageHint  string                                `json:"language_hint"`
+	Name          string                                `json:"name"`
+	NodeType      ApplicationFileTreeNodeType           `json:"node_type"`
+	Readable      bool                                  `json:"readable"`
+	RelativePath  string                                `json:"relative_path"`
+	SizeBytes     int64                                 `json:"size_bytes"`
+	Tooltip       *string                               `json:"tooltip,omitempty"`
+	TooltipSource *ApplicationFileTreeItemTooltipSource `json:"tooltip_source,omitempty"`
+}
+
+// ApplicationFileTreeItemTooltipSource defines model for ApplicationFileTreeItem.TooltipSource.
+type ApplicationFileTreeItemTooltipSource string
+
+// ApplicationFileTreeNodeType defines model for application-file-tree-node-type.
+type ApplicationFileTreeNodeType string
+
+// ApplicationFilesResponse defines model for application-files-response.
+type ApplicationFilesResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId             `json:"application_id"`
+	CurrentPath   string                    `json:"current_path"`
+	HasMoreHidden bool                      `json:"has_more_hidden"`
+	Items         []ApplicationFileTreeItem `json:"items"`
+	ParentPath    *string                   `json:"parent_path,omitempty"`
+	RootPath      string                    `json:"root_path"`
+}
+
+// ApplicationGuardResult defines model for application-guard-result.
+type ApplicationGuardResult struct {
+	Code       string  `json:"code"`
+	Detail     *string `json:"detail,omitempty"`
+	MessageKey *string `json:"message_key,omitempty"`
+}
+
+// ApplicationId Stable public Graft Application identifier.
+type ApplicationId = string
+
+// ApplicationImportDirectoriesResponse defines model for application-import-directories-response.
+type ApplicationImportDirectoriesResponse struct {
+	CurrentPath string                           `json:"current_path"`
+	Directories []ApplicationImportDirectoryItem `json:"directories"`
+	HasMore     bool                             `json:"has_more"`
+	Limit       int                              `json:"limit"`
+	Offset      int                              `json:"offset"`
+	Order       string                           `json:"order"`
+	ParentPath  *string                          `json:"parent_path,omitempty"`
+	Provider    string                           `json:"provider"`
+	RootId      string                           `json:"root_id"`
+	SortBy      string                           `json:"sort_by"`
+}
+
+// ApplicationImportDirectoryItem defines model for application-import-directory-item.
+type ApplicationImportDirectoryItem struct {
+	ModifiedAt *time.Time `json:"modified_at,omitempty"`
+	Name       string     `json:"name"`
+	Path       string     `json:"path"`
+}
+
+// ApplicationImportDirectoryReference defines model for application-import-directory-reference.
+type ApplicationImportDirectoryReference struct {
+	Path     string `json:"path"`
+	Provider string `json:"provider"`
+	RootId   string `json:"root_id"`
+}
+
+// ApplicationImportDirectorySource defines model for application-import-directory-source.
+type ApplicationImportDirectorySource struct {
+	// InitialPath Absolute preferred starting path shown first in the folder picker while staying under the source browse root.
+	InitialPath string `json:"initial_path"`
+
+	// Label Stable root label shown in the folder picker source selector.
+	Label string `json:"label"`
+
+	// Managed Whether this source is the managed-root injection rather than a static allowlisted root.
+	Managed bool `json:"managed"`
+
+	// Path Absolute browse root resolved by the backend for this import source.
+	Path     string `json:"path"`
+	Provider string `json:"provider"`
+	RootId   string `json:"root_id"`
+}
+
+// ApplicationImportDirectorySourcesResponse defines model for application-import-directory-sources-response.
+type ApplicationImportDirectorySourcesResponse struct {
+	Items []ApplicationImportDirectorySource `json:"items"`
+}
+
+// ApplicationImportInspectFileItem defines model for application-import-inspect-file-item.
+type ApplicationImportInspectFileItem struct {
+	AbsolutePath     string              `json:"absolute_path"`
+	DisplayPath      string              `json:"display_path"`
+	Kind             ApplicationFileKind `json:"kind"`
+	LastObservedHash *string             `json:"last_observed_hash,omitempty"`
+	OrderIndex       int                 `json:"order_index"`
+	Role             ApplicationFileRole `json:"role"`
+}
+
+// ApplicationImportInspectRequest defines model for application-import-inspect-request.
+type ApplicationImportInspectRequest struct {
+	ComposeProjectNameOverride *string                             `json:"compose_project_name_override,omitempty"`
+	DirectoryRef               ApplicationImportDirectoryReference `json:"directory_ref"`
+	DisplayName                *string                             `json:"display_name,omitempty"`
+}
+
+// ApplicationImportInspectResponse defines model for application-import-inspect-response.
+type ApplicationImportInspectResponse struct {
+	ComposeFiles             []ApplicationImportInspectFileItem               `json:"compose_files"`
+	ComposeProjectName       string                                           `json:"compose_project_name"`
+	ComposeProjectNameSource ApplicationComposeProjectNameSource              `json:"compose_project_name_source"`
+	ConfigHash               string                                           `json:"config_hash"`
+	Conflicts                []string                                         `json:"conflicts"`
+	DirectoryRef             ApplicationImportDirectoryReference              `json:"directory_ref"`
+	DisplayNameSuggested     string                                           `json:"display_name_suggested"`
+	EnvFiles                 []ApplicationImportInspectFileItem               `json:"env_files"`
+	InspectionId             string                                           `json:"inspection_id"`
+	Networks                 []string                                         `json:"networks"`
+	ResolvedWorkspacePath    string                                           `json:"resolved_workspace_path"`
+	Services                 []string                                         `json:"services"`
+	ValidationStatus         ApplicationImportInspectResponseValidationStatus `json:"validation_status"`
+	Volumes                  []string                                         `json:"volumes"`
+	Warnings                 []string                                         `json:"warnings"`
+}
+
+// ApplicationImportInspectResponseValidationStatus defines model for ApplicationImportInspectResponse.ValidationStatus.
+type ApplicationImportInspectResponseValidationStatus string
+
+// ApplicationImportRequest defines model for application-import-request.
+type ApplicationImportRequest struct {
+	ComposeProjectNameOverride *string                                  `json:"compose_project_name_override,omitempty"`
+	DisplayName                *string                                  `json:"display_name,omitempty"`
+	InspectionId               string                                   `json:"inspection_id"`
+	LifecycleConfiguration     ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+}
+
+// ApplicationImportResponse defines model for application-import-response.
+type ApplicationImportResponse struct {
+	Application     ApplicationDetailResponse `json:"application"`
+	SnapshotSummary struct {
+		ConfigHash           string    `json:"config_hash"`
+		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
+		RefreshedAt          time.Time `json:"refreshed_at"`
+	} `json:"snapshot_summary"`
+}
+
+// ApplicationImportRuntimeCandidate defines model for application-import-runtime-candidate.
+type ApplicationImportRuntimeCandidate struct {
+	CandidateKey       string                     `json:"candidate_key"`
+	ComposeProjectName string                     `json:"compose_project_name"`
+	ConfigFiles        []string                   `json:"config_files"`
+	ContainerCounts    ApplicationContainerCounts `json:"container_counts"`
+	Importable         bool                       `json:"importable"`
+
+	// RuntimeType Future-extensible runtime type resolved by the container runtime authority.
+	RuntimeType         string                                      `json:"runtime_type"`
+	RuntimeVersion      *string                                     `json:"runtime_version,omitempty"`
+	ServiceNames        []string                                    `json:"service_names"`
+	Status              ApplicationImportRuntimeCandidateStatus     `json:"status"`
+	StatusReasonCodes   []string                                    `json:"status_reason_codes"`
+	Warnings            []string                                    `json:"warnings"`
+	WorkspacePath       string                                      `json:"workspace_path"`
+	WorkspacePathSource ApplicationImportRuntimeWorkspacePathSource `json:"workspace_path_source"`
+}
+
+// ApplicationImportRuntimeCandidateAvailability defines model for application-import-runtime-candidate-availability.
+type ApplicationImportRuntimeCandidateAvailability string
+
+// ApplicationImportRuntimeCandidateFilterCounts defines model for application-import-runtime-candidate-filter-counts.
+type ApplicationImportRuntimeCandidateFilterCounts struct {
+	All         int `json:"all"`
+	Imported    int `json:"imported"`
+	Ready       int `json:"ready"`
+	Unavailable int `json:"unavailable"`
+}
+
+// ApplicationImportRuntimeCandidateStatus defines model for application-import-runtime-candidate-status.
+type ApplicationImportRuntimeCandidateStatus string
+
+// ApplicationImportRuntimeCandidatesResponse defines model for application-import-runtime-candidates-response.
+type ApplicationImportRuntimeCandidatesResponse struct {
+	FilterCounts ApplicationImportRuntimeCandidateFilterCounts `json:"filter_counts"`
+	Items        []ApplicationImportRuntimeCandidate           `json:"items"`
+	Limit        int                                           `json:"limit"`
+	Offset       int                                           `json:"offset"`
+	Total        int                                           `json:"total"`
+}
+
+// ApplicationImportRuntimeInspectRequest defines model for application-import-runtime-inspect-request.
+type ApplicationImportRuntimeInspectRequest struct {
+	CandidateKey               string  `json:"candidate_key"`
+	ComposeProjectNameOverride *string `json:"compose_project_name_override,omitempty"`
+	DisplayName                *string `json:"display_name,omitempty"`
+}
+
+// ApplicationImportRuntimeInspectResponse defines model for application-import-runtime-inspect-response.
+type ApplicationImportRuntimeInspectResponse struct {
+	CandidateKey             string                              `json:"candidate_key"`
+	ComposeFiles             []ApplicationImportInspectFileItem  `json:"compose_files"`
+	ComposeProjectName       string                              `json:"compose_project_name"`
+	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
+	ConfigHash               string                              `json:"config_hash"`
+	Conflicts                []string                            `json:"conflicts"`
+	DisplayNameSuggested     string                              `json:"display_name_suggested"`
+	EnvFiles                 []ApplicationImportInspectFileItem  `json:"env_files"`
+
+	// ExpiresAt Absolute UTC expiration time for this short-lived inspection session.
+	ExpiresAt              time.Time                                               `json:"expires_at"`
+	InspectionId           string                                                  `json:"inspection_id"`
+	LifecycleConfiguration ApplicationLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
+	Networks               []ApplicationImportRuntimeNetworkResource               `json:"networks"`
+	ResolvedWorkspacePath  string                                                  `json:"resolved_workspace_path"`
+	RuntimeMembers         []ApplicationImportRuntimeMember                        `json:"runtime_members"`
+	Services               []string                                                `json:"services"`
+	ValidationStatus       ApplicationImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
+	Volumes                []ApplicationImportRuntimeVolumeResource                `json:"volumes"`
+	Warnings               []string                                                `json:"warnings"`
+}
+
+// ApplicationImportRuntimeInspectResponseValidationStatus defines model for ApplicationImportRuntimeInspectResponse.ValidationStatus.
+type ApplicationImportRuntimeInspectResponseValidationStatus string
+
+// ApplicationImportRuntimeMember defines model for application-import-runtime-member.
+type ApplicationImportRuntimeMember struct {
+	ContainerId   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+	State         string `json:"state"`
+}
+
+// ApplicationImportRuntimeNetworkResource defines model for application-import-runtime-network-resource.
+type ApplicationImportRuntimeNetworkResource struct {
+	ContainerCount int      `json:"container_count"`
+	Containers     []string `json:"containers"`
+	Driver         *string  `json:"driver"`
+	Internal       *bool    `json:"internal"`
+	Name           string   `json:"name"`
+	Scope          *string  `json:"scope"`
+	ServiceCount   int      `json:"service_count"`
+	Services       []string `json:"services"`
+}
+
+// ApplicationImportRuntimeVolumeResource defines model for application-import-runtime-volume-resource.
+type ApplicationImportRuntimeVolumeResource struct {
+	Anonymous      bool     `json:"anonymous"`
+	ContainerCount int      `json:"container_count"`
+	Containers     []string `json:"containers"`
+	Driver         *string  `json:"driver"`
+	MountTarget    string   `json:"mount_target"`
+	MountedBy      []string `json:"mounted_by"`
+	Name           string   `json:"name"`
+}
+
+// ApplicationImportRuntimeWorkspacePathSource defines model for application-import-runtime-workspace-path-source.
+type ApplicationImportRuntimeWorkspacePathSource string
+
+// ApplicationImportValidateRequest defines model for application-import-validate-request.
+type ApplicationImportValidateRequest struct {
+	// ComposeFiles Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file.
+	ComposeFiles               *[]string `json:"compose_files,omitempty"`
+	ComposeProjectNameOverride *string   `json:"compose_project_name_override,omitempty"`
+	DisplayName                *string   `json:"display_name,omitempty"`
+	EnvFiles                   *[]string `json:"env_files,omitempty"`
+	WorkspacePath              string    `json:"workspace_path"`
+}
+
+// ApplicationImportValidateResponse defines model for application-import-validate-response.
+type ApplicationImportValidateResponse struct {
+	ComposeFiles             []ApplicationFileItem               `json:"compose_files"`
+	ComposeProjectName       string                              `json:"compose_project_name"`
+	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
+	Conflicts                []string                            `json:"conflicts"`
+	EnvFiles                 []ApplicationFileItem               `json:"env_files"`
+	NormalizedPreviewSummary *struct {
+		ConfigHash           *string   `json:"config_hash,omitempty"`
+		DeclaredServiceNames *[]string `json:"declared_service_names,omitempty"`
+	} `json:"normalized_preview_summary,omitempty"`
+	ServiceCount  int      `json:"service_count"`
+	Warnings      []string `json:"warnings"`
+	WorkspacePath string   `json:"workspace_path"`
+}
+
+// ApplicationLifecycleCommandStep defines model for application-lifecycle-command-step.
+type ApplicationLifecycleCommandStep struct {
+	Argv []string `json:"argv"`
+
+	// DisplayCommand Human-readable command preview derived from the canonical lifecycle configuration.
+	DisplayCommand string                              `json:"display_command"`
+	Kind           ApplicationLifecycleCommandStepKind `json:"kind"`
+}
+
+// ApplicationLifecycleCommandStepKind defines model for ApplicationLifecycleCommandStep.Kind.
+type ApplicationLifecycleCommandStepKind string
+
+// ApplicationLifecycleConfiguration defines model for application-lifecycle-configuration.
+type ApplicationLifecycleConfiguration struct {
+	AdditionalArgs     []string `json:"additional_args"`
+	BuildBeforeUp      bool     `json:"build_before_up"`
+	DownBeforeRedeploy bool     `json:"down_before_redeploy"`
+	ForceRecreate      bool     `json:"force_recreate"`
+	GeneratedCommands  struct {
+		Redeploy ApplicationLifecycleGeneratedCommand `json:"redeploy"`
+		Restart  ApplicationLifecycleGeneratedCommand `json:"restart"`
+		Stop     ApplicationLifecycleGeneratedCommand `json:"stop"`
+		Up       ApplicationLifecycleGeneratedCommand `json:"up"`
+	} `json:"generated_commands"`
+	Profiles                 []string `json:"profiles"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+	RemoveOrphans            bool     `json:"remove_orphans"`
+	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
+
+	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
+	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
+	WaitAfterUp        bool                             `json:"wait_after_up"`
+	WaitTimeoutSeconds int                              `json:"wait_timeout_seconds"`
+}
+
+// ApplicationLifecycleConfigurationRequest defines model for application-lifecycle-configuration-request.
+type ApplicationLifecycleConfigurationRequest struct {
+	// AdditionalArgs Bounded extra argv tokens appended to docker compose up; shell expressions and application identity flags are rejected by the server.
+	AdditionalArgs           *[]string `json:"additional_args,omitempty"`
+	BuildBeforeUp            bool      `json:"build_before_up"`
+	DownBeforeRedeploy       bool      `json:"down_before_redeploy"`
+	ForceRecreate            bool      `json:"force_recreate"`
+	Profiles                 []string  `json:"profiles"`
+	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
+	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
+	RemoveOrphans            bool      `json:"remove_orphans"`
+	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
+
+	// StrategyKind Canonical lifecycle execution strategy kind owned by the application module.
+	StrategyKind       ApplicationLifecycleStrategyKind `json:"strategy_kind"`
+	WaitAfterUp        bool                             `json:"wait_after_up"`
+	WaitTimeoutSeconds int                              `json:"wait_timeout_seconds"`
+}
+
+// ApplicationLifecycleConfigurationResponse defines model for application-lifecycle-configuration-response.
+type ApplicationLifecycleConfigurationResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId ApplicationId `json:"application_id"`
+
+	// ComposeFiles Ordered tracked Compose files reused by lifecycle command generation.
+	ComposeFiles []ApplicationFileItem `json:"compose_files"`
+
+	// ComposeProjectName Read-only application runtime identity used for explicit `docker compose -p`.
+	ComposeProjectName     string                            `json:"compose_project_name"`
+	LifecycleConfiguration ApplicationLifecycleConfiguration `json:"lifecycle_configuration"`
+
+	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
+	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
+
+	// WorkspacePath Read-only working directory authority reused by lifecycle command generation.
+	WorkspacePath string `json:"workspace_path"`
+}
+
+// ApplicationLifecycleGeneratedCommand defines model for application-lifecycle-generated-command.
+type ApplicationLifecycleGeneratedCommand struct {
+	Action ApplicationLifecycleGeneratedCommandAction `json:"action"`
+
+	// DisplayCommand Combined preview for the selected lifecycle action.
+	DisplayCommand string                            `json:"display_command"`
+	Steps          []ApplicationLifecycleCommandStep `json:"steps"`
+}
+
+// ApplicationLifecycleGeneratedCommandAction defines model for ApplicationLifecycleGeneratedCommand.Action.
+type ApplicationLifecycleGeneratedCommandAction string
+
+// ApplicationLifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
+type ApplicationLifecycleReviewStatus string
+
+// ApplicationLifecycleStrategyKind Canonical lifecycle execution strategy kind owned by the application module.
+type ApplicationLifecycleStrategyKind string
+
+// ApplicationListItem defines model for application-list-item.
+type ApplicationListItem struct {
+	ActivityAuthority ApplicationActivityAuthority `json:"activity_authority"`
+
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId   ApplicationId `json:"application_id"`
+	ApplicationName *string       `json:"application_name,omitempty"`
+
+	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
+	ApplicationType          ApplicationType                     `json:"application_type"`
+	ComposeProjectName       string                              `json:"compose_project_name"`
+	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
+	ContainerCounts          ApplicationContainerCounts          `json:"container_counts"`
+	DisplayName              string                              `json:"display_name"`
+	DriftStatus              ApplicationDriftStatus              `json:"drift_status"`
+
+	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
+	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
+	OwnershipMode         ApplicationOwnershipMode         `json:"ownership_mode"`
+
+	// RuntimeStatus Aggregated application status for overview consumption only. It must not become a replacement for container runtime detail authority.
+	RuntimeStatus  *ApplicationRuntimeStatus        `json:"runtime_status,omitempty"`
+	RuntimeTarget  *ApplicationRuntimeTargetSummary `json:"runtime_target,omitempty"`
+	ServiceCount   int                              `json:"service_count"`
+	SourceMetadata *ApplicationSourceMetadata       `json:"source_metadata,omitempty"`
+	SourceType     ApplicationSourceType            `json:"source_type"`
+	WorkspacePath  string                           `json:"workspace_path"`
+}
+
+// ApplicationListResponse defines model for application-list-response.
+type ApplicationListResponse struct {
+	Items  []ApplicationListItem `json:"items"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+	Total  int                   `json:"total"`
+}
+
+// ApplicationLogEntry defines model for application-log-entry.
+type ApplicationLogEntry struct {
+	ContainerId   string                    `json:"container_id"`
+	ContainerName string                    `json:"container_name"`
+	Line          string                    `json:"line"`
+	OccurredAt    time.Time                 `json:"occurred_at"`
+	ServiceName   string                    `json:"service_name"`
+	Source        ApplicationLogEntrySource `json:"source"`
+
+	// Stream Canonical runtime stream that produced the aggregated application log entry.
+	Stream ApplicationLogEntryStream `json:"stream"`
+}
+
+// ApplicationLogEntrySource defines model for application-log-entry-source.
+type ApplicationLogEntrySource struct {
+	ContainerId   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+}
+
+// ApplicationLogEntryStream Canonical runtime stream that produced the aggregated application log entry.
+type ApplicationLogEntryStream string
+
+// ApplicationLogResponse defines model for application-log-response.
+type ApplicationLogResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId      ApplicationId         `json:"application_id"`
+	ComposeProjectName string                `json:"compose_project_name"`
+	Entries            []ApplicationLogEntry `json:"entries"`
+	Since              *string               `json:"since,omitempty"`
+	Stderr             bool                  `json:"stderr"`
+	Stdout             bool                  `json:"stdout"`
+	Tail               int                   `json:"tail"`
+	Timestamps         bool                  `json:"timestamps"`
+	Truncated          bool                  `json:"truncated"`
+}
+
+// ApplicationManagedRootResponse defines model for application-managed-root-response.
+type ApplicationManagedRootResponse struct {
+	ConfigKey               string                       `json:"config_key"`
+	ConfiguredRootDirectory *string                      `json:"configured_root_directory,omitempty"`
+	CreatePermission        string                       `json:"create_permission"`
+	OwnershipMode           ApplicationOwnershipMode     `json:"ownership_mode"`
+	SourceType              ApplicationSourceType        `json:"source_type"`
+	Status                  ApplicationManagedRootStatus `json:"status"`
+	StatusReason            *string                      `json:"status_reason,omitempty"`
+	SupportsManagedCreate   bool                         `json:"supports_managed_create"`
+}
+
+// ApplicationManagedRootStatus defines model for application-managed-root-status.
+type ApplicationManagedRootStatus string
+
+// ApplicationNameAvailabilityRequest defines model for application-name-availability-request.
+type ApplicationNameAvailabilityRequest struct {
+	ApplicationName string `json:"application_name"`
+}
+
+// ApplicationNameAvailabilityResponse defines model for application-name-availability-response.
+type ApplicationNameAvailabilityResponse struct {
+	ComposeFilePath   *string                                   `json:"compose_file_path,omitempty"`
+	Status            ApplicationNameAvailabilityResponseStatus `json:"status"`
+	WorkspaceEntries  *[]ApplicationWorkspaceEntry              `json:"workspace_entries,omitempty"`
+	WorkspaceNonEmpty bool                                      `json:"workspace_non_empty"`
+	WorkspacePath     string                                    `json:"workspace_path"`
+}
+
+// ApplicationNameAvailabilityResponseStatus defines model for ApplicationNameAvailabilityResponse.Status.
+type ApplicationNameAvailabilityResponseStatus string
+
+// ApplicationOverviewHealthSummary defines model for application-overview-health-summary.
+type ApplicationOverviewHealthSummary struct {
+	HealthyContainerCount   int `json:"healthy_container_count"`
+	HealthyServiceCount     int `json:"healthy_service_count"`
+	NetworksCount           int `json:"networks_count"`
+	RestartCount            int `json:"restart_count"`
+	StartingContainerCount  int `json:"starting_container_count"`
+	UnhealthyContainerCount int `json:"unhealthy_container_count"`
+	VolumesCount            int `json:"volumes_count"`
+}
+
+// ApplicationOverviewResourceSummary defines model for application-overview-resource-summary.
+type ApplicationOverviewResourceSummary struct {
+	CpuPercent       float64 `json:"cpu_percent"`
+	MemoryLimitBytes int64   `json:"memory_limit_bytes"`
+	MemoryUsageBytes int64   `json:"memory_usage_bytes"`
+	RxBytes          int64   `json:"rx_bytes"`
+
+	// StatsAvailable True when at least one runtime member contributed backend resource stats to this overview snapshot.
+	StatsAvailable               bool  `json:"stats_available"`
+	StatsAvailableContainerCount int   `json:"stats_available_container_count"`
+	TxBytes                      int64 `json:"tx_bytes"`
+}
+
+// ApplicationOverviewResponse defines model for application-overview-response.
+type ApplicationOverviewResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId      ApplicationId                      `json:"application_id"`
+	CollectedAt        *time.Time                         `json:"collected_at,omitempty"`
+	ComposeProjectName string                             `json:"compose_project_name"`
+	Health             ApplicationOverviewHealthSummary   `json:"health"`
+	Resources          ApplicationOverviewResourceSummary `json:"resources"`
+	Services           []ApplicationOverviewServiceItem   `json:"services"`
+}
+
+// ApplicationOverviewServiceItem defines model for application-overview-service-item.
+type ApplicationOverviewServiceItem struct {
+	ContainerCount               int                                  `json:"container_count"`
+	CpuPercent                   float64                              `json:"cpu_percent"`
+	Health                       ApplicationOverviewServiceItemHealth `json:"health"`
+	HealthyContainerCount        int                                  `json:"healthy_container_count"`
+	Image                        *string                              `json:"image,omitempty"`
+	IssueCount                   int                                  `json:"issue_count"`
+	MemoryLimitBytes             int64                                `json:"memory_limit_bytes"`
+	MemoryUsageBytes             int64                                `json:"memory_usage_bytes"`
+	RestartCount                 int                                  `json:"restart_count"`
+	RunningCount                 int                                  `json:"running_count"`
+	ServiceName                  string                               `json:"service_name"`
+	StartingContainerCount       int                                  `json:"starting_container_count"`
+	StatsAvailable               bool                                 `json:"stats_available"`
+	StatsAvailableContainerCount int                                  `json:"stats_available_container_count"`
+	Status                       ApplicationOverviewServiceItemStatus `json:"status"`
+	StoppedCount                 int                                  `json:"stopped_count"`
+	TransitioningCount           int                                  `json:"transitioning_count"`
+	UnhealthyContainerCount      int                                  `json:"unhealthy_container_count"`
+}
+
+// ApplicationOverviewServiceItemHealth defines model for ApplicationOverviewServiceItem.Health.
+type ApplicationOverviewServiceItemHealth string
+
+// ApplicationOverviewServiceItemStatus defines model for ApplicationOverviewServiceItem.Status.
+type ApplicationOverviewServiceItemStatus string
+
+// ApplicationOwnershipMode defines model for application-ownership-mode.
+type ApplicationOwnershipMode string
+
+// ApplicationRuntimeStatus Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+type ApplicationRuntimeStatus string
+
+// ApplicationRuntimeTargetSummary defines model for application-runtime-target-summary.
+type ApplicationRuntimeTargetSummary struct {
+	DisplayName string                                  `json:"display_name"`
+	Id          int64                                   `json:"id"`
+	Provider    ApplicationRuntimeTargetSummaryProvider `json:"provider"`
+}
+
+// ApplicationRuntimeTargetSummaryProvider defines model for ApplicationRuntimeTargetSummary.Provider.
+type ApplicationRuntimeTargetSummaryProvider string
+
+// ApplicationSavedView defines model for application-saved-view.
+type ApplicationSavedView struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	PageSize  int       `json:"page_size"`
+
+	// QueryState Consumer-validated filter and query state. It never contains the current page number.
+	QueryState     map[string]interface{} `json:"query_state"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// ApplicationSavedViewListResponse defines model for application-saved-view-list-response.
+type ApplicationSavedViewListResponse struct {
+	Items []ApplicationSavedView `json:"items"`
+}
+
+// ApplicationSavedViewRequest defines model for application-saved-view-request.
+type ApplicationSavedViewRequest struct {
+	Name     string `json:"name"`
+	PageSize int    `json:"page_size"`
+
+	// QueryState Application-list filter state. The server validates this payload for the application saved-view surface.
+	QueryState struct {
+		ApplicationType *ApplicationSavedViewRequestQueryStateApplicationType `json:"application_type,omitempty"`
+		DriftStatus     *ApplicationDriftStatus                               `json:"drift_status,omitempty"`
+		Keyword         *string                                               `json:"keyword,omitempty"`
+		Provider        *ApplicationSavedViewRequestQueryStateProvider        `json:"provider,omitempty"`
+
+		// RuntimeStatus Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+		RuntimeStatus   *ApplicationRuntimeStatus `json:"runtime_status,omitempty"`
+		RuntimeTargetId *int64                    `json:"runtime_target_id,omitempty"`
+
+		// Sort Optional application-list sort expression; omitted values use created_at:desc.
+		Sort       *[]ApplicationSavedViewRequestQueryStateSort `json:"sort,omitempty"`
+		SourceType *ApplicationSourceType                       `json:"source_type,omitempty"`
+	} `json:"query_state"`
+	VisibleColumns []ApplicationSavedViewRequestVisibleColumns `json:"visible_columns"`
+}
+
+// ApplicationSavedViewRequestQueryStateApplicationType defines model for ApplicationSavedViewRequest.QueryState.ApplicationType.
+type ApplicationSavedViewRequestQueryStateApplicationType string
+
+// ApplicationSavedViewRequestQueryStateProvider defines model for ApplicationSavedViewRequest.QueryState.Provider.
+type ApplicationSavedViewRequestQueryStateProvider string
+
+// ApplicationSavedViewRequestQueryStateSort defines model for ApplicationSavedViewRequest.QueryState.Sort.
+type ApplicationSavedViewRequestQueryStateSort string
+
+// ApplicationSavedViewRequestVisibleColumns defines model for ApplicationSavedViewRequest.VisibleColumns.
+type ApplicationSavedViewRequestVisibleColumns string
+
+// ApplicationServiceItem defines model for application-service-item.
+type ApplicationServiceItem struct {
+	BuildContext     *string `json:"build_context,omitempty"`
+	ContainerMembers []struct {
+		ContainerId   string `json:"container_id"`
+		ContainerName string `json:"container_name"`
+		State         string `json:"state"`
+	} `json:"container_members"`
+	DeclaredNetworks *[]string `json:"declared_networks,omitempty"`
+	DeclaredPorts    *[]string `json:"declared_ports,omitempty"`
+	DeclaredVolumes  *[]string `json:"declared_volumes,omitempty"`
+	Image            *string   `json:"image,omitempty"`
+	RunningCount     int       `json:"running_count"`
+	ServiceName      string    `json:"service_name"`
+	StoppedCount     int       `json:"stopped_count"`
+}
+
+// ApplicationServicesResponse defines model for application-services-response.
+type ApplicationServicesResponse struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId      ApplicationId            `json:"application_id"`
+	ComposeProjectName string                   `json:"compose_project_name"`
+	Items              []ApplicationServiceItem `json:"items"`
+}
+
+// ApplicationSourceMetadata defines model for application-source-metadata.
+type ApplicationSourceMetadata struct {
+	// ManagedComposeFileName Canonical managed compose file name tracked by application authority.
+	ManagedComposeFileName *string `json:"managed_compose_file_name,omitempty"`
+
+	// ManagedEnvFileName Optional managed env file name tracked by application authority.
+	ManagedEnvFileName *string `json:"managed_env_file_name,omitempty"`
+
+	// ManagedRelativeDirectory Relative directory currently owned by the managed application root.
+	ManagedRelativeDirectory *string `json:"managed_relative_directory,omitempty"`
+
+	// ManagedRootKey Canonical config key that owns the managed application root.
+	ManagedRootKey *string `json:"managed_root_key,omitempty"`
+
+	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
+	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+
+	// TemplateKey Planned stable template identifier for a future template-backed application source.
+	TemplateKey *string `json:"template_key,omitempty"`
+
+	// TemplateVersion Planned template version or release channel.
+	TemplateVersion *string `json:"template_version,omitempty"`
+}
+
+// ApplicationSourceType defines model for application-source-type.
+type ApplicationSourceType string
+
+// ApplicationTemplateCreateRequest defines model for application-template-create-request.
+type ApplicationTemplateCreateRequest struct {
+	// ApplicationName Required unique machine-safe application name for the managed directory and Compose application identity.
+	ApplicationName        string                                    `json:"application_name"`
+	DisplayName            string                                    `json:"display_name"`
+	LifecycleConfiguration *ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+	RuntimeTargetId        int64                                     `json:"runtime_target_id"`
+
+	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the application name.
+	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+
+	// TemplateKey Runtime template directory key. Defaults to default.
+	TemplateKey *string `json:"template_key,omitempty"`
+
+	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
+	TemplateVersion *string `json:"template_version,omitempty"`
+}
+
+// ApplicationType Public Application deployment type. Compose is the only currently supported value.
+type ApplicationType string
+
+// ApplicationWorkspaceDefaultsResponse defines model for application-workspace-defaults-response.
+type ApplicationWorkspaceDefaultsResponse struct {
+	ComposeFilePath        string                                   `json:"compose_file_path"`
+	DefaultTemplateKey     string                                   `json:"default_template_key"`
+	LifecycleConfiguration ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration"`
+	Templates              []struct {
+		DisplayName string `json:"display_name"`
+		Key         string `json:"key"`
+	} `json:"templates"`
+	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
+}
+
+// ApplicationWorkspaceEntry defines model for application-workspace-entry.
+type ApplicationWorkspaceEntry struct {
+	// Content Required UTF-8 text content for file entries and omitted for directory entries.
+	Content  *string                           `json:"content,omitempty"`
+	NodeType ApplicationWorkspaceEntryNodeType `json:"node_type"`
+
+	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
+
+// ApplicationWorkspaceEntryNodeType defines model for ApplicationWorkspaceEntry.NodeType.
+type ApplicationWorkspaceEntryNodeType string
+
+// ApplicationWorkspaceEntryCreateRequest defines model for application-workspace-entry-create-request.
+type ApplicationWorkspaceEntryCreateRequest struct {
+	union json.RawMessage
+}
+
+// ApplicationWorkspaceEntryCreateRequest0 defines model for .
+type ApplicationWorkspaceEntryCreateRequest0 struct {
+	// Content Required UTF-8 text content for file entries.
+	Content  string                                          `json:"content"`
+	NodeType ApplicationWorkspaceEntryCreateRequest0NodeType `json:"node_type"`
+
+	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
+
+// ApplicationWorkspaceEntryCreateRequest0NodeType defines model for ApplicationWorkspaceEntryCreateRequest.0.NodeType.
+type ApplicationWorkspaceEntryCreateRequest0NodeType string
+
+// ApplicationWorkspaceEntryCreateRequest1 defines model for .
+type ApplicationWorkspaceEntryCreateRequest1 struct {
+	// Content Required UTF-8 text content for file entries and omitted for directory entries.
+	Content  *string                                         `json:"content,omitempty"`
+	NodeType ApplicationWorkspaceEntryCreateRequest1NodeType `json:"node_type"`
+
+	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
+	Path string `json:"path"`
+}
+
+// ApplicationWorkspaceEntryCreateRequest1NodeType defines model for ApplicationWorkspaceEntryCreateRequest.1.NodeType.
+type ApplicationWorkspaceEntryCreateRequest1NodeType string
+
+// ApplicationWorkspaceEntryRenameRequest defines model for application-workspace-entry-rename-request.
+type ApplicationWorkspaceEntryRenameRequest struct {
+	NewPath string `json:"new_path"`
+	Path    string `json:"path"`
+}
+
+// ApplicationWorkspaceFileKind defines model for application-workspace-file-kind.
+type ApplicationWorkspaceFileKind string
 
 // AppliedDrilldownScope defines model for applied-drilldown-scope.
 type AppliedDrilldownScope struct {
@@ -6313,6 +7391,538 @@ type EnvelopedAppLogListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedApplicationActionResponse defines model for enveloped-application-action-response.
+type EnvelopedApplicationActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data ApplicationActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationBatchActionResponse defines model for enveloped-application-batch-action-response.
+type EnvelopedApplicationBatchActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data ApplicationBatchActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationComposeRuntimeTargetCatalogResponse defines model for enveloped-application-compose-runtime-target-catalog-response.
+type EnvelopedApplicationComposeRuntimeTargetCatalogResponse struct {
+	// Code Existing canonical response code.
+	Code string                                         `json:"code"`
+	Data ApplicationComposeRuntimeTargetCatalogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationConfigurationMetadataResponse defines model for enveloped-application-configuration-metadata-response.
+type EnvelopedApplicationConfigurationMetadataResponse struct {
+	// Code Existing canonical response code.
+	Code string                                   `json:"code"`
+	Data ApplicationConfigurationMetadataResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationConfigurationPreviewResponse defines model for enveloped-application-configuration-preview-response.
+type EnvelopedApplicationConfigurationPreviewResponse struct {
+	// Code Existing canonical response code.
+	Code string                                  `json:"code"`
+	Data ApplicationConfigurationPreviewResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationCreateResponse defines model for enveloped-application-create-response.
+type EnvelopedApplicationCreateResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data ApplicationCreateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationCreateValidateResponse defines model for enveloped-application-create-validate-response.
+type EnvelopedApplicationCreateValidateResponse struct {
+	// Code Existing canonical response code.
+	Code string                            `json:"code"`
+	Data ApplicationCreateValidateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationCreationMethodCatalogResponse defines model for enveloped-application-creation-method-catalog-response.
+type EnvelopedApplicationCreationMethodCatalogResponse struct {
+	// Code Existing canonical response code.
+	Code string                                   `json:"code"`
+	Data ApplicationCreationMethodCatalogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationDetailResponse defines model for enveloped-application-detail-response.
+type EnvelopedApplicationDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data ApplicationDetailResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationDiscoveryCandidatesResponse defines model for enveloped-application-discovery-candidates-response.
+type EnvelopedApplicationDiscoveryCandidatesResponse struct {
+	// Code Existing canonical response code.
+	Code string                                 `json:"code"`
+	Data ApplicationDiscoveryCandidatesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationFileContentResponse defines model for enveloped-application-file-content-response.
+type EnvelopedApplicationFileContentResponse struct {
+	Data ApplicationFileContentResponse `json:"data"`
+}
+
+// EnvelopedApplicationFileSaveResponse defines model for enveloped-application-file-save-response.
+type EnvelopedApplicationFileSaveResponse struct {
+	Data ApplicationFileSaveResponse `json:"data"`
+}
+
+// EnvelopedApplicationFileTreeItemResponse defines model for enveloped-application-file-tree-item-response.
+type EnvelopedApplicationFileTreeItemResponse struct {
+	Data ApplicationFileTreeItem `json:"data"`
+}
+
+// EnvelopedApplicationFilesResponse defines model for enveloped-application-files-response.
+type EnvelopedApplicationFilesResponse struct {
+	Data ApplicationFilesResponse `json:"data"`
+}
+
+// EnvelopedApplicationImportDirectoriesResponse defines model for enveloped-application-import-directories-response.
+type EnvelopedApplicationImportDirectoriesResponse struct {
+	// Code Existing canonical response code.
+	Code string                               `json:"code"`
+	Data ApplicationImportDirectoriesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationImportDirectorySourcesResponse defines model for enveloped-application-import-directory-sources-response.
+type EnvelopedApplicationImportDirectorySourcesResponse struct {
+	// Code Existing canonical response code.
+	Code string                                    `json:"code"`
+	Data ApplicationImportDirectorySourcesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationImportInspectResponse defines model for enveloped-application-import-inspect-response.
+type EnvelopedApplicationImportInspectResponse struct {
+	// Code Existing canonical response code.
+	Code string                           `json:"code"`
+	Data ApplicationImportInspectResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationImportResponse defines model for enveloped-application-import-response.
+type EnvelopedApplicationImportResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data ApplicationImportResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationImportRuntimeCandidatesResponse defines model for enveloped-application-import-runtime-candidates-response.
+type EnvelopedApplicationImportRuntimeCandidatesResponse struct {
+	// Code Existing canonical response code.
+	Code string                                     `json:"code"`
+	Data ApplicationImportRuntimeCandidatesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationImportRuntimeInspectResponse defines model for enveloped-application-import-runtime-inspect-response.
+type EnvelopedApplicationImportRuntimeInspectResponse struct {
+	// Code Existing canonical response code.
+	Code string                                  `json:"code"`
+	Data ApplicationImportRuntimeInspectResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationImportValidateResponse defines model for enveloped-application-import-validate-response.
+type EnvelopedApplicationImportValidateResponse struct {
+	// Code Existing canonical response code.
+	Code string                            `json:"code"`
+	Data ApplicationImportValidateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationLifecycleConfigurationResponse defines model for enveloped-application-lifecycle-configuration-response.
+type EnvelopedApplicationLifecycleConfigurationResponse struct {
+	// Code Existing canonical response code.
+	Code string                                    `json:"code"`
+	Data ApplicationLifecycleConfigurationResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationListResponse defines model for enveloped-application-list-response.
+type EnvelopedApplicationListResponse struct {
+	// Code Existing canonical response code.
+	Code string                  `json:"code"`
+	Data ApplicationListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationLogResponse defines model for enveloped-application-log-response.
+type EnvelopedApplicationLogResponse struct {
+	Code int                    `json:"code"`
+	Data ApplicationLogResponse `json:"data"`
+	Msg  string                 `json:"msg"`
+}
+
+// EnvelopedApplicationManagedRootResponse defines model for enveloped-application-managed-root-response.
+type EnvelopedApplicationManagedRootResponse struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data ApplicationManagedRootResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationNameAvailabilityResponse defines model for enveloped-application-name-availability-response.
+type EnvelopedApplicationNameAvailabilityResponse struct {
+	// Code Existing canonical response code.
+	Code string                              `json:"code"`
+	Data ApplicationNameAvailabilityResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationOverviewResponse defines model for enveloped-application-overview-response.
+type EnvelopedApplicationOverviewResponse struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data ApplicationOverviewResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationSavedView defines model for enveloped-application-saved-view.
+type EnvelopedApplicationSavedView struct {
+	// Code Existing canonical response code.
+	Code string               `json:"code"`
+	Data ApplicationSavedView `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationSavedViewListResponse defines model for enveloped-application-saved-view-list-response.
+type EnvelopedApplicationSavedViewListResponse struct {
+	// Code Existing canonical response code.
+	Code string                           `json:"code"`
+	Data ApplicationSavedViewListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationServicesResponse defines model for enveloped-application-services-response.
+type EnvelopedApplicationServicesResponse struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data ApplicationServicesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationWorkspaceDefaultsResponse defines model for enveloped-application-workspace-defaults-response.
+type EnvelopedApplicationWorkspaceDefaultsResponse struct {
+	Data ApplicationWorkspaceDefaultsResponse `json:"data"`
+}
+
 // EnvelopedAuditIncidentResponse defines model for enveloped-audit-incident-response.
 type EnvelopedAuditIncidentResponse struct {
 	// Code Existing canonical response code.
@@ -7035,538 +8645,6 @@ type EnvelopedPermissionListResponse struct {
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectActionResponse defines model for enveloped-project-action-response.
-type EnvelopedProjectActionResponse struct {
-	// Code Existing canonical response code.
-	Code string                `json:"code"`
-	Data ProjectActionResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectApplicationNameAvailabilityResponse defines model for enveloped-project-application-name-availability-response.
-type EnvelopedProjectApplicationNameAvailabilityResponse struct {
-	// Code Existing canonical response code.
-	Code string                                     `json:"code"`
-	Data ProjectApplicationNameAvailabilityResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectBatchActionResponse defines model for enveloped-project-batch-action-response.
-type EnvelopedProjectBatchActionResponse struct {
-	// Code Existing canonical response code.
-	Code string                     `json:"code"`
-	Data ProjectBatchActionResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectComposeRuntimeTargetCatalogResponse defines model for enveloped-project-compose-runtime-target-catalog-response.
-type EnvelopedProjectComposeRuntimeTargetCatalogResponse struct {
-	// Code Existing canonical response code.
-	Code string                                     `json:"code"`
-	Data ProjectComposeRuntimeTargetCatalogResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectConfigurationMetadataResponse defines model for enveloped-project-configuration-metadata-response.
-type EnvelopedProjectConfigurationMetadataResponse struct {
-	// Code Existing canonical response code.
-	Code string                               `json:"code"`
-	Data ProjectConfigurationMetadataResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectConfigurationPreviewResponse defines model for enveloped-project-configuration-preview-response.
-type EnvelopedProjectConfigurationPreviewResponse struct {
-	// Code Existing canonical response code.
-	Code string                              `json:"code"`
-	Data ProjectConfigurationPreviewResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectCreateResponse defines model for enveloped-project-create-response.
-type EnvelopedProjectCreateResponse struct {
-	// Code Existing canonical response code.
-	Code string                `json:"code"`
-	Data ProjectCreateResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectCreateValidateResponse defines model for enveloped-project-create-validate-response.
-type EnvelopedProjectCreateValidateResponse struct {
-	// Code Existing canonical response code.
-	Code string                        `json:"code"`
-	Data ProjectCreateValidateResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectCreationMethodCatalogResponse defines model for enveloped-project-creation-method-catalog-response.
-type EnvelopedProjectCreationMethodCatalogResponse struct {
-	// Code Existing canonical response code.
-	Code string                               `json:"code"`
-	Data ProjectCreationMethodCatalogResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectDetailResponse defines model for enveloped-project-detail-response.
-type EnvelopedProjectDetailResponse struct {
-	// Code Existing canonical response code.
-	Code string                `json:"code"`
-	Data ProjectDetailResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectDiscoveryCandidatesResponse defines model for enveloped-project-discovery-candidates-response.
-type EnvelopedProjectDiscoveryCandidatesResponse struct {
-	// Code Existing canonical response code.
-	Code string                             `json:"code"`
-	Data ProjectDiscoveryCandidatesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectFileContentResponse defines model for enveloped-project-file-content-response.
-type EnvelopedProjectFileContentResponse struct {
-	Data ProjectFileContentResponse `json:"data"`
-}
-
-// EnvelopedProjectFileSaveResponse defines model for enveloped-project-file-save-response.
-type EnvelopedProjectFileSaveResponse struct {
-	Data ProjectFileSaveResponse `json:"data"`
-}
-
-// EnvelopedProjectFileTreeItemResponse defines model for enveloped-project-file-tree-item-response.
-type EnvelopedProjectFileTreeItemResponse struct {
-	Data ProjectFileTreeItem `json:"data"`
-}
-
-// EnvelopedProjectFilesResponse defines model for enveloped-project-files-response.
-type EnvelopedProjectFilesResponse struct {
-	Data ProjectFilesResponse `json:"data"`
-}
-
-// EnvelopedProjectImportDirectoriesResponse defines model for enveloped-project-import-directories-response.
-type EnvelopedProjectImportDirectoriesResponse struct {
-	// Code Existing canonical response code.
-	Code string                           `json:"code"`
-	Data ProjectImportDirectoriesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectImportDirectorySourcesResponse defines model for enveloped-project-import-directory-sources-response.
-type EnvelopedProjectImportDirectorySourcesResponse struct {
-	// Code Existing canonical response code.
-	Code string                                `json:"code"`
-	Data ProjectImportDirectorySourcesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectImportInspectResponse defines model for enveloped-project-import-inspect-response.
-type EnvelopedProjectImportInspectResponse struct {
-	// Code Existing canonical response code.
-	Code string                       `json:"code"`
-	Data ProjectImportInspectResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectImportResponse defines model for enveloped-project-import-response.
-type EnvelopedProjectImportResponse struct {
-	// Code Existing canonical response code.
-	Code string                `json:"code"`
-	Data ProjectImportResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectImportRuntimeCandidatesResponse defines model for enveloped-project-import-runtime-candidates-response.
-type EnvelopedProjectImportRuntimeCandidatesResponse struct {
-	// Code Existing canonical response code.
-	Code string                                 `json:"code"`
-	Data ProjectImportRuntimeCandidatesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectImportRuntimeInspectResponse defines model for enveloped-project-import-runtime-inspect-response.
-type EnvelopedProjectImportRuntimeInspectResponse struct {
-	// Code Existing canonical response code.
-	Code string                              `json:"code"`
-	Data ProjectImportRuntimeInspectResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectImportValidateResponse defines model for enveloped-project-import-validate-response.
-type EnvelopedProjectImportValidateResponse struct {
-	// Code Existing canonical response code.
-	Code string                        `json:"code"`
-	Data ProjectImportValidateResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectLifecycleConfigurationResponse defines model for enveloped-project-lifecycle-configuration-response.
-type EnvelopedProjectLifecycleConfigurationResponse struct {
-	// Code Existing canonical response code.
-	Code string                                `json:"code"`
-	Data ProjectLifecycleConfigurationResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectListResponse defines model for enveloped-project-list-response.
-type EnvelopedProjectListResponse struct {
-	// Code Existing canonical response code.
-	Code string              `json:"code"`
-	Data ProjectListResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectLogResponse defines model for enveloped-project-log-response.
-type EnvelopedProjectLogResponse struct {
-	Code int                `json:"code"`
-	Data ProjectLogResponse `json:"data"`
-	Msg  string             `json:"msg"`
-}
-
-// EnvelopedProjectManagedRootResponse defines model for enveloped-project-managed-root-response.
-type EnvelopedProjectManagedRootResponse struct {
-	// Code Existing canonical response code.
-	Code string                     `json:"code"`
-	Data ProjectManagedRootResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectOverviewResponse defines model for enveloped-project-overview-response.
-type EnvelopedProjectOverviewResponse struct {
-	// Code Existing canonical response code.
-	Code string                  `json:"code"`
-	Data ProjectOverviewResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectSavedView defines model for enveloped-project-saved-view.
-type EnvelopedProjectSavedView struct {
-	// Code Existing canonical response code.
-	Code string           `json:"code"`
-	Data ProjectSavedView `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectSavedViewListResponse defines model for enveloped-project-saved-view-list-response.
-type EnvelopedProjectSavedViewListResponse struct {
-	// Code Existing canonical response code.
-	Code string                       `json:"code"`
-	Data ProjectSavedViewListResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectServicesResponse defines model for enveloped-project-services-response.
-type EnvelopedProjectServicesResponse struct {
-	// Code Existing canonical response code.
-	Code string                  `json:"code"`
-	Data ProjectServicesResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
-// EnvelopedProjectWorkspaceDefaultsResponse defines model for enveloped-project-workspace-defaults-response.
-type EnvelopedProjectWorkspaceDefaultsResponse struct {
-	Data ProjectWorkspaceDefaultsResponse `json:"data"`
 }
 
 // EnvelopedRealtimeSubscriptionResponse defines model for enveloped-realtime-subscription-response.
@@ -8500,1125 +9578,6 @@ type PermissionListItem struct {
 type PermissionListResponse struct {
 	Items []PermissionListItem `json:"items"`
 }
-
-// ProjectActionResponse defines model for project-action-response.
-type ProjectActionResponse struct {
-	Action ProjectActionResponseAction `json:"action"`
-
-	// GuardResults Structured guard outcomes such as ownership blocks or skipped destructive steps.
-	GuardResults *[]ProjectGuardResult       `json:"guard_results,omitempty"`
-	Message      *string                     `json:"message,omitempty"`
-	MessageKey   *string                     `json:"message_key,omitempty"`
-	ProjectId    int64                       `json:"project_id"`
-	Result       ProjectActionResponseResult `json:"result"`
-}
-
-// ProjectActionResponseAction defines model for ProjectActionResponse.Action.
-type ProjectActionResponseAction string
-
-// ProjectActionResponseResult defines model for ProjectActionResponse.Result.
-type ProjectActionResponseResult string
-
-// ProjectActivityAuthority defines model for project-activity-authority.
-type ProjectActivityAuthority string
-
-// ProjectApplicationNameAvailabilityRequest defines model for project-application-name-availability-request.
-type ProjectApplicationNameAvailabilityRequest struct {
-	ApplicationName string `json:"application_name"`
-}
-
-// ProjectApplicationNameAvailabilityResponse defines model for project-application-name-availability-response.
-type ProjectApplicationNameAvailabilityResponse struct {
-	ComposeFilePath   *string                                          `json:"compose_file_path,omitempty"`
-	Status            ProjectApplicationNameAvailabilityResponseStatus `json:"status"`
-	WorkspaceEntries  *[]ProjectWorkspaceEntry                         `json:"workspace_entries,omitempty"`
-	WorkspaceNonEmpty bool                                             `json:"workspace_non_empty"`
-	WorkspacePath     string                                           `json:"workspace_path"`
-}
-
-// ProjectApplicationNameAvailabilityResponseStatus defines model for ProjectApplicationNameAvailabilityResponse.Status.
-type ProjectApplicationNameAvailabilityResponseStatus string
-
-// ProjectBatchActionItem defines model for project-batch-action-item.
-type ProjectBatchActionItem struct {
-	Action       ProjectBatchActionItemAction `json:"action"`
-	GuardResults *[]ProjectGuardResult        `json:"guard_results,omitempty"`
-	Message      *string                      `json:"message,omitempty"`
-	MessageKey   *string                      `json:"message_key,omitempty"`
-	ProjectId    int64                        `json:"project_id"`
-	Result       ProjectBatchActionItemResult `json:"result"`
-	Skipped      bool                         `json:"skipped"`
-}
-
-// ProjectBatchActionItemAction defines model for ProjectBatchActionItem.Action.
-type ProjectBatchActionItemAction string
-
-// ProjectBatchActionItemResult defines model for ProjectBatchActionItem.Result.
-type ProjectBatchActionItemResult string
-
-// ProjectBatchActionRequest defines model for project-batch-action-request.
-type ProjectBatchActionRequest struct {
-	Action                      ProjectBatchActionRequestAction `json:"action"`
-	ApplicationIds              []string                        `json:"application_ids"`
-	AutoUnregister              *bool                           `json:"auto_unregister,omitempty"`
-	ConfirmCanonicalProjectName *string                         `json:"confirm_canonical_project_name,omitempty"`
-	DeleteWorkingDirectory      *bool                           `json:"delete_working_directory,omitempty"`
-	ImagePrune                  *bool                           `json:"image_prune,omitempty"`
-	RemoveNamedVolumes          *bool                           `json:"remove_named_volumes,omitempty"`
-}
-
-// ProjectBatchActionRequestAction defines model for ProjectBatchActionRequest.Action.
-type ProjectBatchActionRequestAction string
-
-// ProjectBatchActionResponse defines model for project-batch-action-response.
-type ProjectBatchActionResponse struct {
-	BlockedCount   int                      `json:"blocked_count"`
-	CompletedCount int                      `json:"completed_count"`
-	Items          []ProjectBatchActionItem `json:"items"`
-	SkippedCount   int                      `json:"skipped_count"`
-	TotalCount     int                      `json:"total_count"`
-}
-
-// ProjectCanonicalNameSource defines model for project-canonical-name-source.
-type ProjectCanonicalNameSource string
-
-// ProjectComposeRuntimeTarget defines model for project-compose-runtime-target.
-type ProjectComposeRuntimeTarget struct {
-	Availability    bool                                 `json:"availability"`
-	Capabilities    []string                             `json:"capabilities"`
-	DisplayName     string                               `json:"display_name"`
-	Provider        string                               `json:"provider"`
-	Readiness       ProjectComposeRuntimeTargetReadiness `json:"readiness"`
-	RuntimeTargetId int64                                `json:"runtime_target_id"`
-}
-
-// ProjectComposeRuntimeTargetReadiness defines model for ProjectComposeRuntimeTarget.Readiness.
-type ProjectComposeRuntimeTargetReadiness string
-
-// ProjectComposeRuntimeTargetCatalogResponse defines model for project-compose-runtime-target-catalog-response.
-type ProjectComposeRuntimeTargetCatalogResponse struct {
-	DeploymentType ProjectComposeRuntimeTargetCatalogResponseDeploymentType `json:"deployment_type"`
-	Items          []ProjectComposeRuntimeTarget                            `json:"items"`
-}
-
-// ProjectComposeRuntimeTargetCatalogResponseDeploymentType defines model for ProjectComposeRuntimeTargetCatalogResponse.DeploymentType.
-type ProjectComposeRuntimeTargetCatalogResponseDeploymentType string
-
-// ProjectConfigurationMetadataResponse defines model for project-configuration-metadata-response.
-type ProjectConfigurationMetadataResponse struct {
-	ComposeFiles []ProjectFileItem `json:"compose_files"`
-
-	// DiagnosticsSummary Bounded configuration diagnostics summary for readonly UI display.
-	DiagnosticsSummary *[]string            `json:"diagnostics_summary,omitempty"`
-	DriftStatus        ProjectDriftStatus   `json:"drift_status"`
-	EnvFiles           []ProjectFileItem    `json:"env_files"`
-	OwnershipMode      ProjectOwnershipMode `json:"ownership_mode"`
-	ProjectId          int64                `json:"project_id"`
-}
-
-// ProjectConfigurationPreviewResponse defines model for project-configuration-preview-response.
-type ProjectConfigurationPreviewResponse struct {
-	CanonicalProjectName  string     `json:"canonical_project_name"`
-	ConfigHash            string     `json:"config_hash"`
-	NormalizedComposeYaml string     `json:"normalized_compose_yaml"`
-	ProjectId             int64      `json:"project_id"`
-	RefreshedAt           *time.Time `json:"refreshed_at,omitempty"`
-}
-
-// ProjectContainerCounts defines model for project-container-counts.
-type ProjectContainerCounts struct {
-	Issue         int `json:"issue"`
-	Running       int `json:"running"`
-	Stopped       int `json:"stopped"`
-	Total         int `json:"total"`
-	Transitioning int `json:"transitioning"`
-}
-
-// ProjectCreateRequest defines model for project-create-request.
-type ProjectCreateRequest struct {
-	// ApplicationName Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one.
-	ApplicationName string `json:"application_name"`
-
-	// ComposeFilePath Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
-	ComposeFilePath        string                                `json:"compose_file_path"`
-	DisplayName            string                                `json:"display_name"`
-	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-
-	// ReuseExistingWorkspace Explicitly confirms that a previously inspected, unregistered managed directory may receive the submitted workspace changes.
-	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
-	RuntimeTargetId        int64 `json:"runtime_target_id"`
-
-	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
-	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
-}
-
-// ProjectCreateResponse defines model for project-create-response.
-type ProjectCreateResponse struct {
-	Action                  ProjectCreateResponseAction `json:"action"`
-	ApplicationId           string                      `json:"application_id"`
-	ApplicationName         *string                     `json:"application_name,omitempty"`
-	ComposeFileAbsolutePath string                      `json:"compose_file_absolute_path"`
-	ComposeFileName         string                      `json:"compose_file_name"`
-	ComposeProjectName      string                      `json:"compose_project_name"`
-	DisplayName             string                      `json:"display_name"`
-	EnvFileAbsolutePath     *string                     `json:"env_file_absolute_path,omitempty"`
-	EnvFileName             *string                     `json:"env_file_name,omitempty"`
-	ManagedRoot             ProjectManagedRootResponse  `json:"managed_root"`
-	Message                 *string                     `json:"message,omitempty"`
-	MessageKey              *string                     `json:"message_key,omitempty"`
-	OwnershipMode           ProjectOwnershipMode        `json:"ownership_mode"`
-	Result                  ProjectCreateResponseResult `json:"result"`
-	SnapshotSummary         struct {
-		ConfigHash           string    `json:"config_hash"`
-		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
-		RefreshedAt          time.Time `json:"refreshed_at"`
-	} `json:"snapshot_summary"`
-	SourceMetadata *ProjectSourceMetadata `json:"source_metadata,omitempty"`
-	SourceType     ProjectSourceKind      `json:"source_type"`
-	Warnings       *[]string              `json:"warnings,omitempty"`
-	WorkspacePath  string                 `json:"workspace_path"`
-}
-
-// ProjectCreateResponseAction defines model for ProjectCreateResponse.Action.
-type ProjectCreateResponseAction string
-
-// ProjectCreateResponseResult defines model for ProjectCreateResponse.Result.
-type ProjectCreateResponseResult string
-
-// ProjectCreateValidateRequest defines model for project-create-validate-request.
-type ProjectCreateValidateRequest struct {
-	// ApplicationName Required unique machine-safe application name. It owns the managed directory and becomes the Compose project name when the Compose file does not declare one.
-	ApplicationName string `json:"application_name"`
-
-	// ComposeFilePath Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
-	ComposeFilePath        string                                `json:"compose_file_path"`
-	DisplayName            string                                `json:"display_name"`
-	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-
-	// ReuseExistingWorkspace Indicates that validation is for an inspected, unregistered managed directory.
-	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
-	RuntimeTargetId        int64 `json:"runtime_target_id"`
-
-	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
-	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
-}
-
-// ProjectCreateValidateResponse defines model for project-create-validate-response.
-type ProjectCreateValidateResponse struct {
-	ApplicationName         *string                    `json:"application_name,omitempty"`
-	ComposeFileAbsolutePath string                     `json:"compose_file_absolute_path"`
-	ComposeFileName         string                     `json:"compose_file_name"`
-	ComposeProjectName      string                     `json:"compose_project_name"`
-	DisplayName             string                     `json:"display_name"`
-	EnvFileAbsolutePath     *string                    `json:"env_file_absolute_path,omitempty"`
-	EnvFileName             *string                    `json:"env_file_name,omitempty"`
-	ManagedRoot             ProjectManagedRootResponse `json:"managed_root"`
-	OwnershipMode           ProjectOwnershipMode       `json:"ownership_mode"`
-	SourceMetadata          *ProjectSourceMetadata     `json:"source_metadata,omitempty"`
-	SourceType              ProjectSourceKind          `json:"source_type"`
-	Warnings                *[]string                  `json:"warnings,omitempty"`
-	WorkspacePath           string                     `json:"workspace_path"`
-}
-
-// ProjectCreationMethod defines model for project-creation-method.
-type ProjectCreationMethod struct {
-	Availability ProjectCreationMethodAvailability `json:"availability"`
-
-	// BlockedReason Stable reason code when the creation method is blocked.
-	BlockedReason *string                   `json:"blocked_reason,omitempty"`
-	Method        ProjectCreationMethodType `json:"method"`
-}
-
-// ProjectCreationMethodAvailability defines model for project-creation-method-availability.
-type ProjectCreationMethodAvailability string
-
-// ProjectCreationMethodCatalogResponse defines model for project-creation-method-catalog-response.
-type ProjectCreationMethodCatalogResponse struct {
-	Items []ProjectCreationMethod `json:"items"`
-}
-
-// ProjectCreationMethodType defines model for project-creation-method-type.
-type ProjectCreationMethodType string
-
-// ProjectDestroyRequest defines model for project-destroy-request.
-type ProjectDestroyRequest struct {
-	AutoUnregister       *bool  `json:"auto_unregister,omitempty"`
-	ConfirmApplicationId string `json:"confirm_application_id"`
-	DeleteWorkspace      bool   `json:"delete_workspace"`
-	ImagePrune           *bool  `json:"image_prune,omitempty"`
-	RemoveNamedVolumes   bool   `json:"remove_named_volumes"`
-}
-
-// ProjectDetailResponse defines model for project-detail-response.
-type ProjectDetailResponse struct {
-	ActivityAuthority        ProjectActivityAuthority             `json:"activity_authority"`
-	ApplicationId            string                               `json:"application_id"`
-	ApplicationName          *string                              `json:"application_name,omitempty"`
-	ApplicationType          ProjectDetailResponseApplicationType `json:"application_type"`
-	ComposeFiles             []ProjectFileItem                    `json:"compose_files"`
-	ComposeProjectName       string                               `json:"compose_project_name"`
-	ComposeProjectNameSource ProjectCanonicalNameSource           `json:"compose_project_name_source"`
-	ContainerCounts          ProjectContainerCounts               `json:"container_counts"`
-	DisplayName              string                               `json:"display_name"`
-	DriftStatus              ProjectDriftStatus                   `json:"drift_status"`
-	EnvFiles                 []ProjectFileItem                    `json:"env_files"`
-	HostScope                ProjectHostScope                     `json:"host_scope"`
-	LastDriftCheckedAt       *time.Time                           `json:"last_drift_checked_at,omitempty"`
-	LastObservedConfigHash   *string                              `json:"last_observed_config_hash,omitempty"`
-	LifecycleConfiguration   ProjectLifecycleConfiguration        `json:"lifecycle_configuration"`
-
-	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
-	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
-	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
-
-	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus  *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
-	RuntimeTarget  *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
-	ServiceCount   int                          `json:"service_count"`
-	SourceKind     ProjectSourceKind            `json:"source_kind"`
-	SourceMetadata *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
-	WorkspacePath  string                       `json:"workspace_path"`
-}
-
-// ProjectDetailResponseApplicationType defines model for ProjectDetailResponse.ApplicationType.
-type ProjectDetailResponseApplicationType string
-
-// ProjectDiscoveryCandidate defines model for project-discovery-candidate.
-type ProjectDiscoveryCandidate struct {
-	CandidateKey               string                                     `json:"candidate_key"`
-	CandidateKind              ProjectDiscoveryCandidateKind              `json:"candidate_kind"`
-	CanonicalProjectName       string                                     `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource                 `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectFileItem                          `json:"compose_files"`
-	ConfigHash                 string                                     `json:"config_hash"`
-	Conflicts                  []string                                   `json:"conflicts"`
-	DeclaredServiceNames       []string                                   `json:"declared_service_names"`
-	DisplayName                string                                     `json:"display_name"`
-	EnvFiles                   []ProjectFileItem                          `json:"env_files"`
-	HostScope                  ProjectHostScope                           `json:"host_scope"`
-	OwnershipMode              ProjectOwnershipMode                       `json:"ownership_mode"`
-	RecommendedAction          ProjectDiscoveryCandidateRecommendedAction `json:"recommended_action"`
-	ServiceCount               int                                        `json:"service_count"`
-	SourceKind                 ProjectSourceKind                          `json:"source_kind"`
-	SourceMetadata             *ProjectSourceMetadata                     `json:"source_metadata,omitempty"`
-
-	// SourceType Legacy compatibility alias for source_kind. It is retained for existing consumers and always has the same value.
-	SourceType       *ProjectSourceKind              `json:"source_type,omitempty"`
-	Status           ProjectDiscoveryCandidateStatus `json:"status"`
-	StatusReason     *string                         `json:"status_reason,omitempty"`
-	Warnings         []string                        `json:"warnings"`
-	WorkingDirectory string                          `json:"working_directory"`
-}
-
-// ProjectDiscoveryCandidateRecommendedAction defines model for ProjectDiscoveryCandidate.RecommendedAction.
-type ProjectDiscoveryCandidateRecommendedAction string
-
-// ProjectDiscoveryCandidateKind defines model for project-discovery-candidate-kind.
-type ProjectDiscoveryCandidateKind string
-
-// ProjectDiscoveryCandidateStatus defines model for project-discovery-candidate-status.
-type ProjectDiscoveryCandidateStatus string
-
-// ProjectDiscoveryCandidatesResponse defines model for project-discovery-candidates-response.
-type ProjectDiscoveryCandidatesResponse struct {
-	AuthorityRoot         *string                     `json:"authority_root"`
-	Items                 []ProjectDiscoveryCandidate `json:"items"`
-	SourceType            ProjectSourceKind           `json:"source_type"`
-	StatusReason          *string                     `json:"status_reason,omitempty"`
-	SupportsAutoDiscovery bool                        `json:"supports_auto_discovery"`
-	SupportsScan          bool                        `json:"supports_scan"`
-}
-
-// ProjectDriftStatus defines model for project-drift-status.
-type ProjectDriftStatus string
-
-// ProjectFileAnnotationRequest defines model for project-file-annotation-request.
-type ProjectFileAnnotationRequest struct {
-	Annotation *string `json:"annotation,omitempty"`
-}
-
-// ProjectFileContentResponse defines model for project-file-content-response.
-type ProjectFileContentResponse struct {
-	Content  string                             `json:"content"`
-	Editable bool                               `json:"editable"`
-	Encoding ProjectFileContentResponseEncoding `json:"encoding"`
-	FileKind ProjectWorkspaceFileKind           `json:"file_kind"`
-
-	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
-	LanguageHint string `json:"language_hint"`
-	ProjectId    int64  `json:"project_id"`
-	Readable     bool   `json:"readable"`
-	RelativePath string `json:"relative_path"`
-	SizeBytes    int64  `json:"size_bytes"`
-}
-
-// ProjectFileContentResponseEncoding defines model for ProjectFileContentResponse.Encoding.
-type ProjectFileContentResponseEncoding string
-
-// ProjectFileItem defines model for project-file-item.
-type ProjectFileItem struct {
-	AbsolutePath string          `json:"absolute_path"`
-	DisplayPath  string          `json:"display_path"`
-	Id           int64           `json:"id"`
-	Kind         ProjectFileKind `json:"kind"`
-
-	// LastObservedHash Most recently observed file hash. Empty string means the system has not observed one yet.
-	LastObservedHash *string         `json:"last_observed_hash,omitempty"`
-	OrderIndex       int             `json:"order_index"`
-	Role             ProjectFileRole `json:"role"`
-}
-
-// ProjectFileKind defines model for project-file-kind.
-type ProjectFileKind string
-
-// ProjectFileRole defines model for project-file-role.
-type ProjectFileRole string
-
-// ProjectFileSaveRequest defines model for project-file-save-request.
-type ProjectFileSaveRequest struct {
-	Content string `json:"content"`
-}
-
-// ProjectFileSaveResponse defines model for project-file-save-response.
-type ProjectFileSaveResponse struct {
-	ContentHash  string    `json:"content_hash"`
-	ProjectId    int64     `json:"project_id"`
-	RelativePath string    `json:"relative_path"`
-	SavedAt      time.Time `json:"saved_at"`
-	SizeBytes    int64     `json:"size_bytes"`
-}
-
-// ProjectFileTreeItem defines model for project-file-tree-item.
-type ProjectFileTreeItem struct {
-	Editable        bool                     `json:"editable"`
-	FileKind        ProjectWorkspaceFileKind `json:"file_kind"`
-	HasChildren     bool                     `json:"has_children"`
-	HiddenByDefault bool                     `json:"hidden_by_default"`
-
-	// LanguageHint Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
-	LanguageHint  string                            `json:"language_hint"`
-	Name          string                            `json:"name"`
-	NodeType      ProjectFileTreeNodeType           `json:"node_type"`
-	ProjectNote   *string                           `json:"project_note,omitempty"`
-	Readable      bool                              `json:"readable"`
-	RelativePath  string                            `json:"relative_path"`
-	SizeBytes     int64                             `json:"size_bytes"`
-	Tooltip       *string                           `json:"tooltip,omitempty"`
-	TooltipSource *ProjectFileTreeItemTooltipSource `json:"tooltip_source,omitempty"`
-}
-
-// ProjectFileTreeItemTooltipSource defines model for ProjectFileTreeItem.TooltipSource.
-type ProjectFileTreeItemTooltipSource string
-
-// ProjectFileTreeNodeType defines model for project-file-tree-node-type.
-type ProjectFileTreeNodeType string
-
-// ProjectFilesResponse defines model for project-files-response.
-type ProjectFilesResponse struct {
-	CurrentPath   string                `json:"current_path"`
-	HasMoreHidden bool                  `json:"has_more_hidden"`
-	Items         []ProjectFileTreeItem `json:"items"`
-	ParentPath    *string               `json:"parent_path,omitempty"`
-	ProjectId     int64                 `json:"project_id"`
-	RootPath      string                `json:"root_path"`
-}
-
-// ProjectGuardResult defines model for project-guard-result.
-type ProjectGuardResult struct {
-	Code       string  `json:"code"`
-	Detail     *string `json:"detail,omitempty"`
-	MessageKey *string `json:"message_key,omitempty"`
-}
-
-// ProjectHostScope defines model for project-host-scope.
-type ProjectHostScope string
-
-// ProjectImportDirectoriesResponse defines model for project-import-directories-response.
-type ProjectImportDirectoriesResponse struct {
-	CurrentPath string                       `json:"current_path"`
-	Directories []ProjectImportDirectoryItem `json:"directories"`
-	HasMore     bool                         `json:"has_more"`
-	Limit       int                          `json:"limit"`
-	Offset      int                          `json:"offset"`
-	Order       string                       `json:"order"`
-	ParentPath  *string                      `json:"parent_path,omitempty"`
-	Provider    string                       `json:"provider"`
-	RootId      string                       `json:"root_id"`
-	SortBy      string                       `json:"sort_by"`
-}
-
-// ProjectImportDirectoryItem defines model for project-import-directory-item.
-type ProjectImportDirectoryItem struct {
-	ModifiedAt *time.Time `json:"modified_at,omitempty"`
-	Name       string     `json:"name"`
-	Path       string     `json:"path"`
-}
-
-// ProjectImportDirectoryReference defines model for project-import-directory-reference.
-type ProjectImportDirectoryReference struct {
-	Path     string `json:"path"`
-	Provider string `json:"provider"`
-	RootId   string `json:"root_id"`
-}
-
-// ProjectImportDirectorySource defines model for project-import-directory-source.
-type ProjectImportDirectorySource struct {
-	// InitialPath Absolute preferred starting path shown first in the folder picker while staying under the source browse root.
-	InitialPath string `json:"initial_path"`
-
-	// Label Stable root label shown in the folder picker source selector.
-	Label string `json:"label"`
-
-	// Managed Whether this source is the managed-root injection rather than a static allowlisted root.
-	Managed bool `json:"managed"`
-
-	// Path Absolute browse root resolved by the backend for this import source.
-	Path     string `json:"path"`
-	Provider string `json:"provider"`
-	RootId   string `json:"root_id"`
-}
-
-// ProjectImportDirectorySourcesResponse defines model for project-import-directory-sources-response.
-type ProjectImportDirectorySourcesResponse struct {
-	Items []ProjectImportDirectorySource `json:"items"`
-}
-
-// ProjectImportInspectFileItem defines model for project-import-inspect-file-item.
-type ProjectImportInspectFileItem struct {
-	AbsolutePath     string          `json:"absolute_path"`
-	DisplayPath      string          `json:"display_path"`
-	Kind             ProjectFileKind `json:"kind"`
-	LastObservedHash *string         `json:"last_observed_hash,omitempty"`
-	OrderIndex       int             `json:"order_index"`
-	Role             ProjectFileRole `json:"role"`
-}
-
-// ProjectImportInspectRequest defines model for project-import-inspect-request.
-type ProjectImportInspectRequest struct {
-	CanonicalProjectNameOverride *string                         `json:"canonical_project_name_override,omitempty"`
-	DirectoryRef                 ProjectImportDirectoryReference `json:"directory_ref"`
-	DisplayName                  *string                         `json:"display_name,omitempty"`
-}
-
-// ProjectImportInspectResponse defines model for project-import-inspect-response.
-type ProjectImportInspectResponse struct {
-	CanonicalProjectName       string                                       `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource                   `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectImportInspectFileItem               `json:"compose_files"`
-	ConfigHash                 string                                       `json:"config_hash"`
-	Conflicts                  []string                                     `json:"conflicts"`
-	DirectoryRef               ProjectImportDirectoryReference              `json:"directory_ref"`
-	DisplayNameSuggested       string                                       `json:"display_name_suggested"`
-	EnvFiles                   []ProjectImportInspectFileItem               `json:"env_files"`
-	InspectionId               string                                       `json:"inspection_id"`
-	Networks                   []string                                     `json:"networks"`
-	ResolvedWorkingDirectory   string                                       `json:"resolved_working_directory"`
-	Services                   []string                                     `json:"services"`
-	ValidationStatus           ProjectImportInspectResponseValidationStatus `json:"validation_status"`
-	Volumes                    []string                                     `json:"volumes"`
-	Warnings                   []string                                     `json:"warnings"`
-}
-
-// ProjectImportInspectResponseValidationStatus defines model for ProjectImportInspectResponse.ValidationStatus.
-type ProjectImportInspectResponseValidationStatus string
-
-// ProjectImportRequest defines model for project-import-request.
-type ProjectImportRequest struct {
-	CanonicalProjectNameOverride *string                              `json:"canonical_project_name_override,omitempty"`
-	DisplayName                  *string                              `json:"display_name,omitempty"`
-	InspectionId                 string                               `json:"inspection_id"`
-	LifecycleConfiguration       ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
-}
-
-// ProjectImportResponse defines model for project-import-response.
-type ProjectImportResponse struct {
-	Project         ProjectDetailResponse `json:"project"`
-	SnapshotSummary struct {
-		ConfigHash           string    `json:"config_hash"`
-		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
-		RefreshedAt          time.Time `json:"refreshed_at"`
-	} `json:"snapshot_summary"`
-}
-
-// ProjectImportRuntimeCandidate defines model for project-import-runtime-candidate.
-type ProjectImportRuntimeCandidate struct {
-	CandidateKey         string                 `json:"candidate_key"`
-	CanonicalProjectName string                 `json:"canonical_project_name"`
-	ConfigFiles          []string               `json:"config_files"`
-	ContainerCounts      ProjectContainerCounts `json:"container_counts"`
-	Importable           bool                   `json:"importable"`
-
-	// RuntimeType Future-extensible runtime type resolved by the container runtime authority.
-	RuntimeType            string                                     `json:"runtime_type"`
-	RuntimeVersion         *string                                    `json:"runtime_version,omitempty"`
-	ServiceNames           []string                                   `json:"service_names"`
-	Status                 ProjectImportRuntimeCandidateStatus        `json:"status"`
-	StatusReasonCodes      []string                                   `json:"status_reason_codes"`
-	Warnings               []string                                   `json:"warnings"`
-	WorkingDirectory       string                                     `json:"working_directory"`
-	WorkingDirectorySource ProjectImportRuntimeWorkingDirectorySource `json:"working_directory_source"`
-}
-
-// ProjectImportRuntimeCandidateAvailability defines model for project-import-runtime-candidate-availability.
-type ProjectImportRuntimeCandidateAvailability string
-
-// ProjectImportRuntimeCandidateFilterCounts defines model for project-import-runtime-candidate-filter-counts.
-type ProjectImportRuntimeCandidateFilterCounts struct {
-	All         int `json:"all"`
-	Imported    int `json:"imported"`
-	Ready       int `json:"ready"`
-	Unavailable int `json:"unavailable"`
-}
-
-// ProjectImportRuntimeCandidateStatus defines model for project-import-runtime-candidate-status.
-type ProjectImportRuntimeCandidateStatus string
-
-// ProjectImportRuntimeCandidatesResponse defines model for project-import-runtime-candidates-response.
-type ProjectImportRuntimeCandidatesResponse struct {
-	FilterCounts ProjectImportRuntimeCandidateFilterCounts `json:"filter_counts"`
-	Items        []ProjectImportRuntimeCandidate           `json:"items"`
-	Limit        int                                       `json:"limit"`
-	Offset       int                                       `json:"offset"`
-	Total        int                                       `json:"total"`
-}
-
-// ProjectImportRuntimeInspectRequest defines model for project-import-runtime-inspect-request.
-type ProjectImportRuntimeInspectRequest struct {
-	CandidateKey                 string  `json:"candidate_key"`
-	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
-	DisplayName                  *string `json:"display_name,omitempty"`
-}
-
-// ProjectImportRuntimeInspectResponse defines model for project-import-runtime-inspect-response.
-type ProjectImportRuntimeInspectResponse struct {
-	CandidateKey               string                         `json:"candidate_key"`
-	CanonicalProjectName       string                         `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource     `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectImportInspectFileItem `json:"compose_files"`
-	ConfigHash                 string                         `json:"config_hash"`
-	Conflicts                  []string                       `json:"conflicts"`
-	DisplayNameSuggested       string                         `json:"display_name_suggested"`
-	EnvFiles                   []ProjectImportInspectFileItem `json:"env_files"`
-
-	// ExpiresAt Absolute UTC expiration time for this short-lived inspection session.
-	ExpiresAt                time.Time                                           `json:"expires_at"`
-	InspectionId             string                                              `json:"inspection_id"`
-	LifecycleConfiguration   ProjectLifecycleConfigurationRequest                `json:"lifecycle_configuration"`
-	Networks                 []ProjectImportRuntimeNetworkResource               `json:"networks"`
-	ResolvedWorkingDirectory string                                              `json:"resolved_working_directory"`
-	RuntimeMembers           []ProjectImportRuntimeMember                        `json:"runtime_members"`
-	Services                 []string                                            `json:"services"`
-	ValidationStatus         ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
-	Volumes                  []ProjectImportRuntimeVolumeResource                `json:"volumes"`
-	Warnings                 []string                                            `json:"warnings"`
-}
-
-// ProjectImportRuntimeInspectResponseValidationStatus defines model for ProjectImportRuntimeInspectResponse.ValidationStatus.
-type ProjectImportRuntimeInspectResponseValidationStatus string
-
-// ProjectImportRuntimeMember defines model for project-import-runtime-member.
-type ProjectImportRuntimeMember struct {
-	ContainerId   string `json:"container_id"`
-	ContainerName string `json:"container_name"`
-	ServiceName   string `json:"service_name"`
-	State         string `json:"state"`
-}
-
-// ProjectImportRuntimeNetworkResource defines model for project-import-runtime-network-resource.
-type ProjectImportRuntimeNetworkResource struct {
-	ContainerCount int      `json:"container_count"`
-	Containers     []string `json:"containers"`
-	Driver         *string  `json:"driver"`
-	Internal       *bool    `json:"internal"`
-	Name           string   `json:"name"`
-	Scope          *string  `json:"scope"`
-	ServiceCount   int      `json:"service_count"`
-	Services       []string `json:"services"`
-}
-
-// ProjectImportRuntimeVolumeResource defines model for project-import-runtime-volume-resource.
-type ProjectImportRuntimeVolumeResource struct {
-	Anonymous      bool     `json:"anonymous"`
-	ContainerCount int      `json:"container_count"`
-	Containers     []string `json:"containers"`
-	Driver         *string  `json:"driver"`
-	MountTarget    string   `json:"mount_target"`
-	MountedBy      []string `json:"mounted_by"`
-	Name           string   `json:"name"`
-}
-
-// ProjectImportRuntimeWorkingDirectorySource defines model for project-import-runtime-working-directory-source.
-type ProjectImportRuntimeWorkingDirectorySource string
-
-// ProjectImportValidateRequest defines model for project-import-validate-request.
-type ProjectImportValidateRequest struct {
-	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
-
-	// ComposeFiles Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file.
-	ComposeFiles     *[]string `json:"compose_files,omitempty"`
-	DisplayName      *string   `json:"display_name,omitempty"`
-	EnvFiles         *[]string `json:"env_files,omitempty"`
-	WorkingDirectory string    `json:"working_directory"`
-}
-
-// ProjectImportValidateResponse defines model for project-import-validate-response.
-type ProjectImportValidateResponse struct {
-	CanonicalProjectName       string                     `json:"canonical_project_name"`
-	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
-	ComposeFiles               []ProjectFileItem          `json:"compose_files"`
-	Conflicts                  []string                   `json:"conflicts"`
-	EnvFiles                   []ProjectFileItem          `json:"env_files"`
-	NormalizedPreviewSummary   *struct {
-		ConfigHash           *string   `json:"config_hash,omitempty"`
-		DeclaredServiceNames *[]string `json:"declared_service_names,omitempty"`
-	} `json:"normalized_preview_summary,omitempty"`
-	ServiceCount     int      `json:"service_count"`
-	Warnings         []string `json:"warnings"`
-	WorkingDirectory string   `json:"working_directory"`
-}
-
-// ProjectLifecycleCommandStep defines model for project-lifecycle-command-step.
-type ProjectLifecycleCommandStep struct {
-	Argv []string `json:"argv"`
-
-	// DisplayCommand Human-readable command preview derived from the canonical lifecycle configuration.
-	DisplayCommand string                          `json:"display_command"`
-	Kind           ProjectLifecycleCommandStepKind `json:"kind"`
-}
-
-// ProjectLifecycleCommandStepKind defines model for ProjectLifecycleCommandStep.Kind.
-type ProjectLifecycleCommandStepKind string
-
-// ProjectLifecycleConfiguration defines model for project-lifecycle-configuration.
-type ProjectLifecycleConfiguration struct {
-	AdditionalArgs     []string `json:"additional_args"`
-	BuildBeforeUp      bool     `json:"build_before_up"`
-	DownBeforeRedeploy bool     `json:"down_before_redeploy"`
-	ForceRecreate      bool     `json:"force_recreate"`
-	GeneratedCommands  struct {
-		Redeploy ProjectLifecycleGeneratedCommand `json:"redeploy"`
-		Restart  ProjectLifecycleGeneratedCommand `json:"restart"`
-		Stop     ProjectLifecycleGeneratedCommand `json:"stop"`
-		Up       ProjectLifecycleGeneratedCommand `json:"up"`
-	} `json:"generated_commands"`
-	Profiles                 []string `json:"profiles"`
-	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
-	RemoveOrphans            bool     `json:"remove_orphans"`
-	RenewAnonVolumes         bool     `json:"renew_anon_volumes"`
-
-	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
-	StrategyKind       ProjectLifecycleStrategyKind `json:"strategy_kind"`
-	WaitAfterUp        bool                         `json:"wait_after_up"`
-	WaitTimeoutSeconds int                          `json:"wait_timeout_seconds"`
-}
-
-// ProjectLifecycleConfigurationRequest defines model for project-lifecycle-configuration-request.
-type ProjectLifecycleConfigurationRequest struct {
-	// AdditionalArgs Bounded extra argv tokens appended to docker compose up; shell expressions and project identity flags are rejected by the server.
-	AdditionalArgs           *[]string `json:"additional_args,omitempty"`
-	BuildBeforeUp            bool      `json:"build_before_up"`
-	DownBeforeRedeploy       bool      `json:"down_before_redeploy"`
-	ForceRecreate            bool      `json:"force_recreate"`
-	Profiles                 []string  `json:"profiles"`
-	PruneImagesAfterRedeploy bool      `json:"prune_images_after_redeploy"`
-	PullBeforeRedeploy       bool      `json:"pull_before_redeploy"`
-	RemoveOrphans            bool      `json:"remove_orphans"`
-	RenewAnonVolumes         bool      `json:"renew_anon_volumes"`
-
-	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
-	StrategyKind       ProjectLifecycleStrategyKind `json:"strategy_kind"`
-	WaitAfterUp        bool                         `json:"wait_after_up"`
-	WaitTimeoutSeconds int                          `json:"wait_timeout_seconds"`
-}
-
-// ProjectLifecycleConfigurationResponse defines model for project-lifecycle-configuration-response.
-type ProjectLifecycleConfigurationResponse struct {
-	// CanonicalProjectName Read-only project runtime identity used for explicit `docker compose -p`.
-	CanonicalProjectName string `json:"canonical_project_name"`
-
-	// ComposeFiles Ordered tracked Compose files reused by lifecycle command generation.
-	ComposeFiles           []ProjectFileItem             `json:"compose_files"`
-	LifecycleConfiguration ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
-
-	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
-	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
-	ProjectId             int64                        `json:"project_id"`
-
-	// WorkingDirectory Read-only working directory authority reused by lifecycle command generation.
-	WorkingDirectory string `json:"working_directory"`
-}
-
-// ProjectLifecycleGeneratedCommand defines model for project-lifecycle-generated-command.
-type ProjectLifecycleGeneratedCommand struct {
-	Action ProjectLifecycleGeneratedCommandAction `json:"action"`
-
-	// DisplayCommand Combined preview for the selected lifecycle action.
-	DisplayCommand string                        `json:"display_command"`
-	Steps          []ProjectLifecycleCommandStep `json:"steps"`
-}
-
-// ProjectLifecycleGeneratedCommandAction defines model for ProjectLifecycleGeneratedCommand.Action.
-type ProjectLifecycleGeneratedCommandAction string
-
-// ProjectLifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
-type ProjectLifecycleReviewStatus string
-
-// ProjectLifecycleStrategyKind Canonical lifecycle execution strategy kind owned by the project module.
-type ProjectLifecycleStrategyKind string
-
-// ProjectListItem defines model for project-list-item.
-type ProjectListItem struct {
-	ActivityAuthority        ProjectActivityAuthority       `json:"activity_authority"`
-	ApplicationId            string                         `json:"application_id"`
-	ApplicationName          *string                        `json:"application_name,omitempty"`
-	ApplicationType          ProjectListItemApplicationType `json:"application_type"`
-	ComposeProjectName       string                         `json:"compose_project_name"`
-	ComposeProjectNameSource ProjectCanonicalNameSource     `json:"compose_project_name_source"`
-	ContainerCounts          ProjectContainerCounts         `json:"container_counts"`
-	DisplayName              string                         `json:"display_name"`
-	DriftStatus              ProjectDriftStatus             `json:"drift_status"`
-	HostScope                ProjectHostScope               `json:"host_scope"`
-
-	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
-	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
-	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
-
-	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus  *ProjectRuntimeStatus        `json:"runtime_status,omitempty"`
-	RuntimeTarget  *ProjectRuntimeTargetSummary `json:"runtime_target,omitempty"`
-	ServiceCount   int                          `json:"service_count"`
-	SourceKind     ProjectSourceKind            `json:"source_kind"`
-	SourceMetadata *ProjectSourceMetadata       `json:"source_metadata,omitempty"`
-	WorkspacePath  string                       `json:"workspace_path"`
-}
-
-// ProjectListItemApplicationType defines model for ProjectListItem.ApplicationType.
-type ProjectListItemApplicationType string
-
-// ProjectListResponse defines model for project-list-response.
-type ProjectListResponse struct {
-	Items  []ProjectListItem `json:"items"`
-	Limit  int               `json:"limit"`
-	Offset int               `json:"offset"`
-	Total  int               `json:"total"`
-}
-
-// ProjectLogEntry defines model for project-log-entry.
-type ProjectLogEntry struct {
-	ContainerId   string                `json:"container_id"`
-	ContainerName string                `json:"container_name"`
-	Line          string                `json:"line"`
-	OccurredAt    time.Time             `json:"occurred_at"`
-	ServiceName   string                `json:"service_name"`
-	Source        ProjectLogEntrySource `json:"source"`
-
-	// Stream Canonical runtime stream that produced the aggregated project log entry.
-	Stream ProjectLogEntryStream `json:"stream"`
-}
-
-// ProjectLogEntrySource defines model for project-log-entry-source.
-type ProjectLogEntrySource struct {
-	ContainerId   string `json:"container_id"`
-	ContainerName string `json:"container_name"`
-	ServiceName   string `json:"service_name"`
-}
-
-// ProjectLogEntryStream Canonical runtime stream that produced the aggregated project log entry.
-type ProjectLogEntryStream string
-
-// ProjectLogResponse defines model for project-log-response.
-type ProjectLogResponse struct {
-	CanonicalProjectName string            `json:"canonical_project_name"`
-	Entries              []ProjectLogEntry `json:"entries"`
-	ProjectId            int64             `json:"project_id"`
-	Since                *string           `json:"since,omitempty"`
-	Stderr               bool              `json:"stderr"`
-	Stdout               bool              `json:"stdout"`
-	Tail                 int               `json:"tail"`
-	Timestamps           bool              `json:"timestamps"`
-	Truncated            bool              `json:"truncated"`
-}
-
-// ProjectManagedRootResponse defines model for project-managed-root-response.
-type ProjectManagedRootResponse struct {
-	ConfigKey               string                   `json:"config_key"`
-	ConfiguredRootDirectory *string                  `json:"configured_root_directory,omitempty"`
-	CreatePermission        string                   `json:"create_permission"`
-	OwnershipMode           ProjectOwnershipMode     `json:"ownership_mode"`
-	SourceType              ProjectSourceKind        `json:"source_type"`
-	Status                  ProjectManagedRootStatus `json:"status"`
-	StatusReason            *string                  `json:"status_reason,omitempty"`
-	SupportsManagedCreate   bool                     `json:"supports_managed_create"`
-}
-
-// ProjectManagedRootStatus defines model for project-managed-root-status.
-type ProjectManagedRootStatus string
-
-// ProjectOverviewHealthSummary defines model for project-overview-health-summary.
-type ProjectOverviewHealthSummary struct {
-	HealthyContainerCount   int `json:"healthy_container_count"`
-	HealthyServiceCount     int `json:"healthy_service_count"`
-	NetworksCount           int `json:"networks_count"`
-	RestartCount            int `json:"restart_count"`
-	StartingContainerCount  int `json:"starting_container_count"`
-	UnhealthyContainerCount int `json:"unhealthy_container_count"`
-	VolumesCount            int `json:"volumes_count"`
-}
-
-// ProjectOverviewResourceSummary defines model for project-overview-resource-summary.
-type ProjectOverviewResourceSummary struct {
-	CpuPercent       float64 `json:"cpu_percent"`
-	MemoryLimitBytes int64   `json:"memory_limit_bytes"`
-	MemoryUsageBytes int64   `json:"memory_usage_bytes"`
-	RxBytes          int64   `json:"rx_bytes"`
-
-	// StatsAvailable True when at least one runtime member contributed backend resource stats to this overview snapshot.
-	StatsAvailable               bool  `json:"stats_available"`
-	StatsAvailableContainerCount int   `json:"stats_available_container_count"`
-	TxBytes                      int64 `json:"tx_bytes"`
-}
-
-// ProjectOverviewResponse defines model for project-overview-response.
-type ProjectOverviewResponse struct {
-	ApplicationId      string                         `json:"application_id"`
-	CollectedAt        *time.Time                     `json:"collected_at,omitempty"`
-	ComposeProjectName string                         `json:"compose_project_name"`
-	Health             ProjectOverviewHealthSummary   `json:"health"`
-	Resources          ProjectOverviewResourceSummary `json:"resources"`
-	Services           []ProjectOverviewServiceItem   `json:"services"`
-}
-
-// ProjectOverviewServiceItem defines model for project-overview-service-item.
-type ProjectOverviewServiceItem struct {
-	ContainerCount               int                              `json:"container_count"`
-	CpuPercent                   float64                          `json:"cpu_percent"`
-	Health                       ProjectOverviewServiceItemHealth `json:"health"`
-	HealthyContainerCount        int                              `json:"healthy_container_count"`
-	Image                        *string                          `json:"image,omitempty"`
-	IssueCount                   int                              `json:"issue_count"`
-	MemoryLimitBytes             int64                            `json:"memory_limit_bytes"`
-	MemoryUsageBytes             int64                            `json:"memory_usage_bytes"`
-	RestartCount                 int                              `json:"restart_count"`
-	RunningCount                 int                              `json:"running_count"`
-	ServiceName                  string                           `json:"service_name"`
-	StartingContainerCount       int                              `json:"starting_container_count"`
-	StatsAvailable               bool                             `json:"stats_available"`
-	StatsAvailableContainerCount int                              `json:"stats_available_container_count"`
-	Status                       ProjectOverviewServiceItemStatus `json:"status"`
-	StoppedCount                 int                              `json:"stopped_count"`
-	TransitioningCount           int                              `json:"transitioning_count"`
-	UnhealthyContainerCount      int                              `json:"unhealthy_container_count"`
-}
-
-// ProjectOverviewServiceItemHealth defines model for ProjectOverviewServiceItem.Health.
-type ProjectOverviewServiceItemHealth string
-
-// ProjectOverviewServiceItemStatus defines model for ProjectOverviewServiceItem.Status.
-type ProjectOverviewServiceItemStatus string
-
-// ProjectOwnershipMode defines model for project-ownership-mode.
-type ProjectOwnershipMode string
-
-// ProjectRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
-type ProjectRuntimeStatus string
-
-// ProjectRuntimeTargetSummary defines model for project-runtime-target-summary.
-type ProjectRuntimeTargetSummary struct {
-	DisplayName string                              `json:"display_name"`
-	Id          int64                               `json:"id"`
-	Provider    ProjectRuntimeTargetSummaryProvider `json:"provider"`
-}
-
-// ProjectRuntimeTargetSummaryProvider defines model for ProjectRuntimeTargetSummary.Provider.
-type ProjectRuntimeTargetSummaryProvider string
-
-// ProjectSavedView defines model for project-saved-view.
-type ProjectSavedView struct {
-	CreatedAt time.Time `json:"created_at"`
-	Id        int64     `json:"id"`
-	Name      string    `json:"name"`
-	PageSize  int       `json:"page_size"`
-
-	// QueryState Consumer-validated filter and query state. It never contains the current page number.
-	QueryState     map[string]interface{} `json:"query_state"`
-	UpdatedAt      time.Time              `json:"updated_at"`
-	VisibleColumns []string               `json:"visible_columns"`
-}
-
-// ProjectSavedViewListResponse defines model for project-saved-view-list-response.
-type ProjectSavedViewListResponse struct {
-	Items []ProjectSavedView `json:"items"`
-}
-
-// ProjectSavedViewRequest defines model for project-saved-view-request.
-type ProjectSavedViewRequest struct {
-	Name     string `json:"name"`
-	PageSize int    `json:"page_size"`
-
-	// QueryState Project-list filter state. The server validates this payload for the project saved-view surface.
-	QueryState struct {
-		ApplicationType *ProjectSavedViewRequestQueryStateApplicationType `json:"application_type,omitempty"`
-		DriftStatus     *ProjectDriftStatus                               `json:"drift_status,omitempty"`
-		Keyword         *string                                           `json:"keyword,omitempty"`
-		Provider        *ProjectSavedViewRequestQueryStateProvider        `json:"provider,omitempty"`
-
-		// RuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
-		RuntimeStatus   *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
-		RuntimeTargetId *int64                `json:"runtime_target_id,omitempty"`
-
-		// Sort Optional project-list sort expression; omitted values use created_at:desc.
-		Sort       *[]ProjectSavedViewRequestQueryStateSort `json:"sort,omitempty"`
-		SourceKind *ProjectSourceKind                       `json:"source_kind,omitempty"`
-	} `json:"query_state"`
-	VisibleColumns []ProjectSavedViewRequestVisibleColumns `json:"visible_columns"`
-}
-
-// ProjectSavedViewRequestQueryStateApplicationType defines model for ProjectSavedViewRequest.QueryState.ApplicationType.
-type ProjectSavedViewRequestQueryStateApplicationType string
-
-// ProjectSavedViewRequestQueryStateProvider defines model for ProjectSavedViewRequest.QueryState.Provider.
-type ProjectSavedViewRequestQueryStateProvider string
-
-// ProjectSavedViewRequestQueryStateSort defines model for ProjectSavedViewRequest.QueryState.Sort.
-type ProjectSavedViewRequestQueryStateSort string
-
-// ProjectSavedViewRequestVisibleColumns defines model for ProjectSavedViewRequest.VisibleColumns.
-type ProjectSavedViewRequestVisibleColumns string
-
-// ProjectServiceItem defines model for project-service-item.
-type ProjectServiceItem struct {
-	BuildContext     *string `json:"build_context,omitempty"`
-	ContainerMembers []struct {
-		ContainerId   string `json:"container_id"`
-		ContainerName string `json:"container_name"`
-		State         string `json:"state"`
-	} `json:"container_members"`
-	DeclaredNetworks *[]string `json:"declared_networks,omitempty"`
-	DeclaredPorts    *[]string `json:"declared_ports,omitempty"`
-	DeclaredVolumes  *[]string `json:"declared_volumes,omitempty"`
-	Image            *string   `json:"image,omitempty"`
-	RunningCount     int       `json:"running_count"`
-	ServiceName      string    `json:"service_name"`
-	StoppedCount     int       `json:"stopped_count"`
-}
-
-// ProjectServicesResponse defines model for project-services-response.
-type ProjectServicesResponse struct {
-	CanonicalProjectName string               `json:"canonical_project_name"`
-	Items                []ProjectServiceItem `json:"items"`
-	ProjectId            int64                `json:"project_id"`
-}
-
-// ProjectSourceKind defines model for project-source-kind.
-type ProjectSourceKind string
-
-// ProjectSourceMetadata defines model for project-source-metadata.
-type ProjectSourceMetadata struct {
-	// ManagedComposeFileName Canonical managed compose file name tracked by project authority.
-	ManagedComposeFileName *string `json:"managed_compose_file_name,omitempty"`
-
-	// ManagedEnvFileName Optional managed env file name tracked by project authority.
-	ManagedEnvFileName *string `json:"managed_env_file_name,omitempty"`
-
-	// ManagedRelativeDirectory Relative directory currently owned by the managed project root.
-	ManagedRelativeDirectory *string `json:"managed_relative_directory,omitempty"`
-
-	// ManagedRootKey Canonical config key that owns the managed project root.
-	ManagedRootKey *string `json:"managed_root_key,omitempty"`
-
-	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
-	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
-
-	// TemplateKey Planned stable template identifier for a future template-backed project source.
-	TemplateKey *string `json:"template_key,omitempty"`
-
-	// TemplateVersion Planned template version or release channel.
-	TemplateVersion *string `json:"template_version,omitempty"`
-}
-
-// ProjectTemplateCreateRequest defines model for project-template-create-request.
-type ProjectTemplateCreateRequest struct {
-	// ApplicationName Required unique machine-safe application name for the managed directory and Compose project identity.
-	ApplicationName        string                                `json:"application_name"`
-	DisplayName            string                                `json:"display_name"`
-	LifecycleConfiguration *ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-	RuntimeTargetId        int64                                 `json:"runtime_target_id"`
-
-	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the application name.
-	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
-
-	// TemplateKey Runtime template directory key. Defaults to default.
-	TemplateKey *string `json:"template_key,omitempty"`
-
-	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
-	TemplateVersion *string `json:"template_version,omitempty"`
-}
-
-// ProjectWorkspaceDefaultsResponse defines model for project-workspace-defaults-response.
-type ProjectWorkspaceDefaultsResponse struct {
-	ComposeFilePath        string                               `json:"compose_file_path"`
-	DefaultTemplateKey     string                               `json:"default_template_key"`
-	LifecycleConfiguration ProjectLifecycleConfigurationRequest `json:"lifecycle_configuration"`
-	Templates              []struct {
-		DisplayName string `json:"display_name"`
-		Key         string `json:"key"`
-	} `json:"templates"`
-	WorkspaceEntries []ProjectWorkspaceEntry `json:"workspace_entries"`
-}
-
-// ProjectWorkspaceEntry defines model for project-workspace-entry.
-type ProjectWorkspaceEntry struct {
-	// Content Required UTF-8 text content for file entries and omitted for directory entries.
-	Content  *string                       `json:"content,omitempty"`
-	NodeType ProjectWorkspaceEntryNodeType `json:"node_type"`
-
-	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
-	Path string `json:"path"`
-}
-
-// ProjectWorkspaceEntryNodeType defines model for ProjectWorkspaceEntry.NodeType.
-type ProjectWorkspaceEntryNodeType string
-
-// ProjectWorkspaceEntryCreateRequest defines model for project-workspace-entry-create-request.
-type ProjectWorkspaceEntryCreateRequest struct {
-	union json.RawMessage
-}
-
-// ProjectWorkspaceEntryCreateRequest0 defines model for .
-type ProjectWorkspaceEntryCreateRequest0 struct {
-	// Content Required UTF-8 text content for file entries.
-	Content  string                                      `json:"content"`
-	NodeType ProjectWorkspaceEntryCreateRequest0NodeType `json:"node_type"`
-
-	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
-	Path string `json:"path"`
-}
-
-// ProjectWorkspaceEntryCreateRequest0NodeType defines model for ProjectWorkspaceEntryCreateRequest.0.NodeType.
-type ProjectWorkspaceEntryCreateRequest0NodeType string
-
-// ProjectWorkspaceEntryCreateRequest1 defines model for .
-type ProjectWorkspaceEntryCreateRequest1 struct {
-	// Content Required UTF-8 text content for file entries and omitted for directory entries.
-	Content  *string                                     `json:"content,omitempty"`
-	NodeType ProjectWorkspaceEntryCreateRequest1NodeType `json:"node_type"`
-
-	// Path Relative workspace path. Names and extensions are unrestricted; absolute paths and traversal are rejected.
-	Path string `json:"path"`
-}
-
-// ProjectWorkspaceEntryCreateRequest1NodeType defines model for ProjectWorkspaceEntryCreateRequest.1.NodeType.
-type ProjectWorkspaceEntryCreateRequest1NodeType string
-
-// ProjectWorkspaceEntryRenameRequest defines model for project-workspace-entry-rename-request.
-type ProjectWorkspaceEntryRenameRequest struct {
-	NewPath string `json:"new_path"`
-	Path    string `json:"path"`
-}
-
-// ProjectWorkspaceFileKind defines model for project-workspace-file-kind.
-type ProjectWorkspaceFileKind string
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -10791,6 +10750,63 @@ type UserRoleSummary struct {
 // AnnouncementIdPath defines model for announcement-id-path.
 type AnnouncementIdPath = int64
 
+// ApplicationIdPath Stable public Graft Application identifier.
+type ApplicationIdPath = ApplicationId
+
+// ApplicationImportRuntimeCandidateListAvailability defines model for application-import-runtime-candidate-list-availability.
+type ApplicationImportRuntimeCandidateListAvailability = ApplicationImportRuntimeCandidateAvailability
+
+// ApplicationImportRuntimeCandidateListKeyword defines model for application-import-runtime-candidate-list-keyword.
+type ApplicationImportRuntimeCandidateListKeyword = string
+
+// ApplicationImportRuntimeCandidateListLimit defines model for application-import-runtime-candidate-list-limit.
+type ApplicationImportRuntimeCandidateListLimit = int
+
+// ApplicationImportRuntimeCandidateListOffset defines model for application-import-runtime-candidate-list-offset.
+type ApplicationImportRuntimeCandidateListOffset = int
+
+// ApplicationListApplicationType Public Application deployment type. Compose is the only currently supported value.
+type ApplicationListApplicationType = ApplicationType
+
+// ApplicationListDriftStatus defines model for application-list-drift-status.
+type ApplicationListDriftStatus = ApplicationDriftStatus
+
+// ApplicationListKeyword defines model for application-list-keyword.
+type ApplicationListKeyword = string
+
+// ApplicationListLimit defines model for application-list-limit.
+type ApplicationListLimit = int
+
+// ApplicationListOffset defines model for application-list-offset.
+type ApplicationListOffset = int
+
+// ApplicationListProvider defines model for application-list-provider.
+type ApplicationListProvider string
+
+// ApplicationListRuntimeStatus Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
+type ApplicationListRuntimeStatus = ApplicationRuntimeStatus
+
+// ApplicationListRuntimeTargetId defines model for application-list-runtime-target-id.
+type ApplicationListRuntimeTargetId = int64
+
+// ApplicationListSort defines model for application-list-sort.
+type ApplicationListSort = []string
+
+// ApplicationListSourceType defines model for application-list-source-type.
+type ApplicationListSourceType = ApplicationSourceType
+
+// ApplicationLogsTail defines model for application-logs-tail.
+type ApplicationLogsTail = int
+
+// ApplicationSavedViewId defines model for application-saved-view-id.
+type ApplicationSavedViewId = int64
+
+// ApplicationWorkspacePathQuery defines model for application-workspace-path-query.
+type ApplicationWorkspacePathQuery = string
+
+// ApplicationWorkspaceShowHiddenQuery defines model for application-workspace-show-hidden-query.
+type ApplicationWorkspaceShowHiddenQuery = bool
+
 // ContainerIdPath defines model for container-id-path.
 type ContainerIdPath = string
 
@@ -10838,63 +10854,6 @@ type ContainerShellTicketQuery = string
 
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
-
-// ProjectIdPath defines model for project-id-path.
-type ProjectIdPath = string
-
-// ProjectImportRuntimeCandidateListAvailability defines model for project-import-runtime-candidate-list-availability.
-type ProjectImportRuntimeCandidateListAvailability = ProjectImportRuntimeCandidateAvailability
-
-// ProjectImportRuntimeCandidateListKeyword defines model for project-import-runtime-candidate-list-keyword.
-type ProjectImportRuntimeCandidateListKeyword = string
-
-// ProjectImportRuntimeCandidateListLimit defines model for project-import-runtime-candidate-list-limit.
-type ProjectImportRuntimeCandidateListLimit = int
-
-// ProjectImportRuntimeCandidateListOffset defines model for project-import-runtime-candidate-list-offset.
-type ProjectImportRuntimeCandidateListOffset = int
-
-// ProjectListApplicationType defines model for project-list-application-type.
-type ProjectListApplicationType string
-
-// ProjectListDriftStatus defines model for project-list-drift-status.
-type ProjectListDriftStatus = ProjectDriftStatus
-
-// ProjectListKeyword defines model for project-list-keyword.
-type ProjectListKeyword = string
-
-// ProjectListLimit defines model for project-list-limit.
-type ProjectListLimit = int
-
-// ProjectListOffset defines model for project-list-offset.
-type ProjectListOffset = int
-
-// ProjectListProvider defines model for project-list-provider.
-type ProjectListProvider string
-
-// ProjectListRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
-type ProjectListRuntimeStatus = ProjectRuntimeStatus
-
-// ProjectListRuntimeTargetId defines model for project-list-runtime-target-id.
-type ProjectListRuntimeTargetId = int64
-
-// ProjectListSort defines model for project-list-sort.
-type ProjectListSort = []string
-
-// ProjectListSourceKind defines model for project-list-source-kind.
-type ProjectListSourceKind = ProjectSourceKind
-
-// ProjectLogsTail defines model for project-logs-tail.
-type ProjectLogsTail = int
-
-// ProjectSavedViewId defines model for project-saved-view-id.
-type ProjectSavedViewId = int64
-
-// ProjectWorkspacePathQuery defines model for project-workspace-path-query.
-type ProjectWorkspacePathQuery = string
-
-// ProjectWorkspaceShowHiddenQuery defines model for project-workspace-show-hidden-query.
-type ProjectWorkspaceShowHiddenQuery = bool
 
 // RealtimeTicketQuery defines model for realtime-ticket-query.
 type RealtimeTicketQuery = string
@@ -11708,6 +11667,507 @@ type PostNotificationReadParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetApplicationsParams defines parameters for GetApplications.
+type GetApplicationsParams struct {
+	// Limit Optional maximum number of applications to return. The runtime accepts values from 1 to 100.
+	Limit *ApplicationListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for applications.
+	Offset *ApplicationListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Keyword Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.
+	Keyword *ApplicationListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// ApplicationType Optional application type. Compose is the only currently supported type.
+	ApplicationType *ApplicationListApplicationType `form:"application_type,omitempty" json:"application_type,omitempty"`
+
+	// RuntimeTargetId Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.
+	RuntimeTargetId *ApplicationListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
+
+	// Provider Optional Runtime Target provider. Docker is the only current Compose provider.
+	Provider *GetApplicationsParamsProvider `form:"provider,omitempty" json:"provider,omitempty"`
+
+	// SourceType Optional application source filter.
+	SourceType *ApplicationListSourceType `form:"source_type,omitempty" json:"source_type,omitempty"`
+
+	// RuntimeStatus Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.
+	RuntimeStatus *ApplicationListRuntimeStatus `form:"runtime_status,omitempty" json:"runtime_status,omitempty"`
+
+	// DriftStatus Optional application drift-status filter.
+	DriftStatus *ApplicationListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
+
+	// Sort Repeated application-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc.
+	Sort *ApplicationListSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationsParamsProvider defines parameters for GetApplications.
+type GetApplicationsParamsProvider string
+
+// GetApplicationsParamsSort defines parameters for GetApplications.
+type GetApplicationsParamsSort string
+
+// PostApplicationBatchActionsParams defines parameters for PostApplicationBatchActions.
+type PostApplicationBatchActionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationNameAvailabilityParams defines parameters for PostApplicationNameAvailability.
+type PostApplicationNameAvailabilityParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationCreateParams defines parameters for PostApplicationCreate.
+type PostApplicationCreateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationCreateValidateParams defines parameters for PostApplicationCreateValidate.
+type PostApplicationCreateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationCreateTemplateParams defines parameters for PostApplicationCreateTemplate.
+type PostApplicationCreateTemplateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationCreateTemplateValidateParams defines parameters for PostApplicationCreateTemplateValidate.
+type PostApplicationCreateTemplateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationWorkspaceDefaultsParams defines parameters for GetApplicationWorkspaceDefaults.
+type GetApplicationWorkspaceDefaultsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationCreationMethodsParams defines parameters for GetApplicationCreationMethods.
+type GetApplicationCreationMethodsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationDiscoveryCandidatesParams defines parameters for GetApplicationDiscoveryCandidates.
+type GetApplicationDiscoveryCandidatesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationImportParams defines parameters for PostApplicationImport.
+type PostApplicationImportParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationImportDirectoriesParams defines parameters for GetApplicationImportDirectories.
+type GetApplicationImportDirectoriesParams struct {
+	// Provider Import directory provider key. MVP supports only `local`.
+	Provider *string `form:"provider,omitempty" json:"provider,omitempty"`
+	RootId   string  `form:"root_id" json:"root_id"`
+
+	// Path Root-relative directory path.
+	Path   *string                                     `form:"path,omitempty" json:"path,omitempty"`
+	Limit  *int                                        `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int                                        `form:"offset,omitempty" json:"offset,omitempty"`
+	Sort   *GetApplicationImportDirectoriesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
+	Order  *GetApplicationImportDirectoriesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationImportDirectoriesParamsSort defines parameters for GetApplicationImportDirectories.
+type GetApplicationImportDirectoriesParamsSort string
+
+// GetApplicationImportDirectoriesParamsOrder defines parameters for GetApplicationImportDirectories.
+type GetApplicationImportDirectoriesParamsOrder string
+
+// GetApplicationImportDirectorySourcesParams defines parameters for GetApplicationImportDirectorySources.
+type GetApplicationImportDirectorySourcesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationImportInspectParams defines parameters for PostApplicationImportInspect.
+type PostApplicationImportInspectParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationImportRuntimeCandidatesParams defines parameters for GetApplicationImportRuntimeCandidates.
+type GetApplicationImportRuntimeCandidatesParams struct {
+	// Keyword Optional case-insensitive keyword matched against application name, working directory, compose files, runtime, service names, and candidate diagnostics.
+	Keyword *ApplicationImportRuntimeCandidateListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Availability Optional runtime import availability filter.
+	Availability *ApplicationImportRuntimeCandidateListAvailability `form:"availability,omitempty" json:"availability,omitempty"`
+
+	// Limit Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100.
+	Limit *ApplicationImportRuntimeCandidateListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for runtime import candidates.
+	Offset *ApplicationImportRuntimeCandidateListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationImportRuntimeInspectParams defines parameters for PostApplicationImportRuntimeInspect.
+type PostApplicationImportRuntimeInspectParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationImportValidateParams defines parameters for PostApplicationImportValidate.
+type PostApplicationImportValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationManagedRootParams defines parameters for GetApplicationManagedRoot.
+type GetApplicationManagedRootParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationSavedViewsParams defines parameters for GetApplicationSavedViews.
+type GetApplicationSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationSavedViewParams defines parameters for PostApplicationSavedView.
+type PostApplicationSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteApplicationSavedViewParams defines parameters for DeleteApplicationSavedView.
+type DeleteApplicationSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutApplicationSavedViewParams defines parameters for PutApplicationSavedView.
+type PutApplicationSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationParams defines parameters for GetApplication.
+type GetApplicationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationConfigurationParams defines parameters for GetApplicationConfiguration.
+type GetApplicationConfigurationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationConfigurationPreviewParams defines parameters for GetApplicationConfigurationPreview.
+type GetApplicationConfigurationPreviewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationDestroyParams defines parameters for PostApplicationDestroy.
+type PostApplicationDestroyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationFilesParams defines parameters for GetApplicationFiles.
+type GetApplicationFilesParams struct {
+	// Path Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory.
+	Path *ApplicationWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// ShowHidden Whether the workspace should include directories and dot entries hidden by default.
+	ShowHidden *ApplicationWorkspaceShowHiddenQuery `form:"show_hidden,omitempty" json:"show_hidden,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutApplicationFileAnnotationParams defines parameters for PutApplicationFileAnnotation.
+type PutApplicationFileAnnotationParams struct {
+	// Path Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory.
+	Path *ApplicationWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationFileContentParams defines parameters for GetApplicationFileContent.
+type GetApplicationFileContentParams struct {
+	// Path Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory.
+	Path *ApplicationWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutApplicationFileContentParams defines parameters for PutApplicationFileContent.
+type PutApplicationFileContentParams struct {
+	// Path Relative path under the application's workspace_path. Omit or pass an empty value to browse the root directory.
+	Path *ApplicationWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteApplicationWorkspaceEntryParams defines parameters for DeleteApplicationWorkspaceEntry.
+type DeleteApplicationWorkspaceEntryParams struct {
+	Path      string `form:"path" json:"path"`
+	Recursive *bool  `form:"recursive,omitempty" json:"recursive,omitempty"`
+}
+
+// PutApplicationLifecycleConfigurationParams defines parameters for PutApplicationLifecycleConfiguration.
+type PutApplicationLifecycleConfigurationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationLogsParams defines parameters for GetApplicationLogs.
+type GetApplicationLogsParams struct {
+	// Tail Number of aggregated application log lines to return from the end of the application stream.
+	Tail *ApplicationLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
+
+	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
+	Since *ContainerLogsSince `form:"since,omitempty" json:"since,omitempty"`
+
+	// Timestamps Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.
+	Timestamps *ContainerLogsTimestamps `form:"timestamps,omitempty" json:"timestamps,omitempty"`
+
+	// Stdout Whether stdout stream lines should be included.
+	Stdout *ContainerLogsStdout `form:"stdout,omitempty" json:"stdout,omitempty"`
+
+	// Stderr Whether stderr stream lines should be included.
+	Stderr *ContainerLogsStderr `form:"stderr,omitempty" json:"stderr,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationOverviewParams defines parameters for GetApplicationOverview.
+type GetApplicationOverviewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationRedeployParams defines parameters for PostApplicationRedeploy.
+type PostApplicationRedeployParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationRefreshParams defines parameters for PostApplicationRefresh.
+type PostApplicationRefreshParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationRestartParams defines parameters for PostApplicationRestart.
+type PostApplicationRestartParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationServicesParams defines parameters for GetApplicationServices.
+type GetApplicationServicesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationStopParams defines parameters for PostApplicationStop.
+type PostApplicationStopParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationUnregisterParams defines parameters for PostApplicationUnregister.
+type PostApplicationUnregisterParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostApplicationUpParams defines parameters for PostApplicationUp.
+type PostApplicationUpParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetContainersParams defines parameters for GetContainers.
 type GetContainersParams struct {
 	// Limit Optional maximum number of containers to return. The runtime accepts values from 1 to 100.
@@ -11885,510 +12345,6 @@ type PostContainerStartParams struct {
 
 // PostContainerStopParams defines parameters for PostContainerStop.
 type PostContainerStopParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectsParams defines parameters for GetProjects.
-type GetProjectsParams struct {
-	// Limit Optional maximum number of projects to return. The runtime accepts values from 1 to 100.
-	Limit *ProjectListLimit `form:"limit,omitempty" json:"limit,omitempty"`
-
-	// Offset Optional zero-based offset for projects.
-	Offset *ProjectListOffset `form:"offset,omitempty" json:"offset,omitempty"`
-
-	// Keyword Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.
-	Keyword *ProjectListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
-
-	// ApplicationType Optional application type. Compose is the only currently supported type.
-	ApplicationType *GetProjectsParamsApplicationType `form:"application_type,omitempty" json:"application_type,omitempty"`
-
-	// RuntimeTargetId Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.
-	RuntimeTargetId *ProjectListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
-
-	// Provider Optional Runtime Target provider. Docker is the only current Compose provider.
-	Provider *GetProjectsParamsProvider `form:"provider,omitempty" json:"provider,omitempty"`
-
-	// SourceKind Optional project source filter.
-	SourceKind *ProjectListSourceKind `form:"source_kind,omitempty" json:"source_kind,omitempty"`
-
-	// RuntimeStatus Optional derived Compose runtime status filter, evaluated by the server before it returns the list page.
-	RuntimeStatus *ProjectListRuntimeStatus `form:"runtime_status,omitempty" json:"runtime_status,omitempty"`
-
-	// DriftStatus Optional project drift-status filter.
-	DriftStatus *ProjectListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
-
-	// Sort Repeated project-list sort expression. The current contract accepts at most one created_at direction and defaults to created_at:desc.
-	Sort *ProjectListSort `form:"sort,omitempty" json:"sort,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectsParamsApplicationType defines parameters for GetProjects.
-type GetProjectsParamsApplicationType string
-
-// GetProjectsParamsProvider defines parameters for GetProjects.
-type GetProjectsParamsProvider string
-
-// GetProjectsParamsSort defines parameters for GetProjects.
-type GetProjectsParamsSort string
-
-// PostProjectBatchActionsParams defines parameters for PostProjectBatchActions.
-type PostProjectBatchActionsParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectApplicationNameAvailabilityParams defines parameters for PostProjectApplicationNameAvailability.
-type PostProjectApplicationNameAvailabilityParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectCreateParams defines parameters for PostProjectCreate.
-type PostProjectCreateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectCreateValidateParams defines parameters for PostProjectCreateValidate.
-type PostProjectCreateValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectCreateTemplateParams defines parameters for PostProjectCreateTemplate.
-type PostProjectCreateTemplateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectCreateTemplateValidateParams defines parameters for PostProjectCreateTemplateValidate.
-type PostProjectCreateTemplateValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectWorkspaceDefaultsParams defines parameters for GetProjectWorkspaceDefaults.
-type GetProjectWorkspaceDefaultsParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectCreationMethodsParams defines parameters for GetProjectCreationMethods.
-type GetProjectCreationMethodsParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectDiscoveryCandidatesParams defines parameters for GetProjectDiscoveryCandidates.
-type GetProjectDiscoveryCandidatesParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectImportParams defines parameters for PostProjectImport.
-type PostProjectImportParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectImportDirectoriesParams defines parameters for GetProjectImportDirectories.
-type GetProjectImportDirectoriesParams struct {
-	// Provider Import directory provider key. MVP supports only `local`.
-	Provider *string `form:"provider,omitempty" json:"provider,omitempty"`
-	RootId   string  `form:"root_id" json:"root_id"`
-
-	// Path Root-relative directory path.
-	Path   *string                                 `form:"path,omitempty" json:"path,omitempty"`
-	Limit  *int                                    `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int                                    `form:"offset,omitempty" json:"offset,omitempty"`
-	Sort   *GetProjectImportDirectoriesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
-	Order  *GetProjectImportDirectoriesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectImportDirectoriesParamsSort defines parameters for GetProjectImportDirectories.
-type GetProjectImportDirectoriesParamsSort string
-
-// GetProjectImportDirectoriesParamsOrder defines parameters for GetProjectImportDirectories.
-type GetProjectImportDirectoriesParamsOrder string
-
-// GetProjectImportDirectorySourcesParams defines parameters for GetProjectImportDirectorySources.
-type GetProjectImportDirectorySourcesParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectImportInspectParams defines parameters for PostProjectImportInspect.
-type PostProjectImportInspectParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectImportRuntimeCandidatesParams defines parameters for GetProjectImportRuntimeCandidates.
-type GetProjectImportRuntimeCandidatesParams struct {
-	// Keyword Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics.
-	Keyword *ProjectImportRuntimeCandidateListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
-
-	// Availability Optional runtime import availability filter.
-	Availability *ProjectImportRuntimeCandidateListAvailability `form:"availability,omitempty" json:"availability,omitempty"`
-
-	// Limit Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100.
-	Limit *ProjectImportRuntimeCandidateListLimit `form:"limit,omitempty" json:"limit,omitempty"`
-
-	// Offset Optional zero-based offset for runtime import candidates.
-	Offset *ProjectImportRuntimeCandidateListOffset `form:"offset,omitempty" json:"offset,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectImportRuntimeInspectParams defines parameters for PostProjectImportRuntimeInspect.
-type PostProjectImportRuntimeInspectParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectImportValidateParams defines parameters for PostProjectImportValidate.
-type PostProjectImportValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
-type GetProjectManagedRootParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectSavedViewsParams defines parameters for GetProjectSavedViews.
-type GetProjectSavedViewsParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectSavedViewParams defines parameters for PostProjectSavedView.
-type PostProjectSavedViewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// DeleteProjectSavedViewParams defines parameters for DeleteProjectSavedView.
-type DeleteProjectSavedViewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PutProjectSavedViewParams defines parameters for PutProjectSavedView.
-type PutProjectSavedViewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectParams defines parameters for GetProject.
-type GetProjectParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectConfigurationParams defines parameters for GetProjectConfiguration.
-type GetProjectConfigurationParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectConfigurationPreviewParams defines parameters for GetProjectConfigurationPreview.
-type GetProjectConfigurationPreviewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectDestroyParams defines parameters for PostProjectDestroy.
-type PostProjectDestroyParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectFilesParams defines parameters for GetProjectFiles.
-type GetProjectFilesParams struct {
-	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
-	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
-
-	// ShowHidden Whether the workspace should include directories and dot entries hidden by default.
-	ShowHidden *ProjectWorkspaceShowHiddenQuery `form:"show_hidden,omitempty" json:"show_hidden,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PutProjectFileAnnotationParams defines parameters for PutProjectFileAnnotation.
-type PutProjectFileAnnotationParams struct {
-	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
-	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectFileContentParams defines parameters for GetProjectFileContent.
-type GetProjectFileContentParams struct {
-	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
-	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PutProjectFileContentParams defines parameters for PutProjectFileContent.
-type PutProjectFileContentParams struct {
-	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
-	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// DeleteProjectWorkspaceEntryParams defines parameters for DeleteProjectWorkspaceEntry.
-type DeleteProjectWorkspaceEntryParams struct {
-	Path      string `form:"path" json:"path"`
-	Recursive *bool  `form:"recursive,omitempty" json:"recursive,omitempty"`
-}
-
-// PutProjectLifecycleConfigurationParams defines parameters for PutProjectLifecycleConfiguration.
-type PutProjectLifecycleConfigurationParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectLogsParams defines parameters for GetProjectLogs.
-type GetProjectLogsParams struct {
-	// Tail Number of aggregated project log lines to return from the end of the project stream.
-	Tail *ProjectLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
-
-	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
-	Since *ContainerLogsSince `form:"since,omitempty" json:"since,omitempty"`
-
-	// Timestamps Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.
-	Timestamps *ContainerLogsTimestamps `form:"timestamps,omitempty" json:"timestamps,omitempty"`
-
-	// Stdout Whether stdout stream lines should be included.
-	Stdout *ContainerLogsStdout `form:"stdout,omitempty" json:"stdout,omitempty"`
-
-	// Stderr Whether stderr stream lines should be included.
-	Stderr *ContainerLogsStderr `form:"stderr,omitempty" json:"stderr,omitempty"`
-
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectOverviewParams defines parameters for GetProjectOverview.
-type GetProjectOverviewParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectRedeployParams defines parameters for PostProjectRedeploy.
-type PostProjectRedeployParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectRefreshParams defines parameters for PostProjectRefresh.
-type PostProjectRefreshParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectRestartParams defines parameters for PostProjectRestart.
-type PostProjectRestartParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetProjectServicesParams defines parameters for GetProjectServices.
-type GetProjectServicesParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectStopParams defines parameters for PostProjectStop.
-type PostProjectStopParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectUnregisterParams defines parameters for PostProjectUnregister.
-type PostProjectUnregisterParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectUpParams defines parameters for PostProjectUp.
-type PostProjectUpParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -13096,6 +13052,60 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 // PostNotificationsReadAllJSONRequestBody defines body for PostNotificationsReadAll for application/json ContentType.
 type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
 
+// PostApplicationBatchActionsJSONRequestBody defines body for PostApplicationBatchActions for application/json ContentType.
+type PostApplicationBatchActionsJSONRequestBody = ApplicationBatchActionRequest
+
+// PostApplicationNameAvailabilityJSONRequestBody defines body for PostApplicationNameAvailability for application/json ContentType.
+type PostApplicationNameAvailabilityJSONRequestBody = ApplicationNameAvailabilityRequest
+
+// PostApplicationCreateJSONRequestBody defines body for PostApplicationCreate for application/json ContentType.
+type PostApplicationCreateJSONRequestBody = ApplicationCreateRequest
+
+// PostApplicationCreateValidateJSONRequestBody defines body for PostApplicationCreateValidate for application/json ContentType.
+type PostApplicationCreateValidateJSONRequestBody = ApplicationCreateValidateRequest
+
+// PostApplicationCreateTemplateJSONRequestBody defines body for PostApplicationCreateTemplate for application/json ContentType.
+type PostApplicationCreateTemplateJSONRequestBody = ApplicationTemplateCreateRequest
+
+// PostApplicationCreateTemplateValidateJSONRequestBody defines body for PostApplicationCreateTemplateValidate for application/json ContentType.
+type PostApplicationCreateTemplateValidateJSONRequestBody = ApplicationTemplateCreateRequest
+
+// PostApplicationImportJSONRequestBody defines body for PostApplicationImport for application/json ContentType.
+type PostApplicationImportJSONRequestBody = ApplicationImportRequest
+
+// PostApplicationImportInspectJSONRequestBody defines body for PostApplicationImportInspect for application/json ContentType.
+type PostApplicationImportInspectJSONRequestBody = ApplicationImportInspectRequest
+
+// PostApplicationImportRuntimeInspectJSONRequestBody defines body for PostApplicationImportRuntimeInspect for application/json ContentType.
+type PostApplicationImportRuntimeInspectJSONRequestBody = ApplicationImportRuntimeInspectRequest
+
+// PostApplicationImportValidateJSONRequestBody defines body for PostApplicationImportValidate for application/json ContentType.
+type PostApplicationImportValidateJSONRequestBody = ApplicationImportValidateRequest
+
+// PostApplicationSavedViewJSONRequestBody defines body for PostApplicationSavedView for application/json ContentType.
+type PostApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
+
+// PutApplicationSavedViewJSONRequestBody defines body for PutApplicationSavedView for application/json ContentType.
+type PutApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
+
+// PostApplicationDestroyJSONRequestBody defines body for PostApplicationDestroy for application/json ContentType.
+type PostApplicationDestroyJSONRequestBody = ApplicationDestroyRequest
+
+// PutApplicationFileAnnotationJSONRequestBody defines body for PutApplicationFileAnnotation for application/json ContentType.
+type PutApplicationFileAnnotationJSONRequestBody = ApplicationFileAnnotationRequest
+
+// PutApplicationFileContentJSONRequestBody defines body for PutApplicationFileContent for application/json ContentType.
+type PutApplicationFileContentJSONRequestBody = ApplicationFileSaveRequest
+
+// PostApplicationWorkspaceEntryJSONRequestBody defines body for PostApplicationWorkspaceEntry for application/json ContentType.
+type PostApplicationWorkspaceEntryJSONRequestBody = ApplicationWorkspaceEntryCreateRequest
+
+// PostApplicationWorkspaceEntryRenameJSONRequestBody defines body for PostApplicationWorkspaceEntryRename for application/json ContentType.
+type PostApplicationWorkspaceEntryRenameJSONRequestBody = ApplicationWorkspaceEntryRenameRequest
+
+// PutApplicationLifecycleConfigurationJSONRequestBody defines body for PutApplicationLifecycleConfiguration for application/json ContentType.
+type PutApplicationLifecycleConfigurationJSONRequestBody = ApplicationLifecycleConfigurationRequest
+
 // PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
 type PostContainerBatchActionsJSONRequestBody = ContainerBatchActionRequest
 
@@ -13104,60 +13114,6 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
-
-// PostProjectBatchActionsJSONRequestBody defines body for PostProjectBatchActions for application/json ContentType.
-type PostProjectBatchActionsJSONRequestBody = ProjectBatchActionRequest
-
-// PostProjectApplicationNameAvailabilityJSONRequestBody defines body for PostProjectApplicationNameAvailability for application/json ContentType.
-type PostProjectApplicationNameAvailabilityJSONRequestBody = ProjectApplicationNameAvailabilityRequest
-
-// PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
-type PostProjectCreateJSONRequestBody = ProjectCreateRequest
-
-// PostProjectCreateValidateJSONRequestBody defines body for PostProjectCreateValidate for application/json ContentType.
-type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest
-
-// PostProjectCreateTemplateJSONRequestBody defines body for PostProjectCreateTemplate for application/json ContentType.
-type PostProjectCreateTemplateJSONRequestBody = ProjectTemplateCreateRequest
-
-// PostProjectCreateTemplateValidateJSONRequestBody defines body for PostProjectCreateTemplateValidate for application/json ContentType.
-type PostProjectCreateTemplateValidateJSONRequestBody = ProjectTemplateCreateRequest
-
-// PostProjectImportJSONRequestBody defines body for PostProjectImport for application/json ContentType.
-type PostProjectImportJSONRequestBody = ProjectImportRequest
-
-// PostProjectImportInspectJSONRequestBody defines body for PostProjectImportInspect for application/json ContentType.
-type PostProjectImportInspectJSONRequestBody = ProjectImportInspectRequest
-
-// PostProjectImportRuntimeInspectJSONRequestBody defines body for PostProjectImportRuntimeInspect for application/json ContentType.
-type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspectRequest
-
-// PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
-type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
-
-// PostProjectSavedViewJSONRequestBody defines body for PostProjectSavedView for application/json ContentType.
-type PostProjectSavedViewJSONRequestBody = ProjectSavedViewRequest
-
-// PutProjectSavedViewJSONRequestBody defines body for PutProjectSavedView for application/json ContentType.
-type PutProjectSavedViewJSONRequestBody = ProjectSavedViewRequest
-
-// PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
-type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest
-
-// PutProjectFileAnnotationJSONRequestBody defines body for PutProjectFileAnnotation for application/json ContentType.
-type PutProjectFileAnnotationJSONRequestBody = ProjectFileAnnotationRequest
-
-// PutProjectFileContentJSONRequestBody defines body for PutProjectFileContent for application/json ContentType.
-type PutProjectFileContentJSONRequestBody = ProjectFileSaveRequest
-
-// PostProjectWorkspaceEntryJSONRequestBody defines body for PostProjectWorkspaceEntry for application/json ContentType.
-type PostProjectWorkspaceEntryJSONRequestBody = ProjectWorkspaceEntryCreateRequest
-
-// PostProjectWorkspaceEntryRenameJSONRequestBody defines body for PostProjectWorkspaceEntryRename for application/json ContentType.
-type PostProjectWorkspaceEntryRenameJSONRequestBody = ProjectWorkspaceEntryRenameRequest
-
-// PutProjectLifecycleConfigurationJSONRequestBody defines body for PutProjectLifecycleConfiguration for application/json ContentType.
-type PutProjectLifecycleConfigurationJSONRequestBody = ProjectLifecycleConfigurationRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest
@@ -13222,22 +13178,22 @@ type PostUserStatusJSONRequestBody = UpdateUserStatusRequest
 // PostUserUpdateJSONRequestBody defines body for PostUserUpdate for application/json ContentType.
 type PostUserUpdateJSONRequestBody = UpdateUserRequest
 
-// AsProjectWorkspaceEntryCreateRequest0 returns the union data inside the ProjectWorkspaceEntryCreateRequest as a ProjectWorkspaceEntryCreateRequest0
-func (t ProjectWorkspaceEntryCreateRequest) AsProjectWorkspaceEntryCreateRequest0() (ProjectWorkspaceEntryCreateRequest0, error) {
-	var body ProjectWorkspaceEntryCreateRequest0
+// AsApplicationWorkspaceEntryCreateRequest0 returns the union data inside the ApplicationWorkspaceEntryCreateRequest as a ApplicationWorkspaceEntryCreateRequest0
+func (t ApplicationWorkspaceEntryCreateRequest) AsApplicationWorkspaceEntryCreateRequest0() (ApplicationWorkspaceEntryCreateRequest0, error) {
+	var body ApplicationWorkspaceEntryCreateRequest0
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromProjectWorkspaceEntryCreateRequest0 overwrites any union data inside the ProjectWorkspaceEntryCreateRequest as the provided ProjectWorkspaceEntryCreateRequest0
-func (t *ProjectWorkspaceEntryCreateRequest) FromProjectWorkspaceEntryCreateRequest0(v ProjectWorkspaceEntryCreateRequest0) error {
+// FromApplicationWorkspaceEntryCreateRequest0 overwrites any union data inside the ApplicationWorkspaceEntryCreateRequest as the provided ApplicationWorkspaceEntryCreateRequest0
+func (t *ApplicationWorkspaceEntryCreateRequest) FromApplicationWorkspaceEntryCreateRequest0(v ApplicationWorkspaceEntryCreateRequest0) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeProjectWorkspaceEntryCreateRequest0 performs a merge with any union data inside the ProjectWorkspaceEntryCreateRequest, using the provided ProjectWorkspaceEntryCreateRequest0
-func (t *ProjectWorkspaceEntryCreateRequest) MergeProjectWorkspaceEntryCreateRequest0(v ProjectWorkspaceEntryCreateRequest0) error {
+// MergeApplicationWorkspaceEntryCreateRequest0 performs a merge with any union data inside the ApplicationWorkspaceEntryCreateRequest, using the provided ApplicationWorkspaceEntryCreateRequest0
+func (t *ApplicationWorkspaceEntryCreateRequest) MergeApplicationWorkspaceEntryCreateRequest0(v ApplicationWorkspaceEntryCreateRequest0) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -13248,22 +13204,22 @@ func (t *ProjectWorkspaceEntryCreateRequest) MergeProjectWorkspaceEntryCreateReq
 	return err
 }
 
-// AsProjectWorkspaceEntryCreateRequest1 returns the union data inside the ProjectWorkspaceEntryCreateRequest as a ProjectWorkspaceEntryCreateRequest1
-func (t ProjectWorkspaceEntryCreateRequest) AsProjectWorkspaceEntryCreateRequest1() (ProjectWorkspaceEntryCreateRequest1, error) {
-	var body ProjectWorkspaceEntryCreateRequest1
+// AsApplicationWorkspaceEntryCreateRequest1 returns the union data inside the ApplicationWorkspaceEntryCreateRequest as a ApplicationWorkspaceEntryCreateRequest1
+func (t ApplicationWorkspaceEntryCreateRequest) AsApplicationWorkspaceEntryCreateRequest1() (ApplicationWorkspaceEntryCreateRequest1, error) {
+	var body ApplicationWorkspaceEntryCreateRequest1
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromProjectWorkspaceEntryCreateRequest1 overwrites any union data inside the ProjectWorkspaceEntryCreateRequest as the provided ProjectWorkspaceEntryCreateRequest1
-func (t *ProjectWorkspaceEntryCreateRequest) FromProjectWorkspaceEntryCreateRequest1(v ProjectWorkspaceEntryCreateRequest1) error {
+// FromApplicationWorkspaceEntryCreateRequest1 overwrites any union data inside the ApplicationWorkspaceEntryCreateRequest as the provided ApplicationWorkspaceEntryCreateRequest1
+func (t *ApplicationWorkspaceEntryCreateRequest) FromApplicationWorkspaceEntryCreateRequest1(v ApplicationWorkspaceEntryCreateRequest1) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeProjectWorkspaceEntryCreateRequest1 performs a merge with any union data inside the ProjectWorkspaceEntryCreateRequest, using the provided ProjectWorkspaceEntryCreateRequest1
-func (t *ProjectWorkspaceEntryCreateRequest) MergeProjectWorkspaceEntryCreateRequest1(v ProjectWorkspaceEntryCreateRequest1) error {
+// MergeApplicationWorkspaceEntryCreateRequest1 performs a merge with any union data inside the ApplicationWorkspaceEntryCreateRequest, using the provided ApplicationWorkspaceEntryCreateRequest1
+func (t *ApplicationWorkspaceEntryCreateRequest) MergeApplicationWorkspaceEntryCreateRequest1(v ApplicationWorkspaceEntryCreateRequest1) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -13274,12 +13230,12 @@ func (t *ProjectWorkspaceEntryCreateRequest) MergeProjectWorkspaceEntryCreateReq
 	return err
 }
 
-func (t ProjectWorkspaceEntryCreateRequest) MarshalJSON() ([]byte, error) {
+func (t ApplicationWorkspaceEntryCreateRequest) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
-func (t *ProjectWorkspaceEntryCreateRequest) UnmarshalJSON(b []byte) error {
+func (t *ApplicationWorkspaceEntryCreateRequest) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

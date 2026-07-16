@@ -80,9 +80,9 @@ vi.mock('vue-i18n', async (importOriginal) => {
     'rbac.permissionCatalog.containerEvents.display': 'Container Event Read',
     'rbac.permissionCatalog.containerEvents.description':
       'Allows reading bounded container runtime event history and live event streams.',
-    'rbac.permissionCatalog.projectRefresh.display': 'Refresh Compose Projects',
-    'rbac.permissionCatalog.projectRefresh.description':
-      'Refresh project snapshots and readonly configuration projections.',
+    'rbac.permissionCatalog.applicationRefresh.display': 'Refresh Compose Applications',
+    'rbac.permissionCatalog.applicationRefresh.description':
+      'Refresh application snapshots and readonly configuration projections.',
   };
   return {
     ...actual,

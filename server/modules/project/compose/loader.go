@@ -17,15 +17,15 @@ import (
 
 var canonicalProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
-// IsValidCanonicalProjectName 判断 value 是否已经满足 Compose 规范项目名契约。
-func IsValidCanonicalProjectName(value string) bool {
+// IsValidComposeProjectName 判断 value 是否已经满足 Compose 规范项目名契约。
+func IsValidComposeProjectName(value string) bool {
 	return canonicalProjectNamePattern.MatchString(value)
 }
 
 // Input 定义导入和刷新的第一阶段静态解析输入。
 // ContentOverrides 只用于草稿解析，键必须是工作区内的绝对路径，解析器不会执行 Compose 或读取外部服务状态。
 type Input struct {
-	WorkingDirectory string
+	WorkspacePath    string
 	ComposeFiles     []string
 	EnvFiles         []string
 	ContentOverrides map[string][]byte
@@ -85,8 +85,8 @@ type VolumeProjection struct {
 
 // Result 保存第一阶段受控静态 Compose 解析结果及归一化摘要。
 type Result struct {
-	WorkingDirectory      string
-	CanonicalProjectName  string
+	WorkspacePath         string
+	ComposeProjectName    string
 	CanonicalNameSource   string
 	ConfigHash            string
 	NormalizedComposeYAML string
@@ -105,7 +105,7 @@ type Result struct {
 // Load 解析工作目录、Compose 文件和 Env 文件，返回静态服务投影、归一化快照及配置哈希。
 // Compose 文件按输入顺序合并；服务、网络和卷的最终列表会稳定排序。解析阶段只读取文件和 YAML，不执行外部命令。
 func Load(input Input) (Result, error) {
-	workingDirectory, err := resolveWorkingDirectory(input.WorkingDirectory)
+	workingDirectory, err := resolveWorkspacePath(input.WorkspacePath)
 	if err != nil {
 		return Result{}, err
 	}
@@ -139,14 +139,14 @@ func Load(input Input) (Result, error) {
 
 	services, serviceNames := buildServiceProjections(collected.serviceOrder, collected.serviceMap)
 
-	canonicalProjectName := resolvedCanonicalProjectName(collected.projectName, workingDirectory)
-	if !IsValidCanonicalProjectName(canonicalProjectName) {
+	canonicalProjectName := resolvedComposeProjectName(collected.projectName, workingDirectory)
+	if !IsValidComposeProjectName(canonicalProjectName) {
 		return Result{}, fmt.Errorf("computed canonical project name is invalid")
 	}
 
 	return Result{
-		WorkingDirectory:      workingDirectory,
-		CanonicalProjectName:  canonicalProjectName,
+		WorkspacePath:         workingDirectory,
+		ComposeProjectName:    canonicalProjectName,
 		CanonicalNameSource:   "computed",
 		ConfigHash:            hex.EncodeToString(configHasher.Sum(nil)),
 		NormalizedComposeYAML: normalizedYAML,
@@ -242,8 +242,8 @@ func collectProjectNameFromDocument(doc map[string]any, current string) string {
 	return name
 }
 
-// resolvedCanonicalProjectName 优先使用 Compose 顶层 name，否则使用工作目录名，并统一归一化结果。
-func resolvedCanonicalProjectName(projectName string, workingDirectory string) string {
+// resolvedComposeProjectName 优先使用 Compose 顶层 name，否则使用工作目录名，并统一归一化结果。
+func resolvedComposeProjectName(projectName string, workingDirectory string) string {
 	candidate := filepath.Base(workingDirectory)
 	if strings.TrimSpace(projectName) != "" {
 		candidate = projectName
@@ -280,7 +280,7 @@ func normalizeComputedProjectName(value string) string {
 	}
 
 	result := strings.Trim(builder.String(), "-_")
-	if !IsValidCanonicalProjectName(result) {
+	if !IsValidComposeProjectName(result) {
 		return ""
 	}
 	return result
@@ -481,8 +481,8 @@ func sortedKeys(items map[string]struct{}) []string {
 	return result
 }
 
-// resolveWorkingDirectory 解析并校验工作目录路径，确认路径存在且为目录后返回绝对路径。
-func resolveWorkingDirectory(raw string) (string, error) {
+// resolveWorkspacePath 解析并校验工作目录路径，确认路径存在且为目录后返回绝对路径。
+func resolveWorkspacePath(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return "", fmt.Errorf("working directory is required")
@@ -568,7 +568,7 @@ func resolveFileProjection(
 	}
 	content, ok := overrides[absolute]
 	if !ok {
-		content, err = readFileWithinWorkingDirectory(workingDirectory, absolute)
+		content, err = readFileWithinWorkspacePath(workingDirectory, absolute)
 		if err != nil {
 			return FileProjection{}, fmt.Errorf("read project file %s: %w", absolute, err)
 		}
@@ -628,7 +628,7 @@ func resolveBoundedPath(workingDirectory string, rawPath string) (string, error)
 	return absolute, nil
 }
 
-func readFileWithinWorkingDirectory(workingDirectory string, absolutePath string) ([]byte, error) {
+func readFileWithinWorkspacePath(workingDirectory string, absolutePath string) ([]byte, error) {
 	root, err := os.OpenRoot(workingDirectory)
 	if err != nil {
 		return nil, err

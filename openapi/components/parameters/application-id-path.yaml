@@ -1,0 +1,10 @@
+name: applicationId
+in: path
+required: true
+description: Public Graft application identifier. The internal application registry key is never accepted on HTTP routes.
+schema:
+  $ref: ../schemas/application-id.yaml
+examples:
+  applicationId:
+    summary: Imported application id
+    value: app_01JZ5R6M7N8P9Q0R1S2T3V4W5X

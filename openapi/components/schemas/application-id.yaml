@@ -1,0 +1,5 @@
+type: string
+pattern: '^app_[0-9A-HJKMNP-TV-Z]{26}$'
+description: Stable public Graft Application identifier.
+examples:
+  - app_01JZ5R6M7N8P9Q0R1S2T3V4W5X

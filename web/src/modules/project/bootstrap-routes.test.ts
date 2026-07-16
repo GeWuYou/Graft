@@ -1,27 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectBootstrapRouteRegistrations, projectGlobalRouteRegistrations } from './bootstrap-routes';
-import { PROJECT_ROUTE_PATH } from './contract/paths';
+import { applicationBootstrapRouteRegistrations, applicationGlobalRouteRegistrations } from './bootstrap-routes';
+import { APPLICATION_ROUTE_PATH } from './contract/paths';
 
 describe('project bootstrap route registrations', () => {
   it('keeps the project list on the canonical paged list surface', () => {
-    expect(projectBootstrapRouteRegistrations).toHaveLength(1);
-    expect(projectBootstrapRouteRegistrations[0]).toMatchObject({
-      menuPath: PROJECT_ROUTE_PATH.LIST,
-      routeName: 'ProjectList',
+    expect(applicationBootstrapRouteRegistrations).toHaveLength(1);
+    expect(applicationBootstrapRouteRegistrations[0]).toMatchObject({
+      menuPath: APPLICATION_ROUTE_PATH.LIST,
+      routeName: 'ApplicationList',
       meta: expect.objectContaining({
         pageKind: 'list',
       }),
     });
-    expect(projectBootstrapRouteRegistrations[0]?.meta?.pageSurface).toBeUndefined();
+    expect(applicationBootstrapRouteRegistrations[0]?.meta?.pageSurface).toBeUndefined();
   });
 
   it('registers the configuration workspace as a hidden editor route', () => {
-    expect(projectGlobalRouteRegistrations).toContainEqual(
+    expect(applicationGlobalRouteRegistrations).toContainEqual(
       expect.objectContaining({
-        path: PROJECT_ROUTE_PATH.CONFIGURATION_WORKSPACE,
-        routeName: 'ProjectConfigurationWorkspace',
-        pageRouteName: 'ProjectConfigurationWorkspaceIndex',
+        path: APPLICATION_ROUTE_PATH.CONFIGURATION_WORKSPACE,
+        routeName: 'ApplicationConfigurationWorkspace',
+        pageRouteName: 'ApplicationConfigurationWorkspaceIndex',
         meta: expect.objectContaining({
           hiddenMenu: true,
           keepAlive: true,
@@ -34,13 +34,13 @@ describe('project bootstrap route registrations', () => {
   });
 
   it('exposes the three supported project creation routes', () => {
-    const paths = projectGlobalRouteRegistrations.map((route) => route.path);
+    const paths = applicationGlobalRouteRegistrations.map((route) => route.path);
 
-    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_IMPORT);
-    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_BLANK);
-    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_TEMPLATE);
-    expect(paths).toContain(PROJECT_ROUTE_PATH.CREATE_SOURCE);
-    expect(paths).not.toContain('/ops/projects/create/git');
-    expect(paths).not.toContain('/ops/projects/create/remote-host');
+    expect(paths).toContain(APPLICATION_ROUTE_PATH.CREATE_IMPORT);
+    expect(paths).toContain(APPLICATION_ROUTE_PATH.CREATE_BLANK);
+    expect(paths).toContain(APPLICATION_ROUTE_PATH.CREATE_TEMPLATE);
+    expect(paths).toContain(APPLICATION_ROUTE_PATH.CREATE_SOURCE);
+    expect(paths).not.toContain('/applications/create/git');
+    expect(paths).not.toContain('/applications/create/remote-host');
   });
 });

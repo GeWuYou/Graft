@@ -1,8 +1,25 @@
 allOf:
   - $ref: ./runtime-target-summary.yaml
   - type: object
-    required: [providerDetails]
+    required: [health, providerDetails]
     properties:
+      health:
+        type: object
+        required: [status, lastCheckedAt, diagnostic]
+        properties:
+          status:
+            type: string
+            enum: [healthy, unavailable]
+            x-enum-varnames:
+              - RuntimeTargetHealthStatusHealthy
+              - RuntimeTargetHealthStatusUnavailable
+          lastCheckedAt:
+            type: string
+            format: date-time
+            nullable: true
+          diagnostic:
+            type: string
+            description: Sanitized connection diagnostic; empty when healthy.
       providerDetails:
         type: object
         description: Provider-specific typed extension selected by the provider discriminator.

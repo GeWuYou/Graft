@@ -95,7 +95,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ChevronLeftIcon as ProjectBackIcon } from 'tdesign-icons-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -103,13 +102,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getProjectCreationMethods } from '../../api/project';
+import { getApplicationCreationMethods } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { useProjectCreateRouteNavigation } from '../../shared/navigation';
-import type { ProjectCreationMethod, ProjectCreationMethodType } from '../../types/project';
+import { useApplicationCreateRouteNavigation } from '../../shared/navigation';
+import type { ApplicationCreationMethod, ApplicationCreationMethodType } from '../../types/project';
 
 defineOptions({
-  name: 'ProjectCreateMethodIndex',
+  name: 'ApplicationCreateMethodIndex',
 });
 
 // 创建方式页消费服务端能力目录，并通过路由查询参数把选择传给后续创建步骤。
@@ -121,7 +120,7 @@ type CreationMethodDefinition = {
   advancedKey: string;
 };
 
-const creationMethodDefinitions: Record<ProjectCreationMethodType, CreationMethodDefinition> = {
+const creationMethodDefinitions: Record<ApplicationCreationMethodType, CreationMethodDefinition> = {
   blank: {
     titleKey: 'project.creation.methods.blank.title',
     descriptionKey: 'project.creation.methods.blank.description',
@@ -154,13 +153,13 @@ const creationMethodDefinitions: Record<ProjectCreationMethodType, CreationMetho
   },
 };
 
-const routeNames: Record<ProjectCreationMethodType, string> = {
+const routeNames: Record<ApplicationCreationMethodType, string> = {
   blank: PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName,
   template: PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName,
   import: PROJECT_BOOTSTRAP_ROUTE.CREATE_IMPORT.pageRouteName,
 };
 
-const routeTitleKeys: Record<ProjectCreationMethodType, string> = {
+const routeTitleKeys: Record<ApplicationCreationMethodType, string> = {
   blank: 'project.route.createBlank.title',
   template: 'project.route.createTemplate.title',
   import: 'project.route.createImport.title',
@@ -168,9 +167,9 @@ const routeTitleKeys: Record<ProjectCreationMethodType, string> = {
 
 const router = useRouter();
 const route = useRoute();
-const navigateProjectCreateRoute = useProjectCreateRouteNavigation(router);
+const navigateApplicationCreateRoute = useApplicationCreateRouteNavigation(router);
 const { t } = useI18n();
-const entries = ref<ProjectCreationMethod[]>([]);
+const entries = ref<ApplicationCreationMethod[]>([]);
 const loadError = ref('');
 const loading = ref(false);
 const hasComposeTarget = computed(
@@ -196,7 +195,7 @@ async function loadCreationMethods() {
   loading.value = true;
   loadError.value = '';
   try {
-    const response = await getProjectCreationMethods();
+    const response = await getApplicationCreationMethods();
     entries.value = response.items;
   } catch (error) {
     loadError.value = resolveLocalizedErrorMessage(t, error, t('project.creation.messages.loadFailed'));
@@ -205,7 +204,7 @@ async function loadCreationMethods() {
   }
 }
 
-function availabilityLabel(availability: ProjectCreationMethod['availability']) {
+function availabilityLabel(availability: ApplicationCreationMethod['availability']) {
   return t(`project.creation.availability.${availability}`);
 }
 
@@ -223,12 +222,12 @@ function goToRuntimeTargets() {
   });
 }
 
-function openMethod(method: ProjectCreationMethodType) {
+function openMethod(method: ApplicationCreationMethodType) {
   const target = {
     name: routeNames[method],
     query: { deployment: 'compose', runtime_target_id: String(route.query.runtime_target_id) },
   };
-  navigateProjectCreateRoute(target, routeTitleKeys[method]);
+  navigateApplicationCreateRoute(target, routeTitleKeys[method]);
 }
 </script>
 <style scoped>

@@ -103,28 +103,28 @@ type ImportDirectoryReference struct {
 
 // ImportInspectRequest 描述针对导入目录的一次检查请求。
 type ImportInspectRequest struct {
-	DirectoryRef                 ImportDirectoryReference `json:"directory_ref"`
-	DisplayName                  *string                  `json:"display_name,omitempty"`
-	CanonicalProjectNameOverride *string                  `json:"canonical_project_name_override,omitempty"`
+	DirectoryRef               ImportDirectoryReference `json:"directory_ref"`
+	DisplayName                *string                  `json:"display_name,omitempty"`
+	ComposeProjectNameOverride *string                  `json:"compose_project_name_override,omitempty"`
 }
 
 // ImportInspectResult 返回一次检查发现的文件及其派生预览。
 type ImportInspectResult struct {
-	InspectionID               string                   `json:"inspection_id"`
-	DirectoryRef               ImportDirectoryReference `json:"directory_ref"`
-	ResolvedWorkingDirectory   string                   `json:"resolved_working_directory"`
-	CanonicalProjectName       string                   `json:"canonical_project_name"`
-	CanonicalProjectNameSource string                   `json:"canonical_project_name_source"`
-	DisplayNameSuggested       string                   `json:"display_name_suggested"`
-	ComposeFiles               []FileView               `json:"compose_files"`
-	EnvFiles                   []FileView               `json:"env_files"`
-	ServiceNames               []string                 `json:"services"`
-	NetworkNames               []string                 `json:"networks"`
-	VolumeNames                []string                 `json:"volumes"`
-	ConfigHash                 string                   `json:"config_hash"`
-	Warnings                   []string                 `json:"warnings"`
-	Conflicts                  []string                 `json:"conflicts"`
-	ValidationStatus           string                   `json:"validation_status"`
+	InspectionID             string                   `json:"inspection_id"`
+	DirectoryRef             ImportDirectoryReference `json:"directory_ref"`
+	ResolvedWorkspacePath    string                   `json:"resolved_workspace_path"`
+	ComposeProjectName       string                   `json:"compose_project_name"`
+	ComposeProjectNameSource string                   `json:"compose_project_name_source"`
+	DisplayNameSuggested     string                   `json:"display_name_suggested"`
+	ComposeFiles             []FileView               `json:"compose_files"`
+	EnvFiles                 []FileView               `json:"env_files"`
+	ServiceNames             []string                 `json:"services"`
+	NetworkNames             []string                 `json:"networks"`
+	VolumeNames              []string                 `json:"volumes"`
+	ConfigHash               string                   `json:"config_hash"`
+	Warnings                 []string                 `json:"warnings"`
+	Conflicts                []string                 `json:"conflicts"`
+	ValidationStatus         string                   `json:"validation_status"`
 }
 
 // RuntimeImportContainerCounts 描述一个导入候选的有界运行时成员计数。
@@ -136,19 +136,19 @@ type RuntimeImportContainerCounts struct {
 
 // RuntimeImportCandidate 描述一个由运行时发现的 Compose 导入候选。
 type RuntimeImportCandidate struct {
-	CandidateKey           string                       `json:"candidate_key"`
-	CanonicalProjectName   string                       `json:"canonical_project_name"`
-	Status                 string                       `json:"status"`
-	StatusReasonCodes      []string                     `json:"status_reason_codes"`
-	Importable             bool                         `json:"importable"`
-	RuntimeType            string                       `json:"runtime_type"`
-	RuntimeVersion         *string                      `json:"runtime_version,omitempty"`
-	WorkingDirectory       string                       `json:"working_directory"`
-	WorkingDirectorySource string                       `json:"working_directory_source"`
-	ConfigFiles            []string                     `json:"config_files"`
-	ServiceNames           []string                     `json:"service_names"`
-	ContainerCounts        RuntimeImportContainerCounts `json:"container_counts"`
-	Warnings               []string                     `json:"warnings"`
+	CandidateKey        string                       `json:"candidate_key"`
+	ComposeProjectName  string                       `json:"compose_project_name"`
+	Status              string                       `json:"status"`
+	StatusReasonCodes   []string                     `json:"status_reason_codes"`
+	Importable          bool                         `json:"importable"`
+	RuntimeType         string                       `json:"runtime_type"`
+	RuntimeVersion      *string                      `json:"runtime_version,omitempty"`
+	WorkspacePath       string                       `json:"workspace_path"`
+	WorkspacePathSource string                       `json:"workspace_path_source"`
+	ConfigFiles         []string                     `json:"config_files"`
+	ServiceNames        []string                     `json:"service_names"`
+	ContainerCounts     RuntimeImportContainerCounts `json:"container_counts"`
+	Warnings            []string                     `json:"warnings"`
 }
 
 // RuntimeImportCandidateAvailability 按导入就绪状态筛选运行时候选。
@@ -188,9 +188,9 @@ type RuntimeImportCandidatesResult struct {
 
 // RuntimeImportInspectRequest 描述针对一个运行时候选的检查请求。
 type RuntimeImportInspectRequest struct {
-	CandidateKey                 string  `json:"candidate_key"`
-	DisplayName                  *string `json:"display_name,omitempty"`
-	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
+	CandidateKey               string  `json:"candidate_key"`
+	DisplayName                *string `json:"display_name,omitempty"`
+	ComposeProjectNameOverride *string `json:"compose_project_name_override,omitempty"`
 }
 
 // RuntimeImportMember 描述检查预览中的一个运行时成员行。
@@ -226,33 +226,33 @@ type RuntimeImportVolumeResource struct {
 
 // RuntimeImportInspectResult 返回一个运行时候选的检查预览及其短期检查会话标识。
 type RuntimeImportInspectResult struct {
-	InspectionID               string                         `json:"inspection_id"`
-	ExpiresAt                  time.Time                      `json:"expires_at"`
-	CandidateKey               string                         `json:"candidate_key"`
-	ResolvedWorkingDirectory   string                         `json:"resolved_working_directory"`
-	CanonicalProjectName       string                         `json:"canonical_project_name"`
-	CanonicalProjectNameSource string                         `json:"canonical_project_name_source"`
-	DisplayNameSuggested       string                         `json:"display_name_suggested"`
-	ComposeFiles               []FileView                     `json:"compose_files"`
-	EnvFiles                   []FileView                     `json:"env_files"`
-	ServiceNames               []string                       `json:"services"`
-	NetworkResources           []RuntimeImportNetworkResource `json:"networks"`
-	VolumeResources            []RuntimeImportVolumeResource  `json:"volumes"`
-	RuntimeMembers             []RuntimeImportMember          `json:"runtime_members"`
-	ConfigHash                 string                         `json:"config_hash"`
-	Warnings                   []string                       `json:"warnings"`
-	Conflicts                  []string                       `json:"conflicts"`
-	ValidationStatus           string                         `json:"validation_status"`
-	LifecycleConfiguration     LifecycleStandardConfig        `json:"lifecycle_configuration"`
+	InspectionID             string                         `json:"inspection_id"`
+	ExpiresAt                time.Time                      `json:"expires_at"`
+	CandidateKey             string                         `json:"candidate_key"`
+	ResolvedWorkspacePath    string                         `json:"resolved_workspace_path"`
+	ComposeProjectName       string                         `json:"compose_project_name"`
+	ComposeProjectNameSource string                         `json:"compose_project_name_source"`
+	DisplayNameSuggested     string                         `json:"display_name_suggested"`
+	ComposeFiles             []FileView                     `json:"compose_files"`
+	EnvFiles                 []FileView                     `json:"env_files"`
+	ServiceNames             []string                       `json:"services"`
+	NetworkResources         []RuntimeImportNetworkResource `json:"networks"`
+	VolumeResources          []RuntimeImportVolumeResource  `json:"volumes"`
+	RuntimeMembers           []RuntimeImportMember          `json:"runtime_members"`
+	ConfigHash               string                         `json:"config_hash"`
+	Warnings                 []string                       `json:"warnings"`
+	Conflicts                []string                       `json:"conflicts"`
+	ValidationStatus         string                         `json:"validation_status"`
+	LifecycleConfiguration   LifecycleStandardConfig        `json:"lifecycle_configuration"`
 }
 
 // ImportExecuteRequest 根据之前的检查快照完成一次导入。
 type ImportExecuteRequest struct {
-	InspectionID                 string                   `json:"inspection_id"`
-	DisplayName                  *string                  `json:"display_name,omitempty"`
-	CanonicalProjectNameOverride *string                  `json:"canonical_project_name_override,omitempty"`
-	LifecycleConfiguration       *LifecycleStandardConfig `json:"lifecycle_configuration,omitempty"`
-	ActorID                      *uint64                  `json:"-"`
+	InspectionID               string                   `json:"inspection_id"`
+	DisplayName                *string                  `json:"display_name,omitempty"`
+	ComposeProjectNameOverride *string                  `json:"compose_project_name_override,omitempty"`
+	LifecycleConfiguration     *LifecycleStandardConfig `json:"lifecycle_configuration,omitempty"`
+	ActorID                    *uint64                  `json:"-"`
 }
 
 // FileView 在检查响应中暴露一个已发现的 Compose 或环境文件。
@@ -1038,7 +1038,7 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 	}, nil
 }
 
-func discoverEnvFilesForWorkingDirectory(workingDirectory string) ([]string, error) {
+func discoverEnvFilesForWorkspacePath(workingDirectory string) ([]string, error) {
 	entries, err := os.ReadDir(workingDirectory)
 	if err != nil {
 		return nil, err

@@ -42,7 +42,7 @@ func assertStoredTaskPlan(t *testing.T, repository *SQLRepository, taskID uint64
 	if err != nil {
 		t.Fatalf("get task: %v", err)
 	}
-	if loaded.Type != "project.compose.redeploy" || loaded.Owner.Type != "compose_project" || loaded.Owner.ID != "42" {
+	if loaded.Type != "application.compose.redeploy" || loaded.Owner.Type != "application" || loaded.Owner.ID != "app_01ARZ3NDEKTSV4RRFFQ69G5FAV" {
 		t.Fatalf("unexpected loaded task: %#v", loaded)
 	}
 	assertStoredStages(t, repository, taskID)
@@ -159,12 +159,12 @@ func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
 	repository, _ := newTestSQLRepository(t)
 	for _, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
 		input := validCreateInput()
-		input.Task.Owner = moduleapi.TaskOwner{Type: "compose_project", ID: ownerID}
+		input.Task.Owner = moduleapi.TaskOwner{Type: "application", ID: ownerID}
 		if _, _, err := repository.Create(context.Background(), input); err != nil {
 			t.Fatalf("create %q task: %v", ownerID, err)
 		}
 	}
-	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{Owner: moduleapi.TaskOwner{Type: "compose_project", ID: "owner-a"}}, 1, 1)
+	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{Owner: moduleapi.TaskOwner{Type: "application", ID: "owner-a"}}, 1, 1)
 	if err != nil {
 		t.Fatalf("list owner tasks: %v", err)
 	}
@@ -181,13 +181,13 @@ func TestSQLRepositoryListsOwnerScopedTypeAndStatusFilter(t *testing.T) {
 		taskType moduleapi.TaskType
 		status   moduleapi.TaskStatus
 	}{
-		{taskType: "project.compose.redeploy", status: moduleapi.TaskStatusFailed},
-		{taskType: "project.compose.retry", status: moduleapi.TaskStatusFailed},
-		{taskType: "project.compose.retry", status: moduleapi.TaskStatusSuccess},
+		{taskType: "application.compose.redeploy", status: moduleapi.TaskStatusFailed},
+		{taskType: "application.compose.retry", status: moduleapi.TaskStatusFailed},
+		{taskType: "application.compose.retry", status: moduleapi.TaskStatusSuccess},
 	}
 	for _, spec := range inputs {
 		input := validCreateInput()
-		input.Task.Owner = moduleapi.TaskOwner{Type: "compose_project", ID: "owner-filtered"}
+		input.Task.Owner = moduleapi.TaskOwner{Type: "application", ID: "owner-filtered"}
 		created, _, err := repository.Create(context.Background(), input)
 		if err != nil {
 			t.Fatalf("create task: %v", err)
@@ -196,10 +196,10 @@ func TestSQLRepositoryListsOwnerScopedTypeAndStatusFilter(t *testing.T) {
 			t.Fatalf("seed task filters: %v", err)
 		}
 	}
-	taskType := moduleapi.TaskType("project.compose.retry")
+	taskType := moduleapi.TaskType("application.compose.retry")
 	status := moduleapi.TaskStatusFailed
 	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{
-		Owner:  moduleapi.TaskOwner{Type: "compose_project", ID: "owner-filtered"},
+		Owner:  moduleapi.TaskOwner{Type: "application", ID: "owner-filtered"},
 		Type:   &taskType,
 		Status: &status,
 	}, 20, 0)
@@ -264,16 +264,16 @@ func TestSQLRepositoryRejectsNonSerialOrDuplicateStagePlan(t *testing.T) {
 func validCreateInput() CreateInput {
 	return CreateInput{
 		Task: taskmodel.Task{
-			Type:     "project.compose.redeploy",
-			Owner:    moduleapi.TaskOwner{Type: "compose_project", ID: "42"},
+			Type:     "application.compose.redeploy",
+			Owner:    moduleapi.TaskOwner{Type: "application", ID: "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"},
 			Status:   moduleapi.TaskStatusPending,
-			Input:    []byte(`{"project_id":42}`),
+			Input:    []byte(`{"application_id":"app_01ARZ3NDEKTSV4RRFFQ69G5FAV"}`),
 			Metadata: []byte(`{"display_name":"demo"}`),
 			Plan:     []byte(`{"stages":["prepare","up"]}`),
 		},
 		Stages: []taskmodel.Stage{
-			{Key: "prepare", Sequence: 1, ExecutorType: "project.compose.prepare", Status: moduleapi.StageStatusPending, MaxAttempts: 1, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile},
-			{Key: "up", Sequence: 2, ExecutorType: "project.compose.up", Status: moduleapi.StageStatusPending, MaxAttempts: 2, RetryBackoffMS: 1000, RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent},
+			{Key: "prepare", Sequence: 1, ExecutorType: "application.compose.prepare", Status: moduleapi.StageStatusPending, MaxAttempts: 1, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile},
+			{Key: "up", Sequence: 2, ExecutorType: "application.compose.up", Status: moduleapi.StageStatusPending, MaxAttempts: 2, RetryBackoffMS: 1000, RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent},
 		},
 	}
 }

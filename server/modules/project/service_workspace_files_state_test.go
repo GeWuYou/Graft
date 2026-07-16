@@ -61,10 +61,10 @@ func TestBrowseProjectFilesKeepsUnreadableFileVisible(t *testing.T) {
 	}
 
 	service, err := NewService(&stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:               1,
-				WorkingDirectory: workingDirectory,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				WorkspacePath:       workingDirectory,
 			},
 		},
 	})
@@ -101,10 +101,10 @@ func TestSaveProjectFileContentRejectsBinaryWorkspaceFile(t *testing.T) {
 	}
 
 	service, err := NewService(&stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:               1,
-				WorkingDirectory: workingDirectory,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				WorkspacePath:       workingDirectory,
 			},
 		},
 	})
@@ -120,15 +120,15 @@ func TestSaveProjectFileContentRejectsBinaryWorkspaceFile(t *testing.T) {
 	}
 }
 
-func TestDeleteProjectWorkspaceEntryRejectsTrackedLifecycleInput(t *testing.T) {
+func TestDeleteApplicationWorkspaceEntryRejectsTrackedLifecycleInput(t *testing.T) {
 	workingDirectory := t.TempDir()
 	composePath := filepath.Join(workingDirectory, "compose.yaml")
 	if err := os.WriteFile(composePath, []byte("services: {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ProjectAggregate{
-		Project: projectstore.Project{ID: 1, WorkingDirectory: workingDirectory},
-		Files:   []projectstore.ProjectFile{{AbsolutePath: composePath}},
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
+		Application: projectstore.Application{ApplicationRecordID: 1, WorkspacePath: workingDirectory},
+		Files:       []projectstore.ApplicationFile{{AbsolutePath: composePath}},
 	}})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -147,9 +147,9 @@ func TestRenameProjectWorkspaceEntryRejectsTrackedLifecycleInput(t *testing.T) {
 	if err := os.WriteFile(composePath, []byte("services: {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ProjectAggregate{
-		Project: projectstore.Project{ID: 1, WorkingDirectory: workingDirectory},
-		Files:   []projectstore.ProjectFile{{AbsolutePath: composePath}},
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
+		Application: projectstore.Application{ApplicationRecordID: 1, WorkspacePath: workingDirectory},
+		Files:       []projectstore.ApplicationFile{{AbsolutePath: composePath}},
 	}})
 	if err != nil {
 		t.Fatalf("new service: %v", err)

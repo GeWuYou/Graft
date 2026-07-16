@@ -1,0 +1,18 @@
+post:
+  tags: [application]
+  summary: Rename a application workspace file or directory
+  operationId: postApplicationWorkspaceEntryRename
+  parameters:
+    - $ref: ../components/parameters/application-id-path.yaml
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/application-workspace-entry-rename-request.yaml }
+  responses:
+    '204': { description: Workspace entry renamed. }
+    '400': { description: Invalid workspace entry request. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Workspace entry already exists. }

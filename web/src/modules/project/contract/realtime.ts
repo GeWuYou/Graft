@@ -1,80 +1,80 @@
 import type { components } from '@/contracts/openapi/generated/schema';
 import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/realtime';
 
-const PROJECT_REALTIME_TOPIC = {
-  LIST_SUMMARY: 'project.list.summary',
-  RUNTIME_PREFIX: 'project.runtime:',
-  LIFECYCLE_CONFIG_PREFIX: 'project.lifecycle-config:',
-  LOGS_PREFIX: 'project.logs:',
+const APPLICATION_REALTIME_TOPIC = {
+  LIST_SUMMARY: 'application.list.summary',
+  RUNTIME_PREFIX: 'application.runtime:',
+  LIFECYCLE_CONFIG_PREFIX: 'application.lifecycle-config:',
+  LOGS_PREFIX: 'application.logs:',
 } as const;
 
-export function getProjectListSummaryTopicName(): string {
-  return PROJECT_REALTIME_TOPIC.LIST_SUMMARY;
+export function getApplicationListSummaryTopicName(): string {
+  return APPLICATION_REALTIME_TOPIC.LIST_SUMMARY;
 }
 
-export function buildProjectRuntimeTopicName(applicationId: string): string {
-  return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${applicationId}`;
+export function buildApplicationRuntimeTopicName(applicationId: string): string {
+  return `${APPLICATION_REALTIME_TOPIC.RUNTIME_PREFIX}${applicationId}`;
 }
 
-export function buildProjectLifecycleConfigTopicName(applicationId: string): string {
-  return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
+export function buildApplicationLifecycleConfigTopicName(applicationId: string): string {
+  return `${APPLICATION_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
 }
 
-export function buildProjectLogsTopicName(applicationId: string): string {
-  return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
+export function buildApplicationLogsTopicName(applicationId: string): string {
+  return `${APPLICATION_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
 }
 
-type ProjectDetailResponse = components['schemas']['ProjectDetailResponse'];
-type ProjectOverviewResponse = components['schemas']['ProjectOverviewResponse'];
-type ProjectServicesResponse = components['schemas']['ProjectServicesResponse'];
-type ProjectLogEntry = components['schemas']['project-log-entry'];
-type ProjectContainerCounts = components['schemas']['ProjectContainerCounts'];
-type ProjectDriftStatus = components['schemas']['ProjectDriftStatus'];
-type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
+type ApplicationDetailResponse = components['schemas']['ApplicationDetailResponse'];
+type ApplicationOverviewResponse = components['schemas']['ApplicationOverviewResponse'];
+type ApplicationServicesResponse = components['schemas']['ApplicationServicesResponse'];
+type ApplicationLogEntry = components['schemas']['ApplicationLogEntry'];
+type ApplicationContainerCounts = components['schemas']['ApplicationContainerCounts'];
+type ApplicationDriftStatus = components['schemas']['ApplicationDriftStatus'];
+type ApplicationRuntimeStatus = ApplicationDetailResponse['runtime_status'];
 
-export type ProjectListSummaryRealtimeItem = {
+export type ApplicationListSummaryRealtimeItem = {
   application_id: string;
-  runtime_status: ProjectRuntimeStatus;
+  runtime_status: ApplicationRuntimeStatus;
   service_count: number;
-  container_counts: ProjectContainerCounts;
-  drift_status: ProjectDriftStatus;
+  container_counts: ApplicationContainerCounts;
+  drift_status: ApplicationDriftStatus;
 };
 
-export type ProjectRuntimeRealtimePayload = {
+export type ApplicationRuntimeRealtimePayload = {
   topic: string;
   application_id: string;
   published_at: string;
-  detail: ProjectDetailResponse;
-  overview: ProjectOverviewResponse;
-  services: ProjectServicesResponse;
+  detail: ApplicationDetailResponse;
+  overview: ApplicationOverviewResponse;
+  services: ApplicationServicesResponse;
 };
 
-export type ProjectLifecycleConfigRealtimePayload = {
+export type ApplicationLifecycleConfigRealtimePayload = {
   topic: string;
   application_id: string;
   published_at: string;
-  detail: ProjectDetailResponse;
+  detail: ApplicationDetailResponse;
 };
 
-export type ProjectLogsRealtimePayload = {
+export type ApplicationLogsRealtimePayload = {
   topic: string;
-  entry: ProjectLogEntry;
+  entry: ApplicationLogEntry;
 };
 
-export type ProjectListSummaryRealtimePayload = {
+export type ApplicationListSummaryRealtimePayload = {
   topic: string;
   published_at: string;
-  items: ProjectListSummaryRealtimeItem[];
+  items: ApplicationListSummaryRealtimeItem[];
 };
 
 /** 实时通道是外部输入；结构或主题不匹配时必须丢弃，不能让页面状态被污染。 */
-export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectListSummaryRealtimePayload | null {
+export function parseApplicationListSummaryRealtimePayload(raw: unknown): ApplicationListSummaryRealtimePayload | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
     return null;
   }
   if (
-    data.topic !== getProjectListSummaryTopicName() ||
+    data.topic !== getApplicationListSummaryTopicName() ||
     typeof data.published_at !== 'string' ||
     !Array.isArray(data.items) ||
     !data.items.every(
@@ -89,10 +89,10 @@ export function parseProjectListSummaryRealtimePayload(raw: unknown): ProjectLis
   ) {
     return null;
   }
-  return data as ProjectListSummaryRealtimePayload;
+  return data as ApplicationListSummaryRealtimePayload;
 }
 
-function parseProjectDetailEnvelopeData(
+function parseApplicationDetailEnvelopeData(
   raw: unknown,
   expectedTopic: (applicationId: string) => string,
   validator?: (data: Record<string, unknown>) => boolean,
@@ -114,21 +114,23 @@ function parseProjectDetailEnvelopeData(
   return data;
 }
 
-export function parseProjectRuntimeRealtimePayload(raw: unknown): ProjectRuntimeRealtimePayload | null {
-  const data = parseProjectDetailEnvelopeData(
+export function parseApplicationRuntimeRealtimePayload(raw: unknown): ApplicationRuntimeRealtimePayload | null {
+  const data = parseApplicationDetailEnvelopeData(
     raw,
-    buildProjectRuntimeTopicName,
+    buildApplicationRuntimeTopicName,
     (value) => isRealtimePayloadObject(value.overview) && isRealtimePayloadObject(value.services),
   );
-  return data as ProjectRuntimeRealtimePayload | null;
+  return data as ApplicationRuntimeRealtimePayload | null;
 }
 
-export function parseProjectLifecycleConfigRealtimePayload(raw: unknown): ProjectLifecycleConfigRealtimePayload | null {
-  const data = parseProjectDetailEnvelopeData(raw, buildProjectLifecycleConfigTopicName);
-  return data as ProjectLifecycleConfigRealtimePayload | null;
+export function parseApplicationLifecycleConfigRealtimePayload(
+  raw: unknown,
+): ApplicationLifecycleConfigRealtimePayload | null {
+  const data = parseApplicationDetailEnvelopeData(raw, buildApplicationLifecycleConfigTopicName);
+  return data as ApplicationLifecycleConfigRealtimePayload | null;
 }
 
-export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealtimePayload | null {
+export function parseApplicationLogsRealtimePayload(raw: unknown): ApplicationLogsRealtimePayload | null {
   const data = parseRealtimeEnvelopeData(raw);
   if (!isRealtimePayloadObject(data)) {
     return null;
@@ -136,11 +138,11 @@ export function parseProjectLogsRealtimePayload(raw: unknown): ProjectLogsRealti
   if (
     typeof data.topic !== 'string' ||
     typeof data.application_id !== 'string' ||
-    data.topic !== buildProjectLogsTopicName(data.application_id) ||
+    data.topic !== buildApplicationLogsTopicName(data.application_id) ||
     !isRealtimePayloadObject(data.entry) ||
     typeof data.entry.line !== 'string'
   ) {
     return null;
   }
-  return data as ProjectLogsRealtimePayload;
+  return data as ApplicationLogsRealtimePayload;
 }

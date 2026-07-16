@@ -174,18 +174,18 @@ import { copyText } from '@/shared/observability';
 import { store } from '@/store/pinia';
 
 import { normalizeTextBlock, supportsExplicitWorkspaceSyntaxValidation } from '../shared/configuration-workspace';
-import { useProjectPageContext } from '../shared/page-context';
+import { useApplicationPageContext } from '../shared/page-context';
 import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
 import { type OpenedWorkspaceFile, useProjectWorkspaceStore } from '../store/workspace';
-import type { ProjectWorkspaceDraftEntry, ProjectWorkspaceTreeItem } from '../types/project';
+import type { ApplicationWorkspaceDraftEntry, ApplicationWorkspaceTreeItem } from '../types/project';
 import ProjectWorkspaceEditor, {
-  type ProjectWorkspaceEditorBuffer,
-  type ProjectWorkspaceEditorLabels,
-  type ProjectWorkspaceEditorRow,
-  type ProjectWorkspaceInlineEdit,
+  type ApplicationWorkspaceEditorBuffer,
+  type ApplicationWorkspaceEditorLabels,
+  type ApplicationWorkspaceEditorRow,
+  type ApplicationWorkspaceInlineEdit,
 } from './ProjectWorkspaceEditor.vue';
 
-defineOptions({ name: 'ProjectCreateWorkspaceEditor' });
+defineOptions({ name: 'ApplicationCreateWorkspaceEditor' });
 
 // 创建页编辑器拥有草稿、保存队列和校验反馈；服务端默认文件仍由页面调用方负责加载。
 
@@ -201,12 +201,12 @@ type WorkspaceEditorHandle = {
 const MONACO_MARKER_ERROR_SEVERITY = 8;
 let workspaceSessionSeed = 0;
 
-const files = defineModel<ProjectWorkspaceDraftEntry[]>('files', { required: true });
-const { t } = useProjectPageContext();
+const files = defineModel<ApplicationWorkspaceDraftEntry[]>('files', { required: true });
+const { t } = useApplicationPageContext();
 const workspaceStore = useProjectWorkspaceStore(store);
 const workspaceSessionKey = `project-create-workspace:${++workspaceSessionSeed}`;
 const fullscreen = ref(false);
-const inlineEdit = ref<ProjectWorkspaceInlineEdit | null>(null);
+const inlineEdit = ref<ApplicationWorkspaceInlineEdit | null>(null);
 const pendingCreatedFilePath = ref('');
 const workspaceRoot = ref<HTMLElement | null>(null);
 const workspaceEditor = ref<WorkspaceEditorHandle | null>(null);
@@ -222,7 +222,7 @@ const syntaxErrorDialog = reactive<{ issues: Array<{ count: number; path: string
 workspaceStore.ensureSession(workspaceSessionKey);
 onBeforeUnmount(() => workspaceStore.clearSession(workspaceSessionKey));
 
-const editorLabels = computed<ProjectWorkspaceEditorLabels>(() => ({
+const editorLabels = computed<ApplicationWorkspaceEditorLabels>(() => ({
   closeAll: t('layout.tagTabs.closeAll'),
   closeLeft: t('layout.tagTabs.closeLeft'),
   closeOther: t('layout.tagTabs.closeOther'),
@@ -241,7 +241,7 @@ const activePath = computed({
   get: () => workspaceStore.session(workspaceSessionKey).activeFileKey,
   set: (path: string) => activateTab(path),
 });
-const editorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
+const editorRows = computed<ApplicationWorkspaceEditorRow[]>(() =>
   workspaceStore.visibleTreeRows(workspaceSessionKey).map((row) => ({
     depth: row.depth,
     expanded: row.expanded,
@@ -252,7 +252,7 @@ const editorRows = computed<ProjectWorkspaceEditorRow[]>(() =>
     readOnly: !row.item.editable,
   })),
 );
-function toEditorBuffer(file: OpenedWorkspaceFile): ProjectWorkspaceEditorBuffer {
+function toEditorBuffer(file: OpenedWorkspaceFile): ApplicationWorkspaceEditorBuffer {
   return {
     content: file.content,
     dirty: file.content !== file.savedContent,
@@ -266,10 +266,10 @@ function toEditorBuffer(file: OpenedWorkspaceFile): ProjectWorkspaceEditorBuffer
   };
 }
 
-const editorTabs = computed<ProjectWorkspaceEditorBuffer[]>(() =>
+const editorTabs = computed<ApplicationWorkspaceEditorBuffer[]>(() =>
   workspaceStore.openedFiles(workspaceSessionKey).map(toEditorBuffer),
 );
-const editorActiveBuffer = computed<ProjectWorkspaceEditorBuffer | null>(() => {
+const editorActiveBuffer = computed<ApplicationWorkspaceEditorBuffer | null>(() => {
   const file = workspaceStore.activeFile(workspaceSessionKey);
   return file ? toEditorBuffer(file) : null;
 });
@@ -298,7 +298,7 @@ useKeyboardShortcut(
   },
 );
 
-function toTreeItems(entries: ProjectWorkspaceDraftEntry[]): ProjectWorkspaceTreeItem[] {
+function toTreeItems(entries: ApplicationWorkspaceDraftEntry[]): ApplicationWorkspaceTreeItem[] {
   return entries.map((entry) => ({
     editable: entry.node_type !== 'directory',
     file_kind: entry.node_type === 'directory' ? 'directory' : 'text',
@@ -319,7 +319,10 @@ onActivated(() => {
   synchronizeWorkspace(files.value, 'keep-alive-activated');
 });
 
-function synchronizeWorkspace(entries: ProjectWorkspaceDraftEntry[], source: 'files-watch' | 'keep-alive-activated') {
+function synchronizeWorkspace(
+  entries: ApplicationWorkspaceDraftEntry[],
+  source: 'files-watch' | 'keep-alive-activated',
+) {
   const before = workspaceStore.session(workspaceSessionKey);
   emitProjectWorkspaceDebug('create-sync-start', {
     activeFileKey: before.activeFileKey || '-',
@@ -625,7 +628,7 @@ function submitInlineEdit() {
       setInlineEditError(t('project.create.workspace.pathConflict'));
       return;
     }
-    const entry: ProjectWorkspaceDraftEntry =
+    const entry: ApplicationWorkspaceDraftEntry =
       edit.mode === 'create-directory' ? { path, node_type: 'directory' } : { path, content: '', node_type: 'file' };
     if (edit.mode === 'create-file') pendingCreatedFilePath.value = path;
     files.value = [...files.value, entry];

@@ -1,0 +1,6 @@
+name: source_type
+in: query
+required: false
+description: Optional application source filter.
+schema:
+  $ref: ../schemas/application-source-type.yaml

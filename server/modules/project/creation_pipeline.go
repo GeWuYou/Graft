@@ -15,65 +15,61 @@ import (
 // CreationCommand 是来源适配器交给注册流水线的中立输入。
 // 来源适配器必须先解析或物化工作区；该流水线不执行 Compose 生命周期命令。
 type CreationCommand struct {
-	DisplayName                string
-	CanonicalProjectName       string
-	CanonicalProjectNameSource string
-	SourceKind                 string
-	HostScope                  string
-	WorkingDirectory           string
-	OwnershipMode              string
-	SourceMetadata             map[string]string
-	LifecycleConfig            LifecycleStandardConfig
-	ParseResult                projectcompose.Result
-	ActorID                    *uint64
-	RuntimeTargetID            uint64
-	ApplicationName            *string
+	DisplayName              string
+	ComposeProjectName       string
+	ComposeProjectNameSource string
+	SourceType               string
+	WorkspacePath            string
+	OwnershipMode            string
+	SourceMetadata           map[string]string
+	LifecycleConfig          LifecycleStandardConfig
+	ParseResult              projectcompose.Result
+	ActorID                  *uint64
+	RuntimeTargetID          uint64
+	ApplicationName          *string
 }
 
 // createProjectFromWorkspace 在来源生成并成功解析实际工作区后持久化通用项目聚合。
-func (s *Service) createProjectFromWorkspace(ctx context.Context, command CreationCommand) (projectstore.ProjectAggregate, time.Time, error) {
+func (s *Service) createProjectFromWorkspace(ctx context.Context, command CreationCommand) (projectstore.ApplicationAggregate, time.Time, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
-		return projectstore.ProjectAggregate{}, time.Time{}, err
+		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
-	if strings.TrimSpace(command.WorkingDirectory) == "" || strings.TrimSpace(command.ParseResult.ConfigHash) == "" {
-		return projectstore.ProjectAggregate{}, time.Time{}, errProjectInvalidArgument
+	if strings.TrimSpace(command.WorkspacePath) == "" || strings.TrimSpace(command.ParseResult.ConfigHash) == "" {
+		return projectstore.ApplicationAggregate{}, time.Time{}, errProjectInvalidArgument
 	}
 	lifecycle, err := normalizeLifecycleStandardConfig(command.LifecycleConfig)
 	if err != nil {
-		return projectstore.ProjectAggregate{}, time.Time{}, err
+		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
 	now := time.Now().UTC()
 	targetID, err := s.resolveComposeRuntimeTarget(ctx, command.RuntimeTargetID)
 	if err != nil {
-		return projectstore.ProjectAggregate{}, time.Time{}, err
+		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
-	if err := s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, command.CanonicalProjectName); err != nil {
-		return projectstore.ProjectAggregate{}, time.Time{}, err
+	if err := s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, command.ComposeProjectName); err != nil {
+		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
-	strictCreate := command.SourceKind == projectcontract.SourceKindManaged.String() || command.SourceKind == projectcontract.SourceKindTemplate.String()
-	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		ApplicationID:              newApplicationID(),
-		ApplicationName:            command.ApplicationName,
-		WorkspacePath:              strings.TrimSpace(command.WorkingDirectory),
-		ComposeProjectName:         strings.TrimSpace(command.CanonicalProjectName),
-		ComposeProjectNameSource:   composeProjectNameSource(command.CanonicalProjectNameSource),
-		StrictCreate:               strictCreate,
-		DisplayName:                strings.TrimSpace(command.DisplayName),
-		CanonicalProjectName:       strings.TrimSpace(command.CanonicalProjectName),
-		CanonicalProjectNameSource: strings.TrimSpace(command.CanonicalProjectNameSource),
-		SourceKind:                 strings.TrimSpace(command.SourceKind),
-		HostScope:                  strings.TrimSpace(command.HostScope),
-		WorkingDirectory:           strings.TrimSpace(command.WorkingDirectory),
-		OwnershipMode:              strings.TrimSpace(command.OwnershipMode),
-		SourceMetadata:             command.SourceMetadata,
-		LifecycleStrategyKind:      projectcontract.LifecycleStrategyKindStandard.String(),
-		LifecycleReviewStatus:      projectcontract.LifecycleReviewStatusConfirmed.String(),
-		LifecycleConfig:            toStoreLifecycleConfig(lifecycle),
-		LastObservedConfigHash:     command.ParseResult.ConfigHash,
-		LastDriftCheckedAt:         &now,
-		DriftStatus:                projectcontract.DriftStatusClean.String(),
-		Files:                      toStoreFiles(command.ParseResult.ComposeFiles, command.ParseResult.EnvFiles),
+	strictCreate := command.SourceType == projectcontract.SourceTypeManaged.String() || command.SourceType == projectcontract.SourceTypeTemplate.String()
+	aggregate, err := repository.ImportApplication(ctx, projectstore.ImportApplicationInput{
+		ApplicationID:            newApplicationID(),
+		ApplicationType:          projectcontract.ApplicationTypeCompose.String(),
+		ApplicationName:          command.ApplicationName,
+		WorkspacePath:            strings.TrimSpace(command.WorkspacePath),
+		ComposeProjectName:       strings.TrimSpace(command.ComposeProjectName),
+		ComposeProjectNameSource: composeProjectNameSource(command.ComposeProjectNameSource),
+		StrictCreate:             strictCreate,
+		DisplayName:              strings.TrimSpace(command.DisplayName),
+		SourceType:               strings.TrimSpace(command.SourceType),
+		OwnershipMode:            strings.TrimSpace(command.OwnershipMode),
+		SourceMetadata:           command.SourceMetadata,
+		LifecycleStrategyKind:    projectcontract.LifecycleStrategyKindStandard.String(),
+		LifecycleReviewStatus:    projectcontract.LifecycleReviewStatusConfirmed.String(),
+		LifecycleConfig:          toStoreLifecycleConfig(lifecycle),
+		LastObservedConfigHash:   command.ParseResult.ConfigHash,
+		LastDriftCheckedAt:       &now,
+		DriftStatus:              projectcontract.DriftStatusClean.String(),
+		Files:                    toStoreFiles(command.ParseResult.ComposeFiles, command.ParseResult.EnvFiles),
 		Snapshot: &projectstore.Snapshot{
 			ConfigHash:             command.ParseResult.ConfigHash,
 			NormalizedComposeJSON:  normalizeSnapshotJSON(command.ParseResult.NormalizedComposeJSON),
@@ -85,7 +81,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 		RuntimeTargetID: targetID,
 	})
 	if err != nil {
-		return projectstore.ProjectAggregate{}, time.Time{}, mapStoreError(err)
+		return projectstore.ApplicationAggregate{}, time.Time{}, mapStoreError(err)
 	}
 	return aggregate, now, nil
 }
@@ -118,12 +114,12 @@ func (s *Service) composeProjectNameState(ctx context.Context, targetID uint64, 
 	return availability.State
 }
 
-// composeProjectNameSource 分类规范 Compose 项目名称的来源；规范覆盖来源返回 "declared"，其它值返回 "derived"。
+// composeProjectNameSource 将 Compose 名称来源收敛到公开契约值。
 func composeProjectNameSource(value string) string {
-	if strings.TrimSpace(value) == projectcontract.CanonicalProjectNameSourceOverride.String() {
-		return "declared"
+	if strings.TrimSpace(value) == projectcontract.ComposeProjectNameSourceOverride.String() {
+		return projectcontract.ComposeProjectNameSourceOverride.String()
 	}
-	return "derived"
+	return projectcontract.ComposeProjectNameSourceComputed.String()
 }
 
 func (s *Service) resolveComposeRuntimeTarget(ctx context.Context, requested uint64) (uint64, error) {
@@ -153,7 +149,7 @@ func (s *Service) resolveComposeRuntimeTarget(ctx context.Context, requested uin
 // defaultManagedLifecycleConfig 返回用于受管项目的生命周期配置；未提供配置时使用默认配置。
 func defaultManagedLifecycleConfig(config *LifecycleStandardConfig) LifecycleStandardConfig {
 	if config == nil {
-		return lifecycleStandardConfigFromStore(lifecycleSeedForManagedProject())
+		return lifecycleStandardConfigFromStore(lifecycleSeedForManagedApplication())
 	}
 	return *config
 }
@@ -164,6 +160,6 @@ func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) Lifec
 }
 
 // managedCreationCommand 根据已验证的项目数据、规范化请求和解析结果构建受管项目的创建命令。
-func managedCreationCommand(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
-	return CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceComputed.String(), SourceKind: projectcontract.SourceKindManaged.String(), HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName}
+func managedCreationCommand(validation ManagedApplicationCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
+	return CreationCommand{DisplayName: normalized.DisplayName, ComposeProjectName: validation.ComposeProjectName, ComposeProjectNameSource: projectcontract.ComposeProjectNameSourceComputed.String(), SourceType: projectcontract.SourceTypeManaged.String(), WorkspacePath: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName}
 }

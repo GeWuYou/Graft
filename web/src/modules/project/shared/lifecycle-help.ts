@@ -1,4 +1,4 @@
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 
 export type LifecycleHelpKey =
   | 'downBeforeRedeploy'
@@ -16,7 +16,7 @@ export type LifecycleHelpRecommendation = 'recommended' | 'optional' | 'defaultO
 export type LifecycleHelpDefinition = {
   key: LifecycleHelpKey;
   field: keyof Pick<
-    ProjectLifecycleConfigurationDraft,
+    ApplicationLifecycleConfigurationDraft,
     | 'down_before_redeploy'
     | 'pull_before_redeploy'
     | 'build_before_up'
@@ -33,15 +33,15 @@ export type LifecycleHelpDefinition = {
   tooltipKey: string;
   detailKeyPrefix: string;
   recommendation: LifecycleHelpRecommendation;
-  commandExample: string[] | ((draft: ProjectLifecycleConfigurationDraft) => string[]);
-  visible?: (draft: ProjectLifecycleConfigurationDraft) => boolean;
+  commandExample: string[] | ((draft: ApplicationLifecycleConfigurationDraft) => string[]);
+  visible?: (draft: ApplicationLifecycleConfigurationDraft) => boolean;
   switchTestId?: string;
 };
 
 export type LifecycleSwitchHelpDefinition = LifecycleHelpDefinition & {
   control: 'switch';
   field: keyof Pick<
-    ProjectLifecycleConfigurationDraft,
+    ApplicationLifecycleConfigurationDraft,
     | 'down_before_redeploy'
     | 'pull_before_redeploy'
     | 'build_before_up'
@@ -64,7 +64,7 @@ export type LifecycleNumberHelpDefinition = LifecycleHelpDefinition & {
  * @param draft - 项目生命周期配置草稿
  * @returns 包含 Docker Compose 启动命令的单元素数组
  */
-function waitTimeoutCommand(draft: ProjectLifecycleConfigurationDraft) {
+function waitTimeoutCommand(draft: ApplicationLifecycleConfigurationDraft) {
   return [`docker compose up -d --wait --wait-timeout ${draft.wait_timeout_seconds}`];
 }
 

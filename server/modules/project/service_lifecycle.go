@@ -19,22 +19,22 @@ import (
 
 // Up 异步提交 docker compose up -d，并限定在项目已登记的工作目录执行。
 func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionUp)
 }
 
 // Stop 异步提交 docker compose stop，并限定在项目已登记的工作目录执行。
 func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionStop)
 }
 
 // Restart 异步提交 docker compose restart，并限定在项目已登记的工作目录执行。
 func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRestart)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionRestart)
 }
 
 // Redeploy 按已保存的阶段配置异步提交 Compose 重部署任务；阶段顺序由任务计划固定。
 func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRedeploy)
+	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionRedeploy)
 }
 
 // BatchAction 为多个项目提交同一种生命周期动作，并返回逐项目结果；单项失败不会隐藏其它项目结果。
@@ -43,9 +43,9 @@ func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (
 	if err != nil {
 		return blocked, nil
 	}
-	items := make([]BatchActionItemResult, 0, len(request.ProjectIDs))
-	result := BatchActionResult{TotalCount: len(request.ProjectIDs)}
-	for _, projectID := range request.ProjectIDs {
+	items := make([]BatchActionItemResult, 0, len(request.ApplicationRecordIDs))
+	result := BatchActionResult{TotalCount: len(request.ApplicationRecordIDs)}
+	for _, projectID := range request.ApplicationRecordIDs {
 		item, itemErr := s.batchActionItem(ctx, projectID, request, actor)
 		if itemErr != nil && !hasBatchActionItemResult(item) {
 			return BatchActionResult{}, itemErr
@@ -54,7 +54,7 @@ func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (
 		switch {
 		case item.Skipped:
 			result.SkippedCount++
-		case item.Result == generated.ProjectActionResponseResultProjectActionResultCompleted:
+		case item.Result == generated.ApplicationActionResponseResultApplicationActionResultCompleted:
 			result.CompletedCount++
 		default:
 			result.BlockedCount++
@@ -71,12 +71,12 @@ func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uin
 	if err != nil {
 		return ActionResult{}, err
 	}
-	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionUnregister, actorID)
+	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ApplicationActionResponseActionApplicationActionUnregister, actorID)
 	if err != nil {
 		return blocked, err
 	}
 	result, actionErr := s.unregisterWithActor(ctx, aggregate, actor)
-	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	s.publishApplicationActionAudit(ctx, aggregate, actor, result, actionErr)
 	return result, actionErr
 }
 
@@ -86,16 +86,16 @@ func (s *Service) Destroy(ctx context.Context, projectID uint64, request Destroy
 	if err != nil {
 		return ActionResult{}, err
 	}
-	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionDestroy, request.ActorID)
+	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ApplicationActionResponseActionApplicationActionDestroy, request.ActorID)
 	if err != nil {
 		return blocked, err
 	}
 	if result, blockErr := validateDestroyRequest(projectID, aggregate, request); blockErr != nil {
-		s.publishProjectActionAudit(ctx, aggregate, actor, result, blockErr)
+		s.publishApplicationActionAudit(ctx, aggregate, actor, result, blockErr)
 		return result, blockErr
 	}
 	result, actionErr := s.destroyAfterGuard(ctx, aggregate, request, actor)
-	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	s.publishApplicationActionAudit(ctx, aggregate, actor, result, actionErr)
 	return result, actionErr
 }
 
@@ -108,51 +108,51 @@ func (s *Service) Destroy(ctx context.Context, projectID uint64, request Destroy
 // @returns 允许继续销毁时返回空动作结果和 nil；否则返回阻断动作结果和销毁阻断错误。
 func validateDestroyRequest(
 	projectID uint64,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	request DestroyRequest,
 ) (ActionResult, error) {
 	guardResults := []GuardResult{}
-	if aggregate.Project.ApplicationID == "" || strings.TrimSpace(request.ConfirmCanonicalProjectName) != aggregate.Project.ApplicationID {
-		return blockedActionResult(projectID, generated.ProjectActionResponseActionProjectActionDestroy, append(guardResults, guardCode("confirm_canonical_project_name_mismatch"))), errProjectDestroyBlocked
+	if aggregate.Application.ApplicationID == "" || strings.TrimSpace(request.ConfirmComposeProjectName) != aggregate.Application.ApplicationID {
+		return blockedActionResult(projectID, generated.ApplicationActionResponseActionApplicationActionDestroy, append(guardResults, guardCode("confirm_compose_project_name_mismatch"))), errProjectDestroyBlocked
 	}
-	guardResults = append(guardResults, guardCode("confirm_canonical_project_name_matched"))
+	guardResults = append(guardResults, guardCode("confirm_compose_project_name_matched"))
 
 	if request.RemoveNamedVolumes {
 		guardResults = append(guardResults, guardCode("remove_named_volumes_requested"))
 	}
 
-	if request.DeleteWorkingDirectory && aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
-		guardResults = append(guardResults, guardDetail("delete_working_directory_blocked", "ownership_mode_external"))
-		return blockedActionResult(projectID, generated.ProjectActionResponseActionProjectActionDestroy, guardResults), errProjectDestroyBlocked
+	if request.DeleteWorkspacePath && aggregate.Application.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
+		guardResults = append(guardResults, guardDetail("delete_workspace_path_blocked", "ownership_mode_external"))
+		return blockedActionResult(projectID, generated.ApplicationActionResponseActionApplicationActionDestroy, guardResults), errProjectDestroyBlocked
 	}
 	return ActionResult{}, nil
 }
 
 func (s *Service) destroyAfterGuard(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	request DestroyRequest,
 	actor actionActor,
 ) (ActionResult, error) {
-	projectID := aggregate.Project.ID
-	guardResults := []GuardResult{guardCode("confirm_canonical_project_name_matched")}
+	projectID := aggregate.Application.ApplicationRecordID
+	guardResults := []GuardResult{guardCode("confirm_compose_project_name_matched")}
 	downArgs, err := destroyDownArgs(aggregate, request.RemoveNamedVolumes)
 	if err != nil {
-		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionDestroy, err), err
+		return lifecycleBlockedResult(aggregate, generated.ApplicationActionResponseActionApplicationActionDestroy, err), err
 	}
 	downResult, err := s.executeLifecycleActionWithAggregate(
 		ctx,
 		aggregate,
-		generated.ProjectActionResponseActionProjectActionDestroy,
+		generated.ApplicationActionResponseActionApplicationActionDestroy,
 		downArgs,
 	)
 	if err != nil {
 		return downResult, err
 	}
 	guardResults = appendDestroyDownGuards(guardResults, request.RemoveNamedVolumes)
-	nextGuards, autoUnregister, err := s.applyDestroyWorkingDirectoryStep(aggregate, request, guardResults)
+	nextGuards, autoUnregister, err := s.applyDestroyWorkspacePathStep(aggregate, request, guardResults)
 	if err != nil {
-		return destroyCleanupBlockedResult(projectID, guardResults, "working_directory_delete_failed", "filesystem_error"), err
+		return destroyCleanupBlockedResult(projectID, guardResults, "workspace_path_delete_failed", "filesystem_error"), err
 	}
 	guardResults = nextGuards
 	blockedResult, nextGuards, err := s.applyDestroyImagePruneStep(ctx, aggregate, guardResults, request.ImagePrune)
@@ -165,30 +165,30 @@ func (s *Service) destroyAfterGuard(
 		return destroyCleanupBlockedResult(projectID, guardResults, "registry_delete_failed", "persistence_error"), err
 	}
 	guardResults = nextGuards
-	messageKey := projectcontract.ProjectDestroyCompleted.String()
+	messageKey := projectcontract.ApplicationDestroyCompleted.String()
 	return ActionResult{
-		ProjectID:    projectID,
-		Action:       generated.ProjectActionResponseActionProjectActionDestroy,
-		Result:       generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey:   &messageKey,
-		Message:      &messageKey,
-		GuardResults: guardResults,
+		ApplicationRecordID: projectID,
+		Action:              generated.ApplicationActionResponseActionApplicationActionDestroy,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
+		MessageKey:          &messageKey,
+		Message:             &messageKey,
+		GuardResults:        guardResults,
 	}, nil
 }
 
 // UnsupportedLifecycleAction 返回明确标记为当前阶段阻断的生命周期动作结果。
-func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
+func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.ApplicationActionResponseAction) (ActionResult, error) {
 	return ActionResult{
-		ProjectID:    projectID,
-		Action:       action,
-		Result:       generated.ProjectActionResponseResultProjectActionResultBlocked,
-		MessageKey:   stringPointer(projectcontract.ProjectLifecycleAccepted.String()),
-		Message:      stringPointer(projectcontract.ProjectLifecycleAccepted.String()),
-		GuardResults: []GuardResult{guardDetail("batch-2-scope", "lifecycle execution is deferred to phase-1-batch-3")},
+		ApplicationRecordID: projectID,
+		Action:              action,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultBlocked,
+		MessageKey:          stringPointer(projectcontract.ApplicationLifecycleAccepted.String()),
+		Message:             stringPointer(projectcontract.ApplicationLifecycleAccepted.String()),
+		GuardResults:        []GuardResult{guardDetail("batch-2-scope", "lifecycle execution is deferred to phase-1-batch-3")},
 	}, errProjectUnsupportedLifecycle
 }
 
-func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, actorID *uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
+func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, actorID *uint64, action generated.ApplicationActionResponseAction) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return ActionResult{}, err
@@ -199,41 +199,41 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	}
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
 	if err := s.ensureLifecycleRuntimeTargetAvailable(ctx, aggregate); err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
 	if s.taskService == nil {
 		err := errors.New("task service is unavailable")
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
 	plan, err := lifecycleTaskPlan(aggregate, action)
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("project.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: projectTaskOwnerType, ID: aggregate.Project.ApplicationID}, RequestedBy: actor.id, Plan: plan})
+	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("application.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: applicationTaskOwnerType, ID: aggregate.Application.ApplicationID}, RequestedBy: actor.id, Plan: plan})
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
-		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	messageKey := projectcontract.ProjectLifecycleAccepted.String()
-	result := ActionResult{ProjectID: projectID, Action: action, Result: generated.ProjectActionResponseResultProjectActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
-	s.publishProjectActionAudit(ctx, aggregate, actor, result, nil)
+	messageKey := projectcontract.ApplicationLifecycleAccepted.String()
+	result := ActionResult{ApplicationRecordID: projectID, Action: action, Result: generated.ApplicationActionResponseResultApplicationActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
+	s.publishApplicationActionAudit(ctx, aggregate, actor, result, nil)
 	return result, nil
 }
 
 // lifecycleTaskPlan 为指定生命周期动作创建异步任务计划，实际 Compose 执行由任务运行时负责。
-func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated.ProjectActionResponseAction) (moduleapi.TaskPlan, error) {
-	if action == generated.ProjectActionResponseActionProjectActionRedeploy {
+func lifecycleTaskPlan(aggregate projectstore.ApplicationAggregate, action generated.ApplicationActionResponseAction) (moduleapi.TaskPlan, error) {
+	if action == generated.ApplicationActionResponseActionApplicationActionRedeploy {
 		return redeployTaskPlan(aggregate)
 	}
 	args, err := lifecycleCommandArgs(aggregate, action)
@@ -244,7 +244,7 @@ func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated
 }
 
 // redeployTaskPlan 按固定顺序构建重部署阶段，并根据配置追加停止、拉取和镜像清理等可选阶段。
-func redeployTaskPlan(aggregate projectstore.ProjectAggregate) (moduleapi.TaskPlan, error) {
+func redeployTaskPlan(aggregate projectstore.ApplicationAggregate) (moduleapi.TaskPlan, error) {
 	config := lifecycleConfigurationFromAggregate(aggregate)
 	stages := make([]moduleapi.StagePlan, 0, projectLifecycleStageCapacity)
 	if err := appendOptionalRedeployStages(&stages, aggregate, config); err != nil {
@@ -256,7 +256,7 @@ func redeployTaskPlan(aggregate projectstore.ProjectAggregate) (moduleapi.TaskPl
 const projectLifecycleStageCapacity = 4
 
 // appendOptionalRedeployStages 将重新部署所需的 Compose 阶段追加到任务计划中，并根据配置可选地包含停止、拉取和镜像清理阶段。
-func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) error {
+func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) error {
 	if config.Standard.DownBeforeRedeploy {
 		args, err := lifecycleRedeployDownArgs(aggregate, config)
 		if err != nil {
@@ -289,7 +289,7 @@ func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate proje
 }
 
 // taskPlanWithStage 创建只包含一个 Compose 执行阶段的任务计划，并保留手动恢复策略。
-func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args []string) (moduleapi.TaskPlan, error) {
+func taskPlanWithStage(aggregate projectstore.ApplicationAggregate, key string, args []string) (moduleapi.TaskPlan, error) {
 	stages := make([]moduleapi.StagePlan, 0, 1)
 	if err := appendTaskPlanStage(&stages, aggregate, key, args); err != nil {
 		return moduleapi.TaskPlan{}, err
@@ -298,11 +298,11 @@ func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args
 }
 
 // appendTaskPlanStage 将已校验的 Compose 执行阶段追加到计划；参数无效或阶段输入无法序列化时返回错误。
-func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, key string, args []string) error {
+func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ApplicationAggregate, key string, args []string) error {
 	if err := ensureLifecycleCommandArgs(args); err != nil {
 		return err
 	}
-	input, err := json.Marshal(composeStageInput{WorkingDirectory: aggregate.Project.WorkingDirectory, Args: args})
+	input, err := json.Marshal(composeStageInput{WorkspacePath: aggregate.Application.WorkspacePath, Args: args})
 	if err != nil {
 		return err
 	}
@@ -312,8 +312,8 @@ func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.P
 
 func (s *Service) executeLifecycleActionWithAggregate(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
-	action generated.ProjectActionResponseAction,
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
 	args []string,
 ) (ActionResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
@@ -323,44 +323,43 @@ func (s *Service) executeLifecycleActionWithAggregate(
 		return lifecycleBlockedResult(aggregate, action, err), err
 	}
 	if err := ensureLifecycleCommandArgs(args); err != nil {
-		return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", "invalid_command")}), err
+		return blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_blocked", "invalid_command")}), err
 	}
 	commandOutput, err := s.runComposeCommand(ctx, aggregate, args)
 	if err != nil {
-		result := blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(commandOutput))})
+		result := blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(commandOutput))})
 		return result, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 	}
 	messageKey := lifecycleMessageKey(action).String()
 	return ActionResult{
-		ProjectID:  aggregate.Project.ID,
-		Action:     action,
-		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey: &messageKey,
-		Message:    &messageKey,
+		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
+		Action:              action,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
+		MessageKey:          &messageKey,
+		Message:             &messageKey,
 		GuardResults: []GuardResult{
 			guardDetail("command", strings.Join(args, " ")),
-			guardDetail("host_scope", aggregate.Project.HostScope),
 		},
 	}, nil
 }
 
-func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.ProjectAggregate, args []string) (string, error) {
-	return s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, args)
+func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.ApplicationAggregate, args []string) (string, error) {
+	return s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, args)
 }
 
 // ensureLifecycleRuntimeTargetAvailable 校验选定运行目标在项目提交或执行生命周期任务前是否可达。
 // Compose 名称占用检查只属于创建阶段；已登记项目通常拥有使用自身 Compose 名称的运行时资源。
-func (s *Service) ensureLifecycleRuntimeTargetAvailable(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
+func (s *Service) ensureLifecycleRuntimeTargetAvailable(ctx context.Context, aggregate projectstore.ApplicationAggregate) error {
 	if s == nil || s.runtimeTargets == nil {
 		return nil
 	}
-	if aggregate.Project.RuntimeTargetID == nil || *aggregate.Project.RuntimeTargetID == 0 {
+	if aggregate.Application.RuntimeTargetID == nil || *aggregate.Application.RuntimeTargetID == 0 {
 		return errProjectRuntimeUnavailable
 	}
-	if *aggregate.Project.RuntimeTargetID > uint64(^uint64(0)>>1) {
+	if *aggregate.Application.RuntimeTargetID > uint64(^uint64(0)>>1) {
 		return errProjectRuntimeUnavailable
 	}
-	id := int64(*aggregate.Project.RuntimeTargetID) // #nosec G115 -- bounded by max signed int64 immediately above.
+	id := int64(*aggregate.Application.RuntimeTargetID) // #nosec G115 -- bounded by max signed int64 immediately above.
 	target, err := s.runtimeTargets.ReadComposeTarget(ctx, &id)
 	if err != nil || !target.Available {
 		return errProjectRuntimeUnavailable
@@ -371,7 +370,7 @@ func (s *Service) ensureLifecycleRuntimeTargetAvailable(ctx context.Context, agg
 func (s *Service) runDockerCommand(ctx context.Context, workingDirectory string, args []string) (string, error) {
 	commandCtx, cancel := withComposeCommandTimeout(ctx)
 	defer cancel()
-	// #nosec G204 -- binary is fixed to docker and args are validated command fragments, not shell-expanded input.
+	// #nosec G204 -- 可执行文件固定为 docker，参数均为已校验的命令片段且不经过 shell 展开。
 	command := exec.CommandContext(commandCtx, "docker", args...)
 	command.Dir = workingDirectory
 	command.Env = os.Environ()
@@ -405,10 +404,7 @@ func ensureLifecycleCommandArgs(args []string) error {
 }
 
 // ensureProjectLifecycleReady 检查项目是否满足执行生命周期操作的条件。
-func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error {
-	if strings.TrimSpace(aggregate.Project.HostScope) != projectcontract.HostScopeLocal.String() {
-		return errProjectUnsupportedLifecycle
-	}
+func ensureProjectLifecycleReady(aggregate projectstore.ApplicationAggregate) error {
 	if aggregate.Snapshot == nil {
 		return errProjectUnsupportedLifecycle
 	}
@@ -424,98 +420,98 @@ func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error 
 // @param action 操作类型。
 // @param guardResults 守卫结果列表。
 // @returns 标记为 blocked 的 ActionResult，包含项目 ID、操作类型、阻止消息以及守卫结果副本。
-func blockedActionResult(projectID uint64, action generated.ProjectActionResponseAction, guardResults []GuardResult) ActionResult {
-	messageKey := projectcontract.ProjectLifecycleBlocked.String()
+func blockedActionResult(projectID uint64, action generated.ApplicationActionResponseAction, guardResults []GuardResult) ActionResult {
+	messageKey := projectcontract.ApplicationLifecycleBlocked.String()
 	return ActionResult{
-		ProjectID:    projectID,
-		Action:       action,
-		Result:       generated.ProjectActionResponseResultProjectActionResultBlocked,
-		MessageKey:   &messageKey,
-		Message:      &messageKey,
-		GuardResults: append([]GuardResult(nil), guardResults...),
+		ApplicationRecordID: projectID,
+		Action:              action,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultBlocked,
+		MessageKey:          &messageKey,
+		Message:             &messageKey,
+		GuardResults:        append([]GuardResult(nil), guardResults...),
 	}
 }
 
 func destroyCleanupBlockedResult(projectID uint64, guardResults []GuardResult, code string, detail string) ActionResult {
 	return blockedActionResult(
 		projectID,
-		generated.ProjectActionResponseActionProjectActionDestroy,
+		generated.ApplicationActionResponseActionApplicationActionDestroy,
 		append(append([]GuardResult(nil), guardResults...), guardDetail(code, detail)),
 	)
 }
 
 // lifecycleMessageKey 返回指定生命周期动作对应的完成消息键。
-func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectcontract.MessageKey {
+func lifecycleMessageKey(action generated.ApplicationActionResponseAction) projectcontract.MessageKey {
 	switch action {
-	case generated.ProjectActionResponseActionProjectActionUp:
-		return projectcontract.ProjectUpCompleted
-	case generated.ProjectActionResponseActionProjectActionStop:
-		return projectcontract.ProjectStopCompleted
-	case generated.ProjectActionResponseActionProjectActionRestart:
-		return projectcontract.ProjectRestartCompleted
-	case generated.ProjectActionResponseActionProjectActionRedeploy:
-		return projectcontract.ProjectRedeployCompleted
-	case generated.ProjectActionResponseActionProjectActionDestroy:
-		return projectcontract.ProjectDestroyCompleted
-	case generated.ProjectActionResponseActionProjectActionUnregister:
-		return projectcontract.ProjectUnregisterCompleted
+	case generated.ApplicationActionResponseActionApplicationActionUp:
+		return projectcontract.ApplicationUpCompleted
+	case generated.ApplicationActionResponseActionApplicationActionStop:
+		return projectcontract.ApplicationStopCompleted
+	case generated.ApplicationActionResponseActionApplicationActionRestart:
+		return projectcontract.ApplicationRestartCompleted
+	case generated.ApplicationActionResponseActionApplicationActionRedeploy:
+		return projectcontract.ApplicationRedeployCompleted
+	case generated.ApplicationActionResponseActionApplicationActionDestroy:
+		return projectcontract.ApplicationDestroyCompleted
+	case generated.ApplicationActionResponseActionApplicationActionUnregister:
+		return projectcontract.ApplicationUnregisterCompleted
 	default:
-		return projectcontract.ProjectLifecycleAccepted
+		return projectcontract.ApplicationLifecycleAccepted
 	}
 }
 
 func (s *Service) redeployWithActor(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	_ actionActor,
 ) (ActionResult, error) {
 	if err := s.ensureRedeployReady(ctx, aggregate); err != nil {
-		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, err), err
+		return lifecycleBlockedResult(aggregate, generated.ApplicationActionResponseActionApplicationActionRedeploy, err), err
 	}
 	config := lifecycleConfigurationFromAggregate(aggregate)
-	guards := []GuardResult{guardDetail("host_scope", aggregate.Project.HostScope)}
+	guards := []GuardResult{}
 	if config.Standard.DownBeforeRedeploy {
 		var err error
 		guards, err = s.runRedeployComposeStep(ctx, aggregate, config, guards, lifecycleRedeployDownArgs, "compose_down_completed")
 		if err != nil {
-			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, guards), err
+			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, guards), err
 		}
 	}
 	if config.Standard.PullBeforeRedeploy {
 		var err error
 		guards, err = s.runRedeployComposeStep(ctx, aggregate, config, guards, lifecyclePullArgs, "compose_pull_completed")
 		if err != nil {
-			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, guards), err
+			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, guards), err
 		}
 	}
 	upArgs, err := lifecycleUpArgs(aggregate, config)
 	if err != nil {
-		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, err), err
+		return lifecycleBlockedResult(aggregate, generated.ApplicationActionResponseActionApplicationActionRedeploy, err), err
 	}
 	output, err := s.runComposeCommand(ctx, aggregate, upArgs)
 	if err != nil {
-		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 	}
 	guards = append(guards, guardDetail("command", strings.Join(upArgs, " ")))
 	if config.Standard.PruneImagesAfterRedeploy {
-		output, err = s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, []string{"image", "prune", "-f"})
+		output, err = s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, []string{"image", "prune", "-f"})
 		if err != nil {
-			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 		}
 		guards = append(guards, guardCode("image_prune_completed"))
 	}
-	messageKey := lifecycleMessageKey(generated.ProjectActionResponseActionProjectActionRedeploy).String()
+	messageKey := lifecycleMessageKey(generated.ApplicationActionResponseActionApplicationActionRedeploy).String()
 	return ActionResult{
-		ProjectID:    aggregate.Project.ID,
-		Action:       generated.ProjectActionResponseActionProjectActionRedeploy,
-		Result:       generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey:   &messageKey,
-		Message:      &messageKey,
-		GuardResults: guards,
+		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
+		Action:              generated.ApplicationActionResponseActionApplicationActionRedeploy,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
+		MessageKey:          &messageKey,
+		Message:             &messageKey,
+		GuardResults:        guards,
 	}, nil
 }
 
-func (s *Service) ensureRedeployReady(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
+func (s *Service) ensureRedeployReady(ctx context.Context, aggregate projectstore.ApplicationAggregate) error {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		return err
 	}
@@ -524,10 +520,10 @@ func (s *Service) ensureRedeployReady(ctx context.Context, aggregate projectstor
 
 func (s *Service) runRedeployComposeStep(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	config LifecycleConfiguration,
 	guards []GuardResult,
-	argsBuilder func(projectstore.ProjectAggregate, LifecycleConfiguration) ([]string, error),
+	argsBuilder func(projectstore.ApplicationAggregate, LifecycleConfiguration) ([]string, error),
 	successCode string,
 ) ([]GuardResult, error) {
 	args, err := argsBuilder(aggregate, config)
@@ -550,36 +546,36 @@ func lifecycleBlockedGuardResults(guards []GuardResult, err error) []GuardResult
 
 func (s *Service) unregisterWithActor(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	actor actionActor,
 ) (ActionResult, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
 		return ActionResult{}, err
 	}
-	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
-		ProjectID: aggregate.Project.ID,
-		ActorID:   &actor.id,
+	if err := repository.UnregisterApplication(ctx, projectstore.UnregisterApplicationInput{
+		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
+		ActorID:             &actor.id,
 	}); err != nil {
-		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUnregister, []GuardResult{guardDetail("registry_delete_failed", "persistence_error")}), mapStoreError(err)
+		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionUnregister, []GuardResult{guardDetail("registry_delete_failed", "persistence_error")}), mapStoreError(err)
 	}
-	messageKey := projectcontract.ProjectUnregisterCompleted.String()
+	messageKey := projectcontract.ApplicationUnregisterCompleted.String()
 	return ActionResult{
-		ProjectID:  aggregate.Project.ID,
-		Action:     generated.ProjectActionResponseActionProjectActionUnregister,
-		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey: &messageKey,
-		Message:    &messageKey,
+		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
+		Action:              generated.ApplicationActionResponseActionApplicationActionUnregister,
+		Result:              generated.ApplicationActionResponseResultApplicationActionResultCompleted,
+		MessageKey:          &messageKey,
+		Message:             &messageKey,
 		GuardResults: []GuardResult{
 			guardCode("registry_deleted"),
-			guardCode("working_directory_preserved"),
+			guardCode("workspace_path_preserved"),
 			guardCode("runtime_state_not_persisted"),
 		},
 	}, nil
 }
 
 // composeProjectArgs 根据项目聚合数据和生命周期配置构建 Docker Compose 命令参数；缺少 Compose 文件或项目规范名称无效时返回错误。
-func composeProjectArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+func composeProjectArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	if len(composeFiles) == 0 {
 		return nil, errProjectInvalidArgument
@@ -591,17 +587,17 @@ func composeProjectArgs(aggregate projectstore.ProjectAggregate, config Lifecycl
 		}
 		path := file.AbsolutePath
 		if !filepath.IsAbs(path) {
-			path = filepath.Join(aggregate.Project.WorkingDirectory, path)
+			path = filepath.Join(aggregate.Application.WorkspacePath, path)
 		}
 		base = append(base, "-f", path)
 	}
 	for _, profile := range config.Standard.Profiles {
 		base = append(base, "--profile", profile)
 	}
-	if strings.TrimSpace(config.ProjectName) == "" {
+	if strings.TrimSpace(config.ApplicationName) == "" {
 		return nil, errProjectInvalidCanonicalName
 	}
-	canonicalProjectName, err := validateExplicitCanonicalProjectName(config.ProjectName)
+	canonicalProjectName, err := validateExplicitComposeProjectName(config.ApplicationName)
 	if err != nil {
 		return nil, err
 	}
@@ -609,18 +605,18 @@ func composeProjectArgs(aggregate projectstore.ProjectAggregate, config Lifecycl
 	return base, nil
 }
 
-func lifecycleCommandArgs(aggregate projectstore.ProjectAggregate, action generated.ProjectActionResponseAction) ([]string, error) {
+func lifecycleCommandArgs(aggregate projectstore.ApplicationAggregate, action generated.ApplicationActionResponseAction) ([]string, error) {
 	config := lifecycleConfigurationFromAggregate(aggregate)
 	switch action {
-	case generated.ProjectActionResponseActionProjectActionUp:
+	case generated.ApplicationActionResponseActionApplicationActionUp:
 		return lifecycleUpArgs(aggregate, config)
-	case generated.ProjectActionResponseActionProjectActionStop:
+	case generated.ApplicationActionResponseActionApplicationActionStop:
 		base, err := composeProjectArgs(aggregate, config)
 		if err != nil {
 			return nil, err
 		}
 		return append(base, "stop"), nil
-	case generated.ProjectActionResponseActionProjectActionRestart:
+	case generated.ApplicationActionResponseActionApplicationActionRestart:
 		base, err := composeProjectArgs(aggregate, config)
 		if err != nil {
 			return nil, err
@@ -634,7 +630,7 @@ func lifecycleCommandArgs(aggregate projectstore.ProjectAggregate, action genera
 // lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数，并根据配置添加构建、重建、孤立容器清理、匿名卷更新及等待选项。
 // lifecycleUpArgs 构建用于启动项目的 Docker Compose 参数列表。
 // 返回包含配置选项和附加参数的命令参数；配置无效时返回错误。
-func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+func lifecycleUpArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
 	base, err := composeProjectArgs(aggregate, config)
 	if err != nil {
 		return nil, err
@@ -660,7 +656,7 @@ func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleCo
 	return args, nil
 }
 
-func lifecyclePullArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+func lifecyclePullArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
 	base, err := composeProjectArgs(aggregate, config)
 	if err != nil {
 		return nil, err
@@ -668,7 +664,7 @@ func lifecyclePullArgs(aggregate projectstore.ProjectAggregate, config Lifecycle
 	return append(base, "pull"), nil
 }
 
-func lifecycleRedeployDownArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+func lifecycleRedeployDownArgs(aggregate projectstore.ApplicationAggregate, config LifecycleConfiguration) ([]string, error) {
 	base, err := composeProjectArgs(aggregate, config)
 	if err != nil {
 		return nil, err
@@ -677,11 +673,11 @@ func lifecycleRedeployDownArgs(aggregate projectstore.ProjectAggregate, config L
 }
 
 func lifecycleBlockedResult(
-	aggregate projectstore.ProjectAggregate,
-	action generated.ProjectActionResponseAction,
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
 	err error,
 ) ActionResult {
-	return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", lifecycleBlockedReason(err))})
+	return blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_blocked", lifecycleBlockedReason(err))})
 }
 
 func lifecycleBlockedReason(err error) string {
@@ -715,33 +711,36 @@ func (s *Service) batchActionItem(
 	projectID uint64,
 	request BatchActionRequest,
 	actor actionActor,
-) (BatchActionItemResult, error) {
+) (itemResult BatchActionItemResult, itemErr error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return BatchActionItemResult{}, err
 	}
+	defer func() {
+		itemResult.ApplicationID = aggregate.Application.ApplicationID
+	}()
 	if item, ok, err := s.batchLifecycleActionItem(ctx, aggregate, projectID, request, actor); ok {
 		return item, err
 	}
 	switch request.Action {
-	case generated.ProjectBatchActionRequestActionUnregister:
+	case generated.ApplicationBatchActionRequestActionUnregister:
 		action, err := s.unregisterWithActor(ctx, aggregate, actor)
 		return BatchActionItemResult{ActionResult: action}, err
-	case generated.ProjectBatchActionRequestActionDestroy:
+	case generated.ApplicationBatchActionRequestActionDestroy:
 		confirmName := ""
-		if request.ConfirmCanonicalProjectName != nil {
-			confirmName = strings.TrimSpace(*request.ConfirmCanonicalProjectName)
+		if request.ConfirmComposeProjectName != nil {
+			confirmName = strings.TrimSpace(*request.ConfirmComposeProjectName)
 		}
 		destroyReq := DestroyRequest{
-			RemoveNamedVolumes:          request.RemoveNamedVolumes,
-			AutoUnregister:              request.AutoUnregister,
-			ImagePrune:                  request.ImagePrune,
-			DeleteWorkingDirectory:      request.DeleteWorkingDirectory,
-			ConfirmCanonicalProjectName: confirmName,
-			ActorID:                     &actor.id,
+			RemoveNamedVolumes:        request.RemoveNamedVolumes,
+			AutoUnregister:            request.AutoUnregister,
+			ImagePrune:                request.ImagePrune,
+			DeleteWorkspacePath:       request.DeleteWorkspacePath,
+			ConfirmComposeProjectName: confirmName,
+			ActorID:                   &actor.id,
 		}
 		if _, blockErr := validateDestroyRequest(projectID, aggregate, destroyReq); blockErr != nil {
-			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionDestroy, "destroy_not_applicable"), nil
+			return skippedBatchActionResult(projectID, generated.ApplicationActionResponseActionApplicationActionDestroy, "destroy_not_applicable"), nil
 		}
 		action, err := s.destroyAfterGuard(ctx, aggregate, destroyReq, actor)
 		return BatchActionItemResult{ActionResult: action}, err
@@ -752,36 +751,36 @@ func (s *Service) batchActionItem(
 
 func (s *Service) batchLifecycleActionItem(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	projectID uint64,
 	request BatchActionRequest,
 	actor actionActor,
 ) (BatchActionItemResult, bool, error) {
 	switch request.Action {
-	case generated.ProjectBatchActionRequestActionStart:
+	case generated.ApplicationBatchActionRequestActionStart:
 		item, err := s.batchLifecycleItem(
 			ctx,
 			aggregate,
-			generated.ProjectActionResponseActionProjectActionUp,
+			generated.ApplicationActionResponseActionApplicationActionUp,
 		)
 		return item, true, err
-	case generated.ProjectBatchActionRequestActionStop:
+	case generated.ApplicationBatchActionRequestActionStop:
 		item, err := s.batchLifecycleItem(
 			ctx,
 			aggregate,
-			generated.ProjectActionResponseActionProjectActionStop,
+			generated.ApplicationActionResponseActionApplicationActionStop,
 		)
 		return item, true, err
-	case generated.ProjectBatchActionRequestActionRestart:
+	case generated.ApplicationBatchActionRequestActionRestart:
 		item, err := s.batchLifecycleItem(
 			ctx,
 			aggregate,
-			generated.ProjectActionResponseActionProjectActionRestart,
+			generated.ApplicationActionResponseActionApplicationActionRestart,
 		)
 		return item, true, err
-	case generated.ProjectBatchActionRequestActionRedeploy:
+	case generated.ApplicationBatchActionRequestActionRedeploy:
 		if err := ensureProjectLifecycleReady(aggregate); err != nil {
-			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionRedeploy, lifecycleBlockedReason(err)), true, nil
+			return skippedBatchActionResult(projectID, generated.ApplicationActionResponseActionApplicationActionRedeploy, lifecycleBlockedReason(err)), true, nil
 		}
 		action, err := s.redeployWithActor(ctx, aggregate, actor)
 		return BatchActionItemResult{ActionResult: action}, true, err
@@ -792,8 +791,8 @@ func (s *Service) batchLifecycleActionItem(
 
 func (s *Service) batchLifecycleItem(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
-	action generated.ProjectActionResponseAction,
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
 ) (BatchActionItemResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
 		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
@@ -803,7 +802,7 @@ func (s *Service) batchLifecycleItem(
 	}
 	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)
 	if skipReason, shouldSkip := skipBatchLifecycleAction(action, &runtimeSummary, runtimeErr); shouldSkip {
-		return skippedBatchActionResult(aggregate.Project.ID, action, skipReason), nil
+		return skippedBatchActionResult(aggregate.Application.ApplicationRecordID, action, skipReason), nil
 	}
 	args, err := lifecycleCommandArgs(aggregate, action)
 	if err != nil {
@@ -814,7 +813,7 @@ func (s *Service) batchLifecycleItem(
 }
 
 func skipBatchLifecycleAction(
-	action generated.ProjectActionResponseAction,
+	action generated.ApplicationActionResponseAction,
 	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
 	runtimeErr error,
 ) (string, bool) {
@@ -823,55 +822,55 @@ func skipBatchLifecycleAction(
 		return "", false
 	}
 	switch action {
-	case generated.ProjectActionResponseActionProjectActionUp:
+	case generated.ApplicationActionResponseActionApplicationActionUp:
 		return skipBatchStartForStatus(*runtimeStatus)
-	case generated.ProjectActionResponseActionProjectActionStop:
+	case generated.ApplicationActionResponseActionApplicationActionStop:
 		return skipBatchStopForStatus(*runtimeStatus)
-	case generated.ProjectActionResponseActionProjectActionRestart:
+	case generated.ApplicationActionResponseActionApplicationActionRestart:
 		return skipBatchRestartForStatus(*runtimeStatus)
 	default:
 		return "", false
 	}
 }
 
-func skipBatchStartForStatus(status generated.ProjectRuntimeStatus) (string, bool) {
+func skipBatchStartForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
 	switch status {
-	case generated.ProjectRuntimeStatusRunning:
+	case generated.ApplicationRuntimeStatusRunning:
 		return "already_running", true
-	case generated.ProjectRuntimeStatusDegraded:
+	case generated.ApplicationRuntimeStatusDegraded:
 		return "already_partially_running", true
-	case generated.ProjectRuntimeStatusTransitioning:
+	case generated.ApplicationRuntimeStatusTransitioning:
 		return "currently_transitioning", true
 	default:
 		return "", false
 	}
 }
 
-func skipBatchStopForStatus(status generated.ProjectRuntimeStatus) (string, bool) {
+func skipBatchStopForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
 	switch status {
-	case generated.ProjectRuntimeStatusStopped:
+	case generated.ApplicationRuntimeStatusStopped:
 		return "already_stopped", true
-	case generated.ProjectRuntimeStatusUnknown:
+	case generated.ApplicationRuntimeStatusUnknown:
 		return "runtime_status_unknown", true
 	default:
 		return "", false
 	}
 }
 
-func skipBatchRestartForStatus(status generated.ProjectRuntimeStatus) (string, bool) {
+func skipBatchRestartForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
 	switch status {
-	case generated.ProjectRuntimeStatusRunning, generated.ProjectRuntimeStatusDegraded, generated.ProjectRuntimeStatusStopped:
+	case generated.ApplicationRuntimeStatusRunning, generated.ApplicationRuntimeStatusDegraded, generated.ApplicationRuntimeStatusStopped:
 		return "", false
-	case generated.ProjectRuntimeStatusTransitioning:
+	case generated.ApplicationRuntimeStatusTransitioning:
 		return "currently_transitioning", true
-	case generated.ProjectRuntimeStatusUnknown:
+	case generated.ApplicationRuntimeStatusUnknown:
 		return "runtime_status_unknown", true
 	default:
 		return "runtime_status_unknown", true
 	}
 }
 
-func destroyDownArgs(aggregate projectstore.ProjectAggregate, removeNamedVolumes bool) ([]string, error) {
+func destroyDownArgs(aggregate projectstore.ApplicationAggregate, removeNamedVolumes bool) ([]string, error) {
 	base, err := composeProjectArgs(aggregate, lifecycleConfigurationFromAggregate(aggregate))
 	if err != nil {
 		return nil, err
@@ -891,38 +890,38 @@ func appendDestroyDownGuards(guardResults []GuardResult, removeNamedVolumes bool
 	return guardResults
 }
 
-func (s *Service) applyDestroyWorkingDirectoryStep(
-	aggregate projectstore.ProjectAggregate,
+func (s *Service) applyDestroyWorkspacePathStep(
+	aggregate projectstore.ApplicationAggregate,
 	request DestroyRequest,
 	guardResults []GuardResult,
 ) ([]GuardResult, bool, error) {
 	autoUnregister := request.AutoUnregister
-	if request.DeleteWorkingDirectory {
-		if err := deleteManagedWorkingDirectory(aggregate.Project.WorkingDirectory); err != nil {
+	if request.DeleteWorkspacePath {
+		if err := deleteManagedWorkspacePath(aggregate.Application.WorkspacePath); err != nil {
 			return nil, false, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 		}
-		guardResults = append(guardResults, guardCode("working_directory_deleted"))
+		guardResults = append(guardResults, guardCode("workspace_path_deleted"))
 		autoUnregister = true
 		return guardResults, autoUnregister, nil
 	}
-	guardResults = append(guardResults, guardCode("working_directory_preserved"))
+	guardResults = append(guardResults, guardCode("workspace_path_preserved"))
 	return guardResults, autoUnregister, nil
 }
 
 func (s *Service) applyDestroyImagePruneStep(
 	ctx context.Context,
-	aggregate projectstore.ProjectAggregate,
+	aggregate projectstore.ApplicationAggregate,
 	guardResults []GuardResult,
 	imagePrune bool,
 ) (ActionResult, []GuardResult, error) {
 	if !imagePrune {
 		return ActionResult{}, guardResults, nil
 	}
-	output, err := s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, []string{"image", "prune", "-f"})
+	output, err := s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, []string{"image", "prune", "-f"})
 	if err != nil {
 		return blockedActionResult(
-				aggregate.Project.ID,
-				generated.ProjectActionResponseActionProjectActionDestroy,
+				aggregate.Application.ApplicationRecordID,
+				generated.ApplicationActionResponseActionApplicationActionDestroy,
 				append(guardResults, guardDetail("image_prune_failed", summarizeCommandOutput(output))),
 			),
 			nil,
@@ -947,9 +946,9 @@ func (s *Service) applyDestroyUnregisterStep(
 	if err != nil {
 		return nil, err
 	}
-	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
-		ProjectID: projectID,
-		ActorID:   &actor.id,
+	if err := repository.UnregisterApplication(ctx, projectstore.UnregisterApplicationInput{
+		ApplicationRecordID: projectID,
+		ActorID:             &actor.id,
 	}); err != nil {
 		return nil, mapStoreError(err)
 	}
@@ -974,46 +973,46 @@ func (s *Service) requireBatchActor(
 			}, BatchActionResult{}, nil
 		}
 	}
-	items := make([]BatchActionItemResult, 0, len(request.ProjectIDs))
-	for _, projectID := range request.ProjectIDs {
-		result := actorAttributionBlockedResult(projectID, batchActionToProjectAction(request.Action), reason)
+	items := make([]BatchActionItemResult, 0, len(request.ApplicationRecordIDs))
+	for _, projectID := range request.ApplicationRecordIDs {
+		result := actorAttributionBlockedResult(projectID, batchActionToApplicationAction(request.Action), reason)
 		items = append(items, BatchActionItemResult{ActionResult: result})
 	}
 	return actionActor{}, BatchActionResult{
-		TotalCount:   len(request.ProjectIDs),
-		BlockedCount: len(request.ProjectIDs),
+		TotalCount:   len(request.ApplicationRecordIDs),
+		BlockedCount: len(request.ApplicationRecordIDs),
 		Items:        items,
 	}, errProjectActorAttribution
 }
 
-func batchActionToProjectAction(action generated.ProjectBatchActionRequestAction) generated.ProjectActionResponseAction {
+func batchActionToApplicationAction(action generated.ApplicationBatchActionRequestAction) generated.ApplicationActionResponseAction {
 	switch action {
-	case generated.ProjectBatchActionRequestActionStart:
-		return generated.ProjectActionResponseActionProjectActionUp
-	case generated.ProjectBatchActionRequestActionStop:
-		return generated.ProjectActionResponseActionProjectActionStop
-	case generated.ProjectBatchActionRequestActionRestart:
-		return generated.ProjectActionResponseActionProjectActionRestart
-	case generated.ProjectBatchActionRequestActionRedeploy:
-		return generated.ProjectActionResponseActionProjectActionRedeploy
-	case generated.ProjectBatchActionRequestActionUnregister:
-		return generated.ProjectActionResponseActionProjectActionUnregister
-	case generated.ProjectBatchActionRequestActionDestroy:
-		return generated.ProjectActionResponseActionProjectActionDestroy
+	case generated.ApplicationBatchActionRequestActionStart:
+		return generated.ApplicationActionResponseActionApplicationActionUp
+	case generated.ApplicationBatchActionRequestActionStop:
+		return generated.ApplicationActionResponseActionApplicationActionStop
+	case generated.ApplicationBatchActionRequestActionRestart:
+		return generated.ApplicationActionResponseActionApplicationActionRestart
+	case generated.ApplicationBatchActionRequestActionRedeploy:
+		return generated.ApplicationActionResponseActionApplicationActionRedeploy
+	case generated.ApplicationBatchActionRequestActionUnregister:
+		return generated.ApplicationActionResponseActionApplicationActionUnregister
+	case generated.ApplicationBatchActionRequestActionDestroy:
+		return generated.ApplicationActionResponseActionApplicationActionDestroy
 	default:
-		return generated.ProjectActionResponseActionProjectActionRestart
+		return generated.ApplicationActionResponseActionApplicationActionRestart
 	}
 }
 
-func skippedBatchActionResult(projectID uint64, action generated.ProjectActionResponseAction, reason string) BatchActionItemResult {
-	messageKey := projectcontract.ProjectLifecycleBlocked.String()
+func skippedBatchActionResult(projectID uint64, action generated.ApplicationActionResponseAction, reason string) BatchActionItemResult {
+	messageKey := projectcontract.ApplicationLifecycleBlocked.String()
 	return BatchActionItemResult{
 		ActionResult: ActionResult{
-			ProjectID:  projectID,
-			Action:     action,
-			Result:     generated.ProjectActionResponseResultProjectActionResultBlocked,
-			MessageKey: &messageKey,
-			Message:    &messageKey,
+			ApplicationRecordID: projectID,
+			Action:              action,
+			Result:              generated.ApplicationActionResponseResultApplicationActionResultBlocked,
+			MessageKey:          &messageKey,
+			Message:             &messageKey,
 			GuardResults: []GuardResult{
 				guardDetail("skipped", reason),
 			},

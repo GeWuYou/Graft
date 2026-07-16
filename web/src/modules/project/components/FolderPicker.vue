@@ -118,7 +118,7 @@ import { computed, ref, watch } from 'vue';
 import { ManagementEmptyState } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getProjectImportDirectories, getProjectImportDirectorySources } from '../api/import';
+import { getApplicationImportDirectories, getApplicationImportDirectorySources } from '../api/import';
 import {
   buildDirectoryBreadcrumbs,
   buildDirectorySelection,
@@ -126,12 +126,12 @@ import {
   initialDirectoryPath,
   normalizeDirectoryPath,
 } from '../shared/import';
-import { useProjectPageContext } from '../shared/page-context';
+import { useApplicationPageContext } from '../shared/page-context';
 import type {
-  ProjectImportDirectoryListItem,
-  ProjectImportDirectoryListResponse,
-  ProjectImportDirectoryRef,
-  ProjectImportDirectorySource,
+  ApplicationImportDirectoryListItem,
+  ApplicationImportDirectoryListResponse,
+  ApplicationImportDirectoryRef,
+  ApplicationImportDirectorySource,
 } from '../types/import';
 
 // 目录来源和目录列表均来自服务端；组件只拥有当前浏览路径、加载状态与确认结果。
@@ -142,22 +142,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'close'): void;
-  (event: 'confirm', value: ProjectImportDirectoryRef): void;
+  (event: 'confirm', value: ApplicationImportDirectoryRef): void;
 }>();
 
-const { t } = useProjectPageContext();
+const { t } = useApplicationPageContext();
 
 const sourcesLoading = ref(false);
 const directoriesLoading = ref(false);
 const errorMessage = ref('');
-const sources = ref<ProjectImportDirectorySource[]>([]);
+const sources = ref<ApplicationImportDirectorySource[]>([]);
 const activeSourceKey = ref('');
-const activeDirectoryRef = ref<ProjectImportDirectoryRef | null>(null);
+const activeDirectoryRef = ref<ApplicationImportDirectoryRef | null>(null);
 const currentPath = ref('');
 const parentPath = ref<string | null>(null);
-const directories = ref<ProjectImportDirectoryListItem[]>([]);
+const directories = ref<ApplicationImportDirectoryListItem[]>([]);
 const highlightedPath = ref('');
-const directoryCache = ref<Record<string, ProjectImportDirectoryListResponse>>({});
+const directoryCache = ref<Record<string, ApplicationImportDirectoryListResponse>>({});
 const directoryLimit = ref(200);
 const directoryListLimited = ref(false);
 
@@ -204,11 +204,11 @@ watch(
   },
 );
 
-function buildSourceKey(source: ProjectImportDirectorySource) {
+function buildSourceKey(source: ApplicationImportDirectorySource) {
   return `${source.provider}:${source.root_id}`;
 }
 
-function buildDirectoryCacheKey(directory: ProjectImportDirectoryRef) {
+function buildDirectoryCacheKey(directory: ApplicationImportDirectoryRef) {
   return `${directory.provider}:${directory.root_id}:${normalizeDirectoryPath(directory.path)}`;
 }
 
@@ -230,7 +230,7 @@ async function initialize() {
   resetState();
   sourcesLoading.value = true;
   try {
-    const response = await getProjectImportDirectorySources();
+    const response = await getApplicationImportDirectorySources();
     sources.value = response.items;
     const preferredSource = response.items.find((item) => item.managed) || response.items[0];
     if (!preferredSource) {
@@ -246,7 +246,10 @@ async function initialize() {
   }
 }
 
-function applyDirectoryResponse(response: ProjectImportDirectoryListResponse, directory: ProjectImportDirectoryRef) {
+function applyDirectoryResponse(
+  response: ApplicationImportDirectoryListResponse,
+  directory: ApplicationImportDirectoryRef,
+) {
   activeDirectoryRef.value = directory;
   currentPath.value = normalizeDirectoryPath(response.current_path);
   parentPath.value = response.parent_path ? normalizeDirectoryPath(response.parent_path) : null;
@@ -256,7 +259,7 @@ function applyDirectoryResponse(response: ProjectImportDirectoryListResponse, di
   directoryListLimited.value = response.has_more;
 }
 
-async function loadDirectories(directory: ProjectImportDirectoryRef, forceRefresh = false) {
+async function loadDirectories(directory: ApplicationImportDirectoryRef, forceRefresh = false) {
   const cacheKey = buildDirectoryCacheKey(directory);
   const cached = directoryCache.value[cacheKey];
   if (cached && !forceRefresh) {
@@ -267,7 +270,7 @@ async function loadDirectories(directory: ProjectImportDirectoryRef, forceRefres
   directoriesLoading.value = true;
   errorMessage.value = '';
   try {
-    const response = await getProjectImportDirectories({
+    const response = await getApplicationImportDirectories({
       ...directory,
       limit: 200,
       order: 'asc',

@@ -1,0 +1,6 @@
+type: object
+required:
+  - data
+properties:
+  data:
+    $ref: ./application-file-tree-item.yaml

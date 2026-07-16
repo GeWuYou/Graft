@@ -1,0 +1,50 @@
+type: object
+required:
+  - name
+  - relative_path
+  - node_type
+  - file_kind
+  - readable
+  - editable
+  - language_hint
+  - size_bytes
+  - hidden_by_default
+  - has_children
+properties:
+  name:
+    type: string
+  relative_path:
+    type: string
+  node_type:
+    $ref: ./application-file-tree-node-type.yaml
+  file_kind:
+    $ref: ./application-workspace-file-kind.yaml
+  readable:
+    type: boolean
+  editable:
+    type: boolean
+  language_hint:
+    type: string
+    description: >
+      Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml,
+      properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
+  size_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  hidden_by_default:
+    type: boolean
+  has_children:
+    type: boolean
+  tooltip:
+    type: string
+    nullable: true
+  tooltip_source:
+    type: string
+    enum:
+      - application-note
+      - default-rule
+    nullable: true
+  application_note:
+    type: string
+    nullable: true

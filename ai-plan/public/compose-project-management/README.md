@@ -9,6 +9,16 @@
 - 当前已完成 Phase 0、Phase 1、Phase 2 的主要实现，但主题仍处于 `active`，因为产品入口、lifecycle authority 和 topic 完成口径出现了 drift repair 待修复项。
 - 当前处于同一个 `topic-completion-loop` 下继续修复入口 IA、topic truth 与实际可用性之间的偏差，而不是新主题。
 
+## Application Migration Authority
+
+- 用户已批准一次性完整迁移：产品、UI、HTTP 与 OpenAPI 公开资源统一为 `Application`。
+- canonical UI/API route 固定为 `/applications/**` 与 `/api/ops/applications/**`，路径参数使用 `applicationId`；
+  不保留 Project alias、redirect 或 deprecated contract。
+- 通用持久化主表固定为 `applications`，当前 `application_type=compose`；公开字段固定为 `source_type`、
+  `compose_project_name`、`workspace_path`，`host_scope` 不再属于 Application authority。
+- `Compose Project Name` 继续作为技术 deployment identity；公开 ID 继续为 `app_<ULID>`。
+- 历史 versioned migration SQL 不得修改；server 实现只能新增前向迁移完成表、列与数据搬迁。
+
 ## Recovery Receipt
 
 - governance source：root `AGENTS.md`
@@ -23,7 +33,7 @@
 - `ai-plan/design/domains/compose/Compose项目管理设计.md`
 - `ai-plan/public/compose-project-management/**`
 - `ai-plan/public/README.md`
-- future `openapi/**` project contract source
+- `openapi/**` Application contract source
 - future `server/modules/project/**`
 - future `server/internal/moduleapi/**` 中项目实现所需的最小稳定共享边界
 - future `web/src/modules/project/**`
@@ -72,7 +82,7 @@
   - Phase 2 已在同一 topic 内完成 managed create/edit/diff/validate/deploy 的核心实现，但主入口 IA 被 Phase 3 boundary work 偏移，需要先修复入口 truth。
   - `Import Existing Project` 的主入口应是 runtime candidate，而不是 folder picker。
   - 当前 import 的 `directory browse / inspect` 能力继续保留，但只作为非主入口 inspect/file-system 复用底座。
-  - `config_files` 是 runtime candidate 的 stronger authority；`working_directory` 是 hint，可在缺少 label 时由 `config_files[0]` 派生。
+  - `config_files` 是 runtime candidate 的 stronger authority；`workspace_path` 是 hint，可在缺少 label 时由 `config_files[0]` 派生。
   - 本地项目统一收口到保存型 `Lifecycle Configuration` authority：managed 默认 `confirmed`；运行时导入在向导内强制审核配置，并与注册一起保存为 `confirmed`。
   - `update-deploy` 不再作为一等动作保留；`redeploy` 成为唯一 deploy-style lifecycle action，pull/down/prune 等语义统一由 lifecycle configuration 持有。
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。

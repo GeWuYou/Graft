@@ -2,15 +2,19 @@ import { computed, ref } from 'vue';
 
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { postProjectImportExecute, postProjectImportRuntimeInspect } from '../api/import';
-import { PROJECT_IMPORT_MESSAGE_KEY } from '../contract/messages';
+import { postApplicationImportExecute, postApplicationImportRuntimeInspect } from '../api/import';
+import { APPLICATION_IMPORT_MESSAGE_KEY } from '../contract/messages';
 import type {
-  ProjectImportInspectResponse,
-  ProjectImportRuntimeCandidate,
-  ProjectImportRuntimeInspectRequest,
+  ApplicationImportInspectResponse,
+  ApplicationImportRuntimeCandidate,
+  ApplicationImportRuntimeInspectRequest,
 } from '../types/import';
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
-import { buildSuggestedDisplayName, hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
+import {
+  buildSuggestedDisplayName,
+  hasBlockingImportConflicts,
+  normalizeApplicationImportInspectResponse,
+} from './import';
 import { buildImportLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from './lifecycle';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -18,16 +22,16 @@ type Translate = (key: string, params?: Record<string, unknown>) => string;
 /**
  * 判断导入提交是否因服务端检查会话失效而失败。
  */
-export function isProjectImportInspectionExpiredError(error: unknown) {
+export function isApplicationImportInspectionExpiredError(error: unknown) {
   return (
     Boolean(
       error && typeof error === 'object' && (error as { isApiRequestError?: unknown }).isApiRequestError === true,
-    ) && (error as { messageKey?: unknown }).messageKey === PROJECT_IMPORT_MESSAGE_KEY.INSPECTION_EXPIRED
+    ) && (error as { messageKey?: unknown }).messageKey === APPLICATION_IMPORT_MESSAGE_KEY.INSPECTION_EXPIRED
   );
 }
 
 /** 导入检查结果属于服务端会话；异步结果只有在仍对应最新请求时才能写入页面状态。 */
-export function useProjectImportFlow(t: Translate) {
+export function useApplicationImportFlow(t: Translate) {
   let latestInspectRequestId = 0;
 
   const selectedCandidateKey = ref('');
@@ -35,11 +39,11 @@ export function useProjectImportFlow(t: Translate) {
   const importLoading = ref(false);
   const inspectError = ref('');
   const importError = ref('');
-  const inspectResult = ref<ProjectImportInspectResponse | null>(null);
+  const inspectResult = ref<ApplicationImportInspectResponse | null>(null);
   const inspectionSessionValid = ref(false);
   const displayName = ref('');
-  const canonicalProjectNameOverride = ref('');
-  const lifecycleDraft = ref<ProjectLifecycleConfigurationDraft | null>(null);
+  const composeProjectNameOverride = ref('');
+  const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft | null>(null);
   const lifecycleConfigError = ref('');
 
   const canImport = computed(
@@ -63,7 +67,7 @@ export function useProjectImportFlow(t: Translate) {
     inspectResult.value = null;
     inspectionSessionValid.value = false;
     displayName.value = '';
-    canonicalProjectNameOverride.value = '';
+    composeProjectNameOverride.value = '';
     lifecycleDraft.value = null;
     lifecycleConfigError.value = '';
   }
@@ -74,7 +78,7 @@ export function useProjectImportFlow(t: Translate) {
     inspectResult.value = null;
     inspectionSessionValid.value = false;
     displayName.value = '';
-    canonicalProjectNameOverride.value = '';
+    composeProjectNameOverride.value = '';
     lifecycleDraft.value = null;
     lifecycleConfigError.value = '';
   }
@@ -92,12 +96,12 @@ export function useProjectImportFlow(t: Translate) {
     }
     inspectLoading.value = true;
     try {
-      const payload: ProjectImportRuntimeInspectRequest = { candidate_key: candidateKey };
-      const response = await postProjectImportRuntimeInspect(payload);
+      const payload: ApplicationImportRuntimeInspectRequest = { candidate_key: candidateKey };
+      const response = await postApplicationImportRuntimeInspect(payload);
       if (requestId !== latestInspectRequestId) {
         return 'stale' as const;
       }
-      const normalizedResponse = normalizeProjectImportInspectResponse(response);
+      const normalizedResponse = normalizeApplicationImportInspectResponse(response);
       inspectResult.value = normalizedResponse;
       inspectionSessionValid.value = Boolean(normalizedResponse?.inspection_id);
       if (!preserveDraft) {
@@ -117,7 +121,7 @@ export function useProjectImportFlow(t: Translate) {
     }
   }
 
-  async function inspectCandidate(candidate: ProjectImportRuntimeCandidate) {
+  async function inspectCandidate(candidate: ApplicationImportRuntimeCandidate) {
     return inspectCandidateByKey(candidate.candidate_key);
   }
 
@@ -168,10 +172,10 @@ export function useProjectImportFlow(t: Translate) {
     importLoading.value = true;
     importError.value = '';
     try {
-      return await postProjectImportExecute({
+      return await postApplicationImportExecute({
         inspection_id: inspectResult.value.inspection_id,
         display_name: displayName.value.trim() || undefined,
-        canonical_project_name_override: canonicalProjectNameOverride.value.trim() || null,
+        compose_project_name_override: composeProjectNameOverride.value.trim() || null,
         lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
       });
     } catch (error) {
@@ -184,7 +188,7 @@ export function useProjectImportFlow(t: Translate) {
 
   return {
     canImport,
-    canonicalProjectNameOverride,
+    composeProjectNameOverride,
     clearPreview,
     displayName,
     hasPreview,

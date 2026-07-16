@@ -72,7 +72,7 @@
           >
           <div class="project-create-page__actions">
             <t-button variant="outline" @click="step--">{{ t('project.create.actions.back') }}</t-button
-            ><t-button theme="primary" :loading="creating" @click="() => createProject()">{{
+            ><t-button theme="primary" :loading="creating" @click="() => createApplication()">{{
               t('project.create.actions.create')
             }}</t-button>
           </div>
@@ -110,9 +110,9 @@ import { ManagementPageContent, ManagementPageHeader } from '@/shared/components
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
-  getProjectWorkspaceDefaults,
-  postProjectApplicationNameAvailability,
-  postProjectCreate,
+  getApplicationWorkspaceDefaults,
+  postApplicationApplicationNameAvailability,
+  postApplicationCreate,
 } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationStep from '../../components/ProjectLifecycleConfigurationStep.vue';
@@ -121,23 +121,23 @@ import { buildBlankLifecycleConfigurationDraft, buildLifecycleConfigurationReque
 import {
   appendResolvedTab,
   buildDetailTitleWithFallback,
-  navigateToProjectCreateSource,
-  refreshProjectCreatePage,
+  navigateToApplicationCreateSource,
+  refreshApplicationCreatePage,
 } from '../../shared/navigation';
-import { useProjectPageContext } from '../../shared/page-context';
+import { useApplicationPageContext } from '../../shared/page-context';
 import type {
-  ProjectApplicationNameAvailabilityResponse,
-  ProjectCreateRequest,
-  ProjectCreateResponse,
-  ProjectLifecycleConfigurationDraft,
-  ProjectWorkspaceDraftEntry,
-  ProjectWorkspaceDraftFile,
-  ProjectWorkspaceEntry,
+  ApplicationApplicationNameAvailabilityResponse,
+  ApplicationCreateRequest,
+  ApplicationCreateResponse,
+  ApplicationLifecycleConfigurationDraft,
+  ApplicationWorkspaceDraftEntry,
+  ApplicationWorkspaceDraftFile,
+  ApplicationWorkspaceEntry,
 } from '../../types/project';
 
-defineOptions({ name: 'ProjectManagedCreateIndex' });
+defineOptions({ name: 'ApplicationManagedCreateIndex' });
 // 托管创建页拥有表单草稿和校验反馈，工作区编辑器与创建 API 分别维护各自的边界。
-const { router, tabsRouterStore, t } = useProjectPageContext();
+const { router, tabsRouterStore, t } = useApplicationPageContext();
 const route = useRoute();
 const formRef = ref<FormInstanceFunctions | null>(null);
 const creating = ref(false);
@@ -149,19 +149,19 @@ const runtimeTargetId = computed(() => {
   return Number.isSafeInteger(value) ? value : null;
 });
 const formData = reactive({ display_name: '', application_name: '' });
-const workspaceFiles = ref<ProjectWorkspaceDraftEntry[]>([
+const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([
   { path: 'compose.yaml', node_type: 'file', content: '' },
   { path: '.env', node_type: 'file', content: '' },
 ]);
 const primaryComposePath = ref('compose.yaml');
 const workspaceDefaultsLoading = ref(true);
 const workspaceDefaultsError = ref('');
-const workspaceDefaults = ref<Awaited<ReturnType<typeof getProjectWorkspaceDefaults>> | null>(null);
-const lifecycleDraft = ref<ProjectLifecycleConfigurationDraft | null>(null);
+const workspaceDefaults = ref<Awaited<ReturnType<typeof getApplicationWorkspaceDefaults>> | null>(null);
+const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft | null>(null);
 const lifecycleConfigError = ref('');
 const reuseDirectoryDialogVisible = ref(false);
 const reuseWriteDialogVisible = ref(false);
-const pendingReusableWorkspace = ref<ProjectApplicationNameAvailabilityResponse | null>(null);
+const pendingReusableWorkspace = ref<ApplicationApplicationNameAvailabilityResponse | null>(null);
 const reusingExistingWorkspace = ref(false);
 const reusedWorkspacePath = ref('');
 const formRules: FormProps['rules'] = {
@@ -197,7 +197,7 @@ onMounted(async () => {
   if (typeof route.query.display_name === 'string') formData.display_name = route.query.display_name;
   if (typeof route.query.application_name === 'string') formData.application_name = route.query.application_name;
   try {
-    const defaults = await getProjectWorkspaceDefaults();
+    const defaults = await getApplicationWorkspaceDefaults();
     if (defaults.workspace_entries?.length) {
       workspaceFiles.value = defaults.workspace_entries.map(toWorkspaceDraftEntry);
     }
@@ -226,7 +226,7 @@ async function nextFromIdentity() {
     return;
   }
   try {
-    const availability = await postProjectApplicationNameAvailability({
+    const availability = await postApplicationApplicationNameAvailability({
       application_name: formData.application_name.trim(),
     });
     if (availability.status === 'registered') {
@@ -249,7 +249,7 @@ async function nextFromIdentity() {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));
   }
 }
-function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
+function payload(runtimeTargetIdValue: number): ApplicationCreateRequest {
   if (!lifecycleDraft.value) {
     throw new Error('missing lifecycle configuration');
   }
@@ -257,13 +257,13 @@ function payload(runtimeTargetIdValue: number): ProjectCreateRequest {
     display_name: formData.display_name.trim(),
     runtime_target_id: runtimeTargetIdValue,
     application_name: formData.application_name.trim(),
-    workspace_entries: workspaceFiles.value.map(toProjectWorkspaceEntry),
+    workspace_entries: workspaceFiles.value.map(toApplicationWorkspaceEntry),
     compose_file_path: composePath.value as string,
     reuse_existing_workspace: reusingExistingWorkspace.value,
     lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
   };
 }
-function useReusableWorkspace(availability: ProjectApplicationNameAvailabilityResponse) {
+function useReusableWorkspace(availability: ApplicationApplicationNameAvailabilityResponse) {
   reusingExistingWorkspace.value = true;
   reusedWorkspacePath.value = availability.workspace_path;
   if (availability.workspace_entries?.length) {
@@ -278,13 +278,13 @@ function confirmReuseDirectory() {
   useReusableWorkspace(availability);
   step.value++;
 }
-function toWorkspaceDraftEntry(entry: ProjectWorkspaceEntry): ProjectWorkspaceDraftEntry {
+function toWorkspaceDraftEntry(entry: ApplicationWorkspaceEntry): ApplicationWorkspaceDraftEntry {
   if (entry.node_type === 'directory') {
     return { path: entry.path, node_type: 'directory' };
   }
   return { path: entry.path, node_type: 'file', content: entry.content ?? '' };
 }
-function toProjectWorkspaceEntry(entry: ProjectWorkspaceDraftEntry): ProjectWorkspaceEntry {
+function toApplicationWorkspaceEntry(entry: ApplicationWorkspaceDraftEntry): ApplicationWorkspaceEntry {
   if (entry.node_type === 'directory') {
     return { path: entry.path, node_type: 'directory' };
   }
@@ -297,7 +297,8 @@ function nextFromWorkspace() {
     return;
   }
   const compose = workspaceFiles.value.find(
-    (entry): entry is ProjectWorkspaceDraftFile => entry.node_type !== 'directory' && entry.path === composePath.value,
+    (entry): entry is ApplicationWorkspaceDraftFile =>
+      entry.node_type !== 'directory' && entry.path === composePath.value,
   );
   if (!composePath.value || !compose?.content?.trim()) {
     MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
@@ -309,15 +310,15 @@ function nextFromWorkspace() {
     return;
   }
   const composeFilePath = composePath.value;
-  const canonicalProjectName = formData.application_name.trim();
+  const composeProjectName = formData.application_name.trim();
   if (!lifecycleDraft.value) {
     lifecycleDraft.value = buildBlankLifecycleConfigurationDraft(workspaceDefaults.value, {
       composeFilePath,
-      canonicalProjectName,
+      composeProjectName,
     });
   } else {
     lifecycleDraft.value.compose_files = [composeFilePath];
-    lifecycleDraft.value.canonical_project_name = canonicalProjectName;
+    lifecycleDraft.value.compose_project_name = composeProjectName;
   }
   step.value++;
 }
@@ -329,7 +330,7 @@ function nextFromLifecycle() {
   }
   step.value++;
 }
-async function createProject(confirmedReuse = false) {
+async function createApplication(confirmedReuse = false) {
   if (runtimeTargetId.value === null) {
     MessagePlugin.warning(t('project.runtimeTarget.unavailableTooltip'));
     return;
@@ -349,9 +350,9 @@ async function createProject(confirmedReuse = false) {
   }
   creating.value = true;
   try {
-    const response = await postProjectCreate(payload(runtimeTargetId.value));
+    const response = await postApplicationCreate(payload(runtimeTargetId.value));
     MessagePlugin.success(t('project.create.messages.createSuccess'));
-    openCreatedProject(response);
+    openCreatedApplication(response);
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.create.messages.createFailed')));
   } finally {
@@ -360,18 +361,18 @@ async function createProject(confirmedReuse = false) {
 }
 function confirmCreateReuse() {
   reuseWriteDialogVisible.value = false;
-  void createProject(true);
+  void createApplication(true);
 }
 function goToSource() {
-  navigateToProjectCreateSource(router, route.query);
+  navigateToApplicationCreateSource(router, route.query);
 }
 function refreshPage() {
-  refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, route.query);
+  refreshApplicationCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName, route.query);
 }
-function openCreatedProject(response: ProjectCreateResponse) {
+function openCreatedApplication(response: ApplicationCreateResponse) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-    params: { id: response.application_id },
+    params: { applicationId: response.application_id },
     query: { name: response.display_name },
   };
   const resolved = router.resolve(target);

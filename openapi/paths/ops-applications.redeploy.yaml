@@ -1,0 +1,57 @@
+post:
+  tags: [application]
+  summary: Redeploy a registered application
+  operationId: postApplicationRedeploy
+  description: >
+    Submits the saved application lifecycle configuration for asynchronous execution on the selected application. Standard
+    strategy redeploy may include
+    `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/application-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '202':
+      description: Application redeploy Task accepted.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
+    '400':
+      description: Invalid application id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Application record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Redeploy Task submission blocked by lifecycle review guards or application lifecycle guards.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

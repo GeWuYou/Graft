@@ -109,7 +109,7 @@ func (s *Service) browseProjectFiles(
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	rootDir, currentPath, err := resolveProjectWorkspaceDirectory(aggregate.Project.WorkingDirectory, query.Path)
+	rootDir, currentPath, err := resolveProjectWorkspaceDirectory(aggregate.Application.WorkspacePath, query.Path)
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
@@ -125,11 +125,11 @@ func (s *Service) browseProjectFiles(
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	fileTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceFileTooltipRulesConfig.String(), defaultWorkspaceFileTooltipRules)
+	fileTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ApplicationWorkspaceFileTooltipRulesConfig.String(), defaultWorkspaceFileTooltipRules)
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	directoryTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfig.String(), defaultWorkspaceDirectoryTooltipRules)
+	directoryTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ApplicationWorkspaceDirectoryTooltipRulesConfig.String(), defaultWorkspaceDirectoryTooltipRules)
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
@@ -139,7 +139,7 @@ func (s *Service) browseProjectFiles(
 		HiddenDirectories:     hiddenDirectories,
 		FileTooltipRules:      fileTooltipRules,
 		DirectoryTooltipRules: directoryTooltipRules,
-		Annotations:           aggregate.Project.WorkspaceAnnotations,
+		Annotations:           aggregate.Application.WorkspaceAnnotations,
 	}
 	items, hasMoreHidden, err := buildVisibleWorkspaceItems(
 		entries,
@@ -152,12 +152,13 @@ func (s *Service) browseProjectFiles(
 	}
 	parentPath := workspaceParentPath(currentPath)
 	return workspaceFilesResult{
-		ProjectID:     projectID,
-		RootPath:      rootDir,
-		CurrentPath:   currentPath,
-		ParentPath:    parentPath,
-		HasMoreHidden: hasMoreHidden,
-		Items:         items,
+		ApplicationRecordID: projectID,
+		ApplicationID:       aggregate.Application.ApplicationID,
+		RootPath:            rootDir,
+		CurrentPath:         currentPath,
+		ParentPath:          parentPath,
+		HasMoreHidden:       hasMoreHidden,
+		Items:               items,
 	}, nil
 }
 
@@ -170,7 +171,7 @@ func (s *Service) projectFileContent(
 	if err != nil {
 		return workspaceFileContentResult{}, err
 	}
-	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
+	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Application.WorkspacePath, path)
 	if err != nil {
 		return workspaceFileContentResult{}, err
 	}
@@ -185,7 +186,7 @@ func (s *Service) projectFileContent(
 	if info.IsDir() {
 		return workspaceFileContentResult{}, errProjectInvalidArgument
 	}
-	// #nosec G304 -- absolutePath is validated to stay under the project's working_directory before reading.
+	// #nosec G304 -- absolutePath 已校验为应用 workspace_path 范围内的路径。
 	content, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return workspaceFileContentResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
@@ -195,15 +196,16 @@ func (s *Service) projectFileContent(
 		return workspaceFileContentResult{}, errProjectInvalidArgument
 	}
 	return workspaceFileContentResult{
-		ProjectID:    projectID,
-		RelativePath: relativePath,
-		FileKind:     state.FileKind,
-		LanguageHint: state.LanguageHint,
-		Readable:     state.Readable,
-		Editable:     state.Editable,
-		Encoding:     projectWorkspaceEncodingUTF8,
-		Content:      string(content),
-		SizeBytes:    info.Size(),
+		ApplicationRecordID: projectID,
+		ApplicationID:       aggregate.Application.ApplicationID,
+		RelativePath:        relativePath,
+		FileKind:            state.FileKind,
+		LanguageHint:        state.LanguageHint,
+		Readable:            state.Readable,
+		Editable:            state.Editable,
+		Encoding:            projectWorkspaceEncodingUTF8,
+		Content:             string(content),
+		SizeBytes:           info.Size(),
 	}, nil
 }
 
@@ -219,7 +221,7 @@ func (s *Service) saveProjectFileContent(
 	if err != nil {
 		return workspaceFileSaveResult{}, err
 	}
-	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
+	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Application.WorkspacePath, path)
 	if err != nil {
 		return workspaceFileSaveResult{}, err
 	}
@@ -227,7 +229,7 @@ func (s *Service) saveProjectFileContent(
 	if err := ensureWorkspaceSaveTarget(absolutePath); err != nil {
 		return workspaceFileSaveResult{}, err
 	}
-	// #nosec G304 -- absolutePath is validated to stay under the project's working_directory before reading.
+	// #nosec G304 -- absolutePath 已校验为应用 workspace_path 范围内的路径。
 	existingContent, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return workspaceFileSaveResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
@@ -248,11 +250,12 @@ func (s *Service) saveProjectFileContent(
 		return workspaceFileSaveResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
 	return workspaceFileSaveResult{
-		ProjectID:    projectID,
-		RelativePath: relativePath,
-		SavedAt:      time.Now().UTC(),
-		ContentHash:  hashString(normalized),
-		SizeBytes:    int64(len(normalized)),
+		ApplicationRecordID: projectID,
+		ApplicationID:       aggregate.Application.ApplicationID,
+		RelativePath:        relativePath,
+		SavedAt:             time.Now().UTC(),
+		ContentHash:         hashString(normalized),
+		SizeBytes:           int64(len(normalized)),
 	}, nil
 }
 
@@ -286,7 +289,7 @@ func (s *Service) renameProjectWorkspaceEntry(ctx context.Context, projectID uin
 	if err != nil {
 		return err
 	}
-	rootDir, source, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, request.Path)
+	rootDir, source, err := resolveProjectWorkspaceFilePath(aggregate.Application.WorkspacePath, request.Path)
 	if err != nil {
 		return err
 	}
@@ -322,7 +325,7 @@ func (s *Service) openProjectWorkspaceRoot(ctx context.Context, projectID uint64
 	if err != nil {
 		return "", nil, err
 	}
-	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
+	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Application.WorkspacePath, path)
 	if err != nil {
 		return "", nil, err
 	}
@@ -385,7 +388,7 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 	if err != nil {
 		return err
 	}
-	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Project.WorkingDirectory, path)
+	rootDir, relativePath, err := resolveProjectWorkspaceFilePath(aggregate.Application.WorkspacePath, path)
 	if err != nil {
 		return err
 	}
@@ -414,9 +417,9 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 }
 
 // workspaceMutationContainsTrackedLifecycleInput 防止移动或删除仍被活动生命周期命令引用的文件及其上级目录。
-func workspaceMutationContainsTrackedLifecycleInput(aggregate projectstore.ProjectAggregate, path string) bool {
+func workspaceMutationContainsTrackedLifecycleInput(aggregate projectstore.ApplicationAggregate, path string) bool {
 	for _, file := range aggregate.Files {
-		relative, err := filepath.Rel(aggregate.Project.WorkingDirectory, file.AbsolutePath)
+		relative, err := filepath.Rel(aggregate.Application.WorkspacePath, file.AbsolutePath)
 		if err != nil {
 			continue
 		}
@@ -442,7 +445,7 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 	if err != nil {
 		return workspaceFileItem{}, err
 	}
-	rootDir, relativePath, err := resolveProjectWorkspaceDirectory(aggregate.Project.WorkingDirectory, path)
+	rootDir, relativePath, err := resolveProjectWorkspaceDirectory(aggregate.Application.WorkspacePath, path)
 	if err != nil {
 		return workspaceFileItem{}, err
 	}
@@ -455,10 +458,10 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 		return workspaceFileItem{}, mapWorkspacePathError(err)
 	}
 	updatedAggregate, err := s.repository.UpdateWorkspaceAnnotation(ctx, projectstore.UpdateWorkspaceAnnotationInput{
-		ProjectID:    projectID,
-		RelativePath: relativePath,
-		Annotation:   annotation,
-		ActorID:      actorID,
+		ApplicationRecordID: projectID,
+		RelativePath:        relativePath,
+		Annotation:          annotation,
+		ActorID:             actorID,
 	})
 	if err != nil {
 		return workspaceFileItem{}, mapStoreError(err)
@@ -468,11 +471,11 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 	if err != nil {
 		return workspaceFileItem{}, err
 	}
-	fileTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceFileTooltipRulesConfig.String(), defaultWorkspaceFileTooltipRules)
+	fileTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ApplicationWorkspaceFileTooltipRulesConfig.String(), defaultWorkspaceFileTooltipRules)
 	if err != nil {
 		return workspaceFileItem{}, err
 	}
-	directoryTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ProjectWorkspaceDirectoryTooltipRulesConfig.String(), defaultWorkspaceDirectoryTooltipRules)
+	directoryTooltipRules, err := s.workspaceTooltipRules(ctx, projectcontract.ApplicationWorkspaceDirectoryTooltipRulesConfig.String(), defaultWorkspaceDirectoryTooltipRules)
 	if err != nil {
 		return workspaceFileItem{}, err
 	}
@@ -481,7 +484,7 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 		HiddenDirectories:     hiddenDirectories,
 		FileTooltipRules:      fileTooltipRules,
 		DirectoryTooltipRules: directoryTooltipRules,
-		Annotations:           updatedAggregate.Project.WorkspaceAnnotations,
+		Annotations:           updatedAggregate.Application.WorkspaceAnnotations,
 	})
 }
 
@@ -523,11 +526,11 @@ func buildProjectWorkspaceFileItem(
 		HasChildren:     nodeType == "directory",
 		Tooltip:         tooltip,
 		TooltipSource:   tooltipSource,
-		ProjectNote:     projectNote,
+		ApplicationNote: projectNote,
 	}, nil
 }
 
-func trackedProjectFileKinds(rootDir string, files []projectstore.ProjectFile) map[string]string {
+func trackedProjectFileKinds(rootDir string, files []projectstore.ApplicationFile) map[string]string {
 	result := make(map[string]string, len(files))
 	for _, item := range files {
 		if relativePath, err := relativePathWithinRoot(rootDir, item.AbsolutePath); err == nil {
@@ -697,7 +700,7 @@ func (s *Service) workspaceHiddenDirectories(ctx context.Context) ([]string, err
 	if s == nil || s.configResolver == nil {
 		return decodeWorkspaceHiddenDirectories(defaultWorkspaceHiddenDirectories)
 	}
-	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String())
+	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ApplicationWorkspaceHiddenDirectoriesConfig.String())
 	if err != nil {
 		return decodeWorkspaceHiddenDirectories(defaultWorkspaceHiddenDirectories)
 	}
@@ -829,7 +832,7 @@ func resolveWorkspaceFileStateFromPath(
 	relativePath string,
 	trackedKinds map[string]string,
 ) (workspaceFileState, error) {
-	// #nosec G304 -- absolutePath is already constrained to the validated project root before probing file content.
+	// #nosec G304 -- absolutePath 已限制在校验通过的应用工作区内。
 	sample, err := readWorkspaceFileSample(absolutePath)
 	if err != nil {
 		return unreadableWorkspaceFileState(relativePath, trackedKinds), nil
@@ -870,7 +873,7 @@ func unreadableWorkspaceFileState(relativePath string, trackedKinds map[string]s
 }
 
 func readWorkspaceFileSample(path string) ([]byte, error) {
-	// #nosec G304 -- path is already constrained to a validated file path under the project working directory.
+	// #nosec G304 -- path 已限制为应用工作区内校验通过的文件路径。
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err

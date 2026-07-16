@@ -8,8 +8,8 @@
     <div class="project-import-overview__grid">
       <t-card :bordered="true" :title="t('project.import.preview.authorityTitle')">
         <t-descriptions size="small" :column="1" bordered>
-          <t-descriptions-item :label="t('project.import.preview.canonicalProjectName')">
-            <code class="project-import-overview__technical">{{ result.canonical_project_name }}</code>
+          <t-descriptions-item :label="t('project.import.preview.composeProjectName')">
+            <code class="project-import-overview__technical">{{ result.compose_project_name }}</code>
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.composeFiles')">
             {{ result.compose_files.length }}
@@ -17,9 +17,9 @@
           <t-descriptions-item :label="t('project.import.preview.envFiles')">
             {{ result.env_files.length }}
           </t-descriptions-item>
-          <t-descriptions-item :label="t('project.import.directory.workingDirectory')">
-            <t-tooltip :content="resolvedWorkingDirectory || '-'" placement="top-left">
-              <code class="project-import-overview__technical">{{ resolvedWorkingDirectory || '-' }}</code>
+          <t-descriptions-item :label="t('project.import.directory.workspacePath')">
+            <t-tooltip :content="resolvedWorkspacePath || '-'" placement="top-left">
+              <code class="project-import-overview__technical">{{ resolvedWorkspacePath || '-' }}</code>
             </t-tooltip>
           </t-descriptions-item>
         </t-descriptions>
@@ -39,7 +39,7 @@
             </t-tooltip>
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.canonicalNameSource')">
-            {{ formatCanonicalNameSource(result.canonical_project_name_source) }}
+            {{ formatCanonicalNameSource(result.compose_project_name_source) }}
           </t-descriptions-item>
         </t-descriptions>
       </t-card>
@@ -104,19 +104,19 @@ import {
   normalizeImportInspectVolumeRows,
 } from '../shared/import-inspect-resources';
 import { formatImportPreviewCanonicalNameSource, formatImportPreviewValidationStatus } from '../shared/import-preview';
-import type { ProjectImportInspectResponse } from '../types/import';
+import type { ApplicationImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
 defineOptions({
-  name: 'ProjectImportInspectOverview',
+  name: 'ApplicationImportInspectOverview',
 });
 
 // 概览只把 inspection 快照转换为可读摘要，不修改服务端检查结果或导入流程状态。
 
 const props = defineProps<{
   canImport: boolean;
-  resolvedWorkingDirectory: string;
-  result: ProjectImportInspectResponse;
+  resolvedWorkspacePath: string;
+  result: ApplicationImportInspectResponse;
 }>();
 
 const { t } = useI18n();

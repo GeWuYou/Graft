@@ -58,7 +58,7 @@ func omitProjectListTopicStream(
 	return next
 }
 
-//nolint:dupl // Project list and log topic streamers intentionally share the same bounded realtime lifecycle skeleton.
+//nolint:dupl // 应用列表与日志流使用相同的有界实时生命周期，但拥有不同载荷和订阅职责。
 func newProjectListTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectListTopicStreamer, error) {
 	if hub == nil {
 		return nil, errors.New("realtime hub is unavailable")
@@ -122,7 +122,7 @@ func (s *projectListTopicStreamer) EnsureTopic(topic string) error {
 	return nil
 }
 
-//nolint:dupl // Project list and log topic streamers intentionally share the same bounded realtime lifecycle skeleton.
+//nolint:dupl // 应用列表与日志流使用相同的有界实时生命周期，但拥有不同载荷和订阅职责。
 func (s *projectListTopicStreamer) Close(ctx context.Context) error {
 	if s == nil {
 		return nil
@@ -196,7 +196,7 @@ func (s *projectListTopicStreamer) publish(topic string) {
 	s.hub.Publish(topic, payload)
 }
 
-//nolint:dupl // Project list and log topic streamers intentionally share the same bounded realtime lifecycle skeleton.
+//nolint:dupl // 应用列表与日志流使用相同的有界实时生命周期，但拥有不同载荷和订阅职责。
 func (s *projectListTopicStreamer) stop(ctx context.Context, topic string) error {
 	s.mu.Lock()
 	stream := s.streams[topic]

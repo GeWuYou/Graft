@@ -1,0 +1,30 @@
+get:
+  tags: [application]
+  summary: List runtime Compose import candidates
+  operationId: getApplicationImportRuntimeCandidates
+  description: Returns Compose import candidates derived from container runtime metadata, including both importable and unavailable candidates.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/application-import-runtime-candidate-list-keyword.yaml
+    - $ref: ../components/parameters/application-import-runtime-candidate-list-availability.yaml
+    - $ref: ../components/parameters/application-import-runtime-candidate-list-limit.yaml
+    - $ref: ../components/parameters/application-import-runtime-candidate-list-offset.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Runtime import candidates.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-import-runtime-candidates-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

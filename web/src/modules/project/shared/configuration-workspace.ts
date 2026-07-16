@@ -1,10 +1,10 @@
-import type { ProjectWorkspaceFileKind, ProjectWorkspaceLanguageHint } from '../types/project';
+import type { ApplicationWorkspaceFileKind, ApplicationWorkspaceLanguageHint } from '../types/project';
 
-export type ProjectWorkspaceMonacoLanguage =
+export type ApplicationWorkspaceMonacoLanguage =
   'dockerfile' | 'hcl' | 'ini' | 'json' | 'markdown' | 'plaintext' | 'powershell' | 'shell' | 'sql' | 'xml' | 'yaml';
 
 const WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE: Partial<
-  Record<ProjectWorkspaceLanguageHint, ProjectWorkspaceMonacoLanguage>
+  Record<ApplicationWorkspaceLanguageHint, ApplicationWorkspaceMonacoLanguage>
 > = {
   dockerfile: 'dockerfile',
   dotenv: 'ini',
@@ -22,7 +22,7 @@ const WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE: Partial<
   yaml: 'yaml',
 };
 
-const WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE: Record<string, ProjectWorkspaceMonacoLanguage> = {
+const WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE: Record<string, ApplicationWorkspaceMonacoLanguage> = {
   '.editorconfig': 'ini',
   '.gitattributes': 'plaintext',
   '.gitconfig': 'ini',
@@ -32,7 +32,7 @@ const WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE: Record<string, ProjectWorkspaceMon
   makefile: 'plaintext',
 };
 
-const WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE: Record<string, ProjectWorkspaceMonacoLanguage> = {
+const WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE: Record<string, ApplicationWorkspaceMonacoLanguage> = {
   bash: 'shell',
   cfg: 'ini',
   conf: 'ini',
@@ -78,7 +78,7 @@ export function hasWorkspaceUnsavedChanges(current: string, saved: string) {
   return normalizeWorkspaceContent(current) !== normalizeWorkspaceContent(saved);
 }
 
-export function supportsExplicitWorkspaceSyntaxValidation(language: ProjectWorkspaceMonacoLanguage) {
+export function supportsExplicitWorkspaceSyntaxValidation(language: ApplicationWorkspaceMonacoLanguage) {
   return language === 'json' || language === 'yaml';
 }
 
@@ -91,10 +91,10 @@ export function resolveWorkspaceFileName(path: string) {
 }
 
 export function resolveWorkspaceMonacoLanguage(options: {
-  fileKind?: ProjectWorkspaceFileKind | null;
-  languageHint?: ProjectWorkspaceLanguageHint | null;
+  fileKind?: ApplicationWorkspaceFileKind | null;
+  languageHint?: ApplicationWorkspaceLanguageHint | null;
   path?: string;
-}): ProjectWorkspaceMonacoLanguage {
+}): ApplicationWorkspaceMonacoLanguage {
   const hint = String(options.languageHint || '')
     .trim()
     .toLowerCase();
@@ -114,8 +114,8 @@ export function resolveWorkspaceMonacoLanguage(options: {
   if (hint === 'conf' || hint === 'cfg') {
     return 'ini';
   }
-  if (hint && WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE[hint as ProjectWorkspaceLanguageHint]) {
-    return WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE[hint as ProjectWorkspaceLanguageHint]!;
+  if (hint && WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE[hint as ApplicationWorkspaceLanguageHint]) {
+    return WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE[hint as ApplicationWorkspaceLanguageHint]!;
   }
 
   if (options.fileKind === 'compose') {

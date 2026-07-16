@@ -2,392 +2,412 @@ import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import {
-  buildProjectConfigurationApiPath,
-  buildProjectDestroyApiPath,
-  buildProjectDetailApiPath,
-  buildProjectFilesAnnotationApiPath,
-  buildProjectFilesApiPath,
-  buildProjectFilesContentApiPath,
-  buildProjectFilesEntriesApiPath,
-  buildProjectFilesRenameApiPath,
-  buildProjectLifecycleConfigurationApiPath,
-  buildProjectLogsApiPath,
-  buildProjectOverviewApiPath,
-  buildProjectRedeployApiPath,
-  buildProjectRestartApiPath,
-  buildProjectSavedViewApiPath,
-  buildProjectServicesApiPath,
-  buildProjectStopApiPath,
-  buildProjectUnregisterApiPath,
-  buildProjectUpApiPath,
-  PROJECT_API_PATH,
+  APPLICATION_API_PATH,
+  buildApplicationConfigurationApiPath,
+  buildApplicationDestroyApiPath,
+  buildApplicationDetailApiPath,
+  buildApplicationFilesAnnotationApiPath,
+  buildApplicationFilesApiPath,
+  buildApplicationFilesContentApiPath,
+  buildApplicationFilesEntriesApiPath,
+  buildApplicationFilesRenameApiPath,
+  buildApplicationLifecycleConfigurationApiPath,
+  buildApplicationLogsApiPath,
+  buildApplicationOverviewApiPath,
+  buildApplicationRedeployApiPath,
+  buildApplicationRestartApiPath,
+  buildApplicationSavedViewApiPath,
+  buildApplicationServicesApiPath,
+  buildApplicationStopApiPath,
+  buildApplicationUnregisterApiPath,
+  buildApplicationUpApiPath,
 } from '../contract/paths';
 import type {
-  ProjectActionResponse,
-  ProjectApplicationNameAvailabilityRequest,
-  ProjectApplicationNameAvailabilityResponse,
-  ProjectBatchActionRequest,
-  ProjectBatchActionResponse,
-  ProjectComposeRuntimeTargetCatalogResponse,
-  ProjectConfigurationMetadataResponse,
-  ProjectCreateRequest,
-  ProjectCreateResponse,
-  ProjectCreationMethodCatalogResponse,
-  ProjectDestroyRequest,
-  ProjectDetailResponseWithLifecycle,
-  ProjectDiscoveryCandidatesResponse,
-  ProjectLifecycleConfigurationSavedResponse,
-  ProjectLifecycleConfigurationUpdateRequest,
-  ProjectListQuery,
-  ProjectListResponseWithLifecycle,
-  ProjectLogResponse,
-  ProjectOverviewResponse,
-  ProjectSavedView,
-  ProjectSavedViewRequest,
-  ProjectServicesResponse,
-  ProjectTaskReceipt,
-  ProjectTemplateCreateRequest,
-  ProjectWorkspaceDefaultsResponse,
-  ProjectWorkspaceEntry,
-  ProjectWorkspaceFileAnnotationRequest,
-  ProjectWorkspaceFileAnnotationResponse,
-  ProjectWorkspaceFileContentQuery,
-  ProjectWorkspaceFileContentResponse,
-  ProjectWorkspaceFileSaveRequest,
-  ProjectWorkspaceFileSaveResponse,
-  ProjectWorkspaceFilesQuery,
-  ProjectWorkspaceFilesResponse,
-  ProjectWorkspaceRenameRequest,
+  ApplicationActionResponse,
+  ApplicationApplicationNameAvailabilityRequest,
+  ApplicationApplicationNameAvailabilityResponse,
+  ApplicationBatchActionRequest,
+  ApplicationBatchActionResponse,
+  ApplicationComposeRuntimeTargetCatalogResponse,
+  ApplicationConfigurationMetadataResponse,
+  ApplicationCreateRequest,
+  ApplicationCreateResponse,
+  ApplicationCreationMethodCatalogResponse,
+  ApplicationDestroyRequest,
+  ApplicationDetailResponseWithLifecycle,
+  ApplicationDiscoveryCandidatesResponse,
+  ApplicationLifecycleConfigurationSavedResponse,
+  ApplicationLifecycleConfigurationUpdateRequest,
+  ApplicationListQuery,
+  ApplicationListResponseWithLifecycle,
+  ApplicationLogResponse,
+  ApplicationOverviewResponse,
+  ApplicationSavedView,
+  ApplicationSavedViewRequest,
+  ApplicationServicesResponse,
+  ApplicationTaskReceipt,
+  ApplicationTemplateCreateRequest,
+  ApplicationWorkspaceDefaultsResponse,
+  ApplicationWorkspaceEntry,
+  ApplicationWorkspaceFileAnnotationRequest,
+  ApplicationWorkspaceFileAnnotationResponse,
+  ApplicationWorkspaceFileContentQuery,
+  ApplicationWorkspaceFileContentResponse,
+  ApplicationWorkspaceFileSaveRequest,
+  ApplicationWorkspaceFileSaveResponse,
+  ApplicationWorkspaceFilesQuery,
+  ApplicationWorkspaceFilesResponse,
+  ApplicationWorkspaceRenameRequest,
 } from '../types/project';
 
-type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
-type GetProjectListOperation = paths[ProjectListPath]['get'];
-type GetProjectListEnvelope = GetProjectListOperation['responses'][200]['content']['application/json'];
-type GetProjectListData = NonNullable<GetProjectListEnvelope['data']>;
-type GetProjectListQuery = NonNullable<GetProjectListOperation['parameters']['query']>;
+type ApplicationListPath = (typeof APPLICATION_API_PATH)['LIST'];
+type GetApplicationListOperation = paths[ApplicationListPath]['get'];
+type GetApplicationListEnvelope = GetApplicationListOperation['responses'][200]['content']['application/json'];
+type GetApplicationListData = NonNullable<GetApplicationListEnvelope['data']>;
+type GetApplicationListQuery = NonNullable<GetApplicationListOperation['parameters']['query']>;
 
-type ProjectDetailPath = (typeof PROJECT_API_PATH)['DETAIL'];
-type GetProjectDetailOperation = paths[ProjectDetailPath]['get'];
-type GetProjectDetailEnvelope = GetProjectDetailOperation['responses'][200]['content']['application/json'];
-type GetProjectDetailData = NonNullable<GetProjectDetailEnvelope['data']>;
-type GetProjectDetailPathParams = GetProjectDetailOperation['parameters']['path'];
+type ApplicationDetailPath = (typeof APPLICATION_API_PATH)['DETAIL'];
+type GetApplicationDetailOperation = paths[ApplicationDetailPath]['get'];
+type GetApplicationDetailEnvelope = GetApplicationDetailOperation['responses'][200]['content']['application/json'];
+type GetApplicationDetailData = NonNullable<GetApplicationDetailEnvelope['data']>;
+type GetApplicationDetailPathParams = GetApplicationDetailOperation['parameters']['path'];
 
-type ProjectOverviewPath = (typeof PROJECT_API_PATH)['OVERVIEW'];
-type GetProjectOverviewOperation = paths[ProjectOverviewPath]['get'];
-type GetProjectOverviewEnvelope = GetProjectOverviewOperation['responses'][200]['content']['application/json'];
-type GetProjectOverviewData = NonNullable<GetProjectOverviewEnvelope['data']>;
-type GetProjectOverviewPathParams = GetProjectOverviewOperation['parameters']['path'];
+type ApplicationOverviewPath = (typeof APPLICATION_API_PATH)['OVERVIEW'];
+type GetApplicationOverviewOperation = paths[ApplicationOverviewPath]['get'];
+type GetApplicationOverviewEnvelope = GetApplicationOverviewOperation['responses'][200]['content']['application/json'];
+type GetApplicationOverviewData = NonNullable<GetApplicationOverviewEnvelope['data']>;
+type GetApplicationOverviewPathParams = GetApplicationOverviewOperation['parameters']['path'];
 
-type ProjectLogsPath = (typeof PROJECT_API_PATH)['LOGS'];
-type GetProjectLogsOperation = paths[ProjectLogsPath]['get'];
-type GetProjectLogsEnvelope = GetProjectLogsOperation['responses'][200]['content']['application/json'];
-type GetProjectLogsData = NonNullable<GetProjectLogsEnvelope['data']>;
-type GetProjectLogsPathParams = GetProjectLogsOperation['parameters']['path'];
-type GetProjectLogsQuery = NonNullable<GetProjectLogsOperation['parameters']['query']>;
+type ApplicationLogsPath = (typeof APPLICATION_API_PATH)['LOGS'];
+type GetApplicationLogsOperation = paths[ApplicationLogsPath]['get'];
+type GetApplicationLogsEnvelope = GetApplicationLogsOperation['responses'][200]['content']['application/json'];
+type GetApplicationLogsData = NonNullable<GetApplicationLogsEnvelope['data']>;
+type GetApplicationLogsPathParams = GetApplicationLogsOperation['parameters']['path'];
+type GetApplicationLogsQuery = NonNullable<GetApplicationLogsOperation['parameters']['query']>;
 
-type ProjectServicesPath = (typeof PROJECT_API_PATH)['SERVICES'];
-type GetProjectServicesOperation = paths[ProjectServicesPath]['get'];
-type GetProjectServicesEnvelope = GetProjectServicesOperation['responses'][200]['content']['application/json'];
-type GetProjectServicesData = NonNullable<GetProjectServicesEnvelope['data']>;
-type GetProjectServicesPathParams = GetProjectServicesOperation['parameters']['path'];
+type ApplicationServicesPath = (typeof APPLICATION_API_PATH)['SERVICES'];
+type GetApplicationServicesOperation = paths[ApplicationServicesPath]['get'];
+type GetApplicationServicesEnvelope = GetApplicationServicesOperation['responses'][200]['content']['application/json'];
+type GetApplicationServicesData = NonNullable<GetApplicationServicesEnvelope['data']>;
+type GetApplicationServicesPathParams = GetApplicationServicesOperation['parameters']['path'];
 
-type ProjectConfigurationPath = (typeof PROJECT_API_PATH)['CONFIGURATION'];
-type GetProjectConfigurationOperation = paths[ProjectConfigurationPath]['get'];
-type GetProjectConfigurationEnvelope =
-  GetProjectConfigurationOperation['responses'][200]['content']['application/json'];
-type GetProjectConfigurationData = NonNullable<GetProjectConfigurationEnvelope['data']>;
-type GetProjectConfigurationPathParams = GetProjectConfigurationOperation['parameters']['path'];
+type ApplicationConfigurationPath = (typeof APPLICATION_API_PATH)['CONFIGURATION'];
+type GetApplicationConfigurationOperation = paths[ApplicationConfigurationPath]['get'];
+type GetApplicationConfigurationEnvelope =
+  GetApplicationConfigurationOperation['responses'][200]['content']['application/json'];
+type GetApplicationConfigurationData = NonNullable<GetApplicationConfigurationEnvelope['data']>;
+type GetApplicationConfigurationPathParams = GetApplicationConfigurationOperation['parameters']['path'];
 
-type ProjectCreationMethodsPath = (typeof PROJECT_API_PATH)['CREATION_METHODS'];
-type GetProjectCreationMethodsOperation = paths[ProjectCreationMethodsPath]['get'];
-type GetProjectCreationMethodsEnvelope =
-  GetProjectCreationMethodsOperation['responses'][200]['content']['application/json'];
-type GetProjectCreationMethodsData = NonNullable<GetProjectCreationMethodsEnvelope['data']>;
+type ApplicationCreationMethodsPath = (typeof APPLICATION_API_PATH)['CREATION_METHODS'];
+type GetApplicationCreationMethodsOperation = paths[ApplicationCreationMethodsPath]['get'];
+type GetApplicationCreationMethodsEnvelope =
+  GetApplicationCreationMethodsOperation['responses'][200]['content']['application/json'];
+type GetApplicationCreationMethodsData = NonNullable<GetApplicationCreationMethodsEnvelope['data']>;
 
-type ProjectComposeRuntimeTargetsPath = (typeof PROJECT_API_PATH)['COMPOSE_RUNTIME_TARGETS'];
-type GetProjectComposeRuntimeTargetsOperation = paths[ProjectComposeRuntimeTargetsPath]['get'];
-type GetProjectComposeRuntimeTargetsData = NonNullable<
-  GetProjectComposeRuntimeTargetsOperation['responses'][200]['content']['application/json']['data']
+type ApplicationComposeRuntimeTargetsPath = (typeof APPLICATION_API_PATH)['COMPOSE_RUNTIME_TARGETS'];
+type GetApplicationComposeRuntimeTargetsOperation = paths[ApplicationComposeRuntimeTargetsPath]['get'];
+type GetApplicationComposeRuntimeTargetsData = NonNullable<
+  GetApplicationComposeRuntimeTargetsOperation['responses'][200]['content']['application/json']['data']
 >;
 
-type ProjectDiscoveryCandidatesPath = (typeof PROJECT_API_PATH)['DISCOVERY_CANDIDATES'];
-type GetProjectDiscoveryCandidatesOperation = paths[ProjectDiscoveryCandidatesPath]['get'];
-type GetProjectDiscoveryCandidatesEnvelope =
-  GetProjectDiscoveryCandidatesOperation['responses'][200]['content']['application/json'];
-type GetProjectDiscoveryCandidatesData = NonNullable<GetProjectDiscoveryCandidatesEnvelope['data']>;
+type ApplicationDiscoveryCandidatesPath = (typeof APPLICATION_API_PATH)['DISCOVERY_CANDIDATES'];
+type GetApplicationDiscoveryCandidatesOperation = paths[ApplicationDiscoveryCandidatesPath]['get'];
+type GetApplicationDiscoveryCandidatesEnvelope =
+  GetApplicationDiscoveryCandidatesOperation['responses'][200]['content']['application/json'];
+type GetApplicationDiscoveryCandidatesData = NonNullable<GetApplicationDiscoveryCandidatesEnvelope['data']>;
 
-type ProjectCreatePath = (typeof PROJECT_API_PATH)['CREATE'];
-type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
-type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
-type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
-type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
+type ApplicationCreatePath = (typeof APPLICATION_API_PATH)['CREATE'];
+type ApplicationCreateOperation = paths[ApplicationCreatePath]['post'];
+type ApplicationCreateEnvelope = ApplicationCreateOperation['responses'][201]['content']['application/json'];
+type ApplicationCreateData = NonNullable<ApplicationCreateEnvelope['data']>;
+type ApplicationCreatePayload = ApplicationCreateOperation['requestBody']['content']['application/json'];
 
-type ProjectApplicationNameAvailabilityPath = (typeof PROJECT_API_PATH)['APPLICATION_NAME_AVAILABILITY'];
-type ProjectApplicationNameAvailabilityOperation = paths[ProjectApplicationNameAvailabilityPath]['post'];
-type ProjectApplicationNameAvailabilityData = NonNullable<
-  ProjectApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
+type ApplicationApplicationNameAvailabilityPath = (typeof APPLICATION_API_PATH)['APPLICATION_NAME_AVAILABILITY'];
+type ApplicationApplicationNameAvailabilityOperation = paths[ApplicationApplicationNameAvailabilityPath]['post'];
+type ApplicationApplicationNameAvailabilityData = NonNullable<
+  ApplicationApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
 >;
 
-type ProjectTemplateCreatePath = (typeof PROJECT_API_PATH)['CREATE_TEMPLATE'];
-type ProjectTemplateCreateOperation = paths[ProjectTemplateCreatePath]['post'];
-type ProjectTemplateCreateData = NonNullable<
-  ProjectTemplateCreateOperation['responses'][201]['content']['application/json']['data']
+type ApplicationTemplateCreatePath = (typeof APPLICATION_API_PATH)['CREATE_TEMPLATE'];
+type ApplicationTemplateCreateOperation = paths[ApplicationTemplateCreatePath]['post'];
+type ApplicationTemplateCreateData = NonNullable<
+  ApplicationTemplateCreateOperation['responses'][201]['content']['application/json']['data']
 >;
-type ProjectUpOperation = paths[(typeof PROJECT_API_PATH)['UP']]['post'];
-type ProjectUpEnvelope = ProjectUpOperation['responses'][202]['content']['application/json'];
-type ProjectUpData = NonNullable<ProjectUpEnvelope['data']>;
-type ProjectUpPathParams = ProjectUpOperation['parameters']['path'];
+type ApplicationUpOperation = paths[(typeof APPLICATION_API_PATH)['UP']]['post'];
+type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
+type ApplicationUpData = NonNullable<ApplicationUpEnvelope['data']>;
+type ApplicationUpPathParams = ApplicationUpOperation['parameters']['path'];
 
-type ProjectStopOperation = paths[(typeof PROJECT_API_PATH)['STOP']]['post'];
-type ProjectStopEnvelope = ProjectStopOperation['responses'][202]['content']['application/json'];
-type ProjectStopData = NonNullable<ProjectStopEnvelope['data']>;
-type ProjectStopPathParams = ProjectStopOperation['parameters']['path'];
+type ApplicationStopOperation = paths[(typeof APPLICATION_API_PATH)['STOP']]['post'];
+type ApplicationStopEnvelope = ApplicationStopOperation['responses'][202]['content']['application/json'];
+type ApplicationStopData = NonNullable<ApplicationStopEnvelope['data']>;
+type ApplicationStopPathParams = ApplicationStopOperation['parameters']['path'];
 
-type ProjectRestartOperation = paths[(typeof PROJECT_API_PATH)['RESTART']]['post'];
-type ProjectRestartEnvelope = ProjectRestartOperation['responses'][202]['content']['application/json'];
-type ProjectRestartData = NonNullable<ProjectRestartEnvelope['data']>;
-type ProjectRestartPathParams = ProjectRestartOperation['parameters']['path'];
+type ApplicationRestartOperation = paths[(typeof APPLICATION_API_PATH)['RESTART']]['post'];
+type ApplicationRestartEnvelope = ApplicationRestartOperation['responses'][202]['content']['application/json'];
+type ApplicationRestartData = NonNullable<ApplicationRestartEnvelope['data']>;
+type ApplicationRestartPathParams = ApplicationRestartOperation['parameters']['path'];
 
-type ProjectRedeployOperation = paths[(typeof PROJECT_API_PATH)['REDEPLOY']]['post'];
-type ProjectRedeployEnvelope = ProjectRedeployOperation['responses'][202]['content']['application/json'];
-type ProjectRedeployData = NonNullable<ProjectRedeployEnvelope['data']>;
-type ProjectRedeployPathParams = ProjectRedeployOperation['parameters']['path'];
+type ApplicationRedeployOperation = paths[(typeof APPLICATION_API_PATH)['REDEPLOY']]['post'];
+type ApplicationRedeployEnvelope = ApplicationRedeployOperation['responses'][202]['content']['application/json'];
+type ApplicationRedeployData = NonNullable<ApplicationRedeployEnvelope['data']>;
+type ApplicationRedeployPathParams = ApplicationRedeployOperation['parameters']['path'];
 
-type ProjectUnregisterOperation = paths[(typeof PROJECT_API_PATH)['UNREGISTER']]['post'];
-type ProjectUnregisterEnvelope = ProjectUnregisterOperation['responses'][200]['content']['application/json'];
-type ProjectUnregisterData = NonNullable<ProjectUnregisterEnvelope['data']>;
-type ProjectUnregisterPathParams = ProjectUnregisterOperation['parameters']['path'];
+type ApplicationUnregisterOperation = paths[(typeof APPLICATION_API_PATH)['UNREGISTER']]['post'];
+type ApplicationUnregisterEnvelope = ApplicationUnregisterOperation['responses'][200]['content']['application/json'];
+type ApplicationUnregisterData = NonNullable<ApplicationUnregisterEnvelope['data']>;
+type ApplicationUnregisterPathParams = ApplicationUnregisterOperation['parameters']['path'];
 
-type ProjectDestroyOperation = paths[(typeof PROJECT_API_PATH)['DESTROY']]['post'];
-type ProjectDestroyEnvelope = ProjectDestroyOperation['responses'][200]['content']['application/json'];
-type ProjectDestroyData = NonNullable<ProjectDestroyEnvelope['data']>;
-type ProjectDestroyPayload = ProjectDestroyOperation['requestBody']['content']['application/json'];
-type ProjectDestroyPathParams = ProjectDestroyOperation['parameters']['path'];
+type ApplicationDestroyOperation = paths[(typeof APPLICATION_API_PATH)['DESTROY']]['post'];
+type ApplicationDestroyEnvelope = ApplicationDestroyOperation['responses'][200]['content']['application/json'];
+type ApplicationDestroyData = NonNullable<ApplicationDestroyEnvelope['data']>;
+type ApplicationDestroyPayload = ApplicationDestroyOperation['requestBody']['content']['application/json'];
+type ApplicationDestroyPathParams = ApplicationDestroyOperation['parameters']['path'];
 
-type ProjectBatchActionsOperation = paths[(typeof PROJECT_API_PATH)['BATCH_ACTIONS']]['post'];
-type ProjectBatchActionsEnvelope = ProjectBatchActionsOperation['responses'][200]['content']['application/json'];
-type ProjectBatchActionsData = NonNullable<ProjectBatchActionsEnvelope['data']>;
-type ProjectBatchActionsPayload = ProjectBatchActionsOperation['requestBody']['content']['application/json'];
-type ProjectSavedViewsOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEWS']]['get'];
-type ProjectSavedViewsData = NonNullable<
-  ProjectSavedViewsOperation['responses'][200]['content']['application/json']['data']
+type ApplicationBatchActionsOperation = paths[(typeof APPLICATION_API_PATH)['BATCH_ACTIONS']]['post'];
+type ApplicationBatchActionsEnvelope =
+  ApplicationBatchActionsOperation['responses'][200]['content']['application/json'];
+type ApplicationBatchActionsData = NonNullable<ApplicationBatchActionsEnvelope['data']>;
+type ApplicationBatchActionsPayload = ApplicationBatchActionsOperation['requestBody']['content']['application/json'];
+type ApplicationSavedViewsOperation = paths[(typeof APPLICATION_API_PATH)['SAVED_VIEWS']]['get'];
+type ApplicationSavedViewsData = NonNullable<
+  ApplicationSavedViewsOperation['responses'][200]['content']['application/json']['data']
 >;
-type ProjectCreateSavedViewOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEWS']]['post'];
-type ProjectCreateSavedViewData = NonNullable<
-  ProjectCreateSavedViewOperation['responses'][201]['content']['application/json']['data']
+type ApplicationCreateSavedViewOperation = paths[(typeof APPLICATION_API_PATH)['SAVED_VIEWS']]['post'];
+type ApplicationCreateSavedViewData = NonNullable<
+  ApplicationCreateSavedViewOperation['responses'][201]['content']['application/json']['data']
 >;
-type ProjectSavedViewOperation = paths[(typeof PROJECT_API_PATH)['SAVED_VIEW']]['put'];
-type ProjectUpdateSavedViewData = NonNullable<
-  ProjectSavedViewOperation['responses'][200]['content']['application/json']['data']
+type ApplicationSavedViewOperation = paths[(typeof APPLICATION_API_PATH)['SAVED_VIEW']]['put'];
+type ApplicationUpdateSavedViewData = NonNullable<
+  ApplicationSavedViewOperation['responses'][200]['content']['application/json']['data']
 >;
 
-function normalizeProjectListQuery(query?: ProjectListQuery): GetProjectListQuery | undefined {
+function normalizeApplicationListQuery(query?: ApplicationListQuery): GetApplicationListQuery | undefined {
   if (!query) {
     return undefined;
   }
 
-  return query satisfies GetProjectListQuery;
+  return query satisfies GetApplicationListQuery;
 }
 
-export function getProjects(query?: ProjectListQuery) {
-  return request.get<GetProjectListData>({
-    url: PROJECT_API_PATH.LIST,
-    params: normalizeProjectListQuery(query),
-  }) as Promise<ProjectListResponseWithLifecycle>;
+export function getApplications(query?: ApplicationListQuery) {
+  return request.get<GetApplicationListData>({
+    url: APPLICATION_API_PATH.LIST,
+    params: normalizeApplicationListQuery(query),
+  }) as Promise<ApplicationListResponseWithLifecycle>;
 }
 
 /** 后端未返回视图数组时按空集合处理，避免可选的保存视图阻断项目列表。 */
-export async function getProjectSavedViews(): Promise<ProjectSavedView[]> {
-  const data = await request.get<ProjectSavedViewsData>({ url: PROJECT_API_PATH.SAVED_VIEWS });
+export async function getApplicationSavedViews(): Promise<ApplicationSavedView[]> {
+  const data = await request.get<ApplicationSavedViewsData>({ url: APPLICATION_API_PATH.SAVED_VIEWS });
   return data.items ?? [];
 }
 
-export function postProjectSavedView(payload: ProjectSavedViewRequest) {
-  return request.post<ProjectCreateSavedViewData>({
-    url: PROJECT_API_PATH.SAVED_VIEWS,
+export function postApplicationSavedView(payload: ApplicationSavedViewRequest) {
+  return request.post<ApplicationCreateSavedViewData>({
+    url: APPLICATION_API_PATH.SAVED_VIEWS,
     data: payload,
-  }) as Promise<ProjectSavedView>;
+  }) as Promise<ApplicationSavedView>;
 }
 
-export function putProjectSavedView(viewId: number, payload: ProjectSavedViewRequest) {
-  return request.put<ProjectUpdateSavedViewData>({
-    url: buildProjectSavedViewApiPath(viewId),
+export function putApplicationSavedView(viewId: number, payload: ApplicationSavedViewRequest) {
+  return request.put<ApplicationUpdateSavedViewData>({
+    url: buildApplicationSavedViewApiPath(viewId),
     data: payload,
-  }) as Promise<ProjectSavedView>;
+  }) as Promise<ApplicationSavedView>;
 }
 
-export function deleteProjectSavedView(viewId: number) {
-  return request.delete({ url: buildProjectSavedViewApiPath(viewId) });
+export function deleteApplicationSavedView(viewId: number) {
+  return request.delete({ url: buildApplicationSavedViewApiPath(viewId) });
 }
 
-export function getProject(id: GetProjectDetailPathParams['id']) {
-  return request.get<GetProjectDetailData>({
-    url: buildProjectDetailApiPath(id),
-  }) as Promise<ProjectDetailResponseWithLifecycle>;
+export function getApplication(applicationId: GetApplicationDetailPathParams['applicationId']) {
+  return request.get<GetApplicationDetailData>({
+    url: buildApplicationDetailApiPath(applicationId),
+  }) as Promise<ApplicationDetailResponseWithLifecycle>;
 }
 
-export function getProjectOverview(id: GetProjectOverviewPathParams['id']) {
-  return request.get<GetProjectOverviewData>({
-    url: buildProjectOverviewApiPath(id),
-  }) as Promise<ProjectOverviewResponse>;
+export function getApplicationOverview(applicationId: GetApplicationOverviewPathParams['applicationId']) {
+  return request.get<GetApplicationOverviewData>({
+    url: buildApplicationOverviewApiPath(applicationId),
+  }) as Promise<ApplicationOverviewResponse>;
 }
 
-export function getProjectLogs(id: GetProjectLogsPathParams['id'], query?: GetProjectLogsQuery) {
-  return request.get<GetProjectLogsData>({
-    url: buildProjectLogsApiPath(id),
-    params: query,
-  }) as Promise<ProjectLogResponse>;
-}
-
-export function getProjectServices(id: GetProjectServicesPathParams['id']) {
-  return request.get<GetProjectServicesData>({
-    url: buildProjectServicesApiPath(id),
-  }) as Promise<ProjectServicesResponse>;
-}
-
-export function getProjectWorkspaceDefaults() {
-  return request.get<ProjectWorkspaceDefaultsResponse>({ url: PROJECT_API_PATH.CREATE_WORKSPACE_DEFAULTS });
-}
-
-export function postProjectWorkspaceEntry(id: string | number, payload: ProjectWorkspaceEntry) {
-  return request.post({ url: buildProjectFilesEntriesApiPath(id), data: payload });
-}
-
-export function postProjectWorkspaceRename(id: string | number, payload: ProjectWorkspaceRenameRequest) {
-  return request.post({ url: buildProjectFilesRenameApiPath(id), data: payload });
-}
-
-export function deleteProjectWorkspaceEntry(id: string | number, query: { path: string; recursive?: boolean }) {
-  return request.delete({ url: buildProjectFilesEntriesApiPath(id), params: query });
-}
-
-export function getProjectConfiguration(id: GetProjectConfigurationPathParams['id']) {
-  return request.get<GetProjectConfigurationData>({
-    url: buildProjectConfigurationApiPath(id),
-  }) as Promise<ProjectConfigurationMetadataResponse>;
-}
-
-export function getProjectFiles(id: string, query?: ProjectWorkspaceFilesQuery) {
-  return request.get<ProjectWorkspaceFilesResponse>({
-    url: buildProjectFilesApiPath(id),
-    params: query,
-  }) as Promise<ProjectWorkspaceFilesResponse>;
-}
-
-export function getProjectFileContent(id: string, query: ProjectWorkspaceFileContentQuery) {
-  return request.get<ProjectWorkspaceFileContentResponse>({
-    url: buildProjectFilesContentApiPath(id),
-    params: query,
-  }) as Promise<ProjectWorkspaceFileContentResponse>;
-}
-
-export function putProjectFileContent(
-  id: string,
-  query: ProjectWorkspaceFileContentQuery,
-  payload: ProjectWorkspaceFileSaveRequest,
+export function getApplicationLogs(
+  applicationId: GetApplicationLogsPathParams['applicationId'],
+  query?: GetApplicationLogsQuery,
 ) {
-  return request.put<ProjectWorkspaceFileSaveResponse>({
-    url: buildProjectFilesContentApiPath(id),
+  return request.get<GetApplicationLogsData>({
+    url: buildApplicationLogsApiPath(applicationId),
     params: query,
-    data: payload,
-  }) as Promise<ProjectWorkspaceFileSaveResponse>;
+  }) as Promise<ApplicationLogResponse>;
 }
 
-export function putProjectFileAnnotation(
+export function getApplicationServices(applicationId: GetApplicationServicesPathParams['applicationId']) {
+  return request.get<GetApplicationServicesData>({
+    url: buildApplicationServicesApiPath(applicationId),
+  }) as Promise<ApplicationServicesResponse>;
+}
+
+export function getApplicationWorkspaceDefaults() {
+  return request.get<ApplicationWorkspaceDefaultsResponse>({ url: APPLICATION_API_PATH.CREATE_WORKSPACE_DEFAULTS });
+}
+
+export function postApplicationWorkspaceEntry(applicationId: string, payload: ApplicationWorkspaceEntry) {
+  return request.post({ url: buildApplicationFilesEntriesApiPath(applicationId), data: payload });
+}
+
+export function postApplicationWorkspaceRename(applicationId: string, payload: ApplicationWorkspaceRenameRequest) {
+  return request.post({ url: buildApplicationFilesRenameApiPath(applicationId), data: payload });
+}
+
+export function deleteApplicationWorkspaceEntry(applicationId: string, query: { path: string; recursive?: boolean }) {
+  return request.delete({ url: buildApplicationFilesEntriesApiPath(applicationId), params: query });
+}
+
+export function getApplicationConfiguration(applicationId: GetApplicationConfigurationPathParams['applicationId']) {
+  return request.get<GetApplicationConfigurationData>({
+    url: buildApplicationConfigurationApiPath(applicationId),
+  }) as Promise<ApplicationConfigurationMetadataResponse>;
+}
+
+export function getApplicationFiles(id: string, query?: ApplicationWorkspaceFilesQuery) {
+  return request.get<ApplicationWorkspaceFilesResponse>({
+    url: buildApplicationFilesApiPath(id),
+    params: query,
+  }) as Promise<ApplicationWorkspaceFilesResponse>;
+}
+
+export function getApplicationFileContent(id: string, query: ApplicationWorkspaceFileContentQuery) {
+  return request.get<ApplicationWorkspaceFileContentResponse>({
+    url: buildApplicationFilesContentApiPath(id),
+    params: query,
+  }) as Promise<ApplicationWorkspaceFileContentResponse>;
+}
+
+export function putApplicationFileContent(
   id: string,
-  query: ProjectWorkspaceFileContentQuery,
-  payload: ProjectWorkspaceFileAnnotationRequest,
+  query: ApplicationWorkspaceFileContentQuery,
+  payload: ApplicationWorkspaceFileSaveRequest,
 ) {
-  return request.put<ProjectWorkspaceFileAnnotationResponse>({
-    url: buildProjectFilesAnnotationApiPath(id),
+  return request.put<ApplicationWorkspaceFileSaveResponse>({
+    url: buildApplicationFilesContentApiPath(id),
     params: query,
     data: payload,
-  }) as Promise<ProjectWorkspaceFileAnnotationResponse>;
+  }) as Promise<ApplicationWorkspaceFileSaveResponse>;
 }
 
-export function getProjectCreationMethods() {
-  return request.get<GetProjectCreationMethodsData>({
-    url: PROJECT_API_PATH.CREATION_METHODS,
-  }) as Promise<ProjectCreationMethodCatalogResponse>;
-}
-
-export function getProjectComposeRuntimeTargets() {
-  return request.get<GetProjectComposeRuntimeTargetsData>({
-    url: PROJECT_API_PATH.COMPOSE_RUNTIME_TARGETS,
-  }) as Promise<ProjectComposeRuntimeTargetCatalogResponse>;
-}
-
-export function getProjectDiscoveryCandidates() {
-  return request.get<GetProjectDiscoveryCandidatesData>({
-    url: PROJECT_API_PATH.DISCOVERY_CANDIDATES,
-  }) as Promise<ProjectDiscoveryCandidatesResponse>;
-}
-
-export function postProjectCreate(payload: ProjectCreateRequest) {
-  return postProjectAction<ProjectCreateData>(
-    PROJECT_API_PATH.CREATE,
-    payload as ProjectCreatePayload,
-  ) as Promise<ProjectCreateResponse>;
-}
-
-export function postProjectApplicationNameAvailability(payload: ProjectApplicationNameAvailabilityRequest) {
-  return request.post<ProjectApplicationNameAvailabilityData>({
-    url: PROJECT_API_PATH.APPLICATION_NAME_AVAILABILITY,
+export function putApplicationFileAnnotation(
+  id: string,
+  query: ApplicationWorkspaceFileContentQuery,
+  payload: ApplicationWorkspaceFileAnnotationRequest,
+) {
+  return request.put<ApplicationWorkspaceFileAnnotationResponse>({
+    url: buildApplicationFilesAnnotationApiPath(id),
+    params: query,
     data: payload,
-  }) as Promise<ProjectApplicationNameAvailabilityResponse>;
+  }) as Promise<ApplicationWorkspaceFileAnnotationResponse>;
 }
 
-export function postProjectCreateTemplate(payload: ProjectTemplateCreateRequest) {
-  return postProjectAction<ProjectTemplateCreateData>(
-    PROJECT_API_PATH.CREATE_TEMPLATE,
+export function getApplicationCreationMethods() {
+  return request.get<GetApplicationCreationMethodsData>({
+    url: APPLICATION_API_PATH.CREATION_METHODS,
+  }) as Promise<ApplicationCreationMethodCatalogResponse>;
+}
+
+export function getApplicationComposeRuntimeTargets() {
+  return request.get<GetApplicationComposeRuntimeTargetsData>({
+    url: APPLICATION_API_PATH.COMPOSE_RUNTIME_TARGETS,
+  }) as Promise<ApplicationComposeRuntimeTargetCatalogResponse>;
+}
+
+export function getApplicationDiscoveryCandidates() {
+  return request.get<GetApplicationDiscoveryCandidatesData>({
+    url: APPLICATION_API_PATH.DISCOVERY_CANDIDATES,
+  }) as Promise<ApplicationDiscoveryCandidatesResponse>;
+}
+
+export function postApplicationCreate(payload: ApplicationCreateRequest) {
+  return postApplicationAction<ApplicationCreateData>(
+    APPLICATION_API_PATH.CREATE,
+    payload as ApplicationCreatePayload,
+  ) as Promise<ApplicationCreateResponse>;
+}
+
+export function postApplicationApplicationNameAvailability(payload: ApplicationApplicationNameAvailabilityRequest) {
+  return request.post<ApplicationApplicationNameAvailabilityData>({
+    url: APPLICATION_API_PATH.APPLICATION_NAME_AVAILABILITY,
+    data: payload,
+  }) as Promise<ApplicationApplicationNameAvailabilityResponse>;
+}
+
+export function postApplicationCreateTemplate(payload: ApplicationTemplateCreateRequest) {
+  return postApplicationAction<ApplicationTemplateCreateData>(
+    APPLICATION_API_PATH.CREATE_TEMPLATE,
     payload,
-  ) as Promise<ProjectCreateResponse>;
+  ) as Promise<ApplicationCreateResponse>;
 }
 
-function postProjectAction<T>(url: string, data?: unknown) {
+function postApplicationAction<T>(url: string, data?: unknown) {
   return request.post<T>({
     url,
     data,
   });
 }
 
-export function postProjectUp(id: ProjectUpPathParams['id']) {
-  return postProjectAction<ProjectUpData>(buildProjectUpApiPath(id)) as Promise<ProjectTaskReceipt>;
+export function postApplicationUp(applicationId: ApplicationUpPathParams['applicationId']) {
+  return postApplicationAction<ApplicationUpData>(
+    buildApplicationUpApiPath(applicationId),
+  ) as Promise<ApplicationTaskReceipt>;
 }
 
-export function postProjectStop(id: ProjectStopPathParams['id']) {
-  return postProjectAction<ProjectStopData>(buildProjectStopApiPath(id)) as Promise<ProjectTaskReceipt>;
+export function postApplicationStop(applicationId: ApplicationStopPathParams['applicationId']) {
+  return postApplicationAction<ApplicationStopData>(
+    buildApplicationStopApiPath(applicationId),
+  ) as Promise<ApplicationTaskReceipt>;
 }
 
-export function postProjectRestart(id: ProjectRestartPathParams['id']) {
-  return postProjectAction<ProjectRestartData>(buildProjectRestartApiPath(id)) as Promise<ProjectTaskReceipt>;
+export function postApplicationRestart(applicationId: ApplicationRestartPathParams['applicationId']) {
+  return postApplicationAction<ApplicationRestartData>(
+    buildApplicationRestartApiPath(applicationId),
+  ) as Promise<ApplicationTaskReceipt>;
 }
 
-export function postProjectRedeploy(id: ProjectRedeployPathParams['id']) {
-  return postProjectAction<ProjectRedeployData>(buildProjectRedeployApiPath(id)) as Promise<ProjectTaskReceipt>;
+export function postApplicationRedeploy(applicationId: ApplicationRedeployPathParams['applicationId']) {
+  return postApplicationAction<ApplicationRedeployData>(
+    buildApplicationRedeployApiPath(applicationId),
+  ) as Promise<ApplicationTaskReceipt>;
 }
 
-export function putProjectLifecycleConfiguration(id: string, payload: ProjectLifecycleConfigurationUpdateRequest) {
-  return request.put<ProjectLifecycleConfigurationSavedResponse>({
-    url: buildProjectLifecycleConfigurationApiPath(id),
+export function putApplicationLifecycleConfiguration(
+  id: string,
+  payload: ApplicationLifecycleConfigurationUpdateRequest,
+) {
+  return request.put<ApplicationLifecycleConfigurationSavedResponse>({
+    url: buildApplicationLifecycleConfigurationApiPath(id),
     data: payload,
-  }) as Promise<ProjectLifecycleConfigurationSavedResponse>;
+  }) as Promise<ApplicationLifecycleConfigurationSavedResponse>;
 }
 
-export function postProjectUnregister(id: ProjectUnregisterPathParams['id']) {
-  return postProjectAction<ProjectUnregisterData>(buildProjectUnregisterApiPath(id)) as Promise<ProjectActionResponse>;
+export function postApplicationUnregister(applicationId: ApplicationUnregisterPathParams['applicationId']) {
+  return postApplicationAction<ApplicationUnregisterData>(
+    buildApplicationUnregisterApiPath(applicationId),
+  ) as Promise<ApplicationActionResponse>;
 }
 
-export function postProjectDestroy(id: ProjectDestroyPathParams['id'], payload: ProjectDestroyRequest) {
-  return postProjectAction<ProjectDestroyData>(
-    buildProjectDestroyApiPath(id),
-    payload as ProjectDestroyPayload,
-  ) as Promise<ProjectActionResponse>;
+export function postApplicationDestroy(
+  applicationId: ApplicationDestroyPathParams['applicationId'],
+  payload: ApplicationDestroyRequest,
+) {
+  return postApplicationAction<ApplicationDestroyData>(
+    buildApplicationDestroyApiPath(applicationId),
+    payload as ApplicationDestroyPayload,
+  ) as Promise<ApplicationActionResponse>;
 }
 
-export function postProjectBatchActions(payload: ProjectBatchActionRequest) {
-  return postProjectAction<ProjectBatchActionsData>(
-    PROJECT_API_PATH.BATCH_ACTIONS,
-    payload as ProjectBatchActionsPayload,
-  ) as Promise<ProjectBatchActionResponse>;
+export function postApplicationBatchActions(payload: ApplicationBatchActionRequest) {
+  return postApplicationAction<ApplicationBatchActionsData>(
+    APPLICATION_API_PATH.BATCH_ACTIONS,
+    payload as ApplicationBatchActionsPayload,
+  ) as Promise<ApplicationBatchActionResponse>;
 }

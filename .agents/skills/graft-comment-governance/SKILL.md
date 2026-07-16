@@ -46,7 +46,17 @@ Remove or rewrite comments that merely translate names, types, templates, or fra
 
 For a comment-only implementation or review batch, the main agent must verify that the orchestration layer selected and exposed the requested worker model before delegation. A model name written in a task prompt is not verification.
 
-The target worker configuration is `model=gpt-5.6-luna` with `reasoning_effort=medium`. The orchestration layer must expose and verify both fields before delegation. If that configuration cannot be selected or verified, pause delegation and ask the user to choose one of: use the main agent's current model, provide a model configuration that the orchestrator can verify, or have the main agent take over. Do not dispatch a worker until this is resolved.
+The worker configuration must expose `model` and `reasoning_effort`, and the orchestration layer must verify that the
+worker model is the same level as or lower than the immediate delegating agent's model. Record `parent_model`,
+`worker_model`, `model_relation`, and the comparison evidence before dispatch. If the worker model is higher, pause and
+request explicit user approval for the exact model, scope, and risk reason. If the model level cannot be verified, pause
+and ask the user for a verifiable configuration or main-agent takeover. Do not dispatch based on model availability or
+reasoning effort alone.
+
+For comment generation, the default worker model is exactly one model level lower than the immediate delegating
+agent's model. The orchestration layer must verify this relation before dispatch; if a lower-level model is unavailable
+or the one-level relation cannot be verified, pause and ask the user for direction instead of silently using a same-level
+or higher-level worker.
 
 When the orchestration API supports full-history forking, do not combine `fork_context=true` with explicit model or
 reasoning-effort overrides. Use an independent context when selecting the verified worker configuration, or inherit the
@@ -116,7 +126,12 @@ comment_governance:
 - decisions: added | updated | removed | none-needed
 - value_categories: why | constraint | business-rule | algorithm | external-behavior
 - exemptions: <generated/third-party/migration/build paths or none>
-- delegation_model: <verified model, main-agent takeover, or not-applicable>
+- delegation_model:
+  - parent_model: <model or not-applicable>
+  - worker_model: <model, main-agent takeover, or not-applicable>
+  - model_relation: same | lower | higher | unknown
+  - model_rank_verified: true | false
+  - higher_model_approval: not-required | pending | approved
 - commit_status: created | not-needed | blocked | pending-main-agent
 - commit_blocked_reason:
   - reason: <concrete blocker or none>

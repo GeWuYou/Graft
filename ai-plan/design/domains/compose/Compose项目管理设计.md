@@ -2,19 +2,34 @@
 
 本文档定义 `Graft` 对 Compose Application 的产品 IA、模块边界、数据模型、导入语义、API 方向、风险边界与阶段路线。
 
+## Application 一次性迁移裁决
+
+- 产品对象、UI route、HTTP resource、OpenAPI schema/type 与参数语义统一使用 `Application`。
+- canonical UI route 为 `/applications/**`，canonical HTTP route 为 `/api/ops/applications/**`；资源路径参数固定为
+  `applicationId`，公开 ID 固定为 `app_<ULID>`。
+- 持久化主表统一为通用 `applications`，当前记录固定 `application_type=compose`。`Compose Project Name` 仅表示
+  Compose deployment identity，不再决定产品对象或公开资源名称。
+- 公开字段固定为 `source_type`、`compose_project_name`、`workspace_path`；`host_scope` 不属于 Application
+  authority，运行位置由 `runtime_target_id` 表达。
+- 本次迁移在首个正式版本前一次性完成；不保留 `/projects`、`/api/ops/projects`、Project schema/type、旧字段、
+  alias、redirect 或 deprecated compatibility contract。
+- 已存在的 versioned migration SQL 是历史证据，不得修改；数据库重命名与数据搬迁只能通过新的前向迁移完成。
+- `server/modules/project/**` 与 `web/src/modules/project/**` 可暂时保留历史实现目录名，但不能向公开 contract
+  泄漏 `Project` 资源语义。
+
 该能力的核心定位必须保持稳定：
 
-- `Application` 是用户可见的产品对象；当前 `Project` module 是 Compose Application 的注册、聚合与生命周期实现 owner，不是新的 Runtime。
-- Application/Project 是 Compose 的唯一业务入口和生命周期 authority；`up`、`down`、`restart`、`redeploy` 不得迁入 Docker Provider 菜单。
+- `Application` 是用户可见且公开的唯一产品对象；当前 `Project` module 是 Compose Application 的注册、聚合与生命周期实现 owner，不是新的 Runtime。
+- Application 是 Compose 的唯一业务入口和生命周期 authority；`up`、`down`、`restart`、`redeploy` 不得迁入 Docker Provider 菜单。
 - `Container` 始终是 Runtime Authority。
 - `Project` 只负责项目注册、配置解析、生命周期管理和聚合入口。
 - `Project` 不得复制、替代或持久化容器运行时真相。
 
 Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只绑定并引用目标，不能自行维护另一套 Docker、Podman 或 containerd endpoint 与凭据目录。Project 详情可以跳转到关联 Provider 资源，但跳转不得改变上述 authority。
 
-每个 Compose Application 绑定一个具备 Compose 执行和 Workspace 访问能力的 `runtime_target_id`。当前实现只允许 Local Docker；未来 Local/Remote Docker、Local/Remote Podman 或 Containerd target 只有在对应 Provider adapter 报告真实能力后才可选择。`compose_projects.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史 `host_scope=local` 行。该桥的 authority 是 Runtime Target，影响者是 Project 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
+每个 Compose Application 绑定一个具备 Compose 执行和 Workspace 访问能力的 `runtime_target_id`。当前实现只允许 Local Docker；未来 Local/Remote Docker、Local/Remote Podman 或 Containerd target 只有在对应 Provider adapter 报告真实能力后才可选择。`applications.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史本地记录。该桥的 authority 是 Runtime Target，影响者是 Application 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
 
-`/projects` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `application_type=compose` 的实现和生命周期能力；列表必须首先展示应用类型、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
+`/applications` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `application_type=compose` 的实现和生命周期能力；列表必须首先展示应用类型、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
 
 菜单图标统一由 web 的 Iconify resolver 消费 server descriptor identifier：常规导航使用 Lucide，专业补充使用 Tabler，品牌使用静态 Iconify 数据。Docker 必须使用 Tabler 的 Docker brand glyph，不能以通用 server/container 图标代替；Iconify 不得通过运行时 CDN 加载图标。
 
@@ -25,7 +40,7 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - 设计 authority：本文档
 - 后端 authority：future `server/modules/project/**`
 - 前端 authority：future `web/src/modules/project/**`
-- OpenAPI authority：future `openapi/**`
+- OpenAPI authority：`openapi/**`
 - 容器运行时 authority：现有 `server/modules/container/**` + `web/src/modules/container/**`
 - 相关治理文档：
   - `ai-plan/design/domains/container/容器管理设计.md`
@@ -72,7 +87,8 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - `Application`
   - 用户创建、查看和管理的业务资产；当前首期由 Compose Project registry 实现，不能把底层 `Project` module 名称当作 Runtime 或产品入口。
 - `Project`
-  - `Graft` 中 Compose Application 的注册与聚合对象；是当前实现和持久化边界，不是通用 Runtime 抽象。
+  - 仅指历史实现 module/package 名称或 Compose 原生技术术语；不再是公开产品对象、HTTP resource、schema/type
+    或持久化主表名称。
 - `Deployment Type`
   - 应用模型与文件/生命周期语义，例如 `compose`、`swarm`、`kubernetes`、`nomad`。Compose 基于 Compose Specification；Docker 和 Podman 不是 Deployment Type，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
 - `Application Source`
@@ -120,14 +136,15 @@ UI route 的 canonical 语义固定为：
 
 | UI route | 页面和约束 |
 | --- | --- |
-| `/applications/projects/create` | Deployment Type picker；不在 URL 中暴露 Provider hierarchy |
-| `/applications/projects/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Type picker |
-| `/applications/projects/create/source?deployment=compose&runtime_target_id=<target-id>` | Compose Source picker；无效或缺失选择回到上一步 |
-| `/applications/projects/create/blank?deployment=compose&runtime_target_id=<target-id>` | Compose 空白 Workspace 向导 |
-| `/applications/projects/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose 模板向导 |
-| `/applications/projects/create/import?deployment=compose&runtime_target_id=<target-id>` | Compose 导入向导 |
+| `/applications/create` | Deployment Type picker；不在 URL 中暴露 Provider hierarchy |
+| `/applications/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Type picker |
+| `/applications/create/source?deployment=compose&runtime_target_id=<target-id>` | Compose Source picker；无效或缺失选择回到上一步 |
+| `/applications/create/blank?deployment=compose&runtime_target_id=<target-id>` | Compose 空白 Workspace 向导 |
+| `/applications/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose 模板向导 |
+| `/applications/create/import?deployment=compose&runtime_target_id=<target-id>` | Compose 导入向导 |
 
-`/applications/projects/**` 保持 Application 领域 URL，`projects` 是当前 Compose registry 的稳定资源名；不得引入 `/docker/**`、`/compose/**` 或 `/kubernetes/**` 的创建层级。实现前尚未发版，不保留旧 `runtime=docker-compose`、旧来源选择或别名 redirect。
+`/applications/**` 是唯一 Application 领域 URL；不得引入 `/projects/**`、`/docker/**`、`/compose/**` 或
+`/kubernetes/**` 的创建层级。实现前尚未发版，不保留旧 route、旧来源选择或 alias redirect。
 
 ## 3. 架构分析
 
@@ -385,18 +402,19 @@ web Project Activity tab
 
 ## 7.1 领域对象
 
-### Project
+### Application
 
 - `id`（内部数值主键）
 - `application_id`（对外 `app_<ULID>`，不可变且唯一）
 - `display_name`
+- `application_type`
+  - 当前固定 `compose`
 - `compose_project_name`
 - `compose_project_name_source`
   - `declared | generated | derived`
-- `source_kind`
+- `source_type`
   - `imported | managed | template`
-- `host_scope`
-  - Phase 1 固定 `local`
+- `runtime_target_id`
 - `workspace_key`（受管项目必填）
 - `workspace_path`
 - `ownership_mode`
@@ -418,7 +436,9 @@ web Project Activity tab
   - `wait_after_up`
   - `prune_images_after_redeploy`
 
-上述 `application_id`、`workspace_key`、`workspace_path` 与 `compose_project_name` 是后续实现的 canonical 字段。本文其余历史实现段落中的 `canonical_project_name`、`working_directory` 与 `relative_project_directory` 仅描述现存代码/迁移事实，不得作为新契约、UI 或兼容层 authority；`application-identity-backend` 必须删除或迁移它们。
+上述 `application_id`、`application_type`、`source_type`、`workspace_key`、`workspace_path` 与
+`compose_project_name` 是 canonical 字段。旧 `source_kind`、`canonical_project_name`、`working_directory`、
+`host_scope` 与 `relative_project_directory` 只能作为历史迁移输入被一次性搬迁，不得进入新 contract、UI 或兼容层。
 
 ### ProjectFile
 
@@ -463,11 +483,11 @@ web Project Activity tab
 
 Phase 1 推荐三张模块自有表：
 
-### `compose_projects`
+### `applications`
 
 用途：
 
-- 项目注册真相
+- 通用 Application 注册真相；当前 `application_type` 固定为 `compose`
 - Source / Ownership / Drift / Refresh 元数据
 
 不存：
@@ -487,7 +507,7 @@ Phase 1 推荐三张模块自有表：
 边界：
 
 - 它不是 Configuration 工作台左侧文件树的数据源。
-- Configuration 工作台必须来自 `working_directory` 的真实目录浏览接口，而不是从这里推断文件列表。
+- Configuration 工作台必须来自 `workspace_path` 的真实目录浏览接口，而不是从这里推断文件列表。
 - 它不再是 workspace state 的 source of truth。
 - 它只继续服务 compose parsing、preview、validation、lifecycle 与 deployment 所需的 compose/env 元数据覆盖层。
 
@@ -515,10 +535,10 @@ Phase 1 推荐三张模块自有表：
 
 ## 7.3 推荐索引与唯一性
 
-- `compose_projects(application_id)` 唯一
-- `compose_projects(runtime_target_id, compose_project_name)` 唯一
+- `applications(application_id)` 唯一
+- `applications(runtime_target_id, compose_project_name)` 唯一
   - 防止同一目标重复注册同一个 Compose deployment identity
-- live `compose_projects(workspace_path)` 唯一
+- live `applications(workspace_path)` 唯一
 - `compose_project_files(project_id, order_index)` 唯一
 - `compose_project_files(project_id, absolute_path)` 唯一
 - `compose_project_snapshots(project_id)` 唯一
@@ -697,17 +717,17 @@ Volume 删除要单独判断：
 7. frontend 展示 inspect preview
 8. 用户只允许编辑：
    - `display_name`
-   - `canonical_project_name_override`
+   - `compose_project_name_override`
 9. frontend 提交 `inspection_id` 驱动最终 import
 
 当前 import confirmation 表单固定只包含：
 
 - `display_name`
-- `canonical_project_name_override`
+- `compose_project_name_override`
 
 当前不再要求用户手填：
 
-- `working_directory`
+- `workspace_path`
 - `compose_files[]`
 - `env_files[]`
 
@@ -727,7 +747,7 @@ runtime candidate 的 authority owner 固定为 `container`，`project` 只消�
 candidate 至少要固定这些字段语义：
 
 - `candidate_key`
-- `canonical_project_name`
+- `compose_project_name`
 - `status`
   - `ready`
   - `already_imported`
@@ -738,8 +758,8 @@ candidate 至少要固定这些字段语义：
 - `importable`
 - `runtime_type`
 - `runtime_version`
-- `working_directory`
-- `working_directory_source`
+- `workspace_path`
+- `workspace_path_source`
 - `config_files`
 - `service_names`
 - `container_counts`
@@ -768,20 +788,20 @@ runtime candidate 的 stronger authority 固定为：
 
 - `config_files`
 
-`working_directory` 只作为 hint，不作为 import identity。
+`workspace_path` 只作为 hint，不作为 import identity。
 
 规则：
 
-- 若 runtime label 同时提供 `working_directory + config_files`，直接使用
-- 若缺少 `working_directory` 但 `config_files[0]` 可用，允许由 `dirname(config_files[0])` 派生 working directory
-- 上述派生成功时，candidate 仍可为 `ready`，但需返回 warning code 与 `working_directory_source=derived_from_config_files`
+- 若 runtime label 同时提供 `workspace_path + config_files`，直接使用
+- 若缺少 `workspace_path` 但 `config_files[0]` 可用，允许由 `dirname(config_files[0])` 派生 working directory
+- 上述派生成功时，candidate 仍可为 `ready`，但需返回 warning code 与 `workspace_path_source=derived_from_config_files`
 - 只有 `config_files` 缺失、无效、不可访问，或同一 candidate 组内元数据冲突时，candidate 才进入不可导入状态
 
 candidate grouping identity 建议固定为：
 
-- `host_scope + canonical_project_name + normalized config_files digest`
+- `runtime_target_id + compose_project_name + normalized config_files digest`
 
-而不是单独依赖 `working_directory`。
+而不是单独依赖 `workspace_path`。
 
 ## 9.4 文件发现
 
@@ -824,7 +844,7 @@ inspect / import 前必须校验：
 
 至少检测：
 
-- 同一 `host_scope + canonical_project_name` 已存在
+- 同一 `runtime_target_id + compose_project_name` 已存在
 - 同一 `config_files digest` 已存在
 - inspect 后文件 hash 与 import 时重算结果不一致
 - candidate authority 指向的文件缺失
@@ -832,23 +852,23 @@ inspect / import 前必须校验：
 
 ## 9.7 导入步骤
 
-1. frontend 请求 `GET /api/ops/projects/import/runtime-candidates`
+1. frontend 请求 `GET /api/ops/applications/import/runtime-candidates`
 2. backend 从 runtime authority 聚合 Compose import candidates，并同时返回 `ready` 与 `unavailable`
 3. 用户选择一个 `ready` candidate
-4. frontend 提交 `POST /api/ops/projects/import/runtime-inspect`
+4. frontend 提交 `POST /api/ops/applications/import/runtime-inspect`
 5. backend 基于 candidate authority 解析 compose/env files，并只解析一次 compose authority
 6. backend 生成：
    - `inspection_id`
    - `candidate_key`
-   - `canonical_project_name`
+   - `compose_project_name`
    - `display_name_suggested`
    - `compose_files`
    - `env_files`
    - `services / networks / volumes`
    - `warnings / conflicts`
-7. frontend 只提交 `inspection_id + editable overrides` 到 `POST /api/ops/projects/import`
+7. frontend 只提交 `inspection_id + editable overrides` 到 `POST /api/ops/applications/import`
 8. backend 校验 inspection TTL 与 file hash freshness
-9. backend 持久化 `compose_projects`、`compose_project_files`、`compose_project_snapshots`
+9. backend 持久化 `applications`、`compose_project_files`、`compose_project_snapshots`
 10. 返回项目详情摘要
 
 保留的 directory browse / inspect path 继续存在，但不再作为当前主入口 IA。
@@ -876,9 +896,9 @@ inspect / import 前必须校验：
 Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续保留 IA 与语义设计真相，不能与
 `openapi/**` 漂移。
 
-## 10.1 项目列表与详情
+## 10.1 Application 列表与详情
 
-项目列表可使用通用 `saved-view` module 保存用户私有的分页视图。`project` 仍是 `/api/ops/projects/saved-views` 的 HTTP 与领域授权 owner：它只在调用 generic service 前校验 `surface_key=project.list`、筛选状态和可见列。保存状态包含筛选/查询 JSON、`page_size` 与可见列键；不保存当前页，应用视图一律从第一页开始。视图不共享，展示名称在同一 `(owner_user_id, surface_key)` live scope 内唯一。
+项目列表可使用通用 `saved-view` module 保存用户私有的分页视图。`project` 仍是 `/api/ops/applications/saved-views` 的 HTTP 与领域授权 owner：它只在调用 generic service 前校验 `surface_key=application.list`、筛选状态和可见列。保存状态包含筛选/查询 JSON、`page_size` 与可见列键；不保存当前页，应用视图一律从第一页开始。视图不共享，展示名称在同一 `(owner_user_id, surface_key)` live scope 内唯一。
 
 ### 保存视图表设计摘要
 
@@ -889,18 +909,19 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 | Method | Path                              | 语义             |
 | ------ | --------------------------------- | ---------------- |
-| `GET`  | `/api/ops/projects`               | 项目列表         |
-| `GET`  | `/api/ops/projects/{id}`          | 项目详情 summary |
-| `GET`  | `/api/ops/projects/{id}/services` | 项目服务聚合     |
+| `GET`  | `/api/ops/applications`                         | Application 列表         |
+| `GET`  | `/api/ops/applications/{applicationId}`         | Application 详情 summary |
+| `GET`  | `/api/ops/applications/{applicationId}/services` | Application 服务聚合     |
 
 建议列表返回：
 
-- `id`
+- `application_id`
 - `display_name`
-- `canonical_project_name`
-- `source_kind`
+- `application_type`
+- `compose_project_name`
+- `source_type`
 - `ownership_mode`
-- `working_directory`
+- `workspace_path`
 - `runtime_status`
 - `service_count`
 - `container_counts`
@@ -927,25 +948,25 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 | Method | Path                                          | 语义                                              |
 | ------ | --------------------------------------------- | ------------------------------------------------- |
-| `GET`  | `/api/ops/projects/import/runtime-candidates` | 返回当前 runtime 可见的 Compose import candidates |
-| `POST` | `/api/ops/projects/import/runtime-inspect`    | 基于一个 `ready` runtime candidate 执行 inspect   |
-| `GET`  | `/api/ops/projects/import/directory-sources`  | 返回 import flow 可用的 directory roots           |
-| `GET`  | `/api/ops/projects/import/directories`        | 在一个 allowed root 下分页浏览目录                |
-| `POST` | `/api/ops/projects/import/inspect`            | 自动发现并 inspect 一个 selected directory        |
-| `POST` | `/api/ops/projects/import/validate`           | 只校验输入与 Compose 解析，不持久化               |
-| `POST` | `/api/ops/projects/import`                    | 导入并注册项目                                    |
+| `GET`  | `/api/ops/applications/import/runtime-candidates` | 返回当前 runtime 可见的 Compose import candidates |
+| `POST` | `/api/ops/applications/import/runtime-inspect`    | 基于一个 `ready` runtime candidate 执行 inspect   |
+| `GET`  | `/api/ops/applications/import/directory-sources`  | 返回 import flow 可用的 directory roots           |
+| `GET`  | `/api/ops/applications/import/directories`        | 在一个 allowed root 下分页浏览目录                |
+| `POST` | `/api/ops/applications/import/inspect`            | 自动发现并 inspect 一个 selected directory        |
+| `POST` | `/api/ops/applications/import/validate`           | 只校验输入与 Compose 解析，不持久化               |
+| `POST` | `/api/ops/applications/import`                    | 导入并注册项目                                    |
 
 `runtime-candidates` 返回建议包含：
 
 - `candidate_key`
-- `canonical_project_name`
+- `compose_project_name`
 - `status`
 - `status_reason_codes`
 - `importable`
 - `runtime_type`
 - `runtime_version`
-- `working_directory`
-- `working_directory_source`
+- `workspace_path`
+- `workspace_path_source`
 - `config_files`
 - `service_names`
 - `container_counts`
@@ -955,9 +976,9 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 - `inspection_id`
 - `candidate_key`
-- `resolved_working_directory`
-- `canonical_project_name`
-- `canonical_project_name_source`
+- `resolved_workspace_path`
+- `compose_project_name`
+- `compose_project_name_source`
 - `display_name_suggested`
 - `compose_files`
 - `env_files`
@@ -994,9 +1015,9 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 - `inspection_id`
 - `directory_ref`
-- `resolved_working_directory`
-- `canonical_project_name`
-- `canonical_project_name_source`
+- `resolved_workspace_path`
+- `compose_project_name`
+- `compose_project_name_source`
 - `display_name_suggested`
 - `compose_files`
 - `env_files`
@@ -1011,7 +1032,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 保留的 legacy `validate` 返回建议包含：
 
 - 自动发现的 compose / env 文件
-- 解析到的 `canonical_project_name`
+- 解析到的 `compose_project_name`
 - 规范化 preview 摘要
 - 服务数
 - warning / diagnostics summary
@@ -1037,9 +1058,9 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 | Method | Path                                | 语义                                                                        |
 | ------ | ----------------------------------- | --------------------------------------------------------------------------- |
-| `GET`  | `/api/ops/projects/managed-root`    | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
-| `POST` | `/api/ops/projects/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件      |
-| `POST` | `/api/ops/projects/create`          | 在 managed root 下写入 compose/env 文件并注册 managed project               |
+| `GET`  | `/api/ops/applications/managed-root`    | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
+| `POST` | `/api/ops/applications/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件      |
+| `POST` | `/api/ops/applications/create`          | 在 managed root 下写入 compose/env 文件并注册 managed project               |
 
 managed root authority 约束：
 
@@ -1082,14 +1103,14 @@ Blank 向导的默认草稿由 project module 返回，前端不得硬编码模�
 Configuration workspace 的 authority 需要拆成两层：
 
 - Project registry authority
-  - 继续保存 lifecycle 执行所需的 `compose_files`、`env_files`、`working_directory`、`canonical_project_name`
+  - 继续保存 lifecycle 执行所需的 `compose_files`、`env_files`、`workspace_path`、`compose_project_name`
 - Workspace authority
   - File tree、editor open/read、dirty state、save 与 preview diff 全部围绕同一套 workspace file model 运作
   - 同一文件树编辑器同时服务创建向导中的本地 workspace draft 和已创建项目的持久化 workspace；差异仅在数据源与保存时机，不得形成两套文件树交互或文件类型规则
   - Web 侧唯一状态真值是 `ProjectWorkspaceStore` 的规范化节点模型：`nodesByKey`、`rootKeys` 与每个目录的 `childKeys` 共同表达层级；`expandedKeys`、`selectedKey`、`openedTabs`、`activeFileKey`、文件内容与 dirty 状态同属该 Store。
   - `WorkspaceTree` 只能消费 Store 生成的可见节点行，不得从 path、flat list、`parent_path` 或组件局部 state 重建父子关系；Monaco 只能消费 `activeFile`，不得修改 Tree。目录展开、深层文件打开、创建、重命名、删除与 reload 都由 Store action 维护祖先展开、选择和打开 buffer。
   - Create 与 Configuration 只在 `WorkspaceEditor` 外提供各自 toolbar 和数据源适配；编辑器本身不得按页面类型分支。
-  - 左侧文件树、编辑器文件打开、保存能力全部来自 `working_directory` 的真实目录浏览/读写接口
+  - 左侧文件树、编辑器文件打开、保存能力全部来自 `workspace_path` 的真实目录浏览/读写接口
   - `compose_project_files`、`lifecycle_configuration`、`compose_files` 与固定文件名都不能决定工作台文件成员资格
   - Compose metadata 只允许 enrich workspace entry 的 `file_kind` / tooltip / lifecycle overlay，不拥有文件内容 authority
 
@@ -1103,22 +1124,22 @@ Configuration workspace 的 authority 需要拆成两层：
 
 | Method | Path                                           | 语义                                                  |
 | ------ | ---------------------------------------------- | ----------------------------------------------------- |
-| `GET`  | `/api/ops/projects/{id}/configuration`         | 项目级 configuration summary 与 workspace 状态摘要    |
-| `GET`  | `/api/ops/projects/{id}/configuration/preview` | 规范化 Compose preview                                |
-| `GET`  | `/api/ops/projects/{id}/files`                 | 基于 `working_directory` 懒加载浏览真实目录树         |
-| `GET`  | `/api/ops/projects/{id}/files/content`         | 基于相对路径读取单文件内容                            |
-| `PUT`  | `/api/ops/projects/{id}/files/content`         | 基于相对路径保存单文件内容，只写回 `working_directory` |
-| `POST` | `/api/ops/projects/{id}/files`                 | 在受控工作区创建文件或空目录                          |
-| `PATCH` | `/api/ops/projects/{id}/files`                | 重命名文件或目录                                      |
-| `DELETE` | `/api/ops/projects/{id}/files`               | 删除文件或目录；递归删除必须显式声明                  |
+| `GET`  | `/api/ops/applications/{applicationId}/configuration`         | 项目级 configuration summary 与 workspace 状态摘要    |
+| `GET`  | `/api/ops/applications/{applicationId}/configuration/preview` | 规范化 Compose preview                                |
+| `GET`  | `/api/ops/applications/{applicationId}/files`                 | 基于 `workspace_path` 懒加载浏览真实目录树         |
+| `GET`  | `/api/ops/applications/{applicationId}/files/content`         | 基于相对路径读取单文件内容                            |
+| `PUT`  | `/api/ops/applications/{applicationId}/files/content`         | 基于相对路径保存单文件内容，只写回 `workspace_path` |
+| `POST` | `/api/ops/applications/{applicationId}/files`                 | 在受控工作区创建文件或空目录                          |
+| `PATCH` | `/api/ops/applications/{applicationId}/files`                | 重命名文件或目录                                      |
+| `DELETE` | `/api/ops/applications/{applicationId}/files`               | 删除文件或目录；递归删除必须显式声明                  |
 
 `configuration` 返回建议包含：
 
 - lifecycle authority summary
-  - `working_directory`
+  - `workspace_path`
   - `compose_files`
   - `env_files`
-  - `canonical_project_name`
+  - `compose_project_name`
 - ownership summary
 - drift summary
 - last refresh summary
@@ -1150,7 +1171,7 @@ Configuration workspace 的 authority 需要拆成两层：
 - 默认隐藏重目录，隐藏策略来自 `ops.project.workspace.hidden_directories`；前端只消费接口返回与 `show hidden` 开关能力。
 - `compose_project_files` 继续服务 lifecycle authority，但不能再充当 workspace tree authority。
 - 任意可在 workspace 中打开并编辑的文本文件，都天然属于 Preview Diff 范围；不根据后缀额外维护 diff 白名单。
-- 已创建项目的创建、重命名和删除操作都以 `working_directory` 为唯一可写根目录，并复用读取/保存接口的项目编辑权限与相对路径边界校验。目录删除只有请求显式 `recursive=true` 时才允许递归；UI 必须在非空目录删除前二次确认并显示受影响条目范围。
+- 已创建项目的创建、重命名和删除操作都以 `workspace_path` 为唯一可写根目录，并复用读取/保存接口的项目编辑权限与相对路径边界校验。目录删除只有请求显式 `recursive=true` 时才允许递归；UI 必须在非空目录删除前二次确认并显示受影响条目范围。
 - Workspace tree 的根节点、目录节点和文件节点均提供右键菜单：新建文件、新建文件夹、重命名、删除。文件节点的新建目标为其父目录；根和目录节点的新建目标为当前目录。前端操作后同步树、展开状态、打开标签、活动文件及未保存 buffer。
 
 `files/content` 返回建议包含：
@@ -1166,7 +1187,7 @@ Configuration workspace 的 authority 需要拆成两层：
 
 保存语义固定为：
 
-- `PUT /files/content` 只把当前文件内容写回 `working_directory`
+- `PUT /files/content` 只把当前文件内容写回 `workspace_path`
 - 保存不隐含“立即生效”“自动 refresh”或“自动 deploy”
 - 编辑器按文件驱动，允许同时打开多个文件；保存作用域默认只限当前文件
 
@@ -1174,20 +1195,20 @@ Configuration workspace 的 authority 需要拆成两层：
 
 | Method | Path                                | 语义                                                    |
 | ------ | ----------------------------------- | ------------------------------------------------------- |
-| `POST` | `/api/ops/projects/{id}/refresh`    | 刷新静态配置与聚合视图                                  |
-| `POST` | `/api/ops/projects/{id}/up`         | 执行 compose up                                         |
-| `POST` | `/api/ops/projects/{id}/stop`       | 执行 compose stop，仅停止运行中的服务与容器             |
-| `POST` | `/api/ops/projects/{id}/restart`    | 执行 compose restart                                    |
-| `POST` | `/api/ops/projects/{id}/validate`   | 基于当前已保存磁盘状态执行项目级配置校验                |
-| `POST` | `/api/ops/projects/{id}/redeploy`   | 按已保存 lifecycle configuration 提交项目重新部署任务  |
-| `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录                                            |
-| `POST` | `/api/ops/projects/{id}/destroy`    | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
+| `POST` | `/api/ops/applications/{applicationId}/refresh`    | 刷新静态配置与聚合视图                                  |
+| `POST` | `/api/ops/applications/{applicationId}/up`         | 执行 compose up                                         |
+| `POST` | `/api/ops/applications/{applicationId}/stop`       | 执行 compose stop，仅停止运行中的服务与容器             |
+| `POST` | `/api/ops/applications/{applicationId}/restart`    | 执行 compose restart                                    |
+| `POST` | `/api/ops/applications/{applicationId}/validate`   | 基于当前已保存磁盘状态执行项目级配置校验                |
+| `POST` | `/api/ops/applications/{applicationId}/redeploy`   | 按已保存 lifecycle configuration 提交项目重新部署任务  |
+| `POST` | `/api/ops/applications/{applicationId}/unregister` | 只删注册记录                                            |
+| `POST` | `/api/ops/applications/{applicationId}/destroy`    | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
 
 `destroy` 请求建议显式字段：
 
 - `remove_named_volumes`
-- `delete_working_directory`
-- `confirm_canonical_project_name`
+- `delete_workspace_path`
+- `confirm_compose_project_name`
 
 并要求后端返回：
 
@@ -1201,14 +1222,14 @@ Configuration workspace 的 authority 需要拆成两层：
 - 若前端存在未保存文件，必须先提示用户是否保存
 - Preview Diff 固定由 frontend buffer 对磁盘内容做本地 Monaco Diff，不提供后端 `diff` API
 - `redeploy` 的未保存提示固定为“检测到未保存的修改，是否先保存？”，并提供 `保存`、`继续使用磁盘版本重新部署`、`取消`
-- 其中“保存”只把当前未保存内容写回 `working_directory`，不隐含立即生效，也不自动提交 `redeploy` 任务
+- 其中“保存”只把当前未保存内容写回 `workspace_path`，不隐含立即生效，也不自动提交 `redeploy` 任务
 - `redeploy` 始终是独立的显式项目级动作；保存不自动提交任务，必须由用户显式触发 `redeploy`
 
 ## 10.5 Phase 1 明确不提供的 API
 
-- 不提供 `/api/ops/projects/{id}/events`
-- 不提供 `/api/ops/projects/{id}/files`
-- 不提供 `/api/ops/projects/{id}/files/content`
+- 不提供 `/api/ops/applications/{applicationId}/events`
+- 不提供 `/api/ops/applications/{applicationId}/files`
+- 不提供 `/api/ops/applications/{applicationId}/files/content`
 - 不提供 `PUT` 配置编辑保存接口
 - 不提供项目级 `diff` / `validate` / `deploy` API
 
@@ -1217,7 +1238,7 @@ Configuration workspace 的 authority 需要拆成两层：
 `phase-1-batch-1-project-contract-and-data-model` 已把以下 authority owner 固定到仓库运行面：
 
 - OpenAPI contract owner：`openapi/**`
-  - route space 固定为 `/api/ops/projects/**`
+  - route space 固定为 `/api/ops/applications/**`
   - Phase 1 只读 Configuration 固定拆为 metadata、preview、single-file content
   - 明确保留 lifecycle routes 的 contract owner，但不在本 batch 落 runtime handler
 - Project module contract owner：`server/modules/project/contract/**`
@@ -1227,7 +1248,7 @@ Configuration workspace 的 authority 需要拆成两层：
   - 只定义 registry、file list、snapshot 三类 module-owned persistence model
   - 不引入容器 logs / events / stats / inspect 等 runtime 字段
 - Project module migration owner：`server/modules/project/migrations/**`
-  - `compose_projects`
+  - `applications`
   - `compose_project_files`
   - `compose_project_snapshots`
 - Narrow shared boundary owner：`server/internal/moduleapi/container_project.go`
@@ -1246,9 +1267,9 @@ Configuration workspace 的 authority 需要拆成两层：
 `phase-2-batch-1-managed-root-and-create-contracts` 已把以下 authority owner 固定到仓库运行面：
 
 - OpenAPI contract owner：`openapi/**`
-  - 新增 `/api/ops/projects/managed-root`
-  - 新增 `/api/ops/projects/create/validate`
-  - 新增 `/api/ops/projects/create`
+  - 新增 `/api/ops/applications/managed-root`
+  - 新增 `/api/ops/applications/create/validate`
+  - 新增 `/api/ops/applications/create`
 - Project module contract owner：`server/modules/project/contract/**`
   - 新增 managed-root status typed contract
   - 新增 managed-create permission contract
@@ -1268,9 +1289,9 @@ Configuration workspace 的 authority 需要拆成两层：
 `phase-2-batch-2-server-managed-create-and-file-write-path` 已把以下 authority owner 固定到仓库运行面：
 
 - OpenAPI contract owner：`openapi/**`
-  - `POST /api/ops/projects/create` 不再复用 validate request
+  - `POST /api/ops/applications/create` 不再复用 validate request
   - create request 拥有独立 compose/env file content payload
-  - create response 改为同步创建结果，显式返回 `project_id`、目标文件路径和 snapshot summary
+  - create response 改为同步创建结果，显式返回 `application_id`、目标文件路径和 snapshot summary
 - Project module execution owner：`server/modules/project/**`
   - 在 managed root 下创建 bounded working directory
   - 写入 compose file 与可选 env file
@@ -1501,7 +1522,7 @@ Phase 1 处理：
 决策：
 
 - Phase 1 只允许修改 `display_name`
-- `canonical_project_name` 默认只读
+- `compose_project_name` 默认只读
 - 未来如允许修改，必须作为独立高危流程处理
 
 ## 14.4 目录移动
@@ -1547,14 +1568,14 @@ Phase 1 处理：
 
 | 方向                                 | 是否兼容当前模型 | 设计说明                                                     |
 | ------------------------------------ | ---------------- | ------------------------------------------------------------ |
-| Git-based Projects                   | `yes`            | 在 `source_kind` 上扩展 `git`，并追加 source metadata        |
+| Git-based Projects                   | `yes`            | 在 `source_type` 上扩展 `git`，并追加 source metadata        |
 | Templates                            | `yes`            | Template 是 Application Root `templates/<key>` 的受管输入源 |
 | Directory Scan                       | `yes`            | 扫描只产出 candidates，不直接注册                            |
 | Auto Discovery                       | `yes`            | 后台发现只更新 candidate / drift，不改变 runtime authority   |
 | Multiple Compose Files               | `yes`            | `compose_project_files` 的 `order_index` 已为有序 `-f` 预留  |
 | Compose Override                     | `yes`            | 通过 `role=override` 与有序文件列表支持                      |
 | Environment Files                    | `yes`            | `kind=env` + file list 可扩展多个 env file                   |
-| Remote Host                          | `partial`        | 需在 `host_scope` 与连接配置上再扩展，但 registry 模型可保留 |
+| Remote Host                          | `partial`        | 需通过 Runtime Target 与 Provider capability 扩展，Application 不增加 host 字段 |
 | Project Activity backend aggregation | `future yes`     | 需要单独定义 observability authority，Phase 1 不做           |
 
 ### 15.1 Creation Pipeline
@@ -1638,21 +1659,21 @@ Configuration：
 `phase-2-batch-4-diff-validate-and-deploy-flow` 把以下 authority owner 固定到仓库运行面：
 
 - OpenAPI contract owner：`openapi/**`
-  - 新增 `GET /api/ops/projects/{id}/files`
-  - 新增 `GET /api/ops/projects/{id}/files/content`
-  - 新增 `PUT /api/ops/projects/{id}/files/content`
-  - 新增 `POST /api/ops/projects/{id}/files`、`PATCH /api/ops/projects/{id}/files`、`DELETE /api/ops/projects/{id}/files`，分别承担创建、重命名和显式递归删除
-  - 新增 `POST /api/ops/projects/{id}/validate`
-  - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`
-  - 移除 `POST /api/ops/projects/{id}/update-deploy` 作为一等 lifecycle action
+  - 新增 `GET /api/ops/applications/{applicationId}/files`
+  - 新增 `GET /api/ops/applications/{applicationId}/files/content`
+  - 新增 `PUT /api/ops/applications/{applicationId}/files/content`
+  - 新增 `POST /api/ops/applications/{applicationId}/files`、`PATCH /api/ops/applications/{applicationId}/files`、`DELETE /api/ops/applications/{applicationId}/files`，分别承担创建、重命名和显式递归删除
+  - 新增 `POST /api/ops/applications/{applicationId}/validate`
+  - 新增 `PUT /api/ops/applications/{applicationId}/lifecycle-configuration`
+  - 移除 `POST /api/ops/applications/{applicationId}/update-deploy` 作为一等 lifecycle action
 - Project module execution owner：`server/modules/project/**`
-  - Configuration workspace 左侧文件树 authority 改为 `working_directory` 的真实目录扫描，不再从 tracked files 推断
-  - Workspace file membership / content authority 全部收口到 `working_directory` 的 runtime browse/read/write service
+  - Configuration workspace 左侧文件树 authority 改为 `workspace_path` 的真实目录扫描，不再从 tracked files 推断
+  - Workspace file membership / content authority 全部收口到 `workspace_path` 的 runtime browse/read/write service
   - `compose_project_files` 降级为 compose/env 元数据 overlay，不再承载 workspace state 或 Preview Diff authority
   - `files` / `files/content` 及文件树变更接口使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束；不以文件扩展名、语言高亮或隐藏目录配置限制创建
   - validate 只针对当前已保存磁盘状态做静态解析，不消费前端未保存草稿
   - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`；运行时导入必须在导入向导内审核服务端提供的默认配置，并与项目注册一起保存为 `confirmed`
-  - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 redeploy
+  - 保存只允许写回 `workspace_path` 的可编辑文件；保存本身不触发 refresh 或 redeploy
   - Configuration Workspace 的重新部署只读取当前已保存磁盘状态，并提交 project-owned lifecycle configuration 的 `redeploy` Task
   - redeploy 成为统一 runtime deploy-style lifecycle action；pull/down/prune 等语义都收口到 lifecycle configuration
   - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
@@ -1709,7 +1730,7 @@ Configuration：
 `phase-3-batch-3-remote-host-boundary-and-activity-authority` 只收敛 remote-host 扩展边界与 project activity authority，不直接实现 remote execution 或 backend aggregation：
 
 - OpenAPI contract owner：`openapi/**`
-  - `project source catalog` 增加 `remote-host` planned entry，固定其 `host_scope=remote`
+  - remote host 只能通过 Runtime Target 与 Provider capability 规划，不增加 Application host 字段
   - `project list/detail` 固定 `activity_authority` 字段，明确当前是 `frontend-fanout` 还是 `backend-planned`
   - `source_metadata` 允许的新增 planned 字段仅包括：
     - `remote_host_key`
@@ -1722,7 +1743,7 @@ Configuration：
   - 当前本机 `local` project 的 `activity_authority` 仍固定为 `frontend-fanout`
   - future `remote` project 或 backend aggregation 只保留 `backend-planned` authority 标识，不视为 implementation-ready
 - Web module owner：`web/src/modules/project/**`
-  - `/ops/projects/create/remote-host` 只保留 planned boundary 页面
+  - `/applications/create/remote-host` 只保留 planned boundary 页面
   - project detail 明确展示当前 `activity authority`
   - 当前 Activity tab 继续只做前端 fan-out；若 authority 为 `backend-planned`，UI 只提示 future boundary，不伪造后端数据
 
@@ -1739,21 +1760,21 @@ Configuration：
 `phase-3-batch-1-git-template-source-contract-and-boundary` 收敛 Git source 的 entry authority，并复核已落地 Template source 与同一 creation pipeline 的边界：
 
 - OpenAPI contract owner：`openapi/**`
-  - 新增 `GET /api/ops/projects/sources` 作为 source catalog authority
+  - 新增 `GET /api/ops/applications/sources` 作为 source catalog authority
   - `project list/detail`、`managed root`、`managed create validate/create` 增加最小 `source_metadata` / `source_type` 字段
 - Project module owner：`server/modules/project/**`
   - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
   - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
   - Git 仅在隔离临时目录 clone/checkout 无凭据来源；Template 只从 Application Root `templates/<key>` 读取、发现并完整物化安全文本 workspace，不使用模块内置内容。二者都不扩展到目录扫描、remote host 或 backend activity aggregation。
 - Web module owner：`web/src/modules/project/**`
-  - `/ops/projects/create` 固定为 source selector
-  - `/ops/projects/create/managed` 承接现有 managed create 页面
-  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 承接 source adapter 创建页；两者都必须在真实 workspace 解析后进入同一 creation pipeline，且不得自动 deploy
+  - `/applications/create` 固定为 source selector
+  - `/applications/create/managed` 承接现有 managed create 页面
+  - `/applications/create/git` 与 `/applications/create/template` 承接 source adapter 创建页；两者都必须在真实 workspace 解析后进入同一 creation pipeline，且不得自动 deploy
 
 IA guardrail:
 
 - `source selector` 只是 Phase 3 boundary inspection surface，不得替代 Phase 1 `Import Existing Project` 主入口。
-- `managed create` 是 Phase 2 的真实入口，应继续由 `/ops/projects/create/managed` 承载。
+- `managed create` 是 Phase 2 的真实入口，应继续由 `/applications/create/managed` 承载。
 - 如果列表页或空态只能给一个主按钮，默认必须先给 `Import Existing Project`，不能默认把用户送进 planned boundary。
 
 当前批次允许的 `source_metadata` 范围：
@@ -1784,15 +1805,15 @@ IA guardrail:
 `phase-3-batch-2-directory-scan-and-auto-discovery-candidates` 只收敛 discovery candidate authority，不引入 project registry 自动写入或后台发现任务：
 
 - OpenAPI contract owner：`openapi/**`
-  - 新增 `GET /api/ops/projects/discovery-candidates`
-  - 固定 candidate 只读 contract：`candidate_key`、`candidate_kind`、`source_kind/source_type`、`working_directory`、`compose/env file list`、`declared_service_names`、`config_hash`、`warnings`、`conflicts`、`recommended_action`
+  - 新增 `GET /api/ops/applications/discovery-candidates`
+  - 固定 candidate 只读 contract：`candidate_key`、`candidate_kind`、`source_type`、`workspace_path`、`compose/env file list`、`declared_service_names`、`config_hash`、`warnings`、`conflicts`、`recommended_action`
 - Project module owner：`server/modules/project/**`
   - 以当前 `managed root` 作为 bounded local scan authority
   - 本批只做本机受限目录扫描和 auto-discovery preview 结果投影
   - candidate 只作为 discovery/preview surface，不写 registry、不自动调用 import、不产生 project-level runtime persistence
   - candidate 冲突只复用现有 registry conflict 规则进行 `review/import` 建议，不新增 compatibility layer
 - Web module owner：`web/src/modules/project/**`
-  - 在 `/ops/projects/create` source selector 下新增 hidden discovery preview surface
+  - 在 `/applications/create` source selector 下新增 hidden discovery preview surface
   - UI 只展示 authority root、候选状态、建议动作和冲突/文件预览，不直接注册项目
 
 当前 batch 固定的 candidate 字段语义：
@@ -1847,6 +1868,6 @@ IA guardrail:
 - `Template`：Application Root `templates/<key>` 模板目录生成 Workspace。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
-MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/projects/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/projects/create`，依次进入 deployment、target、source 与向导。Git 可在 Source 页面仅作为禁用卡片展示，并通过本地化 tooltip 显示“暂不支持”；它与 Remote Host、ZIP、GitHub Template 一样不得预先暴露 API、路由、菜单、创建方式枚举、持久化来源类型或占位页面。
+MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/applications/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/create`，依次进入 deployment、target、source 与向导。Git 可在 Source 页面仅作为禁用卡片展示，并通过本地化 tooltip 显示“暂不支持”；它与 Remote Host、ZIP、GitHub Template 一样不得预先暴露 API、路由、菜单、创建方式枚举、持久化来源类型或占位页面。
 
 未来 Deployment Type 或 Runtime Target Provider 必须先由 canonical OpenAPI 定义 kind、capability、可用性和 stable reason code，再同时交付生命周期与 Source adapter；不得用占位卡片提前建立 wire model。未来创建方式只能在其真实向导、OpenAPI contract 和创建方式目录同时实现后公开，并且必须遵循 `Deployment Type -> Runtime Target -> Application Source -> Workspace -> CreationCommand -> lifecycle/review -> aggregate/snapshot -> read-only runtime sync`。创建方式负责获取或构建 Workspace；共享 CreationCommand 负责配置确认、注册和快照，不能复制项目创建逻辑。

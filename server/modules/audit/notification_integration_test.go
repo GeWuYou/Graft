@@ -2,9 +2,9 @@ package audit
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 
 	"go.uber.org/zap"
 

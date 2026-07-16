@@ -1,13 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import ProjectSourceCreate from './source-create.vue';
+import ApplicationSourceCreate from './source-create.vue';
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
-  postProjectCreateTemplate: vi.fn(),
-  navigateToProjectCreateSource: vi.fn(),
+  postApplicationCreateTemplate: vi.fn(),
+  navigateToApplicationCreateSource: vi.fn(),
 }));
 
 vi.mock('vue-router', () => ({
@@ -16,18 +16,18 @@ vi.mock('vue-router', () => ({
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('tdesign-vue-next', () => ({ MessagePlugin: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
-vi.mock('../../api/project', () => ({ postProjectCreateTemplate: mocks.postProjectCreateTemplate }));
+vi.mock('../../api/project', () => ({ postApplicationCreateTemplate: mocks.postApplicationCreateTemplate }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
 vi.mock('../../shared/navigation', () => ({
-  navigateToProjectCreateSource: mocks.navigateToProjectCreateSource,
-  refreshProjectCreatePage: mocks.replace,
+  navigateToApplicationCreateSource: mocks.navigateToApplicationCreateSource,
+  refreshApplicationCreatePage: mocks.replace,
 }));
 
-describe('ProjectSourceCreate', () => {
+describe('ApplicationSourceCreate', () => {
   it('returns to source selection with deployment and runtime target context', async () => {
-    const wrapper = mount(ProjectSourceCreate, {
+    const wrapper = mount(ApplicationSourceCreate, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -46,7 +46,7 @@ describe('ProjectSourceCreate', () => {
 
     await wrapper.get('button').trigger('click');
 
-    expect(mocks.navigateToProjectCreateSource).toHaveBeenCalledWith(expect.anything(), {
+    expect(mocks.navigateToApplicationCreateSource).toHaveBeenCalledWith(expect.anything(), {
       deployment: 'compose',
       runtime_target_id: '7',
     });

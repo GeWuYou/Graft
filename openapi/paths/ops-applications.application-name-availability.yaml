@@ -1,0 +1,41 @@
+post:
+  tags: [application]
+  summary: Check managed application-name availability
+  operationId: postApplicationNameAvailability
+  description: Resolves whether an application name is already registered, available for a new workspace, or points to an unregistered managed workspace. This endpoint never writes files.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/application-name-availability-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Managed application-name availability resolved.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-name-availability-response.yaml
+    '400':
+      description: Invalid application name or unsafe managed workspace.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

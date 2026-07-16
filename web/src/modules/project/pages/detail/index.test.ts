@@ -4,8 +4,8 @@ import { defineComponent, h, ref } from 'vue';
 
 import { copyText, LogRingBuffer } from '@/shared/observability';
 
-import type { ProjectLifecycleConfigurationSavedResponse } from '../../types/project';
-import ProjectDetailPage from './index.vue';
+import type { ApplicationLifecycleConfigurationSavedResponse } from '../../types/project';
+import ApplicationDetailPage from './index.vue';
 
 const containerApiMocks = vi.hoisted(() => ({
   batchContainerActions: vi.fn(),
@@ -37,28 +37,28 @@ const realtimeMocks = vi.hoisted(() => ({
 }));
 
 const projectApiMocks = vi.hoisted(() => ({
-  getProject: vi.fn(),
-  getProjectConfiguration: vi.fn(),
-  getProjectConfigurationFile: vi.fn(),
-  getProjectConfigurationPreview: vi.fn(),
-  getProjectLogs: vi.fn(),
-  getProjectOverview: vi.fn(),
-  getProjectServices: vi.fn(),
-  postProjectDestroy: vi.fn(),
-  postProjectRedeploy: vi.fn(),
-  postProjectRestart: vi.fn(),
-  postProjectStop: vi.fn(),
-  postProjectUnregister: vi.fn(),
-  postProjectUp: vi.fn(),
-  putProjectLifecycleConfiguration: vi.fn(),
+  getApplication: vi.fn(),
+  getApplicationConfiguration: vi.fn(),
+  getApplicationConfigurationFile: vi.fn(),
+  getApplicationConfigurationPreview: vi.fn(),
+  getApplicationLogs: vi.fn(),
+  getApplicationOverview: vi.fn(),
+  getApplicationServices: vi.fn(),
+  postApplicationDestroy: vi.fn(),
+  postApplicationRedeploy: vi.fn(),
+  postApplicationRestart: vi.fn(),
+  postApplicationStop: vi.fn(),
+  postApplicationUnregister: vi.fn(),
+  postApplicationUp: vi.fn(),
+  putApplicationLifecycleConfiguration: vi.fn(),
 }));
 
 const routeState = vi.hoisted(() => ({
   value: {
-    fullPath: '/ops/projects/7',
-    name: 'ProjectDetailIndex',
-    params: { id: '7' },
-    path: '/ops/projects/7',
+    fullPath: '/applications/app_7',
+    name: 'ApplicationDetailIndex',
+    params: { applicationId: 'app_7' },
+    path: '/applications/app_7',
     query: {} as Record<string, unknown>,
   },
 }));
@@ -66,36 +66,37 @@ const routeState = vi.hoisted(() => ({
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
-  resolve: vi.fn((target: { name?: string; params?: { id?: string }; query?: Record<string, unknown> }) =>
-    target.name === 'ProjectConfigurationWorkspaceIndex'
-      ? {
-          fullPath: `/ops/projects/${target.params?.id ?? ''}/configuration`,
-          name: target.name,
-          params: target.params ?? {},
-          path: `/ops/projects/${target.params?.id ?? ''}/configuration`,
-          query: target.query ?? {},
-        }
-      : {
-          fullPath: `/ops/containers/${target.params?.id ?? ''}`,
-          name: 'ops:container-detail',
-          params: target.params ?? {},
-          path: `/ops/containers/${target.params?.id ?? ''}`,
-          query: target.query ?? {},
-        },
+  resolve: vi.fn(
+    (target: { name?: string; params?: { applicationId?: string; id?: string }; query?: Record<string, unknown> }) =>
+      target.name === 'ApplicationConfigurationWorkspaceIndex'
+        ? {
+            fullPath: `/applications/${target.params?.applicationId ?? ''}/configuration`,
+            name: target.name,
+            params: target.params ?? {},
+            path: `/applications/${target.params?.applicationId ?? ''}/configuration`,
+            query: target.query ?? {},
+          }
+        : {
+            fullPath: `/ops/containers/${target.params?.id ?? ''}`,
+            name: 'ops:container-detail',
+            params: target.params ?? {},
+            path: `/ops/containers/${target.params?.id ?? ''}`,
+            query: target.query ?? {},
+          },
   ),
 }));
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
   appendTabRouterList: vi.fn(),
-  activeTabKey: '/ops/projects/7',
+  activeTabKey: '/applications/app_7',
   setActiveTabKey: vi.fn(),
   updateActiveTabTitle: vi.fn(),
   tabRouterList: [
     {
-      fullPath: '/ops/projects/7',
-      path: '/ops/projects/7',
-      tabKey: '/ops/projects/7',
-      title: { 'en-US': 'Project Detail', 'zh-CN': '项目详情' },
+      fullPath: '/applications/app_7',
+      path: '/applications/app_7',
+      tabKey: '/applications/app_7',
+      title: { 'en-US': 'Application Detail', 'zh-CN': '项目详情' },
     },
   ],
 }));
@@ -115,9 +116,9 @@ const detailMessages = {
     'Copy multi-step commands as a single-line shell command chained with &&.',
   'project.detail.lifecycle.copyAbsolutePaths': 'Copy With Absolute Paths',
   'project.detail.lifecycle.copyCommandSuccess': 'Command preview copied.',
-  'project.detail.description': 'Project detail description',
-  'project.detail.eyebrow': 'Compose Project',
-  'project.detail.logs.authorityProjectOwned': 'Project-owned logs',
+  'project.detail.description': 'Application detail description',
+  'project.detail.eyebrow': 'Compose Application',
+  'project.detail.logs.authorityApplicationOwned': 'Application-owned logs',
   'project.detail.logs.loadFailed': 'Load failed',
   'project.detail.overview.actionLabel': 'Action',
   'project.detail.overview.containerSnapshotTitle': 'Container Snapshot',
@@ -215,7 +216,7 @@ const detailMessages = {
   'project.detail.lifecycle.optionDescriptions.pruneImagesAfterRedeploy': 'Prune images after redeploy.',
   'project.detail.lifecycle.renewAnonVolumesWarning': 'Anonymous volumes may be recreated and data may be lost.',
   'project.detail.lifecycle.waitTimeoutValidation': 'Wait timeout must be between 1 and 3600 seconds.',
-  'project.detail.titleFallback': 'Project Detail',
+  'project.detail.titleFallback': 'Application Detail',
   'project.route.configurationWorkspace.title': 'Configuration Workspace',
   'project.list.actions.actionFailed': 'Action Failed',
   'project.list.actions.actionSuccess': 'Action Success',
@@ -407,7 +408,7 @@ const TableActionMenuStub = defineComponent({
   },
 });
 
-function buildProjectDetail(runtimeStatus: string = 'running') {
+function buildApplicationDetail(runtimeStatus: string = 'running') {
   return {
     activity_authority: 'frontend-fanout',
     application_id: '7',
@@ -419,7 +420,6 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
     display_name: 'Compose Demo',
     drift_status: 'clean',
     env_files: [],
-    host_scope: 'local',
     last_observed_config_hash: null,
     ownership_mode: 'external',
     runtime_status: runtimeStatus,
@@ -515,9 +515,9 @@ function buildProjectDetail(runtimeStatus: string = 'running') {
   };
 }
 
-function buildProjectOverview() {
+function buildApplicationOverview() {
   return {
-    canonical_project_name: 'compose-demo',
+    compose_project_name: 'compose-demo',
     collected_at: '2026-07-03T10:00:00Z',
     health: {
       healthy_container_count: 2,
@@ -528,7 +528,7 @@ function buildProjectOverview() {
       unhealthy_container_count: 0,
       volumes_count: 0,
     },
-    project_id: 7,
+    application_id: 'app_7',
     resources: {
       cpu_percent: 12.5,
       memory_limit_bytes: 512,
@@ -583,7 +583,7 @@ function buildProjectOverview() {
   };
 }
 
-function buildProjectServices() {
+function buildApplicationServices() {
   return {
     items: [
       {
@@ -652,9 +652,9 @@ function buildRuntimeContainers() {
   };
 }
 
-function buildProjectLogs(entries: Array<{ line: string; occurred_at: string; stream?: 'stdout' | 'stderr' }>) {
+function buildApplicationLogs(entries: Array<{ line: string; occurred_at: string; stream?: 'stdout' | 'stderr' }>) {
   return {
-    canonical_project_name: 'compose-demo',
+    compose_project_name: 'compose-demo',
     entries: entries.map((entry, index) => ({
       container_id: `container-${index + 1}`,
       container_name: `compose-demo-${index + 1}`,
@@ -668,7 +668,7 @@ function buildProjectLogs(entries: Array<{ line: string; occurred_at: string; st
       },
       stream: entry.stream ?? 'stdout',
     })),
-    project_id: 7,
+    application_id: 'app_7',
     stderr: true,
     stdout: true,
     tail: 200,
@@ -678,14 +678,14 @@ function buildProjectLogs(entries: Array<{ line: string; occurred_at: string; st
 }
 
 function mountPage() {
-  return mount(ProjectDetailPage, {
+  return mount(ApplicationDetailPage, {
     global: {
       renderStubDefaultSlot: true,
       stubs: {
         ManagementPageHeader: slotStub('ManagementPageHeader'),
         ManagementPagedTable: ManagementPagedTableStub,
         TaskHistoryTable: TaskHistoryTableStub,
-        ProjectFileEditor: slotStub('ProjectFileEditor'),
+        ApplicationFileEditor: slotStub('ApplicationFileEditor'),
         LifecycleHelpTrigger: LifecycleHelpTriggerStub,
         TableActionMenu: TableActionMenuStub,
         'management-page-header': slotStub('management-page-header'),
@@ -722,18 +722,18 @@ vi.mock('@/modules/container/contract/project', () => ({
 }));
 
 vi.mock('../../api/project', () => ({
-  getProject: projectApiMocks.getProject,
-  getProjectConfiguration: projectApiMocks.getProjectConfiguration,
-  getProjectLogs: projectApiMocks.getProjectLogs,
-  getProjectOverview: projectApiMocks.getProjectOverview,
-  getProjectServices: projectApiMocks.getProjectServices,
-  postProjectDestroy: projectApiMocks.postProjectDestroy,
-  postProjectRedeploy: projectApiMocks.postProjectRedeploy,
-  postProjectRestart: projectApiMocks.postProjectRestart,
-  postProjectStop: projectApiMocks.postProjectStop,
-  postProjectUnregister: projectApiMocks.postProjectUnregister,
-  postProjectUp: projectApiMocks.postProjectUp,
-  putProjectLifecycleConfiguration: projectApiMocks.putProjectLifecycleConfiguration,
+  getApplication: projectApiMocks.getApplication,
+  getApplicationConfiguration: projectApiMocks.getApplicationConfiguration,
+  getApplicationLogs: projectApiMocks.getApplicationLogs,
+  getApplicationOverview: projectApiMocks.getApplicationOverview,
+  getApplicationServices: projectApiMocks.getApplicationServices,
+  postApplicationDestroy: projectApiMocks.postApplicationDestroy,
+  postApplicationRedeploy: projectApiMocks.postApplicationRedeploy,
+  postApplicationRestart: projectApiMocks.postApplicationRestart,
+  postApplicationStop: projectApiMocks.postApplicationStop,
+  postApplicationUnregister: projectApiMocks.postApplicationUnregister,
+  postApplicationUp: projectApiMocks.postApplicationUp,
+  putApplicationLifecycleConfiguration: projectApiMocks.putApplicationLifecycleConfiguration,
 }));
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -968,7 +968,7 @@ vi.mock('tdesign-vue-next/es/dialog', () => ({
 }));
 
 vi.mock('../../shared/display', () => ({
-  formatProjectTime: (_locale: string, value?: string | null) => value || '-',
+  formatApplicationTime: (_locale: string, value?: string | null) => value || '-',
   projectDriftStatusLabel: () => 'in-sync',
   projectDriftStatusTheme: () => 'success',
   projectLifecycleActionVisibility: (status?: string | null) => ({
@@ -993,7 +993,7 @@ vi.mock('tdesign-vue-next/es/notification', () => ({
   NotifyPlugin: notifyMocks,
 }));
 
-describe('Project detail service tab', () => {
+describe('Application detail service tab', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -1027,31 +1027,31 @@ describe('Project detail service tab', () => {
     vi.useRealTimers();
     realtimeMocks.sockets.length = 0;
     routeState.value.query = {};
-    routeState.value.name = 'ProjectDetailIndex';
-    routeState.value.path = '/ops/projects/7';
-    routeState.value.fullPath = '/ops/projects/7';
-    routeState.value.params = { id: '7' };
-    tabsRouterStoreMock.activeTabKey = '/ops/projects/7';
+    routeState.value.name = 'ApplicationDetailIndex';
+    routeState.value.path = '/applications/app_7';
+    routeState.value.fullPath = '/applications/app_7';
+    routeState.value.params = { applicationId: 'app_7' };
+    tabsRouterStoreMock.activeTabKey = '/applications/app_7';
     tabsRouterStoreMock.tabRouterList = [
       {
-        fullPath: '/ops/projects/7',
-        path: '/ops/projects/7',
-        tabKey: '/ops/projects/7',
-        title: { 'en-US': 'Project Detail', 'zh-CN': '项目详情' },
+        fullPath: '/applications/app_7',
+        path: '/applications/app_7',
+        tabKey: '/applications/app_7',
+        title: { 'en-US': 'Application Detail', 'zh-CN': '项目详情' },
       },
     ];
     tabsRouterStoreMock.setActiveTabKey.mockReset();
-    projectApiMocks.getProject.mockResolvedValue(buildProjectDetail());
-    projectApiMocks.getProjectConfiguration.mockResolvedValue({
+    projectApiMocks.getApplication.mockResolvedValue(buildApplicationDetail());
+    projectApiMocks.getApplicationConfiguration.mockResolvedValue({
       compose_files: [],
       diagnostics_summary: [],
       drift_status: 'clean',
       env_files: [],
       ownership_mode: 'external',
     });
-    projectApiMocks.getProjectLogs.mockResolvedValue({ entries: [] });
-    projectApiMocks.getProjectOverview.mockResolvedValue(buildProjectOverview());
-    projectApiMocks.getProjectServices.mockResolvedValue(buildProjectServices());
+    projectApiMocks.getApplicationLogs.mockResolvedValue({ entries: [] });
+    projectApiMocks.getApplicationOverview.mockResolvedValue(buildApplicationOverview());
+    projectApiMocks.getApplicationServices.mockResolvedValue(buildApplicationServices());
     containerApiMocks.getContainers.mockResolvedValue(buildRuntimeContainers());
     containerApiMocks.batchContainerActions.mockResolvedValue({
       failed_count: 0,
@@ -1068,12 +1068,12 @@ describe('Project detail service tab', () => {
     mountPage();
     await flushPromises();
 
-    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
+    expect(projectApiMocks.getApplication).toHaveBeenCalledTimes(1);
     expect(routerMocks.replace).not.toHaveBeenCalled();
   });
 
   it('does not mount task history for an invalid route ID', async () => {
-    routeState.value.params = { id: '' };
+    routeState.value.params = { applicationId: '' };
 
     const wrapper = mountPage();
     await flushPromises();
@@ -1087,26 +1087,26 @@ describe('Project detail service tab', () => {
     mountPage();
     await flushPromises();
 
-    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(1);
+    expect(projectApiMocks.getApplication).toHaveBeenCalledTimes(1);
     expect(routerMocks.replace).not.toHaveBeenCalled();
   });
 
   it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {
     routeState.value.query = { tab: 'logs' };
-    projectApiMocks.getProjectLogs.mockRejectedValue(new Error('boom'));
+    projectApiMocks.getApplicationLogs.mockRejectedValue(new Error('boom'));
 
     mountPage();
     await flushPromises();
     await flushPromises();
 
-    expect(projectApiMocks.getProjectLogs).toHaveBeenCalledTimes(1);
+    expect(projectApiMocks.getApplicationLogs).toHaveBeenCalledTimes(1);
     expect(messageMocks.error).not.toHaveBeenCalled();
   });
 
   it('renders project log snapshots in chronological order', async () => {
     routeState.value.query = { tab: 'logs' };
-    projectApiMocks.getProjectLogs.mockResolvedValue(
-      buildProjectLogs([
+    projectApiMocks.getApplicationLogs.mockResolvedValue(
+      buildApplicationLogs([
         { line: 'oldest-entry', occurred_at: '2026-07-09T03:00:00Z' },
         { line: 'middle-entry', occurred_at: '2026-07-09T03:00:01Z' },
         { line: 'latest-entry', occurred_at: '2026-07-09T03:00:02Z' },
@@ -1150,14 +1150,14 @@ describe('Project detail service tab', () => {
   it('appends realtime project logs after the snapshot tail', async () => {
     vi.useFakeTimers();
     routeState.value.query = { tab: 'logs' };
-    projectApiMocks.getProjectLogs.mockResolvedValue(
-      buildProjectLogs([{ line: 'snapshot-entry', occurred_at: '2026-07-09T03:00:00Z' }]),
+    projectApiMocks.getApplicationLogs.mockResolvedValue(
+      buildApplicationLogs([{ line: 'snapshot-entry', occurred_at: '2026-07-09T03:00:00Z' }]),
     );
 
     const wrapper = mountPage();
     await flushPromises();
 
-    const logsSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.logs:7');
+    const logsSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'application.logs:app_7');
     expect(logsSocket).toBeTruthy();
 
     logsSocket?.options.onMessage({
@@ -1346,13 +1346,15 @@ describe('Project detail service tab', () => {
     await wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').trigger('click');
     await flushPromises();
 
-    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
+    const detailSocket = realtimeMocks.sockets.find(
+      (socket) => socket.options.topic === 'application.lifecycle-config:app_7',
+    );
     expect(detailSocket).toBeTruthy();
 
     detailSocket?.options.onMessage({
-      detail: buildProjectDetail(),
-      overview: buildProjectOverview(),
-      services: { items: buildProjectServices().items },
+      detail: buildApplicationDetail(),
+      overview: buildApplicationOverview(),
+      services: { items: buildApplicationServices().items },
     });
     await flushPromises();
 
@@ -1364,10 +1366,10 @@ describe('Project detail service tab', () => {
 
   it('keeps an unsaved lifecycle draft when a realtime snapshot arrives during saving', async () => {
     routeState.value.query = { tab: 'lifecycle' };
-    let resolveSave: ((value: ProjectLifecycleConfigurationSavedResponse) => void) | undefined;
-    projectApiMocks.putProjectLifecycleConfiguration.mockImplementationOnce(
+    let resolveSave: ((value: ApplicationLifecycleConfigurationSavedResponse) => void) | undefined;
+    projectApiMocks.putApplicationLifecycleConfiguration.mockImplementationOnce(
       () =>
-        new Promise<ProjectLifecycleConfigurationSavedResponse>((resolve) => {
+        new Promise<ApplicationLifecycleConfigurationSavedResponse>((resolve) => {
           resolveSave = resolve;
         }),
     );
@@ -1378,26 +1380,28 @@ describe('Project detail service tab', () => {
     await wrapper.get('[data-testid="project-lifecycle-save"]').trigger('click');
     await flushPromises();
 
-    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
-    detailSocket?.options.onMessage({ detail: buildProjectDetail() });
+    const detailSocket = realtimeMocks.sockets.find(
+      (socket) => socket.options.topic === 'application.lifecycle-config:app_7',
+    );
+    detailSocket?.options.onMessage({ detail: buildApplicationDetail() });
     await flushPromises();
 
     expect(wrapper.get('[data-testid="project-lifecycle-wait-after-up-switch"]').attributes('aria-pressed')).toBe(
       'true',
     );
     resolveSave?.({
-      canonical_project_name: 'compose-demo',
+      compose_project_name: 'compose-demo',
       compose_files: [],
       lifecycle_configuration: {
-        ...buildProjectDetail().lifecycle_configuration,
+        ...buildApplicationDetail().lifecycle_configuration,
         strategy_kind: 'standard',
         wait_after_up: true,
         additional_args: [],
       },
       lifecycle_review_status: 'confirmed',
-      project_id: 7,
-      working_directory: '/srv/compose-demo',
-    } as ProjectLifecycleConfigurationSavedResponse);
+      application_id: 'app_7',
+      workspace_path: '/srv/compose-demo',
+    } as ApplicationLifecycleConfigurationSavedResponse);
     await flushPromises();
   });
 
@@ -1406,20 +1410,22 @@ describe('Project detail service tab', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const detailSocket = realtimeMocks.sockets.find((socket) => socket.options.topic === 'project.lifecycle-config:7');
+    const detailSocket = realtimeMocks.sockets.find(
+      (socket) => socket.options.topic === 'application.lifecycle-config:app_7',
+    );
     expect(detailSocket).toBeTruthy();
 
     detailSocket?.options.onMessage({
       detail: {
-        ...buildProjectDetail(),
+        ...buildApplicationDetail(),
         lifecycle_configuration: {
-          ...buildProjectDetail().lifecycle_configuration,
+          ...buildApplicationDetail().lifecycle_configuration,
           wait_after_up: true,
           wait_timeout_seconds: 300,
         },
       },
-      overview: buildProjectOverview(),
-      services: { items: buildProjectServices().items },
+      overview: buildApplicationOverview(),
+      services: { items: buildApplicationServices().items },
     });
     await flushPromises();
 
@@ -1479,7 +1485,7 @@ describe('Project detail service tab', () => {
   });
 
   it('paginates service rows locally while preserving the project-service summary', async () => {
-    projectApiMocks.getProjectServices.mockResolvedValueOnce({
+    projectApiMocks.getApplicationServices.mockResolvedValueOnce({
       items: Array.from({ length: 21 }, (_, index) => ({
         build_context: null,
         container_members: [],
@@ -1566,14 +1572,14 @@ describe('Project detail service tab', () => {
     await wrapper.get('[data-testid="project-detail-action-open-configuration-workspace"]').trigger('click');
 
     expect(routerMocks.resolve).toHaveBeenCalledWith({
-      name: 'ProjectConfigurationWorkspaceIndex',
-      params: { id: '7' },
+      name: 'ApplicationConfigurationWorkspaceIndex',
+      params: { applicationId: 'app_7' },
       query: undefined,
     });
     expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenCalledWith(
       expect.objectContaining({
-        fullPath: '/ops/projects/7/configuration',
-        path: '/ops/projects/7/configuration',
+        fullPath: '/applications/app_7/configuration',
+        path: '/applications/app_7/configuration',
         title: {
           'en-US': 'Configuration Workspace - Compose Demo',
           'zh-CN': '配置工作台 - Compose Demo',
@@ -1581,8 +1587,8 @@ describe('Project detail service tab', () => {
       }),
     );
     expect(routerMocks.push).toHaveBeenCalledWith({
-      name: 'ProjectConfigurationWorkspaceIndex',
-      params: { id: '7' },
+      name: 'ApplicationConfigurationWorkspaceIndex',
+      params: { applicationId: 'app_7' },
       query: undefined,
     });
   });
@@ -1612,9 +1618,9 @@ describe('Project detail service tab', () => {
       force: false,
       ids: ['container-1', 'container-2'],
     });
-    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(2);
-    expect(projectApiMocks.getProjectOverview).toHaveBeenCalledTimes(2);
-    expect(projectApiMocks.getProjectServices).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.getApplication).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.getApplicationOverview).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.getApplicationServices).toHaveBeenCalledTimes(2);
     expect(messageMocks.success).toHaveBeenCalledWith('Service action success 2');
   });
 });

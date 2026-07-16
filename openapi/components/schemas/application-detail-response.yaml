@@ -1,0 +1,26 @@
+allOf:
+  - $ref: ./application-list-item.yaml
+  - type: object
+    required:
+      - lifecycle_configuration
+      - compose_files
+      - env_files
+    properties:
+      source_metadata:
+        $ref: ./application-source-metadata.yaml
+      lifecycle_configuration:
+        $ref: ./application-lifecycle-configuration.yaml
+      last_observed_config_hash:
+        type: string
+      last_drift_checked_at:
+        type: string
+        format: date-time
+        nullable: true
+      compose_files:
+        type: array
+        items:
+          $ref: ./application-file-item.yaml
+      env_files:
+        type: array
+        items:
+          $ref: ./application-file-item.yaml

@@ -19,13 +19,13 @@
   </section>
 </template>
 <script setup lang="ts">
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 import ProjectLifecycleConfigurationReview from './ProjectLifecycleConfigurationReview.vue';
 
-defineOptions({ name: 'ProjectLifecycleConfigurationStep' });
+defineOptions({ name: 'ApplicationLifecycleConfigurationStep' });
 
 // 生命周期步骤拥有配置草稿的编辑面和导航事件，调用方继续持有最终提交与路由状态。
-const draft = defineModel<ProjectLifecycleConfigurationDraft>('draft', { required: true });
+const draft = defineModel<ApplicationLifecycleConfigurationDraft>('draft', { required: true });
 
 withDefaults(
   defineProps<{

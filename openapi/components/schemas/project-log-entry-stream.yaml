@@ -1,3 +1,0 @@
-type: string
-enum: [stdout, stderr]
-description: Canonical runtime stream that produced the aggregated project log entry.

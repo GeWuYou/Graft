@@ -896,6 +896,21 @@ Every delegation must specify:
 - the commit authority and expected scoped commit path for every write-capable subagent
 - whether authority escalation outside the local owned scope is allowed or expected
 
+Model-level delegation guardrail:
+
+- a subagent may be dispatched directly only when its model is the same level as or lower than the model of the agent
+  performing the delegation; this comparison applies to the immediate parent on every nested delegation edge
+- `fork_context=true` inherits the parent model and reasoning effort and must not be combined with explicit model or
+  reasoning overrides
+- `fork_context=false` requires explicit `parent_model`, `worker_model`, `reasoning_effort`, verified `model_relation`,
+  and a closeout record of the comparison; a model name in a prompt is not verification
+- a higher-level worker model is prohibited by default; before dispatching one, pause and request explicit user
+  approval for the exact parent model, worker model, task scope, and risk reason
+- if the orchestrator cannot verify the model-level comparison, fail closed and request user direction instead of
+  guessing from model names, availability, or reasoning effort
+- retries, replacement workers, loop workers, and sidecar workers must repeat this check; a worker must not escalate
+  model level through a nested delegation or retry
+
 Authority escalation override:
 
 - `owned scope` isolation, minimal diff preference, worktree isolation, and recovery isolation do not override required

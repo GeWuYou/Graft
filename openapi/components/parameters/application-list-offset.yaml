@@ -1,0 +1,11 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for applications.
+schema:
+  type: integer
+  minimum: 0
+examples:
+  firstPage:
+    summary: Start from the first application
+    value: 0

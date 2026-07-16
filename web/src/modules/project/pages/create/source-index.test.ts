@@ -1,29 +1,29 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import ProjectCreateSourceIndex from './source-index.vue';
+import ApplicationCreateSourceIndex from './source-index.vue';
 import sourceText from './source-index.vue?raw';
 
 const mocks = vi.hoisted(() => ({
-  getProjectCreationMethods: vi.fn(),
+  getApplicationCreationMethods: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
 }));
 
-vi.mock('../../api/project', () => ({ getProjectCreationMethods: mocks.getProjectCreationMethods }));
+vi.mock('../../api/project', () => ({ getApplicationCreationMethods: mocks.getApplicationCreationMethods }));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: { deployment: 'compose', runtime_target_id: '7' } }),
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('../../shared/navigation', () => ({
-  useProjectCreateRouteNavigation: () => (target: unknown) => mocks.push(target),
+  useApplicationCreateRouteNavigation: () => (target: unknown) => mocks.push(target),
 }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
 
-describe('ProjectCreateSourceIndex', () => {
+describe('ApplicationCreateSourceIndex', () => {
   it('keeps creation card actions anchored to the bottom of equal-height cards', () => {
     expect(sourceText).toContain('.project-creation-card :deep(.t-card__body)');
     expect(sourceText).toContain('flex: 1;');
@@ -32,8 +32,8 @@ describe('ProjectCreateSourceIndex', () => {
   });
 
   it('returns to runtime target selection with the current query', async () => {
-    mocks.getProjectCreationMethods.mockResolvedValue({ items: [] });
-    const wrapper = mount(ProjectCreateSourceIndex, {
+    mocks.getApplicationCreationMethods.mockResolvedValue({ items: [] });
+    const wrapper = mount(ApplicationCreateSourceIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -55,14 +55,14 @@ describe('ProjectCreateSourceIndex', () => {
     await wrapper.get('[data-testid="project-creation-back"]').trigger('click');
 
     expect(mocks.push).toHaveBeenCalledWith({
-      name: 'ProjectCreateRuntimeTargetIndex',
+      name: 'ApplicationCreateRuntimeTargetIndex',
       query: { deployment: 'compose', runtime_target_id: '7' },
     });
   });
 
   it('keeps unavailable creation methods non-actionable', async () => {
     mocks.push.mockClear();
-    mocks.getProjectCreationMethods.mockResolvedValue({
+    mocks.getApplicationCreationMethods.mockResolvedValue({
       items: [
         {
           method: 'blank',
@@ -71,7 +71,7 @@ describe('ProjectCreateSourceIndex', () => {
         },
       ],
     });
-    const wrapper = mount(ProjectCreateSourceIndex, {
+    const wrapper = mount(ApplicationCreateSourceIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },

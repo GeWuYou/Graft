@@ -1,9 +1,0 @@
-type: string
-enum:
-  - ready
-  - imported
-  - unavailable
-x-enum-varnames:
-  - ProjectImportRuntimeCandidateAvailabilityReady
-  - ProjectImportRuntimeCandidateAvailabilityImported
-  - ProjectImportRuntimeCandidateAvailabilityUnavailable

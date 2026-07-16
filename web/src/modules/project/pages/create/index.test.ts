@@ -2,25 +2,25 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
-import type { ProjectLifecycleConfigurationDraft } from '../../types/project';
-import ProjectCreateIndex from './index.vue';
+import type { ApplicationLifecycleConfigurationDraft } from '../../types/project';
+import ApplicationCreateIndex from './index.vue';
 
 const routeQuery = vi.hoisted(() => ({
   runtime_target_id: '7' as string | string[],
   application_name: undefined as string | undefined,
 }));
 const mocks = vi.hoisted(() => ({
-  getProjectWorkspaceDefaults: vi.fn(),
-  postProjectApplicationNameAvailability: vi.fn(),
-  postProjectCreate: vi.fn(),
+  getApplicationWorkspaceDefaults: vi.fn(),
+  postApplicationApplicationNameAvailability: vi.fn(),
+  postApplicationCreate: vi.fn(),
   push: vi.fn(),
 }));
-const lifecycleStepDraft = vi.hoisted(() => ({ value: null as ProjectLifecycleConfigurationDraft | null }));
+const lifecycleStepDraft = vi.hoisted(() => ({ value: null as ApplicationLifecycleConfigurationDraft | null }));
 
 vi.mock('../../api/project', () => ({
-  getProjectWorkspaceDefaults: mocks.getProjectWorkspaceDefaults,
-  postProjectApplicationNameAvailability: mocks.postProjectApplicationNameAvailability,
-  postProjectCreate: mocks.postProjectCreate,
+  getApplicationWorkspaceDefaults: mocks.getApplicationWorkspaceDefaults,
+  postApplicationApplicationNameAvailability: mocks.postApplicationApplicationNameAvailability,
+  postApplicationCreate: mocks.postApplicationCreate,
 }));
 
 vi.mock('vue-router', () => ({
@@ -28,7 +28,7 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('../../shared/page-context', () => ({
-  useProjectPageContext: () => ({
+  useApplicationPageContext: () => ({
     router: { push: mocks.push, resolve: vi.fn() },
     tabsRouterStore: { appendTabRouterList: vi.fn() },
     t: (key: string) => key,
@@ -45,7 +45,7 @@ vi.mock('@/shared/localized-api-error', () => ({
 
 vi.mock('../../components/ProjectCreateWorkspaceEditor.vue', () => ({
   default: defineComponent({
-    name: 'ProjectCreateWorkspaceEditorStub',
+    name: 'ApplicationCreateWorkspaceEditorStub',
     setup() {
       return () => h('div');
     },
@@ -54,7 +54,7 @@ vi.mock('../../components/ProjectCreateWorkspaceEditor.vue', () => ({
 
 vi.mock('../../components/ProjectLifecycleConfigurationReview.vue', () => ({
   default: defineComponent({
-    name: 'ProjectLifecycleConfigurationReviewStub',
+    name: 'ApplicationLifecycleConfigurationReviewStub',
     setup() {
       return () => h('div');
     },
@@ -63,14 +63,14 @@ vi.mock('../../components/ProjectLifecycleConfigurationReview.vue', () => ({
 
 vi.mock('../../components/ProjectLifecycleConfigurationStep.vue', () => ({
   default: defineComponent({
-    name: 'ProjectLifecycleConfigurationStepStub',
+    name: 'ApplicationLifecycleConfigurationStepStub',
     props: {
       continueLabel: { type: String, default: '' },
       draft: { type: Object, required: true },
     },
     emits: ['back', 'continue'],
     setup(props, { emit }) {
-      lifecycleStepDraft.value = props.draft as ProjectLifecycleConfigurationDraft;
+      lifecycleStepDraft.value = props.draft as ApplicationLifecycleConfigurationDraft;
       return () =>
         h('div', [
           h('button', { onClick: () => emit('back') }, 'project.create.actions.back'),
@@ -124,7 +124,7 @@ const TButtonStub = defineComponent({
 });
 
 function mountPage() {
-  return mount(ProjectCreateIndex, {
+  return mount(ApplicationCreateIndex, {
     global: {
       stubs: {
         'management-page-content': WrapperStub,
@@ -148,11 +148,11 @@ function mountPage() {
   });
 }
 
-describe('ProjectCreateIndex', () => {
+describe('ApplicationCreateIndex', () => {
   beforeEach(() => {
-    mocks.postProjectApplicationNameAvailability.mockClear();
-    mocks.postProjectCreate.mockClear();
-    mocks.getProjectWorkspaceDefaults.mockResolvedValue({
+    mocks.postApplicationApplicationNameAvailability.mockClear();
+    mocks.postApplicationCreate.mockClear();
+    mocks.getApplicationWorkspaceDefaults.mockResolvedValue({
       compose_file_path: 'compose.yaml',
       lifecycle_configuration: {
         strategy_kind: 'standard',
@@ -178,12 +178,12 @@ describe('ProjectCreateIndex', () => {
     routeQuery.runtime_target_id = '7';
     delete routeQuery.application_name;
     lifecycleStepDraft.value = null;
-    mocks.postProjectApplicationNameAvailability.mockResolvedValue({
+    mocks.postApplicationApplicationNameAvailability.mockResolvedValue({
       status: 'available',
       workspace_path: '/var/lib/graft/applications/demo-project',
       workspace_non_empty: false,
     });
-    mocks.postProjectCreate.mockResolvedValue({
+    mocks.postApplicationCreate.mockResolvedValue({
       application_id: 'app_42',
       display_name: 'demo-project',
     });
@@ -216,8 +216,8 @@ describe('ProjectCreateIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.postProjectCreate).toHaveBeenCalledTimes(1);
-    const request = mocks.postProjectCreate.mock.calls[0]?.[0];
+    expect(mocks.postApplicationCreate).toHaveBeenCalledTimes(1);
+    const request = mocks.postApplicationCreate.mock.calls[0]?.[0];
     expect(request).toEqual(expect.objectContaining({ runtime_target_id: 7 }));
     expect(request.lifecycle_configuration).toEqual(
       expect.objectContaining({
@@ -246,7 +246,7 @@ describe('ProjectCreateIndex', () => {
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
-    expect(mocks.postProjectCreate).not.toHaveBeenCalled();
+    expect(mocks.postApplicationCreate).not.toHaveBeenCalled();
   });
 
   it('keeps lifecycle edits when returning from the lifecycle step', async () => {
@@ -286,7 +286,7 @@ describe('ProjectCreateIndex', () => {
 
     expect(lifecycleStepDraft.value).toMatchObject({
       compose_files: ['compose.yaml'],
-      canonical_project_name: 'demo-project',
+      compose_project_name: 'demo-project',
       profiles: ['production'],
       additional_args: "--label 'release channel'",
       wait_after_up: true,
@@ -300,7 +300,7 @@ describe('ProjectCreateIndex', () => {
     await wrapper.get('[data-testid="project-create-back-source"]').trigger('click');
 
     expect(mocks.push).toHaveBeenCalledWith({
-      name: 'ProjectCreateSourceIndex',
+      name: 'ApplicationCreateSourceIndex',
       query: { runtime_target_id: '7' },
     });
   });

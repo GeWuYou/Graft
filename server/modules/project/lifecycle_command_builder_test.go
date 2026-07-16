@@ -10,11 +10,11 @@ import (
 func TestLifecycleUpArgsIncludesStructuredLifecycleFlags(t *testing.T) {
 	t.Parallel()
 
-	aggregate := projectstore.ProjectAggregate{
-		Project: projectstore.Project{
-			ID:                   7,
-			CanonicalProjectName: "compose-demo",
-			WorkingDirectory:     "/srv/compose-demo",
+	aggregate := projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ApplicationRecordID: 7,
+			ComposeProjectName:  "compose-demo",
+			WorkspacePath:       "/srv/compose-demo",
 			LifecycleConfig: projectstore.LifecycleConfig{
 				Profiles:           []string{"app"},
 				BuildBeforeUp:      true,
@@ -26,7 +26,7 @@ func TestLifecycleUpArgsIncludesStructuredLifecycleFlags(t *testing.T) {
 				AdditionalArgs:     []string{"--progress", "plain"},
 			},
 		},
-		Files: []projectstore.ProjectFile{
+		Files: []projectstore.ApplicationFile{
 			{
 				Kind:         projectcontract.FileKindCompose.String(),
 				Role:         projectcontract.FileRolePrimary.String(),

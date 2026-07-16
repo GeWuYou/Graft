@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"graft/server/internal/moduleapi"
-	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
 
@@ -22,7 +21,7 @@ func (s *Service) runtimeImportCandidateByKey(
 	if candidateKey == "" {
 		return moduleapi.ContainerProjectRuntimeCandidate{}, errProjectInvalidArgument
 	}
-	candidates, err := s.runtimeReader.ListImportCandidates(ctx, projectcontract.HostScopeLocal.String())
+	candidates, err := s.runtimeReader.ListImportCandidates(ctx, localContainerRuntimeScope)
 	if err != nil {
 		return moduleapi.ContainerProjectRuntimeCandidate{}, err
 	}
@@ -38,16 +37,16 @@ func (s *Service) runtimeImportCandidateByKey(
 
 func runtimeImportCandidateFromModuleAPI(candidate moduleapi.ContainerProjectRuntimeCandidate) RuntimeImportCandidate {
 	result := RuntimeImportCandidate{
-		CandidateKey:           strings.TrimSpace(candidate.CandidateKey),
-		CanonicalProjectName:   candidate.CanonicalProjectName,
-		Status:                 candidate.Status,
-		StatusReasonCodes:      append([]string(nil), candidate.StatusReasonCodes...),
-		Importable:             candidate.Importable,
-		RuntimeType:            candidate.RuntimeType,
-		WorkingDirectory:       candidate.WorkingDirectory,
-		WorkingDirectorySource: candidate.WorkingDirectorySource,
-		ConfigFiles:            append([]string(nil), candidate.ConfigFiles...),
-		ServiceNames:           append([]string(nil), candidate.ServiceNames...),
+		CandidateKey:        strings.TrimSpace(candidate.CandidateKey),
+		ComposeProjectName:  candidate.CanonicalProjectName,
+		Status:              candidate.Status,
+		StatusReasonCodes:   append([]string(nil), candidate.StatusReasonCodes...),
+		Importable:          candidate.Importable,
+		RuntimeType:         candidate.RuntimeType,
+		WorkspacePath:       candidate.WorkingDirectory,
+		WorkspacePathSource: candidate.WorkingDirectorySource,
+		ConfigFiles:         append([]string(nil), candidate.ConfigFiles...),
+		ServiceNames:        append([]string(nil), candidate.ServiceNames...),
 		ContainerCounts: RuntimeImportContainerCounts{
 			Running: candidate.ContainerCounts.Running,
 			Stopped: candidate.ContainerCounts.Stopped,
@@ -78,8 +77,8 @@ func sortRuntimeImportCandidates(items []RuntimeImportCandidate) {
 		if items[i].Importable != items[j].Importable {
 			return items[i].Importable
 		}
-		left := strings.ToLower(strings.TrimSpace(items[i].CanonicalProjectName))
-		right := strings.ToLower(strings.TrimSpace(items[j].CanonicalProjectName))
+		left := strings.ToLower(strings.TrimSpace(items[i].ComposeProjectName))
+		right := strings.ToLower(strings.TrimSpace(items[j].ComposeProjectName))
 		if left != right {
 			return left < right
 		}
@@ -164,8 +163,8 @@ func filterRuntimeImportCandidatesByKeyword(items []RuntimeImportCandidate, keyw
 	filtered := make([]RuntimeImportCandidate, 0, len(items))
 	for _, candidate := range items {
 		haystack := []string{
-			candidate.CanonicalProjectName,
-			candidate.WorkingDirectory,
+			candidate.ComposeProjectName,
+			candidate.WorkspacePath,
 			candidate.RuntimeType,
 			strings.TrimSpace(stringValue(candidate.RuntimeVersion)),
 			strings.Join(candidate.ConfigFiles, " "),
@@ -264,7 +263,7 @@ type runtimeCandidateValidation struct {
 
 type importInspectionPreview struct {
 	inspectionID               string
-	resolvedWorkingDirectory   string
+	resolvedWorkspacePath      string
 	canonicalProjectName       string
 	canonicalProjectNameSource string
 	displayNameSuggested       string
@@ -282,14 +281,14 @@ type importInspectionPreview struct {
 func (s *Service) runtimeImportCandidateParseValidation(
 	rawCandidate moduleapi.ContainerProjectRuntimeCandidate,
 ) (runtimeCandidateValidation, error) {
-	envFiles, err := discoverEnvFilesForWorkingDirectory(rawCandidate.WorkingDirectory)
+	envFiles, err := discoverEnvFilesForWorkspacePath(rawCandidate.WorkingDirectory)
 	if err != nil {
 		return runtimeCandidateValidation{reason: importRuntimeReasonConfigFilesNotAccessible}, nil
 	}
 	_, validation, parseErr := s.parseImportRequest(ImportRequest{
-		WorkingDirectory: rawCandidate.WorkingDirectory,
-		ComposeFiles:     append([]string(nil), rawCandidate.ConfigFiles...),
-		EnvFiles:         envFiles,
+		WorkspacePath: rawCandidate.WorkingDirectory,
+		ComposeFiles:  append([]string(nil), rawCandidate.ConfigFiles...),
+		EnvFiles:      envFiles,
 	})
 	if parseErr != nil {
 		return runtimeCandidateValidation{reason: runtimeCandidateParseReason(parseErr)}, nil
@@ -303,16 +302,16 @@ func (s *Service) inspectRuntimeCandidateSession(
 	candidate moduleapi.ContainerProjectRuntimeCandidate,
 	request RuntimeImportInspectRequest,
 ) (importInspectionSession, error) {
-	envFiles, err := discoverEnvFilesForWorkingDirectory(candidate.WorkingDirectory)
+	envFiles, err := discoverEnvFilesForWorkspacePath(candidate.WorkingDirectory)
 	if err != nil {
 		return importInspectionSession{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
 	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
-		WorkingDirectory:             candidate.WorkingDirectory,
-		ComposeFiles:                 append([]string(nil), candidate.ConfigFiles...),
-		EnvFiles:                     envFiles,
-		DisplayName:                  request.DisplayName,
-		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+		WorkspacePath:              candidate.WorkingDirectory,
+		ComposeFiles:               append([]string(nil), candidate.ConfigFiles...),
+		EnvFiles:                   envFiles,
+		DisplayName:                request.DisplayName,
+		ComposeProjectNameOverride: request.ComposeProjectNameOverride,
 	})
 	if err != nil {
 		return importInspectionSession{}, err
@@ -333,7 +332,7 @@ func (s *Service) runtimeImportCandidateMembers(
 	if s == nil || s.runtimeReader == nil {
 		return nil, errProjectServiceUnavailable
 	}
-	items, err := s.runtimeReader.ListImportCandidateMembers(ctx, projectcontract.HostScopeLocal.String(), candidate)
+	items, err := s.runtimeReader.ListImportCandidateMembers(ctx, localContainerRuntimeScope, candidate)
 	if err != nil {
 		return nil, err
 	}
@@ -355,21 +354,21 @@ func importInspectResultFromSession(
 ) ImportInspectResult {
 	preview := inspectionPreviewFromSession(session)
 	return ImportInspectResult{
-		InspectionID:               preview.inspectionID,
-		DirectoryRef:               directoryRef,
-		ResolvedWorkingDirectory:   preview.resolvedWorkingDirectory,
-		CanonicalProjectName:       preview.canonicalProjectName,
-		CanonicalProjectNameSource: preview.canonicalProjectNameSource,
-		DisplayNameSuggested:       preview.displayNameSuggested,
-		ComposeFiles:               preview.composeFiles,
-		EnvFiles:                   preview.envFiles,
-		ServiceNames:               preview.serviceNames,
-		NetworkNames:               preview.networkNames,
-		VolumeNames:                preview.volumeNames,
-		ConfigHash:                 preview.configHash,
-		Warnings:                   preview.warnings,
-		Conflicts:                  preview.conflicts,
-		ValidationStatus:           preview.validationStatus,
+		InspectionID:             preview.inspectionID,
+		DirectoryRef:             directoryRef,
+		ResolvedWorkspacePath:    preview.resolvedWorkspacePath,
+		ComposeProjectName:       preview.canonicalProjectName,
+		ComposeProjectNameSource: preview.canonicalProjectNameSource,
+		DisplayNameSuggested:     preview.displayNameSuggested,
+		ComposeFiles:             preview.composeFiles,
+		EnvFiles:                 preview.envFiles,
+		ServiceNames:             preview.serviceNames,
+		NetworkNames:             preview.networkNames,
+		VolumeNames:              preview.volumeNames,
+		ConfigHash:               preview.configHash,
+		Warnings:                 preview.warnings,
+		Conflicts:                preview.conflicts,
+		ValidationStatus:         preview.validationStatus,
 	}
 }
 
@@ -382,24 +381,24 @@ func runtimeImportInspectResultFromSession(
 	preview := inspectionPreviewFromSession(session)
 	members := append([]RuntimeImportMember(nil), runtimeMembers...)
 	return RuntimeImportInspectResult{
-		InspectionID:               preview.inspectionID,
-		ExpiresAt:                  session.ExpiresAt,
-		CandidateKey:               candidateKey,
-		ResolvedWorkingDirectory:   preview.resolvedWorkingDirectory,
-		CanonicalProjectName:       preview.canonicalProjectName,
-		CanonicalProjectNameSource: preview.canonicalProjectNameSource,
-		DisplayNameSuggested:       preview.displayNameSuggested,
-		ComposeFiles:               preview.composeFiles,
-		EnvFiles:                   preview.envFiles,
-		ServiceNames:               preview.serviceNames,
-		NetworkResources:           buildRuntimeImportNetworkResources(session.ParseResult, members),
-		VolumeResources:            buildRuntimeImportVolumeResources(session.ParseResult, members),
-		RuntimeMembers:             members,
-		ConfigHash:                 preview.configHash,
-		Warnings:                   preview.warnings,
-		Conflicts:                  preview.conflicts,
-		ValidationStatus:           preview.validationStatus,
-		LifecycleConfiguration:     defaultLifecycleStandardConfig(),
+		InspectionID:             preview.inspectionID,
+		ExpiresAt:                session.ExpiresAt,
+		CandidateKey:             candidateKey,
+		ResolvedWorkspacePath:    preview.resolvedWorkspacePath,
+		ComposeProjectName:       preview.canonicalProjectName,
+		ComposeProjectNameSource: preview.canonicalProjectNameSource,
+		DisplayNameSuggested:     preview.displayNameSuggested,
+		ComposeFiles:             preview.composeFiles,
+		EnvFiles:                 preview.envFiles,
+		ServiceNames:             preview.serviceNames,
+		NetworkResources:         buildRuntimeImportNetworkResources(session.ParseResult, members),
+		VolumeResources:          buildRuntimeImportVolumeResources(session.ParseResult, members),
+		RuntimeMembers:           members,
+		ConfigHash:               preview.configHash,
+		Warnings:                 preview.warnings,
+		Conflicts:                preview.conflicts,
+		ValidationStatus:         preview.validationStatus,
+		LifecycleConfiguration:   defaultLifecycleStandardConfig(),
 	}
 }
 
@@ -413,7 +412,7 @@ func inspectionValidationStatus(session importInspectionSession) string {
 func inspectionPreviewFromSession(session importInspectionSession) importInspectionPreview {
 	return importInspectionPreview{
 		inspectionID:               session.ID,
-		resolvedWorkingDirectory:   session.WorkingDir,
+		resolvedWorkspacePath:      session.WorkingDir,
 		canonicalProjectName:       session.CanonicalName,
 		canonicalProjectNameSource: session.CanonicalSource,
 		displayNameSuggested:       session.DisplayName,
@@ -448,15 +447,15 @@ func markAlreadyImportedRuntimeImportCandidate(candidate RuntimeImportCandidate,
 
 func runtimeImportCandidateExistingConflict(
 	candidate RuntimeImportCandidate,
-	existing []projectstore.ProjectAggregate,
+	existing []projectstore.ApplicationAggregate,
 ) string {
-	targetWD := strings.TrimSpace(candidate.WorkingDirectory)
-	targetCanonical := strings.TrimSpace(candidate.CanonicalProjectName)
+	targetWD := strings.TrimSpace(candidate.WorkspacePath)
+	targetCanonical := strings.TrimSpace(candidate.ComposeProjectName)
 	for _, item := range existing {
-		if sameWorkingDirectory(targetWD, item.Project.WorkingDirectory) {
+		if sameWorkspacePath(targetWD, item.Application.WorkspacePath) {
 			return importRuntimeReasonAlreadyImported
 		}
-		if targetCanonical != "" && strings.EqualFold(item.Project.CanonicalProjectName, targetCanonical) {
+		if targetCanonical != "" && strings.EqualFold(item.Application.ComposeProjectName, targetCanonical) {
 			return importRuntimeReasonAlreadyImported
 		}
 	}

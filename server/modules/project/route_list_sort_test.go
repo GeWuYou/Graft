@@ -17,7 +17,7 @@ func TestBindListParamsBindsRestrictedProjectSort(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/ops/projects?sort=created_at:asc", nil)
+	ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/ops/applications?sort=created_at:asc", nil)
 
 	params, ok := bindListParams(ginCtx, &module.Context{})
 	if !ok {
@@ -26,8 +26,8 @@ func TestBindListParamsBindsRestrictedProjectSort(t *testing.T) {
 	if params.Sort == nil || len(*params.Sort) != 1 || (*params.Sort)[0] != "created_at:asc" {
 		t.Fatalf("unexpected bound sort %#v", params.Sort)
 	}
-	if got := projectListSortParamValue(params.Sort); got != string(generated.GetProjectsParamsSortCreatedAtAsc) {
-		t.Fatalf("expected sort param value %q, got %q", generated.GetProjectsParamsSortCreatedAtAsc, got)
+	if got := projectListSortParamValue(params.Sort); got != string(generated.GetApplicationsParamsSortCreatedAtAsc) {
+		t.Fatalf("expected sort param value %q, got %q", generated.GetApplicationsParamsSortCreatedAtAsc, got)
 	}
 }
 
@@ -43,7 +43,7 @@ func TestBindListParamsRejectsInvalidOrDuplicateProjectSort(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			recorder := httptest.NewRecorder()
 			ginCtx, _ := gin.CreateTestContext(recorder)
-			ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/ops/projects?"+query, nil)
+			ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/ops/applications?"+query, nil)
 
 			_, ok := bindListParams(ginCtx, &module.Context{})
 			if ok {

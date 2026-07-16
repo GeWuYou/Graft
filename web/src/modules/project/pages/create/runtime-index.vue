@@ -7,7 +7,7 @@
         :source="{ labelKey: 'project.deployment.eyebrow', fallback: t('project.deployment.eyebrow') }"
       >
         <template #actions>
-          <t-button variant="text" data-testid="project-deployment-back" @click="goToProjectList">
+          <t-button variant="text" data-testid="project-deployment-back" @click="goToApplicationList">
             <template #icon><chevron-left-icon /></template>
             {{ t('project.deployment.backToApplicationManagement') }}
           </t-button>
@@ -85,14 +85,14 @@ import dockerIcon from '../../assets/runtime/docker.svg?url';
 import kubernetesIcon from '../../assets/runtime/kubernetes.svg?url';
 import nomadIcon from '../../assets/runtime/nomad.svg?url';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { useProjectCreateRouteNavigation } from '../../shared/navigation';
+import { useApplicationCreateRouteNavigation } from '../../shared/navigation';
 
-defineOptions({ name: 'ProjectDeploymentTypeIndex' });
+defineOptions({ name: 'ApplicationDeploymentTypeIndex' });
 // 创建流程的运行时选择页只负责展示能力目录并保留路由上下文，具体目标由下一页加载。
 
 const { t } = useI18n();
 const router = useRouter();
-const navigateProjectCreateRoute = useProjectCreateRouteNavigation(router);
+const navigateApplicationCreateRoute = useApplicationCreateRouteNavigation(router);
 const deploymentTypes = [
   {
     key: 'compose',
@@ -154,12 +154,12 @@ const deploymentTypes = [
 
 type DeploymentType = (typeof deploymentTypes)[number]['key'];
 
-function goToProjectList() {
+function goToApplicationList() {
   void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
 }
 
 function selectDeployment(deployment: DeploymentType) {
-  navigateProjectCreateRoute(
+  navigateApplicationCreateRoute(
     { name: PROJECT_BOOTSTRAP_ROUTE.CREATE_RUNTIME_TARGET.pageRouteName, query: { deployment } },
     'project.route.createRuntimeTarget.title',
   );

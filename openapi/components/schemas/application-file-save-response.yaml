@@ -1,0 +1,22 @@
+type: object
+required:
+  - application_id
+  - relative_path
+  - saved_at
+  - content_hash
+  - size_bytes
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  relative_path:
+    type: string
+  saved_at:
+    type: string
+    format: date-time
+  content_hash:
+    type: string
+  size_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+

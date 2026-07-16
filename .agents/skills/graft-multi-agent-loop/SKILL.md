@@ -93,6 +93,11 @@ Typical triggers:
    - allow `graft-multi-agent-batch` only inside the delegated round when that round itself benefits from parallel
      subagent work; inside loop rounds, default sidecars to read-only `explorer` subagents unless a bounded write
      slice is clearly justified
+   - before every round and sidecar dispatch, verify that the worker model is the same level as or lower than the
+     immediate delegating agent's model; record `parent_model`, `worker_model`, `model_relation`, `reasoning_effort`,
+     and comparison evidence in the round state
+   - if the worker model is higher or its level cannot be verified, pause and request explicit user approval or
+     direction; do not dispatch or silently choose a model based on availability
 6. During an active round, keep the outer main agent limited to orchestration work:
    - inspect repository state or returned artifacts as needed for acceptance
    - wait for the worker result
@@ -231,6 +236,8 @@ Typical triggers:
    - `active_but_unfinished` is not a retry trigger; keep the same worker alive with one bounded continuation or
      refreshed grace window, then reassess against hard limits and the latest evidence
    - retry the same bounded round once with a fresh worker subagent
+   - re-run the model-level delegation check for the retry worker; retrying must not escalate above the current
+     worker's model without explicit user approval
    - the retry worker must inherit the partial diff, relevant logs, validation evidence, and the previous worker
      failure reason
    - if the second worker still fails to emit a usable closeout, stop the loop as `blocked`
@@ -276,6 +283,11 @@ Every delegated round run through this loop must end with:
    - `stop_reason`
    - `validation`
    - `commit`
+   - `parent_model`
+   - `worker_model`
+   - `model_relation`
+   - `model_rank_verified`
+   - `higher_model_approval`
    - `consumed_budget`
    - `remaining_budget`
    - `scope_expanded`

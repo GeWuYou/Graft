@@ -25,12 +25,12 @@
               </t-form-item>
 
               <t-form-item
-                :label="t('project.import.form.canonicalProjectNameOverride')"
-                name="canonical_project_name_override"
+                :label="t('project.import.form.composeProjectNameOverride')"
+                name="compose_project_name_override"
               >
                 <t-input
-                  v-model="canonicalProjectNameOverrideModel"
-                  :placeholder="t('project.import.form.canonicalProjectNameOverridePlaceholder')"
+                  v-model="composeProjectNameOverrideModel"
+                  :placeholder="t('project.import.form.composeProjectNameOverridePlaceholder')"
                 />
               </t-form-item>
             </div>
@@ -48,7 +48,7 @@
                 <code class="project-import-confirm__technical">{{ result.inspection_id }}</code>
               </t-descriptions-item>
               <t-descriptions-item :label="t('project.import.confirm.canonicalNameSource')">
-                {{ formatCanonicalNameSource(result.canonical_project_name_source) }}
+                {{ formatCanonicalNameSource(result.compose_project_name_source) }}
               </t-descriptions-item>
               <t-descriptions-item v-if="candidateRuntimeLabel" :label="t('project.import.confirm.runtimeLabel')">
                 {{ candidateRuntimeLabel }}
@@ -60,11 +60,11 @@
 
       <t-card :bordered="true" :title="t('project.import.confirm.summaryTitle')">
         <t-descriptions bordered :column="1" size="small">
-          <t-descriptions-item :label="t('project.import.preview.canonicalProjectName')">
-            <code class="project-import-confirm__technical">{{ result.canonical_project_name }}</code>
+          <t-descriptions-item :label="t('project.import.preview.composeProjectName')">
+            <code class="project-import-confirm__technical">{{ result.compose_project_name }}</code>
           </t-descriptions-item>
-          <t-descriptions-item :label="t('project.import.directory.workingDirectory')">
-            <code class="project-import-confirm__technical">{{ resolvedWorkingDirectory || '-' }}</code>
+          <t-descriptions-item :label="t('project.import.directory.workspacePath')">
+            <code class="project-import-confirm__technical">{{ resolvedWorkspacePath || '-' }}</code>
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.validationStatus')">
             {{ formatValidationStatus(result.validation_status) }}
@@ -169,7 +169,7 @@
           <p class="project-import-confirm__supporting-copy">{{ t('project.import.confirm.effectsDescription') }}</p>
           <t-alert theme="info" :message="t('project.import.confirm.noAutoDeploy')" />
           <ul class="project-import-confirm__checklist">
-            <li>{{ t('project.import.confirm.effects.registerProject') }}</li>
+            <li>{{ t('project.import.confirm.effects.registerApplication') }}</li>
             <li>{{ t('project.import.confirm.effects.useInspection') }}</li>
             <li>{{ t('project.import.confirm.effects.applyOverrides') }}</li>
             <li>{{ t('project.import.confirm.effects.recordDiscoveredResources') }}</li>
@@ -209,28 +209,28 @@ import {
   normalizeImportInspectVolumeRows,
 } from '../shared/import-inspect-resources';
 import { formatImportPreviewCanonicalNameSource, formatImportPreviewValidationStatus } from '../shared/import-preview';
-import { useProjectPageContext } from '../shared/page-context';
-import type { ProjectImportInspectResponse, ProjectImportRuntimeCandidate } from '../types/import';
+import { useApplicationPageContext } from '../shared/page-context';
+import type { ApplicationImportInspectResponse, ApplicationImportRuntimeCandidate } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
 defineOptions({
-  name: 'ProjectImportConfirmReview',
+  name: 'ApplicationImportConfirmReview',
 });
 
 // 确认视图只消费当前 inspection 快照；提交资格由父级会话状态决定，组件不重复建立导入 authority。
 
 const props = defineProps<{
   canImport: boolean;
-  candidate: ProjectImportRuntimeCandidate | null;
-  canonicalProjectNameOverride: string;
+  candidate: ApplicationImportRuntimeCandidate | null;
+  composeProjectNameOverride: string;
   displayName: string;
   formData: FormProps['data'];
   formRules: FormProps['rules'];
   importError: string;
   importLoading: boolean;
   inspectionRefreshLoading: boolean;
-  resolvedWorkingDirectory: string;
-  result: ProjectImportInspectResponse;
+  resolvedWorkspacePath: string;
+  result: ApplicationImportInspectResponse;
 }>();
 
 const emit = defineEmits<{
@@ -238,11 +238,11 @@ const emit = defineEmits<{
   (event: 'refresh'): void;
   (event: 'reset'): void;
   (event: 'submit', context?: SubmitContext): void;
-  (event: 'update:canonicalProjectNameOverride', value: string): void;
+  (event: 'update:composeProjectNameOverride', value: string): void;
   (event: 'update:displayName', value: string): void;
 }>();
 
-const { t } = useProjectPageContext();
+const { t } = useApplicationPageContext();
 const formId = 'project-import-confirm-form';
 
 const displayNameModel = computed({
@@ -250,9 +250,9 @@ const displayNameModel = computed({
   set: (value: string) => emit('update:displayName', value),
 });
 
-const canonicalProjectNameOverrideModel = computed({
-  get: () => props.canonicalProjectNameOverride,
-  set: (value: string) => emit('update:canonicalProjectNameOverride', value),
+const composeProjectNameOverrideModel = computed({
+  get: () => props.composeProjectNameOverride,
+  set: (value: string) => emit('update:composeProjectNameOverride', value),
 });
 
 const candidateRuntimeLabel = computed(() => {

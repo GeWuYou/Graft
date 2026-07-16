@@ -1,5 +1,0 @@
-type: string
-enum: [directory-scan, auto-discovery]
-x-enum-varnames:
-  - ProjectDiscoveryCandidateKindDirectoryScan
-  - ProjectDiscoveryCandidateKindAutoDiscovery

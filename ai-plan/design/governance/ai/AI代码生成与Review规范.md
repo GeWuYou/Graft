@@ -94,6 +94,13 @@ AI closeout:
 - 汇总验证与最终 closeout
 - 拒绝把未知来源改动打包进同一结论
 
+多 agent 委派的模型约束：
+
+- 子 agent 模型不得高于直接委派者模型；同级或更低级模型才可直接委派。
+- `fork_context=true` 只能继承父模型与推理强度；显式模型配置必须使用 `fork_context=false`，并完成等级比较。
+- 更高模型需要用户对具体模型、范围和风险理由的明确授权；等级未知或无法验证时不得 dispatch。
+- retry、sidecar、loop worker 和嵌套 worker 必须重新验证该关系，不能通过重试或嵌套路径升级模型等级。
+
 子 agent 必须：
 
 - 只在分配范围内工作
@@ -124,6 +131,7 @@ AI closeout:
 - 汇总结果是否遗漏冲突、风险或未验证项
 - 主 agent 是否明确列出每个子切片的验证状态
 - 是否把“另一位 agent 会处理”当成未完成工作的借口
+- 每个委派是否包含 `parent_model`、`worker_model`、`model_relation` 和可复核的等级比较证据
 - 如果协作来自 PR review finding repair，是否把 `Outside diff range comments`、`Nitpick comments` 和其它
   folded latest-review findings 继续保留在统一 disposition 清单内，而不是在拆批后丢失
 

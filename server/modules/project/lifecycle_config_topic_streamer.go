@@ -32,7 +32,7 @@ type projectLifecycleConfigTopicStream struct {
 	runID              uint64
 }
 
-// markProjectLifecycleConfigTopicStreamDone signals that a topic stream has completed without blocking.
+// markProjectLifecycleConfigTopicStreamDone 以非阻塞方式通知生命周期配置流已结束。
 func markProjectLifecycleConfigTopicStreamDone(done chan struct{}) {
 	if done == nil {
 		return
@@ -43,7 +43,7 @@ func markProjectLifecycleConfigTopicStreamDone(done chan struct{}) {
 	}
 }
 
-// omitProjectLifecycleConfigTopicStream removes the stream associated with topic from streams.
+// omitProjectLifecycleConfigTopicStream 返回移除给定 topic 后的流快照，避免原地修改读侧快照。
 func omitProjectLifecycleConfigTopicStream(
 	streams map[string]*projectLifecycleConfigTopicStream,
 	topic string,
@@ -61,9 +61,9 @@ func omitProjectLifecycleConfigTopicStream(
 	return next
 }
 
-// newProjectLifecycleConfigTopicStreamer creates a project lifecycle configuration topic streamer with the required realtime hub and service dependencies. It uses a no-op logger when logger is nil.
+// newProjectLifecycleConfigTopicStreamer 创建生命周期配置流；logger 为空时使用无操作日志器。
 //
-//nolint:dupl // Runtime and lifecycle streams keep distinct concrete stream types and lifecycle ownership.
+//nolint:dupl // 运行时流与生命周期流拥有不同具体类型和生命周期责任，因此保留独立实现。
 func newProjectLifecycleConfigTopicStreamer(
 	hub realtime.Hub,
 	logger *zap.Logger,
@@ -290,9 +290,9 @@ func (s *Service) buildProjectLifecycleConfigRealtimePayload(
 		return projectLifecycleConfigRealtimePayload{}, err
 	}
 	return projectLifecycleConfigRealtimePayload{
-		Topic:       topic,
-		ProjectID:   mustGeneratedID(projectID),
-		PublishedAt: time.Now().UTC(),
+		Topic:         topic,
+		ApplicationID: aggregate.Application.ApplicationID,
+		PublishedAt:   time.Now().UTC(),
 		Detail: toProjectDetailResponseWithManagedRoot(
 			aggregate,
 			s.readyManagedRootDirectory(ctx),

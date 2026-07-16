@@ -74,6 +74,10 @@ Use this skill only when all of the following are true:
    - when using the orchestration API, pass `fork_context=false` with explicit `model` and
      `reasoning_effort` overrides; `fork_context=true` inherits the parent model and reasoning effort and must not
      be combined with either override
+   - `parent_model`, `worker_model`, verified `model_relation` (`same` or `lower`), and comparison evidence; a worker
+     model may never be higher than the model of the agent dispatching it
+   - if the worker model is higher or the relation cannot be verified, pause dispatch and request explicit user
+     approval or direction; do not infer model rank from names, availability, or reasoning effort
 8. Once a write-capable slice is delegated, keep implementation ownership with that same `worker`:
    - do not reclaim the slice locally just because one wait window elapsed
    - do not treat `no visible diff yet` as evidence of stall by itself
@@ -143,6 +147,8 @@ Before accepting a subagent result, confirm:
 
 * the subagent received the inherited startup context instead of only an objective
 * the subagent stayed inside its ownership boundary
+* the dispatched model was verified as the same level or lower than the immediate parent, or the user approval for a
+  higher-level exception was explicitly recorded
 * the reported validation is enough for that slice
 * the result still follows plugin, DI, and `menu + route + page + api + permission` boundaries
 * any checkpoint response was treated as a health report, not a handoff or implicit stop signal
@@ -156,6 +162,7 @@ For every delegated `worker`, require one of these response shapes:
    - concise human-readable result
    - owned scope or changed files
    - validation performed
+   - `parent_model`, `worker_model`, `model_relation`, `model_rank_verified`, and `higher_model_approval`
    - risks or blockers
    - explicit outcome such as complete, blocked, retry-needed, or owned-scope conflict
 2. Checkpoint status for a still-running slice:

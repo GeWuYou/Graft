@@ -301,7 +301,7 @@
                     variant="outline"
                     :loading="serviceLoading"
                     :disabled="serviceActionLoading"
-                    @click="refreshProjectServices"
+                    @click="refreshApplicationServices"
                   >
                     {{ t('project.detail.services.refresh') }}
                   </t-button>
@@ -392,7 +392,12 @@
                       class="project-activity-toolbar__since"
                       :placeholder="t('project.detail.logs.sinceLabel')"
                     />
-                    <t-button theme="primary" variant="outline" :loading="projectLogLoading" @click="loadProjectLogs()">
+                    <t-button
+                      theme="primary"
+                      variant="outline"
+                      :loading="projectLogLoading"
+                      @click="loadApplicationLogs()"
+                    >
                       {{ t('project.list.refresh') }}
                     </t-button>
                   </t-space>
@@ -460,11 +465,11 @@
                   :fullscreen-label="t('project.detail.logs.fullscreen')"
                   :exit-fullscreen-label="t('project.detail.logs.exitFullscreen')"
                   :resize-handle-label="t('project.detail.logs.resize')"
-                  @clear="clearProjectLogs"
-                  @pause="pauseProjectLogs"
-                  @refresh="loadProjectLogs()"
-                  @resume="resumeProjectLogs"
-                  @update:line-limit="updateProjectLogTail"
+                  @clear="clearApplicationLogs"
+                  @pause="pauseApplicationLogs"
+                  @refresh="loadApplicationLogs()"
+                  @resume="resumeApplicationLogs"
+                  @update:line-limit="updateApplicationLogTail"
                 />
               </t-card>
             </section>
@@ -514,21 +519,21 @@
                       <t-descriptions-item :label="t('project.detail.lifecycle.mode')">
                         {{ t('project.detail.lifecycle.modeStandard') }}
                       </t-descriptions-item>
-                      <t-descriptions-item :label="t('project.detail.lifecycle.workingDirectory')">
+                      <t-descriptions-item :label="t('project.detail.lifecycle.workspacePath')">
                         <div class="project-detail-copy-row">
-                          <code>{{ lifecycleDraft.working_directory }}</code>
+                          <code>{{ lifecycleDraft.workspace_path }}</code>
                           <t-button
                             size="small"
                             theme="default"
                             variant="text"
-                            @click="copyPath(lifecycleDraft.working_directory)"
+                            @click="copyPath(lifecycleDraft.workspace_path)"
                           >
                             {{ t('project.detail.actions.copyPath') }}
                           </t-button>
                         </div>
                       </t-descriptions-item>
                       <t-descriptions-item :label="t('project.detail.lifecycle.projectName')">
-                        <code>{{ lifecycleDraft.canonical_project_name }}</code>
+                        <code>{{ lifecycleDraft.compose_project_name }}</code>
                       </t-descriptions-item>
                       <t-descriptions-item :label="t('project.detail.lifecycle.composeFiles')">
                         <div class="project-lifecycle-file-list">
@@ -806,32 +811,32 @@ import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
 
 import {
-  getProject,
-  getProjectConfiguration,
-  getProjectLogs,
-  getProjectOverview,
-  getProjectServices,
-  postProjectDestroy,
-  postProjectRedeploy,
-  postProjectRestart,
-  postProjectStop,
-  postProjectUnregister,
-  postProjectUp,
-  putProjectLifecycleConfiguration,
+  getApplication,
+  getApplicationConfiguration,
+  getApplicationLogs,
+  getApplicationOverview,
+  getApplicationServices,
+  postApplicationDestroy,
+  postApplicationRedeploy,
+  postApplicationRestart,
+  postApplicationStop,
+  postApplicationUnregister,
+  postApplicationUp,
+  putApplicationLifecycleConfiguration,
 } from '../../api/project';
 import LifecycleHelpTrigger from '../../components/LifecycleHelpTrigger.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
-  buildProjectLifecycleConfigTopicName,
-  buildProjectLogsTopicName,
-  buildProjectRuntimeTopicName,
-  parseProjectLifecycleConfigRealtimePayload,
-  parseProjectLogsRealtimePayload,
-  parseProjectRuntimeRealtimePayload,
+  buildApplicationLifecycleConfigTopicName,
+  buildApplicationLogsTopicName,
+  buildApplicationRuntimeTopicName,
+  parseApplicationLifecycleConfigRealtimePayload,
+  parseApplicationLogsRealtimePayload,
+  parseApplicationRuntimeRealtimePayload,
 } from '../../contract/realtime';
-import { paginateProjectResourceRows } from '../../shared/detail-resources';
+import { paginateApplicationResourceRows } from '../../shared/detail-resources';
 import {
-  formatProjectTime,
+  formatApplicationTime,
   projectDriftStatusLabel,
   projectDriftStatusTheme,
   projectLifecycleActionVisibility,
@@ -852,30 +857,30 @@ import {
 } from '../../shared/lifecycle';
 import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../../shared/lifecycle-help';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
-import { emitProjectLogDebug } from '../../shared/project-log-debug';
-import { ProjectLogRealtimeBatcher } from '../../shared/project-log-realtime-batcher';
-import { fetchProjectRuntimeContainers, readProjectContainerSourceMember } from '../../shared/runtime-containers';
+import { emitApplicationLogDebug } from '../../shared/project-log-debug';
+import { ApplicationLogRealtimeBatcher } from '../../shared/project-log-realtime-batcher';
+import { fetchApplicationRuntimeContainers, readProjectContainerSourceMember } from '../../shared/runtime-containers';
 import type {
-  ProjectActionResponse,
-  ProjectConfigurationMetadataResponse,
-  ProjectDestroyRequest,
-  ProjectDetailResponseWithLifecycle,
-  ProjectLifecycleConfigurationDraft,
-  ProjectLifecycleReviewStatus,
-  ProjectLogEntry,
-  ProjectLogResponse,
-  ProjectOverviewResponse,
-  ProjectOverviewServiceItem,
-  ProjectServiceContainerMember,
-  ProjectServiceItem,
+  ApplicationActionResponse,
+  ApplicationConfigurationMetadataResponse,
+  ApplicationDestroyRequest,
+  ApplicationDetailResponseWithLifecycle,
+  ApplicationLifecycleConfigurationDraft,
+  ApplicationLifecycleReviewStatus,
+  ApplicationLogEntry,
+  ApplicationLogResponse,
+  ApplicationOverviewResponse,
+  ApplicationOverviewServiceItem,
+  ApplicationServiceContainerMember,
+  ApplicationServiceItem,
 } from '../../types/project';
 
 // 项目详情页组合服务端项目数据、容器操作和实时日志；实时订阅只更新观察快照，不改变项目契约的拥有边界。
 defineOptions({
-  name: 'ProjectDetailIndex',
+  name: 'ApplicationDetailIndex',
 });
 
-type ProjectDetailTab = 'overview' | 'services' | 'logs' | 'lifecycle' | 'tasks';
+type ApplicationDetailTab = 'overview' | 'services' | 'logs' | 'lifecycle' | 'tasks';
 type OverviewDiagnostic = {
   key: string;
   message: string;
@@ -889,7 +894,7 @@ type ServiceTableRow = {
   image: string;
   name: string;
   portsSummary: string;
-  raw: ProjectServiceItem;
+  raw: ApplicationServiceItem;
   runningCount: number;
   service_name: string;
   statusLabel: string;
@@ -908,11 +913,11 @@ type ServiceSnapshotCard = {
   memoryValue: string;
   memberValue: string;
   canOpen: boolean;
-  raw: ProjectServiceItem;
+  raw: ApplicationServiceItem;
 };
-type ProjectMetricDirection = 'none' | 'up' | 'down';
-type ProjectMetricPulseState = Record<'cpu' | 'memory', number>;
-type ProjectMetricTrendState = Record<'cpu' | 'memory', ProjectMetricDirection>;
+type ApplicationMetricDirection = 'none' | 'up' | 'down';
+type ApplicationMetricPulseState = Record<'cpu' | 'memory', number>;
+type ApplicationMetricTrendState = Record<'cpu' | 'memory', ApplicationMetricDirection>;
 
 const { locale, t } = useI18n();
 const route = useRoute();
@@ -922,18 +927,18 @@ const logger = createLogger('project.detail');
 const activeTaskId = ref<number | null>(null);
 const taskDrawerVisible = ref(false);
 
-const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
+const detailRecord = ref<ApplicationDetailResponseWithLifecycle | null>(null);
 const detailLoading = ref(false);
 const detailError = ref('');
-const activeDetailTab = ref<ProjectDetailTab>(normalizeDetailTab(route.query.tab));
-const configurationMetadata = ref<ProjectConfigurationMetadataResponse | null>(null);
-const projectLogResponse = ref<ProjectLogResponse | null>(null);
+const activeDetailTab = ref<ApplicationDetailTab>(normalizeDetailTab(route.query.tab));
+const configurationMetadata = ref<ApplicationConfigurationMetadataResponse | null>(null);
+const projectLogResponse = ref<ApplicationLogResponse | null>(null);
 const projectLogLoading = ref(false);
 const projectLogError = ref('');
 const projectLogPaused = ref(false);
 const projectLogContentVersion = ref(0);
-const serviceRows = ref<ProjectServiceItem[]>([]);
-const projectOverview = ref<ProjectOverviewResponse | null>(null);
+const serviceRows = ref<ApplicationServiceItem[]>([]);
+const projectOverview = ref<ApplicationOverviewResponse | null>(null);
 const serviceActionKey = ref('');
 const serviceBatchActionLoading = ref<ProjectContainerAction | ''>('');
 const serviceLoading = ref(false);
@@ -945,17 +950,17 @@ const serviceTablePageSize = ref(20);
 const selectedServiceRowKeys = ref<Array<string | number>>([]);
 const servicesLoaded = ref(false);
 const projectOverviewLoaded = ref(false);
-const actionLoading = ref<ProjectActionResponse['action'] | 'destroy' | ''>('');
+const actionLoading = ref<ApplicationActionResponse['action'] | 'destroy' | ''>('');
 const lifecycleSaveLoading = ref(false);
-const lifecycleBaseline = ref<ProjectLifecycleConfigurationDraft | null>(null);
+const lifecycleBaseline = ref<ApplicationLifecycleConfigurationDraft | null>(null);
 const lifecycleRemoteStale = ref(false);
 const projectLogSince = ref('1h');
 const projectLogTail = ref(200);
-const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
+const lifecycleDraft = reactive<ApplicationLifecycleConfigurationDraft>({
   strategy_kind: 'standard',
-  working_directory: '',
+  workspace_path: '',
   compose_files: [],
-  canonical_project_name: '',
+  compose_project_name: '',
   profiles: [],
   down_before_redeploy: true,
   pull_before_redeploy: false,
@@ -968,11 +973,11 @@ const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
   prune_images_after_redeploy: false,
   additional_args: '',
 });
-const metricTrendState = ref<ProjectMetricTrendState>({
+const metricTrendState = ref<ApplicationMetricTrendState>({
   cpu: 'none',
   memory: 'none',
 });
-const metricPulseState = ref<ProjectMetricPulseState>({
+const metricPulseState = ref<ApplicationMetricPulseState>({
   cpu: 0,
   memory: 0,
 });
@@ -996,19 +1001,19 @@ let projectRuntimeRealtimeTopic = '';
 let projectLifecycleConfigRealtimeTopic = '';
 let projectLogsRealtimeTopic = '';
 let projectLogsSubscriptionSequence = 0;
-let pendingProjectLogSnapshot: ProjectLogResponse | null = null;
+let pendingApplicationLogSnapshot: ApplicationLogResponse | null = null;
 let projectLogsLoadSequence = 0;
-const projectLogRealtimeBatcher = new ProjectLogRealtimeBatcher({
+const projectLogRealtimeBatcher = new ApplicationLogRealtimeBatcher({
   lineLimit: projectLogTail.value,
   onCommit: (snapshot) => {
-    emitProjectLogDebug('view-snapshot-commit', {
+    emitApplicationLogDebug('view-snapshot-commit', {
       entryCount: snapshot.entries.length,
       paused: projectLogPaused.value,
       tail: snapshot.tail,
       truncated: snapshot.truncated,
     });
     if (projectLogPaused.value) {
-      pendingProjectLogSnapshot = snapshot;
+      pendingApplicationLogSnapshot = snapshot;
       return;
     }
     projectLogResponse.value = snapshot;
@@ -1017,21 +1022,23 @@ const projectLogRealtimeBatcher = new ProjectLogRealtimeBatcher({
 });
 const projectRuntimeRealtimeGate = createRealtimeSnapshotGate({
   apply: (message: {
-    detail: ProjectDetailResponseWithLifecycle;
-    overview: ProjectOverviewResponse;
-    services: { items: ProjectServiceItem[] };
+    detail: ApplicationDetailResponseWithLifecycle;
+    overview: ApplicationOverviewResponse;
+    services: { items: ApplicationServiceItem[] };
   }) => {
-    applyProjectRuntimeRealtimeSnapshot(message);
+    applyApplicationRuntimeRealtimeSnapshot(message);
   },
 });
 const projectLifecycleConfigRealtimeGate = createRealtimeSnapshotGate({
-  apply: (message: { detail: ProjectDetailResponseWithLifecycle }) => {
-    applyProjectLifecycleConfigRealtimeSnapshot(message);
+  apply: (message: { detail: ApplicationDetailResponseWithLifecycle }) => {
+    applyApplicationLifecycleConfigRealtimeSnapshot(message);
   },
 });
 
-const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''));
-const projectTaskOwnerId = computed(() => projectId.value);
+const applicationId = computed(() =>
+  typeof route.params.applicationId === 'string' ? route.params.applicationId : '',
+);
+const projectTaskOwnerId = computed(() => applicationId.value);
 const activeTabRoute = computed(() => {
   if (route.name !== PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName) {
     return undefined;
@@ -1051,7 +1058,7 @@ const pageTitle = computed(
   () => detailRecord.value?.display_name || fallbackDisplayName.value || t('project.detail.titleFallback'),
 );
 const lifecycleActionVisibility = computed(() => projectLifecycleActionVisibility(detailRecord.value?.runtime_status));
-const lifecycleReviewStatus = computed<ProjectLifecycleReviewStatus>(() => {
+const lifecycleReviewStatus = computed<ApplicationLifecycleReviewStatus>(() => {
   if (!detailRecord.value) {
     return 'confirmed';
   }
@@ -1118,10 +1125,10 @@ const lifecycleSwitchOptionDefinitionsBeforeWaitTimeout =
     : lifecycleSwitchHelpDefinitions;
 const lifecycleSwitchOptionDefinitionsAfterWaitTimeout =
   waitAfterUpDefinitionIndex >= 0 ? lifecycleSwitchHelpDefinitions.slice(waitAfterUpDefinitionIndex + 1) : [];
-const overviewServiceMap = computed<Map<string, ProjectOverviewServiceItem>>(
+const overviewServiceMap = computed<Map<string, ApplicationOverviewServiceItem>>(
   () =>
     new Map(
-      (projectOverview.value?.services || []).map((item: ProjectOverviewServiceItem) => [item.service_name, item]),
+      (projectOverview.value?.services || []).map((item: ApplicationOverviewServiceItem) => [item.service_name, item]),
     ),
 );
 const totalRestartCount = computed(() => projectOverview.value?.health.restart_count ?? 0);
@@ -1141,7 +1148,7 @@ const memoryPercent = computed(() => {
 const networkRxBytes = computed(() => projectOverview.value?.resources.rx_bytes ?? 0);
 const networkTxBytes = computed(() => projectOverview.value?.resources.tx_bytes ?? 0);
 const resourceStatsAvailable = computed(() => projectOverview.value?.resources.stats_available ?? false);
-const projectLogAuthorityNotice = computed(() => t('project.detail.logs.authorityProjectOwned'));
+const projectLogAuthorityNotice = computed(() => t('project.detail.logs.authorityApplicationOwned'));
 const resourceUsageCard = computed(() => ({
   collectedAt: formatTime(projectOverview.value?.collected_at),
   coverage: t('project.detail.overview.metricsCoverage', { count: availableResourceContainers.value }),
@@ -1169,8 +1176,8 @@ const networkUsageCard = computed(() => ({
   txTotal: t('project.detail.overview.networkTotalTx', { value: formatBytes(networkTxBytes.value) }),
 }));
 const projectMetricClasses = computed(() => ({
-  cpu: buildProjectMetricClass('cpu'),
-  memory: buildProjectMetricClass('memory'),
+  cpu: buildApplicationMetricClass('cpu'),
+  memory: buildApplicationMetricClass('memory'),
 }));
 const projectLogSourceCount = computed(() => {
   const entries = projectLogResponse.value?.entries ?? [];
@@ -1197,7 +1204,7 @@ const serviceTableRows = computed<ServiceTableRow[]>(() =>
   }),
 );
 const pagedServiceTableRows = computed<ServiceTableRow[]>(() =>
-  paginateProjectResourceRows(serviceTableRows.value, serviceTableCurrent.value, serviceTablePageSize.value),
+  paginateApplicationResourceRows(serviceTableRows.value, serviceTableCurrent.value, serviceTablePageSize.value),
 );
 const serviceRowMap = computed(() => new Map(serviceTableRows.value.map((row) => [row.service_name, row])));
 const selectedServiceRows = computed<ServiceTableRow[]>(() =>
@@ -1247,7 +1254,7 @@ const projectLogEntries = computed(() => {
     )
     // 保留服务端与实时流的时间顺序，让 LogViewer 始终把最新日志显示在底部。
     .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null);
-  emitProjectLogDebug('view-entries-normalized', {
+  emitApplicationLogDebug('view-entries-normalized', {
     rawCount: rawEntries.length,
     visibleCount: normalizedEntries.length,
     truncated: Boolean(projectLogResponse.value?.truncated),
@@ -1310,15 +1317,15 @@ const serviceColumns = computed<TableProps['columns']>(() => [
 
 onMounted(async () => {
   await refreshDetail();
-  syncProjectRuntimeRealtimeSubscription();
-  syncProjectLifecycleConfigRealtimeSubscription();
-  syncProjectLogsRealtimeSubscription();
+  syncApplicationRuntimeRealtimeSubscription();
+  syncApplicationLifecycleConfigRealtimeSubscription();
+  syncApplicationLogsRealtimeSubscription();
 });
 
 onUnmounted(() => {
-  releaseProjectRuntimeRealtimeSubscription();
-  releaseProjectLifecycleConfigRealtimeSubscription();
-  releaseProjectLogsRealtimeSubscription();
+  releaseApplicationRuntimeRealtimeSubscription();
+  releaseApplicationLifecycleConfigRealtimeSubscription();
+  releaseApplicationLogsRealtimeSubscription();
   projectRuntimeRealtimeGate.dispose();
   projectLifecycleConfigRealtimeGate.dispose();
   projectLogRealtimeBatcher.destroy();
@@ -1345,8 +1352,8 @@ watch(activeDetailTab, (value) => {
     });
   }
 
-  syncProjectLifecycleConfigRealtimeSubscription();
-  syncProjectLogsRealtimeSubscription();
+  syncApplicationLifecycleConfigRealtimeSubscription();
+  syncApplicationLogsRealtimeSubscription();
 });
 
 watch(
@@ -1364,22 +1371,22 @@ watch(serviceTableRows, (rows) => {
   selectedServiceRowKeys.value = selectedServiceRowKeys.value.filter((key) => availableKeys.has(String(key)));
 });
 
-watch(projectId, () => {
-  resetProjectLogsState();
+watch(applicationId, () => {
+  resetApplicationLogsState();
   lifecycleBaseline.value = null;
   lifecycleRemoteStale.value = false;
   projectRuntimeRealtimeGate.clear();
   projectLifecycleConfigRealtimeGate.clear();
-  releaseProjectRuntimeRealtimeSubscription();
-  releaseProjectLifecycleConfigRealtimeSubscription();
-  releaseProjectLogsRealtimeSubscription();
-  syncProjectRuntimeRealtimeSubscription();
-  syncProjectLifecycleConfigRealtimeSubscription();
-  syncProjectLogsRealtimeSubscription();
+  releaseApplicationRuntimeRealtimeSubscription();
+  releaseApplicationLifecycleConfigRealtimeSubscription();
+  releaseApplicationLogsRealtimeSubscription();
+  syncApplicationRuntimeRealtimeSubscription();
+  syncApplicationLifecycleConfigRealtimeSubscription();
+  syncApplicationLogsRealtimeSubscription();
 });
 
 function formatTime(value?: string | null) {
-  return formatProjectTime(locale.value, value);
+  return formatApplicationTime(locale.value, value);
 }
 
 function formatDataRate(value: number | null) {
@@ -1389,7 +1396,7 @@ function formatDataRate(value: number | null) {
   return `${formatBytes(value)}/s`;
 }
 
-function metricProgressStatus(direction: ProjectMetricDirection): 'success' | 'warning' | undefined {
+function metricProgressStatus(direction: ApplicationMetricDirection): 'success' | 'warning' | undefined {
   if (direction === 'up') {
     return 'warning';
   }
@@ -1399,7 +1406,7 @@ function metricProgressStatus(direction: ProjectMetricDirection): 'success' | 'w
   return undefined;
 }
 
-function buildProjectMetricClass(metric: 'cpu' | 'memory') {
+function buildApplicationMetricClass(metric: 'cpu' | 'memory') {
   const direction = metricTrendState.value[metric];
   const pulse = metricPulseState.value[metric] % 2;
   return {
@@ -1410,45 +1417,49 @@ function buildProjectMetricClass(metric: 'cpu' | 'memory') {
   };
 }
 
-function driftStatusLabel(value: ProjectDetailResponseWithLifecycle['drift_status']) {
+function driftStatusLabel(value: ApplicationDetailResponseWithLifecycle['drift_status']) {
   return projectDriftStatusLabel(t, value);
 }
 
-function driftStatusTheme(value?: ProjectDetailResponseWithLifecycle['drift_status']) {
+function driftStatusTheme(value?: ApplicationDetailResponseWithLifecycle['drift_status']) {
   return projectDriftStatusTheme(value);
 }
 
-function runtimeStatusLabel(value?: ProjectDetailResponseWithLifecycle['runtime_status'] | null) {
+function runtimeStatusLabel(value?: ApplicationDetailResponseWithLifecycle['runtime_status'] | null) {
   return projectRuntimeStatusLabel(t, value);
 }
 
-function overviewServiceStatusLabel(value?: ProjectOverviewServiceItem['status']) {
+function overviewServiceStatusLabel(value?: ApplicationOverviewServiceItem['status']) {
   if (value === 'degraded') return t('project.detail.overview.serviceStatusDegraded');
   if (value === 'running') return t('project.detail.overview.serviceStatusRunning');
   return t('project.detail.overview.serviceStatusStopped');
 }
 
-function overviewServiceStatusTheme(value?: ProjectOverviewServiceItem['status']): ServiceSnapshotCard['statusTheme'] {
+function overviewServiceStatusTheme(
+  value?: ApplicationOverviewServiceItem['status'],
+): ServiceSnapshotCard['statusTheme'] {
   if (value === 'degraded') return 'warning';
   if (value === 'running') return 'success';
   return 'default';
 }
 
-function overviewServiceHealthLabel(value?: ProjectOverviewServiceItem['health']) {
+function overviewServiceHealthLabel(value?: ApplicationOverviewServiceItem['health']) {
   if (value === 'attention') return t('project.detail.overview.serviceHealthAttention');
   if (value === 'healthy') return t('project.detail.overview.serviceHealthHealthy');
   return t('project.detail.overview.serviceHealthUnknown');
 }
 
-function overviewServiceHealthTheme(value?: ProjectOverviewServiceItem['health']): ServiceSnapshotCard['healthTheme'] {
+function overviewServiceHealthTheme(
+  value?: ApplicationOverviewServiceItem['health'],
+): ServiceSnapshotCard['healthTheme'] {
   if (value === 'attention') return 'warning';
   if (value === 'healthy') return 'success';
   return 'default';
 }
 
 function assignLifecycleDraft(
-  target: ProjectLifecycleConfigurationDraft,
-  nextConfig: ProjectLifecycleConfigurationDraft,
+  target: ApplicationLifecycleConfigurationDraft,
+  nextConfig: ApplicationLifecycleConfigurationDraft,
 ) {
   Object.assign(target, {
     ...nextConfig,
@@ -1459,7 +1470,7 @@ function assignLifecycleDraft(
 }
 
 function syncLifecycleState(
-  detail: ProjectDetailResponseWithLifecycle,
+  detail: ApplicationDetailResponseWithLifecycle,
   options: {
     preserveDirtyDraft: boolean;
   } = { preserveDirtyDraft: false },
@@ -1481,27 +1492,27 @@ function syncLifecycleState(
 }
 
 async function refreshDetail() {
-  if (!projectId.value) {
+  if (!applicationId.value) {
     detailError.value = t('project.list.retry');
     return;
   }
   detailLoading.value = true;
   detailError.value = '';
   try {
-    detailRecord.value = await getProject(projectId.value);
+    detailRecord.value = await getApplication(applicationId.value);
     syncLifecycleState(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
-    await Promise.all([loadConfigurationSummary(), loadProjectServices(true), loadProjectOverview(true)]);
+    await Promise.all([loadConfigurationSummary(), loadApplicationServices(true), loadApplicationOverview(true)]);
     if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
-      await loadProjectLogs();
+      await loadApplicationLogs();
     }
-    syncProjectRuntimeRealtimeSubscription();
-    syncProjectLifecycleConfigRealtimeSubscription();
-    syncProjectLogsRealtimeSubscription();
+    syncApplicationRuntimeRealtimeSubscription();
+    syncApplicationLifecycleConfigRealtimeSubscription();
+    syncApplicationLogsRealtimeSubscription();
   } catch (error) {
     logger.error('failed to load project detail', error);
     detailRecord.value = null;
-    resetProjectLogsState();
+    resetApplicationLogsState();
     projectOverview.value = null;
     projectOverviewLoaded.value = false;
     projectLogError.value = '';
@@ -1512,9 +1523,9 @@ async function refreshDetail() {
 }
 
 async function loadConfigurationSummary() {
-  if (!projectId.value) return;
+  if (!applicationId.value) return;
   try {
-    configurationMetadata.value = await getProjectConfiguration(projectId.value);
+    configurationMetadata.value = await getApplicationConfiguration(applicationId.value);
   } catch (error) {
     logger.error('failed to load project configuration', error);
     configurationMetadata.value = null;
@@ -1522,13 +1533,13 @@ async function loadConfigurationSummary() {
   }
 }
 
-async function loadProjectLogs() {
-  if (!projectId.value) return;
+async function loadApplicationLogs() {
+  if (!applicationId.value) return;
   const requestSequence = ++projectLogsLoadSequence;
-  const currentProjectId = projectId.value;
+  const currentApplicationId = applicationId.value;
   projectLogRealtimeBatcher.beginSnapshot(projectLogTail.value);
-  emitProjectLogDebug('snapshot-request-started', {
-    projectId: currentProjectId,
+  emitApplicationLogDebug('snapshot-request-started', {
+    applicationId: currentApplicationId,
     requestSequence,
     since: projectLogSince.value.trim() || '1h',
     tail: projectLogTail.value,
@@ -1536,51 +1547,51 @@ async function loadProjectLogs() {
   projectLogLoading.value = true;
   projectLogError.value = '';
   try {
-    const response = await getProjectLogs(projectId.value, {
+    const response = await getApplicationLogs(applicationId.value, {
       tail: projectLogTail.value,
       since: projectLogSince.value.trim() || '1h',
       timestamps: true,
       stdout: true,
       stderr: true,
     });
-    if (requestSequence !== projectLogsLoadSequence || currentProjectId !== projectId.value) {
-      emitProjectLogDebug('snapshot-response-discarded', { currentProjectId, requestSequence });
+    if (requestSequence !== projectLogsLoadSequence || currentApplicationId !== applicationId.value) {
+      emitApplicationLogDebug('snapshot-response-discarded', { currentApplicationId, requestSequence });
       return;
     }
-    emitProjectLogDebug('snapshot-response-received', {
-      projectId: currentProjectId,
+    emitApplicationLogDebug('snapshot-response-received', {
+      applicationId: currentApplicationId,
       requestSequence,
       entryCount: response.entries.length,
       tail: response.tail,
       truncated: response.truncated,
     });
-    commitProjectLogsSnapshot(response);
+    commitApplicationLogsSnapshot(response);
     projectLogsHasSnapshot.value = true;
     projectLogsBootstrapRequested.value = false;
     projectLogsRecoveryLoadRequested.value = false;
   } catch (error) {
-    if (requestSequence !== projectLogsLoadSequence || currentProjectId !== projectId.value) {
+    if (requestSequence !== projectLogsLoadSequence || currentApplicationId !== applicationId.value) {
       return;
     }
     logger.error('failed to load project logs', error);
-    emitProjectLogDebug('snapshot-request-failed', {
-      projectId: currentProjectId,
+    emitApplicationLogDebug('snapshot-request-failed', {
+      applicationId: currentApplicationId,
       requestSequence,
       error: error instanceof Error ? error.message : String(error),
     });
     projectLogError.value = resolveLocalizedErrorMessage(t, error, t('project.detail.logs.loadFailed'));
   } finally {
-    if (requestSequence === projectLogsLoadSequence && currentProjectId === projectId.value) {
+    if (requestSequence === projectLogsLoadSequence && currentApplicationId === applicationId.value) {
       projectLogLoading.value = false;
       if (activeDetailTab.value === 'logs') {
-        syncProjectLogsRealtimeSubscription();
+        syncApplicationLogsRealtimeSubscription();
       }
     }
   }
 }
 
-async function loadProjectServices(forceRefresh = false) {
-  if (!projectId.value) {
+async function loadApplicationServices(forceRefresh = false) {
+  if (!applicationId.value) {
     serviceRows.value = [];
     serviceRuntimePortSummaries.value = {};
     projectRuntimeTarget.value = null;
@@ -1593,7 +1604,7 @@ async function loadProjectServices(forceRefresh = false) {
 
   serviceLoading.value = true;
   try {
-    const response = await getProjectServices(projectId.value);
+    const response = await getApplicationServices(applicationId.value);
     serviceRows.value = response.items;
     serviceTableCurrent.value = 1;
     await syncServiceRuntimePortSummaries(response.items);
@@ -1612,8 +1623,8 @@ async function loadProjectServices(forceRefresh = false) {
   }
 }
 
-async function loadProjectOverview(forceRefresh = false) {
-  if (!projectId.value) {
+async function loadApplicationOverview(forceRefresh = false) {
+  if (!applicationId.value) {
     projectOverview.value = null;
     projectOverviewLoaded.value = false;
     return null;
@@ -1622,8 +1633,8 @@ async function loadProjectOverview(forceRefresh = false) {
     return projectOverview.value;
   }
   try {
-    const response = await getProjectOverview(projectId.value);
-    updateProjectOverviewTrends(projectOverview.value, response);
+    const response = await getApplicationOverview(applicationId.value);
+    updateApplicationOverviewTrends(projectOverview.value, response);
     projectOverview.value = response;
     projectOverviewLoaded.value = true;
     return response;
@@ -1635,9 +1646,9 @@ async function loadProjectOverview(forceRefresh = false) {
   }
 }
 
-function resetProjectLogsState() {
+function resetApplicationLogsState() {
   projectLogResponse.value = null;
-  pendingProjectLogSnapshot = null;
+  pendingApplicationLogSnapshot = null;
   projectLogError.value = '';
   projectLogPaused.value = false;
   projectLogsHasSnapshot.value = false;
@@ -1647,8 +1658,8 @@ function resetProjectLogsState() {
   projectLogRealtimeBatcher.clear();
 }
 
-function commitProjectLogsSnapshot(response: ProjectLogResponse) {
-  emitProjectLogDebug('snapshot-seed', {
+function commitApplicationLogsSnapshot(response: ApplicationLogResponse) {
+  emitApplicationLogDebug('snapshot-seed', {
     entryCount: response.entries.length,
     tail: response.tail,
     truncated: response.truncated,
@@ -1656,18 +1667,18 @@ function commitProjectLogsSnapshot(response: ProjectLogResponse) {
   projectLogRealtimeBatcher.seed(response);
 }
 
-function appendProjectLogEntry(entry: ProjectLogEntry) {
+function appendApplicationLogEntry(entry: ApplicationLogEntry) {
   projectLogRealtimeBatcher.enqueue(entry);
 }
 
-function applyProjectLogRealtimeEntry(entry: ProjectLogEntry) {
-  appendProjectLogEntry(entry);
+function applyApplicationLogRealtimeEntry(entry: ApplicationLogEntry) {
+  appendApplicationLogEntry(entry);
 }
 
-function applyProjectRuntimeRealtimeSnapshot(payload: {
-  detail: ProjectDetailResponseWithLifecycle;
-  overview: ProjectOverviewResponse;
-  services: { items: ProjectServiceItem[] };
+function applyApplicationRuntimeRealtimeSnapshot(payload: {
+  detail: ApplicationDetailResponseWithLifecycle;
+  overview: ApplicationOverviewResponse;
+  services: { items: ApplicationServiceItem[] };
 }) {
   detailRecord.value = payload.detail;
   updateCurrentTabTitle(buildDetailTitle(payload.detail.display_name));
@@ -1675,30 +1686,30 @@ function applyProjectRuntimeRealtimeSnapshot(payload: {
   serviceRows.value = payload.services.items;
   void syncServiceRuntimePortSummaries(payload.services.items);
   servicesLoaded.value = true;
-  updateProjectOverviewTrends(projectOverview.value, payload.overview);
+  updateApplicationOverviewTrends(projectOverview.value, payload.overview);
   projectOverview.value = payload.overview;
   projectOverviewLoaded.value = true;
 }
 
-function applyProjectLifecycleConfigRealtimeSnapshot(payload: { detail: ProjectDetailResponseWithLifecycle }) {
+function applyApplicationLifecycleConfigRealtimeSnapshot(payload: { detail: ApplicationDetailResponseWithLifecycle }) {
   detailRecord.value = payload.detail;
   syncLifecycleState(payload.detail, { preserveDirtyDraft: true });
 }
 
-function syncProjectRuntimeRealtimeSubscription() {
-  const nextTopic = projectId.value ? buildProjectRuntimeTopicName(projectId.value) : '';
+function syncApplicationRuntimeRealtimeSubscription() {
+  const nextTopic = applicationId.value ? buildApplicationRuntimeTopicName(applicationId.value) : '';
   if (!nextTopic) {
-    releaseProjectRuntimeRealtimeSubscription();
+    releaseApplicationRuntimeRealtimeSubscription();
     return;
   }
   if (projectRuntimeRealtimeTopic === nextTopic && projectRuntimeRealtimeController) {
     return;
   }
-  releaseProjectRuntimeRealtimeSubscription();
+  releaseApplicationRuntimeRealtimeSubscription();
   projectRuntimeRealtimeTopic = nextTopic;
   projectRuntimeRealtimeController = openRealtimeTopicSocket({
     topic: nextTopic,
-    parseMessage: parseProjectRuntimeRealtimePayload,
+    parseMessage: parseApplicationRuntimeRealtimePayload,
     onMessage: (message) => {
       projectRuntimeRealtimeGate.commit(message);
     },
@@ -1711,30 +1722,30 @@ function syncProjectRuntimeRealtimeSubscription() {
   });
 }
 
-function releaseProjectRuntimeRealtimeSubscription() {
+function releaseApplicationRuntimeRealtimeSubscription() {
   projectRuntimeRealtimeTopic = '';
   projectRuntimeRealtimeController?.close();
   projectRuntimeRealtimeController = null;
   projectRuntimeSocketState.value = 'idle';
 }
 
-function syncProjectLifecycleConfigRealtimeSubscription() {
+function syncApplicationLifecycleConfigRealtimeSubscription() {
   const nextTopic =
-    projectId.value && activeDetailTab.value === 'lifecycle'
-      ? buildProjectLifecycleConfigTopicName(projectId.value)
+    applicationId.value && activeDetailTab.value === 'lifecycle'
+      ? buildApplicationLifecycleConfigTopicName(applicationId.value)
       : '';
   if (!nextTopic) {
-    releaseProjectLifecycleConfigRealtimeSubscription();
+    releaseApplicationLifecycleConfigRealtimeSubscription();
     return;
   }
   if (projectLifecycleConfigRealtimeTopic === nextTopic && projectLifecycleConfigRealtimeController) {
     return;
   }
-  releaseProjectLifecycleConfigRealtimeSubscription();
+  releaseApplicationLifecycleConfigRealtimeSubscription();
   projectLifecycleConfigRealtimeTopic = nextTopic;
   projectLifecycleConfigRealtimeController = openRealtimeTopicSocket({
     topic: nextTopic,
-    parseMessage: parseProjectLifecycleConfigRealtimePayload,
+    parseMessage: parseApplicationLifecycleConfigRealtimePayload,
     onMessage: (message) => {
       projectLifecycleConfigRealtimeGate.commit(message);
     },
@@ -1747,53 +1758,53 @@ function syncProjectLifecycleConfigRealtimeSubscription() {
   });
 }
 
-function releaseProjectLifecycleConfigRealtimeSubscription() {
+function releaseApplicationLifecycleConfigRealtimeSubscription() {
   projectLifecycleConfigRealtimeTopic = '';
   projectLifecycleConfigRealtimeController?.close();
   projectLifecycleConfigRealtimeController = null;
   projectLifecycleConfigSocketState.value = 'idle';
 }
 
-function syncProjectLogsRealtimeSubscription() {
+function syncApplicationLogsRealtimeSubscription() {
   const nextTopic =
-    projectId.value && activeDetailTab.value === 'logs' ? buildProjectLogsTopicName(projectId.value) : '';
+    applicationId.value && activeDetailTab.value === 'logs' ? buildApplicationLogsTopicName(applicationId.value) : '';
   if (!nextTopic) {
-    emitProjectLogDebug('subscription-not-required', { activeTab: activeDetailTab.value });
-    releaseProjectLogsRealtimeSubscription();
+    emitApplicationLogDebug('subscription-not-required', { activeTab: activeDetailTab.value });
+    releaseApplicationLogsRealtimeSubscription();
     return;
   }
   if (!projectLogsHasSnapshot.value && !projectLogLoading.value && !projectLogsBootstrapRequested.value) {
     projectLogsBootstrapRequested.value = true;
-    void loadProjectLogs();
+    void loadApplicationLogs();
   }
   if (projectLogsRealtimeTopic === nextTopic && projectLogsRealtimeController) {
-    emitProjectLogDebug('subscription-reused', { topic: nextTopic });
+    emitApplicationLogDebug('subscription-reused', { topic: nextTopic });
     return;
   }
-  releaseProjectLogsRealtimeSubscription();
+  releaseApplicationLogsRealtimeSubscription();
   const subscriptionSequence = ++projectLogsSubscriptionSequence;
   projectLogsRealtimeTopic = nextTopic;
-  emitProjectLogDebug('subscription-opening', { subscriptionSequence, topic: nextTopic });
+  emitApplicationLogDebug('subscription-opening', { subscriptionSequence, topic: nextTopic });
   projectLogsRealtimeController = openRealtimeTopicSocket({
     topic: nextTopic,
-    parseMessage: parseProjectLogsRealtimePayload,
+    parseMessage: parseApplicationLogsRealtimePayload,
     onMessage: (message) => {
       if (subscriptionSequence !== projectLogsSubscriptionSequence || projectLogsRealtimeTopic !== nextTopic) {
         return;
       }
-      emitProjectLogDebug('subscription-entry-received', {
+      emitApplicationLogDebug('subscription-entry-received', {
         subscriptionSequence,
         topic: nextTopic,
         socketState: projectLogsSocketState.value,
       });
-      applyProjectLogRealtimeEntry(message.entry);
+      applyApplicationLogRealtimeEntry(message.entry);
     },
     onStateChange: (state) => {
       if (subscriptionSequence !== projectLogsSubscriptionSequence || projectLogsRealtimeTopic !== nextTopic) {
         return;
       }
       projectLogsSocketState.value = state;
-      emitProjectLogDebug('subscription-state-changed', {
+      emitApplicationLogDebug('subscription-state-changed', {
         hasSnapshot: projectLogsHasSnapshot.value,
         loading: projectLogLoading.value,
         state,
@@ -1811,18 +1822,18 @@ function syncProjectLogsRealtimeSubscription() {
         !projectLogsRecoveryLoadRequested.value
       ) {
         projectLogsRecoveryLoadRequested.value = true;
-        void loadProjectLogs();
+        void loadApplicationLogs();
       }
     },
     onError: (message) => {
-      emitProjectLogDebug('subscription-error', { message, topic: nextTopic });
+      emitApplicationLogDebug('subscription-error', { message, topic: nextTopic });
       logger.warn('project log realtime subscription error', { message, topic: nextTopic });
     },
   });
 }
 
-function releaseProjectLogsRealtimeSubscription() {
-  emitProjectLogDebug('subscription-releasing', { topic: projectLogsRealtimeTopic });
+function releaseApplicationLogsRealtimeSubscription() {
+  emitApplicationLogDebug('subscription-releasing', { topic: projectLogsRealtimeTopic });
   projectLogsSubscriptionSequence += 1;
   projectLogRealtimeBatcher.flush();
   projectLogsRealtimeTopic = '';
@@ -1831,15 +1842,15 @@ function releaseProjectLogsRealtimeSubscription() {
   projectLogsSocketState.value = 'idle';
 }
 
-async function refreshProjectServices() {
+async function refreshApplicationServices() {
   try {
-    await loadProjectServices(true);
+    await loadApplicationServices(true);
   } catch {
-    // loadProjectServices 已负责提示失败；刷新入口只需保持详情页可继续交互。
+    // loadApplicationServices 已负责提示失败；刷新入口只需保持详情页可继续交互。
   }
 }
 
-function openFirstServiceContainer(service: ProjectServiceItem) {
+function openFirstServiceContainer(service: ApplicationServiceItem) {
   const member = resolveServiceDetailMember(service);
   if (!member) {
     return;
@@ -1965,7 +1976,7 @@ function confirmServiceBatchAction(action: ProjectContainerAction) {
 
 async function runServiceContainerAction(
   action: ProjectContainerAction,
-  services: ProjectServiceItem[],
+  services: ApplicationServiceItem[],
   actionKey: string,
 ) {
   const ids = Array.from(
@@ -1990,7 +2001,7 @@ async function runServiceContainerAction(
     } satisfies ProjectContainerActionSubmission);
     handleServiceBatchActionResult(response);
     try {
-      await refreshProjectRuntimeSurface();
+      await refreshApplicationRuntimeSurface();
     } catch (error) {
       logger.warn('failed to refresh project runtime surface after service action', error);
       MessagePlugin.warning(t('project.detail.services.batch.refreshWarning'));
@@ -2048,49 +2059,52 @@ function capitalizeAction(action: ProjectContainerAction) {
   return `${action.charAt(0).toUpperCase()}${action.slice(1)}`;
 }
 
-async function refreshProjectRuntimeSurface() {
-  if (!projectId.value) {
+async function refreshApplicationRuntimeSurface() {
+  if (!applicationId.value) {
     return;
   }
 
-  const nextDetail = await getProject(projectId.value);
+  const nextDetail = await getApplication(applicationId.value);
   detailRecord.value = nextDetail;
   syncLifecycleState(nextDetail, { preserveDirtyDraft: true });
   updateCurrentTabTitle(buildDetailTitle(nextDetail.display_name));
-  await Promise.all([loadProjectServices(true), loadProjectOverview(true)]);
-  syncProjectRuntimeRealtimeSubscription();
-  syncProjectLifecycleConfigRealtimeSubscription();
-  syncProjectLogsRealtimeSubscription();
+  await Promise.all([loadApplicationServices(true), loadApplicationOverview(true)]);
+  syncApplicationRuntimeRealtimeSubscription();
+  syncApplicationLifecycleConfigRealtimeSubscription();
+  syncApplicationLogsRealtimeSubscription();
 }
 
-function pauseProjectLogs() {
+function pauseApplicationLogs() {
   projectLogPaused.value = true;
 }
 
-function resumeProjectLogs() {
+function resumeApplicationLogs() {
   projectLogPaused.value = false;
-  if (pendingProjectLogSnapshot) {
-    projectLogResponse.value = pendingProjectLogSnapshot;
-    pendingProjectLogSnapshot = null;
+  if (pendingApplicationLogSnapshot) {
+    projectLogResponse.value = pendingApplicationLogSnapshot;
+    pendingApplicationLogSnapshot = null;
     projectLogContentVersion.value += 1;
   }
 }
 
-function clearProjectLogs() {
+function clearApplicationLogs() {
   projectLogPaused.value = false;
-  pendingProjectLogSnapshot = null;
+  pendingApplicationLogSnapshot = null;
   projectLogRealtimeBatcher.clearView();
 }
 
-function updateProjectLogTail(value: number) {
+function updateApplicationLogTail(value: number) {
   if (![100, 200, 500, 1000].includes(value) || projectLogTail.value === value) {
     return;
   }
   projectLogTail.value = value;
-  void loadProjectLogs();
+  void loadApplicationLogs();
 }
 
-function updateProjectOverviewTrends(previous: ProjectOverviewResponse | null, next: ProjectOverviewResponse) {
+function updateApplicationOverviewTrends(
+  previous: ApplicationOverviewResponse | null,
+  next: ApplicationOverviewResponse,
+) {
   const previousCollectedAt = parseActivityTime(previous?.collected_at);
   const nextCollectedAt = parseActivityTime(next.collected_at);
   const durationSeconds =
@@ -2130,7 +2144,7 @@ function updateProjectOverviewTrends(previous: ProjectOverviewResponse | null, n
   };
 }
 
-function resolveMetricDirection(previous?: number | null, next?: number | null): ProjectMetricDirection {
+function resolveMetricDirection(previous?: number | null, next?: number | null): ApplicationMetricDirection {
   if (
     typeof previous !== 'number' ||
     typeof next !== 'number' ||
@@ -2149,7 +2163,7 @@ function resolveMetricDirection(previous?: number | null, next?: number | null):
 }
 
 async function runLifecycleAction(action: 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister') {
-  if (!projectId.value) return;
+  if (!applicationId.value) return;
   if (action === 'unregister' && !(await confirmDangerousAction('unregister'))) {
     return;
   }
@@ -2161,15 +2175,15 @@ async function runLifecycleAction(action: 'up' | 'stop' | 'restart' | 'redeploy'
   try {
     let receipt: { task_id: number } | null = null;
     if (action === 'up') {
-      receipt = await postProjectUp(projectId.value);
+      receipt = await postApplicationUp(applicationId.value);
     } else if (action === 'stop') {
-      receipt = await postProjectStop(projectId.value);
+      receipt = await postApplicationStop(applicationId.value);
     } else if (action === 'restart') {
-      receipt = await postProjectRestart(projectId.value);
+      receipt = await postApplicationRestart(applicationId.value);
     } else if (action === 'redeploy') {
-      receipt = await postProjectRedeploy(projectId.value);
+      receipt = await postApplicationRedeploy(applicationId.value);
     } else {
-      await postProjectUnregister(projectId.value);
+      await postApplicationUnregister(applicationId.value);
     }
     if (receipt) {
       openTaskDrawer(receipt.task_id);
@@ -2190,7 +2204,7 @@ function openTaskDrawer(taskId: number) {
   taskDrawerVisible.value = true;
 }
 
-function isDeleteWorkingDirectoryAllowed() {
+function isDeleteWorkspacePathAllowed() {
   return detailRecord.value?.ownership_mode !== 'external';
 }
 
@@ -2200,7 +2214,7 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
   }
 
   return new Promise<boolean>((resolve) => {
-    const deleteWorkingDirectory = ref(false);
+    const deleteWorkspacePath = ref(false);
     const autoUnregister = ref(action === 'destroy' ? false : true);
     const removeNamedVolumes = ref(false);
     const row = detailRecord.value!;
@@ -2249,17 +2263,17 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
                 ]),
                 h('label', { class: 'project-action-confirm__option' }, [
                   h('input', {
-                    checked: deleteWorkingDirectory.value,
-                    disabled: !isDeleteWorkingDirectoryAllowed(),
+                    checked: deleteWorkspacePath.value,
+                    disabled: !isDeleteWorkspacePathAllowed(),
                     type: 'checkbox',
                     onInput: (event: Event) => {
-                      deleteWorkingDirectory.value = (event.target as HTMLInputElement).checked;
-                      if (deleteWorkingDirectory.value) {
+                      deleteWorkspacePath.value = (event.target as HTMLInputElement).checked;
+                      if (deleteWorkspacePath.value) {
                         autoUnregister.value = true;
                       }
                     },
                   }),
-                  h('span', t('project.list.actions.destroyDeleteProjectFiles')),
+                  h('span', t('project.list.actions.destroyDeleteApplicationFiles')),
                 ]),
               ])
             : null,
@@ -2279,9 +2293,9 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
         }
 
         await runDestroy({
-          auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
+          auto_unregister: autoUnregister.value || deleteWorkspacePath.value,
           confirm_application_id: row.application_id,
-          delete_workspace: deleteWorkingDirectory.value,
+          delete_workspace: deleteWorkspacePath.value,
           image_prune: false,
           remove_named_volumes: removeNamedVolumes.value,
         });
@@ -2291,13 +2305,13 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
   });
 }
 
-async function runDestroy(payload: ProjectDestroyRequest) {
-  if (!projectId.value) {
+async function runDestroy(payload: ApplicationDestroyRequest) {
+  if (!applicationId.value) {
     return;
   }
 
   try {
-    await postProjectDestroy(projectId.value, payload);
+    await postApplicationDestroy(applicationId.value, payload);
     MessagePlugin.success(t('project.list.actions.actionSuccess'));
     await refreshDetail();
   } catch (error) {
@@ -2312,7 +2326,7 @@ async function runDestroyAction() {
 }
 
 async function saveLifecycleConfiguration() {
-  if (!projectId.value || !detailRecord.value) {
+  if (!applicationId.value || !detailRecord.value) {
     return;
   }
   if (
@@ -2324,16 +2338,16 @@ async function saveLifecycleConfiguration() {
   }
   lifecycleSaveLoading.value = true;
   try {
-    const response = await putProjectLifecycleConfiguration(
-      projectId.value,
+    const response = await putApplicationLifecycleConfiguration(
+      applicationId.value,
       buildLifecycleConfigurationRequest(lifecycleDraft),
     );
     detailRecord.value = {
       ...detailRecord.value,
       lifecycle_review_status: response.lifecycle_review_status,
       lifecycle_configuration: response.lifecycle_configuration,
-      workspace_path: response.working_directory,
-      compose_project_name: response.canonical_project_name,
+      workspace_path: response.workspace_path,
+      compose_project_name: response.compose_project_name,
       compose_files: response.compose_files,
     };
     syncLifecycleState(detailRecord.value, { preserveDirtyDraft: false });
@@ -2387,7 +2401,7 @@ function formatRuntimePortLabel(port: ProjectContainerSummary['ports'][number]) 
 }
 
 function buildServiceRuntimePortSummaries(
-  services: ProjectServiceItem[],
+  services: ApplicationServiceItem[],
   containers: ProjectContainerSummary[],
 ): Record<string, string> {
   const labelsByService = new Map<string, Set<string>>();
@@ -2416,12 +2430,12 @@ function buildServiceRuntimePortSummaries(
   );
 }
 
-async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
+async function syncServiceRuntimePortSummaries(services: ApplicationServiceItem[]) {
   const requestId = serviceRuntimePortsRequestId.value + 1;
   serviceRuntimePortsRequestId.value = requestId;
 
-  const canonicalProjectName = (detailRecord.value?.compose_project_name || fallbackCanonicalName.value).trim();
-  if (!canonicalProjectName || services.length === 0) {
+  const composeProjectName = (detailRecord.value?.compose_project_name || fallbackCanonicalName.value).trim();
+  if (!composeProjectName || services.length === 0) {
     if (requestId === serviceRuntimePortsRequestId.value) {
       serviceRuntimePortSummaries.value = {};
       projectRuntimeTarget.value = null;
@@ -2430,7 +2444,7 @@ async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
   }
 
   try {
-    const containers = await fetchProjectRuntimeContainers(canonicalProjectName);
+    const containers = await fetchApplicationRuntimeContainers(composeProjectName);
     if (requestId !== serviceRuntimePortsRequestId.value) {
       return;
     }
@@ -2461,10 +2475,12 @@ function buildConfigurationWorkspaceTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.configurationWorkspace.title', name);
 }
 
-function normalizeDetailTab(value: unknown): ProjectDetailTab {
+function normalizeDetailTab(value: unknown): ApplicationDetailTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  const tabs: ProjectDetailTab[] = ['overview', 'services', 'logs', 'lifecycle', 'tasks'];
-  return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
+  const tabs: ApplicationDetailTab[] = ['overview', 'services', 'logs', 'lifecycle', 'tasks'];
+  return typeof raw === 'string' && tabs.includes(raw as ApplicationDetailTab)
+    ? (raw as ApplicationDetailTab)
+    : 'overview';
 }
 
 function readNameFromTabTitle(title?: LocalizedTitle) {
@@ -2481,7 +2497,7 @@ function updateCurrentTabTitle(title: LocalizedTitle) {
 function openConfigurationWorkspace() {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-    params: { id: projectId.value },
+    params: { applicationId: applicationId.value },
     query: fallbackDisplayName.value ? { name: fallbackDisplayName.value } : undefined,
   };
   const resolved = router.resolve(target);
@@ -2489,11 +2505,11 @@ function openConfigurationWorkspace() {
   void router.push(target);
 }
 
-function resolveServiceDetailMember(service: ProjectServiceItem) {
+function resolveServiceDetailMember(service: ApplicationServiceItem) {
   return service.container_members.find((member) => member.state === 'running') ?? service.container_members[0];
 }
 
-function openContainerDetail(member: ProjectServiceContainerMember) {
+function openContainerDetail(member: ApplicationServiceContainerMember) {
   const target = {
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: member.container_id },

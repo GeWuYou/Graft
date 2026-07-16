@@ -1,8 +1,8 @@
-import type { ProjectServiceItem } from '../types/project';
+import type { ApplicationServiceItem } from '../types/project';
 
-export type ProjectResourceKind = 'containers' | 'networks' | 'volumes';
+export type ApplicationResourceType = 'containers' | 'networks' | 'volumes';
 
-export type ProjectNetworkResourceRow = {
+export type ApplicationNetworkResourceRow = {
   containerCount: number;
   containers: string[];
   driver: string;
@@ -14,7 +14,7 @@ export type ProjectNetworkResourceRow = {
   services: string[];
 };
 
-export type ProjectVolumeResourceRow = {
+export type ApplicationVolumeResourceRow = {
   anonymous: boolean;
   containerCount: number;
   containers: string[];
@@ -33,15 +33,17 @@ type ParsedVolumeMount = {
 
 const UNKNOWN_RESOURCE_VALUE = '-';
 
-function summarizeServiceMembers(service: ProjectServiceItem) {
+function summarizeServiceMembers(service: ApplicationServiceItem) {
   return {
     containerNames: service.container_members.map((member) => member.container_name.trim()).filter(Boolean),
     serviceName: service.service_name.trim(),
   };
 }
 
-export function buildProjectNetworkResourceRows(services: ProjectServiceItem[]): ProjectNetworkResourceRow[] {
-  const rows = new Map<string, ProjectNetworkResourceRow>();
+export function buildApplicationNetworkResourceRows(
+  services: ApplicationServiceItem[],
+): ApplicationNetworkResourceRow[] {
+  const rows = new Map<string, ApplicationNetworkResourceRow>();
 
   for (const service of services) {
     const { containerNames, serviceName } = summarizeServiceMembers(service);
@@ -71,7 +73,7 @@ export function buildProjectNetworkResourceRows(services: ProjectServiceItem[]):
         containerSet.add(containerName);
       }
 
-      const nextRow: ProjectNetworkResourceRow = {
+      const nextRow: ApplicationNetworkResourceRow = {
         ...existing,
         containerCount: containerSet.size,
         containers: Array.from(containerSet).sort(),
@@ -86,8 +88,8 @@ export function buildProjectNetworkResourceRows(services: ProjectServiceItem[]):
   return Array.from(rows.values()).sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function buildProjectVolumeResourceRows(services: ProjectServiceItem[]): ProjectVolumeResourceRow[] {
-  const rows = new Map<string, ProjectVolumeResourceRow>();
+export function buildApplicationVolumeResourceRows(services: ApplicationServiceItem[]): ApplicationVolumeResourceRow[] {
+  const rows = new Map<string, ApplicationVolumeResourceRow>();
 
   for (const service of services) {
     const { containerNames, serviceName } = summarizeServiceMembers(service);
@@ -116,7 +118,7 @@ export function buildProjectVolumeResourceRows(services: ProjectServiceItem[]): 
         containerSet.add(containerName);
       }
 
-      const nextRow: ProjectVolumeResourceRow = {
+      const nextRow: ApplicationVolumeResourceRow = {
         ...existing,
         anonymous: existing.anonymous && parsedMount.anonymous,
         containerCount: containerSet.size,
@@ -131,7 +133,7 @@ export function buildProjectVolumeResourceRows(services: ProjectServiceItem[]): 
   return Array.from(rows.values()).sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function paginateProjectResourceRows<T>(rows: T[], current: number, pageSize: number) {
+export function paginateApplicationResourceRows<T>(rows: T[], current: number, pageSize: number) {
   if (pageSize <= 0) {
     return rows;
   }

@@ -1,0 +1,5 @@
+type: string
+description: Canonical lifecycle execution strategy kind owned by the application module.
+enum: [standard]
+x-enum-varnames:
+  - ApplicationLifecycleStrategyKindStandard

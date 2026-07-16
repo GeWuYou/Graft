@@ -20,7 +20,7 @@ func TestValidateManagedCreateAcceptsLabbyWorkspaceManifest(t *testing.T) {
 
 	compose := "services:\n  labby:\n    image: ghcr.io/samuelloranger/labby:latest\n    restart: unless-stopped\n    ports:\n      - \\\"8080:8080\\\"\n    volumes:\n      - ./config:/app/config\n"
 	dashboard := "{\n  \\\"title\\\": \\\"Labby E2E\\\"\n}\n"
-	result, err := service.ValidateManagedCreate(context.Background(), ManagedProjectCreateRequest{
+	result, err := service.ValidateManagedCreate(context.Background(), ManagedApplicationCreateRequest{
 		DisplayName:        "拉布",
 		RuntimeTargetID:    1,
 		ApplicationName:    stringPointer("labby"),
@@ -94,19 +94,19 @@ func TestValidateManagedCreateClassifiesInvalidCompose(t *testing.T) {
 
 func TestManagedCreationCommandUsesComputedCanonicalNameSource(t *testing.T) {
 	command := managedCreationCommand(
-		ManagedProjectCreateValidationResult{ComposeProjectName: "labby", WorkspacePath: "/srv/applications/labby"},
+		ManagedApplicationCreateValidationResult{ComposeProjectName: "labby", WorkspacePath: "/srv/applications/labby"},
 		normalizedManagedCreateRequest{DisplayName: "拉布"},
 		projectcompose.Result{},
 		nil,
 	)
-	if command.CanonicalProjectNameSource != projectcontract.CanonicalProjectNameSourceComputed.String() {
-		t.Fatalf("expected computed canonical name source, got %q", command.CanonicalProjectNameSource)
+	if command.ComposeProjectNameSource != projectcontract.ComposeProjectNameSourceComputed.String() {
+		t.Fatalf("expected computed canonical name source, got %q", command.ComposeProjectNameSource)
 	}
 }
 
-func managedCreateDiagnosticRequest() ManagedProjectCreateRequest {
+func managedCreateDiagnosticRequest() ManagedApplicationCreateRequest {
 	compose := "services:\n  labby:\n    image: ghcr.io/samuelloranger/labby:latest\n"
-	return ManagedProjectCreateRequest{
+	return ManagedApplicationCreateRequest{
 		DisplayName:        "拉布",
 		RuntimeTargetID:    1,
 		ApplicationName:    stringPointer("labby"),

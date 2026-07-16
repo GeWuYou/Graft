@@ -37,7 +37,7 @@ func managedWorkspaceEntries(compose string) []ManagedWorkspaceEntry {
 	return []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: &compose}}
 }
 
-func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
+func TestCreateTemplateApplicationUsesSharedCreationPipeline(t *testing.T) {
 	managedRoot := t.TempDir()
 	repository := &stubProjectRepository{}
 	service, err := NewService(repository, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
@@ -45,16 +45,16 @@ func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.CreateTemplateProject(context.Background(), TemplateProjectCreateRequest{
+	result, err := service.CreateTemplateApplication(context.Background(), TemplateApplicationCreateRequest{
 		DisplayName: "Template project", ApplicationName: stringPointer("template-project"), TemplateKey: defaultTemplateKey, TemplateVersion: defaultTemplateVersion,
 	}, nil)
 	if err != nil {
 		t.Fatalf("create template project: %v", err)
 	}
-	if result.SourceType != projectcontract.SourceKindTemplate.String() {
+	if result.SourceType != projectcontract.SourceTypeTemplate.String() {
 		t.Fatalf("expected template source type, got %q", result.SourceType)
 	}
-	if repository.importInput == nil || repository.importInput.SourceKind != projectcontract.SourceKindTemplate.String() {
+	if repository.importInput == nil || repository.importInput.SourceType != projectcontract.SourceTypeTemplate.String() {
 		t.Fatalf("expected shared creation aggregate for template, got %#v", repository.importInput)
 	}
 	if repository.importInput.SourceMetadata["template_key"] != defaultTemplateKey || repository.importInput.SourceMetadata["template_version"] != defaultTemplateVersion {
@@ -65,13 +65,13 @@ func TestCreateTemplateProjectUsesSharedCreationPipeline(t *testing.T) {
 	}
 }
 
-func TestValidateTemplateProjectDoesNotSeedDefaultTemplate(t *testing.T) {
+func TestValidateTemplateApplicationDoesNotSeedDefaultTemplate(t *testing.T) {
 	root := t.TempDir()
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: root}))
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	_, err = service.ValidateTemplateProject(context.Background(), TemplateProjectCreateRequest{DisplayName: "Template project"})
+	_, err = service.ValidateTemplateApplication(context.Background(), TemplateApplicationCreateRequest{DisplayName: "Template project"})
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected unavailable template error, got %v", err)
 	}
@@ -85,7 +85,7 @@ func TestResolveTemplateWorkspaceRejectsUnsupportedVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	_, _, err = service.resolveTemplateWorkspace(context.Background(), TemplateProjectCreateRequest{TemplateVersion: "v2"}, false)
+	_, _, err = service.resolveTemplateWorkspace(context.Background(), TemplateApplicationCreateRequest{TemplateVersion: "v2"}, false)
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected unsupported version rejection, got %v", err)
 	}
@@ -102,7 +102,7 @@ func TestBlankCreatePrefillDefaultTemplatePropagatesConfigErrors(t *testing.T) {
 	}
 }
 
-func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorkspace(t *testing.T) {
+func TestCreateManagedApplicationChecksRuntimeComposeNameWithoutRetainingFailedWorkspace(t *testing.T) {
 	managedRoot := t.TempDir()
 	repository := &stubProjectRepository{}
 	service, err := NewService(repository,
@@ -112,7 +112,7 @@ func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorks
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+	_, err = service.CreateManagedApplication(context.Background(), ManagedApplicationCreateRequest{
 		DisplayName: "Demo", RuntimeTargetID: 7, ApplicationName: stringPointer("demo"), ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if !errors.Is(err, errProjectComposeNameOccupied) || !errors.Is(err, errProjectConflict) {
@@ -126,7 +126,7 @@ func TestCreateManagedProjectChecksRuntimeComposeNameWithoutRetainingFailedWorks
 	}
 }
 
-func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
+func TestCreateManagedApplicationAllowsUnavailableRuntimeTarget(t *testing.T) {
 	managedRoot := t.TempDir()
 	repository := &stubProjectRepository{}
 	service, err := NewService(repository,
@@ -136,7 +136,7 @@ func TestCreateManagedProjectAllowsUnavailableRuntimeTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+	_, err = service.CreateManagedApplication(context.Background(), ManagedApplicationCreateRequest{
 		DisplayName: "Demo", RuntimeTargetID: 7, ApplicationName: stringPointer("demo"), ComposeFileName: "compose.yaml", ComposeFileContent: "services: {}\n", ComposeFilePath: "compose.yaml", WorkspaceEntries: managedWorkspaceEntries("services: {}\n"),
 	}, nil)
 	if err != nil {
@@ -153,7 +153,7 @@ func TestEnsureLifecycleRuntimeTargetAvailableAllowsRegisteredComposeName(t *tes
 		t.Fatalf("new service: %v", err)
 	}
 	targetID := uint64(7)
-	err = service.ensureLifecycleRuntimeTargetAvailable(context.Background(), projectstore.ProjectAggregate{Project: projectstore.Project{RuntimeTargetID: &targetID, ComposeProjectName: "demo"}})
+	err = service.ensureLifecycleRuntimeTargetAvailable(context.Background(), projectstore.ApplicationAggregate{Application: projectstore.Application{RuntimeTargetID: &targetID, ComposeProjectName: "demo"}})
 	if err != nil {
 		t.Fatalf("expected registered project lifecycle to ignore its occupied Compose name, got %v", err)
 	}
@@ -165,7 +165,7 @@ func TestEnsureLifecycleRuntimeTargetAvailableRejectsUnavailableTarget(t *testin
 		t.Fatalf("new service: %v", err)
 	}
 	targetID := uint64(7)
-	err = service.ensureLifecycleRuntimeTargetAvailable(context.Background(), projectstore.ProjectAggregate{Project: projectstore.Project{RuntimeTargetID: &targetID}})
+	err = service.ensureLifecycleRuntimeTargetAvailable(context.Background(), projectstore.ApplicationAggregate{Application: projectstore.Application{RuntimeTargetID: &targetID}})
 	if !errors.Is(err, errProjectRuntimeUnavailable) {
 		t.Fatalf("expected unavailable runtime target to block lifecycle, got %v", err)
 	}

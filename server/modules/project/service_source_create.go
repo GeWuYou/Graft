@@ -10,8 +10,8 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 )
 
-// TemplateProjectCreateRequest 选择一个由操作员管理的工作区模板。
-type TemplateProjectCreateRequest struct {
+// TemplateApplicationCreateRequest 选择一个由操作员管理的工作区模板。
+type TemplateApplicationCreateRequest struct {
 	DisplayName          string
 	RuntimeTargetID      uint64
 	ApplicationName      *string
@@ -21,28 +21,28 @@ type TemplateProjectCreateRequest struct {
 	LifecycleConfig      *LifecycleStandardConfig
 }
 
-// CreateTemplateProject 将操作员管理的运行时模板物化为工作区，并通过共享流水线登记项目。
-func (s *Service) CreateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
+// CreateTemplateApplication 将操作员管理的运行时模板物化为工作区，并通过共享流水线登记项目。
+func (s *Service) CreateTemplateApplication(ctx context.Context, request TemplateApplicationCreateRequest, actorID *uint64) (ManagedApplicationCreateResult, error) {
 	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request, true)
 	if err != nil {
-		return ManagedProjectCreateResult{}, err
+		return ManagedApplicationCreateResult{}, err
 	}
-	return s.createMaterializedSourceProject(ctx, workspace, projectcontract.SourceKindTemplate.String(), metadata, actorID)
+	return s.createMaterializedSourceApplication(ctx, workspace, projectcontract.SourceTypeTemplate.String(), metadata, actorID)
 }
 
-// ValidateTemplateProject 校验运行时模板及其最终受管根目录目标，不写入工作区。
-func (s *Service) ValidateTemplateProject(ctx context.Context, request TemplateProjectCreateRequest) (ManagedProjectCreateValidationResult, error) {
+// ValidateTemplateApplication 校验运行时模板及其最终受管根目录目标，不写入工作区。
+func (s *Service) ValidateTemplateApplication(ctx context.Context, request TemplateApplicationCreateRequest) (ManagedApplicationCreateValidationResult, error) {
 	workspace, metadata, err := s.resolveTemplateWorkspace(ctx, request, false)
 	if err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
-	return s.validateMaterializedSource(ctx, workspace, projectcontract.SourceKindTemplate.String(), metadata)
+	return s.validateMaterializedSource(ctx, workspace, projectcontract.SourceTypeTemplate.String(), metadata)
 }
 
-func (s *Service) validateMaterializedSource(ctx context.Context, request ManagedProjectCreateRequest, sourceType string, metadata map[string]string) (ManagedProjectCreateValidationResult, error) {
+func (s *Service) validateMaterializedSource(ctx context.Context, request ManagedApplicationCreateRequest, sourceType string, metadata map[string]string) (ManagedApplicationCreateValidationResult, error) {
 	result, err := s.ValidateManagedCreate(ctx, request)
 	if err != nil {
-		return ManagedProjectCreateValidationResult{}, err
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 	result.SourceType = sourceType
 	result.SourceMetadata = metadata
@@ -50,21 +50,21 @@ func (s *Service) validateMaterializedSource(ctx context.Context, request Manage
 	return result, nil
 }
 
-func (s *Service) createMaterializedSourceProject(ctx context.Context, request ManagedProjectCreateRequest, sourceType string, metadata map[string]string, actorID *uint64) (result ManagedProjectCreateResult, err error) {
+func (s *Service) createMaterializedSourceApplication(ctx context.Context, request ManagedApplicationCreateRequest, sourceType string, metadata map[string]string, actorID *uint64) (result ManagedApplicationCreateResult, err error) {
 	validation, err := s.validateMaterializedSource(ctx, request, sourceType, metadata)
 	if err != nil {
-		return ManagedProjectCreateResult{}, err
+		return ManagedApplicationCreateResult{}, err
 	}
 	normalized, err := normalizeManagedCreateRequest(request)
 	if err != nil {
-		return ManagedProjectCreateResult{}, err
+		return ManagedApplicationCreateResult{}, err
 	}
 	if err := ensureManagedCreatePathsUnderRoot(validation); err != nil {
-		return ManagedProjectCreateResult{}, err
+		return ManagedApplicationCreateResult{}, err
 	}
-	createdDir, createdFiles, err := writeManagedProjectFiles(validation, normalized)
+	createdDir, createdFiles, err := writeManagedApplicationFiles(validation, normalized)
 	if err != nil {
-		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return ManagedApplicationCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
 	cleanup := true
 	defer func() {
@@ -72,20 +72,20 @@ func (s *Service) createMaterializedSourceProject(ctx context.Context, request M
 			err = errors.Join(err, cleanupManagedCreate(createdDir, createdFiles))
 		}
 	}()
-	parseResult, err := projectcompose.Load(projectcompose.Input{WorkingDirectory: validation.WorkingDirectory, ComposeFiles: []string{validation.ComposeFileAbsolutePath}, EnvFiles: managedCreateEnvFileList(validation.EnvFileAbsolutePath)})
+	parseResult, err := projectcompose.Load(projectcompose.Input{WorkspacePath: validation.WorkspacePath, ComposeFiles: []string{validation.ComposeFileAbsolutePath}, EnvFiles: managedCreateEnvFileList(validation.EnvFileAbsolutePath)})
 	if err != nil {
-		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return ManagedApplicationCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: normalized.DisplayName, CanonicalProjectName: validation.ComposeProjectName, CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceComputed.String(), SourceKind: sourceType, HostScope: projectcontract.HostScopeLocal.String(), WorkingDirectory: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: metadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName})
+	aggregate, now, err := s.createProjectFromWorkspace(ctx, CreationCommand{DisplayName: normalized.DisplayName, ComposeProjectName: validation.ComposeProjectName, ComposeProjectNameSource: projectcontract.ComposeProjectNameSourceComputed.String(), SourceType: sourceType, WorkspacePath: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: metadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName})
 	if err != nil {
-		return ManagedProjectCreateResult{}, err
+		return ManagedApplicationCreateResult{}, err
 	}
 	cleanup = false
-	return ManagedProjectCreateResult{Validation: validation, SourceType: sourceType, ProjectID: aggregate.Project.ID, ApplicationID: aggregate.Project.ApplicationID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
+	return ManagedApplicationCreateResult{Validation: validation, SourceType: sourceType, ApplicationRecordID: aggregate.Application.ApplicationRecordID, ApplicationID: aggregate.Application.ApplicationID, ConfigHash: parseResult.ConfigHash, DeclaredServiceCount: len(parseResult.ServiceNames), RefreshedAt: now}, nil
 }
 
 // resolveTemplateWorkspace 将完整运行时模板目录加载为一个受管创建请求。
-func (s *Service) resolveTemplateWorkspace(ctx context.Context, request TemplateProjectCreateRequest, seedDefault bool) (ManagedProjectCreateRequest, map[string]string, error) {
+func (s *Service) resolveTemplateWorkspace(ctx context.Context, request TemplateApplicationCreateRequest, seedDefault bool) (ManagedApplicationCreateRequest, map[string]string, error) {
 	key := strings.TrimSpace(request.TemplateKey)
 	if key == "" {
 		key = defaultTemplateKey
@@ -95,27 +95,27 @@ func (s *Service) resolveTemplateWorkspace(ctx context.Context, request Template
 		version = defaultTemplateVersion
 	}
 	if version != defaultTemplateVersion {
-		return ManagedProjectCreateRequest{}, nil, fmt.Errorf("%w: unsupported template version", errProjectInvalidArgument)
+		return ManagedApplicationCreateRequest{}, nil, fmt.Errorf("%w: unsupported template version", errProjectInvalidArgument)
 	}
 	root, err := s.applicationRootDirectory(ctx)
 	if err != nil {
-		return ManagedProjectCreateRequest{}, nil, err
+		return ManagedApplicationCreateRequest{}, nil, err
 	}
 	if seedDefault {
 		if err := seedDefaultWorkspaceTemplate(root); err != nil {
-			return ManagedProjectCreateRequest{}, nil, err
+			return ManagedApplicationCreateRequest{}, nil, err
 		}
 	}
 	workspaceEntries, composeContent, err := loadTemplateCreateEntries(root, key)
 	if err != nil {
-		return ManagedProjectCreateRequest{}, nil, fmt.Errorf("%w: template %s is unavailable", errProjectInvalidArgument, key)
+		return ManagedApplicationCreateRequest{}, nil, fmt.Errorf("%w: template %s is unavailable", errProjectInvalidArgument, key)
 	}
 	composePath := "compose.yaml"
 	instance := strings.TrimSpace(request.TemplateInstanceName)
 	if instance == "" {
 		instance = stringValue(request.ApplicationName)
 	}
-	return ManagedProjectCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, ApplicationName: request.ApplicationName, ComposeFileName: composePath, ComposeFileContent: composeContent, ComposeFilePath: composePath, WorkspaceEntries: workspaceEntries, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
+	return ManagedApplicationCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, ApplicationName: request.ApplicationName, ComposeFileName: composePath, ComposeFileContent: composeContent, ComposeFilePath: composePath, WorkspaceEntries: workspaceEntries, LifecycleConfig: request.LifecycleConfig}, map[string]string{"template_key": key, "template_version": version, "template_instance_name": instance}, nil
 }
 
 // loadTemplateCreateEntries 加载指定模板的工作区条目，并返回其 compose.yaml 内容。

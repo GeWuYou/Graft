@@ -26,141 +26,140 @@ import (
 )
 
 type stubProjectRepository struct {
-	aggregate        projectstore.ProjectAggregate
+	aggregate        projectstore.ApplicationAggregate
 	listInput        *projectstore.ListQuery
 	unregisterCalled bool
-	unregisterInput  *projectstore.UnregisterProjectInput
+	unregisterInput  *projectstore.UnregisterApplicationInput
 	unregisterErr    error
-	importInput      *projectstore.ImportProjectInput
-	refreshInput     *projectstore.RefreshProjectInput
+	importInput      *projectstore.ImportApplicationInput
+	refreshInput     *projectstore.RefreshApplicationInput
 	refreshErr       error
-	refreshFn        func(projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error)
+	refreshFn        func(projectstore.RefreshApplicationInput) (projectstore.ApplicationAggregate, error)
 	getCalls         int
 }
 
 func (s *stubProjectRepository) List(_ context.Context, query projectstore.ListQuery) (projectstore.ListResult, error) {
 	recorded := query
 	s.listInput = &recorded
-	return projectstore.ListResult{Items: []projectstore.ProjectAggregate{s.aggregate}, Total: 1}, nil
+	return projectstore.ListResult{Items: []projectstore.ApplicationAggregate{s.aggregate}, Total: 1}, nil
 }
 
 func (s *stubProjectRepository) BackfillRuntimeTarget(context.Context, uint64) error { return nil }
 
-func (s *stubProjectRepository) Get(context.Context, uint64) (projectstore.ProjectAggregate, error) {
+func (s *stubProjectRepository) Get(context.Context, uint64) (projectstore.ApplicationAggregate, error) {
 	s.getCalls++
-	if s.aggregate.Project.ID == 0 {
-		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+	if s.aggregate.Application.ApplicationRecordID == 0 {
+		return projectstore.ApplicationAggregate{}, projectstore.ErrApplicationNotFound
 	}
-	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+	return ensureStubApplicationAggregateDefaults(s.aggregate), nil
 }
 
-func (s *stubProjectRepository) GetFile(context.Context, uint64, uint64) (projectstore.ProjectFile, error) {
-	return projectstore.ProjectFile{}, projectstore.ErrFileNotFound
+func (s *stubProjectRepository) GetFile(context.Context, uint64, uint64) (projectstore.ApplicationFile, error) {
+	return projectstore.ApplicationFile{}, projectstore.ErrFileNotFound
 }
 
-func (s *stubProjectRepository) GetByApplicationName(_ context.Context, applicationName string) (projectstore.ProjectAggregate, error) {
-	if s.aggregate.Project.ApplicationName == nil || *s.aggregate.Project.ApplicationName != applicationName || s.aggregate.Project.ID == 0 {
-		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
+func (s *stubProjectRepository) GetByApplicationName(_ context.Context, applicationName string) (projectstore.ApplicationAggregate, error) {
+	if s.aggregate.Application.ApplicationName == nil || *s.aggregate.Application.ApplicationName != applicationName || s.aggregate.Application.ApplicationRecordID == 0 {
+		return projectstore.ApplicationAggregate{}, projectstore.ErrApplicationNotFound
 	}
-	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+	return ensureStubApplicationAggregateDefaults(s.aggregate), nil
 }
 
-func (s *stubProjectRepository) ImportProject(_ context.Context, input projectstore.ImportProjectInput) (projectstore.ProjectAggregate, error) {
+func (s *stubProjectRepository) ImportApplication(_ context.Context, input projectstore.ImportApplicationInput) (projectstore.ApplicationAggregate, error) {
 	s.importInput = &input
-	if s.aggregate.Project.ID == 0 {
-		s.aggregate.Project.ID = 99
+	if s.aggregate.Application.ApplicationRecordID == 0 {
+		s.aggregate.Application.ApplicationRecordID = 99
 	}
-	s.aggregate.Project.DisplayName = input.DisplayName
-	s.aggregate.Project.CanonicalProjectName = input.CanonicalProjectName
-	s.aggregate.Project.CanonicalProjectNameSource = input.CanonicalProjectNameSource
-	s.aggregate.Project.SourceKind = input.SourceKind
-	s.aggregate.Project.HostScope = input.HostScope
-	s.aggregate.Project.WorkingDirectory = input.WorkingDirectory
-	s.aggregate.Project.OwnershipMode = input.OwnershipMode
-	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
-	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
-	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
-	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
-	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
-	s.aggregate.Project.DriftStatus = input.DriftStatus
-	files := append([]projectstore.ProjectFile(nil), input.Files...)
+	s.aggregate.Application.DisplayName = input.DisplayName
+	s.aggregate.Application.ComposeProjectName = input.ComposeProjectName
+	s.aggregate.Application.ComposeProjectNameSource = input.ComposeProjectNameSource
+	s.aggregate.Application.SourceType = input.SourceType
+	s.aggregate.Application.WorkspacePath = input.WorkspacePath
+	s.aggregate.Application.OwnershipMode = input.OwnershipMode
+	s.aggregate.Application.LifecycleStrategyKind = input.LifecycleStrategyKind
+	s.aggregate.Application.LifecycleReviewStatus = input.LifecycleReviewStatus
+	s.aggregate.Application.LifecycleConfig = input.LifecycleConfig
+	s.aggregate.Application.LastObservedConfigHash = input.LastObservedConfigHash
+	s.aggregate.Application.LastDriftCheckedAt = input.LastDriftCheckedAt
+	s.aggregate.Application.DriftStatus = input.DriftStatus
+	files := append([]projectstore.ApplicationFile(nil), input.Files...)
 	for index := range files {
 		if files[index].ID == 0 {
 			files[index].ID = uint64(index + 1)
 		}
-		files[index].ProjectID = s.aggregate.Project.ID
+		files[index].ApplicationRecordID = s.aggregate.Application.ApplicationRecordID
 	}
 	s.aggregate.Files = files
 	s.aggregate.Snapshot = input.Snapshot
-	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+	return ensureStubApplicationAggregateDefaults(s.aggregate), nil
 }
 
-func (s *stubProjectRepository) RefreshProject(_ context.Context, input projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
+func (s *stubProjectRepository) RefreshApplication(_ context.Context, input projectstore.RefreshApplicationInput) (projectstore.ApplicationAggregate, error) {
 	recorded := input
 	s.refreshInput = &recorded
 	if s.refreshFn != nil {
 		return s.refreshFn(input)
 	}
 	if s.refreshErr != nil {
-		return projectstore.ProjectAggregate{}, s.refreshErr
+		return projectstore.ApplicationAggregate{}, s.refreshErr
 	}
-	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
-	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
-	s.aggregate.Project.DriftStatus = input.DriftStatus
-	s.aggregate.Files = append([]projectstore.ProjectFile(nil), input.Files...)
+	s.aggregate.Application.LastObservedConfigHash = input.LastObservedConfigHash
+	s.aggregate.Application.LastDriftCheckedAt = input.LastDriftCheckedAt
+	s.aggregate.Application.DriftStatus = input.DriftStatus
+	s.aggregate.Files = append([]projectstore.ApplicationFile(nil), input.Files...)
 	s.aggregate.Snapshot = input.Snapshot
-	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+	return ensureStubApplicationAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) UpdateLifecycleConfig(
 	_ context.Context,
 	input projectstore.UpdateLifecycleConfigInput,
-) (projectstore.ProjectAggregate, error) {
-	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
-	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
-	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
-	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+) (projectstore.ApplicationAggregate, error) {
+	s.aggregate.Application.LifecycleStrategyKind = input.LifecycleStrategyKind
+	s.aggregate.Application.LifecycleReviewStatus = input.LifecycleReviewStatus
+	s.aggregate.Application.LifecycleConfig = input.LifecycleConfig
+	return ensureStubApplicationAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) UpdateWorkspaceAnnotation(
 	_ context.Context,
 	input projectstore.UpdateWorkspaceAnnotationInput,
-) (projectstore.ProjectAggregate, error) {
-	if s.aggregate.Project.WorkspaceAnnotations == nil {
-		s.aggregate.Project.WorkspaceAnnotations = map[string]string{}
+) (projectstore.ApplicationAggregate, error) {
+	if s.aggregate.Application.WorkspaceAnnotations == nil {
+		s.aggregate.Application.WorkspaceAnnotations = map[string]string{}
 	}
 	if input.Annotation == nil {
-		delete(s.aggregate.Project.WorkspaceAnnotations, input.RelativePath)
+		delete(s.aggregate.Application.WorkspaceAnnotations, input.RelativePath)
 	} else {
-		s.aggregate.Project.WorkspaceAnnotations[input.RelativePath] = *input.Annotation
+		s.aggregate.Application.WorkspaceAnnotations[input.RelativePath] = *input.Annotation
 	}
-	return ensureStubProjectAggregateDefaults(s.aggregate), nil
+	return ensureStubApplicationAggregateDefaults(s.aggregate), nil
 }
 
-func (s *stubProjectRepository) UnregisterProject(_ context.Context, input projectstore.UnregisterProjectInput) error {
+func (s *stubProjectRepository) UnregisterApplication(_ context.Context, input projectstore.UnregisterApplicationInput) error {
 	s.unregisterCalled = true
 	recorded := input
 	s.unregisterInput = &recorded
 	return s.unregisterErr
 }
 
-func ensureStubProjectAggregateDefaults(aggregate projectstore.ProjectAggregate) projectstore.ProjectAggregate {
-	if aggregate.Project.LifecycleStrategyKind == "" {
-		aggregate.Project.LifecycleStrategyKind = projectcontract.LifecycleStrategyKindStandard.String()
+func ensureStubApplicationAggregateDefaults(aggregate projectstore.ApplicationAggregate) projectstore.ApplicationAggregate {
+	if aggregate.Application.LifecycleStrategyKind == "" {
+		aggregate.Application.LifecycleStrategyKind = projectcontract.LifecycleStrategyKindStandard.String()
 	}
-	if aggregate.Project.LifecycleReviewStatus == "" {
-		aggregate.Project.LifecycleReviewStatus = projectcontract.LifecycleReviewStatusConfirmed.String()
+	if aggregate.Application.LifecycleReviewStatus == "" {
+		aggregate.Application.LifecycleReviewStatus = projectcontract.LifecycleReviewStatusConfirmed.String()
 	}
-	if len(aggregate.Files) == 0 && aggregate.Project.WorkingDirectory != "" {
-		aggregate.Files = []projectstore.ProjectFile{
+	if len(aggregate.Files) == 0 && aggregate.Application.WorkspacePath != "" {
+		aggregate.Files = []projectstore.ApplicationFile{
 			{
-				ID:           1,
-				ProjectID:    aggregate.Project.ID,
-				Kind:         projectcontract.FileKindCompose.String(),
-				Role:         projectcontract.FileRolePrimary.String(),
-				AbsolutePath: filepath.Join(aggregate.Project.WorkingDirectory, "compose.yaml"),
-				DisplayPath:  "compose.yaml",
-				OrderIndex:   0,
+				ID:                  1,
+				ApplicationRecordID: aggregate.Application.ApplicationRecordID,
+				Kind:                projectcontract.FileKindCompose.String(),
+				Role:                projectcontract.FileRolePrimary.String(),
+				AbsolutePath:        filepath.Join(aggregate.Application.WorkspacePath, "compose.yaml"),
+				DisplayPath:         "compose.yaml",
+				OrderIndex:          0,
 			},
 		}
 	}
@@ -223,7 +222,7 @@ func (b *capturedAuditBus) waitForEvents(t *testing.T, count int, timeout time.D
 	}
 }
 
-func authenticatedProjectActionContext() context.Context {
+func authenticatedApplicationActionContext() context.Context {
 	ctx := context.Background()
 	ctx = moduleapi.WithRequestAuthContext(ctx, moduleapi.RequestAuthContext{
 		User: &moduleapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"},
@@ -319,29 +318,28 @@ func TestServicesMergesRuntimeMembers(t *testing.T) {
 	}
 	now := time.Now().UTC()
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            "local",
-				WorkingDirectory:     tempDir,
-				OwnershipMode:        "external",
-				DriftStatus:          "clean",
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       tempDir,
+				OwnershipMode:       "external",
+				DriftStatus:         "clean",
 			},
-			Files: []projectstore.ProjectFile{
+			Files: []projectstore.ApplicationFile{
 				{
-					ID:           1,
-					ProjectID:    1,
-					Kind:         "compose",
-					Role:         "primary",
-					AbsolutePath: composePath,
-					DisplayPath:  composePath,
-					OrderIndex:   0,
+					ID:                  1,
+					ApplicationRecordID: 1,
+					Kind:                "compose",
+					Role:                "primary",
+					AbsolutePath:        composePath,
+					DisplayPath:         composePath,
+					OrderIndex:          0,
 				},
 			},
 			Snapshot: &projectstore.Snapshot{
-				ProjectID:            1,
+				ApplicationRecordID:  1,
 				ConfigHash:           "hash",
 				DeclaredServiceCount: 2,
 				RefreshedAt:          now,
@@ -389,17 +387,16 @@ func TestOverviewAggregatesRuntimeResources(t *testing.T) {
 	}
 	now := time.Now().UTC()
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   9,
-				CanonicalProjectName: "demo",
-				WorkingDirectory:     tempDir,
-				HostScope:            "local",
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 9,
+				ComposeProjectName:  "demo",
+				WorkspacePath:       tempDir,
 			},
-			Files: []projectstore.ProjectFile{
+			Files: []projectstore.ApplicationFile{
 				{Kind: "compose", Role: "primary", AbsolutePath: composePath, DisplayPath: "compose.yaml", OrderIndex: 1},
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 9, ConfigHash: "cfg-demo", RefreshedAt: now},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 9, ConfigHash: "cfg-demo", RefreshedAt: now},
 		},
 	}
 	service, err := NewService(
@@ -467,43 +464,42 @@ func TestOverviewAggregatesRuntimeResources(t *testing.T) {
 	if len(response.Services) != 2 {
 		t.Fatalf("expected two overview services, got %#v", response.Services)
 	}
-	if response.Services[0].ServiceName != "web" || response.Services[0].Status != generated.ProjectOverviewServiceItemStatus("running") {
+	if response.Services[0].ServiceName != "web" || response.Services[0].Status != generated.ApplicationOverviewServiceItemStatus("running") {
 		t.Fatalf("unexpected first overview service %#v", response.Services[0])
 	}
-	if response.Services[1].ServiceName != "worker" || response.Services[1].Health != generated.ProjectOverviewServiceItemHealth("attention") {
+	if response.Services[1].ServiceName != "worker" || response.Services[1].Health != generated.ApplicationOverviewServiceItemHealth("attention") {
 		t.Fatalf("unexpected second overview service %#v", response.Services[1])
 	}
 }
 
-func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
+func TestDestroyBlocksExternalWorkspacePathDeletion(t *testing.T) {
 	t.Parallel()
 
 	tempDir := t.TempDir()
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            "local",
-				WorkingDirectory:     tempDir,
-				OwnershipMode:        "external",
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       tempDir,
+				OwnershipMode:       "external",
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	result, err := service.Destroy(authenticatedProjectActionContext(), 1, DestroyRequest{
-		DeleteWorkingDirectory:      true,
-		ConfirmCanonicalProjectName: "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+	result, err := service.Destroy(authenticatedApplicationActionContext(), 1, DestroyRequest{
+		DeleteWorkspacePath:       true,
+		ConfirmComposeProjectName: "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
 	})
 	if !errors.Is(err, errProjectDestroyBlocked) {
 		t.Fatalf("expected destroy blocked, got %v", err)
 	}
-	if result.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+	if result.Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
 		t.Fatalf("expected blocked result, got %s", result.Result)
 	}
 	if repo.unregisterCalled {
@@ -515,15 +511,14 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     t.TempDir(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       t.TempDir(),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -533,11 +528,11 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 	auditBus := &capturedAuditBus{}
 	service.SetAuditPublisher(auditBus, nil, moduleID)
 
-	result, err := service.Unregister(authenticatedProjectActionContext(), 1, nil)
+	result, err := service.Unregister(authenticatedApplicationActionContext(), 1, nil)
 	if err != nil {
 		t.Fatalf("unregister: %v", err)
 	}
-	if result.Result != generated.ProjectActionResponseResultProjectActionResultCompleted {
+	if result.Result != generated.ApplicationActionResponseResultApplicationActionResultCompleted {
 		t.Fatalf("expected completed result, got %#v", result)
 	}
 	if repo.unregisterInput == nil || repo.unregisterInput.ActorID == nil || *repo.unregisterInput.ActorID != 7 {
@@ -547,7 +542,7 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected one audit event, got %d", len(events))
 	}
-	if events[0].Action != projectcontract.ProjectAuditActionUnregister.String() {
+	if events[0].Action != projectcontract.ApplicationAuditActionUnregister.String() {
 		t.Fatalf("expected unregister audit action, got %#v", events[0])
 	}
 	if events[0].Operator == nil || events[0].Operator.ID != 7 {
@@ -559,15 +554,14 @@ func TestUnregisterFailsClosedWithoutRequestActor(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     t.TempDir(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       t.TempDir(),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -580,7 +574,7 @@ func TestUnregisterFailsClosedWithoutRequestActor(t *testing.T) {
 	if !errors.Is(err, errProjectActorAttribution) {
 		t.Fatalf("expected actor attribution error, got %v", err)
 	}
-	if result.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+	if result.Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
 		t.Fatalf("expected blocked result, got %#v", result)
 	}
 	if len(result.GuardResults) != 1 || result.GuardResults[0].Code != "actor_attribution_required" {
@@ -601,9 +595,9 @@ func TestBatchActionFailsClosedWithoutRequestActor(t *testing.T) {
 	actorID := uint64(7)
 
 	result, err := service.BatchAction(context.Background(), BatchActionRequest{
-		Action:     generated.ProjectBatchActionRequestActionStart,
-		ProjectIDs: []uint64{1, 2},
-		ActorID:    &actorID,
+		Action:               generated.ApplicationBatchActionRequestActionStart,
+		ApplicationRecordIDs: []uint64{1, 2},
+		ActorID:              &actorID,
 	})
 	if err != nil {
 		t.Fatalf("batch action should fail closed through result semantics, got %v", err)
@@ -612,7 +606,7 @@ func TestBatchActionFailsClosedWithoutRequestActor(t *testing.T) {
 		t.Fatalf("expected two blocked items, got %#v", result)
 	}
 	for _, item := range result.Items {
-		if item.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+		if item.Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
 			t.Fatalf("expected blocked item, got %#v", item)
 		}
 		if len(item.GuardResults) != 1 || item.GuardResults[0].Code != "actor_attribution_required" {
@@ -625,15 +619,14 @@ func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       filepath.Join(t.TempDir(), "missing"),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -641,9 +634,9 @@ func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-		Action:     generated.ProjectBatchActionRequestActionStart,
-		ProjectIDs: []uint64{1, 1},
+	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+		Action:               generated.ApplicationBatchActionRequestActionStart,
+		ApplicationRecordIDs: []uint64{1, 1},
 	})
 	if err != nil {
 		t.Fatalf("batch action: %v", err)
@@ -652,7 +645,7 @@ func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
 		t.Fatalf("expected two blocked items, got %#v", result)
 	}
 	for _, item := range result.Items {
-		if item.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+		if item.Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
 			t.Fatalf("expected blocked item, got %#v", item)
 		}
 	}
@@ -662,16 +655,15 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     t.TempDir(),
-				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       t.TempDir(),
+				OwnershipMode:       projectcontract.OwnershipModeExternal.String(),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -679,9 +671,9 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-		Action:     generated.ProjectBatchActionRequestActionDestroy,
-		ProjectIDs: []uint64{1},
+	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+		Action:               generated.ApplicationBatchActionRequestActionDestroy,
+		ApplicationRecordIDs: []uint64{1},
 	})
 	if err != nil {
 		t.Fatalf("batch destroy: %v", err)
@@ -699,15 +691,15 @@ func TestSkipBatchRestartForStatusAllowsStoppedProjects(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		status     generated.ProjectRuntimeStatus
+		status     generated.ApplicationRuntimeStatus
 		wantReason string
 		wantSkip   bool
 	}{
-		{name: "running", status: generated.ProjectRuntimeStatusRunning, wantReason: "", wantSkip: false},
-		{name: "degraded", status: generated.ProjectRuntimeStatusDegraded, wantReason: "", wantSkip: false},
-		{name: "stopped", status: generated.ProjectRuntimeStatusStopped, wantReason: "", wantSkip: false},
-		{name: "transitioning", status: generated.ProjectRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
-		{name: "unknown", status: generated.ProjectRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
+		{name: "running", status: generated.ApplicationRuntimeStatusRunning, wantReason: "", wantSkip: false},
+		{name: "degraded", status: generated.ApplicationRuntimeStatusDegraded, wantReason: "", wantSkip: false},
+		{name: "stopped", status: generated.ApplicationRuntimeStatusStopped, wantReason: "", wantSkip: false},
+		{name: "transitioning", status: generated.ApplicationRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
+		{name: "unknown", status: generated.ApplicationRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
 	}
 
 	for _, tc := range cases {
@@ -724,16 +716,15 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
-				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       filepath.Join(t.TempDir(), "missing"),
+				OwnershipMode:       projectcontract.OwnershipModeExternal.String(),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -742,10 +733,10 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 	}
 	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
-	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-		Action:                      generated.ProjectBatchActionRequestActionDestroy,
-		ProjectIDs:                  []uint64{1},
-		ConfirmCanonicalProjectName: &confirmName,
+	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+		Action:                    generated.ApplicationBatchActionRequestActionDestroy,
+		ApplicationRecordIDs:      []uint64{1},
+		ConfirmComposeProjectName: &confirmName,
 	})
 	if err != nil {
 		t.Fatalf("batch destroy: %v", err)
@@ -760,7 +751,7 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 	}
 }
 
-func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testing.T) {
+func TestBatchDestroyReturnsBlockedItemOnWorkspacePathDeleteFailure(t *testing.T) {
 	dockerBinDir := t.TempDir()
 	if err := os.Symlink("/bin/sh", filepath.Join(dockerBinDir, "docker")); err != nil {
 		t.Fatalf("symlink docker stub: %v", err)
@@ -776,16 +767,15 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 	}
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     workingDirectory,
-				OwnershipMode:        projectcontract.OwnershipModeManagedRootDedicated.String(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       workingDirectory,
+				OwnershipMode:       projectcontract.OwnershipModeManagedRootDedicated.String(),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -794,11 +784,11 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 	}
 	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
-	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-		Action:                      generated.ProjectBatchActionRequestActionDestroy,
-		ProjectIDs:                  []uint64{1},
-		DeleteWorkingDirectory:      true,
-		ConfirmCanonicalProjectName: &confirmName,
+	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+		Action:                    generated.ApplicationBatchActionRequestActionDestroy,
+		ApplicationRecordIDs:      []uint64{1},
+		DeleteWorkspacePath:       true,
+		ConfirmComposeProjectName: &confirmName,
 	})
 	if err != nil {
 		t.Fatalf("batch destroy: %v", err)
@@ -806,7 +796,7 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 	if result.BlockedCount != 1 || len(result.Items) != 1 {
 		t.Fatalf("expected one blocked destroy item, got %#v", result)
 	}
-	if result.Items[0].Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+	if result.Items[0].Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
 		t.Fatalf("expected blocked destroy result, got %#v", result.Items[0])
 	}
 	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
@@ -815,7 +805,7 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 		t.Fatalf("expected compose-down guard after partial destroy, got %#v", result.Items[0].GuardResults)
 	}
 	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
-		return guard.Code == "working_directory_delete_failed" && guard.Detail != nil && *guard.Detail == "filesystem_error"
+		return guard.Code == "workspace_path_delete_failed" && guard.Detail != nil && *guard.Detail == "filesystem_error"
 	}) {
 		t.Fatalf("expected working-directory delete failure guard, got %#v", result.Items[0].GuardResults)
 	}
@@ -837,18 +827,17 @@ func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 	}
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				ApplicationID:        "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     workingDirectory,
-				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+				ComposeProjectName:  "demo",
+				WorkspacePath:       workingDirectory,
+				OwnershipMode:       projectcontract.OwnershipModeExternal.String(),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
-		unregisterErr: projectstore.ErrProjectConflict,
+		unregisterErr: projectstore.ErrApplicationConflict,
 	}
 	service, err := NewService(repo)
 	if err != nil {
@@ -856,11 +845,11 @@ func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 	}
 	confirmName := "app_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
-	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-		Action:                      generated.ProjectBatchActionRequestActionDestroy,
-		ProjectIDs:                  []uint64{1},
-		AutoUnregister:              true,
-		ConfirmCanonicalProjectName: &confirmName,
+	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+		Action:                    generated.ApplicationBatchActionRequestActionDestroy,
+		ApplicationRecordIDs:      []uint64{1},
+		AutoUnregister:            true,
+		ConfirmComposeProjectName: &confirmName,
 	})
 	if err != nil {
 		t.Fatalf("batch destroy: %v", err)
@@ -871,7 +860,7 @@ func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 	if !repo.unregisterCalled {
 		t.Fatalf("expected unregister to be attempted")
 	}
-	if result.Items[0].Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+	if result.Items[0].Result != generated.ApplicationActionResponseResultApplicationActionResultBlocked {
 		t.Fatalf("expected blocked destroy result, got %#v", result.Items[0])
 	}
 	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
@@ -890,14 +879,13 @@ func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ComposeProjectName:  "demo",
+				WorkspacePath:       filepath.Join(t.TempDir(), "missing"),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -905,9 +893,9 @@ func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-		Action:     generated.ProjectBatchActionRequestActionRedeploy,
-		ProjectIDs: []uint64{1},
+	result, err := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+		Action:               generated.ApplicationBatchActionRequestActionRedeploy,
+		ApplicationRecordIDs: []uint64{1},
 	})
 	if err != nil {
 		t.Fatalf("batch redeploy: %v", err)
@@ -924,14 +912,13 @@ func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				CanonicalProjectName: "demo",
-				HostScope:            projectcontract.HostScopeLocal.String(),
-				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				ComposeProjectName:  "demo",
+				WorkspacePath:       filepath.Join(t.TempDir(), "missing"),
 			},
-			Snapshot: &projectstore.Snapshot{ProjectID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
+			Snapshot: &projectstore.Snapshot{ApplicationRecordID: 1, ConfigHash: "cfg-demo", RefreshedAt: time.Now().UTC()},
 		},
 	}
 	service, err := NewService(repo)
@@ -948,9 +935,9 @@ func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
 	resultCh := make(chan BatchActionResult, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		result, batchErr := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
-			Action:     generated.ProjectBatchActionRequestActionStart,
-			ProjectIDs: []uint64{1},
+		result, batchErr := service.BatchAction(authenticatedApplicationActionContext(), BatchActionRequest{
+			Action:               generated.ApplicationBatchActionRequestActionStart,
+			ApplicationRecordIDs: []uint64{1},
 		})
 		resultCh <- result
 		errCh <- batchErr
@@ -970,12 +957,12 @@ func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
 
 	close(releaseAudit)
 	events := auditBus.waitForEvents(t, 1, time.Second)
-	if events[0].Action != projectcontract.ProjectAuditActionBatchStart.String() {
+	if events[0].Action != projectcontract.ApplicationAuditActionBatchStart.String() {
 		t.Fatalf("expected batch-start audit action, got %#v", events[0])
 	}
 }
 
-func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
+func TestCreateManagedApplicationWritesFilesAndPersistsRegistry(t *testing.T) {
 	t.Parallel()
 
 	managedRoot := t.TempDir()
@@ -988,7 +975,7 @@ func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
 	envName := ".env"
 	composeContent := "services:\n  web:\n    image: nginx:latest\n"
 	envContent := "FOO=bar\n"
-	result, err := service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+	result, err := service.CreateManagedApplication(context.Background(), ManagedApplicationCreateRequest{
 		DisplayName:        "Demo",
 		ApplicationName:    stringPointer("demo"),
 		ComposeFileName:    "compose.yaml",
@@ -1013,10 +1000,10 @@ func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
 	if repo.importInput == nil {
 		t.Fatalf("expected repository import input to be recorded")
 	}
-	if repo.importInput.SourceKind != "managed" {
-		t.Fatalf("expected managed source kind, got %q", repo.importInput.SourceKind)
+	if repo.importInput.SourceType != "managed" {
+		t.Fatalf("expected managed source kind, got %q", repo.importInput.SourceType)
 	}
-	if result.ProjectID == 0 {
+	if result.ApplicationRecordID == 0 {
 		t.Fatalf("expected created project id")
 	}
 	if result.DeclaredServiceCount != 1 {
@@ -1024,7 +1011,7 @@ func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
 	}
 }
 
-func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
+func TestCreateManagedApplicationRejectsManagedRootBaseDirectory(t *testing.T) {
 	t.Parallel()
 
 	managedRoot := t.TempDir()
@@ -1034,7 +1021,7 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+	_, err = service.CreateManagedApplication(context.Background(), ManagedApplicationCreateRequest{
 		DisplayName:        "Demo",
 		ApplicationName:    stringPointer("demo"),
 		ComposeFileName:    "compose.yaml",
@@ -1045,14 +1032,14 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 	}
 }
 
-func TestCreateManagedProjectMaterializesNestedWorkspaceFiles(t *testing.T) {
+func TestCreateManagedApplicationMaterializesNestedWorkspaceFiles(t *testing.T) {
 	t.Parallel()
 	managedRoot := t.TempDir()
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+	_, err = service.CreateManagedApplication(context.Background(), ManagedApplicationCreateRequest{
 		DisplayName: "Demo", ApplicationName: stringPointer("demo"), ComposeFileName: "compose.yaml", ComposeFileContent: "services:\n  web:\n    image: nginx:latest\n",
 		ComposeFilePath:  "compose.yaml",
 		WorkspaceEntries: []ManagedWorkspaceEntry{{Path: "compose.yaml", NodeType: "file", Content: stringPointer("services:\n  web:\n    image: nginx:latest\n")}, {Path: "nginx/nginx.conf", NodeType: "file", Content: stringPointer("events {}\n")}, {Path: ".env.production", NodeType: "file", Content: stringPointer("MODE=production\n")}},
@@ -1180,11 +1167,11 @@ func TestListRuntimeImportCandidatesMarksAlreadyImported(t *testing.T) {
 	}
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   42,
-				CanonicalProjectName: "demo",
-				WorkingDirectory:     tempDir,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 42,
+				ComposeProjectName:  "demo",
+				WorkspacePath:       tempDir,
 			},
 		},
 	}
@@ -1237,11 +1224,11 @@ func TestInspectRuntimeCandidateRejectsAlreadyImportedCandidate(t *testing.T) {
 	}
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   7,
-				CanonicalProjectName: "demo",
-				WorkingDirectory:     tempDir,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 7,
+				ComposeProjectName:  "demo",
+				WorkspacePath:       tempDir,
 			},
 		},
 	}
@@ -1335,7 +1322,7 @@ func TestRuntimeImportCandidateNormalizationTrimsLookupAndOutput(t *testing.T) {
 func assertRuntimeInspectResult(
 	t *testing.T,
 	result RuntimeImportInspectResult,
-	expectedWorkingDirectory string,
+	expectedWorkspacePath string,
 	expectedComposePath string,
 	expectedEnvPath string,
 ) {
@@ -1343,8 +1330,8 @@ func assertRuntimeInspectResult(
 	if result.CandidateKey != "runtime_demo" {
 		t.Fatalf("expected candidate key to round-trip, got %#v", result)
 	}
-	if result.ResolvedWorkingDirectory != expectedWorkingDirectory {
-		t.Fatalf("expected working directory %q, got %q", expectedWorkingDirectory, result.ResolvedWorkingDirectory)
+	if result.ResolvedWorkspacePath != expectedWorkspacePath {
+		t.Fatalf("expected working directory %q, got %q", expectedWorkspacePath, result.ResolvedWorkspacePath)
 	}
 	if len(result.ComposeFiles) != 1 || result.ComposeFiles[0].AbsolutePath != expectedComposePath {
 		t.Fatalf("unexpected compose files %#v", result.ComposeFiles)
@@ -1358,7 +1345,7 @@ func assertRuntimeInspectResult(
 	assertRuntimeInspectMembers(t, result.RuntimeMembers)
 	assertRuntimeInspectNetworks(t, result.NetworkResources)
 	assertRuntimeInspectVolumes(t, result.VolumeResources)
-	if !slices.Contains(result.Warnings, "working_directory_derived_from_config_files") {
+	if !slices.Contains(result.Warnings, "workspace_path_derived_from_config_files") {
 		t.Fatalf("expected candidate warning in inspect result, got %#v", result.Warnings)
 	}
 }
@@ -1492,8 +1479,8 @@ func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 	}
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{ID: 1, CanonicalProjectName: "existing", WorkingDirectory: "/srv/existing"},
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{ApplicationRecordID: 1, ComposeProjectName: "existing", WorkspacePath: "/srv/existing"},
 		},
 	}
 	service, err := NewService(repo, WithRuntimeReader(stubRuntimeReader{
@@ -1510,7 +1497,7 @@ func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 				ConfigFiles:            []string{composePath},
 				ServiceNames:           []string{"web", "worker"},
 				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 2, Total: 2},
-				Warnings:               []string{"working_directory_derived_from_config_files"},
+				Warnings:               []string{"workspace_path_derived_from_config_files"},
 			},
 		},
 		candidateMembers: []moduleapi.ContainerProjectMember{
@@ -1587,12 +1574,12 @@ func TestDiscoveryCandidatesMarksConflictWhenProjectAlreadyRegistered(t *testing
 	}
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				DisplayName:          "Orders",
-				CanonicalProjectName: "orders",
-				WorkingDirectory:     projectDir,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				DisplayName:         "Orders",
+				ComposeProjectName:  "orders",
+				WorkspacePath:       projectDir,
 			},
 		},
 	}
@@ -1636,16 +1623,16 @@ func TestCreationMethodCatalogExposesSupportedMethods(t *testing.T) {
 	if len(result.Items) != 3 {
 		t.Fatalf("expected 3 creation methods, got %d", len(result.Items))
 	}
-	if result.Items[0].Method != generated.ProjectCreationMethodTypeBlank {
+	if result.Items[0].Method != generated.ApplicationCreationMethodTypeBlank {
 		t.Fatalf("expected blank creation method, got %q", result.Items[0].Method)
 	}
-	if result.Items[0].Availability != generated.ProjectCreationMethodAvailabilityReady {
+	if result.Items[0].Availability != generated.ApplicationCreationMethodAvailabilityReady {
 		t.Fatalf("expected ready blank method, got %q", result.Items[0].Availability)
 	}
-	if result.Items[1].Method != generated.ProjectCreationMethodTypeTemplate {
+	if result.Items[1].Method != generated.ApplicationCreationMethodTypeTemplate {
 		t.Fatalf("expected template creation method, got %q", result.Items[1].Method)
 	}
-	if result.Items[2].Method != generated.ProjectCreationMethodTypeImport {
+	if result.Items[2].Method != generated.ApplicationCreationMethodTypeImport {
 		t.Fatalf("expected import creation method, got %q", result.Items[2].Method)
 	}
 }
@@ -1662,7 +1649,7 @@ func TestCreationMethodCatalogBlocksBlankWhenManagedRootIsUnavailable(t *testing
 	if err != nil {
 		t.Fatalf("creation method catalog: %v", err)
 	}
-	if result.Items[0].Availability != generated.ProjectCreationMethodAvailabilityBlocked {
+	if result.Items[0].Availability != generated.ApplicationCreationMethodAvailabilityBlocked {
 		t.Fatalf("expected blocked blank method, got %q", result.Items[0].Availability)
 	}
 	if result.Items[0].BlockedReason == nil || *result.Items[0].BlockedReason != "managed_root_invalid" {
@@ -1673,20 +1660,19 @@ func TestCreationMethodCatalogBlocksBlankWhenManagedRootIsUnavailable(t *testing
 func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing.T) {
 	t.Parallel()
 
-	item := toProjectListItemWithManagedRoot(projectstore.ProjectAggregate{
-		Project: projectstore.Project{
-			ID:                         1,
-			DisplayName:                "Orders",
-			CanonicalProjectName:       "orders",
-			CanonicalProjectNameSource: "computed",
-			SourceKind:                 "managed",
-			HostScope:                  "local",
-			OwnershipMode:              "managed-root-dedicated",
-			WorkingDirectory:           "/tmp/orders",
-			DriftStatus:                "clean",
+	item := toProjectListItemWithManagedRoot(projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ApplicationRecordID:      1,
+			DisplayName:              "Orders",
+			ComposeProjectName:       "orders",
+			ComposeProjectNameSource: "computed",
+			SourceType:               "managed",
+			OwnershipMode:            "managed-root-dedicated",
+			WorkspacePath:            "/tmp/orders",
+			DriftStatus:              "clean",
 		},
 	}, "", nil, nil)
-	if item.ActivityAuthority != generated.ProjectActivityAuthority("frontend-fanout") {
+	if item.ActivityAuthority != generated.ApplicationActivityAuthority("frontend-fanout") {
 		t.Fatalf("expected frontend-fanout activity authority, got %q", item.ActivityAuthority)
 	}
 }
@@ -1703,10 +1689,10 @@ func TestProjectOverviewHealthyServiceCountIgnoresAttentionHealth(t *testing.T) 
 			StartingContainerCount: 1,
 		},
 	)
-	if item.Status != generated.ProjectOverviewServiceItemStatus("running") {
+	if item.Status != generated.ApplicationOverviewServiceItemStatus("running") {
 		t.Fatalf("expected running status, got %#v", item)
 	}
-	if item.Health != generated.ProjectOverviewServiceItemHealth("attention") {
+	if item.Health != generated.ApplicationOverviewServiceItemHealth("attention") {
 		t.Fatalf("expected attention health, got %#v", item)
 	}
 	if healthy {
@@ -1739,8 +1725,8 @@ func TestImportDirectorySourcesIncludeManagedRootAndAllowlistedRoot(t *testing.T
 	managedRoot := t.TempDir()
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			"ops.application.root_directory":   `"` + managedRoot + `"`,
-			"ops.project.import.allowed_roots": `[{"id":"srv","label":"Srv","path":"/srv"}]`,
+			"ops.application.root_directory":       `"` + managedRoot + `"`,
+			"ops.application.import.allowed_roots": `[{"id":"srv","label":"Srv","path":"/srv"}]`,
 		},
 	}))
 	if err != nil {
@@ -1850,17 +1836,16 @@ func TestToProjectDetailResponsePreservesNestedManagedRelativeDirectory(t *testi
 	t.Parallel()
 
 	managedRoot := filepath.Join(string(filepath.Separator), "srv", "managed")
-	aggregate := projectstore.ProjectAggregate{
-		Project: projectstore.Project{
-			ID:                         7,
-			DisplayName:                "Orders",
-			CanonicalProjectName:       "orders",
-			CanonicalProjectNameSource: "computed",
-			SourceKind:                 projectcontract.SourceKindManaged.String(),
-			HostScope:                  projectcontract.HostScopeLocal.String(),
-			OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
-			WorkingDirectory:           filepath.Join(managedRoot, "team-a", "orders"),
-			DriftStatus:                "clean",
+	aggregate := projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ApplicationRecordID:      7,
+			DisplayName:              "Orders",
+			ComposeProjectName:       "orders",
+			ComposeProjectNameSource: "computed",
+			SourceType:               projectcontract.SourceTypeManaged.String(),
+			OwnershipMode:            projectcontract.OwnershipModeManagedRootDedicated.String(),
+			WorkspacePath:            filepath.Join(managedRoot, "team-a", "orders"),
+			DriftStatus:              "clean",
 		},
 	}
 
@@ -1893,7 +1878,7 @@ func TestDiscoverImportFilesExcludesDirectoriesFromComposeCandidates(t *testing.
 	}
 }
 
-func TestDeleteManagedWorkingDirectoryRemovesOnlyTargetDirectory(t *testing.T) {
+func TestDeleteManagedWorkspacePathRemovesOnlyTargetDirectory(t *testing.T) {
 	t.Parallel()
 
 	parent := t.TempDir()
@@ -1909,7 +1894,7 @@ func TestDeleteManagedWorkingDirectoryRemovesOnlyTargetDirectory(t *testing.T) {
 		t.Fatalf("mkdir sibling: %v", err)
 	}
 
-	if err := deleteManagedWorkingDirectory(workingDirectory); err != nil {
+	if err := deleteManagedWorkspacePath(workingDirectory); err != nil {
 		t.Fatalf("delete managed working directory: %v", err)
 	}
 	if _, err := os.Stat(workingDirectory); !errors.Is(err, os.ErrNotExist) {
@@ -1964,7 +1949,7 @@ func TestCleanupManagedCreateRemovesNestedWorkspaceDirectories(t *testing.T) {
 func TestProjectErrorMessageKeyUsesProjectCode(t *testing.T) {
 	t.Parallel()
 
-	if got := projectErrorMessageKey(projectcontract.ProjectConflict.String()); got != projectcontract.ProjectConflict.String() {
+	if got := projectErrorMessageKey(projectcontract.ApplicationConflict.String()); got != projectcontract.ApplicationConflict.String() {
 		t.Fatalf("expected project code as message key, got %q", got)
 	}
 	if got := projectErrorMessageKey(" "); got != "common.invalid_argument" {
@@ -1972,29 +1957,29 @@ func TestProjectErrorMessageKeyUsesProjectCode(t *testing.T) {
 	}
 }
 
-func TestComputeConflictsFlagsIndependentWorkingDirectoryAndCanonicalMatches(t *testing.T) {
+func TestComputeConflictsFlagsIndependentWorkspacePathAndCanonicalMatches(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:                   1,
-				DisplayName:          "Orders",
-				CanonicalProjectName: "orders",
-				WorkingDirectory:     "/srv/orders",
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				DisplayName:         "Orders",
+				ComposeProjectName:  "orders",
+				WorkspacePath:       "/srv/orders",
 			},
 		},
 	}
 
 	service := &Service{}
 	conflicts, err := service.computeConflicts(context.Background(), repo, ImportValidationResult{
-		WorkingDirectory:     "/srv/orders",
-		CanonicalProjectName: "orders",
+		WorkspacePath:      "/srv/orders",
+		ComposeProjectName: "orders",
 	})
 	if err != nil {
 		t.Fatalf("compute conflicts: %v", err)
 	}
-	expected := []string{"canonical_project_name", "working_directory"}
+	expected := []string{"compose_project_name", "workspace_path"}
 	if !slices.Equal(conflicts, expected) {
 		t.Fatalf("expected conflicts %#v, got %#v", expected, conflicts)
 	}
@@ -2031,10 +2016,10 @@ func TestBrowseProjectFilesReturnsFileNotFoundForMissingDirectory(t *testing.T) 
 	t.Parallel()
 
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:               1,
-				WorkingDirectory: t.TempDir(),
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				WorkspacePath:       t.TempDir(),
 			},
 		},
 	}
@@ -2057,10 +2042,10 @@ func TestSaveProjectFileContentRejectsDirectoryPath(t *testing.T) {
 		t.Fatalf("mkdir config directory: %v", err)
 	}
 	repo := &stubProjectRepository{
-		aggregate: projectstore.ProjectAggregate{
-			Project: projectstore.Project{
-				ID:               1,
-				WorkingDirectory: workingDirectory,
+		aggregate: projectstore.ApplicationAggregate{
+			Application: projectstore.Application{
+				ApplicationRecordID: 1,
+				WorkspacePath:       workingDirectory,
 			},
 		},
 	}
@@ -2080,7 +2065,7 @@ func TestWorkspaceHiddenDirectoriesFallsBackToDefaultOnInvalidConfig(t *testing.
 
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String(): `invalid-json`,
+			projectcontract.ApplicationWorkspaceHiddenDirectoriesConfig.String(): `invalid-json`,
 		},
 	}))
 	if err != nil {
@@ -2112,8 +2097,8 @@ func TestWriteRouteErrorMapsProjectFileNotFoundTo404(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode error response: %v", err)
 	}
-	if response.Code != projectcontract.ProjectInvalidFileID.String() {
-		t.Fatalf("expected file-not-found code %q, got %#v", projectcontract.ProjectInvalidFileID.String(), response)
+	if response.Code != projectcontract.ApplicationInvalidFileID.String() {
+		t.Fatalf("expected file-not-found code %q, got %#v", projectcontract.ApplicationInvalidFileID.String(), response)
 	}
 }
 
@@ -2135,7 +2120,7 @@ func TestRestoreManagedDraftOnFailureRestoresOnlyWhenErrSet(t *testing.T) {
 	}
 
 	restoreManagedDraftOnFailure(workingDirectory, restoreItems, nil)
-	// #nosec G304 -- composePath is created from t.TempDir() within this test.
+	// #nosec G304 -- composePath 由本测试的 t.TempDir() 构造，不受外部输入控制。
 	content, err := os.ReadFile(composePath)
 	if err != nil {
 		t.Fatalf("read drafted compose file: %v", err)
@@ -2147,7 +2132,7 @@ func TestRestoreManagedDraftOnFailureRestoresOnlyWhenErrSet(t *testing.T) {
 	resultErr := errors.New("deploy failed")
 	originalErr := resultErr
 	restoreManagedDraftOnFailure(workingDirectory, restoreItems, &resultErr)
-	// #nosec G304 -- composePath is created from t.TempDir() within this test.
+	// #nosec G304 -- composePath 由本测试的 t.TempDir() 构造，不受外部输入控制。
 	restoredContent, err := os.ReadFile(composePath)
 	if err != nil {
 		t.Fatalf("read restored compose file: %v", err)
@@ -2206,7 +2191,7 @@ func TestBrowseImportDirectoriesStaysRootRelative(t *testing.T) {
 	}
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			"ops.project.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+			"ops.application.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
 		},
 	}))
 	if err != nil {
@@ -2244,7 +2229,7 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	repo := &stubProjectRepository{}
 	service, err := NewService(repo, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			"ops.project.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+			"ops.application.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
 		},
 	}))
 	if err != nil {
@@ -2268,22 +2253,22 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import by inspection: %v", err)
 	}
-	if imported.Project.ComposeProjectName != "orders" {
-		t.Fatalf("unexpected imported project: %#v", imported.Project)
+	if imported.Application.ComposeProjectName != "orders" {
+		t.Fatalf("unexpected imported project: %#v", imported.Application)
 	}
 	assertImportedCreationPipelinePersisted(t, repo.importInput, projectDir)
 	assertImportedLifecycleConfigPersisted(t, repo.importInput)
 }
 
-func assertImportedCreationPipelinePersisted(t *testing.T, input *projectstore.ImportProjectInput, workingDirectory string) {
+func assertImportedCreationPipelinePersisted(t *testing.T, input *projectstore.ImportApplicationInput, workingDirectory string) {
 	t.Helper()
 	if input == nil {
 		t.Fatal("expected imported creation pipeline input")
 	}
-	if input.SourceKind != projectcontract.SourceKindImported.String() || input.HostScope != projectcontract.HostScopeLocal.String() || input.OwnershipMode != projectcontract.OwnershipModeExternal.String() {
-		t.Fatalf("expected imported source ownership metadata, got source=%q host=%q ownership=%q", input.SourceKind, input.HostScope, input.OwnershipMode)
+	if input.SourceType != projectcontract.SourceTypeImported.String() || input.OwnershipMode != projectcontract.OwnershipModeExternal.String() {
+		t.Fatalf("expected imported source ownership metadata, got source=%q ownership=%q", input.SourceType, input.OwnershipMode)
 	}
-	if input.WorkingDirectory != workingDirectory || input.DriftStatus != projectcontract.DriftStatusClean.String() || input.LastObservedConfigHash == "" || input.LastDriftCheckedAt == nil {
+	if input.WorkspacePath != workingDirectory || input.DriftStatus != projectcontract.DriftStatusClean.String() || input.LastObservedConfigHash == "" || input.LastDriftCheckedAt == nil {
 		t.Fatalf("expected shared creation aggregate fields, got %#v", input)
 	}
 	if len(input.Files) != 2 || input.Snapshot == nil || input.Snapshot.ConfigHash != input.LastObservedConfigHash || input.Snapshot.DeclaredServiceCount != 1 || input.Snapshot.RefreshedAt.IsZero() {
@@ -2302,7 +2287,7 @@ func importedLifecycleConfigFixture() LifecycleStandardConfig {
 	return config
 }
 
-func assertImportedLifecycleConfigPersisted(t *testing.T, input *projectstore.ImportProjectInput) {
+func assertImportedLifecycleConfigPersisted(t *testing.T, input *projectstore.ImportApplicationInput) {
 	t.Helper()
 	if input == nil {
 		t.Fatal("expected persisted import input")
@@ -2331,7 +2316,7 @@ func TestImportByInspectionReturnsInspectionStaleOnFileHashMismatch(t *testing.T
 
 	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
 		values: map[string]string{
-			"ops.project.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+			"ops.application.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
 		},
 	}))
 	if err != nil {

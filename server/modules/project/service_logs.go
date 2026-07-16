@@ -26,28 +26,28 @@ type LogQuery struct {
 }
 
 // Logs 返回项目聚合日志快照，并为每条日志保留容器和服务来源标识。
-func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (generated.ProjectLogResponse, error) {
+func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (generated.ApplicationLogResponse, error) {
 	if s == nil || s.logReader == nil {
-		return generated.ProjectLogResponse{}, errProjectRuntimeUnavailable
+		return generated.ApplicationLogResponse{}, errProjectRuntimeUnavailable
 	}
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
-		return generated.ProjectLogResponse{}, err
+		return generated.ApplicationLogResponse{}, err
 	}
 	logQuery, err := normalizeProjectLogQuery(query)
 	if err != nil {
-		return generated.ProjectLogResponse{}, err
+		return generated.ApplicationLogResponse{}, err
 	}
 	s.logProjectLogDiagnostic("snapshot-started",
 		zap.Uint64("project_id", projectID),
-		zap.String("canonical_project_name", aggregate.Project.CanonicalProjectName),
+		zap.String("compose_project_name", aggregate.Application.ComposeProjectName),
 		zap.Int("tail", logQuery.Tail),
 		zap.String("since", logQuery.Since),
 	)
-	snapshot, err := s.logReader.ReadProjectLogs(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName, toContainerProjectLogQuery(logQuery))
+	snapshot, err := s.logReader.ReadProjectLogs(ctx, localContainerRuntimeScope, aggregate.Application.ComposeProjectName, toContainerProjectLogQuery(logQuery))
 	if err != nil {
 		s.logProjectLogDiagnostic("snapshot-failed", zap.Uint64("project_id", projectID), zap.Error(err))
-		return generated.ProjectLogResponse{}, err
+		return generated.ApplicationLogResponse{}, err
 	}
 	s.logProjectLogDiagnostic("snapshot-completed",
 		zap.Uint64("project_id", projectID),
@@ -55,7 +55,7 @@ func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (g
 		zap.Int("tail", snapshot.Tail),
 		zap.Bool("truncated", snapshot.Truncated),
 	)
-	return toProjectLogResponse(projectID, aggregate.Project.CanonicalProjectName, snapshot), nil
+	return toProjectLogResponse(aggregate.Application.ApplicationID, aggregate.Application.ComposeProjectName, snapshot), nil
 }
 
 func normalizeProjectLogQuery(query LogQuery) (LogQuery, error) {
@@ -94,32 +94,32 @@ func toContainerProjectLogFollowQuery(query LogQuery) moduleapi.ContainerProject
 
 // toProjectLogResponse 将容器日志快照转换为项目日志响应。
 func toProjectLogResponse(
-	projectID uint64,
+	applicationID string,
 	canonicalProjectName string,
 	snapshot moduleapi.ContainerProjectLogSnapshot,
-) generated.ProjectLogResponse {
-	response := generated.ProjectLogResponse{
-		ProjectId:            mustGeneratedID(projectID),
-		CanonicalProjectName: canonicalProjectName,
-		Tail:                 snapshot.Tail,
-		Timestamps:           snapshot.Timestamps,
-		Stdout:               snapshot.Stdout,
-		Stderr:               snapshot.Stderr,
-		Truncated:            snapshot.Truncated,
-		Entries:              make([]generated.ProjectLogEntry, 0, len(snapshot.Entries)),
+) generated.ApplicationLogResponse {
+	response := generated.ApplicationLogResponse{
+		ApplicationId:      applicationID,
+		ComposeProjectName: canonicalProjectName,
+		Tail:               snapshot.Tail,
+		Timestamps:         snapshot.Timestamps,
+		Stdout:             snapshot.Stdout,
+		Stderr:             snapshot.Stderr,
+		Truncated:          snapshot.Truncated,
+		Entries:            make([]generated.ApplicationLogEntry, 0, len(snapshot.Entries)),
 	}
 	if snapshot.Since != nil {
 		response.Since = stringPointer(strings.TrimSpace(*snapshot.Since))
 	}
 	for _, entry := range snapshot.Entries {
-		response.Entries = append(response.Entries, generated.ProjectLogEntry{
+		response.Entries = append(response.Entries, generated.ApplicationLogEntry{
 			ContainerId:   entry.ContainerID,
 			ContainerName: entry.ContainerName,
 			ServiceName:   entry.ServiceName,
 			Line:          entry.Line,
-			Stream:        generated.ProjectLogEntryStream(strings.TrimSpace(entry.Stream)),
+			Stream:        generated.ApplicationLogEntryStream(strings.TrimSpace(entry.Stream)),
 			OccurredAt:    parseGeneratedLogTime(entry.OccurredAt),
-			Source: generated.ProjectLogEntrySource{
+			Source: generated.ApplicationLogEntrySource{
 				ContainerId:   entry.ContainerID,
 				ContainerName: entry.ContainerName,
 				ServiceName:   entry.ServiceName,

@@ -71,11 +71,11 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { LifecycleHelpDefinition } from '../shared/lifecycle-help';
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 
 const props = defineProps<{
   definition: LifecycleHelpDefinition;
-  draft: ProjectLifecycleConfigurationDraft;
+  draft: ApplicationLifecycleConfigurationDraft;
 }>();
 
 const { t } = useI18n();

@@ -1,0 +1,57 @@
+type: object
+required:
+  - application_id
+  - display_name
+  - application_type
+  - compose_project_name
+  - compose_project_name_source
+  - lifecycle_review_status
+  - source_type
+  - activity_authority
+  - ownership_mode
+  - workspace_path
+  - drift_status
+  - service_count
+  - container_counts
+properties:
+  application_id:
+    $ref: ./application-id.yaml
+  display_name:
+    type: string
+  application_type:
+    $ref: ./application-type.yaml
+  runtime_target:
+    $ref: ./application-runtime-target-summary.yaml
+    nullable: true
+  compose_project_name:
+    type: string
+  compose_project_name_source:
+    $ref: ./application-compose-project-name-source.yaml
+  application_name:
+    type: string
+    nullable: true
+  lifecycle_review_status:
+    $ref: ./application-lifecycle-review-status.yaml
+  source_type:
+    $ref: ./application-source-type.yaml
+  source_metadata:
+    $ref: ./application-source-metadata.yaml
+  activity_authority:
+    $ref: ./application-activity-authority.yaml
+  ownership_mode:
+    $ref: ./application-ownership-mode.yaml
+  workspace_path:
+    type: string
+  runtime_status:
+    $ref: ./application-runtime-status.yaml
+    nullable: true
+    description: >
+      Aggregated application status for overview consumption only. It must not become a replacement for
+      container runtime detail authority.
+  service_count:
+    type: integer
+    minimum: 0
+  container_counts:
+    $ref: ./application-container-counts.yaml
+  drift_status:
+    $ref: ./application-drift-status.yaml

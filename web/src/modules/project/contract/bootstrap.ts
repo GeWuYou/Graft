@@ -1,53 +1,53 @@
-import { PROJECT_ROUTE_PATH } from './paths';
+import { APPLICATION_ROUTE_PATH } from './paths';
 
 export const PROJECT_BOOTSTRAP_ROUTE = {
   LIST: {
-    menuPath: PROJECT_ROUTE_PATH.LIST,
-    routeName: 'ProjectList',
+    menuPath: APPLICATION_ROUTE_PATH.LIST,
+    routeName: 'ApplicationList',
   },
   CREATE_IMPORT: {
-    path: PROJECT_ROUTE_PATH.CREATE_IMPORT,
-    pageRouteName: 'ProjectImportIndex',
-    routeName: 'ProjectImport',
+    path: APPLICATION_ROUTE_PATH.CREATE_IMPORT,
+    pageRouteName: 'ApplicationImportIndex',
+    routeName: 'ApplicationImport',
   },
   CREATE: {
-    path: PROJECT_ROUTE_PATH.CREATE,
-    pageRouteName: 'ProjectCreateMethodIndex',
-    routeName: 'ProjectCreateMethod',
+    path: APPLICATION_ROUTE_PATH.CREATE,
+    pageRouteName: 'ApplicationCreateMethodIndex',
+    routeName: 'ApplicationCreateMethod',
   },
   CREATE_RUNTIME_TARGET: {
-    path: PROJECT_ROUTE_PATH.CREATE_RUNTIME_TARGET,
-    pageRouteName: 'ProjectCreateRuntimeTargetIndex',
-    routeName: 'ProjectCreateRuntimeTarget',
+    path: APPLICATION_ROUTE_PATH.CREATE_RUNTIME_TARGET,
+    pageRouteName: 'ApplicationCreateRuntimeTargetIndex',
+    routeName: 'ApplicationCreateRuntimeTarget',
   },
   CREATE_SOURCE: {
-    path: PROJECT_ROUTE_PATH.CREATE_SOURCE,
-    pageRouteName: 'ProjectCreateSourceIndex',
-    routeName: 'ProjectCreateSource',
+    path: APPLICATION_ROUTE_PATH.CREATE_SOURCE,
+    pageRouteName: 'ApplicationCreateSourceIndex',
+    routeName: 'ApplicationCreateSource',
   },
   CREATE_DISCOVERY: {
-    path: PROJECT_ROUTE_PATH.CREATE_DISCOVERY,
-    pageRouteName: 'ProjectDiscoveryCandidateIndex',
-    routeName: 'ProjectCreateDiscovery',
+    path: APPLICATION_ROUTE_PATH.CREATE_DISCOVERY,
+    pageRouteName: 'ApplicationDiscoveryCandidateIndex',
+    routeName: 'ApplicationCreateDiscovery',
   },
   CREATE_BLANK: {
-    path: PROJECT_ROUTE_PATH.CREATE_BLANK,
-    pageRouteName: 'ProjectBlankCreateIndex',
-    routeName: 'ProjectBlankCreate',
+    path: APPLICATION_ROUTE_PATH.CREATE_BLANK,
+    pageRouteName: 'ApplicationBlankCreateIndex',
+    routeName: 'ApplicationBlankCreate',
   },
   CREATE_TEMPLATE: {
-    path: PROJECT_ROUTE_PATH.CREATE_TEMPLATE,
-    pageRouteName: 'ProjectTemplateCreateIndex',
-    routeName: 'ProjectTemplateCreate',
+    path: APPLICATION_ROUTE_PATH.CREATE_TEMPLATE,
+    pageRouteName: 'ApplicationTemplateCreateIndex',
+    routeName: 'ApplicationTemplateCreate',
   },
   DETAIL: {
-    path: PROJECT_ROUTE_PATH.DETAIL,
-    pageRouteName: 'ProjectDetailIndex',
-    routeName: 'ProjectDetail',
+    path: APPLICATION_ROUTE_PATH.DETAIL,
+    pageRouteName: 'ApplicationDetailIndex',
+    routeName: 'ApplicationDetail',
   },
   CONFIGURATION_WORKSPACE: {
-    path: PROJECT_ROUTE_PATH.CONFIGURATION_WORKSPACE,
-    pageRouteName: 'ProjectConfigurationWorkspaceIndex',
-    routeName: 'ProjectConfigurationWorkspace',
+    path: APPLICATION_ROUTE_PATH.CONFIGURATION_WORKSPACE,
+    pageRouteName: 'ApplicationConfigurationWorkspaceIndex',
+    routeName: 'ApplicationConfigurationWorkspace',
   },
 } as const;

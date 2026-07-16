@@ -21,8 +21,8 @@ type WorkspaceCopy = {
   diffViewerAriaLabel: string;
   dirtyCloseBody: string;
   dirtyCloseTitle: string;
-  dirtyProjectActionBody: string;
-  dirtyProjectActionTitle: string;
+  dirtyApplicationActionBody: string;
+  dirtyApplicationActionTitle: string;
   fileValidationDescription: string;
   fileValidationEmbeddedHint: string;
   fileValidationFailed: string;
@@ -76,7 +76,7 @@ type WorkspaceCopy = {
   summaryCurrentPathLabel: string;
   summaryOpenTabsLabel: string;
   summaryTitle: string;
-  summaryWorkingDirectoryLabel: string;
+  summaryWorkspacePathLabel: string;
   tabsEmpty: string;
   upAction: string;
   validateNoFile: string;
@@ -113,8 +113,8 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   diffViewerAriaLabel: 'project.configurationWorkspace.copy.diffViewerAriaLabel',
   dirtyCloseBody: 'project.configurationWorkspace.copy.dirtyCloseBody',
   dirtyCloseTitle: 'project.configurationWorkspace.copy.dirtyCloseTitle',
-  dirtyProjectActionBody: 'project.configurationWorkspace.copy.dirtyProjectActionBody',
-  dirtyProjectActionTitle: 'project.configurationWorkspace.copy.dirtyProjectActionTitle',
+  dirtyApplicationActionBody: 'project.configurationWorkspace.copy.dirtyApplicationActionBody',
+  dirtyApplicationActionTitle: 'project.configurationWorkspace.copy.dirtyApplicationActionTitle',
   fileValidationDescription: 'project.configurationWorkspace.copy.fileValidationDescription',
   fileValidationEmbeddedHint: 'project.configurationWorkspace.copy.fileValidationEmbeddedHint',
   fileValidationFailed: 'project.configurationWorkspace.copy.fileValidationFailed',
@@ -168,7 +168,7 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   summaryCurrentPathLabel: 'project.configurationWorkspace.copy.summaryCurrentPathLabel',
   summaryOpenTabsLabel: 'project.configurationWorkspace.copy.summaryOpenTabsLabel',
   summaryTitle: 'project.configurationWorkspace.copy.summaryTitle',
-  summaryWorkingDirectoryLabel: 'project.configurationWorkspace.copy.summaryWorkingDirectoryLabel',
+  summaryWorkspacePathLabel: 'project.configurationWorkspace.copy.summaryWorkspacePathLabel',
   tabsEmpty: 'project.configurationWorkspace.copy.tabsEmpty',
   upAction: 'project.configurationWorkspace.copy.upAction',
   validateNoFile: 'project.configurationWorkspace.copy.validateNoFile',

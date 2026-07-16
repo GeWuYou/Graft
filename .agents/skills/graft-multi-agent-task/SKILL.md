@@ -33,6 +33,10 @@ Typical triggers:
      worker subagent rather than the outer loop orchestrator
    - split only disjoint, reviewable slices
    - pass inherited startup context to every subagent
+   - pass `parent_model`, `worker_model`, verified `model_relation`, and comparison evidence to every
+     dispatch; the worker model must be the same level as or lower than the current execution owner's model
+   - if the relation is higher or unknown, pause and request explicit user approval or direction before dispatch;
+     do not infer rank from model names, availability, or reasoning effort
 3. Keep this wrapper concise during execution:
    - do not restate `graft-multi-agent-batch` in full
    - do not expand repository governance into a second checklist
@@ -116,6 +120,11 @@ When reporting progress or closeout from this wrapper, keep the result brief and
    - `stop_reason`
    - `validation`
    - `commit`
+   - `parent_model`
+   - `worker_model`
+   - `model_relation`
+   - `model_rank_verified`
+   - `higher_model_approval`
    - `consumed_budget`
    - `remaining_budget`
    - `scope_expanded`

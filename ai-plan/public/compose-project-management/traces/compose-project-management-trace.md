@@ -463,3 +463,14 @@
 - Added a default-off `project.workspace` diagnostic flag for workspace session transitions and shared editor render state. Diagnostic payloads include only paths, counts, booleans, and dimensions; workspace file contents remain excluded.
 - Managed-create gained localized format and copy actions for the active file. The shared workspace grid no longer reserves splitter space when resizing is unavailable.
 - Validation passed: `git diff --check` and `cd web && bun run check`.
+
+## 2026-07-16 Application contract authority migration
+
+- 用户确认产品与 public contract 在首个正式版本前一次性迁移到 Application。
+- Canonical OpenAPI route 从 `/api/ops/projects/**` 迁移为 `/api/ops/applications/**`，路径参数统一为
+  `applicationId`，schemas、parameters、tags 与 operationIds 同步迁移为 Application terminology。
+- Public field authority 固定为 `application_type=compose`、`source_type`、`compose_project_name`、
+  `workspace_path`；移除 `host_scope` 与 discovery candidate 上已有的 legacy source alias。
+- Compose Project Name 继续表示技术 deployment identity；`app_<ULID>` 继续表示公开稳定 Application ID。
+- Generic persistence authority 固定为 `applications`。历史 versioned migration SQL 没有修改；server migration
+  与 implementation consumer 迁移由各自 owned slice 完成。

@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import ProjectRuntimeIndex from './runtime-index.vue';
+import ApplicationRuntimeIndex from './runtime-index.vue';
 
 const push = vi.fn();
 const resolve = vi.fn((target) => target);
@@ -18,12 +18,12 @@ vi.mock('@/store/modules/tabs-router', () => ({
 }));
 vi.mock('@/utils/route/title', () => ({ localizeRouteTitleKey: (key: string) => key }));
 vi.mock('../../shared/navigation', () => ({
-  useProjectCreateRouteNavigation: () => (target: unknown) => push(target),
+  useApplicationCreateRouteNavigation: () => (target: unknown) => push(target),
 }));
 
-describe('ProjectRuntimeIndex', () => {
+describe('ApplicationRuntimeIndex', () => {
   it('renders the deployment models with their current availability', () => {
-    const wrapper = mount(ProjectRuntimeIndex, {
+    const wrapper = mount(ApplicationRuntimeIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -58,7 +58,7 @@ describe('ProjectRuntimeIndex', () => {
   });
 
   it('returns to application management', async () => {
-    const wrapper = mount(ProjectRuntimeIndex, {
+    const wrapper = mount(ApplicationRuntimeIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -72,11 +72,11 @@ describe('ProjectRuntimeIndex', () => {
 
     await wrapper.get('[data-testid="project-deployment-back"]').trigger('click');
 
-    expect(push).toHaveBeenCalledWith({ name: 'ProjectList' });
+    expect(push).toHaveBeenCalledWith({ name: 'ApplicationList' });
   });
 
   it('makes only Compose actionable and routes to runtime target selection', async () => {
-    const wrapper = mount(ProjectRuntimeIndex, {
+    const wrapper = mount(ApplicationRuntimeIndex, {
       global: {
         stubs: {
           'management-page-content': { template: '<div><slot /></div>' },
@@ -90,6 +90,9 @@ describe('ProjectRuntimeIndex', () => {
 
     await wrapper.get('[data-testid="project-deployment-compose-select"]').trigger('click');
 
-    expect(push).toHaveBeenCalledWith({ name: 'ProjectCreateRuntimeTargetIndex', query: { deployment: 'compose' } });
+    expect(push).toHaveBeenCalledWith({
+      name: 'ApplicationCreateRuntimeTargetIndex',
+      query: { deployment: 'compose' },
+    });
   });
 });

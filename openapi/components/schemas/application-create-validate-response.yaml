@@ -1,0 +1,42 @@
+type: object
+required:
+  - managed_root
+  - source_type
+  - display_name
+  - compose_project_name
+  - ownership_mode
+  - workspace_path
+  - compose_file_name
+  - compose_file_absolute_path
+properties:
+  managed_root:
+    $ref: ./application-managed-root-response.yaml
+  source_type:
+    $ref: ./application-source-type.yaml
+  display_name:
+    type: string
+  compose_project_name:
+    type: string
+  application_name:
+    type: string
+    nullable: true
+  ownership_mode:
+    $ref: ./application-ownership-mode.yaml
+  workspace_path:
+    type: string
+  compose_file_name:
+    type: string
+  env_file_name:
+    type: string
+    nullable: true
+  compose_file_absolute_path:
+    type: string
+  env_file_absolute_path:
+    type: string
+    nullable: true
+  source_metadata:
+    $ref: ./application-source-metadata.yaml
+  warnings:
+    type: array
+    items:
+      type: string

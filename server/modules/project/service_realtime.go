@@ -14,11 +14,11 @@ import (
 const projectDetailTopicRefreshInterval = 5 * time.Second
 
 type projectListSummaryRealtimeItem struct {
-	ApplicationID   string                           `json:"application_id"`
-	RuntimeStatus   generated.ProjectRuntimeStatus   `json:"runtime_status"`
-	ServiceCount    int                              `json:"service_count"`
-	ContainerCounts generated.ProjectContainerCounts `json:"container_counts"`
-	DriftStatus     generated.ProjectDriftStatus     `json:"drift_status"`
+	ApplicationID   string                               `json:"application_id"`
+	RuntimeStatus   generated.ApplicationRuntimeStatus   `json:"runtime_status"`
+	ServiceCount    int                                  `json:"service_count"`
+	ContainerCounts generated.ApplicationContainerCounts `json:"container_counts"`
+	DriftStatus     generated.ApplicationDriftStatus     `json:"drift_status"`
 }
 
 type projectListSummaryRealtimePayload struct {
@@ -28,24 +28,24 @@ type projectListSummaryRealtimePayload struct {
 }
 
 type projectRuntimeRealtimePayload struct {
-	Topic       string                            `json:"topic"`
-	ProjectID   int64                             `json:"project_id"`
-	PublishedAt time.Time                         `json:"published_at"`
-	Detail      generated.ProjectDetailResponse   `json:"detail"`
-	Overview    generated.ProjectOverviewResponse `json:"overview"`
-	Services    generated.ProjectServicesResponse `json:"services"`
+	Topic         string                                `json:"topic"`
+	ApplicationID string                                `json:"application_id"`
+	PublishedAt   time.Time                             `json:"published_at"`
+	Detail        generated.ApplicationDetailResponse   `json:"detail"`
+	Overview      generated.ApplicationOverviewResponse `json:"overview"`
+	Services      generated.ApplicationServicesResponse `json:"services"`
 }
 
 type projectLifecycleConfigRealtimePayload struct {
-	Topic       string                          `json:"topic"`
-	ProjectID   int64                           `json:"project_id"`
-	PublishedAt time.Time                       `json:"published_at"`
-	Detail      generated.ProjectDetailResponse `json:"detail"`
+	Topic         string                              `json:"topic"`
+	ApplicationID string                              `json:"application_id"`
+	PublishedAt   time.Time                           `json:"published_at"`
+	Detail        generated.ApplicationDetailResponse `json:"detail"`
 }
 
 type projectLogsRealtimePayload struct {
-	Topic string                    `json:"topic"`
-	Entry generated.ProjectLogEntry `json:"entry"`
+	Topic string                        `json:"topic"`
+	Entry generated.ApplicationLogEntry `json:"entry"`
 }
 
 // IssueSubscription 为项目模块主题签发实时订阅票据，并在签发前校验主题格式、项目归属和查看权限。
@@ -61,13 +61,13 @@ func (s *Service) IssueSubscription(
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicRequired
 	}
 	switch {
-	case topic == projectcontract.ProjectListSummaryTopic:
+	case topic == projectcontract.ApplicationListSummaryTopic:
 		return s.issueProjectListSummaryRealtimeSubscription(ctx, request, topic)
-	case strings.HasPrefix(topic, projectcontract.ProjectRuntimeTopicPrefix):
+	case strings.HasPrefix(topic, projectcontract.ApplicationRuntimeTopicPrefix):
 		return s.issueProjectRuntimeRealtimeSubscription(ctx, request, topic)
-	case strings.HasPrefix(topic, projectcontract.ProjectLifecycleConfigTopicPrefix):
+	case strings.HasPrefix(topic, projectcontract.ApplicationLifecycleConfigTopicPrefix):
 		return s.issueProjectLifecycleConfigRealtimeSubscription(ctx, request, topic)
-	case strings.HasPrefix(topic, projectcontract.ProjectLogsTopicPrefix):
+	case strings.HasPrefix(topic, projectcontract.ApplicationLogsTopicPrefix):
 		return s.issueProjectLogsRealtimeSubscription(ctx, request, topic)
 	default:
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
@@ -82,16 +82,16 @@ func (s *Service) registerRealtimeTopics() error {
 		return errors.New("realtime topic issuer registry is unavailable")
 	}
 	// 先注册精确主题，再注册带前缀的项目主题；注册表按声明顺序解析匹配关系。
-	if err := s.topicIssuers.Register(projectcontract.ProjectListSummaryTopic, s); err != nil {
+	if err := s.topicIssuers.Register(projectcontract.ApplicationListSummaryTopic, s); err != nil {
 		return err
 	}
-	if err := s.topicIssuers.Register(projectcontract.ProjectRuntimeTopicPrefix, s); err != nil {
+	if err := s.topicIssuers.Register(projectcontract.ApplicationRuntimeTopicPrefix, s); err != nil {
 		return err
 	}
-	if err := s.topicIssuers.Register(projectcontract.ProjectLifecycleConfigTopicPrefix, s); err != nil {
+	if err := s.topicIssuers.Register(projectcontract.ApplicationLifecycleConfigTopicPrefix, s); err != nil {
 		return err
 	}
-	return s.topicIssuers.Register(projectcontract.ProjectLogsTopicPrefix, s)
+	return s.topicIssuers.Register(projectcontract.ApplicationLogsTopicPrefix, s)
 }
 
 // Close 停止项目模块拥有的实时流，并等待各流退出或返回调用方提供的关闭上下文错误。
@@ -126,10 +126,10 @@ func (s *Service) issueProjectListSummaryRealtimeSubscription(
 	request realtime.SubscriptionRequest,
 	topic string,
 ) (realtime.SubscriptionResponse, error) {
-	if topic != projectcontract.ProjectListSummaryTopic {
+	if topic != projectcontract.ApplicationListSummaryTopic {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
-	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ProjectViewPermission.String()); err != nil {
+	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ApplicationViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, err
 	}
 	if err := s.ensureProjectListSummaryTopicStreaming(topic); err != nil {
@@ -147,7 +147,7 @@ func (s *Service) issueProjectRuntimeRealtimeSubscription(
 		ctx,
 		request,
 		topic,
-		projectcontract.ProjectRuntimeTopicPrefix,
+		projectcontract.ApplicationRuntimeTopicPrefix,
 		s.ensureProjectRuntimeTopicStreaming,
 	)
 }
@@ -161,7 +161,7 @@ func (s *Service) issueProjectLifecycleConfigRealtimeSubscription(
 		ctx,
 		request,
 		topic,
-		projectcontract.ProjectLifecycleConfigTopicPrefix,
+		projectcontract.ApplicationLifecycleConfigTopicPrefix,
 		s.ensureProjectLifecycleConfigTopicStreaming,
 	)
 }
@@ -177,7 +177,7 @@ func (s *Service) issueProjectScopedRealtimeSubscription(
 	if err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
-	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ProjectViewPermission.String()); err != nil {
+	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ApplicationViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, err
 	}
 	projectID, err := s.ResolveApplicationID(ctx, applicationID)
@@ -195,11 +195,11 @@ func (s *Service) issueProjectLogsRealtimeSubscription(
 	request realtime.SubscriptionRequest,
 	topic string,
 ) (realtime.SubscriptionResponse, error) {
-	applicationID, err := parseProjectRealtimeTopicApplicationID(topic, projectcontract.ProjectLogsTopicPrefix)
+	applicationID, err := parseProjectRealtimeTopicApplicationID(topic, projectcontract.ApplicationLogsTopicPrefix)
 	if err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
-	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ProjectViewPermission.String()); err != nil {
+	if err := s.ensureRealtimeAccess(ctx, request, projectcontract.ApplicationViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, err
 	}
 	projectID, err := s.ResolveApplicationID(ctx, applicationID)
@@ -210,7 +210,7 @@ func (s *Service) issueProjectLogsRealtimeSubscription(
 	if err != nil {
 		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
 	}
-	if err := s.ensureProjectLogsTopicStreaming(topic, aggregate.Project.ID, LogQuery{
+	if err := s.ensureProjectLogsTopicStreaming(topic, aggregate.Application.ApplicationRecordID, LogQuery{
 		Tail:       defaultProjectLogsTail,
 		Timestamps: true,
 		Stdout:     true,

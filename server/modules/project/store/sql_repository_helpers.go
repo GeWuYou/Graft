@@ -70,7 +70,7 @@ func decodeSourceMetadataJSON(raw []byte) (map[string]string, error) {
 
 func (r *SQLRepository) ensureReady() error {
 	if r == nil || r.db == nil {
-		return errors.New("project repository is unavailable")
+		return errors.New("application repository is unavailable")
 	}
 	return nil
 }
@@ -78,14 +78,14 @@ func (r *SQLRepository) ensureReady() error {
 // normalizeListQuery 规范化项目列表查询条件，并将分页参数限制在允许范围内。
 // 排序值只允许稳定的 created_at + id 组合；无效筛选、关键字或运行目标 ID 返回 ErrInvalidInput。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
-	normalizedSort, err := normalizeProjectListSort(query.Sort)
+	normalizedSort, err := normalizeApplicationListSort(query.Sort)
 	if err != nil {
 		return ListQuery{}, ErrInvalidInput
 	}
 	query.Sort = normalizedSort
 
 	var normalizeErr error
-	query.SourceKind, normalizeErr = normalizeOptionalContractValue(query.SourceKind, isValidSourceKind)
+	query.SourceType, normalizeErr = normalizeOptionalContractValue(query.SourceType, isValidSourceType)
 	if normalizeErr != nil {
 		return ListQuery{}, normalizeErr
 	}
@@ -109,14 +109,14 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	return query, nil
 }
 
-// normalizeProjectListSort 校验项目列表排序表达式，并返回可安全映射到固定 SQL 子句的值。
+// normalizeApplicationListSort 校验项目列表排序表达式，并返回可安全映射到固定 SQL 子句的值。
 // 不支持的表达式返回 ErrInvalidInput，避免请求值进入 ORDER BY。
-func normalizeProjectListSort(raw string) (string, error) {
+func normalizeApplicationListSort(raw string) (string, error) {
 	switch strings.TrimSpace(raw) {
-	case "", ProjectListSortCreatedAtDesc:
-		return ProjectListSortCreatedAtDesc, nil
-	case ProjectListSortCreatedAtAsc:
-		return ProjectListSortCreatedAtAsc, nil
+	case "", ApplicationListSortCreatedAtDesc:
+		return ApplicationListSortCreatedAtDesc, nil
+	case ApplicationListSortCreatedAtAsc:
+		return ApplicationListSortCreatedAtAsc, nil
 	default:
 		return "", ErrInvalidInput
 	}
@@ -125,34 +125,34 @@ func normalizeProjectListSort(raw string) (string, error) {
 // buildListOrderBy 将已校验的项目列表排序表达式映射为固定 SQL 子句。
 // created_at 相同时始终使用 ID 降序作为并列排序，保证分页结果稳定。
 func buildListOrderBy(sortExpression string) string {
-	if sortExpression == ProjectListSortCreatedAtAsc {
-		return "created_at ASC, id DESC"
+	if sortExpression == ApplicationListSortCreatedAtAsc {
+		return "created_at ASC, application_record_id DESC"
 	}
-	return "created_at DESC, id DESC"
+	return "created_at DESC, application_record_id DESC"
 }
 
 // validateImportInput 规范化并校验导入项目输入，统一处理文件、快照、来源元数据和时间字段；输入无效时返回错误。
-func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
+func validateImportInput(input ImportApplicationInput) (ImportApplicationInput, error) {
 	input = trimImportInput(input)
 	if err := validateRequiredImportFields(input); err != nil {
-		return ImportProjectInput{}, fmt.Errorf("validate required project fields: %w", err)
+		return ImportApplicationInput{}, fmt.Errorf("validate required application fields: %w", err)
 	}
 	if err := validateImportContracts(input); err != nil {
-		return ImportProjectInput{}, fmt.Errorf("validate project contracts: %w", err)
+		return ImportApplicationInput{}, fmt.Errorf("validate application contracts: %w", err)
 	}
 	files, err := normalizeFiles(input.Files)
 	if err != nil {
-		return ImportProjectInput{}, fmt.Errorf("validate project files: %w", err)
+		return ImportApplicationInput{}, fmt.Errorf("validate application files: %w", err)
 	}
 	input.Files = files
 	snapshot, err := normalizeSnapshot(input.Snapshot)
 	if err != nil {
-		return ImportProjectInput{}, fmt.Errorf("validate project snapshot: %w", err)
+		return ImportApplicationInput{}, fmt.Errorf("validate application snapshot: %w", err)
 	}
 	input.Snapshot = snapshot
 	metadata, err := normalizeSourceMetadata(input.SourceMetadata)
 	if err != nil {
-		return ImportProjectInput{}, fmt.Errorf("validate project source metadata: %w", err)
+		return ImportApplicationInput{}, fmt.Errorf("validate application source metadata: %w", err)
 	}
 	input.SourceMetadata = metadata
 	normalizeTemporalPointers(&input.LastDriftCheckedAt)
@@ -160,13 +160,13 @@ func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 }
 
 // trimImportInput 去除导入项目输入中字符串字段及来源元数据值的首尾空白。
-func trimImportInput(input ImportProjectInput) ImportProjectInput {
+func trimImportInput(input ImportApplicationInput) ImportApplicationInput {
+	input.ApplicationType = strings.TrimSpace(input.ApplicationType)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
-	input.CanonicalProjectName = strings.TrimSpace(input.CanonicalProjectName)
-	input.CanonicalProjectNameSource = strings.TrimSpace(input.CanonicalProjectNameSource)
-	input.SourceKind = strings.TrimSpace(input.SourceKind)
-	input.HostScope = strings.TrimSpace(input.HostScope)
-	input.WorkingDirectory = strings.TrimSpace(input.WorkingDirectory)
+	input.ComposeProjectName = strings.TrimSpace(input.ComposeProjectName)
+	input.ComposeProjectNameSource = strings.TrimSpace(input.ComposeProjectNameSource)
+	input.SourceType = strings.TrimSpace(input.SourceType)
+	input.WorkspacePath = strings.TrimSpace(input.WorkspacePath)
 	input.OwnershipMode = strings.TrimSpace(input.OwnershipMode)
 	for key, value := range input.SourceMetadata {
 		input.SourceMetadata[key] = strings.TrimSpace(value)
@@ -180,14 +180,14 @@ func trimImportInput(input ImportProjectInput) ImportProjectInput {
 
 // validateRequiredImportFields 检查导入项目所需的必填字段是否已提供。
 // 若任一必填字段为空，返回 ErrInvalidInput。
-func validateRequiredImportFields(input ImportProjectInput) error {
+func validateRequiredImportFields(input ImportApplicationInput) error {
 	required := []string{
+		input.ApplicationType,
 		input.DisplayName,
-		input.CanonicalProjectName,
-		input.CanonicalProjectNameSource,
-		input.SourceKind,
-		input.HostScope,
-		input.WorkingDirectory,
+		input.ComposeProjectName,
+		input.ComposeProjectNameSource,
+		input.SourceType,
+		input.WorkspacePath,
 		input.OwnershipMode,
 		input.LifecycleStrategyKind,
 		input.LifecycleReviewStatus,
@@ -203,26 +203,26 @@ func validateRequiredImportFields(input ImportProjectInput) error {
 
 // validateRefreshInput 规范化并校验项目刷新输入，清理漂移状态、规范化文件和快照，并将时间字段转换为 UTC。
 // 返回规范化后的刷新输入；项目 ID 或其它字段无效时返回 ErrInvalidInput。
-func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error) {
-	if input.ProjectID == 0 {
-		return RefreshProjectInput{}, ErrInvalidInput
+func validateRefreshInput(input RefreshApplicationInput) (RefreshApplicationInput, error) {
+	if input.ApplicationRecordID == 0 {
+		return RefreshApplicationInput{}, ErrInvalidInput
 	}
 	input.LastObservedConfigHash = strings.TrimSpace(input.LastObservedConfigHash)
 	input.DriftStatus = strings.TrimSpace(input.DriftStatus)
 	if input.DriftStatus == "" {
-		return RefreshProjectInput{}, ErrInvalidInput
+		return RefreshApplicationInput{}, ErrInvalidInput
 	}
 	if err := validateRefreshContracts(input); err != nil {
-		return RefreshProjectInput{}, err
+		return RefreshApplicationInput{}, err
 	}
 	files, err := normalizeFiles(input.Files)
 	if err != nil {
-		return RefreshProjectInput{}, err
+		return RefreshApplicationInput{}, err
 	}
 	input.Files = files
 	snapshot, err := normalizeSnapshot(input.Snapshot)
 	if err != nil {
-		return RefreshProjectInput{}, err
+		return RefreshApplicationInput{}, err
 	}
 	input.Snapshot = snapshot
 	normalizeTemporalPointers(&input.LastDriftCheckedAt)
@@ -230,16 +230,16 @@ func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error
 }
 
 // validateUnregisterInput 校验注销项目请求输入。
-// ProjectID 为空时返回 ErrInvalidInput。
-func validateUnregisterInput(input UnregisterProjectInput) (UnregisterProjectInput, error) {
-	if input.ProjectID == 0 {
-		return UnregisterProjectInput{}, ErrInvalidInput
+// ApplicationRecordID 为空时返回 ErrInvalidInput。
+func validateUnregisterInput(input UnregisterApplicationInput) (UnregisterApplicationInput, error) {
+	if input.ApplicationRecordID == 0 {
+		return UnregisterApplicationInput{}, ErrInvalidInput
 	}
 	return input, nil
 }
 
 func validateUpdateLifecycleConfigInput(input UpdateLifecycleConfigInput) (UpdateLifecycleConfigInput, error) {
-	if input.ProjectID == 0 {
+	if input.ApplicationRecordID == 0 {
 		return UpdateLifecycleConfigInput{}, ErrInvalidInput
 	}
 	input.LifecycleStrategyKind = strings.TrimSpace(input.LifecycleStrategyKind)
@@ -256,7 +256,7 @@ func validateUpdateLifecycleConfigInput(input UpdateLifecycleConfigInput) (Updat
 }
 
 func validateUpdateWorkspaceAnnotationInput(input UpdateWorkspaceAnnotationInput) (UpdateWorkspaceAnnotationInput, error) {
-	if input.ProjectID == 0 {
+	if input.ApplicationRecordID == 0 {
 		return UpdateWorkspaceAnnotationInput{}, ErrInvalidInput
 	}
 	input.RelativePath = normalizeWorkspaceAnnotationPath(input.RelativePath)
@@ -271,7 +271,7 @@ func validateUpdateWorkspaceAnnotationInput(input UpdateWorkspaceAnnotationInput
 		input.Annotation = nil
 		return input, nil
 	}
-	if len(annotation) > projectcontract.ProjectWorkspaceAnnotationMaxLength {
+	if len(annotation) > projectcontract.ApplicationWorkspaceAnnotationMaxLength {
 		return UpdateWorkspaceAnnotationInput{}, ErrInvalidInput
 	}
 	input.Annotation = &annotation
@@ -280,14 +280,14 @@ func validateUpdateWorkspaceAnnotationInput(input UpdateWorkspaceAnnotationInput
 
 // normalizeFiles 规范化项目文件列表并校验路径唯一性。
 // 返回规范化后的文件切片；当输入为空、任一文件无效或存在重复的绝对路径时返回 `ErrInvalidInput`。
-func normalizeFiles(files []ProjectFile) ([]ProjectFile, error) {
+func normalizeFiles(files []ApplicationFile) ([]ApplicationFile, error) {
 	if len(files) == 0 {
 		return nil, ErrInvalidInput
 	}
-	normalized := make([]ProjectFile, 0, len(files))
+	normalized := make([]ApplicationFile, 0, len(files))
 	seenPaths := make(map[string]struct{}, len(files))
 	for index, item := range files {
-		normalizedItem, err := normalizeProjectFile(item, index)
+		normalizedItem, err := normalizeApplicationFile(item, index)
 		if err != nil {
 			return nil, err
 		}
@@ -300,22 +300,22 @@ func normalizeFiles(files []ProjectFile) ([]ProjectFile, error) {
 	return normalized, nil
 }
 
-// normalizeProjectFile 规范化并校验单个项目文件，确保必填字段有效且顺序索引非负。
+// normalizeApplicationFile 规范化并校验单个项目文件，确保必填字段有效且顺序索引非负。
 // 后续位置上仍为零的顺序索引会使用输入位置补齐，以保持导入文件的稳定顺序。
-func normalizeProjectFile(item ProjectFile, index int) (ProjectFile, error) {
+func normalizeApplicationFile(item ApplicationFile, index int) (ApplicationFile, error) {
 	item.Kind = strings.TrimSpace(item.Kind)
 	item.Role = strings.TrimSpace(item.Role)
 	item.AbsolutePath = strings.TrimSpace(item.AbsolutePath)
 	item.DisplayPath = strings.TrimSpace(item.DisplayPath)
 	item.LastObservedHash = strings.TrimSpace(item.LastObservedHash)
 	if item.Kind == "" || item.Role == "" || item.AbsolutePath == "" || item.DisplayPath == "" {
-		return ProjectFile{}, ErrInvalidInput
+		return ApplicationFile{}, ErrInvalidInput
 	}
 	if !isValidFileKind(item.Kind) || !isValidFileRole(item.Role) {
-		return ProjectFile{}, ErrInvalidInput
+		return ApplicationFile{}, ErrInvalidInput
 	}
 	if item.OrderIndex < 0 {
-		return ProjectFile{}, ErrInvalidInput
+		return ApplicationFile{}, ErrInvalidInput
 	}
 	if item.OrderIndex == 0 && index > 0 {
 		item.OrderIndex = index
@@ -390,28 +390,28 @@ func normalizeTemporalPointers(values ...**time.Time) {
 	}
 }
 
-func validateImportContracts(input ImportProjectInput) error {
+func validateImportContracts(input ImportApplicationInput) error {
 	switch {
-	case !isValidCanonicalProjectNameSource(input.CanonicalProjectNameSource):
-		return fmt.Errorf("unsupported canonical project name source %q: %w", input.CanonicalProjectNameSource, ErrInvalidInput)
-	case !isValidSourceKind(input.SourceKind):
-		return fmt.Errorf("unsupported project source kind %q: %w", input.SourceKind, ErrInvalidInput)
-	case !isValidHostScope(input.HostScope):
-		return fmt.Errorf("unsupported project host scope %q: %w", input.HostScope, ErrInvalidInput)
+	case input.ApplicationType != projectcontract.ApplicationTypeCompose.String():
+		return fmt.Errorf("unsupported application type %q: %w", input.ApplicationType, ErrInvalidInput)
+	case !isValidComposeProjectNameSource(input.ComposeProjectNameSource):
+		return fmt.Errorf("unsupported canonical application name source %q: %w", input.ComposeProjectNameSource, ErrInvalidInput)
+	case !isValidSourceType(input.SourceType):
+		return fmt.Errorf("unsupported application source kind %q: %w", input.SourceType, ErrInvalidInput)
 	case !isValidOwnershipMode(input.OwnershipMode):
-		return fmt.Errorf("unsupported project ownership mode %q: %w", input.OwnershipMode, ErrInvalidInput)
+		return fmt.Errorf("unsupported application ownership mode %q: %w", input.OwnershipMode, ErrInvalidInput)
 	case !isValidLifecycleStrategyKind(input.LifecycleStrategyKind):
-		return fmt.Errorf("unsupported project lifecycle strategy %q: %w", input.LifecycleStrategyKind, ErrInvalidInput)
+		return fmt.Errorf("unsupported application lifecycle strategy %q: %w", input.LifecycleStrategyKind, ErrInvalidInput)
 	case !isValidLifecycleReviewStatus(input.LifecycleReviewStatus):
-		return fmt.Errorf("unsupported project lifecycle review status %q: %w", input.LifecycleReviewStatus, ErrInvalidInput)
+		return fmt.Errorf("unsupported application lifecycle review status %q: %w", input.LifecycleReviewStatus, ErrInvalidInput)
 	case !isValidDriftStatus(input.DriftStatus):
-		return fmt.Errorf("unsupported project drift status %q: %w", input.DriftStatus, ErrInvalidInput)
+		return fmt.Errorf("unsupported application drift status %q: %w", input.DriftStatus, ErrInvalidInput)
 	default:
 		return nil
 	}
 }
 
-func validateRefreshContracts(input RefreshProjectInput) error {
+func validateRefreshContracts(input RefreshApplicationInput) error {
 	if !isValidDriftStatus(input.DriftStatus) {
 		return ErrInvalidInput
 	}
@@ -429,20 +429,16 @@ func normalizeOptionalContractValue(value string, valid func(string) bool) (stri
 	return value, nil
 }
 
-// isValidSourceKind 判断 value 是否为当前支持的项目来源类型。
-func isValidSourceKind(value string) bool {
+// isValidSourceType 判断 value 是否为当前支持的项目来源类型。
+func isValidSourceType(value string) bool {
 	switch value {
-	case projectcontract.SourceKindImported.String(),
-		projectcontract.SourceKindManaged.String(),
-		projectcontract.SourceKindTemplate.String():
+	case projectcontract.SourceTypeImported.String(),
+		projectcontract.SourceTypeManaged.String(),
+		projectcontract.SourceTypeTemplate.String():
 		return true
 	default:
 		return false
 	}
-}
-
-func isValidHostScope(value string) bool {
-	return value == projectcontract.HostScopeLocal.String()
 }
 
 func isValidOwnershipMode(value string) bool {
@@ -467,10 +463,10 @@ func isValidDriftStatus(value string) bool {
 	}
 }
 
-func isValidCanonicalProjectNameSource(value string) bool {
+func isValidComposeProjectNameSource(value string) bool {
 	switch value {
-	case projectcontract.CanonicalProjectNameSourceComputed.String(),
-		projectcontract.CanonicalProjectNameSourceOverride.String():
+	case projectcontract.ComposeProjectNameSourceComputed.String(),
+		projectcontract.ComposeProjectNameSourceOverride.String():
 		return true
 	default:
 		return false
@@ -564,13 +560,13 @@ func rollbackTx(tx *sql.Tx) {
 	}
 }
 
-// scanProject 读取并组装项目记录。
+// scanApplication 读取并组装项目记录。
 //
 // 将查询结果中的可空时间和可空用户 ID 转换为对应的指针字段。
-// scanProject 扫描数据库行并解码项目字段，构造完整的 Project；可空字段、工作区注释、来源元数据或生命周期配置
+// scanApplication 扫描数据库行并解码项目字段，构造完整的 Application；可空字段、工作区注释、来源元数据或生命周期配置
 // 解析失败时返回错误。
-func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
-	var item Project
+func scanApplication(scanner interface{ Scan(dest ...any) error }) (Application, error) {
+	var item Application
 	var lastDriftCheckedAt sql.NullTime
 	var runtimeTargetID sql.NullInt64
 	var applicationName sql.NullString
@@ -581,19 +577,16 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var sourceMetadataJSON []byte
 	var workspaceAnnotationsJSON []byte
 	if err := scanner.Scan(
-		&item.ID,
+		&item.ApplicationRecordID,
 		&item.ApplicationID,
+		&item.ApplicationType,
 		&applicationName,
 		&item.WorkspacePath,
 		&item.ComposeProjectName,
 		&item.ComposeProjectNameSource,
 		&runtimeTargetID,
 		&item.DisplayName,
-		&item.CanonicalProjectName,
-		&item.CanonicalProjectNameSource,
-		&item.SourceKind,
-		&item.HostScope,
-		&item.WorkingDirectory,
+		&item.SourceType,
 		&item.OwnershipMode,
 		&sourceMetadataJSON,
 		&item.LifecycleStrategyKind,
@@ -610,7 +603,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		&item.UpdatedAt,
 		&item.DeletedAt,
 	); err != nil {
-		return Project{}, err
+		return Application{}, err
 	}
 	item.LastDriftCheckedAt = nullableTime(lastDriftCheckedAt)
 	item.RuntimeTargetID = nullableUint64(runtimeTargetID)
@@ -623,30 +616,30 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	item.DeletedBy = nullableUint64(deletedBy)
 	annotations, err := decodeWorkspaceAnnotationsJSON(workspaceAnnotationsJSON)
 	if err != nil {
-		return Project{}, err
+		return Application{}, err
 	}
 	item.WorkspaceAnnotations = annotations
 	metadata, err := decodeSourceMetadataJSON(sourceMetadataJSON)
 	if err != nil {
-		return Project{}, err
+		return Application{}, err
 	}
 	item.SourceMetadata = metadata
 	config, err := decodeLifecycleConfigJSON(lifecycleConfigJSON)
 	if err != nil {
-		return Project{}, err
+		return Application{}, err
 	}
 	item.LifecycleConfig = config
 	return item, nil
 }
 
-// scanProjectFile 扫描并构造项目文件记录。
+// scanApplicationFile 扫描并构造项目文件记录。
 //
-// 返回从数据库行中读取的 ProjectFile；扫描失败时返回错误。
-func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile, error) {
-	var item ProjectFile
+// 返回从数据库行中读取的 ApplicationFile；扫描失败时返回错误。
+func scanApplicationFile(scanner interface{ Scan(dest ...any) error }) (ApplicationFile, error) {
+	var item ApplicationFile
 	if err := scanner.Scan(
 		&item.ID,
-		&item.ProjectID,
+		&item.ApplicationRecordID,
 		&item.Kind,
 		&item.Role,
 		&item.AbsolutePath,
@@ -656,16 +649,16 @@ func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
-		return ProjectFile{}, err
+		return ApplicationFile{}, err
 	}
 	return item, nil
 }
 
-func scanProjectFileSummary(scanner interface{ Scan(dest ...any) error }) (ProjectFile, error) {
-	var item ProjectFile
+func scanApplicationFileSummary(scanner interface{ Scan(dest ...any) error }) (ApplicationFile, error) {
+	var item ApplicationFile
 	if err := scanner.Scan(
 		&item.ID,
-		&item.ProjectID,
+		&item.ApplicationRecordID,
 		&item.Kind,
 		&item.Role,
 		&item.AbsolutePath,
@@ -675,7 +668,7 @@ func scanProjectFileSummary(scanner interface{ Scan(dest ...any) error }) (Proje
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
-		return ProjectFile{}, err
+		return ApplicationFile{}, err
 	}
 	return item, nil
 }
@@ -688,7 +681,7 @@ func scanProjectFileSummary(scanner interface{ Scan(dest ...any) error }) (Proje
 func scanSnapshot(scanner interface{ Scan(dest ...any) error }) (Snapshot, error) {
 	var item Snapshot
 	if err := scanner.Scan(
-		&item.ProjectID,
+		&item.ApplicationRecordID,
 		&item.NormalizedComposeJSON,
 		&item.ConfigHash,
 		&item.DeclaredServiceCount,
@@ -982,13 +975,13 @@ func isUniqueViolation(err error) bool {
 }
 
 // mapWriteErr 为写入操作错误添加动作前缀，并将唯一约束冲突映射为项目冲突错误。
-// 当检测到 PostgreSQL 唯一约束冲突时，返回包装了 ErrProjectConflict 的错误；否则返回包装原始错误的结果。
+// 当检测到 PostgreSQL 唯一约束冲突时，返回包装了 ErrApplicationConflict 的错误；否则返回包装原始错误的结果。
 func mapWriteErr(action string, err error) error {
 	if err == nil {
 		return nil
 	}
 	if isUniqueViolation(err) {
-		return fmt.Errorf("%s: %w", action, ErrProjectConflict)
+		return fmt.Errorf("%s: %w", action, ErrApplicationConflict)
 	}
 	return fmt.Errorf("%s: %w", action, err)
 }

@@ -1,0 +1,20 @@
+type: object
+additionalProperties: false
+required: [templates, default_template_key, workspace_entries, compose_file_path, lifecycle_configuration]
+properties:
+  templates:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [key, display_name]
+      properties:
+        key: { type: string }
+        display_name: { type: string }
+  default_template_key: { type: string }
+  workspace_entries:
+    type: array
+    items: { $ref: ./application-workspace-entry.yaml }
+  compose_file_path: { type: string }
+  lifecycle_configuration:
+    $ref: ./application-lifecycle-configuration-request.yaml

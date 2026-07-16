@@ -1,45 +1,45 @@
 package contract
 
-// SourceKind 标识稳定的项目来源契约；规范 owner 为 server/modules/project/contract。
-type SourceKind string
+// ApplicationType 标识公开应用部署模型。
+type ApplicationType string
 
-// HostScope 标识项目注册使用的稳定宿主范围契约。
-type HostScope string
+// SourceType 标识稳定的应用来源契约；规范 owner 为 server/modules/project/contract。
+type SourceType string
 
-// OwnershipMode 标识项目生命周期守卫使用的稳定所有权契约。
+// OwnershipMode 标识应用生命周期守卫使用的稳定所有权契约。
 type OwnershipMode string
 
 // ManagedRootStatus 标识受管创建使用的稳定受管根目录就绪契约。
 type ManagedRootStatus string
 
-// DriftStatus 标识项目配置检查使用的稳定漂移状态契约。
+// DriftStatus 标识应用配置检查使用的稳定漂移状态契约。
 type DriftStatus string
 
-// CanonicalProjectNameSource 标识规范项目名称的稳定来源契约。
-type CanonicalProjectNameSource string
+// ComposeProjectNameSource 标识 Compose 运行时名称的稳定来源契约。
+type ComposeProjectNameSource string
 
-// FileKind 标识稳定的项目文件类型契约。
+// FileKind 标识稳定的应用文件类型契约。
 type FileKind string
 
-// FileRole 标识稳定的项目文件角色契约。
+// FileRole 标识稳定的应用文件角色契约。
 type FileRole string
 
-// LifecycleStrategyKind 标识稳定的项目生命周期执行策略契约。
+// LifecycleStrategyKind 标识稳定的应用生命周期执行策略契约。
 type LifecycleStrategyKind string
 
 // LifecycleReviewStatus 标识稳定的生命周期配置审核状态契约。
 type LifecycleReviewStatus string
 
 const (
-	// SourceKindImported 表示导入 Graft 的外部创建 Compose 项目。
-	SourceKindImported SourceKind = "imported"
-	// SourceKindManaged 表示由 Graft 创建的受管项目。
-	SourceKindManaged SourceKind = "managed"
-	// SourceKindTemplate 表示由模板派生的项目来源。
-	SourceKindTemplate SourceKind = "template"
+	// ApplicationTypeCompose 表示由 Compose Specification 驱动的应用。
+	ApplicationTypeCompose ApplicationType = "compose"
 
-	// HostScopeLocal 表示第一阶段仅支持本地主机的项目范围。
-	HostScopeLocal HostScope = "local"
+	// SourceTypeImported 表示导入 Graft 的外部 Compose 应用。
+	SourceTypeImported SourceType = "imported"
+	// SourceTypeManaged 表示由 Graft 创建的受管应用。
+	SourceTypeManaged SourceType = "managed"
+	// SourceTypeTemplate 表示由模板派生的应用来源。
+	SourceTypeTemplate SourceType = "template"
 
 	// OwnershipModeExternal 表示项目由外部工作目录提供内容。
 	OwnershipModeExternal OwnershipMode = "external"
@@ -62,10 +62,10 @@ const (
 	// DriftStatusMissing 表示项目所需文件缺失。
 	DriftStatusMissing DriftStatus = "missing"
 
-	// CanonicalProjectNameSourceComputed 表示根据 Compose 输入计算出的运行时身份。
-	CanonicalProjectNameSourceComputed CanonicalProjectNameSource = "computed"
-	// CanonicalProjectNameSourceOverride 表示导入时显式覆盖的运行时身份。
-	CanonicalProjectNameSourceOverride CanonicalProjectNameSource = "override"
+	// ComposeProjectNameSourceComputed 表示根据 Compose 输入计算出的运行时身份。
+	ComposeProjectNameSourceComputed ComposeProjectNameSource = "computed"
+	// ComposeProjectNameSourceOverride 表示导入时显式覆盖的运行时身份。
+	ComposeProjectNameSourceOverride ComposeProjectNameSource = "override"
 
 	// FileKindCompose 表示 Compose 定义文件。
 	FileKindCompose FileKind = "compose"
@@ -89,10 +89,10 @@ const (
 )
 
 // String 返回线格式值，供跨边界契约序列化。
-func (v SourceKind) String() string { return string(v) }
+func (v ApplicationType) String() string { return string(v) }
 
 // String 返回线格式值，供跨边界契约序列化。
-func (v HostScope) String() string { return string(v) }
+func (v SourceType) String() string { return string(v) }
 
 // String 返回线格式值，供跨边界契约序列化。
 func (v OwnershipMode) String() string { return string(v) }
@@ -104,7 +104,7 @@ func (v ManagedRootStatus) String() string { return string(v) }
 func (v DriftStatus) String() string { return string(v) }
 
 // String 返回线格式值，供跨边界契约序列化。
-func (v CanonicalProjectNameSource) String() string { return string(v) }
+func (v ComposeProjectNameSource) String() string { return string(v) }
 
 // String 返回线格式值，供跨边界契约序列化。
 func (v FileKind) String() string { return string(v) }
