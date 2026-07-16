@@ -762,7 +762,7 @@ const headerStatusSummaryItems = computed(() =>
       { key: 'running', icon: '🟢', tooltip: t('project.list.statusTooltip.runtimeRunning') },
       { key: 'degraded', icon: '🟡', tooltip: t('project.list.statusTooltip.runtimeDegraded') },
       { key: 'stopped', icon: '⚫', tooltip: t('project.list.statusTooltip.runtimeStopped') },
-      { key: 'transitioning', icon: '🔵', tooltip: t('project.list.statusTooltip.runtimeTransitioning') },
+      { key: 'transitioning', icon: '🟠', tooltip: t('project.list.statusTooltip.runtimeTransitioning') },
       { key: 'unknown', icon: '⚪', tooltip: t('project.list.statusTooltip.runtimeUnknown') },
     ] as const
   )
@@ -888,7 +888,7 @@ function projectResourceBadgeLabel(key: ProjectResourceBadgeKey, count: number) 
 function projectResourceBadgeIcon(key: ProjectResourceBadgeKey) {
   if (key === 'running') return '🟢';
   if (key === 'stopped') return '⚫';
-  if (key === 'transitioning') return '🔵';
+  if (key === 'transitioning') return '🟠';
   if (key === 'issue') return '🔴';
   return '⚪';
 }

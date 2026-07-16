@@ -268,7 +268,7 @@
         "runtimeRunning": "🟢 运行中",
         "runtimeDegraded": "🟡 降级",
         "runtimeStopped": "⚫ 已停止",
-        "runtimeTransitioning": "🔵 过渡中"
+        "runtimeTransitioning": "🟠 过渡中"
       },
       "statusTooltip": {
         "lifecycleReviewRequired": "生命周期配置尚未确认，进入详情完成确认。",

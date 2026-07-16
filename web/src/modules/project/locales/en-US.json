@@ -268,7 +268,7 @@
         "runtimeRunning": "🟢 Running",
         "runtimeDegraded": "🟡 Degraded",
         "runtimeStopped": "⚫ Stopped",
-        "runtimeTransitioning": "🔵 Transitioning"
+        "runtimeTransitioning": "🟠 Transitioning"
       },
       "statusTooltip": {
         "lifecycleReviewRequired": "Lifecycle configuration is not confirmed yet. Open project details to complete the review.",
