@@ -14,12 +14,9 @@ properties:
     type: string
     nullable: true
     description: Optional managed env file name tracked by application authority.
-  template_key:
+  template_id:
     type: string
-    description: Planned stable template identifier for a future template-backed application source.
-  template_version:
+    description: Stable Application Template identity that originated this application.
+  template_version_id:
     type: string
-    description: Planned template version or release channel.
-  template_instance_name:
-    type: string
-    description: Planned template instance name used to derive a managed working directory.
+    description: Immutable published Application Template version that originated this application.

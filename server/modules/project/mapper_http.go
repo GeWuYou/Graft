@@ -543,7 +543,7 @@ func toManagedCreateRequest(request generated.PostApplicationCreateValidateJSONR
 	if err != nil {
 		return ManagedApplicationCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace, templateVersionID: stringValue(request.TemplateVersionId)})
 }
 
 type managedCreateEntriesHTTPParts struct {
@@ -554,6 +554,7 @@ type managedCreateEntriesHTTPParts struct {
 	composeFilePath        string
 	lifecycle              *generated.ApplicationLifecycleConfigurationRequest
 	reuseExistingWorkspace bool
+	templateVersionID      string
 }
 
 // managedCreateRequestFromEntries 将工作区条目转换为托管项目创建请求，并提取 Compose 文件内容。
@@ -584,7 +585,8 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, ApplicationName: parts.applicationName,
 		ReuseExistingWorkspace: parts.reuseExistingWorkspace,
 		ComposeFileName:        filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
-		WorkspaceEntries: entries,
+		WorkspaceEntries:  entries,
+		TemplateVersionID: parts.templateVersionID,
 	}
 	if parts.lifecycle != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
@@ -621,7 +623,7 @@ func toManagedCreateExecuteRequest(request generated.PostApplicationCreateJSONRe
 	if err != nil {
 		return ManagedApplicationCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace, templateVersionID: stringValue(request.TemplateVersionId)})
 }
 
 func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityResult) generated.ApplicationNameAvailabilityResponse {

@@ -398,6 +398,7 @@ type ManagedApplicationCreateRequest struct {
 	ComposeFilePath        string
 	EnvFilePaths           []string
 	LifecycleConfig        *LifecycleStandardConfig
+	TemplateVersionID      string
 }
 
 // ManagedWorkspaceEntry 表示任意 UTF-8 文本文件或空/非空目录。
@@ -1012,11 +1013,8 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedAppl
 	if err != nil {
 		return ManagedApplicationCreateValidationResult{}, err
 	}
-	if rootInfo.Status != projectcontract.ManagedRootStatusReady.String() || rootInfo.ConfiguredRootDirectory == nil {
-		if rootInfo.Status == projectcontract.ManagedRootStatusInvalid.String() {
-			return ManagedApplicationCreateValidationResult{}, errProjectManagedRootInvalid
-		}
-		return ManagedApplicationCreateValidationResult{}, errProjectManagedRootUnconfigured
+	if err = requireManagedRootReady(rootInfo); err != nil {
+		return ManagedApplicationCreateValidationResult{}, err
 	}
 
 	normalized, err := normalizeManagedCreateRequest(request)
@@ -1048,11 +1046,14 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedAppl
 		warnings = append(warnings, "No env file is declared; create execution will only materialize the compose file.")
 	}
 
-	sourceMetadata := managedCreateSourceMetadata(rootInfo.ConfigKey, *workspace.applicationName, normalized.ComposeFileName, normalized.EnvFileName)
+	sourceType, sourceMetadata, err := s.resolveManagedCreateSource(ctx, request.TemplateVersionID, rootInfo.ConfigKey, *workspace.applicationName, normalized.ComposeFileName, normalized.EnvFileName)
+	if err != nil {
+		return ManagedApplicationCreateValidationResult{}, err
+	}
 
 	return ManagedApplicationCreateValidationResult{
 		ManagedRoot:             rootInfo,
-		SourceType:              "managed",
+		SourceType:              sourceType,
 		DisplayName:             normalized.DisplayName,
 		ComposeProjectName:      composeName,
 		ApplicationName:         workspace.applicationName,
@@ -1066,6 +1067,17 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedAppl
 		Warnings:                warnings,
 		ReusedExistingWorkspace: workspace.exists,
 	}, nil
+}
+
+// requireManagedRootReady 将受管根目录状态映射为创建流程的稳定错误语义。
+func requireManagedRootReady(root ManagedRootInfo) error {
+	if root.Status == projectcontract.ManagedRootStatusReady.String() && root.ConfiguredRootDirectory != nil {
+		return nil
+	}
+	if root.Status == projectcontract.ManagedRootStatusInvalid.String() {
+		return errProjectManagedRootInvalid
+	}
+	return errProjectManagedRootUnconfigured
 }
 
 func managedCreateSourceMetadata(rootKey, applicationName, composeFileName string, envFileName *string) map[string]string {
@@ -1223,9 +1235,7 @@ func (s *Service) getAggregate(ctx context.Context, projectID uint64) (projectst
 	return aggregate, nil
 }
 
-// sameWorkspacePath 判断两个工作目录在去除首尾空白后是否相同。
-// sameWorkspacePath 判断两个工作目录路径是否相同。
-// @returns 去除首尾空白并忽略大小写后路径相同则为 `true`，否则为 `false`。
+// sameWorkspacePath 按当前本地文件系统语义比较清理后的工作目录路径。
 func mapStoreError(err error) error {
 	switch {
 	case err == nil:

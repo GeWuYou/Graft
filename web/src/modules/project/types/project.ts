@@ -65,7 +65,6 @@ export type ApplicationWorkspaceDraftDirectory = {
   node_type: 'directory';
 };
 export type ApplicationWorkspaceDraftEntry = ApplicationWorkspaceDraftFile | ApplicationWorkspaceDraftDirectory;
-export type ApplicationWorkspaceDefaultsResponse = components['schemas']['application-workspace-defaults-response'];
 export type ApplicationWorkspaceRenameRequest = components['schemas']['application-workspace-entry-rename-request'];
 export type ApplicationConfigurationMetadataResponse =
   components['schemas']['ApplicationConfigurationMetadataResponse'];

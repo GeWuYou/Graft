@@ -497,9 +497,8 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.Applicatio
 	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
 	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
 	assignSourceMetadataField(metadata, "managed_env_file_name", &result.ManagedEnvFileName)
-	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
-	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
-	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
+	assignSourceMetadataField(metadata, "template_id", &result.TemplateId)
+	assignSourceMetadataField(metadata, "template_version_id", &result.TemplateVersionId)
 	if result == (generated.ApplicationSourceMetadata{}) {
 		return nil
 	}

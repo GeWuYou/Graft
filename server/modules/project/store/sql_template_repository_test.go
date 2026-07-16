@@ -58,3 +58,30 @@ func TestTemplateRepositoryHidesArchivedTemplatesFromCreatorCatalog(t *testing.T
 		t.Fatalf("archived templates must not enter creator catalog: %#v", items)
 	}
 }
+
+func TestTemplateRepositoryResolvesOnlyPublishedUnarchivedVersionsForCreation(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	ctx := context.Background()
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAZ", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAZ", DisplayName: "Grafana", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err = repository.GetPublishedTemplateVersion(ctx, created.Version.ID); !errors.Is(err, ErrTemplateNotFound) {
+		t.Fatalf("draft must not be instantiable, got %v", err)
+	}
+	published, err := repository.PublishTemplateDraft(ctx, created.Template.ID, nil)
+	if err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	resolved, err := repository.GetPublishedTemplateVersion(ctx, published.Version.ID)
+	if err != nil || resolved.Template.ID != created.Template.ID || resolved.Version.ID != published.Version.ID {
+		t.Fatalf("resolve published version: item=%#v err=%v", resolved, err)
+	}
+	if err = repository.ArchiveTemplate(ctx, created.Template.ID, nil); err != nil {
+		t.Fatalf("archive: %v", err)
+	}
+	if _, err = repository.GetPublishedTemplateVersion(ctx, published.Version.ID); !errors.Is(err, ErrTemplateNotFound) {
+		t.Fatalf("archived template must not be instantiable, got %v", err)
+	}
+}

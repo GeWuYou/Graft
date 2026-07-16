@@ -86,6 +86,7 @@ type DeriveTemplateDraftInput struct {
 type TemplateRepository interface {
 	ListTemplates(ctx context.Context, query TemplateListQuery) ([]ApplicationTemplateAggregate, error)
 	GetTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error)
+	GetPublishedTemplateVersion(ctx context.Context, versionID string) (ApplicationTemplateAggregate, error)
 	CreateTemplateDraft(ctx context.Context, input CreateTemplateDraftInput) (ApplicationTemplateAggregate, error)
 	UpdateTemplateDraft(ctx context.Context, input UpdateTemplateDraftInput) (ApplicationTemplateAggregate, error)
 	DeriveTemplateDraft(ctx context.Context, input DeriveTemplateDraftInput) (ApplicationTemplateAggregate, error)

@@ -92,9 +92,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ApplicationCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ApplicationNameAvailabilityRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleApplicationNameAvailability)
 	group.POST(projectcontract.ApplicationCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleCreate)
-	group.POST(projectcontract.ApplicationCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
-	group.POST(projectcontract.ApplicationCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleTemplateCreate)
-	group.GET(projectcontract.ApplicationWorkspaceDefaultsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleWorkspaceDefaults)
 	// Template static routes precede /:applicationId so the Application detail route cannot capture them.
 	group.GET(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplates)
 	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCreateTemplateDraft)
@@ -493,94 +490,6 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
-}
-
-type templateProjectCreateHTTP struct {
-	DisplayName            string                                              `json:"display_name"`
-	RuntimeTargetID        uint64                                              `json:"runtime_target_id"`
-	ApplicationName        *string                                             `json:"application_name"`
-	TemplateKey            string                                              `json:"template_key"`
-	TemplateVersion        string                                              `json:"template_version"`
-	TemplateInstanceName   string                                              `json:"template_instance_name"`
-	LifecycleConfiguration *generated.ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration"`
-}
-
-func (r routeRuntime) handleTemplateCreateValidate(ginCtx *gin.Context) {
-	var request templateProjectCreateHTTP
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
-	}
-	templateRequest, err := toTemplateApplicationCreateRequest(request)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	result, err := r.service.ValidateTemplateApplication(ginCtx.Request.Context(), templateRequest)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
-}
-
-func (r routeRuntime) handleTemplateCreate(ginCtx *gin.Context) {
-	var request templateProjectCreateHTTP
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
-	}
-	templateRequest, err := toTemplateApplicationCreateRequest(request)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	result, err := r.service.CreateTemplateApplication(ginCtx.Request.Context(), templateRequest, currentUserIDPointer(ginCtx))
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
-}
-
-func (r routeRuntime) handleWorkspaceDefaults(ginCtx *gin.Context) {
-	result, err := r.service.WorkspaceDefaults(ginCtx.Request.Context())
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	templates := make([]gin.H, 0, len(result.Templates))
-	for _, template := range result.Templates {
-		templates = append(templates, gin.H{"key": template.Key, "display_name": template.DisplayName})
-	}
-	entries := make([]gin.H, 0, len(result.WorkspaceEntries))
-	for _, entry := range result.WorkspaceEntries {
-		item := gin.H{"path": entry.Path, "node_type": entry.NodeType}
-		if entry.Content != nil {
-			item["content"] = *entry.Content
-		}
-		entries = append(entries, item)
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{
-		"templates":               templates,
-		"default_template_key":    result.DefaultTemplateKey,
-		"workspace_entries":       entries,
-		"compose_file_path":       result.ComposeFilePath,
-		"lifecycle_configuration": toGeneratedLifecycleConfigurationRequest(result.LifecycleConfig),
-	})
-}
-
-// toTemplateApplicationCreateRequest 将 HTTP 模板创建请求转换为领域请求。
-// toTemplateApplicationCreateRequest 将模板应用创建 HTTP 请求转换为领域请求。
-// 生命周期配置无法转换时返回转换错误。
-func toTemplateApplicationCreateRequest(request templateProjectCreateHTTP) (TemplateApplicationCreateRequest, error) {
-	result := TemplateApplicationCreateRequest{DisplayName: request.DisplayName, RuntimeTargetID: request.RuntimeTargetID, ApplicationName: request.ApplicationName, TemplateKey: request.TemplateKey, TemplateVersion: request.TemplateVersion, TemplateInstanceName: request.TemplateInstanceName}
-	if request.LifecycleConfiguration != nil {
-		config, err := lifecycleStandardConfigFromGenerated(*request.LifecycleConfiguration)
-		if err != nil {
-			return TemplateApplicationCreateRequest{}, err
-		}
-		result.LifecycleConfig = &config
-	}
-	return result, nil
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {

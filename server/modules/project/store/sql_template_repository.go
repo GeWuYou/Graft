@@ -58,6 +58,25 @@ func (r *SQLRepository) GetTemplate(ctx context.Context, templateID string) (App
 	return r.getTemplate(ctx, templateID, "")
 }
 
+// GetPublishedTemplateVersion 返回可用于创建的已发布、未归档模板版本。
+func (r *SQLRepository) GetPublishedTemplateVersion(ctx context.Context, versionID string) (ApplicationTemplateAggregate, error) {
+	if err := r.ensureReady(); err != nil {
+		return ApplicationTemplateAggregate{}, err
+	}
+	query := `SELECT t.template_id, t.display_name, t.description, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
+		v.template_version_id, v.version_number, v.status, v.definition_schema_version, v.definition_json, v.published_at, v.published_by, v.created_by, v.updated_by, v.created_at, v.updated_at, v.deleted_at
+		FROM application_templates t JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0
+		WHERE t.deleted_at = 0 AND t.archived_at IS NULL AND v.template_version_id = ? AND v.status = 'published'`
+	item, err := scanTemplateAggregate(r.db.QueryRowContext(ctx, r.placeholder.rebind(query), strings.TrimSpace(versionID)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return ApplicationTemplateAggregate{}, ErrTemplateNotFound
+	}
+	if err != nil {
+		return ApplicationTemplateAggregate{}, fmt.Errorf("get published application template version: %w", err)
+	}
+	return item, nil
+}
+
 // FindTemplateByDisplayName 为幂等平台模板初始化解析存活模板身份。
 func (r *SQLRepository) FindTemplateByDisplayName(ctx context.Context, displayName string) (ApplicationTemplateAggregate, error) {
 	return r.getTemplate(ctx, "", strings.TrimSpace(displayName))

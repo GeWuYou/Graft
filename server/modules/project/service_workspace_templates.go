@@ -2,33 +2,23 @@ package project
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"unicode/utf8"
 
 	projectcontract "graft/server/modules/project/contract"
 )
 
 const (
-	defaultTemplateKey     = "default"
-	defaultTemplateVersion = "runtime"
 	maxWorkspaceEntryCount = 1024
 	maxWorkspaceFileBytes  = 1 << 20
 	maxWorkspaceTotalBytes = 10 << 20
 )
-
-var defaultWorkspaceTemplateSeedMu sync.Mutex
-
-//go:embed all:templates/default
-var bundledWorkspaceTemplates embed.FS
 
 // WorkspaceEntry 表示项目工作区中的通用文本文件或目录条目。
 // 文件名不按扩展名限制，仅执行路径安全和文本内容安全校验。
@@ -36,54 +26,6 @@ type WorkspaceEntry struct {
 	Path     string
 	NodeType string
 	Content  *string
-}
-
-// WorkspaceTemplate 描述一个由操作员管理的模板目录。
-type WorkspaceTemplate struct {
-	Key         string
-	DisplayName string
-}
-
-// WorkspaceDefaultsResult 是空白创建使用的服务端拥有初始工作区模型。
-type WorkspaceDefaultsResult struct {
-	Templates          []WorkspaceTemplate
-	DefaultTemplateKey string
-	WorkspaceEntries   []WorkspaceEntry
-	ComposeFilePath    string
-	LifecycleConfig    LifecycleStandardConfig
-}
-
-// WorkspaceDefaults 返回空白创建使用的服务端初始工作区和可用运行时模板。
-func (s *Service) WorkspaceDefaults(ctx context.Context) (WorkspaceDefaultsResult, error) {
-	root, err := s.applicationRootDirectory(ctx)
-	if err != nil {
-		return WorkspaceDefaultsResult{}, err
-	}
-	if err := seedDefaultWorkspaceTemplate(root); err != nil {
-		return WorkspaceDefaultsResult{}, err
-	}
-	templates, err := listWorkspaceTemplates(root)
-	if err != nil {
-		return WorkspaceDefaultsResult{}, err
-	}
-	prefill, err := s.blankCreatePrefillDefaultTemplate(ctx)
-	if err != nil {
-		return WorkspaceDefaultsResult{}, err
-	}
-	entries := blankWorkspaceEntries()
-	if prefill {
-		entries, err = loadWorkspaceTemplate(root, defaultTemplateKey)
-		if err != nil {
-			return WorkspaceDefaultsResult{}, err
-		}
-	}
-	return WorkspaceDefaultsResult{
-		Templates:          templates,
-		DefaultTemplateKey: defaultTemplateKey,
-		WorkspaceEntries:   entries,
-		ComposeFilePath:    "compose.yaml",
-		LifecycleConfig:    defaultLifecycleStandardConfig(),
-	}, nil
 }
 
 func (s *Service) applicationRootDirectory(ctx context.Context) (string, error) {
@@ -105,139 +47,15 @@ func (s *Service) applicationRootDirectory(ctx context.Context) (string, error) 
 	return root, nil
 }
 
-func (s *Service) blankCreatePrefillDefaultTemplate(ctx context.Context) (bool, error) {
-	if s == nil || s.configResolver == nil {
-		return true, nil
-	}
-	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfig.String())
-	if err != nil {
-		return false, fmt.Errorf("%w: resolve blank-create template prefill: %v", errProjectInvalidArgument, err)
-	}
-	var enabled bool
-	if err := json.Unmarshal([]byte(raw), &enabled); err != nil {
-		return false, fmt.Errorf("%w: decode blank-create template prefill: %v", errProjectInvalidArgument, err)
-	}
-	return enabled, nil
-}
-
-// blankWorkspaceEntries 返回包含空内容的初始 .env 和 compose.yaml 文件条目。
-func blankWorkspaceEntries() []WorkspaceEntry {
-	empty := ""
-	return []WorkspaceEntry{{Path: ".env", NodeType: "file", Content: &empty}, {Path: "compose.yaml", NodeType: "file", Content: &empty}}
-}
-
 // templateRoot 返回应用根目录下的模板目录路径。
 func templateRoot(applicationRoot string) string { return filepath.Join(applicationRoot, "templates") }
-
-// seedDefaultWorkspaceTemplate 在不覆盖已有文件的前提下向默认模板补齐内嵌文件；读取、写入或检查目标失败时返回错误。
-func seedDefaultWorkspaceTemplate(applicationRoot string) error {
-	defaultWorkspaceTemplateSeedMu.Lock()
-	defer defaultWorkspaceTemplateSeedMu.Unlock()
-	targetRoot := filepath.Join(templateRoot(applicationRoot), defaultTemplateKey)
-	for _, bundledPath := range []string{"templates/default/compose.yaml", "templates/default/.env"} {
-		if err := seedBundledWorkspaceTemplateFile(targetRoot, bundledPath); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func seedBundledWorkspaceTemplateFile(targetRoot, bundledPath string) error {
-	content, err := bundledWorkspaceTemplates.ReadFile(bundledPath)
-	if err != nil {
-		return fmt.Errorf("read bundled workspace template: %w", err)
-	}
-	relative := strings.TrimPrefix(bundledPath, "templates/default/")
-	target := filepath.Join(targetRoot, relative)
-	if err := os.MkdirAll(filepath.Dir(target), managedCreateDirMode); err != nil {
-		return fmt.Errorf("create default template directory: %w", err)
-	}
-	if exists, err := regularTemplateFileExists(target, relative); err != nil || exists {
-		return err
-	}
-	return publishNewWorkspaceTemplateFile(target, content)
-}
-
-func regularTemplateFileExists(target, relative string) (bool, error) {
-	info, err := os.Lstat(target)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("inspect default template file: %w", err)
-	}
-	if !info.Mode().IsRegular() {
-		return false, fmt.Errorf("inspect default template file: %s is not a regular file", relative)
-	}
-	return true, nil
-}
-
-func publishNewWorkspaceTemplateFile(target string, content []byte) error {
-	temporary, err := os.CreateTemp(filepath.Dir(target), ".graft-template-*")
-	if err != nil {
-		return fmt.Errorf("create default template temporary file: %w", err)
-	}
-	temporaryPath := temporary.Name()
-	defer func() { _ = os.Remove(temporaryPath) }()
-	if err := writeWorkspaceTemplateTemporaryFile(temporary, content); err != nil {
-		return err
-	}
-	if err := os.Link(temporaryPath, target); err == nil {
-		return nil
-	} else if !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("publish default template file: %w", err)
-	}
-	_, err = regularTemplateFileExists(target, filepath.Base(target))
-	return err
-}
-
-func writeWorkspaceTemplateTemporaryFile(temporary *os.File, content []byte) error {
-	if err := temporary.Chmod(managedCreateFileMode); err != nil {
-		_ = temporary.Close()
-		return fmt.Errorf("set default template file mode: %w", err)
-	}
-	if _, err := temporary.Write(content); err != nil {
-		_ = temporary.Close()
-		return fmt.Errorf("write default template temporary file: %w", err)
-	}
-	if err := temporary.Sync(); err != nil {
-		_ = temporary.Close()
-		return fmt.Errorf("sync default template temporary file: %w", err)
-	}
-	if err := temporary.Close(); err != nil {
-		return fmt.Errorf("close default template temporary file: %w", err)
-	}
-	return nil
-}
-
-// listWorkspaceTemplates 列出应用根目录下的有效工作区模板并按模板键排序；模板目录无法读取时返回错误。
-func listWorkspaceTemplates(applicationRoot string) ([]WorkspaceTemplate, error) {
-	entries, err := os.ReadDir(templateRoot(applicationRoot))
-	if err != nil {
-		return nil, fmt.Errorf("read template directory: %w", err)
-	}
-	result := make([]WorkspaceTemplate, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() || !validTemplateKey(entry.Name()) {
-			continue
-		}
-		result = append(result, WorkspaceTemplate{Key: entry.Name(), DisplayName: entry.Name()})
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Key < result[j].Key })
-	return result, nil
-}
-
-// validTemplateKey 确定去除首尾空白后的键是否符合应用名称格式。
-func validTemplateKey(key string) bool {
-	key = strings.TrimSpace(key)
-	return applicationNamePattern.MatchString(key)
-}
 
 // loadWorkspaceTemplate 加载指定工作区模板中的文件和目录条目，并按路径排序。
 // key 必须是有效的模板标识。
 // 返回模板条目；加载失败时返回错误。
 func loadWorkspaceTemplate(applicationRoot, key string) ([]WorkspaceEntry, error) {
-	if !validTemplateKey(key) {
+	key = strings.TrimSpace(key)
+	if !applicationNamePattern.MatchString(key) {
 		return nil, errProjectInvalidArgument
 	}
 	root := filepath.Join(templateRoot(applicationRoot), key)

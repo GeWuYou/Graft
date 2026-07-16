@@ -311,12 +311,6 @@ paths:
     $ref: ./paths/ops-applications.application-name-availability.yaml
   /api/ops/applications/create/managed:
     $ref: ./paths/ops-applications.create.yaml
-  /api/ops/applications/create/template/validate:
-    $ref: ./paths/ops-applications.create-template-validate.yaml
-  /api/ops/applications/create/template:
-    $ref: ./paths/ops-applications.create-template.yaml
-  /api/ops/applications/create/workspace-defaults:
-    $ref: ./paths/ops-applications.workspace-defaults.yaml
   /api/ops/applications/templates:
     $ref: ./paths/ops-applications.templates.yaml
   /api/ops/applications/templates/import-legacy:
@@ -971,10 +965,6 @@ components:
       $ref: ./components/schemas/application-workspace-manifest-file.yaml
     ApplicationWorkspaceEntry:
       $ref: ./components/schemas/application-workspace-entry.yaml
-    ApplicationWorkspaceDefaultsResponse:
-      $ref: ./components/schemas/application-workspace-defaults-response.yaml
-    EnvelopedApplicationWorkspaceDefaultsResponse:
-      $ref: ./components/schemas/enveloped-application-workspace-defaults-response.yaml
     ApplicationImportValidateRequest:
       $ref: ./components/schemas/application-import-validate-request.yaml
     ApplicationImportValidateResponse:

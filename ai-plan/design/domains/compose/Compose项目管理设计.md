@@ -511,16 +511,14 @@ Phase 1 推荐三张模块自有表：
 - 它不再是 workspace state 的 source of truth。
 - 它只继续服务 compose parsing、preview、validation、lifecycle 与 deployment 所需的 compose/env 元数据覆盖层。
 
-### Application Root templates
+### Application Templates
 
-`Application Root Directory` 下的 `templates/` 是受管工作区之外的保留运行时目录。当前默认模板固定在
-`<application-root>/templates/default`；它是 Template source 的内容 authority，不是模块内置文件或前端常量。
+Application Template 是独立于受管工作区的版本化创建蓝图。模板身份和不可变发布版本由 `application_templates` 与 `application_template_versions` 持有，定义格式由 `deployment_adapter_kind` 解释；当前仅 Compose adapter 可实例化。
 
-- Project module 在目录缺失时以发布随附的种子资源初始化 `templates/default`；已有目录或文件绝不覆盖，以保留管理员维护的模板。
-- `default` 当前提供 `.env` 与 `compose.yaml` 两个示例文件；它们只定义 Blank/Template 的初始体验，不限制工作区可创建、读取或编辑的文件名、扩展名、层级或目录。
-- `templates/` 的合法一级子目录是可发现的模板 key，`default` 是默认选择；一个模板可包含任意安全相对路径的 UTF-8 文本文件、嵌套目录和空目录，materialize 时完整复制。
-- 创建 contract 由服务端提供可用模板目录清单、所选模板的安全标识及 Blank 默认草稿；web 不直接读取 Application Root，也不根据目录名推导模板内容。
-- `templates/` 本身及其子路径不能作为 `workspace_key`、项目工作区、导入目标或项目文件 API 的可访问根目录。
+- 创建者只能选择未归档的已发布版本；草稿、归档模板或 adapter 不兼容的版本都不能进入创建请求。
+- 模板版本仅作为预填工作区和 lifecycle preset 的来源证明。用户可在统一受管创建编辑器修改内容；创建结果记录 `template_id` 与 `template_version_id`，但不会反写模板。
+- 内置 Compose baseline 由模块以幂等方式持久化为模板。旧 `<application-root>/templates/<key>` 只允许管理员显式导入为草稿，日常创建绝不读取或回退该目录。
+- 模板目录与其历史导入路径均不能作为 `workspace_key`、应用工作区、导入目标或应用文件 API 的可访问根目录。
 
 ### `compose_project_snapshots`
 
@@ -1084,11 +1082,7 @@ Blank create request 建议至少包含：
 
 `workspace_entries` 表达任意安全相对路径的文本文件及空目录，不按文件名、扩展名或 `file_kind` 设置创建白名单。`compose_file_path` 只标识本次创建必须存在且可解析的主 Compose 文件，不决定其他 workspace 成员资格。服务端必须拒绝绝对路径、空路径、`..` 路径逃逸、重复或冲突条目、符号链接绕过和不受支持的二进制内容；不得以现有前端文件高亮或目录隐藏配置作为创建准入规则。
 
-Blank 向导的默认草稿由 project module 返回，前端不得硬编码模板文件内容。System Config `ops.project.blank.prefill_default_template` 的产品名称为“Blank 创建预填默认模板”，默认 `true`，通过现有 `configregistry -> SystemConfigResolver` authority 链和 `runtime-hot` 语义生效：
-
-- 开启时，Blank 草稿完整复制 `templates/default` 的当前内容。
-- 关闭时，Blank 草稿仅提供空 `.env` 与空 `compose.yaml`；在审核及创建前必须填充并通过 `compose_file_path` 的 Compose 解析。
-- Template source 始终物化用户所选模板目录，且不受该开关影响。
+Blank 向导使用固定的最小本地草稿（`.env` 和 `compose.yaml`），不再读取服务端 workspace-defaults 或 System Config 模板预填开关。基于模板创建先读取已发布版本快照，再进入同一编辑器；提交时只携带 `template_version_id` 作为服务端溯源校验。
 
 服务端从 `workspace_key` 生成唯一的单层 Workspace Path：`Application Root Directory + workspace_key`。创建表单展示可编辑的 Workspace Key 控制项，初始值为 Graft 按显示名提议的可用 key；默认 key 冲突时服务端自动附加 `-2`、`-3` 等后缀。用户若显式修改 key，只能填写安全 slug，冲突时返回本地化错误与建议值。不得接受 `relative_project_directory`、绝对路径、路径分隔符或 `..`；用户界面不展示完整路径、受管根目录、权限或 Compose runtime identity。
 
@@ -1569,7 +1563,7 @@ Phase 1 处理：
 | 方向                                 | 是否兼容当前模型 | 设计说明                                                     |
 | ------------------------------------ | ---------------- | ------------------------------------------------------------ |
 | Git-based Projects                   | `yes`            | 在 `source_type` 上扩展 `git`，并追加 source metadata        |
-| Templates                            | `yes`            | Template 是 Application Root `templates/<key>` 的受管输入源 |
+| Templates                            | `yes`            | 通用 versioned Application Template，定义由 Deployment Adapter 解释 |
 | Directory Scan                       | `yes`            | 扫描只产出 candidates，不直接注册                            |
 | Auto Discovery                       | `yes`            | 后台发现只更新 candidate / drift，不改变 runtime authority   |
 | Multiple Compose Files               | `yes`            | `compose_project_files` 的 `order_index` 已为有序 `-f` 预留  |
@@ -1765,7 +1759,7 @@ Configuration：
 - Project module owner：`server/modules/project/**`
   - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
   - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
-  - Git 仅在隔离临时目录 clone/checkout 无凭据来源；Template 只从 Application Root `templates/<key>` 读取、发现并完整物化安全文本 workspace，不使用模块内置内容。二者都不扩展到目录扫描、remote host 或 backend activity aggregation。
+  - Git 仅在隔离临时目录 clone/checkout 无凭据来源；Template 只读取已发布的持久化版本快照并预填可编辑 workspace。二者都不扩展到目录扫描、remote host 或 backend activity aggregation。
 - Web module owner：`web/src/modules/project/**`
   - `/applications/create` 固定为 source selector
   - `/applications/create/managed` 承接现有 managed create 页面
@@ -1865,7 +1859,7 @@ IA guardrail:
 当前公开且可执行的 Compose Application Source 只有：
 
 - `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
-- `Template`：Application Root `templates/<key>` 模板目录生成 Workspace。
+- `Template`：已发布 Application Template 版本预填 Workspace，创建请求保留不可变版本溯源。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
 MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/applications/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/create`，依次进入 deployment、target、source 与向导。Git 可在 Source 页面仅作为禁用卡片展示，并通过本地化 tooltip 显示“暂不支持”；它与 Remote Host、ZIP、GitHub Template 一样不得预先暴露 API、路由、菜单、创建方式枚举、持久化来源类型或占位页面。

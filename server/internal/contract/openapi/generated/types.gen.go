@@ -5005,6 +5005,9 @@ type ApplicationCreateRequest struct {
 	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
 	RuntimeTargetId        int64 `json:"runtime_target_id"`
 
+	// TemplateVersionId Optional immutable published Application Template version that originally prefilled this editable workspace.
+	TemplateVersionId *string `json:"template_version_id,omitempty"`
+
 	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
 	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
 }
@@ -5060,6 +5063,9 @@ type ApplicationCreateValidateRequest struct {
 	// ReuseExistingWorkspace Indicates that validation is for an inspected, unregistered managed directory.
 	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
 	RuntimeTargetId        int64 `json:"runtime_target_id"`
+
+	// TemplateVersionId Optional immutable published Application Template version used only for provenance validation.
+	TemplateVersionId *string `json:"template_version_id,omitempty"`
 
 	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
 	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
@@ -5908,36 +5914,15 @@ type ApplicationSourceMetadata struct {
 	// ManagedRootKey Canonical config key that owns the managed application root.
 	ManagedRootKey *string `json:"managed_root_key,omitempty"`
 
-	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
-	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+	// TemplateId Stable Application Template identity that originated this application.
+	TemplateId *string `json:"template_id,omitempty"`
 
-	// TemplateKey Planned stable template identifier for a future template-backed application source.
-	TemplateKey *string `json:"template_key,omitempty"`
-
-	// TemplateVersion Planned template version or release channel.
-	TemplateVersion *string `json:"template_version,omitempty"`
+	// TemplateVersionId Immutable published Application Template version that originated this application.
+	TemplateVersionId *string `json:"template_version_id,omitempty"`
 }
 
 // ApplicationSourceType defines model for application-source-type.
 type ApplicationSourceType string
-
-// ApplicationTemplateCreateRequest defines model for application-template-create-request.
-type ApplicationTemplateCreateRequest struct {
-	// ApplicationName Required unique machine-safe application name for the managed directory and Compose application identity.
-	ApplicationName        string                                    `json:"application_name"`
-	DisplayName            string                                    `json:"display_name"`
-	LifecycleConfiguration *ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-	RuntimeTargetId        int64                                     `json:"runtime_target_id"`
-
-	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the application name.
-	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
-
-	// TemplateKey Runtime template directory key. Defaults to default.
-	TemplateKey *string `json:"template_key,omitempty"`
-
-	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
-	TemplateVersion *string `json:"template_version,omitempty"`
-}
 
 // ApplicationTemplateDraftRequest defines model for application-template-draft-request.
 type ApplicationTemplateDraftRequest struct {
@@ -5985,18 +5970,6 @@ type ApplicationTemplateVersionStatus string
 
 // ApplicationType Public Application deployment adapter kind. Compose is the only currently supported value.
 type ApplicationType string
-
-// ApplicationWorkspaceDefaultsResponse defines model for application-workspace-defaults-response.
-type ApplicationWorkspaceDefaultsResponse struct {
-	ComposeFilePath        string                                   `json:"compose_file_path"`
-	DefaultTemplateKey     string                                   `json:"default_template_key"`
-	LifecycleConfiguration ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration"`
-	Templates              []struct {
-		DisplayName string `json:"display_name"`
-		Key         string `json:"key"`
-	} `json:"templates"`
-	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
-}
 
 // ApplicationWorkspaceEntry defines model for application-workspace-entry.
 type ApplicationWorkspaceEntry struct {
@@ -8063,11 +8036,6 @@ type EnvelopedApplicationTemplateResponse struct {
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
-}
-
-// EnvelopedApplicationWorkspaceDefaultsResponse defines model for enveloped-application-workspace-defaults-response.
-type EnvelopedApplicationWorkspaceDefaultsResponse struct {
-	Data ApplicationWorkspaceDefaultsResponse `json:"data"`
 }
 
 // EnvelopedAuditIncidentResponse defines model for enveloped-audit-incident-response.
@@ -11900,36 +11868,6 @@ type PostApplicationCreateValidateParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostApplicationCreateTemplateParams defines parameters for PostApplicationCreateTemplate.
-type PostApplicationCreateTemplateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostApplicationCreateTemplateValidateParams defines parameters for PostApplicationCreateTemplateValidate.
-type PostApplicationCreateTemplateValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetApplicationWorkspaceDefaultsParams defines parameters for GetApplicationWorkspaceDefaults.
-type GetApplicationWorkspaceDefaultsParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // GetApplicationCreationMethodsParams defines parameters for GetApplicationCreationMethods.
 type GetApplicationCreationMethodsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -13236,12 +13174,6 @@ type PostApplicationCreateJSONRequestBody = ApplicationCreateRequest
 
 // PostApplicationCreateValidateJSONRequestBody defines body for PostApplicationCreateValidate for application/json ContentType.
 type PostApplicationCreateValidateJSONRequestBody = ApplicationCreateValidateRequest
-
-// PostApplicationCreateTemplateJSONRequestBody defines body for PostApplicationCreateTemplate for application/json ContentType.
-type PostApplicationCreateTemplateJSONRequestBody = ApplicationTemplateCreateRequest
-
-// PostApplicationCreateTemplateValidateJSONRequestBody defines body for PostApplicationCreateTemplateValidate for application/json ContentType.
-type PostApplicationCreateTemplateValidateJSONRequestBody = ApplicationTemplateCreateRequest
 
 // PostApplicationImportJSONRequestBody defines body for PostApplicationImport for application/json ContentType.
 type PostApplicationImportJSONRequestBody = ApplicationImportRequest

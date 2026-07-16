@@ -48,16 +48,16 @@ func (e GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind) Valid() boo
 
 // Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus.
 const (
-	GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusHealthy     GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "healthy"
-	GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusUnavailable GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "unavailable"
+	RuntimeTargetSummaryHealthStatusHealthy     GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "healthy"
+	RuntimeTargetSummaryHealthStatusUnavailable GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus enum.
 func (e GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus) Valid() bool {
 	switch e {
-	case GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusHealthy:
+	case RuntimeTargetSummaryHealthStatusHealthy:
 		return true
-	case GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusUnavailable:
+	case RuntimeTargetSummaryHealthStatusUnavailable:
 		return true
 	default:
 		return false
@@ -156,16 +156,16 @@ func (e GetRuntimeTarget200JSONResponseBodyDataConnectionKind) Valid() bool {
 
 // Defines values for GetRuntimeTarget200JSONResponseBodyDataHealthStatus.
 const (
-	GetRuntimeTarget200JSONResponseBodyDataHealthStatusHealthy     GetRuntimeTarget200JSONResponseBodyDataHealthStatus = "healthy"
-	GetRuntimeTarget200JSONResponseBodyDataHealthStatusUnavailable GetRuntimeTarget200JSONResponseBodyDataHealthStatus = "unavailable"
+	GetRuntimeTarget200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusHealthy     GetRuntimeTarget200JSONResponseBodyDataHealthStatus = "healthy"
+	GetRuntimeTarget200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusUnavailable GetRuntimeTarget200JSONResponseBodyDataHealthStatus = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataHealthStatus enum.
 func (e GetRuntimeTarget200JSONResponseBodyDataHealthStatus) Valid() bool {
 	switch e {
-	case GetRuntimeTarget200JSONResponseBodyDataHealthStatusHealthy:
+	case GetRuntimeTarget200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusHealthy:
 		return true
-	case GetRuntimeTarget200JSONResponseBodyDataHealthStatusUnavailable:
+	case GetRuntimeTarget200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusUnavailable:
 		return true
 	default:
 		return false
@@ -279,16 +279,16 @@ func (e PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind) Valid() b
 
 // Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus.
 const (
-	Healthy     PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "healthy"
-	Unavailable PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "unavailable"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusHealthy     PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "healthy"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusUnavailable PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus enum.
 func (e PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus) Valid() bool {
 	switch e {
-	case Healthy:
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusHealthy:
 		return true
-	case Unavailable:
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatusRuntimeTargetHealthStatusUnavailable:
 		return true
 	default:
 		return false

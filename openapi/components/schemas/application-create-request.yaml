@@ -37,3 +37,6 @@ properties:
     description: Explicitly confirms that a previously inspected, unregistered managed directory may receive the submitted workspace changes.
   lifecycle_configuration:
     $ref: ./application-lifecycle-configuration-request.yaml
+  template_version_id:
+    type: string
+    description: Optional immutable published Application Template version that originally prefilled this editable workspace.

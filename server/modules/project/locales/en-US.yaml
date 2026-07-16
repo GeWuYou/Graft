@@ -37,8 +37,6 @@ systemConfig.application.ops.application.workspace.hidden_directories.descriptio
 systemConfig.application.ops.application.workspace.hidden_directories.placeholder: Press Enter after each directory name, for example node_modules or .git
 systemConfig.application.ops.application.workspace.file_tooltip_rules.title: Workspace File Tooltip Rules
 systemConfig.application.ops.application.workspace.file_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against file basenames. Later enabled matches override earlier matches.
-systemConfig.application.ops.application.create.blank_prefill_default_template.title: Prefill Blank Applications from Default Template
-systemConfig.application.ops.application.create.blank_prefill_default_template.description: When enabled, blank application creation starts with the complete templates/default workspace. When disabled, it starts with empty .env and compose.yaml files.
 systemConfig.application.ops.application.workspace.directory_tooltip_rules.title: Workspace Directory Tooltip Rules
 systemConfig.application.ops.application.workspace.directory_tooltip_rules.description: JSON array string of ordered default tooltip rules matched against directory basenames. Later enabled matches override earlier matches.
 systemConfig.groups.ops.application.import: Application Import

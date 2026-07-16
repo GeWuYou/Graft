@@ -46,9 +46,7 @@ import type {
   ApplicationSavedViewRequest,
   ApplicationServicesResponse,
   ApplicationTaskReceipt,
-  ApplicationTemplate,
   ApplicationTemplateListResponse,
-  ApplicationWorkspaceDefaultsResponse,
   ApplicationWorkspaceEntry,
   ApplicationWorkspaceFileAnnotationRequest,
   ApplicationWorkspaceFileAnnotationResponse,
@@ -250,10 +248,6 @@ export function getApplicationServices(applicationId: GetApplicationServicesPath
   }) as Promise<ApplicationServicesResponse>;
 }
 
-export function getApplicationWorkspaceDefaults() {
-  return request.get<ApplicationWorkspaceDefaultsResponse>({ url: APPLICATION_API_PATH.CREATE_WORKSPACE_DEFAULTS });
-}
-
 export function postApplicationWorkspaceEntry(applicationId: string, payload: ApplicationWorkspaceEntry) {
   return request.post({ url: buildApplicationFilesEntriesApiPath(applicationId), data: payload });
 }
@@ -346,12 +340,6 @@ export function getApplicationTemplates() {
   return request.get<GetApplicationTemplatesData>({
     url: APPLICATION_API_PATH.TEMPLATES,
   }) as Promise<ApplicationTemplateListResponse>;
-}
-
-export function getApplicationTemplate(templateId: string) {
-  return request.get<ApplicationTemplate>({
-    url: APPLICATION_API_PATH.TEMPLATE.replace('{templateId}', encodeURIComponent(templateId)),
-  }) as Promise<ApplicationTemplate>;
 }
 
 function postApplicationAction<T>(url: string, data?: unknown) {

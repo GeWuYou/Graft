@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,9 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
+
+//go:embed all:templates/default
+var bundledWorkspaceTemplates embed.FS
 
 var (
 	errProjectTemplateUnavailable = errors.New("application template repository is unavailable")
@@ -52,6 +56,34 @@ func (s *Service) ListPublishedApplicationTemplates(ctx context.Context, kind pr
 		return nil, err
 	}
 	return repository.ListTemplates(ctx, projectstore.TemplateListQuery{DeploymentAdapterKind: kind.String(), PublishedOnly: true})
+}
+
+// resolveManagedCreateSource 将可选模板版本转换为受管创建的来源溯源信息。
+// 用户提交的工作区始终保持可编辑；版本仅证明其最初预填来源，不要求内容与快照持续一致。
+func (s *Service) resolveManagedCreateSource(ctx context.Context, versionID, rootKey, applicationName, composeFileName string, envFileName *string) (string, map[string]string, error) {
+	metadata := managedCreateSourceMetadata(rootKey, applicationName, composeFileName, envFileName)
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return projectcontract.SourceTypeManaged.String(), metadata, nil
+	}
+	repository, err := s.templateRepositoryOrErr()
+	if err != nil {
+		return "", nil, err
+	}
+	item, err := repository.GetPublishedTemplateVersion(ctx, versionID)
+	if err != nil {
+		return "", nil, err
+	}
+	kind := projectcontract.DeploymentAdapterKind(item.Template.DeploymentAdapterKind)
+	if kind != projectcontract.DeploymentAdapterKindCompose {
+		return "", nil, errProjectInvalidArgument
+	}
+	if _, err = s.validateTemplateDefinition(kind, item.Version.DefinitionJSON); err != nil {
+		return "", nil, err
+	}
+	metadata["template_id"] = item.Template.ID
+	metadata["template_version_id"] = item.Version.ID
+	return projectcontract.SourceTypeTemplate.String(), metadata, nil
 }
 
 // ListApplicationTemplates 返回管理员模板目录；仅管理页面使用 IncludeArchived。
@@ -270,6 +302,16 @@ func (s *Service) validateTemplateDefinition(kind projectcontract.DeploymentAdap
 func encodeComposeTemplateDefinition(definition ComposeTemplateDefinition) ([]byte, error) {
 	return json.Marshal(definition)
 }
+
+func workspaceEntryContent(entries []ManagedWorkspaceEntry, path string) (string, error) {
+	for _, entry := range entries {
+		if entry.NodeType == "file" && entry.Path == path && entry.Content != nil {
+			return *entry.Content, nil
+		}
+	}
+	return "", fmt.Errorf("%w: template has no %s", errProjectInvalidArgument, path)
+}
+
 func templateLifecycleConfigPointer(value LifecycleStandardConfig) *LifecycleStandardConfig {
 	return &value
 }

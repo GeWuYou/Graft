@@ -368,4 +368,5 @@ Compose Project Management
 
 - [x] `application-template-backend-and-contract`：新增 adapter-kind 通用模板与版本持久化，草稿/发布不可变模型、单草稿约束、管理员显式旧目录导入及内置 Compose 基线的幂等持久化。
 - [x] Application 模板 API 固定在 `/api/ops/applications/templates/**`，静态路由排在 `/:applicationId` 前；创建者只读取已发布模板，管理和发布使用独立权限。
+- [x] `template-provenance-and-legacy-authority-cleanup`：统一 `/create/managed` 接收 `template_version_id`，服务端仅接受未归档的已发布 Compose 版本并持久化 `template_id` / `template_version_id` 来源；旧运行时目录模板创建端点、workspace-defaults authority 和预填配置已移除。
 - [ ] 后续批次：将模板目录与统一 Application 创建编辑器接入，并删除旧运行时目录模板创建 API。

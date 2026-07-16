@@ -37,3 +37,6 @@ properties:
     description: Indicates that validation is for an inspected, unregistered managed directory.
   lifecycle_configuration:
     $ref: ./application-lifecycle-configuration-request.yaml
+  template_version_id:
+    type: string
+    description: Optional immutable published Application Template version used only for provenance validation.

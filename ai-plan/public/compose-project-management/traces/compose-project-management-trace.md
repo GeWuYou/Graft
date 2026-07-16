@@ -485,3 +485,8 @@
 - Application Template 已收敛为按 `deployment_adapter_kind` 管理的 versioned creation blueprint；通用表不包含 Compose、Docker、Podman 或 Swarm 专属列，Compose definition 由 adapter 解释工作区、Compose 文件路径和 lifecycle preset。
 - 模板版本有 draft/published 生命周期：每个模板最多一个 draft，发布版本由数据库触发器保护为不可变；草稿只能空白创建或从已发布版本派生，明确不允许从现有 Application clone。
 - 旧 `Application Root/templates/<key>` 仅保留管理员显式导入为草稿的路径；内置 Compose baseline 通过模块 Boot 的幂等 service path 持久化，日常创建不应回退读取目录。
+
+## 2026-07-17 Template provenance and legacy authority cleanup
+
+- 基于模板创建统一进入 `/api/ops/applications/create/managed`：web 用已发布版本快照预填可编辑 workspace 与 lifecycle，提交 `template_version_id`；服务端验证版本为未归档已发布 Compose 模板后写入稳定 `template_id` / `template_version_id` 来源元数据。
+- 删除旧 `/create/template`、`/create/template/validate` 与 `/create/workspace-defaults` API，不保留别名。空白创建改为最小本地 Compose 草稿，移除 runtime directory 模板发现、默认模板 seed 和 `blank_prefill_default_template` 配置 authority。

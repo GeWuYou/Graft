@@ -73,12 +73,6 @@ const (
 	ApplicationNameAvailabilityRoute = "/create/application-name/availability"
 	// ApplicationCreateRoute 标识受管创建接口的路径片段。
 	ApplicationCreateRoute = "/create/managed"
-	// ApplicationCreateTemplateValidateRoute 标识只校验运行时模板来源、不写入工作区的接口路径片段。
-	ApplicationCreateTemplateValidateRoute = "/create/template/validate"
-	// ApplicationCreateTemplateRoute 标识模板来源创建接口的路径片段。
-	ApplicationCreateTemplateRoute = "/create/template"
-	// ApplicationWorkspaceDefaultsRoute 标识返回服务端拥有的空白工作区默认值和可用模板的接口路径片段。
-	ApplicationWorkspaceDefaultsRoute = "/create/workspace-defaults"
 	// ApplicationRefreshRoute 标识静态刷新接口的路径片段。
 	ApplicationRefreshRoute = "/:applicationId/refresh"
 	// ApplicationUpRoute 标识 Compose 启动接口的路径片段。

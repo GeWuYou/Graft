@@ -10,7 +10,7 @@ const routeQuery = vi.hoisted(() => ({
   application_name: undefined as string | undefined,
 }));
 const mocks = vi.hoisted(() => ({
-  getApplicationWorkspaceDefaults: vi.fn(),
+  getApplicationTemplates: vi.fn(),
   postApplicationApplicationNameAvailability: vi.fn(),
   postApplicationCreate: vi.fn(),
   push: vi.fn(),
@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 const lifecycleStepDraft = vi.hoisted(() => ({ value: null as ApplicationLifecycleConfigurationDraft | null }));
 
 vi.mock('../../api/project', () => ({
-  getApplicationWorkspaceDefaults: mocks.getApplicationWorkspaceDefaults,
+  getApplicationTemplates: mocks.getApplicationTemplates,
   postApplicationApplicationNameAvailability: mocks.postApplicationApplicationNameAvailability,
   postApplicationCreate: mocks.postApplicationCreate,
 }));
@@ -152,29 +152,7 @@ describe('ApplicationCreateIndex', () => {
   beforeEach(() => {
     mocks.postApplicationApplicationNameAvailability.mockClear();
     mocks.postApplicationCreate.mockClear();
-    mocks.getApplicationWorkspaceDefaults.mockResolvedValue({
-      compose_file_path: 'compose.yaml',
-      lifecycle_configuration: {
-        strategy_kind: 'standard',
-        profiles: [],
-        down_before_redeploy: true,
-        pull_before_redeploy: false,
-        build_before_up: false,
-        force_recreate: false,
-        remove_orphans: true,
-        wait_after_up: false,
-        wait_timeout_seconds: 120,
-        renew_anon_volumes: false,
-        prune_images_after_redeploy: false,
-        additional_args: [],
-      },
-      workspace_entries: [
-        { path: 'compose.yaml', node_type: 'file', content: 'services: {}' },
-        { path: '.env', node_type: 'file', content: '' },
-        { path: 'config', node_type: 'directory' },
-        { path: 'config/dashboard.json', node_type: 'file', content: 'null' },
-      ],
-    });
+    mocks.getApplicationTemplates.mockResolvedValue({ items: [] });
     routeQuery.runtime_target_id = '7';
     delete routeQuery.application_name;
     lifecycleStepDraft.value = null;
@@ -229,12 +207,9 @@ describe('ApplicationCreateIndex', () => {
     );
     expect(request.workspace_entries).toEqual(
       expect.arrayContaining([
-        { path: 'config', node_type: 'directory' },
-        { path: 'config/dashboard.json', node_type: 'file', content: 'null' },
+        { path: '.env', node_type: 'file', content: '' },
+        { path: 'compose.yaml', node_type: 'file', content: JSON.stringify({ services: {} }) },
       ]),
-    );
-    expect(request.workspace_entries.find((entry: { path: string }) => entry.path === 'config')).not.toHaveProperty(
-      'content',
     );
   });
 

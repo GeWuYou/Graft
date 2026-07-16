@@ -2741,63 +2741,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/applications/create/template/validate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Validate a runtime template application source
-     * @description Validates the selected Application Root template directory and eventual managed-root target without writing it.
-     */
-    post: operations['postApplicationCreateTemplateValidate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/ops/applications/create/template': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Create a managed Compose application from a runtime template directory
-     * @description Materializes one operator-managed text workspace template from Application Root templates/<template-key> under the managed root, then registers it without running Compose lifecycle commands.
-     */
-    post: operations['postApplicationCreateTemplate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/ops/applications/create/workspace-defaults': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get blank application workspace defaults and runtime templates */
-    get: operations['getApplicationWorkspaceDefaults'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ops/applications/templates': {
     parameters: {
       query?: never;
@@ -3580,8 +3523,6 @@ export interface components {
     ApplicationCreateRequest: components['schemas']['application-create-request'];
     ApplicationWorkspaceManifestFile: components['schemas']['application-workspace-manifest-file'];
     ApplicationWorkspaceEntry: components['schemas']['application-workspace-entry'];
-    ApplicationWorkspaceDefaultsResponse: components['schemas']['application-workspace-defaults-response'];
-    EnvelopedApplicationWorkspaceDefaultsResponse: components['schemas']['enveloped-application-workspace-defaults-response'];
     ApplicationImportValidateRequest: components['schemas']['application-import-validate-request'];
     ApplicationImportValidateResponse: components['schemas']['application-import-validate-response'];
     ApplicationImportResponse: components['schemas']['application-import-response'];
@@ -6488,12 +6429,10 @@ export interface components {
       managed_compose_file_name?: string;
       /** @description Optional managed env file name tracked by application authority. */
       managed_env_file_name?: string | null;
-      /** @description Planned stable template identifier for a future template-backed application source. */
-      template_key?: string;
-      /** @description Planned template version or release channel. */
-      template_version?: string;
-      /** @description Planned template instance name used to derive a managed working directory. */
-      template_instance_name?: string;
+      /** @description Stable Application Template identity that originated this application. */
+      template_id?: string;
+      /** @description Immutable published Application Template version that originated this application. */
+      template_version_id?: string;
     };
     /** @enum {string} */
     'application-activity-authority': 'frontend-fanout' | 'backend-planned';
@@ -7103,6 +7042,8 @@ export interface components {
        */
       reuse_existing_workspace: boolean;
       lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
+      /** @description Optional immutable published Application Template version used only for provenance validation. */
+      template_version_id?: string;
     };
     'application-create-validate-response': {
       managed_root: components['schemas']['application-managed-root-response'];
@@ -7152,6 +7093,8 @@ export interface components {
        */
       reuse_existing_workspace: boolean;
       lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
+      /** @description Optional immutable published Application Template version that originally prefilled this editable workspace. */
+      template_version_id?: string;
     };
     'application-create-response': {
       managed_root: components['schemas']['application-managed-root-response'];
@@ -7184,33 +7127,6 @@ export interface components {
     };
     'enveloped-application-create-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-create-response'];
-    };
-    'application-template-create-request': {
-      display_name: string;
-      /** Format: int64 */
-      runtime_target_id: number;
-      /** @description Required unique machine-safe application name for the managed directory and Compose application identity. */
-      application_name: string;
-      /** @description Runtime template directory key. Defaults to default. */
-      template_key?: string;
-      /** @description Optional operator-defined template version label. Defaults to runtime. */
-      template_version?: string;
-      /** @description Safe display provenance for this template instance. Defaults to the application name. */
-      template_instance_name?: string;
-      lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
-    };
-    'application-workspace-defaults-response': {
-      templates: {
-        key: string;
-        display_name: string;
-      }[];
-      default_template_key: string;
-      workspace_entries: components['schemas']['application-workspace-entry'][];
-      compose_file_path: string;
-      lifecycle_configuration: components['schemas']['application-lifecycle-configuration-request'];
-    };
-    'enveloped-application-workspace-defaults-response': {
-      data: components['schemas']['application-workspace-defaults-response'];
     };
     'application-template-version': {
       template_version_id: string;
@@ -15362,124 +15278,6 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
-    };
-  };
-  postApplicationCreateTemplateValidate: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['application-template-create-request'];
-      };
-    };
-    responses: {
-      /** @description Template source validation result. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-application-create-validate-response'];
-        };
-      };
-      /** @description Invalid template create validation request. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-    };
-  };
-  postApplicationCreateTemplate: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['application-template-create-request'];
-      };
-    };
-    responses: {
-      /** @description Template workspace materialized and application registered. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-application-create-response'];
-        };
-      };
-      /** @description Invalid template create request. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-    };
-  };
-  getApplicationWorkspaceDefaults: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Server-owned blank workspace defaults. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-application-workspace-defaults-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
     };
   };
   getApplicationTemplates: {

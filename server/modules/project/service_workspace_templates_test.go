@@ -7,32 +7,6 @@ import (
 	"testing"
 )
 
-func TestSeedDefaultWorkspaceTemplatePreservesOperatorFiles(t *testing.T) {
-	root := t.TempDir()
-	if err := seedDefaultWorkspaceTemplate(root); err != nil {
-		t.Fatalf("seed default template: %v", err)
-	}
-	composePath := filepath.Join(root, "templates", defaultTemplateKey, "compose.yaml")
-	// #nosec G304 -- test path is rooted in t.TempDir.
-	if content, err := os.ReadFile(composePath); err != nil || len(content) == 0 {
-		t.Fatalf("read seeded compose template: content=%q err=%v", content, err)
-	}
-	// #nosec G304 -- test path is rooted in t.TempDir.
-	if content, err := os.ReadFile(filepath.Join(root, "templates", defaultTemplateKey, ".env")); err != nil || len(content) == 0 {
-		t.Fatalf("read seeded env template: content=%q err=%v", content, err)
-	}
-	if err := os.WriteFile(composePath, []byte("services: {}\n"), 0o600); err != nil {
-		t.Fatalf("replace operator template: %v", err)
-	}
-	if err := seedDefaultWorkspaceTemplate(root); err != nil {
-		t.Fatalf("repeat seed default template: %v", err)
-	}
-	// #nosec G304 -- test path is rooted in t.TempDir.
-	if content, err := os.ReadFile(composePath); err != nil || string(content) != "services: {}\n" {
-		t.Fatalf("operator template was overwritten: content=%q err=%v", content, err)
-	}
-}
-
 func TestLoadWorkspaceTemplatePreservesDirectoriesAndArbitraryTextFiles(t *testing.T) {
 	root := t.TempDir()
 	template := filepath.Join(root, "templates", "custom")
@@ -76,16 +50,6 @@ func TestNormalizeManagedWorkspaceEntriesRejectsFileAncestorRegardlessOfOrder(t 
 		if _, err := normalizeManagedWorkspaceEntries(entries, "compose.yaml"); !errors.Is(err, errProjectInvalidArgument) {
 			t.Fatalf("expected file ancestor conflict, got %v", err)
 		}
-	}
-}
-
-func TestSeedDefaultWorkspaceTemplateRejectsDirectoryAtBundledFilePath(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "templates", defaultTemplateKey, "compose.yaml"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := seedDefaultWorkspaceTemplate(root); err == nil {
-		t.Fatal("expected directory target rejection")
 	}
 }
 

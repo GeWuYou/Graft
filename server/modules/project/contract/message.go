@@ -175,8 +175,6 @@ const (
 	ApplicationWorkspaceFileTooltipRulesConfig ConfigKey = "ops.application.workspace.file_tooltip_rules"
 	// ApplicationWorkspaceDirectoryTooltipRulesConfig 保存按目录基础名匹配的有序默认提示规则。
 	ApplicationWorkspaceDirectoryTooltipRulesConfig ConfigKey = "ops.application.workspace.directory_tooltip_rules"
-	// ApplicationBlankCreatePrefillDefaultTemplateConfig 控制空白创建是否预填默认模板。
-	ApplicationBlankCreatePrefillDefaultTemplateConfig ConfigKey = "ops.application.create.blank_prefill_default_template"
 )
 
 const (
@@ -214,8 +212,4 @@ const (
 	ApplicationWorkspaceDirectoryTooltipRulesConfigTitle ConfigMessageKey = "systemConfig.application.ops.application.workspace.directory_tooltip_rules.title"
 	// ApplicationWorkspaceDirectoryTooltipRulesConfigDescription 标识工作区目录提示规则配置说明的本地化键。
 	ApplicationWorkspaceDirectoryTooltipRulesConfigDescription ConfigMessageKey = "systemConfig.application.ops.application.workspace.directory_tooltip_rules.description"
-	// ApplicationBlankCreatePrefillDefaultTemplateConfigTitle 标识空白创建默认模板预填配置标题的本地化键。
-	ApplicationBlankCreatePrefillDefaultTemplateConfigTitle ConfigMessageKey = "systemConfig.application.ops.application.create.blank_prefill_default_template.title"
-	// ApplicationBlankCreatePrefillDefaultTemplateConfigDescription 标识空白创建默认模板预填配置说明的本地化键。
-	ApplicationBlankCreatePrefillDefaultTemplateConfigDescription ConfigMessageKey = "systemConfig.application.ops.application.create.blank_prefill_default_template.description"
 )
