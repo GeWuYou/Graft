@@ -104,8 +104,8 @@ const { locale, t } = useI18n();
 const diagnosticDrawerVisible = ref(false);
 const selectedDependencyKey = ref<string | null>(null);
 /* jscpd:ignore-start */
-// 这里保留页面本地 snapshot 解构，避免为压低重复率再抽一层“万能页面上下文”。
-// 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留本地解构。
+// 页面直接解构 snapshot 是为了让依赖状态、frame 配置和模板保持同一局部边界；此处的重复由 jscpd 明确豁免。
+// 修改这段局部结构时必须同步复核 jscpd ignore，避免把工具豁免变成过期的重复代码保护。
 const snapshot = useServerStatusSnapshot();
 const {
   errorMessage,
@@ -169,8 +169,8 @@ const summaryMetrics = computed(() => {
 });
 
 /* jscpd:ignore-start */
-// 这里保留页面级 frame 配置，页面标题、摘要和状态语义直接贴近页面实现更易维护。
-// 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留页面本地配置。
+// 页面级 frame 配置承载本页标题、摘要和状态语义，避免把 monitor 页面模型提升为跨页面通用配置；重复由 jscpd 明确豁免。
+// 修改这段配置时必须同步复核 jscpd ignore，避免保留过期的重复代码豁免。
 const frameProps = computed(() =>
   buildStandardMonitorStatusFrameProps({
     t,

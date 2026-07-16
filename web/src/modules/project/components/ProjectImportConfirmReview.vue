@@ -217,7 +217,7 @@ defineOptions({
   name: 'ProjectImportConfirmReview',
 });
 
-// 确认视图消费一次 inspection 快照；提交资格由父级会话状态决定，组件不自行重新校验 authority。
+// 确认视图只消费当前 inspection 快照；提交资格由父级会话状态决定，组件不重复建立导入 authority。
 
 const props = defineProps<{
   canImport: boolean;
