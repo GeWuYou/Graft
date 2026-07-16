@@ -38,13 +38,13 @@ type Server struct {
 	server *http.Server
 }
 
-// AccessLogOptions configures HTTP access-log persistence and process-log emission.
+// AccessLogOptions 配置 HTTP access log 持久化与进程日志输出策略。
 type AccessLogOptions struct {
 	ConsolePolicy config.AccessLogConsolePolicy
 	SlowThreshold time.Duration
 }
 
-// ServerOptions carries optional HTTP runtime behavior for NewServerWithOptions.
+// ServerOptions 承载 NewServerWithOptions 使用的可选 HTTP runtime 行为。
 type ServerOptions struct {
 	AccessLog AccessLogOptions
 }
@@ -62,7 +62,7 @@ func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
 	}, repo...)
 }
 
-// NewServerWithOptions creates the Gin server shell with explicit runtime options.
+// NewServerWithOptions 使用显式 runtime 选项创建 Gin 服务外壳。
 func NewServerWithOptions(logger *zap.Logger, options ServerOptions, repo ...AccessLogRepository) *Server {
 	engine := gin.New()
 

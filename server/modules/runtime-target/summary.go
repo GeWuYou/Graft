@@ -61,7 +61,7 @@ type summaryCacheEntry struct {
 	expiresAt time.Time
 }
 
-// summaryCache keeps an intentionally short, process-local snapshot and collapses concurrent collection.
+// summaryCache 保存短时进程内摘要，并合并同一目标的并发采集请求。
 type summaryCache struct {
 	mu      sync.Mutex
 	entries map[uint64]summaryCacheEntry
@@ -128,8 +128,8 @@ func unavailableTargetSummary(reason string, checkedAt time.Time) targetRuntimeS
 	}
 }
 
-// runtimeTargetCollector selects the snapshot collector for a runtime provider.
-// It returns a Docker collector for the "docker" provider and nil for unsupported providers.
+// runtimeTargetCollector 按 runtime provider 选择摘要采集器；
+// provider 为 "docker" 时返回 Docker 采集器，其它 provider 返回 nil。
 func runtimeTargetCollector(provider string) runtimeTargetSnapshotCollector {
 	if provider == "docker" {
 		return dockerTargetSnapshotCollector{}
@@ -137,8 +137,8 @@ func runtimeTargetCollector(provider string) runtimeTargetSnapshotCollector {
 	return nil
 }
 
-// collectTargetSummary collects a runtime summary using the target's configured provider.
-// It returns an unavailable summary when no collector is registered for the provider.
+// collectTargetSummary 使用目标配置的 provider 采集 runtime 摘要；
+// provider 没有注册采集器时返回标记为不可用的摘要。
 func collectTargetSummary(ctx context.Context, target store.Target) targetRuntimeSummary {
 	collector := runtimeTargetCollector(target.Provider)
 	if collector == nil {
@@ -177,13 +177,13 @@ func (dockerTargetSnapshotCollector) Collect(ctx context.Context, target store.T
 	return result
 }
 
-// closeDockerClient closes the Docker client.
+// closeDockerClient 关闭 Docker client。
 func closeDockerClient(client *mobyclient.Client) {
 	_ = client.Close()
 }
 
-// collectContainerMetric collects Docker workload counts and identifies active containers.
-// It marks the metric unavailable when Docker cannot provide the container list.
+// collectContainerMetric 采集 Docker workload 数量并识别活跃容器；
+// Docker 无法提供容器列表时将指标标记为不可用。
 func collectContainerMetric(ctx context.Context, client *mobyclient.Client) targetCountMetric {
 	containers, err := client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
 	if err != nil {
@@ -198,8 +198,7 @@ func collectContainerMetric(ctx context.Context, client *mobyclient.Client) targ
 	return metric
 }
 
-// collectImageMetric collects the total number of Docker images.
-// The returned metric is marked unavailable when the Docker image query fails.
+// collectImageMetric 采集 Docker image 总数；Docker image 查询失败时将返回指标标记为不可用。
 func collectImageMetric(ctx context.Context, client *mobyclient.Client) targetImageMetric {
 	images, err := client.ImageList(ctx, mobyclient.ImageListOptions{All: true})
 	if err != nil {
@@ -208,9 +207,7 @@ func collectImageMetric(ctx context.Context, client *mobyclient.Client) targetIm
 	return targetImageMetric{Available: true, Total: int64(len(images.Items))}
 }
 
-// collectVolumeMetric collects the total number of Docker volumes.
-//
-// The returned metric is marked unavailable when Docker cannot provide the volume list.
+// collectVolumeMetric 采集 Docker volume 总数；Docker 无法提供 volume 列表时将返回指标标记为不可用。
 func collectVolumeMetric(ctx context.Context, client *mobyclient.Client) targetImageMetric {
 	volumes, err := client.VolumeList(ctx, mobyclient.VolumeListOptions{})
 	if err != nil {
@@ -219,9 +216,7 @@ func collectVolumeMetric(ctx context.Context, client *mobyclient.Client) targetI
 	return targetImageMetric{Available: true, Total: int64(len(volumes.Items))}
 }
 
-// collectNetworkMetric collects the total number of Docker networks.
-//
-// The returned metric is marked unavailable when the Docker network list cannot be retrieved.
+// collectNetworkMetric 采集 Docker network 总数；无法读取 network 列表时将返回指标标记为不可用。
 func collectNetworkMetric(ctx context.Context, client *mobyclient.Client) targetImageMetric {
 	networks, err := client.NetworkList(ctx, mobyclient.NetworkListOptions{})
 	if err != nil {
@@ -230,8 +225,8 @@ func collectNetworkMetric(ctx context.Context, client *mobyclient.Client) target
 	return targetImageMetric{Available: true, Total: int64(len(networks.Items))}
 }
 
-// collectDockerFilesystemUsage collects usage metrics for Docker's data directory filesystem.
-// It marks the metrics unavailable when Docker information or filesystem statistics cannot be obtained.
+// collectDockerFilesystemUsage 采集 Docker 数据目录文件系统的使用指标；
+// 无法获取 Docker 信息或文件系统统计时将指标标记为不可用。
 func collectDockerFilesystemUsage(ctx context.Context, client *mobyclient.Client) targetUsageMetric {
 	if err := ctx.Err(); err != nil {
 		return targetUsageMetric{UnavailableReason: "Docker data directory filesystem is unavailable"}
@@ -246,7 +241,7 @@ func collectDockerFilesystemUsage(ctx context.Context, client *mobyclient.Client
 
 type hostUsageCollector func(context.Context) targetUsageMetric
 
-// collectHostUsage collects CPU and memory usage metrics.
+// collectHostUsage 采集 CPU 与内存使用指标。
 func collectHostUsage(ctx context.Context, collectCPU, collectMemory hostUsageCollector) (targetUsageMetric, targetUsageMetric) {
 	return collectCPU(ctx), collectMemory(ctx)
 }
@@ -261,11 +256,9 @@ func collectHostCPUUsage(ctx context.Context) targetUsageMetric {
 	return targetUsageMetric{Available: true, UsagePercent: values[0]}
 }
 
-// collectHostMemoryUsage collects host memory usage metrics.
+// collectHostMemoryUsage 采集主机内存使用指标。
 //
-// It returns the used and total memory, along with the usage percentage. The
-// metrics are marked unavailable when the memory snapshot cannot be collected
-// or has no total memory.
+// 返回已用量、总量和使用率；无法采集内存快照或总量为零时将指标标记为不可用。
 func collectHostMemoryUsage(ctx context.Context) targetUsageMetric {
 	snapshot, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil || snapshot == nil || snapshot.Total == 0 {
@@ -274,7 +267,7 @@ func collectHostMemoryUsage(ctx context.Context) targetUsageMetric {
 	return targetUsageMetric{Available: true, UsedBytes: uint64ToInt64(snapshot.Used), TotalBytes: uint64ToInt64(snapshot.Total), UsagePercent: snapshot.UsedPercent}
 }
 
-// uint64ToInt64 converts a uint64 value to int64, clamping values above the maximum int64 value.
+// uint64ToInt64 将 uint64 转换为 int64，超过 int64 最大值时截断为最大值。
 func uint64ToInt64(value uint64) int64 {
 	if value > math.MaxInt64 {
 		return math.MaxInt64
@@ -296,12 +289,12 @@ func filesystemUsageMetric(blocks, freeBlocks uint64, blockSize int64) targetUsa
 	return targetUsageMetric{Available: true, UsedBytes: used, TotalBytes: total, UsagePercent: float64(used) * percentageScale / float64(total)}
 }
 
-// filesystemBytes converts a block count and block size to bytes when the inputs produce a valid int64 value.
-// It returns false when the block size is non-positive or the result would overflow int64.
+// filesystemBytes 在输入可产生有效 int64 时将块数和块大小转换为字节数；
+// 块大小非正或结果溢出 int64 时返回 false。
 func filesystemBytes(blocks uint64, blockSize int64) (int64, bool) {
 	if blockSize <= 0 || blocks > uint64(math.MaxInt64)/uint64(blockSize) {
 		return 0, false
 	}
-	//nolint:gosec // The overflow guard above proves this product fits in int64.
+	//nolint:gosec // 上面的溢出检查已证明该乘积可安全转换为 int64。
 	return int64(blocks * uint64(blockSize)), true
 }

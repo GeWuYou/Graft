@@ -2,21 +2,21 @@ package moduleapi
 
 import "context"
 
-// RuntimeTargetSummary is the minimum target identity that a provider resource may expose.
+// RuntimeTargetSummary 是运行时资源向调用方暴露的最小目标身份投影。
 type RuntimeTargetSummary struct {
 	ID          int64
 	DisplayName string
 	Provider    string
 }
 
-// RuntimeTargetReader is the narrow runtime-target authority used by provider modules.
-// It deliberately exposes neither endpoints nor credentials.
+// RuntimeTargetReader 是 provider 模块使用的窄化运行时目标能力。
+// 该接口有意不暴露 endpoint 或凭据，避免调用方越过目标模块的信任边界。
 type RuntimeTargetReader interface {
 	ReadDockerTarget(context.Context, *int64) (RuntimeTargetSummary, error)
 	ListDockerTargets(context.Context) ([]RuntimeTargetSummary, error)
 }
 
-// ComposeRuntimeTargetSummary is the capability-scoped identity projection for Compose applications.
+// ComposeRuntimeTargetSummary 是 Compose 应用可消费的、按能力限定的运行时目标身份投影。
 type ComposeRuntimeTargetSummary struct {
 	ID           int64
 	DisplayName  string
@@ -25,27 +25,26 @@ type ComposeRuntimeTargetSummary struct {
 	Available    bool
 }
 
-// ComposeProjectNameState is the provider-neutral result of checking a Compose
-// project name against one Runtime Target.
+// ComposeProjectNameState 表示针对一个运行时目标检查 Compose 项目名后的 provider 无关结果。
 type ComposeProjectNameState string
 
 const (
-	// ComposeProjectNameStateAvailable means the target is reachable and does not own the name.
+	// ComposeProjectNameStateAvailable 表示目标可访问且未占用该项目名。
 	ComposeProjectNameStateAvailable ComposeProjectNameState = "available"
-	// ComposeProjectNameStateOccupied means the target already has Compose resources with the name.
+	// ComposeProjectNameStateOccupied 表示目标已经拥有同名 Compose 资源。
 	ComposeProjectNameStateOccupied ComposeProjectNameState = "occupied"
-	// ComposeProjectNameStateUnavailable means the target cannot currently be queried.
+	// ComposeProjectNameStateUnavailable 表示当前无法查询目标。
 	ComposeProjectNameStateUnavailable ComposeProjectNameState = "unavailable"
-	// ComposeProjectNameStateError means the provider query failed unexpectedly.
+	// ComposeProjectNameStateError 表示 provider 查询发生预期外失败。
 	ComposeProjectNameStateError ComposeProjectNameState = "error"
 )
 
-// ComposeProjectNameAvailability is a provider-neutral occupancy result.
+// ComposeProjectNameAvailability 是 provider 无关的项目名占用结果。
 type ComposeProjectNameAvailability struct {
 	State ComposeProjectNameState
 }
 
-// ComposeRuntimeTargetReader resolves Runtime Targets that can execute Compose and access workspaces.
+// ComposeRuntimeTargetReader 解析具备 Compose 执行能力且可访问 workspace 的运行时目标。
 type ComposeRuntimeTargetReader interface {
 	ReadComposeTarget(context.Context, *int64) (ComposeRuntimeTargetSummary, error)
 	ListComposeTargets(context.Context) ([]ComposeRuntimeTargetSummary, error)

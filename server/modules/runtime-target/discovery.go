@@ -22,8 +22,8 @@ func discoverLocalDocker(parent context.Context, repository *store.SQLRepository
 	}
 	_, statErr := os.Stat("/var/run/docker.sock")
 	if errors.Is(statErr, os.ErrNotExist) {
-		// Do not add a target on hosts that have never had Docker. Once discovered,
-		// retain the identity so a later outage remains visible and recoverable.
+		// 主机从未安装 Docker 时不创建目标；一旦发现过则保留身份，
+		// 使后续故障仍可见并可恢复。
 		if _, err := repository.FindSystemLocalDocker(parent); errors.Is(err, store.ErrNotFound) {
 			return nil
 		} else if err != nil {
@@ -53,7 +53,7 @@ func pingLocalDocker(ctx context.Context) error {
 	return err
 }
 
-// refreshTarget refreshes the local Docker availability record before returning a matching target.
+// refreshTarget 在返回匹配目标前刷新本地 Docker 可用性记录。
 func refreshTarget(ctx context.Context, repository *store.SQLRepository, id uint64) (store.Target, error) {
 	target, err := repository.Get(ctx, id)
 	if err != nil {
@@ -68,8 +68,8 @@ func refreshTarget(ctx context.Context, repository *store.SQLRepository, id uint
 	return repository.Get(ctx, id)
 }
 
-// probeError converts a Docker probe error into the message stored for an unavailable Unix socket.
-// It returns an empty string when the probe succeeds.
+// probeError 将 Docker 探测错误转换为 Unix socket 不可用时持久化的消息；
+// 探测成功时返回空字符串。
 func probeError(err error) string {
 	if err == nil {
 		return ""

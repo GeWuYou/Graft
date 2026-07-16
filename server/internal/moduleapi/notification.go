@@ -18,34 +18,33 @@ var (
 	ErrNotificationDisabled = errors.New("notification disabled")
 )
 
-// NotificationSeverity identifies the stable notification severity contract.
+// NotificationSeverity 定义稳定的通知严重级别契约。
 type NotificationSeverity string
 
-// NotificationCategory identifies the stable notification category contract.
+// NotificationCategory 定义稳定的通知分类契约。
 type NotificationCategory string
 
-// NotificationTargetType identifies the stable notification delivery target contract.
+// NotificationTargetType 定义稳定的通知投递目标类型契约。
 type NotificationTargetType string
 
-// NotificationNavigationKind identifies the stable notification navigation contract.
+// NotificationNavigationKind 定义稳定的通知业务导航契约。
 type NotificationNavigationKind string
 
-// NotificationTarget describes one publication target requested by a source module.
+// NotificationTarget 描述来源模块请求的一种通知发布目标。
 type NotificationTarget struct {
 	Type NotificationTargetType
 	Ref  string
 }
 
-// NotificationNavigation describes the structured business navigation target.
+// NotificationNavigation 描述结构化的业务导航目标。
 type NotificationNavigation struct {
 	Kind    NotificationNavigationKind
 	Payload json.RawMessage
 }
 
-// PublishNotificationInput describes the stable cross-module notification publication request.
+// PublishNotificationInput 描述稳定的跨模块通知发布请求。
 //
-// Source modules own event detection and business context. Notification Center owns validation,
-// persistence, and delivery state.
+// 来源模块负责事件检测与业务上下文；通知中心负责校验、持久化和投递状态。
 type PublishNotificationInput struct {
 	TitleKey        string
 	Title           string
@@ -73,7 +72,7 @@ type PublishNotificationInput struct {
 	Target          NotificationTarget
 }
 
-// PublishNotificationResult returns bounded delivery information for source-module logging.
+// PublishNotificationResult 返回供来源模块记录日志的有界投递结果。
 type PublishNotificationResult struct {
 	EventID        uint64
 	DeliveryIDs    []uint64
@@ -82,18 +81,16 @@ type PublishNotificationResult struct {
 	Skipped        bool
 }
 
-// NotificationPublisher exposes the stable cross-module capability for in-app notifications.
+// NotificationPublisher 暴露站内通知的稳定跨模块能力。
 type NotificationPublisher interface {
 	Publish(ctx context.Context, input PublishNotificationInput) (PublishNotificationResult, error)
 }
 
-// SystemConfigResolver exposes cross-module effective system-config reads.
+// SystemConfigResolver 暴露跨模块的系统配置有效值读取能力。
 //
-// Callers must provide keys that are registered by the system-config authority and explicit
-// fallbacks for bool-shaped reads. Implementations must keep configregistry plus the
-// system-config service as authority and must not expose storage details or override-table
-// access to consumers. Modules should still resolve this capability during wiring rather than
-// repeatedly looking it up in hot request paths.
+// 调用方必须提供系统配置 authority 已注册的 key，并为布尔读取提供显式回退值。
+// 实现必须继续以 configregistry 和 system-config service 为 authority，不得向消费者暴露
+// 存储细节或覆盖表访问；模块应在装配阶段解析该能力，避免在请求热路径中反复查找。
 type SystemConfigResolver interface {
 	IsBooleanConfigEnabled(ctx context.Context, key string, fallback bool) bool
 	ResolveDefaultConfig(ctx context.Context, key string) (string, error)

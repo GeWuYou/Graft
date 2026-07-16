@@ -1,4 +1,4 @@
-// Package store defines auth-owned credential and refresh-session persistence contracts.
+// Package store 定义 auth 所有的 credential 与 refresh-session 持久化契约。
 package store
 
 import (
@@ -8,14 +8,14 @@ import (
 )
 
 var (
-	// ErrCredentialNotFound indicates an auth credential is not provisioned for a user profile.
+	// ErrCredentialNotFound 表示用户 profile 尚未配置 auth credential。
 	ErrCredentialNotFound = errors.New("credential not found")
 
-	// ErrRefreshSessionNotFound indicates the requested refresh session does not exist.
+	// ErrRefreshSessionNotFound 表示请求的 refresh session 不存在。
 	ErrRefreshSessionNotFound = errors.New("refresh session not found")
 )
 
-// UserCredential is the minimal credential DTO used by the auth runtime.
+// UserCredential 是 auth runtime 使用的最小 credential DTO。
 type UserCredential struct {
 	UserID             uint64
 	Username           string
@@ -24,7 +24,7 @@ type UserCredential struct {
 	PasswordChangedAt  *time.Time
 }
 
-// SetPasswordHashInput describes the minimal password-hash update input.
+// SetPasswordHashInput 描述最小密码哈希更新输入。
 type SetPasswordHashInput struct {
 	UserID             uint64
 	PasswordHash       string
@@ -32,7 +32,7 @@ type SetPasswordHashInput struct {
 	ChangedAt          *time.Time
 }
 
-// ResetPasswordAndRevokeSessionsInput describes the minimal admin password reset input.
+// ResetPasswordAndRevokeSessionsInput 描述管理员重置密码所需的最小输入。
 type ResetPasswordAndRevokeSessionsInput struct {
 	UserID             uint64
 	PasswordHash       string
@@ -40,8 +40,8 @@ type ResetPasswordAndRevokeSessionsInput struct {
 	ChangedAt          time.Time
 }
 
-// ChangePasswordAndRevokeOtherRefreshSessionsInput describes the minimal
-// password-change input that keeps the current session alive.
+// ChangePasswordAndRevokeOtherRefreshSessionsInput 描述保留当前 session、
+// 同时吊销其它 refresh session 的最小密码变更输入。
 type ChangePasswordAndRevokeOtherRefreshSessionsInput struct {
 	UserID             uint64
 	PasswordHash       string
@@ -50,7 +50,7 @@ type ChangePasswordAndRevokeOtherRefreshSessionsInput struct {
 	CurrentTokenID     string
 }
 
-// EnsureUserCredentialInput describes the minimal ensured-credential input.
+// EnsureUserCredentialInput 描述确保 credential 存在所需的最小输入。
 type EnsureUserCredentialInput struct {
 	Username           string
 	Display            string
@@ -58,14 +58,14 @@ type EnsureUserCredentialInput struct {
 	MustChangePassword bool
 }
 
-// RevokeOtherRefreshSessionsInput describes the minimal revoke-others input.
+// RevokeOtherRefreshSessionsInput 描述吊销其它 refresh session 的最小输入。
 type RevokeOtherRefreshSessionsInput struct {
 	UserID         uint64
 	CurrentTokenID string
 	RevokedAt      time.Time
 }
 
-// RefreshSession is the stable refresh-session DTO used by the auth runtime.
+// RefreshSession 是 auth runtime 使用的稳定 refresh-session DTO。
 type RefreshSession struct {
 	ID                uint64
 	UserID            uint64
@@ -77,40 +77,40 @@ type RefreshSession struct {
 	UpdatedAt         time.Time
 }
 
-// ListActiveRefreshSessionsByUserIDInput describes the minimal active-session query.
+// ListActiveRefreshSessionsByUserIDInput 描述读取活跃 session 的最小查询输入。
 type ListActiveRefreshSessionsByUserIDInput struct {
 	UserID uint64
 	Now    time.Time
 }
 
-// CreateRefreshSessionInput describes the minimal refresh-session creation input.
+// CreateRefreshSessionInput 描述创建 refresh session 的最小输入。
 type CreateRefreshSessionInput struct {
 	UserID    uint64
 	TokenID   string
 	ExpiresAt time.Time
 }
 
-// RevokeRefreshSessionInput describes the minimal single-session revoke input.
+// RevokeRefreshSessionInput 描述吊销单个 refresh session 的最小输入。
 type RevokeRefreshSessionInput struct {
 	TokenID           string
 	RevokedAt         time.Time
 	ReplacedByTokenID *string
 }
 
-// RevokeRefreshSessionsByUserIDInput describes the minimal bulk revoke input.
+// RevokeRefreshSessionsByUserIDInput 描述按用户批量吊销 refresh session 的最小输入。
 type RevokeRefreshSessionsByUserIDInput struct {
 	UserID    uint64
 	RevokedAt time.Time
 }
 
-// RevokeRefreshSessionByUserIDInput describes the minimal targeted revoke input.
+// RevokeRefreshSessionByUserIDInput 描述按用户和 token 定向吊销 session 的最小输入。
 type RevokeRefreshSessionByUserIDInput struct {
 	UserID    uint64
 	TokenID   string
 	RevokedAt time.Time
 }
 
-// RotateRefreshSessionInput describes one refresh-session rotation operation.
+// RotateRefreshSessionInput 描述一次 refresh session 轮换操作。
 type RotateRefreshSessionInput struct {
 	CurrentTokenID string
 	NewTokenID     string
@@ -119,7 +119,7 @@ type RotateRefreshSessionInput struct {
 	NewExpiresAt   time.Time
 }
 
-// PasswordChangeRepository exposes the atomic password-change write contract.
+// PasswordChangeRepository 暴露原子密码变更写入契约。
 type PasswordChangeRepository interface {
 	ChangePasswordAndRevokeOtherRefreshSessions(
 		ctx context.Context,
@@ -127,7 +127,7 @@ type PasswordChangeRepository interface {
 	) error
 }
 
-// AuthRepository exposes auth-owned credential and session persistence.
+// AuthRepository 暴露 auth 所有的 credential 与 session 持久化能力。
 type AuthRepository interface {
 	GetUserCredentialByUsername(ctx context.Context, username string) (UserCredential, error)
 	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error
@@ -143,9 +143,8 @@ type AuthRepository interface {
 	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
 }
 
-// CredentialStore owns password credential persistence. It is intentionally
-// separate from user-profile identity so the backing schema can move without
-// changing auth runtime dependencies.
+// CredentialStore 负责密码 credential 持久化。
+// 它有意与 user-profile identity 分离，使底层 schema 迁移时无需改变 auth runtime 依赖。
 type CredentialStore interface {
 	GetUserCredentialByUsername(ctx context.Context, username string) (UserCredential, error)
 	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error
@@ -153,7 +152,7 @@ type CredentialStore interface {
 	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
 }
 
-// SessionStore owns refresh-session lifecycle persistence.
+// SessionStore 负责 refresh-session 生命周期持久化。
 type SessionStore interface {
 	CreateRefreshSession(ctx context.Context, input CreateRefreshSessionInput) (RefreshSession, error)
 	GetRefreshSessionByTokenID(ctx context.Context, tokenID string) (RefreshSession, error)
