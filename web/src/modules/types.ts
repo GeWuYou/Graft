@@ -13,13 +13,12 @@ export type BootstrapRouteRegistration = {
   meta?: Partial<AppRouteMeta>;
 };
 
-// GlobalRouteRegistration describes module-owned pages that live in the shell route runtime
-// but are intentionally not sourced from the sidebar bootstrap menu tree.
+// GlobalRouteRegistration 描述进入壳层路由运行面的模块页面；这类页面不从侧边栏 bootstrap 菜单树生成。
 export type GlobalRouteRegistration = {
   path: string;
   routeName: string;
   loadPage: RouteRecordRaw['component'];
-  /** Explicit bootstrap resource whose navigation ancestry owns this global detail page. */
+  /** 显式声明拥有该全局详情页导航祖先的 bootstrap 资源。 */
   navigationParentPath?: string;
   meta: AppRouteMeta;
 };

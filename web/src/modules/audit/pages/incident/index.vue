@@ -268,6 +268,7 @@ defineOptions({
   name: 'AuditIncidentIndex',
 });
 
+// 事件详情页只消费审计模块的 incident/evidence 契约，并通过路由查询参数保留监控来源返回上下文。
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();

@@ -4,7 +4,7 @@ const DEFAULT_STALE_TIME_MS = 30_000;
 const DEFAULT_GC_TIME_MS = 5 * 60_000;
 
 /**
- * Shared client for server-owned data. Module query keys and query functions remain module-owned.
+ * 共享的服务端数据客户端；查询键和查询函数仍由业务模块拥有，避免壳层形成业务缓存真值。
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +20,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-/** Clears every server-data snapshot when the authenticated session ends. */
+/** 认证会话结束时清理全部服务端数据快照，避免下一个会话读取前一个会话的缓存。 */
 export function clearQueryCache() {
   queryClient.clear();
 }

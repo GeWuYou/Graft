@@ -583,7 +583,7 @@ type UserFilters = {
 };
 
 type UserRow = UserListItem & {
-  // The current page still tolerates legacy read fields when the backend includes them.
+  // 兼容后端尚未统一收口的读取字段；COMPAT(owner=后端用户响应契约; cleanup=所有支持版本都由 canonical 用户响应提供字段后删除; verify=用户页测试与 bun run check)
   email?: string | null;
   last_login_at?: string | null;
 };

@@ -493,6 +493,7 @@ import type {
   ProjectTaskReceipt,
 } from '../../types/project';
 
+// 项目列表以 Query 管理服务端项目快照，筛选/保存视图属于页面状态；任务观察器只负责异步操作进度反馈。
 defineOptions({
   name: 'ProjectListIndex',
 });

@@ -870,6 +870,7 @@ import type {
   ProjectServiceItem,
 } from '../../types/project';
 
+// 项目详情页组合服务端项目数据、容器操作和实时日志；实时订阅只更新观察快照，不改变项目契约的拥有边界。
 defineOptions({
   name: 'ProjectDetailIndex',
 });

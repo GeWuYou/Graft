@@ -37,17 +37,7 @@ const emit = defineEmits<{
   'page-surface-ready': [surface: ReturnType<typeof resolvePageSurfaceType>];
 }>();
 
-// <suspense>标签属于实验性功能，请谨慎使用
-// 如果存在需解决/page/1=> /page/2 刷新数据问题 请修改代码 使用activeRouteFullPath 作为key
-// <suspense>
-//  <component :is="Component" :key="activeRouteFullPath" />
-// </suspense>
-
-// import { useRouter } from 'vue-router';
-// const activeRouteFullPath = computed(() => {
-//   const router = useRouter();
-//   return router.currentRoute.value.fullPath;
-// });
+// 内容壳负责把动态路由页面接入过渡、keep-alive 和统一加载态；页面数据仍由各模块自行管理。
 
 const activeTabRoute = computed(() => {
   const tabsRouterStore = useTabsRouterStore();
@@ -81,7 +71,8 @@ const activeViewKey = computed(() => {
   return route.fullPath || route.path;
 });
 
-const route = useRoute(); // 这个不能放到computed中，切换页面时会导致被缓存
+// route 必须保持在组件实例级别，否则放入 computed 会改变路由切换时的缓存行为。
+const route = useRoute();
 const isFramePage = computed(() => {
   return !!route.meta?.frameSrc;
 });

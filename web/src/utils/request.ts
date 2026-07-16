@@ -240,7 +240,7 @@ function shouldRefresh(error: ApiRequestError, config?: AxiosRequestConfigRetry)
 /**
  * 判断错误是否需要退出到登录页。
  *
- * @returns `true` if the error indicates an invalid or missing authentication token with a `401` status, `false` otherwise.
+ * @returns 错误表示 `401` 且令牌无效或缺失时返回 `true`，否则返回 `false`。
  */
 function shouldExitToLogin(error: ApiRequestError) {
   return (
@@ -336,7 +336,7 @@ async function clearClientSession() {
   }
 }
 
-// 仅提供 starter 页面所需的最小请求适配，避免引入完整请求基础设施。
+// request 是平台唯一的 Axios 适配边界；模块 API 通过它统一获得认证、locale、错误和重试行为。
 export const request: RequestInstance = {
   get<T>(config: RequestConfig) {
     return requestWithMethod<T>('get', config);
@@ -352,8 +352,7 @@ export const request: RequestInstance = {
   },
 };
 
-// registerAuthSessionBridge 让请求层显式复用 user store 的会话同步与清理入口，
-// 避免动态 import store 带来的构建告警与双源登录态漂移。
+// 让请求层显式复用 user store 的会话同步与清理入口，避免动态 import 和双源登录态漂移。
 export function registerAuthSessionBridge(bridge: AuthSessionBridge | null) {
   authSessionBridge = bridge;
 }
@@ -370,7 +369,7 @@ export function shouldAttemptRefreshByError(status: number, code: ApiResponseCod
  * 判断是否为受限密码修改场景的刷新失败错误。
  *
  * @param error - 待检查的错误
- * @returns `true` if the error indicates a restricted password change refresh failure, `false` otherwise.
+ * @returns 错误表示受限改密场景下的刷新失败时返回 `true`，否则返回 `false`。
  */
 function isRestrictedPasswordChangeRefreshError(error: unknown) {
   return (

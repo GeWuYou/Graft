@@ -386,6 +386,8 @@ import type {
   ProjectImportRuntimeCandidatesQuery,
 } from '../../types/import';
 
+// 导入页编排分步 inspection 流程：服务端候选与检查结果是外部事实，步骤、筛选和列偏好属于页面交互状态。
+
 defineOptions({
   name: 'ProjectImportIndex',
 });
