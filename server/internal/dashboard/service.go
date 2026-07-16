@@ -25,10 +25,10 @@ const (
 	defaultWidgetActionKey   = "dashboard.actions.details"
 )
 
-// ModuleRuntimeSummaryProvider returns the current module runtime summary.
+// ModuleRuntimeSummaryProvider 返回当前模块运行时汇总，供 dashboard 生成系统摘要。
 type ModuleRuntimeSummaryProvider func() generated.ModuleRuntimeSummary
 
-// Service aggregates fixed system summary and visible widget payloads.
+// Service 聚合固定系统摘要和通过权限校验且成功加载的可见 widget 数据。
 type Service struct {
 	config               *config.Config
 	registry             *Registry
@@ -37,7 +37,7 @@ type Service struct {
 	moduleRuntimeSummary ModuleRuntimeSummaryProvider
 }
 
-// ServiceOptions contains dependencies for dashboard aggregation.
+// ServiceOptions 包含 dashboard 聚合所需依赖；缺省 registry 和 logger 会由 NewService 补齐。
 type ServiceOptions struct {
 	Config               *config.Config
 	Registry             *Registry
@@ -46,7 +46,7 @@ type ServiceOptions struct {
 	ModuleRuntimeSummary ModuleRuntimeSummaryProvider
 }
 
-// NewService creates a dashboard aggregation service.
+// NewService 创建 dashboard 聚合服务，并为缺省 registry 和 logger 应用安全默认值。
 func NewService(options ServiceOptions) *Service {
 	appLogger := options.Logger
 	if appLogger == nil {
@@ -66,7 +66,7 @@ func NewService(options ServiceOptions) *Service {
 	}
 }
 
-// Summary returns the dashboard system summary and all visible contributions.
+// Summary 返回系统摘要及当前调用方可见的全部 widget 贡献。
 func (s *Service) Summary(ctx context.Context, requestAuth moduleapi.RequestAuthContext) generated.DashboardSummaryResponse {
 	widgets := s.visibleWidgets(ctx, requestAuth, s.registry.Items())
 	return generated.DashboardSummaryResponse{
@@ -75,7 +75,7 @@ func (s *Service) Summary(ctx context.Context, requestAuth moduleapi.RequestAuth
 	}
 }
 
-// Widget returns one visible widget by id.
+// Widget 按 id 返回一个经过权限校验且加载后仍可见的 widget；找不到或不可见时返回 false。
 func (s *Service) Widget(ctx context.Context, requestAuth moduleapi.RequestAuthContext, id string) (generated.DashboardWidget, bool) {
 	definition, ok := s.registry.Get(id)
 	if !ok || !s.canReadWidget(ctx, requestAuth, definition) {
@@ -442,7 +442,7 @@ func summaryMetric(widgets []generated.DashboardWidget, metric func(generated.Da
 	return total
 }
 
-// summaryAbnormalServices sums the abnormal services count across all dashboard widgets.
+// summaryAbnormalServices 汇总所有 dashboard widget 报告的异常服务数量。
 func summaryAbnormalServices(widgets []generated.DashboardWidget) int {
 	total := 0
 	for _, widget := range widgets {
@@ -451,7 +451,7 @@ func summaryAbnormalServices(widgets []generated.DashboardWidget) int {
 	return total
 }
 
-// payloadMap converts a WidgetPayload into a map, returning an empty map if the payload is nil.
+// payloadMap 将 WidgetPayload 复制为普通 map；payload 为 nil 时返回空 map，避免调用方共享可变底层数据。
 func payloadMap(payload WidgetPayload) map[string]interface{} {
 	if payload == nil {
 		return map[string]interface{}{}
@@ -544,7 +544,7 @@ func ptr[T any](value T) *T {
 	return &value
 }
 
-// RequestAuthFromContext returns the current request auth context or an empty value.
+// RequestAuthFromContext 返回当前请求认证上下文；上下文中没有认证信息时返回空值。
 func RequestAuthFromContext(ctx context.Context) moduleapi.RequestAuthContext {
 	requestAuth, _ := moduleapi.RequestAuthContextFromContext(ctx)
 	return requestAuth

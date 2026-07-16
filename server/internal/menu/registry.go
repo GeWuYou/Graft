@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// NodeKind distinguishes non-navigable domain groups from page entries.
+// NodeKind 区分不可导航的领域分组和可导航的页面条目。
 type NodeKind string
 
 const (
@@ -137,7 +137,7 @@ func validateItem(item Item, existing map[string]Item) error {
 	}
 }
 
-// validateGroupItem validates that a menu group does not declare a path and has consistent section metadata.
+// validateGroupItem 校验菜单分组不声明路径，且分区元数据保持一致。
 func validateGroupItem(code string, item Item) error {
 	if strings.TrimSpace(item.Path) != "" {
 		return fmt.Errorf("menu group %q must not declare a path", code)
@@ -156,7 +156,7 @@ func validateSectionMetadata(code string, item Item) error {
 	return nil
 }
 
-// validateParents verifies that each menu item's parent exists and is a group.
+// validateParents 校验每个菜单项的 parent 存在且确实是分组节点。
 func validateParents(items map[string]Item) error {
 	for code, item := range items {
 		parent := strings.TrimSpace(item.ParentCode)
@@ -174,8 +174,7 @@ func validateParents(items map[string]Item) error {
 	return nil
 }
 
-// validateCycles checks the menu hierarchy for cycles and returns an error identifying the
-// node where the first detected cycle occurs.
+// validateCycles 检查菜单层级是否存在环，并返回首个检测到的环节点。
 func validateCycles(items map[string]Item) error {
 	state := make(map[string]uint8, len(items))
 	var visit func(string) error
@@ -208,7 +207,7 @@ func validateCycles(items map[string]Item) error {
 	return nil
 }
 
-// RegisterDomainGroups registers the stable top-level navigation domain groups in r.
+// RegisterDomainGroups 向 r 注册稳定的顶层导航领域分组。
 // RegisterDomainGroups 注册预定义的顶层领域菜单分组；当注册表为 nil 时忽略操作。
 func RegisterDomainGroups(r *Registry) {
 	if r == nil {

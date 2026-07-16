@@ -26,19 +26,19 @@ const (
 )
 
 var (
-	// ErrInvalidTicket indicates the supplied realtime ticket is malformed or unknown.
+	// ErrInvalidTicket 表示提供的实时票据格式错误或未知。
 	ErrInvalidTicket = errors.New("realtime ticket invalid")
-	// ErrExpiredTicket indicates the supplied realtime ticket has expired.
+	// ErrExpiredTicket 表示提供的实时票据已过期。
 	ErrExpiredTicket = errors.New("realtime ticket expired")
-	// ErrUsedTicket indicates the supplied realtime ticket was already consumed.
+	// ErrUsedTicket 表示提供的实时票据已经消费过。
 	ErrUsedTicket = errors.New("realtime ticket already used")
-	// ErrScopeMismatch indicates the ticket scope does not match the requested scope.
+	// ErrScopeMismatch 表示票据 scope 与请求 scope 不匹配。
 	ErrScopeMismatch = errors.New("realtime ticket scope mismatch")
-	// ErrResourceMismatch indicates the ticket resource binding does not match the request.
+	// ErrResourceMismatch 表示票据绑定的资源与请求不匹配。
 	ErrResourceMismatch = errors.New("realtime ticket resource mismatch")
-	// ErrTicketRequired indicates a realtime ticket value is required.
+	// ErrTicketRequired 表示请求必须提供实时票据值。
 	ErrTicketRequired = errors.New("realtime ticket required")
-	// ErrInvalidTicketSpec indicates a ticket issue or consume request failed validation.
+	// ErrInvalidTicketSpec 表示票据签发或消费请求未通过校验。
 	ErrInvalidTicketSpec = errors.New("realtime ticket request invalid")
 )
 
@@ -47,7 +47,7 @@ const (
 	ticketStatusUsed   = "used"
 )
 
-// Clock provides the current time for ticket issuance and consumption.
+// Clock 为票据签发和消费提供当前时间；测试可注入固定时钟以复现过期边界。
 type Clock interface {
 	Now() time.Time
 }
@@ -56,13 +56,13 @@ type systemClock struct{}
 
 func (systemClock) Now() time.Time { return time.Now().UTC() }
 
-// Service issues and consumes short-lived realtime tickets.
+// Service 负责签发和一次性消费短生命周期实时票据。
 type Service interface {
 	Issue(ctx context.Context, req IssueRequest) (IssuedTicket, error)
 	Consume(ctx context.Context, req ConsumeRequest) (ConsumedTicket, error)
 }
 
-// IssueRequest describes the fields captured in a newly issued realtime ticket.
+// IssueRequest 描述新签发实时票据要绑定的主体、资源、会话和客户端信息。
 type IssueRequest struct {
 	UserID       uint64
 	ResourceType string
@@ -77,7 +77,7 @@ type IssueRequest struct {
 	TTL          time.Duration
 }
 
-// ConsumeRequest identifies the ticket and resource binding expected during consumption.
+// ConsumeRequest 标识消费时提供的票据及其预期资源绑定。
 type ConsumeRequest struct {
 	Ticket       string
 	ResourceType string
@@ -85,7 +85,7 @@ type ConsumeRequest struct {
 	Scope        string
 }
 
-// IssuedTicket is the caller-visible ticket payload returned after issue succeeds.
+// IssuedTicket 是签发成功后返回给调用方的票据载荷；Ticket 只应在建立实时连接时使用。
 type IssuedTicket struct {
 	TicketID     string
 	Ticket       string
@@ -100,7 +100,7 @@ type IssuedTicket struct {
 	Rows         int
 }
 
-// ConsumedTicket is the server-side ticket payload returned after one successful consume.
+// ConsumedTicket 是一次成功消费后返回给服务端连接建立流程的票据载荷。
 type ConsumedTicket struct {
 	TicketID     string
 	SessionID    string
@@ -134,7 +134,7 @@ type ticketRecord struct {
 	UsedAt       *time.Time `json:"used_at,omitempty"`
 }
 
-// Options configures one KV-backed realtime ticket service.
+// Options 配置一个基于 KV 的实时票据服务；Store 必须非空，其余字段可使用默认值。
 type Options struct {
 	Store      kvx.Store
 	Clock      Clock
@@ -168,11 +168,8 @@ func NewService(store kvx.Store) (Service, error) {
 	return NewServiceWithOptions(Options{Store: store})
 }
 
-// NewServiceWithOptions creates a KV-backed realtime ticket service with the provided options,
-// applying defaults for unspecified or empty values. The Store must not be nil;
-// if nil, an error is returned. Clock defaults to the system clock if not provided.
-// KeyPrefix defaults to "realtimeauth/tickets" if empty after trimming. KeyBuilder
-// defaults to a function that joins the key prefix with the ticket ID if not provided.
+// NewServiceWithOptions 使用给定选项创建基于 KV 的实时票据服务，并为未指定或空值应用默认值。
+// Store 为空时返回错误；Clock 默认使用系统时钟，KeyPrefix 默认使用 realtimeauth/tickets，KeyBuilder 默认按前缀和票据 ID 拼接键。
 func NewServiceWithOptions(options Options) (Service, error) {
 	if options.Store == nil {
 		return nil, errors.New("realtime ticket kv store is required")
@@ -202,12 +199,12 @@ func NewServiceWithOptions(options Options) (Service, error) {
 	}, nil
 }
 
-// NewMemoryService creates a realtime ticket service backed by an in-process KV store.
+// NewMemoryService 创建由进程内 KV 存储支持的实时票据服务。
 func NewMemoryService() Service {
 	return NewMemoryServiceWithClock(nil)
 }
 
-// NewMemoryServiceWithClock creates a realtime ticket service backed by an in-process KV store, using the provided clock for time operations. If clock is nil, the system clock is used. It panics if service initialization fails.
+// NewMemoryServiceWithClock 创建由进程内 KV 存储支持的实时票据服务，并使用指定时钟执行时间操作；clock 为空时使用系统时钟，初始化失败会 panic。
 func NewMemoryServiceWithClock(clock Clock) Service {
 	service, err := NewServiceWithOptions(Options{
 		Store: kvx.NewMemory(kvx.MemoryOptions{Clock: clock}),
@@ -415,12 +412,12 @@ func (s *kvService) ticketKey(ticketID string) string {
 	return s.keyBuilder(strings.TrimSpace(ticketID))
 }
 
-// decodeTicketRecord decodes JSON bytes into a ticketRecord.
+// decodeTicketRecord 将 JSON 字节解码为 ticketRecord。
 func decodeTicketRecord(value []byte) (ticketRecord, error) {
 	return kvx.DecodeJSON[ticketRecord](value)
 }
 
-// consumedTicketFromRecord constructs a ConsumedTicket from the fields of a ticket record.
+// consumedTicketFromRecord 从票据记录字段构造消费成功后供连接流程使用的 ConsumedTicket。
 func consumedTicketFromRecord(record ticketRecord) ConsumedTicket {
 	return ConsumedTicket{
 		TicketID:     record.TicketID,
@@ -450,7 +447,7 @@ func randomSecret(size int) (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-// hashTicketSecret returns the SHA-256 digest of the given secret as a hex-encoded string.
+// hashTicketSecret 返回给定 secret 的 SHA-256 十六进制摘要；存储侧只保留摘要而不保留明文 secret。
 func hashTicketSecret(secret string) string {
 	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])
@@ -468,8 +465,7 @@ func splitTicket(raw string) (string, string, error) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
-// validateStoredTicket checks that a ticket record has not expired, has not been consumed,
-// validateStoredTicket validates that a stored ticket record has not expired, has not been used, has the correct secret, matches the given scope, and matches the given resource type and ID. It returns nil if all validations pass, or one of ErrExpiredTicket, ErrUsedTicket, ErrInvalidTicket, ErrScopeMismatch, or ErrResourceMismatch.
+// validateStoredTicket 校验票据未过期、未消费、secret 正确，且 scope 与资源绑定均匹配；失败时返回对应的稳定票据错误。
 func validateStoredTicket(
 	record ticketRecord,
 	now time.Time,

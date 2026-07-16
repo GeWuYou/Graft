@@ -1,4 +1,4 @@
-// Package moduleruntime exposes a read-only snapshot of the compile-time module runtime.
+// Package moduleruntime 暴露 compile-time module runtime 的只读快照。
 package moduleruntime
 
 import (
@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// PermissionRead is the stable permission required to read module runtime snapshots.
+	// PermissionRead 是读取模块运行时快照所需的稳定权限。
 	PermissionRead = "modules.runtime.read"
 
 	enablementSourceAll       = "all"
@@ -41,28 +41,28 @@ const (
 	configStatusUnknown     = "unknown"
 )
 
-// Snapshot is the OpenAPI-aligned module runtime snapshot response body.
+// Snapshot 是与 OpenAPI 对齐的模块运行时快照响应体。
 type Snapshot = generated.ModuleRuntimeSnapshot
 
-// Summary is the OpenAPI-aligned module runtime summary.
+// Summary 是与 OpenAPI 对齐的模块运行时汇总。
 type Summary = generated.ModuleRuntimeSummary
 
-// Item is the OpenAPI-aligned module runtime item.
+// Item 是与 OpenAPI 对齐的模块运行时条目。
 type Item = generated.ModuleRuntimeItem
 
-// Dependency is the OpenAPI-aligned module dependency status.
+// Dependency 是与 OpenAPI 对齐的模块依赖状态。
 type Dependency = generated.ModuleRuntimeDependency
 
-// MigrationStatus is the OpenAPI-aligned module migration declaration status.
+// MigrationStatus 是与 OpenAPI 对齐的模块迁移声明状态。
 type MigrationStatus = generated.ModuleRuntimeMigrationStatus
 
-// SchemaStatus is the OpenAPI-aligned module schema declaration status.
+// SchemaStatus 是与 OpenAPI 对齐的模块 schema 声明状态。
 type SchemaStatus = generated.ModuleRuntimeSchemaStatus
 
-// ConfigStatus is the OpenAPI-aligned module config requirement status.
+// ConfigStatus 是与 OpenAPI 对齐的模块配置要求状态。
 type ConfigStatus = generated.ModuleRuntimeConfigStatus
 
-// BuildSnapshot builds a read-only module runtime snapshot from compile-time module specs and runtime config.
+// BuildSnapshot 根据 compile-time module spec 和运行时配置构建只读模块运行时快照；输入 spec 会先复制以隔离调用方切片。
 func BuildSnapshot(cfg *config.Config, specs []module.Spec) Snapshot {
 	specs = cloneSpecs(specs)
 	enablementSource := enablementSourceAll
@@ -252,7 +252,7 @@ func cloneSpec(spec module.Spec) module.Spec {
 	return current
 }
 
-// containsString reports whether items contains target.
+// containsString 判断 items 是否包含 target。
 func containsString(items []string, target string) bool {
 	return slices.Contains(items, target)
 }

@@ -313,10 +313,8 @@ func (s *devSupervisor) runDevelopmentMigrations(cmd *cobra.Command) error {
 		return nil
 	}
 
-	// When a disposable local dev database is not Atlas-clean on the very first
-	// bootstrap, allow one controlled retry with --allow-dirty so `graft dev` /
-	// `graft dev air` can take over the local database without weakening the
-	// default protection on explicit `graft migrate up`.
+	// 首次接管一次性本地开发数据库时，若 Atlas 状态非 clean，允许带 --allow-dirty 有且仅有一次受控重试。
+	// 这只服务于 `graft dev` / `graft dev air` 的接管，不削弱显式 `graft migrate up` 的默认保护。
 	if s.serveCmd == nil && isAtlasDirtyDevBootstrapError(err) && s.allowDirtyBootstrapEnabled() {
 		s.log(cmd, "existing dev database requires one allow-dirty migration bootstrap; retrying once")
 		return devMigrateRunnerAllowDirty(cmd, s.migrationDir)
@@ -334,7 +332,7 @@ func (s *devSupervisor) allowDirtyBootstrapEnabled() bool {
 	return cfg.Runtime.DevAllowDirtyMigrationBootstrap
 }
 
-// isAtlasDirtyDevBootstrapError reports whether err indicates an Atlas dirty database bootstrap scenario encountered during development.
+// isAtlasDirtyDevBootstrapError 判断 err 是否表示开发启动阶段遇到 Atlas dirty database 场景。
 func isAtlasDirtyDevBootstrapError(err error) bool {
 	if err == nil {
 		return false

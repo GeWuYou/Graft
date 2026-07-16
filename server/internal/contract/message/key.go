@@ -11,72 +11,72 @@ func (k Key) String() string {
 
 //nolint:gosec // Canonical message-key literals are contract values, not credentials.
 const (
-	// AuthCurrentPasswordInvalid identifies current-password validation failures.
+	// AuthCurrentPasswordInvalid 表示当前密码校验失败。
 	AuthCurrentPasswordInvalid Key = "auth.current_password_invalid"
 
-	// AuthForbidden identifies permission-denied failures for authenticated callers.
+	// AuthForbidden 表示已认证调用方因权限不足而被拒绝。
 	AuthForbidden Key = "auth.forbidden"
 
-	// AuthInvalidCredentials identifies login credential validation failures.
+	// AuthInvalidCredentials 表示登录凭据校验失败。
 	AuthInvalidCredentials Key = "auth.invalid_credentials"
 
-	// AuthInvalidRefreshSession identifies invalid or expired refresh-session failures.
+	// AuthInvalidRefreshSession 表示刷新会话无效或已过期。
 	AuthInvalidRefreshSession Key = "auth.invalid_refresh_session"
 
-	// AuthMissingActor identifies missing authenticated principal failures.
+	// AuthMissingActor 表示请求缺少已认证主体。
 	AuthMissingActor Key = "auth.missing_actor"
 
-	// AuthMissingPermission identifies missing-required-permission failures.
+	// AuthMissingPermission 表示调用方缺少所需权限。
 	AuthMissingPermission Key = "auth.missing_permission"
 
-	// AuthPasswordPolicyViolation identifies password-policy validation failures.
+	// AuthPasswordPolicyViolation 表示密码策略校验失败。
 	AuthPasswordPolicyViolation Key = "auth.password_policy_violation"
 
-	// AuthPasswordReuseForbidden identifies disallowed password-reuse failures.
+	// AuthPasswordReuseForbidden 表示密码复用被策略禁止。
 	AuthPasswordReuseForbidden Key = "auth.password_reuse_forbidden"
 
-	// AuthSessionNotFound identifies missing or inactive session failures.
+	// AuthSessionNotFound 表示会话不存在或已失效。
 	AuthSessionNotFound Key = "auth.session_not_found"
 
-	// AuthTokenExpired identifies expired access-token failures.
+	// AuthTokenExpired 表示访问令牌已过期。
 	AuthTokenExpired Key = "auth.token_expired"
 
-	// AuthTokenInvalid identifies malformed or invalid access-token failures.
+	// AuthTokenInvalid 表示访问令牌格式错误或无效。
 	AuthTokenInvalid Key = "auth.token_invalid"
 
-	// AuthTokenMissing identifies missing access-token failures.
+	// AuthTokenMissing 表示请求缺少访问令牌。
 	AuthTokenMissing Key = "auth.token_missing"
 
-	// CommonInternalError identifies internal server failures surfaced through the unified envelope.
+	// CommonInternalError 表示通过统一响应封装返回的服务端内部错误。
 	CommonInternalError Key = "common.internal_error"
 
-	// CommonInvalidArgument identifies invalid request parameter failures.
+	// CommonInvalidArgument 表示请求参数无效。
 	CommonInvalidArgument Key = "common.invalid_argument"
 
-	// CommonNotFound identifies resources hidden because they do not exist or are outside the caller scope.
+	// CommonNotFound 表示资源不存在或不在调用方可见范围内。
 	CommonNotFound Key = "common.not_found"
 
-	// CommonConjunction identifies the shared conjunction label used by runtime UI copy.
+	// CommonConjunction 表示运行时界面文案共用的连接词。
 	CommonConjunction Key = "common.conjunction"
 
-	// CommonCopyright identifies the shared copyright footer label used by runtime UI copy.
+	// CommonCopyright 表示运行时界面文案共用的版权页脚标签。
 	CommonCopyright Key = "common.copyright"
 
-	// RbacCannotRemoveOwnAdminRole identifies self-lockout prevention failures for builtin admin role replacement.
+	// RbacCannotRemoveOwnAdminRole 表示替换内置管理员角色时阻止自我锁定。
 	RbacCannotRemoveOwnAdminRole Key = "rbac.cannot_remove_own_admin_role"
 
-	// RbacBuiltinAdminPermissionsImmutable identifies builtin admin role permission mutation failures.
+	// RbacBuiltinAdminPermissionsImmutable 表示内置管理员角色权限不可修改。
 	RbacBuiltinAdminPermissionsImmutable Key = "rbac.builtin_admin_permissions_immutable"
 
-	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
+	// UserNotFound 表示认证相关流程中找不到用户。
 	UserNotFound Key = "user.not_found"
 
-	// UserProtectedDefaultAdminImmutable identifies protected default-admin mutations blocked by server authority.
+	// UserProtectedDefaultAdminImmutable 表示服务端阻止修改受保护的默认管理员。
 	UserProtectedDefaultAdminImmutable Key = "user.protected_default_admin_immutable"
 
-	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
+	// RoleNotFound 表示 RBAC 管理流程中找不到角色。
 	RoleNotFound Key = "role.not_found"
 
-	// PermissionNotFound identifies missing-permission failures surfaced by RBAC management flows.
+	// PermissionNotFound 表示 RBAC 管理流程中找不到权限。
 	PermissionNotFound Key = "permission.not_found"
 )

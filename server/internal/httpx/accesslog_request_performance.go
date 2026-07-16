@@ -51,7 +51,7 @@ type requestPerformanceCollector struct {
 	latencies requestPerformanceLatencySummary
 }
 
-// ReadRequestPerformance reads a bounded aggregate from canonical access-log facts.
+// ReadRequestPerformance 从规范访问日志事实中读取有界的请求性能汇总。
 func (r *accessLogRepository) ReadRequestPerformance(
 	ctx context.Context,
 	query moduleapi.RequestPerformanceQuery,
@@ -83,8 +83,7 @@ func (r *accessLogRepository) ReadRequestPerformance(
 	return summary, nil
 }
 
-// collectRequestPerformanceRows aggregates request performance data from database rows.
-// It returns an error if a row cannot be scanned or iteration fails.
+// collectRequestPerformanceRows 聚合数据库行中的请求性能数据；扫描失败或迭代失败时返回错误。
 func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerformanceQuery) (moduleapi.RequestPerformanceSummary, error) {
 	collector := newRequestPerformanceCollector(query)
 	for rows.Next() {
@@ -104,7 +103,7 @@ func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerfor
 	return collector.summaryWithRankings(), nil
 }
 
-// newRequestPerformanceCollector creates a collector initialized for the query window and bucket size.
+// newRequestPerformanceCollector 创建按查询时间窗口和桶大小初始化的性能聚合器。
 func newRequestPerformanceCollector(query moduleapi.RequestPerformanceQuery) *requestPerformanceCollector {
 	summary := newRequestPerformanceSummary(query.WindowStart.UTC(), query.WindowEnd.UTC(), query.BucketSize)
 	buckets := make(map[time.Time]*requestPerformanceBucketAggregate, len(summary.Buckets))
@@ -167,7 +166,7 @@ func (c *requestPerformanceCollector) summaryWithRankings() moduleapi.RequestPer
 	return c.summary
 }
 
-// validateRequestPerformanceQuery validates the request performance query window and bucket size.
+// validateRequestPerformanceQuery 校验请求性能查询的时间窗口和桶大小；当前仅接受规范的分钟桶。
 func validateRequestPerformanceQuery(query moduleapi.RequestPerformanceQuery) error {
 	if query.WindowStart.IsZero() || query.WindowEnd.IsZero() || !query.WindowStart.Before(query.WindowEnd) || query.BucketSize != moduleapi.RequestPerformanceMinuteBucketSize {
 		return moduleapi.ErrRequestPerformanceInvalidQuery
@@ -189,7 +188,7 @@ func newRequestPerformanceSummary(start, end time.Time, bucketSize time.Duration
 	return moduleapi.RequestPerformanceSummary{WindowStart: start, WindowEnd: end, Buckets: buckets}
 }
 
-// incrementRequestPerformanceStatusGroup increments the status group corresponding to statusCode.
+// incrementRequestPerformanceStatusGroup 按 statusCode 将请求计入对应的 HTTP 状态码分组。
 func incrementRequestPerformanceStatusGroup(groups *moduleapi.RequestPerformanceStatusGroups, statusCode int) {
 	switch {
 	case statusCode >= 200 && statusCode <= 299:
@@ -203,13 +202,12 @@ func incrementRequestPerformanceStatusGroup(groups *moduleapi.RequestPerformance
 	}
 }
 
-// isRequestPerformanceServerError reports whether a status code is in the 5xx server error range.
+// isRequestPerformanceServerError 判断状态码是否处于 5xx 服务端错误范围。
 func isRequestPerformanceServerError(statusCode int) bool {
 	return statusCode >= accessLogStatus5xxMin && statusCode <= accessLogStatus5xxMax
 }
 
-// requestPerformanceLatencySummary stores a bounded deterministic reservoir of latency samples.
-// Exact percentiles are retained until the reservoir is full; larger windows use a stable sample.
+// requestPerformanceLatencySummary 保存有界且确定性的延迟样本；样本池未满时保留精确分布，超出后使用稳定替换以控制内存。
 type requestPerformanceLatencySummary struct {
 	values []int64
 	seen   int64
@@ -221,8 +219,7 @@ func (s *requestPerformanceLatencySummary) add(value int64) {
 		s.values = append(s.values, value)
 		return
 	}
-	// This deterministic replacement keeps memory bounded without adding a dependency or
-	// making equivalent reads produce different dashboard values.
+	// 确定性替换既限制内存，也避免相同查询因随机采样产生不同的 dashboard 结果。
 	index := (s.seen*requestPerformanceReservoirMultiplier + requestPerformanceReservoirIncrement) % requestPerformanceLatencySampleLimit
 	s.values[index] = value
 }
@@ -245,7 +242,7 @@ func (s requestPerformanceLatencySummary) percentile(percentile float64) int64 {
 	return sorted[index]
 }
 
-// requestPerformanceTopRoutes ranks routes by traffic, server errors, and P95 latency.
+// requestPerformanceTopRoutes 按流量、服务端错误数和 P95 延迟生成路由排名。
 func requestPerformanceTopRoutes(routes map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate) moduleapi.RequestPerformanceTopRoutes {
 	aggregates := make([]*requestPerformanceRouteAggregate, 0, len(routes))
 	for _, aggregate := range routes {
@@ -259,7 +256,7 @@ func requestPerformanceTopRoutes(routes map[requestPerformanceRouteKey]*requestP
 	}
 }
 
-// onlyRequestPerformanceErrorRoutes filters routes to those with at least one server error.
+// onlyRequestPerformanceErrorRoutes 过滤出至少发生过一次服务端错误的路由。
 func onlyRequestPerformanceErrorRoutes(routes []*requestPerformanceRouteAggregate) []*requestPerformanceRouteAggregate {
 	filtered := make([]*requestPerformanceRouteAggregate, 0, len(routes))
 	for _, route := range routes {
@@ -291,8 +288,7 @@ func requestPerformanceRankRoutes(routes []*requestPerformanceRouteAggregate, co
 	return result
 }
 
-// compareRequestPerformanceTraffic orders route aggregates by descending request count,
-// using the route identity as a deterministic tie-breaker.
+// compareRequestPerformanceTraffic 按请求数降序比较路由聚合结果，并以路由标识作为确定性平局排序键。
 func compareRequestPerformanceTraffic(left, right *requestPerformanceRouteAggregate) bool {
 	if left.totalRequests != right.totalRequests {
 		return left.totalRequests > right.totalRequests
@@ -300,7 +296,7 @@ func compareRequestPerformanceTraffic(left, right *requestPerformanceRouteAggreg
 	return requestPerformanceRouteLess(left, right)
 }
 
-// compareRequestPerformanceServerErrors reports whether left ranks ahead of right by server error count, total request count, and route identity.
+// compareRequestPerformanceServerErrors 按服务端错误数、请求总数和路由标识比较 left 是否应排在 right 之前。
 func compareRequestPerformanceServerErrors(left, right *requestPerformanceRouteAggregate) bool {
 	if left.serverErrorCount != right.serverErrorCount {
 		return left.serverErrorCount > right.serverErrorCount
