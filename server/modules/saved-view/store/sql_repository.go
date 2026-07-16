@@ -21,7 +21,7 @@ const (
 	maxPageSize         = 500
 )
 
-// SQLRepository persists saved views in the module-owned table.
+// SQLRepository 将保存视图持久化到模块自有表，并在查询中隔离用户、消费界面和软删除状态。
 type SQLRepository struct{ db *sql.DB }
 
 // NewSQLRepository 创建一个由平台数据库连接支持的保存视图仓储。
@@ -33,7 +33,7 @@ func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	return &SQLRepository{db: db}, nil
 }
 
-// List returns live views for one owner and one surface.
+// List 返回指定用户和消费界面的未删除视图，并按最近更新时间倒序、ID 倒序保持稳定顺序。
 func (r *SQLRepository) List(ctx context.Context, ownerUserID uint64, surfaceKey string) ([]moduleapi.SavedView, error) {
 	if err := validateOwnerAndSurface(ownerUserID, surfaceKey); err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (r *SQLRepository) List(ctx context.Context, ownerUserID uint64, surfaceKey
 	return items, nil
 }
 
-// Create adds one live view.
+// Create 新增一个未删除视图；唯一约束冲突转换为 ErrSavedViewConflict。
 func (r *SQLRepository) Create(ctx context.Context, input moduleapi.SavedViewCreateInput) (moduleapi.SavedView, error) {
 	input, err := normalizeCreate(input)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *SQLRepository) Create(ctx context.Context, input moduleapi.SavedViewCre
 	return item, nil
 }
 
-// Update replaces the persisted user-controlled state of one live view.
+// Update 替换一个未删除视图的用户可控状态，并在所有权或消费界面不匹配时返回 ErrSavedViewNotFound。
 func (r *SQLRepository) Update(ctx context.Context, input moduleapi.SavedViewUpdateInput) (moduleapi.SavedView, error) {
 	input, err := normalizeUpdate(input)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *SQLRepository) Update(ctx context.Context, input moduleapi.SavedViewUpd
 	return item, nil
 }
 
-// Delete soft-deletes one owned view.
+// Delete 软删除一个归属指定用户和消费界面的视图；重复删除和越权访问均表现为 ErrSavedViewNotFound。
 func (r *SQLRepository) Delete(ctx context.Context, ownerUserID uint64, surfaceKey string, id uint64) error {
 	if err := validateOwnerAndSurface(ownerUserID, surfaceKey); err != nil || id == 0 {
 		return moduleapi.ErrSavedViewInvalidInput

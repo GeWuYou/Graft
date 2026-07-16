@@ -35,6 +35,7 @@ func newRuntimeTargetSummaryCollector(hub realtime.Hub, collect func(context.Con
 	return &runtimeTargetSummaryCollector{hub: hub, collect: collect}
 }
 
+// Start 启动摘要采集协程；支持主题观察时仅在存在订阅者期间采集，否则保持兼容性地持续采集。
 func (c *runtimeTargetSummaryCollector) Start(ctx context.Context) error {
 	if c == nil || c.hub == nil || c.collect == nil {
 		return nil
@@ -66,6 +67,7 @@ func (c *runtimeTargetSummaryCollector) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop 注销主题观察器并等待采集协程退出；ctx 超时只影响等待结果，不会重新启动已停止的采集器。
 func (c *runtimeTargetSummaryCollector) Stop(ctx context.Context) error {
 	if c == nil {
 		return nil
