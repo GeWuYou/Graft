@@ -38,6 +38,11 @@ closeout:
   page-local server snapshot. `notification-list-query-migration` is complete: its normalized module key owns the
   paginated snapshot, single-read responses update known rows directly, and bulk/delete operations invalidate list
   variants rather than maintaining a page-local copy.
+- `rbac-query-migration` is complete: the role list, role-editor permission catalog, and filtered permission list
+  now have module-owned Query keys. Role create, update, status, and delete responses update the role cache directly;
+  role-permission mutations invalidate the role list because the API does not return a complete updated summary.
+  Permission detail loading remains an explicit drawer session request, while filters, pagination, selections, drafts,
+  tabs, and drawer visibility remain page-local.
 
 ## Final Non-Query Decision
 
@@ -82,15 +87,15 @@ closeout:
     "standard-crud-query-migration",
     "resource-detail-query-migration",
     "non-query-go-no-go",
-    "notification-list-query-migration"
+    "notification-list-query-migration",
+    "rbac-query-migration"
   ],
   "pending_batches": [
-    "rbac-query-migration",
     "system-config-query-migration",
     "remaining-query-no-go-review"
   ],
   "current_batch": null,
-  "next_batch": "rbac-query-migration",
+  "next_batch": "system-config-query-migration",
   "closeout_status": "active"
 }
 ```

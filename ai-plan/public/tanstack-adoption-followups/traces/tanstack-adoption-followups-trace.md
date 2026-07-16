@@ -68,3 +68,16 @@
 - Reference: [TanStack Query keys](https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys),
   [updates from mutation responses](https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses),
   and [query invalidation](https://tanstack.com/query/latest/docs/framework/vue/guides/query-invalidation).
+
+## 2026-07-16 RBAC Query Migration
+
+- Migrated RBAC role lists, the role-editor permission catalog, and filtered permission lists to module-owned Query
+  keys. Permission-list keys normalize empty filters while API requests keep empty parameters omitted; clearing a
+  filter therefore restores the matching cached snapshot instead of issuing a duplicate request.
+- Role create, update, status, and delete responses precisely update the cached role list. Role-permission mutations
+  invalidate only that list because the mutation endpoint does not return the authoritative role summary. Permission
+  detail, role detail, and role-permission binding calls remain drawer-session requests so their loading and draft
+  lifecycle cannot overwrite the active editor session.
+- Reference: [Query keys](https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys),
+  [updates from mutation responses](https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses),
+  and [query invalidation](https://tanstack.com/query/latest/docs/framework/vue/guides/query-invalidation).

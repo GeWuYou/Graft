@@ -34,9 +34,10 @@ Out of scope:
 - P0 QueryClient, announcement, monitor, access-log, app-log, and audit migrations landed in commit `5acd17d8`.
 - P1 standard CRUD and resource-detail migrations landed in commits `344f9b15` and `7b38485a`.
 - The final `non-query-go-no-go` batch remains valid: Table, Virtual, Form, and Router are deliberately unadopted.
-- The reopened `notification-list-query-migration` batch is complete: its paginated list is now module-owned Query
-  state while notification UI state remains local. Pending batches are `rbac-query-migration`,
-  `system-config-query-migration`, and `remaining-query-no-go-review`.
+- The reopened `notification-list-query-migration` and `rbac-query-migration` batches are complete. RBAC role lists,
+  role-editor permission catalogs, and filtered permission lists are module-owned Query state; filters, pagination,
+  drawers, drafts, selections, and detail sessions remain local. Pending batches are `system-config-query-migration`
+  and `remaining-query-no-go-review`.
 
 ## Non-Query Decision
 
