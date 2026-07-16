@@ -28,3 +28,15 @@
 - Added the bounded production-Go `logger.Category` literal guard and attached it to the existing backend lint stage.
 - Batch 3 owns App Log persistence, OpenAPI, and web-consumer contract evaluation; those downstream surfaces remain
   unchanged in this batch.
+
+## 2026-07-16 Batch 3: App Log category contract
+
+- Made category a logger-owned persisted `app_logs` field. Existing durable rows and uncategorized AppLogger calls use
+  the registered `runtime.stats` default; category remains distinct from the explicit component path.
+- Added typed `AppLogger.Category(LogCategory)`, with the existing category core gate checked before sanitization,
+  serialization, and durable queue submission. TRACE remains process-output-only and is not added to App Log severity.
+- Extended the canonical OpenAPI source and regenerated the bundled spec, backend bindings, runtime docs asset, and
+  web schema. The Explorer repository/query binding, saved views, filter state, list column, and detail panel now
+  consume the same server-owned category value.
+- Added migration `202607160001_app_log_category.sql` and its category/time/id Explorer index. Batch completion now
+  awaits loop-owner archive-readiness evaluation and the scoped commit result.

@@ -200,6 +200,9 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 	if record.Severity != AppLogSeverityError {
 		t.Fatalf("expected error severity, got %q", record.Severity)
 	}
+	if record.Category != defaultAppLogCategory {
+		t.Fatalf("expected legacy default category %q, got %q", defaultAppLogCategory, record.Category)
+	}
 	if record.Component != "modules.user.route" {
 		t.Fatalf("expected named component, got %q", record.Component)
 	}
@@ -220,6 +223,34 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 	}
 	if _, exists := record.Fields["status_code"]; exists {
 		t.Fatalf("expected access-owned status_code to stay out of app-log fields, got %#v", record.Fields)
+	}
+}
+
+func TestAppLoggerCategoryPersistsRegisteredCategory(t *testing.T) {
+	sink := newAppLoggerSinkRecorder()
+	core, _ := observer.New(zapcore.InfoLevel)
+	logger := NewAppLogger(zap.New(core), WithAppLogRepository(sink)).Category(CategoryRuntimeMetrics)
+
+	logger.Info(context.Background(), "sampled runtime metric")
+	record := sink.waitRecord(t)
+	if record.Category != CategoryRuntimeMetrics {
+		t.Fatalf("expected selected category %q, got %q", CategoryRuntimeMetrics, record.Category)
+	}
+}
+
+func TestAppLoggerDisabledCategorySkipsPersistence(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	disabledCore := wrapCategoryCore(CategoryRules{CategoryRuntimeStats: false})(core)
+	sink := newAppLoggerSinkRecorder()
+	logger := NewAppLogger(zap.New(disabledCore), WithAppLogRepository(sink)).Category(CategoryRuntimeStats)
+
+	logger.Info(context.Background(), "disabled category event", StringField("expensive", "not serialized"))
+	time.Sleep(25 * time.Millisecond)
+	if sink.recordCount() != 0 {
+		t.Fatalf("expected disabled category to skip durable persistence, got %d records", sink.recordCount())
+	}
+	if len(observed.All()) != 0 {
+		t.Fatalf("expected disabled category to skip zap output, got %d entries", len(observed.All()))
 	}
 }
 

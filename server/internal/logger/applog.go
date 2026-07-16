@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"graft/server/internal/httpx"
 )
@@ -41,6 +42,8 @@ const (
 	FieldError = "error"
 )
 
+const defaultAppLogCategory LogCategory = CategoryRuntimeStats
+
 const redactedValue = "[REDACTED]"
 const (
 	appLogPersistQueueSize = 1024
@@ -55,6 +58,7 @@ type AppLogger interface {
 	Info(context.Context, string, ...Field)
 	Warn(context.Context, string, ...Field)
 	Error(context.Context, string, ...Field)
+	Category(LogCategory) AppLogger
 	Named(string) AppLogger
 	With(...Field) AppLogger
 	Zap() *zap.Logger
@@ -70,10 +74,12 @@ type Field struct {
 }
 
 type appLogger struct {
-	base   *zap.Logger
-	sink   appLogPersistSink
-	now    func() time.Time
-	fields []Field
+	base             *zap.Logger
+	sink             appLogPersistSink
+	now              func() time.Time
+	fields           []Field
+	category         LogCategory
+	categorySelected bool
 }
 
 type appLogPersistSink interface {
@@ -171,19 +177,38 @@ func (l appLogger) Named(component string) AppLogger {
 	}
 
 	return appLogger{
-		base:   l.base.Named(component).With(zap.String(FieldComponent, component)),
-		sink:   l.sink,
-		now:    l.now,
-		fields: appendAppLoggerField(l.fields, StringField(FieldComponent, component)),
+		base:             l.base.Named(component).With(zap.String(FieldComponent, component)),
+		sink:             l.sink,
+		now:              l.now,
+		fields:           appendAppLoggerField(l.fields, StringField(FieldComponent, component)),
+		category:         l.category,
+		categorySelected: l.categorySelected,
+	}
+}
+
+// Category 为 AppLogger 绑定一个已注册类别，同时保持现有 component 标识不变。
+func (l appLogger) Category(category LogCategory) AppLogger {
+	if !isRegisteredCategory(category) {
+		return appLogger{base: zap.NewNop(), sink: l.sink, now: l.now, fields: l.fields, category: category, categorySelected: true}
+	}
+	return appLogger{
+		base:             l.base.With(zap.String(categoryFieldKey, string(category))),
+		sink:             l.sink,
+		now:              l.now,
+		fields:           l.fields,
+		category:         category,
+		categorySelected: true,
 	}
 }
 
 func (l appLogger) With(fields ...Field) AppLogger {
 	return appLogger{
-		base:   l.base.With(l.zapFields(context.Background(), fields...)...),
-		sink:   l.sink,
-		now:    l.now,
-		fields: appendAppLoggerFields(l.fields, fields...),
+		base:             l.base.With(l.zapFields(context.Background(), fields...)...),
+		sink:             l.sink,
+		now:              l.now,
+		fields:           appendAppLoggerFields(l.fields, fields...),
+		category:         l.category,
+		categorySelected: l.categorySelected,
 	}
 }
 
@@ -192,6 +217,9 @@ func (l appLogger) Zap() *zap.Logger {
 }
 
 func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) {
+	if l.categorySelected && !l.base.Core().Enabled(zapLevelForAppLogSeverity(severity)) {
+		return
+	}
 	sanitizedMessage := sanitizeMessage(message)
 	zapFields := l.zapFields(ctx, fields...)
 	switch severity {
@@ -206,6 +234,19 @@ func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message s
 	}
 
 	l.persist(ctx, severity, sanitizedMessage, fields...)
+}
+
+func zapLevelForAppLogSeverity(severity AppLogSeverity) zapcore.Level {
+	switch severity {
+	case AppLogSeverityDebug:
+		return zap.DebugLevel
+	case AppLogSeverityWarn:
+		return zap.WarnLevel
+	case AppLogSeverityError:
+		return zap.ErrorLevel
+	default:
+		return zap.InfoLevel
+	}
 }
 
 func (l appLogger) persist(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) {
@@ -259,6 +300,7 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 	record := CreateAppLogInput{
 		OccurredAt: l.now().UTC(),
 		Severity:   severity,
+		Category:   l.effectiveCategory(),
 		Message:    message,
 		Fields:     make(map[string]string),
 	}
@@ -283,6 +325,13 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 	}
 
 	return record, nil
+}
+
+func (l appLogger) effectiveCategory() LogCategory {
+	if l.categorySelected {
+		return l.category
+	}
+	return defaultAppLogCategory
 }
 
 func applyAppLogRecordField(record *CreateAppLogInput, key string, value string) {

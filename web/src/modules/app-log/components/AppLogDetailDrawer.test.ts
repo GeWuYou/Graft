@@ -79,6 +79,7 @@ const i18n = createI18n({
           occurredAt: '发生时间',
           operation: '事件 Key',
           severity: '级别',
+          category: '类别',
         },
         detail: {
           basic: '基础信息',

@@ -192,4 +192,14 @@ describe('AppLogListIndex', () => {
     expect(mocks.messageError).toHaveBeenCalledWith('appLog.page.loadFailed');
     expect(mocks.loggerError).toHaveBeenCalledWith('failed to fetch app logs', error);
   });
+
+  it('passes a category deep-link through the canonical list query', async () => {
+    routeState.query = { category: 'runtime.metrics' };
+    mocks.getAppLogs.mockResolvedValue(response([]));
+
+    mountPage();
+    await flushPromises();
+
+    expect(mocks.getAppLogs).toHaveBeenCalledWith(expect.objectContaining({ category: 'runtime.metrics' }));
+  });
 });

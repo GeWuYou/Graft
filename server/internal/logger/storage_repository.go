@@ -16,7 +16,7 @@ type appLogSQLDialect string
 const (
 	appLogSQLDialectPostgres  appLogSQLDialect = "postgres"
 	appLogSQLDialectSQLite    appLogSQLDialect = "sqlite"
-	appLogListClauseCapacity                   = 10
+	appLogListClauseCapacity                   = 11
 	appLogListOffsetArgCount                   = 2
 	appLogDeleteLimitArgIndex                  = 2
 	appLogKeywordClauseCount                   = 4
@@ -294,6 +294,7 @@ func (r *appLogRepository) createAppLog(
 	args := []any{
 		record.OccurredAt,
 		string(record.Severity),
+		string(record.Category),
 		record.Component,
 		nullableString(record.Operation),
 		nullableString(record.RequestID),
@@ -308,6 +309,7 @@ func (r *appLogRepository) createAppLog(
 	query := fmt.Sprintf(`INSERT INTO app_logs (
 		occurred_at,
 		severity,
+		category,
 		component,
 		operation,
 		request_id,
@@ -349,6 +351,7 @@ func (r *appLogRepository) buildAppLogListSelectQuery(
 		id,
 		occurred_at,
 		severity,
+		category,
 		component,
 		operation,
 		request_id,
@@ -409,6 +412,7 @@ func (r *appLogRepository) buildAppLogDetailSelectQuery() string {
 		id,
 		occurred_at,
 		severity,
+		category,
 		component,
 		operation,
 		request_id,
@@ -426,6 +430,7 @@ func (r *appLogRepository) buildAppLogWhereClause(query AppLogListQuery) (string
 	args := make([]any, 0, appLogListClauseCapacity)
 
 	appendAppLogEqualityFilter(&conditions, &args, r, "severity =", string(query.Severity))
+	appendAppLogEqualityFilter(&conditions, &args, r, "category =", string(query.Category))
 	appendAppLogEqualityFilter(&conditions, &args, r, "component =", query.Component)
 	appendAppLogEqualityFilter(&conditions, &args, r, "operation =", query.Operation)
 	appendAppLogEqualityFilter(&conditions, &args, r, "request_id =", query.RequestID)
@@ -578,6 +583,7 @@ func scanAppLog(scanner appLogScanner) (AppLogRecord, error) {
 	var (
 		id         int64
 		severity   string
+		category   string
 		operation  sql.NullString
 		requestID  sql.NullString
 		traceID    sql.NullString
@@ -592,6 +598,7 @@ func scanAppLog(scanner appLogScanner) (AppLogRecord, error) {
 		&id,
 		&record.OccurredAt,
 		&severity,
+		&category,
 		&record.Component,
 		&operation,
 		&requestID,
@@ -610,6 +617,7 @@ func scanAppLog(scanner appLogScanner) (AppLogRecord, error) {
 	record.ID = uint64(id)
 	record.OccurredAt = record.OccurredAt.UTC()
 	record.Severity = AppLogSeverity(severity)
+	record.Category = LogCategory(category)
 	record.Operation = operation.String
 	record.RequestID = requestID.String
 	record.TraceID = traceID.String

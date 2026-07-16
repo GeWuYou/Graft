@@ -21,6 +21,9 @@
         {{ appLogRow(row).severity.toUpperCase() }}
       </t-tag>
     </template>
+    <template #category="{ row }">
+      <log-id-text :display-value="appLogRow(row).category" :tooltip="appLogRow(row).category" />
+    </template>
     <template #message="{ row }">
       <div class="stack-cell stack-cell--compact">
         <strong>{{ appLogRow(row).message }}</strong>
@@ -118,6 +121,7 @@ const pageSize = defineModel<number>('pageSize', { required: true });
 const cellSlotNames = [
   'occurred_at',
   'severity',
+  'category',
   'message',
   'operation',
   'correlation',
@@ -149,6 +153,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     ...selectionColumn,
     createTimeColumn(t('appLog.columns.occurredAt'), 'occurred_at', 176),
     createStatusColumn(t('appLog.columns.severity'), 'severity', 104),
+    createTechnicalColumn(t('appLog.columns.category'), 'category', 184),
     createIdentifierColumn(t('appLog.columns.component'), 'component', 184),
     createTechnicalColumn(t('appLog.columns.operation'), 'operation', 196),
     createMainTextColumn(t('appLog.columns.message'), 'message', 420),

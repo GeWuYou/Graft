@@ -28,6 +28,7 @@ func newAppLogSQLiteDB(t *testing.T) *sql.DB {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		occurred_at TIMESTAMP NOT NULL,
 		severity TEXT NOT NULL,
+		category TEXT NOT NULL,
 		component TEXT NOT NULL,
 		operation TEXT NULL,
 		request_id TEXT NULL,
@@ -94,6 +95,7 @@ func TestAppLogRepositoryCreateAndList(t *testing.T) {
 	result, err := repo.ListAppLogs(ctx, AppLogListQuery{
 		Severity:  AppLogSeverityError,
 		Component: " modules.user.route ",
+		Category:  CategoryRuntimeStats,
 		Keyword:   "response",
 		Page:      0,
 		PageSize:  500,
@@ -118,6 +120,39 @@ func TestAppLogRepositoryCreateAndList(t *testing.T) {
 	}
 	if detail.ID != created.ID || detail.Message != created.Message {
 		t.Fatalf("expected matching app log detail, got %#v", detail)
+	}
+}
+
+func TestAppLogRepositoryDefaultsLegacyCategory(t *testing.T) {
+	repo := newSQLiteAppLogRepository(t)
+	created, err := repo.CreateAppLog(context.Background(), CreateAppLogInput{
+		Severity:  AppLogSeverityInfo,
+		Component: "core.app",
+		Message:   "legacy category default",
+	})
+	if err != nil {
+		t.Fatalf("create legacy app log: %v", err)
+	}
+	if created.Category != defaultAppLogCategory {
+		t.Fatalf("expected legacy default category %q, got %q", defaultAppLogCategory, created.Category)
+	}
+}
+
+func TestAppLogRepositoryFiltersByCategory(t *testing.T) {
+	repo := newSQLiteAppLogRepository(t)
+	ctx := context.Background()
+	for _, category := range []LogCategory{CategoryRuntimeStats, CategoryRuntimeMetrics} {
+		if _, err := repo.CreateAppLog(ctx, CreateAppLogInput{Severity: AppLogSeverityInfo, Category: category, Component: "core.app", Message: string(category)}); err != nil {
+			t.Fatalf("seed category %q: %v", category, err)
+		}
+	}
+
+	result, err := repo.ListAppLogs(ctx, AppLogListQuery{Category: CategoryRuntimeMetrics})
+	if err != nil {
+		t.Fatalf("list category: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Category != CategoryRuntimeMetrics {
+		t.Fatalf("expected runtime.metrics filter result, got %#v", result)
 	}
 }
 

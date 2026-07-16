@@ -10,8 +10,8 @@
   - `server/internal/logger/**`
   - `server/internal/config/**`
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
-- Completed so far: Work Intake, architecture decision, Batch 1 logger foundation, and Batch 2 high-frequency migration/static governance.
-- Not started yet: Batch 3 App Log/OpenAPI/web contract evaluation.
+- Completed so far: Work Intake, architecture decision, Batch 1 logger foundation, Batch 2 high-frequency migration/static governance, and Batch 3 App Log category contract.
+- Pending: loop-owner archive-readiness evaluation.
 
 ## Recovery Receipt
 
@@ -46,8 +46,8 @@ Out of scope:
 ## Current Recovery Point
 
 - Loop mode: `topic-completion-loop`.
-- Current batch: Batch 2 completed.
-- Next step: dispatch Batch 3 App Log/OpenAPI/web contract worker.
+- Current batch: Batch 3 completed.
+- Next step: evaluate archive readiness against the topic acceptance conditions.
 
 ## Work Intake
 

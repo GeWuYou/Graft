@@ -32,10 +32,11 @@ closeout:
 - completed_batches:
   - `batch-1-logger-category-foundation`
   - `batch-2-high-frequency-migration-and-static-governance`
-- current_batch: `batch-3-app-log-category-contract`
-- pending_batches:
   - `batch-3-app-log-category-contract`
-- next_batch: `batch-3-app-log-category-contract`
+- current_batch: `archive-readiness-evaluation`
+- pending_batches:
+  - `archive-readiness-evaluation`
+- next_batch: `archive-readiness-evaluation`
 
 ## Acceptance Conditions
 
@@ -43,12 +44,12 @@ closeout:
 - Categories are typed constants in a logger-owned registry and config accepts no business-code string literals.
 - Disabled Category prevents lazy field creation, encoding, serialization, and durable persistence.
 - High-frequency normal diagnostics use TRACE; periodic failures remain visible and bounded.
-- The final contract, persistence, and web impact are validated only when Batch 3 determines they are required.
+- App Log category persistence, query contract, and web consumer behavior are validated with the final Batch 3 change.
 
 ## Current Risks
 
 - TRACE requires a custom zap level and encoder handling; compatibility must be covered by observer tests.
-- App Log persistence currently has no category field and is intentionally not modified before its authority batch.
+- Archive readiness still requires loop-owner acceptance review and scoped commit confirmation.
 - Category literal static checking must remain bounded to production server code and must not become a whole-repository linter.
 
 ## 2026-07-16 Batch 2 Receipt
@@ -61,3 +62,15 @@ closeout:
 - Added `scripts/check_log_category_governance.py`, limited to handwritten production Go under `server`, and wired it
   into the existing backend lint stage. The guard rejects `logger.Category(..., "literal")` but permits logger typed
   constants.
+
+## 2026-07-16 Batch 3 Receipt
+
+- Added the logger-owned `app_logs.category` durable field, with `runtime.stats` as the registered legacy default and
+  explicit SQL backfill/default behavior in forward-only migration `202607160001_app_log_category.sql`.
+- Added typed `AppLogger.Category(LogCategory)`. When the selected category is disabled by the existing Zap category
+  gate, the call returns before field serialization and the durable queue; ordinary AppLogger calls retain their
+  existing output/persistence behavior and persist under the legacy default category.
+- Added category filtering to the logger repository, Explorer binding, saved-view validation, OpenAPI source and
+  generated contracts, plus App Log list filter, column, and detail presentation. TRACE remains process-output-only.
+- Focused Go and Vitest coverage, SQL validation, OpenAPI generation/freshness, web i18n/type generation checks, and
+  final backend/web completion validation are required before archive readiness is accepted.

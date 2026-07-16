@@ -170,6 +170,7 @@ type AppLogRecord struct {
 	ID         uint64
 	OccurredAt time.Time
 	Severity   AppLogSeverity
+	Category   LogCategory
 	Component  string
 	Message    string
 	Operation  string
@@ -189,6 +190,7 @@ type AppLogListQuery struct {
 	Page         int
 	PageSize     int
 	Severity     AppLogSeverity
+	Category     LogCategory
 	Component    string
 	Operation    string
 	RequestID    string
@@ -242,6 +244,7 @@ func (s AppLogSeverity) Validate() error {
 func normalizeAppLogListQuery(query AppLogListQuery) AppLogListQuery {
 	query.Page = normalizePositivePage(query.Page)
 	query.PageSize = normalizeAppLogPageSize(query.PageSize)
+	query.Category = normalizeAppLogCategory(query.Category)
 	query.Component = sanitizeComponent(query.Component)
 	query.Operation = sanitizeString(query.Operation)
 	query.RequestID = sanitizeString(query.RequestID)
@@ -255,6 +258,13 @@ func normalizeAppLogListQuery(query AppLogListQuery) AppLogListQuery {
 		query.Severity = ""
 	}
 	return query
+}
+
+func normalizeAppLogCategory(category LogCategory) LogCategory {
+	if isRegisteredCategory(category) {
+		return category
+	}
+	return ""
 }
 
 func normalizePositivePage(page int) int {
@@ -286,10 +296,15 @@ func IsForbiddenAppLogPersistedField(key string) bool {
 }
 
 func newNormalizedAppLogRecord(r AppLogRecord) AppLogRecord {
+	category := r.Category
+	if category == "" {
+		category = defaultAppLogCategory
+	}
 	return AppLogRecord{
 		ID:         r.ID,
 		OccurredAt: r.OccurredAt.UTC(),
 		Severity:   r.Severity,
+		Category:   normalizeAppLogCategory(category),
 		Component:  sanitizeComponent(r.Component),
 		Message:    sanitizeMessage(r.Message),
 		Operation:  sanitizeFieldValue(FieldOperation, r.Operation).(string),
@@ -307,6 +322,9 @@ func validateNormalizedAppLogRecord(record AppLogRecord) error {
 	}
 	if err := record.Severity.Validate(); err != nil {
 		return err
+	}
+	if !isRegisteredCategory(record.Category) {
+		return fmt.Errorf("unsupported app log category %q", record.Category)
 	}
 	if record.Component == "" {
 		return errors.New("app log record component is required")

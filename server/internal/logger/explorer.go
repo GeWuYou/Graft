@@ -378,6 +378,7 @@ type appLogDetailResponse struct {
 	ID         uint64            `json:"id"`
 	OccurredAt string            `json:"occurred_at"`
 	Severity   string            `json:"severity"`
+	Category   string            `json:"category"`
 	Component  string            `json:"component"`
 	Message    string            `json:"message"`
 	Operation  string            `json:"operation"`
@@ -413,6 +414,7 @@ func toAppLogDetailResponse(record AppLogRecord) appLogDetailResponse {
 		ID:         record.ID,
 		OccurredAt: record.OccurredAt.UTC().Format(time.RFC3339),
 		Severity:   string(record.Severity),
+		Category:   string(record.Category),
 		Component:  record.Component,
 		Message:    record.Message,
 		Operation:  record.Operation,
@@ -431,6 +433,7 @@ var appLogAllowedListQueryKeys = map[string]struct{}{
 	"occurred_from": {},
 	"occurred_to":   {},
 	"severity":      {},
+	"category":      {},
 	"component":     {},
 	"operation":     {},
 	"request_id":    {},
@@ -457,6 +460,9 @@ func bindAppLogListQuery(ctx *gin.Context) (AppLogListQuery, string) {
 		return query, invalidField
 	}
 
+	if invalidField := bindAppLogCategory(ctx, &query); invalidField != "" {
+		return query, invalidField
+	}
 	query.Component = strings.TrimSpace(ctx.Query("component"))
 	query.Operation = strings.TrimSpace(ctx.Query("operation"))
 	query.RequestID = strings.TrimSpace(ctx.Query("request_id"))
@@ -469,6 +475,18 @@ func bindAppLogListQuery(ctx *gin.Context) (AppLogListQuery, string) {
 	}
 
 	return query, ""
+}
+
+func bindAppLogCategory(ctx *gin.Context, query *AppLogListQuery) string {
+	category := LogCategory(strings.TrimSpace(ctx.Query("category")))
+	if category == "" {
+		return ""
+	}
+	if !isRegisteredCategory(category) {
+		return "category"
+	}
+	query.Category = category
+	return ""
 }
 
 func bindAppLogSort(ctx *gin.Context, query *AppLogListQuery) string {

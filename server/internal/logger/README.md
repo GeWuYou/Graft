@@ -129,6 +129,7 @@ registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output di
 
 * `occurred_at`
 * `severity`
+* `category`，由 logger 注册类别决定；未显式调用 `AppLogger.Category(...)` 的旧调用统一写入 `runtime.stats`
 * `component`
 * `message`
 * `operation`
@@ -138,6 +139,10 @@ registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output di
 * `method`
 * `error`
 * `fields`
+
+`AppLogger.Category(logger.CategoryRuntimeStats)` 可为需要类别治理的调用点选择已注册类别。类别与 component 独立：
+component 描述调用组件，category 描述运行时诊断类别。类别开关禁用时，该 AppLogger 调用既不会序列化字段，也不会进入
+durable App Log 队列；TRACE 仍只属于 process-output，不会进入 App Log severity 或 HTTP 契约。
 
 当前 forbidden persisted fields：
 

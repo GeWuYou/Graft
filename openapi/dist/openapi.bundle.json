@@ -8293,6 +8293,24 @@
             }
           },
           {
+            "name": "category",
+            "in": "query",
+            "description": "Registered logger category for durable App Log records.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "docker.stats",
+                "docker.events",
+                "runtime.cache",
+                "runtime.metrics",
+                "runtime.stats",
+                "compose.runtime",
+                "scheduler.poll",
+                "database.ent"
+              ]
+            }
+          },
+          {
             "name": "component",
             "in": "query",
             "schema": {
@@ -21931,6 +21949,7 @@
           "id",
           "occurred_at",
           "severity",
+          "category",
           "component",
           "message",
           "operation",
@@ -21957,6 +21976,19 @@
               "info",
               "warn",
               "error"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "docker.stats",
+              "docker.events",
+              "runtime.cache",
+              "runtime.metrics",
+              "runtime.stats",
+              "compose.runtime",
+              "scheduler.poll",
+              "database.ent"
             ]
           },
           "component": {

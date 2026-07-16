@@ -49,6 +49,7 @@ const translations: Record<string, string> = {
   'appLog.columns.operation': '操作',
   'appLog.columns.requestId': '请求 ID',
   'appLog.columns.severity': '级别',
+  'appLog.columns.category': '类别',
   'appLog.actions.copyFail': '复制失败',
   'appLog.actions.copySuccess': '已复制',
   'appLog.actions.delete': '删除',

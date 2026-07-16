@@ -18,6 +18,7 @@
             {{ record.severity.toUpperCase() }}
           </t-tag>
         </t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.columns.category')">{{ record.category }}</t-descriptions-item>
         <t-descriptions-item :label="t('appLog.columns.component')">{{ record.component }}</t-descriptions-item>
         <t-descriptions-item :label="t('appLog.columns.operation')">
           {{ appLogOperationText(record, t) }}
