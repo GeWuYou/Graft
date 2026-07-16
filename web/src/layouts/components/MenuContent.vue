@@ -103,7 +103,7 @@ function getMenuList(list: MenuRoute[]): MenuRoute[] {
   if (!list || list.length === 0) {
     return [];
   }
-  // 如果meta中有orderNo则按照从小到大排序
+  // 菜单顺序由后端导航元数据的 orderNo 决定，缺省项按 0 参与排序。
   list.sort((a, b) => {
     return (a.meta?.orderNo || 0) - (b.meta?.orderNo || 0);
   });

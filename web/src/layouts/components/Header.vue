@@ -204,7 +204,6 @@ const menuCls = computed(() => {
 });
 const menuTheme = computed(() => theme as ModeType);
 
-// 切换语言
 const changeCollapsed = () => {
   settingStore.updateConfig({
     isSidebarCompact: !settingStore.isSidebarCompact,
