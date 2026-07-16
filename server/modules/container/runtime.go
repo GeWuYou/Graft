@@ -130,7 +130,7 @@ var (
 	errShellSessionFailed          = errors.New("container shell session failed")
 )
 
-// Runtime is the module-owned boundary between API/service code and a concrete container runtime adapter.
+// Runtime 是容器服务与具体运行时适配器之间的模块边界；实现必须将外部运行时错误映射为模块错误，并返回脱敏后的领域数据。
 type Runtime interface {
 	Info(ctx context.Context) (RuntimeInfo, error)
 	List(ctx context.Context, query ListQuery) ([]Summary, error)
@@ -147,21 +147,19 @@ type Runtime interface {
 	Close() error
 }
 
-// StatsCollectorRuntime exposes background stats snapshot collection for runtimes
-// that support collector-driven sampling and publish flows.
+// StatsCollectorRuntime 为支持后台采样的运行时提供批量统计快照能力；调用方负责将快照发布到实时主题。
 type StatsCollectorRuntime interface {
 	Runtime
 	CollectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, error)
 }
 
-// RuntimeEventSource exposes one continuous runtime event stream for runtimes
-// that support canonical container event publication.
+// RuntimeEventSource 为支持事件订阅的运行时提供连续事件流；事件管理器负责取消流、去重、留存并发布规范化记录。
 type RuntimeEventSource interface {
 	Runtime
 	StreamRuntimeEvents(ctx context.Context, emit func(RuntimeEventCandidate) error) error
 }
 
-// StatsSnapshot is one collector-produced resource snapshot ready for publish.
+// StatsSnapshot 是一次采集得到、可供实时发布的容器资源快照。
 type StatsSnapshot struct {
 	ContainerID  string
 	Name         string
@@ -176,12 +174,12 @@ type StatsSnapshot struct {
 	CollectedAt  time.Time
 }
 
-// Ref is a validated Docker-compatible container id or name.
+// Ref 是经过校验的 Docker 兼容容器 ID 或名称；服务层不接受未校验的外部引用直接进入运行时。
 type Ref struct {
 	Value string
 }
 
-// ListQuery describes bounded list pagination and low-cost runtime filters.
+// ListQuery 描述有上限的列表分页和低成本运行时筛选条件。
 type ListQuery struct {
 	Limit           int
 	Offset          int
@@ -196,7 +194,7 @@ type ListQuery struct {
 	SourceScope     string
 }
 
-// ListResult is the service-owned list response model.
+// ListResult 是服务层拥有的容器列表响应模型，不直接暴露 Docker SDK 结构。
 type ListResult struct {
 	Runtime       RuntimeInfo
 	RuntimeTarget moduleapi.RuntimeTargetSummary
@@ -209,7 +207,7 @@ type ListResult struct {
 
 type dashboardSummaryQuery struct{}
 
-// LogQuery describes bounded container log retrieval options.
+// LogQuery 描述受尾部数量和时间条件约束的容器日志读取选项。
 type LogQuery struct {
 	Tail       int
 	Since      string
@@ -218,24 +216,21 @@ type LogQuery struct {
 	Stderr     bool
 }
 
-// LogChunk is one incremental container log message produced by a runtime
-// stream. It preserves the effective log selection semantics without coupling
-// consumers to Docker-specific frame details.
+// LogChunk 是运行时日志流产生的一条增量消息；它保留有效的日志选择语义，避免实时消费者依赖 Docker 帧格式。
 type LogChunk struct {
 	Line      string
 	Stream    string
 	Timestamp time.Time
 }
 
-// LogEntry is the canonical structured container log authority shared by
-// bounded snapshots and incremental realtime delivery.
+// LogEntry 是有界快照和实时增量传输共用的规范化日志结构，日志来源的帧细节不得越过此边界。
 type LogEntry struct {
 	Line       string    `json:"line"`
 	Stream     string    `json:"stream"`
 	OccurredAt time.Time `json:"occurred_at"`
 }
 
-// RuntimeInfo is sanitized runtime metadata exposed by the container API.
+// RuntimeInfo 是容器 API 对外暴露的脱敏运行时元数据；端点只允许使用安全标签，不能携带 socket 凭据。
 type RuntimeInfo struct {
 	Runtime           string
 	Status            string
@@ -259,9 +254,7 @@ type ListSummary struct {
 	HealthUnavailable int
 }
 
-// ResourceSummary is the container module's latest-known stats projection.
-// HTTP consumers receive it as a seed snapshot; canonical stats authority remains
-// the backend collector/cache/topic chain rather than page-local frontend state.
+// ResourceSummary 是容器模块已知的最新统计投影。HTTP 仅将其作为种子快照，统计权威仍是后端采集、缓存和实时主题链路。
 type ResourceSummary struct {
 	Available                  bool
 	UnavailableReason          string

@@ -85,10 +85,7 @@ type containerServiceOptions struct {
 	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
-// newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
-// newContainerService 根据模块上下文解析配置和依赖，并创建容器服务。
-// newContainerService 根据模块上下文创建容器服务并解析其必需依赖。
-// 必需依赖解析失败时返回错误；运行时目标读取失败不会阻止服务创建。
+// newContainerService 根据模块上下文解析配置、运行时、实时订阅和鉴权依赖；运行时目标读取器属于可选能力，解析失败不阻止服务创建。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	systemConfig := resolveSystemConfigResolver(ctx)
@@ -137,9 +134,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	})
 }
 
-// newService 初始化容器服务实例，并应用默认值与归一化配置。
-// newService 根据给定选项创建并初始化容器服务。
-// 如果未提供实时票据服务，则返回错误。
+// newService 创建容器服务并应用默认值与归一化配置；实时票据服务是实时订阅的必需依赖，缺失时直接返回错误。
 func newService(options containerServiceOptions) (*service, error) {
 	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {
@@ -193,11 +188,7 @@ func newService(options containerServiceOptions) (*service, error) {
 	}, nil
 }
 
-// resolveRealtimeTicketService 从模块上下文中解析实时认证服务。
-//
-// 当 ctx 或 ctx.Services 为空时返回错误。
-//
-// @returns 解析得到的 realtimeauth.Service，或在上下文不可用时返回错误。
+// resolveRealtimeTicketService 从模块上下文解析实时认证服务；上下文或服务注册器不可用时返回错误。
 func resolveRealtimeTicketService(ctx *module.Context) (realtimeauth.Service, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, errors.New("realtime ticket service resolver is unavailable")
@@ -206,10 +197,7 @@ func resolveRealtimeTicketService(ctx *module.Context) (realtimeauth.Service, er
 	return module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
 }
 
-// resolveRealtimeHub 从模块上下文中解析实时消息总线。
-// 优先返回 ctx.Realtime；当 ctx.Services 可用时，再从服务容器中解析 realtime.Hub。
-//
-// @returns 解析到的实时消息总线；当上下文或服务解析器不可用时返回错误。
+// resolveRealtimeHub 优先使用模块上下文中的实时总线，否则从服务容器解析；两处都不可用时返回错误。
 func resolveRealtimeHub(ctx *module.Context) (realtime.Hub, error) {
 	if ctx != nil && ctx.Realtime != nil {
 		return ctx.Realtime, nil
@@ -221,7 +209,7 @@ func resolveRealtimeHub(ctx *module.Context) (realtime.Hub, error) {
 	return module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil))
 }
 
-// 当 ctx 或其 Services 为空时返回错误。
+// resolveRealtimeTopicIssuerRegistry 从模块服务容器解析主题签发器注册表；上下文或服务注册器不可用时返回错误。
 func resolveRealtimeTopicIssuerRegistry(ctx *module.Context) (realtime.TopicIssuerRegistry, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, errors.New("realtime topic issuer registry resolver is unavailable")

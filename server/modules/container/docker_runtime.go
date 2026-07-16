@@ -29,7 +29,7 @@ const (
 
 var errInvalidLogQuery = errors.New("invalid log query parameter")
 
-// DockerRuntime adapts the official Docker SDK to the container module runtime boundary.
+// DockerRuntime 将官方 Docker SDK 适配到容器模块边界，并在返回前完成字段脱敏、统计缓存和错误映射。
 type DockerRuntime struct {
 	client            dockerClient
 	endpoint          string
@@ -67,8 +67,7 @@ type systemInfo interface {
 	dockerSystemInfo()
 }
 
-// NewDockerRuntime 创建 Docker 容器运行时适配器。
-// staleWindow 指定缓存允许返回过期数据的时间窗口。
+// NewDockerRuntime 创建 Docker 容器运行时适配器。staleWindow 指定统计刷新失败或进行中时仍可返回旧快照的窗口。
 func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duration, staleWindow time.Duration) (*DockerRuntime, error) {
 	endpoint = firstNonEmpty(endpoint, defaultContainerDockerEndpoint)
 	cli, err := mobyclient.New(mobyclient.WithHost(endpoint))
@@ -84,7 +83,7 @@ func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duratio
 	}, nil
 }
 
-// Info returns sanitized Docker runtime metadata for API responses.
+// Info 读取 Docker 运行时元数据并返回可用于 API 响应的脱敏投影。
 func (r *DockerRuntime) Info(ctx context.Context) (RuntimeInfo, error) {
 	info, err := r.client.Info(ctx)
 	if err != nil {
@@ -93,7 +92,7 @@ func (r *DockerRuntime) Info(ctx context.Context) (RuntimeInfo, error) {
 	return dockerInfoToRuntimeInfo(info, safeEndpointLabel(r.endpoint)), nil
 }
 
-// List returns Docker container summaries without raw inspect, logs, or env leakage.
+// List 读取 Docker 容器概要；它不执行原始 inspect，也不把日志或环境变量带入列表响应。
 func (r *DockerRuntime) List(ctx context.Context, _ ListQuery) ([]Summary, error) {
 	items, err := r.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
 	if err != nil {
@@ -107,7 +106,7 @@ func (r *DockerRuntime) List(ctx context.Context, _ ListQuery) ([]Summary, error
 	return summaries, nil
 }
 
-// Detail returns a sanitized Docker inspect view without environment variables or raw sensitive fields.
+// Detail 将 Docker inspect 转换为脱敏详情；环境变量由策略层决定展示形式，原始敏感字段不得越过模块边界。
 func (r *DockerRuntime) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
 	if err != nil {
@@ -122,7 +121,7 @@ func (r *DockerRuntime) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	return detail, nil
 }
 
-// Mounts returns sanitized mount metadata from Docker inspect.
+// Mounts 从 Docker inspect 提取脱敏挂载元数据，不接受调用方任意指定主机路径。
 func (r *DockerRuntime) Mounts(ctx context.Context, ref Ref) ([]Mount, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
 	if err != nil {
@@ -131,7 +130,7 @@ func (r *DockerRuntime) Mounts(ctx context.Context, ref Ref) ([]Mount, error) {
 	return dockerMounts(inspect.Mounts), nil
 }
 
-// MountUsage measures one inspect-derived mount source without accepting arbitrary paths.
+// MountUsage 只测量当前 inspect 中匹配到的挂载源，拒绝任意路径输入以避免把运行时接口变成主机文件探测入口。
 func (r *DockerRuntime) MountUsage(ctx context.Context, ref Ref, mountID string) (MountUsage, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
 	if err != nil {
@@ -155,7 +154,7 @@ func (r *DockerRuntime) MountUsage(ctx context.Context, ref Ref, mountID string)
 	return mountUsageFromMount(strings.TrimSpace(inspect.ID), mount, containerMountUsageStatusMeasured, size, time.Now().UTC().Format(time.RFC3339)), nil
 }
 
-// Logs reads bounded Docker logs according to the module log guardrails.
+// Logs 按模块的尾部上限和时间条件读取 Docker 日志，并将 Docker 帧转换为规范化日志条目。
 func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
 	since, err := parseLogSince(query.Since)
 	if err != nil {
@@ -201,8 +200,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 	}, nil
 }
 
-// StreamLogs follows incremental Docker logs and emits one normalized log chunk
-// per line until the caller context is canceled or the runtime stream ends.
+// StreamLogs 跟随 Docker 增量日志流并逐行发出规范化消息；调用方取消上下文或 Docker 流结束时返回。
 func (r *DockerRuntime) StreamLogs(ctx context.Context, ref Ref, query LogQuery, emit func(LogChunk) error) error {
 	if emit == nil {
 		return errors.New("container log stream emitter is required")
