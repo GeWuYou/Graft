@@ -5,6 +5,7 @@ import { defineComponent, h, ref } from 'vue';
 import { API_CODE } from '@/contracts/api/codes';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
+import { queryClient } from '@/shared/query';
 
 import UserPage from './index.vue';
 
@@ -714,6 +715,8 @@ function setRoleMutationMode(wrapper: ReturnType<typeof mountUserPage>, mode: 'r
 
 describe('UserPage', () => {
   beforeEach(() => {
+    queryClient.clear();
+    queryClient.setDefaultOptions({ queries: { retry: false, staleTime: 0 } });
     permissionState.grantedCodes = [];
     userApiMocks.createUser.mockReset();
     userApiMocks.deleteUser.mockReset();

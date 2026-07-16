@@ -31,15 +31,15 @@ closeout:
 ## Current Recovery Point
 
 - P0 baseline is committed as `5acd17d8`.
-- No P1 migration batch has started.
+- P1 `standard-crud-query-migration` migrated the user-management list to a module-owned Query key and direct cache
+  updates after list-affecting mutations. Filters, pagination, selection, form drafts, and lazy role-catalog behavior
+  remain page-local UI state.
 
 ## Pending Batches
 
-1. `standard-crud-query-migration`
-   - Evaluate and migrate one bounded group from user, RBAC, notification, system-config, scheduled-task, or runtime-target.
-2. `resource-detail-query-migration`
+1. `resource-detail-query-migration`
    - Evaluate project/container list and static detail resources; preserve realtime stream authority and editor drafts.
-3. `non-query-go-no-go`
+2. `non-query-go-no-go`
    - Record evidence for Table, Virtual, and Form only when a concrete performance or maintenance problem exists; Router is rejected unless architecture authority changes.
 
 ## Acceptance Conditions
@@ -53,14 +53,13 @@ closeout:
 
 ```json
 {
-  "completed_batches": ["p0-query-foundation-and-high-yield-consumers"],
-  "pending_batches": [
-    "standard-crud-query-migration",
-    "resource-detail-query-migration",
-    "non-query-go-no-go"
+  "completed_batches": [
+    "p0-query-foundation-and-high-yield-consumers",
+    "standard-crud-query-migration"
   ],
+  "pending_batches": ["resource-detail-query-migration", "non-query-go-no-go"],
   "current_batch": null,
-  "next_batch": "standard-crud-query-migration",
-  "closeout_status": "active-planned"
+  "next_batch": "resource-detail-query-migration",
+  "closeout_status": "active"
 }
 ```
