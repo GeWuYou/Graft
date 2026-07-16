@@ -2,7 +2,7 @@ import { computed, type ComputedRef, type Ref, ref } from 'vue';
 
 export type SavedQueryViewId = number | string;
 
-/** A module-normalized private query view. */
+/** 经模块归一化的私有查询视图；它不应被提升为跨模块查询契约。 */
 export type SavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId> = {
   id: TId;
   name: string;

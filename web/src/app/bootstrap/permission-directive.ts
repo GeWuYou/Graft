@@ -61,6 +61,11 @@ function updateVisibility(el: PermissionDirectiveElement, binding: DirectiveBind
   }
 }
 
+/**
+ * 注册消费权限 store 的元素级显隐指令。
+ *
+ * 无权限元素会被占位注释暂时替换，权限快照更新后再恢复到原位置，避免指令更新改变页面结构顺序。
+ */
 export function registerPermissionDirective(app: App<Element>) {
   app.directive('permission', {
     mounted(el, binding) {

@@ -541,8 +541,8 @@ export function useProjectMonacoLifecycle(options: {
     void options.createEditor();
   });
 
-  // Monaco keeps one active theme for every standalone editor. Reapply the
-  // host's tokens when a KeepAlive-cached workspace becomes visible again.
+  // Monaco 对所有 standalone editor 共享当前主题；KeepAlive 恢复工作区时必须重新读取宿主 token，
+  // 否则编辑器可能继续显示被缓存页面或旧主题留下的颜色。
   onActivated(() => {
     observeThemeMode();
     applyTheme();

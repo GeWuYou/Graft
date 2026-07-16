@@ -119,6 +119,7 @@ export function openRealtimeTopicSocket<TMessage>(
   }
 
   async function connect() {
+    // 每次连接都绑定递增 ID；票据请求或旧 socket 延迟完成时，结果不能覆盖更新后的连接状态。
     clearReconnectTimer();
     if (closed) {
       return;

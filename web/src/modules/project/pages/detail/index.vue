@@ -1245,7 +1245,7 @@ const projectLogEntries = computed(() => {
         stream: entry.stream,
       }),
     )
-    // Preserve the server/realtime chronological order so LogViewer keeps the latest lines at the bottom.
+    // 保留服务端与实时流的时间顺序，让 LogViewer 始终把最新日志显示在底部。
     .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null);
   emitProjectLogDebug('view-entries-normalized', {
     rawCount: rawEntries.length,

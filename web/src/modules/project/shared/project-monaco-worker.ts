@@ -4,6 +4,7 @@ import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import { createLogger } from '@/utils/logger';
 
 import { createProjectMonacoDebugLogger } from './project-monaco-debug';
+// YAML worker 必须保留为独立的 Vite `?worker` 入口，不能改成普通模块导入，否则浏览器构建时无法获得 Worker 构造器。
 import YamlWorker from './project-yaml.worker.js?worker';
 
 type MonacoWorkerFactory = () => Worker;

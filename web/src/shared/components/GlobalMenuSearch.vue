@@ -90,6 +90,7 @@ import {
   useGlobalMenuSearch,
 } from '@/shared/composables/useGlobalMenuSearch';
 
+// 搜索面板只消费权限 store 派生的全局导航索引；焦点、键盘选择和 Teleport 面板定位属于组件局部状态。
 const router = useRouter();
 const route = useRoute();
 const { routesInitialized, searchIndex, searchItems } = useGlobalMenuSearch();

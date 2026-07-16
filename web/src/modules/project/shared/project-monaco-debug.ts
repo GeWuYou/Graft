@@ -39,7 +39,7 @@ export function isProjectMonacoBenignCancellationError(error: unknown) {
     stack.includes('ProjectMonacoDiffSurface.vue') ||
     stack.includes('monaco-editor') ||
     stack.includes('monaco-yaml') ||
-    // NOTE: These Vite chunk names are build-artifact hashes and must be revalidated after build/config changes.
+    // 这些 Vite chunk 名称来自构建产物哈希，只能作为已知调用栈的临时兜底；构建配置或依赖升级后必须重新核对。
     stack.includes('chunk-N7RXFHJR') ||
     stack.includes('chunk-64EI5KNP') ||
     stack.includes('chunk-MBPJUX45')

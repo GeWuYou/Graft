@@ -27,7 +27,7 @@ function normalizeHexInput(value: string) {
 
   if (/^[0-9a-fA-F]{4}$/.test(compact)) {
     // `#RGBA` carries inline alpha, but callers that request normalized hex expect
-    // an opaque `#RRGGBB` value and handle alpha through separate parsed metadata.
+    // 先保留不透明的 `#RRGGBB` 值，再用独立的解析元数据处理 alpha。
     const [red, green, blue] = compact
       .slice(0, 3)
       .split('')
@@ -40,8 +40,7 @@ function normalizeHexInput(value: string) {
   }
 
   if (/^[0-9a-fA-F]{8}$/.test(compact)) {
-    // Same as the shorthand branch above: normalize to the opaque RGB portion and
-    // let parsing APIs preserve alpha when the caller needs structured color data.
+    // 与上面的简写分支一致：先归一化不透明 RGB 部分，结构化解析时再保留 alpha。
     return `#${compact.slice(0, 6)}`.toLowerCase();
   }
 

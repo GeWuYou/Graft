@@ -13,9 +13,9 @@ export type { GlobalMenuSearchItem } from './global-menu-search';
 export { normalizeGlobalMenuSearchKeyword } from './global-menu-search';
 
 /**
- * Provides a composable for searching and accessing global menu routes.
+ * 提供全局菜单路由的搜索索引与查询入口。
  *
- * @returns An object containing the routes initialization state, search index, and a method to search routes by keyword.
+ * @returns 路由初始化状态、搜索索引以及按关键词查询路由的方法。
  */
 export function useGlobalMenuSearch() {
   const permissionStore = usePermissionStore();

@@ -14,6 +14,7 @@ import { computed, ref, unref, watch } from 'vue';
 import { prefix } from '@/config/global';
 import { useSettingStore } from '@/store';
 
+// iframe 容器按后台壳层的 header、tabs、面包屑和 footer 实际高度计算可视区域，避免外部页面被壳层留白遮挡。
 defineProps({
   frameSrc: {
     type: String,

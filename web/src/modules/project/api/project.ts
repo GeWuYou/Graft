@@ -429,7 +429,7 @@ export function getProjectCreationMethods() {
   }) as Promise<ProjectCreationMethodCatalogResponse>;
 }
 
-/** Returns runtime targets eligible for Compose workspaces. */
+/** 返回可用于 Compose 工作区的运行时目标；调用方据此限制工作区创建入口。 */
 export function getProjectComposeRuntimeTargets() {
   return request.get<GetProjectComposeRuntimeTargetsData>({
     url: PROJECT_API_PATH.COMPOSE_RUNTIME_TARGETS,
@@ -460,7 +460,7 @@ export function postProjectCreate(payload: ProjectCreateRequest) {
   ) as Promise<ProjectCreateResponse>;
 }
 
-/** Checks the managed-root and registry state of an application name before workspace editing. */
+/** 在进入工作区编辑前校验应用名称对应的托管根目录与注册状态。 */
 export function postProjectApplicationNameAvailability(payload: ProjectApplicationNameAvailabilityRequest) {
   return request.post<ProjectApplicationNameAvailabilityData>({
     url: PROJECT_API_PATH.APPLICATION_NAME_AVAILABILITY,

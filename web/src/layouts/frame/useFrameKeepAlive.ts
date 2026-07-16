@@ -5,6 +5,11 @@ import { useRouter } from 'vue-router';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
 
+/**
+ * 管理壳层 iframe 页面与 tabs 路由之间的保活关系。
+ *
+ * 非 tabs 模式只渲染当前 iframe；启用 tabs 后按已打开的外链页保留实例，避免切换页面时丢失外部系统状态。
+ */
 export function useFrameKeepAlive() {
   const router = useRouter();
   const { currentRoute } = router;
