@@ -248,8 +248,7 @@ func (s authService) validateActiveRefreshSession(
 	return nil
 }
 
-// validateRefreshRotationAllowed determines whether a refresh token can be rotated based on the user's credential state.
-// It returns errRequiredPasswordChangeOnly when the user must change their password; otherwise, it returns nil.
+// validateRefreshRotationAllowed 根据用户凭据状态判断 refresh token 是否允许轮换；要求先改密时返回受限会话错误。
 func validateRefreshRotationAllowed(credential authstore.UserCredential) error {
 	if credential.MustChangePassword {
 		return errRequiredPasswordChangeOnly
@@ -314,7 +313,7 @@ func (s authService) issueRefreshRotationResult(
 	}, nil
 }
 
-// mapRefreshSessionRepositoryError maps a missing refresh session error to the invalid refresh token error.
+// mapRefreshSessionRepositoryError 将 refresh session 不存在映射为无效 refresh token 错误。
 func mapRefreshSessionRepositoryError(err error) error {
 	if errors.Is(err, authstore.ErrRefreshSessionNotFound) {
 		return errInvalidRefreshToken

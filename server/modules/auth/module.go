@@ -90,8 +90,7 @@ func (p *Module) registerCapabilitiesAndRoutes(ctx *module.Context, authService 
 	return registerAuthRoutes(ctx, moduleID, authService, flow)
 }
 
-// Boot creates the auth-owned default credential only after every module has
-// registered its stable RBAC bootstrap capability.
+// Boot 在所有模块完成稳定 RBAC 引导能力注册后，创建 auth 所拥有的默认凭据。
 func (p *Module) Boot(ctx *module.Context) error {
 	identity, err := resolveService[moduleapi.UserIdentityProvider](ctx, (*moduleapi.UserIdentityProvider)(nil), "user identity provider")
 	if err != nil {

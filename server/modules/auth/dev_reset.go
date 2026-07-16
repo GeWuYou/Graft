@@ -9,9 +9,7 @@ import (
 	"graft/server/modules/auth/storeent"
 )
 
-// NewRepositoryForDevelopmentReset exposes the auth-owned persistence entry
-// NewRepositoryForDevelopmentReset creates the authentication repository used by the development-only reset command.
-// It returns an error if the persistence client or authentication repository cannot be created.
+// NewRepositoryForDevelopmentReset 创建仅供开发环境重置命令使用的 auth 持久化仓储；数据库客户端或仓储初始化失败时返回错误。
 func NewRepositoryForDevelopmentReset(sqlDB *sql.DB, identity moduleapi.UserIdentityProvider) (authstore.AuthRepository, error) {
 	client, err := storeent.NewClient(sqlDB)
 	if err != nil {

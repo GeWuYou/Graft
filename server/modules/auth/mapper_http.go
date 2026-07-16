@@ -24,9 +24,7 @@ func toLoginResponse(result moduleapi.AuthRefreshResult) (generated.LoginRespons
 	return response, nil
 }
 
-// toBootstrapResponse 将认证引导数据转换为引导响应，包含用户、角色、权限、菜单和语言环境信息。
-// toBootstrapResponse 将认证引导载荷转换为引导响应。
-// 当用户 ID 超出响应支持的 int64 范围时返回空响应和错误；否则返回填充后的响应和 nil。
+// toBootstrapResponse 将认证引导载荷转换为 HTTP 响应，并复制角色、权限、菜单和语言环境数据；用户 ID 超出 int64 范围时返回错误。
 func toBootstrapResponse(payload moduleapi.AuthBootstrapPayload) (generated.BootstrapResponse, error) {
 	menus := make([]generated.BootstrapMenu, 0, len(payload.Menus))
 	for _, item := range payload.Menus {

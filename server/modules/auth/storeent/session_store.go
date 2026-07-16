@@ -18,8 +18,7 @@ type sessionStore struct {
 	client *authent.Client
 }
 
-// newSessionStore creates a session store backed by the provided Ent client.
-// It returns an error when the client is nil.
+// newSessionStore 创建基于指定 Ent 客户端的会话存储；客户端为空时返回错误。
 func newSessionStore(client *authent.Client) (*sessionStore, error) {
 	if client == nil {
 		return nil, fmt.Errorf("auth session store requires a non-nil ent client")
@@ -150,7 +149,7 @@ func (r *sessionStore) RotateRefreshSession(ctx context.Context, input store.Rot
 // toStoreRefreshSession 将 Ent 刷新会话记录转换为存储层刷新会话模型。
 func toStoreRefreshSession(record *authent.AuthRefreshSession) store.RefreshSession {
 	return store.RefreshSession{
-		//nolint:gosec // Ent IDs come from the controlled schema and remain positive.
+	//nolint:gosec // Ent ID 来自受控 schema，且保持为正数。
 		ID:                uint64(record.ID),
 		UserID:            record.UserID,
 		TokenID:           record.TokenID,
