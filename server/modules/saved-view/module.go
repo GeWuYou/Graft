@@ -8,13 +8,13 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-// Module registers the generic saved-view service. It intentionally owns no menu or HTTP routes.
+// Module 注册通用保存视图服务；该模块只提供跨模块服务边界，不拥有菜单或 HTTP 路由。
 type Module struct{ service *Service }
 
-// NewModule constructs a saved-view module with the provided service.
+// NewModule 使用给定服务构造保存视图模块；依赖由编译期模块构建器提供。
 func NewModule(service *Service) *Module { return &Module{service: service} }
 
-// Register exposes only the consumer-neutral service boundary.
+// Register 仅注册不感知消费者筛选语义的保存视图服务，并在依赖缺失时拒绝装配。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil || ctx == nil || ctx.Services == nil {
 		return errors.New("saved view module service is unavailable")
@@ -24,8 +24,8 @@ func (m *Module) Register(ctx *module.Context) error {
 	})
 }
 
-// Boot has no background work.
+// Boot 当前没有保存视图模块自有的后台工作。
 func (*Module) Boot(*module.Context) error { return nil }
 
-// Shutdown has no persistent resources beyond the platform database pool.
+// Shutdown 当前没有需要由模块单独释放的持久资源；数据库连接池由平台负责关闭。
 func (*Module) Shutdown(*module.Context) error { return nil }

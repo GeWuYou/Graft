@@ -1,4 +1,4 @@
-// Package store persists generic saved-view state without interpreting consumer filters.
+// Package store 持久化通用保存视图状态，但不解释消费者保存的筛选条件。
 package store
 
 import (

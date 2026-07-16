@@ -67,7 +67,9 @@ func (p *Publisher) setLogger(logger *zap.Logger) {
 	p.logger = logger
 }
 
-// Publish validates, persists, and fans out one notification event.
+// Publish 校验并持久化一次通知事件，再按目标解析收件人并创建投递记录。
+//
+// 通知或投递配置关闭时返回 Skipped 且不写库；目标无收件人、配置约束或仓储失败时返回错误。
 func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotificationInput) (moduleapi.PublishNotificationResult, error) {
 	normalized, enabled, err := p.preparePublish(ctx, input)
 	if err != nil {

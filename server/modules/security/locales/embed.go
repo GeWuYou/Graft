@@ -1,4 +1,4 @@
-// Package locales exposes read-only embedded locale descriptors for the security module.
+// Package locales 提供安全模块只读嵌入式语言资源描述符。
 package locales
 
 import (

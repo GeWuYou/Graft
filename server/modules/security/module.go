@@ -132,11 +132,9 @@ type overviewResponse struct {
 	Audit         moduleapi.AuditSecuritySnapshot `json:"audit"`
 }
 
-// handleOverview 创建用于返回安全概览数据的 Gin 处理函数。
-// @param ctx 模块上下文，用于本地化错误响应。
-// @param rbacPosture 读取访问控制安全态势的服务。
-// @param auditReader 读取指定时间范围安全审计快照的服务。
-// @return 处理安全概览请求并返回统一响应的 Gin 处理函数。
+// handleOverview 创建安全概览 HTTP 处理器。
+// 处理器从请求参数解析有界时间窗口，分别读取 RBAC 和审计快照并聚合为统一响应；
+// 任一依赖失败都通过模块上下文的本地化错误出口返回，不向调用方泄漏底层存储错误。
 func handleOverview(
 	ctx *module.Context,
 	rbacPosture moduleapi.RBACSecurityPostureService,

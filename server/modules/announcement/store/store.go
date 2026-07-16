@@ -1,4 +1,4 @@
-// Package store defines Announcement Center module persistence contracts.
+// Package store 定义公告中心模块的持久化契约；仓储负责保留公告生命周期和按用户隔离的阅读事实，服务层负责用例规则。
 package store
 
 import (
@@ -14,7 +14,7 @@ var (
 	ErrAnnouncementNotFound = errors.New("announcement not found")
 )
 
-// Announcement stores the management announcement record.
+// Announcement 保存管理端公告记录；DeletedAt 非空时记录仍可被审计但不再参与正常读取。
 type Announcement struct {
 	ID           uint64
 	Title        string
@@ -36,7 +36,7 @@ type Announcement struct {
 	DeletedAt    int64
 }
 
-// AnnouncementRead stores one user's read fact for one announcement.
+// AnnouncementRead 保存一个用户对一条公告的阅读事实；该事实按用户和公告唯一归属。
 type AnnouncementRead struct {
 	ID             uint64
 	AnnouncementID uint64
@@ -45,13 +45,13 @@ type AnnouncementRead struct {
 	CreatedAt      time.Time
 }
 
-// UserAnnouncement joins one current-user visible announcement with that user's read state.
+// UserAnnouncement 将当前用户可见的公告与该用户的阅读状态合并，避免调用方自行拼接跨用户数据。
 type UserAnnouncement struct {
 	Announcement Announcement
 	ReadAt       *time.Time
 }
 
-// CreateInput describes one announcement draft insert.
+// CreateInput 描述一次公告写入；创建入口应将状态固定为草稿，发布由独立生命周期操作完成。
 type CreateInput struct {
 	Title        string
 	Content      string
@@ -64,7 +64,7 @@ type CreateInput struct {
 	ActorID      *uint64
 }
 
-// UpdateInput describes editable announcement fields.
+// UpdateInput 描述公告可编辑字段；状态和删除事实不由普通更新覆盖。
 type UpdateInput struct {
 	Title        string
 	Content      string
@@ -76,7 +76,7 @@ type UpdateInput struct {
 	ActorID      *uint64
 }
 
-// ListQuery describes management-side announcement filters.
+// ListQuery 描述管理端公告筛选条件；Limit 和 Offset 由服务层规范化后才交给仓储。
 type ListQuery struct {
 	Status  string
 	Level   string
@@ -87,13 +87,13 @@ type ListQuery struct {
 	Offset  int
 }
 
-// ListResult returns a paginated management announcement page.
+// ListResult 返回管理端公告分页结果及总数。
 type ListResult struct {
 	Items []Announcement
 	Total int
 }
 
-// UserListQuery describes current-user visible announcement filters.
+// UserListQuery 描述当前用户公告筛选条件；仓储必须同时应用发布时间、过期时间、删除状态和用户范围。
 type UserListQuery struct {
 	UserID     uint64
 	UnreadOnly bool
@@ -102,13 +102,13 @@ type UserListQuery struct {
 	Offset     int
 }
 
-// UserListResult returns a paginated current-user announcement page.
+// UserListResult 返回当前用户可见公告分页结果及总数。
 type UserListResult struct {
 	Items []UserAnnouncement
 	Total int
 }
 
-// Repository persists announcement records and per-user read facts.
+// Repository 持久化公告记录和按用户划分的阅读事实；用户查询不得退化为跨用户的公告全量读取。
 type Repository interface {
 	Ping(ctx context.Context) error
 	ListAdmin(ctx context.Context, query ListQuery) (ListResult, error)

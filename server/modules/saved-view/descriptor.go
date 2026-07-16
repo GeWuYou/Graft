@@ -1,4 +1,4 @@
-// Package savedview owns generic, private saved views for paginated list surfaces.
+// Package savedview 提供分页列表使用的通用私有保存视图能力；模块只保存消费者状态，不解释查询语义。
 package savedview
 
 import (

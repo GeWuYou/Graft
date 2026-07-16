@@ -42,7 +42,7 @@ type NotificationNavigation struct {
 	Payload json.RawMessage
 }
 
-// PublishNotificationInput 描述稳定的跨模块通知发布请求。
+// PublishNotificationInput 描述稳定的跨模块通知发布请求；来源模块提供业务语义，通知中心负责规范化、开关判断、持久化和投递。
 //
 // 来源模块负责事件检测与业务上下文；通知中心负责校验、持久化和投递状态。
 type PublishNotificationInput struct {
@@ -81,7 +81,7 @@ type PublishNotificationResult struct {
 	Skipped        bool
 }
 
-// NotificationPublisher 暴露站内通知的稳定跨模块能力。
+// NotificationPublisher 暴露站内通知的稳定跨模块能力；关闭配置时实现应以 Skipped 结果表示未写库，而不是伪造投递成功。
 type NotificationPublisher interface {
 	Publish(ctx context.Context, input PublishNotificationInput) (PublishNotificationResult, error)
 }
