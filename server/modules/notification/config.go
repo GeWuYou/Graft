@@ -56,7 +56,7 @@ const (
 	notificationDisplayPopupLimitKey                      = "display.popupLimit"
 )
 
-// ConfigResolver resolves effective notification configuration values.
+// ConfigResolver 读取通知配置的有效值；调用方可提供配置不存在或读取失败时使用的 fallback。
 type ConfigResolver interface {
 	Boolean(ctx context.Context, key string, fallback bool) bool
 }
@@ -68,7 +68,7 @@ func registerNotificationConfig(localizer *i18n.Service, registry *configregistr
 	return registerNotificationConfigDefinitions(registry)
 }
 
-// RegisterNotificationConfigDefinitions registers notification configuration definitions with the provided registry.
+// RegisterNotificationConfigDefinitions 注册通知模块拥有的配置定义；定义顺序保持在通知域内稳定。
 func registerNotificationConfigDefinitions(registry *configregistry.Registry) error {
 	if registry == nil {
 		return errors.New("config registry is required")
@@ -82,7 +82,7 @@ func registerNotificationConfigDefinitions(registry *configregistry.Registry) er
 	return nil
 }
 
-// notificationConfigDefinitions returns all notification configuration definitions covering general settings, notification sources, delivery controls, and display customizations.
+// notificationConfigDefinitions 返回通知模块的通用、来源、投递和展示配置定义。
 func notificationConfigDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
 		booleanNotificationDefinition(notificationEnabledKey, notificationConfigGeneralGroup, "Notification enabled", "Whether in-app notifications are enabled.", true),
@@ -108,7 +108,7 @@ func booleanNotificationDefinition(key string, group string, title string, descr
 	return definition
 }
 
-// numberNotificationDefinition creates a configuration definition for an integer-valued notification setting.
+// numberNotificationDefinition 创建整数型通知配置定义；整数配置当前不声明运行时热应用。
 func numberNotificationDefinition(key string, group string, title string, description string, defaultValue int) configregistry.Definition {
 	definition := baseNotificationDefinition(key, group, title, description, configregistry.ValueTypeInteger, mustRawJSON(defaultValue))
 	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown

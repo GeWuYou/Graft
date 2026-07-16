@@ -17,7 +17,7 @@ const (
 
 var errNotificationServiceUnavailable = errors.New("notification service is unavailable")
 
-// ListQuery describes current-user notification filters.
+// ListQuery 描述当前用户通知筛选条件；结果范围由当前用户投递记录约束。
 type ListQuery struct {
 	RecipientUserID uint64
 	Status          string
@@ -30,7 +30,7 @@ type ListQuery struct {
 	PageSize        int
 }
 
-// ListResult returns a current-user notification page.
+// ListResult 保存当前用户通知分页结果及规范化后的分页参数。
 type ListResult struct {
 	Items []notificationstore.Notification
 	Total int
@@ -38,12 +38,12 @@ type ListResult struct {
 	Size  int
 }
 
-// Service owns current-user notification read and delivery-state mutations.
+// Service 拥有当前用户通知读取和投递状态变更用例，不暴露跨用户查询能力。
 type Service struct {
 	repository notificationstore.Repository
 }
 
-// NewService creates the Notification Center service boundary.
+// NewService 创建通知中心服务边界；Repository 为空时返回错误。
 func NewService(repository notificationstore.Repository) (*Service, error) {
 	if repository == nil {
 		return nil, errors.New("notification repository is unavailable")
@@ -51,7 +51,7 @@ func NewService(repository notificationstore.Repository) (*Service, error) {
 	return &Service{repository: repository}, nil
 }
 
-// List returns one page of current-user notifications.
+// List 返回一页当前用户通知，并将筛选范围限制在该用户的投递记录内。
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	page, size := normalizePage(query.Page, query.PageSize)
 	result, err := withNotificationRepository(s, func(repository notificationstore.Repository) (notificationstore.ListResult, error) {
@@ -63,42 +63,42 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	return ListResult{Items: result.Items, Total: result.Total, Page: page, Size: size}, nil
 }
 
-// Get returns one current-user notification by delivery id.
+// Get 按投递 ID 返回当前用户可见的一条通知。
 func (s *Service) Get(ctx context.Context, recipientUserID uint64, deliveryID uint64) (notificationstore.Notification, error) {
 	return withNotificationRepository(s, func(repository notificationstore.Repository) (notificationstore.Notification, error) {
 		return repository.Get(ctx, recipientUserID, deliveryID)
 	})
 }
 
-// UnreadCount returns the current user's unread notification count.
+// UnreadCount 返回当前用户未读通知数量。
 func (s *Service) UnreadCount(ctx context.Context, recipientUserID uint64) (int, error) {
 	return withNotificationRepository(s, func(repository notificationstore.Repository) (int, error) {
 		return repository.UnreadCount(ctx, recipientUserID)
 	})
 }
 
-// MarkRead marks one current-user delivery as read.
+// MarkRead 将当前用户的一条投递记录标记为已读。
 func (s *Service) MarkRead(ctx context.Context, recipientUserID uint64, deliveryID uint64, readAt time.Time) (notificationstore.Delivery, error) {
 	return withNotificationRepository(s, func(repository notificationstore.Repository) (notificationstore.Delivery, error) {
 		return repository.MarkRead(ctx, recipientUserID, deliveryID, defaultUTCTimestamp(readAt))
 	})
 }
 
-// MarkAllRead marks all current-user unread deliveries as read.
+// MarkAllRead 将当前用户所有符合条件的未读投递记录标记为已读。
 func (s *Service) MarkAllRead(ctx context.Context, recipientUserID uint64, readAt time.Time) (int, error) {
 	return withNotificationRepository(s, func(repository notificationstore.Repository) (int, error) {
 		return repository.MarkAllRead(ctx, recipientUserID, defaultUTCTimestamp(readAt))
 	})
 }
 
-// MarkAllReadMatching marks all current-user unread deliveries matching the optional filters as read.
+// MarkAllReadMatching 将当前用户符合可选筛选条件的未读投递记录全部标记为已读。
 func (s *Service) MarkAllReadMatching(ctx context.Context, query ListQuery, readAt time.Time) (int, error) {
 	return withNotificationRepository(s, func(repository notificationstore.Repository) (int, error) {
 		return repository.MarkAllReadMatching(ctx, query.toStoreFilter("unread"), defaultUTCTimestamp(readAt))
 	})
 }
 
-// DeleteDelivery soft-deletes one current-user delivery.
+// DeleteDelivery 软删除当前用户的一条投递记录，不删除不可变通知事实。
 func (s *Service) DeleteDelivery(ctx context.Context, recipientUserID uint64, deliveryID uint64, deletedAt time.Time) error {
 	return runNotificationRepository(s, func(repository notificationstore.Repository) error {
 		return repository.DeleteDelivery(ctx, recipientUserID, deliveryID, defaultUTCTimestamp(deletedAt))

@@ -1,27 +1,27 @@
 package contract
 
-// Category identifies a stable notification category contract.
+// Category 标识通知稳定的分类契约。
 type Category string
 
-// String returns the canonical category value.
+// String 返回规范化的通知分类值。
 func (c Category) String() string {
 	return string(c)
 }
 
 const (
-	// CategorySecurity covers security and audit notifications.
+	// CategorySecurity 覆盖安全和审计通知。
 	CategorySecurity Category = "SECURITY"
-	// CategoryTask covers scheduled task and run-history notifications.
+	// CategoryTask 覆盖定时任务和运行历史通知。
 	CategoryTask Category = "TASK"
-	// CategoryConfig is reserved for configuration notifications.
+	// CategoryConfig 预留给配置变更通知。
 	CategoryConfig Category = "CONFIG"
-	// CategoryOperations is reserved for runtime operations notifications.
+	// CategoryOperations 预留给运行时运维通知。
 	CategoryOperations Category = "OPERATIONS"
-	// CategorySystem is reserved for platform system notifications.
+	// CategorySystem 预留给平台系统通知。
 	CategorySystem Category = "SYSTEM"
 )
 
-// ValidCategory reports whether value is a known category contract.
+// ValidCategory 判断 value 是否为已知的通知分类契约。
 func ValidCategory(value Category) bool {
 	switch value {
 	case CategorySecurity, CategoryTask, CategoryConfig, CategoryOperations, CategorySystem:

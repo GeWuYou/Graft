@@ -1,25 +1,25 @@
 package contract
 
-// Severity identifies a stable notification severity contract.
+// Severity 标识通知稳定的严重程度契约。
 type Severity string
 
-// String returns the canonical severity value.
+// String 返回规范化的通知严重程度值。
 func (s Severity) String() string {
 	return string(s)
 }
 
 const (
-	// SeverityInfo indicates informational notifications.
+	// SeverityInfo 表示提示性通知。
 	SeverityInfo Severity = "info"
-	// SeverityWarning indicates notifications that need attention.
+	// SeverityWarning 表示需要关注的通知。
 	SeverityWarning Severity = "warning"
-	// SeverityError indicates explicit failures.
+	// SeverityError 表示明确的失败事件。
 	SeverityError Severity = "error"
-	// SeverityCritical indicates high-risk or high-impact events.
+	// SeverityCritical 表示高风险或高影响事件。
 	SeverityCritical Severity = "critical"
 )
 
-// ValidSeverity reports whether value is a known severity contract.
+// ValidSeverity 判断 value 是否为已知的通知严重程度契约。
 func ValidSeverity(value Severity) bool {
 	switch value {
 	case SeverityInfo, SeverityWarning, SeverityError, SeverityCritical:

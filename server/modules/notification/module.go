@@ -12,18 +12,18 @@ import (
 	notificationcontract "graft/server/modules/notification/contract"
 )
 
-// Module is the Notification Center backend module.
+// Module 拥有通知中心的路由、投递服务和跨模块发布能力生命周期。
 type Module struct {
 	service   *Service
 	publisher *Publisher
 }
 
-// NewModule creates a Notification Center module instance.
+// NewModule 创建通知中心模块实例；依赖由编译期模块构建器提供。
 func NewModule(service *Service, publisher *Publisher) *Module {
 	return &Module{service: service, publisher: publisher}
 }
 
-// Register declares notification permissions and the cross-module publisher capability.
+// Register 声明通知权限、路由和跨模块发布能力；跨模块配置解析延迟到 Boot。
 func (m *Module) Register(ctx *module.Context) error {
 	if err := m.validateRegisterContext(ctx); err != nil {
 		return err
@@ -107,12 +107,12 @@ func (m *Module) registerRoutes(ctx *module.Context) error {
 	return nil
 }
 
-// Boot resolves cross-module capabilities that are registered after all modules finish Register.
+// Boot 解析所有模块完成 Register 后才可用的系统配置能力，确保发布器读取统一有效配置。
 func (m *Module) Boot(ctx *module.Context) error {
 	return m.bindSystemConfigResolver(ctx)
 }
 
-// Shutdown currently has no runtime resources to release.
+// Shutdown 当前没有通知模块自有的后台资源需要释放。
 func (m *Module) Shutdown(_ *module.Context) error {
 	return nil
 }

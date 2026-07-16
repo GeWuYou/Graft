@@ -22,7 +22,7 @@ var (
 	errAnnouncementPublishedDelete   = errors.New("published announcement must be archived before delete")
 )
 
-// AdminListQuery describes management-side announcement filters.
+// AdminListQuery 描述管理端公告筛选条件；分页和排序值由 Service 统一规范化并校验。
 type AdminListQuery struct {
 	Status   string
 	Level    string
@@ -33,7 +33,7 @@ type AdminListQuery struct {
 	Sort     string
 }
 
-// AdminListResult returns a management announcement page.
+// AdminListResult 保存管理端公告分页结果及规范化后的分页参数。
 type AdminListResult struct {
 	Items    []announcementstore.Announcement
 	Total    int
@@ -41,7 +41,7 @@ type AdminListResult struct {
 	PageSize int
 }
 
-// UserListQuery describes current-user announcement filters.
+// UserListQuery 描述当前用户公告筛选条件；可见性由 store 按当前时间和用户读取状态判断。
 type UserListQuery struct {
 	UserID     uint64
 	UnreadOnly bool
@@ -49,7 +49,7 @@ type UserListQuery struct {
 	PageSize   int
 }
 
-// UserListResult returns a current-user announcement page.
+// UserListResult 保存当前用户公告分页结果及规范化后的分页参数。
 type UserListResult struct {
 	Items    []announcementstore.UserAnnouncement
 	Total    int
@@ -57,12 +57,12 @@ type UserListResult struct {
 	PageSize int
 }
 
-// Service owns announcement use cases.
+// Service 拥有公告用例，并通过 Repository 保持状态转换与当前用户可见性边界。
 type Service struct {
 	repository announcementstore.Repository
 }
 
-// NewService creates the announcement service boundary.
+// NewService 创建公告服务边界；Repository 为空时返回错误，避免模块在无持久化能力下启动。
 func NewService(repository announcementstore.Repository) (*Service, error) {
 	if repository == nil {
 		return nil, errors.New("announcement repository is unavailable")
@@ -70,7 +70,7 @@ func NewService(repository announcementstore.Repository) (*Service, error) {
 	return &Service{repository: repository}, nil
 }
 
-// ListAdmin returns one management announcement page.
+// ListAdmin 返回一页管理端公告，并拒绝未知状态、等级或排序值。
 func (s *Service) ListAdmin(ctx context.Context, query AdminListQuery) (AdminListResult, error) {
 	if err := s.ensureReady(); err != nil {
 		return AdminListResult{}, err
@@ -101,7 +101,7 @@ func (s *Service) ListAdmin(ctx context.Context, query AdminListQuery) (AdminLis
 	return AdminListResult{Items: result.Items, Total: result.Total, Page: page, PageSize: size}, nil
 }
 
-// Create creates a draft announcement. OpenAPI has no create-status field, so draft is the only allowed initial state.
+// Create 创建草稿公告；OpenAPI 创建请求没有 status 字段，因此服务端始终强制初始状态为草稿。
 func (s *Service) Create(ctx context.Context, input announcementstore.CreateInput) (announcementstore.Announcement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.Announcement{}, err
@@ -118,7 +118,7 @@ func (s *Service) Create(ctx context.Context, input announcementstore.CreateInpu
 	return item, mapStoreError(err)
 }
 
-// GetAdmin returns one management announcement.
+// GetAdmin 返回一条未删除的管理端公告。
 func (s *Service) GetAdmin(ctx context.Context, id uint64) (announcementstore.Announcement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.Announcement{}, err
@@ -127,7 +127,7 @@ func (s *Service) GetAdmin(ctx context.Context, id uint64) (announcementstore.An
 	return item, mapStoreError(err)
 }
 
-// Update replaces editable fields for draft or published management announcements.
+// Update 更新草稿或已发布公告的可编辑字段；已归档公告不能再次编辑。
 func (s *Service) Update(ctx context.Context, id uint64, input announcementstore.UpdateInput) (announcementstore.Announcement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.Announcement{}, err
@@ -150,7 +150,7 @@ func (s *Service) Update(ctx context.Context, id uint64, input announcementstore
 	return item, mapStoreError(err)
 }
 
-// Publish marks a draft, published, or archived announcement published.
+// Publish 将公告标记为已发布，并校验过期时间必须晚于本次生效时间。
 func (s *Service) Publish(ctx context.Context, id uint64, publishAt *time.Time, actorID *uint64) (announcementstore.Announcement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.Announcement{}, err
@@ -174,7 +174,7 @@ func (s *Service) Publish(ctx context.Context, id uint64, publishAt *time.Time, 
 	return item, mapStoreError(err)
 }
 
-// Archive hides a draft or published announcement from current-user visibility.
+// Archive 将公告归档，使其不再出现在当前用户可见列表中；重复归档保持幂等。
 func (s *Service) Archive(ctx context.Context, id uint64, actorID *uint64) (announcementstore.Announcement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.Announcement{}, err
@@ -190,7 +190,7 @@ func (s *Service) Archive(ctx context.Context, id uint64, actorID *uint64) (anno
 	return item, mapStoreError(err)
 }
 
-// Delete soft-deletes draft and archived announcements. Published announcements must be archived first.
+// Delete 软删除草稿或已归档公告；已发布公告必须先归档，避免直接移除仍可见的内容。
 func (s *Service) Delete(ctx context.Context, id uint64, actorID uint64) error {
 	if err := s.ensureReady(); err != nil {
 		return err
@@ -205,7 +205,7 @@ func (s *Service) Delete(ctx context.Context, id uint64, actorID uint64) error {
 	return mapStoreError(s.repository.Delete(ctx, id, actorID, time.Now().UTC()))
 }
 
-// ListCurrentUser returns currently visible announcements and read state for one user.
+// ListCurrentUser 返回指定用户当前可见的公告及其读取状态。
 func (s *Service) ListCurrentUser(ctx context.Context, query UserListQuery) (UserListResult, error) {
 	if err := s.ensureReady(); err != nil {
 		return UserListResult{}, err
@@ -225,7 +225,7 @@ func (s *Service) ListCurrentUser(ctx context.Context, query UserListQuery) (Use
 	return UserListResult{Items: result.Items, Total: result.Total, Page: page, PageSize: size}, nil
 }
 
-// MarkRead marks one currently visible announcement read for one user.
+// MarkRead 将指定用户当前可见的一条公告标记为已读。
 func (s *Service) MarkRead(ctx context.Context, userID uint64, announcementID uint64) (announcementstore.UserAnnouncement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.UserAnnouncement{}, err
@@ -234,7 +234,7 @@ func (s *Service) MarkRead(ctx context.Context, userID uint64, announcementID ui
 	return item, mapStoreError(err)
 }
 
-// MarkAllRead marks all currently visible unread announcements read for one user.
+// MarkAllRead 将指定用户当前可见的所有未读公告标记为已读。
 func (s *Service) MarkAllRead(ctx context.Context, userID uint64) (int, error) {
 	if err := s.ensureReady(); err != nil {
 		return 0, err
@@ -244,7 +244,7 @@ func (s *Service) MarkAllRead(ctx context.Context, userID uint64) (int, error) {
 	return count, mapStoreError(err)
 }
 
-// UnreadCount returns the current user's currently visible unread announcement count.
+// UnreadCount 返回指定用户当前可见的未读公告数量。
 func (s *Service) UnreadCount(ctx context.Context, userID uint64) (int, error) {
 	if err := s.ensureReady(); err != nil {
 		return 0, err

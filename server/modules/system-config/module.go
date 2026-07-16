@@ -12,12 +12,12 @@ import (
 
 const moduleID = "system-config"
 
-// Module owns system configuration user overrides and HTTP management.
+// Module 拥有系统配置用户覆盖值和 HTTP 管理接口的生命周期。
 type Module struct {
 	service *Service
 }
 
-// NewModule creates the system configuration module.
+// NewModule 创建系统配置模块实例；配置定义由各业务模块注册，覆盖值由本模块持久化。
 func NewModule(service *Service) (*Module, error) {
 	if service == nil {
 		return nil, errors.New("system config service is unavailable")
@@ -25,7 +25,7 @@ func NewModule(service *Service) (*Module, error) {
 	return &Module{service: service}, nil
 }
 
-// Register declares permissions, menu, messages, and management routes.
+// Register 声明系统配置权限、菜单、消息和管理路由；此阶段不读取或写入覆盖值。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("system config module service is unavailable")
@@ -62,7 +62,7 @@ func requiredUserService(resolver container.Resolver) (moduleapi.UserService, er
 	return module.ResolveService[moduleapi.UserService](resolver, (*moduleapi.UserService)(nil))
 }
 
-// Boot does not start extra runtime mechanics because cachex handles shared snapshot storage.
+// Boot 不启动额外后台机制；共享快照缓存由 cachex 管理，服务只在请求路径按需装载。
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("system config module service is unavailable")
@@ -73,7 +73,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return nil
 }
 
-// Shutdown has no module-local background resources to release.
+// Shutdown 当前没有系统配置模块自有的后台资源需要释放。
 func (m *Module) Shutdown(_ *module.Context) error {
 	return nil
 }

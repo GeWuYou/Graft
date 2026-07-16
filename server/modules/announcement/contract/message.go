@@ -1,16 +1,16 @@
 package contract
 
-// MessageKey identifies a stable announcement message key.
+// MessageKey 标识公告模块稳定的消息 key。
 type MessageKey string
 
-// String returns the canonical message key value.
+// String 返回规范化的消息 key。
 func (k MessageKey) String() string {
 	return string(k)
 }
 
 const (
-	// AnnouncementMenuTitle identifies the announcement management menu title.
+	// AnnouncementMenuTitle 标识公告管理菜单标题。
 	AnnouncementMenuTitle MessageKey = "menu.announcement.title"
-	// AnnouncementPublishedDeleteForbidden identifies published announcement delete conflicts.
+	// AnnouncementPublishedDeleteForbidden 标识已发布公告直接删除时的冲突提示。
 	AnnouncementPublishedDeleteForbidden MessageKey = "announcement.published_delete_forbidden"
 )

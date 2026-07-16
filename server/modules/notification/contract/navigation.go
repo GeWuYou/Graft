@@ -1,12 +1,12 @@
 package contract
 
-// NavigationKind identifies a stable notification navigation target contract.
+// NavigationKind 标识通知稳定的导航目标契约。
 //
 // Canonical owner: server/modules/notification/contract.
-// Lifecycle: stable values remain authoritative until this package marks a replacement or removal.
+// 导航值由本包作为唯一权威维护，直到本包明确标记替换或移除。
 type NavigationKind string
 
-// String returns the canonical navigation kind value.
+// String 返回规范化的导航目标类型值。
 func (k NavigationKind) String() string {
 	return string(k)
 }
@@ -29,7 +29,7 @@ const (
 	NavigationModuleRuntimeItem NavigationKind = "MODULE_RUNTIME_ITEM"
 )
 
-// ValidNavigationKind reports whether value is a known navigation contract.
+// ValidNavigationKind 判断 value 是否为已知的导航目标契约。
 func ValidNavigationKind(value NavigationKind) bool {
 	switch value {
 	case NavigationAuditIncident, NavigationAuditLog, NavigationSchedulerRun, NavigationSystemConfigItem, NavigationModuleRuntimeItem:

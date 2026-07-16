@@ -16,7 +16,7 @@ import (
 	notificationstore "graft/server/modules/notification/store"
 )
 
-// Publisher implements the cross-module NotificationPublisher capability.
+// Publisher 实现跨模块 NotificationPublisher 能力，并在写入前执行配置、权限和目标校验。
 type Publisher struct {
 	repository notificationstore.Repository
 	rbac       moduleapi.RBACAccessService
@@ -24,7 +24,7 @@ type Publisher struct {
 	logger     *zap.Logger
 }
 
-// NewPublisher creates a moduleapi.NotificationPublisher implementation.
+// NewPublisher 创建 NotificationPublisher 实现；Repository 为空时拒绝构建，避免静默丢失通知事实。
 func NewPublisher(repository notificationstore.Repository, rbac ...moduleapi.RBACAccessService) (*Publisher, error) {
 	if repository == nil {
 		return nil, errors.New("notification repository is unavailable")

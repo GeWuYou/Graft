@@ -10,7 +10,7 @@ import (
 
 const moduleID = "announcement"
 
-// NewModuleSpec exposes the announcement module's stable compile-time metadata and builder.
+// NewModuleSpec 返回公告模块稳定的编译期元数据和构建器；依赖与迁移路径由模块注册表统一消费。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

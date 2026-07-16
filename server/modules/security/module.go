@@ -21,13 +21,13 @@ import (
 
 const securityMenuOrderOverview = 1
 
-// Module owns the Security-domain aggregate read surface.
+// Module 拥有安全域聚合只读接口，并负责其权限、菜单和路由生命周期。
 type Module struct{}
 
-// NewModule creates the Security overview module.
+// NewModule 创建安全概览模块实例；聚合数据由跨模块只读服务提供。
 func NewModule() *Module { return &Module{} }
 
-// Register declares the Security overview permission, menu, and HTTP route.
+// Register 声明安全概览权限、菜单和 HTTP 路由；此阶段只做注册，不读取业务数据。
 func (m *Module) Register(ctx *module.Context) error {
 	if ctx == nil || ctx.Services == nil {
 		return errors.New("security module context services are unavailable")
@@ -68,10 +68,10 @@ func (m *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
-// Boot has no owned runtime work.
+// Boot 当前没有安全模块自有的运行时启动行为。
 func (m *Module) Boot(_ *module.Context) error { return nil }
 
-// Shutdown has no owned runtime resources.
+// Shutdown 当前没有安全模块自有的运行时资源需要释放。
 func (m *Module) Shutdown(_ *module.Context) error { return nil }
 
 // registerPermissions 将 Security Overview 的读取权限注册到权限注册表中。
@@ -87,7 +87,7 @@ func registerPermissions(registry *permission.Registry) {
 	})
 }
 
-// registerMenu registers the Security Overview menu entry when a menu registry is available.
+// registerMenu 在菜单注册表可用时注册安全概览菜单；菜单注册表缺失不改变 API 能力。
 func registerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return
