@@ -1,2 +1,2 @@
-// Package contract defines stable scheduled task module contract values.
+// Package contract 定义 scheduler 模块稳定的路由、权限和消息契约。
 package contract

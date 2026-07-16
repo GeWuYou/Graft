@@ -1,4 +1,4 @@
-// Package store owns runtime-target persistence queries.
+// Package store 负责 runtime-target 的持久化查询。
 package store
 
 import (
@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// ErrNotFound indicates that no live runtime target matches a lookup.
+// ErrNotFound 表示查询不到未软删除的运行时目标。
 var ErrNotFound = errors.New("runtime target not found")
 
-// LocalDockerProbe records the bounded Local Docker discovery result.
+// LocalDockerProbe 记录一次受限的本机 Docker 探测结果；调用方应保留探测时间和失败原因，供运行时目标状态查询使用。
 type LocalDockerProbe struct {
 	Endpoint  string
 	Available bool
@@ -20,13 +20,13 @@ type LocalDockerProbe struct {
 	CheckedAt time.Time
 }
 
-// SQLRepository persists runtime target records.
+// SQLRepository 持久化运行时目标记录，并将已软删除记录排除在公开查询之外。
 type SQLRepository struct{ db *sql.DB }
 
-// NewSQLRepository constructs the module-owned SQL repository.
+// NewSQLRepository 创建由模块拥有的 SQL 仓储。
 func NewSQLRepository(db *sql.DB) *SQLRepository { return &SQLRepository{db: db} }
 
-// Target is the persisted runtime-target read projection.
+// Target 是运行时目标的持久化读取投影；Capabilities 是 provider-neutral 的能力集合，供上层筛选可执行能力。
 type Target struct {
 	ID             uint64     `json:"id"`
 	Provider       string     `json:"provider"`
@@ -39,13 +39,13 @@ type Target struct {
 	CheckedAt      *time.Time `json:"checkedAt"`
 }
 
-// Page is one stable runtime-target list window.
+// Page 表示一个稳定的运行时目标分页窗口；Total 与 Items 使用同一份未软删除数据集计算。
 type Page struct {
 	Items []Target
 	Total int64
 }
 
-// List returns all live runtime targets in stable display order.
+// List 返回全部未软删除的运行时目标，并按 provider、显示名称和 ID 排序以保证跨请求顺序稳定。
 func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 	if r == nil || r.db == nil {
 		return []Target{}, nil
@@ -57,7 +57,7 @@ func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 	return scanTargets(rows)
 }
 
-// ListPage returns one live runtime-target page and its total.
+// ListPage 返回一个未软删除的运行时目标分页窗口及总数；limit 和 offset 由调用方负责先行校验。
 func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, error) {
 	if r == nil || r.db == nil {
 		return Page{Items: []Target{}}, nil
@@ -77,7 +77,7 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	return Page{Items: items, Total: total}, nil
 }
 
-// scanTargets reads the runtime-target list projection and always closes its result set.
+// scanTargets 读取 runtime-target 列表投影，并始终关闭结果集以释放数据库资源。
 func scanTargets(rows *sql.Rows) ([]Target, error) {
 	defer func() { _ = rows.Close() }()
 	items := []Target{}
@@ -98,7 +98,7 @@ func scanTargets(rows *sql.Rows) ([]Target, error) {
 	return items, nil
 }
 
-// FindSystemLocalDocker returns the system-managed local Docker record, if it has been discovered before.
+// FindSystemLocalDocker 返回此前发现的系统托管本机 Docker 记录；未发现时统一返回 ErrNotFound。
 func (r *SQLRepository) FindSystemLocalDocker(ctx context.Context) (Target, error) {
 	if r == nil || r.db == nil {
 		return Target{}, ErrNotFound
@@ -118,7 +118,7 @@ func (r *SQLRepository) FindSystemLocalDocker(ctx context.Context) (Target, erro
 	return item, nil
 }
 
-// Get returns one live runtime target by identifier.
+// Get 按 ID 返回一个未软删除的运行时目标；记录不存在时统一返回 ErrNotFound。
 func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 	if r == nil || r.db == nil {
 		return Target{}, ErrNotFound
@@ -138,7 +138,7 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 	return item, nil
 }
 
-// UpsertLocalDocker records the system-managed Local Docker discovery result.
+// UpsertLocalDocker 写入系统托管的本机 Docker 探测结果，并通过 provider 与 endpoint 的活跃记录唯一键更新已有记录。
 func (r *SQLRepository) UpsertLocalDocker(ctx context.Context, probe LocalDockerProbe) error {
 	if r == nil || r.db == nil {
 		return nil

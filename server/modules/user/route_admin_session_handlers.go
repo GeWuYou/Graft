@@ -163,7 +163,7 @@ func bindGeneratedUserSessionsRevokeAllParams(ginCtx *gin.Context) useropenapi.P
 	}
 }
 
-// bindGeneratedUserSessionRevokeParams binds request headers to generated session-revocation parameters.
+// bindGeneratedUserSessionRevokeParams 将请求头绑定到生成的会话撤销请求参数，保持统一的 locale 和 request ID 契约。
 func bindGeneratedUserSessionRevokeParams(ginCtx *gin.Context) useropenapi.PostUserSessionRevokeParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUserSessionRevokeParams{

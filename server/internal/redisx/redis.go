@@ -16,12 +16,12 @@ const redisPingTimeout = 3 * time.Second
 const defaultPoolSizePerCPU = 10
 const percentageScale = 100
 
-// HealthReporter reports narrow Redis runtime health without exposing the raw client to modules.
+// HealthReporter 报告受限的 Redis 运行时健康信息，不向模块暴露底层客户端。
 type HealthReporter interface {
 	Report(context.Context) (HealthReport, error)
 }
 
-// HealthReport captures Redis availability, latency, and pool stats.
+// HealthReport 汇总 Redis 可达性、探活延迟和连接池统计。
 type HealthReport struct {
 	Configured bool
 	Reachable  bool
@@ -29,7 +29,7 @@ type HealthReport struct {
 	Pool       PoolStats
 }
 
-// PoolStats describes Redis connection-pool behavior in core-owned terms.
+// PoolStats 以 core-owned 语义描述 Redis 连接池运行状态。
 type PoolStats struct {
 	Capacity             int
 	MaxActiveConnections int
@@ -76,12 +76,12 @@ func Open(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
 	return client, nil
 }
 
-// NewHealthReporter returns a HealthReporter for monitoring the given Redis client.
+// NewHealthReporter 为给定 Redis 客户端创建健康信息报告器。
 func NewHealthReporter(client *redis.Client) HealthReporter {
 	return reporter{client: client}
 }
 
-// Report checks Redis reachability and current pool stats.
+// Report 在有界超时内检查 Redis 可达性，并读取当前连接池统计。
 func (r reporter) Report(ctx context.Context) (HealthReport, error) {
 	if r.client == nil {
 		return HealthReport{}, nil
@@ -107,10 +107,7 @@ func (r reporter) Report(ctx context.Context) (HealthReport, error) {
 	}, nil
 }
 
-// poolStatsFromClient builds PoolStats from a Redis client's pool configuration and current metrics.
-// If the client is nil, it returns a zero-value PoolStats.
-// poolStatsFromClient extracts and computes connection pool statistics from a Redis client.
-// If the client is nil, it returns a zero-valued PoolStats.
+// poolStatsFromClient 从 Redis 客户端配置和当前指标计算连接池统计；客户端为空时返回零值。
 func poolStatsFromClient(client *redis.Client) PoolStats {
 	if client == nil {
 		return PoolStats{}

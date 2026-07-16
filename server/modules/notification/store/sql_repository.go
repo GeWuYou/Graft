@@ -15,13 +15,13 @@ const (
 	placeholderGrowthEstimate = 8
 )
 
-// SQLRepository persists Notification Center state in module-owned SQL tables.
+// SQLRepository 将通知事实和用户投递状态持久化到通知模块自有表中；查询始终以收件人投递记录作为用户隔离边界。
 type SQLRepository struct {
 	db          *sql.DB
 	placeholder placeholderStyle
 }
 
-// NewSQLRepository creates a SQL-backed notification repository.
+// NewSQLRepository 使用给定数据库连接创建通知仓储；数据库连接为空时拒绝构建。
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("notification repository requires a non-nil sql db")
@@ -30,7 +30,7 @@ func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	return &SQLRepository{db: db, placeholder: detectPlaceholderStyle(db)}, nil
 }
 
-// CreateEvent inserts one notification fact. When dedupe_key is present, an existing event is reused.
+// CreateEvent 写入一条不可变通知事实；提供 DedupeKey 时复用已有事实并返回去重标记。
 func (r *SQLRepository) CreateEvent(ctx context.Context, input CreateEventInput) (Event, bool, error) {
 	if err := r.ensureReady(); err != nil {
 		return Event{}, false, err
@@ -156,7 +156,7 @@ func (r *SQLRepository) findEventByDedupeKey(ctx context.Context, dedupeKey stri
 	))
 }
 
-// CreateDeliveries inserts one or more user delivery rows.
+// CreateDeliveries 为已写入的通知事实创建用户投递记录，并保留每个收件人的独立状态。
 func (r *SQLRepository) CreateDeliveries(ctx context.Context, inputs []CreateDeliveryInput) ([]Delivery, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("notification repository is unavailable")
@@ -218,7 +218,7 @@ func (r *SQLRepository) createDelivery(
 	))
 }
 
-// List returns current-user visible notifications.
+// List 返回当前用户可见的通知；已删除投递和不属于收件人的记录不得进入结果。
 func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	if r == nil || r.db == nil {
 		return ListResult{}, errors.New("notification repository is unavailable")
@@ -273,7 +273,7 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 	return ListResult{Items: items, Total: total}, nil
 }
 
-// Get returns one current-user visible notification by delivery id.
+// Get 按投递 ID 返回当前用户可见的一条通知，越权或已删除投递统一表现为未找到。
 func (r *SQLRepository) Get(ctx context.Context, recipientUserID uint64, deliveryID uint64) (Notification, error) {
 	if r == nil || r.db == nil {
 		return Notification{}, errors.New("notification repository is unavailable")
@@ -314,7 +314,7 @@ func (r *SQLRepository) Get(ctx context.Context, recipientUserID uint64, deliver
 	return items[0], nil
 }
 
-// UnreadCount returns the non-deleted unread delivery count for one user.
+// UnreadCount 返回指定用户未删除且未读的投递数量。
 func (r *SQLRepository) UnreadCount(ctx context.Context, recipientUserID uint64) (int, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("notification repository is unavailable")
@@ -336,7 +336,7 @@ func (r *SQLRepository) UnreadCount(ctx context.Context, recipientUserID uint64)
 	return count, nil
 }
 
-// MarkRead marks one current-user delivery as read.
+// MarkRead 将指定用户的一条投递标记为已读；投递不属于该用户时不得被更新。
 func (r *SQLRepository) MarkRead(ctx context.Context, recipientUserID uint64, deliveryID uint64, readAt time.Time) (Delivery, error) {
 	if r == nil || r.db == nil {
 		return Delivery{}, errors.New("notification repository is unavailable")
@@ -376,12 +376,12 @@ func (r *SQLRepository) MarkRead(ctx context.Context, recipientUserID uint64, de
 	return r.getDelivery(ctx, targetID, recipientID)
 }
 
-// MarkAllRead marks all non-deleted unread deliveries for one user as read.
+// MarkAllRead 将指定用户全部未删除未读投递标记为已读，并返回实际更新数量。
 func (r *SQLRepository) MarkAllRead(ctx context.Context, recipientUserID uint64, readAt time.Time) (int, error) {
 	return r.MarkAllReadMatching(ctx, ListQuery{RecipientUserID: recipientUserID, Status: "unread"}, readAt)
 }
 
-// MarkAllReadMatching marks all non-deleted unread deliveries matching current-user filters as read.
+// MarkAllReadMatching 按当前用户筛选条件批量标记未删除未读投递，并返回实际更新数量。
 func (r *SQLRepository) MarkAllReadMatching(ctx context.Context, query ListQuery, readAt time.Time) (int, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("notification repository is unavailable")
@@ -421,7 +421,7 @@ func (r *SQLRepository) MarkAllReadMatching(ctx context.Context, query ListQuery
 	return int(affected), nil
 }
 
-// DeleteDelivery soft-deletes one current-user delivery.
+// DeleteDelivery 软删除指定用户的一条投递，不删除通知事实，也不影响其他用户的投递状态。
 func (r *SQLRepository) DeleteDelivery(ctx context.Context, recipientUserID uint64, deliveryID uint64, deletedAt time.Time) error {
 	if r == nil || r.db == nil {
 		return errors.New("notification repository is unavailable")

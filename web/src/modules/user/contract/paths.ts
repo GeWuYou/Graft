@@ -1,6 +1,5 @@
 /**
  * USER_ROUTE_PATH 定义用户管理模块的 canonical 前端路由入口。
- *
  */
 export const USER_ROUTE_PATH = {
   LIST: '/security/users',
@@ -29,22 +28,13 @@ export const USER_API_PATH = {
   BATCH_USER_ROLE_REPLACE: '/api/users/roles/replace',
   BATCH_USER_ROLE_ADD: '/api/users/roles/add',
   BATCH_USER_ROLE_REMOVE: '/api/users/roles/remove',
-  /** USER_BY_ID 返回读取指定用户详情的接口路径。 */
   USER_BY_ID: (userId: number) => `/api/users/${userId}`,
-  /** USER_UPDATE 返回更新指定用户资料的接口路径。 */
   USER_UPDATE: (userId: number) => `/api/users/${userId}/update`,
-  /** USER_STATUS 返回更新指定用户启停状态的接口路径。 */
   USER_STATUS: (userId: number) => `/api/users/${userId}/status`,
-  /** USER_RESET_PASSWORD 返回重置指定用户密码的接口路径。 */
   USER_RESET_PASSWORD: (userId: number) => `/api/users/${userId}/reset-password`,
-  /** USER_DELETE 返回删除指定用户的接口路径。 */
   USER_DELETE: (userId: number) => `/api/users/${userId}/delete`,
-  /** USER_ROLES 返回读取指定用户角色快照的接口路径。 */
   USER_ROLES: (userId: number) => `/api/users/${userId}/roles`,
-  /** USER_ROLE_REPLACE 返回替换指定用户角色绑定的接口路径。 */
   USER_ROLE_REPLACE: (userId: number) => `/api/users/${userId}/roles/replace`,
-  /** USER_ROLE_ADD 返回向指定用户追加角色绑定的接口路径。 */
   USER_ROLE_ADD: (userId: number) => `/api/users/${userId}/roles/add`,
-  /** USER_ROLE_REMOVE 返回移除指定用户角色绑定的接口路径。 */
   USER_ROLE_REMOVE: (userId: number) => `/api/users/${userId}/roles/remove`,
 } as const;

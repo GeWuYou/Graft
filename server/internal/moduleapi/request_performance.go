@@ -6,8 +6,7 @@ import (
 	"time"
 )
 
-// RequestPerformanceMinuteBucketSize is the only supported bucket width for
-// bounded request-performance reads.
+// RequestPerformanceMinuteBucketSize 是有界请求性能读取唯一支持的时间桶宽度。
 const RequestPerformanceMinuteBucketSize = time.Minute
 
 // ErrRequestPerformanceInvalidQuery reports an unsupported request-performance
@@ -21,12 +20,12 @@ type RequestPerformanceQuery struct {
 	BucketSize  time.Duration
 }
 
-// RequestPerformanceReader exposes a bounded, read-only performance projection.
+// RequestPerformanceReader 暴露有界的只读请求性能投影。
 type RequestPerformanceReader interface {
 	ReadRequestPerformance(context.Context, RequestPerformanceQuery) (RequestPerformanceSummary, error)
 }
 
-// RequestPerformanceSummary contains request quality aggregates for one bounded window.
+// RequestPerformanceSummary 包含一个有界时间窗口内的请求质量聚合结果。
 type RequestPerformanceSummary struct {
 	WindowStart      time.Time
 	WindowEnd        time.Time
@@ -40,7 +39,7 @@ type RequestPerformanceSummary struct {
 	TopRoutes        RequestPerformanceTopRoutes
 }
 
-// RequestPerformanceStatusGroups groups response counts by HTTP status class.
+// RequestPerformanceStatusGroups 按 HTTP 状态码类别聚合响应计数。
 type RequestPerformanceStatusGroups struct {
 	TwoXX   int64
 	ThreeXX int64
@@ -48,7 +47,7 @@ type RequestPerformanceStatusGroups struct {
 	FiveXX  int64
 }
 
-// RequestPerformanceMinuteBucket describes one zero-filled minute of request activity.
+// RequestPerformanceMinuteBucket 描述一个经过零填充的请求活动分钟桶。
 type RequestPerformanceMinuteBucket struct {
 	Start            time.Time
 	TotalRequests    int64
@@ -56,14 +55,14 @@ type RequestPerformanceMinuteBucket struct {
 	P95LatencyMS     int64
 }
 
-// RequestPerformanceTopRoutes groups the three independent route rankings.
+// RequestPerformanceTopRoutes 聚合三种相互独立的路由排名。
 type RequestPerformanceTopRoutes struct {
 	ByTraffic      []RequestPerformanceRoute
 	ByServerErrors []RequestPerformanceRoute
 	ByP95Latency   []RequestPerformanceRoute
 }
 
-// RequestPerformanceRoute is a route-scoped request quality aggregate.
+// RequestPerformanceRoute 是按路由聚合的请求质量结果。
 type RequestPerformanceRoute struct {
 	Method           string
 	Route            string

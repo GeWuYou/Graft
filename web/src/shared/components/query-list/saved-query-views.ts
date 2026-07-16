@@ -2,7 +2,7 @@ import { computed, type ComputedRef, type Ref, ref } from 'vue';
 
 export type SavedQueryViewId = number | string;
 
-/** A module-normalized private query view. */
+/** 经模块归一化的私有查询视图；它不应被提升为跨模块查询契约。 */
 export type SavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId> = {
   id: TId;
   name: string;
@@ -201,7 +201,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    *
    * @param name - 查询视图名称，首尾空白会被移除
    * @param mode - 保存模式，创建新视图或更新当前选中的视图
-   * @returns `true` if 保存成功，`false` otherwise
+   * @returns 保存成功时为 `true`，否则为 `false`
    */
   async function save(name: string, mode: 'create' | 'update') {
     const normalizedName = name.trim();

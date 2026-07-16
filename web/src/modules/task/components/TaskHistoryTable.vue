@@ -39,6 +39,7 @@
   </section>
 </template>
 <script setup lang="ts">
+// 历史表格只展示当前 owner 隔离范围内的任务记录；实时观察、取消和重试仍由详情抽屉交回任务边界。
 import type { TableProps } from 'tdesign-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';

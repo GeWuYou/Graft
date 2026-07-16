@@ -1,4 +1,4 @@
-// Package store defines Compose Project Management module persistence contracts.
+// Package store 定义 Compose 项目管理模块的持久化契约。
 package store
 
 import (
@@ -29,7 +29,7 @@ var (
 	ErrFileNotFound = errors.New("project file not found")
 )
 
-// Project stores one Compose project registry record.
+// Project 保存一条 Compose 项目注册记录。
 type Project struct {
 	ID                         uint64
 	ApplicationID              string
@@ -61,7 +61,7 @@ type Project struct {
 	DeletedAt                  int64
 }
 
-// ProjectFile stores one ordered project file reference.
+// ProjectFile 保存一个有序项目文件引用。
 type ProjectFile struct {
 	ID               uint64
 	ProjectID        uint64
@@ -75,7 +75,7 @@ type ProjectFile struct {
 	UpdatedAt        time.Time
 }
 
-// Snapshot stores the latest successful normalized compose snapshot.
+// Snapshot 保存最近一次成功规范化的 Compose 快照。
 type Snapshot struct {
 	ProjectID              uint64
 	NormalizedComposeJSON  []byte
@@ -85,7 +85,7 @@ type Snapshot struct {
 	RefreshedAt            time.Time
 }
 
-// LifecycleConfig stores project-owned lifecycle execution semantics.
+// LifecycleConfig 保存项目拥有的生命周期执行语义。
 type LifecycleConfig struct {
 	Profiles                 []string `json:"profiles"`
 	DownBeforeRedeploy       bool     `json:"down_before_redeploy"`
@@ -100,14 +100,14 @@ type LifecycleConfig struct {
 	AdditionalArgs           []string `json:"additional_args"`
 }
 
-// ProjectAggregate joins one project with its files and latest snapshot.
+// ProjectAggregate 将项目、其文件和最近快照组合为一个读取聚合。
 type ProjectAggregate struct {
 	Project  Project
 	Files    []ProjectFile
 	Snapshot *Snapshot
 }
 
-// ListQuery describes project list filters.
+// ListQuery 描述项目列表筛选条件。
 type ListQuery struct {
 	Limit   int
 	Offset  int
@@ -119,13 +119,13 @@ type ListQuery struct {
 	DriftStatus     string
 }
 
-// ListResult returns a paginated project page.
+// ListResult 返回一页分页项目结果。
 type ListResult struct {
 	Items []ProjectAggregate
 	Total int
 }
 
-// ImportProjectInput creates or replaces one project registry entry.
+// ImportProjectInput 描述创建或替换一条项目注册记录的输入。
 type ImportProjectInput struct {
 	ApplicationID              string
 	ApplicationName            *string
@@ -153,7 +153,7 @@ type ImportProjectInput struct {
 	ActorID                    *uint64
 }
 
-// RefreshProjectInput updates one existing project refresh state.
+// RefreshProjectInput 描述更新现有项目刷新状态的输入。
 type RefreshProjectInput struct {
 	ProjectID              uint64
 	LastObservedConfigHash string
@@ -164,7 +164,7 @@ type RefreshProjectInput struct {
 	ActorID                *uint64
 }
 
-// UpdateLifecycleConfigInput updates the saved lifecycle execution semantics for one project.
+// UpdateLifecycleConfigInput 描述更新单个项目已保存生命周期执行语义的输入。
 type UpdateLifecycleConfigInput struct {
 	ProjectID             uint64
 	LifecycleStrategyKind string
@@ -173,7 +173,7 @@ type UpdateLifecycleConfigInput struct {
 	ActorID               *uint64
 }
 
-// UpdateWorkspaceAnnotationInput updates or removes one project workspace annotation.
+// UpdateWorkspaceAnnotationInput 描述更新或删除一个项目工作区注释的输入。
 type UpdateWorkspaceAnnotationInput struct {
 	ProjectID    uint64
 	RelativePath string
@@ -181,13 +181,13 @@ type UpdateWorkspaceAnnotationInput struct {
 	ActorID      *uint64
 }
 
-// UnregisterProjectInput soft-deletes one existing project registry row without touching host files.
+// UnregisterProjectInput 描述软删除一条现有项目注册记录且不触碰宿主机文件的输入。
 type UnregisterProjectInput struct {
 	ProjectID uint64
 	ActorID   *uint64
 }
 
-// Repository persists project registry, file inventory, and snapshots.
+// Repository 持久化项目注册表、文件清单和快照。
 type Repository interface {
 	List(ctx context.Context, query ListQuery) (ListResult, error)
 	Get(ctx context.Context, projectID uint64) (ProjectAggregate, error)
@@ -200,21 +200,18 @@ type Repository interface {
 	BackfillRuntimeTarget(ctx context.Context, runtimeTargetID uint64) error
 }
 
-// ApplicationLookupRepository resolves the external Application ID to the
-// module-private numeric registry key. It is deliberately narrow so existing
-// test stores and repository adapters do not gain an accidental public lookup
-// obligation.
+// ApplicationLookupRepository 将公开 Application ID 解析为模块私有的数字注册键。
+// 接口保持窄边界，避免现有测试存储和仓储适配器被迫承担额外的公开查询契约。
 type ApplicationLookupRepository interface {
 	GetByApplicationID(ctx context.Context, applicationID string) (ProjectAggregate, error)
 }
 
-// ApplicationNameLookupRepository resolves a managed application name to a live project.
-// It is used only by the managed-create preflight boundary.
+// ApplicationNameLookupRepository 将受管应用名称解析为存活项目，仅由受管创建预检边界使用。
 type ApplicationNameLookupRepository interface {
 	GetByApplicationName(ctx context.Context, applicationName string) (ProjectAggregate, error)
 }
 
-// ApplicationIDBatchLookupRepository resolves public IDs without aggregate loads.
+// ApplicationIDBatchLookupRepository 批量解析公开标识，不加载完整项目聚合。
 type ApplicationIDBatchLookupRepository interface {
 	GetIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error)
 }

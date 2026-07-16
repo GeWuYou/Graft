@@ -1,23 +1,23 @@
 package contract
 
-// AnnouncementStatus identifies a stable announcement lifecycle status contract.
+// AnnouncementStatus 标识公告稳定的生命周期状态契约。
 type AnnouncementStatus string
 
-// String returns the canonical status value.
+// String 返回规范化的公告状态值。
 func (s AnnouncementStatus) String() string {
 	return string(s)
 }
 
 const (
-	// AnnouncementStatusDraft indicates an unpublished management draft.
+	// AnnouncementStatusDraft 表示尚未发布的管理端草稿。
 	AnnouncementStatusDraft AnnouncementStatus = "draft"
-	// AnnouncementStatusPublished indicates an announcement eligible for user visibility when time rules match.
+	// AnnouncementStatusPublished 表示在时间条件满足时可对用户可见的公告。
 	AnnouncementStatusPublished AnnouncementStatus = "published"
-	// AnnouncementStatusArchived indicates a management-retained announcement hidden from user listings.
+	// AnnouncementStatusArchived 表示管理端保留但从用户列表隐藏的公告。
 	AnnouncementStatusArchived AnnouncementStatus = "archived"
 )
 
-// ValidAnnouncementStatus reports whether value is a known announcement status contract.
+// ValidAnnouncementStatus 判断 value 是否为已知的公告状态契约。
 func ValidAnnouncementStatus(value AnnouncementStatus) bool {
 	switch value {
 	case AnnouncementStatusDraft, AnnouncementStatusPublished, AnnouncementStatusArchived:

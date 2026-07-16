@@ -59,6 +59,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// 列表页负责发现/刷新运行时目标并维护列表请求状态，详情数据由详情路由独立加载。
 import { RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';

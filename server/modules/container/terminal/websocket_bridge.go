@@ -25,31 +25,31 @@ const (
 	bridgeErrBuffer = 3
 )
 
-// ClientMessageType identifies one client-to-server websocket terminal message kind.
+// ClientMessageType 标识客户端发往服务端的 WebSocket 终端消息类型。
 type ClientMessageType string
 
-// ServerMessageType identifies one server-to-client websocket terminal message kind.
+// ServerMessageType 标识服务端发往客户端的 WebSocket 终端消息类型。
 type ServerMessageType string
 
 const (
-	// ClientMessageInput streams terminal stdin bytes.
+	// ClientMessageInput 传输终端标准输入字节。
 	ClientMessageInput ClientMessageType = "input"
-	// ClientMessageResize updates the terminal geometry.
+	// ClientMessageResize 更新终端几何尺寸。
 	ClientMessageResize ClientMessageType = "resize"
-	// ClientMessagePing requests an application-level pong frame.
+	// ClientMessagePing 请求应用层 pong 响应。
 	ClientMessagePing ClientMessageType = "ping"
 
-	// ServerMessageOutput streams terminal stdout/stderr bytes.
+	// ServerMessageOutput 传输终端标准输出或标准错误字节。
 	ServerMessageOutput ServerMessageType = "output"
-	// ServerMessageStatus reports high-level bridge state changes.
+	// ServerMessageStatus 报告桥接状态变化。
 	ServerMessageStatus ServerMessageType = "status"
-	// ServerMessageError reports a terminal or protocol error.
+	// ServerMessageError 报告终端或协议错误。
 	ServerMessageError ServerMessageType = "error"
-	// ServerMessagePong acknowledges a client ping request.
+	// ServerMessagePong 确认客户端的 ping 请求。
 	ServerMessagePong ServerMessageType = "pong"
 )
 
-// ClientMessage is the JSON control envelope accepted from the websocket client.
+// ClientMessage 是 WebSocket 客户端发送的 JSON 控制信封。
 type ClientMessage struct {
 	Type ClientMessageType `json:"type"`
 	Data string            `json:"data,omitempty"`
@@ -57,7 +57,7 @@ type ClientMessage struct {
 	Rows int               `json:"rows,omitempty"`
 }
 
-// ServerMessage is the JSON control envelope emitted to the websocket client.
+// ServerMessage 是发送给 WebSocket 客户端的 JSON 控制信封；错误同时保留稳定 message key 供前端本地化。
 type ServerMessage struct {
 	Type       ServerMessageType `json:"type"`
 	Data       string            `json:"data,omitempty"`
@@ -66,7 +66,7 @@ type ServerMessage struct {
 	MessageKey string            `json:"messageKey,omitempty"`
 }
 
-// Bridge binds one websocket connection to one terminal session.
+// Bridge 将一个 WebSocket 连接绑定到一个终端会话，并串行化所有写操作以满足 Gorilla WebSocket 的并发约束。
 type Bridge struct {
 	conn    *websocket.Conn
 	session Session
@@ -80,7 +80,7 @@ func NewBridge(conn *websocket.Conn, session Session) *Bridge {
 	return &Bridge{conn: conn, session: session, closed: make(chan struct{})}
 }
 
-// Run starts the websocket bridge and blocks until the bridge or caller context finishes.
+// Run 启动终端会话和读写/心跳协程，直到连接关闭、桥接报错或调用方上下文结束；退出时统一关闭两端资源。
 func (b *Bridge) Run(ctx context.Context, initialSize Size) error {
 	if b == nil || b.conn == nil || b.session == nil {
 		return errors.New("terminal bridge is unavailable")
@@ -236,7 +236,7 @@ func (b *Bridge) handleClientMessage(ctx context.Context, message ClientMessage)
 	}
 }
 
-// positiveUint converts an int to uint, returning the value if positive and zero if less than or equal to zero.
+// positiveUint 将非正数归零，避免客户端提供的负尺寸转换为超大的无符号终端尺寸。
 func positiveUint(value int) uint {
 	if value <= 0 {
 		return 0

@@ -1,4 +1,4 @@
-// Package locales owns embedded runtime-target server locale resources.
+// Package locales 负责 runtime-target 服务端内嵌的语言资源。
 package locales
 
 import (

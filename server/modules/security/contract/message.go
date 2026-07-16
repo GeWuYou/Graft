@@ -1,16 +1,16 @@
 package contract
 
-// MessageKey identifies a stable Security module message key.
+// MessageKey 标识安全模块稳定的消息 key。
 type MessageKey string
 
-// String returns the canonical message key value.
+// String 返回规范化的消息 key。
 func (k MessageKey) String() string { return string(k) }
 
 const (
-	// OverviewMenuTitle identifies the Security overview menu label.
+	// OverviewMenuTitle 标识安全概览菜单标题。
 	OverviewMenuTitle MessageKey = "menu.security.overview.title"
-	// OverviewReadDisplay identifies the display label for overview read permission.
+	// OverviewReadDisplay 标识安全概览读取权限的展示名称。
 	OverviewReadDisplay MessageKey = "security.permission.overview.read.display"
-	// OverviewReadDescription identifies the overview read permission description.
+	// OverviewReadDescription 标识安全概览读取权限的说明。
 	OverviewReadDescription MessageKey = "security.permission.overview.read.description"
 )

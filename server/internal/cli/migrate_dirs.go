@@ -42,11 +42,7 @@ type migrationDirResolutionPlan struct {
 	includeAllResolvedDirs bool
 }
 
-// buildAtlasMigrationDir 根据迁移目录规范构造 Atlas 迁移目录。
-// buildAtlasMigrationDir 根据输入构建迁移目录，支持默认链、仓库拥有目录和外部路径。
-// @param baseDir 用于解析外部路径的基准目录。
-// @param migrationDir 迁移目录输入，支持默认值、仓库选择器或以 `file:` 前缀指定的外部路径。
-// @returns 解析后的迁移目录或错误。
+// buildAtlasMigrationDir 根据输入构造 Atlas 迁移目录，支持默认链、仓库拥有目录和以 file: 指定的外部路径。
 func buildAtlasMigrationDir(baseDir string, migrationDir string) (atlasmigrate.Dir, error) {
 	input, err := parseMigrationDirInput(migrationDir)
 	if err != nil {
@@ -103,11 +99,9 @@ func buildDefaultAtlasMigrationDir() (atlasmigrate.Dir, error) {
 	return dir, nil
 }
 
-// parseMigrationDirInput parses a migration directory input string into a categorized migration directory specification.
-// It recognizes three input kinds: external paths prefixed with "file:", the default migration directory, and repository-owned selectors starting with "modules/" or "internal/".
 // parseMigrationDirInput 解析迁移目录输入并识别其类型。
 // 支持默认迁移目录、仓库内拥有的迁移选择器以及显式外部路径；输入会先去除首尾空白并规范化路径分隔符。
-// 
+//
 // @param migrationDir 迁移目录输入。
 // @returns 解析后的迁移目录输入及错误；当输入为空、外部路径缺少显式前缀，或以 server/ 开头但未使用允许的选择器格式时返回错误。
 func parseMigrationDirInput(migrationDir string) (migrationDirInput, error) {
@@ -160,8 +154,6 @@ func parseMigrationDirInput(migrationDir string) (migrationDirInput, error) {
 	)
 }
 
-// isRepoOwnedMigrationSelector reports whether migrationDir is a repository-owned selector.
-//
 // isRepoOwnedMigrationSelector 判断迁移目录选择器是否属于仓库内置路径。
 // 当路径以前缀 "modules/" 或 "internal/" 开头时，返回 `true`。
 func isRepoOwnedMigrationSelector(migrationDir string) bool {
@@ -169,7 +161,7 @@ func isRepoOwnedMigrationSelector(migrationDir string) bool {
 }
 
 // loadRepoOwnedAtlasMigrationDir 从仓库拥有的迁移源加载迁移目录。
-// 
+//
 // @param migrationDir 仓库内迁移目录的选择器。
 // @returns 加载后的迁移目录。
 func loadRepoOwnedAtlasMigrationDir(migrationDir string) (atlasmigrate.Dir, error) {
@@ -219,9 +211,7 @@ func loadEmbeddedMigrationDirSource(migrationDir string) (migrationDirSource, bo
 	}, true, nil
 }
 
-// loadExternalAtlasMigrationDir 加载外部文件系统路径中的迁移目录。
-// loadExternalAtlasMigrationDir 解析外部迁移目录并打开对应的本地迁移目录。
-// 它会先将 externalPath 解析为绝对路径，然后以该路径创建 atlasmigrate.Dir。
+// loadExternalAtlasMigrationDir 将 externalPath 解析为绝对路径后打开对应的本地 Atlas 迁移目录。
 func loadExternalAtlasMigrationDir(baseDir string, externalPath string) (atlasmigrate.Dir, error) {
 	absDir, err := resolveExternalMigrationDir(baseDir, externalPath)
 	if err != nil {
@@ -235,9 +225,7 @@ func loadExternalAtlasMigrationDir(baseDir string, externalPath string) (atlasmi
 	return dir, nil
 }
 
-// resolveExternalMigrationDir 解析 externalPath 为绝对目录路径，
-// 若其为相对路径，则相对于 baseDir 进行合并。
-// resolveExternalMigrationDir 将外部迁移目录解析为绝对路径。
+// resolveExternalMigrationDir 将外部迁移目录解析为绝对路径；相对路径相对于 baseDir 合并。
 // 目录相对于 baseDir 解析；如果目录不存在、不是目录或无法解析为绝对路径，则返回错误。
 // @param baseDir 用于解析相对路径的基准目录。
 // @param externalPath 外部迁移目录路径。
@@ -273,8 +261,7 @@ func embeddedMigrationDirHasAtlasState(dir moduleregistry.EmbeddedMigrationDir) 
 	return false
 }
 
-// synthesizeDefaultMigrationDir 将多个迁移源目录合并到单个内存目录中，并计算该目录的校验和。
-// synthesizeDefaultMigrationDir 合并多个迁移目录源并生成默认迁移链。
+// synthesizeDefaultMigrationDir 合并多个迁移源并生成默认迁移链，同时计算目录校验和。
 // 它会拒绝重复的文件名或版本号；如果合并结果不包含任何 SQL 迁移文件，返回错误。
 func synthesizeDefaultMigrationDir(sourceDirs []migrationDirSource) (atlasmigrate.Dir, error) {
 	memDir := &atlasmigrate.MemDir{}
@@ -466,10 +453,8 @@ func appendResolvedMigrationDir(resolved []string, absDir string, includeAllReso
 	return append(resolved, absDir), nil
 }
 
-// resolveMigrationDir 从当前目录向上搜索可用的单个迁移目录。
-//
-// 默认目录同时支持仓库根目录和 `server` 模块根目录两种工作目录，减少 IDE、
-// resolveMigrationDir 从给定基目录向上查找并解析迁移目录的绝对路径。
+// resolveMigrationDir 从给定基目录向上查找并解析单个迁移目录的绝对路径。
+// 默认目录同时支持仓库根目录和 server 模块根目录两种工作目录，减少 IDE、
 // 如果迁移目录名不以 server/ 开头，还会同时尝试 server/ 前缀路径。
 // 返回解析到的绝对目录路径，或在未找到、路径不是目录时返回错误。
 func resolveMigrationDir(baseDir string, migrationDir string) (string, error) {
@@ -511,7 +496,7 @@ func resolveMigrationDir(baseDir string, migrationDir string) (string, error) {
 	return "", fmt.Errorf("cannot find migration dir %q from %s: %w", migrationDir, baseDir, os.ErrNotExist)
 }
 
-// directoryContainsAtlasState reports whether absDir contains the Atlas state file.
+// directoryContainsAtlasState 报告目录是否包含 Atlas 状态文件；该文件用于判断目录能否加入默认迁移链。
 func directoryContainsAtlasState(absDir string) (bool, error) {
 	entries, err := migrateReadDir(absDir)
 	if err != nil {

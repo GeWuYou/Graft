@@ -11,13 +11,10 @@ import (
 	"graft/server/internal/redisx"
 )
 
-// databaseHealth evaluates the database connection status.
-// Returns dependency status unknown if the database is unavailable, degraded if the connection check fails,
-// or healthy with latency and pool statistics if the database responds successfully. An error is returned
 // databaseHealth 检查数据库连接的健康状态。
 // 若实例或数据库句柄为空，返回未知状态。
 // 通过 Ping 测试连接可达性：失败返回降级状态，成功返回健康状态及延迟信息。
-// 仅当延迟转换失败时返回错误。
+// 仅当延迟转换失败时返回错误；Ping 失败作为可观测的降级状态返回。
 func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	if instance == nil || instance.db == nil {
 		return generated.ServerStatusDependency{
@@ -52,11 +49,8 @@ func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStat
 	}, nil
 }
 
-// redisHealth determines the health status and connectivity of a Redis dependency.
-// The returned status is disabled if Redis is not configured, degraded if the health
-// check fails or Redis is unreachable, and healthy if Redis responds successfully.
-// Connection pool statistics and latency are included when available. An error is
-// Returns an error only if latency metric conversion fails.
+// redisHealth 检查 Redis 连接状态；未配置时返回 disabled，检查失败或不可达时返回 degraded，成功时返回 healthy。
+// 可用时同时返回连接池统计和延迟；连接检查失败作为状态返回，仅延迟转换失败才返回错误。
 func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	reporter := resolveRedisHealthReporter(moduleCtx, instance)
 	if reporter == nil {

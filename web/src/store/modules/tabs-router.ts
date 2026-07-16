@@ -41,8 +41,6 @@ const homeRoute: Array<TRouterInfo> = [
   },
 ];
 
-// 不需要做多标签tabs页缓存的列表 值为每个页面对应的name 如 DashboardDetail
-// const ignoreCacheRoutes = ['DashboardDetail'];
 const ignoreCacheRoutes: string[] = [AUTH_ROUTE_NAME.LOGIN];
 
 /**
@@ -192,14 +190,14 @@ function formatTabsSummary(routes: TRouterInfo[]) {
 }
 
 /**
- * Normalizes route state with computed tab properties.
+ * 规范化路由状态并补充计算得到的标签属性。
  *
- * Establishes a unique tab key, ensures a full path, determines pinned status based on
- * persisted preferences, and sets keep-alive behavior.
+ * 该过程会建立唯一标签键、补齐完整路径，根据持久化偏好确定置顶状态，
+ * 并设置页面保活行为。
  *
- * @param route - The router info to normalize
- * @param pinnedKeys - Set of pinned tab keys; defaults to the persisted pinned set
- * @returns The route with computed tab properties
+ * @param route - 待规范化的路由信息
+ * @param pinnedKeys - 置顶标签键集合；默认读取持久化的置顶集合
+ * @returns 补充计算标签属性后的路由
  */
 function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
   const tabKey = getTabKey(route);
@@ -214,13 +212,13 @@ function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys(
 }
 
 /**
- * Resolves which title to preserve when updating a tab route.
+ * 确定更新标签路由时应保留的标题。
  *
- * Keeps the existing title if the next route has no title, or if both routes represent the same page and the existing title exists. Otherwise uses the new route's title.
+ * 当新路由没有标题，或两个路由表示同一页面且旧标题存在时保留旧标题；否则使用新路由标题。
  *
- * @param current - The existing tab route
- * @param next - The new route information
- * @returns The title to use
+ * @param current - 当前标签路由
+ * @param next - 新的路由信息
+ * @returns 应使用的标题
  */
 function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
   if (!next.title) {
@@ -237,9 +235,9 @@ function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
 }
 
 /**
- * Orders tabs by home status and pin status.
+ * 按首页状态和置顶状态排列标签。
  *
- * @returns The input tabs ordered with home tabs first, followed by pinned non-home tabs, then unpinned non-home tabs.
+ * @returns 按首页、非首页置顶、非首页未置顶顺序排列的标签
  */
 function sortTabs(routes: TRouterInfo[]) {
   const homeRoutes = routes.filter((route) => route.isHome);
@@ -408,7 +406,6 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedRoutes after active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
     },
-    // 处理新增
     appendTabRouterList(newRoute: TRouterInfo) {
       logTabsDebug(
         'tabs.store',
@@ -464,7 +461,6 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         getTabKey(tab) === this.activeTabKey ? { ...tab, title } : tab,
       );
     },
-    // 处理关闭当前
     subtractCurrentTabRouter(newRoute: TRouterInfo) {
       const { routeIdx, path, tabKey } = newRoute;
       if (routeIdx === undefined) return;
@@ -480,19 +476,16 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearPageSnapshot(targetKey);
       this.syncPinnedTabsStorage();
     },
-    // 处理关闭右侧
     subtractTabRouterBehind(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
       this.closeTabsByPredicate((route, index) => index > routeIdx && !route.isHome && !route.isPinned);
     },
-    // 处理关闭左侧
     subtractTabRouterAhead(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
       this.closeTabsByPredicate((route, index) => index < routeIdx && !route.isHome && !route.isPinned);
     },
-    // 处理关闭其他
     subtractTabRouterOther(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;

@@ -85,9 +85,9 @@ const MAX_IMPORTANT_FIELDS = 10;
 const LOW_SIGNAL_METADATA_PATTERNS = [/^legacy_/i, /^service$/i, /^env$/i];
 
 /**
- * Parses a raw container log line with automatic format detection.
+ * 解析原始容器日志行并自动识别其格式。
  *
- * @returns A parsed log with detected format, extracted fields, and computed metadata.
+ * @returns 包含识别格式、提取字段和计算元数据的解析结果
  */
 export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
   const raw = rawLine ?? '';
@@ -159,10 +159,10 @@ export function parseLogLines(entries: StructuredLogEntry[]): ParsedLogLine[] {
 }
 
 /**
- * Extends a parsed log line with tokenization and search match information.
+ * 为解析后的日志行补充令牌化结果和搜索匹配信息。
  *
- * @param keyword - Optional search term for highlighting and match counting
- * @returns A `DisplayLogLine` with added message and raw tokens, plus keyword match count
+ * @param keyword - 用于高亮和统计匹配次数的可选搜索词
+ * @returns 补充消息令牌、原始令牌和关键词匹配次数的 `DisplayLogLine`
  */
 export function buildDisplayLogLine(line: ParsedLogLine, keyword = ''): DisplayLogLine {
   return {
@@ -174,12 +174,12 @@ export function buildDisplayLogLine(line: ParsedLogLine, keyword = ''): DisplayL
 }
 
 /**
- * Summarizes metadata by selecting important fields and counting excluded ones.
+ * 通过选择重要字段并统计被排除字段数量来汇总元数据。
  *
- * Filters out low-signal fields and returns only the most important ones up to the specified limit.
+ * 过滤低信号字段，只返回不超过指定上限的重要字段。
  *
- * @param maxVisible - Maximum number of important fields to include in the summary
- * @returns An object containing `hiddenCount` (number of excluded fields) and `tags` (array of visible metadata pairs)
+ * @param maxVisible - 汇总中包含的重要字段数量上限
+ * @returns 包含 `hiddenCount`（被排除字段数量）和 `tags`（可见元数据键值对数组）的对象
  */
 export function summarizeMetadata(metadata: ParsedLogMetadata | null, maxVisible = 3) {
   if (!metadata) {
@@ -196,9 +196,9 @@ export function summarizeMetadata(metadata: ParsedLogMetadata | null, maxVisible
 }
 
 /**
- * Converts a metadata value to a display string.
+ * 将元数据值转换为显示字符串。
  *
- * @returns The value converted to a display string.
+ * @returns 转换后的显示字符串
  */
 export function formatLogMetadataValue(value: unknown) {
   if (value === null) return 'null';
@@ -213,11 +213,11 @@ export function formatLogMetadataValue(value: unknown) {
 }
 
 /**
- * Parses a JSON log line and extracts standard log fields.
+ * 解析 JSON 日志行并提取标准日志字段。
  *
- * @param raw - The original log line
- * @param trimmed - The whitespace-trimmed version of the log line
- * @returns A parsed container log with extracted fields, or `null` if parsing fails or the JSON is not a plain object
+ * @param raw - 原始日志行
+ * @param trimmed - 去除首尾空白后的日志行
+ * @returns 提取字段后的容器日志；解析失败或 JSON 不是普通对象时返回 `null`
  */
 function parseJsonLine(raw: string, trimmed: string): ParsedContainerLog | null {
   if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
@@ -245,10 +245,10 @@ function parseJsonLine(raw: string, trimmed: string): ParsedContainerLog | null 
 }
 
 /**
- * Parses a logfmt-formatted log line.
+ * 解析 logfmt 格式的日志行。
  *
- * @param raw - The raw log line to parse
- * @returns A parsed container log if the input is valid logfmt, `null` otherwise.
+ * @param raw - 待解析的原始日志行
+ * @returns 输入是有效 logfmt 时返回解析后的容器日志，否则返回 `null`
  */
 function parseLogfmtLine(raw: string): ParsedContainerLog | null {
   const parsedPairs = parseLogfmt(raw);
@@ -271,13 +271,12 @@ function parseLogfmtLine(raw: string): ParsedContainerLog | null {
 }
 
 /**
- * Parses a log line in structured text format.
+ * 解析结构化文本格式的日志行。
  *
- * Attempts to match the input against standard log format or generic structured format patterns,
- * extracting timestamp, level, source, and message components. Also extracts any trailing JSON
- * object as metadata.
+ * 尝试匹配标准日志格式或通用结构化格式，提取时间戳、级别、来源和消息，
+ * 并将末尾 JSON 对象提取为元数据。
  *
- * @returns A parsed container log with extracted components, or null if no structured format is detected.
+ * @returns 提取结构化字段后的容器日志；未识别到结构化格式时返回 `null`
  */
 function parseStructuredTextLine(raw: string): ParsedContainerLog | null {
   const metadataResult = extractTrailingMetadata(raw);
@@ -326,9 +325,9 @@ function parseStructuredTextLine(raw: string): ParsedContainerLog | null {
 }
 
 /**
- * Assembles a parsed container log from extracted fields and metadata.
+ * 根据提取的字段和元数据组装容器日志解析结果。
  *
- * @returns A `ParsedContainerLog` with normalized fields, computed important fields, and display data.
+ * @returns 包含规范化字段、计算后的重要字段和显示数据的 `ParsedContainerLog`
  */
 function buildParsedLog({
   raw,
@@ -378,16 +377,17 @@ function buildParsedLog({
 }
 
 /**
- * Selects and prioritizes metadata fields for display.
+ * 选择并排列用于显示的元数据字段。
  *
- * Filters out empty values, optionally removes low-signal fields, assigns priority ranks based on a predefined field list, and returns up to `maxVisible` fields sorted by priority or in original order.
+ * 过滤空值，可选移除低信号字段，根据预定义字段列表分配优先级，
+ * 最后按优先级或原始顺序返回不超过 `maxVisible` 个字段。
  *
- * @param fields - The metadata to process
- * @param maxVisible - Maximum number of fields to return
- * @param options.hideLowSignal - If true, excludes fields identified as low-signal
- * @param options.includeAll - If true, includes all fields; if false, only fields with known priorities are included
- * @param options.preserveFieldOrder - If true, preserves input order; if false, sorts by priority
- * @returns Array of selected metadata fields with formatted values and priority ranks, limited to `maxVisible` items
+ * @param fields - 待处理的元数据
+ * @param maxVisible - 返回字段数量上限
+ * @param options.hideLowSignal - 为 `true` 时排除识别为低信号的字段
+ * @param options.includeAll - 为 `true` 时包含所有字段，否则仅包含有已知优先级的字段
+ * @param options.preserveFieldOrder - 为 `true` 时保留输入顺序，否则按优先级排序
+ * @returns 带格式化值和优先级的不超过 `maxVisible` 个元数据字段
  */
 function buildImportantFields(
   fields: ParsedLogMetadata,
@@ -412,11 +412,11 @@ function buildImportantFields(
 }
 
 /**
- * Extracts a trailing JSON object from a string as metadata.
+ * 从字符串末尾提取 JSON 对象作为元数据。
  *
- * Searches the input for a valid JSON object at the end and separates it from the message body.
+ * 在输入末尾查找有效 JSON 对象，并将其与消息正文分离。
  *
- * @returns An object with the message body and extracted metadata object, or the entire input with `null` metadata if no valid trailing JSON is found
+ * @returns 包含消息正文和元数据对象的结果；未找到有效末尾 JSON 时返回完整输入和 `null` 元数据
  */
 function extractTrailingMetadata(raw: string): { body: string; metadata: ParsedLogMetadata | null } {
   const jsonStart = findTrailingJsonStart(raw);
@@ -439,9 +439,9 @@ function extractTrailingMetadata(raw: string): { body: string; metadata: ParsedL
 }
 
 /**
- * Parses logfmt-formatted key-value pairs from raw text.
+ * 从原始文本解析 logfmt 格式的键值对。
  *
- * @returns An object containing parsed metadata fields, or `null` if the input is not valid logfmt.
+ * @returns 包含解析元数据字段的对象；输入不是有效 logfmt 时返回 `null`
  */
 function parseLogfmt(raw: string): { fields: ParsedLogMetadata } | null {
   const matches = [...raw.matchAll(LOGFMT_PAIR_PATTERN)];
@@ -472,10 +472,10 @@ function parseLogfmt(raw: string): { fields: ParsedLogMetadata } | null {
 }
 
 /**
- * Finds the index where a valid trailing JSON object begins in a string.
+ * 查找字符串中有效末尾 JSON 对象的起始索引。
  *
- * @param raw - The string to search
- * @returns The index of the JSON start position, or `-1` if no valid JSON suffix is found
+ * @param raw - 待搜索的字符串
+ * @returns JSON 起始位置的索引；未找到有效 JSON 后缀时返回 `-1`
  */
 function findTrailingJsonStart(raw: string) {
   let cursor = raw.lastIndexOf('{');
@@ -493,11 +493,11 @@ function findTrailingJsonStart(raw: string) {
 }
 
 /**
- * Counts occurrences of a keyword in text using case-insensitive matching.
+ * 使用不区分大小写的匹配统计文本中的关键词出现次数。
  *
- * @param text - The text to search within
- * @param keyword - The string to search for; empty or whitespace-only values return 0
- * @returns The number of non-overlapping occurrences of the keyword in the text
+ * @param text - 待搜索的文本
+ * @param keyword - 待搜索的字符串；空字符串或仅含空白时返回 0
+ * @returns 关键词在文本中不重叠出现的次数
  */
 function countKeywordMatches(text: string, keyword = '') {
   const normalizedKeyword = keyword.trim().toLowerCase();
@@ -516,9 +516,9 @@ function countKeywordMatches(text: string, keyword = '') {
 }
 
 /**
- * Returns the first non-empty string or number/boolean value from the specified keys in a metadata object.
+ * 从元数据对象的指定键中返回首个非空字符串、数字或布尔值。
  *
- * @returns The first matching value as a string, or an empty string if none is found.
+ * @returns 首个匹配值的字符串形式；没有匹配值时返回空字符串
  */
 function readFirstString(fields: ParsedLogMetadata, keys: string[]) {
   for (const key of keys) {
@@ -534,10 +534,10 @@ function readFirstString(fields: ParsedLogMetadata, keys: string[]) {
 }
 
 /**
- * Normalizes a string by trimming whitespace and filtering out empty values.
+ * 去除字符串首尾空白，并将空值过滤为 `undefined`。
  *
- * @param value - An optional string value
- * @returns The trimmed string if non-empty, `undefined` otherwise
+ * @param value - 可选字符串值
+ * @returns 非空的去空白字符串，否则返回 `undefined`
  */
 function normalizeOptionalString(value?: string) {
   const normalized = value?.trim();
@@ -545,49 +545,48 @@ function normalizeOptionalString(value?: string) {
 }
 
 /**
- * Validates whether a value is a plain object.
+ * 判断值是否为普通对象。
  *
- * @returns `true` if the value is a non-null object that is not an array, `false` otherwise.
+ * @returns 值是非空且非数组对象时返回 `true`，否则返回 `false`
  */
 function isPlainRecord(value: unknown): value is ParsedLogMetadata {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
- * Checks if the metadata object has any fields.
+ * 判断元数据对象是否包含字段。
  *
- * @returns `true` if metadata has any fields, `false` otherwise.
+ * @returns 元数据包含字段时返回 `true`，否则返回 `false`
  */
 function hasFields(fields: ParsedLogMetadata) {
   return Object.keys(fields).length > 0;
 }
 
 /**
- * Determines if a value is empty.
+ * 判断值是否为空。
  *
- * @returns `true` if the value is `undefined`, `null`, or an empty string, `false` otherwise.
+ * @returns 值为 `undefined`、`null` 或空字符串时返回 `true`，否则返回 `false`
  */
 function isEmptyFieldValue(value: unknown) {
   return value === undefined || value === null || value === '';
 }
 
 /**
- * Determines if a log line resembles a stack trace.
+ * 判断日志行是否具有堆栈跟踪特征。
  *
- * @returns `true` if the line matches stack trace patterns, `false` otherwise.
+ * @returns 日志行匹配堆栈跟踪模式时返回 `true`，否则返回 `false`
  */
 function isStackTraceLike(trimmed: string, raw: string) {
   return STACK_SYMBOL_PATTERN.test(trimmed) || STACK_FILE_PATTERN.test(raw);
 }
 
 /**
- * Extracts a shortened identifier from a log source string.
+ * 从日志来源字符串提取缩短后的标识。
  *
- * Handles space-separated sources by using the last part. Returns the basename from file paths.
- * For the specific file `logger.go:61`, includes the parent directory in the result.
+ * 空格分隔的来源取最后一段，文件路径取其 basename；对于特定文件 `logger.go:61`，结果保留父目录。
  *
- * @param source - The log source string to shorten
- * @returns The shortened source identifier, or an empty string if the source is empty
+ * @param source - 待缩短的日志来源字符串
+ * @returns 缩短后的来源标识；来源为空时返回空字符串
  */
 function shortenLogSource(source: string) {
   if (!source) return '';
@@ -605,14 +604,14 @@ function shortenLogSource(source: string) {
 }
 
 /**
- * Determines whether a metadata field should be filtered as low-signal.
+ * 判断元数据字段是否应作为低信号字段过滤。
  *
- * Fields with well-known importance (request IDs, trace IDs, status codes, duration, path, method, component)
- * are never low-signal. Other fields may be considered low-signal based on their name or value.
+ * 请求 ID、trace ID、状态码、耗时、路径、方法和组件等已知重要字段不会被视为低信号；
+ * 其他字段根据名称或值判断。
  *
- * @param key - The metadata field name
- * @param value - The metadata field value
- * @returns `true` if the field is low-signal, `false` otherwise
+ * @param key - 元数据字段名
+ * @param value - 元数据字段值
+ * @returns 字段属于低信号时返回 `true`，否则返回 `false`
  */
 function isLowSignalMetadata(key: string, value: unknown) {
   if (
@@ -642,7 +641,7 @@ function isLowSignalMetadata(key: string, value: unknown) {
 }
 
 /**
- * Removes a pair of surrounding quotes and converts escaped quotes to literal characters.
+ * 移除成对的外层引号，并将转义引号还原为普通字符。
  */
 function stripQuotes(value: string) {
   const stripped = value.replace(/^["']|["']$/g, '');

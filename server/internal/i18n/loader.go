@@ -13,8 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// EmbeddedLocaleResource carries owner-declared raw locale data while keeping
-// YAML parsing and registry validation inside server/internal/i18n.
+// EmbeddedLocaleResource 承载资源 owner 声明的原始本地化数据；YAML 解析和注册校验统一留在 i18n 包内。
 type EmbeddedLocaleResource struct {
 	Namespace Namespace
 	Locale    LocaleTag
@@ -33,14 +32,12 @@ func (s *Service) registerEmbeddedCatalogs() error {
 	return s.registerLocaleResources(embeddedLocaleFS)
 }
 
-// EmbeddedLocaleResources returns deferred embedded locale resources that
-// runtime should pre-register before module Register.
+// EmbeddedLocaleResources 返回运行时应在模块 Register 前预注册的嵌入式本地化资源。
 func EmbeddedLocaleResources() ([]EmbeddedLocaleResource, error) {
 	return loadEmbeddedLocaleResources(embeddedLocaleFS)
 }
 
-// EmbeddedLocaleResourcesFromFS converts owner-local {locale}.yaml resources
-// into read-only descriptors without exposing loader internals outside i18n.
+// EmbeddedLocaleResourcesFromFS 将 owner-local 的 {locale}.yaml 资源转换为只读描述，避免向 i18n 外暴露加载器细节。
 func EmbeddedLocaleResourcesFromFS(fsys fs.FS, namespace Namespace) ([]EmbeddedLocaleResource, error) {
 	namespace = Namespace(strings.TrimSpace(string(namespace)))
 	if namespace == "" {
@@ -77,8 +74,7 @@ func EmbeddedLocaleResourcesFromFS(fsys fs.FS, namespace Namespace) ([]EmbeddedL
 	return resources, nil
 }
 
-// RegisterEmbeddedLocaleResources registers raw embedded locale resources while
-// reusing the canonical RegisterMessages validation path.
+// RegisterEmbeddedLocaleResources 注册原始嵌入式本地化资源，并复用 RegisterMessages 的规范校验路径。
 func (s *Service) RegisterEmbeddedLocaleResources(resources []EmbeddedLocaleResource) error {
 	registrations, err := loadEmbeddedLocaleRegistrations(resources)
 	if err != nil {

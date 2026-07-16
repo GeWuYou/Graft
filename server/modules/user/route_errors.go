@@ -190,7 +190,7 @@ func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message str
 	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 }
 
-// zapFieldValue converts a zap field to its underlying value for logging.
+// zapFieldValue 将 zap 字段转换为日志所需的底层值，避免错误映射逻辑依赖具体字段实现。
 func zapFieldValue(field zap.Field) any {
 	switch field.Type {
 	case zapcore.StringType:
@@ -208,15 +208,12 @@ func zapFieldValue(field zap.Field) any {
 	}
 }
 
-// shouldLogUserManagementError reports whether a user management error should be logged based on its HTTP status.
-// It returns true for internal server errors and false for other statuses.
+// shouldLogUserManagementError 根据 HTTP 状态判断用户管理错误是否应记录；只对服务端内部错误返回 true。
 func shouldLogUserManagementError(status int, _ error) bool {
 	return status == http.StatusInternalServerError
 }
 
-// errorFieldFromDetails extracts a non-empty field name from error details.
-// It returns the field name and true when the details contain a valid field value;
-// otherwise, it returns an empty string and false.
+// errorFieldFromDetails 从错误详情中提取非空字段名；只有详情包含有效字段值时才返回该字段和 true。
 func errorFieldFromDetails(data map[string]any) (string, bool) {
 	if data == nil {
 		return "", false

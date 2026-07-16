@@ -1,4 +1,4 @@
-// Package realtime provides the bounded HTTP and websocket surfaces for unified topic subscriptions.
+// Package realtime 提供统一主题订阅所需的受限 HTTP 和 WebSocket 接入面。
 package realtime
 
 import (
@@ -13,7 +13,7 @@ import (
 	"graft/server/internal/i18n"
 )
 
-// HTTPRegistration defines dependencies for issuing realtime subscription tickets over HTTP.
+// HTTPRegistration 定义通过 HTTP 签发实时订阅票据所需的依赖。
 type HTTPRegistration struct {
 	I18n     *i18n.Service
 	Registry TopicIssuerRegistry
@@ -23,9 +23,8 @@ type HTTPRegistration struct {
 // 当 router 或 registration.Registry 为空时返回错误。
 // 成功时挂载 `POST /realtime/subscriptions`，并在请求处理过程中按主题解析、路由到对应的订阅签发器，最后返回签发结果。
 //
-// @param router 用于注册路由的 HTTP 路由器。
-// @param registration 订阅路由所需的依赖。
-// @returns 注册失败时返回错误；成功时返回 nil。
+// 参数：router 是用于注册路由的 HTTP 路由器，registration 提供订阅路由所需依赖。
+// 返回值：注册失败时返回错误；成功时返回 nil。
 func RegisterSubscriptionRoutes(router gin.IRouter, registration HTTPRegistration) error {
 	if router == nil {
 		return errors.New("realtime router is unavailable")

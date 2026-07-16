@@ -9,14 +9,12 @@ export const SCANNED_EXTENSIONS = new Set(['.vue', '.ts', '.tsx']);
 export const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'coverage', 'mock', '__mocks__', 'ai-libs']);
 export const SERVER_KEY_DIRS = [join(REPOSITORY_DIR, 'server/internal'), join(REPOSITORY_DIR, 'server/modules')];
 
-// Key-first governance tiers:
-// - Runtime UI copy must use locale keys as the primary display source.
-// - Registration/contract boundaries may keep key + fallback pairs, such as TitleKey + Title, where fallback is only
-//   cross-client/config/registry resilience and not the localization source of truth.
-// - Fallback-only declarations, such as Title without TitleKey, are risks: default mode reports warnings and
-//   STRICT_I18N_KEY_FIRST=true promotes them to blockers.
-// - Fallback/default-locale mismatch is a future warning track, not a blocker in this default gate.
-// Allowlist: tests, mocks, generated artifacts, examples, logs/debug text, protocols, technical names, internal codes.
+// Key-first 治理分层：
+// - 运行时界面文案必须以 locale key 作为主要展示来源。
+// - 注册/契约边界可以保留 key + fallback，例如 TitleKey + Title；fallback 仅用于跨客户端、配置或注册表的韧性，不能成为本地化真值。
+// - 只有 fallback 的声明（例如只有 Title 没有 TitleKey）属于风险：默认模式报告 warning，STRICT_I18N_KEY_FIRST=true 时升级为 blocker。
+// - fallback 与默认语言不一致属于后续 warning 轨道，在默认门禁中不是 blocker。
+// Allowlist：测试、mock、生成产物、示例、日志/调试文本、协议、技术名称和内部代码。
 export const UI_COPY_FIELDS = new Set([
   'label',
   'title',

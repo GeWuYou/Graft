@@ -17,27 +17,27 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// Up submits docker compose up -d for asynchronous execution within the project's registered working directory.
+// Up 异步提交 docker compose up -d，并限定在项目已登记的工作目录执行。
 func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp)
 }
 
-// Stop submits docker compose stop for asynchronous execution for the registered project.
+// Stop 异步提交 docker compose stop，并限定在项目已登记的工作目录执行。
 func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop)
 }
 
-// Restart submits docker compose restart for asynchronous execution for the registered project.
+// Restart 异步提交 docker compose restart，并限定在项目已登记的工作目录执行。
 func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRestart)
 }
 
-// Redeploy submits the configured compose redeploy stages for asynchronous execution.
+// Redeploy 按已保存的阶段配置异步提交 Compose 重部署任务；阶段顺序由任务计划固定。
 func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRedeploy)
 }
 
-// BatchAction executes one action for multiple projects and returns per-item results.
+// BatchAction 为多个项目提交同一种生命周期动作，并返回逐项目结果；单项失败不会隐藏其它项目结果。
 func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (BatchActionResult, error) {
 	actor, blocked, err := s.requireBatchActor(ctx, request)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (
 	return result, nil
 }
 
-// Unregister removes the project registry record without touching host files.
+// Unregister 移除项目注册记录但不触碰宿主机文件。
 func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uin
 	return result, actionErr
 }
 
-// Destroy executes guarded teardown steps and then unregisters the project record.
+// Destroy 先执行受保护的拆除步骤，再注销项目记录；保护条件失败时不会改变宿主机或注册表状态。
 func (s *Service) Destroy(ctx context.Context, projectID uint64, request DestroyRequest) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -176,7 +176,7 @@ func (s *Service) destroyAfterGuard(
 	}, nil
 }
 
-// UnsupportedLifecycleAction returns an explicit batch-2 blocked action result.
+// UnsupportedLifecycleAction 返回明确标记为当前阶段阻断的生命周期动作结果。
 func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
 	return ActionResult{
 		ProjectID:    projectID,
@@ -231,7 +231,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	return result, nil
 }
 
-// lifecycleTaskPlan creates a task plan for the requested project lifecycle action.
+// lifecycleTaskPlan 为指定生命周期动作创建异步任务计划，实际 Compose 执行由任务运行时负责。
 func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated.ProjectActionResponseAction) (moduleapi.TaskPlan, error) {
 	if action == generated.ProjectActionResponseActionProjectActionRedeploy {
 		return redeployTaskPlan(aggregate)
@@ -243,7 +243,7 @@ func lifecycleTaskPlan(aggregate projectstore.ProjectAggregate, action generated
 	return taskPlanWithStage(aggregate, strings.ToLower(string(action)), args)
 }
 
-// redeployTaskPlan builds the staged task plan for redeploying a project, including configured optional stages.
+// redeployTaskPlan 按固定顺序构建重部署阶段，并根据配置追加停止、拉取和镜像清理等可选阶段。
 func redeployTaskPlan(aggregate projectstore.ProjectAggregate) (moduleapi.TaskPlan, error) {
 	config := lifecycleConfigurationFromAggregate(aggregate)
 	stages := make([]moduleapi.StagePlan, 0, projectLifecycleStageCapacity)
@@ -288,7 +288,7 @@ func appendOptionalRedeployStages(stages *[]moduleapi.StagePlan, aggregate proje
 	return nil
 }
 
-// taskPlanWithStage creates a task plan containing one compose execution stage for the specified arguments.
+// taskPlanWithStage 创建只包含一个 Compose 执行阶段的任务计划，并保留手动恢复策略。
 func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args []string) (moduleapi.TaskPlan, error) {
 	stages := make([]moduleapi.StagePlan, 0, 1)
 	if err := appendTaskPlanStage(&stages, aggregate, key, args); err != nil {
@@ -297,7 +297,7 @@ func taskPlanWithStage(aggregate projectstore.ProjectAggregate, key string, args
 	return moduleapi.TaskPlan{Stages: stages}, nil
 }
 
-// appendTaskPlanStage appends a validated Compose execution stage to the task plan. It returns an error if the command arguments are invalid or the stage input cannot be serialized.
+// appendTaskPlanStage 将已校验的 Compose 执行阶段追加到计划；参数无效或阶段输入无法序列化时返回错误。
 func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.ProjectAggregate, key string, args []string) error {
 	if err := ensureLifecycleCommandArgs(args); err != nil {
 		return err
@@ -348,10 +348,8 @@ func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.
 	return s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, args)
 }
 
-// ensureLifecycleRuntimeTargetAvailable verifies the selected Runtime Target is
-// reachable before a registered project submits or executes lifecycle work.
-// Compose-name occupancy is intentionally a creation-only guard: the registered
-// project normally owns runtime resources carrying its own Compose name.
+// ensureLifecycleRuntimeTargetAvailable 校验选定运行目标在项目提交或执行生命周期任务前是否可达。
+// Compose 名称占用检查只属于创建阶段；已登记项目通常拥有使用自身 Compose 名称的运行时资源。
 func (s *Service) ensureLifecycleRuntimeTargetAvailable(ctx context.Context, aggregate projectstore.ProjectAggregate) error {
 	if s == nil || s.runtimeTargets == nil {
 		return nil

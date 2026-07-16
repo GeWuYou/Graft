@@ -14,7 +14,7 @@ type bootstrapService struct {
 	rbac rbacstore.Repository
 }
 
-// NewBootstrapService exposes the stable RBAC bootstrap capability over a module-local repository.
+// NewBootstrapService 基于模块自有仓储构建稳定的 RBAC bootstrap 能力；调用方只能读取授权快照，不能绕过仓储修改绑定。
 func NewBootstrapService(rbac rbacstore.Repository) moduleapi.RBACBootstrapService {
 	if rbac == nil {
 		return nil

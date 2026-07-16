@@ -10,7 +10,7 @@ import (
 	"graft/server/internal/realtimeauth"
 )
 
-// Module owns project registry, lifecycle, and managed-create contract surfaces.
+// Module 拥有项目注册表、生命周期和受管创建契约的运行时装配面。
 type Module struct {
 	service *Service
 }
@@ -20,7 +20,8 @@ func NewModule(service *Service) *Module {
 	return &Module{service: service}
 }
 
-// Register wires project module messages, permissions, menu, config definitions, and routes.
+// Register 按消息、权限、菜单、配置、路由和实时主题的声明顺序装配项目模块。
+// 该阶段只注册契约，不启动后台流或其它长生命周期资源。
 //
 //nolint:cyclop
 func (m *Module) Register(ctx *module.Context) error {
@@ -138,7 +139,7 @@ func resolveProjectRealtime(ctx *module.Context) (projectRealtimeDependencies, e
 	return projectRealtimeDependencies{tickets: tickets, hub: hub, issuers: issuers}, nil
 }
 
-// Boot currently has no runtime-owned background work.
+// Boot 启动项目模块的运行时工作；当前后台实时流按订阅懒启动，因此这里无需创建 goroutine。
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil || ctx == nil {
 		return nil
@@ -146,7 +147,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return m.service.BackfillRuntimeTargets(ctx.LifecycleContext)
 }
 
-// Shutdown currently has no runtime-owned resources to close.
+// Shutdown 释放项目模块运行时资源；实时流由 Service.Close 在统一关闭路径中等待退出。
 func (m *Module) Shutdown(ctx *module.Context) error {
 	if m == nil || m.service == nil || ctx == nil || ctx.LifecycleContext == nil {
 		return nil

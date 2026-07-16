@@ -17,9 +17,9 @@ import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 NProgress.configure({ showSpinner: false });
 
 /**
- * Checks if the target route is in the same state as the source route.
+ * 判断目标路由是否与来源路由处于同一导航状态。
  *
- * @returns `true` if both routes represent the same state, `false` otherwise.
+ * 同状态导航不重复触发进度条，避免动态路由恢复或重复跳转时产生虚假的加载反馈。
  */
 function isSameRouteStateNavigation(to: { name?: unknown; path: string }, from?: { name?: unknown; path?: string }) {
   if (!from?.path || to.path !== from.path) {
@@ -34,9 +34,9 @@ function isSameRouteStateNavigation(to: { name?: unknown; path: string }, from?:
 }
 
 /**
- * Extracts all route names from the given routes and their children.
+ * 收集动态路由及其一级子路由的名称。
  *
- * @returns An array of route name strings.
+ * 这些名称用于在会话切换或 bootstrap 失败时按逆序卸载已挂载的动态路由。
  */
 function collectBootstrapRouteNames(routes: RouteRecordRaw[]): string[] {
   const routeNames: string[] = [];
@@ -66,9 +66,11 @@ function removeMountedBootstrapRoutes(targetRouter: Router, routes: RouteRecordR
 }
 
 /**
- * Registers route guards to handle authentication, bootstrap recovery, and dynamic route initialization.
+ * 注册负责鉴权、会话恢复和动态路由初始化的路由守卫。
  *
- * @param targetRouter - The Vue Router instance to register guards on. Defaults to the application's root router.
+ * 守卫必须先取得当前会话的 bootstrap 快照，再决定是否挂载菜单路由；恢复失败时会清理动态路由并回到登录页。
+ *
+ * @param targetRouter - 要注册守卫的 Vue Router 实例，默认使用应用根路由。
  */
 export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
@@ -126,7 +128,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
           }
 
           if (to.name === PAGE_NOT_FOUND_ROUTE.name) {
-            // 动态添加路由后，此处应当重定向到fullPath，否则会加载404页面内容
+            // 动态路由挂载后必须重新匹配原始地址，否则首次导航仍会停留在占位 404 路由。
             next({ path: to.path, replace: true, query: to.query, hash: to.hash });
             return;
           } else {

@@ -32,8 +32,7 @@ func newRouteGuards(
 	}
 }
 
-// newRequiredPasswordChangeGuard creates middleware that allows requests only for
-// sessions restricted to the password-change flow.
+// newRequiredPasswordChangeGuard 创建仅允许密码修改流程会话访问的中间件。
 func newRequiredPasswordChangeGuard(localizer *i18n.Service, authFlow moduleapi.AuthFlowService) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		restricted, ok := loadRestrictedPasswordChangeState(ginCtx, localizer, authFlow)

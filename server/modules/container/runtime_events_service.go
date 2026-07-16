@@ -8,7 +8,7 @@ import (
 
 var errRuntimeEventHistoryUnavailable = errors.New("container runtime event history unavailable")
 
-// RuntimeEventHistory returns bounded per-container runtime event history with seq for reconnect-safe merge/dedupe.
+// RuntimeEventHistory 返回有界的容器运行时事件历史，并提供 seq 供重连后的合并与去重使用。
 func (s *service) RuntimeEventHistory(ctx context.Context, ref Ref) (RuntimeEventsHistory, error) {
 	if s == nil {
 		return RuntimeEventsHistory{}, errRuntimeEventHistoryUnavailable

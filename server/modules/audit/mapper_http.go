@@ -12,6 +12,7 @@ import (
 )
 
 func toAuditLogListResponse(result auditListResult) (map[string]any, error) {
+	// 列表响应保留审计查询的分页元数据，并通过统一 item mapper 传播嵌套字段转换错误。
 	items := make([]generated.AuditLogListItem, 0, len(result.Items))
 	for _, item := range result.Items {
 		converted, err := toAuditLogListItem(item)
@@ -123,7 +124,7 @@ func toConvertibleFiltersMap(filters *drilldown.ConvertibleFilters) map[string]a
 	return converted
 }
 
-// addStringSliceField adds a copy of a non-empty string slice to target under key.
+// addStringSliceField 将非空字符串切片的副本写入目标映射，避免响应映射与内部切片共享。
 func addStringSliceField(target map[string]any, key string, values []string) {
 	if len(values) == 0 {
 		return
@@ -133,6 +134,7 @@ func addStringSliceField(target map[string]any, key string, values []string) {
 
 // 返回转换后的事件响应；任一嵌套数据转换失败时返回错误。
 func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error) {
+	// incident 响应聚合事件、actor、resource 和 request 四类证据，任一转换失败都阻断响应。
 	seedEvent, err := toAuditLogListItem(result.SeedEvent)
 	if err != nil {
 		return nil, err
@@ -415,6 +417,7 @@ func optionalAuditObservedAt(value *time.Time) any {
 }
 
 func toAuditEvidenceLinks(links []auditstore.EvidenceLink) ([]map[string]any, error) {
+	// 证据链接是审计调查的跨模块入口，映射时保留 link kind 与时间窗口等可追溯字段。
 	converted := make([]map[string]any, 0, len(links))
 	for _, link := range links {
 		entry, err := toAuditEvidenceLink(link)
@@ -581,8 +584,8 @@ func appendAuditLogActorUserID(converted *generated.AuditLogListItem, actorUserI
 	return nil
 }
 
-// appendAuditLogMetadata decodes raw audit metadata and assigns it to the converted audit log item.
-// It returns an error when the metadata is not valid JSON.
+// appendAuditLogMetadata 解码原始审计元数据，并写入已转换的审计日志项。
+// 当元数据不是有效 JSON 时返回错误。
 func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata json.RawMessage) error {
 	if len(rawMetadata) == 0 {
 		return nil
@@ -596,8 +599,8 @@ func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata j
 	return nil
 }
 
-// mustConvertAuditGeneratedID converts an unsigned identifier to int64 when it fits.
-// It returns an error if the identifier exceeds the maximum int64 value.
+// mustConvertAuditGeneratedID 在无符号标识符可表示为 int64 时完成转换。
+// 当标识符超出 int64 可表示范围时返回错误。
 func mustConvertAuditGeneratedID(id uint64, label string) (int64, error) {
 	if id > math.MaxInt64 {
 		return 0, fmt.Errorf("%s exceeds int64: %d", label, id)

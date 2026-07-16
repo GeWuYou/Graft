@@ -1,42 +1,42 @@
 package contract
 
-// JoinRoute combines a route group path with a route fragment.
+// JoinRoute 将路由组路径与模块路由片段拼接为完整路径。
 func JoinRoute(group, fragment string) string {
 	return group + fragment
 }
 
-//nolint:gosec // Canonical route fragments are API contracts, not credentials.
+//nolint:gosec // canonical 路由片段属于 API 契约，不是凭据。
 const (
-	// AuthGroup identifies the auth module route group.
+	// AuthGroup 是 auth 模块的路由组路径。
 	AuthGroup = "/auth"
 
-	// AuthLogin identifies the login endpoint route fragment.
+	// AuthLogin 是登录接口的路由片段。
 	AuthLogin = "/login"
 
-	// AuthRefresh identifies the refresh endpoint route fragment.
+	// AuthRefresh 是刷新会话接口的路由片段。
 	AuthRefresh = "/refresh"
 
-	// AuthLogout identifies the logout endpoint route fragment.
+	// AuthLogout 是退出登录接口的路由片段。
 	AuthLogout = "/logout"
 
-	// AuthSessionsRevokeAll identifies the current-user revoke-all endpoint route fragment.
+	// AuthSessionsRevokeAll 是当前用户吊销全部会话接口的路由片段。
 	AuthSessionsRevokeAll = "/sessions/revoke-all"
 
-	// AuthSessionsRevokeOthers identifies the current-user revoke-others endpoint route fragment.
+	// AuthSessionsRevokeOthers 是当前用户吊销其它会话接口的路由片段。
 	AuthSessionsRevokeOthers = "/sessions/revoke-others"
 
-	// AuthSessions identifies the current-user session list endpoint route fragment.
+	// AuthSessions 是当前用户会话列表接口的路由片段。
 	AuthSessions = "/sessions"
 
-	// AuthSessionRevoke identifies the current-user per-session revoke endpoint route fragment.
+	// AuthSessionRevoke 是当前用户吊销单个会话接口的路由片段。
 	AuthSessionRevoke = "/sessions/:sessionID/revoke"
 
-	// AuthBootstrap identifies the bootstrap endpoint route fragment.
+	// AuthBootstrap 是认证引导接口的路由片段。
 	AuthBootstrap = "/bootstrap"
 
-	// AuthChangePassword identifies the current-user password change endpoint route fragment.
+	// AuthChangePassword 是当前用户自助改密接口的路由片段。
 	AuthChangePassword = "/change-password"
 
-	// AuthCompleteRequiredPasswordChange identifies the restricted-session password completion route fragment.
+	// AuthCompleteRequiredPasswordChange 是受限会话完成强制改密接口的路由片段。
 	AuthCompleteRequiredPasswordChange = "/complete-required-password-change"
 )

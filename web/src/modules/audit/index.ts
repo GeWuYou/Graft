@@ -8,8 +8,7 @@ export const auditModuleRegistration: WebModuleRegistration = {
   bootstrapRoutes: auditBootstrapRouteRegistrations,
 };
 
-// Expose the module-owned permission contract through the module boundary so it stays
-// discoverable to static governance checks alongside the route registration surface.
+// 通过模块注册面暴露权限契约，使权限与路由注册保持同一模块归属并可被静态治理发现。
 export const auditModulePermissionCodes = AUDIT_PERMISSION_CODE;
 
 export default auditModuleRegistration;

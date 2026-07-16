@@ -25,7 +25,7 @@ func defaultLifecycleStandardConfig() LifecycleStandardConfig {
 	}
 }
 
-// lifecycleSeedForManagedProject returns the default lifecycle configuration in store format.
+// lifecycleSeedForManagedProject 返回受管项目在存储层使用的默认生命周期配置。
 func lifecycleSeedForManagedProject() projectstore.LifecycleConfig {
 	return toStoreLifecycleConfig(defaultLifecycleStandardConfig())
 }
@@ -78,7 +78,7 @@ func toStoreLifecycleConfig(config LifecycleStandardConfig) projectstore.Lifecyc
 	}
 }
 
-// normalizeLifecycleStandardConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
+// normalizeLifecycleStandardConfig 裁剪并去重配置档案，应用默认等待超时并校验最终配置。
 // normalizeLifecycleStandardConfig 规范化并校验标准生命周期配置，包括配置档案、附加参数和等待超时时间。
 // 返回规范化后的配置；当配置包含无效配置档案、附加参数或超出允许范围的等待超时时间时，返回错误。
 func normalizeLifecycleStandardConfig(config LifecycleStandardConfig) (LifecycleStandardConfig, error) {
@@ -165,7 +165,7 @@ func isLifecycleAuthorityOverrideArg(argument string) bool {
 	return argument == "--"
 }
 
-// UpdateLifecycleConfiguration saves one project's standard compose lifecycle configuration and confirms it.
+// UpdateLifecycleConfiguration 保存并确认一个项目的标准 Compose 生命周期配置。
 func (s *Service) UpdateLifecycleConfiguration(
 	ctx context.Context,
 	projectID uint64,

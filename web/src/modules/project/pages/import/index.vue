@@ -386,6 +386,8 @@ import type {
   ProjectImportRuntimeCandidatesQuery,
 } from '../../types/import';
 
+// 导入页编排分步 inspection 流程：服务端候选与检查结果是外部事实，步骤、筛选和列偏好属于页面交互状态。
+
 defineOptions({
   name: 'ProjectImportIndex',
 });
@@ -1255,7 +1257,7 @@ function persistVisibleColumnKeys(storageKey: string, keys: string[]) {
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(keys));
   } catch {
-    // Column settings are a convenience preference; candidate rendering must not depend on storage availability.
+    // 列设置只是可丢失的 UI 偏好；存储不可用时仍必须正常展示导入候选。
   }
 }
 

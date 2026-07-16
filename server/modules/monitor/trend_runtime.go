@@ -212,7 +212,7 @@ func collectCPUPercent(ctx context.Context, previousCPUTimes **cpu.TimesStat, in
 	return roundCPUPercent(percent)
 }
 
-// storeTrendPoint stores a server status trend point to the time-series store with retention policy applied to trim old entries and set expiration.
+// storeTrendPoint 将服务器状态趋势点写入时间序列存储，并应用清理旧数据和设置过期时间的保留策略。
 func storeTrendPoint(
 	ctx context.Context,
 	trendStore statex.TimeSeriesStore,
@@ -234,7 +234,7 @@ func storeTrendPoint(
 	})
 }
 
-// loadTrendPoints retrieves trend points from storage within a specified time range.
+// loadTrendPoints 从存储中读取指定时间范围内的趋势点。
 func loadTrendPoints(
 	ctx context.Context,
 	trendStore statex.TimeSeriesStore,
@@ -281,7 +281,7 @@ func trendStorageKey(appName string, hostName string) string {
 	)
 }
 
-// resolveHostName returns the system hostname trimmed of whitespace, or an empty string on error.
+// resolveHostName 返回去除首尾空白的系统主机名；获取失败时返回空字符串。
 func resolveHostName() string {
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -440,7 +440,7 @@ func runtimeLastGCDetails(stats runtime.MemStats) (*time.Time, *int64, error) {
 	return &lastGCAt, &lastGCPauseNs, nil
 }
 
-// collectHostMemory retrieves the host's virtual memory statistics, returning empty statistics when the context is nil or the retrieval fails.
+// collectHostMemory 获取主机虚拟内存统计；上下文为空或获取失败时返回空统计值。
 func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {
 	if ctx == nil {
 		return &mem.VirtualMemoryStat{}

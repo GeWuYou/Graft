@@ -308,6 +308,7 @@ import {
 import type { ProjectImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
+// 该组件以检查结果为服务端事实源，维护资源切换、筛选、列偏好和容器请求状态等局部交互状态。
 defineOptions({
   name: 'ProjectImportInspectResources',
 });
@@ -938,7 +939,7 @@ function persistVisibleColumnKeys(storageKey: string, keys: string[]) {
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(keys));
   } catch {
-    // Column settings are optional UI preferences.
+    // 列设置只是可丢失的 UI 偏好；存储失败不能阻断资源检查结果展示。
   }
 }
 

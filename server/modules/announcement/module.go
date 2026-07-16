@@ -10,17 +10,17 @@ import (
 	announcementcontract "graft/server/modules/announcement/contract"
 )
 
-// Module owns announcement management and current-user read APIs.
+// Module 拥有公告管理接口和当前用户公告读取接口的生命周期。
 type Module struct {
 	service *Service
 }
 
-// NewModule creates the announcement module.
+// NewModule 创建公告模块实例；公告模块不自行启动后台运行资源。
 func NewModule(service *Service) *Module {
 	return &Module{service: service}
 }
 
-// Register declares announcement metadata and routes.
+// Register 声明公告模块的消息、权限、菜单和路由；此阶段不启动后台行为。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("announcement module service is unavailable")
@@ -60,12 +60,12 @@ func (m *Module) registerRoutes(ctx *module.Context) error {
 	})
 }
 
-// Boot currently has no runtime work.
+// Boot 当前没有需要启动的模块运行时资源。
 func (m *Module) Boot(_ *module.Context) error {
 	return nil
 }
 
-// Shutdown currently has no runtime resources to release.
+// Shutdown 当前没有需要释放的模块运行时资源。
 func (m *Module) Shutdown(_ *module.Context) error {
 	return nil
 }

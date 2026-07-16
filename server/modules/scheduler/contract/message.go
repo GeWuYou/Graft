@@ -1,28 +1,28 @@
 package contract
 
-// MessageKey identifies a stable scheduled task module message key.
+// MessageKey 标识 scheduler 模块稳定的消息键。
 type MessageKey string
 
-// String returns the canonical message key value.
+// String 返回 canonical 消息键值。
 func (k MessageKey) String() string {
 	return string(k)
 }
 
 const (
-	// ScheduledTaskMenuTitle identifies the localized title for the scheduled task menu.
+	// ScheduledTaskMenuTitle 标识定时任务菜单的本地化标题。
 	ScheduledTaskMenuTitle MessageKey = "menu.scheduled_task.title"
-	// ScheduledTaskNotFound identifies missing scheduled task failures.
+	// ScheduledTaskNotFound 标识定时任务不存在的错误消息。
 	ScheduledTaskNotFound MessageKey = "scheduled_task.not_found"
-	// ScheduledTaskAlreadyRunning identifies duplicate manual run failures.
+	// ScheduledTaskAlreadyRunning 标识重复手动运行的错误消息。
 	ScheduledTaskAlreadyRunning MessageKey = "scheduled_task.already_running"
-	// ScheduledTaskInvalidRequest identifies invalid scheduler management input.
+	// ScheduledTaskInvalidRequest 标识调度管理输入无效的错误消息。
 	ScheduledTaskInvalidRequest MessageKey = "scheduled_task.invalid_request"
-	// ScheduledTaskRunFailedNotificationTitle identifies scheduler failure notification titles.
+	// ScheduledTaskRunFailedNotificationTitle 标识调度失败通知的标题消息。
 	ScheduledTaskRunFailedNotificationTitle MessageKey = "scheduledTask.notification.runFailed.title"
-	// ScheduledTaskRunFailedNotificationMessage identifies scheduler failure notification messages.
+	// ScheduledTaskRunFailedNotificationMessage 标识调度失败通知的正文消息。
 	ScheduledTaskRunFailedNotificationMessage MessageKey = "scheduledTask.notification.runFailed.message"
-	// ScheduledTaskRunSucceededNotificationTitle identifies scheduler manual success notification titles.
+	// ScheduledTaskRunSucceededNotificationTitle 标识手动运行成功通知的标题消息。
 	ScheduledTaskRunSucceededNotificationTitle MessageKey = "scheduledTask.notification.runSucceeded.title"
-	// ScheduledTaskRunSucceededNotificationMessage identifies scheduler manual success notification messages.
+	// ScheduledTaskRunSucceededNotificationMessage 标识手动运行成功通知的正文消息。
 	ScheduledTaskRunSucceededNotificationMessage MessageKey = "scheduledTask.notification.runSucceeded.message"
 )

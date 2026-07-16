@@ -1,4 +1,4 @@
-// Package storeent provides auth-owned Ent persistence implementations.
+// Package storeent 提供 auth 所拥有的 Ent 持久化实现。
 package storeent
 
 import (
@@ -13,16 +13,13 @@ import (
 	"graft/server/modules/auth/store"
 )
 
-// authRepository composes the independently owned credential and session stores
-// for callers that still use the historical aggregate repository contract.
+// authRepository 组合凭据和会话存储，为仍依赖聚合仓储契约的调用方提供兼容入口。
 type authRepository struct {
 	*credentialStore
 	*sessionStore
 }
 
-// NewAuthRepository builds the aggregate compatibility repository from auth-owned storage.
-// NewAuthRepository creates an authentication repository from the provided Ent client and user identity provider.
-// It returns an error if either credential or session storage initialization fails.
+// NewAuthRepository 根据指定 Ent 客户端和用户身份提供方创建 auth 聚合仓储；凭据或会话存储初始化失败时返回错误。
 func NewAuthRepository(client *authent.Client, identity moduleapi.UserIdentityProvider) (store.AuthRepository, error) {
 	credentials, err := newCredentialStore(client, identity)
 	if err != nil {
@@ -35,9 +32,7 @@ func NewAuthRepository(client *authent.Client, identity moduleapi.UserIdentityPr
 	return &authRepository{credentialStore: credentials, sessionStore: sessions}, nil
 }
 
-// NewCredentialStore builds the auth-owned credential store. Identity remains
-// NewCredentialStore 创建基于 Ent 客户端和用户身份提供者的凭据存储。
-// 如果客户端或用户身份提供者为空，则返回错误。
+// NewCredentialStore 创建 auth 所拥有的凭据存储；用户身份仍由 user 模块提供，客户端或身份提供方为空时返回错误。
 func NewCredentialStore(client *authent.Client, identity moduleapi.UserIdentityProvider) (store.CredentialStore, error) {
 	return newCredentialStore(client, identity)
 }
@@ -79,8 +74,7 @@ func (r *credentialStore) SetPasswordHash(ctx context.Context, input store.SetPa
 	return r.upsertPasswordHash(ctx, input.UserID, input.PasswordHash, input.MustChangePassword, input.ChangedAt)
 }
 
-// EnsureUserCredential only writes credentials for an already-provisioned profile.
-// Profile provisioning stays with UserIdentityProvider and is completed before this store is used.
+// EnsureUserCredential 只为已经创建的用户资料写入凭据；资料创建由 UserIdentityProvider 负责并应先于该存储调用完成。
 func (r *credentialStore) EnsureUserCredential(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
 	user, err := r.identity.LookupUserByUsername(ctx, input.Username)
 	if err != nil {
@@ -123,7 +117,7 @@ func (r *credentialStore) queryByUserID(ctx context.Context, userID uint64) (sto
 }
 
 func (r *credentialStore) upsertPasswordHash(ctx context.Context, userID uint64, hash string, mustChange bool, changedAt *time.Time) error {
-	// Implemented in auth_repository_helpers.go to keep transaction operations together.
+	// 事务写入集中在 auth_repository_helpers.go，避免凭据更新路径分散事务边界。
 	return r.savePasswordHash(ctx, userID, hash, mustChange, changedAt)
 }
 

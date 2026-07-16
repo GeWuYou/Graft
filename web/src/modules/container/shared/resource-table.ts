@@ -70,12 +70,6 @@ export const CONTAINER_RESOURCE_ALL_COLUMN_KEYS = [
   'operation',
 ];
 
-/**
- * 构建容器资源表格的列配置。
- *
- * @param t - 用于生成列标题的翻译函数
- * @returns 容器资源表格的列定义
- */
 export function buildContainerResourceColumns(t: Translate): NonNullable<TdPrimaryTableProps['columns']> {
   return [
     { colKey: 'row-select', fixed: 'left', type: 'multiple' as const, width: 48, align: 'center' },
@@ -130,12 +124,6 @@ export function buildContainerResourceColumns(t: Translate): NonNullable<TdPrima
   ];
 }
 
-/**
- * 构建容器资源表的列设置选项。
- *
- * @param t - 用于生成列显示名称的翻译函数
- * @returns 可供选择的列设置选项列表
- */
 export function buildContainerResourceColumnSettingOptions(t: Translate) {
   return [
     { label: t('container.list.columns.selection'), value: 'row-select' },

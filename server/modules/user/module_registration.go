@@ -27,7 +27,7 @@ func registerUserPermissions(registry *permission.Registry, moduleName string) {
 	}
 }
 
-// registerUserMenu registers the user list menu entry under the security domain.
+// registerUserMenu 在安全域下注册用户列表菜单；菜单可见性由权限注册结果决定，接口仍执行独立鉴权。
 func registerUserMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:            "user.list",
@@ -179,7 +179,7 @@ type deferredCredentialManagementService struct {
 	target moduleapi.AuthCredentialManagementService
 }
 
-// newDeferredCredentialManagementService creates a credential management service without a configured target.
+// newDeferredCredentialManagementService 创建未绑定目标的凭据管理服务；绑定前调用会返回服务不可用错误。
 func newDeferredCredentialManagementService() *deferredCredentialManagementService {
 	return &deferredCredentialManagementService{}
 }

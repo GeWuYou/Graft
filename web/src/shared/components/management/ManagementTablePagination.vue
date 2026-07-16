@@ -11,6 +11,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// 管理表格分页只承载摘要与分页控件的布局；数据统计和分页状态仍由业务页面拥有，避免共享壳层反向持有查询状态。
 defineProps<{
   summary: string;
 }>();
@@ -52,7 +53,7 @@ defineProps<{
   width: 100%;
 }
 
-// Verified against tdesign-vue-next 1.20.1 Pagination DOM.
+// 这些选择器依赖 tdesign-vue-next 1.20.1 的 Pagination DOM，用于保持分页各段在窄屏下的布局约束。
 .management-table-pagination__controls :deep(.t-pagination__total),
 .management-table-pagination__controls :deep(.t-pagination__select),
 .management-table-pagination__controls :deep(.t-pagination__pager),

@@ -4,20 +4,12 @@ export type ParsedThemeTokenColor = NonNullable<ReturnType<typeof parseResolvedC
 
 const FALLBACK_HEX = '#0052d9';
 
-/**
- * Determines whether a token key represents a theme color property.
- *
- * @returns `true` if the token key indicates a color theme property, `false` otherwise.
- */
+/** 判断主题 token 是否属于颜色相关属性；阴影 token 虽可能包含颜色，但不进入颜色编辑流程。 */
 export function isThemeTokenColorKey(tokenKey: string) {
   return /color|background|border/i.test(tokenKey) && !/shadow/i.test(tokenKey);
 }
 
-/**
- * Parses a color string into structured color data.
- *
- * @returns `ParsedThemeTokenColor` containing the color's RGB channels, opacity, and CSS representation, or `null` if parsing fails.
- */
+/** 将主题 token 的颜色值解析为编辑器所需的通道、透明度和 CSS 表示；无法解析时返回 null。 */
 export function parseThemeTokenColor(value: string) {
   const trimmed = value.trim();
 
@@ -28,12 +20,7 @@ export function parseThemeTokenColor(value: string) {
   return parseResolvedCssColor(trimmed);
 }
 
-/**
- * Builds a CSS color value from a hex color and opacity percentage.
- *
- * @param opacityValue - The opacity as a percentage value; will be clamped to [0, 100] and rounded to the nearest integer.
- * @returns A hex color string if opacity is 100%, or an rgba color string otherwise, or null if the hex input is invalid.
- */
+/** 根据颜色和百分比透明度生成 token 值；透明度会收敛到 0-100，并在完全不透明时保持 hex 格式。 */
 export function buildThemeTokenColorValue(hexValue: string, opacityValue: number) {
   const parsed = parseResolvedCssColor(hexValue);
 
@@ -50,15 +37,7 @@ export function buildThemeTokenColorValue(hexValue: string, opacityValue: number
   return `rgba(${parsed.red}, ${parsed.green}, ${parsed.blue}, ${opacity / 100})`;
 }
 
-/**
- * Formats a token value for UI display, with special handling for color tokens.
- *
- * For color tokens, displays the hex color with opacity percentage (e.g., `#0052d9 / 50%`), or just the hex if fully opaque. For other tokens, returns the value unchanged. Empty values return '--'.
- *
- * @param tokenKey - The token key used to determine if the token is a color
- * @param value - The token value to format
- * @returns The formatted display string
- */
+/** 格式化工作台中的 token 摘要；颜色值以 hex 和透明度展示，其他 token 保留原值。 */
 export function formatThemeTokenSummaryValue(tokenKey: string, value: string) {
   const trimmed = value.trim();
 
@@ -80,11 +59,7 @@ export function formatThemeTokenSummaryValue(tokenKey: string, value: string) {
   return opacity >= 100 ? parsed.hex : `${parsed.hex} / ${opacity}%`;
 }
 
-/**
- * Produces a hex color for a theme token preview.
- *
- * @returns The hex color string in `#RRGGBB` format, or a fallback color if parsing fails.
- */
+/** 为主题 token 预览提供稳定的 `#RRGGBB` 值，解析失败时使用工作台默认色避免预览失效。 */
 export function resolveThemeTokenPreviewHex(value: string) {
   return parseThemeTokenColor(value)?.hex ?? FALLBACK_HEX;
 }

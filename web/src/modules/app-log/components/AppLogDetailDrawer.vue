@@ -63,6 +63,7 @@
   </t-drawer>
 </template>
 <script setup lang="ts">
+// 详情抽屉把结构化字段作为排障证据展示，并保持日志记录本身只读。
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';

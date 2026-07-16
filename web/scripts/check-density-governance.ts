@@ -80,7 +80,7 @@ type Finding = {
 };
 
 const ALLOWLIST: AllowlistEntry[] = [
-  // Keep fixed spacing exceptions selector-specific and explain why they do not participate in page information density.
+  // 固定间距豁免必须绑定具体选择器，并说明为什么不参与页面信息密度治理。
 ];
 
 function walk(dir: string): string[] {

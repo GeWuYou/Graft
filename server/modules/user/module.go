@@ -219,7 +219,7 @@ func (s userService) CountUsers(ctx context.Context) (int, error) {
 	return s.users.Count(ctx)
 }
 
-// ListSecuritySummaries returns one bounded, ID-ordered account-state page for authorized aggregate readers.
+// ListSecuritySummaries 返回供授权聚合读取方使用的有界用户状态页，并按用户 ID 递增读取。
 func (s userService) ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]moduleapi.UserSecuritySummary, error) {
 	if s.users == nil {
 		return nil, errors.New("user repository is unavailable")
@@ -236,8 +236,7 @@ func (s userService) ListSecuritySummaries(ctx context.Context, afterID uint64, 
 	return summaries, nil
 }
 
-// GetUser keeps route handlers on the public service boundary while preserving
-// the full managed-user record needed for HTTP response mapping.
+// GetUser 让路由处理器停留在公开服务边界，同时保留 HTTP 响应映射所需的完整受管用户记录。
 func (s userService) GetUser(ctx context.Context, id uint64) (userstore.User, error) {
 	if s.users == nil {
 		return userstore.User{}, errors.New("user repository is unavailable")
@@ -319,8 +318,7 @@ func (s userService) CreateUser(
 	return created, nil
 }
 
-// rollbackCreatedUser compensates for a credential-provisioning failure and
-// retains both failure causes when the profile cleanup also fails.
+// rollbackCreatedUser 补偿凭据配置失败导致的用户创建，并在清理用户资料也失败时保留两类错误原因。
 func (s userService) rollbackCreatedUser(ctx context.Context, userID, actorID uint64, provisionErr error) error {
 	rollbackErr := s.users.Delete(ctx, userstore.DeleteUserInput{
 		ID:        userID,

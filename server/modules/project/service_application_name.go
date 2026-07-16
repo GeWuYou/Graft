@@ -22,12 +22,12 @@ const (
 	applicationNameAvailabilityReusable   = "reusable_workspace"
 )
 
-// ApplicationNameAvailabilityRequest describes the first-step managed-create preflight.
+// ApplicationNameAvailabilityRequest 描述受管创建的第一步应用名称预检请求。
 type ApplicationNameAvailabilityRequest struct {
 	ApplicationName string
 }
 
-// ApplicationNameAvailabilityResult distinguishes registry ownership from an unregistered managed directory.
+// ApplicationNameAvailabilityResult 区分注册表已拥有名称与尚未登记的受管目录。
 type ApplicationNameAvailabilityResult struct {
 	Status            string
 	WorkspacePath     string
@@ -43,7 +43,7 @@ type reusableWorkspaceResult struct {
 	exists          bool
 }
 
-// CheckApplicationNameAvailability resolves the managed-root name before workspace editing starts.
+// CheckApplicationNameAvailability 在开始编辑工作区前解析受管根目录下的应用名称。
 func (s *Service) CheckApplicationNameAvailability(ctx context.Context, request ApplicationNameAvailabilityRequest) (ApplicationNameAvailabilityResult, error) {
 	name, err := normalizeApplicationName(stringPointer(request.ApplicationName))
 	if err != nil {

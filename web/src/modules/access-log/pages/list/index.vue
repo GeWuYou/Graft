@@ -70,6 +70,7 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
+// 访问日志页负责把 URL 查询、服务端列表状态和详情深链汇合到只读审计视图。
 import { useQuery } from '@tanstack/vue-query';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';

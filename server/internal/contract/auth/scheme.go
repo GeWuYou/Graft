@@ -1,20 +1,20 @@
-// Package auth defines stable authentication contract values shared by the server runtime.
+// Package auth 定义服务端运行时共享的稳定认证契约值。
 package auth
 
-// Scheme identifies a stable HTTP authentication scheme token.
+// Scheme 标识稳定的 HTTP 认证方案令牌。
 type Scheme string
 
-// String returns the wire-format authentication scheme.
+// String 返回线上协议使用的认证方案名称。
 func (s Scheme) String() string {
 	return string(s)
 }
 
-// Prefix returns the canonical scheme prefix used in Authorization headers.
+// Prefix 返回 Authorization 请求头使用的规范方案前缀，并包含方案后的空格。
 func (s Scheme) Prefix() string {
 	return s.String() + " "
 }
 
 const (
-	// Bearer identifies the HTTP bearer-token authorization scheme.
+	// Bearer 标识 HTTP Bearer 令牌认证方案。
 	Bearer Scheme = "Bearer"
 )

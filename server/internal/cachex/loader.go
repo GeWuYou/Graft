@@ -5,8 +5,8 @@ import (
 	"errors"
 )
 
-// ErrLoaderRequired indicates that a read-through cache call did not receive a loader.
+// ErrLoaderRequired 表示读穿透缓存调用没有提供未命中加载器。
 var ErrLoaderRequired = errors.New("cache loader is required")
 
-// Loader builds one item when the cache misses.
+// Loader 在缓存未命中时从外部数据源构建一项缓存内容。
 type Loader func(context.Context) (Item, error)

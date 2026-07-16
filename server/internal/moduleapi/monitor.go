@@ -5,29 +5,29 @@ import (
 	"time"
 )
 
-// MonitorEvidenceAvailability describes whether monitor-owned evidence can be attached to an audit incident.
+// MonitorEvidenceAvailability 描述审计事件是否可以附加由 monitor 模块拥有的证据。
 type MonitorEvidenceAvailability string
 
 const (
-	// MonitorEvidenceAvailable means monitor evidence was resolved for the incident window.
+	// MonitorEvidenceAvailable 表示已为事件窗口解析出 monitor 证据。
 	MonitorEvidenceAvailable MonitorEvidenceAvailability = "available"
-	// MonitorEvidenceModuleDisabled means the monitor module is disabled.
+	// MonitorEvidenceModuleDisabled 表示 monitor 模块已禁用。
 	MonitorEvidenceModuleDisabled MonitorEvidenceAvailability = "module_disabled"
-	// MonitorEvidenceNoMatch means no monitor anomaly matched the bounded incident context.
+	// MonitorEvidenceNoMatch 表示没有 monitor 异常匹配有界事件上下文。
 	MonitorEvidenceNoMatch MonitorEvidenceAvailability = "no_match"
-	// MonitorEvidenceExpired means the incident window is older than monitor evidence retention.
+	// MonitorEvidenceExpired 表示事件窗口早于 monitor 证据保留期限。
 	MonitorEvidenceExpired MonitorEvidenceAvailability = "expired"
-	// MonitorEvidenceCapabilityUnavailable means the monitor capability could not serve evidence.
+	// MonitorEvidenceCapabilityUnavailable 表示 monitor capability 当前无法提供证据。
 	MonitorEvidenceCapabilityUnavailable MonitorEvidenceAvailability = "capability_unavailable"
 )
 
-// MonitorEvidenceLinkTimeWindow describes the time range covered by an evidence link.
+// MonitorEvidenceLinkTimeWindow 描述证据链接覆盖的时间范围。
 type MonitorEvidenceLinkTimeWindow struct {
 	CreatedFrom time.Time
 	CreatedTo   time.Time
 }
 
-// MonitorAuditEvidenceContext narrows an evidence link to related audit search dimensions.
+// MonitorAuditEvidenceContext 将证据链接限定到相关审计检索维度。
 type MonitorAuditEvidenceContext struct {
 	Action       string
 	ActionPrefix string
@@ -42,12 +42,12 @@ type MonitorAuditEvidenceContext struct {
 	CreatedTo    *time.Time
 }
 
-// MonitorIncidentSeedLink points back to the seed audit event for the incident.
+// MonitorIncidentSeedLink 指向该事件对应的初始审计事件。
 type MonitorIncidentSeedLink struct {
 	EventID uint64
 }
 
-// MonitorEvidenceLink describes one monitor-owned drilldown target for an audit incident.
+// MonitorEvidenceLink 描述审计事件对应的一个 monitor-owned 下钻目标。
 type MonitorEvidenceLink struct {
 	TargetKind   string
 	LinkState    string
@@ -59,7 +59,7 @@ type MonitorEvidenceLink struct {
 	IncidentSeed *MonitorIncidentSeedLink
 }
 
-// ResolveAuditIncidentMonitorEvidenceInput carries the bounded incident context exposed to monitor.
+// ResolveAuditIncidentMonitorEvidenceInput 携带向 monitor 暴露的有界事件上下文。
 type ResolveAuditIncidentMonitorEvidenceInput struct {
 	IncidentSeedEventID uint64
 	IncidentStartedAt   time.Time
@@ -73,7 +73,7 @@ type ResolveAuditIncidentMonitorEvidenceInput struct {
 	AuditRiskLevel      string
 }
 
-// ResolvedAuditIncidentMonitorEvidence is the monitor capability response for an audit incident.
+// ResolvedAuditIncidentMonitorEvidence 是 monitor capability 针对审计事件返回的结果。
 type ResolvedAuditIncidentMonitorEvidence struct {
 	Availability  MonitorEvidenceAvailability
 	Summary       string
@@ -85,7 +85,7 @@ type ResolvedAuditIncidentMonitorEvidence struct {
 	EvidenceLinks []MonitorEvidenceLink
 }
 
-// MonitorIncidentEvidenceService resolves monitor-owned anomaly evidence for audit incidents.
+// MonitorIncidentEvidenceService 为审计事件解析由 monitor 模块拥有的异常证据。
 type MonitorIncidentEvidenceService interface {
 	ResolveAuditIncidentMonitorEvidence(
 		ctx context.Context,

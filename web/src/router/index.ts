@@ -133,7 +133,7 @@ const defaultRouterList: Array<RouteRecordRaw> = [
 const staticRouterList = [...exceptionRouterList, ...defaultRouterList];
 
 export const getActive = (maxLevel = 3): string => {
-  // 非组件内调用必须通过Router实例获取当前路由
+  // 壳层导航在组件外运行时没有 useRoute 上下文，因此统一从 Router 实例读取当前路由。
   const route = router.currentRoute.value;
 
   if (!route.path) {

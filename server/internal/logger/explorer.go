@@ -101,7 +101,7 @@ type appLogExplorerRouteDependencies struct {
 	savedViews  moduleapi.SavedViewService
 }
 
-// registerAppLogExplorerPermissions registers the application log read and delete permissions.
+// registerAppLogExplorerPermissions 注册应用日志读取和删除权限。
 func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	if registry == nil {
 		return
@@ -121,7 +121,7 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	})
 }
 
-// registerAppLogExplorerMenu registers the App Log Explorer list menu item.
+// registerAppLogExplorerMenu 注册应用日志浏览器列表菜单项。
 func registerAppLogExplorerMenu(registry *menu.Registry) {
 	if registry == nil {
 		return

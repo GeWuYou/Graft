@@ -7,6 +7,7 @@
   </advanced-query-filter-builder-frame>
 </template>
 <script setup lang="ts">
+// 筛选器维护可编辑的查询草稿，提交与 URL 同步由列表页的查询边界负责。
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 

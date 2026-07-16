@@ -16,13 +16,7 @@ type QuickActionRouteMeta = AppRouteMeta & {
   requiredPermissions?: string[];
 };
 
-/**
- * 根据路由构建并排序仪表盘快速操作链接。
- *
- * @param routes - 用于提取快速操作链接的路由记录。
- * @param locale - 用于生成本地化标题的语言环境。
- * @returns 按顺序升序排列、顺序相同时按标识符字典序排列的快速操作链接。
- */
+/** 从可见叶子路由生成快速入口，并保持配置顺序与标识符排序的稳定性。 */
 export function buildDashboardQuickActionLinks(
   routes: Array<QuickActionSource | RouteRecordRaw>,
   locale: SupportedLocale = getDefaultLocale(),
@@ -30,15 +24,6 @@ export function buildDashboardQuickActionLinks(
   return collectLeafLinks(routes as QuickActionSource[], locale).sort(compareQuickActions);
 }
 
-/**
- * 递归收集可见的叶子路由，并将其转换为仪表盘快速操作链接。
- *
- * @param routes - 待处理的路由列表
- * @param locale - 用于生成本地化标题的区域设置
- * @param parentPath - 父级路由路径
- * @param parent - 传递给子路由的分组信息
- * @returns 可见叶子路由对应的仪表盘快速操作链接
- */
 function collectLeafLinks(
   routes: QuickActionSource[],
   locale: SupportedLocale,
@@ -71,11 +56,6 @@ function collectLeafLinks(
   });
 }
 
-/**
- * Determines if a route is eligible as a quick-action leaf node.
- *
- * @returns `true` if the route has a name and valid path, is not hidden, and either is marked as single or has no children, `false` otherwise.
- */
 function isQuickActionLeaf(route: QuickActionSource, fullPath: string) {
   const routeMeta = toRouteMeta(route.meta);
   if (!route.name || !fullPath) {
@@ -93,12 +73,6 @@ function isQuickActionLeaf(route: QuickActionSource, fullPath: string) {
   return !routeMeta?.hidden && !routeMeta?.hiddenMenu;
 }
 
-/**
- * Types route metadata as AppRouteMeta.
- *
- * @param meta - The raw metadata value
- * @returns The metadata as `AppRouteMeta`, or `undefined` if the input was nullish
- */
 function toRouteMeta(meta: unknown) {
   return (meta ?? undefined) as QuickActionRouteMeta | undefined;
 }
@@ -133,11 +107,6 @@ function buildQuickActionLink(
   };
 }
 
-/**
- * Resolves grouping context for a route based on its metadata and locale.
- *
- * @returns A grouping context with `groupLabel` and `groupKey`, or the parent context if no new values are available
- */
 function resolveParent(
   routeMeta: QuickActionRouteMeta | undefined,
   locale: SupportedLocale,
@@ -172,17 +141,7 @@ function resolveRequiredPermissions(routeMeta: QuickActionRouteMeta | undefined)
   return undefined;
 }
 
-/**
- * Derives a module key from dashboard route authority.
- *
- * Prefers route authority that is already stable in the frontend contract:
- * `titleKey`, then route name, then the normalized path as the last fallback.
- *
- * @param route - The quick-action source route
- * @param path - The normalized dashboard route path
- * @param routeMeta - The typed route metadata
- * @returns The module key derived from the best available authority source
- */
+/** 按稳定的路由标题契约、路由名、规范化路径依次推导模块标识，避免依赖展示文案。 */
 function inferModuleKey(route: QuickActionSource, path: string, routeMeta: QuickActionRouteMeta | undefined) {
   const byTitleKey = inferModuleKeyFromTitleKey(routeMeta?.titleKey);
   if (byTitleKey) {
@@ -239,11 +198,6 @@ function normalizeModuleKey(value: string) {
     .toLowerCase();
 }
 
-/**
- * Orders two dashboard quick action links by their order field, then by their ID.
- *
- * @returns A negative number if `left` should come before `right`, zero if equal, positive otherwise.
- */
 function compareQuickActions(left: DashboardQuickActionLink, right: DashboardQuickActionLink) {
   if (left.order !== right.order) {
     return left.order - right.order;

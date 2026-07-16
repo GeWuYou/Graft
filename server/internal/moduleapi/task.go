@@ -1,4 +1,4 @@
-// Package moduleapi contains stable, narrow contracts shared by server modules.
+// Package moduleapi 定义 server 模块共享的稳定窄化契约。
 package moduleapi
 
 import (
@@ -7,82 +7,82 @@ import (
 	"time"
 )
 
-// TaskType identifies one consumer-owned Task plan type.
+// TaskType 标识一种由消费者拥有的 Task 计划类型。
 type TaskType string
 
-// StageExecutorType identifies the business executor that runs one Stage.
+// StageExecutorType 标识执行一个 Stage 的业务执行器类型。
 type StageExecutorType string
 
-// TaskStatus identifies the persisted Task state-machine state.
+// TaskStatus 标识持久化 Task 状态机的状态。
 type TaskStatus string
 
 const (
-	// TaskStatusPending marks a submitted Task waiting for dispatch.
+	// TaskStatusPending 表示已提交但等待调度的 Task。
 	TaskStatusPending TaskStatus = "pending"
-	// TaskStatusScheduled marks a Task that cannot run before its scheduled time.
+	// TaskStatusScheduled 表示 Task 尚未到达计划执行时间。
 	TaskStatusScheduled TaskStatus = "scheduled"
-	// TaskStatusRunning marks a Task with an active Stage.
+	// TaskStatusRunning 表示 Task 当前有正在执行的 Stage。
 	TaskStatusRunning TaskStatus = "running"
-	// TaskStatusSuccess marks a successfully completed Task.
+	// TaskStatusSuccess 表示 Task 已成功完成。
 	TaskStatusSuccess TaskStatus = "success"
-	// TaskStatusFailed marks a Task with a terminal failed Stage.
+	// TaskStatusFailed 表示 Task 因终态失败的 Stage 结束。
 	TaskStatusFailed TaskStatus = "failed"
-	// TaskStatusCancelled marks a cooperatively cancelled Task.
+	// TaskStatusCancelled 表示 Task 已被协作式取消。
 	TaskStatusCancelled TaskStatus = "cancelled"
-	// TaskStatusNeedsAttention marks a Task that needs operator reconciliation.
+	// TaskStatusNeedsAttention 表示 Task 需要操作员人工对账或处置。
 	TaskStatusNeedsAttention TaskStatus = "needs_attention"
 )
 
-// StageStatus identifies the persisted Stage state-machine state.
+// StageStatus 标识持久化 Stage 状态机的状态。
 type StageStatus string
 
 const (
-	// StageStatusPending marks a Stage waiting for its turn.
+	// StageStatusPending 表示等待执行顺序轮到自己的 Stage。
 	StageStatusPending StageStatus = "pending"
-	// StageStatusRunning marks a Stage currently held by a worker.
+	// StageStatusRunning 表示当前由 worker 持有并执行的 Stage。
 	StageStatusRunning StageStatus = "running"
-	// StageStatusSuccess marks a successfully completed Stage.
+	// StageStatusSuccess 表示 Stage 已成功完成。
 	StageStatusSuccess StageStatus = "success"
-	// StageStatusFailed marks a terminal failed Stage.
+	// StageStatusFailed 表示已进入失败终态的 Stage。
 	StageStatusFailed StageStatus = "failed"
-	// StageStatusSkipped marks a plan Stage intentionally not run.
+	// StageStatusSkipped 表示计划中被明确跳过、未实际执行的 Stage。
 	StageStatusSkipped StageStatus = "skipped"
-	// StageStatusCancelled marks a cooperatively cancelled Stage.
+	// StageStatusCancelled 表示 Stage 已被协作式取消。
 	StageStatusCancelled StageStatus = "cancelled"
-	// StageStatusUnknown marks an interrupted Stage whose external result is indeterminate.
+	// StageStatusUnknown 表示 Stage 被中断且外部执行结果无法确定。
 	StageStatusUnknown StageStatus = "unknown"
 )
 
-// StageRecoveryPolicy defines how the runtime handles an interrupted running Stage.
+// StageRecoveryPolicy 定义运行时如何处理被中断的运行中 Stage。
 type StageRecoveryPolicy string
 
 const (
-	// StageRecoveryManualReconcile requires an operator decision after an interrupted Stage.
+	// StageRecoveryManualReconcile 要求中断后由操作员决定如何处置 Stage。
 	StageRecoveryManualReconcile StageRecoveryPolicy = "manual_reconcile"
-	// StageRecoveryRetryIfIdempotent permits retry only when the consumer has declared the Stage idempotent.
+	// StageRecoveryRetryIfIdempotent 仅在消费者声明 Stage 幂等时允许重试。
 	StageRecoveryRetryIfIdempotent StageRecoveryPolicy = "retry_if_idempotent"
 )
 
-// TaskOwner identifies the business resource that owns one Task.
+// TaskOwner 标识拥有某个 Task 的业务资源。
 type TaskOwner struct {
 	Type string
 	ID   string
 }
 
-// TaskListFilter scopes Task history to one authorized owner and optional API filters.
+// TaskListFilter 将 Task 历史限定到一个已授权所有者及可选 API 过滤条件。
 type TaskListFilter struct {
 	Owner  TaskOwner
 	Type   *TaskType
 	Status *TaskStatus
 }
 
-// StageRetryPolicy freezes retry policy for one Stage in a submitted TaskPlan.
+// StageRetryPolicy 固化已提交 TaskPlan 中某个 Stage 的重试策略。
 type StageRetryPolicy struct {
 	MaxAttempts int
 	Backoff     time.Duration
 }
 
-// StagePlan defines one ordered, immutable Stage in a TaskPlan.
+// StagePlan 定义 TaskPlan 中一个有序且不可变的 Stage。
 type StagePlan struct {
 	Key            string
 	ExecutorType   StageExecutorType
@@ -91,12 +91,12 @@ type StagePlan struct {
 	RecoveryPolicy StageRecoveryPolicy
 }
 
-// TaskPlan defines the frozen ordered stages for one submitted Task.
+// TaskPlan 定义已提交 Task 的冻结有序 Stage 集合。
 type TaskPlan struct {
 	Stages []StagePlan
 }
 
-// SubmitTaskInput supplies the consumer-owned plan and resource identity for a new Task.
+// SubmitTaskInput 提供创建新 Task 所需的消费者计划和资源身份。
 type SubmitTaskInput struct {
 	Type        TaskType
 	Owner       TaskOwner
@@ -107,20 +107,20 @@ type SubmitTaskInput struct {
 	ScheduledAt *time.Time
 }
 
-// TaskReceipt identifies an accepted asynchronous Task submission.
+// TaskReceipt 标识已接受的异步 Task 提交。
 type TaskReceipt struct {
 	TaskID uint64
 	Status TaskStatus
 }
 
-// TaskService exposes the Task Runtime submission capability to consumer modules.
+// TaskService 向消费者模块暴露 Task Runtime 提交能力。
 type TaskService interface {
 	Submit(ctx context.Context, input SubmitTaskInput) (TaskReceipt, error)
 	Cancel(ctx context.Context, taskID uint64) error
 	RetryStage(ctx context.Context, taskID uint64, stageID uint64) error
 }
 
-// TaskQueryService exposes Task Runtime reads without leaking module-owned persistence.
+// TaskQueryService 暴露 Task Runtime 读取能力，但不泄漏模块拥有的持久化实现。
 type TaskQueryService interface {
 	GetTask(ctx context.Context, taskID uint64) (TaskView, error)
 	ListTasks(ctx context.Context, filter TaskListFilter, limit int, offset int) ([]TaskView, int64, error)
@@ -129,7 +129,7 @@ type TaskQueryService interface {
 	ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]TaskLogView, error)
 }
 
-// TaskView is the stable task read model exposed by the Task Runtime.
+// TaskView 是 Task Runtime 暴露的稳定 Task 读取模型。
 type TaskView struct {
 	ID              uint64
 	Type            TaskType
@@ -145,7 +145,7 @@ type TaskView struct {
 	FailureMessage  *string
 }
 
-// TaskStageView is the stable Stage timeline read model.
+// TaskStageView 是稳定的 Stage 时间线读取模型。
 type TaskStageView struct {
 	ID             uint64
 	Key            string
@@ -162,7 +162,7 @@ type TaskStageView struct {
 	FailureMessage *string
 }
 
-// TaskEventView is one non-derivable persisted Task fact.
+// TaskEventView 是一条不可由其它数据推导的持久化 Task 事实。
 type TaskEventView struct {
 	ID        uint64
 	Sequence  int64
@@ -171,7 +171,7 @@ type TaskEventView struct {
 	CreatedAt time.Time
 }
 
-// TaskLogView is one persisted executor output line.
+// TaskLogView 是一条持久化的执行器输出记录。
 type TaskLogView struct {
 	ID         uint64
 	TaskID     uint64
@@ -183,7 +183,7 @@ type TaskLogView struct {
 	OccurredAt time.Time
 }
 
-// StageRun is the bounded execution handle supplied to a StageExecutor.
+// StageRun 是提供给 StageExecutor 的有界执行句柄。
 type StageRun interface {
 	TaskID() uint64
 	StageID() uint64
@@ -193,21 +193,21 @@ type StageRun interface {
 	AppendLog(ctx context.Context, entry TaskLogEntry) error
 }
 
-// TaskLogEntry is one executor-produced log record owned by the Task Runtime.
+// TaskLogEntry 是由执行器产生、由 Task Runtime 拥有的一条日志记录。
 type TaskLogEntry struct {
 	Stream string
 	Level  string
 	Line   string
 }
 
-// StageExecutor executes one consumer-owned Stage without directly changing Task state.
+// StageExecutor 执行一个消费者拥有的 Stage，但不得直接修改 Task 状态。
 type StageExecutor interface {
 	Type() StageExecutorType
 	Execute(ctx context.Context, run StageRun) error
 	Cancel(ctx context.Context, run StageRun) error
 }
 
-// TaskOwnerAction identifies the operation whose resource authorization is requested.
+// TaskOwnerAction 标识请求业务资源授权的操作。
 type TaskOwnerAction string
 
 const (
@@ -219,19 +219,19 @@ const (
 	TaskOwnerActionRetry TaskOwnerAction = "retry"
 )
 
-// TaskOwnerAuthorizer verifies consumer-owned resource authorization for generic Task APIs.
+// TaskOwnerAuthorizer 为通用 Task API 校验消费者拥有的资源授权。
 type TaskOwnerAuthorizer interface {
 	OwnerType() string
 	AuthorizeTaskOwner(ctx context.Context, actor *CurrentUser, action TaskOwnerAction, owner TaskOwner) error
 }
 
-// TaskRuntimeRegistrar accepts consumer-owned executors and owner authorizers during module Register.
+// TaskRuntimeRegistrar 在模块 Register 阶段接收消费者拥有的执行器和所有者授权器。
 type TaskRuntimeRegistrar interface {
 	RegisterStageExecutor(executor StageExecutor) error
 	RegisterTaskOwnerAuthorizer(authorizer TaskOwnerAuthorizer) error
 }
 
-// TaskCapabilities exposes the currently permitted Task Detail operations to API consumers.
+// TaskCapabilities 向 API 消费者暴露当前允许的 Task 详情操作。
 type TaskCapabilities struct {
 	Cancel      bool
 	Retry       bool

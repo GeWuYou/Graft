@@ -101,15 +101,7 @@ function lastAccessTime(value: string) {
   return Number.isFinite(timestamp) ? timestamp : INVALID_LAST_ACCESS_TIME;
 }
 
-/**
- * Computes a ranking score for a dashboard quick action link.
- *
- * @param link - The link view model containing usage metrics and pin status
- * @param config - The configuration that determines the ranking strategy
- * @param maxAccessCount - The maximum access count, used for score normalization
- * @param maxRecentTime - The most recent access time, used for score normalization
- * @returns Infinity if the link is pinned. Otherwise, a number between 0 and 1 based on the configured ranking strategy
- */
+/** 计算快捷入口排序分；置顶入口使用无穷大，普通入口按配置在访问次数与最近访问时间之间归一化比较。 */
 function score(
   link: DashboardQuickActionViewModel,
   config: DashboardQuickActionConfig,
@@ -133,13 +125,7 @@ function score(
   return normalizedAccess * 0.7 + normalizedRecent * 0.3;
 }
 
-/**
- * Creates a composable for ranking dashboard quick-action links based on usage and configuration.
- *
- * @param links - A function that returns the array of quick-action links
- * @param config - A function that returns the ranking configuration
- * @returns An object containing `rankedLinks` (a computed property with ranked links) and `recordAccess` (a function to record link usage)
- */
+/** 创建快捷入口排序状态；访问记录持久化在浏览器本地，但不影响入口本身的服务端数据来源。 */
 export function useDashboardQuickActions(
   links: () => DashboardQuickActionLink[],
   config: () => DashboardQuickActionConfig,

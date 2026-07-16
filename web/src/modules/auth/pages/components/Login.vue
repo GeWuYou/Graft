@@ -103,6 +103,7 @@
   </t-form>
 </template>
 <script setup lang="ts">
+// 登录表单负责收集用户输入并展示认证结果，不在页面内推断权限或 bootstrap 菜单。
 import type { FormInstanceFunctions, FormRule, SubmitContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref } from 'vue';

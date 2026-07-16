@@ -1,14 +1,14 @@
 package contract
 
 const (
-	// ContainerListStatsTopic is the realtime topic for list-level container stats snapshots.
+	// ContainerListStatsTopic 是容器列表级资源统计快照的实时 topic。
 	ContainerListStatsTopic = "container.stats.list"
-	// ContainerStatsTopicPrefix is the realtime topic prefix for per-container stats snapshots.
+	// ContainerStatsTopicPrefix 是单容器资源统计快照的实时 topic 前缀。
 	ContainerStatsTopicPrefix = "container.stats:"
-	// ContainerEventsTopicPrefix is the realtime topic prefix for per-container runtime event streams.
+	// ContainerEventsTopicPrefix 是单容器运行时事件流的实时 topic 前缀。
 	ContainerEventsTopicPrefix = "container.events:"
-	// ContainerLogsTopicPrefix is the realtime topic prefix for per-container incremental log events.
+	// ContainerLogsTopicPrefix 是单容器增量日志事件的实时 topic 前缀。
 	ContainerLogsTopicPrefix = "container.logs:"
-	// ContainerDashboardSummaryTopic is the realtime topic for dashboard summary snapshots.
+	// ContainerDashboardSummaryTopic 是容器仪表盘摘要快照的实时 topic。
 	ContainerDashboardSummaryTopic = "container.dashboard.summary"
 )

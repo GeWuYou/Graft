@@ -10,7 +10,7 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// ConfigurationMetadata returns readonly configuration metadata.
+// ConfigurationMetadata 返回只读配置元数据；项目不存在或已删除时沿用聚合读取错误。
 func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (ConfigurationMetadataResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -26,7 +26,7 @@ func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (
 	}, nil
 }
 
-// ConfigurationPreview returns the latest static normalized compose preview.
+// ConfigurationPreview 返回最近一次静态规范化 Compose 配置预览，不执行生命周期动作。
 func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (ConfigurationPreviewResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (C
 	}, nil
 }
 
-// DeployConfiguration refreshes the saved project state and executes docker compose up -d using the current disk files.
+// DeployConfiguration 根据当前磁盘文件刷新项目状态并执行 docker compose up -d；部署前先持久化最新配置快照。
 func (s *Service) DeployConfiguration(
 	ctx context.Context,
 	projectID uint64,

@@ -47,72 +47,72 @@ const (
 )
 
 const (
-	// EnvAppEnv names the process environment variable that selects the runtime environment.
+	// EnvAppEnv 是选择运行环境的进程环境变量名。
 	EnvAppEnv = "GRAFT_APP_ENV"
-	// EnvLogLevel names the process environment variable that selects the zap severity threshold.
+	// EnvLogLevel 是选择 zap 日志级别的进程环境变量名。
 	EnvLogLevel = "GRAFT_LOG_LEVEL"
-	// EnvLogFormat names the process environment variable that selects console or JSON output.
+	// EnvLogFormat 是选择 console 或 JSON 输出格式的进程环境变量名。
 	EnvLogFormat = "GRAFT_LOG_FORMAT"
-	// EnvLogColor names the process environment variable that controls ANSI level colors.
+	// EnvLogColor 是控制日志级别 ANSI 颜色的进程环境变量名。
 	EnvLogColor = "GRAFT_LOG_COLOR"
-	// EnvGinMode names the process environment variable that selects the Gin framework mode.
+	// EnvGinMode 是选择 Gin 运行模式的进程环境变量名。
 	EnvGinMode = "GRAFT_GIN_MODE"
-	// EnvAccessLogConsole names the process environment variable that controls access-log console emission.
+	// EnvAccessLogConsole 是控制访问日志是否输出到进程日志的环境变量名。
 	EnvAccessLogConsole = "GRAFT_ACCESS_LOG_CONSOLE"
-	// EnvAccessLogSlowThresholdMS names the process environment variable that controls slow access-log visibility.
+	// EnvAccessLogSlowThresholdMS 是控制慢访问日志阈值的进程环境变量名。
 	EnvAccessLogSlowThresholdMS   = "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS"
 	defaultAccessLogSlowThreshold = 1000 * time.Millisecond
 )
 
-// LogFormat describes the runtime encoder format selected for zap output.
+// LogFormat 描述 zap 输出使用的运行时编码格式。
 type LogFormat string
 
 const (
-	// LogFormatAuto lets the runtime choose console for local-like environments and JSON otherwise.
+	// LogFormatAuto 让运行时在本地类环境使用 console，其它环境使用 JSON。
 	LogFormatAuto LogFormat = "auto"
-	// LogFormatConsole selects zap console encoding.
+	// LogFormatConsole 选择 zap console 编码。
 	LogFormatConsole LogFormat = "console"
-	// LogFormatJSON selects zap JSON encoding.
+	// LogFormatJSON 选择 zap JSON 编码。
 	LogFormatJSON LogFormat = "json"
 )
 
-// LogColor describes whether console log levels should include ANSI color.
+// LogColor 描述 console 日志级别是否包含 ANSI 颜色。
 type LogColor string
 
 const (
-	// LogColorAuto enables colors only for local-like console output.
+	// LogColorAuto 仅为本地类环境的 console 输出启用颜色。
 	LogColorAuto LogColor = "auto"
-	// LogColorAlways enables ANSI colors for console output.
+	// LogColorAlways 为 console 输出启用 ANSI 颜色。
 	LogColorAlways LogColor = "always"
-	// LogColorNever disables ANSI colors.
+	// LogColorNever 禁用 ANSI 颜色。
 	LogColorNever LogColor = "never"
 )
 
-// GinMode describes the Gin framework mode selected before engine creation.
+// GinMode 描述创建 Gin engine 前确定的框架运行模式。
 type GinMode string
 
 const (
-	// GinModeAuto lets the runtime choose debug, test, or release from the app environment.
+	// GinModeAuto 让运行时根据应用环境选择 debug、test 或 release。
 	GinModeAuto GinMode = "auto"
-	// GinModeDebug selects Gin debug mode.
+	// GinModeDebug 选择 Gin debug 模式。
 	GinModeDebug GinMode = "debug"
-	// GinModeRelease selects Gin release mode.
+	// GinModeRelease 选择 Gin release 模式。
 	GinModeRelease GinMode = "release"
-	// GinModeTest selects Gin test mode.
+	// GinModeTest 选择 Gin test 模式。
 	GinModeTest GinMode = "test"
 )
 
-// AccessLogConsolePolicy controls whether request facts are emitted to the process logger.
+// AccessLogConsolePolicy 控制请求事实是否输出到进程日志，同时不改变持久化策略。
 type AccessLogConsolePolicy string
 
 const (
-	// AccessLogConsoleAuto lets the runtime choose a quiet console policy from the app environment.
+	// AccessLogConsoleAuto 让运行时根据应用环境选择较安静的 console 策略。
 	AccessLogConsoleAuto AccessLogConsolePolicy = "auto"
-	// AccessLogConsoleAlways emits every access log to the process logger.
+	// AccessLogConsoleAlways 将每条访问日志输出到进程日志。
 	AccessLogConsoleAlways AccessLogConsolePolicy = "always"
-	// AccessLogConsoleNever suppresses process-log emission while keeping persistence.
+	// AccessLogConsoleNever 抑制进程日志输出，但保留访问日志持久化。
 	AccessLogConsoleNever AccessLogConsolePolicy = "never"
-	// AccessLogConsoleErrorOnly emits only error or slow access logs to the process logger.
+	// AccessLogConsoleErrorOnly 仅将错误或慢访问日志输出到进程日志。
 	AccessLogConsoleErrorOnly AccessLogConsolePolicy = "error_only"
 )
 
@@ -154,7 +154,7 @@ type HTTPXConfig struct {
 	WebSocketAllowedOrigins  []string
 }
 
-// AuditConfig reserves core-provided audit startup settings.
+// AuditConfig 预留 core 提供的审计启动配置边界。
 type AuditConfig struct{}
 
 // DocsConfig 控制 OpenAPI 文档与文档页面的公开策略。
@@ -236,7 +236,7 @@ type ContainerConfig struct {
 	DockerEndpoint string
 }
 
-// ProjectConfig describes project-module diagnostic switches loaded with the core config snapshot.
+// ProjectConfig 描述随 core 配置快照加载的 project 模块诊断开关。
 type ProjectConfig struct {
 	LogDebug           bool
 	ManagedCreateDebug bool
@@ -270,12 +270,12 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// DefaultDiskUsagePath resolves the runtime disk root for the current GOOS.
+// DefaultDiskUsagePath 根据当前 GOOS 解析运行时磁盘根目录。
 func DefaultDiskUsagePath(goos string) string {
 	return DefaultDiskUsagePathForGOOS(goos, os.Getenv)
 }
 
-// DefaultDiskUsagePathForGOOS resolves the runtime disk root for a specific GOOS.
+// DefaultDiskUsagePathForGOOS 根据指定 GOOS 解析运行时磁盘根目录。
 func DefaultDiskUsagePathForGOOS(goos string, lookupEnv func(string) string) string {
 	if goos != "windows" {
 		return "/"
@@ -328,6 +328,7 @@ func (c *Config) Validate() error {
 }
 
 func validateAppConfig(c *Config) error {
+	// 应用名参与日志、模块标识和运行时诊断，禁止以空白值启动以避免产生不可追踪实例。
 	if strings.TrimSpace(c.App.Name) == "" {
 		return errors.New("GRAFT_APP_NAME is required")
 	}
@@ -335,7 +336,7 @@ func validateAppConfig(c *Config) error {
 	return nil
 }
 
-// validateHTTPConfig validates that the HTTP server address is configured.
+// validateHTTPConfig 验证 HTTP 服务监听地址已配置。
 func validateHTTPConfig(c *Config) error {
 	if strings.TrimSpace(c.HTTP.Addr) == "" {
 		return errors.New("GRAFT_HTTP_ADDR is required")
@@ -366,7 +367,7 @@ func validateHTTPXConfig(c *Config) error {
 	return nil
 }
 
-// validateAuditConfig validates audit configuration and always succeeds.
+// validateAuditConfig 保留审计启动配置边界；当前配置没有额外校验约束。
 func validateAuditConfig(_ *Config) error {
 	return nil
 }
@@ -397,6 +398,7 @@ func validateLogConfig(c *Config) error {
 }
 
 func validateRuntimeConfig(c *Config) error {
+	// 先规范化环境输入，再将 Gin 模式限制在显式支持的枚举内，避免框架自行解释未知值。
 	c.Runtime.GinMode = GinMode(strings.ToLower(strings.TrimSpace(string(c.Runtime.GinMode))))
 	if c.Runtime.GinMode == "" {
 		c.Runtime.GinMode = GinModeAuto
@@ -427,6 +429,7 @@ func validateModulesConfig(c *Config) error {
 }
 
 func validateDatabaseConfig(c *Config) error {
+	// 数据库配置只校验启动所需的静态约束；连接可用性由数据库资源构造阶段负责确认。
 	if strings.TrimSpace(c.Database.Driver) != defaultDatabaseDriver {
 		return fmt.Errorf("unsupported database driver %q: only postgres is supported", c.Database.Driver)
 	}
@@ -450,6 +453,7 @@ func validateDatabaseConfig(c *Config) error {
 }
 
 func validateRedisConfig(c *Config) error {
+	// Redis 连接池边界在启动前固定，负数值会导致客户端行为不可预测，因此在配置阶段拒绝。
 	if strings.TrimSpace(c.Redis.Addr) == "" {
 		return errors.New("GRAFT_REDIS_ADDR is required")
 	}
@@ -553,9 +557,8 @@ func validateAuthConfig(c *Config) error {
 	return nil
 }
 
-// validateContainerConfig validates container configuration fields.
-// validateContainerConfig validates and normalizes the container runtime and Docker endpoint configuration.
-// It returns an error when the runtime is unsupported or the Docker endpoint is empty.
+// validateContainerConfig 校验并规范化容器运行时和 Docker endpoint；
+// 运行时不受支持或 endpoint 为空时返回错误。
 func validateContainerConfig(c *Config) error {
 	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
 	if c.Container.Runtime == "" {
@@ -615,7 +618,7 @@ func ResolveLogFormat(appEnv string, format LogFormat) LogFormat {
 	}
 }
 
-// ResolveLogColor reports whether the effective console encoder should colorize log levels.
+// ResolveLogColor 根据有效日志格式、显式颜色策略和应用环境判断 console 编码器是否应使用 ANSI 颜色。
 func ResolveLogColor(appEnv string, format LogFormat, color LogColor) bool {
 	if ResolveLogFormat(appEnv, format) != LogFormatConsole {
 		return false
@@ -653,7 +656,7 @@ func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	}
 }
 
-// ResolveAccessLogConsolePolicy returns the effective access-log console policy.
+// ResolveAccessLogConsolePolicy 返回有效的访问日志控制台输出策略。
 // 当未显式指定策略时，局部环境返回 error_only，其它环境返回 never。
 func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy) AccessLogConsolePolicy {
 	switch normalizeAccessLogConsolePolicy(policy) {
@@ -689,8 +692,7 @@ func normalizeLogColor(color LogColor) LogColor {
 	return normalizeStringEnum(color, LogColorAuto, LogColorAlways, LogColorNever)
 }
 
-// normalizeGinMode 将输入规范化为支持的 Gin 模式值。
-// @returns 规范化后的 GinMode；当输入不匹配任何支持值时返回 `auto`。
+// normalizeGinMode 将输入规范化为支持的 Gin 模式值；无法识别时返回 auto。
 func normalizeGinMode(mode GinMode) GinMode {
 	return normalizeStringEnum(mode, GinModeAuto, GinModeDebug, GinModeRelease, GinModeTest)
 }

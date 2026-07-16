@@ -10,12 +10,12 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// AuthRefreshSession defines the auth-owned refresh-token session lifecycle record.
+// AuthRefreshSession 定义 auth 所拥有的 refresh token 会话生命周期记录。
 type AuthRefreshSession struct {
 	ent.Schema
 }
 
-// Annotations returns the explicit auth_refresh_sessions table mapping and comment settings.
+// Annotations 返回 auth_refresh_sessions 表映射及数据库注释配置。
 func (AuthRefreshSession) Annotations() []schema.Annotation {
 	return []schema.Annotation{
 		entsql.Annotation{Table: "auth_refresh_sessions"},
@@ -24,7 +24,7 @@ func (AuthRefreshSession) Annotations() []schema.Annotation {
 	}
 }
 
-// Fields returns the refresh-session lifecycle fields.
+// Fields 返回 refresh session 生命周期字段。
 func (AuthRefreshSession) Fields() []ent.Field {
 	return []ent.Field{
 		field.Uint64("user_id").
@@ -57,7 +57,7 @@ func (AuthRefreshSession) Fields() []ent.Field {
 	}
 }
 
-// Indexes returns indexes for user-session lifecycle queries.
+// Indexes 返回用户会话生命周期查询所需的索引。
 func (AuthRefreshSession) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id"),

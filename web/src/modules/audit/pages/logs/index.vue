@@ -276,6 +276,8 @@ import type {
   DrilldownScopeProjection,
 } from '../../types/audit';
 
+// 审计日志页把服务端日志快照交给 Query cache，把筛选/排序/详情抽屉与返回监控上下文留在路由和页面状态中。
+
 defineOptions({
   name: 'AuditLogListIndex',
 });

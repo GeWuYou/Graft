@@ -1,12 +1,12 @@
 package contract
 
 const (
-	// ProjectListSummaryTopic is the canonical realtime topic for project list summary updates.
+	// ProjectListSummaryTopic 是项目列表摘要更新的规范实时 topic。
 	ProjectListSummaryTopic = "project.list.summary"
-	// ProjectRuntimeTopicPrefix is the realtime topic prefix for project runtime snapshots keyed by public Application ID.
+	// ProjectRuntimeTopicPrefix 是按公开 Application ID 区分的项目运行时快照 topic 前缀。
 	ProjectRuntimeTopicPrefix = "project.runtime:"
-	// ProjectLifecycleConfigTopicPrefix is the realtime topic prefix for lifecycle configuration snapshots keyed by public Application ID.
+	// ProjectLifecycleConfigTopicPrefix 是按公开 Application ID 区分的生命周期配置快照 topic 前缀。
 	ProjectLifecycleConfigTopicPrefix = "project.lifecycle-config:"
-	// ProjectLogsTopicPrefix is the realtime topic prefix for project-owned aggregated logs keyed by public Application ID.
+	// ProjectLogsTopicPrefix 是按公开 Application ID 区分的项目聚合日志 topic 前缀。
 	ProjectLogsTopicPrefix = "project.logs:"
 )

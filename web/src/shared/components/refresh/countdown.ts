@@ -1,9 +1,4 @@
-/**
- * Formats a countdown duration from seconds into a human-readable string.
- *
- * @param seconds - The duration in seconds
- * @returns The formatted countdown string (e.g., `"30s"`, `"5m 30s"`, `"2h 15m"`), or `'--'` if the input is invalid
- */
+/** 将刷新倒计时按秒、分秒或时分展示；非法值统一返回 `--`，避免把缺失状态误显示为有效倒计时。 */
 
 export function formatRefreshCountdown(seconds: number | null | undefined): string {
   if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
@@ -26,11 +21,7 @@ export function formatRefreshCountdown(seconds: number | null | undefined): stri
   return `${hours}h ${padTimeUnit(minutes)}m`;
 }
 
-/**
- * Formats a number as a two-digit string with leading zeros.
- *
- * @returns A string representation of the value, left-padded with zeros to at least 2 characters.
- */
+/** 为分钟和秒补齐两位，保持倒计时在单位切换时的视觉宽度稳定。 */
 function padTimeUnit(value: number) {
   return String(value).padStart(2, '0');
 }

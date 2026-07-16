@@ -324,6 +324,8 @@ import ProjectMonacoSurface from './ProjectMonacoSurface.vue';
 
 defineOptions({ name: 'ProjectWorkspaceEditor' });
 
+// 工作区编辑器消费 store 的树与文件缓冲区，负责视图交互；会话和持久化状态归 store 所有。
+
 export type ProjectWorkspaceEditorRow = {
   depth: number;
   error?: string;

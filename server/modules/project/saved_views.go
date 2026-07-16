@@ -206,10 +206,8 @@ func mapSavedViewError(err error) error {
 	}
 }
 
-// projectSavedViewRequestFromGenerated converts a generated saved-view request into the internal request format.
-// projectSavedViewRequestFromGenerated converts a generated saved-view request into the internal request format.
-// It serializes the query state and preserves the order of visible columns. It returns an invalid-argument
-// error if the query state cannot be serialized.
+// projectSavedViewRequestFromGenerated 将生成请求转换为内部保存视图请求，序列化查询状态并保留可见列顺序。
+// 查询状态无法序列化时返回无效参数错误。
 func projectSavedViewRequestFromGenerated(request generated.ProjectSavedViewRequest) (savedViewRequest, error) {
 	queryState, err := json.Marshal(request.QueryState)
 	if err != nil {

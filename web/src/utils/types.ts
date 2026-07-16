@@ -16,28 +16,24 @@ export interface PageFooterMeta {
 }
 
 /**
- * AppRouteMeta describes the stable route metadata consumed by the `web` shell.
+ * AppRouteMeta 描述 `web` 壳层消费的稳定路由元数据。
  *
- * Use `title` as the rendered localized title payload. `titleKey` is the
- * backend/bootstrap contract key that can be preserved alongside `title` for
- * diagnostics or future re-localization, but current runtime renderers still
- * read `title`.
+ * `title` 是当前渲染使用的本地化标题；`titleKey` 是后端/bootstrap 契约键，
+ * 可与 `title` 并存以支持诊断或后续重新本地化，但当前运行时渲染器仍读取 `title`。
  *
- * New static routes should keep defining `title` directly. Backend-driven menu
- * routes should prefer flowing `titleKey` through the bootstrap transformer,
- * which resolves `title` from locale catalogs first and falls back to the
- * bootstrap label when no translation exists.
+ * 新增静态路由应继续直接定义 `title`；后端驱动的菜单路由应优先让 `titleKey`
+ * 经过 bootstrap 转换器，由 locale catalog 解析 `title`，无翻译时才回退到 bootstrap 标签。
  */
 export interface AppRouteMeta {
-  /** Explicit bootstrap navigation graph metadata; never inferred from URL ancestry. */
+  /** 显式声明 bootstrap 导航图元数据，不从 URL 层级关系推断。 */
   navigationCode?: string;
   navigationKind?: 'group' | 'entry';
-  /** Visual-only sidebar grouping metadata; it never creates a navigation node. */
+  /** 仅用于侧栏视觉分组，不会创建导航节点。 */
   navigationSection?: NavigationSection;
   navigationTargetPath?: string;
-  /** Explicit localized navigation ancestors used by shell breadcrumbs and tabs. */
+  /** 显式声明供壳层面包屑和标签页使用的本地化导航祖先。 */
   navigationAncestors?: NavigationAncestor[];
-  /** Explicit localized navigation trail used as the default tab title. */
+  /** 显式声明作为标签页默认标题的本地化导航路径。 */
   navigationTitle?: LocalizedTitle;
   title?: LocalizedTitle;
   titleKey?: string;
@@ -50,7 +46,7 @@ export interface AppRouteMeta {
   dashboard?: boolean;
   pageKind?: AppRoutePageKind;
   pageSurface?: AppRoutePageSurface;
-  /** Explicit shell animation for non-list pages whose wide table must retain its usable width. */
+  /** 为需要保留可用宽度的宽表非列表页显式声明壳层动效。 */
   sidebarMotion?: AppRouteSidebarMotion;
   investigationSurface?: boolean;
   icon?: string | Component | FunctionalComponent | (() => VNodeChild);

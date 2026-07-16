@@ -46,8 +46,7 @@ type EmbeddedMigrationDir struct {
 	Files []EmbeddedMigrationFile
 }
 
-// EmbeddedLocaleResources 返回按固定模块顺序聚合后的编译期本地化资源。
-// EmbeddedLocaleResources 按固定模块顺序聚合嵌入式区域资源；任一模块资源加载失败时触发 panic。
+// EmbeddedLocaleResources 按固定模块顺序聚合嵌入式本地化资源；任一模块资源加载失败时触发 panic。
 func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 	providers := []struct {
 		name string
@@ -199,7 +198,7 @@ func BuildModules(buildCtx module.BuildContext, enabled []string) ([]module.Runt
 	return built, nil
 }
 
-// CoreMigrationDirs returns the core live migration directories.
+// CoreMigrationDirs 返回 core 拥有的 live migration 目录。
 func CoreMigrationDirs() []string {
 	return []string{accessLogMigrationDir, appLogMigrationDir, drilldownMigrationDir}
 }
@@ -267,8 +266,8 @@ func MigrationDirs() ([]string, error) {
 	return dedupePreserveOrder(dirs), nil
 }
 
-// ValidateEmbeddedMigrationRegistryFreshness checks that the compile-time embedded migration registry
-// stays byte-for-byte aligned with the current live migration directories on disk.
+// ValidateEmbeddedMigrationRegistryFreshness 校验 compile-time 嵌入式迁移 registry
+// 是否与磁盘上的当前 live migration 目录逐字节保持一致。
 func ValidateEmbeddedMigrationRegistryFreshness(serverRoot string) error {
 	actualDirs, err := collectLiveMigrationDirs(serverRoot)
 	if err != nil {

@@ -139,8 +139,8 @@ func TestEmbeddedMigrationRegistryFreshness(t *testing.T) {
 	}
 }
 
-// TestDescriptorsStayAlignedWithModuleDirectories verifies the generated registry
-// still includes every module directory that declares a runtime descriptor.
+// TestDescriptorsStayAlignedWithModuleDirectories 验证生成的 registry
+// 仍包含每个声明运行时描述符的模块目录。
 func TestDescriptorsStayAlignedWithModuleDirectories(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join("..", "..", "modules"))
 	if err != nil {

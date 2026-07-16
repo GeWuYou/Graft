@@ -23,8 +23,7 @@ const (
 	errorCodeMissingExec = "stage_executor_unavailable"
 )
 
-// Runtime owns Task submission, serial Stage dispatch, and process-local worker
-// lifecycle. PostgreSQL remains the durable authority for every state change.
+// Runtime 拥有 Task 提交、阶段串行分发和进程内 worker 生命周期；每次状态变化仍以 PostgreSQL 持久化事实为权威。
 type Runtime struct {
 	repository taskstore.Repository
 	workers    int
@@ -49,7 +48,7 @@ type runningStage struct {
 	cancel   context.CancelFunc
 }
 
-// NewRuntime 创建一个任务运行时，并初始化其工作线程配置、执行器与授权器注册表以及唤醒通道。
+// NewRuntime 创建任务运行时，并初始化执行器、owner 授权器和 worker 唤醒通道。
 func NewRuntime(repository taskstore.Repository) *Runtime {
 	return &Runtime{
 		repository:  repository,
@@ -62,7 +61,7 @@ func NewRuntime(repository taskstore.Repository) *Runtime {
 	}
 }
 
-// RegisterStageExecutor installs one consumer-owned Stage executor before Boot.
+// RegisterStageExecutor 在 Boot 前注册一个消费模块所有的阶段执行器；启动后注册会被拒绝，避免 worker 看到不完整执行器集合。
 func (r *Runtime) RegisterStageExecutor(executor moduleapi.StageExecutor) error {
 	if r == nil || executor == nil || executor.Type() == "" {
 		return errors.New("task stage executor is required")
@@ -76,7 +75,7 @@ func (r *Runtime) RegisterStageExecutor(executor moduleapi.StageExecutor) error 
 	return nil
 }
 
-// AuthorizeOwner delegates resource authorization to the consumer owning the Task.
+// AuthorizeOwner 将资源授权委托给拥有该 Task 业务资源的消费模块，Task Runtime 不自行推断业务权限。
 func (r *Runtime) AuthorizeOwner(ctx context.Context, actor *moduleapi.CurrentUser, action moduleapi.TaskOwnerAction, owner moduleapi.TaskOwner) error {
 	r.mu.RLock()
 	authorizer := r.authorizers[owner.Type]
@@ -87,7 +86,7 @@ func (r *Runtime) AuthorizeOwner(ctx context.Context, actor *moduleapi.CurrentUs
 	return authorizer.AuthorizeTaskOwner(ctx, actor, action, owner)
 }
 
-// RegisterTaskOwnerAuthorizer registers consumer-owned authorization for generic Task APIs.
+// RegisterTaskOwnerAuthorizer 注册消费模块所有的 Task 资源授权器，供通用任务接口在读取或操作前校验 owner 边界。
 func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	if r == nil || authorizer == nil || authorizer.OwnerType() == "" {
 		return errors.New("task owner authorizer is required")
@@ -101,8 +100,7 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 	return nil
 }
 
-// Submit validates consumer-owned executor references before atomically storing
-// the immutable TaskPlan. The dispatcher observes it through PostgreSQL.
+// Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
@@ -141,7 +139,7 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
 }
 
-// GetTask returns one persisted Task read model.
+// GetTask 返回一个已持久化的 Task 读模型；返回值来自仓储事实而不是 worker 内存状态。
 func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskView, error) {
 	task, err := r.repository.Get(ctx, taskID)
 	if err != nil {
@@ -150,7 +148,7 @@ func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskVie
 	return toTaskView(task), nil
 }
 
-// ListTasks returns one filtered Task history page after the caller authorizes its owner.
+// ListTasks 返回经调用方完成 owner 授权后的 Task 历史分页及总数。
 func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
 	if r == nil || r.repository == nil {
 		return nil, 0, taskstore.ErrInvalidInput
@@ -166,7 +164,7 @@ func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter
 	return items, total, nil
 }
 
-// ListTaskLogs returns one persisted Task log replay page.
+// ListTaskLogs 返回按持久化序列游标读取的 Task 日志重放分页。
 func (r *Runtime) ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskLogView, error) {
 	logs, err := r.repository.ListLogs(ctx, taskID, after, limit)
 	if err != nil {
@@ -179,7 +177,7 @@ func (r *Runtime) ListTaskLogs(ctx context.Context, taskID uint64, after int64, 
 	return items, nil
 }
 
-// ListTaskStages returns the persisted, ordered Stage timeline.
+// ListTaskStages 返回按阶段序号排序的持久化 Stage 时间线。
 func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleapi.TaskStageView, error) {
 	stages, err := r.repository.ListStages(ctx, taskID)
 	if err != nil {
@@ -192,7 +190,7 @@ func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleap
 	return items, nil
 }
 
-// ListTaskEvents returns persisted non-derivable Task history facts.
+// ListTaskEvents 返回不能从当前状态推导的持久化 Task 历史事实。
 func (r *Runtime) ListTaskEvents(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskEventView, error) {
 	events, err := r.repository.ListEvents(ctx, taskID, after, limit)
 	if err != nil {
@@ -210,8 +208,7 @@ func toTaskView(task taskmodel.Task) moduleapi.TaskView {
 	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage}
 }
 
-// Cancel persists a cancellation request and forwards a cancellation signal to a
-// currently running consumer executor when one owns the active Stage.
+// Cancel 持久化取消请求；若当前 Stage 正由消费模块执行，则继续转发取消信号，running 状态由执行结果决定。
 func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 	if r == nil || r.repository == nil {
 		return errors.New("task runtime repository is unavailable")
@@ -283,7 +280,7 @@ func cancelStage(ctx context.Context, executor moduleapi.StageExecutor, run modu
 	return executor.Cancel(ctx, run)
 }
 
-// RetryStage records an operator-approved retry for an unknown or failed Stage.
+// RetryStage 记录操作员批准的 unknown 或 failed 阶段重试；只有父 Task 处于可恢复状态时仓储才允许回到 pending。
 func (r *Runtime) RetryStage(ctx context.Context, taskID uint64, stageID uint64) error {
 	if r == nil || r.repository == nil {
 		return errors.New("task runtime repository is unavailable")
@@ -321,7 +318,7 @@ func (r *Runtime) stageNeedsRecoveryResolution(ctx context.Context, taskID uint6
 	return false, taskstore.ErrNotFound
 }
 
-// Start performs crash recovery before starting the bounded worker pool.
+// Start 在启动有界 worker 池前执行崩溃恢复；无法证明外部副作用完成的在途阶段会先进入 unknown。
 func (r *Runtime) Start(ctx context.Context) error {
 	if r == nil || r.repository == nil || ctx == nil {
 		return errors.New("task runtime start dependencies are unavailable")
@@ -346,8 +343,7 @@ func (r *Runtime) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop asks workers and running executors to stop, then waits for their owned
-// goroutines. In-flight external work remains conservatively recoverable as unknown.
+// Stop 请求 worker 和运行中执行器停止并等待其 goroutine；无法确认完成的外部工作留待恢复为 unknown。
 func (r *Runtime) Stop(ctx context.Context) error {
 	if r == nil {
 		return nil
@@ -560,7 +556,7 @@ func normalizedMaxAttempts(value int) int {
 	return value
 }
 
-// hasPendingStages determines whether any stage is pending or running. Returns true if at least one stage has a pending or running status, and false otherwise.
+// hasPendingStages 判断是否仍有 pending 或 running 阶段；该结果用于决定 Task 是否可以进入终态。
 func hasPendingStages(stages []taskmodel.Stage) bool {
 	for _, stage := range stages {
 		if stage.Status == moduleapi.StageStatusPending || stage.Status == moduleapi.StageStatusRunning {
@@ -570,8 +566,7 @@ func hasPendingStages(stages []taskmodel.Stage) bool {
 	return false
 }
 
-// durationSince returns the elapsed time between the start and finish timestamps in milliseconds.
-// It returns nil when the start timestamp is absent and clamps negative durations to zero.
+// durationSince 返回起止时间之间的毫秒数；缺少开始时间时返回 nil，时钟回拨导致的负数会被截为零。
 func durationSince(startedAt *time.Time, finishedAt time.Time) *int64 {
 	if startedAt == nil {
 		return nil

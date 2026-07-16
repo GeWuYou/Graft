@@ -1,49 +1,49 @@
 package contract
 
-// PermissionCode identifies a stable rbac module permission contract.
+// PermissionCode 标识 RBAC 模块稳定的权限契约。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回权限码的 wire-format 字符串。
 func (c PermissionCode) String() string {
 	return string(c)
 }
 
 const (
-	// RoleReadPermission identifies read access to role-management data.
+	// RoleReadPermission 标识角色管理数据的读取权限。
 	RoleReadPermission PermissionCode = "role.read"
-	// RoleCreatePermission identifies create access to role-management data.
+	// RoleCreatePermission 标识角色管理数据的创建权限。
 	RoleCreatePermission PermissionCode = "role.create"
-	// RoleUpdatePermission identifies update access to role-management data.
+	// RoleUpdatePermission 标识角色管理数据的更新权限。
 	RoleUpdatePermission PermissionCode = "role.update"
-	// RoleStatusUpdatePermission identifies lifecycle status updates for roles.
+	// RoleStatusUpdatePermission 标识角色生命周期状态更新权限。
 	RoleStatusUpdatePermission PermissionCode = "role.status.update"
-	// RoleDeletePermission identifies destructive role deletion access.
+	// RoleDeletePermission 标识角色删除等破坏性操作权限。
 	RoleDeletePermission PermissionCode = "role.delete"
-	// RolePermissionAssignPermission identifies write access to role-permission bindings.
+	// RolePermissionAssignPermission 标识角色权限绑定写入权限。
 	RolePermissionAssignPermission PermissionCode = "role.permission.assign"
-	// PermissionReadPermission identifies read access to permission-management data.
+	// PermissionReadPermission 标识权限管理数据的读取权限。
 	PermissionReadPermission PermissionCode = "permission.read"
-	// UserRoleReadPermission identifies read access to user-role binding snapshots.
+	// UserRoleReadPermission 标识用户角色绑定快照的读取权限。
 	UserRoleReadPermission PermissionCode = "user.role.read"
-	// UserRoleAssignPermission identifies write access to user-role bindings.
+	// UserRoleAssignPermission 标识用户角色绑定写入权限。
 	UserRoleAssignPermission PermissionCode = "user.role.assign"
 
-	// RoleRead is the canonical permission used by rbac module consumers.
+	// RoleRead 是 rbac 模块消费者使用的角色读取规范权限码。
 	RoleRead PermissionCode = RoleReadPermission
-	// RoleCreate is the canonical permission used by rbac module consumers.
+	// RoleCreate 是 rbac 模块消费者使用的角色创建规范权限码。
 	RoleCreate PermissionCode = RoleCreatePermission
-	// RoleUpdate is the canonical permission used by rbac module consumers.
+	// RoleUpdate 是 rbac 模块消费者使用的角色更新规范权限码。
 	RoleUpdate PermissionCode = RoleUpdatePermission
-	// RoleStatusUpdate is the canonical permission used by rbac module consumers.
+	// RoleStatusUpdate 是 rbac 模块消费者使用的角色状态更新规范权限码。
 	RoleStatusUpdate PermissionCode = RoleStatusUpdatePermission
-	// RoleDelete is the canonical permission used by rbac module consumers.
+	// RoleDelete 是 rbac 模块消费者使用的角色删除规范权限码。
 	RoleDelete PermissionCode = RoleDeletePermission
-	// RolePermissionAssign is the canonical permission used by rbac module consumers.
+	// RolePermissionAssign 是 rbac 模块消费者使用的角色权限绑定规范权限码。
 	RolePermissionAssign PermissionCode = RolePermissionAssignPermission
-	// PermissionRead is the canonical permission used by rbac module consumers.
+	// PermissionRead 是 rbac 模块消费者使用的权限读取规范权限码。
 	PermissionRead PermissionCode = PermissionReadPermission
-	// UserRoleRead is the canonical permission used by rbac module consumers.
+	// UserRoleRead 是 rbac 模块消费者使用的用户角色读取规范权限码。
 	UserRoleRead PermissionCode = UserRoleReadPermission
-	// UserRoleAssign is the canonical permission used by rbac module consumers.
+	// UserRoleAssign 是 rbac 模块消费者使用的用户角色绑定规范权限码。
 	UserRoleAssign PermissionCode = UserRoleAssignPermission
 )

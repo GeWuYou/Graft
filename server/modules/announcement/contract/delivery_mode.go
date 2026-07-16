@@ -1,21 +1,21 @@
 package contract
 
-// AnnouncementDeliveryMode identifies how a published announcement should be surfaced to users.
+// AnnouncementDeliveryMode 标识已发布公告向用户呈现的方式。
 type AnnouncementDeliveryMode string
 
-// String returns the canonical delivery mode value.
+// String 返回规范化的公告投递方式值。
 func (m AnnouncementDeliveryMode) String() string {
 	return string(m)
 }
 
 const (
-	// AnnouncementDeliveryModeSilent shows the announcement only in Announcement Center.
+	// AnnouncementDeliveryModeSilent 仅在公告中心展示公告。
 	AnnouncementDeliveryModeSilent AnnouncementDeliveryMode = "silent"
-	// AnnouncementDeliveryModePopup also prompts unread target users with an in-app dialog.
+	// AnnouncementDeliveryModePopup 除公告中心外，还向目标用户弹出未读提示。
 	AnnouncementDeliveryModePopup AnnouncementDeliveryMode = "popup"
 )
 
-// ValidAnnouncementDeliveryMode reports whether value is a known announcement delivery mode contract.
+// ValidAnnouncementDeliveryMode 判断 value 是否为已知的公告投递方式契约。
 func ValidAnnouncementDeliveryMode(value AnnouncementDeliveryMode) bool {
 	switch value {
 	case AnnouncementDeliveryModeSilent, AnnouncementDeliveryModePopup:

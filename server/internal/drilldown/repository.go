@@ -12,7 +12,7 @@ type sqlRepository struct {
 	db *sql.DB
 }
 
-// NewRepository creates the SQL-backed drilldown metadata repository.
+// NewRepository 创建基于 SQL 的 drilldown 元数据仓储。
 func NewRepository(db *sql.DB) (MetadataRepository, error) {
 	if db == nil {
 		return nil, errors.New("drilldown repository requires a non-nil sql db")

@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	// WebSocketTopicScope is the bounded permission scope embedded in websocket topic tickets.
+	// WebSocketTopicScope 是写入 WebSocket 主题票据的受限权限范围。
 	WebSocketTopicScope = "realtime.topic.subscribe"
-	// WebSocketTopicResourceType is the canonical resource type for unified realtime topics.
+	// WebSocketTopicResourceType 是统一实时主题使用的 canonical resource type。
 	WebSocketTopicResourceType = "realtime.topic"
 	websocketBufferSize        = 4096
 )
@@ -40,9 +40,8 @@ type GatewayRegistration struct {
 // RegisterWebSocketGateway 注册统一的实时 WebSocket 入口路由。
 // 当路由器、事件中心或票据服务不可用时返回错误；否则挂载 GET /ws，并在连接建立前完成主题、票据和来源校验。
 //
-// @param router Gin 路由器。
-// @param registration 网关依赖与来源白名单配置。
-// @return 注册失败时返回错误。
+// 参数：router 是 Gin 路由器，registration 提供网关依赖和来源白名单配置。
+// 返回值：注册失败时返回错误。
 func RegisterWebSocketGateway(router gin.IRouter, registration GatewayRegistration) error {
 	if router == nil {
 		return errors.New("realtime router is unavailable")
@@ -118,7 +117,7 @@ func consumeGatewayTicket(ctx *gin.Context, registration GatewayRegistration, re
 
 // websocketTicketErrorStatus 将票据错误映射为对应的 HTTP 状态码。
 // 票据缺失或无效返回 400，已过期或已使用返回 409，其余情况返回 403。
-// @return 对应的 HTTP 状态码。
+// 返回值：对应的 HTTP 状态码。
 func websocketTicketErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, realtimeauth.ErrTicketRequired), errors.Is(err, realtimeauth.ErrInvalidTicket):

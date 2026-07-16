@@ -46,7 +46,11 @@ Remove or rewrite comments that merely translate names, types, templates, or fra
 
 For a comment-only implementation or review batch, the main agent must verify that the orchestration layer selected and exposed the requested worker model before delegation. A model name written in a task prompt is not verification.
 
-When `gpt-5.6-luna-medium` cannot be selected or verified, pause delegation and ask the user to choose one of: use the main agent's current model, provide a model that the orchestrator can verify, or have the main agent take over. Do not dispatch a worker until this is resolved.
+The target worker configuration is `model=gpt-5.6-luna` with `reasoning_effort=medium`. The orchestration layer must expose and verify both fields before delegation. If that configuration cannot be selected or verified, pause delegation and ask the user to choose one of: use the main agent's current model, provide a model configuration that the orchestrator can verify, or have the main agent take over. Do not dispatch a worker until this is resolved.
+
+When the orchestration API supports full-history forking, do not combine `fork_context=true` with explicit model or
+reasoning-effort overrides. Use an independent context when selecting the verified worker configuration, or inherit the
+parent configuration without overrides.
 
 Use non-overlapping roles for a large comment-governance batch:
 

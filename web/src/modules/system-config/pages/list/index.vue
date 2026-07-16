@@ -421,7 +421,7 @@ import { SYSTEM_CONFIG_PERMISSION_CODE } from '../../contract/permissions';
 import { upsertSystemConfigCache, useSystemConfigsQuery } from '../../shared/system-config-query';
 import type { SystemConfigItem } from '../../types/system-config';
 
-/** 系统配置页将服务端配置集合交给 Query cache，树、搜索与编辑器交互保持页面本地。 */
+/** 系统配置页把服务端配置集合交给 Query cache；树选择、搜索和编辑器草稿仍属页面交互状态，避免写回共享缓存。 */
 defineOptions({
   name: 'SystemConfigListPage',
 });

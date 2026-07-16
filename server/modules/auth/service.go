@@ -10,9 +10,7 @@ import (
 	authstore "graft/server/modules/auth/store"
 )
 
-// authService owns the authentication runtime. User remains the authority for
-// profile identity, while credential and refresh-session persistence belongs
-// to auth through narrow stores.
+// authService 承担认证运行时职责：user 模块提供 profile identity，auth 通过窄化 store 接口拥有 credential 与 refresh session 状态。
 type authService struct {
 	credentials     authstore.CredentialStore
 	sessions        authstore.SessionStore
@@ -24,8 +22,8 @@ type authService struct {
 	refreshTokens   *RefreshTokenManager
 }
 
-// newAuthService creates an authentication service with the required stores, identity provider, password components, and token managers.
-// It returns an error when a required dependency is unavailable, token manager initialization fails, or the credential store does not support atomic password changes.
+// newAuthService 创建认证服务及其必需的 store、身份提供方、密码组件和 token manager。
+// 当必需依赖缺失、token manager 初始化失败，或 credential store 不支持原子密码变更时返回错误。
 func newAuthService(authConfig config.AuthConfig, credentials authstore.CredentialStore, sessions authstore.SessionStore, identity moduleapi.UserIdentityProvider) (*authService, error) {
 	if credentials == nil || sessions == nil || identity == nil {
 		return nil, errors.New("auth runtime dependencies are unavailable")

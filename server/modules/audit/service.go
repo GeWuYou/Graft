@@ -20,13 +20,13 @@ const (
 )
 
 var (
-	// ErrNilAuditRepository indicates the service was built without the module-owned repository.
+	// ErrNilAuditRepository 表示服务构造时缺少模块自有 repository。
 	ErrNilAuditRepository = errors.New("audit repository is required")
-	// ErrAuditServiceUnavailable indicates the service or its repository dependency is unavailable at runtime.
+	// ErrAuditServiceUnavailable 表示服务或其 repository 依赖在运行时不可用。
 	ErrAuditServiceUnavailable = errors.New("audit service is unavailable")
 )
 
-// RecordInput describes one audit record write at the service boundary.
+// RecordInput 描述服务边界接收的一条审计记录写入请求。
 type RecordInput struct {
 	ActorUserID      *uint64
 	ActorUsername    string
@@ -45,7 +45,7 @@ type RecordInput struct {
 	CreatedAt        time.Time
 }
 
-// ListQuery describes the service-layer read shape used by future API pagination/filtering.
+// ListQuery 描述服务层使用的审计记录分页与筛选条件。
 type ListQuery struct {
 	Page                int
 	PageSize            int
@@ -78,7 +78,7 @@ type ListQuery struct {
 	Sorts               []string
 }
 
-// ListResult contains one page of audit records plus the total count.
+// ListResult 包含一页审计记录及匹配条件的总数。
 type ListResult struct {
 	Items              []auditstore.AuditLog
 	Total              int
@@ -89,25 +89,25 @@ type ListResult struct {
 	ConvertibleFilters *drilldown.ConvertibleFilters
 }
 
-// DetailResult contains one immutable audit log evidence record.
+// DetailResult 包含一条不可变的审计日志证据记录。
 type DetailResult = auditstore.AuditLog
 
-// OverviewResult contains the read model for the audit overview page.
+// OverviewResult 包含审计概览页面使用的读模型。
 type OverviewResult = auditstore.AuditOverview
 
-// IncidentResult contains the audit-owned incident drilldown read model.
+// IncidentResult 包含由审计模块拥有的事件下钻读模型。
 type IncidentResult = auditstore.AuditIncident
 
-// VisibilityPolicyResult contains the audit-owned visibility policy snapshot.
+// VisibilityPolicyResult 包含由审计模块拥有的可见性策略快照。
 type VisibilityPolicyResult = auditstore.AuditVisibilityPolicySnapshot
 
-// Service writes and queries audit records through the module-owned repository boundary.
+// Service 通过模块拥有的仓储边界写入和查询审计记录。
 type Service struct {
 	repo      auditstore.AuditRepository
 	drilldown *drilldown.Service[ListQuery, ListQuery]
 }
 
-// NewService creates the audit service.
+// NewService 创建审计服务。
 func NewService(repo auditstore.AuditRepository) (*Service, error) {
 	if repo == nil {
 		return nil, ErrNilAuditRepository
@@ -116,7 +116,8 @@ func NewService(repo auditstore.AuditRepository) (*Service, error) {
 	return &Service{repo: repo}, nil
 }
 
-// NewServiceWithDrilldown creates the audit service with an optional drilldown scope resolver.
+// NewServiceWithDrilldown 创建带可选下钻范围解析器的审计服务。
+// 下钻解析器只决定读取范围，不改变审计记录的写入事实。
 func NewServiceWithDrilldown(
 	repo auditstore.AuditRepository,
 	drilldownService *drilldown.Service[ListQuery, ListQuery],
@@ -129,7 +130,7 @@ func NewServiceWithDrilldown(
 	return service, nil
 }
 
-// Record writes one audit record after normalizing stable fields and redacting sensitive data.
+// Record 规范化稳定字段并脱敏后写入一条审计记录。
 func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.AuditLog, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -144,7 +145,7 @@ func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.Aud
 	return repo.CreateAuditLog(ctx, createInput)
 }
 
-// List returns a bounded page of audit records.
+// List 返回一页受上限约束的审计记录。
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -177,7 +178,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	return listResult, nil
 }
 
-// Detail returns one immutable audit record by id.
+// Detail 按 ID 返回一条不可变的审计记录。
 func (s *Service) Detail(ctx context.Context, id uint64) (DetailResult, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -194,7 +195,7 @@ func (s *Service) Detail(ctx context.Context, id uint64) (DetailResult, error) {
 	return record, nil
 }
 
-// Overview returns the aggregated overview payload for the selected window.
+// Overview 返回所选时间窗口的聚合概览数据。
 func (s *Service) Overview(ctx context.Context, preset auditstore.AuditTimePreset) (OverviewResult, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -204,7 +205,7 @@ func (s *Service) Overview(ctx context.Context, preset auditstore.AuditTimePrese
 	return repo.ReadAuditOverview(ctx, normalizeAuditOverviewTimePreset(preset))
 }
 
-// Incident returns the audit-owned incident drilldown for one stable seed event.
+// Incident 返回一个稳定种子事件对应的审计模块事件下钻数据。
 func (s *Service) Incident(ctx context.Context, eventID uint64) (IncidentResult, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -217,7 +218,7 @@ func (s *Service) Incident(ctx context.Context, eventID uint64) (IncidentResult,
 	return repo.ReadIncident(ctx, eventID)
 }
 
-// DeleteBefore deletes audit records older than an explicit audit-owned retention cutoff.
+// DeleteBefore 删除早于审计模块显式保留期限边界的审计记录。
 func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (int64, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -235,7 +236,7 @@ func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (in
 	return deleted, nil
 }
 
-// VisibilityPolicy returns the current audit-owned visibility policy snapshot.
+// VisibilityPolicy 返回当前由审计模块拥有的可见性策略快照。
 func (s *Service) VisibilityPolicy(ctx context.Context) (VisibilityPolicyResult, error) {
 	repo, err := s.repository()
 	if err != nil {
@@ -245,7 +246,7 @@ func (s *Service) VisibilityPolicy(ctx context.Context) (VisibilityPolicyResult,
 	return s.readAuditVisibilityPolicy(ctx, repo)
 }
 
-// UpdateVisibilityDefault updates the global audit visibility strategy.
+// UpdateVisibilityDefault 更新全局审计可见性策略。
 func (s *Service) UpdateVisibilityDefault(
 	ctx context.Context,
 	strategy auditstore.AuditVisibilityStrategy,
@@ -275,7 +276,7 @@ func (s *Service) UpdateVisibilityDefault(
 	return updated, nil
 }
 
-// UpdateVisibilityOverride updates one audit-owned source+action visibility override.
+// UpdateVisibilityOverride 更新一个由审计模块拥有的来源和动作可见性覆盖项。
 func (s *Service) UpdateVisibilityOverride(
 	ctx context.Context,
 	input auditstore.UpsertAuditVisibilityOverrideInput,
@@ -313,7 +314,7 @@ func (s *Service) UpdateVisibilityOverride(
 	return updated, nil
 }
 
-// DeleteVisibilityOverride removes one audit-owned source+action visibility override.
+// DeleteVisibilityOverride 删除一条审计模块拥有的来源加动作可见性覆盖规则。
 func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
 	repo, err := s.repository()
 	if err != nil {
@@ -330,7 +331,7 @@ func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstor
 	return nil
 }
 
-// RecordCandidate writes one normalized candidate after policy evaluation approves it.
+// RecordCandidate 在策略评估通过后写入一条已规范化的候选审计记录。
 func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.AuditCandidate) (auditstore.AuditLog, bool, error) {
 	repo, err := s.repository()
 	if err != nil {

@@ -98,8 +98,7 @@ export function createAdvancedQueryBuilderListeners<TPreset extends string, TFie
   return {
     'add-sorter': config.addSorter,
     'apply-preset': (preset: string) => config.emitApplyPreset(preset as TPreset),
-    // Closing any active condition resets the page to its complete default state.
-    // Keep the legacy event listener for custom builder stubs during migration.
+    // 关闭条件会重置默认状态；close-tag 是 AdvancedQueryFilterBuilder 当前对外事件契约。
     'close-tag': () => config.emitReset(),
     'move-sorter-down': config.moveSorterDown,
     'move-sorter-up': config.moveSorterUp,

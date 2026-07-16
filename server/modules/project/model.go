@@ -1,12 +1,11 @@
-// Package project defines Compose Project Management authority-owned data-model artifacts.
+// Package project 定义 Compose 项目管理权威边界拥有的数据模型。
 package project
 
 import "time"
 
-// Record is the module-owned persistence model for one Compose project registry row.
+// Record 是项目注册表一行记录的模块拥有持久化模型。
 //
-// Phase 1 keeps runtime state out of this record; it only stores registry, ownership, file,
-// snapshot, and drift metadata.
+// 第一阶段不在此记录运行时状态，只保存注册、所有权、文件、快照和漂移元数据。
 type Record struct {
 	ID                         uint64
 	ApplicationID              string
@@ -36,7 +35,7 @@ type Record struct {
 	DeletedAt                  int64
 }
 
-// FileRecord stores one ordered Compose or environment file reference for a project.
+// FileRecord 保存项目中一个按顺序排列的 Compose 或环境文件引用。
 type FileRecord struct {
 	ID               uint64
 	ProjectID        uint64
@@ -50,7 +49,7 @@ type FileRecord struct {
 	UpdatedAt        time.Time
 }
 
-// SnapshotRecord stores the latest successful normalized Compose snapshot for one project.
+// SnapshotRecord 保存项目最近一次成功规范化的 Compose 快照。
 type SnapshotRecord struct {
 	ProjectID              uint64
 	NormalizedComposeJSON  []byte

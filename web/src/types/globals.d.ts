@@ -1,6 +1,3 @@
-// 通用声明
-
-// Vue
 declare module '*.vue' {
   import type { DefineComponent } from 'vue';
 

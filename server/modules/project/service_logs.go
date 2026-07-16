@@ -16,7 +16,7 @@ const (
 	maxProjectLogsTail     = 1000
 )
 
-// LogQuery describes the project-owned aggregated log query.
+// LogQuery 描述项目聚合日志查询；未指定输出流时由服务同时查询 stdout 和 stderr。
 type LogQuery struct {
 	Tail       int
 	Since      string
@@ -25,7 +25,7 @@ type LogQuery struct {
 	Stderr     bool
 }
 
-// Logs returns a project-owned aggregated log snapshot with explicit source attribution.
+// Logs 返回项目聚合日志快照，并为每条日志保留容器和服务来源标识。
 func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (generated.ProjectLogResponse, error) {
 	if s == nil || s.logReader == nil {
 		return generated.ProjectLogResponse{}, errProjectRuntimeUnavailable
@@ -74,7 +74,7 @@ func normalizeProjectLogQuery(query LogQuery) (LogQuery, error) {
 	return normalized, nil
 }
 
-// toContainerProjectLogQuery converts an API log query into a container log query.
+// toContainerProjectLogQuery 将项目 API 日志查询转换为容器运行时查询。
 func toContainerProjectLogQuery(query LogQuery) moduleapi.ContainerProjectLogQuery {
 	return moduleapi.ContainerProjectLogQuery{
 		Tail:       query.Tail,

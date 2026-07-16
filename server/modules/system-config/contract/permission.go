@@ -1,16 +1,16 @@
 package contract
 
-// PermissionCode identifies a stable system configuration permission contract.
+// PermissionCode 标识系统配置模块稳定的权限契约。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回接口传输使用的权限编码。
 func (c PermissionCode) String() string {
 	return string(c)
 }
 
 const (
-	// SystemConfigReadPermission identifies read access to system configuration definitions and values.
+	// SystemConfigReadPermission 允许读取系统配置定义和有效值。
 	SystemConfigReadPermission PermissionCode = "system-config.read"
-	// SystemConfigWritePermission identifies write access to user overrides.
+	// SystemConfigWritePermission 允许写入用户覆盖值。
 	SystemConfigWritePermission PermissionCode = "system-config.write"
 )

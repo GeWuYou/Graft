@@ -75,6 +75,7 @@ import type { ProjectLifecycleConfigurationDraft } from '../types/project';
 import LifecycleHelpTrigger from './LifecycleHelpTrigger.vue';
 
 defineOptions({ name: 'ProjectLifecycleConfigurationReview' });
+// 配置审核区直接编辑调用方持有的草稿，并将生成命令作为当前草稿的可视化结果展示。
 const draft = defineModel<ProjectLifecycleConfigurationDraft>('draft', { required: true });
 defineProps<{
   title: string;

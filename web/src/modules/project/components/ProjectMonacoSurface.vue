@@ -10,6 +10,7 @@ import { createLogger } from '@/utils/logger';
 import * as projectMonaco from '../shared/project-monaco';
 import * as projectMonacoDebug from '../shared/project-monaco-debug';
 
+// 单文件编辑器负责把页面模型绑定到 Monaco，并在切换文件或销毁组件时释放本组件拥有的模型缓存。
 type MonacoEditorSurfaceOptions = Monaco.editor.IStandaloneEditorConstructionOptions;
 
 const props = withDefaults(

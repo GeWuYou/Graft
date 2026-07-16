@@ -14,10 +14,7 @@ import (
 	authstore "graft/server/modules/auth/store"
 )
 
-// ResetDefaultAdminForDevelopment restores the default administrator through
-// auth-owned credentials and the user-owned profile identity capability.
-//
-// the configured default access.
+// ResetDefaultAdminForDevelopment 仅在 local/test 环境恢复默认管理员 credential、吊销 session 并重建默认访问权限；生产环境调用会被拒绝。
 func ResetDefaultAdminForDevelopment(ctx context.Context, repository authstore.AuthRepository, identity moduleapi.UserIdentityProvider, localizer *i18n.Service, rbac moduleapi.RBACBootstrapService, permissions []permission.Item) error {
 	if !isDevelopmentResetEnv(os.Getenv("GRAFT_APP_ENV")) {
 		return fmt.Errorf("reset default admin is only available in local/test environments, got %q", strings.TrimSpace(os.Getenv("GRAFT_APP_ENV")))
@@ -57,7 +54,7 @@ func resetDefaultAdminPasswordAndSessions(ctx context.Context, repository authst
 	return nil
 }
 
-// isDevelopmentResetEnv determines whether the environment permits development admin resets.
+// isDevelopmentResetEnv 判断当前环境是否允许执行开发用管理员重置。
 func isDevelopmentResetEnv(env string) bool {
 	switch strings.TrimSpace(env) {
 	case "local", "test":

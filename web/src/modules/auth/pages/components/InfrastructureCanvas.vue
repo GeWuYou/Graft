@@ -125,6 +125,7 @@
   </aside>
 </template>
 <script setup lang="ts">
+// 该画布是认证页的视觉辅助层，不承载认证状态、网络请求或权限判断。
 import { ref } from 'vue';
 
 defineOptions({

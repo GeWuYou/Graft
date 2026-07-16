@@ -99,6 +99,7 @@
   </t-form>
 </template>
 <script setup lang="ts">
+// 注册表单只提交认证模块定义的字段，成功后的会话建立由统一认证流程接管。
 import type { FormRule, SubmitContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref } from 'vue';

@@ -47,10 +47,8 @@ type atlasExecutor interface {
 	ExecuteN(context.Context, int) error
 }
 
-// newMigrateCommand 创建显式数据库迁移命令树。
-//
-// 迁移能力保持在独立的 `graft migrate` 子树下，避免普通运行时启动路径
-// NewMigrateCommand creates the migrate command with subcommands for applying and validating Atlas migrations.
+// newMigrateCommand 创建独立的 `graft migrate` 命令树，将 Atlas 迁移应用与校验
+// 保持在显式 CLI 路径中，避免混入普通运行时启动流程。
 func newMigrateCommand() *cobra.Command {
 	var migrationDir string
 
@@ -82,15 +80,7 @@ func newMigrateCommand() *cobra.Command {
 	return command
 }
 
-// runMigrateUp 执行一次 Atlas 版本化迁移应用。
-//
-// 参数：
-//   - cmd: 当前 Cobra 命令，用于继承上下文和标准输入输出。
-//   - opts: 迁移目录与工作目录等显式执行选项。
-//
-// 返回值：
-// runMigrateUp 应用待处理的迁移到数据库。
-// runMigrateUp 执行一次 Atlas 迁移并关闭相关资源。
+// runMigrateUp 应用待处理的 Atlas 迁移，并在执行完成后关闭数据库资源。
 // 迁移目录解析、执行或关闭过程中发生错误时返回错误；当没有待处理迁移时返回 nil。
 func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
 	cfg, err := config.Load()
@@ -202,7 +192,7 @@ func validateEmbeddedMigrationRegistryFreshness(workingDir string) error {
 	return nil
 }
 
-// ResolveAtlasMigrationDir resolves an Atlas migration directory, using the current working directory if none is provided.
+// resolveAtlasMigrationDir 解析 Atlas 迁移目录；未提供工作目录时使用当前进程目录。
 func resolveAtlasMigrationDir(opts migrateResolveOptions) (atlasmigrate.Dir, error) {
 	workingDir := opts.workingDir
 	if strings.TrimSpace(workingDir) == "" {
@@ -251,8 +241,8 @@ func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmig
 	}, nil
 }
 
-// validateAtlasRevisionMetadata rejects revision rows that Atlas v1.2.3 would
-// otherwise index unsafely while resuming a partially applied migration.
+// validateAtlasRevisionMetadata 在 Atlas 恢复部分执行的迁移前校验修订元数据，
+// 防止 Atlas v1.2.3 对不安全的进度或 partial hash 数据建立索引。
 func validateAtlasRevisionMetadata(ctx context.Context, store atlasmigrate.RevisionReadWriter) error {
 	revisions, err := store.ReadRevisions(ctx)
 	if err != nil {

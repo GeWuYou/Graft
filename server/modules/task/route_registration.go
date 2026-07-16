@@ -15,8 +15,7 @@ import (
 	taskstore "graft/server/modules/task/store"
 )
 
-// registerTaskRoutes registers task endpoints and applies request identification and permission middleware.
-// It returns an error if the required authentication or authorization services cannot be resolved.
+// registerTaskRoutes 注册任务接口并应用请求标识和权限中间件；认证或授权服务无法解析时返回错误，禁止以未鉴权方式挂载接口。
 func registerTaskRoutes(ctx *module.Context, runtime *Runtime, publisher httpx.SecurityAuditPublisher) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -221,7 +220,7 @@ func (r taskRoutes) writeDetail(c *gin.Context, status int, task moduleapi.TaskV
 	httpx.WriteSuccess(c, status, response)
 }
 
-// taskSummaryResponse converts a task view into its canonical OpenAPI response object.
+// taskSummaryResponse 将任务视图转换为 canonical OpenAPI 响应对象。
 func taskSummaryResponse(task moduleapi.TaskView) map[string]any {
 	return map[string]any{
 		"id":                task.ID,
@@ -290,7 +289,7 @@ func taskEventResponse(event moduleapi.TaskEventView) map[string]any {
 	}
 }
 
-// taskEventResponses converts task event views into response objects.
+// taskEventResponses 将任务事件视图转换为响应对象列表，并保留持久化顺序。
 func taskEventResponses(events []moduleapi.TaskEventView) []map[string]any {
 	items := make([]map[string]any, 0, len(events))
 	for _, event := range events {
@@ -312,7 +311,7 @@ func taskLogResponse(log moduleapi.TaskLogView) map[string]any {
 	}
 }
 
-// taskLogResponses converts task log views into response objects.
+// taskLogResponses 将任务日志视图转换为响应对象列表，并保留日志序列顺序。
 func taskLogResponses(logs []moduleapi.TaskLogView) []map[string]any {
 	items := make([]map[string]any, 0, len(logs))
 	for _, log := range logs {
@@ -361,7 +360,7 @@ func isTaskStatus(status moduleapi.TaskStatus) bool {
 	}
 }
 
-// taskHTTPStatus maps task store errors to their corresponding HTTP status codes.
+// taskHTTPStatus 将任务仓储错误映射为对应 HTTP 状态码，保持状态冲突与资源未找到的边界可见。
 func taskHTTPStatus(err error) int {
 	switch {
 	case errors.Is(err, taskstore.ErrNotFound):
@@ -375,7 +374,7 @@ func taskHTTPStatus(err error) int {
 	}
 }
 
-// taskSequencePage parses and bounds the sequence cursor and page size from the request query.
+// taskSequencePage 从请求查询参数解析并限制序列游标和分页大小。
 func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	after, _ := strconv.ParseInt(c.DefaultQuery("after_sequence", "0"), 10, 64)
 	if after < 0 {
@@ -391,8 +390,7 @@ func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	return after, limit
 }
 
-// taskListPage parses and bounds the task list pagination parameters.
-// It returns the requested item limit and offset.
+// taskListPage 从请求查询参数解析并限制任务列表分页参数，返回条数上限和偏移量。
 func taskListPage(c *gin.Context) (int, int) {
 	_, limit := taskSequencePage(c, defaultTaskListLimit, maxTaskListLimit)
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))

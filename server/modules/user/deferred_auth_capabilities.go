@@ -9,8 +9,8 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-// deferredAuthCapabilities lets user declare guarded routes before auth has
-// registered its capability. Boot binds the auth-owned implementations once.
+// deferredAuthCapabilities 允许 user 在 auth 注册能力前声明受保护路由；Boot 阶段一次性绑定 auth 所有的实现。
+// 绑定前所有调用都失败，不会静默降级为未鉴权路径。
 type deferredAuthCapabilities struct {
 	mu       sync.RWMutex
 	auth     moduleapi.AuthService
@@ -18,7 +18,7 @@ type deferredAuthCapabilities struct {
 	flow     moduleapi.AuthFlowService
 }
 
-// newDeferredAuthCapabilities creates deferred authentication capabilities without configured service targets.
+// newDeferredAuthCapabilities 创建尚未绑定服务目标的延迟鉴权能力；目标必须在 Boot 前由 auth 能力完成绑定。
 func newDeferredAuthCapabilities() *deferredAuthCapabilities { return &deferredAuthCapabilities{} }
 
 func (d *deferredAuthCapabilities) SetTargets(auth moduleapi.AuthService, sessions moduleapi.AuthSessionService, flow moduleapi.AuthFlowService) error {

@@ -30,21 +30,21 @@ var defaultWorkspaceTemplateSeedMu sync.Mutex
 //go:embed all:templates/default
 var bundledWorkspaceTemplates embed.FS
 
-// WorkspaceEntry is a generic text-file or directory entry in a project workspace.
-// File names are intentionally not restricted by extension; only path and text safety rules apply.
+// WorkspaceEntry 表示项目工作区中的通用文本文件或目录条目。
+// 文件名不按扩展名限制，仅执行路径安全和文本内容安全校验。
 type WorkspaceEntry struct {
 	Path     string
 	NodeType string
 	Content  *string
 }
 
-// WorkspaceTemplate describes one operator-managed template directory.
+// WorkspaceTemplate 描述一个由操作员管理的模板目录。
 type WorkspaceTemplate struct {
 	Key         string
 	DisplayName string
 }
 
-// WorkspaceDefaultsResult is the server-owned initial workspace model for blank creation.
+// WorkspaceDefaultsResult 是空白创建使用的服务端拥有初始工作区模型。
 type WorkspaceDefaultsResult struct {
 	Templates          []WorkspaceTemplate
 	DefaultTemplateKey string
@@ -52,7 +52,7 @@ type WorkspaceDefaultsResult struct {
 	ComposeFilePath    string
 }
 
-// WorkspaceDefaults returns the server-owned initial workspace and available runtime templates for blank creation.
+// WorkspaceDefaults 返回空白创建使用的服务端初始工作区和可用运行时模板。
 func (s *Service) WorkspaceDefaults(ctx context.Context) (WorkspaceDefaultsResult, error) {
 	root, err := s.applicationRootDirectory(ctx)
 	if err != nil {
@@ -122,7 +122,7 @@ func blankWorkspaceEntries() []WorkspaceEntry {
 // templateRoot 返回应用根目录下的模板目录路径。
 func templateRoot(applicationRoot string) string { return filepath.Join(applicationRoot, "templates") }
 
-// seedDefaultWorkspaceTemplate adds missing bundled files to the default workspace template without overwriting existing files. It returns an error if the bundled files cannot be read or written, or if the target files cannot be inspected.
+// seedDefaultWorkspaceTemplate 在不覆盖已有文件的前提下向默认模板补齐内嵌文件；读取、写入或检查目标失败时返回错误。
 func seedDefaultWorkspaceTemplate(applicationRoot string) error {
 	defaultWorkspaceTemplateSeedMu.Lock()
 	defer defaultWorkspaceTemplateSeedMu.Unlock()
@@ -203,8 +203,7 @@ func writeWorkspaceTemplateTemporaryFile(temporary *os.File, content []byte) err
 	return nil
 }
 
-// listWorkspaceTemplates lists valid workspace templates under the application root,
-// sorted by template key. It returns an error if the template directory cannot be read.
+// listWorkspaceTemplates 列出应用根目录下的有效工作区模板并按模板键排序；模板目录无法读取时返回错误。
 func listWorkspaceTemplates(applicationRoot string) ([]WorkspaceTemplate, error) {
 	entries, err := os.ReadDir(templateRoot(applicationRoot))
 	if err != nil {
@@ -261,10 +260,8 @@ func loadWorkspaceTemplate(applicationRoot, key string) ([]WorkspaceEntry, error
 	return entries, nil
 }
 
-// workspaceTemplateEntry converts a template filesystem entry into a workspace entry.
-// It skips the template root and rejects symlinks and files that are not valid UTF-8
-// text or contain NUL bytes. It returns whether the entry should be skipped and any
-// error encountered while processing it.
+// workspaceTemplateEntry 将模板文件系统条目转换为工作区条目。
+// 它跳过模板根目录，拒绝符号链接、非 UTF-8 文本和包含空字节的文件，并返回是否跳过及处理错误。
 func workspaceTemplateEntry(root, path string, entry fs.DirEntry, walkErr error) (WorkspaceEntry, bool, error) {
 	if walkErr != nil {
 		return WorkspaceEntry{}, false, walkErr

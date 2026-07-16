@@ -13,9 +13,8 @@ import (
 	"testing"
 )
 
-// TestModuleLifecycleMethodsAvoidDetachedContexts enforces that module lifecycle
-// code does not detach from runtime-owned shutdown semantics by introducing
-// background contexts or local time.After shutdown windows.
+// TestModuleLifecycleMethodsAvoidDetachedContexts 验证模块生命周期代码不会通过创建后台上下文或本地
+// time.After 关闭等待窗口，脱离运行时统一管理的关闭语义。
 func TestModuleLifecycleMethodsAvoidDetachedContexts(t *testing.T) {
 	t.Parallel()
 

@@ -1,4 +1,4 @@
-// Package main generates the embedded bundled OpenAPI asset consumed by server/internal/app.
+// Package main 生成 server/internal/app 消费的嵌入式 OpenAPI 打包资源。
 package main
 
 import (
@@ -38,7 +38,7 @@ func main() {
 		failf("reject non-regular canonical bundled openapi spec: %s (%s)", sourcePath, sourceInfo.Mode().String())
 	}
 
-	// sourcePath is deterministically derived from the repository layout above and prevalidated as a regular file.
+	// sourcePath 由上面的仓库布局确定推导，并已预先校验为普通文件。
 	spec, err := os.ReadFile(sourcePath) // #nosec G304
 	if err != nil {
 		failf("read canonical bundled openapi spec: %v", err)
@@ -63,7 +63,7 @@ func renderGeneratedSource(spec []byte, digest string) []byte {
 	return buffer.Bytes()
 }
 
-// failf formats and writes a message to standard error and terminates the program with exit status 1.
+// failf 格式化错误消息并写入标准错误，然后以退出码 1 终止生成命令。
 func failf(format string, args ...any) {
 	_, _ = fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)

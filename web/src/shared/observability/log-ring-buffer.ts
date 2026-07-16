@@ -13,7 +13,7 @@ export type LogRingBufferView<T> = Readonly<{
  * 冻结当前环形缓冲快照视图，避免后续写入继续影响既有读取者。
  *
  * @param view - 原始 live view
- * @returns 基于当前内容克隆出的 immutable snapshot view
+ * @returns 基于当前内容克隆出的 immutable snapshot view；后续写入不会影响本次读取
  */
 export function cloneLogRingBufferView<T>(view: LogRingBufferView<T>): LogRingBufferView<T> {
   const entries = view.toArray();
@@ -58,12 +58,6 @@ type RingSlot<T> = {
   value: T;
 };
 
-/**
- * 校验容量是否为正整数。
- *
- * @param capacity - 环形缓冲区的容量
- * @throws RangeError 当 `capacity` 不是大于 0 的整数时抛出
- */
 function assertPositiveCapacity(capacity: number) {
   if (!Number.isInteger(capacity) || capacity <= 0) {
     throw new RangeError('RingBuffer capacity must be a positive integer');

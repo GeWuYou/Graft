@@ -64,10 +64,6 @@ func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context,
 }
 
 // handleAddRolePermissionsRoute 处理为角色添加权限的路由请求。
-//
-/**
- * This is invalid in Go comment format. Need just line comments.
- */
 func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,

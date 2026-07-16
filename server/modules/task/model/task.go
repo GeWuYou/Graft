@@ -1,4 +1,4 @@
-// Package model defines the Task Runtime's module-owned persisted facts.
+// Package model 定义 Task Runtime 所有的持久化事实模型。
 package model
 
 import (
@@ -8,7 +8,7 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-// Task is one persisted execution of a consumer-owned TaskPlan.
+// Task 表示消费模块提交的一次持久化 TaskPlan 执行；状态和结果字段由 Runtime 持续更新。
 type Task struct {
 	ID                uint64
 	Type              moduleapi.TaskType
@@ -31,7 +31,7 @@ type Task struct {
 	UpdatedAt         time.Time
 }
 
-// Stage is one immutable plan entry and its current execution state.
+// Stage 表示冻结计划中的一个阶段及其当前执行状态；计划字段创建后不因重试而重写。
 type Stage struct {
 	ID             uint64
 	TaskID         uint64
@@ -55,7 +55,7 @@ type Stage struct {
 	UpdatedAt      time.Time
 }
 
-// Event records a non-derivable Task lifecycle, retry, cancellation, or recovery fact.
+// Event 记录不能从 Task 和 Stage 当前状态推导的生命周期、重试、取消或恢复事实。
 type Event struct {
 	ID        uint64
 	TaskID    uint64
@@ -65,10 +65,10 @@ type Event struct {
 	CreatedAt time.Time
 }
 
-// EventType identifies the limited event history retained in addition to Task and Stage rows.
+// EventType 标识除 Task 和 Stage 行之外保留的有限事件历史类型。
 type EventType string
 
-// Event type constants identify facts that Task and Stage rows cannot derive.
+// EventType 类型常量标识 Task 和 Stage 行无法推导的历史事实。
 const (
 	EventTypeCreated          EventType = "created"
 	EventTypeCancelRequested  EventType = "cancel_requested"
@@ -79,7 +79,7 @@ const (
 	EventTypeRecoveryResolved EventType = "recovery_resolved"
 )
 
-// Log is one ordered Stage output or system diagnostic record.
+// Log 表示一条按序排列的 Stage 输出或系统诊断记录。
 type Log struct {
 	ID         uint64
 	TaskID     uint64

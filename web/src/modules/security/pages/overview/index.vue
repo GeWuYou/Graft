@@ -142,6 +142,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// 安全概览以选定时间范围读取服务端聚合结果，页面只负责状态展示与重试交互。
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';

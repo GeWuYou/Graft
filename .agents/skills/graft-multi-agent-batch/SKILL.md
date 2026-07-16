@@ -69,12 +69,19 @@ Use this skill only when all of the following are true:
    - areas it must not touch
    - required validation
    - expected output format
+   - verified worker model configuration when an override is required
+   - when using the orchestration API, pass `fork_context=false` with explicit `model` and
+     `reasoning_effort` overrides; `fork_context=true` inherits the parent model and reasoning effort and must not
+     be combined with either override
 8. Once a write-capable slice is delegated, keep implementation ownership with that same `worker`:
    - do not reclaim the slice locally just because one wait window elapsed
    - do not treat `no visible diff yet` as evidence of stall by itself
    - do not silently continue the worker's bounded slice in the main agent after a checkpoint reply
    - do not close, replace, or locally take over the worker only because the main worktree still shows no diff and the
      worker has not emitted final closeout yet
+   - after required validation passes, let the owning worker evaluate and perform a scoped `graft-commit` when commit
+     authority is explicit and ownership is provable; stage only exact owned files and exclude topic, skill,
+     other-worker, and unknown changes
 9. While subagents run, do only non-overlapping work locally:
    - review returned slices
    - prepare follow-up validation

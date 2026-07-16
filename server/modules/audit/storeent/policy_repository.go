@@ -12,7 +12,7 @@ import (
 
 const defaultPolicyRuleCapacity = 16
 
-// ListAuditPolicyRules returns enabled and disabled rules sorted by runtime priority.
+// ListAuditPolicyRules 返回按运行时优先级排序的启用和停用策略规则。
 func (r *repository) ListAuditPolicyRules(ctx context.Context) ([]auditstore.AuditPolicyRule, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("audit repository is unavailable")
@@ -85,7 +85,7 @@ func (r *repository) ListAuditPolicyRules(ctx context.Context) ([]auditstore.Aud
 	return rules, nil
 }
 
-// GetAuditVisibilityDefault returns the named default audit visibility strategy.
+// GetAuditVisibilityDefault 返回指定名称的审计可见性默认策略。
 func (r *repository) GetAuditVisibilityDefault(ctx context.Context, key string) (auditstore.AuditVisibilityDefault, error) {
 	if r == nil || r.db == nil {
 		return auditstore.AuditVisibilityDefault{}, fmt.Errorf("audit repository is unavailable")
@@ -123,7 +123,7 @@ func (r *repository) GetAuditVisibilityDefault(ctx context.Context, key string) 
 	return item, nil
 }
 
-// UpsertAuditVisibilityDefault creates or updates one global audit visibility default.
+// UpsertAuditVisibilityDefault 创建或更新一个全局审计可见性默认策略。
 func (r *repository) UpsertAuditVisibilityDefault(
 	ctx context.Context,
 	key string,
@@ -178,7 +178,7 @@ func (r *repository) UpsertAuditVisibilityDefault(
 	return item, nil
 }
 
-// ListAuditVisibilityOverrides returns all source+action visibility overrides.
+// ListAuditVisibilityOverrides 返回全部来源加动作可见性覆盖规则。
 func (r *repository) ListAuditVisibilityOverrides(ctx context.Context) ([]auditstore.AuditVisibilityOverride, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("audit repository is unavailable")
@@ -222,7 +222,7 @@ func (r *repository) ListAuditVisibilityOverrides(ctx context.Context) ([]audits
 	return items, nil
 }
 
-// FindAuditVisibilityOverride returns one exact source+action visibility override when it exists.
+// FindAuditVisibilityOverride 按来源和动作精确查找存在的覆盖规则。
 func (r *repository) FindAuditVisibilityOverride(
 	ctx context.Context,
 	source auditstore.AuditSource,
@@ -262,7 +262,7 @@ func (r *repository) FindAuditVisibilityOverride(
 	return item, true, nil
 }
 
-// UpsertAuditVisibilityOverride creates or updates one source+action visibility override.
+// UpsertAuditVisibilityOverride 创建或更新一个来源加动作可见性覆盖规则。
 func (r *repository) UpsertAuditVisibilityOverride(
 	ctx context.Context,
 	input auditstore.UpsertAuditVisibilityOverrideInput,
@@ -323,7 +323,7 @@ func (r *repository) UpsertAuditVisibilityOverride(
 	return item, nil
 }
 
-// DeleteAuditVisibilityOverride removes one source+action visibility override.
+// DeleteAuditVisibilityOverride 删除一条来源加动作可见性覆盖规则。
 func (r *repository) DeleteAuditVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("audit repository is unavailable")

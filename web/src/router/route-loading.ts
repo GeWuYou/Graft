@@ -11,9 +11,6 @@ let maxTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const routeLoading = readonly(loading);
 
-/**
- * Clears all pending route loading timers.
- */
 function clearTimers() {
   if (minTimer) {
     clearTimeout(minTimer);
@@ -27,9 +24,9 @@ function clearTimers() {
 }
 
 /**
- * Waits for the next animation frame.
+ * 等待下一帧，以确保路由页面完成一次可见渲染。
  *
- * @returns Resolves on the next animation frame, or in the next macrotask if `requestAnimationFrame` is unavailable.
+ * @returns 下一帧解析；没有 `requestAnimationFrame` 时退化到下一个宏任务。
  */
 function requestNextFrame() {
   return new Promise<void>((resolve) => {
@@ -42,17 +39,11 @@ function requestNextFrame() {
   });
 }
 
-/**
- * Immediately stops the route loading indicator.
- */
 function stopRouteLoadingNow() {
   clearTimers();
   loading.value = false;
 }
 
-/**
- * Starts the route loading indicator, automatically stopping it after the maximum configured duration.
- */
 export function startRouteLoading() {
   loadingToken += 1;
   loadingStartedAt = Date.now();
@@ -62,7 +53,7 @@ export function startRouteLoading() {
 }
 
 /**
- * Completes route loading after the next render, maintaining the minimum display duration.
+ * 在下一次渲染完成后结束路由加载，同时保持最小展示时长。
  */
 export async function finishRouteLoadingAfterRender() {
   const token = loadingToken;
@@ -82,9 +73,7 @@ export async function finishRouteLoadingAfterRender() {
   minTimer = setTimeout(stopRouteLoadingNow, remaining);
 }
 
-/**
- * Stops the route loading indicator and cancels any pending completion.
- */
+/** 停止路由加载指示器并取消旧导航遗留的完成操作。 */
 export function hideRouteLoading() {
   loadingToken += 1;
   stopRouteLoadingNow();

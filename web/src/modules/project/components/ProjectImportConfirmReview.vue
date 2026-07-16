@@ -217,6 +217,8 @@ defineOptions({
   name: 'ProjectImportConfirmReview',
 });
 
+// 确认视图只消费当前 inspection 快照；提交资格由父级会话状态决定，组件不重复建立导入 authority。
+
 const props = defineProps<{
   canImport: boolean;
   candidate: ProjectImportRuntimeCandidate | null;

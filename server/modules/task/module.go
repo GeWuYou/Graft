@@ -12,20 +12,18 @@ import (
 	taskstore "graft/server/modules/task/store"
 )
 
-// Module owns persisted Task Runtime facts. Worker, HTTP, and realtime behavior
-// are introduced in later Task Runtime batches.
+// Module 拥有 Task Runtime 的持久化事实，并统一承载 worker、HTTP 与 realtime 能力的模块生命周期。
 type Module struct {
 	repository taskstore.Repository
 	runtime    *Runtime
 }
 
-// NewModule creates the Task Runtime module around its module-owned repository.
+// NewModule 基于模块自有仓储创建 Task Runtime；仓储是状态机事实的权威，worker 内存状态不能替代它。
 func NewModule(repository taskstore.Repository) *Module {
 	return &Module{repository: repository, runtime: NewRuntime(repository)}
 }
 
-// Register validates and publishes the Task Runtime capability for consumer
-// modules to register Stage executors and submit TaskPlans.
+// Register 发布 Task Runtime 能力；消费模块必须在 Boot 前完成执行器和 owner 授权器注册。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.repository == nil {
 		return errors.New("task module repository is unavailable")
@@ -69,8 +67,7 @@ func (m *Module) configureRealtime(ctx *module.Context) error {
 	return m.runtime.RegisterRealtimeTopics()
 }
 
-// Boot starts recovery and the module-owned in-process worker pool after all
-// consumer modules have had a chance to register their Stage executors.
+// Boot 在消费模块完成执行器注册后先执行崩溃恢复，再启动 worker 池；无法证明外部副作用完成的阶段先标为 unknown。
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.runtime == nil || ctx == nil || ctx.LifecycleContext == nil {
 		return errors.New("task module boot context is unavailable")
@@ -78,7 +75,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return m.runtime.Start(ctx.LifecycleContext)
 }
 
-// Shutdown cooperatively stops active executors and owned worker goroutines.
+// Shutdown 协作停止活跃执行器和 worker；超时或无法证明完成的外部副作用留待下次恢复流程标为 unknown。
 func (m *Module) Shutdown(ctx *module.Context) error {
 	if m == nil || m.runtime == nil {
 		return nil

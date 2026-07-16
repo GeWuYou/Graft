@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-// Memory stores cache entries in-process.
+// Memory 在进程内保存缓存项，并通过读写锁保护共享映射。
 type Memory struct {
 	mu    sync.RWMutex
 	items map[string]Entry
 	now   func() time.Time
 }
 
-// NewMemory returns a new in-process cache backend.
+// NewMemory 创建一个使用系统时钟、可并发访问的进程内缓存后端。
 func NewMemory() *Memory {
 	return &Memory{
 		items: make(map[string]Entry),
@@ -21,12 +21,12 @@ func NewMemory() *Memory {
 	}
 }
 
-// Name returns the backend name.
+// Name 返回后端标识 memory，供缓存指标区分存储实现。
 func (m *Memory) Name() string {
 	return "memory"
 }
 
-// Get returns one stored entry when present and not expired.
+// Get 返回存在且未过期的缓存项；发现过期项时会在确认期间未被更新后删除它。
 func (m *Memory) Get(_ context.Context, key string) (Entry, bool, error) {
 	now := m.now()
 	m.mu.RLock()
@@ -55,7 +55,7 @@ func (m *Memory) Get(_ context.Context, key string) (Entry, bool, error) {
 	return cloneEntry(entry), true, nil
 }
 
-// Set stores one entry.
+// Set 保存缓存项的副本，避免调用方之后修改共享载荷。
 func (m *Memory) Set(_ context.Context, key string, entry Entry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -64,7 +64,7 @@ func (m *Memory) Set(_ context.Context, key string, entry Entry) error {
 	return nil
 }
 
-// Delete removes one entry.
+// Delete 删除指定键的缓存项；键不存在时视为成功。
 func (m *Memory) Delete(_ context.Context, key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -73,7 +73,7 @@ func (m *Memory) Delete(_ context.Context, key string) error {
 	return nil
 }
 
-// cloneEntry returns a deep copy of entry to prevent external modification of cached contents.
+// cloneEntry 深拷贝缓存项，隔离后端内部数据与调用方持有的字节切片。
 func cloneEntry(entry Entry) Entry {
 	cloned := Entry{
 		ExpiresAt: entry.ExpiresAt,

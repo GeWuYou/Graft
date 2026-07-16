@@ -6,7 +6,7 @@ const (
 	moduleID = "monitor"
 )
 
-// NewModuleSpec exposes the monitor module's stable compile-time metadata and builder.
+// NewModuleSpec 返回 monitor 模块稳定的编译期元数据和构造器。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:           moduleID,

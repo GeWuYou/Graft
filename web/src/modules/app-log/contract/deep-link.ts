@@ -31,6 +31,7 @@ const APP_LOG_QUERY_KEYS = [
 
 type AppLogQueryKey = (typeof APP_LOG_QUERY_KEYS)[number];
 
+/** 深链只接收应用日志允许的筛选字段，并交给共享日志解析器完成规范化。 */
 export function parseAppLogRouteQuery(query: LocationQuery | AppLogRouteQuery): AppLogRouteQuery {
   return parseLogRouteQuery<AppLogRouteQuery>(query, APP_LOG_QUERY_KEYS);
 }

@@ -273,8 +273,7 @@ const handleCloseOther = (tabKey: string, routeIdx: number) => {
   handleOperationEffect('other', routeIdx);
 };
 
-// Defer until the dropdown has fully cleared; the guards only open the dialog
-// for a pending close-all request when no tab menu remains active.
+// 等待标签菜单完全收起后再打开关闭全部确认框，避免弹层与菜单同时占用交互焦点。
 const openPendingCloseAllDialog = () => {
   void nextTick(() => {
     if (!pendingCloseAllDialog.value || activeTabKeyForMenu.value) {
@@ -361,7 +360,7 @@ const hasClosableOther = (routeItem: TRouterInfo) => {
   return tabRouters.value.some((item) => !item.isHome && !item.isPinned && getTabKey(item) !== routeKey);
 };
 
-// 处理非当前路由操作的副作用
+// 非当前标签的关闭操作可能改变当前路由，需要根据关闭方向补一次路由切换。
 const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', routeIndex: number) => {
   const { tabRouters } = tabsRouterStore;
   const currentKey = activeTabKey.value;
@@ -369,8 +368,7 @@ const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', routeIndex: n
   const currentIdx = tabRouters.findIndex(
     (i) => getTabKey(i) === currentKey || i.path === router.currentRoute.value.path,
   );
-  // 存在三种情况需要刷新当前路由
-  // 点击非当前路由的关闭其他、点击非当前路由的关闭左侧且当前路由小于触发路由、点击非当前路由的关闭右侧且当前路由大于触发路由
+  // 关闭其他、关闭左侧或关闭右侧后，只有当前标签被间接影响时才刷新路由。
   const needRefreshRouter =
     (type === 'other' && currentIdx !== routeIndex) ||
     (type === 'ahead' && currentIdx < routeIndex) ||

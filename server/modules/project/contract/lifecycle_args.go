@@ -9,9 +9,8 @@ const (
 	ProjectLifecycleMaxAdditionalArgLength = 256
 )
 
-// NormalizeLifecycleAdditionalArgs trims and validates the storage-safe form of
-// user-supplied Compose arguments. Command-authority overrides remain owned by
-// the project service, where Compose commands are assembled.
+// NormalizeLifecycleAdditionalArgs 裁剪并校验用户提供的 Compose 参数存储形式。
+// 命令权威覆盖项仍由组装 Compose 命令的 project service 拥有。
 func NormalizeLifecycleAdditionalArgs(values []string) ([]string, bool) {
 	if len(values) > ProjectLifecycleMaxAdditionalArgs {
 		return nil, false

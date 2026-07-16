@@ -69,12 +69,13 @@ const (
 	serverDependencyCount          = 2
 )
 
-// defaultDiskUsagePath returns the default disk usage path for the current operating system.
+// defaultDiskUsagePath 返回当前操作系统使用的默认磁盘统计路径。
 func defaultDiskUsagePath() string {
 	return config.DefaultDiskUsagePath(runtime.GOOS)
 }
 
-// Module implements the monitor/server-status slice.
+// Module 实现 monitor 模块的服务器状态、趋势采样和请求性能能力。
+// 趋势采样器由模块生命周期管理，Shutdown 必须在共享运行时资源释放前完成收敛。
 type Module struct {
 	startedAtUnixNs          atomic.Int64
 	db                       *sql.DB
@@ -113,12 +114,12 @@ type metricAnomalySpec struct {
 	summary   string
 }
 
-// NewModule creates the monitor module.
+// NewModule 创建 monitor 模块实例。
 func NewModule() *Module {
 	return &Module{}
 }
 
-// Register declares menu, permission, routes, and i18n messages.
+// Register 声明 monitor 模块的菜单、权限、路由、本地化消息和公开能力。
 func (p *Module) Register(ctx *module.Context) error {
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
@@ -139,7 +140,7 @@ func (p *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
-// Boot records the first stable startup timestamp and starts the Redis-backed trend sampler.
+// Boot 记录首次稳定启动时间，并在趋势存储可用时启动由生命周期上下文约束的趋势采样器。
 func (p *Module) Boot(ctx *module.Context) error {
 	p.startedAtUnixNs.CompareAndSwap(0, time.Now().UTC().UnixNano())
 	if ctx != nil {
@@ -150,7 +151,7 @@ func (p *Module) Boot(ctx *module.Context) error {
 	return nil
 }
 
-// Shutdown stops the owned trend sampler before shared runtime resources are released.
+// Shutdown 在共享运行时资源释放前停止 monitor 自有的趋势采样器。
 func (p *Module) Shutdown(ctx *module.Context) error {
 	return p.stopTrendSampler(ctx)
 }
@@ -253,9 +254,8 @@ func resolveDatabaseDependency(ctx *module.Context) (*sql.DB, error) {
 	return db, nil
 }
 
-// resolveOptionalTrendStore resolves an optional time-series store service from the dependency container.
-// It returns nil if the context is invalid or the service is not registered and
-// returns an error for other resolution failures.
+// resolveOptionalTrendStore 从依赖容器解析可选的时间序列存储服务。
+// 上下文无效或服务未注册时返回 nil；其它解析失败返回错误。
 func resolveOptionalTrendStore(ctx *module.Context) (statex.TimeSeriesStore, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, nil
@@ -272,7 +272,8 @@ func resolveOptionalTrendStore(ctx *module.Context) (statex.TimeSeriesStore, err
 	return store, nil
 }
 
-// resolveOptionalRedisHealthReporter resolves an optional Redis health reporter service. It returns nil if the context is nil, has no services, or the service is not registered. It returns an error only if service resolution fails for reasons other than the service not being registered.
+// resolveOptionalRedisHealthReporter 从依赖容器解析可选的 Redis 健康报告器。
+// 上下文无效、服务容器不存在或服务未注册时返回 nil；仅其它解析失败返回错误。
 func resolveOptionalRedisHealthReporter(ctx *module.Context) (redisx.HealthReporter, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, nil
@@ -312,7 +313,6 @@ const (
 	monitorMenuOrderRequestPerformance = 104
 )
 
-// registerMonitorMenu registers server status entries under the observability menu.
 // registerMonitorMenu 注册监控模块的服务器状态和请求性能菜单项；registry 为 nil 时不执行任何操作。
 func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
@@ -372,7 +372,7 @@ func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	})
 }
 
-// registerMonitorRoutes registers monitor server-status and request-performance HTTP routes with request ID middleware and permission checks.
+// registerMonitorRoutes 注册服务器状态和请求性能 HTTP 路由，并为两者安装请求 ID 中间件和权限校验。
 func registerMonitorRoutes(
 	ctx *module.Context,
 	instance *Module,

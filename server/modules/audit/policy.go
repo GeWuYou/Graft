@@ -7,12 +7,12 @@ import (
 	auditstore "graft/server/modules/audit/store"
 )
 
-// PolicyEvaluator evaluates audit candidates against persisted module-owned rules.
+// PolicyEvaluator 按审计模块拥有的持久化规则评估候选事实是否落库及其可见性。
 type PolicyEvaluator struct {
 	repo auditstore.AuditRepository
 }
 
-// NewPolicyEvaluator creates a module-owned audit policy evaluator.
+// NewPolicyEvaluator 创建绑定审计仓储的策略评估器。
 func NewPolicyEvaluator(repo auditstore.AuditRepository) (*PolicyEvaluator, error) {
 	if repo == nil {
 		return nil, ErrNilAuditRepository
@@ -21,7 +21,8 @@ func NewPolicyEvaluator(repo auditstore.AuditRepository) (*PolicyEvaluator, erro
 	return &PolicyEvaluator{repo: repo}, nil
 }
 
-// Evaluate returns the first matching audit policy decision for a candidate event.
+// Evaluate 按运行时优先级返回候选事件的首个匹配策略决策。
+// 没有匹配规则时由全局默认策略决定，调用方据此区分排除、隐藏和默认可见。
 func (e *PolicyEvaluator) Evaluate(ctx context.Context, candidate auditstore.AuditCandidate) (auditstore.AuditPolicyDecision, error) {
 	if e == nil || e.repo == nil {
 		return auditstore.AuditPolicyDecision{}, ErrAuditServiceUnavailable

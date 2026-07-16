@@ -12,9 +12,8 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-// CreationCommand is the source-neutral handoff from a source adapter to
-// the registry pipeline. Source adapters must resolve or materialize the workspace
-// before calling it; this pipeline never runs compose lifecycle commands.
+// CreationCommand 是来源适配器交给注册流水线的中立输入。
+// 来源适配器必须先解析或物化工作区；该流水线不执行 Compose 生命周期命令。
 type CreationCommand struct {
 	DisplayName                string
 	CanonicalProjectName       string
@@ -31,8 +30,7 @@ type CreationCommand struct {
 	ApplicationName            *string
 }
 
-// createProjectFromWorkspace persists the common project aggregate after a source
-// has produced an actual, successfully parsed workspace.
+// createProjectFromWorkspace 在来源生成并成功解析实际工作区后持久化通用项目聚合。
 func (s *Service) createProjectFromWorkspace(ctx context.Context, command CreationCommand) (projectstore.ProjectAggregate, time.Time, error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
@@ -92,10 +90,8 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	return aggregate, now, nil
 }
 
-// ensureComposeProjectNameAvailableForCreate prevents a managed workspace from
-// claiming a runtime name already owned by another Compose project. An
-// unavailable target is intentionally non-blocking so users can prepare a
-// workspace before the target recovers.
+// ensureComposeProjectNameAvailableForCreate 防止受管工作区占用其它 Compose 项目已拥有的运行时名称。
+// 目标暂不可用时有意不阻断创建，使用户可以在目标恢复前准备工作区。
 func (s *Service) ensureComposeProjectNameAvailableForCreate(ctx context.Context, targetID uint64, name string) error {
 	state := s.composeProjectNameState(ctx, targetID, name)
 	switch state {
@@ -122,8 +118,7 @@ func (s *Service) composeProjectNameState(ctx context.Context, targetID uint64, 
 	return availability.State
 }
 
-// composeProjectNameSource classifies a canonical Compose project name source.
-// It returns "declared" for the canonical override source and "derived" for all other values.
+// composeProjectNameSource 分类规范 Compose 项目名称的来源；规范覆盖来源返回 "declared"，其它值返回 "derived"。
 func composeProjectNameSource(value string) string {
 	if strings.TrimSpace(value) == projectcontract.CanonicalProjectNameSourceOverride.String() {
 		return "declared"

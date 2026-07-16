@@ -49,13 +49,7 @@ var projectInputErrorRules = []projectRouteErrorRule{
 
 const minimumProjectListLimit = 1
 
-// registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
-// 当路由器不可用时直接返回；当服务缺失时返回错误。
-// registerRoutes 注册 project 模块的 HTTP 路由，并为各路由安装请求 ID、审计和权限校验中间件。
-// registerRoutes 注册项目模块的 HTTP 路由及其权限中间件。
-// registerRoutes 注册项目模块的 HTTP 路由。
-// registerRoutes 注册项目 API 路由及其请求 ID、权限校验中间件。
-// registerRoutes 注册项目 API 路由及其权限与请求 ID 中间件。
+// registerRoutes 为项目模块注册 HTTP 路由，并统一挂载请求 ID、审计和权限校验中间件。
 // 当上下文或路由器为空时跳过注册；项目服务缺失或认证依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
@@ -125,7 +119,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	return nil
 }
 
-//nolint:dupl // Project list and runtime-candidate handlers intentionally share the generated-bind/query/write skeleton.
+//nolint:dupl // 项目列表与运行时候选处理器有意共享生成绑定、查询和响应写入骨架。
 func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	params, ok := bindListParams(ginCtx, r.ctx)
 	if !ok {
@@ -298,7 +292,7 @@ func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toImportValidateResponse(result))
 }
 
-//nolint:dupl // Project list and runtime-candidate handlers intentionally share the generated-bind/query/write skeleton.
+//nolint:dupl // 项目列表与运行时候选处理器有意共享生成绑定、查询和响应写入骨架。
 func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
 	params, ok := bindGetProjectImportRuntimeCandidatesParams(ginCtx, r.ctx)
 	if !ok {
@@ -558,7 +552,7 @@ func (r routeRuntime) handleWorkspaceDefaults(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, gin.H{"templates": templates, "default_template_key": result.DefaultTemplateKey, "workspace_entries": entries, "compose_file_path": result.ComposeFilePath})
 }
 
-// toTemplateProjectCreateRequest converts an HTTP template creation request into a domain request.
+// toTemplateProjectCreateRequest 将 HTTP 模板创建请求转换为领域请求。
 // toTemplateProjectCreateRequest 将模板项目创建请求转换为领域请求。
 // toTemplateProjectCreateRequest 将模板项目创建 HTTP 请求转换为领域请求。
 // 生命周期配置无法转换时返回转换错误。
@@ -1036,7 +1030,7 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action generated
 	return true
 }
 
-// batchActionPermission returns the required permission for a batch action and whether the action is supported.
+// batchActionPermission 返回批量操作所需的权限及该操作是否受支持。
 func batchActionPermission(action generated.ProjectBatchActionRequestAction) (string, bool) {
 	switch action {
 	case generated.ProjectBatchActionRequestActionStart,
@@ -1301,7 +1295,7 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	return params, true
 }
 
-// projectListSortValues returns the sort values provided through canonical or bracketed query keys.
+// projectListSortValues 返回通过规范查询键或方括号查询键提供的排序值。
 func projectListSortValues(query url.Values) []string {
 	values := append([]string(nil), query["sort"]...)
 	values = append(values, query["sort[]"]...)
@@ -1325,7 +1319,7 @@ func bindProjectListSort(query url.Values) (*generated.ProjectListSort, bool) {
 	return &sorts, true
 }
 
-// projectListSortParamValue returns the first sort value, or an empty string when no sort value is provided.
+// projectListSortParamValue 返回第一个排序值；未提供排序值时返回空字符串。
 func projectListSortParamValue(values *generated.ProjectListSort) string {
 	if values == nil || len(*values) == 0 {
 		return ""
@@ -1437,8 +1431,7 @@ func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	return true
 }
 
-// bindProjectID resolves the public Application ID in a project route to the
-// private numeric key used by project-owned storage and tasks.
+// bindProjectID 将项目路由中的公开 Application ID 解析为项目存储和任务使用的私有数字键。
 func (r routeRuntime) bindProjectID(ginCtx *gin.Context) (uint64, string, bool) {
 	raw := strings.TrimSpace(ginCtx.Param("id"))
 	if !isApplicationID(raw) {
@@ -1479,7 +1472,7 @@ func bindPostProjectImportInspectParams(ginCtx *gin.Context) generated.PostProje
 	return generated.PostProjectImportInspectParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// bindGetProjectCreationMethodsParams assembles common headers for the creation-method catalog.
+// bindGetProjectCreationMethodsParams 为创建方式目录组装公共请求头。
 func bindGetProjectCreationMethodsParams(ginCtx *gin.Context) generated.GetProjectCreationMethodsParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectCreationMethodsParams{XGraftLocale: locale, XRequestId: requestID}
@@ -1853,7 +1846,7 @@ func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	return &userID
 }
 
-// currentUserID returns the authenticated user's non-zero ID and whether it is available.
+// currentUserID 返回已认证用户的非零 ID 及其是否可用。
 func currentUserID(ginCtx *gin.Context) (uint64, bool) {
 	value := currentUserIDPointer(ginCtx)
 	if value == nil || *value == 0 {

@@ -10,7 +10,7 @@ import (
 
 const moduleID = "notification"
 
-// NewModuleSpec exposes the notification module's stable compile-time metadata and builder.
+// NewModuleSpec 返回通知模块稳定的编译期元数据和构建器；跨模块发布能力在 Register 阶段显式注册。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

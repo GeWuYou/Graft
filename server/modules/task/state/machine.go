@@ -1,4 +1,4 @@
-// Package state owns Task Runtime state-machine validation.
+// Package state 拥有 Task Runtime 的状态机校验，阻止持久化历史被非法迁移覆盖。
 package state
 
 import (
@@ -8,7 +8,7 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-// ErrInvalidTransition reports a Task or Stage lifecycle transition that would rewrite history.
+// ErrInvalidTransition 表示 Task 或 Stage 的生命周期迁移会违反状态机并改写历史。
 var ErrInvalidTransition = errors.New("invalid task runtime state transition")
 
 var taskTransitions = map[moduleapi.TaskStatus]map[moduleapi.TaskStatus]struct{}{
@@ -29,7 +29,7 @@ var taskTransitions = map[moduleapi.TaskStatus]map[moduleapi.TaskStatus]struct{}
 	},
 }
 
-// CanTransitionTask reports whether a persisted Task transition is legal.
+// CanTransitionTask 判断持久化 Task 是否允许从当前状态迁移到目标状态；终态没有隐式回退路径。
 func CanTransitionTask(from moduleapi.TaskStatus, to moduleapi.TaskStatus) bool {
 	allowed, exists := taskTransitions[from]
 	if !exists {
@@ -39,7 +39,7 @@ func CanTransitionTask(from moduleapi.TaskStatus, to moduleapi.TaskStatus) bool 
 	return exists
 }
 
-// ValidateTaskTransition rejects Task transitions that would rewrite history.
+// ValidateTaskTransition 拒绝会改写 Task 历史的非法迁移，并返回包含前后状态的错误。
 func ValidateTaskTransition(from moduleapi.TaskStatus, to moduleapi.TaskStatus) error {
 	if CanTransitionTask(from, to) {
 		return nil
@@ -47,7 +47,7 @@ func ValidateTaskTransition(from moduleapi.TaskStatus, to moduleapi.TaskStatus) 
 	return fmt.Errorf("%w: task %q -> %q", ErrInvalidTransition, from, to)
 }
 
-// CanTransitionStage reports whether a persisted Stage transition is legal.
+// CanTransitionStage 判断 Stage 是否允许生命周期迁移；failed 和 unknown 只能回到 pending 触发受控重试。
 func CanTransitionStage(from moduleapi.StageStatus, to moduleapi.StageStatus) bool {
 	switch from {
 	case moduleapi.StageStatusPending:

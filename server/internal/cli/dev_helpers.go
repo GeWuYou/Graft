@@ -25,7 +25,7 @@ type devManagedChildSpec struct {
 // startDevManagedChild 启动受管的开发子进程并写入其 PID 文件。
 // 它返回已启动的子进程、用于接收退出结果的通道，以及错误。
 // 成功启动后会在后台等待子进程退出，并将等待结果发送到返回的通道中。
-// @returns 子进程、退出结果通道，以及启动或 PID 文件写入失败时的错误。
+// 返回值：子进程、退出结果通道，以及启动或 PID 文件写入失败时的错误。
 func startDevManagedChild(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -92,8 +92,8 @@ func cleanupDevStartedChild(child *exec.Cmd) {
 
 // resolveDevAirConfigPath 将 dev air 配置路径解析为相对于后端模块根目录的路径。
 // configPath 可以是绝对路径或相对路径；相对路径会以模块根目录为基准进行归一化。
-// @param configPath 配置文件路径。
-// @return 解析后的配置路径，或在无法解析模块根目录时返回错误。
+// 参数：configPath 是配置文件路径。
+// 返回值：解析后的配置路径，或在无法解析模块根目录时返回错误。
 func resolveDevAirConfigPath(configPath string) (string, error) {
 	moduleRoot, err := devAirModuleRootResolver()
 	if err != nil {
@@ -103,9 +103,8 @@ func resolveDevAirConfigPath(configPath string) (string, error) {
 }
 
 // normalizeDevAirConfigPath 将配置路径规范化为绝对路径或相对于基础目录的清理后路径。
-// @param baseDir 基础目录。
-// @param configPath 待规范化的配置路径。
-// @returns 规范化后的路径。
+// 参数：baseDir 是基础目录，configPath 是待规范化的路径。
+// 返回值：规范化后的路径。
 func normalizeDevAirConfigPath(baseDir string, configPath string) string {
 	if filepath.IsAbs(configPath) {
 		return filepath.Clean(configPath)
@@ -188,7 +187,7 @@ func removeDevPIDFile(path string) {
 
 // isDevPIDAlive 判断指定 PID 对应的进程是否仍然存活。
 // 
-// @returns `true` 如果进程仍然存在，`false` 如果进程已结束或不存在；当无法检查进程状态时返回错误。
+// 返回值：进程仍存在时为 true，已结束或不存在时为 false；无法检查进程状态时返回错误。
 func isDevPIDAlive(pid int) (bool, error) {
 	process, err := devProcessFinder(pid)
 	if err != nil {
@@ -220,7 +219,7 @@ func signalDevPID(pid int, sig syscall.Signal) error {
 	return nil
 }
 
-// @returns 可执行文件路径，或解析失败时的错误。
+// 返回值：可执行文件路径，或解析失败时的错误。
 func resolveDevServeBinary(moduleRoot string) (string, error) {
 	candidate := filepath.Join(moduleRoot, "tmp", "graft")
 	if runtime.GOOS == "windows" {

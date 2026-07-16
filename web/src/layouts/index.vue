@@ -57,6 +57,7 @@ import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
 import { resolveSidebarMotionMode, type SidebarMotionPhase } from './layout-navigation';
 
+// 后台壳布局负责把菜单、tabs、侧栏动效和滚动状态接入统一容器；离开时必须释放所有动画与实时调度冻结。
 const SIDEBAR_WIDTH_TRANSITION_MS = 320;
 const SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS = 124;
 const SIDEBAR_COLLAPSE_TOPLEVEL_DELAY_MS = 208;

@@ -8,14 +8,14 @@ import (
 	"sync"
 )
 
-// Registry stores module-declared config definitions in registration order.
+// Registry 按注册顺序保存模块声明的配置定义，并通过读写锁保护并发访问。
 type Registry struct {
 	mu          sync.RWMutex
 	definitions map[string]Definition
 	order       []string
 }
 
-// NewRegistry creates an empty system configuration definition registry.
+// NewRegistry 创建空的系统配置定义注册表。
 func NewRegistry() *Registry {
 	return &Registry{
 		definitions: make(map[string]Definition),
@@ -23,7 +23,7 @@ func NewRegistry() *Registry {
 	}
 }
 
-// Register validates and stores one module-declared config definition.
+// Register 校验并保存一个模块声明的配置定义；重复键会返回错误而不覆盖已有 owner。
 func (r *Registry) Register(definition Definition) error {
 	if r == nil {
 		return errors.New("config registry is unavailable")
@@ -76,7 +76,7 @@ func trimNonEmptyStrings(values []string) []string {
 	return trimmed
 }
 
-// Get returns one definition by key.
+// Get 按键读取配置定义，并返回与注册表内部数据隔离的副本。
 func (r *Registry) Get(key string) (Definition, bool) {
 	if r == nil {
 		return Definition{}, false
@@ -92,7 +92,7 @@ func (r *Registry) Get(key string) (Definition, bool) {
 	return definition.Snapshot(), true
 }
 
-// Items returns definitions ordered by caller-facing order fields.
+// Items 返回按 Order 和 Key 稳定排序的配置定义副本。
 func (r *Registry) Items() []Definition {
 	if r == nil {
 		return nil

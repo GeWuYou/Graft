@@ -1,7 +1,7 @@
 import { getTasks } from '../api/task';
 
 /**
- * Stable owner reference used by other modules to open the most recent Task.
+ * 供其他模块定位并打开指定归属对象最近一次任务的稳定引用。
  */
 export type TaskOwnerReference = Readonly<{
   ownerId: string;
@@ -9,10 +9,10 @@ export type TaskOwnerReference = Readonly<{
 }>;
 
 /**
- * Returns the most recently created Task for one authorized owner.
+ * 返回指定授权归属对象最近创建的任务。
  *
- * The Task API guarantees descending `created_at, id` order for owner-scoped
- * history, so the first item is the newest persisted Task.
+ * 任务 API 保证归属对象范围内的历史记录按 `created_at, id` 降序返回，
+ * 因此首项就是持久化时间最新的任务。
  */
 export async function getLatestTaskForOwner(owner: TaskOwnerReference) {
   const response = await getTasks({ limit: 1, owner_id: owner.ownerId, owner_type: owner.ownerType });

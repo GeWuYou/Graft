@@ -22,9 +22,8 @@ const (
 	maxListLimit     = 100
 )
 
-// normalizeSourceMetadata trims metadata keys and values and validates their content.
-// It returns a normalized copy of the metadata or ErrInvalidInput when a key or value
-// is empty or contains prohibited characters.
+// normalizeSourceMetadata 规范化来源元数据的键和值，并拒绝空值及换行、空字节等禁止字符。
+// 返回独立的规范化副本；校验失败时返回 ErrInvalidInput。
 func normalizeSourceMetadata(metadata map[string]string) (map[string]string, error) {
 	if len(metadata) == 0 {
 		return map[string]string{}, nil
@@ -44,8 +43,7 @@ func normalizeSourceMetadata(metadata map[string]string) (map[string]string, err
 	return result, nil
 }
 
-// encodeSourceMetadataJSON normalizes source metadata and encodes it as JSON.
-// It returns an error when the metadata is invalid or cannot be encoded.
+// encodeSourceMetadataJSON 先规范化来源元数据，再编码为 JSON；输入无效或编码失败时返回错误。
 func encodeSourceMetadataJSON(metadata map[string]string) ([]byte, error) {
 	normalized, err := normalizeSourceMetadata(metadata)
 	if err != nil {
@@ -58,9 +56,7 @@ func encodeSourceMetadataJSON(metadata map[string]string) ([]byte, error) {
 	return encoded, nil
 }
 
-// decodeSourceMetadataJSON decodes and normalizes source metadata from JSON.
-// Empty input produces an empty metadata map. It returns an error when the JSON
-// is invalid or the decoded metadata fails validation.
+// decodeSourceMetadataJSON 从 JSON 解码并规范化来源元数据；空输入返回空映射，JSON 无效或校验失败时返回错误。
 func decodeSourceMetadataJSON(raw []byte) (map[string]string, error) {
 	if len(raw) == 0 {
 		return map[string]string{}, nil
@@ -79,9 +75,8 @@ func (r *SQLRepository) ensureReady() error {
 	return nil
 }
 
-// normalizeListQuery 规范化列表查询参数。
 // normalizeListQuery 规范化项目列表查询条件，并将分页参数限制在允许范围内。
-// 无效的排序、筛选值、关键字或运行目标 ID 会返回 ErrInvalidInput；缺省或超出范围的分页参数会被调整为允许值。
+// 排序值只允许稳定的 created_at + id 组合；无效筛选、关键字或运行目标 ID 返回 ErrInvalidInput。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	normalizedSort, err := normalizeProjectListSort(query.Sort)
 	if err != nil {
@@ -114,8 +109,8 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	return query, nil
 }
 
-// normalizeProjectListSort trims and validates a project list sort expression.
-// It returns the normalized sort expression or ErrInvalidInput for unsupported values.
+// normalizeProjectListSort 校验项目列表排序表达式，并返回可安全映射到固定 SQL 子句的值。
+// 不支持的表达式返回 ErrInvalidInput，避免请求值进入 ORDER BY。
 func normalizeProjectListSort(raw string) (string, error) {
 	switch strings.TrimSpace(raw) {
 	case "", ProjectListSortCreatedAtDesc:
@@ -127,8 +122,8 @@ func normalizeProjectListSort(raw string) (string, error) {
 	}
 }
 
-// buildListOrderBy maps the validated project-list sort expression to a fixed SQL fragment.
-// buildListOrderBy 根据排序表达式生成项目列表的固定 SQL 排序子句，并使用 ID 降序作为并列排序。
+// buildListOrderBy 将已校验的项目列表排序表达式映射为固定 SQL 子句。
+// created_at 相同时始终使用 ID 降序作为并列排序，保证分页结果稳定。
 func buildListOrderBy(sortExpression string) string {
 	if sortExpression == ProjectListSortCreatedAtAsc {
 		return "created_at ASC, id DESC"
@@ -136,9 +131,7 @@ func buildListOrderBy(sortExpression string) string {
 	return "created_at DESC, id DESC"
 }
 
-// validateImportInput 规范化并校验导入项目输入，返回可直接使用的输入值。
-// validateImportInput 修剪并验证项目导入输入，规范化文件、快照、源元数据以及时间字段。
-// 返回规范化后的导入输入；输入无效时返回错误。
+// validateImportInput 规范化并校验导入项目输入，统一处理文件、快照、来源元数据和时间字段；输入无效时返回错误。
 func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 	input = trimImportInput(input)
 	if err := validateRequiredImportFields(input); err != nil {
@@ -208,10 +201,8 @@ func validateRequiredImportFields(input ImportProjectInput) error {
 	return nil
 }
 
-// validateRefreshInput 规范化并校验项目刷新输入。
-// 它会校验项目 ID，清理漂移状态字段，规范化文件和快照信息，并将时间字段转换为 UTC。
-// @param input 待校验的刷新输入。
-// @returns 规范化后的刷新输入，或在输入无效时返回 ErrInvalidInput。
+// validateRefreshInput 规范化并校验项目刷新输入，清理漂移状态、规范化文件和快照，并将时间字段转换为 UTC。
+// 返回规范化后的刷新输入；项目 ID 或其它字段无效时返回 ErrInvalidInput。
 func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error) {
 	if input.ProjectID == 0 {
 		return RefreshProjectInput{}, ErrInvalidInput
@@ -309,12 +300,8 @@ func normalizeFiles(files []ProjectFile) ([]ProjectFile, error) {
 	return normalized, nil
 }
 
-// normalizeProjectFile 规范化并校验单个项目文件。
-// 它会裁剪关键字段的空白，检查必填字段是否为空，并确保顺序索引不小于 0。
-// 当文件顺序索引为 0 且位于后续位置时，会使用其在输入中的位置作为顺序索引。
-// @param item 要规范化的项目文件。
-// @param index 文件在输入列表中的位置。
-// @returns 规范化后的项目文件，或 ErrInvalidInput。
+// normalizeProjectFile 规范化并校验单个项目文件，确保必填字段有效且顺序索引非负。
+// 后续位置上仍为零的顺序索引会使用输入位置补齐，以保持导入文件的稳定顺序。
 func normalizeProjectFile(item ProjectFile, index int) (ProjectFile, error) {
 	item.Kind = strings.TrimSpace(item.Kind)
 	item.Role = strings.TrimSpace(item.Role)
@@ -336,9 +323,7 @@ func normalizeProjectFile(item ProjectFile, index int) (ProjectFile, error) {
 	return item, nil
 }
 
-// normalizeSnapshot 规范化并校验快照信息。
-// @param snapshot 待规范化的快照。
-// @returns 规范化后的快照；当 snapshot 为空时返回 nil, nil。若 ConfigHash 为空或 RefreshedAt 为空时间，则返回 ErrInvalidInput。
+// normalizeSnapshot 规范化并校验快照信息；空快照返回 nil, nil，缺少配置哈希或刷新时间时返回 ErrInvalidInput。
 func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	if snapshot == nil {
 		return nil, nil
@@ -352,9 +337,8 @@ func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	return snapshot, nil
 }
 
-// normalizeLifecycleConfig trims and deduplicates profiles, applies the default wait timeout, and validates the resulting configuration.
-// normalizeLifecycleConfig trims and deduplicates profiles, normalizes additional arguments, and applies lifecycle timeout defaults and bounds.
-// It returns ErrInvalidInput if a profile or additional argument is invalid, or if the wait timeout is outside the permitted range.
+// normalizeLifecycleConfig 裁剪并去重配置档案，规范化附加参数，应用生命周期等待超时默认值和范围约束。
+// 配置档案、附加参数或等待超时无效时返回 ErrInvalidInput。
 func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 	normalizedProfiles := make([]string, 0, len(config.Profiles))
 	seen := make(map[string]struct{}, len(config.Profiles))
@@ -384,9 +368,7 @@ func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
 	return config, nil
 }
 
-// normalizeLifecycleAdditionalArgs trims and validates lifecycle configuration arguments.
-// It returns the normalized arguments, or ErrInvalidInput if the count or any argument
-// exceeds the allowed constraints or contains invalid content.
+// normalizeLifecycleAdditionalArgs 裁剪并校验生命周期配置参数；数量、长度或内容违反约束时返回 ErrInvalidInput。
 func normalizeLifecycleAdditionalArgs(values []string) ([]string, error) {
 	normalized, valid := projectcontract.NormalizeLifecycleAdditionalArgs(values)
 	if !valid {
@@ -447,7 +429,7 @@ func normalizeOptionalContractValue(value string, valid func(string) bool) (stri
 	return value, nil
 }
 
-// isValidSourceKind reports whether value is a supported project source kind.
+// isValidSourceKind 判断 value 是否为当前支持的项目来源类型。
 func isValidSourceKind(value string) bool {
 	switch value {
 	case projectcontract.SourceKindImported.String(),
@@ -585,9 +567,8 @@ func rollbackTx(tx *sql.Tx) {
 // scanProject 读取并组装项目记录。
 //
 // 将查询结果中的可空时间和可空用户 ID 转换为对应的指针字段。
-// scanProject 扫描并组装项目记录，解析可空字段及工作区注释、源元数据和生命周期配置。
-// scanProject 扫描数据库行并解码项目字段，构造完整的 Project。
-// 扫描或数据解码失败时返回错误。
+// scanProject 扫描数据库行并解码项目字段，构造完整的 Project；可空字段、工作区注释、来源元数据或生命周期配置
+// 解析失败时返回错误。
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
 	var lastDriftCheckedAt sql.NullTime
@@ -812,7 +793,7 @@ func (payload lifecycleConfigPayload) lifecycleConfig() (LifecycleConfig, error)
 	}, nil
 }
 
-// applyLegacyDefaults keeps rows written before lifecycle configuration support readable.
+// applyLegacyDefaults 为生命周期配置支持前写入的历史记录补齐读取默认值。
 func (payload *lifecycleConfigPayload) applyLegacyDefaults() {
 	payload.Profiles = lifecycleSliceOrDefault(payload.Profiles, []string{})
 	payload.DownBeforeRedeploy = lifecycleBoolOrDefault(payload.DownBeforeRedeploy, false)

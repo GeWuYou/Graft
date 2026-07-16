@@ -61,6 +61,7 @@
   </section>
 </template>
 <script setup lang="ts">
+/** 负责把流式数据的视口状态映射为统一的加载、错误和游标提示。 */
 import { computed } from 'vue';
 
 import {

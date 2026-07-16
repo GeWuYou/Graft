@@ -1,30 +1,24 @@
 package contract
 
-// PermissionCode identifies a stable announcement module permission contract.
+// PermissionCode 标识公告模块稳定的权限契约。
 //
-// Canonical owner: server/modules/announcement/contract.
-// Lifecycle: stable values remain authoritative until this package marks a replacement or removal.
+// 权限值由本包作为唯一权威维护，直到本包明确标记替换或移除。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回接口传输使用的权限编码。
 func (c PermissionCode) String() string {
 	return string(c)
 }
 
 const (
-	// AnnouncementReadPermission identifies management-side read access to announcements.
-	// Lifecycle: stable.
+	// AnnouncementReadPermission 允许读取管理端公告。
 	AnnouncementReadPermission PermissionCode = "announcement.read"
-	// AnnouncementCreatePermission identifies management-side announcement creation access.
-	// Lifecycle: stable.
+	// AnnouncementCreatePermission 允许创建管理端公告。
 	AnnouncementCreatePermission PermissionCode = "announcement.create"
-	// AnnouncementUpdatePermission identifies management-side announcement update access.
-	// Lifecycle: stable.
+	// AnnouncementUpdatePermission 允许更新管理端公告。
 	AnnouncementUpdatePermission PermissionCode = "announcement.update"
-	// AnnouncementPublishPermission identifies management-side publish and archive access.
-	// Lifecycle: stable.
+	// AnnouncementPublishPermission 允许发布和归档管理端公告。
 	AnnouncementPublishPermission PermissionCode = "announcement.publish"
-	// AnnouncementDeletePermission identifies management-side soft-delete access.
-	// Lifecycle: stable.
+	// AnnouncementDeletePermission 允许软删除管理端公告。
 	AnnouncementDeletePermission PermissionCode = "announcement.delete"
 )

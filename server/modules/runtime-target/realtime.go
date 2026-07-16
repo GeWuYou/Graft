@@ -18,7 +18,7 @@ type runtimeTargetSummaryPublished struct {
 	Items []generated.RuntimeTargetSummary `json:"items"`
 }
 
-// runtimeTargetSummaryCollector publishes fresh target snapshots only while the topic has subscribers.
+// runtimeTargetSummaryCollector 仅在主题存在订阅者时发布最新目标快照。
 type runtimeTargetSummaryCollector struct {
 	collect func(context.Context) []generated.RuntimeTargetSummary
 	hub     realtime.Hub
@@ -35,6 +35,7 @@ func newRuntimeTargetSummaryCollector(hub realtime.Hub, collect func(context.Con
 	return &runtimeTargetSummaryCollector{hub: hub, collect: collect}
 }
 
+// Start 启动摘要采集协程；支持主题观察时仅在存在订阅者期间采集，否则保持兼容性地持续采集。
 func (c *runtimeTargetSummaryCollector) Start(ctx context.Context) error {
 	if c == nil || c.hub == nil || c.collect == nil {
 		return nil
@@ -55,7 +56,7 @@ func (c *runtimeTargetSummaryCollector) Start(ctx context.Context) error {
 			return err
 		}
 	} else {
-		// The public hub contract does not require topic observation. Keep snapshots live for alternate transports.
+		// 公开 hub 契约不要求支持主题观察；为兼容其它传输方式，继续保持快照采集活跃。
 		c.active = true
 	}
 	runCtx, cancel := context.WithCancel(ctx)
@@ -66,6 +67,7 @@ func (c *runtimeTargetSummaryCollector) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop 注销主题观察器并等待采集协程退出；ctx 超时只影响等待结果，不会重新启动已停止的采集器。
 func (c *runtimeTargetSummaryCollector) Stop(ctx context.Context) error {
 	if c == nil {
 		return nil
@@ -145,7 +147,7 @@ func (m *Module) collectRealtimeSummaries(ctx context.Context) []generated.Runti
 	return mapped
 }
 
-// IssueSubscription authorizes and issues a websocket ticket for target summary updates.
+// IssueSubscription 校验权限并为目标摘要更新签发 websocket 票据。
 func (m *Module) IssueSubscription(ctx context.Context, request realtime.SubscriptionRequest) (realtime.SubscriptionResponse, error) {
 	if m == nil || request.Topic != contract.SummaryTopic || request.RequestAuth.User == nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden

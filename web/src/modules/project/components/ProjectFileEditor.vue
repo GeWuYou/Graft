@@ -45,6 +45,8 @@ import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vu
 
 type EditorMode = 'edit' | 'preview';
 
+// 该组件只在编辑与预览模式间代理受控内容，不拥有文件持久化或格式化实现。
+
 const props = defineProps<{
   description?: string;
   editLabel: string;

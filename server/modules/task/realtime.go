@@ -13,7 +13,7 @@ import (
 
 const taskRealtimeTopicPrefix = "task:"
 
-// SetRealtime provides the shared realtime primitives after module assembly.
+// SetRealtime 在模块装配完成后注入 realtime 票据、消息 hub 和主题注册器；写入受互斥锁保护。
 func (r *Runtime) SetRealtime(tickets realtimeauth.Service, hub realtime.Hub, issuers realtime.TopicIssuerRegistry) {
 	if r == nil {
 		return
@@ -23,7 +23,7 @@ func (r *Runtime) SetRealtime(tickets realtimeauth.Service, hub realtime.Hub, is
 	r.mu.Unlock()
 }
 
-// RegisterRealtimeTopics makes this runtime the owner of task:{id} subscriptions.
+// RegisterRealtimeTopics 将 task:{id} 订阅主题的所有权注册到该 Runtime。
 func (r *Runtime) RegisterRealtimeTopics() error {
 	if r == nil || r.topicIssuers == nil {
 		return errors.New("task realtime topic issuer registry is unavailable")
@@ -31,7 +31,7 @@ func (r *Runtime) RegisterRealtimeTopics() error {
 	return r.topicIssuers.Register(taskRealtimeTopicPrefix, r)
 }
 
-// IssueSubscription authorizes the consumer-owned resource before issuing a unified websocket ticket.
+// IssueSubscription 先校验任务所有者的查看权限，再签发统一 websocket 票据；任务不存在或无权访问时不泄露资源存在性。
 func (r *Runtime) IssueSubscription(ctx context.Context, request realtime.SubscriptionRequest) (realtime.SubscriptionResponse, error) {
 	taskID, err := parseTaskRealtimeTopic(request.Topic)
 	if err != nil {
@@ -79,7 +79,7 @@ func parseTaskRealtimeTopic(topic string) (uint64, error) {
 	return id, nil
 }
 
-// publishTask emits only after the caller has persisted the corresponding fact.
+// publishTask 只在调用方已持久化对应事实后发布 realtime 通知，避免客户端看到无法从数据库重放的状态。
 func (r *Runtime) publishTask(taskID uint64, eventType string) {
 	r.mu.RLock()
 	hub := r.realtimeHub

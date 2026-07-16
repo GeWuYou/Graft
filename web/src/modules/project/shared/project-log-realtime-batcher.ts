@@ -14,8 +14,9 @@ type ProjectLogRealtimeBatcherOptions = Readonly<{
 }>;
 
 /**
- * ProjectLogRealtimeBatcher keeps the project log screen bounded while batching
- * high-frequency realtime entries into stable chronological snapshots.
+ * ProjectLogRealtimeBatcher 在限制日志行数的同时，将高频实时日志合并为稳定的时间序列快照。
+ *
+ * HTTP 快照加载期间到达的实时日志会先暂存，待快照作为基线写入后再合并，避免刷新覆盖已经收到的日志。
  */
 export class ProjectLogRealtimeBatcher {
   readonly #onCommit: (snapshot: ProjectLogResponse) => void;
@@ -111,6 +112,7 @@ export class ProjectLogRealtimeBatcher {
   }
 
   #flushEntries(entries: readonly ProjectLogEntry[]) {
+    // 快照建立前不能提交局部结果，否则 HTTP 响应会覆盖这段时间内已经到达的实时日志。
     if (this.#snapshotPending) {
       const trimmed = this.#mergeInto(this.#pendingSnapshotEntries, entries);
       this.#pendingSnapshotTruncated ||= trimmed;

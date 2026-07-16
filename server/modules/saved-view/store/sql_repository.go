@@ -21,7 +21,7 @@ const (
 	maxPageSize         = 500
 )
 
-// SQLRepository persists saved views in the module-owned table.
+// SQLRepository 将保存视图持久化到模块自有表，并在查询中隔离用户、消费界面和软删除状态。
 type SQLRepository struct{ db *sql.DB }
 
 // NewSQLRepository 创建一个由平台数据库连接支持的保存视图仓储。
@@ -33,7 +33,7 @@ func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	return &SQLRepository{db: db}, nil
 }
 
-// List returns live views for one owner and one surface.
+// List 返回指定用户和消费界面的未删除视图，并按最近更新时间倒序、ID 倒序保持稳定顺序。
 func (r *SQLRepository) List(ctx context.Context, ownerUserID uint64, surfaceKey string) ([]moduleapi.SavedView, error) {
 	if err := validateOwnerAndSurface(ownerUserID, surfaceKey); err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (r *SQLRepository) List(ctx context.Context, ownerUserID uint64, surfaceKey
 	return items, nil
 }
 
-// Create adds one live view.
+// Create 新增一个未删除视图；唯一约束冲突转换为 ErrSavedViewConflict。
 func (r *SQLRepository) Create(ctx context.Context, input moduleapi.SavedViewCreateInput) (moduleapi.SavedView, error) {
 	input, err := normalizeCreate(input)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *SQLRepository) Create(ctx context.Context, input moduleapi.SavedViewCre
 	return item, nil
 }
 
-// Update replaces the persisted user-controlled state of one live view.
+// Update 替换一个未删除视图的用户可控状态，并在所有权或消费界面不匹配时返回 ErrSavedViewNotFound。
 func (r *SQLRepository) Update(ctx context.Context, input moduleapi.SavedViewUpdateInput) (moduleapi.SavedView, error) {
 	input, err := normalizeUpdate(input)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *SQLRepository) Update(ctx context.Context, input moduleapi.SavedViewUpd
 	return item, nil
 }
 
-// Delete soft-deletes one owned view.
+// Delete 软删除一个归属指定用户和消费界面的视图；重复删除和越权访问均表现为 ErrSavedViewNotFound。
 func (r *SQLRepository) Delete(ctx context.Context, ownerUserID uint64, surfaceKey string, id uint64) error {
 	if err := validateOwnerAndSurface(ownerUserID, surfaceKey); err != nil || id == 0 {
 		return moduleapi.ErrSavedViewInvalidInput
@@ -119,8 +119,8 @@ func (r *SQLRepository) Delete(ctx context.Context, ownerUserID uint64, surfaceK
 	return nil
 }
 
-// normalizeCreate trims and validates saved-view creation input, including its owner, surface, name, query state, page size, and visible columns.
-// It returns the normalized input or moduleapi.ErrSavedViewInvalidInput when validation fails.
+// normalizeCreate 裁剪并校验保存视图创建输入，包括所有者、消费界面、名称、查询状态、页大小和可见列。
+// 校验失败时返回 moduleapi.ErrSavedViewInvalidInput，避免把不完整状态写入仓储。
 func normalizeCreate(input moduleapi.SavedViewCreateInput) (moduleapi.SavedViewCreateInput, error) {
 	if err := validateOwnerAndSurface(input.OwnerUserID, input.SurfaceKey); err != nil {
 		return input, err
@@ -136,8 +136,7 @@ func normalizeCreate(input moduleapi.SavedViewCreateInput) (moduleapi.SavedViewC
 	return input, nil
 }
 
-// normalizeUpdate validates and normalizes the fields of a saved view update input.
-// It returns the normalized input when valid, or an invalid-input error otherwise.
+// normalizeUpdate 校验并规范化保存视图更新输入；有效时返回规范化输入，否则返回无效输入错误。
 func normalizeUpdate(input moduleapi.SavedViewUpdateInput) (moduleapi.SavedViewUpdateInput, error) {
 	if input.ID == 0 {
 		return input, moduleapi.ErrSavedViewInvalidInput
@@ -150,7 +149,7 @@ func normalizeUpdate(input moduleapi.SavedViewUpdateInput) (moduleapi.SavedViewU
 	return input, nil
 }
 
-// validateOwnerAndSurface validates the owner identifier and surface key for a saved view.
+// validateOwnerAndSurface 校验保存视图的所有者标识和消费界面标识，确保查询范围具有明确归属。
 func validateOwnerAndSurface(ownerUserID uint64, surfaceKey string) error {
 	if ownerUserID == 0 || len(strings.TrimSpace(surfaceKey)) == 0 || len(strings.TrimSpace(surfaceKey)) > maxSurfaceKeyLength {
 		return moduleapi.ErrSavedViewInvalidInput
@@ -186,7 +185,7 @@ func normalizeState(queryState *json.RawMessage, pageSize *int, columns *[]strin
 
 type rowScanner interface{ Scan(...any) error }
 
-// closeRows closes the provided database rows when non-nil and ignores any close error.
+// closeRows 在结果集非空时负责关闭数据库行；关闭错误不覆盖已经确定的查询结果错误。
 func closeRows(rows *sql.Rows) {
 	if rows != nil {
 		_ = rows.Close()
@@ -220,7 +219,7 @@ func (v *columnsValue) Scan(value any) error {
 	}
 }
 
-// mapWriteError maps duplicate or unique-constraint errors to the saved-view conflict error and wraps other errors with creation context.
+// mapWriteError 将重复或唯一约束错误映射为保存视图冲突错误，其它错误保留创建上下文。
 func mapWriteError(err error) error {
 	if isUniqueViolation(err) {
 		return moduleapi.ErrSavedViewConflict
@@ -236,7 +235,7 @@ func isUniqueViolation(err error) bool {
 	return isSQLiteUniqueViolation(err)
 }
 
-// mapReadError maps missing-row errors to the saved-view not-found error and wraps other errors with write-operation context.
+// mapReadError 将缺失行映射为保存视图未找到错误，其它错误保留读取操作上下文。
 func mapReadError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return moduleapi.ErrSavedViewNotFound

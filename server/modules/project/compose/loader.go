@@ -1,4 +1,4 @@
-// Package compose provides bounded static compose parsing for project import and refresh.
+// Package compose 提供项目导入和刷新使用的有界静态 Compose 解析能力。
 package compose
 
 import (
@@ -17,12 +17,13 @@ import (
 
 var canonicalProjectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
-// IsValidCanonicalProjectName reports whether value already satisfies the Compose canonical project-name contract.
+// IsValidCanonicalProjectName 判断 value 是否已经满足 Compose 规范项目名契约。
 func IsValidCanonicalProjectName(value string) bool {
 	return canonicalProjectNamePattern.MatchString(value)
 }
 
-// Input defines the bounded static project parse input for phase 1 import and refresh.
+// Input 定义导入和刷新的第一阶段静态解析输入。
+// ContentOverrides 只用于草稿解析，键必须是工作区内的绝对路径，解析器不会执行 Compose 或读取外部服务状态。
 type Input struct {
 	WorkingDirectory string
 	ComposeFiles     []string
@@ -30,7 +31,7 @@ type Input struct {
 	ContentOverrides map[string][]byte
 }
 
-// WithContentOverrides clones the input and applies absolute-path content overrides for bounded draft parsing.
+// WithContentOverrides 复制输入并应用绝对路径内容覆盖，用于不落盘的受控草稿解析。
 func (in Input) WithContentOverrides(overrides map[string][]byte) Input {
 	if len(overrides) == 0 {
 		return in
@@ -46,7 +47,7 @@ func (in Input) WithContentOverrides(overrides map[string][]byte) Input {
 	return in
 }
 
-// FileProjection stores one resolved project file input.
+// FileProjection 保存一个已解析项目文件的路径、内容摘要及请求顺序。
 type FileProjection struct {
 	AbsolutePath string
 	DisplayPath  string
@@ -58,7 +59,7 @@ type FileProjection struct {
 	Exists       bool
 }
 
-// ServiceProjection stores one static service summary parsed from compose YAML.
+// ServiceProjection 保存从 Compose YAML 静态提取的服务摘要，不代表运行时服务状态。
 type ServiceProjection struct {
 	ServiceName      string
 	Image            *string
@@ -68,7 +69,7 @@ type ServiceProjection struct {
 	DeclaredNetworks []string
 }
 
-// NetworkProjection stores one static top-level network summary parsed from compose YAML.
+// NetworkProjection 保存从 Compose 顶层 networks 静态提取的网络摘要。
 type NetworkProjection struct {
 	Name     string
 	Driver   *string
@@ -76,13 +77,13 @@ type NetworkProjection struct {
 	Internal *bool
 }
 
-// VolumeProjection stores one static top-level volume summary parsed from compose YAML.
+// VolumeProjection 保存从 Compose 顶层 volumes 静态提取的卷摘要。
 type VolumeProjection struct {
 	Name   string
 	Driver *string
 }
 
-// Result stores the bounded phase-1 static compose parse result.
+// Result 保存第一阶段受控静态 Compose 解析结果及归一化摘要。
 type Result struct {
 	WorkingDirectory      string
 	CanonicalProjectName  string
@@ -101,11 +102,8 @@ type Result struct {
 	Warnings              []string
 }
 
-// Load 解析项目文件并返回归一化的 Compose 服务投影结果与输入摘要。
-// Load 解析工作目录、Compose 文件和 Env 文件，汇总静态服务信息并生成归一化快照。
-// 它返回工作目录、计算得到的项目名与配置哈希，以及解析后的文件、服务、网络和卷名称列表。
-// @param input 解析输入。
-// 返回解析结果；解析工作目录、文件或配置内容失败时返回错误。
+// Load 解析工作目录、Compose 文件和 Env 文件，返回静态服务投影、归一化快照及配置哈希。
+// Compose 文件按输入顺序合并；服务、网络和卷的最终列表会稳定排序。解析阶段只读取文件和 YAML，不执行外部命令。
 func Load(input Input) (Result, error) {
 	workingDirectory, err := resolveWorkingDirectory(input.WorkingDirectory)
 	if err != nil {
@@ -174,16 +172,8 @@ type collectedServices struct {
 	volumeNames  []string
 }
 
-// collectServices 处理已解析的 Compose 文件，汇总服务投影并计算配置哈希。
-//
-// 它按输入顺序处理每个文件，合并同名服务的静态信息，并返回服务首次出现的顺序和最终的服务映射。
-// 当文件内容写入哈希器失败或 Compose 文档解析失败时返回错误。
-//
-// @param composeFiles 已解析的 Compose 文件。
-// @param configHasher 用于累计配置内容哈希的写入器。
-// collectServices 聚合 Compose 文件中的服务、网络和卷定义。
-// collectServices 解析 Compose 文件，汇总服务、项目名、网络和卷信息，并按名称排序网络与卷。
-// 同时将 Compose 文件内容写入 configHasher；解析或写入失败时返回错误。
+// collectServices 按请求顺序解析并合并 Compose 文件，累计原始文件内容哈希。
+// 同名服务按后出现的文件覆盖可静态提取字段；网络和卷在返回前按名称排序，解析或哈希失败时返回错误。
 func collectServices(
 	composeFiles []FileProjection,
 	configHasher hashWriter,
@@ -226,9 +216,7 @@ type hashWriter interface {
 	Write(p []byte) (n int, err error)
 }
 
-// parseComposeDocument 将 Compose 文件内容解析为通用文档。
-// parseComposeDocument 将 Compose 文件内容解析为文档映射。
-// 解析失败时返回包含文件绝对路径的错误。
+// parseComposeDocument 将 Compose 文件内容解析为文档映射；失败错误包含文件绝对路径，便于定位外部文件输入。
 func parseComposeDocument(file FileProjection) (map[string]any, error) {
 	var doc map[string]any
 	if err := yaml.Unmarshal(file.Content, &doc); err != nil {
@@ -237,8 +225,7 @@ func parseComposeDocument(file FileProjection) (map[string]any, error) {
 	return doc, nil
 }
 
-// collectProjectNameFromDocument extracts a non-empty project name from a Compose document.
-// It returns current when the document has no usable name value.
+// collectProjectNameFromDocument 从 Compose 文档读取非空顶层 name；没有可用值时保留 current。
 func collectProjectNameFromDocument(doc map[string]any, current string) string {
 	raw, ok := doc["name"]
 	if !ok {
@@ -255,8 +242,7 @@ func collectProjectNameFromDocument(doc map[string]any, current string) string {
 	return name
 }
 
-// resolvedCanonicalProjectName determines the canonical project name from the specified project name or working directory.
-// It normalizes the selected name before returning it.
+// resolvedCanonicalProjectName 优先使用 Compose 顶层 name，否则使用工作目录名，并统一归一化结果。
 func resolvedCanonicalProjectName(projectName string, workingDirectory string) string {
 	candidate := filepath.Base(workingDirectory)
 	if strings.TrimSpace(projectName) != "" {
@@ -300,17 +286,18 @@ func normalizeComputedProjectName(value string) string {
 	return result
 }
 
-// isAlphaNumericProjectNameRune reports whether r is a lowercase ASCII letter or digit.
+// isAlphaNumericProjectNameRune 判断字符是否为规范项目名允许的小写 ASCII 字母或数字。
 func isAlphaNumericProjectNameRune(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
 }
 
-// shouldSkipProjectNameSeparator reports whether a project name separator should be omitted based on the current normalized name.
+// shouldSkipProjectNameSeparator 判断当前规范化结果是否应跳过重复或开头的分隔符。
 func shouldSkipProjectNameSeparator(builderLen int, lastSeparator bool) bool {
 	return builderLen == 0 || lastSeparator
 }
 
-// collectServicesFromDocument 按服务首次出现的顺序更新服务名称列表，并合并同名服务的静态投影。
+// collectServicesFromDocument 记录服务首次出现的名称，并合并同名服务的静态投影。
+// YAML 映射本身无顺序保证，因此该顺序只用于去重，最终展示顺序由 buildServiceProjections 稳定排序。
 func collectServicesFromDocument(
 	doc map[string]any,
 	serviceOrder []string,
@@ -337,8 +324,7 @@ func serviceNodesFromDocument(doc map[string]any) map[string]any {
 	return servicesNode
 }
 
-// buildServiceProjections 按名称排序生成服务投影列表和服务名列表。
-// 返回的服务切片与服务名切片均按字典序排列。
+// buildServiceProjections 按名称排序生成服务投影列表和服务名列表，消除 YAML 映射遍历顺序带来的结果抖动。
 func buildServiceProjections(
 	serviceOrder []string,
 	serviceMap map[string]ServiceProjection,
@@ -353,7 +339,7 @@ func buildServiceProjections(
 	return services, sortedNames
 }
 
-// buildServiceProjection 为服务投影设置服务名，并按字典序排序其声明的端口、卷和网络列表。
+// buildServiceProjection 设置服务名，并按字典序排序端口、卷和网络，保证快照序列化稳定。
 func buildServiceProjection(name string, projection ServiceProjection) ServiceProjection {
 	projection.ServiceName = name
 	sort.Strings(projection.DeclaredPorts)
@@ -495,10 +481,7 @@ func sortedKeys(items map[string]struct{}) []string {
 	return result
 }
 
-// resolveWorkingDirectory 解析并校验工作目录路径。
-// 它会去除首尾空白，转换为绝对路径，并确认该路径存在且为目录。
-// @param raw 原始工作目录路径。
-// @returns 解析后的绝对目录路径，或返回错误。
+// resolveWorkingDirectory 解析并校验工作目录路径，确认路径存在且为目录后返回绝对路径。
 func resolveWorkingDirectory(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -525,11 +508,7 @@ func resolveWorkingDirectory(raw string) (string, error) {
 	return absolute, nil
 }
 
-// resolveComposeFiles 解析并读取 Compose 文件投影。
-// 当未指定文件时，默认使用 `compose.yaml`。
-// @param workingDirectory 用于解析相对路径的工作目录。
-// @param requested 请求的 Compose 文件路径列表。
-// @returns 解析后的 Compose 文件投影列表。
+// resolveComposeFiles 按请求顺序解析 Compose 文件投影；未指定文件时只使用默认的 compose.yaml。
 func resolveComposeFiles(workingDirectory string, requested []string, overrides map[string][]byte) ([]FileProjection, error) {
 	if len(requested) == 0 {
 		requested = []string{"compose.yaml"}
@@ -549,7 +528,7 @@ func resolveComposeFiles(workingDirectory string, requested []string, overrides 
 	return items, nil
 }
 
-// resolveEnvFiles 按顺序解析并读取环境文件投影。
+// resolveEnvFiles 按请求顺序解析环境文件投影，不擅自添加默认 Env 文件。
 //
 // requested 为空时不添加默认文件；返回的切片保持请求顺序。
 func resolveEnvFiles(workingDirectory string, requested []string, overrides map[string][]byte) ([]FileProjection, error) {
@@ -667,9 +646,7 @@ func readFileWithinWorkingDirectory(workingDirectory string, absolutePath string
 	return root.ReadFile(relative)
 }
 
-// composeRole 返回 Compose 文件在请求顺序中的角色。
-//
-// @returns 第 0 个文件返回 "primary"，其余文件返回 "override"。
+// composeRole 返回 Compose 文件在请求顺序中的角色：第一个为 primary，其余为 override。
 func composeRole(index int) string {
 	if index == 0 {
 		return "primary"

@@ -35,7 +35,7 @@ type resourceStatsLoad struct {
 	summary ResourceSummary
 }
 
-// 当 ttl 或 staleWindow 小于等于 0 时，会分别使用默认值。
+// newResourceStatsCache 创建带新鲜期和过期容忍期的统计缓存；参数非正时分别回退到模块默认值。
 func newResourceStatsCache(ttl time.Duration, staleWindow time.Duration) *resourceStatsCache {
 	if ttl <= 0 {
 		ttl = containerResourceStatsCacheTTL
@@ -52,8 +52,7 @@ func newResourceStatsCache(ttl time.Duration, staleWindow time.Duration) *resour
 	}
 }
 
-// get serves fresh snapshots immediately, returns stale snapshots while one background refresh is running,
-// and preserves the last successful full snapshot when a refresh degrades.
+// get 优先返回新鲜快照；过期但仍在容忍窗口内时只启动一次后台刷新并先返回旧值，刷新结果不可用时保留上次成功快照。
 func (c *resourceStatsCache) get(ctx context.Context, key string, loader resourceStatsLoader) ResourceSummary {
 	key = strings.TrimSpace(key)
 	if c == nil || loader == nil || key == "" {
@@ -189,7 +188,7 @@ func (c *resourceStatsCache) completeLoad(ctx context.Context, key string, load 
 	return summary
 }
 
-// normalizeResourceStatsSummary 规范化资源统计摘要，并判断其是否可缓存。
+// normalizeResourceStatsSummary 规范化资源统计摘要，并判断是否包含足够指标可写入缓存。
 // 当摘要包含可用的统计快照时，清空不可用原因和统计错误信息并返回。
 // 否则返回一个不可用摘要。
 //

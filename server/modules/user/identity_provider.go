@@ -10,8 +10,7 @@ import (
 	userstore "graft/server/modules/user/store"
 )
 
-// userIdentityProvider publishes user-profile facts to auth without exposing
-// credentials, password state, sessions, or the user repository itself.
+// userIdentityProvider 向 auth 提供用户身份与展示信息，不暴露凭据、密码状态、会话或用户仓储本身。
 type userIdentityProvider struct {
 	users userstore.UserRepository
 }
@@ -64,7 +63,7 @@ func (p userIdentityProvider) EnsureDefaultAdminProfile(ctx context.Context) (mo
 	return currentUserFromStore(created), nil
 }
 
-// currentUserFromStore converts a stored user into a current user profile containing identity and display information.
+// currentUserFromStore 将仓储用户转换为仅包含身份和展示信息的当前用户资料。
 func currentUserFromStore(user userstore.User) moduleapi.CurrentUser {
 	return moduleapi.CurrentUser{ID: user.ID, Username: user.Username, DisplayName: user.Display}
 }

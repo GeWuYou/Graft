@@ -1,4 +1,4 @@
-// Package moduleapi exposes stable cross-module saved-view capabilities.
+// Package moduleapi 定义稳定的跨模块能力契约。
 package moduleapi
 
 import (
@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	// ErrSavedViewNotFound means the requested saved view is not owned by the caller.
+	// ErrSavedViewNotFound 表示请求的已保存视图不属于当前调用方。
 	ErrSavedViewNotFound = errors.New("saved view not found")
-	// ErrSavedViewConflict means a saved view name already exists for an owner and surface.
+	// ErrSavedViewConflict 表示该所有者和 surface 下已存在同名已保存视图。
 	ErrSavedViewConflict = errors.New("saved view conflict")
-	// ErrSavedViewInvalidInput means generic saved-view state is structurally invalid.
+	// ErrSavedViewInvalidInput 表示通用已保存视图状态的结构不合法。
 	ErrSavedViewInvalidInput = errors.New("saved view invalid input")
 )
 
-// SavedView is a consumer-neutral persisted list-page view. QueryState remains opaque to this service.
+// SavedView 是与消费者无关的持久化列表页视图；QueryState 对该服务保持不透明。
 type SavedView struct {
 	ID             uint64
 	OwnerUserID    uint64
@@ -30,7 +30,7 @@ type SavedView struct {
 	UpdatedAt      time.Time
 }
 
-// SavedViewCreateInput creates a view after the consumer validates its surface and query state.
+// SavedViewCreateInput 描述消费者完成 surface 和查询状态校验后创建视图所需的输入。
 type SavedViewCreateInput struct {
 	OwnerUserID    uint64
 	SurfaceKey     string
@@ -40,7 +40,7 @@ type SavedViewCreateInput struct {
 	VisibleColumns []string
 }
 
-// SavedViewUpdateInput updates an existing view owned by OwnerUserID.
+// SavedViewUpdateInput 描述更新 OwnerUserID 所有的已有视图所需的输入。
 type SavedViewUpdateInput struct {
 	ID             uint64
 	OwnerUserID    uint64
@@ -51,7 +51,7 @@ type SavedViewUpdateInput struct {
 	VisibleColumns []string
 }
 
-// SavedViewService is the generic persistence boundary. Consumers own authorization and payload semantics.
+// SavedViewService 是通用持久化边界；授权和载荷语义仍由消费者拥有。
 type SavedViewService interface {
 	List(ctx context.Context, ownerUserID uint64, surfaceKey string) ([]SavedView, error)
 	Create(ctx context.Context, input SavedViewCreateInput) (SavedView, error)

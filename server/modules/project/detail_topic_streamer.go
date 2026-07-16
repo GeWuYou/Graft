@@ -32,7 +32,7 @@ type projectRuntimeTopicStream struct {
 	runID              uint64
 }
 
-// markProjectRuntimeTopicStreamDone signals stream completion without blocking when done is available.
+// markProjectRuntimeTopicStreamDone 在完成信号可用时无阻塞地标记实时流结束。
 func markProjectRuntimeTopicStreamDone(done chan struct{}) {
 	if done == nil {
 		return
@@ -61,10 +61,10 @@ func omitProjectRuntimeTopicStream(
 	return next
 }
 
-// newProjectRuntimeTopicStreamer creates a project runtime topic streamer with the provided hub, logger, and service.
-// It returns an error if the hub or service is unavailable, or if the hub does not support topic subscription monitoring.
+// newProjectRuntimeTopicStreamer 使用指定的 hub、logger 和 service 创建项目运行时主题流。
+// hub 或 service 不可用，或 hub 不支持主题订阅监测时返回错误。
 //
-//nolint:dupl // Runtime and lifecycle streams keep distinct concrete stream types and lifecycle ownership.
+//nolint:dupl // 运行时流与生命周期流保留独立的具体类型和生命周期所有权。
 func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectRuntimeTopicStreamer, error) {
 	if hub == nil {
 		return nil, errors.New("realtime hub is unavailable")
@@ -89,6 +89,7 @@ func newProjectRuntimeTopicStreamer(hub realtime.Hub, logger *zap.Logger, servic
 }
 
 func (s *projectRuntimeTopicStreamer) EnsureTopic(topic string, projectID uint64) error {
+	// 主题记录先于观察器注册，保证并发订阅不会重复创建运行实例；无订阅时不启动刷新协程。
 	if s == nil {
 		return errors.New("project runtime topic streamer is unavailable")
 	}
@@ -138,6 +139,7 @@ func (s *projectRuntimeTopicStreamer) Close(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 	var closeErr error
+	// 关闭必须等待正在执行的发布完成；超时主题保留登记，便于后续继续收敛资源。
 	for _, topic := range topics {
 		stopErr := s.stop(ctx, topic)
 		closeErr = errors.Join(closeErr, stopErr)
@@ -162,6 +164,7 @@ func (s *projectRuntimeTopicStreamer) start(topic string) {
 		s.mu.Unlock()
 		return
 	}
+	// runID 防止旧一轮协程在取消后覆盖新一轮主题状态。
 	runCtx, cancel := context.WithCancel(context.Background())
 	stream.cancel = cancel
 	stream.done = make(chan struct{}, 1)

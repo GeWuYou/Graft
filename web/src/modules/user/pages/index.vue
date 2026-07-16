@@ -583,7 +583,7 @@ type UserFilters = {
 };
 
 type UserRow = UserListItem & {
-  // The current page still tolerates legacy read fields when the backend includes them.
+  // 兼容读取字段的 canonical owner 是 openapi/components/schemas/user-list-item.yaml；当前 schema 未包含这些历史可选读取字段。COMPAT(owner=openapi/components/schemas/user-list-item.yaml; cleanup=字段正式纳入 canonical schema 且所有支持版本收敛后删除; verify=用户页测试与 bun run check)
   email?: string | null;
   last_login_at?: string | null;
 };

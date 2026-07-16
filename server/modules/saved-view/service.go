@@ -7,13 +7,13 @@ import (
 	"graft/server/modules/saved-view/store"
 )
 
-// Service validates generic view structure and delegates opaque consumer state to its store.
+// Service 校验通用保存视图的边界输入，并将消费者自定义的查询状态原样委托给仓储。
 type Service struct{ repository store.Repository }
 
-// NewService 创建一个已保存视图服务。
+// NewService 创建一个已保存视图服务；仓储为空时服务调用返回 ErrSavedViewInvalidInput。
 func NewService(repository store.Repository) *Service { return &Service{repository: repository} }
 
-// List returns views belonging to one owner and one consumer surface.
+// List 返回指定用户和消费界面拥有的未删除视图；服务未配置仓储时返回 ErrSavedViewInvalidInput。
 func (s *Service) List(ctx context.Context, ownerUserID uint64, surfaceKey string) ([]moduleapi.SavedView, error) {
 	if s == nil || s.repository == nil {
 		return nil, moduleapi.ErrSavedViewInvalidInput
@@ -21,7 +21,7 @@ func (s *Service) List(ctx context.Context, ownerUserID uint64, surfaceKey strin
 	return s.repository.List(ctx, ownerUserID, surfaceKey)
 }
 
-// Create persists one consumer-validated view.
+// Create 持久化一个由消费者提供并由仓储校验的视图。
 func (s *Service) Create(ctx context.Context, input moduleapi.SavedViewCreateInput) (moduleapi.SavedView, error) {
 	if s == nil || s.repository == nil {
 		return moduleapi.SavedView{}, moduleapi.ErrSavedViewInvalidInput
@@ -29,7 +29,7 @@ func (s *Service) Create(ctx context.Context, input moduleapi.SavedViewCreateInp
 	return s.repository.Create(ctx, input)
 }
 
-// Update replaces one owned saved view.
+// Update 替换一个由指定用户和消费界面共同拥有的视图；缺少 ID、用户或界面标识时提前拒绝。
 func (s *Service) Update(ctx context.Context, input moduleapi.SavedViewUpdateInput) (moduleapi.SavedView, error) {
 	if s == nil || s.repository == nil {
 		return moduleapi.SavedView{}, moduleapi.ErrSavedViewInvalidInput
@@ -40,7 +40,7 @@ func (s *Service) Update(ctx context.Context, input moduleapi.SavedViewUpdateInp
 	return s.repository.Update(ctx, input)
 }
 
-// Delete soft-deletes one owned saved view.
+// Delete 软删除一个由指定用户和消费界面共同拥有的视图。
 func (s *Service) Delete(ctx context.Context, ownerUserID uint64, surfaceKey string, id uint64) error {
 	if s == nil || s.repository == nil {
 		return moduleapi.ErrSavedViewInvalidInput

@@ -1,13 +1,13 @@
-// Package contract declares runtime-target stable navigation and permission identifiers.
+// Package contract 定义 runtime-target 稳定的导航和权限标识。
 package contract
 
-// Stable module contract identifiers.
+// 稳定的模块契约标识。
 const (
 	MenuTitle         = "menu.runtimeTargets.title"
 	MenuPath          = "/infrastructure/runtime-targets"
 	ViewPermission    = "runtime_target.view"
 	ManagePermission  = "runtime_target.manage"
 	RefreshPermission = "runtime_target.refresh"
-	// SummaryTopic is the realtime topic for target-level resource snapshots.
+	// SummaryTopic 是目标级资源快照使用的实时主题。
 	SummaryTopic = "runtime-target.summary.list"
 )

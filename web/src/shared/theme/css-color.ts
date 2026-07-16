@@ -1,3 +1,4 @@
+/** 颜色解析结果；同时保留规范化 hex、CSS 文本和透明度，供主题编辑与预览共享。 */
 export interface ParsedCssColor {
   alpha: number;
   blue: number;
@@ -26,8 +27,7 @@ function normalizeHexInput(value: string) {
   }
 
   if (/^[0-9a-fA-F]{4}$/.test(compact)) {
-    // `#RGBA` carries inline alpha, but callers that request normalized hex expect
-    // an opaque `#RRGGBB` value and handle alpha through separate parsed metadata.
+    // 归一化 hex 的调用方只需要 RGB；alpha 由结构化解析结果单独保留。
     const [red, green, blue] = compact
       .slice(0, 3)
       .split('')
@@ -40,8 +40,7 @@ function normalizeHexInput(value: string) {
   }
 
   if (/^[0-9a-fA-F]{8}$/.test(compact)) {
-    // Same as the shorthand branch above: normalize to the opaque RGB portion and
-    // let parsing APIs preserve alpha when the caller needs structured color data.
+    // 与简写分支一致：先归一化 RGB，结构化解析时再保留 alpha。
     return `#${compact.slice(0, 6)}`.toLowerCase();
   }
 
@@ -139,6 +138,7 @@ function parseSrgbColor(value: string): ParsedCssColor | null {
   );
 }
 
+/** 先处理无须浏览器的颜色语法；浏览器专属颜色在 SSR、测试或无 DOM 环境中明确返回 `null`。 */
 export function normalizeCssColorValue(value: string) {
   const trimmed = value.trim();
 
@@ -155,6 +155,7 @@ export function normalizeCssColorValue(value: string) {
     return trimmed;
   }
 
+  // SSR 或测试环境没有 DOM 时不能解析浏览器专属颜色名，必须返回 null 而不是伪造结果。
   if (typeof document === 'undefined') {
     return null;
   }
@@ -183,6 +184,7 @@ export function normalizeCssColorValue(value: string) {
   return resolved || null;
 }
 
+/** 将稳定可解析的颜色语法转换为结构化结果，命名色等浏览器格式交由 DOM 解析后再转换。 */
 export function parseResolvedCssColor(value: string) {
   const trimmed = value.trim();
 

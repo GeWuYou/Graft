@@ -15,6 +15,7 @@ import { computed, defineComponent, unref } from 'vue';
 import FrameContent from '../components/FrameContent.vue';
 import { useFrameKeepAlive } from './useFrameKeepAlive';
 
+// iframe 布局只切换已注册的外部页面实例；尺寸和加载态由 FrameContent 管理，避免两层同时维护外部页面状态。
 export default defineComponent({
   name: 'FrameLayout',
   components: { FrameContent },

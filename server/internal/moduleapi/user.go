@@ -21,7 +21,7 @@ type UserSummary struct {
 	ProtectedDefaultAdmin bool
 }
 
-// UserSecuritySummary is the narrow user-state projection needed by security posture readers.
+// UserSecuritySummary 是安全态势读取方所需的窄化用户状态投影。
 type UserSecuritySummary struct {
 	ID     uint64
 	Status string
@@ -39,8 +39,8 @@ type UserService interface {
 	CountUsers(ctx context.Context) (int, error)
 }
 
-// UserSecurityReader exposes the narrow account-state projection needed by security posture aggregation.
+// UserSecurityReader 暴露安全态势聚合所需的窄化账户状态投影。
 type UserSecurityReader interface {
-	// ListSecuritySummaries returns one ID-ordered, bounded page after afterID.
+	// ListSecuritySummaries 返回 afterID 之后按 ID 排序的有界数据页。
 	ListSecuritySummaries(ctx context.Context, afterID uint64, limit int) ([]UserSecuritySummary, error)
 }

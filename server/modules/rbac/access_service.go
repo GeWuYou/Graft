@@ -21,7 +21,7 @@ type securityPostureInputs struct {
 	permissions []rbacstore.Permission
 }
 
-// ReadSecurityPosture aggregates RBAC-owned counters without exposing persistence details.
+// ReadSecurityPosture 汇总 RBAC 与用户安全摘要，向仪表盘暴露只读统计而不泄漏仓储细节。
 func (s accessService) ReadSecurityPosture(ctx context.Context) (moduleapi.SecurityPosture, error) {
 	if s.rbac == nil || s.users == nil {
 		return moduleapi.SecurityPosture{}, fmt.Errorf("rbac security posture dependencies are unavailable")

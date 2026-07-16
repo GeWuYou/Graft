@@ -41,7 +41,7 @@ type dockerExecSession struct {
 	finishOnce sync.Once
 }
 
-// newDockerExecSession creates a new Docker exec session with the given client, container ID, and command.
+// newDockerExecSession 创建一个延迟启动的 Docker exec 会话；Start 才会创建并接入远端 exec 流。
 func newDockerExecSession(client dockerExecClient, containerID string, command string) *dockerExecSession {
 	return &dockerExecSession{
 		client:      client,
@@ -208,8 +208,7 @@ func (s *dockerExecSession) pushError(err error) {
 	}
 }
 
-// consoleSize 将终端大小转换为 Docker exec 支持的控制台大小格式。
-// 如果行数或列数为零，返回 nil；否则返回指向包含 [行数, 列数] 的数组指针。
+// consoleSize 将终端大小转换为 Docker exec 支持的控制台大小；任一维度为零时不向 Docker 发送尺寸覆盖。
 func consoleSize(size terminal.Size) mobyclient.ConsoleSize {
 	if size.Cols == 0 || size.Rows == 0 {
 		return mobyclient.ConsoleSize{}

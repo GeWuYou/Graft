@@ -11,32 +11,14 @@ export const CONTAINER_REALTIME_TOPIC = {
 
 export type ContainerRealtimeTopicPrefix = (typeof CONTAINER_REALTIME_TOPIC)[keyof typeof CONTAINER_REALTIME_TOPIC];
 
-/**
- * 生成容器实时统计主题名称。
- *
- * @param containerId - 容器标识
- * @returns 拼接 `STATS_PREFIX` 与 `containerId` 后得到的主题名称
- */
 export function buildContainerStatsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.STATS_PREFIX}${containerId}`;
 }
 
-/**
- * 生成容器日志的实时主题名称。
- *
- * @param containerId - 容器 ID
- * @returns 拼接日志主题前缀与 `containerId` 后得到的主题名称
- */
 export function buildContainerLogsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.LOGS_PREFIX}${containerId}`;
 }
 
-/**
- * 生成容器事件实时主题名称。
- *
- * @param containerId - 容器标识
- * @returns 由事件主题前缀和 `containerId` 拼接得到的主题名称
- */
 export function buildContainerEventsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.EVENTS_PREFIX}${containerId}`;
 }
@@ -60,7 +42,7 @@ export function parseContainerLogsTopicContainerId(topic: string) {
  *
  * @param topic - realtime topic
  * @param containerId - 容器 ID
- * @returns `true` if topic 与容器 ID 精确匹配，`false` otherwise
+ * @returns 当主题与容器 ID 精确匹配时返回 `true`，否则返回 `false`
  */
 export function isContainerLogsTopicForContainer(topic: string, containerId: string) {
   const normalizedContainerId = containerId.trim();
@@ -72,7 +54,7 @@ export function isContainerLogsTopicForContainer(topic: string, containerId: str
  *
  * @param topic - 实时主题名称
  * @param containerId - 容器标识
- * @returns `true` if the topic 对应该容器，`false` otherwise.
+ * @returns 当主题对应指定容器时返回 `true`，否则返回 `false`
  */
 export function isContainerEventsTopicForContainer(topic: string, containerId: string) {
   const normalizedContainerId = containerId.trim();
@@ -98,12 +80,6 @@ export type ContainerEventsRealtimePayload = {
   record: ContainerRuntimeEventRecord;
 };
 
-/**
- * 判断值是否为对象。
- *
- * @param value - 待检查的值
- * @returns `true` if `value` 为真值且类型为 `object`，`false` otherwise.
- */
 /**
  * 解析容器事件实时载荷。
  *

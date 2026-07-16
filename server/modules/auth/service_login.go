@@ -36,8 +36,7 @@ func (s authService) Login(ctx context.Context, username string, password string
 	}, nil
 }
 
-// ProvisionPasswordCredential creates the initial credential for an existing
-// user profile. Profile creation remains user-owned; hashing policy remains auth-owned.
+// ProvisionPasswordCredential 为已存在的 user profile 创建 auth credential；profile identity 仍由 user 模块拥有，密码策略和散列由 auth 拥有。
 func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error {
 	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
@@ -53,7 +52,7 @@ func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uin
 	return s.credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
 }
 
-// ResetPassword applies the administrator reset policy and revokes all active sessions.
+// ResetPassword 按管理员重置策略更新密码，并原子吊销该用户的全部 refresh session，使旧 access token 失效。
 func (s authService) ResetPassword(ctx context.Context, userID uint64, password string) error {
 	if s.credentials == nil {
 		return errors.New("auth repository is unavailable")
@@ -68,7 +67,7 @@ func (s authService) ResetPassword(ctx context.Context, userID uint64, password 
 	return s.credentials.ResetPasswordAndRevokeRefreshSessions(ctx, authstore.ResetPasswordAndRevokeSessionsInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: s.nowUTC()})
 }
 
-// RevokeSessions invalidates every refresh session for a user profile lifecycle change.
+// RevokeSessions 在 user profile 生命周期结束或身份状态变化时吊销全部 refresh session。
 func (s authService) RevokeSessions(ctx context.Context, userID uint64) error {
 	if s.sessions == nil {
 		return errors.New("auth repository is unavailable")

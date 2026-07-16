@@ -17,7 +17,7 @@ type TaskLogRealtimeBatcherOptions = Readonly<{
 }>;
 
 /**
- * Keeps the task log view bounded and commits only after one durable replay page.
+ * 限制任务日志视图的容量，并只在完成一次持久化回放页后提交视图快照。
  */
 export class TaskLogRealtimeBatcher {
   readonly #capacity: number;

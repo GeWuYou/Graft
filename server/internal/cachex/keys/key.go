@@ -1,4 +1,4 @@
-// Package keys defines stable cache key composition for cachex.
+// Package keys 定义 cachex 使用的稳定缓存键组成规则。
 package keys
 
 import (
@@ -6,15 +6,14 @@ import (
 	"strings"
 )
 
-// Key represents one composed cache key with explicit namespace and segments.
+// Key 表示由命名空间、名称和路径片段组成的缓存键。
 type Key struct {
 	namespace string
 	name      string
 	parts     []string
 }
 
-// New creates a validated and normalized cache Key from the provided namespace, name, and optional parts.
-// Whitespace is trimmed from all inputs. An error is returned if any input is empty or contains a colon.
+// New 创建经过校验和规范化的缓存键；所有输入会去除首尾空白，空值或包含冒号时返回错误。
 func New(namespace string, name string, parts ...string) (Key, error) {
 	trimmedNamespace := strings.TrimSpace(namespace)
 	if trimmedNamespace == "" {
@@ -51,7 +50,7 @@ func New(namespace string, name string, parts ...string) (Key, error) {
 	}, nil
 }
 
-// MustNew creates a validated cache Key, panicking if validation fails.
+// MustNew 创建经过校验的缓存键；输入不合法时 panic，适用于静态且应始终有效的键定义。
 func MustNew(namespace string, name string, parts ...string) Key {
 	key, err := New(namespace, name, parts...)
 	if err != nil {
@@ -61,24 +60,24 @@ func MustNew(namespace string, name string, parts ...string) Key {
 	return key
 }
 
-// Namespace returns the stable key namespace.
+// Namespace 返回缓存键的稳定命名空间。
 func (k Key) Namespace() string {
 	return k.namespace
 }
 
-// Name returns the stable key name.
+// Name 返回缓存键的稳定名称。
 func (k Key) Name() string {
 	return k.name
 }
 
-// Parts returns defensive copies of the key path segments.
+// Parts 返回路径片段的防御性副本，调用方修改结果不会影响原键。
 func (k Key) Parts() []string {
 	cloned := make([]string, len(k.parts))
 	copy(cloned, k.parts)
 	return cloned
 }
 
-// String renders the key to a stable colon-separated form.
+// String 将缓存键渲染为稳定的冒号分隔形式。
 func (k Key) String() string {
 	segments := []string{k.namespace, k.name}
 	segments = append(segments, k.parts...)

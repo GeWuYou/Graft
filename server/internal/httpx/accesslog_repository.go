@@ -27,7 +27,7 @@ const (
 	accessLogStatus5xxMax                            = 599
 )
 
-// AccessLog describes one persisted canonical access-log record.
+// AccessLog 描述一条已持久化的规范访问日志记录。
 type AccessLog struct {
 	ID             uint64
 	RequestID      string
@@ -48,17 +48,17 @@ type AccessLog struct {
 	OccurredAt     time.Time
 }
 
-// AccessLogConnectionType identifies whether an access record completed as a normal HTTP request or a WebSocket connection.
+// AccessLogConnectionType 标识访问记录最终是普通 HTTP 请求还是 WebSocket 连接。
 type AccessLogConnectionType string
 
 const (
-	// AccessLogConnectionTypeHTTP represents a normal request-response HTTP exchange.
+	// AccessLogConnectionTypeHTTP 表示普通的请求-响应式 HTTP 交互。
 	AccessLogConnectionTypeHTTP AccessLogConnectionType = "http"
-	// AccessLogConnectionTypeWebSocket represents a request that successfully upgraded to WebSocket.
+	// AccessLogConnectionTypeWebSocket 表示已成功升级为 WebSocket 的请求。
 	AccessLogConnectionTypeWebSocket AccessLogConnectionType = "websocket"
 )
 
-// CreateAccessLogInput describes the canonical request facts persisted by the runtime owner.
+// CreateAccessLogInput 描述由 runtime owner 持久化的规范请求事实。
 type CreateAccessLogInput struct {
 	RequestID      string
 	TraceID        string
@@ -78,7 +78,7 @@ type CreateAccessLogInput struct {
 	OccurredAt     time.Time
 }
 
-// AccessLogRepository owns durable persistence for canonical access logs.
+// AccessLogRepository 拥有规范访问日志的持久化边界；其它模块通过该接口消费日志事实而不直接依赖 SQL。
 type AccessLogRepository interface {
 	CreateAccessLog(ctx context.Context, input CreateAccessLogInput) (AccessLog, error)
 	CreateAccessLogs(ctx context.Context, inputs []CreateAccessLogInput) ([]AccessLog, error)
@@ -183,7 +183,7 @@ type accessLogQueryer interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
-// NewAccessLogRepository builds the core-owned SQL repository for access-log persistence.
+// NewAccessLogRepository 创建由 core 拥有的访问日志 SQL 仓储；db 为空时返回错误。
 func NewAccessLogRepository(db *sql.DB) (AccessLogRepository, error) {
 	return newAccessLogRepositoryWithDialect(db, accessLogSQLDialectPostgres)
 }

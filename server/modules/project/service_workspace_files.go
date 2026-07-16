@@ -333,7 +333,7 @@ func (s *Service) openProjectWorkspaceRoot(ctx context.Context, projectID uint64
 	return relativePath, root, nil
 }
 
-// validateWorkspaceEntryRequest validates a workspace entry creation request, including its node type and file content constraints.
+// validateWorkspaceEntryRequest 校验工作区创建请求的节点类型和内容边界：目录不得携带内容，文件必须是有效 UTF-8 且不得包含 NUL 字节。
 func validateWorkspaceEntryRequest(request workspaceEntryCreateRequest) error {
 	if request.NodeType != "file" && request.NodeType != "directory" {
 		return errProjectInvalidArgument
@@ -350,8 +350,6 @@ func validateWorkspaceEntryRequest(request workspaceEntryCreateRequest) error {
 	return nil
 }
 
-// ensureWorkspaceEntryAbsent verifies that the specified workspace path does not exist.
-// It returns an error if the path exists or cannot be inspected.
 func ensureWorkspaceEntryAbsent(root *managedRootFS, path string) error {
 	if _, err := root.root.Lstat(path); err == nil {
 		return errProjectConflict
@@ -361,7 +359,6 @@ func ensureWorkspaceEntryAbsent(root *managedRootFS, path string) error {
 	return nil
 }
 
-// ensureWorkspaceEntrySafe verifies that a workspace entry exists and is not a symbolic link.
 func ensureWorkspaceEntrySafe(root *managedRootFS, path string) error {
 	info, err := root.root.Lstat(path)
 	if err != nil {
@@ -373,7 +370,6 @@ func ensureWorkspaceEntrySafe(root *managedRootFS, path string) error {
 	return nil
 }
 
-// ensureWorkspaceParent creates the parent directory for the specified workspace path.
 func ensureWorkspaceParent(root *managedRootFS, path string) error {
 	parent := filepath.Dir(path)
 	if parent == "." {
@@ -417,7 +413,7 @@ func (s *Service) deleteProjectWorkspaceEntry(ctx context.Context, projectID uin
 	return mapWorkspacePathError(root.root.Remove(relativePath))
 }
 
-// workspaceMutationContainsTrackedLifecycleInput prevents moving or removing files that active lifecycle commands still reference.
+// workspaceMutationContainsTrackedLifecycleInput 防止移动或删除仍被活动生命周期命令引用的文件及其上级目录。
 func workspaceMutationContainsTrackedLifecycleInput(aggregate projectstore.ProjectAggregate, path string) bool {
 	for _, file := range aggregate.Files {
 		relative, err := filepath.Rel(aggregate.Project.WorkingDirectory, file.AbsolutePath)

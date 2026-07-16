@@ -1,4 +1,4 @@
-// Package storeent provides SQL persistence for system-config overrides.
+// Package storeent 提供 system-config 用户覆盖值的 SQL 持久化实现。
 package storeent
 
 import (
@@ -18,7 +18,7 @@ type repository struct {
 	db *sql.DB
 }
 
-// NewRepository builds a SQL-backed system config override repository.
+// NewRepository 创建 SQL 覆盖值仓储；数据库连接为空时返回错误，避免后续请求路径出现隐式失效。
 func NewRepository(db *sql.DB) (systemconfigstore.Repository, error) {
 	if db == nil {
 		return nil, errors.New("system config repository requires a non-nil sql db")

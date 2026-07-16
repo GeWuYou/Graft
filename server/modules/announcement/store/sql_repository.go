@@ -29,14 +29,14 @@ const (
 	sqlDialectSQLite
 )
 
-// SQLRepository persists Announcement Center state in module-owned SQL tables.
+// SQLRepository 将公告记录和用户阅读事实持久化到公告模块自有表中，并统一处理 SQL 方言和软删除边界。
 type SQLRepository struct {
 	db          *sql.DB
 	placeholder placeholderStyle
 	dialect     sqlDialect
 }
 
-// NewSQLRepository creates a SQL-backed announcement repository.
+// NewSQLRepository 使用给定数据库连接创建公告仓储；数据库连接为空时拒绝构建。
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("announcement repository requires a non-nil sql db")
@@ -45,7 +45,7 @@ func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	return &SQLRepository{db: db, placeholder: placeholderStyleForDialect(dialect), dialect: dialect}, nil
 }
 
-// Ping verifies the repository can reach its SQL dependency.
+// Ping 验证公告仓储可以访问底层 SQL 依赖。
 func (r *SQLRepository) Ping(ctx context.Context) error {
 	if err := r.ensureReady(); err != nil {
 		return err
@@ -53,7 +53,7 @@ func (r *SQLRepository) Ping(ctx context.Context) error {
 	return r.db.PingContext(ctx)
 }
 
-// ListAdmin returns non-deleted announcements for the management list.
+// ListAdmin 返回管理端未删除公告，并按查询条件提供稳定分页结果。
 func (r *SQLRepository) ListAdmin(ctx context.Context, query ListQuery) (ListResult, error) {
 	if err := r.ensureReady(); err != nil {
 		return ListResult{}, err
@@ -90,7 +90,7 @@ func (r *SQLRepository) ListAdmin(ctx context.Context, query ListQuery) (ListRes
 	return ListResult{Items: items, Total: total}, nil
 }
 
-// ListCurrentUser returns currently visible announcements with read state for one user.
+// ListCurrentUser 返回指定用户当前可见的公告及阅读状态；可见性由发布时间、过期时间和软删除条件共同决定。
 func (r *SQLRepository) ListCurrentUser(ctx context.Context, query UserListQuery) (UserListResult, error) {
 	if err := r.ensureReady(); err != nil {
 		return UserListResult{}, err
@@ -131,7 +131,7 @@ func (r *SQLRepository) ListCurrentUser(ctx context.Context, query UserListQuery
 	return UserListResult{Items: items, Total: total}, nil
 }
 
-// Create inserts one management announcement.
+// Create 写入一条管理端公告；调用方应在服务层完成状态、时间和内容约束校验。
 func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Announcement, error) {
 	if err := r.ensureReady(); err != nil {
 		return Announcement{}, err
@@ -163,7 +163,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Announce
 	))
 }
 
-// GetAdmin returns one non-deleted announcement by id.
+// GetAdmin 按 ID 返回一条未删除公告；不存在或已删除记录统一返回未找到错误。
 func (r *SQLRepository) GetAdmin(ctx context.Context, id uint64) (Announcement, error) {
 	if err := r.ensureReady(); err != nil {
 		return Announcement{}, err
@@ -184,7 +184,7 @@ func (r *SQLRepository) GetAdmin(ctx context.Context, id uint64) (Announcement, 
 	return item, nil
 }
 
-// Update replaces editable management fields for one non-deleted announcement.
+// Update 更新一条未删除公告的可编辑字段，不覆盖生命周期状态和删除事实。
 func (r *SQLRepository) Update(ctx context.Context, id uint64, input UpdateInput) (Announcement, error) {
 	if err := r.ensureReady(); err != nil {
 		return Announcement{}, err
@@ -236,7 +236,7 @@ func (r *SQLRepository) updateAnnouncement(ctx context.Context, targetID int64, 
 	return item, nil
 }
 
-// Publish marks one announcement published and records the latest publish action time.
+// Publish 将公告标记为已发布并记录本次发布动作时间；状态转换约束由服务层负责。
 func (r *SQLRepository) Publish(
 	ctx context.Context,
 	id uint64,
@@ -281,7 +281,7 @@ func (r *SQLRepository) Publish(
 	return item, nil
 }
 
-// Archive marks one non-deleted announcement archived.
+// Archive 将一条未删除公告标记为已归档，使其退出当前用户可见范围。
 func (r *SQLRepository) Archive(ctx context.Context, id uint64, actorID *uint64) (Announcement, error) {
 	if err := r.ensureReady(); err != nil {
 		return Announcement{}, err
@@ -309,7 +309,7 @@ func (r *SQLRepository) Archive(ctx context.Context, id uint64, actorID *uint64)
 	return item, nil
 }
 
-// Delete soft-deletes one non-deleted announcement.
+// Delete 软删除一条未删除公告；删除不会抹去公告的生命周期和审计字段。
 func (r *SQLRepository) Delete(ctx context.Context, id uint64, actorID uint64, deletedAt time.Time) error {
 	if err := r.ensureReady(); err != nil {
 		return err
@@ -337,7 +337,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id uint64, actorID uint64, d
 	return nil
 }
 
-// MarkRead records one read fact for a currently visible announcement and user.
+// MarkRead 为当前可见公告记录指定用户的阅读事实；重复标记保持已有阅读时间语义。
 func (r *SQLRepository) MarkRead(ctx context.Context, userID uint64, announcementID uint64, readAt time.Time) (UserAnnouncement, error) {
 	if err := r.ensureReady(); err != nil {
 		return UserAnnouncement{}, err
@@ -365,7 +365,7 @@ func (r *SQLRepository) MarkRead(ctx context.Context, userID uint64, announcemen
 	return r.getVisibleAnnouncement(ctx, announcementDBID, userDBID, now)
 }
 
-// MarkAllRead records read facts for all currently visible unread announcements for one user.
+// MarkAllRead 为指定用户当前可见的未读公告批量记录阅读事实，并返回实际影响数量。
 func (r *SQLRepository) MarkAllRead(ctx context.Context, userID uint64, readAt time.Time, now time.Time) (int, error) {
 	if err := r.ensureReady(); err != nil {
 		return 0, err
@@ -396,7 +396,7 @@ func (r *SQLRepository) MarkAllRead(ctx context.Context, userID uint64, readAt t
 	return int(affected), nil
 }
 
-// UnreadCount counts currently visible unread announcements for one user.
+// UnreadCount 统计指定用户当前可见且未读的公告数量。
 func (r *SQLRepository) UnreadCount(ctx context.Context, userID uint64, now time.Time) (int, error) {
 	if err := r.ensureReady(); err != nil {
 		return 0, err

@@ -870,6 +870,7 @@ import type {
   ProjectServiceItem,
 } from '../../types/project';
 
+// 项目详情页组合服务端项目数据、容器操作和实时日志；实时订阅只更新观察快照，不改变项目契约的拥有边界。
 defineOptions({
   name: 'ProjectDetailIndex',
 });
@@ -1244,7 +1245,7 @@ const projectLogEntries = computed(() => {
         stream: entry.stream,
       }),
     )
-    // Preserve the server/realtime chronological order so LogViewer keeps the latest lines at the bottom.
+    // 保留服务端与实时流的时间顺序，让 LogViewer 始终把最新日志显示在底部。
     .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null);
   emitProjectLogDebug('view-entries-normalized', {
     rawCount: rawEntries.length,
@@ -1834,7 +1835,7 @@ async function refreshProjectServices() {
   try {
     await loadProjectServices(true);
   } catch {
-    // loadProjectServices already reports user-facing feedback.
+    // loadProjectServices 已负责提示失败；刷新入口只需保持详情页可继续交互。
   }
 }
 

@@ -62,7 +62,7 @@ export type ListSessionsOptions = {
   limit?: GetAuthSessionsQuery['limit'];
 };
 
-// Keep generated request/response typing at the module API boundary; callers still own form-local state.
+// 模块 API 边界直接复用 OpenAPI 生成类型；表单局部状态仍由调用方拥有，避免 API 类型侵入页面模型。
 export function login(payload: LoginPayload) {
   return request.post<PostAuthLoginResponseData>({
     url: AUTH_API_PATH.LOGIN,

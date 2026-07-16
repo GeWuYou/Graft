@@ -1,24 +1,24 @@
 package contract
 
-// MessageKey identifies a stable monitor module message key.
+// MessageKey 标识 monitor 模块稳定的本地化消息键。
 type MessageKey string
 
-// String returns the canonical menu message key value.
+// String 返回可在线路契约中使用的规范消息键值。
 func (k MessageKey) String() string {
 	return string(k)
 }
 
 const (
-	// MonitorSectionTitle identifies the localized title for the monitor navigation group.
+	// MonitorSectionTitle 标识 monitor 导航分组的本地化标题。
 	MonitorSectionTitle MessageKey = "monitor.sectionTitle"
-	// ServerStatusOverviewMenuTitle identifies the localized title for the monitor overview menu.
+	// ServerStatusOverviewMenuTitle 标识 monitor 概览菜单的本地化标题。
 	ServerStatusOverviewMenuTitle MessageKey = "menu.monitor.overview.title"
-	// ServerStatusServiceStatusMenuTitle identifies the localized title for the service-status menu.
+	// ServerStatusServiceStatusMenuTitle 标识服务状态菜单的本地化标题。
 	ServerStatusServiceStatusMenuTitle MessageKey = "menu.monitor.serviceStatus.title"
-	// ServerStatusDependenciesMenuTitle identifies the localized title for the monitor dependencies menu.
+	// ServerStatusDependenciesMenuTitle 标识 monitor 依赖菜单的本地化标题。
 	ServerStatusDependenciesMenuTitle MessageKey = "menu.monitor.dependencies.title"
-	// RequestPerformanceMenuTitle identifies the localized title for the request-performance menu.
+	// RequestPerformanceMenuTitle 标识请求性能菜单的本地化标题。
 	RequestPerformanceMenuTitle MessageKey = "menu.monitor.requestPerformance.title"
-	// AuditEvidenceUnavailableTitle identifies unavailable audit evidence link titles.
+	// AuditEvidenceUnavailableTitle 标识不可用 audit 证据链接的标题。
 	AuditEvidenceUnavailableTitle MessageKey = "monitor.evidence.auditUnavailable.title"
 )

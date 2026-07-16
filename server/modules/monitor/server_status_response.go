@@ -27,11 +27,8 @@ func buildServerStatusResponse(
 	return buildServerStatusResponseWithRuntimeSnapshot(ctx, moduleCtx, instance, trendRange, runtimeSnapshot)
 }
 
-// buildServerStatusResponseWithRuntimeSnapshot keeps the production response assembly.
-// buildServerStatusResponseWithRuntimeSnapshot constructs a server status response
-// using the provided runtime snapshot and returns dependency health, module status,
 // buildServerStatusResponseWithRuntimeSnapshot 根据运行时快照和趋势范围构建服务器状态响应。
-// 该函数聚合数据库和 Redis 健康状态、模块信息、趋势数据和系统异常，返回完整的服务器状态响应或在依赖项健康检查失败时返回错误。
+// 该函数聚合数据库和 Redis 健康状态、模块信息、趋势数据和系统异常；依赖健康检查本身失败时返回错误。
 func buildServerStatusResponseWithRuntimeSnapshot(
 	ctx context.Context,
 	moduleCtx *module.Context,
@@ -146,11 +143,9 @@ func runtimeModuleSummaries(
 	return items
 }
 
-// deriveRuntimeModuleObservation keeps module runtime semantics explicit and narrow:
-// a module is healthy only when its runtime metadata is complete, its declared
-// module dependencies are present, and the current shared runtime signals are not
-// degraded. When that cannot be confirmed, the returned detail explains the most
-// useful operator-facing reason instead of collapsing everything into a coarse summary.
+// deriveRuntimeModuleObservation 保持模块运行状态判定的边界明确：只有运行时元数据完整、
+// 声明的模块依赖均已存在且当前共享运行时信号未降级时，模块才标记为 healthy。
+// 无法确认时，返回最有助于运维定位的具体原因，而不是折叠为笼统摘要。
 func deriveRuntimeModuleObservation(
 	descriptor module.DescriptorSnapshot,
 	available map[string]struct{},
@@ -186,7 +181,7 @@ func deriveRuntimeModuleObservation(
 	}
 }
 
-// buildServerStatusSummary aggregates the health status of dependencies and modules into a summary containing total and categorized counts.
+// buildServerStatusSummary 汇总依赖和模块的健康状态，生成总数及分类计数摘要。
 func buildServerStatusSummary(
 	database generated.ServerStatusDependency,
 	redis generated.ServerStatusDependency,

@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-// Service resolves stored drilldown scopes into query patches and UI metadata.
+// Service 将已存储的 drilldown scope 解析为查询补丁和 UI 元数据。
 type Service[T any, Q any] struct {
 	repo     MetadataRepository
 	resolver Resolver[T, Q]
 }
 
-// NewService creates a drilldown service with the required metadata repository and resolver.
+// NewService 使用必需的元数据仓储和 resolver 创建 drilldown service。
 func NewService[T any, Q any](repo MetadataRepository, resolver Resolver[T, Q]) (*Service[T, Q], error) {
 	if repo == nil {
 		return nil, fmt.Errorf("new drilldown service: metadata repository is required")
@@ -23,7 +23,7 @@ func NewService[T any, Q any](repo MetadataRepository, resolver Resolver[T, Q]) 
 	return &Service[T, Q]{repo: repo, resolver: resolver}, nil
 }
 
-// ResolveScope loads one stored scope and converts it into a typed query patch.
+// ResolveScope 读取一个已存储 scope，校验其启用状态和目标页面后转换为类型化查询补丁。
 func (s *Service[T, Q]) ResolveScope(
 	ctx context.Context,
 	module string,

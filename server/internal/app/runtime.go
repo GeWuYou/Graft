@@ -212,7 +212,6 @@ func newRuntimeCore(startupCtx context.Context, cfg *config.Config) (*Runtime, e
 	return newRuntimeCoreWithDeps(startupCtx, cfg, defaultRuntimeCoreDeps)
 }
 
-// newRuntimeCoreWithDeps 初始化核心运行时资源，并返回已完成配置且预注册了本地化资源的 Runtime 实例。
 // newRuntimeCoreWithDeps 创建运行时核心资源及服务，并在初始化失败时释放已创建的资源。
 // startupCtx 用于控制 Redis 客户端的初始化；cfg 提供运行时配置；deps 提供可注入的核心依赖构造函数。
 // 返回构造完成的运行时及错误。

@@ -62,11 +62,6 @@ function createWorkspaceDictionary<T>(): Record<string, T> {
   return Object.create(null) as Record<string, T>;
 }
 
-/**
- * 创建一个空的工作区会话状态。
- *
- * @returns 初始化的工作区会话
- */
 function createSession(): WorkspaceSession {
   return {
     activeFileKey: '',
@@ -81,12 +76,6 @@ function createSession(): WorkspaceSession {
   };
 }
 
-/**
- * 规范化工作区路径。
- *
- * @param path - 待规范化的路径
- * @returns 去除首尾空白、开头的 `./` 和末尾斜杠后的路径；输入为空时返回空字符串
- */
 function normalizePath(path: string) {
   return String(path || '')
     .trim()
@@ -94,24 +83,11 @@ function normalizePath(path: string) {
     .replace(/\/+$/, '');
 }
 
-/**
- * 获取路径对应的父级路径。
- *
- * @param path - 要解析的路径
- * @returns 父级路径；路径位于顶层时返回 `null`
- */
 function parentKeyForPath(path: string) {
   const parts = normalizePath(path).split('/');
   return parts.length > 1 ? parts.slice(0, -1).join('/') : null;
 }
 
-/**
- * 按目录优先和名称顺序排列工作区节点键。
- *
- * @param nodesByKey - 按节点键索引的工作区节点
- * @param keys - 待排序的节点键
- * @returns 排序后的节点键副本
- */
 function sortKeys(nodesByKey: Record<string, WorkspaceNode>, keys: string[]) {
   return [...keys].sort((left, right) => {
     const leftNode = nodesByKey[left];
@@ -122,12 +98,6 @@ function sortKeys(nodesByKey: Record<string, WorkspaceNode>, keys: string[]) {
   });
 }
 
-/**
- * 确保会话中存在指定路径的目录节点及其祖先目录。
- *
- * @param session - 要更新的工作区会话
- * @param key - 目录的相对路径
- */
 function ensureDirectory(session: WorkspaceSession, key: string) {
   const normalizedKey = normalizePath(key);
   if (!normalizedKey) return;
@@ -155,12 +125,6 @@ function ensureDirectory(session: WorkspaceSession, key: string) {
   }
 }
 
-/**
- * 展开指定节点的所有祖先目录。
- *
- * @param session - 要更新的工作区会话
- * @param key - 目标节点的路径键
- */
 function ensureAncestorsExpanded(session: WorkspaceSession, key: string) {
   let parentKey = session.nodesByKey[key]?.parentKey ?? parentKeyForPath(key);
   while (parentKey) {
@@ -169,14 +133,6 @@ function ensureAncestorsExpanded(session: WorkspaceSession, key: string) {
   }
 }
 
-/**
- * 记录工作区会话的调试信息。
- *
- * @param event - 调试事件名称
- * @param sessionKey - 会话标识
- * @param session - 要记录的工作区会话
- * @param detail - 要附加到调试信息中的额外字段
- */
 function logWorkspaceSession(
   event: string,
   sessionKey: string,

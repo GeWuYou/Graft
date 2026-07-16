@@ -45,6 +45,7 @@ import type { MenuRoute, ModeType } from '@/utils/types';
 
 import MenuContent from './MenuContent.vue';
 
+// 侧栏以当前路由和后端菜单快照为输入，并在折叠动效期间暂缓展开态同步，避免菜单状态与过渡阶段互相覆盖。
 const menuWidth = ['var(--graft-shell-sidebar-surface-width)', 'var(--graft-shell-sidebar-surface-width)'];
 
 const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase } = defineProps({

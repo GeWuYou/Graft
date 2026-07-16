@@ -9,7 +9,8 @@ import (
 	monitorcontract "graft/server/modules/monitor/contract"
 )
 
-// buildServerStatusAnomalies collects server status anomalies from dependencies, modules, and runtime metrics within the specified time window.
+// buildServerStatusAnomalies 在指定趋势窗口内聚合依赖、模块和运行时指标异常。
+// 窗口起点由观测时间和 TrendRange 决定，使异常证据与同一份趋势数据保持时间边界一致。
 func buildServerStatusAnomalies(
 	observedAt time.Time,
 	trendRange monitorcontract.TrendRange,

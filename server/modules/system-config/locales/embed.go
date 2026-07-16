@@ -1,5 +1,4 @@
-// Package locales exposes read-only embedded locale descriptors for the
-// system-config module.
+// Package locales 暴露 system-config 模块只读的内嵌语言资源描述。
 package locales
 
 import (
@@ -12,8 +11,7 @@ import (
 //go:embed *.yaml
 var embeddedLocaleFiles embed.FS
 
-// EmbeddedLocaleResources exposes read-only locale descriptors for the
-// system-config module. Parsing and registration stay centralized in i18n.
+// EmbeddedLocaleResources 返回 system-config 模块的只读语言资源描述；解析与注册仍由 i18n 服务集中负责。
 func EmbeddedLocaleResources() ([]i18n.EmbeddedLocaleResource, error) {
 	resources, err := i18n.EmbeddedLocaleResourcesFromFS(embeddedLocaleFiles, i18n.Namespace("system-config"))
 	if err != nil {

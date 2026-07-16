@@ -26,6 +26,7 @@ export function createRealtimeSnapshotGate<TSnapshot>(
   let bufferedSnapshot: TSnapshot | null = null;
   const scope = effectScope(true);
 
+  // 调度器暂停提交时只保留合并后的最新快照；恢复阶段同步 flush，避免异步 watcher 让旧快照短暂覆盖页面。
   const flush = () => {
     if (bufferedSnapshot === null || !schedulerStore.allowSnapshotCommit) {
       return;

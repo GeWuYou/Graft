@@ -172,7 +172,7 @@ async function ensureConnected() {
   try {
     await session.connect(size);
   } catch {
-    // The session composable already propagates error state through reactive state and callbacks.
+    // session composable 已通过响应式状态和回调传播错误，这里只负责记录终端侧上下文。
   }
 }
 
@@ -186,7 +186,7 @@ function queueFitAndResize() {
       const size = measureTerminal();
       session.sendResize(size);
     } catch {
-      // xterm fit can throw during transient unmounted/zero-size layout states.
+      // 组件卸载或容器暂时为零尺寸时，xterm fit 可能抛错；此时等待下一次有效布局即可。
     }
   });
 }

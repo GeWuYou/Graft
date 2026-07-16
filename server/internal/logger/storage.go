@@ -125,7 +125,7 @@ type AppLogStoragePolicy struct {
 	DefaultWindow  time.Duration
 }
 
-// DefaultAppLogStoragePolicy returns the approved repository-owned durable App Log policy.
+// DefaultAppLogStoragePolicy 返回仓库批准的、由 logger 拥有持久化和保留策略的 App Log 默认策略。
 func DefaultAppLogStoragePolicy(defaultWindow time.Duration) AppLogStoragePolicy {
 	return AppLogStoragePolicy{
 		Mode:           AppLogStorageModeRepositoryDurableStore,
@@ -134,7 +134,7 @@ func DefaultAppLogStoragePolicy(defaultWindow time.Duration) AppLogStoragePolicy
 	}
 }
 
-// Validate ensures the storage policy keeps retention ownership aligned with persistence authority.
+// Validate 确保 App Log 的保留策略所有权与持久化 authority 保持一致。
 func (p AppLogStoragePolicy) Validate() error {
 	if strings.TrimSpace(string(p.Mode)) == "" {
 		return errAppLogStorageModeRequired
@@ -200,7 +200,7 @@ type AppLogListQuery struct {
 	Keyword      string
 	OccurredFrom *time.Time
 	OccurredTo   *time.Time
-	// OccurredBefore is an internal exclusive upper bound used by retention cleanup estimates.
+	// OccurredBefore 是保留清理估算使用的内部排他上界，不作为普通列表筛选条件暴露。
 	OccurredBefore *time.Time
 	Sorters        []AppLogSorter
 }

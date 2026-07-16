@@ -1,4 +1,4 @@
-// Package store defines Notification Center module persistence contracts.
+// Package store 定义 Notification Center 模块的持久化契约。
 package store
 
 import (
@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	// ErrInvalidInput indicates a notification store input violates the module persistence contract.
+	// ErrInvalidInput 表示通知 store 输入违反模块持久化契约。
 	ErrInvalidInput = errors.New("notification invalid input")
-	// ErrDeliveryNotFound indicates no non-deleted delivery exists in the requested user scope.
+	// ErrDeliveryNotFound 表示指定用户范围内不存在未删除的投递记录。
 	ErrDeliveryNotFound = errors.New("notification delivery not found")
 )
 
-// Event stores the immutable notification fact.
+// Event 保存不可变的通知事实。
 type Event struct {
 	ID                uint64
 	TitleKey          string
@@ -45,7 +45,7 @@ type Event struct {
 	CreatedAt         time.Time
 }
 
-// Delivery stores per-user notification state.
+// Delivery 保存按用户划分的通知投递状态。
 type Delivery struct {
 	ID              uint64
 	EventID         uint64
@@ -57,13 +57,13 @@ type Delivery struct {
 	CreatedAt       time.Time
 }
 
-// Notification joins one delivery with its event fact for current-user reads.
+// Notification 将一次投递与其通知事实合并，供当前用户读取。
 type Notification struct {
 	Event    Event
 	Delivery Delivery
 }
 
-// CreateEventInput describes one notification event insert.
+// CreateEventInput 描述一次通知事件写入。
 type CreateEventInput struct {
 	TitleKey          string
 	Title             string
@@ -91,7 +91,7 @@ type CreateEventInput struct {
 	ExpiresAt         *time.Time
 }
 
-// CreateDeliveryInput describes one user delivery insert.
+// CreateDeliveryInput 描述一次用户投递写入。
 type CreateDeliveryInput struct {
 	EventID         uint64
 	RecipientUserID uint64
@@ -99,7 +99,7 @@ type CreateDeliveryInput struct {
 	TargetRef       string
 }
 
-// ListQuery describes current-user notification filters.
+// ListQuery 描述当前用户通知列表支持的过滤条件。
 type ListQuery struct {
 	RecipientUserID uint64
 	Status          string
@@ -112,13 +112,13 @@ type ListQuery struct {
 	Offset          int
 }
 
-// ListResult returns a paginated current-user notification page.
+// ListResult 返回分页后的当前用户通知页面。
 type ListResult struct {
 	Items []Notification
 	Total int
 }
 
-// Repository persists notification events and deliveries.
+// Repository 负责通知事件与投递记录的持久化，并保持当前用户读取范围约束。
 type Repository interface {
 	CreateEvent(ctx context.Context, input CreateEventInput) (Event, bool, error)
 	CreateDeliveries(ctx context.Context, inputs []CreateDeliveryInput) ([]Delivery, error)

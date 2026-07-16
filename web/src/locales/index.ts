@@ -67,7 +67,7 @@ Object.entries(moduleLangModules).forEach(([path, module]) => {
 
 export { langCode };
 
-// 获取初始语言：优先本地存储，缺省时直接回退到仓库约定的默认中文。
+// 启动时只接受受支持的持久化 locale；存储不可用或值失效时回退到平台默认语言。
 const getInitialLocale = (): SupportedLocale => {
   try {
     const stored = normalizeLocale(localStorage.getItem(localeConfigKey));
@@ -76,7 +76,7 @@ const getInitialLocale = (): SupportedLocale => {
       return stored;
     }
   } catch {
-    // 某些受限环境会禁用本地存储，此时回退到默认中文。
+    // 某些受限环境会禁用本地存储，此时继续使用内存态默认语言。
   }
 
   return getDefaultLocale();
@@ -88,7 +88,7 @@ function persistCanonicalLocale(locale: SupportedLocale) {
   try {
     localStorage.setItem(localeConfigKey, locale);
   } catch {
-    // 某些受限环境会禁用本地存储，此时只保留内存态 locale。
+    // 持久化失败不应阻断当前会话的语言切换，内存态仍由 i18n provider 负责生效。
   }
 }
 

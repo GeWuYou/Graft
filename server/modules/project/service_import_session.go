@@ -154,9 +154,8 @@ func (s *Service) importInspectionSession(
 	return response, nil
 }
 
-// defaultImportedDisplayName determines the display name for an imported project.
-// It uses the provided name when non-empty after trimming whitespace, then the
-// working directory's base name, and finally the canonical project name.
+// defaultImportedDisplayName 按“显式名称、工作目录基名、规范项目名”的顺序选择导入项目展示名；
+// 每个候选值都会先去除首尾空白，保证持久化名称与导入检查结果一致。
 func defaultImportedDisplayName(displayName *string, workingDirectory string, canonical string) string {
 	if displayName != nil && strings.TrimSpace(*displayName) != "" {
 		return strings.TrimSpace(*displayName)

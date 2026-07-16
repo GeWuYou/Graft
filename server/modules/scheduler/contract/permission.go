@@ -1,24 +1,24 @@
 package contract
 
-// PermissionCode identifies a stable scheduled task module permission contract.
+// PermissionCode 标识 scheduler 模块稳定的权限契约。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回权限码的 wire-format 字符串。
 func (c PermissionCode) String() string {
 	return string(c)
 }
 
 const (
-	// ScheduledTaskReadPermission identifies read access to scheduled task runtime data.
+	// ScheduledTaskReadPermission 标识读取定时任务运行数据的权限。
 	ScheduledTaskReadPermission PermissionCode = "scheduled-task.read"
-	// ScheduledTaskCreatePermission identifies create access for user scheduled task instances.
+	// ScheduledTaskCreatePermission 标识创建用户定时任务实例的权限。
 	ScheduledTaskCreatePermission PermissionCode = "scheduled-task.create"
-	// ScheduledTaskUpdatePermission identifies update access for scheduled task definitions.
+	// ScheduledTaskUpdatePermission 标识更新定时任务定义的权限。
 	ScheduledTaskUpdatePermission PermissionCode = "scheduled-task.update"
-	// ScheduledTaskDeletePermission identifies delete access for user scheduled task instances.
+	// ScheduledTaskDeletePermission 标识删除用户定时任务实例的权限。
 	ScheduledTaskDeletePermission PermissionCode = "scheduled-task.delete"
-	// ScheduledTaskRunPermission identifies manual run access for scheduled task runtime jobs.
+	// ScheduledTaskRunPermission 标识手动运行定时任务作业的权限。
 	ScheduledTaskRunPermission PermissionCode = "scheduled-task.run"
-	// ScheduledTaskEnablePermission identifies enable/disable access for scheduled task lifecycle state.
+	// ScheduledTaskEnablePermission 标识变更定时任务启停状态的权限。
 	ScheduledTaskEnablePermission PermissionCode = "scheduled-task.enable"
 )

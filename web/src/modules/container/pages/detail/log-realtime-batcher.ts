@@ -123,6 +123,7 @@ export class ContainerLogRealtimeBatcher {
       flushIntervalMs: this.#flushIntervalMs,
       maxBatchSize: this.#maxBatchSize,
       onFlush: (batch) => {
+        // 实时日志只在已有 HTTP 基线后提交，避免晚到的 socket 数据覆盖当前容器视图。
         if (!this.#base || batch.length === 0) {
           return;
         }

@@ -44,7 +44,7 @@ const (
 	snapshotInvalidationSourceManual snapshotInvalidationSource = "manual"
 )
 
-// ValueSnapshot is the service read model for one effective config value.
+// ValueSnapshot 是配置定义与用户覆盖值合并后的读模型；敏感配置的三个值字段对外始终为空。
 type ValueSnapshot struct {
 	Definition     configregistry.Definition
 	EffectiveValue json.RawMessage
@@ -60,17 +60,17 @@ type ValueSnapshot struct {
 	Masked         bool
 }
 
-// ValueStatus describes whether a config item uses its module default or a user override.
+// ValueStatus 描述有效值来自模块默认值还是已持久化的用户覆盖值。
 type ValueStatus string
 
 const (
-	// ValueStatusDefault means no user override exists and the module default is effective.
+	// ValueStatusDefault 表示不存在用户覆盖值，当前生效的是模块默认值。
 	ValueStatusDefault ValueStatus = "default"
-	// ValueStatusModified means a stored user override is effective.
+	// ValueStatusModified 表示已持久化的用户覆盖值当前生效。
 	ValueStatusModified ValueStatus = "modified"
 )
 
-// Service merges module-registered definitions with user overrides.
+// Service 合并模块注册的配置定义与用户覆盖值，并负责覆盖值校验、快照缓存和审计字段填充。
 type Service struct {
 	registry      *configregistry.Registry
 	store         systemconfigstore.Repository
@@ -81,14 +81,14 @@ type Service struct {
 	logger *zap.Logger
 }
 
-// ServiceOptions configures module-local cache wiring and optional service collaborators.
+// ServiceOptions 配置模块内快照缓存和可选协作者；Registry 与 Store 是构建服务的必需依赖。
 type ServiceOptions struct {
 	Users  moduleapi.UserService
 	Cache  *cachex.Cache
 	Logger *zap.Logger
 }
 
-// NewService creates a system configuration service. Registry, store, and cache must be non-nil; returns an error if any required dependency is missing.
+// NewService 创建系统配置服务；Registry、Store 和 Cache 任一缺失都会返回错误，避免读取路径退化为无边界状态。
 func NewService(registry *configregistry.Registry, store systemconfigstore.Repository, options ServiceOptions) (*Service, error) {
 	if registry == nil {
 		return nil, errors.New("config registry is unavailable")
@@ -112,7 +112,7 @@ type overrideSnapshotCache struct {
 	overrides map[string]systemconfigstore.Override
 }
 
-// SnapshotCacheDebugState exposes local snapshot-cache observability without leaking storage access.
+// SnapshotCacheDebugState 暴露本地快照缓存观测信息，但不泄露底层存储访问能力。
 type SnapshotCacheDebugState struct {
 	Cached                  bool
 	CachedOverrideCount     int
@@ -159,7 +159,7 @@ func (s *Service) setUserService(users moduleapi.UserService) {
 	s.users = users
 }
 
-// List returns all registered definitions merged with user overrides.
+// List 返回所有已注册配置的有效值；返回结果来自同一份覆盖快照，避免同一响应内混用不同读取时刻的数据。
 func (s *Service) List(ctx context.Context) ([]ValueSnapshot, error) {
 	cache, err := s.loadOverrideSnapshot(ctx)
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *Service) List(ctx context.Context) ([]ValueSnapshot, error) {
 	return items, nil
 }
 
-// Get returns one effective config value by registered definition key.
+// Get 按已注册配置 key 返回有效值；未注册 key 不会回退到调用方提供的任意默认值。
 func (s *Service) Get(ctx context.Context, key string) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
@@ -190,7 +190,7 @@ func (s *Service) Get(ctx context.Context, key string) (ValueSnapshot, error) {
 	return s.snapshotFromCache(ctx, definition, cache)
 }
 
-// ResolveDefaultConfig exposes effective object values for scheduler job definitions.
+// ResolveDefaultConfig 为 scheduler job definition 提供当前有效的 JSON 配置；敏感配置拒绝进入调度器解析路径。
 func (s *Service) ResolveDefaultConfig(ctx context.Context, key string) (string, error) {
 	item, err := s.Get(ctx, key)
 	if err != nil {
@@ -218,7 +218,7 @@ func (s *Service) IsBooleanConfigEnabled(ctx context.Context, key string, fallba
 	return value
 }
 
-// Update stores a user override for one registered definition key.
+// Update 校验后保存已注册配置 key 的用户覆盖值；持久化成功后立即失效快照，使后续读取不再使用旧值。
 func (s *Service) Update(ctx context.Context, key string, value json.RawMessage, userID *uint64) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
@@ -234,7 +234,7 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage,
 	return s.Get(ctx, definition.Key)
 }
 
-// Reset deletes the user override for one registered definition key.
+// Reset 删除已注册配置 key 的用户覆盖值并失效快照，使模块默认值重新生效。
 func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
@@ -247,7 +247,7 @@ func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) 
 	return s.Get(ctx, definition.Key)
 }
 
-// SnapshotCacheDebugState returns read-only observability for the unified local snapshot path.
+// SnapshotCacheDebugState 返回统一快照读取路径的只读观测信息；观测接口不暴露底层存储访问能力。
 func (s *Service) SnapshotCacheDebugState() SnapshotCacheDebugState {
 	if s == nil {
 		return SnapshotCacheDebugState{}
@@ -513,7 +513,7 @@ func cleanKey(key string) string {
 	return strings.TrimSpace(key)
 }
 
-// cloneRawMessage returns a deep copy of the given JSON raw message, or nil if the input is empty.
+// cloneRawMessage 深拷贝 JSON 原始消息；输入为空时返回 nil，避免缓存共享可变底层数组。
 func cloneRawMessage(raw json.RawMessage) json.RawMessage {
 	if len(raw) == 0 {
 		return nil
@@ -523,7 +523,7 @@ func cloneRawMessage(raw json.RawMessage) json.RawMessage {
 	return cloned
 }
 
-// cloneUint64Pointer returns a pointer to a copy of the given uint64, or nil if the given pointer is nil.
+// cloneUint64Pointer 深拷贝 uint64 指针；输入为 nil 时保留 nil 语义。
 func cloneUint64Pointer(value *uint64) *uint64 {
 	if value == nil {
 		return nil
@@ -552,8 +552,7 @@ func marshalOverrideSnapshotCache(cache *overrideSnapshotCache) ([]byte, error) 
 	return json.Marshal(cache.overrides)
 }
 
-// unmarshalOverrideSnapshotCache 从 JSON 载体重建覆盖快照缓存结构。
-// unmarshalOverrideSnapshotCache 将 JSON 载体反序列化为 override 快照缓存。如果载体为空或 JSON 无效，返回错误；否则解析 override 映射并返回深度克隆后的缓存。
+// unmarshalOverrideSnapshotCache 从 JSON 载体重建覆盖快照缓存；载体为空或无效时返回错误，成功时深拷贝覆盖值，避免缓存共享可变数组。
 func unmarshalOverrideSnapshotCache(payload []byte) (*overrideSnapshotCache, error) {
 	if len(payload) == 0 {
 		return nil, errors.New("system config snapshot cache returned empty payload")

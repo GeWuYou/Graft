@@ -42,12 +42,6 @@ const TOKEN_REFRESH_LEEWAY_MS = 60_000;
 let authSessionBridge: AuthSessionBridge | null = null;
 let inflightRefreshPromise: Promise<LoginResponse> | null = null;
 
-/**
- * 将请求参数序列化为查询字符串。
- *
- * @param params - 需要转换的参数对象
- * @returns 编码后的查询字符串
- */
 export function serializeRequestParams(params: Record<string, unknown>) {
   const searchParams = new URLSearchParams();
 
@@ -237,22 +231,12 @@ function shouldRefresh(error: ApiRequestError, config?: AxiosRequestConfigRetry)
   return error.status === 401 && error.code === API_CODE.AUTH_TOKEN_EXPIRED;
 }
 
-/**
- * 判断错误是否需要退出到登录页。
- *
- * @returns `true` if the error indicates an invalid or missing authentication token with a `401` status, `false` otherwise.
- */
 function shouldExitToLogin(error: ApiRequestError) {
   return (
     error.status === 401 && (error.code === API_CODE.AUTH_TOKEN_INVALID || error.code === API_CODE.AUTH_TOKEN_MISSING)
   );
 }
 
-/**
- * 刷新会话后重放原请求。
- *
- * @returns 重放后的请求结果。
- */
 async function tryRefreshAndReplay<T>(config: AxiosRequestConfigRetry) {
   await refreshClientSessionWithFailureHandling();
 
@@ -336,7 +320,7 @@ async function clearClientSession() {
   }
 }
 
-// 仅提供 starter 页面所需的最小请求适配，避免引入完整请求基础设施。
+// request 是平台唯一的 Axios 适配边界；模块 API 通过它统一获得认证、locale、错误和重试行为。
 export const request: RequestInstance = {
   get<T>(config: RequestConfig) {
     return requestWithMethod<T>('get', config);
@@ -352,8 +336,10 @@ export const request: RequestInstance = {
   },
 };
 
-// registerAuthSessionBridge 让请求层显式复用 user store 的会话同步与清理入口，
-// 避免动态 import store 带来的构建告警与双源登录态漂移。
+/**
+ * 注册会话同步桥接；由认证模块拥有 store 副作用，请求层只保留无模块依赖的 fallback。
+ * 传入 `null` 会恢复 fallback，适用于认证模块卸载或测试隔离。
+ */
 export function registerAuthSessionBridge(bridge: AuthSessionBridge | null) {
   authSessionBridge = bridge;
 }
@@ -366,12 +352,6 @@ export function shouldAttemptRefreshByError(status: number, code: ApiResponseCod
   return status === 401 && code === API_CODE.AUTH_TOKEN_EXPIRED;
 }
 
-/**
- * 判断是否为受限密码修改场景的刷新失败错误。
- *
- * @param error - 待检查的错误
- * @returns `true` if the error indicates a restricted password change refresh failure, `false` otherwise.
- */
 function isRestrictedPasswordChangeRefreshError(error: unknown) {
   return (
     isApiRequestError(error) &&
@@ -381,11 +361,6 @@ function isRestrictedPasswordChangeRefreshError(error: unknown) {
   );
 }
 
-/**
- * 判断当前请求发送前是否需要预先刷新访问令牌。
- *
- * @returns `true` 如果存在可解析的过期时间且剩余有效期不超过预刷新阈值，`false` 否则。
- */
 function shouldRefreshBeforeRequest() {
   const token = getAccessToken();
   if (!token) {
@@ -400,13 +375,7 @@ function shouldRefreshBeforeRequest() {
   return expiresAt - Date.now() <= TOKEN_REFRESH_LEEWAY_MS;
 }
 
-/**
- * 刷新当前会话并同步认证状态。
- *
- * 该操作会复用进行中的刷新请求，并在刷新成功后更新访问令牌与过期时间。
- *
- * @returns 刷新后的登录响应数据
- */
+/** 刷新当前会话并同步认证状态；并发调用共享同一个刷新 Promise，避免重复消费 refresh 票据。 */
 async function refreshClientSession() {
   if (!inflightRefreshPromise) {
     inflightRefreshPromise = requestWithMethod<LoginResponse>('post', {

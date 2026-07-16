@@ -1,5 +1,4 @@
-// Package locales exposes read-only embedded locale descriptors for the
-// module runtime owner.
+// Package locales 为 module-runtime owner 暴露只读的嵌入式本地化资源描述。
 package locales
 
 import (
@@ -12,8 +11,7 @@ import (
 //go:embed *.yaml
 var embeddedLocaleFiles embed.FS
 
-// EmbeddedLocaleResources exposes read-only locale descriptors for the
-// module runtime owner. Parsing and registration stay centralized in i18n.
+// EmbeddedLocaleResources 为 module-runtime owner 暴露只读的本地化资源描述；解析和注册统一由 i18n 集中处理。
 func EmbeddedLocaleResources() ([]i18n.EmbeddedLocaleResource, error) {
 	resources, err := i18n.EmbeddedLocaleResourcesFromFS(embeddedLocaleFiles, i18n.Namespace("module-runtime"))
 	if err != nil {

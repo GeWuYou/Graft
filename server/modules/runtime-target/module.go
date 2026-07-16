@@ -1,4 +1,4 @@
-// Package runtimetarget owns persisted runtime connection identities and discovery facts.
+// Package runtimetarget 负责持久化运行时连接身份和发现事实。
 package runtimetarget
 
 import (
@@ -29,7 +29,7 @@ const maxRuntimeTargetID = uint64(^uint64(0) >> 1)
 
 const runtimeTargetListSummaryConcurrency = 4
 
-// Module exposes runtime-target API routes and bounded Local Docker discovery.
+// Module 暴露 runtime-target API 路由，并提供有界的本机 Docker 发现能力。
 type Module struct {
 	repository      *store.SQLRepository
 	summaries       *summaryCache
@@ -39,12 +39,12 @@ type Module struct {
 	collector       *runtimeTargetSummaryCollector
 }
 
-// NewModule constructs the runtime-target module.
+// NewModule 构造 runtime-target 模块实例。
 func NewModule(repository *store.SQLRepository) *Module {
 	return &Module{repository: repository, summaries: newSummaryCache()}
 }
 
-// Register declares runtime-target permissions, menu metadata, and API routes.
+// Register 声明 runtime-target 权限、菜单元数据和 API 路由。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.repository == nil {
 		return errors.New("runtime target repository is unavailable")
@@ -206,7 +206,7 @@ func (r runtimeTargetReader) readFirstComposeTarget(ctx context.Context) (module
 	return moduleapi.ComposeRuntimeTargetSummary{}, store.ErrNotFound
 }
 
-// ListComposeTargets exposes only targets that can execute Compose and access a managed workspace.
+// ListComposeTargets 仅暴露同时支持 Compose 执行和托管工作区访问的目标。
 func (r runtimeTargetReader) ListComposeTargets(ctx context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
 	if r.repository == nil {
 		return []moduleapi.ComposeRuntimeTargetSummary{}, nil
@@ -224,7 +224,7 @@ func (r runtimeTargetReader) ListComposeTargets(ctx context.Context) ([]moduleap
 	return results, nil
 }
 
-// composeTargetSummary validates the provider-neutral capability contract while keeping
+// composeTargetSummary 校验与 provider 无关的能力契约，同时保持
 // composeTargetSummary 将满足 Compose 能力要求的运行时目标转换为摘要；目标 ID 超出支持范围或缺少必要能力时返回 false。
 // 返回摘要及其是否转换成功。
 func composeTargetSummary(target store.Target) (moduleapi.ComposeRuntimeTargetSummary, bool) {
@@ -234,8 +234,7 @@ func composeTargetSummary(target store.Target) (moduleapi.ComposeRuntimeTargetSu
 	return moduleapi.ComposeRuntimeTargetSummary{ID: int64(target.ID), DisplayName: target.DisplayName, Provider: target.Provider, Capabilities: append([]string(nil), target.Capabilities...), Available: target.Availability}, true
 }
 
-// hasComposeCapabilities determines whether the capabilities include Compose execution and workspace access.
-// It returns true when both required capabilities are present, and false otherwise.
+// hasComposeCapabilities 判断能力集合是否同时包含 Compose 执行和工作区访问；两项能力均存在时返回 true。
 func hasComposeCapabilities(capabilities []string) bool {
 	seen := make(map[string]bool, len(capabilities))
 	for _, capability := range capabilities {
@@ -244,7 +243,7 @@ func hasComposeCapabilities(capabilities []string) bool {
 	return seen["compose_execution"] && seen["workspace_access"]
 }
 
-// Boot records the currently usable local Docker endpoint without making application boot depend on Docker.
+// Boot 记录当前可用的本机 Docker 端点，但不让应用启动依赖 Docker 可用。
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.repository == nil || ctx == nil {
 		return nil
@@ -258,7 +257,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return m.collector.Start(ctx.LifecycleContext)
 }
 
-// Shutdown releases the module-owned realtime collector.
+// Shutdown 释放模块拥有的实时采集器。
 func (m *Module) Shutdown(ctx *module.Context) error {
 	if m == nil || m.collector == nil {
 		return nil
@@ -363,9 +362,7 @@ func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc 
 	}
 }
 
-// runtimeTargetListWindow parses and validates pagination parameters from the request.
-// It returns the requested limit and offset, or aborts the request with a bad-request
-// response when either parameter is invalid.
+// runtimeTargetListWindow 解析并校验请求中的分页参数；参数无效时直接返回 bad-request 响应。
 func runtimeTargetListWindow(c *gin.Context) (int, int, bool) {
 	limit := 10
 	offset := 0
@@ -474,7 +471,7 @@ func toHTTPCountMetric(metric targetCountMetric) generated.RuntimeTargetCountMet
 	return generated.RuntimeTargetCountMetric{Available: metric.Available, Total: metric.Total, Active: metric.Active, UnavailableReason: metric.UnavailableReason}
 }
 
-// toHTTPProviderCountMetric converts an image metric to its HTTP response representation.
+// toHTTPProviderCountMetric 将镜像指标转换为 HTTP 响应表示。
 func toHTTPProviderCountMetric(metric targetImageMetric) generated.RuntimeTargetImageMetric {
 	return generated.RuntimeTargetImageMetric{Available: metric.Available, Total: metric.Total, UnavailableReason: metric.UnavailableReason}
 }

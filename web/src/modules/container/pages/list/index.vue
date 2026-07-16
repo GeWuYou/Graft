@@ -1329,7 +1329,7 @@ function persistVisibleColumnKeys(keys: string[]) {
   try {
     window.localStorage.setItem(CONTAINER_RESOURCE_COLUMN_STORAGE_KEY, JSON.stringify(keys));
   } catch {
-    // Column settings are a convenience preference; list rendering must not depend on storage availability.
+    // 列设置只是用户偏好；存储不可用时仍需保持列表渲染可用。
   }
 }
 

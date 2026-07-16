@@ -13,6 +13,7 @@ import SettingCom from '@/layouts/setting.vue';
 import { useLocale } from '@/locales/useLocale';
 import { useSettingStore } from '@/store';
 
+// 应用 provider 统一承接主题、TDesign locale 和路由树，业务页面只消费已准备好的运行时上下文。
 const store = useSettingStore();
 
 const mode = computed(() => {

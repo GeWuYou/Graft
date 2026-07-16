@@ -11,8 +11,7 @@ import (
 )
 
 // runValidateServerLocaleOwnership 校验服务器本地化所有权守卫。
-// 
-// @return 成功时返回 nil；否则返回带上下文的错误。
+// 返回值：成功时返回 nil，否则返回带上下文的错误。
 func runValidateServerLocaleOwnership(cmd *cobra.Command) error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {

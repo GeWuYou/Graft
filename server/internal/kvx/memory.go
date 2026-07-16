@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// MemoryOptions configures one in-process KV store for tests and local runtime use.
+// MemoryOptions 配置供测试和本地运行时使用的进程内 KV 存储。
 type MemoryOptions struct {
 	Clock Clock
 }
@@ -17,14 +17,14 @@ type memoryEntry struct {
 	expiresAt time.Time
 }
 
-// Memory is one in-process KV store with TTL and compare-and-update semantics.
+// Memory 是带 TTL 和比较更新语义的进程内 KV 存储；锁保护整个键值表及过期清理过程。
 type Memory struct {
 	clock Clock
 	mu    sync.Mutex
 	store map[string]memoryEntry
 }
 
-// NewMemory initializes a new in-process key-value store with the given clock, or the system clock if none is specified in options.
+// NewMemory 使用指定时钟创建进程内 KV 存储；未提供时钟时使用 UTC 系统时钟。
 func NewMemory(options MemoryOptions) *Memory {
 	clock := options.Clock
 	if clock == nil {
@@ -37,7 +37,7 @@ func NewMemory(options MemoryOptions) *Memory {
 	}
 }
 
-// Put writes one value into the memory store.
+// Put 写入一个值；负 TTL 会被拒绝，零 TTL 表示不过期。
 func (m *Memory) Put(_ context.Context, key string, value []byte, ttl time.Duration) error {
 	if err := validateKey(key); err != nil {
 		return err
@@ -57,7 +57,7 @@ func (m *Memory) Put(_ context.Context, key string, value []byte, ttl time.Durat
 	return nil
 }
 
-// Get reads one value from the memory store.
+// Get 读取一个值；未命中不视为错误，并返回 false。
 func (m *Memory) Get(_ context.Context, key string) (Item, bool, error) {
 	if err := validateKey(key); err != nil {
 		return Item{}, false, err
@@ -80,7 +80,7 @@ func (m *Memory) Get(_ context.Context, key string) (Item, bool, error) {
 	}, true, nil
 }
 
-// Delete removes one value from the memory store.
+// Delete 删除一个值；键不存在时仍视为成功。
 func (m *Memory) Delete(_ context.Context, key string) error {
 	if err := validateKey(key); err != nil {
 		return err
@@ -93,7 +93,7 @@ func (m *Memory) Delete(_ context.Context, key string) error {
 	return nil
 }
 
-// CompareAndSwap updates one value only when the current bytes still match.
+// CompareAndSwap 仅在当前字节值仍与期望值一致时原子更新值。
 func (m *Memory) CompareAndSwap(_ context.Context, key string, oldValue []byte, newValue []byte, ttl time.Duration) (bool, error) {
 	if err := validateKey(key); err != nil {
 		return false, err
@@ -117,7 +117,7 @@ func (m *Memory) CompareAndSwap(_ context.Context, key string, oldValue []byte, 
 	return true, nil
 }
 
-// CompareAndDelete removes one value only when the current bytes still match.
+// CompareAndDelete 仅在当前字节值仍与期望值一致时删除值。
 func (m *Memory) CompareAndDelete(_ context.Context, key string, oldValue []byte) (bool, error) {
 	if err := validateKey(key); err != nil {
 		return false, err

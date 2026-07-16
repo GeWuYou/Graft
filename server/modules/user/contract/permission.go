@@ -1,48 +1,48 @@
-// Package contract defines stable user module contract values.
+// Package contract 定义 user 模块稳定的路由、权限和消息契约。
 package contract
 
-// PermissionCode identifies a stable user module permission contract.
+// PermissionCode 标识 user 模块稳定的权限契约。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回权限码的 wire-format 字符串。
 func (c PermissionCode) String() string {
 	return string(c)
 }
 
 const (
-	// UserReadPermission identifies read access to user-management data.
+	// UserReadPermission 标识用户管理数据的读取权限。
 	UserReadPermission PermissionCode = "user.read"
 
-	// UserCreatePermission identifies create access to user-management data.
+	// UserCreatePermission 标识用户管理数据的创建权限。
 	UserCreatePermission PermissionCode = "user.create"
 
-	// UserUpdatePermission identifies update access to user-management data.
+	// UserUpdatePermission 标识用户管理数据的更新权限。
 	UserUpdatePermission PermissionCode = "user.update"
 
-	// UserDisablePermission identifies disable/delete access to user-management data.
+	// UserDisablePermission 标识用户禁用和删除权限。
 	UserDisablePermission PermissionCode = "user.disable"
 
-	// UserSessionReadPermission identifies read access to refresh-session state.
+	// UserSessionReadPermission 标识刷新会话状态的读取权限。
 	UserSessionReadPermission PermissionCode = "user.session.read"
 
-	// UserSessionRevokePermission identifies revoke access to refresh-session state.
+	// UserSessionRevokePermission 标识刷新会话撤销权限。
 	UserSessionRevokePermission PermissionCode = "user.session.revoke"
 
-	// UserRead is the canonical permission used by user module consumers.
+	// UserRead 是 user 模块消费者使用的用户读取规范权限码。
 	UserRead PermissionCode = UserReadPermission
 
-	// UserCreate is the canonical permission used by user module consumers.
+	// UserCreate 是 user 模块消费者使用的用户创建规范权限码。
 	UserCreate PermissionCode = UserCreatePermission
 
-	// UserUpdate is the canonical permission used by user module consumers.
+	// UserUpdate 是 user 模块消费者使用的用户更新规范权限码。
 	UserUpdate PermissionCode = UserUpdatePermission
 
-	// UserDisable is the canonical permission used by user module consumers.
+	// UserDisable 是 user 模块消费者使用的用户禁用规范权限码。
 	UserDisable PermissionCode = UserDisablePermission
 
-	// UserSessionRead is the canonical permission used by user module consumers.
+	// UserSessionRead 是 user 模块消费者使用的会话读取规范权限码。
 	UserSessionRead PermissionCode = UserSessionReadPermission
 
-	// UserSessionRevoke is the canonical permission used by user module consumers.
+	// UserSessionRevoke 是 user 模块消费者使用的会话撤销规范权限码。
 	UserSessionRevoke PermissionCode = UserSessionRevokePermission
 )

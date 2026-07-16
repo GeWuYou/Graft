@@ -11,15 +11,14 @@ import (
 	ent "graft/server/modules/user/ent"
 )
 
-// Runtime owns the user module's shared Ent client wiring for one process.
+// Runtime 持有单进程内 user 模块共享 Ent 客户端的装配关系。
 //
-// The client reuses the core-owned *sql.DB pool. Core keeps ownership of closing
-// that pool, so this runtime only builds the module-local Ent surface.
+// 客户端复用 core 拥有的 *sql.DB 连接池，连接池关闭责任仍归 core；本运行时只构建模块本地 Ent 表面。
 type Runtime struct {
 	client *ent.Client
 }
 
-// NewRuntime builds the user module's Ent runtime on top of the shared SQL pool.
+// NewRuntime 基于共享 SQL 连接池构建 user 模块的 Ent 运行时。
 func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 	if sqlDB == nil {
 		return nil, fmt.Errorf("user storeent runtime requires a non-nil sql db")
@@ -48,12 +47,12 @@ func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 	}, nil
 }
 
-// NewUserRepository builds the module-owned user repository from the shared Ent client.
+// NewUserRepository 基于共享 Ent 客户端构建模块拥有的用户仓储。
 func (r *Runtime) NewUserRepository() (*userRepository, error) {
 	return newUserRepository(r.client)
 }
 
-// Client exposes the shared Ent client for the narrow cases that still need direct client access.
+// Client 返回共享 Ent 客户端，仅供仍需直接访问客户端的受限模块内部场景使用。
 func (r *Runtime) Client() *ent.Client {
 	return r.client
 }

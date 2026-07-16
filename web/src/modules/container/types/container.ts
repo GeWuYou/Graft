@@ -41,7 +41,7 @@ type LegacyDeploymentContext = {
   member_value?: string | null;
   member_display_name?: string | null;
 };
-// Runtime actions retain the same policy shape; presentation uses deployment terminology.
+// 运行时操作继续复用同一策略结构；展示层使用 deployment 术语以兼容不同编排来源。
 export type ContainerOrchestratorInfo = ContainerDeploymentInfo & LegacyDeploymentContext;
 export type ContainerOrchestratorType = ContainerDeploymentInfo['type'];
 export type ContainerActionLevel = 'readonly' | 'warn' | 'allow';

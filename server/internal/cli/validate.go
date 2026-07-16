@@ -149,7 +149,7 @@ func newValidateBackendCommand() *cobra.Command {
 	return command
 }
 
-// newValidateOpenAPICommand creates the validate openapi subcommand.
+// newValidateOpenAPICommand 创建 validate openapi 子命令。
 func newValidateOpenAPICommand() *cobra.Command {
 	var specPath string
 
@@ -257,8 +257,8 @@ func validateBackendStageOptions(stage string, smoke bool) error {
 
 // runFullBackendValidation 按顺序执行完整的后端校验链。
 // 仅在 opts.smoke 为 true 时附加运行烟雾测试。
-// @param opts 后端校验所用的配置，包括 OpenAPI 规范、lint 配置、测试目标和烟雾测试开关。
-// @returns 执行过程中任一步骤失败时返回对应错误。
+// 参数：opts 包含 OpenAPI 规范、lint 配置、测试目标和烟雾测试开关。
+// 返回值：执行过程中任一步骤失败时返回对应错误。
 func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) error {
 	registryFreshnessRunner := opts.migrationRegistryFreshnessRunner
 	if registryFreshnessRunner == nil {
@@ -327,7 +327,7 @@ func runBackendGoTest(cmd *cobra.Command, targets []string) error {
 }
 
 // runBackendGoBuild 执行 `go build ./cmd/graft` 编译验证。
-// @return 执行失败时返回错误。
+// 返回值：执行失败时返回错误。
 func runBackendGoBuild(cmd *cobra.Command) error {
 	if err := backendCommandRunner(cmd, "go", "build", "./cmd/graft"); err != nil {
 		return fmt.Errorf("run go build ./cmd/graft: %w", err)

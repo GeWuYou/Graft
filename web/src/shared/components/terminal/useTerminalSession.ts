@@ -21,8 +21,8 @@ type UseTerminalSessionOptions = {
 /**
  * 创建并管理终端 WebSocket 会话。
  *
- * @param options - 包含 connector 用于打开会话，以及监听连接状态和消息事件的回调函数
- * @returns 会话管理对象，提供建立/断开连接、发送消息和监控连接状态的接口
+ * 连接建立使用递增 ID 隔离旧请求；断开或重连后，迟到的 ticket、socket 事件和错误不得回写当前会话。
+ * `onTransportError` 只接收传输层错误，业务消息错误仍通过 `onMessage` 交给调用方处理。
  */
 export function useTerminalSession(options: UseTerminalSessionOptions) {
   const socket = shallowRef<WebSocket | null>(null);
@@ -225,11 +225,6 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
   };
 }
 
-/**
- * 将 WebSocket 消息解析为终端服务器消息。
- *
- * @returns 如果输入有效则返回解析的消息，否则返回 `null`
- */
 function parseServerMessage(raw: unknown): TerminalServerMessage | null {
   if (typeof raw !== 'string') {
     return null;
@@ -245,11 +240,6 @@ function parseServerMessage(raw: unknown): TerminalServerMessage | null {
   }
 }
 
-/**
- * 将未知值规范化为 Error 实例。
- *
- * @returns 如果 error 是 Error 实例则返回原值，否则返回以 fallback 消息创建的新 Error 实例。
- */
 function normalizeError(error: unknown, fallback: string) {
   if (error instanceof Error) {
     return error;

@@ -20,9 +20,8 @@ type dockerComposeProjectNameProbe interface {
 
 type dockerComposeProjectNameProbeImpl struct{}
 
-// CheckComposeProjectName reports whether a Compose name is already represented
-// by runtime resources on the selected target. Provider-specific endpoint access
-// remains inside the Runtime Target module.
+// CheckComposeProjectName 检查选定目标的运行时资源中是否已存在 Compose 项目名。
+// provider-specific endpoint 访问保持在 runtime-target 模块内部，并将探测失败映射为状态而非暴露底层客户端错误。
 func (r runtimeTargetReader) CheckComposeProjectName(ctx context.Context, id int64, name string) (moduleapi.ComposeProjectNameAvailability, error) {
 	target, state, ready := r.composeProjectNameTarget(ctx, id, name)
 	if !ready {
@@ -59,8 +58,7 @@ func (r runtimeTargetReader) composeProjectNameTarget(ctx context.Context, id in
 	return target, "", true
 }
 
-// Occupied uses the Docker Compose project label with All=true, which includes
-// stopped Compose containers as well as running ones.
+// Occupied 使用 Docker Compose 项目标记并将 All 设为 true，因此停止状态的 Compose 容器也会被视为已占用。
 func (dockerComposeProjectNameProbeImpl) Occupied(ctx context.Context, target store.Target, name string) (bool, error) {
 	checkCtx, cancel := context.WithTimeout(ctx, composeProjectNameCheckTimeout)
 	defer cancel()
