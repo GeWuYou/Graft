@@ -7,13 +7,13 @@ import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
 
 import { PROJECT_BOOTSTRAP_ROUTE } from '../contract/bootstrap';
 
-type ProjectCreateRouter = Pick<Router, 'push' | 'replace'>;
-type ProjectRouteRouter = Pick<Router, 'push' | 'resolve'>;
+type ApplicationCreateRouter = Pick<Router, 'push' | 'replace'>;
+type ApplicationRouteRouter = Pick<Router, 'push' | 'resolve'>;
 
 /**
  * 导航回项目创建方式选择页，并保留当前创建流程的查询上下文。
  */
-export function navigateToProjectCreateSource(router: ProjectCreateRouter, query: LocationQueryRaw) {
+export function navigateToApplicationCreateSource(router: ApplicationCreateRouter, query: LocationQueryRaw) {
   void router.push({
     name: PROJECT_BOOTSTRAP_ROUTE.CREATE_SOURCE.pageRouteName,
     query,
@@ -23,8 +23,8 @@ export function navigateToProjectCreateSource(router: ProjectCreateRouter, query
 /**
  * 追加项目创建流程标签并导航至目标页面。
  */
-function navigateProjectCreateRoute(
-  router: ProjectRouteRouter,
+function navigateApplicationCreateRoute(
+  router: ApplicationRouteRouter,
   tabs: { appendTabRouterList: (route: TRouterInfo) => void; setActiveTabKey: (key: string) => void },
   target: Parameters<Router['push']>[0],
   titleKey: string,
@@ -39,11 +39,11 @@ function navigateProjectCreateRoute(
  *
  * @returns 接收目标路由和标题键的导航函数；导航前会添加并激活对应标签页。
  */
-export function useProjectCreateRouteNavigation(router: ProjectRouteRouter) {
+export function useApplicationCreateRouteNavigation(router: ApplicationRouteRouter) {
   const tabs = useTabsRouterStore();
 
   return (target: Parameters<Router['push']>[0], titleKey: string) => {
-    navigateProjectCreateRoute(router, tabs, target, titleKey);
+    navigateApplicationCreateRoute(router, tabs, target, titleKey);
   };
 }
 
@@ -54,7 +54,11 @@ export function useProjectCreateRouteNavigation(router: ProjectRouteRouter) {
  * @param pageRouteName - 目标页面的路由名称
  * @param query - 目标页面的查询参数
  */
-export function refreshProjectCreatePage(router: ProjectCreateRouter, pageRouteName: string, query: LocationQueryRaw) {
+export function refreshApplicationCreatePage(
+  router: ApplicationCreateRouter,
+  pageRouteName: string,
+  query: LocationQueryRaw,
+) {
   void router.replace({ name: pageRouteName, query });
 }
 

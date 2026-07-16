@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia';
 
 import {
+  type ApplicationWorkspaceMonacoLanguage,
   hasWorkspaceUnsavedChanges,
-  type ProjectWorkspaceMonacoLanguage,
   resolveWorkspaceFileName,
   resolveWorkspaceMonacoLanguage,
 } from '../shared/configuration-workspace';
 import { emitProjectWorkspaceDebug } from '../shared/project-workspace-debug';
-import type { ProjectWorkspaceFileKind, ProjectWorkspaceTreeItem } from '../types/project';
+import type { ApplicationWorkspaceFileKind, ApplicationWorkspaceTreeItem } from '../types/project';
 
 export type WorkspaceNodeType = 'directory' | 'file';
 
-export type WorkspaceNode = ProjectWorkspaceTreeItem & {
+export type WorkspaceNode = ApplicationWorkspaceTreeItem & {
   childKeys: string[];
   childrenLoaded: boolean;
   parentKey: string | null;
@@ -21,8 +21,8 @@ export type OpenedWorkspaceFile = {
   content: string;
   editable: boolean;
   error: string;
-  fileKind: ProjectWorkspaceFileKind;
-  language: ProjectWorkspaceMonacoLanguage;
+  fileKind: ApplicationWorkspaceFileKind;
+  language: ApplicationWorkspaceMonacoLanguage;
   loaded: boolean;
   loading: boolean;
   name: string;
@@ -211,7 +211,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
     },
     ingestTree(
       sessionKey: string,
-      entries: ProjectWorkspaceTreeItem[],
+      entries: ApplicationWorkspaceTreeItem[],
       parentKey: string | null = null,
       childrenLoaded = true,
     ) {
@@ -256,7 +256,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         );
       }
     },
-    replaceTree(sessionKey: string, entries: ProjectWorkspaceTreeItem[]) {
+    replaceTree(sessionKey: string, entries: ApplicationWorkspaceTreeItem[]) {
       const session = this.ensureSession(sessionKey);
       const preservedExpanded = session.expandedKeys;
       const preservedSelected = session.selectedKey;
@@ -275,7 +275,7 @@ export const useProjectWorkspaceStore = defineStore('project-workspace', {
         ? [...new Set([...session.expandedKeys, normalizedKey])]
         : session.expandedKeys.filter((item) => item !== normalizedKey);
     },
-    patchNode(sessionKey: string, item: ProjectWorkspaceTreeItem) {
+    patchNode(sessionKey: string, item: ApplicationWorkspaceTreeItem) {
       const key = normalizePath(item.relative_path);
       const session = this.ensureSession(sessionKey);
       const existing = session.nodesByKey[key];

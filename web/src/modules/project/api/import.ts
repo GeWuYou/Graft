@@ -1,48 +1,48 @@
 import { request } from '@/utils/request';
 
-import { buildProjectImportDirectoriesApiPath, PROJECT_API_PATH } from '../contract/paths';
+import { APPLICATION_API_PATH, buildApplicationImportDirectoriesApiPath } from '../contract/paths';
 import type {
-  ProjectImportDirectoryListQuery,
-  ProjectImportDirectoryListResponse,
-  ProjectImportDirectorySourcesResponse,
-  ProjectImportExecuteRequest,
-  ProjectImportExecuteResponse,
-  ProjectImportInspectResponse,
-  ProjectImportRuntimeCandidatesQuery,
-  ProjectImportRuntimeCandidatesResponse,
-  ProjectImportRuntimeInspectRequest,
+  ApplicationImportDirectoryListQuery,
+  ApplicationImportDirectoryListResponse,
+  ApplicationImportDirectorySourcesResponse,
+  ApplicationImportExecuteRequest,
+  ApplicationImportExecuteResponse,
+  ApplicationImportInspectResponse,
+  ApplicationImportRuntimeCandidatesQuery,
+  ApplicationImportRuntimeCandidatesResponse,
+  ApplicationImportRuntimeInspectRequest,
 } from '../types/import';
 
-export function getProjectImportDirectorySources() {
-  return request.get<ProjectImportDirectorySourcesResponse>({
-    url: PROJECT_API_PATH.IMPORT_DIRECTORY_SOURCES,
+export function getApplicationImportDirectorySources() {
+  return request.get<ApplicationImportDirectorySourcesResponse>({
+    url: APPLICATION_API_PATH.IMPORT_DIRECTORY_SOURCES,
   });
 }
 
-export function getProjectImportRuntimeCandidates(query?: ProjectImportRuntimeCandidatesQuery) {
-  return request.get<ProjectImportRuntimeCandidatesResponse>({
-    url: PROJECT_API_PATH.IMPORT_RUNTIME_CANDIDATES,
-    params: query as ProjectImportRuntimeCandidatesQuery | undefined,
+export function getApplicationImportRuntimeCandidates(query?: ApplicationImportRuntimeCandidatesQuery) {
+  return request.get<ApplicationImportRuntimeCandidatesResponse>({
+    url: APPLICATION_API_PATH.IMPORT_RUNTIME_CANDIDATES,
+    params: query as ApplicationImportRuntimeCandidatesQuery | undefined,
   });
 }
 
-export function getProjectImportDirectories(query: ProjectImportDirectoryListQuery) {
-  return request.get<ProjectImportDirectoryListResponse>({
-    url: buildProjectImportDirectoriesApiPath(),
+export function getApplicationImportDirectories(query: ApplicationImportDirectoryListQuery) {
+  return request.get<ApplicationImportDirectoryListResponse>({
+    url: buildApplicationImportDirectoriesApiPath(),
     params: query,
   });
 }
 
-export function postProjectImportRuntimeInspect(payload: ProjectImportRuntimeInspectRequest) {
-  return request.post<ProjectImportInspectResponse>({
-    url: PROJECT_API_PATH.IMPORT_RUNTIME_INSPECT,
+export function postApplicationImportRuntimeInspect(payload: ApplicationImportRuntimeInspectRequest) {
+  return request.post<ApplicationImportInspectResponse>({
+    url: APPLICATION_API_PATH.IMPORT_RUNTIME_INSPECT,
     data: payload,
   });
 }
 
-export function postProjectImportExecute(payload: ProjectImportExecuteRequest) {
-  return request.post<ProjectImportExecuteResponse>({
-    url: PROJECT_API_PATH.IMPORT,
+export function postApplicationImportExecute(payload: ApplicationImportExecuteRequest) {
+  return request.post<ApplicationImportExecuteResponse>({
+    url: APPLICATION_API_PATH.IMPORT,
     data: payload,
   });
 }

@@ -2,7 +2,7 @@ import type { ComposerTranslation } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 
-import type { ProjectDriftStatus, ProjectRuntimeStatus, ProjectSourceKind } from '../types/project';
+import type { ApplicationDriftStatus, ApplicationRuntimeStatus, ApplicationSourceType } from '../types/project';
 
 type Translate = ComposerTranslation;
 
@@ -13,25 +13,25 @@ const projectTaskTypeLabelKeys: Readonly<Record<string, string>> = {
   'project.compose.up': 'project.taskTypes.up',
 };
 
-export function formatProjectTime(locale: string, value?: string | null) {
+export function formatApplicationTime(locale: string, value?: string | null) {
   return formatCompactDateTime(value, locale);
 }
 
-export function projectSourceKindLabel(t: Translate, value: ProjectSourceKind) {
-  return t(`project.list.sourceKinds.${value}`);
+export function projectSourceTypeLabel(t: Translate, value: ApplicationSourceType) {
+  return t(`project.list.sourceTypes.${value}`);
 }
 
-export function projectDriftStatusLabel(t: Translate, value: ProjectDriftStatus) {
+export function projectDriftStatusLabel(t: Translate, value: ApplicationDriftStatus) {
   return t(`project.list.driftStatus.${value}`);
 }
 
-export function projectDriftStatusTheme(value?: ProjectDriftStatus) {
+export function projectDriftStatusTheme(value?: ApplicationDriftStatus) {
   if (value === 'clean') return 'success';
   if (value === 'unknown') return 'default';
   return 'warning';
 }
 
-export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
+export function projectRuntimeStatusTheme(value?: ApplicationRuntimeStatus | null) {
   if (value === 'running') return 'success';
   if (value === 'degraded') return 'warning';
   if (value === 'stopped') return 'default';
@@ -39,7 +39,7 @@ export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
   return 'default';
 }
 
-export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeStatus | null) {
+export function projectRuntimeStatusLabel(t: Translate, value?: ApplicationRuntimeStatus | null) {
   if (value === 'running') return t('project.list.status.runtimeRunning');
   if (value === 'degraded') return t('project.list.status.runtimeDegraded');
   if (value === 'stopped') return t('project.list.status.runtimeStopped');
@@ -52,18 +52,18 @@ export function projectTaskTypeLabel(t: Translate, taskType: string) {
   return key ? t(key) : undefined;
 }
 
-export type ProjectLifecycleAction = 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister';
+export type ApplicationLifecycleAction = 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister';
 
-type ProjectLifecycleActionVisibility = Record<ProjectLifecycleAction, boolean>;
+type ApplicationLifecycleActionVisibility = Record<ApplicationLifecycleAction, boolean>;
 
-type ProjectLifecycleActionVisibilityOptions = {
+type ApplicationLifecycleActionVisibilityOptions = {
   hideLifecycleActions?: boolean;
 };
 
 export function projectLifecycleActionVisibility(
-  value?: ProjectRuntimeStatus | null,
-  options: ProjectLifecycleActionVisibilityOptions = {},
-): ProjectLifecycleActionVisibility {
+  value?: ApplicationRuntimeStatus | null,
+  options: ApplicationLifecycleActionVisibilityOptions = {},
+): ApplicationLifecycleActionVisibility {
   if (options.hideLifecycleActions) {
     return {
       up: false,

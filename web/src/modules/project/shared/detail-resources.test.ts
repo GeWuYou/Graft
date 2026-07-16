@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ProjectServiceItem } from '../types/project';
+import type { ApplicationServiceItem } from '../types/project';
 import {
-  buildProjectNetworkResourceRows,
-  buildProjectVolumeResourceRows,
-  paginateProjectResourceRows,
+  buildApplicationNetworkResourceRows,
+  buildApplicationVolumeResourceRows,
+  paginateApplicationResourceRows,
   parseDeclaredVolumeMount,
 } from './detail-resources';
 
 function createService(
-  overrides: Partial<ProjectServiceItem> & Pick<ProjectServiceItem, 'service_name'>,
-): ProjectServiceItem {
+  overrides: Partial<ApplicationServiceItem> & Pick<ApplicationServiceItem, 'service_name'>,
+): ApplicationServiceItem {
   const { service_name, ...rest } = overrides;
   return {
     build_context: null,
@@ -51,7 +51,7 @@ describe('detail-resources', () => {
   });
 
   it('aggregates network rows from declared service networks', () => {
-    const rows = buildProjectNetworkResourceRows([
+    const rows = buildApplicationNetworkResourceRows([
       createService({
         service_name: 'api',
         container_members: [
@@ -94,7 +94,7 @@ describe('detail-resources', () => {
   });
 
   it('aggregates named and anonymous volume rows from declared service volumes', () => {
-    const rows = buildProjectVolumeResourceRows([
+    const rows = buildApplicationVolumeResourceRows([
       createService({
         service_name: 'db',
         container_members: [{ container_id: '1', container_name: 'db-1', state: 'running' }],
@@ -132,7 +132,7 @@ describe('detail-resources', () => {
   });
 
   it('paginates local rows deterministically', () => {
-    expect(paginateProjectResourceRows([1, 2, 3, 4, 5], 2, 2)).toEqual([3, 4]);
-    expect(paginateProjectResourceRows([1, 2, 3], 1, 50)).toEqual([1, 2, 3]);
+    expect(paginateApplicationResourceRows([1, 2, 3, 4, 5], 2, 2)).toEqual([3, 4]);
+    expect(paginateApplicationResourceRows([1, 2, 3], 1, 50)).toEqual([1, 2, 3]);
   });
 });

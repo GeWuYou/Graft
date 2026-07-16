@@ -1,11 +1,11 @@
 import type { WebModuleRegistration } from '@/modules/types';
 
-import { projectBootstrapRouteRegistrations, projectGlobalRouteRegistrations } from './bootstrap-routes';
+import { applicationBootstrapRouteRegistrations, applicationGlobalRouteRegistrations } from './bootstrap-routes';
 
-export const projectModuleRegistration: WebModuleRegistration = {
+export const applicationModuleRegistration: WebModuleRegistration = {
   moduleId: 'project',
-  bootstrapRoutes: projectBootstrapRouteRegistrations,
-  globalRoutes: projectGlobalRouteRegistrations,
+  bootstrapRoutes: applicationBootstrapRouteRegistrations,
+  globalRoutes: applicationGlobalRouteRegistrations,
 };
 
-export default projectModuleRegistration;
+export default applicationModuleRegistration;

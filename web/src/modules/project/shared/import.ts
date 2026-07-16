@@ -1,15 +1,18 @@
 import type {
-  ProjectImportDirectoryInspectFileEntry,
-  ProjectImportDirectoryRef,
-  ProjectImportDirectorySource,
-  ProjectImportInspectResponse,
-  ProjectImportRuntimeCandidate,
-  ProjectImportRuntimeInspectNetworkResource,
-  ProjectImportRuntimeInspectVolumeResource,
-  ProjectImportRuntimeMember,
+  ApplicationImportDirectoryInspectFileEntry,
+  ApplicationImportDirectoryRef,
+  ApplicationImportDirectorySource,
+  ApplicationImportInspectResponse,
+  ApplicationImportRuntimeCandidate,
+  ApplicationImportRuntimeInspectNetworkResource,
+  ApplicationImportRuntimeInspectVolumeResource,
+  ApplicationImportRuntimeMember,
 } from '../types/import';
 
-export function buildDirectorySelection(source: ProjectImportDirectorySource, path: string): ProjectImportDirectoryRef {
+export function buildDirectorySelection(
+  source: ApplicationImportDirectorySource,
+  path: string,
+): ApplicationImportDirectoryRef {
   return {
     provider: source.provider,
     root_id: source.root_id,
@@ -17,7 +20,7 @@ export function buildDirectorySelection(source: ProjectImportDirectorySource, pa
   };
 }
 
-export function initialDirectoryPath(source: ProjectImportDirectorySource) {
+export function initialDirectoryPath(source: ApplicationImportDirectorySource) {
   return normalizeDirectoryPath(source.initial_path || '');
 }
 
@@ -35,7 +38,7 @@ function splitDirectorySegments(path: string) {
   return normalized ? normalized.split('/') : [];
 }
 
-export function buildDirectoryBreadcrumbs(directory: ProjectImportDirectoryRef) {
+export function buildDirectoryBreadcrumbs(directory: ApplicationImportDirectoryRef) {
   const segments = splitDirectorySegments(directory.path);
   return [
     {
@@ -51,13 +54,13 @@ export function buildDirectoryBreadcrumbs(directory: ProjectImportDirectoryRef) 
   ];
 }
 
-export function buildDirectorySourceLabel(source: ProjectImportDirectorySource) {
+export function buildDirectorySourceLabel(source: ApplicationImportDirectorySource) {
   const suffix = source.managed ? ' (Managed)' : '';
   return `${source.label}${suffix}`;
 }
 
-export function buildSuggestedDisplayName(result: ProjectImportInspectResponse) {
-  return (result.display_name_suggested || result.canonical_project_name || '').trim();
+export function buildSuggestedDisplayName(result: ApplicationImportInspectResponse) {
+  return (result.display_name_suggested || result.compose_project_name || '').trim();
 }
 
 export function normalizeStringArray(value: unknown): string[] {
@@ -67,15 +70,17 @@ export function normalizeStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
-function isProjectImportDirectoryInspectFileEntry(value: unknown): value is ProjectImportDirectoryInspectFileEntry {
+function isApplicationImportDirectoryInspectFileEntry(
+  value: unknown,
+): value is ApplicationImportDirectoryInspectFileEntry {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const entry = value as Partial<ProjectImportDirectoryInspectFileEntry>;
+  const entry = value as Partial<ApplicationImportDirectoryInspectFileEntry>;
   return (
-    isProjectFileKind(entry.kind) &&
-    isProjectFileRole(entry.role) &&
+    isApplicationFileKind(entry.kind) &&
+    isApplicationFileRole(entry.role) &&
     typeof entry.absolute_path === 'string' &&
     typeof entry.display_path === 'string' &&
     typeof entry.order_index === 'number' &&
@@ -85,20 +90,20 @@ function isProjectImportDirectoryInspectFileEntry(value: unknown): value is Proj
   );
 }
 
-function normalizeInspectFileEntries(value: unknown): ProjectImportDirectoryInspectFileEntry[] {
+function normalizeInspectFileEntries(value: unknown): ApplicationImportDirectoryInspectFileEntry[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value.filter(isProjectImportDirectoryInspectFileEntry);
+  return value.filter(isApplicationImportDirectoryInspectFileEntry);
 }
 
-function isProjectImportRuntimeMember(value: unknown): value is ProjectImportRuntimeMember {
+function isApplicationImportRuntimeMember(value: unknown): value is ApplicationImportRuntimeMember {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const item = value as Partial<ProjectImportRuntimeMember>;
+  const item = value as Partial<ApplicationImportRuntimeMember>;
   return (
     typeof item.container_id === 'string' &&
     typeof item.container_name === 'string' &&
@@ -107,63 +112,63 @@ function isProjectImportRuntimeMember(value: unknown): value is ProjectImportRun
   );
 }
 
-function normalizeRuntimeMembers(value: unknown): ProjectImportRuntimeMember[] {
+function normalizeRuntimeMembers(value: unknown): ApplicationImportRuntimeMember[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value.filter(isProjectImportRuntimeMember);
+  return value.filter(isApplicationImportRuntimeMember);
 }
 
-function isProjectFileKind(value: unknown): value is 'compose' | 'env' {
+function isApplicationFileKind(value: unknown): value is 'compose' | 'env' {
   return value === 'compose' || value === 'env';
 }
 
-function isProjectFileRole(value: unknown): value is 'primary' | 'override' | 'detected' | 'manual' {
+function isApplicationFileRole(value: unknown): value is 'primary' | 'override' | 'detected' | 'manual' {
   return value === 'primary' || value === 'override' || value === 'detected' || value === 'manual';
 }
 
-function isProjectImportRuntimeInspectNetworkResource(
+function isApplicationImportRuntimeInspectNetworkResource(
   value: unknown,
-): value is ProjectImportRuntimeInspectNetworkResource {
+): value is ApplicationImportRuntimeInspectNetworkResource {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const resource = value as Partial<ProjectImportRuntimeInspectNetworkResource>;
+  const resource = value as Partial<ApplicationImportRuntimeInspectNetworkResource>;
   return typeof resource.name === 'string';
 }
 
-function isProjectImportRuntimeInspectVolumeResource(
+function isApplicationImportRuntimeInspectVolumeResource(
   value: unknown,
-): value is ProjectImportRuntimeInspectVolumeResource {
+): value is ApplicationImportRuntimeInspectVolumeResource {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const resource = value as Partial<ProjectImportRuntimeInspectVolumeResource>;
+  const resource = value as Partial<ApplicationImportRuntimeInspectVolumeResource>;
   return typeof resource.name === 'string';
 }
 
 function normalizeInspectNetworkResources(value: unknown) {
   if (!Array.isArray(value)) {
-    return [] as Array<ProjectImportRuntimeInspectNetworkResource | string>;
+    return [] as Array<ApplicationImportRuntimeInspectNetworkResource | string>;
   }
 
   return value.filter(
-    (item): item is ProjectImportRuntimeInspectNetworkResource | string =>
-      typeof item === 'string' || isProjectImportRuntimeInspectNetworkResource(item),
+    (item): item is ApplicationImportRuntimeInspectNetworkResource | string =>
+      typeof item === 'string' || isApplicationImportRuntimeInspectNetworkResource(item),
   );
 }
 
 function normalizeInspectVolumeResources(value: unknown) {
   if (!Array.isArray(value)) {
-    return [] as Array<ProjectImportRuntimeInspectVolumeResource | string>;
+    return [] as Array<ApplicationImportRuntimeInspectVolumeResource | string>;
   }
 
   return value.filter(
-    (item): item is ProjectImportRuntimeInspectVolumeResource | string =>
-      typeof item === 'string' || isProjectImportRuntimeInspectVolumeResource(item),
+    (item): item is ApplicationImportRuntimeInspectVolumeResource | string =>
+      typeof item === 'string' || isApplicationImportRuntimeInspectVolumeResource(item),
   );
 }
 
@@ -173,9 +178,9 @@ function normalizeInspectVolumeResources(value: unknown) {
  * @param result - 原始导入检查结果
  * @returns 归一化后的检查结果；空输入保持为 null
  */
-export function normalizeProjectImportInspectResponse(
-  result: ProjectImportInspectResponse | null,
-): ProjectImportInspectResponse | null {
+export function normalizeApplicationImportInspectResponse(
+  result: ApplicationImportInspectResponse | null,
+): ApplicationImportInspectResponse | null {
   if (!result) {
     return null;
   }
@@ -199,8 +204,8 @@ export function normalizeProjectImportInspectResponse(
  * @param result - 导入检查结果
  * @returns `true` 如果存在冲突或校验状态为 `conflict`，`false` 否则。
  */
-export function hasBlockingImportConflicts(result: ProjectImportInspectResponse | null) {
-  const normalized = normalizeProjectImportInspectResponse(result);
+export function hasBlockingImportConflicts(result: ApplicationImportInspectResponse | null) {
+  const normalized = normalizeApplicationImportInspectResponse(result);
   return Boolean(normalized?.conflicts?.length) || normalized?.validation_status === 'conflict';
 }
 
@@ -210,7 +215,7 @@ export function hasBlockingImportConflicts(result: ProjectImportInspectResponse 
  * @param candidate - 运行时候选
  * @returns `true` 表示可以进入 inspect
  */
-export function isProjectImportRuntimeCandidateReady(candidate: ProjectImportRuntimeCandidate) {
+export function isApplicationImportRuntimeCandidateReady(candidate: ApplicationImportRuntimeCandidate) {
   return candidate.importable && candidate.status === 'ready';
 }
 
@@ -220,7 +225,7 @@ export function isProjectImportRuntimeCandidateReady(candidate: ProjectImportRun
  * @param candidate - 运行时候选
  * @returns 优先返回首个稳定 reason code；否则回退到状态级原因键
  */
-export function resolveProjectImportRuntimeCandidateReasonKey(candidate: ProjectImportRuntimeCandidate) {
+export function resolveApplicationImportRuntimeCandidateReasonKey(candidate: ApplicationImportRuntimeCandidate) {
   const [primaryReasonCode] = candidate.status_reason_codes;
   if (primaryReasonCode?.trim()) {
     return primaryReasonCode.trim();

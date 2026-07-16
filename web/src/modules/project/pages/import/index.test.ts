@@ -2,27 +2,27 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive, ref } from 'vue';
 
-import zhProjectLocale from '../../locales/zh-CN.json';
-import type { ProjectImportRuntimeCandidate } from '../../types/import';
-import ProjectImportIndex from './index.vue';
+import zhApplicationLocale from '../../locales/zh-CN.json';
+import type { ApplicationImportRuntimeCandidate } from '../../types/import';
+import ApplicationImportIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
   appendResolvedTab: vi.fn(),
   closeTabsByPredicate: vi.fn(),
-  getProjectImportRuntimeCandidates: vi.fn(),
+  getApplicationImportRuntimeCandidates: vi.fn(),
   setActiveTabKey: vi.fn(),
   appendTabRouterList: vi.fn(),
   replace: vi.fn(),
   push: vi.fn(),
   resolve: vi.fn(() => ({
-    fullPath: '/ops/projects/1?tab=overview',
+    fullPath: '/applications/app_1?tab=overview',
     meta: {},
-    name: 'ProjectDetailIndex',
-    params: { id: '1' },
-    path: '/ops/projects/1',
+    name: 'ApplicationDetailIndex',
+    params: { applicationId: 'app_1' },
+    path: '/applications/app_1',
     query: { tab: 'overview' },
   })),
-  useProjectImportFlow: vi.fn(),
+  useApplicationImportFlow: vi.fn(),
 }));
 
 const messageMocks = vi.hoisted(() => ({
@@ -31,21 +31,21 @@ const messageMocks = vi.hoisted(() => ({
 }));
 
 const routeState = reactive({
-  name: 'ProjectImportIndex',
+  name: 'ApplicationImportIndex',
   params: {},
   query: {},
 });
 
 vi.mock('../../api/import', () => ({
-  getProjectImportRuntimeCandidates: mocks.getProjectImportRuntimeCandidates,
+  getApplicationImportRuntimeCandidates: mocks.getApplicationImportRuntimeCandidates,
 }));
 
 vi.mock('../../shared/useProjectImportFlow', () => ({
-  useProjectImportFlow: mocks.useProjectImportFlow,
+  useApplicationImportFlow: mocks.useApplicationImportFlow,
 }));
 
 vi.mock('../../shared/page-context', () => ({
-  useProjectPageContext: () => ({
+  useApplicationPageContext: () => ({
     router: {
       push: mocks.push,
       replace: mocks.replace,
@@ -282,7 +282,7 @@ vi.mock('../../components/ProjectImportInspectOverview.vue', async () => {
 
   return {
     default: defineComponent({
-      name: 'ProjectImportInspectOverviewStub',
+      name: 'ApplicationImportInspectOverviewStub',
       props: {
         canImport: { type: Boolean, default: false },
         result: { type: Object, required: true },
@@ -291,7 +291,7 @@ vi.mock('../../components/ProjectImportInspectOverview.vue', async () => {
         return () =>
           h('section', { 'data-testid': 'inspect-overview-stub' }, [
             h('h3', translate('project.import.preview.overviewTitle')),
-            h('p', String((props.result as Record<string, unknown>).canonical_project_name ?? '')),
+            h('p', String((props.result as Record<string, unknown>).compose_project_name ?? '')),
             h(
               'p',
               !props.canImport
@@ -309,7 +309,7 @@ vi.mock('../../components/ProjectImportInspectResources.vue', async () => {
 
   return {
     default: defineComponent({
-      name: 'ProjectImportInspectResourcesStub',
+      name: 'ApplicationImportInspectResourcesStub',
       props: {
         result: { type: Object, default: null },
       },
@@ -336,7 +336,7 @@ function translate(key: string, params?: Record<string, unknown>) {
       return (current as Record<string, unknown>)[segment];
     }
     return undefined;
-  }, zhProjectLocale);
+  }, zhApplicationLocale);
 
   if (typeof value !== 'string') {
     return key;
@@ -345,10 +345,10 @@ function translate(key: string, params?: Record<string, unknown>) {
   return value.replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name] ?? ''));
 }
 
-function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): ProjectImportRuntimeCandidate {
+function buildCandidate(overrides: Partial<ApplicationImportRuntimeCandidate>): ApplicationImportRuntimeCandidate {
   return {
     candidate_key: 'runtime:demo',
-    canonical_project_name: 'demo',
+    compose_project_name: 'demo',
     config_files: ['/srv/demo/compose.yaml'],
     container_counts: { running: 1, stopped: 0, transitioning: 0, issue: 0, total: 1 },
     importable: true,
@@ -358,8 +358,8 @@ function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): Proj
     status: 'ready',
     status_reason_codes: [],
     warnings: [],
-    working_directory: '/srv/demo',
-    working_directory_source: 'runtime_label',
+    workspace_path: '/srv/demo',
+    workspace_path_source: 'runtime_label',
     ...overrides,
   };
 }
@@ -367,7 +367,7 @@ function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): Proj
 function createFlowState() {
   return {
     canImport: ref(false),
-    canonicalProjectNameOverride: ref(''),
+    composeProjectNameOverride: ref(''),
     displayName: ref(''),
     hasPreview: ref(false),
     importError: ref(''),
@@ -616,7 +616,7 @@ const TPaginationStub = defineComponent({
 });
 
 function mountPage() {
-  return mount(ProjectImportIndex, {
+  return mount(ApplicationImportIndex, {
     global: {
       stubs: {
         SearchIcon: true,
@@ -644,7 +644,7 @@ function mountPage() {
   });
 }
 
-describe('ProjectImportIndex', () => {
+describe('ApplicationImportIndex', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -652,7 +652,7 @@ describe('ProjectImportIndex', () => {
   beforeEach(() => {
     routeState.query = {};
     routeState.params = {};
-    mocks.getProjectImportRuntimeCandidates.mockReset();
+    mocks.getApplicationImportRuntimeCandidates.mockReset();
     mocks.appendResolvedTab.mockReset();
     mocks.appendTabRouterList.mockReset();
     mocks.closeTabsByPredicate.mockReset();
@@ -660,25 +660,25 @@ describe('ProjectImportIndex', () => {
     mocks.replace.mockReset();
     mocks.resolve.mockClear();
     mocks.setActiveTabKey.mockReset();
-    mocks.useProjectImportFlow.mockReset();
+    mocks.useApplicationImportFlow.mockReset();
     messageMocks.error.mockReset();
     messageMocks.success.mockReset();
     window.localStorage.clear();
 
-    mocks.getProjectImportRuntimeCandidates.mockResolvedValue({
+    mocks.getApplicationImportRuntimeCandidates.mockResolvedValue({
       items: [
         buildCandidate({}),
         buildCandidate({
           candidate_key: 'runtime:blocked',
-          canonical_project_name: 'blocked',
+          compose_project_name: 'blocked',
           config_files: ['/srv/blocked/compose.yaml'],
           importable: false,
           service_names: ['api'],
           status: 'broken_compose',
           status_reason_codes: ['broken_compose'],
-          warnings: ['working_directory_derived_from_config_files'],
-          working_directory: '/srv/blocked',
-          working_directory_source: 'derived_from_config_files',
+          warnings: ['workspace_path_derived_from_config_files'],
+          workspace_path: '/srv/blocked',
+          workspace_path_source: 'derived_from_config_files',
         }),
       ],
       total: 2,
@@ -692,7 +692,7 @@ describe('ProjectImportIndex', () => {
       },
     });
     const flowState = createFlowState();
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
   });
 
   it('moves refresh and column settings into the table toolbar and removes the list back action', async () => {
@@ -729,7 +729,7 @@ describe('ProjectImportIndex', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(1, {
+    expect(mocks.getApplicationImportRuntimeCandidates).toHaveBeenNthCalledWith(1, {
       keyword: undefined,
       availability: 'ready',
       limit: 10,
@@ -739,7 +739,7 @@ describe('ProjectImportIndex', () => {
     await wrapper.get('[data-testid="candidate-status-filter"]').setValue('unavailable');
     await flushPromises();
 
-    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(2, {
+    expect(mocks.getApplicationImportRuntimeCandidates).toHaveBeenNthCalledWith(2, {
       keyword: undefined,
       availability: 'unavailable',
       limit: 10,
@@ -749,7 +749,7 @@ describe('ProjectImportIndex', () => {
     await wrapper.get('[data-testid="candidate-status-filter"]').setValue('ready');
     await flushPromises();
 
-    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(3, {
+    expect(mocks.getApplicationImportRuntimeCandidates).toHaveBeenNthCalledWith(3, {
       keyword: undefined,
       availability: 'ready',
       limit: 10,
@@ -759,7 +759,7 @@ describe('ProjectImportIndex', () => {
 
   it('disables inspect actions for unavailable candidates while keeping the row visible', async () => {
     const flowState = createFlowState();
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -777,8 +777,8 @@ describe('ProjectImportIndex', () => {
 
   it('disables inspect actions for imported candidates while keeping the row visible', async () => {
     const flowState = createFlowState();
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
-    mocks.getProjectImportRuntimeCandidates
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
+    mocks.getApplicationImportRuntimeCandidates
       .mockResolvedValueOnce({
         items: [buildCandidate({})],
         total: 1,
@@ -795,7 +795,7 @@ describe('ProjectImportIndex', () => {
         items: [
           buildCandidate({
             candidate_key: 'runtime:imported',
-            canonical_project_name: 'imported',
+            compose_project_name: 'imported',
             importable: false,
             status: 'already_imported',
             status_reason_codes: ['already_imported'],
@@ -822,16 +822,16 @@ describe('ProjectImportIndex', () => {
 
     expect(inspectButton).toBeDefined();
     expect(inspectButton?.attributes('disabled')).toBeDefined();
-    expect(wrapper.text()).toContain('该项目已导入 Graft');
+    expect(wrapper.text()).toContain('该应用已导入 Graft');
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
 
   it('normalizes nullable diagnostics arrays from the API response', async () => {
-    mocks.getProjectImportRuntimeCandidates.mockResolvedValueOnce({
+    mocks.getApplicationImportRuntimeCandidates.mockResolvedValueOnce({
       items: [
         buildCandidate({
           candidate_key: 'runtime:null-arrays',
-          canonical_project_name: 'null-arrays',
+          compose_project_name: 'null-arrays',
           importable: false,
           status: 'broken_compose',
           status_reason_codes: null as unknown as string[],
@@ -869,9 +869,9 @@ describe('ProjectImportIndex', () => {
       inspection_id: 'inspect-null',
       candidate_key: 'runtime:demo',
       directory_ref: { provider: 'local', root_id: 'managed-root', path: 'demo' },
-      resolved_working_directory: '/srv/demo',
-      canonical_project_name: 'demo',
-      canonical_project_name_source: 'computed',
+      resolved_workspace_path: '/srv/demo',
+      compose_project_name: 'demo',
+      compose_project_name_source: 'computed',
       display_name_suggested: 'Demo',
       compose_files: null,
       env_files: null,
@@ -885,7 +885,7 @@ describe('ProjectImportIndex', () => {
       config_hash: 'hash-demo',
     } as never;
     flowState.inspectCandidate.mockResolvedValue('applied');
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -910,9 +910,9 @@ describe('ProjectImportIndex', () => {
     flowState.inspectResult.value = {
       inspection_id: 'inspect-preview',
       candidate_key: 'runtime:demo',
-      resolved_working_directory: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo',
-      canonical_project_name: 'demo',
-      canonical_project_name_source: 'computed',
+      resolved_workspace_path: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo',
+      compose_project_name: 'demo',
+      compose_project_name_source: 'computed',
       display_name_suggested: 'Demo',
       compose_files: [
         {
@@ -934,7 +934,7 @@ describe('ProjectImportIndex', () => {
       config_hash: 'hash-demo',
     } as never;
     flowState.inspectCandidate.mockResolvedValue('applied');
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -953,14 +953,14 @@ describe('ProjectImportIndex', () => {
     const flowState = createFlowState();
     flowState.hasPreview.value = true;
     flowState.canImport.value = true;
-    flowState.displayName.value = 'Demo Project';
+    flowState.displayName.value = 'Demo Application';
     flowState.inspectResult.value = {
       inspection_id: 'inspect-confirm',
       candidate_key: 'runtime:demo',
-      resolved_working_directory: '/srv/demo',
-      canonical_project_name: 'demo',
-      canonical_project_name_source: 'computed',
-      display_name_suggested: 'Demo Project',
+      resolved_workspace_path: '/srv/demo',
+      compose_project_name: 'demo',
+      compose_project_name_source: 'computed',
+      display_name_suggested: 'Demo Application',
       compose_files: [
         {
           kind: 'compose',
@@ -980,16 +980,16 @@ describe('ProjectImportIndex', () => {
       validation_status: 'ready',
       config_hash: 'hash-confirm',
     } as never;
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('最终确认');
-    expect(wrapper.text()).toContain('项目标识');
+    expect(wrapper.text()).toContain('确认导入');
+    expect(wrapper.text()).toContain('应用标识');
     expect(wrapper.text()).toContain('运行时摘要');
     expect(wrapper.text()).toContain('检查摘要');
-    expect(wrapper.text()).toContain('项目预览');
+    expect(wrapper.text()).toContain('应用预览');
     expect(wrapper.text()).toContain('导入后将执行');
     expect(wrapper.text()).toContain('inspect-confirm');
     expect(wrapper.text()).toContain('web, worker, cron 等另外 1 项');
@@ -1007,9 +1007,9 @@ describe('ProjectImportIndex', () => {
     flowState.canImport.value = true;
     flowState.lifecycleDraft.value = {
       strategy_kind: 'standard',
-      working_directory: '/srv/demo',
+      workspace_path: '/srv/demo',
       compose_files: ['compose.yaml'],
-      canonical_project_name: 'demo',
+      compose_project_name: 'demo',
       profiles: [],
       down_before_redeploy: true,
       pull_before_redeploy: false,
@@ -1025,8 +1025,8 @@ describe('ProjectImportIndex', () => {
     flowState.inspectResult.value = {
       inspection_id: 'inspect-lifecycle',
       candidate_key: 'runtime:demo',
-      resolved_working_directory: '/srv/demo',
-      canonical_project_name: 'demo',
+      resolved_workspace_path: '/srv/demo',
+      compose_project_name: 'demo',
       display_name_suggested: 'Demo',
       compose_files: [],
       env_files: [],
@@ -1036,7 +1036,7 @@ describe('ProjectImportIndex', () => {
       warnings: [],
       conflicts: [],
     } as never;
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     mountPage();
     await flushPromises();
@@ -1052,8 +1052,8 @@ describe('ProjectImportIndex', () => {
 
     const flowState = createFlowState();
     flowState.inspectCandidate.mockResolvedValue('applied');
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
-    mocks.getProjectImportRuntimeCandidates
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
+    mocks.getApplicationImportRuntimeCandidates
       .mockResolvedValueOnce({
         items: [buildCandidate({})],
         total: 25,
@@ -1070,10 +1070,10 @@ describe('ProjectImportIndex', () => {
         items: [
           buildCandidate({
             candidate_key: 'runtime:recover-me',
-            canonical_project_name: 'recover-me',
+            compose_project_name: 'recover-me',
             config_files: ['/srv/recover-me/compose.yaml'],
             service_names: ['web'],
-            working_directory: '/srv/recover-me',
+            workspace_path: '/srv/recover-me',
           }),
         ],
         total: 25,
@@ -1091,7 +1091,7 @@ describe('ProjectImportIndex', () => {
     await flushPromises();
     await flushPromises();
 
-    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(2, {
+    expect(mocks.getApplicationImportRuntimeCandidates).toHaveBeenNthCalledWith(2, {
       availability: 'ready',
       limit: 50,
       offset: 0,
@@ -1105,8 +1105,8 @@ describe('ProjectImportIndex', () => {
     };
 
     const flowState = createFlowState();
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
-    mocks.getProjectImportRuntimeCandidates
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
+    mocks.getApplicationImportRuntimeCandidates
       .mockResolvedValueOnce({
         items: [buildCandidate({})],
         total: 25,
@@ -1128,12 +1128,12 @@ describe('ProjectImportIndex', () => {
     await flushPromises();
 
     expect(mocks.replace).toHaveBeenCalledWith({
-      name: 'ProjectImportIndex',
+      name: 'ApplicationImportIndex',
       params: {},
       query: {},
     });
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('第 1 步 · 选择项目');
+    expect(wrapper.text()).toContain('第 1 步 · 选择应用');
   });
 
   it('ignores stale candidate list responses when a newer filter request finishes first', async () => {
@@ -1143,7 +1143,7 @@ describe('ProjectImportIndex', () => {
     let resolveUnavailable: (value: Record<string, unknown>) => void = () => {};
     let resolveReady: (value: Record<string, unknown>) => void = () => {};
 
-    mocks.getProjectImportRuntimeCandidates
+    mocks.getApplicationImportRuntimeCandidates
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -1166,7 +1166,7 @@ describe('ProjectImportIndex', () => {
       items: [
         buildCandidate({
           candidate_key: 'runtime:latest',
-          canonical_project_name: 'latest',
+          compose_project_name: 'latest',
         }),
       ],
       total: 1,
@@ -1187,7 +1187,7 @@ describe('ProjectImportIndex', () => {
       items: [
         buildCandidate({
           candidate_key: 'runtime:stale',
-          canonical_project_name: 'stale',
+          compose_project_name: 'stale',
           importable: false,
           status: 'broken_compose',
           status_reason_codes: ['broken_compose'],
@@ -1231,7 +1231,7 @@ describe('ProjectImportIndex', () => {
       expires_at: new Date(Date.now() + 1).toISOString(),
     } as never;
     flowState.refreshInspect.mockRejectedValue(new Error('automatic refresh failed'));
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -1254,7 +1254,7 @@ describe('ProjectImportIndex', () => {
       candidate_key: 'runtime:demo',
     } as never;
     flowState.refreshInspect.mockRejectedValue(new Error('manual refresh failed'));
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -1277,14 +1277,14 @@ describe('ProjectImportIndex', () => {
     const flowState = createFlowState();
     flowState.canImport.value = true;
     flowState.hasPreview.value = true;
-    flowState.displayName.value = 'Demo Project';
+    flowState.displayName.value = 'Demo Application';
     flowState.inspectResult.value = {
       inspection_id: 'inspect-confirm',
       candidate_key: 'runtime:demo',
-      resolved_working_directory: '/srv/demo',
-      canonical_project_name: 'demo',
-      canonical_project_name_source: 'computed',
-      display_name_suggested: 'Demo Project',
+      resolved_workspace_path: '/srv/demo',
+      compose_project_name: 'demo',
+      compose_project_name_source: 'computed',
+      display_name_suggested: 'Demo Application',
       compose_files: [],
       env_files: [],
       services: ['web'],
@@ -1297,12 +1297,12 @@ describe('ProjectImportIndex', () => {
       config_hash: 'hash-confirm',
     } as never;
     flowState.submitImport.mockResolvedValue({
-      project: {
-        application_id: '1',
-        display_name: 'Demo Project',
+      application: {
+        application_id: 'app_1',
+        display_name: 'Demo Application',
       },
     });
-    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.useApplicationImportFlow.mockImplementation(() => flowState);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -1313,8 +1313,8 @@ describe('ProjectImportIndex', () => {
     expect(flowState.submitImport).toHaveBeenCalledTimes(1);
     expect(mocks.appendResolvedTab).toHaveBeenCalledTimes(1);
     expect(mocks.push).toHaveBeenCalledWith({
-      name: 'ProjectDetailIndex',
-      params: { id: '1' },
+      name: 'ApplicationDetailIndex',
+      params: { applicationId: 'app_1' },
       query: { tab: 'lifecycle' },
     });
     expect(mocks.closeTabsByPredicate).toHaveBeenCalledTimes(1);
@@ -1331,7 +1331,7 @@ describe('ProjectImportIndex', () => {
       ?.trigger('click');
 
     expect(mocks.push).toHaveBeenCalledWith({
-      name: 'ProjectCreateSourceIndex',
+      name: 'ApplicationCreateSourceIndex',
       query: { deployment: 'compose', runtime_target_id: '7', step: 'select' },
     });
   });

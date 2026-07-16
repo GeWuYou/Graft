@@ -8,7 +8,7 @@
 </template>
 <script setup lang="ts">
 defineOptions({
-  name: 'ProjectImportSectionHeading',
+  name: 'ApplicationImportSectionHeading',
 });
 
 defineProps<{

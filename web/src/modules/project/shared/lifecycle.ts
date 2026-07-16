@@ -1,31 +1,31 @@
-import type { ProjectImportInspectResponse } from '../types/import';
+import type { ApplicationImportInspectResponse } from '../types/import';
 import type {
-  ProjectDetailResponseWithLifecycle,
-  ProjectLifecycleActionKey,
-  ProjectLifecycleCommandPreview,
-  ProjectLifecycleCommandStep,
-  ProjectLifecycleConfigurationDraft,
-  ProjectLifecycleConfigurationModel,
-  ProjectLifecycleConfigurationUpdateRequest,
-  ProjectLifecycleGeneratedCommand,
-  ProjectLifecycleReviewStatus,
-  ProjectLifecycleStrategyKind,
-  ProjectListItemWithLifecycle,
-  ProjectSourceKind,
-  ProjectWorkspaceDefaultsResponse,
+  ApplicationDetailResponseWithLifecycle,
+  ApplicationLifecycleActionKey,
+  ApplicationLifecycleCommandPreview,
+  ApplicationLifecycleCommandStep,
+  ApplicationLifecycleConfigurationDraft,
+  ApplicationLifecycleConfigurationModel,
+  ApplicationLifecycleConfigurationUpdateRequest,
+  ApplicationLifecycleGeneratedCommand,
+  ApplicationLifecycleReviewStatus,
+  ApplicationLifecycleStrategyKind,
+  ApplicationListItemWithLifecycle,
+  ApplicationSourceType,
+  ApplicationWorkspaceDefaultsResponse,
 } from '../types/project';
 
 const defaultLifecycleWaitTimeoutSeconds = 120;
 
-function normalizeLifecycleFilePath(path: string, workingDirectory?: string | null) {
+function normalizeLifecycleFilePath(path: string, workspacePath?: string | null) {
   const value = path.trim();
-  const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
+  const normalizedWorkspacePath = (workspacePath ?? '').trim().replace(/\/+$/g, '');
 
-  if (!value || !normalizedWorkingDirectory) {
+  if (!value || !normalizedWorkspacePath) {
     return value;
   }
 
-  const prefix = `${normalizedWorkingDirectory}/`;
+  const prefix = `${normalizedWorkspacePath}/`;
   if (value.startsWith(prefix)) {
     return value.slice(prefix.length);
   }
@@ -106,37 +106,37 @@ function formatAdditionalArgs(values: readonly string[] | null | undefined) {
   return values?.map(formatAdditionalArg).join(' ') ?? '';
 }
 
-function resolveAbsoluteLifecycleFilePath(path: string, workingDirectory?: string | null) {
+function resolveAbsoluteLifecycleFilePath(path: string, workspacePath?: string | null) {
   const value = path.trim();
-  const normalizedWorkingDirectory = (workingDirectory ?? '').trim().replace(/\/+$/g, '');
+  const normalizedWorkspacePath = (workspacePath ?? '').trim().replace(/\/+$/g, '');
 
-  if (!value || !normalizedWorkingDirectory || value.startsWith('/')) {
+  if (!value || !normalizedWorkspacePath || value.startsWith('/')) {
     return value;
   }
 
-  return `${normalizedWorkingDirectory}/${value}`;
+  return `${normalizedWorkspacePath}/${value}`;
 }
 
-function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft, absolutePaths = false) {
+function buildComposeBaseCommand(config: ApplicationLifecycleConfigurationDraft, absolutePaths = false) {
   const command = ['docker', 'compose'];
   const normalizePath = absolutePaths ? resolveAbsoluteLifecycleFilePath : normalizeLifecycleFilePath;
 
   for (const file of config.compose_files) {
-    command.push('-f', normalizePath(file, config.working_directory));
+    command.push('-f', normalizePath(file, config.workspace_path));
   }
 
   for (const profile of config.profiles) {
     command.push('--profile', profile);
   }
 
-  if (config.canonical_project_name.trim()) {
-    command.push('-p', config.canonical_project_name.trim());
+  if (config.compose_project_name.trim()) {
+    command.push('-p', config.compose_project_name.trim());
   }
 
   return command;
 }
 
-function buildUpCommand(config: ProjectLifecycleConfigurationDraft, absolutePaths = false) {
+function buildUpCommand(config: ApplicationLifecycleConfigurationDraft, absolutePaths = false) {
   const command = [...buildComposeBaseCommand(config, absolutePaths), 'up', '-d'];
 
   if (config.build_before_up) {
@@ -160,20 +160,22 @@ function buildUpCommand(config: ProjectLifecycleConfigurationDraft, absolutePath
   return command.map(formatAdditionalArg).join(' ');
 }
 
-function buildSimpleCommand(config: ProjectLifecycleConfigurationDraft, action: 'stop' | 'restart' | 'down') {
+function buildSimpleCommand(config: ApplicationLifecycleConfigurationDraft, action: 'stop' | 'restart' | 'down') {
   return [...buildComposeBaseCommand(config), action].join(' ');
 }
 
 function buildSimpleCommandWithPathMode(
-  config: ProjectLifecycleConfigurationDraft,
+  config: ApplicationLifecycleConfigurationDraft,
   action: 'stop' | 'restart' | 'down',
   absolutePaths = false,
 ) {
   return [...buildComposeBaseCommand(config, absolutePaths), action].join(' ');
 }
 
-function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft): ProjectLifecycleCommandPreview {
-  const commands: ProjectLifecycleCommandPreview = {
+function buildClientGeneratedCommands(
+  config: ApplicationLifecycleConfigurationDraft,
+): ApplicationLifecycleCommandPreview {
+  const commands: ApplicationLifecycleCommandPreview = {
     up: [
       {
         title_key: 'project.detail.lifecycle.step.up',
@@ -233,15 +235,15 @@ function buildClientGeneratedCommands(config: ProjectLifecycleConfigurationDraft
 
 function normalizeLifecycleReviewStatus(
   value: string | null | undefined,
-  sourceKind: ProjectSourceKind,
-): ProjectLifecycleReviewStatus {
+  sourceType: ApplicationSourceType,
+): ApplicationLifecycleReviewStatus {
   if (value === 'review_required' || value === 'confirmed') {
     return value;
   }
-  return sourceKind === 'imported' ? 'review_required' : 'confirmed';
+  return sourceType === 'imported' ? 'review_required' : 'confirmed';
 }
 
-function normalizeComposeFiles(detail: Pick<ProjectDetailResponseWithLifecycle, 'compose_files'>) {
+function normalizeComposeFiles(detail: Pick<ApplicationDetailResponseWithLifecycle, 'compose_files'>) {
   const files = detail.compose_files.map((file) => file.display_path || file.absolute_path || '').filter(Boolean);
 
   return files.length > 0 ? files : ['compose.yaml'];
@@ -265,11 +267,11 @@ function lifecycleStepTitleKey(kind: string) {
   }
 }
 
-function normalizeGeneratedArgvCommand(argv: string[], workingDirectory: string, absolutePaths: boolean) {
+function normalizeGeneratedArgvCommand(argv: string[], workspacePath: string, absolutePaths: boolean) {
   return argv
     .map((arg, index) => {
       if (!absolutePaths && index > 0 && argv[index - 1] === '-f') {
-        return normalizeLifecycleFilePath(arg, workingDirectory);
+        return normalizeLifecycleFilePath(arg, workspacePath);
       }
 
       return arg;
@@ -278,35 +280,33 @@ function normalizeGeneratedArgvCommand(argv: string[], workingDirectory: string,
 }
 
 function mapGeneratedCommand(
-  command: ProjectLifecycleGeneratedCommand | undefined,
-  workingDirectory: string,
-): ProjectLifecycleCommandStep[] {
+  command: ApplicationLifecycleGeneratedCommand | undefined,
+  workspacePath: string,
+): ApplicationLifecycleCommandStep[] {
   if (!command) {
     return [];
   }
   return command.steps.map((step) => ({
     title_key: lifecycleStepTitleKey(step.kind),
-    command: step.argv.length
-      ? normalizeGeneratedArgvCommand(step.argv, workingDirectory, false)
-      : step.display_command,
+    command: step.argv.length ? normalizeGeneratedArgvCommand(step.argv, workspacePath, false) : step.display_command,
     absolute_command: step.argv.length
-      ? normalizeGeneratedArgvCommand(step.argv, workingDirectory, true)
+      ? normalizeGeneratedArgvCommand(step.argv, workspacePath, true)
       : step.display_command,
   }));
 }
 
 function mapGeneratedCommands(
-  config: Pick<ProjectLifecycleConfigurationModel, 'generated_commands'> | null | undefined,
-  workingDirectory: string,
-): ProjectLifecycleCommandPreview | null {
+  config: Pick<ApplicationLifecycleConfigurationModel, 'generated_commands'> | null | undefined,
+  workspacePath: string,
+): ApplicationLifecycleCommandPreview | null {
   if (!config?.generated_commands) {
     return null;
   }
   return {
-    up: mapGeneratedCommand(config.generated_commands.up, workingDirectory),
-    stop: mapGeneratedCommand(config.generated_commands.stop, workingDirectory),
-    restart: mapGeneratedCommand(config.generated_commands.restart, workingDirectory),
-    redeploy: mapGeneratedCommand(config.generated_commands.redeploy, workingDirectory),
+    up: mapGeneratedCommand(config.generated_commands.up, workspacePath),
+    stop: mapGeneratedCommand(config.generated_commands.stop, workspacePath),
+    restart: mapGeneratedCommand(config.generated_commands.restart, workspacePath),
+    redeploy: mapGeneratedCommand(config.generated_commands.redeploy, workspacePath),
   };
 }
 
@@ -318,7 +318,7 @@ function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
 }
 
 type LifecycleDraftSource = {
-  strategy_kind?: ProjectLifecycleStrategyKind;
+  strategy_kind?: ApplicationLifecycleStrategyKind;
   profiles?: string[] | null;
   down_before_redeploy?: boolean;
   pull_before_redeploy?: boolean;
@@ -335,17 +335,17 @@ type LifecycleDraftSource = {
 function buildLifecycleDraftFromSource(
   source: LifecycleDraftSource,
   options: {
-    workingDirectory: string;
+    workspacePath: string;
     composeFiles: string[];
-    canonicalProjectName: string;
-    reviewStatus: ProjectLifecycleReviewStatus;
+    composeProjectName: string;
+    reviewStatus: ApplicationLifecycleReviewStatus;
   },
-): ProjectLifecycleConfigurationDraft {
-  const config: ProjectLifecycleConfigurationDraft = {
+): ApplicationLifecycleConfigurationDraft {
+  const config: ApplicationLifecycleConfigurationDraft = {
     strategy_kind: source.strategy_kind ?? 'standard',
-    working_directory: options.workingDirectory,
+    workspace_path: options.workspacePath,
     compose_files: options.composeFiles,
-    canonical_project_name: options.canonicalProjectName,
+    compose_project_name: options.composeProjectName,
     profiles: Array.isArray(source.profiles) ? [...source.profiles] : [],
     down_before_redeploy: source.down_before_redeploy ?? true,
     pull_before_redeploy: source.pull_before_redeploy ?? false,
@@ -366,7 +366,7 @@ function buildLifecycleDraftFromSource(
 
 function comparableLifecycleDraftState(
   draft: Pick<
-    ProjectLifecycleConfigurationDraft,
+    ApplicationLifecycleConfigurationDraft,
     | 'strategy_kind'
     | 'profiles'
     | 'down_before_redeploy'
@@ -398,14 +398,14 @@ function comparableLifecycleDraftState(
 }
 
 export function buildLifecycleConfigurationDraft(
-  detail: ProjectDetailResponseWithLifecycle,
-): ProjectLifecycleConfigurationDraft {
+  detail: ApplicationDetailResponseWithLifecycle,
+): ApplicationLifecycleConfigurationDraft {
   const source = detail.lifecycle_configuration;
-  const config: ProjectLifecycleConfigurationDraft = {
+  const config: ApplicationLifecycleConfigurationDraft = {
     strategy_kind: source?.strategy_kind ?? 'standard',
-    working_directory: detail.workspace_path,
+    workspace_path: detail.workspace_path,
     compose_files: normalizeComposeFiles(detail),
-    canonical_project_name: detail.compose_project_name,
+    compose_project_name: detail.compose_project_name,
     profiles: source?.profiles ?? [],
     down_before_redeploy: source?.down_before_redeploy ?? true,
     pull_before_redeploy: source?.pull_before_redeploy ?? false,
@@ -417,7 +417,7 @@ export function buildLifecycleConfigurationDraft(
     renew_anon_volumes: source?.renew_anon_volumes ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
     additional_args: formatAdditionalArgs(source?.additional_args),
-    review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
+    review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_type),
     generated_commands: mapGeneratedCommands(source, detail.workspace_path),
   };
 
@@ -428,15 +428,15 @@ export function buildLifecycleConfigurationDraft(
 }
 
 export function buildImportLifecycleConfigurationDraft(
-  result: ProjectImportInspectResponse,
-): ProjectLifecycleConfigurationDraft {
+  result: ApplicationImportInspectResponse,
+): ApplicationLifecycleConfigurationDraft {
   const composeFiles = result.compose_files
     .map((file) => file.display_path || file.absolute_path || '')
     .filter(Boolean);
   return buildLifecycleDraftFromSource(result.lifecycle_configuration, {
-    workingDirectory: result.resolved_working_directory,
+    workspacePath: result.resolved_workspace_path,
     composeFiles: composeFiles.length ? composeFiles : ['compose.yaml'],
-    canonicalProjectName: result.canonical_project_name,
+    composeProjectName: result.compose_project_name,
     reviewStatus: 'review_required',
   });
 }
@@ -445,20 +445,20 @@ export function buildImportLifecycleConfigurationDraft(
  * 将服务端下发的空白创建默认配置转换为向导草稿，确保创建页与项目生命周期页使用同一套命令预览规则。
  */
 export function buildBlankLifecycleConfigurationDraft(
-  defaults: Pick<ProjectWorkspaceDefaultsResponse, 'lifecycle_configuration'>,
-  options: { composeFilePath: string; canonicalProjectName: string; workingDirectory?: string },
-): ProjectLifecycleConfigurationDraft {
+  defaults: Pick<ApplicationWorkspaceDefaultsResponse, 'lifecycle_configuration'>,
+  options: { composeFilePath: string; composeProjectName: string; workspacePath?: string },
+): ApplicationLifecycleConfigurationDraft {
   return buildLifecycleDraftFromSource(defaults.lifecycle_configuration, {
-    workingDirectory: options.workingDirectory ?? '',
+    workspacePath: options.workspacePath ?? '',
     composeFiles: [options.composeFilePath],
-    canonicalProjectName: options.canonicalProjectName,
+    composeProjectName: options.composeProjectName,
     reviewStatus: 'confirmed',
   });
 }
 
 export function buildLifecycleConfigurationRequest(
-  draft: ProjectLifecycleConfigurationDraft,
-): ProjectLifecycleConfigurationUpdateRequest {
+  draft: ApplicationLifecycleConfigurationDraft,
+): ApplicationLifecycleConfigurationUpdateRequest {
   const { additional_args, ...request } = comparableLifecycleDraftState(draft);
   return {
     ...request,
@@ -467,8 +467,8 @@ export function buildLifecycleConfigurationRequest(
 }
 
 export function isLifecycleDraftDirty(
-  current: ProjectLifecycleConfigurationDraft,
-  baseline: ProjectLifecycleConfigurationDraft,
+  current: ApplicationLifecycleConfigurationDraft,
+  baseline: ApplicationLifecycleConfigurationDraft,
 ) {
   return (
     JSON.stringify(comparableLifecycleDraftState(current)) !== JSON.stringify(comparableLifecycleDraftState(baseline))
@@ -477,33 +477,33 @@ export function isLifecycleDraftDirty(
 
 export function projectLifecycleReviewStatusLabel(
   t: (key: string) => string,
-  value: ProjectLifecycleReviewStatus | null | undefined,
+  value: ApplicationLifecycleReviewStatus | null | undefined,
 ) {
   return value === 'review_required'
     ? t('project.lifecycle.reviewStatus.reviewRequired')
     : t('project.lifecycle.reviewStatus.confirmed');
 }
 
-export function projectLifecycleReviewStatusTheme(value: ProjectLifecycleReviewStatus | null | undefined) {
+export function projectLifecycleReviewStatusTheme(value: ApplicationLifecycleReviewStatus | null | undefined) {
   return value === 'review_required' ? 'warning' : 'success';
 }
 
 export function projectRequiresLifecycleReview(
-  project: Pick<ProjectListItemWithLifecycle, 'lifecycle_review_status' | 'source_kind'>,
+  project: Pick<ApplicationListItemWithLifecycle, 'lifecycle_review_status' | 'source_type'>,
 ) {
-  return normalizeLifecycleReviewStatus(project.lifecycle_review_status, project.source_kind) === 'review_required';
+  return normalizeLifecycleReviewStatus(project.lifecycle_review_status, project.source_type) === 'review_required';
 }
 
-export function lifecycleDraftProfilesText(config: Pick<ProjectLifecycleConfigurationDraft, 'profiles'>) {
+export function lifecycleDraftProfilesText(config: Pick<ApplicationLifecycleConfigurationDraft, 'profiles'>) {
   return config.profiles.join(', ');
 }
 
-export function updateLifecycleDraftProfiles(draft: ProjectLifecycleConfigurationDraft, value: string) {
+export function updateLifecycleDraftProfiles(draft: ApplicationLifecycleConfigurationDraft, value: string) {
   draft.profiles = splitProfiles(value);
 }
 
 export function formatLifecycleCommandCopyText(
-  steps: ProjectLifecycleCommandStep[],
+  steps: ApplicationLifecycleCommandStep[],
   options?: { absolutePaths?: boolean },
 ) {
   return steps
@@ -513,10 +513,10 @@ export function formatLifecycleCommandCopyText(
 }
 
 export function resolveLifecycleCommandSteps(
-  config: ProjectLifecycleConfigurationDraft,
-  action: ProjectLifecycleActionKey,
+  config: ApplicationLifecycleConfigurationDraft,
+  action: ApplicationLifecycleActionKey,
   options?: { preferClientGenerated?: boolean },
-): ProjectLifecycleCommandStep[] {
+): ApplicationLifecycleCommandStep[] {
   if (options?.preferClientGenerated || config.additional_args.trim()) {
     return buildClientGeneratedCommands(config)[action] ?? [];
   }

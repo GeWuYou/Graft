@@ -53,8 +53,8 @@
           </template>
           <t-space direction="vertical" size="small" class="project-discovery-page__body">
             <t-descriptions size="small" :column="1" bordered>
-              <t-descriptions-item :label="t('project.discovery.workingDirectory')">
-                <code>{{ item.working_directory }}</code>
+              <t-descriptions-item :label="t('project.discovery.workspacePath')">
+                <code>{{ item.workspace_path }}</code>
               </t-descriptions-item>
               <t-descriptions-item :label="t('project.discovery.candidateKind')">
                 {{ candidateKindLabel(item.candidate_kind) }}
@@ -68,7 +68,7 @@
               <t-descriptions-item :label="t('project.discovery.composeFiles')">
                 {{
                   item.compose_files
-                    .map((file: ProjectDiscoveryCandidate['compose_files'][number]) => file.display_path)
+                    .map((file: ApplicationDiscoveryCandidate['compose_files'][number]) => file.display_path)
                     .join(', ') || '-'
                 }}
               </t-descriptions-item>
@@ -106,15 +106,15 @@ import { useI18n } from 'vue-i18n';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getProjectDiscoveryCandidates } from '../../api/project';
+import { getApplicationDiscoveryCandidates } from '../../api/project';
 import type {
-  ProjectDiscoveryCandidate,
-  ProjectDiscoveryCandidatesResponse,
-  ProjectDiscoveryCandidateStatus,
+  ApplicationDiscoveryCandidate,
+  ApplicationDiscoveryCandidatesResponse,
+  ApplicationDiscoveryCandidateStatus,
 } from '../../types/project';
 
 defineOptions({
-  name: 'ProjectDiscoveryCandidateIndex',
+  name: 'ApplicationDiscoveryCandidateIndex',
 });
 
 // 发现页只负责加载服务端候选并把失败转换为页面反馈，不在本地推断候选可用性。
@@ -122,8 +122,8 @@ defineOptions({
 const { t } = useI18n();
 const loading = ref(true);
 const loadError = ref('');
-const response = ref<ProjectDiscoveryCandidatesResponse | null>(null);
-const items = ref<ProjectDiscoveryCandidate[]>([]);
+const response = ref<ApplicationDiscoveryCandidatesResponse | null>(null);
+const items = ref<ApplicationDiscoveryCandidate[]>([]);
 
 onMounted(() => {
   void loadCandidates();
@@ -133,7 +133,7 @@ async function loadCandidates() {
   loading.value = true;
   loadError.value = '';
   try {
-    const result = await getProjectDiscoveryCandidates();
+    const result = await getApplicationDiscoveryCandidates();
     response.value = result ?? null;
     items.value = result?.items ?? [];
   } catch (error) {
@@ -145,21 +145,21 @@ async function loadCandidates() {
   }
 }
 
-function statusTheme(status: ProjectDiscoveryCandidateStatus) {
+function statusTheme(status: ApplicationDiscoveryCandidateStatus) {
   if (status === 'ready') return 'success';
   if (status === 'conflict') return 'warning';
   return 'default';
 }
 
-function statusLabel(status: ProjectDiscoveryCandidateStatus) {
+function statusLabel(status: ApplicationDiscoveryCandidateStatus) {
   return t(`project.discovery.status.${status}`);
 }
 
-function candidateKindLabel(kind: ProjectDiscoveryCandidate['candidate_kind']) {
+function candidateKindLabel(kind: ApplicationDiscoveryCandidate['candidate_kind']) {
   return t(`project.discovery.kinds.${kind}`);
 }
 
-function recommendedActionLabel(action: ProjectDiscoveryCandidate['recommended_action']) {
+function recommendedActionLabel(action: ApplicationDiscoveryCandidate['recommended_action']) {
   return t(`project.discovery.actions.${action}`);
 }
 </script>

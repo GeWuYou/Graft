@@ -1,101 +1,104 @@
 import type { components, paths } from '@/contracts/openapi/generated/schema';
 
-import type { PROJECT_API_PATH } from '../contract/paths';
+import type { APPLICATION_API_PATH } from '../contract/paths';
 
-export type ProjectSourceKind = components['schemas']['ProjectSourceKind'];
-export type ProjectHostScope = components['schemas']['ProjectHostScope'];
-export type ProjectOwnershipMode = components['schemas']['ProjectOwnershipMode'];
-export type ProjectDriftStatus = components['schemas']['ProjectDriftStatus'];
-export type ProjectCanonicalNameSource = components['schemas']['ProjectCanonicalNameSource'];
-export type ProjectFileKind = components['schemas']['ProjectFileKind'];
-export type ProjectFileRole = components['schemas']['ProjectFileRole'];
-export type ProjectFileItem = components['schemas']['ProjectFileItem'];
-export type ProjectContainerCounts = components['schemas']['ProjectContainerCounts'];
-export type ProjectListItem = components['schemas']['ProjectListItem'];
-export type ProjectListResponse = components['schemas']['ProjectListResponse'];
-export type ProjectCreationMethodType = components['schemas']['ProjectCreationMethodType'];
-export type ProjectCreationMethodAvailability = components['schemas']['ProjectCreationMethodAvailability'];
-export type ProjectCreationMethod = components['schemas']['ProjectCreationMethod'];
-export type ProjectCreationMethodCatalogResponse = components['schemas']['ProjectCreationMethodCatalogResponse'];
-export type ProjectComposeRuntimeTarget = components['schemas']['ProjectComposeRuntimeTarget'];
-export type ProjectComposeRuntimeTargetCatalogResponse =
-  components['schemas']['ProjectComposeRuntimeTargetCatalogResponse'];
-export type ProjectImportValidateRequest = components['schemas']['ProjectImportValidateRequest'];
-export type ProjectImportValidateResponse = components['schemas']['ProjectImportValidateResponse'];
-export type ProjectImportResponse = components['schemas']['ProjectImportResponse'];
-export type ProjectActivityAuthority = components['schemas']['project-activity-authority'];
-export type ProjectDiscoveryCandidateKind = components['schemas']['project-discovery-candidate-kind'];
-export type ProjectDiscoveryCandidateStatus = components['schemas']['project-discovery-candidate-status'];
-export type ProjectDiscoveryCandidate = components['schemas']['project-discovery-candidate'];
-export type ProjectDiscoveryCandidatesResponse = components['schemas']['project-discovery-candidates-response'];
-export type ProjectDetailResponse = components['schemas']['ProjectDetailResponse'];
-export type ProjectLogEntryStream = components['schemas']['ProjectLogEntryStream'];
-export type ProjectLogEntrySource = components['schemas']['ProjectLogEntrySource'];
-export type ProjectLogEntry = components['schemas']['ProjectLogEntry'];
-export type ProjectLogResponse = components['schemas']['ProjectLogResponse'];
-export type ProjectOverviewHealthSummary = components['schemas']['ProjectOverviewHealthSummary'];
-export type ProjectOverviewResourceSummary = components['schemas']['ProjectOverviewResourceSummary'];
-export type ProjectOverviewServiceItem = components['schemas']['ProjectOverviewServiceItem'];
-export type ProjectOverviewResponse = components['schemas']['ProjectOverviewResponse'];
-export type ProjectServiceItem = components['schemas']['ProjectServiceItem'];
-export type ProjectServicesResponse = components['schemas']['ProjectServicesResponse'];
-export type ProjectManagedRootStatus = components['schemas']['project-managed-root-status'];
-export type ProjectManagedRootResponse = components['schemas']['project-managed-root-response'];
-export type ProjectCreateRequest = components['schemas']['ProjectCreateRequest'];
-export type ProjectCreateResponse = components['schemas']['project-create-response'];
-export type ProjectCreateValidateRequest = components['schemas']['project-create-validate-request'];
-export type ProjectCreateValidateResponse = components['schemas']['project-create-validate-response'];
-export type ProjectApplicationNameAvailabilityRequest =
-  components['schemas']['project-application-name-availability-request'];
-export type ProjectApplicationNameAvailabilityResponse =
-  components['schemas']['project-application-name-availability-response'];
-export type ProjectTemplateCreateRequest = components['schemas']['project-template-create-request'];
-export type ProjectWorkspaceManifestFile = components['schemas']['project-workspace-manifest-file'];
-export type ProjectWorkspaceEntry = components['schemas']['project-workspace-entry'];
-export type ProjectWorkspaceDraftFile = {
+export type ApplicationSourceType = components['schemas']['ApplicationSourceType'];
+export type ApplicationOwnershipMode = components['schemas']['ApplicationOwnershipMode'];
+export type ApplicationDriftStatus = components['schemas']['ApplicationDriftStatus'];
+export type ApplicationComposeProjectNameSource = components['schemas']['ApplicationComposeProjectNameSource'];
+export type ApplicationFileKind = components['schemas']['ApplicationFileKind'];
+export type ApplicationFileRole = components['schemas']['ApplicationFileRole'];
+export type ApplicationFileItem = components['schemas']['ApplicationFileItem'];
+export type ApplicationContainerCounts = components['schemas']['ApplicationContainerCounts'];
+export type ApplicationListItem = components['schemas']['ApplicationListItem'];
+export type ApplicationListResponse = components['schemas']['ApplicationListResponse'];
+export type ApplicationCreationMethodType = components['schemas']['ApplicationCreationMethodType'];
+export type ApplicationCreationMethodAvailability = components['schemas']['ApplicationCreationMethodAvailability'];
+export type ApplicationCreationMethod = components['schemas']['ApplicationCreationMethod'];
+export type ApplicationCreationMethodCatalogResponse =
+  components['schemas']['ApplicationCreationMethodCatalogResponse'];
+export type ApplicationComposeRuntimeTarget = components['schemas']['ApplicationComposeRuntimeTarget'];
+export type ApplicationComposeRuntimeTargetCatalogResponse =
+  components['schemas']['ApplicationComposeRuntimeTargetCatalogResponse'];
+export type ApplicationImportValidateRequest = components['schemas']['ApplicationImportValidateRequest'];
+export type ApplicationImportValidateResponse = components['schemas']['ApplicationImportValidateResponse'];
+export type ApplicationImportResponse = components['schemas']['ApplicationImportResponse'];
+export type ApplicationActivityAuthority = components['schemas']['application-activity-authority'];
+export type ApplicationDiscoveryCandidateKind = components['schemas']['application-discovery-candidate-kind'];
+export type ApplicationDiscoveryCandidateStatus = components['schemas']['application-discovery-candidate-status'];
+export type ApplicationDiscoveryCandidate = components['schemas']['application-discovery-candidate'];
+export type ApplicationDiscoveryCandidatesResponse = components['schemas']['application-discovery-candidates-response'];
+export type ApplicationDetailResponse = components['schemas']['ApplicationDetailResponse'];
+export type ApplicationLogEntryStream = components['schemas']['ApplicationLogEntryStream'];
+export type ApplicationLogEntrySource = components['schemas']['ApplicationLogEntrySource'];
+export type ApplicationLogEntry = components['schemas']['ApplicationLogEntry'];
+export type ApplicationLogResponse = components['schemas']['ApplicationLogResponse'];
+export type ApplicationOverviewHealthSummary = components['schemas']['ApplicationOverviewHealthSummary'];
+export type ApplicationOverviewResourceSummary = components['schemas']['ApplicationOverviewResourceSummary'];
+export type ApplicationOverviewServiceItem = components['schemas']['ApplicationOverviewServiceItem'];
+export type ApplicationOverviewResponse = components['schemas']['ApplicationOverviewResponse'];
+export type ApplicationServiceItem = components['schemas']['ApplicationServiceItem'];
+export type ApplicationServicesResponse = components['schemas']['ApplicationServicesResponse'];
+export type ApplicationManagedRootStatus = components['schemas']['application-managed-root-status'];
+export type ApplicationManagedRootResponse = components['schemas']['application-managed-root-response'];
+export type ApplicationCreateRequest = components['schemas']['ApplicationCreateRequest'];
+export type ApplicationCreateResponse = components['schemas']['application-create-response'];
+export type ApplicationCreateValidateRequest = components['schemas']['application-create-validate-request'];
+export type ApplicationCreateValidateResponse = components['schemas']['application-create-validate-response'];
+export type ApplicationApplicationNameAvailabilityRequest =
+  components['schemas']['application-name-availability-request'];
+export type ApplicationApplicationNameAvailabilityResponse =
+  components['schemas']['application-name-availability-response'];
+export type ApplicationTemplateCreateRequest = components['schemas']['application-template-create-request'];
+export type ApplicationWorkspaceManifestFile = components['schemas']['application-workspace-manifest-file'];
+export type ApplicationWorkspaceEntry = components['schemas']['application-workspace-entry'];
+export type ApplicationWorkspaceDraftFile = {
   path: string;
   node_type?: 'file';
   content: string;
 };
-export type ProjectWorkspaceDraftDirectory = {
+export type ApplicationWorkspaceDraftDirectory = {
   path: string;
   node_type: 'directory';
 };
-export type ProjectWorkspaceDraftEntry = ProjectWorkspaceDraftFile | ProjectWorkspaceDraftDirectory;
-export type ProjectWorkspaceDefaultsResponse = components['schemas']['project-workspace-defaults-response'];
-export type ProjectWorkspaceRenameRequest = components['schemas']['project-workspace-entry-rename-request'];
-export type ProjectConfigurationMetadataResponse = components['schemas']['ProjectConfigurationMetadataResponse'];
-export type ProjectConfigurationPreviewResponse = components['schemas']['ProjectConfigurationPreviewResponse'];
-export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];
-export type ProjectTaskReceipt = components['schemas']['TaskReceipt'];
-export type ProjectBatchActionRequest = components['schemas']['project-batch-action-request'];
-export type ProjectBatchActionItem = components['schemas']['project-batch-action-item'];
-export type ProjectBatchActionResponse = components['schemas']['project-batch-action-response'];
-export type ProjectDestroyRequest = components['schemas']['project-destroy-request'];
-export type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
-export type ProjectLifecycleReviewStatus = components['schemas']['project-lifecycle-review-status'];
-export type ProjectLifecycleStrategyKind = components['schemas']['project-lifecycle-strategy-kind'];
-export type ProjectLifecycleActionKey = 'up' | 'stop' | 'restart' | 'redeploy';
-export type ProjectLifecycleGeneratedCommand = components['schemas']['project-lifecycle-generated-command'];
-export type ProjectLifecycleConfigurationModel = components['schemas']['project-lifecycle-configuration'];
-export type ProjectLifecycleConfigurationUpdateRequest =
-  components['schemas']['project-lifecycle-configuration-request'];
-export type ProjectLifecycleConfigurationSavedResponse =
-  components['schemas']['project-lifecycle-configuration-response'];
+export type ApplicationWorkspaceDraftEntry = ApplicationWorkspaceDraftFile | ApplicationWorkspaceDraftDirectory;
+export type ApplicationWorkspaceDefaultsResponse = components['schemas']['application-workspace-defaults-response'];
+export type ApplicationWorkspaceRenameRequest = components['schemas']['application-workspace-entry-rename-request'];
+export type ApplicationConfigurationMetadataResponse =
+  components['schemas']['ApplicationConfigurationMetadataResponse'];
+export type ApplicationConfigurationPreviewResponse = components['schemas']['ApplicationConfigurationPreviewResponse'];
+export type ApplicationActionResponse = components['schemas']['ApplicationActionResponse'];
+export type ApplicationTaskReceipt = components['schemas']['TaskReceipt'];
+export type ApplicationBatchActionRequest = components['schemas']['application-batch-action-request'];
+export type ApplicationBatchActionItem = components['schemas']['application-batch-action-item'];
+export type ApplicationBatchActionResponse = components['schemas']['application-batch-action-response'];
+export type ApplicationDestroyRequest = components['schemas']['application-destroy-request'];
+export type ApplicationRuntimeStatus = ApplicationDetailResponse['runtime_status'];
+export type ApplicationLifecycleReviewStatus = components['schemas']['application-lifecycle-review-status'];
+export type ApplicationLifecycleStrategyKind = components['schemas']['application-lifecycle-strategy-kind'];
+export type ApplicationLifecycleActionKey = 'up' | 'stop' | 'restart' | 'redeploy';
+export type ApplicationLifecycleGeneratedCommand = components['schemas']['application-lifecycle-generated-command'];
+export type ApplicationLifecycleConfigurationModel = components['schemas']['application-lifecycle-configuration'];
+export type ApplicationLifecycleConfigurationUpdateRequest =
+  components['schemas']['application-lifecycle-configuration-request'];
+export type ApplicationLifecycleConfigurationSavedResponse =
+  components['schemas']['application-lifecycle-configuration-response'];
 
-export type ProjectLifecycleCommandStep = {
+export type ApplicationLifecycleCommandStep = {
   title_key: string;
   command: string;
   absolute_command?: string;
 };
 
-export type ProjectLifecycleCommandPreview = Partial<Record<ProjectLifecycleActionKey, ProjectLifecycleCommandStep[]>>;
+export type ApplicationLifecycleCommandPreview = Partial<
+  Record<ApplicationLifecycleActionKey, ApplicationLifecycleCommandStep[]>
+>;
 
-export type ProjectLifecycleConfigurationDraft = {
-  strategy_kind: ProjectLifecycleStrategyKind;
-  working_directory: string;
+export type ApplicationLifecycleConfigurationDraft = {
+  strategy_kind: ApplicationLifecycleStrategyKind;
+  workspace_path: string;
   compose_files: string[];
-  canonical_project_name: string;
+  compose_project_name: string;
   profiles: string[];
   down_before_redeploy: boolean;
   pull_before_redeploy: boolean;
@@ -107,61 +110,62 @@ export type ProjectLifecycleConfigurationDraft = {
   renew_anon_volumes: boolean;
   prune_images_after_redeploy: boolean;
   additional_args: string;
-  review_status?: ProjectLifecycleReviewStatus | null;
-  generated_commands?: ProjectLifecycleCommandPreview | null;
+  review_status?: ApplicationLifecycleReviewStatus | null;
+  generated_commands?: ApplicationLifecycleCommandPreview | null;
 };
 
-export type ProjectListItemWithLifecycle = ProjectListItem;
-export type ProjectListResponseWithLifecycle = ProjectListResponse;
-export type ProjectDetailResponseWithLifecycle = ProjectDetailResponse;
+export type ApplicationListItemWithLifecycle = ApplicationListItem;
+export type ApplicationListResponseWithLifecycle = ApplicationListResponse;
+export type ApplicationDetailResponseWithLifecycle = ApplicationDetailResponse;
 
-type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
-type GetProjectListOperation = paths[ProjectListPath]['get'];
+type ApplicationListPath = (typeof APPLICATION_API_PATH)['LIST'];
+type GetApplicationListOperation = paths[ApplicationListPath]['get'];
 
-export type ProjectListQuery = NonNullable<GetProjectListOperation['parameters']['query']>;
+export type ApplicationListQuery = NonNullable<GetApplicationListOperation['parameters']['query']>;
 
-export type ProjectApplicationType = ProjectListItem['application_type'];
-export type ProjectProvider = NonNullable<ProjectListItem['runtime_target']>['provider'];
-export type ProjectSavedView = components['schemas']['project-saved-view'];
-export type ProjectSavedViewRequest = components['schemas']['project-saved-view-request'];
-export type ProjectSavedViewQueryState = ProjectSavedViewRequest['query_state'];
+export type ApplicationApplicationType = ApplicationListItem['application_type'];
+export type ApplicationProvider = NonNullable<ApplicationListItem['runtime_target']>['provider'];
+export type ApplicationSavedView = components['schemas']['application-saved-view'];
+export type ApplicationSavedViewRequest = components['schemas']['application-saved-view-request'];
+export type ApplicationSavedViewQueryState = ApplicationSavedViewRequest['query_state'];
 
-export type ProjectFilters = {
+export type ApplicationFilters = {
   keyword: string;
-  applicationType: ProjectApplicationType | 'all';
+  applicationType: ApplicationApplicationType | 'all';
   runtimeTargetId: number | undefined;
-  provider: ProjectProvider | 'all';
-  sourceKind: ProjectSourceKind | 'all';
-  runtimeStatus: ProjectRuntimeStatus | 'all';
-  driftStatus: ProjectDriftStatus | 'all';
+  provider: ApplicationProvider | 'all';
+  sourceType: ApplicationSourceType | 'all';
+  runtimeStatus: ApplicationRuntimeStatus | 'all';
+  driftStatus: ApplicationDriftStatus | 'all';
 };
 
-export type ProjectActivityStream = 'events' | 'logs';
+export type ApplicationActivityStream = 'events' | 'logs';
 
-export type ProjectServiceContainerMember = ProjectServiceItem['container_members'][number];
+export type ApplicationServiceContainerMember = ApplicationServiceItem['container_members'][number];
 
-export type ProjectBatchAction = ProjectBatchActionRequest['action'];
+export type ApplicationBatchAction = ApplicationBatchActionRequest['action'];
 
-export type ProjectConfigurationFileResponse = {
+export type ApplicationConfigurationFileResponse = {
   content: string;
   download_name: string;
   encoding?: string | null;
   file_id: number;
-  kind: ProjectFileKind;
+  kind: ApplicationFileKind;
   path: string;
   read_only?: boolean;
 };
 
-export type ProjectDeployRequest = {
+export type ApplicationDeployRequest = {
   compose_file_content?: string;
   env_file_content?: string;
 };
 
-export type ProjectDeployResponse = ProjectActionResponse;
+export type ApplicationDeployResponse = ApplicationActionResponse;
 
-export type ProjectWorkspaceNodeType = 'file' | 'directory';
-export type ProjectWorkspaceFileKind = 'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
-export type ProjectWorkspaceLanguageHint =
+export type ApplicationWorkspaceNodeType = 'file' | 'directory';
+export type ApplicationWorkspaceFileKind =
+  'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
+export type ApplicationWorkspaceLanguageHint =
   | 'yaml'
   | 'json'
   | 'dotenv'
@@ -178,39 +182,39 @@ export type ProjectWorkspaceLanguageHint =
   | 'plaintext'
   | (string & {});
 
-export type ProjectWorkspaceTreeItem = {
+export type ApplicationWorkspaceTreeItem = {
   name: string;
   relative_path: string;
-  node_type: ProjectWorkspaceNodeType;
-  file_kind: ProjectWorkspaceFileKind;
+  node_type: ApplicationWorkspaceNodeType;
+  file_kind: ApplicationWorkspaceFileKind;
   readable: boolean;
   editable: boolean;
-  language_hint?: ProjectWorkspaceLanguageHint | null;
+  language_hint?: ApplicationWorkspaceLanguageHint | null;
   size_bytes?: number | null;
   hidden_by_default?: boolean;
   has_children?: boolean;
   tooltip?: string | null;
   tooltip_source?: string | null;
-  project_note?: string | null;
+  application_note?: string | null;
 };
 
-export type ProjectWorkspaceFilesResponse = {
+export type ApplicationWorkspaceFilesResponse = {
   root_path: string;
   current_path: string;
   parent_path?: string | null;
-  items: ProjectWorkspaceTreeItem[];
+  items: ApplicationWorkspaceTreeItem[];
   has_more_hidden?: boolean;
 };
 
-export type ProjectWorkspaceFilesQuery = {
+export type ApplicationWorkspaceFilesQuery = {
   path?: string;
   show_hidden?: boolean;
 };
 
-export type ProjectWorkspaceFileContentResponse = {
+export type ApplicationWorkspaceFileContentResponse = {
   relative_path: string;
-  file_kind: ProjectWorkspaceFileKind;
-  language_hint?: ProjectWorkspaceLanguageHint | null;
+  file_kind: ApplicationWorkspaceFileKind;
+  language_hint?: ApplicationWorkspaceLanguageHint | null;
   readable: boolean;
   editable: boolean;
   encoding?: string | null;
@@ -218,29 +222,29 @@ export type ProjectWorkspaceFileContentResponse = {
   size_bytes?: number | null;
 };
 
-export type ProjectWorkspaceFileContentQuery = {
+export type ApplicationWorkspaceFileContentQuery = {
   path: string;
 };
 
-export type ProjectWorkspaceFileSaveRequest = {
+export type ApplicationWorkspaceFileSaveRequest = {
   content: string;
 };
 
-export type ProjectWorkspaceFileSaveResponse = {
+export type ApplicationWorkspaceFileSaveResponse = {
   relative_path: string;
   saved_at?: string | null;
   content_hash?: string | null;
   size_bytes?: number | null;
 };
 
-type ProjectWorkspaceFileAnnotationPath = (typeof PROJECT_API_PATH)['FILES_ANNOTATION'];
-type PutProjectWorkspaceFileAnnotationOperation = paths[ProjectWorkspaceFileAnnotationPath]['put'];
+type ApplicationWorkspaceFileAnnotationPath = (typeof APPLICATION_API_PATH)['FILES_ANNOTATION'];
+type PutApplicationWorkspaceFileAnnotationOperation = paths[ApplicationWorkspaceFileAnnotationPath]['put'];
 
-export type ProjectWorkspaceFileAnnotationRequest =
-  PutProjectWorkspaceFileAnnotationOperation['requestBody']['content']['application/json'];
-export type ProjectWorkspaceFileAnnotationResponse =
-  PutProjectWorkspaceFileAnnotationOperation['responses'][200]['content']['application/json'] extends {
+export type ApplicationWorkspaceFileAnnotationRequest =
+  PutApplicationWorkspaceFileAnnotationOperation['requestBody']['content']['application/json'];
+export type ApplicationWorkspaceFileAnnotationResponse =
+  PutApplicationWorkspaceFileAnnotationOperation['responses'][200]['content']['application/json'] extends {
     data: infer T;
   }
     ? T
-    : ProjectWorkspaceTreeItem;
+    : ApplicationWorkspaceTreeItem;

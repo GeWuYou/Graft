@@ -64,10 +64,10 @@ let modelUriSuffixSeed = 0;
 const logger = createLogger('project.monaco');
 const logProjectMonacoDebug = createProjectMonacoDebugLogger('project.monaco');
 
-const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
-const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
+const APPLICATION_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
+const APPLICATION_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
-export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
+export type ProjectMonacoTheme = typeof APPLICATION_MONACO_THEME_LIGHT | typeof APPLICATION_MONACO_THEME_DARK;
 export type ProjectMonacoLayoutController = {
   disconnect: () => void;
   observe: () => void;
@@ -254,8 +254,8 @@ function readProjectMonacoContainerSize(container: HTMLElement | null) {
  */
 function resolveProjectMonacoTheme(): ProjectMonacoTheme {
   return document.documentElement.getAttribute('theme-mode') === 'dark'
-    ? PROJECT_MONACO_THEME_DARK
-    : PROJECT_MONACO_THEME_LIGHT;
+    ? APPLICATION_MONACO_THEME_DARK
+    : APPLICATION_MONACO_THEME_LIGHT;
 }
 
 /**
@@ -570,7 +570,7 @@ function defineProjectMonacoTheme(
   hostElement?: HTMLElement | null,
 ) {
   const host = hostElement ?? document.documentElement;
-  const base = theme === PROJECT_MONACO_THEME_DARK ? 'vs-dark' : 'vs';
+  const base = theme === APPLICATION_MONACO_THEME_DARK ? 'vs-dark' : 'vs';
   const background = resolveThemeColor(host, '--graft-workspace-editor-surface', '#1b2230');
   const raisedSurface = resolveThemeColor(host, '--graft-workspace-editor-surface-raised', '#212b3d');
   const mutedSurface = resolveThemeColor(host, '--graft-workspace-editor-surface-muted', '#162031');

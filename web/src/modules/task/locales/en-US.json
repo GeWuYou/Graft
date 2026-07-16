@@ -38,7 +38,7 @@
         "status": "Status",
         "type": "Type"
       },
-      "description": "Review lifecycle task executions submitted for this project.",
+      "description": "Review lifecycle task executions submitted for this application.",
       "empty": "No task records are available.",
       "loadFailed": "Task history could not be loaded.",
       "title": "Task History"

@@ -2,22 +2,22 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h, nextTick, reactive, watch } from 'vue';
 
-import type { ProjectWorkspaceFileContentResponse } from '../../types/project';
-import ProjectConfigurationWorkspaceIndex from './index.vue';
+import type { ApplicationWorkspaceFileContentResponse } from '../../types/project';
+import ApplicationConfigurationWorkspaceIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
-  deleteProjectWorkspaceEntry: vi.fn(),
+  deleteApplicationWorkspaceEntry: vi.fn(),
   error: vi.fn(),
-  getProject: vi.fn(),
-  getProjectConfiguration: vi.fn(),
-  getProjectFileContent: vi.fn(),
-  getProjectFiles: vi.fn(),
+  getApplication: vi.fn(),
+  getApplicationConfiguration: vi.fn(),
+  getApplicationFileContent: vi.fn(),
+  getApplicationFiles: vi.fn(),
   info: vi.fn(),
-  postProjectRedeploy: vi.fn(),
-  postProjectWorkspaceEntry: vi.fn(),
-  postProjectWorkspaceRename: vi.fn(),
-  putProjectFileAnnotation: vi.fn(),
-  putProjectFileContent: vi.fn(),
+  postApplicationRedeploy: vi.fn(),
+  postApplicationWorkspaceEntry: vi.fn(),
+  postApplicationWorkspaceRename: vi.fn(),
+  putApplicationFileAnnotation: vi.fn(),
+  putApplicationFileContent: vi.fn(),
   success: vi.fn(),
   t: vi.fn((key: string) => key),
   warning: vi.fn(),
@@ -38,10 +38,10 @@ const monacoSurfaceState = vi.hoisted(() => ({
 }));
 
 const routeState = reactive({
-  fullPath: '/ops/projects/1/configuration?name=sub2api',
-  name: 'ProjectConfigurationWorkspaceIndex',
-  params: { id: '1' },
-  path: '/ops/projects/1/configuration',
+  fullPath: '/applications/app_1/configuration?name=sub2api',
+  name: 'ApplicationConfigurationWorkspaceIndex',
+  params: { applicationId: 'app_1' },
+  path: '/applications/app_1/configuration',
   query: { name: 'sub2api' },
 });
 
@@ -49,10 +49,10 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
   updateActiveTabTitle: vi.fn(),
   tabRouterList: [
     {
-      fullPath: '/ops/projects/1/configuration?name=sub2api',
-      path: '/ops/projects/1/configuration',
-      tabKey: '/ops/projects/1/configuration',
-      title: { 'en-US': 'Project Detail - sub2api', 'zh-CN': '项目详情 - sub2api' },
+      fullPath: '/applications/app_1/configuration?name=sub2api',
+      path: '/applications/app_1/configuration',
+      tabKey: '/applications/app_1/configuration',
+      title: { 'en-US': 'Application Detail - sub2api', 'zh-CN': '项目详情 - sub2api' },
     },
   ],
 }));
@@ -70,7 +70,7 @@ const workspaceCopyMessages = {
       'These files still have syntax errors. Saving them may leave the project in a state that later validation or deploy cannot parse correctly.',
     'project.configurationWorkspace.copy.batchFileValidationRiskTitle': 'Save Files with Syntax Errors',
     'project.configurationWorkspace.copy.batchFileValidationTitle': 'File Validation Errors',
-    'project.configurationWorkspace.copy.redeployAction': 'Redeploy Project',
+    'project.configurationWorkspace.copy.redeployAction': 'Redeploy Application',
     'project.configurationWorkspace.copy.confirmSaveAllAction': 'Confirm Save All',
     'project.configurationWorkspace.copy.confirmSaveAllWithErrorsAction': 'Save All Anyway',
     'project.configurationWorkspace.copy.confirmSaveCurrentAction': 'Confirm Save',
@@ -153,7 +153,7 @@ const workspaceCopyMessages = {
   },
 } as const;
 
-type PendingProjectDetail = {
+type PendingApplicationDetail = {
   compose_project_name: string;
   display_name: string;
   application_id: string;
@@ -163,20 +163,20 @@ type PendingProjectDetail = {
 };
 
 vi.mock('../../api/project', () => ({
-  deleteProjectWorkspaceEntry: mocks.deleteProjectWorkspaceEntry,
-  getProject: mocks.getProject,
-  getProjectConfiguration: mocks.getProjectConfiguration,
-  getProjectFileContent: mocks.getProjectFileContent,
-  getProjectFiles: mocks.getProjectFiles,
-  postProjectRedeploy: mocks.postProjectRedeploy,
-  postProjectWorkspaceEntry: mocks.postProjectWorkspaceEntry,
-  postProjectWorkspaceRename: mocks.postProjectWorkspaceRename,
-  putProjectFileAnnotation: mocks.putProjectFileAnnotation,
-  putProjectFileContent: mocks.putProjectFileContent,
+  deleteApplicationWorkspaceEntry: mocks.deleteApplicationWorkspaceEntry,
+  getApplication: mocks.getApplication,
+  getApplicationConfiguration: mocks.getApplicationConfiguration,
+  getApplicationFileContent: mocks.getApplicationFileContent,
+  getApplicationFiles: mocks.getApplicationFiles,
+  postApplicationRedeploy: mocks.postApplicationRedeploy,
+  postApplicationWorkspaceEntry: mocks.postApplicationWorkspaceEntry,
+  postApplicationWorkspaceRename: mocks.postApplicationWorkspaceRename,
+  putApplicationFileAnnotation: mocks.putApplicationFileAnnotation,
+  putApplicationFileContent: mocks.putApplicationFileContent,
 }));
 
 vi.mock('../../shared/page-context', () => ({
-  useProjectPageContext: () => ({
+  useApplicationPageContext: () => ({
     locale: computed(() => pageContextState.locale),
     tabsRouterStore: tabsRouterStoreMock,
     t: (key: string) =>
@@ -489,54 +489,56 @@ async function flushDiffViewerFrames() {
 }
 
 function mockTwoFileSyntaxFixture() {
-  mocks.getProjectFiles.mockImplementation(async (_id: string, query?: { path?: string; show_hidden?: boolean }) => {
-    if (query?.path === 'config') {
+  mocks.getApplicationFiles.mockImplementation(
+    async (_id: string, query?: { path?: string; show_hidden?: boolean }) => {
+      if (query?.path === 'config') {
+        return {
+          current_path: 'config',
+          items: [
+            {
+              editable: true,
+              file_kind: 'config',
+              has_children: false,
+              language_hint: 'yaml',
+              name: 'app.yaml',
+              node_type: 'file',
+              readable: true,
+              relative_path: 'config/app.yaml',
+              size_bytes: 24,
+            },
+          ],
+          root_path: '/srv/sub2api',
+        };
+      }
       return {
-        current_path: 'config',
+        current_path: '',
         items: [
           {
             editable: true,
-            file_kind: 'config',
+            file_kind: 'compose',
             has_children: false,
             language_hint: 'yaml',
-            name: 'app.yaml',
+            name: 'docker-compose.yml',
             node_type: 'file',
             readable: true,
-            relative_path: 'config/app.yaml',
-            size_bytes: 24,
+            relative_path: 'docker-compose.yml',
+            size_bytes: 32,
+          },
+          {
+            editable: false,
+            file_kind: 'directory',
+            has_children: true,
+            name: 'config',
+            node_type: 'directory',
+            readable: true,
+            relative_path: 'config',
           },
         ],
         root_path: '/srv/sub2api',
       };
-    }
-    return {
-      current_path: '',
-      items: [
-        {
-          editable: true,
-          file_kind: 'compose',
-          has_children: false,
-          language_hint: 'yaml',
-          name: 'docker-compose.yml',
-          node_type: 'file',
-          readable: true,
-          relative_path: 'docker-compose.yml',
-          size_bytes: 32,
-        },
-        {
-          editable: false,
-          file_kind: 'directory',
-          has_children: true,
-          name: 'config',
-          node_type: 'directory',
-          readable: true,
-          relative_path: 'config',
-        },
-      ],
-      root_path: '/srv/sub2api',
-    };
-  });
-  mocks.getProjectFileContent.mockImplementation(async (_id: string, query: { path: string }) => ({
+    },
+  );
+  mocks.getApplicationFileContent.mockImplementation(async (_id: string, query: { path: string }) => ({
     content:
       query.path === 'docker-compose.yml'
         ? 'services:\n  api:\n    image: app\n'
@@ -748,7 +750,7 @@ const TTabPanelStub = defineComponent({
   },
 });
 
-describe('ProjectConfigurationWorkspaceIndex', () => {
+describe('ApplicationConfigurationWorkspaceIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     monacoSurfaceState.diagnosticsResolver = null;
@@ -757,73 +759,75 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     routeState.query = { name: 'sub2api' };
     tabsRouterStoreMock.tabRouterList = [
       {
-        fullPath: '/ops/projects/1/configuration?name=sub2api',
-        path: '/ops/projects/1/configuration',
-        tabKey: '/ops/projects/1/configuration',
-        title: { 'en-US': 'Project Detail - sub2api', 'zh-CN': '项目详情 - sub2api' },
+        fullPath: '/applications/app_1/configuration?name=sub2api',
+        path: '/applications/app_1/configuration',
+        tabKey: '/applications/app_1/configuration',
+        title: { 'en-US': 'Application Detail - sub2api', 'zh-CN': '项目详情 - sub2api' },
       },
     ];
-    mocks.getProject.mockResolvedValue({
+    mocks.getApplication.mockResolvedValue({
       compose_project_name: 'sub2api',
       display_name: 'sub2api',
-      application_id: '1',
+      application_id: 'app_1',
       ownership_mode: 'managed-root-dedicated',
       runtime_status: 'running',
       workspace_path: '/srv/sub2api',
     });
-    mocks.getProjectConfiguration.mockResolvedValue({
+    mocks.getApplicationConfiguration.mockResolvedValue({
       drift_status: 'clean',
       ownership_mode: 'managed-root-dedicated',
-      project_id: 1,
+      application_id: 'app_1',
     });
-    mocks.getProjectFiles.mockImplementation(async (_id: string, query?: { path?: string; show_hidden?: boolean }) => {
-      if (query?.path === 'config') {
+    mocks.getApplicationFiles.mockImplementation(
+      async (_id: string, query?: { path?: string; show_hidden?: boolean }) => {
+        if (query?.path === 'config') {
+          return {
+            current_path: 'config',
+            items: [
+              {
+                editable: true,
+                file_kind: 'env',
+                has_children: false,
+                language_hint: 'dotenv',
+                name: '.env',
+                node_type: 'file',
+                readable: true,
+                relative_path: 'config/.env',
+                size_bytes: 0,
+              },
+            ],
+            root_path: '/srv/sub2api',
+          };
+        }
         return {
-          current_path: 'config',
+          current_path: '',
           items: [
             {
               editable: true,
-              file_kind: 'env',
+              file_kind: 'compose',
               has_children: false,
-              language_hint: 'dotenv',
-              name: '.env',
+              language_hint: 'yaml',
+              name: 'docker-compose.yml',
               node_type: 'file',
               readable: true,
-              relative_path: 'config/.env',
-              size_bytes: 0,
+              relative_path: 'docker-compose.yml',
+              size_bytes: 32,
+            },
+            {
+              editable: false,
+              file_kind: 'directory',
+              has_children: true,
+              name: 'config',
+              node_type: 'directory',
+              readable: true,
+              relative_path: 'config',
             },
           ],
           root_path: '/srv/sub2api',
         };
-      }
-      return {
-        current_path: '',
-        items: [
-          {
-            editable: true,
-            file_kind: 'compose',
-            has_children: false,
-            language_hint: 'yaml',
-            name: 'docker-compose.yml',
-            node_type: 'file',
-            readable: true,
-            relative_path: 'docker-compose.yml',
-            size_bytes: 32,
-          },
-          {
-            editable: false,
-            file_kind: 'directory',
-            has_children: true,
-            name: 'config',
-            node_type: 'directory',
-            readable: true,
-            relative_path: 'config',
-          },
-        ],
-        root_path: '/srv/sub2api',
-      };
-    });
-    mocks.getProjectFileContent.mockImplementation(async (_id: string, query: { path: string }) => ({
+      },
+    );
+    mocks.getApplicationFileContent.mockImplementation(async (_id: string, query: { path: string }) => ({
       content: query.path === 'docker-compose.yml' ? 'services:\n  api:\n    image: app\n' : '',
       editable: query.path !== 'notes.txt',
       encoding: 'utf-8',
@@ -833,13 +837,13 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       relative_path: query.path,
       size_bytes: query.path === 'docker-compose.yml' ? 32 : 0,
     }));
-    mocks.putProjectFileContent.mockResolvedValue({
+    mocks.putApplicationFileContent.mockResolvedValue({
       content_hash: 'saved-hash',
       relative_path: 'docker-compose.yml',
       saved_at: '2026-07-06T10:00:00Z',
       size_bytes: 40,
     });
-    mocks.putProjectFileAnnotation.mockResolvedValue({
+    mocks.putApplicationFileAnnotation.mockResolvedValue({
       editable: true,
       file_kind: 'compose',
       has_children: false,
@@ -847,27 +851,27 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       language_hint: 'yaml',
       name: 'docker-compose.yml',
       node_type: 'file',
-      project_note: 'Existing note',
+      application_note: 'Existing note',
       readable: true,
       relative_path: 'docker-compose.yml',
       size_bytes: 32,
       tooltip: 'Existing note',
-      tooltip_source: 'project-note',
+      tooltip_source: 'application-note',
     });
-    mocks.postProjectRedeploy.mockResolvedValue({
+    mocks.postApplicationRedeploy.mockResolvedValue({
       task_id: 42,
     });
-    mocks.postProjectWorkspaceEntry.mockResolvedValue({ path: 'notes.txt' });
-    mocks.postProjectWorkspaceRename.mockResolvedValue({ path: 'renamed.txt' });
-    mocks.deleteProjectWorkspaceEntry.mockResolvedValue({ path: 'docker-compose.yml' });
+    mocks.postApplicationWorkspaceEntry.mockResolvedValue({ path: 'notes.txt' });
+    mocks.postApplicationWorkspaceRename.mockResolvedValue({ path: 'renamed.txt' });
+    mocks.deleteApplicationWorkspaceEntry.mockResolvedValue({ path: 'docker-compose.yml' });
   });
 
   it('loads the root file list and opens the first file buffer', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    expect(mocks.getProjectFiles).toHaveBeenCalledWith('1', { path: undefined, show_hidden: false });
-    expect(mocks.getProjectFileContent).toHaveBeenCalledWith('1', { path: 'docker-compose.yml' });
+    expect(mocks.getApplicationFiles).toHaveBeenCalledWith('app_1', { path: undefined, show_hidden: false });
+    expect(mocks.getApplicationFileContent).toHaveBeenCalledWith('app_1', { path: 'docker-compose.yml' });
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'services:\n  api:\n    image: app\n',
     );
@@ -914,25 +918,23 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   });
 
   it('middle-truncates long workspace paths while keeping full values in tooltips', async () => {
-    const fullWorkingDirectory = '/srv/graft/releases/2026/06/14/shared-postgres/configuration';
-    mocks.getProject.mockResolvedValueOnce({
+    const fullWorkspacePath = '/srv/graft/releases/2026/06/14/shared-postgres/configuration';
+    mocks.getApplication.mockResolvedValueOnce({
       compose_project_name: 'sub2api',
       display_name: 'sub2api',
-      application_id: '1',
+      application_id: 'app_1',
       ownership_mode: 'managed-root-dedicated',
       runtime_status: 'running',
-      workspace_path: fullWorkingDirectory,
+      workspace_path: fullWorkspacePath,
     });
 
     const wrapper = mountWorkspace();
     await flushPromises();
 
     expect(wrapper.get('[data-testid="workspace-working-directory"]').text()).toBe('/srv/g...ration');
-    expect(wrapper.get('[data-testid="workspace-working-directory"]').attributes('aria-label')).toBe(
-      fullWorkingDirectory,
-    );
-    expect(wrapper.text()).not.toContain(fullWorkingDirectory);
-    expect(wrapper.find(`[data-tooltip-content="${fullWorkingDirectory}"]`).exists()).toBe(true);
+    expect(wrapper.get('[data-testid="workspace-working-directory"]').attributes('aria-label')).toBe(fullWorkspacePath);
+    expect(wrapper.text()).not.toContain(fullWorkspacePath);
+    expect(wrapper.find(`[data-tooltip-content="${fullWorkspacePath}"]`).exists()).toBe(true);
   });
 
   it('delegates the current tab title update to the active workspace tab', async () => {
@@ -940,7 +942,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     expect(tabsRouterStoreMock.updateActiveTabTitle).toHaveBeenCalledWith(
-      'ProjectConfigurationWorkspaceIndex',
+      'ApplicationConfigurationWorkspaceIndex',
       routeState,
       {
         'en-US': 'Configuration Workspace - sub2api',
@@ -950,12 +952,12 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   });
 
   it('keeps the standalone workspace header title before the detail request resolves', async () => {
-    let resolveProject: (value: PendingProjectDetail) => void = () => {
+    let resolveApplication: (value: PendingApplicationDetail) => void = () => {
       throw new Error('Expected pending project resolver to be assigned');
     };
-    mocks.getProject.mockReturnValueOnce(
-      new Promise<PendingProjectDetail>((resolve) => {
-        resolveProject = resolve;
+    mocks.getApplication.mockReturnValueOnce(
+      new Promise<PendingApplicationDetail>((resolve) => {
+        resolveApplication = resolve;
       }),
     );
 
@@ -964,10 +966,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect(wrapper.find('h1').text()).toBe('sub2api · Configuration Workspace');
 
-    resolveProject({
+    resolveApplication({
       compose_project_name: 'sub2api',
       display_name: 'sub2api',
-      application_id: '1',
+      application_id: 'app_1',
       ownership_mode: 'managed-root-dedicated',
       runtime_status: 'running',
       workspace_path: '/srv/sub2api',
@@ -983,12 +985,12 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
     await flushPromises();
-    expect(mocks.getProjectFiles).toHaveBeenCalledWith('1', { path: 'config', show_hidden: false });
+    expect(mocks.getApplicationFiles).toHaveBeenCalledWith('app_1', { path: 'config', show_hidden: false });
 
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.getProjectFileContent).toHaveBeenCalledWith('1', { path: 'config/.env' });
+    expect(mocks.getApplicationFileContent).toHaveBeenCalledWith('app_1', { path: 'config/.env' });
     expect(wrapper.find('[data-testid="workspace-monaco-editor"]').exists()).toBe(true);
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
   });
@@ -1001,7 +1003,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="workspace-entry-config-env"]').exists()).toBe(true);
-    expect(mocks.getProjectFiles).toHaveBeenNthCalledWith(2, '1', { path: 'config', show_hidden: false });
+    expect(mocks.getApplicationFiles).toHaveBeenNthCalledWith(2, 'app_1', { path: 'config', show_hidden: false });
   });
 
   it('does not refetch a loaded empty file when reopening the tab with unsaved edits', async () => {
@@ -1013,7 +1015,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
-    const initialCalls = mocks.getProjectFileContent.mock.calls.filter(
+    const initialCalls = mocks.getApplicationFileContent.mock.calls.filter(
       ([, query]) => query.path === 'config/.env',
     ).length;
     expect(initialCalls).toBe(1);
@@ -1022,7 +1024,9 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
-    const nextCalls = mocks.getProjectFileContent.mock.calls.filter(([, query]) => query.path === 'config/.env').length;
+    const nextCalls = mocks.getApplicationFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'config/.env',
+    ).length;
     expect(nextCalls).toBe(1);
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'EDITOR_ONLY=true\n',
@@ -1030,12 +1034,12 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   });
 
   it('keeps the previous editor content visible while the next file is still loading', async () => {
-    let resolveEnvContent!: (value: ProjectWorkspaceFileContentResponse) => void;
+    let resolveEnvContent!: (value: ApplicationWorkspaceFileContentResponse) => void;
 
-    mocks.getProjectFileContent.mockImplementation((_id: string, query: { path: string }) => {
+    mocks.getApplicationFileContent.mockImplementation((_id: string, query: { path: string }) => {
       if (query.path === 'config/.env') {
         return new Promise((resolve) => {
-          resolveEnvContent = resolve as (value: ProjectWorkspaceFileContentResponse) => void;
+          resolveEnvContent = resolve as (value: ApplicationWorkspaceFileContentResponse) => void;
         });
       }
 
@@ -1132,7 +1136,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
 
-    const composeCallsBefore = mocks.getProjectFileContent.mock.calls.filter(
+    const composeCallsBefore = mocks.getApplicationFileContent.mock.calls.filter(
       ([, query]) => query.path === 'docker-compose.yml',
     ).length;
 
@@ -1141,7 +1145,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       .trigger('click');
     await flushPromises();
 
-    const composeCallsAfter = mocks.getProjectFileContent.mock.calls.filter(
+    const composeCallsAfter = mocks.getApplicationFileContent.mock.calls.filter(
       ([, query]) => query.path === 'docker-compose.yml',
     ).length;
     expect(composeCallsAfter).toBe(composeCallsBefore + 1);
@@ -1233,15 +1237,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 24, clientY: 24 });
     await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
     await wrapper.find('input').setValue('notes.txt');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await flushPromises();
 
-    expect(mocks.postProjectWorkspaceEntry).toHaveBeenCalledWith('1', {
+    expect(mocks.postApplicationWorkspaceEntry).toHaveBeenCalledWith('app_1', {
       content: '',
       node_type: 'file',
       path: 'notes.txt',
     });
-    expect(mocks.getProjectFiles).toHaveBeenCalledWith('1', { path: undefined, show_hidden: false });
+    expect(mocks.getApplicationFiles).toHaveBeenCalledWith('app_1', { path: undefined, show_hidden: false });
   });
 
   it('renames a workspace entry through the shared inline editor', async () => {
@@ -1254,10 +1258,10 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     });
     await wrapper.findAll('[role="menuitem"]')[3].trigger('click');
     await wrapper.find('input').setValue('runtime.yml');
-    wrapper.findComponent({ name: 'ProjectWorkspaceEditor' }).vm.$emit('inline-edit-submit');
+    wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await flushPromises();
 
-    expect(mocks.postProjectWorkspaceRename).toHaveBeenCalledWith('1', {
+    expect(mocks.postApplicationWorkspaceRename).toHaveBeenCalledWith('app_1', {
       path: 'docker-compose.yml',
       new_path: 'runtime.yml',
     });
@@ -1276,8 +1280,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="t-dialog-confirm"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileAnnotation).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileAnnotation).toHaveBeenCalledWith(
+      'app_1',
       { path: 'docker-compose.yml' },
       { annotation: 'Updated note' },
     );
@@ -1292,7 +1296,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 
   it('shows a localized annotation save failure instead of the retired unavailable fallback copy', async () => {
     const wrapper = mountWorkspace();
-    mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
+    mocks.putApplicationFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
     await flushPromises();
 
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
@@ -1310,7 +1314,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   it('shows the zh-CN annotation save failure copy when the request fails', async () => {
     pageContextState.locale = 'zh-CN';
     const wrapper = mountWorkspace();
-    mocks.putProjectFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
+    mocks.putApplicationFileAnnotation.mockRejectedValueOnce(new Error('save failed'));
     await flushPromises();
 
     await wrapper.get('[data-testid="workspace-entry-docker-compose-yml"]').trigger('contextmenu', {
@@ -1326,7 +1330,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
   });
 
   it('hides a directory error after the directory is collapsed', async () => {
-    mocks.getProjectFiles.mockImplementationOnce(async () => ({
+    mocks.getApplicationFiles.mockImplementationOnce(async () => ({
       current_path: '',
       items: [
         {
@@ -1341,7 +1345,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ],
       root_path: '/srv/sub2api',
     }));
-    mocks.getProjectFiles.mockRejectedValueOnce(new Error('Directory load failed'));
+    mocks.getApplicationFiles.mockRejectedValueOnce(new Error('Directory load failed'));
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -1452,7 +1456,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('文件校验');
@@ -1486,7 +1490,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
     expect(wrapper.find('[data-testid="syntax-monaco-viewer"]').exists()).toBe(true);
@@ -1500,8 +1504,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: [broken\n' },
     );
@@ -1652,20 +1656,20 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.warning).toHaveBeenCalledWith(
       'Files without supported syntax diagnostics are skipped silently during save. config/.env',
     );
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('config/.env');
     expect(wrapper.text()).toContain('Confirm Save All');
 
     await wrapper.get('[data-testid="workspace-dialog-save"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'config/.env' },
       { content: 'APP_ENV=prod\n' },
     );
@@ -1691,15 +1695,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(mocks.warning).toHaveBeenCalledWith(
       'Files without supported syntax diagnostics are skipped silently during save. config/.env',
     );
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('config/.env');
     expect(wrapper.text()).toContain('Confirm Save');
 
     await wrapper.get('[data-testid="workspace-dialog-save"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'config/.env' },
       { content: 'APP_ENV=prod\n' },
     );
@@ -1734,74 +1738,76 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('config/.env');
     expect(wrapper.text()).toContain('Confirm Save All');
 
     await wrapper.get('[data-testid="workspace-dialog-save"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: [broken\n' },
     );
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'config/.env' },
       { content: 'APP_ENV=prod\n' },
     );
   });
 
   it('waits for delayed editor rebinding before collecting batch diagnostics and restoring the active tab', async () => {
-    mocks.getProjectFiles.mockImplementation(async (_id: string, query?: { path?: string; show_hidden?: boolean }) => {
-      if (query?.path === 'config') {
+    mocks.getApplicationFiles.mockImplementation(
+      async (_id: string, query?: { path?: string; show_hidden?: boolean }) => {
+        if (query?.path === 'config') {
+          return {
+            current_path: 'config',
+            items: [
+              {
+                editable: true,
+                file_kind: 'config',
+                has_children: false,
+                language_hint: 'yaml',
+                name: 'app.yaml',
+                node_type: 'file',
+                readable: true,
+                relative_path: 'config/app.yaml',
+                size_bytes: 24,
+              },
+            ],
+            root_path: '/srv/sub2api',
+          };
+        }
         return {
-          current_path: 'config',
+          current_path: '',
           items: [
             {
               editable: true,
-              file_kind: 'config',
+              file_kind: 'compose',
               has_children: false,
               language_hint: 'yaml',
-              name: 'app.yaml',
+              name: 'docker-compose.yml',
               node_type: 'file',
               readable: true,
-              relative_path: 'config/app.yaml',
-              size_bytes: 24,
+              relative_path: 'docker-compose.yml',
+              size_bytes: 32,
+            },
+            {
+              editable: false,
+              file_kind: 'directory',
+              has_children: true,
+              name: 'config',
+              node_type: 'directory',
+              readable: true,
+              relative_path: 'config',
             },
           ],
           root_path: '/srv/sub2api',
         };
-      }
-      return {
-        current_path: '',
-        items: [
-          {
-            editable: true,
-            file_kind: 'compose',
-            has_children: false,
-            language_hint: 'yaml',
-            name: 'docker-compose.yml',
-            node_type: 'file',
-            readable: true,
-            relative_path: 'docker-compose.yml',
-            size_bytes: 32,
-          },
-          {
-            editable: false,
-            file_kind: 'directory',
-            has_children: true,
-            name: 'config',
-            node_type: 'directory',
-            readable: true,
-            relative_path: 'config',
-          },
-        ],
-        root_path: '/srv/sub2api',
-      };
-    });
-    mocks.getProjectFileContent.mockImplementation(async (_id: string, query: { path: string }) => ({
+      },
+    );
+    mocks.getApplicationFileContent.mockImplementation(async (_id: string, query: { path: string }) => ({
       content:
         query.path === 'docker-compose.yml'
           ? 'services:\n  api:\n    image: app\n'
@@ -1865,9 +1871,9 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(true);
-    expect(mocks.postProjectRedeploy).not.toHaveBeenCalled();
+    expect(mocks.postApplicationRedeploy).not.toHaveBeenCalled();
   });
 
   it('confirms and redeploys only after preview confirm saves the dirty draft', async () => {
@@ -1883,7 +1889,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
 
     const dialogOptions = dialogMocks.confirm.mock.calls[0]?.[0] as { onConfirm?: () => void };
@@ -1895,13 +1901,13 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: newer\n' },
     );
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
-    expect(mocks.postProjectRedeploy).toHaveBeenCalledWith('1');
+    expect(mocks.postApplicationRedeploy).toHaveBeenCalledWith('app_1');
     expect(wrapper.find('[data-task-id="42"]').attributes('data-visible')).toBe('true');
   });
 
@@ -1920,8 +1926,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     dialogOptions.onCancel?.();
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
-    expect(mocks.postProjectRedeploy).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
+    expect(mocks.postApplicationRedeploy).not.toHaveBeenCalled();
   });
 
   it('cancels the preview without saving dirty files', async () => {
@@ -1938,7 +1944,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     await wrapper.get('[data-testid="configuration-diff-cancel"]').trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).not.toHaveBeenCalled();
+    expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'services:\n  api:\n    image: newer\n',
@@ -1958,8 +1964,8 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
-      '1',
+    expect(mocks.putApplicationFileContent).toHaveBeenCalledWith(
+      'app_1',
       { path: 'docker-compose.yml' },
       { content: 'services:\n  api:\n    image: app\n' },
     );
@@ -1969,7 +1975,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
 });
 
 function mountWorkspace() {
-  return mount(ProjectConfigurationWorkspaceIndex, {
+  return mount(ApplicationConfigurationWorkspaceIndex, {
     global: {
       stubs: {
         TAlert: createTStub('TAlert'),

@@ -1,136 +1,139 @@
-export const PROJECT_ROUTE_PATH = {
-  LIST: '/applications/projects',
-  CREATE_IMPORT: '/applications/projects/create/import',
-  CREATE: '/applications/projects/create',
-  CREATE_RUNTIME_TARGET: '/applications/projects/create/runtime-target',
-  CREATE_SOURCE: '/applications/projects/create/source',
-  CREATE_DISCOVERY: '/applications/projects/create/discovery',
-  CREATE_BLANK: '/applications/projects/create/blank',
-  CREATE_TEMPLATE: '/applications/projects/create/template',
-  DETAIL: '/applications/projects/:id',
-  CONFIGURATION_WORKSPACE: '/applications/projects/:id/configuration',
+export const APPLICATION_ROUTE_PATH = {
+  LIST: '/applications',
+  CREATE_IMPORT: '/applications/create/import',
+  CREATE: '/applications/create',
+  CREATE_RUNTIME_TARGET: '/applications/create/runtime-target',
+  CREATE_SOURCE: '/applications/create/source',
+  CREATE_DISCOVERY: '/applications/create/discovery',
+  CREATE_BLANK: '/applications/create/blank',
+  CREATE_TEMPLATE: '/applications/create/template',
+  DETAIL: '/applications/:applicationId',
+  CONFIGURATION_WORKSPACE: '/applications/:applicationId/configuration',
 } as const;
 
-export const PROJECT_API_PATH = {
-  LIST: '/api/ops/projects',
-  SAVED_VIEWS: '/api/ops/projects/saved-views',
-  SAVED_VIEW: '/api/ops/projects/saved-views/{viewId}',
-  BATCH_ACTIONS: '/api/ops/projects/batch-actions',
-  IMPORT_RUNTIME_CANDIDATES: '/api/ops/projects/import/runtime-candidates',
-  IMPORT_RUNTIME_INSPECT: '/api/ops/projects/import/runtime-inspect',
-  IMPORT_DIRECTORY_SOURCES: '/api/ops/projects/import/directory-sources',
-  IMPORT_DIRECTORIES: '/api/ops/projects/import/directories',
-  IMPORT_INSPECT: '/api/ops/projects/import/inspect',
-  IMPORT_VALIDATE: '/api/ops/projects/import/validate',
-  IMPORT: '/api/ops/projects/import',
-  CREATION_METHODS: '/api/ops/projects/creation-methods',
-  COMPOSE_RUNTIME_TARGETS: '/api/ops/projects/create/runtime-targets',
-  CREATE_WORKSPACE_DEFAULTS: '/api/ops/projects/create/workspace-defaults',
-  DISCOVERY_CANDIDATES: '/api/ops/projects/discovery-candidates',
-  MANAGED_ROOT: '/api/ops/projects/managed/root',
-  CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
-  APPLICATION_NAME_AVAILABILITY: '/api/ops/projects/create/application-name/availability',
-  CREATE: '/api/ops/projects/create/managed',
-  CREATE_TEMPLATE_VALIDATE: '/api/ops/projects/create/template/validate',
-  CREATE_TEMPLATE: '/api/ops/projects/create/template',
-  DETAIL: '/api/ops/projects/{id}',
-  OVERVIEW: '/api/ops/projects/{id}/overview',
-  LOGS: '/api/ops/projects/{id}/logs',
-  SERVICES: '/api/ops/projects/{id}/services',
-  CONFIGURATION: '/api/ops/projects/{id}/configuration',
-  CONFIGURATION_PREVIEW: '/api/ops/projects/{id}/configuration/preview',
-  CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
-  FILES: '/api/ops/projects/{id}/files',
-  FILES_CONTENT: '/api/ops/projects/{id}/files/content',
-  FILES_ANNOTATION: '/api/ops/projects/{id}/files/annotation',
-  FILES_ENTRIES: '/api/ops/projects/{id}/files/entries',
-  FILES_RENAME: '/api/ops/projects/{id}/files/rename',
-  LIFECYCLE_CONFIGURATION: '/api/ops/projects/{id}/lifecycle-configuration',
-  REFRESH: '/api/ops/projects/{id}/refresh',
-  UP: '/api/ops/projects/{id}/up',
-  STOP: '/api/ops/projects/{id}/stop',
-  RESTART: '/api/ops/projects/{id}/restart',
-  REDEPLOY: '/api/ops/projects/{id}/redeploy',
-  UNREGISTER: '/api/ops/projects/{id}/unregister',
-  DESTROY: '/api/ops/projects/{id}/destroy',
+export const APPLICATION_API_PATH = {
+  LIST: '/api/ops/applications',
+  SAVED_VIEWS: '/api/ops/applications/saved-views',
+  SAVED_VIEW: '/api/ops/applications/saved-views/{viewId}',
+  BATCH_ACTIONS: '/api/ops/applications/batch-actions',
+  IMPORT_RUNTIME_CANDIDATES: '/api/ops/applications/import/runtime-candidates',
+  IMPORT_RUNTIME_INSPECT: '/api/ops/applications/import/runtime-inspect',
+  IMPORT_DIRECTORY_SOURCES: '/api/ops/applications/import/directory-sources',
+  IMPORT_DIRECTORIES: '/api/ops/applications/import/directories',
+  IMPORT_INSPECT: '/api/ops/applications/import/inspect',
+  IMPORT_VALIDATE: '/api/ops/applications/import/validate',
+  IMPORT: '/api/ops/applications/import',
+  CREATION_METHODS: '/api/ops/applications/creation-methods',
+  COMPOSE_RUNTIME_TARGETS: '/api/ops/applications/create/runtime-targets',
+  CREATE_WORKSPACE_DEFAULTS: '/api/ops/applications/create/workspace-defaults',
+  DISCOVERY_CANDIDATES: '/api/ops/applications/discovery-candidates',
+  MANAGED_ROOT: '/api/ops/applications/managed/root',
+  CREATE_VALIDATE: '/api/ops/applications/create/managed/validate',
+  APPLICATION_NAME_AVAILABILITY: '/api/ops/applications/create/application-name/availability',
+  CREATE: '/api/ops/applications/create/managed',
+  CREATE_TEMPLATE_VALIDATE: '/api/ops/applications/create/template/validate',
+  CREATE_TEMPLATE: '/api/ops/applications/create/template',
+  DETAIL: '/api/ops/applications/{applicationId}',
+  OVERVIEW: '/api/ops/applications/{applicationId}/overview',
+  LOGS: '/api/ops/applications/{applicationId}/logs',
+  SERVICES: '/api/ops/applications/{applicationId}/services',
+  CONFIGURATION: '/api/ops/applications/{applicationId}/configuration',
+  CONFIGURATION_PREVIEW: '/api/ops/applications/{applicationId}/configuration/preview',
+  CONFIGURATION_FILE: '/api/ops/applications/{applicationId}/configuration/files/{fileId}',
+  FILES: '/api/ops/applications/{applicationId}/files',
+  FILES_CONTENT: '/api/ops/applications/{applicationId}/files/content',
+  FILES_ANNOTATION: '/api/ops/applications/{applicationId}/files/annotation',
+  FILES_ENTRIES: '/api/ops/applications/{applicationId}/files/entries',
+  FILES_RENAME: '/api/ops/applications/{applicationId}/files/rename',
+  LIFECYCLE_CONFIGURATION: '/api/ops/applications/{applicationId}/lifecycle-configuration',
+  REFRESH: '/api/ops/applications/{applicationId}/refresh',
+  UP: '/api/ops/applications/{applicationId}/up',
+  STOP: '/api/ops/applications/{applicationId}/stop',
+  RESTART: '/api/ops/applications/{applicationId}/restart',
+  REDEPLOY: '/api/ops/applications/{applicationId}/redeploy',
+  UNREGISTER: '/api/ops/applications/{applicationId}/unregister',
+  DESTROY: '/api/ops/applications/{applicationId}/destroy',
 } as const;
 
-function encodeProjectPathParam(value: string | number) {
+function encodeApplicationPathParam(value: string | number) {
   return encodeURIComponent(String(value));
 }
 
-export function buildProjectSavedViewApiPath(viewId: number) {
-  return PROJECT_API_PATH.SAVED_VIEW.replace('{viewId}', encodeProjectPathParam(viewId));
+export function buildApplicationSavedViewApiPath(viewId: number) {
+  return APPLICATION_API_PATH.SAVED_VIEW.replace('{viewId}', encodeApplicationPathParam(viewId));
 }
 
-export function buildProjectDetailApiPath(id: string | number) {
-  return PROJECT_API_PATH.DETAIL.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationDetailApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.DETAIL.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectOverviewApiPath(id: string | number) {
-  return PROJECT_API_PATH.OVERVIEW.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationOverviewApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.OVERVIEW.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectLogsApiPath(id: string | number) {
-  return PROJECT_API_PATH.LOGS.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationLogsApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.LOGS.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectServicesApiPath(id: string | number) {
-  return PROJECT_API_PATH.SERVICES.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationServicesApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.SERVICES.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectConfigurationApiPath(id: string | number) {
-  return PROJECT_API_PATH.CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationConfigurationApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.CONFIGURATION.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectFilesApiPath(id: string | number) {
-  return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationFilesApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.FILES.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectFilesContentApiPath(id: string | number) {
-  return PROJECT_API_PATH.FILES_CONTENT.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationFilesContentApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.FILES_CONTENT.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectFilesAnnotationApiPath(id: string | number) {
-  return PROJECT_API_PATH.FILES_ANNOTATION.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationFilesAnnotationApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.FILES_ANNOTATION.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectFilesEntriesApiPath(id: string | number) {
-  return PROJECT_API_PATH.FILES_ENTRIES.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationFilesEntriesApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.FILES_ENTRIES.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectFilesRenameApiPath(id: string | number) {
-  return PROJECT_API_PATH.FILES_RENAME.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationFilesRenameApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.FILES_RENAME.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectLifecycleConfigurationApiPath(id: string | number) {
-  return PROJECT_API_PATH.LIFECYCLE_CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationLifecycleConfigurationApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.LIFECYCLE_CONFIGURATION.replace(
+    '{applicationId}',
+    encodeApplicationPathParam(applicationId),
+  );
 }
 
-export function buildProjectUpApiPath(id: string | number) {
-  return PROJECT_API_PATH.UP.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationUpApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.UP.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectStopApiPath(id: string | number) {
-  return PROJECT_API_PATH.STOP.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationStopApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.STOP.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectRestartApiPath(id: string | number) {
-  return PROJECT_API_PATH.RESTART.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationRestartApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.RESTART.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectRedeployApiPath(id: string | number) {
-  return PROJECT_API_PATH.REDEPLOY.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationRedeployApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.REDEPLOY.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectUnregisterApiPath(id: string | number) {
-  return PROJECT_API_PATH.UNREGISTER.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationUnregisterApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.UNREGISTER.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectDestroyApiPath(id: string | number) {
-  return PROJECT_API_PATH.DESTROY.replace('{id}', encodeProjectPathParam(id));
+export function buildApplicationDestroyApiPath(applicationId: string) {
+  return APPLICATION_API_PATH.DESTROY.replace('{applicationId}', encodeApplicationPathParam(applicationId));
 }
 
-export function buildProjectImportDirectoriesApiPath() {
-  return PROJECT_API_PATH.IMPORT_DIRECTORIES;
+export function buildApplicationImportDirectoriesApiPath() {
+  return APPLICATION_API_PATH.IMPORT_DIRECTORIES;
 }

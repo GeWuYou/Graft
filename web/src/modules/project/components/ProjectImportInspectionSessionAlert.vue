@@ -10,9 +10,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { useProjectPageContext } from '../shared/page-context';
+import { useApplicationPageContext } from '../shared/page-context';
 
-defineOptions({ name: 'ProjectImportInspectionSessionAlert' });
+defineOptions({ name: 'ApplicationImportInspectionSessionAlert' });
 
 const props = defineProps<{
   errorMessage?: string;
@@ -22,7 +22,7 @@ const props = defineProps<{
 
 defineEmits<{ (event: 'refresh'): void }>();
 
-const { t } = useProjectPageContext();
+const { t } = useApplicationPageContext();
 const theme = computed(() =>
   props.errorMessage ? 'error' : props.loading ? 'info' : props.valid ? 'success' : 'warning',
 );

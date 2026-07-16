@@ -1,24 +1,24 @@
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import {
-  getProjectListSummaryTopicName,
-  parseProjectListSummaryRealtimePayload,
-  type ProjectListSummaryRealtimeItem,
+  type ApplicationListSummaryRealtimeItem,
+  getApplicationListSummaryTopicName,
+  parseApplicationListSummaryRealtimePayload,
 } from '../contract/realtime';
 
-type ProjectListRealtimeListener = (items: ProjectListSummaryRealtimeItem[]) => void;
+type ApplicationListRealtimeListener = (items: ApplicationListSummaryRealtimeItem[]) => void;
 
 let controller: RealtimeTopicSocketController | null = null;
 let active = false;
-const listeners = new Set<ProjectListRealtimeListener>();
+const listeners = new Set<ApplicationListRealtimeListener>();
 
 function ensureSubscription() {
   if (!active || controller) {
     return;
   }
   controller = openRealtimeTopicSocket({
-    topic: getProjectListSummaryTopicName(),
-    parseMessage: parseProjectListSummaryRealtimePayload,
+    topic: getApplicationListSummaryTopicName(),
+    parseMessage: parseApplicationListSummaryRealtimePayload,
     onMessage: (message) => {
       listeners.forEach((listener) => listener(message.items));
     },
@@ -30,13 +30,13 @@ function releaseSubscription() {
   controller = null;
 }
 
-export function acquireProjectListRealtime(listener: ProjectListRealtimeListener) {
+export function acquireApplicationListRealtime(listener: ApplicationListRealtimeListener) {
   listeners.add(listener);
   active = true;
   ensureSubscription();
 }
 
-export function releaseProjectListRealtime(listener: ProjectListRealtimeListener) {
+export function releaseApplicationListRealtime(listener: ApplicationListRealtimeListener) {
   listeners.delete(listener);
   if (listeners.size > 0) {
     return;

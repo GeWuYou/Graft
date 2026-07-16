@@ -1,6 +1,6 @@
 import { getContainers, type ProjectContainerSummary } from '@/modules/container/contract/project';
 
-export const PROJECT_RUNTIME_CONTAINER_PAGE_SIZE = 100;
+export const APPLICATION_RUNTIME_CONTAINER_PAGE_SIZE = 100;
 
 export function readProjectContainerSourceGroup(container: ProjectContainerSummary): string {
   return normalizeProjectContainerSourceValue(container.deployment?.project ?? container.orchestrator?.group_value);
@@ -11,8 +11,10 @@ export function readProjectContainerSourceMember(container: ProjectContainerSumm
 }
 
 /** 按页读取 Compose 容器；名称为空时不请求，响应提前结束时返回已收集结果。 */
-export async function fetchProjectRuntimeContainers(canonicalProjectName: string): Promise<ProjectContainerSummary[]> {
-  const projectName = canonicalProjectName.trim();
+export async function fetchApplicationRuntimeContainers(
+  composeProjectName: string,
+): Promise<ProjectContainerSummary[]> {
+  const projectName = composeProjectName.trim();
   if (!projectName) {
     return [];
   }
@@ -23,7 +25,7 @@ export async function fetchProjectRuntimeContainers(canonicalProjectName: string
 
   do {
     const payload = await getContainers({
-      limit: PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
+      limit: APPLICATION_RUNTIME_CONTAINER_PAGE_SIZE,
       offset,
       deployment_type: 'compose',
       source_scope: projectName,

@@ -4,7 +4,7 @@ import { emitDebugLog, formatDebugLine, isDebugFlagEnabled } from '@/shared/debu
 import { createLogger } from '@/utils/logger';
 
 /**
- * 判断是否启用 Project Monaco 调试。
+ * 判断是否启用 Application Monaco 调试。
  *
  * @returns 如果已启用 `project.monaco` 调试标志则返回 `true`，否则返回 `false`。
  */
@@ -47,7 +47,7 @@ export function isProjectMonacoBenignCancellationError(error: unknown) {
 }
 
 /**
- * 格式化 Project Monaco 的调试消息。
+ * 格式化 Application Monaco 的调试消息。
  *
  * @param event - 事件名称
  * @param detail - 事件的详细信息
@@ -117,7 +117,7 @@ export function disposeProjectMonacoModelDeferred(
 }
 
 /**
- * 创建用于输出 Project Monaco 调试信息的记录器。
+ * 创建用于输出 Application Monaco 调试信息的记录器。
  *
  * @param name - 记录器名称
  * @returns 接收事件名和详情并输出调试日志的函数

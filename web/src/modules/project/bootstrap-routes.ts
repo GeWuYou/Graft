@@ -24,7 +24,7 @@ const detailBreadcrumbTitle = localizeRouteTitleKey('project.route.detail.breadc
 const configurationWorkspaceRouteTitle = localizeRouteTitleKey('project.route.configurationWorkspace.title');
 const configurationWorkspaceBreadcrumbTitle = localizeRouteTitleKey('project.route.configurationWorkspace.breadcrumb');
 
-export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
+export const applicationBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
     ...PROJECT_BOOTSTRAP_ROUTE.LIST,
     loadPage: () => import('./pages/list/index.vue'),
@@ -38,7 +38,7 @@ export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
   },
 ];
 
-export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
+export const applicationGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     ...PROJECT_BOOTSTRAP_ROUTE.CREATE_IMPORT,
     navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,

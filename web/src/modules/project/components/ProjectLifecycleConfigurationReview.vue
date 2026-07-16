@@ -72,13 +72,13 @@ import {
   updateLifecycleDraftProfiles,
 } from '../shared/lifecycle';
 import { lifecycleSwitchHelpDefinitions, lifecycleWaitTimeoutHelpDefinition } from '../shared/lifecycle-help';
-import { useProjectPageContext } from '../shared/page-context';
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
+import { useApplicationPageContext } from '../shared/page-context';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 import LifecycleHelpTrigger from './LifecycleHelpTrigger.vue';
 
-defineOptions({ name: 'ProjectLifecycleConfigurationReview' });
+defineOptions({ name: 'ApplicationLifecycleConfigurationReview' });
 // 配置审核区直接编辑调用方持有的草稿，并将生成命令作为当前草稿的可视化结果展示。
-const draft = defineModel<ProjectLifecycleConfigurationDraft>('draft', { required: true });
+const draft = defineModel<ApplicationLifecycleConfigurationDraft>('draft', { required: true });
 defineProps<{
   title: string;
   description: string;
@@ -86,7 +86,7 @@ defineProps<{
   configurationTitle: string;
   commandPreviewTitle: string;
 }>();
-const { t } = useProjectPageContext();
+const { t } = useApplicationPageContext();
 const waitTimeoutDefinition = lifecycleWaitTimeoutHelpDefinition;
 const profilesInput = computed({
   get: () => lifecycleDraftProfilesText(draft.value),

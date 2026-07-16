@@ -1,41 +1,41 @@
 {
   "ops": {
-    "project": {
+    "application": {
       "error": {
-        "invalidArgument": "项目请求参数不合法。",
+        "invalidArgument": "应用请求参数不合法。",
         "invalidCompose": "Compose 配置无效。",
         "workspaceUnsafe": "已有应用工作区不是安全目录。",
         "workspaceWriteFailed": "应用工作区写入失败。",
         "applicationNameRequired": "请填写应用名。",
         "invalidApplicationName": "应用名只能包含小写 ASCII 字母、数字和中横线，且必须以字母或数字开头。",
         "applicationNameOccupied": "应用名已被占用，请使用其他应用名。",
-        "invalidCanonicalProjectName": "Canonical Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
-        "conflict": "当前项目状态存在冲突，无法执行该操作。",
-        "composeProjectNameOccupied": "所选运行目标上已有同名 Compose 项目，无法继续操作。",
-        "notFound": "未找到对应的项目。",
-        "unsupportedLifecycle": "当前项目状态不支持该生命周期操作。",
-        "importValidationFailed": "项目导入检查未通过校验。",
-        "managedRootUnconfigured": "受管项目根目录尚未配置。",
-        "managedRootInvalid": "受管项目根目录配置无效。",
-        "managedFlowUnsupported": "当前项目不支持该受管流程操作。",
-        "sourceUnsupported": "当前阶段不支持该项目来源。",
-        "directoryBrowseForbidden": "项目导入目录超出允许的根目录范围。",
-        "inspectionExpired": "项目导入检查已过期。",
-        "inspectionStale": "项目导入检查结果已与文件系统不一致。"
+        "invalidComposeProjectName": "Compose Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
+        "conflict": "当前应用状态存在冲突，无法执行该操作。",
+        "composeProjectNameOccupied": "所选运行目标上已有同名 Compose 项目名称，无法继续操作。",
+        "notFound": "未找到对应的应用。",
+        "unsupportedLifecycle": "当前应用状态不支持该生命周期操作。",
+        "importValidationFailed": "应用导入检查未通过校验。",
+        "managedRootUnconfigured": "受管应用根目录尚未配置。",
+        "managedRootInvalid": "受管应用根目录配置无效。",
+        "managedFlowUnsupported": "当前应用不支持该受管流程操作。",
+        "sourceUnsupported": "当前阶段不支持该应用来源。",
+        "directoryBrowseForbidden": "应用导入目录超出允许的根目录范围。",
+        "inspectionExpired": "应用导入检查已过期。",
+        "inspectionStale": "应用导入检查结果已与文件系统不一致。"
       }
     }
   },
   "menu": {
-    "project": {
+    "application": {
       "title": "应用管理"
     }
   },
   "project": {
     "taskTypes": {
-      "up": "启动项目",
-      "stop": "停止项目",
-      "restart": "重启项目",
-      "redeploy": "重新部署项目"
+      "up": "启动应用",
+      "stop": "停止应用",
+      "restart": "重启应用",
+      "redeploy": "重新部署应用"
     },
     "route": {
       "list": {
@@ -43,8 +43,8 @@
         "breadcrumb": "应用管理"
       },
       "createImport": {
-        "title": "导入现有项目",
-        "breadcrumb": "导入现有项目"
+        "title": "导入现有应用",
+        "breadcrumb": "导入现有应用"
       },
       "create": {
         "title": "创建应用",
@@ -59,8 +59,8 @@
         "breadcrumb": "选择应用来源"
       },
       "createBlank": {
-        "title": "新建空白项目",
-        "breadcrumb": "新建空白项目"
+        "title": "新建空白应用",
+        "breadcrumb": "新建空白应用"
       },
       "createDiscovery": {
         "title": "发现候选预览",
@@ -71,8 +71,8 @@
         "breadcrumb": "基于模板创建"
       },
       "detail": {
-        "title": "项目详情",
-        "breadcrumb": "项目详情"
+        "title": "应用详情",
+        "breadcrumb": "应用详情"
       },
       "configurationWorkspace": {
         "title": "配置工作台",
@@ -83,7 +83,7 @@
       "copy": {
         "annotationAction": "编辑注释",
         "annotationSaveFailed": "注释保存失败。",
-        "batchFileValidationRiskBody": "这些文件仍存在语法错误。继续保存后，后续校验或部署可能无法正确解析项目配置。",
+        "batchFileValidationRiskBody": "这些文件仍存在语法错误。继续保存后，后续校验或部署可能无法正确解析应用配置。",
         "batchFileValidationRiskTitle": "带语法错误保存文件",
         "batchFileValidationTitle": "文件语法错误",
         "cancelAction": "取消",
@@ -94,17 +94,17 @@
         "confirmSaveAction": "确认保存",
         "confirmSaveWithErrorsAction": "仍然保存",
         "continueWithDiskAction": "继续使用磁盘版本",
-        "redeployAction": "重新部署项目",
-        "diffConfirmBody": "请先确认下面的变更文件。只有在你确认后，草稿才会写入工作目录。",
-        "diffCurrentFileConfirmBody": "请先确认当前文件差异。只有在你确认后，修改才会写入工作目录。",
+        "redeployAction": "重新部署应用",
+        "diffConfirmBody": "请先确认下面的变更文件。只有在你确认后，草稿才会写入工作区路径。",
+        "diffCurrentFileConfirmBody": "请先确认当前文件差异。只有在你确认后，修改才会写入工作区路径。",
         "diffCurrentFileTitle": "当前文件差异",
         "diffEmptyDirectSaveHint": "未检测到文件差异，将直接保存草稿文件。",
         "diffTreeTitle": "变更文件",
-        "diffViewerAriaLabel": "项目配置差异查看器",
+        "diffViewerAriaLabel": "应用配置差异查看器",
         "dirtyCloseBody": "当前文件有未保存的修改，关闭前请选择处理方式。",
         "dirtyCloseTitle": "关闭前保存修改",
-        "dirtyProjectActionBody": "检测到未保存的修改，是否先保存后继续当前项目级操作？",
-        "dirtyProjectActionTitle": "存在未保存修改",
+        "dirtyApplicationActionBody": "检测到未保存的修改，是否先保存后继续当前应用级操作？",
+        "dirtyApplicationActionTitle": "存在未保存修改",
         "fileValidationDescription": "显式检查当前文件的语法错误。无错误时不会打开结果窗口。",
         "fileValidationEmbeddedHint": "当前文件存在语法错误，请先检查高亮位置，再决定是否保存或部署。",
         "fileValidationFailed": "当前文件存在语法错误。",
@@ -112,8 +112,8 @@
         "fileValidationTitle": "文件校验",
         "fileValidationUnavailable": "当前文件类型暂不支持显式语法校验。",
         "discardAction": "放弃",
-        "editorAriaLabel": "项目文件编辑器",
-        "envRedeployHint": "修改环境变量后通常需要重新部署项目才能生效。",
+        "editorAriaLabel": "应用文件编辑器",
+        "envRedeployHint": "修改环境变量后通常需要重新部署应用才能生效。",
         "fileTreeHint": "使用紧凑文件树浏览工作台文件，按需展开目录，把更多宽度留给右侧编辑区。",
         "fileTreeTitle": "应用文件",
         "filesEmpty": "当前目录没有可浏览的文件。",
@@ -144,7 +144,7 @@
         "saveAndContinueAction": "保存并继续",
         "saveFailed": "文件保存失败。",
         "savePartialHint": "这次只会保存当前文件。",
-        "saveSuccess": "文件已保存到工作目录。",
+        "saveSuccess": "文件已保存到工作区路径。",
         "saveThenContinueAction": "保存",
         "savingAction": "保存中",
         "selectDiffFile": "选择一个文件查看差异详情",
@@ -153,12 +153,12 @@
         "showHiddenAction": "显示默认隐藏目录",
         "syntaxErrorCountLabel": "{count} 处错误",
         "syntaxFileTreeTitle": "存在语法错误的文件",
-        "syntaxViewerAriaLabel": "项目文件语法校验查看器",
-        "summaryDescription": "工作台以项目根目录为准，支持文件浏览、编辑、保存当前文件、保存全部草稿，并在写入或部署前查看语法错误。",
+        "syntaxViewerAriaLabel": "应用文件语法校验查看器",
+        "summaryDescription": "工作台以应用根目录为准，支持文件浏览、编辑、保存当前文件、保存全部草稿，并在写入或部署前查看语法错误。",
         "summaryCurrentPathLabel": "当前目录",
         "summaryOpenTabsLabel": "已打开标签",
         "summaryTitle": "工作台摘要",
-        "summaryWorkingDirectoryLabel": "工作目录",
+        "summaryWorkingDirectoryLabel": "工作区路径",
         "upAction": "返回上一级",
         "validateNoFile": "请先打开一个可校验的文件。",
         "validateNextAction": "下一处",
@@ -175,22 +175,26 @@
       "description": "统一查看应用、运行目标和提供者，运行时信息仍由对应运行时系统提供。",
       "refresh": "刷新",
       "retry": "重试",
-      "tableSummary": "共 {count} 个项目",
-      "tableHint": "项目注册管理文件与生命周期；运行时事实仍由容器运行时提供。",
-      "emptyTitle": "暂无项目",
-      "emptyDescription": "先导入现有 Compose 项目，再查看 Overview、Services、Configuration 和 Activity。",
-      "emptyFilteredDescription": "当前筛选条件下没有匹配的项目。",
-      "canonicalNameValue": "规范名 {name}",
+      "tableSummary": "共 {count} 个应用",
+      "tableHint": "应用注册管理文件与生命周期；运行时事实仍由容器运行时提供。",
+      "emptyTitle": "暂无应用",
+      "emptyDescription": "先导入现有 Compose 应用，再查看 Overview、Services、Configuration 和 Activity。",
+      "emptyFilteredDescription": "当前筛选条件下没有匹配的应用。",
+      "canonicalNameValue": "Compose 项目名 {name}",
       "clearFilters": "清除筛选",
       "columnSettings": "列设置",
-      "columnDrawerTitle": "项目列设置",
+      "columnDrawerTitle": "应用列设置",
       "projectCount": "总数 {count}",
-      "runningProjects": "运行中 {count}",
-      "stoppedProjects": "已停止 {count}",
+      "runningApplications": "运行中 {count}",
+      "stoppedApplications": "已停止 {count}",
       "runtimeTargetUnavailable": "未关联运行目标",
       "runtimeTargetsLoadFailed": "加载运行目标失败。",
-      "applicationType": { "compose": "Compose" },
-      "provider": { "docker": "Docker" },
+      "applicationType": {
+        "compose": "Compose"
+      },
+      "provider": {
+        "docker": "Docker"
+      },
       "savedViews": {
         "placeholder": "快捷筛选",
         "save": "保存筛选",
@@ -209,15 +213,15 @@
         "conflict": "该筛选名称已存在，请使用其他名称。"
       },
       "filters": {
-        "searchPlaceholder": "搜索展示名、Canonical 名或工作目录",
+        "searchPlaceholder": "搜索展示名、Canonical 名或工作区路径",
         "applicationType": "应用类型",
         "provider": "提供者",
         "runtimeTarget": "运行目标",
-        "sourceKind": "来源",
+        "sourceType": "来源",
         "runtimeStatus": "运行状态",
         "driftStatus": "同步状态",
         "refreshStatus": "刷新状态",
-        "allSourceKinds": "全部来源",
+        "allSourceTypes": "全部来源",
         "allApplicationTypes": "全部应用类型",
         "allProviders": "全部提供者",
         "allRuntimeTargets": "全部运行目标",
@@ -240,7 +244,7 @@
       },
       "columns": {
         "selection": "选择",
-        "name": "项目",
+        "name": "应用",
         "applicationType": "应用类型",
         "runtimeTarget": "运行目标",
         "provider": "提供者",
@@ -248,9 +252,9 @@
         "runtime": "状态",
         "resources": "资源",
         "drift": "同步状态",
-        "refresh": "最近项目刷新",
-        "workingDirectory": "工作目录",
-        "updatedAt": "最近项目刷新",
+        "refresh": "最近应用刷新",
+        "workspacePath": "工作区路径",
+        "updatedAt": "最近应用刷新",
         "operation": "操作"
       },
       "resources": {
@@ -280,10 +284,10 @@
         "runtimeTransitioning": "当前页过渡中",
         "viewLatestTask": "点击查看最近一次任务执行。"
       },
-      "sourceKinds": {
-        "imported": "导入项目",
-        "managed": "受管项目",
-        "template": "模板项目"
+      "sourceTypes": {
+        "imported": "导入应用",
+        "managed": "受管应用",
+        "template": "模板应用"
       },
       "driftStatus": {
         "unknown": "? 未知",
@@ -299,12 +303,12 @@
       "actions": {
         "detail": "详情",
         "operationMenu": "操作",
-        "import": "导入现有项目",
+        "import": "导入现有应用",
         "create": "创建应用",
         "refresh": "刷新",
-        "up": "启动项目",
-        "stop": "停止项目",
-        "restart": "重启项目",
+        "up": "启动应用",
+        "stop": "停止应用",
+        "restart": "重启应用",
         "redeploy": "重新部署",
         "updateDeploy": "更新部署",
         "unregister": "取消注册",
@@ -315,37 +319,37 @@
         "updateDeployWarning": "仅当 compose 镜像标签使用 latest 时才生效。",
         "destroyDeleteVolumes": "删除命名卷",
         "destroyAutoUnregister": "自动取消注册",
-        "destroyDeleteProjectFiles": "删除项目文件",
-        "refreshSuccess": "项目快照已刷新。",
-        "actionSuccess": "项目操作已完成。",
-        "taskAccepted": "项目任务已提交。",
+        "destroyDeleteApplicationFiles": "删除应用文件",
+        "refreshSuccess": "应用快照已刷新。",
+        "actionSuccess": "应用操作已完成。",
+        "taskAccepted": "应用任务已提交。",
         "taskHistoryLoadFailed": "最近一次任务加载失败。",
-        "noTaskHistory": "该项目暂无任务执行记录。",
-        "actionFailed": "项目操作失败。",
-        "confirmUpTitle": "确认启动项目",
+        "noTaskHistory": "该应用暂无任务执行记录。",
+        "actionFailed": "应用操作失败。",
+        "confirmUpTitle": "确认启动应用",
         "confirmUpDescription": "确认启动 {name}？这会按当前 Compose 配置拉起已注册服务和容器。",
-        "confirmStopTitle": "确认停止项目",
-        "confirmStopDescription": "确认停止 {name}？这会停止当前项目下正在运行的服务和容器。",
-        "confirmRestartTitle": "确认重启项目",
+        "confirmStopTitle": "确认停止应用",
+        "confirmStopDescription": "确认停止 {name}？这会停止当前应用下正在运行的服务和容器。",
+        "confirmRestartTitle": "确认重启应用",
         "confirmRestartDescription": "确认重启 {name}？这会中断现有运行中的服务，并按当前配置重新启动。",
-        "confirmRedeployTitle": "确认重新部署项目",
+        "confirmRedeployTitle": "确认重新部署应用",
         "confirmRedeployDescription": "确认重新部署 {name}？这会先停止，再按已注册的 Compose 文件重新启动。",
-        "confirmUpdateDeployTitle": "确认更新部署项目",
+        "confirmUpdateDeployTitle": "确认更新部署应用",
         "confirmUpdateDeployDescription": "确认更新部署 {name}？这会先拉取镜像，再执行 compose up -d。",
         "confirmUnregisterTitle": "确认取消注册",
-        "confirmUnregisterDescription": "确认取消注册 {name}？这会移除项目注册记录，但不会删除当前运行中的容器。",
-        "confirmDestroyTitle": "确认销毁项目",
+        "confirmUnregisterDescription": "确认取消注册 {name}？这会移除应用注册记录，但不会删除当前运行中的容器。",
+        "confirmDestroyTitle": "确认销毁应用",
         "confirmDestroyDescription": "确认销毁 {name}？破坏性步骤仍会受到 ownership 规则保护。",
         "unregisterConfirm": "确认取消注册 {name}？不会触碰运行中的容器。",
         "destroyConfirm": "确认销毁 {name}？只有 ownership guard 允许时才会执行。"
       },
       "batch": {
-        "selected": "已选择 {count} 个项目",
+        "selected": "已选择 {count} 个应用",
         "cancelSelection": "取消选择",
-        "noSelection": "请先选择项目。",
-        "noActionableSelection": "当前选择中没有可执行此操作的项目。",
+        "noSelection": "请先选择应用。",
+        "noActionableSelection": "当前选择中没有可执行此操作的应用。",
         "scope": "已选择 {selectedCount} 个，其中可执行 {actionableCount} 个，跳过 {skippedCount} 个。",
-        "skipInapplicable": "不适用的项目会被自动跳过。",
+        "skipInapplicable": "不适用的应用会被自动跳过。",
         "start": "批量启动",
         "stop": "批量停止",
         "restart": "批量重启",
@@ -353,14 +357,14 @@
         "redeploy": "批量重新部署",
         "updateDeploy": "批量更新部署",
         "destroy": "批量销毁",
-        "destroySingleSelection": "批量销毁需要且仅允许选择一个项目。",
-        "startHint": "启动选中的 {count} 个项目。",
-        "stopHint": "停止选中的 {count} 个项目。",
-        "restartHint": "重启选中的 {count} 个项目。",
-        "unregisterHint": "取消注册选中的 {count} 个项目。",
-        "redeployHint": "重新部署选中的 {count} 个项目。",
-        "updateDeployHint": "更新部署选中的 {count} 个项目。",
-        "destroyHint": "销毁选中的 {count} 个项目。",
+        "destroySingleSelection": "批量销毁需要且仅允许选择一个应用。",
+        "startHint": "启动选中的 {count} 个应用。",
+        "stopHint": "停止选中的 {count} 个应用。",
+        "restartHint": "重启选中的 {count} 个应用。",
+        "unregisterHint": "取消注册选中的 {count} 个应用。",
+        "redeployHint": "重新部署选中的 {count} 个应用。",
+        "updateDeployHint": "更新部署选中的 {count} 个应用。",
+        "destroyHint": "销毁选中的 {count} 个应用。",
         "startTitle": "确认批量启动",
         "stopTitle": "确认批量停止",
         "restartTitle": "确认批量重启",
@@ -368,13 +372,13 @@
         "redeployTitle": "确认批量重新部署",
         "updateDeployTitle": "确认批量更新部署",
         "destroyTitle": "确认批量销毁",
-        "startConfirm": "确认启动选中的 {count} 个项目？",
-        "stopConfirm": "确认停止选中的 {count} 个项目？",
-        "restartConfirm": "确认重启选中的 {count} 个项目？",
-        "unregisterConfirm": "确认取消注册选中的 {count} 个项目？",
-        "redeployConfirm": "确认重新部署选中的 {count} 个项目？",
-        "updateDeployConfirm": "确认更新部署选中的 {count} 个项目？",
-        "destroyConfirm": "确认销毁选中的 {count} 个项目？",
+        "startConfirm": "确认启动选中的 {count} 个应用？",
+        "stopConfirm": "确认停止选中的 {count} 个应用？",
+        "restartConfirm": "确认重启选中的 {count} 个应用？",
+        "unregisterConfirm": "确认取消注册选中的 {count} 个应用？",
+        "redeployConfirm": "确认重新部署选中的 {count} 个应用？",
+        "updateDeployConfirm": "确认更新部署选中的 {count} 个应用？",
+        "destroyConfirm": "确认销毁选中的 {count} 个应用？",
         "success": "批量操作已完成，成功 {count} 个，跳过 {skippedCount} 个。",
         "partial": "批量操作部分完成，成功 {count} 个，跳过 {skippedCount} 个，阻塞 {blockedCount} 个。",
         "failed": "批量操作失败。",
@@ -388,17 +392,17 @@
       }
     },
     "import": {
-      "eyebrow": "导入项目",
-      "description": "按步骤选择运行中的 Compose 项目、查看检查结果、确认生命周期配置，再导入。",
+      "eyebrow": "导入应用",
+      "description": "按步骤选择运行中的 Compose 应用、查看检查结果、确认生命周期配置，再导入。",
       "meta": {
         "selectedCandidate": "当前候选：{name}"
       },
       "steps": {
         "current": "步骤 {current} / {total}",
         "select": {
-          "shortTitle": "选择项目",
-          "title": "第 1 步 · 选择项目",
-          "description": "先从运行时候选中挑选一个可导入的 Compose 项目。"
+          "shortTitle": "选择应用",
+          "title": "第 1 步 · 选择应用",
+          "description": "先从运行时候选中挑选一个可导入的 Compose 应用。"
         },
         "inspect": {
           "shortTitle": "检查",
@@ -423,10 +427,10 @@
         "reinspectCandidate": "重新检查",
         "refreshInspect": "刷新检查",
         "retryInspect": "重试检查",
-        "import": "导入并打开项目",
+        "import": "导入并打开应用",
         "reset": "重新开始",
         "clearFilters": "清除筛选",
-        "backToCandidates": "返回选择项目",
+        "backToCandidates": "返回选择应用",
         "continueToConfirm": "继续确认导入",
         "continueToLifecycle": "配置生命周期",
         "confirmLifecycle": "确认生命周期配置",
@@ -449,19 +453,19 @@
         "columnSettings": "列设置",
         "columnDrawerTitle": "候选列表列设置",
         "resetColumns": "恢复默认列",
-        "searchPlaceholder": "搜索项目名、工作目录、Compose 文件或服务",
-        "columnProject": "项目",
+        "searchPlaceholder": "搜索应用名、工作区路径、Compose 文件或服务",
+        "columnApplication": "应用",
         "columnConfigFiles": "Compose 文件",
-        "columnWorkingDirectory": "工作目录",
+        "columnWorkspacePath": "工作区路径",
         "columnRuntime": "运行时",
         "columnServices": "服务",
         "columnStatus": "状态",
         "columnReason": "阻塞原因",
         "columnOperation": "操作",
         "columnOptionLabels": {
-          "project": "项目",
+          "project": "应用",
           "config_files": "Compose 文件",
-          "working_directory": "工作目录",
+          "workspace_path": "工作区路径",
           "runtime": "运行时",
           "services": "服务",
           "status": "状态",
@@ -469,8 +473,8 @@
           "operation": "操作"
         },
         "configFiles": "Compose 文件",
-        "workingDirectory": "工作目录",
-        "workingDirectorySource": "工作目录来源",
+        "workspacePath": "工作区路径",
+        "workspacePathSource": "工作区路径来源",
         "runtime": "运行时来源",
         "serviceNames": "服务列表",
         "containerCounts": "容器数量",
@@ -489,7 +493,7 @@
           "broken_compose": "Compose 解析失败"
         },
         "reason": {
-          "already_imported": "该项目已导入 Graft",
+          "already_imported": "该应用已导入 Graft",
           "missing_project_name": "缺少 Compose 项目名元数据",
           "missing_config_files": "缺少 Compose 配置文件元数据",
           "invalid_config_files": "Compose 配置文件元数据无效",
@@ -502,41 +506,41 @@
           "unavailable": "当前暂不可检查"
         },
         "warning": {
-          "working_directory_derived_from_config_files": "未提供工作目录标签，已根据首个 Compose 文件路径推导。"
+          "working_directory_derived_from_config_files": "未提供工作区路径标签，已根据首个 Compose 文件路径推导。"
         }
       },
       "directory": {
-        "title": "检查工作目录",
-        "workingDirectory": "推导工作目录",
+        "title": "检查工作区路径",
+        "workspacePath": "推导工作区路径",
         "configFiles": "Compose 文件",
         "readonlyHint": "仅作展示提示"
       },
       "form": {
         "title": "导入选项",
-        "authorityHint": "Compose 文件会作为导入依据，工作目录只在检查后作为展示提示。",
+        "authorityHint": "Compose 文件会作为导入依据，工作区路径只在检查后作为展示提示。",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
-        "canonicalProjectNameOverride": "规范项目名覆盖",
-        "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
+        "composeProjectNameOverride": "规范应用名覆盖",
+        "composeProjectNameOverridePlaceholder": "留空表示沿用发现结果"
       },
       "lifecycle": {
         "title": "确认生命周期配置",
         "description": "导入前确认后续启动、停止、重启和重新部署将使用的 Compose 策略。",
         "unavailableTitle": "无法加载生命周期配置",
-        "authorityHint": "此配置将随导入一起保存；导入成功后项目生命周期即可执行。",
+        "authorityHint": "此配置将随导入一起保存；导入成功后应用生命周期即可执行。",
         "configurationTitle": "生命周期配置",
         "commandPreviewTitle": "命令预览"
       },
       "inspectionSession": {
         "ready": "检查会话有效，系统会在到期时自动重新检查。",
-        "refreshing": "正在重新检查当前项目，请稍候。",
+        "refreshing": "正在重新检查当前应用，请稍候。",
         "expired": "检查会话已失效，需重新检查后才能继续导入。"
       },
       "confirm": {
         "title": "最终确认",
         "description": "最后一步只做复核与确认。展示名仍可调整，但导入依据保持为当前检查快照。",
-        "identityTitle": "项目标识",
-        "identityHint": "请确认项目展示名与可选的 Canonical Project Name 覆盖值；其余信息来自当前检查会话。",
+        "identityTitle": "应用标识",
+        "identityHint": "请确认应用展示名与可选的 Compose Project Name 覆盖值；其余信息来自当前检查会话。",
         "importSource": "导入来源",
         "importSourceValue": "运行中的 Compose 候选",
         "candidateKey": "候选键",
@@ -556,21 +560,21 @@
           "networks": "已识别 {count} 个网络",
           "volumes": "已识别 {count} 个卷"
         },
-        "previewTitle": "项目预览",
+        "previewTitle": "应用预览",
         "previewWithMore": "{preview} 等另外 {count} 项",
         "effectsTitle": "导入后将执行",
         "effectsDescription": "这一屏只陈述当前合同可确认的导入结果，不额外承诺运行时副作用。",
-        "noAutoDeploy": "导入会注册已检查的工作区并打开项目详情，不会自动部署或启动容器。",
+        "noAutoDeploy": "导入会注册已检查的工作区并打开应用详情，不会自动部署或启动容器。",
         "effects": {
-          "registerProject": "基于当前检查快照创建并注册一个 Graft 项目记录",
+          "registerApplication": "基于当前检查快照创建并注册一个 Graft 应用记录",
           "useInspection": "沿用当前检查会话中的 Compose、服务、网络与卷发现结果",
-          "applyOverrides": "应用你在此页填写的展示名和可选规范项目名覆盖",
-          "recordDiscoveredResources": "将发现到的资源拓扑写入项目导入结果并在导入后打开详情页"
+          "applyOverrides": "应用你在此页填写的展示名和可选规范应用名覆盖",
+          "recordDiscoveredResources": "将发现到的资源拓扑写入应用导入结果并在导入后打开详情页"
         }
       },
       "validation": {
         "displayNameRequired": "请输入展示名。",
-        "canonicalProjectNameOverridePattern": "规范项目名覆盖必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。"
+        "composeProjectNameOverridePattern": "规范应用名覆盖必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。"
       },
       "picker": {
         "title": "选择服务器目录",
@@ -589,7 +593,7 @@
       "preview": {
         "title": "检查预览",
         "overviewTitle": "检查概览",
-        "overviewDescription": "查看项目配置、检查摘要、发现结果与诊断信息。",
+        "overviewDescription": "查看应用配置、检查摘要、发现结果与诊断信息。",
         "resourcesTitle": "资源",
         "resourcesDescription": "在同一区域切换查看当前检查会话的容器、网络与卷。",
         "authorityTitle": "配置与目录",
@@ -599,7 +603,7 @@
         "resourceSearchPlaceholder": "搜索当前资源表",
         "resourceColumnSettings": "列设置",
         "resourceResetColumns": "恢复默认列",
-        "canonicalProjectName": "规范项目名",
+        "composeProjectName": "规范应用名",
         "canonicalNameSource": "名称来源",
         "validationStatus": "校验状态",
         "validationStatusValues": {
@@ -640,9 +644,9 @@
           "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
           "loadFailed": "资源加载失败。",
           "descriptions": {
-            "containers": "查看当前项目关联的容器，并可进入容器详情。",
-            "networks": "查看当前项目声明或关联的网络资源。",
-            "volumes": "查看当前项目声明或挂载的卷资源。"
+            "containers": "查看当前应用关联的容器，并可进入容器详情。",
+            "networks": "查看当前应用声明或关联的网络资源。",
+            "volumes": "查看当前应用声明或挂载的卷资源。"
           },
           "empty": {
             "filteredDescription": "当前搜索条件下没有匹配资源。",
@@ -690,22 +694,22 @@
         "inspectSuccess": "检查已完成。",
         "lifecycleConfigUnavailable": "当前服务端未返回完整的生命周期配置，无法继续导入。请刷新检查；若问题持续，请更新服务端后重试。",
         "inspectFailed": "检查失败。",
-        "importSuccess": "Compose 项目导入成功。",
-        "importFailed": "Compose 项目导入失败。"
+        "importSuccess": "Compose 应用导入成功。",
+        "importFailed": "Compose 应用导入失败。"
       }
     },
     "create": {
-      "eyebrow": "新建空白项目",
-      "title": "新建空白项目",
+      "eyebrow": "新建空白应用",
+      "title": "新建空白应用",
       "description": "在受管目录中创建新的 Compose 工作区。",
-      "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册项目。创建不会自动部署。",
+      "wizardDescription": "在受管根目录中准备完整工作区、确认生命周期配置，然后注册应用。创建不会自动部署。",
       "actions": {
         "refresh": "刷新",
         "backToList": "返回列表",
         "refreshAuthority": "刷新 authority",
         "resetDefaultDirectory": "恢复默认目录",
         "validate": "校验创建输入",
-        "create": "创建并打开项目",
+        "create": "创建并打开应用",
         "reset": "重置表单",
         "back": "上一步",
         "backToSource": "返回应用来源",
@@ -720,19 +724,19 @@
           "unconfigured": "受管根目录未配置",
           "unknown": "受管根目录未知"
         },
-        "readyHint": "当前创建会落到 {directory}，创建后的 working directory 与 snapshot 由 Project authority 持有。",
-        "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建项目。"
+        "readyHint": "当前创建会使用 {directory} 作为工作区路径；创建后由 Graft 管理应用工作区与配置快照。",
+        "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建应用。"
       },
       "form": {
         "applicationName": "应用名",
         "applicationNamePlaceholder": "例如：orders-dev",
-        "title": "项目基础信息",
+        "title": "应用基础信息",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
-        "canonicalProjectName": "Canonical Project Name",
-        "canonicalProjectNamePlaceholder": "例如：orders-dev",
-        "relativeProjectDirectory": "相对项目目录",
-        "relativeProjectDirectoryPlaceholder": "例如：orders/dev",
+        "composeProjectName": "Compose Project Name",
+        "composeProjectNamePlaceholder": "例如：orders-dev",
+        "relativeApplicationDirectory": "相对应用目录",
+        "relativeApplicationDirectoryPlaceholder": "例如：orders/dev",
         "resolvedDirectory": "应用目录",
         "composeFileName": "Compose 文件名",
         "composeFileNamePlaceholder": "例如：compose.yaml",
@@ -747,15 +751,15 @@
         "rootDirectory": "Managed Root",
         "configKey": "系统配置键",
         "createPermission": "创建权限",
-        "workingDirectory": "推导工作目录",
+        "workspacePath": "推导工作区路径",
         "composePath": "Compose 文件绝对路径",
         "envPath": "Env 文件绝对路径",
         "noWarnings": "当前没有返回额外警告。",
         "displayNameRequired": "请输入展示名。",
-        "canonicalProjectNameRequired": "请输入 Canonical Project Name。",
-        "canonicalProjectNamePattern": "Canonical Project Name 必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
-        "relativeDirectoryRequired": "请输入相对项目目录。",
-        "relativeDirectoryPattern": "相对项目目录必须位于 managed root 下，且不能包含上级回退。",
+        "composeProjectNameRequired": "请输入 Compose Project Name。",
+        "composeProjectNamePattern": "Compose Project Name 必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
+        "relativeDirectoryRequired": "请输入相对应用目录。",
+        "relativeDirectoryPattern": "相对应用目录必须位于 managed root 下，且不能包含上级回退。",
         "composeFileNameRequired": "请输入 Compose 文件名。",
         "envFileNamePattern": "Env 文件名不能包含路径分隔符。"
       },
@@ -778,14 +782,21 @@
         "exitFullscreen": "退出全屏",
         "resize": "调整编辑器高度"
       },
-      "steps": { "identity": "项目与根目录", "workspace": "工作区", "lifecycle": "生命周期", "review": "审核" },
+      "steps": {
+        "identity": "应用与根目录",
+        "workspace": "工作区",
+        "lifecycle": "生命周期",
+        "review": "审核"
+      },
       "workspace": {
-        "defaultCompose": { "unit": "services:\n  app:\n    image: nginx:alpine" },
-        "hint": "工作区会作为项目目录完整写入受管根目录。文本文件可按需要组织。",
+        "defaultCompose": {
+          "unit": "services:\n  app:\n    image: nginx:alpine"
+        },
+        "hint": "工作区会作为应用目录完整写入受管根目录。文本文件可按需要组织。",
         "defaultsLoadFailed": "无法加载工作区默认内容。",
         "filesTitle": "工作区文件",
         "filesEmpty": "工作区内暂时没有条目。",
-        "rootLabel": "项目文件",
+        "rootLabel": "应用文件",
         "resizeFileTreeAriaLabel": "调整文件树宽度",
         "selectFile": "请从工作区文件树中选择要编辑的文件。",
         "addFile": "新增文件",
@@ -822,7 +833,7 @@
       },
       "lifecycle": {
         "title": "Lifecycle Configuration",
-        "description": "确认创建后由项目持有的 Compose 生命周期配置。",
+        "description": "确认创建后由应用持有的 Compose 生命周期配置。",
         "authorityHint": "创建只保存生命周期配置，不会执行部署或启动容器。",
         "configurationTitle": "Lifecycle Configuration",
         "commandPreviewTitle": "命令预览",
@@ -832,20 +843,20 @@
       },
       "review": {
         "title": "审核创建",
-        "noAutoDeploy": "创建会写入工作区、注册项目并同步只读运行时摘要；不会自动部署。",
-        "workingDirectory": "目标工作目录",
+        "noAutoDeploy": "创建会写入工作区、注册应用并同步只读运行时摘要；不会自动部署。",
+        "workspacePath": "目标工作区路径",
         "workspaceFiles": "工作区文件",
-        "deployAfterCreate": "项目创建后立即部署",
-        "deployPermissionRequired": "需要项目部署权限才能在创建后部署；不部署也可以正常创建项目。"
+        "deployAfterCreate": "应用创建后立即部署",
+        "deployPermissionRequired": "需要应用部署权限才能在创建后部署；不部署也可以正常创建应用。"
       },
       "messages": {
         "rootLoadFailed": "受管根目录 authority 加载失败。",
         "validateSuccess": "创建输入校验通过。",
         "validateFailed": "创建输入校验失败。",
-        "createSuccess": "托管项目创建成功。",
-        "createFailed": "托管项目创建失败。",
-        "deploySuccess": "项目已在创建后部署。",
-        "deployFailed": "项目已创建，但部署失败。"
+        "createSuccess": "托管应用创建成功。",
+        "createFailed": "托管应用创建失败。",
+        "deploySuccess": "应用已在创建后部署。",
+        "deployFailed": "应用已创建，但部署失败。"
       },
       "reuseDirectory": {
         "title": "确认复用现有文件夹",
@@ -864,11 +875,15 @@
       "eyebrow": "Docker Compose",
       "title": "选择应用来源",
       "description": "选择 Docker Compose 应用的初始化方式。",
-      "availability": { "ready": "可用", "blocked": "暂不可用", "comingSoon": "即将推出" },
+      "availability": {
+        "ready": "可用",
+        "blocked": "暂不可用",
+        "comingSoon": "即将推出"
+      },
       "blockedReasons": {
-        "managed_root_unconfigured": "受管项目根目录尚未配置，暂时无法新建空白项目。",
-        "managed_root_invalid": "受管项目根目录配置无效，修复系统配置后才能新建空白项目。",
-        "managed_root_unknown": "受管项目根目录状态未知，请刷新系统配置后重试。",
+        "managed_root_unconfigured": "受管应用根目录尚未配置，暂时无法新建空白应用。",
+        "managed_root_invalid": "受管应用根目录配置无效，修复系统配置后才能新建空白应用。",
+        "managed_root_unknown": "受管应用根目录状态未知，请刷新系统配置后重试。",
         "unknown": "当前创建方式暂不可用。"
       },
       "actions": {
@@ -877,17 +892,19 @@
         "retry": "重试",
         "backToRuntimeTargets": "返回运行目标"
       },
-      "advanced": { "title": "高级信息" },
+      "advanced": {
+        "title": "高级信息"
+      },
       "methods": {
         "blank": {
-          "title": "新建空白项目",
+          "title": "新建空白应用",
           "description": "创建一个新的 Compose 工作区。",
           "benefits": {
-            "workspace": "自动生成项目工作区",
+            "workspace": "自动生成应用工作区",
             "lifecycle": "初始化统一生命周期配置",
             "authority": "由平台统一管理后续操作"
           },
-          "advanced": "文件将写入已配置的受管项目根目录。"
+          "advanced": "文件将写入已配置的受管应用根目录。"
         },
         "template": {
           "title": "基于模板创建",
@@ -895,19 +912,19 @@
           "benefits": {
             "workspace": "从标准工作区模板初始化",
             "lifecycle": "保留统一生命周期管理",
-            "authority": "创建后纳入平台项目管理"
+            "authority": "创建后纳入平台应用管理"
           },
-          "advanced": "当前可用模板由项目模块随版本提供。"
+          "advanced": "当前可用模板由应用模块随版本提供。"
         },
         "import": {
-          "title": "导入已有项目",
+          "title": "导入已有应用",
           "description": "登记已经存在的 Compose 工作区。",
           "benefits": {
             "detect": "自动识别 Compose 配置",
-            "preserve": "保留原有目录和项目结构",
+            "preserve": "保留原有目录和应用结构",
             "register": "登记后统一查看运行状态"
           },
-          "advanced": "导入会先检查目录与运行时信息，再登记项目。"
+          "advanced": "导入会先检查目录与运行时信息，再登记应用。"
         },
         "git": {
           "title": "Git",
@@ -915,9 +932,13 @@
           "unavailableHint": "Git 仓库创建将在未来版本提供支持。"
         }
       },
-      "messages": { "loadFailed": "项目创建方式加载失败。" }
+      "messages": {
+        "loadFailed": "应用创建方式加载失败。"
+      }
     },
-    "workflow": { "unsupportedTooltip": "暂不支持" },
+    "workflow": {
+      "unsupportedTooltip": "暂不支持"
+    },
     "deployment": {
       "eyebrow": "创建应用",
       "description": "选择应用的部署模型。",
@@ -961,11 +982,26 @@
       "description": "选择应用的运行方式。",
       "unsupportedTooltip": "暂未支持",
       "items": {
-        "dockerCompose": { "title": "Docker Compose", "description": "使用 Docker Compose 管理单机应用。" },
-        "dockerSwarm": { "title": "Docker Swarm", "description": "使用 Docker Stack 部署 Swarm 集群应用。" },
-        "kubernetes": { "title": "Kubernetes", "description": "管理 Kubernetes 工作负载。" },
-        "podmanCompose": { "title": "Podman Compose", "description": "使用 Podman Compose 管理应用。" },
-        "nomad": { "title": "Nomad", "description": "使用 Nomad 调度应用工作负载。" }
+        "dockerCompose": {
+          "title": "Docker Compose",
+          "description": "使用 Docker Compose 管理单机应用。"
+        },
+        "dockerSwarm": {
+          "title": "Docker Swarm",
+          "description": "使用 Docker Stack 部署 Swarm 集群应用。"
+        },
+        "kubernetes": {
+          "title": "Kubernetes",
+          "description": "管理 Kubernetes 工作负载。"
+        },
+        "podmanCompose": {
+          "title": "Podman Compose",
+          "description": "使用 Podman Compose 管理应用。"
+        },
+        "nomad": {
+          "title": "Nomad",
+          "description": "使用 Nomad 调度应用工作负载。"
+        }
       }
     },
     "sourceCreate": {
@@ -973,7 +1009,7 @@
       "displayName": "显示名称",
       "applicationName": "应用名",
       "applicationNamePlaceholder": "例如：orders-dev",
-      "canonicalName": "规范项目名称",
+      "canonicalName": "规范应用名称",
       "relativeDirectory": "相对目录",
       "resolvedDirectory": "应用目录",
       "resetDefaultDirectory": "恢复默认目录",
@@ -985,7 +1021,7 @@
       "template": "模板",
       "emptyComposeTemplate": "空 Compose v1",
       "instanceName": "模板实例名称",
-      "lifecycleHint": "创建时初始化标准项目生命周期配置；创建不会部署或启动容器。",
+      "lifecycleHint": "创建时初始化标准应用生命周期配置；创建不会部署或启动容器。",
       "validate": "校验来源",
       "create": "创建应用",
       "validated": "来源和目标目录有效：{directory}",
@@ -993,15 +1029,15 @@
       "validateFailed": "来源校验失败。",
       "createSuccess": "应用已创建。",
       "createFailed": "应用创建失败。",
-      "deployAfterCreate": "项目创建后立即部署",
-      "deployPermissionRequired": "需要项目部署权限才能在创建后部署；不部署也可以正常创建项目。",
-      "deploySuccess": "项目已在创建后部署。",
-      "deployFailed": "项目已创建，但部署失败。"
+      "deployAfterCreate": "应用创建后立即部署",
+      "deployPermissionRequired": "需要应用部署权限才能在创建后部署；不部署也可以正常创建应用。",
+      "deploySuccess": "应用已在创建后部署。",
+      "deployFailed": "应用已创建，但部署失败。"
     },
     "discovery": {
-      "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册项目，也不改变 runtime authority。",
+      "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册应用，也不改变 runtime authority。",
       "refresh": "刷新候选",
-      "loadFailed": "项目发现候选加载失败。",
+      "loadFailed": "应用发现候选加载失败。",
       "authorityRoot": "Authority 根目录",
       "capabilities": "能力状态",
       "capabilitiesReady": "已启用本机扫描与自动发现预览",
@@ -1009,10 +1045,10 @@
       "candidateKind": "候选类型",
       "recommendedAction": "建议动作",
       "serviceCount": "声明服务数",
-      "workingDirectory": "工作目录",
+      "workspacePath": "工作区路径",
       "composeFiles": "Compose 文件",
       "emptyTitle": "暂无候选项",
-      "emptyDescription": "当前 authority 根目录下没有可预览的 Compose 项目候选项。",
+      "emptyDescription": "当前 authority 根目录下没有可预览的 Compose 应用候选项。",
       "unavailableTitle": "发现预览暂不可用",
       "unavailableDescription": "当前没有返回发现预览载荷，请刷新 authority 后重试。",
       "conflictsValue": "冲突字段：{value}",
@@ -1046,20 +1082,20 @@
     "detail": {
       "ownershipMode": {
         "managed-root-dedicated": "托管根目录专属",
-        "external": "外部项目"
+        "external": "外部应用"
       },
-      "eyebrow": "Compose 项目",
-      "description": "项目摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
-      "openWorkingDirectory": "工作目录",
-      "titleFallback": "项目详情",
+      "eyebrow": "Compose 应用",
+      "description": "应用摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
+      "openWorkingDirectory": "工作区路径",
+      "titleFallback": "应用详情",
       "sections": {
         "lifecycle": {
           "title": "生命周期",
-          "description": "项目级启动、停止、重启和取消注册操作。"
+          "description": "应用级启动、停止、重启和取消注册操作。"
         },
         "overview": {
           "title": "运行概览",
-          "description": "聚焦项目当前运行状态、资源变化、网络 I/O 和容器快照。"
+          "description": "聚焦应用当前运行状态、资源变化、网络 I/O 和容器快照。"
         },
         "resources": {
           "title": "Resources",
@@ -1074,9 +1110,9 @@
         "configurationTitle": "配置",
         "summaryTitle": "摘要",
         "discoveryTitle": "发现",
-        "canonicalName": "规范项目名",
+        "canonicalName": "规范应用名",
         "composeFiles": "Compose 文件",
-        "workingDirectory": "工作目录",
+        "workspacePath": "工作区路径",
         "envFiles": "环境文件",
         "status": "状态",
         "services": "服务数",
@@ -1085,13 +1121,13 @@
         "runtimeMembers": "运行时成员",
         "runningMembers": "运行中成员",
         "hostScope": "宿主范围",
-        "lastRefreshAt": "最近项目刷新",
+        "lastRefreshAt": "最近应用刷新",
         "hostScopeValues": {
           "local": "本机"
         },
         "nameSourceValues": {
           "explicit": "显式配置",
-          "derived-working-directory": "由工作目录推导",
+          "derived-working-directory": "由工作区路径推导",
           "derived-compose-file": "由 Compose 文件推导",
           "derived-runtime-label": "由运行时标签推导",
           "fallback-display-name": "回退展示名"
@@ -1128,15 +1164,15 @@
         "empty": {
           "containers": {
             "title": "暂无容器",
-            "description": "当前 Compose 项目还没有可显示的容器成员。"
+            "description": "当前 Compose 应用还没有可显示的容器成员。"
           },
           "networks": {
             "title": "暂无网络",
-            "description": "当前 Compose 项目还没有声明网络。"
+            "description": "当前 Compose 应用还没有声明网络。"
           },
           "volumes": {
             "title": "暂无卷",
-            "description": "当前 Compose 项目还没有声明卷。"
+            "description": "当前 Compose 应用还没有声明卷。"
           }
         },
         "columns": {
@@ -1209,10 +1245,10 @@
         "diagnosticUnhealthy": "发现 {count} 个 unhealthy 容器，请优先检查服务状态。",
         "diagnosticRestartClear": "当前没有发现容器重启循环。",
         "diagnosticRestartWarning": "累计检测到 {count} 次容器重启。",
-        "diagnosticConfigSynced": "项目配置与最近快照保持一致。",
-        "diagnosticConfigDrift": "项目配置当前状态：{status}。",
-        "diagnosticRefreshHealthy": "最近一次项目刷新成功完成。",
-        "diagnosticRefreshWarning": "最近一次项目刷新状态为：{status}。"
+        "diagnosticConfigSynced": "应用配置与最近快照保持一致。",
+        "diagnosticConfigDrift": "应用配置当前状态：{status}。",
+        "diagnosticRefreshHealthy": "最近一次应用刷新成功完成。",
+        "diagnosticRefreshWarning": "最近一次应用刷新状态为：{status}。"
       },
       "services": {
         "title": "服务",
@@ -1221,7 +1257,7 @@
         "summary": "共 {count} 个服务",
         "loadFailed": "服务列表加载失败。",
         "emptyTitle": "暂无服务",
-        "emptyDescription": "当前项目还没有可展示的服务定义。",
+        "emptyDescription": "当前应用还没有可展示的服务定义。",
         "columns": {
           "service": "服务",
           "status": "状态",
@@ -1253,12 +1289,12 @@
           "partialTitle": "服务操作部分成功",
           "failureDetailTitle": "查看服务操作失败明细",
           "noFailureDetail": "暂无失败明细。",
-          "refreshWarning": "服务操作已提交，但项目详情刷新失败，请手动刷新。"
+          "refreshWarning": "服务操作已提交，但应用详情刷新失败，请手动刷新。"
         }
       },
       "lifecycle": {
         "title": "生命周期",
-        "description": "确认 Graft 将用于本地项目生命周期动作的 Compose 配置，并预览生成命令。",
+        "description": "确认 Graft 将用于本地应用生命周期动作的 Compose 配置，并预览生成命令。",
         "statusTitle": "生命周期状态",
         "statusDescription": "查看当前已确认的生命周期 authority，以及命令生成依赖的关键配置。",
         "configurationTitle": "部署配置",
@@ -1276,9 +1312,9 @@
           "redeploy": "重新部署"
         },
         "generatedCommandsDescriptions": {
-          "up": "按当前保存策略启动 compose 项目。",
-          "stop": "停止当前运行中的服务，但不移除项目资源。",
-          "restart": "在当前 compose 项目内原位重启服务。",
+          "up": "按当前保存策略启动 compose 应用。",
+          "stop": "停止当前运行中的服务，但不移除应用资源。",
+          "restart": "在当前 compose 应用内原位重启服务。",
           "redeploy": "按保存的重新部署策略执行预处理、启动和清理步骤。"
         },
         "groups": {
@@ -1291,15 +1327,15 @@
             "description": "选择 Graft 在 compose up 前后附带执行的标准预处理和清理步骤。"
           }
         },
-        "runtimeStatus": "项目状态",
+        "runtimeStatus": "应用状态",
         "refreshStatus": "刷新状态",
         "driftStatus": "漂移状态",
-        "lastRefreshAt": "最近项目刷新",
+        "lastRefreshAt": "最近应用刷新",
         "reviewStatus": "审查状态",
         "mode": "部署模式",
         "modeStandard": "标准 Compose",
-        "workingDirectory": "工作目录",
-        "projectName": "项目名",
+        "workspacePath": "工作区路径",
+        "projectName": "应用名",
         "composeFiles": "Compose 文件",
         "profiles": "Profiles",
         "profilesPlaceholder": "app, monitoring",
@@ -1317,10 +1353,10 @@
         "pruneImagesAfterRedeploy": "重新部署后清理镜像",
         "optionDescriptions": {
           "downBeforeRedeploy": "在重新部署的启动步骤前，先执行 docker compose down。",
-          "pullBeforeRedeploy": "在复用当前 compose 项目定义前，先拉取最新镜像。",
+          "pullBeforeRedeploy": "在复用当前 compose 应用定义前，先拉取最新镜像。",
           "buildBeforeUp": "在重新部署进入 bring-up 阶段时，为 docker compose up 增加 --build。",
           "forceRecreate": "为 bring-up 增加 --force-recreate，强制重建全部容器。",
-          "removeOrphans": "为 docker compose up 增加 --remove-orphans，移除当前项目中已不再由 Compose 定义声明的孤儿容器。",
+          "removeOrphans": "为 docker compose up 增加 --remove-orphans，移除当前应用中已不再由 Compose 定义声明的孤儿容器。",
           "waitAfterUp": "为 compose up 增加 --wait，等待声明服务进入就绪状态。",
           "waitTimeoutSeconds": "仅在开启“up 后等待就绪”时生效，范围为 1 到 3600 秒。",
           "renewAnonVolumes": "为 docker compose up 增加 --renew-anon-volumes，不复用旧容器的匿名卷。",
@@ -1349,22 +1385,22 @@
               "tooltip": "先停止并移除当前 Compose 资源，再执行新的 up。会产生明确停机窗口，但能清理旧容器和网络状态。",
               "effect": "把重新部署流程改为先执行 docker compose down，再执行新的 docker compose up。",
               "scenarios": "适合需要从干净状态重起、怀疑旧容器、网络或挂载状态污染当前部署时开启。",
-              "risks": "会造成明确停机窗口，服务在 down 与 up 之间不可用；同时会移除当前项目关联的容器、网络等资源。",
+              "risks": "会造成明确停机窗口，服务在 down 与 up 之间不可用；同时会移除当前应用关联的容器、网络等资源。",
               "recommendation": "默认按需开启。只有在你明确接受停机窗口，并且需要一次彻底重建时再启用。"
             },
             "pullBeforeRedeploy": {
               "tooltip": "在复用当前 Compose 定义前先拉取镜像。适合镜像标签会持续更新的部署方式。",
-              "effect": "在进入 bring-up 之前先执行 docker compose pull，刷新当前项目使用的镜像。",
+              "effect": "在进入 bring-up 之前先执行 docker compose pull，刷新当前应用使用的镜像。",
               "scenarios": "适合 CI 持续推送镜像、使用 latest 或其他可变标签，以及希望每次重新部署都优先获取远端最新镜像的场景。",
-              "risks": "会增加网络耗时，也可能把项目更新到未预期的新镜像版本，导致行为变化或回滚成本上升。",
+              "risks": "会增加网络耗时，也可能把应用更新到未预期的新镜像版本，导致行为变化或回滚成本上升。",
               "recommendation": "默认按需开启。如果镜像版本是显式固定 tag，可保持关闭；如果依赖远端持续更新镜像，可考虑开启。"
             },
             "buildBeforeUp": {
-              "tooltip": "在 up 阶段附带 --build，优先重建本地镜像。适合依赖本地 Dockerfile 或源码已变更的项目。",
+              "tooltip": "在 up 阶段附带 --build，优先重建本地镜像。适合依赖本地 Dockerfile 或源码已变更的应用。",
               "effect": "为 docker compose up 增加 --build，让重新部署前先尝试重建本地镜像。",
-              "scenarios": "适合本地构建上下文、Dockerfile、依赖文件或源码已经变更，且部署依赖本机构建镜像的项目。",
+              "scenarios": "适合本地构建上下文、Dockerfile、依赖文件或源码已经变更，且部署依赖本机构建镜像的应用。",
               "risks": "会增加构建耗时；构建缓存失效时耗时更明显；如果构建失败，本次重新部署会被直接阻断。",
-              "recommendation": "默认关闭。只有在本地镜像构建是当前项目的标准发布路径时再开启。"
+              "recommendation": "默认关闭。只有在本地镜像构建是当前应用的标准发布路径时再开启。"
             },
             "forceRecreate": {
               "tooltip": "为 up 增加 --force-recreate，即使配置未变也会重建容器。可用于清理异常状态，但会带来更多重启扰动。",
@@ -1375,10 +1411,10 @@
             },
             "removeOrphans": {
               "tooltip": "为 up 增加 --remove-orphans，清理已不在当前 Compose 定义中的旧容器。适合服务被删除、改名或拆分后的收尾。",
-              "effect": "为 docker compose up 增加 --remove-orphans，自动移除当前项目名下已不再由现有 Compose 文件声明的孤儿容器。",
+              "effect": "为 docker compose up 增加 --remove-orphans，自动移除当前应用名下已不再由现有 Compose 文件声明的孤儿容器。",
               "scenarios": "适合 Compose 服务名调整、服务拆分、模块删除，或历史残留容器需要被自动清理的场景。",
-              "risks": "会删除同一 Compose 项目作用域下不再被声明的旧容器；如果你仍在依赖那些残留容器，会被一起清走。",
-              "recommendation": "推荐开启。对长期演进中的 Compose 项目，它能减少旧容器残留带来的混淆。"
+              "risks": "会删除同一 Compose 应用作用域下不再被声明的旧容器；如果你仍在依赖那些残留容器，会被一起清走。",
+              "recommendation": "推荐开启。对长期演进中的 Compose 应用，它能减少旧容器残留带来的混淆。"
             },
             "waitAfterUp": {
               "tooltip": "为 up 增加 --wait。有 healthcheck 时等待 healthy；没有 healthcheck 时通常只能判断容器是否 running。",
@@ -1390,7 +1426,7 @@
             "waitTimeoutSeconds": {
               "tooltip": "限制 --wait 的最长等待时间。过短会误判失败，过长会拖慢发布反馈。",
               "effect": "控制 docker compose up -d --wait 的最大等待时长，超时后本次等待会按失败处理。",
-              "scenarios": "适合慢启动服务、首次初始化需要跑迁移、冷缓存恢复较慢，或不同环境启动时间差异明显的项目。",
+              "scenarios": "适合慢启动服务、首次初始化需要跑迁移、冷缓存恢复较慢，或不同环境启动时间差异明显的应用。",
               "risks": "阈值过小会让正常但较慢的启动被误判失败；阈值过大会拖慢发布、排障和失败反馈速度。",
               "recommendation": "按环境调整。建议先基于真实启动时间留出缓冲，而不是统一给所有环境使用同一个极端值。"
             },
@@ -1402,10 +1438,10 @@
               "recommendation": "危险操作。只有在你明确知道匿名卷里保存了什么，并接受旧数据不再复用时再开启。"
             },
             "pruneImagesAfterRedeploy": {
-              "tooltip": "重新部署完成后执行 docker image prune -f。这是 Docker 主机级清理，不只作用于当前 Compose 项目。",
+              "tooltip": "重新部署完成后执行 docker image prune -f。这是 Docker 主机级清理，不只作用于当前 Compose 应用。",
               "effect": "在重新部署完成后执行 docker image prune -f，回收当前 Docker 主机上未被容器使用的镜像。",
               "scenarios": "适合单用途主机磁盘压力较高、镜像更新频繁，且希望在每次重新部署后自动做一次镜像回收的场景。",
-              "risks": "这是 Docker 主机级操作，而非仅作用于当前 Compose 项目；它可能影响同主机上其他项目的镜像缓存、回滚速度或后续构建耗时。",
+              "risks": "这是 Docker 主机级操作，而非仅作用于当前 Compose 应用；它可能影响同主机上其他应用的镜像缓存、回滚速度或后续构建耗时。",
               "recommendation": "默认关闭。除非你明确把这台主机当作受控单用途环境，并且确实需要自动回收镜像空间，否则不要开启。"
             }
           }
@@ -1419,7 +1455,7 @@
         "saveFailed": "生命周期配置保存失败。",
         "waitTimeoutValidation": "等待就绪超时必须在 1 到 3600 秒之间。",
         "reviewRequiredTitle": "需要先确认生命周期配置",
-        "reviewRequiredDescription": "导入项目无法自动恢复原始启动参数，请先确认部署配置，再执行 Compose 生命周期动作。",
+        "reviewRequiredDescription": "导入应用无法自动恢复原始启动参数，请先确认部署配置，再执行 Compose 生命周期动作。",
         "reviewRequiredActionBlocked": "请先确认生命周期配置，再执行 Compose 生命周期动作。",
         "step": {
           "up": "启动",
@@ -1447,11 +1483,11 @@
         "composeEditorTab": "Compose 草稿",
         "envEditorTab": "环境变量草稿",
         "composeEditorTitle": "Compose 草稿编辑器",
-        "composeEditorDescription": "这里编辑托管项目的 Compose 草稿。部署时会写回当前受管文件，并刷新项目快照。",
+        "composeEditorDescription": "这里编辑托管应用的 Compose 草稿。部署时会写回当前受管文件，并刷新应用快照。",
         "composeEditorPlaceholder": "输入 Compose YAML 内容",
         "composeEditorEmpty": "当前还没有 Compose 草稿内容。",
         "envEditorTitle": "环境变量草稿编辑器",
-        "envEditorDescription": "这里编辑可选的环境变量草稿，受跟踪文件边界仍由 Project 模块负责。",
+        "envEditorDescription": "这里编辑可选的环境变量草稿，并与当前应用工作区中的受跟踪文件一同保存。",
         "envEditorPlaceholder": "输入 Env 内容",
         "envEditorEmpty": "当前还没有环境变量草稿内容。",
         "backToEditor": "返回编辑",
@@ -1468,14 +1504,14 @@
         "diffFileUnchanged": "未变更",
         "validationTitle": "草稿校验",
         "validationEmpty": "先执行校验，再查看规范化草稿和声明服务。",
-        "validateSuccess": "项目草稿校验通过。",
-        "validateFailed": "项目草稿校验失败。",
-        "deploySuccess": "项目草稿部署完成。",
-        "deployFailed": "项目草稿部署失败。",
-        "deployConfirmTitle": "部署托管项目草稿",
-        "deployConfirmDescription": "部署会覆盖当前受管文件、刷新项目快照，并执行 docker compose up -d。",
-        "managedAuthorityHint": "当前是受管项目，草稿编辑、差异比较、校验和部署都由项目配置边界统一负责。",
-        "externalAuthorityHint": "这组能力只适用于受管项目，外部项目继续保持只读配置视图。",
+        "validateSuccess": "应用草稿校验通过。",
+        "validateFailed": "应用草稿校验失败。",
+        "deploySuccess": "应用草稿部署完成。",
+        "deployFailed": "应用草稿部署失败。",
+        "deployConfirmTitle": "部署托管应用草稿",
+        "deployConfirmDescription": "部署会覆盖当前受管文件、刷新应用快照，并执行 docker compose up -d。",
+        "managedAuthorityHint": "当前是受管应用，草稿编辑、差异比较、校验和部署都由应用配置边界统一负责。",
+        "externalAuthorityHint": "这组能力只适用于受管应用，外部应用继续保持只读配置视图。",
         "currentHash": "当前哈希",
         "proposedHash": "目标哈希",
         "declaredServices": "声明服务",
@@ -1486,19 +1522,19 @@
         "copySuccess": "配置内容已复制。",
         "copyError": "配置内容复制失败。",
         "fileEmpty": "先选择一个 Compose 或 Env 文件查看内容。",
-        "diffFailed": "项目草稿 Diff 失败。"
+        "diffFailed": "应用草稿 Diff 失败。"
       },
       "logs": {
-        "title": "项目日志",
-        "summary": "日志由项目后端聚合输出，并保留服务与容器来源字段。",
-        "authorityProjectOwned": "当前日志流展示来自当前容器聚合后的项目日志。",
+        "title": "应用日志",
+        "summary": "日志由应用后端聚合输出，并保留服务与容器来源字段。",
+        "authorityApplicationOwned": "当前日志流展示来自当前容器聚合后的应用日志。",
         "emptyTitle": "暂无运行时成员",
-        "emptyDescription": "当前项目还没有可供拉取日志的运行时容器成员。",
+        "emptyDescription": "当前应用还没有可供拉取日志的运行时容器成员。",
         "memberCount": "{count} 个来源",
         "logCount": "{count} 条日志",
         "sinceLabel": "时间范围",
         "tailLabel": "Tail",
-        "loadFailed": "项目日志加载失败。",
+        "loadFailed": "应用日志加载失败。",
         "clear": "清空",
         "copy": "复制",
         "download": "下载",
@@ -1540,9 +1576,9 @@
         "resize": "调整日志高度"
       },
       "actions": {
-        "up": "启动项目",
-        "stop": "停止项目",
-        "restart": "重启项目",
+        "up": "启动应用",
+        "stop": "停止应用",
+        "restart": "重启应用",
         "redeploy": "重新部署",
         "openConfigurationWorkspace": "配置工作台",
         "unregister": "取消注册",
@@ -1550,9 +1586,9 @@
         "copyPath": "复制路径",
         "copyPathSuccess": "路径已复制。",
         "copyPathError": "路径复制失败。",
-        "confirmDestroy": "确认 Canonical Project Name",
+        "confirmDestroy": "确认 Compose Project Name",
         "removeNamedVolumes": "同时移除命名卷",
-        "deleteWorkingDirectory": "同时删除工作目录"
+        "deleteWorkingDirectory": "同时删除工作区路径"
       }
     }
   }

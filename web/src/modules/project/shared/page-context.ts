@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router';
 
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 
-export function useProjectPageContext() {
+export function useApplicationPageContext() {
   return {
     router: useRouter(),
     tabsRouterStore: useTabsRouterStore(),

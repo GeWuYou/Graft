@@ -13,7 +13,7 @@
             </span>
             <t-tooltip v-for="item in headerStatusSummaryItems" :key="item.key" :content="item.tooltip" placement="top">
               <span
-                :class="['project-header-summary__status', `project-header-summary__status--${item.key}`]"
+                :class="['application-header-summary__status', `project-header-summary__status--${item.key}`]"
                 :data-testid="`project-status-summary-${item.key}`"
               >
                 {{ item.icon }}{{ item.count }}
@@ -53,7 +53,7 @@
         :remove-sorter-label="t('project.list.filters.sortRemove')"
         :reset-label="t('project.list.filters.reset')"
         :search-label="t('project.list.filters.query')"
-        :selected-field-key="selectedProjectFilterField"
+        :selected-field-key="selectedApplicationFilterField"
         :show-sorter-builder="true"
         :sort-add-disabled="sortAddDisabled"
         :sort-direction-options="projectSortDirectionOptions"
@@ -69,15 +69,15 @@
         :time-fields="[]"
         @reset="resetFilters"
         @search="handleFilterQuery"
-        @add-sorter="addProjectSorter"
-        @move-sorter-down="moveProjectSorterDown"
-        @move-sorter-up="moveProjectSorterUp"
-        @remove-sorter="removeProjectSorter"
-        @update:field="updateProjectFilterField"
+        @add-sorter="addApplicationSorter"
+        @move-sorter-down="moveApplicationSorterDown"
+        @move-sorter-up="moveApplicationSorterUp"
+        @remove-sorter="removeApplicationSorter"
+        @update:field="updateApplicationFilterField"
         @update:keyword="filters.keyword = $event"
-        @update:selected-field-key="updateSelectedProjectFilterField"
-        @update:sort-direction="updateProjectSortDirection"
-        @update:sort-field="updateProjectSortField"
+        @update:selected-field-key="updateSelectedApplicationFilterField"
+        @update:sort-direction="updateApplicationSortDirection"
+        @update:sort-field="updateApplicationSortField"
       >
         <template #saved-query-views>
           <saved-query-view-control :controller="projectSavedViews" />
@@ -260,7 +260,7 @@
 
         <template #source="{ row }">
           <t-tag theme="default" variant="light-outline">
-            {{ sourceKindLabel(projectRow(row).source_kind) }}
+            {{ sourceTypeLabel(projectRow(row).source_type) }}
           </t-tag>
         </template>
 
@@ -291,7 +291,7 @@
               :aria-label="runtimeStatusActionTooltip(projectRow(row))"
               :disabled="openingTaskRowIds.has(projectRow(row).application_id)"
               :data-testid="`project-runtime-status-${projectRow(row).application_id}`"
-              @click="openProjectTask(projectRow(row))"
+              @click="openApplicationTask(projectRow(row))"
             >
               <span
                 v-if="isRowActionPending(projectRow(row).application_id)"
@@ -317,7 +317,7 @@
                 <span
                   v-for="badge in projectContainerBadges(projectRow(row))"
                   :key="badge.key"
-                  :class="['project-resource-badge', `project-resource-badge--${badge.key}`]"
+                  :class="['application-resource-badge', `project-resource-badge--${badge.key}`]"
                   :aria-label="badge.label"
                   :data-testid="`project-resource-badge-${badge.key}-${projectRow(row).application_id}`"
                   :title="badge.label"
@@ -445,18 +445,18 @@ import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import {
-  deleteProjectSavedView,
-  getProjects,
-  getProjectSavedViews,
-  postProjectBatchActions,
-  postProjectDestroy,
-  postProjectRedeploy,
-  postProjectRestart,
-  postProjectSavedView,
-  postProjectStop,
-  postProjectUnregister,
-  postProjectUp,
-  putProjectSavedView,
+  deleteApplicationSavedView,
+  getApplications,
+  getApplicationSavedViews,
+  postApplicationBatchActions,
+  postApplicationDestroy,
+  postApplicationRedeploy,
+  postApplicationRestart,
+  postApplicationSavedView,
+  postApplicationStop,
+  postApplicationUnregister,
+  postApplicationUp,
+  putApplicationSavedView,
 } from '../../api/project';
 import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -464,7 +464,7 @@ import {
   projectDriftStatusLabel,
   projectLifecycleActionVisibility,
   projectRuntimeStatusLabel,
-  projectSourceKindLabel,
+  projectSourceTypeLabel,
   projectTaskTypeLabel,
 } from '../../shared/display';
 import {
@@ -472,30 +472,30 @@ import {
   projectLifecycleReviewStatusTheme,
   projectRequiresLifecycleReview,
 } from '../../shared/lifecycle';
-import { acquireProjectListRealtime, releaseProjectListRealtime } from '../../shared/list-realtime';
+import { acquireApplicationListRealtime, releaseApplicationListRealtime } from '../../shared/list-realtime';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
-  ProjectApplicationType,
-  ProjectBatchAction,
-  ProjectBatchActionItem,
-  ProjectBatchActionResponse,
-  ProjectDestroyRequest,
-  ProjectDetailResponse,
-  ProjectDriftStatus,
-  ProjectFilters,
-  ProjectListItemWithLifecycle,
-  ProjectListQuery,
-  ProjectProvider,
-  ProjectRuntimeStatus,
-  ProjectSavedViewQueryState,
-  ProjectSavedViewRequest,
-  ProjectSourceKind,
-  ProjectTaskReceipt,
+  ApplicationApplicationType,
+  ApplicationBatchAction,
+  ApplicationBatchActionItem,
+  ApplicationBatchActionResponse,
+  ApplicationDestroyRequest,
+  ApplicationDetailResponse,
+  ApplicationDriftStatus,
+  ApplicationFilters,
+  ApplicationListItemWithLifecycle,
+  ApplicationListQuery,
+  ApplicationProvider,
+  ApplicationRuntimeStatus,
+  ApplicationSavedViewQueryState,
+  ApplicationSavedViewRequest,
+  ApplicationSourceType,
+  ApplicationTaskReceipt,
 } from '../../types/project';
 
 // 项目列表以 Query 管理服务端项目快照，筛选/保存视图属于页面状态；任务观察器只负责异步操作进度反馈。
 defineOptions({
-  name: 'ProjectListIndex',
+  name: 'ApplicationListIndex',
 });
 
 const { t } = useI18n();
@@ -509,53 +509,53 @@ const openingTaskRowIds = ref(new Set<string>());
 let taskOpenRequestVersion = 0;
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
-type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
-type PendingProjectAction = 'up' | 'stop' | 'restart' | 'redeploy';
-type ProjectResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
-type ProjectBatchActionUi = ProjectBatchAction;
-type PendingProjectActionState = {
-  action: PendingProjectAction;
+type ApplicationListDriftTone = 'clean' | 'drifted' | 'unknown';
+type PendingApplicationAction = 'up' | 'stop' | 'restart' | 'redeploy';
+type ApplicationResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
+type ApplicationBatchActionUi = ApplicationBatchAction;
+type PendingApplicationActionState = {
+  action: PendingApplicationAction;
   awaitingVisibleChange: boolean;
   deadlineAt: number | null;
-  runtimeStatus: ProjectRuntimeStatus | null;
+  runtimeStatus: ApplicationRuntimeStatus | null;
   taskId?: number;
 };
-type ProjectResourceBadge = {
-  key: ProjectResourceBadgeKey;
+type ApplicationResourceBadge = {
+  key: ApplicationResourceBadgeKey;
   count: number;
   label: string;
   icon: string;
 };
-type ProjectFilterFieldKey =
-  'applicationType' | 'provider' | 'runtimeTargetId' | 'sourceKind' | 'driftStatus' | 'runtimeStatus';
-type ProjectBuilderFieldKey = 'sorterBuilder' | ProjectFilterFieldKey;
-type ProjectSortBy = 'created_at';
-type ProjectFilterState = ProjectFilters & {
-  sorters: Array<{ field: ProjectSortBy; direction?: 'asc' | 'desc' }>;
+type ApplicationFilterFieldKey =
+  'applicationType' | 'provider' | 'runtimeTargetId' | 'sourceType' | 'driftStatus' | 'runtimeStatus';
+type ApplicationBuilderFieldKey = 'sorterBuilder' | ApplicationFilterFieldKey;
+type ApplicationSortBy = 'created_at';
+type ApplicationFilterState = ApplicationFilters & {
+  sorters: Array<{ field: ApplicationSortBy; direction?: 'asc' | 'desc' }>;
 };
-type ProjectSavedQueryViewState = {
+type ApplicationSavedQueryViewState = {
   pageSize: number;
-  queryState: ProjectSavedViewQueryState;
+  queryState: ApplicationSavedViewQueryState;
   visibleColumns: string[];
 };
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
 const errorMessage = ref('');
-const rows = ref<ProjectListItemWithLifecycle[]>([]);
+const rows = ref<ApplicationListItemWithLifecycle[]>([]);
 const pagination = ref({
   current: 1,
   pageSize: 20,
   total: 0,
 });
-const filters = ref<ProjectFilterState>(createDefaultFilters());
+const filters = ref<ApplicationFilterState>(createDefaultFilters());
 const runtimeTargets = ref<RuntimeTarget[]>([]);
 const columnDrawerVisible = ref(false);
-const selectedProjectFilterField = ref<ProjectBuilderFieldKey>('applicationType');
+const selectedApplicationFilterField = ref<ApplicationBuilderFieldKey>('applicationType');
 
-const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'template'];
-const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
-const runtimeStatusOptions: ProjectRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
+const sourceTypeOptions: ApplicationSourceType[] = ['imported', 'managed', 'template'];
+const driftStatusOptions: ApplicationDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
+const runtimeStatusOptions: ApplicationRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
 const projectSortOptions = computed(() => [
   { label: t('project.list.filters.sortCreatedAt'), value: 'created_at' as const },
 ]);
@@ -564,13 +564,13 @@ const projectSortDirectionOptions = computed(() => [
   { label: t('project.list.filters.sortAsc'), value: 'asc' as const },
 ]);
 const { normalizedSorters, sortFieldOptionsByIndex, sortAddDisabled, sortMoveUpDisabled, sortMoveDownDisabled } =
-  useAdvancedQuerySorterUiState<ProjectSortBy>(
+  useAdvancedQuerySorterUiState<ApplicationSortBy>(
     () => filters.value.sorters,
     () => projectSortOptions.value,
   );
 const providerOptions = computed(() =>
   [...new Set(runtimeTargets.value.map((target) => target.runtime.provider))].filter(
-    (provider): provider is ProjectProvider => provider === 'docker',
+    (provider): provider is ApplicationProvider => provider === 'docker',
   ),
 );
 const filteredRuntimeTargets = computed(() =>
@@ -611,14 +611,14 @@ const projectFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(
     placeholder: t('project.list.filters.runtimeTarget'),
   },
   {
-    key: 'sourceKind',
+    key: 'sourceType',
     kind: 'select',
-    label: t('project.list.filters.sourceKind'),
+    label: t('project.list.filters.sourceType'),
     options: [
-      { label: t('project.list.filters.allSourceKinds'), value: 'all' },
-      ...sourceKindOptions.map((value) => ({ label: sourceKindLabel(value), value })),
+      { label: t('project.list.filters.allSourceTypes'), value: 'all' },
+      ...sourceTypeOptions.map((value) => ({ label: sourceTypeLabel(value), value })),
     ],
-    placeholder: t('project.list.filters.sourceKind'),
+    placeholder: t('project.list.filters.sourceType'),
   },
   {
     key: 'driftStatus',
@@ -641,17 +641,17 @@ const projectFilterDefinitions = computed<AdvancedQueryFilterFieldDefinition[]>(
     placeholder: t('project.list.filters.runtimeStatus'),
   },
 ]);
-const projectFilterFieldValues = computed<Record<ProjectFilterFieldKey, string>>(() => ({
+const projectFilterFieldValues = computed<Record<ApplicationFilterFieldKey, string>>(() => ({
   applicationType: filters.value.applicationType,
   provider: filters.value.provider,
   runtimeTargetId: filters.value.runtimeTargetId ? String(filters.value.runtimeTargetId) : '',
-  sourceKind: filters.value.sourceKind,
+  sourceType: filters.value.sourceType,
   driftStatus: filters.value.driftStatus,
   runtimeStatus: filters.value.runtimeStatus ?? 'unknown',
 }));
 const projectFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
   const fieldMap = new Map(projectFilterDefinitions.value.map((field) => [field.key, field]));
-  const tags = (Object.entries(projectFilterFieldValues.value) as Array<[ProjectFilterFieldKey, string]>).reduce<
+  const tags = (Object.entries(projectFilterFieldValues.value) as Array<[ApplicationFilterFieldKey, string]>).reduce<
     AdvancedQueryFilterTag[]
   >((tags, [key, value]) => {
     if (!value || value === 'all') return tags;
@@ -703,25 +703,27 @@ const visibleColumnKeys = ref([
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
-const projectSavedViews = useSavedQueryViews<ProjectSavedQueryViewState, number>({
+const projectSavedViews = useSavedQueryViews<ApplicationSavedQueryViewState, number>({
   adapter: {
     list: async () =>
-      (await getProjectSavedViews()).map((view) => normalizeSavedQueryView<ProjectSavedViewQueryState, number>(view)),
+      (await getApplicationSavedViews()).map((view) =>
+        normalizeSavedQueryView<ApplicationSavedViewQueryState, number>(view),
+      ),
     create: async (input) =>
-      normalizeSavedQueryView<ProjectSavedViewQueryState, number>(
-        await postProjectSavedView(toProjectSavedViewRequest(input)),
+      normalizeSavedQueryView<ApplicationSavedViewQueryState, number>(
+        await postApplicationSavedView(toApplicationSavedViewRequest(input)),
       ),
     update: async (id, input) =>
-      normalizeSavedQueryView<ProjectSavedViewQueryState, number>(
-        await putProjectSavedView(id, toProjectSavedViewRequest(input)),
+      normalizeSavedQueryView<ApplicationSavedViewQueryState, number>(
+        await putApplicationSavedView(id, toApplicationSavedViewRequest(input)),
       ),
     remove: async (id) => {
-      await deleteProjectSavedView(id);
+      await deleteApplicationSavedView(id);
     },
   },
   applyView: async (view) => {
-    applyProjectSavedQueryView(view.state);
-    await fetchProjects();
+    applyApplicationSavedQueryView(view.state);
+    await fetchApplications();
   },
   onError: (error, operation) => {
     const fallback =
@@ -736,9 +738,9 @@ const projectSavedViews = useSavedQueryViews<ProjectSavedQueryViewState, number>
 });
 const confirmDialogOpen = ref(false);
 const realtimeActive = ref(false);
-const pendingRowActions = ref<Record<string, PendingProjectActionState>>({});
+const pendingRowActions = ref<Record<string, PendingApplicationActionState>>({});
 const selectedRowKeys = ref<string[]>([]);
-const batchActionLoading = ref<ProjectBatchActionUi | ''>('');
+const batchActionLoading = ref<ApplicationBatchActionUi | ''>('');
 
 const summaryTotalCount = computed(() => (pagination.value.total > 0 ? pagination.value.total : rows.value.length));
 const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() => {
@@ -778,7 +780,7 @@ const hasActiveFilters = computed(
     filters.value.applicationType !== 'all' ||
     (typeof filters.value.runtimeTargetId === 'number' && filters.value.runtimeTargetId > 0) ||
     filters.value.provider !== 'all' ||
-    filters.value.sourceKind !== 'all' ||
+    filters.value.sourceType !== 'all' ||
     filters.value.runtimeStatus !== 'all' ||
     filters.value.driftStatus !== 'all',
 );
@@ -794,71 +796,71 @@ const selectedRows = computed(() => {
   const rowMap = new Map(rows.value.map((row) => [row.application_id, row]));
   return selectedRowKeys.value
     .map((id) => rowMap.get(id))
-    .filter((row): row is ProjectListItemWithLifecycle => Boolean(row));
+    .filter((row): row is ApplicationListItemWithLifecycle => Boolean(row));
 });
 
 onMounted(() => {
   realtimeActive.value = true;
-  syncProjectListRealtimeSubscription();
-  void fetchProjects();
+  syncApplicationListRealtimeSubscription();
+  void fetchApplications();
   void loadRuntimeTargets();
   void loadSavedViews();
 });
 
 onUnmounted(() => {
   realtimeActive.value = false;
-  syncProjectListRealtimeSubscription();
+  syncApplicationListRealtimeSubscription();
   clearPendingRowActionTimeouts();
   clearPendingTaskObservers();
 });
 
 onActivated(() => {
   realtimeActive.value = true;
-  syncProjectListRealtimeSubscription();
-  void fetchProjects();
+  syncApplicationListRealtimeSubscription();
+  void fetchApplications();
 });
 
 onDeactivated(() => {
   realtimeActive.value = false;
-  syncProjectListRealtimeSubscription();
+  syncApplicationListRealtimeSubscription();
 });
 
 watch(
   () => realtimeSchedulerStore.allowPolling,
   () => {
-    syncProjectListRealtimeSubscription();
+    syncApplicationListRealtimeSubscription();
   },
 );
 
 function projectRow(row: unknown) {
-  return row as ProjectListItemWithLifecycle;
+  return row as ApplicationListItemWithLifecycle;
 }
 
-function sourceKindLabel(value: ProjectSourceKind) {
-  return projectSourceKindLabel(t, value);
+function sourceTypeLabel(value: ApplicationSourceType) {
+  return projectSourceTypeLabel(t, value);
 }
 
-function applicationTypeLabel(value: ProjectApplicationType) {
+function applicationTypeLabel(value: ApplicationApplicationType) {
   return t(`project.list.applicationType.${value}`);
 }
 
-function providerLabel(value: ProjectProvider) {
+function providerLabel(value: ApplicationProvider) {
   return t(`project.list.provider.${value}`);
 }
 
-function projectProviderLabel(row: ProjectListItemWithLifecycle) {
+function projectProviderLabel(row: ApplicationListItemWithLifecycle) {
   return row.runtime_target ? providerLabel(row.runtime_target.provider) : '-';
 }
 
-function driftStatusLabel(value: ProjectDriftStatus) {
+function driftStatusLabel(value: ApplicationDriftStatus) {
   return projectDriftStatusLabel(t, value);
 }
 
-function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
+function runtimeStatusLabel(value?: ApplicationRuntimeStatus | null) {
   return projectRuntimeStatusLabel(t, value);
 }
 
-function normalizeRuntimeStatus(value?: ProjectRuntimeStatus | null): HeaderStatusSummaryKey {
+function normalizeRuntimeStatus(value?: ApplicationRuntimeStatus | null): HeaderStatusSummaryKey {
   if (value === 'running' || value === 'degraded' || value === 'stopped' || value === 'transitioning') {
     return value;
   }
@@ -866,7 +868,7 @@ function normalizeRuntimeStatus(value?: ProjectRuntimeStatus | null): HeaderStat
   return 'unknown';
 }
 
-function normalizeDriftStatus(value: ProjectDriftStatus): ProjectListDriftTone {
+function normalizeDriftStatus(value: ApplicationDriftStatus): ApplicationListDriftTone {
   if (value === 'clean') {
     return 'clean';
   }
@@ -878,14 +880,14 @@ function normalizeDriftStatus(value: ProjectDriftStatus): ProjectListDriftTone {
   return 'drifted';
 }
 
-function projectResourceBadgeLabel(key: ProjectResourceBadgeKey, count: number) {
+function projectResourceBadgeLabel(key: ApplicationResourceBadgeKey, count: number) {
   return t('project.list.resources.statusValue', {
     count,
     status: t(`project.list.resources.${key}`),
   });
 }
 
-function projectResourceBadgeIcon(key: ProjectResourceBadgeKey) {
+function projectResourceBadgeIcon(key: ApplicationResourceBadgeKey) {
   if (key === 'running') return '🟢';
   if (key === 'stopped') return '⚫';
   if (key === 'transitioning') return '🟠';
@@ -893,8 +895,8 @@ function projectResourceBadgeIcon(key: ProjectResourceBadgeKey) {
   return '⚪';
 }
 
-function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResourceBadge[] {
-  const badges: ProjectResourceBadge[] = [
+function projectContainerBadges(row: ApplicationListItemWithLifecycle): ApplicationResourceBadge[] {
+  const badges: ApplicationResourceBadge[] = [
     {
       key: 'running',
       count: row.container_counts.running,
@@ -935,7 +937,7 @@ function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResou
       },
     ];
   }
-  const fallbackKey: ProjectResourceBadgeKey =
+  const fallbackKey: ApplicationResourceBadgeKey =
     row.runtime_status === 'running'
       ? 'running'
       : row.runtime_status === 'stopped'
@@ -955,7 +957,7 @@ function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResou
   ];
 }
 
-function projectSecondaryName(row: ProjectListItemWithLifecycle) {
+function projectSecondaryName(row: ApplicationListItemWithLifecycle) {
   const canonicalName = row.compose_project_name?.trim() || '';
   const displayName = row.display_name?.trim() || '';
 
@@ -970,15 +972,15 @@ let refreshRequestSeq = 0;
 const pendingRowTimeouts = new Map<string, number>();
 const pendingTaskObservers = new Map<string, TaskObserver>();
 
-function syncProjectListRealtimeSubscription() {
+function syncApplicationListRealtimeSubscription() {
   if (realtimeActive.value && realtimeSchedulerStore.allowPolling) {
-    acquireProjectListRealtime(handleProjectListRealtimeItems);
+    acquireApplicationListRealtime(handleApplicationListRealtimeItems);
     return;
   }
-  releaseProjectListRealtime(handleProjectListRealtimeItems);
+  releaseApplicationListRealtime(handleApplicationListRealtimeItems);
 }
 
-async function fetchProjects() {
+async function fetchApplications() {
   const requestSeq = ++refreshRequestSeq;
   const shouldBlockTable = rows.value.length === 0 && !tableLoading.value;
   if (shouldBlockTable) {
@@ -988,7 +990,7 @@ async function fetchProjects() {
   }
   errorMessage.value = '';
   try {
-    const query: ProjectListQuery = {
+    const query: ApplicationListQuery = {
       limit: pagination.value.pageSize,
       offset: (pagination.value.current - 1) * pagination.value.pageSize,
     };
@@ -999,10 +1001,10 @@ async function fetchProjects() {
       query.runtime_target_id = filters.value.runtimeTargetId;
     }
     if (filters.value.provider !== 'all') query.provider = filters.value.provider;
-    if (filters.value.sourceKind !== 'all') query.source_kind = filters.value.sourceKind;
+    if (filters.value.sourceType !== 'all') query.source_type = filters.value.sourceType;
     if (filters.value.runtimeStatus !== 'all') query.runtime_status = filters.value.runtimeStatus;
     if (filters.value.driftStatus !== 'all') query.drift_status = filters.value.driftStatus;
-    const response = await getProjects(query);
+    const response = await getApplications(query);
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
@@ -1045,13 +1047,13 @@ async function loadSavedViews() {
   }
 }
 
-function handleProjectListRealtimeItems(
+function handleApplicationListRealtimeItems(
   items: Array<{
     application_id: string;
-    runtime_status: ProjectRuntimeStatus;
+    runtime_status: ApplicationRuntimeStatus;
     service_count: number;
-    container_counts: ProjectListItemWithLifecycle['container_counts'];
-    drift_status: ProjectDriftStatus;
+    container_counts: ApplicationListItemWithLifecycle['container_counts'];
+    drift_status: ApplicationDriftStatus;
   }>,
 ) {
   if (!realtimeActive.value || !realtimeSchedulerStore.allowPolling || rows.value.length === 0) {
@@ -1064,7 +1066,7 @@ function handleProjectListRealtimeItems(
     if (!patch) {
       return row;
     }
-    const nextRow: ProjectListItemWithLifecycle = {
+    const nextRow: ApplicationListItemWithLifecycle = {
       ...row,
       runtime_status: patch.runtime_status,
       service_count: patch.service_count,
@@ -1100,7 +1102,7 @@ function syncPaginationFromResponse(response: { total?: number; limit?: number; 
   }
 }
 
-function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
+function reconcilePendingRowActions(nextRows: ApplicationListItemWithLifecycle[]) {
   const nextPending = { ...pendingRowActions.value };
   const rowMap = new Map(nextRows.map((row) => [row.application_id, row]));
 
@@ -1126,7 +1128,7 @@ function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
   pendingRowActions.value = nextPending;
 }
 
-function markPendingRowAction(row: ProjectListItemWithLifecycle, action: PendingProjectAction) {
+function markPendingRowAction(row: ApplicationListItemWithLifecycle, action: PendingApplicationAction) {
   clearPendingRowActionTimeout(row.application_id);
   pendingRowActions.value = {
     ...pendingRowActions.value,
@@ -1139,7 +1141,7 @@ function markPendingRowAction(row: ProjectListItemWithLifecycle, action: Pending
   };
 }
 
-function markPendingRowActions(rowsToMark: ProjectListItemWithLifecycle[], action: PendingProjectAction) {
+function markPendingRowActions(rowsToMark: ApplicationListItemWithLifecycle[], action: PendingApplicationAction) {
   if (rowsToMark.length === 0) {
     return;
   }
@@ -1318,16 +1320,16 @@ function resetFilters() {
   filters.value = createDefaultFilters();
   projectSavedViews.selectedId.value = undefined;
   pagination.value.current = 1;
-  void fetchProjects();
+  void fetchApplications();
 }
 
-function createDefaultFilters(): ProjectFilterState {
+function createDefaultFilters(): ApplicationFilterState {
   return {
     keyword: '',
     applicationType: 'all',
     runtimeTargetId: undefined,
     provider: 'all',
-    sourceKind: 'all',
+    sourceType: 'all',
     runtimeStatus: 'all',
     driftStatus: 'all',
     sorters: createSingleSorter('created_at', 'desc'),
@@ -1336,16 +1338,16 @@ function createDefaultFilters(): ProjectFilterState {
 
 function handleFilterQuery() {
   pagination.value.current = 1;
-  void fetchProjects();
+  void fetchApplications();
 }
 
 function handlePageChange(pageInfo: { current: number; pageSize: number }) {
   pagination.value.current = pageInfo.current;
   pagination.value.pageSize = pageInfo.pageSize;
-  void fetchProjects();
+  void fetchApplications();
 }
 
-function currentSavedViewQueryState(): ProjectSavedViewQueryState {
+function currentSavedViewQueryState(): ApplicationSavedViewQueryState {
   return {
     ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}),
     ...(filters.value.applicationType !== 'all' ? { application_type: filters.value.applicationType } : {}),
@@ -1353,31 +1355,31 @@ function currentSavedViewQueryState(): ProjectSavedViewQueryState {
       ? { runtime_target_id: filters.value.runtimeTargetId }
       : {}),
     ...(filters.value.provider !== 'all' ? { provider: filters.value.provider } : {}),
-    ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
+    ...(filters.value.sourceType !== 'all' ? { source_type: filters.value.sourceType } : {}),
     ...(filters.value.runtimeStatus !== 'all' ? { runtime_status: filters.value.runtimeStatus } : {}),
     ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
     sort: encodeSorters(normalizedSorters.value, projectSortOptions.value) as NonNullable<
-      ProjectSavedViewQueryState['sort']
+      ApplicationSavedViewQueryState['sort']
     >,
   };
 }
 
-function toProjectSavedViewRequest(input: {
+function toApplicationSavedViewRequest(input: {
   name: string;
-  state: ProjectSavedQueryViewState;
-}): ProjectSavedViewRequest {
+  state: ApplicationSavedQueryViewState;
+}): ApplicationSavedViewRequest {
   return {
     name: input.name,
     page_size: input.state.pageSize,
     query_state: input.state.queryState,
-    visible_columns: input.state.visibleColumns as ProjectSavedViewRequest['visible_columns'],
+    visible_columns: input.state.visibleColumns as ApplicationSavedViewRequest['visible_columns'],
   };
 }
 
-function applyProjectSavedQueryView(savedState: ProjectSavedQueryViewState) {
+function applyApplicationSavedQueryView(savedState: ApplicationSavedQueryViewState) {
   const state = savedState.queryState;
   const restoredSorters = normalizeSorters(
-    decodeSorters(state.sort ?? [], normalizeProjectSortField, normalizeProjectSortDirection),
+    decodeSorters(state.sort ?? [], normalizeApplicationSortField, normalizeApplicationSortDirection),
     projectSortOptions.value,
   );
   filters.value = {
@@ -1385,7 +1387,7 @@ function applyProjectSavedQueryView(savedState: ProjectSavedQueryViewState) {
     applicationType: state.application_type ?? 'all',
     runtimeTargetId: state.runtime_target_id,
     provider: state.provider ?? 'all',
-    sourceKind: state.source_kind ?? 'all',
+    sourceType: state.source_type ?? 'all',
     runtimeStatus: state.runtime_status ?? 'all',
     driftStatus: state.drift_status ?? 'all',
     sorters: restoredSorters.length ? restoredSorters : createSingleSorter('created_at', 'desc'),
@@ -1397,9 +1399,9 @@ function applyProjectSavedQueryView(savedState: ProjectSavedQueryViewState) {
   });
 }
 
-function updateProjectFilterField(payload: { key: string; value: string | string[] }) {
+function updateApplicationFilterField(payload: { key: string; value: string | string[] }) {
   const value = Array.isArray(payload.value) ? (payload.value[0] ?? '') : payload.value;
-  const key = payload.key as ProjectFilterFieldKey;
+  const key = payload.key as ApplicationFilterFieldKey;
   if (key === 'runtimeTargetId') {
     const parsed = Number(value);
     filters.value.runtimeTargetId = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
@@ -1407,51 +1409,51 @@ function updateProjectFilterField(payload: { key: string; value: string | string
   }
   if (key === 'applicationType') filters.value.applicationType = value === 'compose' ? 'compose' : 'all';
   if (key === 'provider') filters.value.provider = value === 'docker' ? 'docker' : 'all';
-  if (key === 'sourceKind') {
-    filters.value.sourceKind = sourceKindOptions.includes(value as ProjectSourceKind)
-      ? (value as ProjectSourceKind)
+  if (key === 'sourceType') {
+    filters.value.sourceType = sourceTypeOptions.includes(value as ApplicationSourceType)
+      ? (value as ApplicationSourceType)
       : 'all';
   }
   if (key === 'driftStatus') {
-    filters.value.driftStatus = driftStatusOptions.includes(value as ProjectDriftStatus)
-      ? (value as ProjectDriftStatus)
+    filters.value.driftStatus = driftStatusOptions.includes(value as ApplicationDriftStatus)
+      ? (value as ApplicationDriftStatus)
       : 'all';
   }
   if (key === 'runtimeStatus') {
-    filters.value.runtimeStatus = runtimeStatusOptions.includes(value as ProjectRuntimeStatus)
-      ? (value as ProjectRuntimeStatus)
+    filters.value.runtimeStatus = runtimeStatusOptions.includes(value as ApplicationRuntimeStatus)
+      ? (value as ApplicationRuntimeStatus)
       : 'all';
   }
 }
 
-function addProjectSorter() {
+function addApplicationSorter() {
   filters.value = {
     ...filters.value,
     sorters: filters.value.sorters.length ? filters.value.sorters : createSingleSorter('created_at', 'desc'),
   };
 }
 
-function removeProjectSorter(index: number) {
+function removeApplicationSorter(index: number) {
   filters.value = removeSorterFromState(filters.value, index, projectSortOptions.value);
 }
 
-function moveProjectSorterUp(index: number) {
+function moveApplicationSorterUp(index: number) {
   filters.value = moveSorterInState(filters.value, index, -1, projectSortOptions.value);
 }
 
-function moveProjectSorterDown(index: number) {
+function moveApplicationSorterDown(index: number) {
   filters.value = moveSorterInState(filters.value, index, 1, projectSortOptions.value);
 }
 
-function normalizeProjectSortField(value: string): ProjectSortBy | '' {
+function normalizeApplicationSortField(value: string): ApplicationSortBy | '' {
   return value === 'created_at' ? 'created_at' : '';
 }
 
-function normalizeProjectSortDirection(value: string) {
+function normalizeApplicationSortDirection(value: string) {
   return value === 'asc' ? 'asc' : 'desc';
 }
 
-function updateProjectSortField(payload: {
+function updateApplicationSortField(payload: {
   index: number;
   value: string | number | Array<string | number> | undefined;
 }) {
@@ -1459,12 +1461,12 @@ function updateProjectSortField(payload: {
     filters.value,
     payload.index,
     payload.value,
-    normalizeProjectSortField,
+    normalizeApplicationSortField,
     projectSortOptions.value,
   );
 }
 
-function updateProjectSortDirection(payload: {
+function updateApplicationSortDirection(payload: {
   index: number;
   value: string | number | Array<string | number> | undefined;
 }) {
@@ -1472,14 +1474,14 @@ function updateProjectSortDirection(payload: {
     filters.value,
     payload.index,
     payload.value,
-    normalizeProjectSortDirection,
+    normalizeApplicationSortDirection,
     projectSortOptions.value,
   );
 }
 
-function updateSelectedProjectFilterField(value: string) {
+function updateSelectedApplicationFilterField(value: string) {
   if (projectFilterDefinitions.value.some((field) => field.key === value)) {
-    selectedProjectFilterField.value = value as ProjectBuilderFieldKey;
+    selectedApplicationFilterField.value = value as ApplicationBuilderFieldKey;
   }
 }
 
@@ -1504,10 +1506,10 @@ watch(
   },
 );
 
-function navigateToDetail(row: ProjectListItemWithLifecycle, tab?: string) {
+function navigateToDetail(row: ApplicationListItemWithLifecycle, tab?: string) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
-    params: { id: row.application_id },
+    params: { applicationId: row.application_id },
     query: {
       ...(tab ? { tab } : {}),
       name: row.display_name,
@@ -1532,10 +1534,10 @@ function navigateToSourceChooser() {
 }
 
 async function runAction(
-  handler: (id: string) => Promise<ProjectTaskReceipt | ProjectDetailResponse | unknown>,
-  row: ProjectListItemWithLifecycle,
+  handler: (id: string) => Promise<ApplicationTaskReceipt | ApplicationDetailResponse | unknown>,
+  row: ApplicationListItemWithLifecycle,
   successMessage: string,
-  pendingAction?: PendingProjectAction,
+  pendingAction?: PendingApplicationAction,
 ) {
   if (pendingAction) {
     markPendingRowAction(row, pendingAction);
@@ -1550,14 +1552,14 @@ async function runAction(
       if (pendingAction) markPendingRowActionAwaitingChange(row.application_id);
       MessagePlugin.success(successMessage);
     }
-    await fetchProjects();
+    await fetchApplications();
   } catch (error) {
     clearPendingRowAction(row.application_id);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
 }
 
-function buildRowActions(row: ProjectListItemWithLifecycle) {
+function buildRowActions(row: ApplicationListItemWithLifecycle) {
   const visibility = projectLifecycleActionVisibility(row.runtime_status, {
     hideLifecycleActions: isRowActionPending(row.application_id),
   });
@@ -1590,11 +1592,11 @@ function actionConfirmTheme(action: 'up' | 'stop' | 'restart' | 'unregister' | '
   return action === 'up' ? ('warning' as const) : ('danger' as const);
 }
 
-function isDeleteWorkingDirectoryAllowed(row: ProjectListItemWithLifecycle) {
+function isDeleteWorkspacePathAllowed(row: ApplicationListItemWithLifecycle) {
   return row.ownership_mode !== 'external';
 }
 
-function isRowBatchEligible(row: ProjectListItemWithLifecycle, action: ProjectBatchActionUi) {
+function isRowBatchEligible(row: ApplicationListItemWithLifecycle, action: ApplicationBatchActionUi) {
   if (projectRequiresLifecycleReview(row) && ['start', 'stop', 'restart', 'redeploy'].includes(action)) {
     return false;
   }
@@ -1609,22 +1611,22 @@ function isRowBatchEligible(row: ProjectListItemWithLifecycle, action: ProjectBa
   return true;
 }
 
-function batchActionableRows(action: ProjectBatchActionUi) {
+function batchActionableRows(action: ApplicationBatchActionUi) {
   return selectedRows.value.filter((row) => isRowBatchEligible(row, action));
 }
 
-function requiresSingleSelection(action: ProjectBatchActionUi) {
+function requiresSingleSelection(action: ApplicationBatchActionUi) {
   return action === 'destroy';
 }
 
-function isBatchActionDisabled(action: ProjectBatchActionUi) {
+function isBatchActionDisabled(action: ApplicationBatchActionUi) {
   if (requiresSingleSelection(action) && selectedRows.value.length !== 1) {
     return true;
   }
   return batchActionableRows(action).length === 0;
 }
 
-function batchActionHint(action: ProjectBatchActionUi) {
+function batchActionHint(action: ApplicationBatchActionUi) {
   if (!selectedRows.value.length) return t('project.list.batch.noSelection');
   if (requiresSingleSelection(action) && selectedRows.value.length !== 1) {
     return t('project.list.batch.destroySingleSelection');
@@ -1636,7 +1638,7 @@ function batchActionHint(action: ProjectBatchActionUi) {
 }
 
 function confirmDangerousAction(
-  row: ProjectListItemWithLifecycle,
+  row: ApplicationListItemWithLifecycle,
   action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy',
 ) {
   if (confirmDialogOpen.value) {
@@ -1646,7 +1648,7 @@ function confirmDangerousAction(
   return new Promise<boolean>((resolve) => {
     let settled = false;
     confirmDialogOpen.value = true;
-    const deleteWorkingDirectory = ref(false);
+    const deleteWorkspacePath = ref(false);
     const autoUnregister = ref(false);
     const removeNamedVolumes = ref(false);
 
@@ -1689,17 +1691,17 @@ function confirmDangerousAction(
                 ]),
                 h('label', { class: 'project-action-confirm__option' }, [
                   h('input', {
-                    checked: deleteWorkingDirectory.value,
-                    disabled: !isDeleteWorkingDirectoryAllowed(row),
+                    checked: deleteWorkspacePath.value,
+                    disabled: !isDeleteWorkspacePathAllowed(row),
                     type: 'checkbox',
                     onInput: (event: Event) => {
-                      deleteWorkingDirectory.value = (event.target as HTMLInputElement).checked;
-                      if (deleteWorkingDirectory.value) {
+                      deleteWorkspacePath.value = (event.target as HTMLInputElement).checked;
+                      if (deleteWorkspacePath.value) {
                         autoUnregister.value = true;
                       }
                     },
                   }),
-                  h('span', t('project.list.actions.destroyDeleteProjectFiles')),
+                  h('span', t('project.list.actions.destroyDeleteApplicationFiles')),
                 ]),
               ])
             : null,
@@ -1715,9 +1717,9 @@ function confirmDangerousAction(
       onConfirm: async () => {
         if (action === 'destroy') {
           await runDestroy(row, {
-            auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
+            auto_unregister: autoUnregister.value || deleteWorkspacePath.value,
             confirm_application_id: row.application_id,
-            delete_workspace: deleteWorkingDirectory.value,
+            delete_workspace: deleteWorkspacePath.value,
             image_prune: false,
             remove_named_volumes: removeNamedVolumes.value,
           });
@@ -1730,32 +1732,32 @@ function confirmDangerousAction(
   });
 }
 
-async function runDestroy(row: ProjectListItemWithLifecycle, payload: ProjectDestroyRequest) {
+async function runDestroy(row: ApplicationListItemWithLifecycle, payload: ApplicationDestroyRequest) {
   try {
-    await postProjectDestroy(row.application_id, payload);
+    await postApplicationDestroy(row.application_id, payload);
     MessagePlugin.success(t('project.list.actions.actionSuccess'));
-    await fetchProjects();
+    await fetchApplications();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
 }
 
-async function runRedeploy(row: ProjectListItemWithLifecycle) {
+async function runRedeploy(row: ApplicationListItemWithLifecycle) {
   markPendingRowAction(row, 'redeploy');
   try {
-    const receipt = await postProjectRedeploy(row.application_id);
+    const receipt = await postApplicationRedeploy(row.application_id);
     markPendingRowActionTask(row.application_id, receipt.task_id);
     openTaskDrawer(receipt.task_id);
     MessagePlugin.success(t('project.list.actions.taskAccepted'));
-    await fetchProjects();
+    await fetchApplications();
   } catch (error) {
     clearPendingRowAction(row.application_id);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
 }
 
-function isTaskReceipt(value: unknown): value is ProjectTaskReceipt {
-  return Boolean(value && typeof value === 'object' && typeof (value as ProjectTaskReceipt).task_id === 'number');
+function isTaskReceipt(value: unknown): value is ApplicationTaskReceipt {
+  return Boolean(value && typeof value === 'object' && typeof (value as ApplicationTaskReceipt).task_id === 'number');
 }
 
 function openTaskDrawer(taskId: number) {
@@ -1764,7 +1766,7 @@ function openTaskDrawer(taskId: number) {
   taskDrawerVisible.value = true;
 }
 
-async function openProjectTask(row: ProjectListItemWithLifecycle) {
+async function openApplicationTask(row: ApplicationListItemWithLifecycle) {
   const pendingTaskId = pendingRowActions.value[row.application_id]?.taskId;
   if (pendingTaskId) {
     openTaskDrawer(pendingTaskId);
@@ -1789,17 +1791,17 @@ async function openProjectTask(row: ProjectListItemWithLifecycle) {
   }
 }
 
-function runtimeStatusActionTooltip(row: ProjectListItemWithLifecycle) {
+function runtimeStatusActionTooltip(row: ApplicationListItemWithLifecycle) {
   return isRowActionPending(row.application_id)
     ? t('project.list.statusTooltip.taskInProgress')
     : t('project.list.statusTooltip.viewLatestTask');
 }
 
 async function executeBatchAction(
-  action: ProjectBatchActionUi,
+  action: ApplicationBatchActionUi,
   overrides: {
-    confirmCanonicalProjectName?: string;
-    deleteWorkingDirectory?: boolean;
+    confirmComposeProjectName?: string;
+    deleteWorkspacePath?: boolean;
     auto_unregister?: boolean;
     image_prune?: boolean;
     remove_named_volumes?: boolean;
@@ -1821,11 +1823,11 @@ async function executeBatchAction(
     markPendingRowActions(actionableRows, pendingAction);
   }
   try {
-    const response = await postProjectBatchActions({
+    const response = await postApplicationBatchActions({
       action,
       auto_unregister: overrides.auto_unregister ?? false,
-      confirm_canonical_project_name: overrides.confirmCanonicalProjectName,
-      delete_working_directory: overrides.deleteWorkingDirectory ?? false,
+      confirm_compose_project_name: overrides.confirmComposeProjectName,
+      delete_workspace_path: overrides.deleteWorkspacePath ?? false,
       image_prune: overrides.image_prune ?? false,
       application_ids: actionableRows.map((row) => row.application_id),
       remove_named_volumes: overrides.remove_named_volumes ?? false,
@@ -1833,16 +1835,16 @@ async function executeBatchAction(
     if (pendingAction) {
       const completedRowIds = response.items
         .filter((item) => !item.skipped && item.result === 'completed')
-        .map((item) => String(item.project_id));
+        .map((item) => String(item.application_id));
       const blockedRowIds = response.items
         .filter((item) => item.skipped || item.result !== 'completed')
-        .map((item) => String(item.project_id));
+        .map((item) => String(item.application_id));
       markPendingRowActionsAwaitingChange(completedRowIds);
       clearPendingRowActions(blockedRowIds);
     }
     handleBatchActionResult(action, response);
     clearSelection();
-    await fetchProjects();
+    await fetchApplications();
   } catch (error) {
     if (pendingAction) {
       clearPendingRowActions(actionableRows.map((row) => row.application_id));
@@ -1853,18 +1855,18 @@ async function executeBatchAction(
   }
 }
 
-function batchFailureSummary(items: ProjectBatchActionItem[]) {
+function batchFailureSummary(items: ApplicationBatchActionItem[]) {
   return items
     .filter((item) => !item.skipped && item.result !== 'completed')
-    .map((item) => `${item.project_id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
+    .map((item) => `${item.application_id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
     .join('\n');
 }
 
-function batchActionLocaleSegment(action: ProjectBatchActionUi) {
+function batchActionLocaleSegment(action: ApplicationBatchActionUi) {
   return action;
 }
 
-function handleBatchActionResult(action: ProjectBatchActionUi, response: ProjectBatchActionResponse) {
+function handleBatchActionResult(action: ApplicationBatchActionUi, response: ApplicationBatchActionResponse) {
   const successCount = response.completed_count;
   const skippedCount = response.skipped_count;
   const title = t(`project.list.batch.${batchActionLocaleSegment(action)}ResultTitle`);
@@ -1893,12 +1895,12 @@ function handleBatchActionResult(action: ProjectBatchActionUi, response: Project
   });
 }
 
-function confirmBatchAction(action: ProjectBatchActionUi) {
+function confirmBatchAction(action: ApplicationBatchActionUi) {
   if (isBatchActionDisabled(action) || confirmDialogOpen.value) {
     return;
   }
   confirmDialogOpen.value = true;
-  const deleteWorkingDirectory = ref(false);
+  const deleteWorkspacePath = ref(false);
   const autoUnregister = ref(false);
   const removeNamedVolumes = ref(false);
   const selectedCount = selectedRows.value.length;
@@ -1945,17 +1947,17 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
               ]),
               h('label', { class: 'project-action-confirm__option' }, [
                 h('input', {
-                  checked: deleteWorkingDirectory.value,
-                  disabled: selectedRows.value.some((row) => !isDeleteWorkingDirectoryAllowed(row)),
+                  checked: deleteWorkspacePath.value,
+                  disabled: selectedRows.value.some((row) => !isDeleteWorkspacePathAllowed(row)),
                   type: 'checkbox',
                   onInput: (event: Event) => {
-                    deleteWorkingDirectory.value = (event.target as HTMLInputElement).checked;
-                    if (deleteWorkingDirectory.value) {
+                    deleteWorkspacePath.value = (event.target as HTMLInputElement).checked;
+                    if (deleteWorkspacePath.value) {
                       autoUnregister.value = true;
                     }
                   },
                 }),
-                h('span', t('project.list.actions.destroyDeleteProjectFiles')),
+                h('span', t('project.list.actions.destroyDeleteApplicationFiles')),
               ]),
             ])
           : null,
@@ -1971,10 +1973,10 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
     onConfirm: async () => {
       closeDialog();
       await executeBatchAction(action, {
-        auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
-        confirmCanonicalProjectName:
+        auto_unregister: autoUnregister.value || deleteWorkspacePath.value,
+        confirmComposeProjectName:
           action === 'destroy' && selectedRows.value.length === 1 ? selectedRows.value[0]?.application_id : undefined,
-        deleteWorkingDirectory: deleteWorkingDirectory.value,
+        deleteWorkspacePath: deleteWorkspacePath.value,
         image_prune: false,
         remove_named_volumes: removeNamedVolumes.value,
       });
@@ -1982,7 +1984,7 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
   });
 }
 
-async function handleRowAction(action: string, row: ProjectListItemWithLifecycle) {
+async function handleRowAction(action: string, row: ApplicationListItemWithLifecycle) {
   if (action === 'detail') {
     await navigateToDetail(row);
     return;
@@ -1991,21 +1993,21 @@ async function handleRowAction(action: string, row: ProjectListItemWithLifecycle
     if (!(await confirmDangerousAction(row, 'up'))) {
       return;
     }
-    await runAction(postProjectUp, row, t('project.list.actions.actionSuccess'), 'up');
+    await runAction(postApplicationUp, row, t('project.list.actions.actionSuccess'), 'up');
     return;
   }
   if (action === 'stop') {
     if (!(await confirmDangerousAction(row, 'stop'))) {
       return;
     }
-    await runAction(postProjectStop, row, t('project.list.actions.actionSuccess'), 'stop');
+    await runAction(postApplicationStop, row, t('project.list.actions.actionSuccess'), 'stop');
     return;
   }
   if (action === 'restart') {
     if (!(await confirmDangerousAction(row, 'restart'))) {
       return;
     }
-    await runAction(postProjectRestart, row, t('project.list.actions.actionSuccess'), 'restart');
+    await runAction(postApplicationRestart, row, t('project.list.actions.actionSuccess'), 'restart');
     return;
   }
   if (action === 'redeploy') {
@@ -2019,7 +2021,7 @@ async function handleRowAction(action: string, row: ProjectListItemWithLifecycle
     if (!(await confirmDangerousAction(row, 'unregister'))) {
       return;
     }
-    await runAction(postProjectUnregister, row, t('project.list.actions.actionSuccess'));
+    await runAction(postApplicationUnregister, row, t('project.list.actions.actionSuccess'));
     return;
   }
   if (action === 'destroy') {

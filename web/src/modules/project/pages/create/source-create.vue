@@ -43,12 +43,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { postProjectApplicationNameAvailability, postProjectCreateTemplate } from '../../api/project';
+import { postApplicationApplicationNameAvailability, postApplicationCreateTemplate } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { navigateToProjectCreateSource, refreshProjectCreatePage } from '../../shared/navigation';
-import type { ProjectTemplateCreateRequest } from '../../types/project';
+import { navigateToApplicationCreateSource, refreshApplicationCreatePage } from '../../shared/navigation';
+import type { ApplicationTemplateCreateRequest } from '../../types/project';
 // 来源创建页拥有表单和模板草稿，提交前通过服务端校验应用名称与运行时目标。
-defineOptions({ name: 'ProjectSourceCreate' });
+defineOptions({ name: 'ApplicationSourceCreate' });
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
@@ -73,7 +73,7 @@ const templateForm = reactive({ template_key: 'empty-compose', template_version:
 const templateOptions = computed(() => [
   { label: t('project.sourceCreate.emptyComposeTemplate'), value: 'empty-compose' },
 ]);
-function templatePayload(runtimeTargetIdValue: number): ProjectTemplateCreateRequest {
+function templatePayload(runtimeTargetIdValue: number): ApplicationTemplateCreateRequest {
   return {
     display_name: form.display_name.trim(),
     runtime_target_id: runtimeTargetIdValue,
@@ -97,7 +97,7 @@ async function onCreate() {
 
   creating.value = true;
   try {
-    const availability = await postProjectApplicationNameAvailability({
+    const availability = await postApplicationApplicationNameAvailability({
       application_name: form.application_name.trim(),
     });
     if (availability.status === 'registered') {
@@ -123,11 +123,11 @@ async function onCreate() {
     return;
   }
   try {
-    const result = await postProjectCreateTemplate(templatePayload(runtimeTargetId.value));
+    const result = await postApplicationCreateTemplate(templatePayload(runtimeTargetId.value));
     MessagePlugin.success(t('project.sourceCreate.createSuccess'));
     await router.push({
       name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
-      params: { id: result.application_id },
+      params: { applicationId: result.application_id },
     });
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
@@ -136,10 +136,10 @@ async function onCreate() {
   }
 }
 function goToSource() {
-  navigateToProjectCreateSource(router, route.query);
+  navigateToApplicationCreateSource(router, route.query);
 }
 function refreshPage() {
-  refreshProjectCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);
+  refreshApplicationCreatePage(router, PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName, route.query);
 }
 </script>
 <style scoped>

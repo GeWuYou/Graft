@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
+import { hasBlockingImportConflicts, normalizeApplicationImportInspectResponse } from './import';
 
 const lifecycleConfiguration = {
   strategy_kind: 'standard' as const,
@@ -18,13 +18,13 @@ const lifecycleConfiguration = {
 
 describe('project import normalization helpers', () => {
   it('preserves structured runtime network and volume resources during inspect normalization', () => {
-    const result = normalizeProjectImportInspectResponse({
+    const result = normalizeApplicationImportInspectResponse({
       inspection_id: 'inspect-structured',
       expires_at: '2026-07-11T08:05:00Z',
       candidate_key: 'runtime:structured',
-      resolved_working_directory: '/srv/structured',
-      canonical_project_name: 'structured',
-      canonical_project_name_source: 'computed',
+      resolved_workspace_path: '/srv/structured',
+      compose_project_name: 'structured',
+      compose_project_name_source: 'computed',
       display_name_suggested: 'Structured',
       compose_files: [],
       env_files: [],
@@ -86,13 +86,13 @@ describe('project import normalization helpers', () => {
   });
 
   it('drops malformed inspect file entries instead of accepting any object with a display path', () => {
-    const result = normalizeProjectImportInspectResponse({
+    const result = normalizeApplicationImportInspectResponse({
       inspection_id: 'inspect-files',
       expires_at: '2026-07-11T08:05:00Z',
       candidate_key: 'runtime:files',
-      resolved_working_directory: '/srv/files',
-      canonical_project_name: 'files',
-      canonical_project_name_source: 'computed',
+      resolved_workspace_path: '/srv/files',
+      compose_project_name: 'files',
+      compose_project_name_source: 'computed',
       display_name_suggested: 'Files',
       compose_files: [
         {
@@ -157,9 +157,9 @@ describe('project import normalization helpers', () => {
         inspection_id: 'inspect-conflict',
         expires_at: '2026-07-11T08:05:00Z',
         candidate_key: 'runtime:conflict',
-        resolved_working_directory: '/srv/conflict',
-        canonical_project_name: 'conflict',
-        canonical_project_name_source: 'computed',
+        resolved_workspace_path: '/srv/conflict',
+        compose_project_name: 'conflict',
+        compose_project_name_source: 'computed',
         display_name_suggested: 'Conflict',
         compose_files: [],
         env_files: [],

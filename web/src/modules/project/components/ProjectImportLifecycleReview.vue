@@ -18,17 +18,17 @@
   </section>
 </template>
 <script setup lang="ts">
-import { useProjectPageContext } from '../shared/page-context';
-import type { ProjectLifecycleConfigurationDraft } from '../types/project';
+import { useApplicationPageContext } from '../shared/page-context';
+import type { ApplicationLifecycleConfigurationDraft } from '../types/project';
 import ProjectLifecycleConfigurationStep from './ProjectLifecycleConfigurationStep.vue';
 
-defineOptions({ name: 'ProjectImportLifecycleReview' });
+defineOptions({ name: 'ApplicationImportLifecycleReview' });
 
 // 导入页适配通用生命周期步骤的文案和确认事件，最终请求参数仍由导入流程持有。
 
-const draft = defineModel<ProjectLifecycleConfigurationDraft>('draft', { required: true });
+const draft = defineModel<ApplicationLifecycleConfigurationDraft>('draft', { required: true });
 defineProps<{ inspectionRefreshLoading?: boolean }>();
 defineEmits<{ (event: 'back'): void; (event: 'confirm'): void; (event: 'refresh'): void }>();
 
-const { t } = useProjectPageContext();
+const { t } = useApplicationPageContext();
 </script>

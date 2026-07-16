@@ -15,11 +15,9 @@ describe('getLatestTaskForOwner', () => {
     const latestTask = { id: 42, status: 'success' };
     requestMocks.get.mockResolvedValue({ items: [latestTask] });
 
-    await expect(getLatestTaskForOwner({ ownerId: 'project-1', ownerType: 'compose_project' })).resolves.toBe(
-      latestTask,
-    );
+    await expect(getLatestTaskForOwner({ ownerId: 'app_1', ownerType: 'compose_project' })).resolves.toBe(latestTask);
     expect(requestMocks.get).toHaveBeenCalledWith({
-      params: { limit: 1, owner_id: 'project-1', owner_type: 'compose_project' },
+      params: { limit: 1, owner_id: 'app_1', owner_type: 'compose_project' },
       url: '/api/tasks',
     });
   });

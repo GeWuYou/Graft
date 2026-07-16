@@ -299,18 +299,18 @@ import {
   normalizeImportInspectVolumeRows,
 } from '../shared/import-inspect-resources';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../shared/navigation';
-import { useProjectPageContext } from '../shared/page-context';
+import { useApplicationPageContext } from '../shared/page-context';
 import {
-  fetchProjectRuntimeContainers,
+  fetchApplicationRuntimeContainers,
   readProjectContainerSourceGroup,
   readProjectContainerSourceMember,
 } from '../shared/runtime-containers';
-import type { ProjectImportInspectResponse } from '../types/import';
+import type { ApplicationImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
 // 该组件以检查结果为服务端事实源，维护资源切换、筛选、列偏好和容器请求状态等局部交互状态。
 defineOptions({
-  name: 'ProjectImportInspectResources',
+  name: 'ApplicationImportInspectResources',
 });
 
 type PaginationState = {
@@ -331,7 +331,7 @@ const VOLUME_LOCKED_COLUMN_KEYS = ['name', 'operation'];
 
 const props = defineProps<{
   inspectLoading?: boolean;
-  result: ProjectImportInspectResponse | null;
+  result: ApplicationImportInspectResponse | null;
 }>();
 
 const emit = defineEmits<{
@@ -339,7 +339,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const { router, tabsRouterStore } = useProjectPageContext();
+const { router, tabsRouterStore } = useApplicationPageContext();
 
 const activeResource = ref<ImportInspectResourceKey>('containers');
 const resourceSearchKeyword = ref('');
@@ -652,7 +652,7 @@ async function refreshActiveResource() {
 }
 
 async function loadContainers() {
-  const projectName = props.result?.canonical_project_name?.trim();
+  const projectName = props.result?.compose_project_name?.trim();
   if (!projectName) {
     latestContainerRequestId.value += 1;
     containerRows.value = [];
@@ -667,7 +667,7 @@ async function loadContainers() {
   containerError.value = '';
 
   try {
-    const rows = await fetchProjectRuntimeContainers(projectName);
+    const rows = await fetchApplicationRuntimeContainers(projectName);
     if (requestId !== latestContainerRequestId.value) {
       return;
     }

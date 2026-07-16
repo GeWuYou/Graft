@@ -13,12 +13,12 @@ const i18nMessages: Record<string, string> = {
   'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
   'rbac.permissionCatalog.userCreate.display': 'Create Users Localized',
   'rbac.permissionCatalog.userCreate.description': 'Localized create-user description',
-  'rbac.permissionCatalog.projectImport.display': 'Import Compose Projects',
-  'rbac.permissionCatalog.projectImport.description':
-    'Validate and import external Compose projects into the project registry.',
-  'rbac.permissionCatalog.projectRefresh.display': 'Refresh Compose Projects',
-  'rbac.permissionCatalog.projectRefresh.description':
-    'Refresh project snapshots and readonly configuration projections.',
+  'rbac.permissionCatalog.applicationImport.display': 'Import Compose Applications',
+  'rbac.permissionCatalog.applicationImport.description':
+    'Validate and import external Compose applications into the application registry.',
+  'rbac.permissionCatalog.applicationRefresh.display': 'Refresh Compose Applications',
+  'rbac.permissionCatalog.applicationRefresh.description':
+    'Refresh application snapshots and readonly configuration projections.',
   'rbac.permissionList.detail': 'Permission Details',
   'rbac.permissionList.detailTitle': 'Permission Details',
   'rbac.permissionList.detailLoadFailed': 'Failed to load permission details',
@@ -380,10 +380,10 @@ describe('PermissionPage', () => {
       items: [
         {
           id: 1,
-          code: 'ops.project.import',
-          display: 'rbac.permissionCatalog.projectImport.display',
-          description: 'rbac.permissionCatalog.projectImport.description',
-          module: 'project',
+          code: 'ops.application.import',
+          display: 'rbac.permissionCatalog.applicationImport.display',
+          description: 'rbac.permissionCatalog.applicationImport.description',
+          module: 'application',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 0,
@@ -394,10 +394,12 @@ describe('PermissionPage', () => {
     const wrapper = await mountPermissionPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Import Compose Projects');
-    expect(wrapper.text()).toContain('Validate and import external Compose projects into the project registry.');
-    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.projectImport.display');
-    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.projectImport.description');
+    expect(wrapper.text()).toContain('Import Compose Applications');
+    expect(wrapper.text()).toContain(
+      'Validate and import external Compose applications into the application registry.',
+    );
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.applicationImport.display');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.applicationImport.description');
   });
 
   it('renders the default empty state without filter actions', async () => {

@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getContainers } from '@/modules/container/contract/project';
 
 import {
-  fetchProjectRuntimeContainers,
-  PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
+  APPLICATION_RUNTIME_CONTAINER_PAGE_SIZE,
+  fetchApplicationRuntimeContainers,
   readProjectContainerSourceGroup,
   readProjectContainerSourceMember,
 } from './runtime-containers';
@@ -21,7 +21,7 @@ describe('runtime-containers', () => {
   });
 
   it('returns an empty list when the canonical project name is blank', async () => {
-    await expect(fetchProjectRuntimeContainers('   ')).resolves.toEqual([]);
+    await expect(fetchApplicationRuntimeContainers('   ')).resolves.toEqual([]);
     expect(mockedGetContainers).not.toHaveBeenCalled();
   });
 
@@ -47,21 +47,21 @@ describe('runtime-containers', () => {
         total: 3,
       } as never);
 
-    await expect(fetchProjectRuntimeContainers('compose-demo')).resolves.toEqual([
+    await expect(fetchApplicationRuntimeContainers('compose-demo')).resolves.toEqual([
       { id: 'container-1', orchestrator: { group_value: 'compose-demo', member_value: 'app' }, ports: [] },
       { id: 'container-2', orchestrator: { group_value: 'compose-demo', member_value: 'worker' }, ports: [] },
       { id: 'container-3', orchestrator: { group_value: 'compose-demo', member_value: 'cron' }, ports: [] },
     ]);
 
     expect(mockedGetContainers).toHaveBeenNthCalledWith(1, {
-      limit: PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
+      limit: APPLICATION_RUNTIME_CONTAINER_PAGE_SIZE,
       offset: 0,
       deployment_type: 'compose',
       source_scope: 'compose-demo',
       source_scope_kind: 'compose_project',
     });
     expect(mockedGetContainers).toHaveBeenNthCalledWith(2, {
-      limit: PROJECT_RUNTIME_CONTAINER_PAGE_SIZE,
+      limit: APPLICATION_RUNTIME_CONTAINER_PAGE_SIZE,
       offset: 2,
       deployment_type: 'compose',
       source_scope: 'compose-demo',
@@ -80,7 +80,7 @@ describe('runtime-containers', () => {
         total: 3,
       } as never);
 
-    await expect(fetchProjectRuntimeContainers('compose-demo')).resolves.toEqual([
+    await expect(fetchApplicationRuntimeContainers('compose-demo')).resolves.toEqual([
       { id: 'container-1', orchestrator: { group_value: 'compose-demo', member_value: 'app' }, ports: [] },
     ]);
   });

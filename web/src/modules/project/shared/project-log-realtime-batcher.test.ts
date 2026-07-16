@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ProjectLogEntry, ProjectLogResponse } from '../types/project';
-import { ProjectLogRealtimeBatcher } from './project-log-realtime-batcher';
+import type { ApplicationLogEntry, ApplicationLogResponse } from '../types/project';
+import { ApplicationLogRealtimeBatcher } from './project-log-realtime-batcher';
 
-function entry(line: string, occurredAt: string, containerID = line): ProjectLogEntry {
+function entry(line: string, occurredAt: string, containerID = line): ApplicationLogEntry {
   return {
     container_id: containerID,
     container_name: `container-${containerID}`,
@@ -19,11 +19,11 @@ function entry(line: string, occurredAt: string, containerID = line): ProjectLog
   };
 }
 
-function snapshot(entries: ProjectLogEntry[], tail = 3): ProjectLogResponse {
+function snapshot(entries: ApplicationLogEntry[], tail = 3): ApplicationLogResponse {
   return {
-    canonical_project_name: 'demo',
+    compose_project_name: 'demo',
     entries,
-    project_id: 7,
+    application_id: 'app_7',
     stderr: true,
     stdout: true,
     tail,
@@ -32,10 +32,10 @@ function snapshot(entries: ProjectLogEntry[], tail = 3): ProjectLogResponse {
   };
 }
 
-describe('ProjectLogRealtimeBatcher', () => {
+describe('ApplicationLogRealtimeBatcher', () => {
   it('keeps only the newest bounded entries in chronological order', () => {
-    const commits: ProjectLogResponse[] = [];
-    const batcher = new ProjectLogRealtimeBatcher({
+    const commits: ApplicationLogResponse[] = [];
+    const batcher = new ApplicationLogRealtimeBatcher({
       lineLimit: 3,
       onCommit: (next) => commits.push(next),
     });
@@ -55,8 +55,8 @@ describe('ProjectLogRealtimeBatcher', () => {
   });
 
   it('preserves realtime entries received while the HTTP snapshot is pending', () => {
-    const commits: ProjectLogResponse[] = [];
-    const batcher = new ProjectLogRealtimeBatcher({
+    const commits: ApplicationLogResponse[] = [];
+    const batcher = new ApplicationLogRealtimeBatcher({
       lineLimit: 2,
       onCommit: (next) => commits.push(next),
     });
@@ -71,9 +71,9 @@ describe('ProjectLogRealtimeBatcher', () => {
   });
 
   it('deduplicates replayed entries before publishing', () => {
-    const commits: ProjectLogResponse[] = [];
+    const commits: ApplicationLogResponse[] = [];
     const repeated = entry('same', '2026-07-10T10:00:01Z');
-    const batcher = new ProjectLogRealtimeBatcher({
+    const batcher = new ApplicationLogRealtimeBatcher({
       lineLimit: 3,
       onCommit: (next) => commits.push(next),
     });
@@ -86,8 +86,8 @@ describe('ProjectLogRealtimeBatcher', () => {
   });
 
   it('retains snapshot and realtime entries when the server reports truncation', () => {
-    const commits: ProjectLogResponse[] = [];
-    const batcher = new ProjectLogRealtimeBatcher({
+    const commits: ApplicationLogResponse[] = [];
+    const batcher = new ApplicationLogRealtimeBatcher({
       lineLimit: 3,
       onCommit: (next) => commits.push(next),
     });

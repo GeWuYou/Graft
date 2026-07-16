@@ -123,7 +123,7 @@
             <template #project="{ row }">
               <div class="project-import-candidate-main">
                 <div class="project-import-candidate-main__title">
-                  <strong>{{ row.canonical_project_name }}</strong>
+                  <strong>{{ row.compose_project_name }}</strong>
                   <t-tag
                     v-if="row.candidate_key === selectedCandidateKey"
                     size="small"
@@ -153,10 +153,10 @@
               </div>
             </template>
 
-            <template #working_directory="{ row }">
+            <template #workspace_path="{ row }">
               <div class="project-import-candidate-code">
-                <t-tooltip :content="row.working_directory || '-'" placement="top-left">
-                  <code :title="row.working_directory || '-'">{{ row.working_directory || '-' }}</code>
+                <t-tooltip :content="row.workspace_path || '-'" placement="top-left">
+                  <code :title="row.workspace_path || '-'">{{ row.workspace_path || '-' }}</code>
                 </t-tooltip>
               </div>
             </template>
@@ -182,7 +182,7 @@
 
             <template #reason="{ row }">
               <div class="project-import-candidate-reason">
-                <template v-if="isProjectImportRuntimeCandidateReady(row)">
+                <template v-if="isApplicationImportRuntimeCandidateReady(row)">
                   <span>-</span>
                 </template>
                 <template v-else>
@@ -201,7 +201,7 @@
                 size="small"
                 :loading="inspectLoading && selectedCandidateKey === row.candidate_key"
                 :disabled="
-                  !isProjectImportRuntimeCandidateReady(row) ||
+                  !isApplicationImportRuntimeCandidateReady(row) ||
                   (inspectLoading && selectedCandidateKey !== row.candidate_key)
                 "
                 @click="handleCandidateInspect(row)"
@@ -248,7 +248,7 @@
 
               <project-import-inspect-overview
                 :can-import="canImport"
-                :resolved-working-directory="resolvedWorkingDirectory"
+                :resolved-workspace-path="resolvedWorkspacePath"
                 :result="normalizedInspectResult"
               />
 
@@ -318,20 +318,20 @@
             v-if="normalizedInspectResult"
             :can-import="canImport"
             :candidate="selectedCandidate"
-            :canonical-project-name-override="canonicalProjectNameOverride"
+            :compose-project-name-override="composeProjectNameOverride"
             :display-name="displayName"
             :form-data="formData"
             :form-rules="formRules"
             :import-error="importError"
             :import-loading="importLoading"
             :inspection-refresh-loading="inspectLoading"
-            :resolved-working-directory="resolvedWorkingDirectory"
+            :resolved-workspace-path="resolvedWorkspacePath"
             :result="normalizedInspectResult"
             @back="goToStep('lifecycle', true)"
             @refresh="handleRefreshInspect"
             @reset="handleReset"
             @submit="handleSubmit"
-            @update:canonical-project-name-override="canonicalProjectNameOverride = $event"
+            @update:compose-project-name-override="composeProjectNameOverride = $event"
             @update:display-name="displayName = $event"
           />
         </section>
@@ -362,34 +362,34 @@ import {
 import { AdvancedQueryColumnDrawer, AdvancedQueryPagedTable } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getProjectImportRuntimeCandidates } from '../../api/import';
+import { getApplicationImportRuntimeCandidates } from '../../api/import';
 import ProjectImportConfirmReview from '../../components/ProjectImportConfirmReview.vue';
 import ProjectImportInspectionSessionAlert from '../../components/ProjectImportInspectionSessionAlert.vue';
 import ProjectImportInspectOverview from '../../components/ProjectImportInspectOverview.vue';
 import ProjectImportInspectResources from '../../components/ProjectImportInspectResources.vue';
 import ProjectImportLifecycleReview from '../../components/ProjectImportLifecycleReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { isValidProjectCanonicalName } from '../../shared/canonical-name';
+import { isValidApplicationCanonicalName } from '../../shared/canonical-name';
 import {
-  isProjectImportRuntimeCandidateReady,
-  normalizeProjectImportInspectResponse,
+  isApplicationImportRuntimeCandidateReady,
+  normalizeApplicationImportInspectResponse,
   normalizeStringArray,
-  resolveProjectImportRuntimeCandidateReasonKey,
+  resolveApplicationImportRuntimeCandidateReasonKey,
 } from '../../shared/import';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
-import { useProjectPageContext } from '../../shared/page-context';
-import { isProjectImportInspectionExpiredError, useProjectImportFlow } from '../../shared/useProjectImportFlow';
+import { useApplicationPageContext } from '../../shared/page-context';
+import { isApplicationImportInspectionExpiredError, useApplicationImportFlow } from '../../shared/useProjectImportFlow';
 import type {
-  ProjectImportExecuteResponse,
-  ProjectImportRuntimeCandidate,
-  ProjectImportRuntimeCandidateFilterCounts,
-  ProjectImportRuntimeCandidatesQuery,
+  ApplicationImportExecuteResponse,
+  ApplicationImportRuntimeCandidate,
+  ApplicationImportRuntimeCandidateFilterCounts,
+  ApplicationImportRuntimeCandidatesQuery,
 } from '../../types/import';
 
 // 导入页编排分步 inspection 流程：服务端候选与检查结果是外部事实，步骤、筛选和列偏好属于页面交互状态。
 
 defineOptions({
-  name: 'ProjectImportIndex',
+  name: 'ApplicationImportIndex',
 });
 
 type ImportWizardStep = 'select' | 'inspect' | 'lifecycle' | 'confirm';
@@ -400,9 +400,9 @@ type PaginationState = {
 };
 
 type CandidateListState = {
-  items: ProjectImportRuntimeCandidate[];
+  items: ApplicationImportRuntimeCandidate[];
   total: number;
-  filterCounts: ProjectImportRuntimeCandidateFilterCounts;
+  filterCounts: ApplicationImportRuntimeCandidateFilterCounts;
 };
 
 const IMPORT_STEP_QUERY_KEY = 'step';
@@ -413,7 +413,7 @@ const CANDIDATE_COLUMN_STORAGE_KEY = 'graft.project.import.visibleColumns.v2';
 const DEFAULT_VISIBLE_COLUMNS = [
   'project',
   'config_files',
-  'working_directory',
+  'workspace_path',
   'runtime',
   'services',
   'status',
@@ -423,7 +423,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
 const ALL_COLUMN_KEYS = [
   'project',
   'config_files',
-  'working_directory',
+  'workspace_path',
   'runtime',
   'services',
   'status',
@@ -464,13 +464,13 @@ const wizardSteps = [
   descriptionKey: string;
 }>;
 
-const { router, tabsRouterStore, t } = useProjectPageContext();
+const { router, tabsRouterStore, t } = useApplicationPageContext();
 const route = useRoute();
 const candidatesLoading = ref(true);
 const candidatesError = ref('');
-const candidates = ref<ProjectImportRuntimeCandidate[]>([]);
+const candidates = ref<ApplicationImportRuntimeCandidate[]>([]);
 const candidateListTotal = ref(0);
-const candidateFilterCounts = ref<ProjectImportRuntimeCandidateFilterCounts>({
+const candidateFilterCounts = ref<ApplicationImportRuntimeCandidateFilterCounts>({
   all: 0,
   ready: 0,
   imported: 0,
@@ -496,7 +496,7 @@ const visibleCandidateColumnKeys = ref<string[]>(
 
 const {
   canImport,
-  canonicalProjectNameOverride,
+  composeProjectNameOverride,
   displayName,
   hasPreview,
   importError,
@@ -514,38 +514,40 @@ const {
   reset,
   selectedCandidateKey,
   submitImport,
-} = useProjectImportFlow(t);
+} = useApplicationImportFlow(t);
 
 let inspectionExpiryTimer: ReturnType<typeof setTimeout> | undefined;
 
 const formData = reactive({
   display_name: displayName,
-  canonical_project_name_override: canonicalProjectNameOverride,
+  compose_project_name_override: composeProjectNameOverride,
 });
 
 const formRules: FormProps['rules'] = {
   display_name: [{ required: true, message: t('project.import.validation.displayNameRequired') }],
-  canonical_project_name_override: [
+  compose_project_name_override: [
     {
       validator: (value) => {
         const normalized = String(value ?? '').trim();
-        return !normalized || isValidProjectCanonicalName(normalized);
+        return !normalized || isValidApplicationCanonicalName(normalized);
       },
-      message: t('project.import.validation.canonicalProjectNameOverridePattern'),
+      message: t('project.import.validation.composeProjectNameOverridePattern'),
     },
   ],
 };
 
-const readyCandidates = computed(() => candidates.value.filter((item) => isProjectImportRuntimeCandidateReady(item)));
+const readyCandidates = computed(() =>
+  candidates.value.filter((item) => isApplicationImportRuntimeCandidateReady(item)),
+);
 const selectedCandidate = computed(
   () => candidates.value.find((item) => item.candidate_key === selectedCandidateKey.value) ?? null,
 );
-const normalizedInspectResult = computed(() => normalizeProjectImportInspectResponse(inspectResult.value));
+const normalizedInspectResult = computed(() => normalizeApplicationImportInspectResponse(inspectResult.value));
 const selectedCandidateLabel = computed(
-  () => normalizedInspectResult.value?.canonical_project_name || selectedCandidate.value?.canonical_project_name || '',
+  () => normalizedInspectResult.value?.compose_project_name || selectedCandidate.value?.compose_project_name || '',
 );
-const resolvedWorkingDirectory = computed(
-  () => normalizedInspectResult.value?.resolved_working_directory || selectedCandidate.value?.working_directory || '',
+const resolvedWorkspacePath = computed(
+  () => normalizedInspectResult.value?.resolved_workspace_path || selectedCandidate.value?.workspace_path || '',
 );
 
 const normalizedCandidateSearch = computed(() => candidateSearchKeyword.value.trim());
@@ -601,7 +603,7 @@ const candidateStatusFilterOptions = computed(() => [
 const candidateCellSlotNames = [
   'project',
   'config_files',
-  'working_directory',
+  'workspace_path',
   'runtime',
   'services',
   'status',
@@ -609,9 +611,9 @@ const candidateCellSlotNames = [
   'operation',
 ];
 const candidateColumns = computed<TdBaseTableProps['columns']>(() => [
-  createMainTextColumn(t('project.import.candidates.columnProject'), 'project', 280),
+  createMainTextColumn(t('project.import.candidates.columnApplication'), 'project', 280),
   createTechnicalColumn(t('project.import.candidates.columnConfigFiles'), 'config_files', 260),
-  createTechnicalColumn(t('project.import.candidates.columnWorkingDirectory'), 'working_directory', 240),
+  createTechnicalColumn(t('project.import.candidates.columnWorkspacePath'), 'workspace_path', 240),
   createTechnicalColumn(t('project.import.candidates.columnRuntime'), 'runtime', 150),
   createTechnicalColumn(t('project.import.candidates.columnServices'), 'services', 180),
   createStatusColumn(t('project.import.candidates.columnStatus'), 'status', 120),
@@ -837,14 +839,14 @@ async function findReadyCandidateByKey(candidateKey: string) {
   let total = Number.POSITIVE_INFINITY;
 
   while (offset < total) {
-    const response = await getProjectImportRuntimeCandidates({
+    const response = await getApplicationImportRuntimeCandidates({
       availability: 'ready',
       limit: ROUTE_RECOVERY_PAGE_SIZE,
       offset,
     });
     const nextState = normalizeCandidateListState(response);
     const candidate = nextState.items.find((item) => item.candidate_key === candidateKey);
-    if (candidate && isProjectImportRuntimeCandidateReady(candidate)) {
+    if (candidate && isApplicationImportRuntimeCandidateReady(candidate)) {
       return candidate;
     }
 
@@ -859,7 +861,7 @@ async function findReadyCandidateByKey(candidateKey: string) {
   return null;
 }
 
-function candidateRowClassName(params: { row: ProjectImportRuntimeCandidate }) {
+function candidateRowClassName(params: { row: ApplicationImportRuntimeCandidate }) {
   return params.row.candidate_key === selectedCandidateKey.value ? 'project-import-candidate-row--active' : '';
 }
 
@@ -910,7 +912,7 @@ function formatServicePreview(items: string[]) {
   })}`;
 }
 
-function formatContainerCounts(counts: ProjectImportRuntimeCandidate['container_counts']) {
+function formatContainerCounts(counts: ApplicationImportRuntimeCandidate['container_counts']) {
   return t('project.import.candidates.containerCountsValue', counts);
 }
 
@@ -930,7 +932,7 @@ function formatRuntimeCandidateWarning(warningCode: string) {
   return translated === translationKey ? warningCode : translated;
 }
 
-function candidateStatusTheme(status: ProjectImportRuntimeCandidate['status']) {
+function candidateStatusTheme(status: ApplicationImportRuntimeCandidate['status']) {
   if (status === 'ready') return 'success';
   if (status === 'broken_compose') return 'danger';
   if (status === 'incomplete_metadata') return 'warning';
@@ -938,8 +940,8 @@ function candidateStatusTheme(status: ProjectImportRuntimeCandidate['status']) {
   return 'default';
 }
 
-function candidateUnavailableReason(candidate: ProjectImportRuntimeCandidate) {
-  const reasonKey = resolveProjectImportRuntimeCandidateReasonKey(candidate);
+function candidateUnavailableReason(candidate: ApplicationImportRuntimeCandidate) {
+  const reasonKey = resolveApplicationImportRuntimeCandidateReasonKey(candidate);
   const translated = t(`project.import.candidates.reason.${reasonKey}`);
   if (translated === `project.import.candidates.reason.${reasonKey}`) {
     return t('project.import.candidates.reason.unavailable');
@@ -947,7 +949,7 @@ function candidateUnavailableReason(candidate: ProjectImportRuntimeCandidate) {
   return translated;
 }
 
-function candidateDiagnostics(candidate: ProjectImportRuntimeCandidate) {
+function candidateDiagnostics(candidate: ApplicationImportRuntimeCandidate) {
   const diagnostics = [
     ...normalizeStringArray(candidate.status_reason_codes).map((code) => formatRuntimeCandidateReason(code)),
     ...normalizeStringArray(candidate.warnings).map((code) => formatRuntimeCandidateWarning(code)),
@@ -961,7 +963,7 @@ async function loadCandidates() {
   candidatesLoading.value = true;
   candidatesError.value = '';
   try {
-    const response = await getProjectImportRuntimeCandidates(buildCandidateQuery());
+    const response = await getApplicationImportRuntimeCandidates(buildCandidateQuery());
     if (requestId !== latestCandidateRequestId) {
       return;
     }
@@ -998,7 +1000,7 @@ async function loadCandidates() {
   }
 }
 
-function buildCandidateQuery(): ProjectImportRuntimeCandidatesQuery {
+function buildCandidateQuery(): ApplicationImportRuntimeCandidatesQuery {
   return {
     keyword: normalizedCandidateSearch.value || undefined,
     availability: resolveCandidateAvailability(candidateStatusFilter.value),
@@ -1018,7 +1020,7 @@ function normalizeCandidateListState(
   response?: Partial<CandidateListState> & Record<string, unknown>,
 ): CandidateListState {
   const items = Array.isArray(response?.items)
-    ? response.items.map((candidate) => normalizeCandidate(candidate as ProjectImportRuntimeCandidate))
+    ? response.items.map((candidate) => normalizeCandidate(candidate as ApplicationImportRuntimeCandidate))
     : [];
   const rawFilterCounts = response?.filter_counts ?? response?.filterCounts;
   const filterCounts = isCandidateFilterCounts(rawFilterCounts) ? rawFilterCounts : undefined;
@@ -1034,11 +1036,11 @@ function normalizeCandidateListState(
   };
 }
 
-function isCandidateFilterCounts(value: unknown): value is ProjectImportRuntimeCandidateFilterCounts {
+function isCandidateFilterCounts(value: unknown): value is ApplicationImportRuntimeCandidateFilterCounts {
   if (!value || typeof value !== 'object') {
     return false;
   }
-  const candidate = value as Partial<ProjectImportRuntimeCandidateFilterCounts>;
+  const candidate = value as Partial<ApplicationImportRuntimeCandidateFilterCounts>;
   return (
     typeof candidate.all === 'number' &&
     typeof candidate.ready === 'number' &&
@@ -1047,7 +1049,7 @@ function isCandidateFilterCounts(value: unknown): value is ProjectImportRuntimeC
   );
 }
 
-function normalizeCandidate(candidate: ProjectImportRuntimeCandidate): ProjectImportRuntimeCandidate {
+function normalizeCandidate(candidate: ApplicationImportRuntimeCandidate): ApplicationImportRuntimeCandidate {
   return {
     ...candidate,
     config_files: normalizeStringArray(candidate.config_files),
@@ -1147,8 +1149,8 @@ function isInspectionRefreshBlockingError(error: unknown) {
   );
 }
 
-async function handleCandidateInspect(candidate: ProjectImportRuntimeCandidate) {
-  if (!isProjectImportRuntimeCandidateReady(candidate)) {
+async function handleCandidateInspect(candidate: ApplicationImportRuntimeCandidate) {
+  if (!isApplicationImportRuntimeCandidateReady(candidate)) {
     return;
   }
 
@@ -1174,7 +1176,7 @@ async function handleSubmit(context?: SubmitContext) {
     MessagePlugin.success(t('project.import.messages.importSuccess'));
     await openDetail(response);
   } catch (error) {
-    if (isProjectImportInspectionExpiredError(error)) {
+    if (isApplicationImportInspectionExpiredError(error)) {
       invalidateInspectionSession();
       await handleRefreshInspect(true);
       return;
@@ -1183,20 +1185,20 @@ async function handleSubmit(context?: SubmitContext) {
   }
 }
 
-async function openDetail(response: ProjectImportExecuteResponse) {
-  const project = response.project;
+async function openDetail(response: ApplicationImportExecuteResponse) {
+  const application = response.application;
   const currentTabPath = route.path;
   const currentTabFullPath = route.fullPath;
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
-    params: { id: project.application_id },
+    params: { applicationId: application.application_id },
     query: { tab: 'lifecycle' },
   };
   const resolved = router.resolve(target);
   appendResolvedTab(
     tabsRouterStore,
     resolved,
-    buildDetailTitleWithFallback('project.route.detail.title', project.display_name),
+    buildDetailTitleWithFallback('project.route.detail.title', application.display_name),
   );
   await router.push(target);
   tabsRouterStore.closeTabsByPredicate((tab) => tab.path === currentTabPath || tab.fullPath === currentTabFullPath);

@@ -3,29 +3,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import ProjectListPage from './index.vue';
+import ApplicationListPage from './index.vue';
 
 const projectApiMocks = vi.hoisted(() => ({
-  getProjects: vi.fn(),
-  deleteProjectSavedView: vi.fn(),
-  getProjectSavedViews: vi.fn(),
-  postProjectSavedView: vi.fn(),
-  postProjectBatchActions: vi.fn(),
-  postProjectDestroy: vi.fn(),
-  postProjectStop: vi.fn(),
-  postProjectRedeploy: vi.fn(),
-  postProjectRestart: vi.fn(),
-  postProjectUpdateDeploy: vi.fn(),
-  postProjectUnregister: vi.fn(),
-  postProjectUp: vi.fn(),
-  putProjectSavedView: vi.fn(),
+  getApplications: vi.fn(),
+  deleteApplicationSavedView: vi.fn(),
+  getApplicationSavedViews: vi.fn(),
+  postApplicationSavedView: vi.fn(),
+  postApplicationBatchActions: vi.fn(),
+  postApplicationDestroy: vi.fn(),
+  postApplicationStop: vi.fn(),
+  postApplicationRedeploy: vi.fn(),
+  postApplicationRestart: vi.fn(),
+  postApplicationUpdateDeploy: vi.fn(),
+  postApplicationUnregister: vi.fn(),
+  postApplicationUp: vi.fn(),
+  putApplicationSavedView: vi.fn(),
 }));
 
 const runtimeTargetMocks = vi.hoisted(() => ({ listRuntimeTargets: vi.fn() }));
 
 const projectRealtimeMocks = vi.hoisted(() => ({
-  acquireProjectListRealtime: vi.fn(),
-  releaseProjectListRealtime: vi.fn(),
+  acquireApplicationListRealtime: vi.fn(),
+  releaseApplicationListRealtime: vi.fn(),
 }));
 
 const taskRequestMocks = vi.hoisted(() => ({ get: vi.fn() }));
@@ -33,11 +33,11 @@ const taskRequestMocks = vi.hoisted(() => ({ get: vi.fn() }));
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   resolve: vi.fn(() => ({
-    fullPath: '/ops/projects',
+    fullPath: '/applications',
     meta: {},
-    name: 'ProjectListIndex',
+    name: 'ApplicationListIndex',
     params: {},
-    path: '/ops/projects',
+    path: '/applications',
     query: {},
   })),
 }));
@@ -53,7 +53,7 @@ const dialogAlertMock = vi.hoisted(() => vi.fn());
 type BatchActionResponseMock = {
   blocked_count: number;
   completed_count: number;
-  items: Array<{ action: string; message: string; project_id: number; result: string; skipped: boolean }>;
+  items: Array<{ action: string; message: string; application_id: string; result: string; skipped: boolean }>;
   skipped_count: number;
   total_count: number;
 };
@@ -61,11 +61,11 @@ type BatchActionResponseMock = {
 const listMessages = {
   'project.lifecycle.reviewStatus.confirmed': 'Lifecycle Confirmed',
   'project.lifecycle.reviewStatus.reviewRequired': 'Review Required',
-  'project.list.actions.create': 'Choose Project Source',
+  'project.list.actions.create': 'Choose Application Source',
   'project.list.actions.detail': 'Detail',
   'project.list.actions.stop': 'Stop',
   'project.list.actions.destroy': 'Destroy',
-  'project.list.actions.import': 'Import Existing Project',
+  'project.list.actions.import': 'Import Existing Application',
   'project.list.actions.operationMenu': 'Actions',
   'project.list.actions.refresh': 'Refresh',
   'project.list.actions.noTaskHistory': 'No Task History',
@@ -100,7 +100,7 @@ const listMessages = {
   'project.list.columnSettings': 'Column Settings',
   'project.list.columns.selection': 'Select',
   'project.list.columns.drift': 'Sync Status',
-  'project.list.columns.name': 'Project',
+  'project.list.columns.name': 'Application',
   'project.list.columns.operation': 'Operation',
   'project.list.columns.resources': 'Resources',
   'project.list.columns.runtime': 'Status',
@@ -331,19 +331,19 @@ const TTableStub = defineComponent({
 });
 
 vi.mock('../../api/project', () => ({
-  deleteProjectSavedView: projectApiMocks.deleteProjectSavedView,
-  getProjects: projectApiMocks.getProjects,
-  getProjectSavedViews: projectApiMocks.getProjectSavedViews,
-  postProjectBatchActions: projectApiMocks.postProjectBatchActions,
-  postProjectSavedView: projectApiMocks.postProjectSavedView,
-  postProjectDestroy: projectApiMocks.postProjectDestroy,
-  postProjectStop: projectApiMocks.postProjectStop,
-  postProjectRedeploy: projectApiMocks.postProjectRedeploy,
-  postProjectRestart: projectApiMocks.postProjectRestart,
-  postProjectUpdateDeploy: projectApiMocks.postProjectUpdateDeploy,
-  postProjectUnregister: projectApiMocks.postProjectUnregister,
-  postProjectUp: projectApiMocks.postProjectUp,
-  putProjectSavedView: projectApiMocks.putProjectSavedView,
+  deleteApplicationSavedView: projectApiMocks.deleteApplicationSavedView,
+  getApplications: projectApiMocks.getApplications,
+  getApplicationSavedViews: projectApiMocks.getApplicationSavedViews,
+  postApplicationBatchActions: projectApiMocks.postApplicationBatchActions,
+  postApplicationSavedView: projectApiMocks.postApplicationSavedView,
+  postApplicationDestroy: projectApiMocks.postApplicationDestroy,
+  postApplicationStop: projectApiMocks.postApplicationStop,
+  postApplicationRedeploy: projectApiMocks.postApplicationRedeploy,
+  postApplicationRestart: projectApiMocks.postApplicationRestart,
+  postApplicationUpdateDeploy: projectApiMocks.postApplicationUpdateDeploy,
+  postApplicationUnregister: projectApiMocks.postApplicationUnregister,
+  postApplicationUp: projectApiMocks.postApplicationUp,
+  putApplicationSavedView: projectApiMocks.putApplicationSavedView,
 }));
 
 vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
@@ -351,8 +351,8 @@ vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
 }));
 
 vi.mock('../../shared/list-realtime', () => ({
-  acquireProjectListRealtime: projectRealtimeMocks.acquireProjectListRealtime,
-  releaseProjectListRealtime: projectRealtimeMocks.releaseProjectListRealtime,
+  acquireApplicationListRealtime: projectRealtimeMocks.acquireApplicationListRealtime,
+  releaseApplicationListRealtime: projectRealtimeMocks.releaseApplicationListRealtime,
 }));
 
 vi.mock('@/utils/request', () => ({
@@ -473,7 +473,7 @@ vi.mock('@/shared/components/management', async (importOriginal) => {
   };
 });
 
-function buildProjectRow(overrides: Record<string, unknown>) {
+function buildApplicationRow(overrides: Record<string, unknown>) {
   return {
     activity_authority: 'frontend-fanout',
     application_id: '1',
@@ -483,23 +483,22 @@ function buildProjectRow(overrides: Record<string, unknown>) {
     container_counts: { issue: 0, running: 3, stopped: 0, total: 3, transitioning: 0 },
     display_name: 'Alpha',
     drift_status: 'clean',
-    host_scope: 'local',
     lifecycle_review_status: 'confirmed',
     ownership_mode: 'external',
     runtime_status: 'running',
     service_count: 3,
-    source_kind: 'imported',
+    source_type: 'imported',
     workspace_path: '/srv/alpha',
     ...overrides,
   };
 }
 
 function mountPage() {
-  return mount(ProjectListPage, {
+  return mount(ApplicationListPage, {
     global: {
       renderStubDefaultSlot: true,
       stubs: {
-        'project-list-entry-actions': slotStub('ProjectListEntryActions'),
+        'project-list-entry-actions': slotStub('ApplicationListEntryActions'),
         'task-detail-drawer': TaskDetailDrawerStub,
         't-button': TButtonStub,
         't-checkbox': TCheckboxStub,
@@ -524,16 +523,16 @@ function mountKeepAlivePage() {
   const visible = ref(true);
   const wrapper = mount(
     defineComponent({
-      name: 'ProjectListKeepAliveHost',
+      name: 'ApplicationListKeepAliveHost',
       setup() {
-        return () => h('div', [h(KeepAlive, null, () => (visible.value ? h(ProjectListPage) : null))]);
+        return () => h('div', [h(KeepAlive, null, () => (visible.value ? h(ApplicationListPage) : null))]);
       },
     }),
     {
       global: {
         renderStubDefaultSlot: true,
         stubs: {
-          'project-list-entry-actions': slotStub('ProjectListEntryActions'),
+          'project-list-entry-actions': slotStub('ApplicationListEntryActions'),
           'task-detail-drawer': TaskDetailDrawerStub,
           't-button': TButtonStub,
           't-checkbox': TCheckboxStub,
@@ -567,38 +566,38 @@ function mountKeepAlivePage() {
   };
 }
 
-describe('Project list page', () => {
+describe('Application list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    projectRealtimeMocks.acquireProjectListRealtime.mockImplementation(() => undefined);
-    projectRealtimeMocks.releaseProjectListRealtime.mockImplementation(() => undefined);
+    projectRealtimeMocks.acquireApplicationListRealtime.mockImplementation(() => undefined);
+    projectRealtimeMocks.releaseApplicationListRealtime.mockImplementation(() => undefined);
     runtimeTargetMocks.listRuntimeTargets.mockResolvedValue([]);
-    projectApiMocks.getProjectSavedViews.mockResolvedValue([]);
+    projectApiMocks.getApplicationSavedViews.mockResolvedValue([]);
 
-    projectApiMocks.getProjects.mockResolvedValue({
+    projectApiMocks.getApplications.mockResolvedValue({
       items: [
-        buildProjectRow({}),
-        buildProjectRow({
+        buildApplicationRow({}),
+        buildApplicationRow({
           application_id: '2',
           compose_project_name: 'beta',
           container_counts: { issue: 0, running: 0, stopped: 2, total: 2, transitioning: 0 },
           display_name: 'Beta',
           runtime_status: 'degraded',
           service_count: 2,
-          source_kind: 'managed',
+          source_type: 'managed',
           workspace_path: '/srv/beta',
         }),
-        buildProjectRow({
+        buildApplicationRow({
           application_id: '3',
           compose_project_name: 'gamma',
           container_counts: { issue: 0, running: 0, stopped: 1, total: 2, transitioning: 1 },
           display_name: 'Gamma',
           runtime_status: 'transitioning',
-          source_kind: 'template',
+          source_type: 'template',
           workspace_path: '/srv/gamma',
         }),
-        buildProjectRow({
+        buildApplicationRow({
           application_id: '4',
           compose_project_name: 'delta',
           container_counts: { issue: 1, running: 0, stopped: 1, total: 1, transitioning: 0 },
@@ -606,7 +605,7 @@ describe('Project list page', () => {
           drift_status: 'unknown',
           runtime_status: 'unknown',
           service_count: 1,
-          source_kind: 'template',
+          source_type: 'template',
           workspace_path: '/srv/delta',
         }),
       ],
@@ -626,7 +625,7 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
+    expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(1);
     expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 4');
     expect(wrapper.find('[data-testid="project-status-summary-running"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-status-summary-degraded"]').exists()).toBe(true);
@@ -636,8 +635,8 @@ describe('Project list page', () => {
   });
 
   it('uses response total for total-like summary copy instead of current page length', async () => {
-    projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ application_id: '1' }), buildProjectRow({ application_id: '2' })],
+    projectApiMocks.getApplications.mockResolvedValueOnce({
+      items: [buildApplicationRow({ application_id: '1' }), buildApplicationRow({ application_id: '2' })],
       limit: 2,
       offset: 0,
       total: 42,
@@ -672,8 +671,8 @@ describe('Project list page', () => {
       visible_columns: ['name'],
     };
     const createdView = { ...initialView, id: 9, name: 'Production' };
-    projectApiMocks.postProjectSavedView.mockResolvedValueOnce(createdView);
-    projectApiMocks.getProjectSavedViews.mockResolvedValue([initialView, createdView]);
+    projectApiMocks.postApplicationSavedView.mockResolvedValueOnce(createdView);
+    projectApiMocks.getApplicationSavedViews.mockResolvedValue([initialView, createdView]);
 
     const wrapper = mountPage();
     await flushPromises();
@@ -684,7 +683,7 @@ describe('Project list page', () => {
     wrapper.getComponent(TDialogStub).vm.$emit('confirm');
     await flushPromises();
 
-    expect(projectApiMocks.postProjectSavedView).toHaveBeenCalledWith(
+    expect(projectApiMocks.postApplicationSavedView).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Production',
         page_size: 20,
@@ -715,7 +714,7 @@ describe('Project list page', () => {
       updated_at: '2026-07-12T00:00:00Z',
       visible_columns: ['name', 'runtime'],
     };
-    projectApiMocks.getProjectSavedViews.mockResolvedValue([view]);
+    projectApiMocks.getApplicationSavedViews.mockResolvedValue([view]);
     const wrapper = mountPage();
     await flushPromises();
 
@@ -726,7 +725,7 @@ describe('Project list page', () => {
     savedViewSelect.vm.$emit('update:modelValue', view.id);
     await flushPromises();
 
-    expect(projectApiMocks.getProjects).toHaveBeenLastCalledWith(
+    expect(projectApiMocks.getApplications).toHaveBeenLastCalledWith(
       expect.objectContaining({ keyword: 'api', limit: 50, provider: 'docker', runtime_status: 'running' }),
     );
     expect(wrapper.findAll('th[data-col]').map((column) => column.attributes('data-col'))).toEqual(['name', 'runtime']);
@@ -742,7 +741,7 @@ describe('Project list page', () => {
       updated_at: '2026-07-12T00:00:00Z',
       visible_columns: ['name'],
     };
-    projectApiMocks.getProjectSavedViews.mockResolvedValue([view]);
+    projectApiMocks.getApplicationSavedViews.mockResolvedValue([view]);
     const wrapper = mountPage();
     await flushPromises();
     const savedViewSelect = wrapper.findAllComponents(TSelectStub).at(-1);
@@ -757,13 +756,13 @@ describe('Project list page', () => {
     await nextTick();
 
     expect(wrapper.find('[data-stub="TDialog"]').exists()).toBe(true);
-    expect(projectApiMocks.deleteProjectSavedView).not.toHaveBeenCalled();
+    expect(projectApiMocks.deleteApplicationSavedView).not.toHaveBeenCalled();
 
     const deleteDialog = wrapper.findAllComponents(TDialogStub).find((dialog) => dialog.isVisible());
     deleteDialog?.vm.$emit('confirm');
     await flushPromises();
 
-    expect(projectApiMocks.deleteProjectSavedView).toHaveBeenCalledWith(view.id);
+    expect(projectApiMocks.deleteApplicationSavedView).toHaveBeenCalledWith(view.id);
   });
 
   it('renders dynamic container resource badges with four-way semantics', async () => {
@@ -794,9 +793,9 @@ describe('Project list page', () => {
   });
 
   it('renders an unknown resource badge when runtime members are absent', async () => {
-    projectApiMocks.getProjects.mockResolvedValueOnce({
+    projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
-        buildProjectRow({
+        buildApplicationRow({
           container_counts: { issue: 0, running: 0, stopped: 0, total: 0, transitioning: 0 },
           application_id: '11',
           runtime_status: 'unknown',
@@ -818,9 +817,9 @@ describe('Project list page', () => {
   });
 
   it('renders a fallback resource badge when all container counts are zero for known runtime rows', async () => {
-    projectApiMocks.getProjects.mockResolvedValueOnce({
+    projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
-        buildProjectRow({
+        buildApplicationRow({
           container_counts: { issue: 0, running: 0, stopped: 0, total: 0, transitioning: 0 },
           application_id: '12',
           runtime_status: 'running',
@@ -845,12 +844,12 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
+    expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(15_000);
     await flushPromises();
 
-    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
+    expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
 
@@ -858,14 +857,14 @@ describe('Project list page', () => {
     const page = mountKeepAlivePage();
     await flushPromises();
 
-    const initialCallCount = projectApiMocks.getProjects.mock.calls.length;
+    const initialCallCount = projectApiMocks.getApplications.mock.calls.length;
 
     await page.deactivate();
     await flushPromises();
     await page.activate();
     await flushPromises();
 
-    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(initialCallCount + 1);
+    expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(initialCallCount + 1);
     page.wrapper.unmount();
   });
 
@@ -873,8 +872,8 @@ describe('Project list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(projectRealtimeMocks.acquireProjectListRealtime).toHaveBeenCalledTimes(1);
-    const listener = projectRealtimeMocks.acquireProjectListRealtime.mock.calls[0]?.[0] as
+    expect(projectRealtimeMocks.acquireApplicationListRealtime).toHaveBeenCalledTimes(1);
+    const listener = projectRealtimeMocks.acquireApplicationListRealtime.mock.calls[0]?.[0] as
       ((items: Array<Record<string, unknown>>) => void) | undefined;
     expect(typeof listener).toBe('function');
 
@@ -904,8 +903,8 @@ describe('Project list page', () => {
       offset: 0,
       total: 1,
     });
-    projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ application_id: applicationID })],
+    projectApiMocks.getApplications.mockResolvedValueOnce({
+      items: [buildApplicationRow({ application_id: applicationID })],
       limit: 20,
       offset: 0,
       total: 1,
@@ -940,8 +939,8 @@ describe('Project list page', () => {
           resolveSecond = resolve;
         }),
       );
-    projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ application_id: '1' }), buildProjectRow({ application_id: '2' })],
+    projectApiMocks.getApplications.mockResolvedValueOnce({
+      items: [buildApplicationRow({ application_id: '1' }), buildApplicationRow({ application_id: '2' })],
       limit: 20,
       offset: 0,
       total: 2,
@@ -966,21 +965,21 @@ describe('Project list page', () => {
   it('shows a runtime loading spinner after restart until refreshed status data changes', async () => {
     vi.useFakeTimers();
     const restartGate = {} as { resolve?: () => void };
-    projectApiMocks.postProjectRestart.mockImplementation(
+    projectApiMocks.postApplicationRestart.mockImplementation(
       () =>
         new Promise<void>((resolve) => {
           restartGate.resolve = resolve;
         }),
     );
-    projectApiMocks.getProjects
+    projectApiMocks.getApplications
       .mockResolvedValueOnce({
-        items: [buildProjectRow({ runtime_status: 'running' })],
+        items: [buildApplicationRow({ runtime_status: 'running' })],
         limit: 20,
         offset: 0,
         total: 1,
       })
       .mockResolvedValueOnce({
-        items: [buildProjectRow({ runtime_status: 'transitioning' })],
+        items: [buildApplicationRow({ runtime_status: 'transitioning' })],
         limit: 20,
         offset: 0,
         total: 1,
@@ -998,8 +997,8 @@ describe('Project list page', () => {
     restartGate.resolve?.();
     await flushPromises();
 
-    expect(projectApiMocks.postProjectRestart).toHaveBeenCalledWith('1');
-    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.postApplicationRestart).toHaveBeenCalledWith('1');
+    expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(2);
     expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
     wrapper.unmount();
   });
@@ -1007,21 +1006,21 @@ describe('Project list page', () => {
   it('clears the runtime loading spinner after 15 seconds when refreshed status data never changes', async () => {
     vi.useFakeTimers();
     const restartGate = {} as { resolve?: () => void };
-    projectApiMocks.postProjectRestart.mockImplementation(
+    projectApiMocks.postApplicationRestart.mockImplementation(
       () =>
         new Promise<void>((resolve) => {
           restartGate.resolve = resolve;
         }),
     );
-    projectApiMocks.getProjects
+    projectApiMocks.getApplications
       .mockResolvedValueOnce({
-        items: [buildProjectRow({ runtime_status: 'running' })],
+        items: [buildApplicationRow({ runtime_status: 'running' })],
         limit: 20,
         offset: 0,
         total: 1,
       })
       .mockResolvedValueOnce({
-        items: [buildProjectRow({ runtime_status: 'running' })],
+        items: [buildApplicationRow({ runtime_status: 'running' })],
         limit: 20,
         offset: 0,
         total: 1,
@@ -1049,11 +1048,11 @@ describe('Project list page', () => {
   });
 
   it('hides lifecycle actions by runtime status without a refresh column', async () => {
-    projectApiMocks.getProjects.mockResolvedValueOnce({
+    projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ application_id: '1', runtime_status: 'running' }),
-        buildProjectRow({ application_id: '2', runtime_status: 'degraded' }),
-        buildProjectRow({ application_id: '3', runtime_status: 'stopped' }),
+        buildApplicationRow({ application_id: '1', runtime_status: 'running' }),
+        buildApplicationRow({ application_id: '2', runtime_status: 'degraded' }),
+        buildApplicationRow({ application_id: '3', runtime_status: 'stopped' }),
       ],
       limit: 20,
       offset: 0,
@@ -1064,7 +1063,7 @@ describe('Project list page', () => {
     await flushPromises();
 
     const columnHeaders = wrapper.findAll('th').map((cell) => cell.text());
-    expect(columnHeaders).not.toContain('Last Project Refresh');
+    expect(columnHeaders).not.toContain('Last Application Refresh');
 
     const runningRow = wrapper.get('tr[data-row-id="1"]');
     expect(runningRow.find('[data-testid="row-action-refresh"]').exists()).toBe(false);
@@ -1095,8 +1094,8 @@ describe('Project list page', () => {
   });
 
   it('shows a lifecycle review badge and hides compose actions for review-required imported projects', async () => {
-    projectApiMocks.getProjects.mockResolvedValueOnce({
-      items: [buildProjectRow({ application_id: '9', lifecycle_review_status: 'review_required' })],
+    projectApiMocks.getApplications.mockResolvedValueOnce({
+      items: [buildApplicationRow({ application_id: '9', lifecycle_review_status: 'review_required' })],
       limit: 20,
       offset: 0,
       total: 1,
@@ -1118,9 +1117,13 @@ describe('Project list page', () => {
   });
 
   it('opens the lifecycle tab when the lifecycle review tag is clicked', async () => {
-    projectApiMocks.getProjects.mockResolvedValueOnce({
+    projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ application_id: '9', display_name: 'Dockge', lifecycle_review_status: 'review_required' }),
+        buildApplicationRow({
+          application_id: '9',
+          display_name: 'Dockge',
+          lifecycle_review_status: 'review_required',
+        }),
       ],
       limit: 20,
       offset: 0,
@@ -1134,7 +1137,7 @@ describe('Project list page', () => {
 
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
-      params: { id: '9' },
+      params: { applicationId: '9' },
       query: {
         name: 'Dockge',
         tab: 'lifecycle',
@@ -1151,18 +1154,18 @@ describe('Project list page', () => {
   });
 
   it('submits only actionable selected rows for batch stop and reports skipped rows', async () => {
-    projectApiMocks.postProjectBatchActions.mockResolvedValueOnce({
+    projectApiMocks.postApplicationBatchActions.mockResolvedValueOnce({
       blocked_count: 0,
       completed_count: 1,
-      items: [{ action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false }],
+      items: [{ action: 'stop', message: '', application_id: 'app_2', result: 'completed', skipped: false }],
       skipped_count: 1,
       total_count: 2,
     });
 
-    projectApiMocks.getProjects.mockResolvedValueOnce({
+    projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ application_id: '1', runtime_status: 'stopped' }),
-        buildProjectRow({ application_id: '2', runtime_status: 'running' }),
+        buildApplicationRow({ application_id: '1', runtime_status: 'stopped' }),
+        buildApplicationRow({ application_id: '2', runtime_status: 'running' }),
       ],
       limit: 20,
       offset: 0,
@@ -1177,11 +1180,11 @@ describe('Project list page', () => {
     await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
     await flushPromises();
 
-    expect(projectApiMocks.postProjectBatchActions).toHaveBeenCalledWith({
+    expect(projectApiMocks.postApplicationBatchActions).toHaveBeenCalledWith({
       action: 'stop',
       auto_unregister: false,
-      confirm_canonical_project_name: undefined,
-      delete_working_directory: false,
+      confirm_compose_project_name: undefined,
+      delete_workspace_path: false,
       image_prune: false,
       application_ids: ['2'],
       remove_named_volumes: false,
@@ -1190,15 +1193,15 @@ describe('Project list page', () => {
 
   it('shows row-level loading for actionable batch rows while the batch request is running', async () => {
     let resolveBatchAction!: (value: BatchActionResponseMock) => void;
-    projectApiMocks.postProjectBatchActions.mockReturnValueOnce(
+    projectApiMocks.postApplicationBatchActions.mockReturnValueOnce(
       new Promise<BatchActionResponseMock>((resolve) => {
         resolveBatchAction = resolve;
       }),
     );
-    projectApiMocks.getProjects.mockResolvedValueOnce({
+    projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
-        buildProjectRow({ application_id: '1', runtime_status: 'stopped' }),
-        buildProjectRow({ application_id: '2', runtime_status: 'running' }),
+        buildApplicationRow({ application_id: '1', runtime_status: 'stopped' }),
+        buildApplicationRow({ application_id: '2', runtime_status: 'running' }),
       ],
       limit: 20,
       offset: 0,
@@ -1220,7 +1223,7 @@ describe('Project list page', () => {
     resolveBatchAction({
       blocked_count: 0,
       completed_count: 1,
-      items: [{ action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false }],
+      items: [{ action: 'stop', message: '', application_id: 'app_2', result: 'completed', skipped: false }],
       skipped_count: 1,
       total_count: 2,
     });
@@ -1242,12 +1245,12 @@ describe('Project list page', () => {
     await flushPromises();
 
     expect(dialogConfirmMock).not.toHaveBeenCalled();
-    expect(projectApiMocks.postProjectBatchActions).not.toHaveBeenCalled();
+    expect(projectApiMocks.postApplicationBatchActions).not.toHaveBeenCalled();
   });
 
   it('closes the confirm dialog before the batch request settles', async () => {
     let resolveBatchAction!: (value: BatchActionResponseMock) => void;
-    projectApiMocks.postProjectBatchActions.mockReturnValueOnce(
+    projectApiMocks.postApplicationBatchActions.mockReturnValueOnce(
       new Promise<BatchActionResponseMock>((resolve) => {
         resolveBatchAction = resolve;
       }),
@@ -1274,7 +1277,7 @@ describe('Project list page', () => {
     resolveBatchAction({
       blocked_count: 0,
       completed_count: 1,
-      items: [{ action: 'stop', message: '', project_id: 1, result: 'completed', skipped: false }],
+      items: [{ action: 'stop', message: '', application_id: 'app_1', result: 'completed', skipped: false }],
       skipped_count: 0,
       total_count: 1,
     });
@@ -1282,7 +1285,7 @@ describe('Project list page', () => {
   });
 
   it('renders only blocked batch items in the alert summary with preserved line breaks', async () => {
-    projectApiMocks.postProjectBatchActions.mockResolvedValueOnce({
+    projectApiMocks.postApplicationBatchActions.mockResolvedValueOnce({
       blocked_count: 1,
       completed_count: 1,
       items: [
@@ -1290,12 +1293,18 @@ describe('Project list page', () => {
           action: 'stop',
           message: '',
           message_key: 'project.list.batch.skipInapplicable',
-          project_id: 1,
+          application_id: 'app_1',
           result: 'blocked',
           skipped: true,
         },
-        { action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false },
-        { action: 'stop', message: 'docker compose failed', project_id: 3, result: 'blocked', skipped: false },
+        { action: 'stop', message: '', application_id: 'app_2', result: 'completed', skipped: false },
+        {
+          action: 'stop',
+          message: 'docker compose failed',
+          application_id: 'app_3',
+          result: 'blocked',
+          skipped: false,
+        },
       ],
       skipped_count: 1,
       total_count: 3,
@@ -1315,7 +1324,7 @@ describe('Project list page', () => {
 
     const bodyVNode = options.body();
     expect(bodyVNode.props?.style).toEqual({ whiteSpace: 'pre-line' });
-    expect(bodyVNode.children).toBe('3: docker compose failed');
+    expect(bodyVNode.children).toBe('app_3: docker compose failed');
 
     wrapper.unmount();
   });

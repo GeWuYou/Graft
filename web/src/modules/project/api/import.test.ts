@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { request } from '@/utils/request';
 
-import { PROJECT_API_PATH } from '../contract/paths';
-import { getProjectImportRuntimeCandidates } from './import';
+import { APPLICATION_API_PATH } from '../contract/paths';
+import { getApplicationImportRuntimeCandidates } from './import';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -27,7 +27,7 @@ describe('project import api', () => {
       filter_counts: { all: 0, ready: 0, unavailable: 0 },
     } as never);
 
-    await getProjectImportRuntimeCandidates({
+    await getApplicationImportRuntimeCandidates({
       keyword: 'demo',
       availability: 'unavailable',
       limit: 10,
@@ -35,7 +35,7 @@ describe('project import api', () => {
     });
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: PROJECT_API_PATH.IMPORT_RUNTIME_CANDIDATES,
+      url: APPLICATION_API_PATH.IMPORT_RUNTIME_CANDIDATES,
       params: {
         keyword: 'demo',
         availability: 'unavailable',
