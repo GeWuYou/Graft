@@ -45,6 +45,10 @@ export type ProjectCreateRequest = components['schemas']['ProjectCreateRequest']
 export type ProjectCreateResponse = components['schemas']['project-create-response'];
 export type ProjectCreateValidateRequest = components['schemas']['project-create-validate-request'];
 export type ProjectCreateValidateResponse = components['schemas']['project-create-validate-response'];
+export type ProjectApplicationNameAvailabilityRequest =
+  components['schemas']['project-application-name-availability-request'];
+export type ProjectApplicationNameAvailabilityResponse =
+  components['schemas']['project-application-name-availability-response'];
 export type ProjectTemplateCreateRequest = components['schemas']['project-template-create-request'];
 export type ProjectWorkspaceManifestFile = components['schemas']['project-workspace-manifest-file'];
 export type ProjectWorkspaceEntry = components['schemas']['project-workspace-entry'];

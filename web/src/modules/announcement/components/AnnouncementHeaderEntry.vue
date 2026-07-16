@@ -29,52 +29,50 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getAnnouncementUnreadCount, markAnnouncementRead } from '../api/announcement';
 import { ANNOUNCEMENT_ROUTE_PATH } from '../contract/paths';
 import { emitAnnouncementChanged, onAnnouncementChanged } from '../contract/refresh';
 import { type AnnouncementViewModel, presentAnnouncement } from '../domain/announcement-presenter';
+import {
+  invalidateMyAnnouncementQueries,
+  useAnnouncementUnreadCountQuery,
+  useMarkAnnouncementReadMutation,
+} from '../shared/announcement-queries';
 import { loadUnreadAnnouncementCandidate } from './announcement-read-panel';
 import AnnouncementReadPanel from './AnnouncementReadPanel.vue';
 
 const { locale, t } = useI18n();
 const router = useRouter();
 
-const loading = ref(false);
-const markingRead = ref(false);
-const unreadCount = ref(0);
+const openingAnnouncements = ref(false);
 const readPanelRecord = ref<AnnouncementViewModel | null>(null);
 const readPanelVisible = ref(false);
+const unreadCountQuery = useAnnouncementUnreadCountQuery();
+const markAnnouncementReadMutation = useMarkAnnouncementReadMutation();
+const loading = computed(() => openingAnnouncements.value || unreadCountQuery.isFetching.value);
+const markingRead = computed(() => markAnnouncementReadMutation.isPending.value);
+const unreadCount = computed(() => unreadCountQuery.data.value?.count ?? 0);
 let stopAnnouncementChanged: (() => void) | undefined;
 
 onMounted(() => {
-  void refreshUnreadCount();
-  stopAnnouncementChanged = onAnnouncementChanged(refreshUnreadCount);
+  stopAnnouncementChanged = onAnnouncementChanged(handleAnnouncementChanged);
 });
 
 onBeforeUnmount(() => {
   stopAnnouncementChanged?.();
 });
 
-async function refreshUnreadCount() {
-  loading.value = true;
-  try {
-    const response = await getAnnouncementUnreadCount();
-    unreadCount.value = response.count;
-  } catch {
-    unreadCount.value = 0;
-  } finally {
-    loading.value = false;
-  }
+function handleAnnouncementChanged() {
+  void invalidateMyAnnouncementQueries();
 }
 
 async function openAnnouncements() {
-  loading.value = true;
+  openingAnnouncements.value = true;
   try {
     const latestUnread = await loadUnreadAnnouncementCandidate({
       locale: locale.value,
@@ -91,7 +89,7 @@ async function openAnnouncements() {
   } catch {
     openCenter();
   } finally {
-    loading.value = false;
+    openingAnnouncements.value = false;
   }
 }
 
@@ -109,17 +107,13 @@ async function markCurrentRead() {
     return;
   }
 
-  markingRead.value = true;
   try {
-    const updated = await markAnnouncementRead(readPanelRecord.value.id);
+    const updated = await markAnnouncementReadMutation.mutateAsync(readPanelRecord.value.id);
     readPanelRecord.value = presentAnnouncement(updated, t, locale.value);
     readPanelVisible.value = false;
     emitAnnouncementChanged();
-    await refreshUnreadCount();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.header.markReadFailed')));
-  } finally {
-    markingRead.value = false;
   }
 }
 </script>

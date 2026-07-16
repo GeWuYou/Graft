@@ -24,6 +24,11 @@ func writeManagedProjectFiles(
 	normalized normalizedManagedCreateRequest,
 ) (workingDirectory string, createdFiles []string, err error) {
 	workingDirectory = filepath.Clean(validation.WorkingDirectory)
+	_, statErr := os.Lstat(workingDirectory)
+	createdDirectory := errors.Is(statErr, os.ErrNotExist)
+	if statErr != nil && !createdDirectory {
+		return "", nil, fmt.Errorf("inspect working directory: %w", statErr)
+	}
 	parentRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
 	if err != nil {
 		return "", nil, fmt.Errorf("open managed project parent root: %w", err)
@@ -34,6 +39,11 @@ func writeManagedProjectFiles(
 	if err := parentRoot.root.MkdirAll(relativeWorkingDirectory, managedCreateDirMode); err != nil {
 		return "", nil, fmt.Errorf("create working directory: %w", err)
 	}
+	defer func() {
+		if err != nil && createdDirectory {
+			err = errors.Join(err, parentRoot.root.RemoveAll(relativeWorkingDirectory))
+		}
+	}()
 	workingRoot, err := parentRoot.root.OpenRoot(relativeWorkingDirectory)
 	if err != nil {
 		return workingDirectory, nil, fmt.Errorf("open working directory: %w", err)
@@ -104,10 +114,14 @@ func cleanupManagedCreate(createdDir string, createdFiles []string) (err error) 
 	defer func() {
 		err = errors.Join(err, closeManagedRootFS(fsRoot))
 	}()
-	err = errors.Join(err, cleanupManagedCreateFiles(fsRoot, createdFiles))
 	if createdDir != "" {
-		err = errors.Join(err, removeManagedCreatePath(fsRoot, createdDir, "directory"))
+		relative, relativeErr := fsRoot.relative(createdDir)
+		if relativeErr != nil {
+			return errors.Join(err, relativeErr)
+		}
+		return errors.Join(err, fsRoot.root.RemoveAll(relative))
 	}
+	err = errors.Join(err, cleanupManagedCreateFiles(fsRoot, createdFiles))
 	return err
 }
 

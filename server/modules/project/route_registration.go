@@ -10,11 +10,13 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
@@ -25,6 +27,24 @@ type routeRuntime struct {
 	ctx        *module.Context
 	service    *Service
 	authorizer moduleapi.Authorizer
+}
+
+type projectRouteErrorRule struct {
+	target error
+	status int
+	code   projectcontract.ErrorCode
+}
+
+var projectInputErrorRules = []projectRouteErrorRule{
+	{target: errProjectApplicationNameRequired, status: http.StatusBadRequest, code: projectcontract.ProjectApplicationNameRequired},
+	{target: errProjectInvalidApplicationName, status: http.StatusBadRequest, code: projectcontract.ProjectInvalidApplicationName},
+	{target: errProjectApplicationNameOccupied, status: http.StatusConflict, code: projectcontract.ProjectApplicationNameOccupied},
+	{target: errProjectManagedRootUnconfigured, status: http.StatusBadRequest, code: projectcontract.ProjectManagedRootUnconfigured},
+	{target: errProjectManagedRootInvalid, status: http.StatusBadRequest, code: projectcontract.ProjectManagedRootInvalid},
+	{target: errProjectInvalidCompose, status: http.StatusBadRequest, code: projectcontract.ProjectInvalidCompose},
+	{target: errProjectWorkspaceUnsafe, status: http.StatusBadRequest, code: projectcontract.ProjectWorkspaceUnsafe},
+	{target: errProjectWorkspaceWriteFailed, status: http.StatusBadRequest, code: projectcontract.ProjectWorkspaceWriteFailed},
+	{target: errProjectImportValidation, status: http.StatusBadRequest, code: projectcontract.ProjectImportValidationFailed},
 }
 
 const minimumProjectListLimit = 1
@@ -74,6 +94,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
+	group.POST(projectcontract.ProjectApplicationNameAvailabilityRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleApplicationNameAvailability)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
 	group.POST(projectcontract.ProjectCreateTemplateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreateValidate)
 	group.POST(projectcontract.ProjectCreateTemplateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleTemplateCreate)
@@ -422,15 +443,31 @@ func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
 	projectGeneratedHandler{}.PostProjectCreateValidate(bindPostProjectCreateValidateParams(ginCtx), request)
 	managedRequest, err := toManagedCreateRequest(request)
 	if err != nil {
+		r.logManagedCreateFailure(ginCtx, "request_mapping", err)
 		r.writeRouteError(ginCtx, err)
 		return
 	}
 	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), managedRequest)
 	if err != nil {
+		r.logManagedCreateFailure(ginCtx, "validation", err)
 		r.writeRouteError(ginCtx, err)
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
+}
+
+func (r routeRuntime) handleApplicationNameAvailability(ginCtx *gin.Context) {
+	var request generated.PostProjectApplicationNameAvailabilityJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectApplicationNameAvailability(bindPostProjectApplicationNameAvailabilityParams(ginCtx), request)
+	result, err := r.service.CheckApplicationNameAvailability(ginCtx.Request.Context(), ApplicationNameAvailabilityRequest{ApplicationName: request.ApplicationName})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toApplicationNameAvailabilityResponse(result))
 }
 
 func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
@@ -441,11 +478,13 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 	projectGeneratedHandler{}.PostProjectCreate(bindPostProjectCreateParams(ginCtx), request)
 	managedRequest, err := toManagedCreateExecuteRequest(request)
 	if err != nil {
+		r.logManagedCreateFailure(ginCtx, "request_mapping", err)
 		r.writeRouteError(ginCtx, err)
 		return
 	}
 	result, err := r.service.CreateManagedProject(ginCtx.Request.Context(), managedRequest, currentUserIDPointer(ginCtx))
 	if err != nil {
+		r.logManagedCreateFailure(ginCtx, "create", err)
 		r.writeRouteError(ginCtx, err)
 		return
 	}
@@ -1064,13 +1103,13 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 }
 
 func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, action ActionResult) bool {
-	if r.writeApplicationNameError(ginCtx, err) {
+	if r.writeProjectInputError(ginCtx, err) {
 		return true
 	}
 	switch {
 	case errors.Is(err, errProjectFileNotFound):
 		r.writeFileNotFoundError(ginCtx)
-	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation):
+	case errors.Is(err, errProjectInvalidArgument):
 		r.writeInvalidArgumentError(ginCtx)
 	case errors.Is(err, errProjectInvalidCanonicalName):
 		r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidCanonicalProjectName.String(), map[string]any{
@@ -1097,18 +1136,27 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 	return true
 }
 
-func (r routeRuntime) writeApplicationNameError(ginCtx *gin.Context, err error) bool {
-	switch {
-	case errors.Is(err, errProjectApplicationNameRequired):
-		r.writeLocalizedProjectError(ginCtx, http.StatusBadRequest, projectcontract.ProjectApplicationNameRequired.String())
-	case errors.Is(err, errProjectInvalidApplicationName):
-		r.writeLocalizedProjectError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidApplicationName.String())
-	case errors.Is(err, errProjectApplicationNameOccupied):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectApplicationNameOccupied.String())
-	default:
-		return false
+func (r routeRuntime) writeProjectInputError(ginCtx *gin.Context, err error) bool {
+	for _, rule := range projectInputErrorRules {
+		if !errors.Is(err, rule.target) {
+			continue
+		}
+		r.writeLocalizedProjectError(ginCtx, rule.status, rule.code.String())
+		return true
 	}
-	return true
+	return false
+}
+
+func (r routeRuntime) logManagedCreateFailure(ginCtx *gin.Context, stage string, err error) {
+	if r.ctx == nil {
+		return
+	}
+	logsafe.Warn(r.ctx.Logger, "managed project create failed",
+		zap.String("stage", stage),
+		zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
+		zap.String("traceId", httpx.EnsureTraceID(ginCtx)),
+		zap.Error(err),
+	)
 }
 
 func (r routeRuntime) writeProjectConflictError(ginCtx *gin.Context, err error) bool {
@@ -1172,6 +1220,8 @@ func (projectGeneratedHandler) PostProjectImportInspect(generated.PostProjectImp
 }
 func (projectGeneratedHandler) GetProjectManagedRoot(generated.GetProjectManagedRootParams) {}
 func (projectGeneratedHandler) PostProjectCreateValidate(generated.PostProjectCreateValidateParams, generated.PostProjectCreateValidateJSONRequestBody) {
+}
+func (projectGeneratedHandler) PostProjectApplicationNameAvailability(generated.PostProjectApplicationNameAvailabilityParams, generated.PostProjectApplicationNameAvailabilityJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectCreate(generated.PostProjectCreateParams, generated.PostProjectCreateJSONRequestBody) {
 }
@@ -1603,6 +1653,11 @@ func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectMa
 func bindPostProjectCreateValidateParams(ginCtx *gin.Context) generated.PostProjectCreateValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectCreateValidateParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectApplicationNameAvailabilityParams(ginCtx *gin.Context) generated.PostProjectApplicationNameAvailabilityParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectApplicationNameAvailabilityParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostProjectCreateParams 构造创建项目请求的公共请求头参数。

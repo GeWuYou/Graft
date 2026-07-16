@@ -1,10 +1,12 @@
 /* eslint-disable simple-import-sort/imports */
 import { createApp } from 'vue';
+import { VueQueryPlugin } from '@tanstack/vue-query';
 
 import App from '@/App.vue';
 import { i18n } from '@/locales';
 import { isProjectMonacoBenignCancellationError } from '@/modules/project/shared/project-monaco-debug';
 import { initDebugRuntime } from '@/shared/debug/runtime';
+import { queryClient } from '@/shared/query';
 import router from '@/router';
 import { store, useTabsRouterStore } from '@/store';
 import { isHandledAuthRequestError } from '@/utils/auth-request-error';
@@ -39,6 +41,7 @@ export function bootstrapApp() {
 
   const app = createApp(App);
   app.use(store);
+  app.use(VueQueryPlugin, { queryClient });
   initDebugRuntime();
   const tabsRouterStore = useTabsRouterStore(store);
 

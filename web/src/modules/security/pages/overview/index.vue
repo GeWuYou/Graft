@@ -100,8 +100,8 @@
                 @click="openAuditLogs(event.request_id)"
               >
                 <span class="security-overview__event-copy">
-                  <strong>{{ event.action }}</strong>
-                  <small>{{ event.resource || t('security.overview.events.unknownResource') }}</small>
+                  <strong>{{ eventLabel(event.action) }}</strong>
+                  <small>{{ event.action }}</small>
                 </span>
                 <span class="security-overview__event-meta">
                   <t-tag size="small" :theme="riskTheme(event.risk_level)" variant="light">
@@ -291,6 +291,12 @@ function riskTheme(level: string) {
   return 'default' as const;
 }
 
+function eventLabel(action: string) {
+  const key = `audit.actionLabel.${action}`;
+  const translated = t(key);
+  return translated === key ? action : translated;
+}
+
 function openAuditLogs(requestId: string) {
   router.push({ path: AUDIT_ROUTE_PATH.LOGS, query: requestId ? { request_id: requestId } : {} });
 }
@@ -355,7 +361,8 @@ onMounted(fetchOverview);
 
 .security-overview__metric span,
 .security-overview__pending-item span,
-.security-overview__event small {
+.security-overview__event-copy small,
+.security-overview__event-meta small {
   color: var(--td-text-color-secondary);
 }
 
@@ -379,6 +386,7 @@ onMounted(fetchOverview);
 
 .security-overview__event {
   align-items: center;
+  color: var(--td-text-color-primary);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -398,10 +406,15 @@ onMounted(fetchOverview);
 }
 
 .security-overview__event-copy strong,
-.security-overview__event-copy small {
+.security-overview__event-copy small,
+.security-overview__event-meta small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.security-overview__event-copy strong {
+  color: var(--td-text-color-primary);
 }
 
 .security-overview__event-meta {

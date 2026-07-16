@@ -1,5 +1,44 @@
 # Governance Lessons
 
+## LESSON-GOVERNANCE-COMMENT-VALUE-001：代码注释必须记录无法从实现推导的决策
+
+- Status: active
+- Level: L3
+- Applies to:
+  - 手写 Go、TypeScript 与 Vue 代码
+  - AI 生成、重构或评审涉及注释的任务
+  - 代码任务的 closeout 注释审查
+- Source:
+  - 用户指出 AI 不能以 GoDoc、TSDoc 或 Vue 注释格式为由机械堆叠注释
+  - 注释治理基础能力建设
+- Problem:
+  仅要求 exported symbol、TSDoc 或组件“有注释”会驱动 AI 翻译变量、类型、模板和框架调用。此类注释增加维护成本，
+  在实现变化后还会成为误导性的第二份行为说明。
+- Correct pattern:
+  先判断信息能否由代码与类型推导；不能时，再判断它是否解释设计原因、约束、业务规则、算法原因或外部系统行为。只为
+  这些高价值信息添加或更新中文注释。Go 导出符号仍以标识符名开头；TypeScript 使用标准 TSDoc/JSDoc；非平凡 Vue SFC
+  只说明组件职责、数据边界和非显然的生命周期/资源语义。每个手写 Go、TS、Vue 改动在 closeout 前执行
+  `graft-comment-governance` 增量审查。
+- Anti-pattern:
+  - 为字段名、原始类型、局部变量、模板元素或 `onMounted` 等框架调用写翻译式注释
+  - 用注释数量、覆盖率或仅有 lint 通过证明注释质量
+  - 保留已经与实现、调用方或测试冲突的历史注释
+  - 用新的 skill 或脚本另建一套与设计规范分离的注释真值
+- Enforcement:
+  代码评审和 closeout 使用 `graft-comment-governance` 的价值门检查新增、更新和保留的注释；审查变更后的实现而非仅检查注释
+  是否存在。生成、第三方、迁移和构建产物按现有豁免边界处理。
+- Promotion:
+  - AGENTS.md: yes
+  - Design doc: yes
+- Related:
+  - `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
+  - `.agents/skills/graft-comment-governance/SKILL.md`
+  - `AGENTS.md`
+  - `server/AGENTS.md`
+  - `web/AGENTS.md`
+- Updated at:
+  2026-07-16
+
 ## LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001：动态配置必须消费 schema 与 i18n authority
 
 - Status: active

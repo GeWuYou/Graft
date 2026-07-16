@@ -133,6 +133,7 @@ type Config struct {
 	I18n      I18nConfig
 	Auth      AuthConfig
 	Container ContainerConfig
+	Project   ProjectConfig
 }
 
 // AppConfig 描述进程级应用标识配置。
@@ -233,6 +234,12 @@ type AuthConfig struct {
 type ContainerConfig struct {
 	Runtime        string
 	DockerEndpoint string
+}
+
+// ProjectConfig describes project-module diagnostic switches loaded with the core config snapshot.
+type ProjectConfig struct {
+	LogDebug           bool
+	ManagedCreateDebug bool
 }
 
 // Load 按“真实环境变量优先、.env 兜底”的顺序加载配置并返回校验后的快照。

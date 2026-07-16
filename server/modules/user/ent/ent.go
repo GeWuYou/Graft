@@ -69,7 +69,7 @@ var (
 	columnCheck sql.ColumnCheck
 )
 
-// checkColumn 验证指定表中是否存在给定列，并返回验证结果。
+// checkColumn checks if the column exists in the given table.
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{

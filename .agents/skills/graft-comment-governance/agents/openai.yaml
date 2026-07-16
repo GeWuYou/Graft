@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Comment Governance"
+  short_description: "Apply high-value Chinese code comments"
+  default_prompt: "Use $graft-comment-governance to add, update, or review high-value Chinese comments in Graft Go, TypeScript, or Vue code."

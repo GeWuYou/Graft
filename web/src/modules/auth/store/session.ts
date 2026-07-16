@@ -6,6 +6,7 @@ import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n, supportedLocales } from '@/locales';
 import { getBootstrap, login as loginApi, logout as logoutApi, refresh as refreshApi } from '@/modules/auth/api/auth';
 import type { BootstrapResponse, LoginResponse } from '@/modules/auth/contract/types';
+import { clearQueryCache } from '@/shared/query';
 import { usePermissionStore } from '@/store/modules/permission';
 import type { ApiRequestError } from '@/types/axios';
 import { clearAccessToken, setAccessToken, setAccessTokenExpiresAt } from '@/utils/auth-state';
@@ -112,6 +113,7 @@ export const useAuthSessionStore = defineStore('auth-session', {
       }
     },
     clearSessionState() {
+      clearQueryCache();
       this.token = '';
       this.expiresAt = '';
       clearAccessToken();

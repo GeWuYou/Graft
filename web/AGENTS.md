@@ -34,6 +34,9 @@ authority-first overlay：
   - 当任务涉及路由名、路径、权限码、存储键、请求头、认证方案、错误码、稳定状态枚举或跨模块 typed contract 时必须读取
 - `../ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
   - 当任务涉及 `VITE_*`、System Config 消费、功能开关或配置 ownership 时必须读取
+- `../ai-plan/design/governance/ai/代码注释与模块文档规范.md`
+  - 当任务修改手写 TypeScript、Vue、组件文档或注释时必须读取；任何手写 TS/Vue 改动都必须在 closeout 前执行
+    `../.agents/skills/graft-comment-governance/SKILL.md`
 
 如代码与文档分叉，先更新文档或在同一改动中一起更新。
 
@@ -246,6 +249,13 @@ i18n 与标题规则：
 - `Audit` 页面到 future `Log Explorer` 的跳转只能依赖 canonical correlation fields，例如 `requestId`、`traceId`、`actorId`、bounded time window；不得在前端发明第二套 investigation authority
 - 涉及多字段检索、筛选构建器、URL query 回填、详情抽屉联动的增强列表页时，优先判断是否属于 `query-builder-list-detail` 页型，并同步遵循 `web/docs/frontend-log-page-guidelines.md`
 
+服务端数据规则：
+
+- AI 设计或修改页面数据流时，先区分 server state 与 UI/client state；发现重复 HTTP、手工请求状态、手工 refresh / 去重 / 轮询或 realtime 后 HTTP 刷新时，必须先评估 `@tanstack/vue-query`
+- QueryClient 只使用 `web/src/shared/query/**` 的平台实例；query key、query function 和 mutation 继续由所属 `modules/<name>/**` 拥有，且 query function 只能调用模块 `api/**`
+- URL query、表单草稿、选择状态、表格列偏好、Monaco/xterm 实例和 WebSocket 流不进入 Query cache；登出或鉴权失效必须清空 server-data cache
+- 未经独立性能/维护性证据，不引入 `@tanstack/vue-table`、`@tanstack/vue-virtual`、`@tanstack/vue-router` 或 `@tanstack/vue-form` 来替换已有效的 TDesign / Vue 原生能力
+
 壳层 Footer 约定：
 
 - 全局布局默认提供统一 Footer 与底部安全留白
@@ -426,6 +436,8 @@ bun run check
 执行规则：
 
 - 功能完成、任务完成、准备合并时，必须跑完整 `bun run check`
+- 完成态还必须记录 `graft-comment-governance` 对手写 TS/Vue 改动的回执；该回执审查注释价值与同步性，不替代
+  `bun run check` 或新增独立注释 lint
 - 中间迭代可先跑最小直接验证，但不能把局部验证当作完成态
 - 默认完成态要求 `typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部零 warning
 - `hygiene:check` 进入完成态后，`deadcode`、约定范围内的 `dupcode`、以及非白名单固定字号必须同时为 0

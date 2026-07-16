@@ -90,8 +90,9 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query';
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -108,7 +109,6 @@ import {
   assignEncodedSorters,
   buildRecentHoursLocalRange,
   createLogDetailErrorReporter,
-  createLogListErrorReporter,
   createSingleSorter,
   decodeSorters,
   encodeSorters,
@@ -119,6 +119,7 @@ import {
   openLogDetailRow,
   restartLogListQuery,
 } from '@/shared/observability';
+import { queryClient } from '@/shared/query';
 import { usePermissionStore } from '@/store';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
@@ -184,11 +185,11 @@ const TECHNICAL_VISIBLE_COLUMNS = [
   'fields',
 ];
 
-const loading = ref(false);
 const deleting = ref(false);
 const listError = ref('');
 const rows = ref<AppLogItem[]>([]);
 const total = ref(0);
+const hasLoadedList = ref(false);
 const detailVisible = ref(false);
 const detailRecord = ref<AppLogItem | null>(null);
 const detailInitialTab = ref<'fields' | 'raw'>('fields');
@@ -231,15 +232,6 @@ const columnViewPresets = computed(() => [
   { value: 'technical', label: t('appLog.columnViews.technical'), keys: TECHNICAL_VISIBLE_COLUMNS },
 ]);
 const footerSummary = computed(() => t('appLog.page.footerTotal', { count: total.value }));
-const reportListLoadError = createLogListErrorReporter<AppLogItem>({
-  fallbackMessage: () => t('appLog.page.loadFailed'),
-  listError,
-  logger,
-  logMessage: 'failed to fetch app logs',
-  resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),
-  rows,
-  total,
-});
 const reportDetailLoadError = createLogDetailErrorReporter({
   fallbackMessage: () => t('appLog.page.loadFailed'),
   resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),
@@ -247,17 +239,25 @@ const reportDetailLoadError = createLogDetailErrorReporter({
 const appLogSavedViews = useSavedQueryViews<AppLogSavedQueryViewState, number>({
   adapter: {
     list: async () =>
-      (await getAppLogSavedViews()).map((view) => normalizeSavedQueryView<AppLogSavedQueryState, number>(view)),
-    create: async (input) =>
-      normalizeSavedQueryView<AppLogSavedQueryState, number>(
-        await postAppLogSavedView(toAppLogSavedViewRequest(input)),
-      ),
-    update: async (id, input) =>
-      normalizeSavedQueryView<AppLogSavedQueryState, number>(
-        await putAppLogSavedView(id, toAppLogSavedViewRequest(input)),
-      ),
+      (
+        await queryClient.fetchQuery({
+          queryKey: ['app-log', 'saved-views'],
+          queryFn: getAppLogSavedViews,
+        })
+      ).map((view) => normalizeSavedQueryView<AppLogSavedQueryState, number>(view)),
+    create: async (input) => {
+      const view = await postAppLogSavedView(toAppLogSavedViewRequest(input));
+      await queryClient.invalidateQueries({ queryKey: ['app-log', 'saved-views'] });
+      return normalizeSavedQueryView<AppLogSavedQueryState, number>(view);
+    },
+    update: async (id, input) => {
+      const view = await putAppLogSavedView(id, toAppLogSavedViewRequest(input));
+      await queryClient.invalidateQueries({ queryKey: ['app-log', 'saved-views'] });
+      return normalizeSavedQueryView<AppLogSavedQueryState, number>(view);
+    },
     remove: async (id) => {
       await deleteAppLogSavedView(id);
+      await queryClient.invalidateQueries({ queryKey: ['app-log', 'saved-views'] });
     },
   },
   applyView: async (view) => {
@@ -312,32 +312,55 @@ function buildQuery(): AppLogQuery {
   return query;
 }
 
-async function fetchAppLogs() {
-  loading.value = true;
-  listError.value = '';
+const appLogListQuery = useQuery(
+  {
+    queryKey: computed(() => ['app-log', 'list', buildQuery()]),
+    queryFn: () => getAppLogs(buildQuery()),
+  },
+  queryClient,
+);
+const loading = computed(() => appLogListQuery.isFetching.value);
 
-  try {
-    applyListResponse(await getAppLogs(buildQuery()));
-  } catch (error) {
-    handleListLoadError(error);
-  } finally {
-    loading.value = false;
+watch(appLogListQuery.data, (response) => {
+  if (!response) return;
+  listError.value = '';
+  applyListResponse(response);
+});
+
+watch(appLogListQuery.error, (error) => {
+  if (!error) return;
+  logger.error('failed to fetch app logs', error);
+  listError.value = resolveAppLogErrorMessage(t, error, t('appLog.page.loadFailed'));
+  // 后台刷新失败时，vue-query 仍保留最近一次成功响应，避免列表因瞬时错误闪退为空。
+  if (!hasLoadedList.value) {
+    rows.value = [];
+    total.value = 0;
   }
+  MessagePlugin.error(listError.value);
+});
+
+async function fetchAppLogs() {
+  listError.value = '';
+  await nextTick();
+  await appLogListQuery.refetch();
 }
 
 function applyListResponse(response: Awaited<ReturnType<typeof getAppLogs>>) {
+  hasLoadedList.value = true;
   rows.value = response.items;
   total.value = response.total;
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => rows.value.some((row) => row.id === Number(key)));
 }
 
-function handleListLoadError(error: unknown) {
-  reportListLoadError(error);
-}
-
 async function openDetail(row: AppLogItem) {
   detailInitialTab.value = 'fields';
-  await openLogDetailRow(row, getAppLogDetail, detailRecord, detailVisible, reportDetailLoadError);
+  await openLogDetailRow(
+    row,
+    (id) => queryClient.fetchQuery({ queryKey: ['app-log', 'detail', id], queryFn: () => getAppLogDetail(id) }),
+    detailRecord,
+    detailVisible,
+    reportDetailLoadError,
+  );
 }
 
 function handleSelectChange(keys: Array<string | number>) {
@@ -394,6 +417,7 @@ async function deleteOne(row: AppLogItem) {
   deleting.value = true;
   try {
     await deleteAppLog(row.id);
+    await queryClient.invalidateQueries({ queryKey: ['app-log', 'list'] });
     selectedRowKeys.value = selectedRowKeys.value.filter((key) => Number(key) !== row.id);
     MessagePlugin.success(t('appLog.actions.deleteSuccess'));
     await fetchAppLogs();
@@ -416,6 +440,7 @@ async function deleteSelected() {
   deleting.value = true;
   try {
     await deleteAppLogs({ ids });
+    await queryClient.invalidateQueries({ queryKey: ['app-log', 'list'] });
     selectedRowKeys.value = [];
     MessagePlugin.success(t('appLog.actions.batchDeleteSuccess'));
     await fetchAppLogs();

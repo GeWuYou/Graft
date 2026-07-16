@@ -43,7 +43,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { postProjectCreateTemplate } from '../../api/project';
+import { postProjectApplicationNameAvailability, postProjectCreateTemplate } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { navigateToProjectCreateSource, refreshProjectCreatePage } from '../../shared/navigation';
 import type { ProjectTemplateCreateRequest } from '../../types/project';
@@ -93,7 +93,34 @@ async function onCreate() {
     MessagePlugin.warning(t('project.sourceCreate.template'));
     return;
   }
+
   creating.value = true;
+  try {
+    const availability = await postProjectApplicationNameAvailability({
+      application_name: form.application_name.trim(),
+    });
+    if (availability.status === 'registered') {
+      MessagePlugin.error(t('project.create.validation.applicationNameRegistered'));
+      creating.value = false;
+      return;
+    }
+    if (availability.status === 'reusable_workspace') {
+      await router.push({
+        name: PROJECT_BOOTSTRAP_ROUTE.CREATE_BLANK.pageRouteName,
+        query: {
+          ...route.query,
+          application_name: form.application_name.trim(),
+          display_name: form.display_name.trim(),
+        },
+      });
+      creating.value = false;
+      return;
+    }
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.createFailed')));
+    creating.value = false;
+    return;
+  }
   try {
     const result = await postProjectCreateTemplate(templatePayload(runtimeTargetId.value));
     MessagePlugin.success(t('project.sourceCreate.createSuccess'));

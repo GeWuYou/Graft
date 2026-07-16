@@ -70,8 +70,9 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query';
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -92,7 +93,6 @@ import {
   buildRecentHoursLocalRange,
   buildTodayLocalRange,
   createLogDetailErrorReporter,
-  createLogListErrorReporter,
   createSingleSorter,
   decodeSorters,
   encodeSorters,
@@ -103,6 +103,7 @@ import {
   openLogDetailRow,
   restartLogListQuery,
 } from '@/shared/observability';
+import { queryClient } from '@/shared/query';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
 import {
@@ -168,7 +169,6 @@ const route = useRoute();
 const router = useRouter();
 const authSessionStore = useAuthSessionStore();
 
-const loading = ref(false);
 const listError = ref('');
 const rows = ref<AccessLogItem[]>([]);
 const total = ref(0);
@@ -230,15 +230,6 @@ const emptyDescription = computed(() => {
   }
   return t('accessLog.page.emptyDescription');
 });
-const reportListLoadError = createLogListErrorReporter<AccessLogItem>({
-  fallbackMessage: () => t('accessLog.page.loadFailed'),
-  listError,
-  logger,
-  logMessage: 'failed to fetch access logs',
-  resolveMessage: (cause, fallback) => resolveAccessLogErrorMessage(t, cause, fallback),
-  rows,
-  total,
-});
 const reportDetailLoadError = createLogDetailErrorReporter({
   fallbackMessage: () => t('accessLog.page.loadFailed'),
   resolveMessage: (cause, fallback) => resolveAccessLogErrorMessage(t, cause, fallback),
@@ -246,17 +237,25 @@ const reportDetailLoadError = createLogDetailErrorReporter({
 const accessLogSavedViews = useSavedQueryViews<AccessLogSavedQueryViewState, number>({
   adapter: {
     list: async () =>
-      (await getAccessLogSavedViews()).map((view) => normalizeSavedQueryView<AccessLogSavedQueryState, number>(view)),
-    create: async (input) =>
-      normalizeSavedQueryView<AccessLogSavedQueryState, number>(
-        await postAccessLogSavedView(toAccessLogSavedViewRequest(input)),
-      ),
-    update: async (id, input) =>
-      normalizeSavedQueryView<AccessLogSavedQueryState, number>(
-        await putAccessLogSavedView(id, toAccessLogSavedViewRequest(input)),
-      ),
+      (
+        await queryClient.fetchQuery({
+          queryKey: ['access-log', 'saved-views'],
+          queryFn: getAccessLogSavedViews,
+        })
+      ).map((view) => normalizeSavedQueryView<AccessLogSavedQueryState, number>(view)),
+    create: async (input) => {
+      const view = await postAccessLogSavedView(toAccessLogSavedViewRequest(input));
+      await queryClient.invalidateQueries({ queryKey: ['access-log', 'saved-views'] });
+      return normalizeSavedQueryView<AccessLogSavedQueryState, number>(view);
+    },
+    update: async (id, input) => {
+      const view = await putAccessLogSavedView(id, toAccessLogSavedViewRequest(input));
+      await queryClient.invalidateQueries({ queryKey: ['access-log', 'saved-views'] });
+      return normalizeSavedQueryView<AccessLogSavedQueryState, number>(view);
+    },
     remove: async (id) => {
       await deleteAccessLogSavedView(id);
+      await queryClient.invalidateQueries({ queryKey: ['access-log', 'saved-views'] });
     },
   },
   applyView: async (view) => {
@@ -322,23 +321,46 @@ function buildQuery(): AccessLogQuery {
   return query;
 }
 
-async function fetchAccessLogs() {
-  loading.value = true;
-  listError.value = '';
+const accessLogListQuery = useQuery(
+  {
+    queryKey: computed(() => ['access-log', 'list', buildQuery()]),
+    queryFn: () => getAccessLogs(buildQuery()),
+    enabled: computed(() => routeHydrated.value),
+  },
+  queryClient,
+);
+const loading = computed(() => accessLogListQuery.isFetching.value);
 
-  try {
-    const response = await getAccessLogs(buildQuery());
-    rows.value = response.items;
-    total.value = response.total;
-  } catch (error) {
-    reportListLoadError(error);
-  } finally {
-    loading.value = false;
-  }
+watch(accessLogListQuery.data, (response) => {
+  if (!response) return;
+  listError.value = '';
+  rows.value = response.items;
+  total.value = response.total;
+});
+
+watch(accessLogListQuery.error, (error) => {
+  if (!error) return;
+  rows.value = [];
+  total.value = 0;
+  logger.error('failed to fetch access logs', error);
+  listError.value = resolveAccessLogErrorMessage(t, error, t('accessLog.page.loadFailed'));
+  MessagePlugin.error(listError.value);
+});
+
+async function fetchAccessLogs() {
+  listError.value = '';
+  await nextTick();
+  await accessLogListQuery.refetch();
 }
 
 async function openDetail(row: AccessLogItem) {
-  await openLogDetailRow(row, getAccessLogDetail, detailRecord, detailVisible, reportDetailLoadError);
+  await openLogDetailRow(
+    row,
+    (id) => queryClient.fetchQuery({ queryKey: ['access-log', 'detail', id], queryFn: () => getAccessLogDetail(id) }),
+    detailRecord,
+    detailVisible,
+    reportDetailLoadError,
+  );
 }
 
 function viewRelatedAppLogs(row: AccessLogItem) {

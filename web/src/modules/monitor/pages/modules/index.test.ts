@@ -1,3 +1,4 @@
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
@@ -449,6 +450,7 @@ const collapsePanelStub = defineComponent({
 function mountModulesPage() {
   return mount(ModulesPage, {
     global: {
+      plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
       stubs: {
         ServerStatusPageShell: shellStub,
         AdvancedQueryColumnDrawer: columnDrawerStub,

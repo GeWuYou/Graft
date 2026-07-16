@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
+
+import { clearQueryCache } from '@/shared/query';
 
 import AnnouncementHeaderEntry from './AnnouncementHeaderEntry.vue';
 
@@ -130,6 +132,10 @@ const componentStubs = {
 };
 
 describe('AnnouncementHeaderEntry', () => {
+  beforeEach(() => {
+    clearQueryCache();
+  });
+
   it('loads unread count and opens latest unread announcement first', async () => {
     const api = await import('../api/announcement');
     pushMock.mockReset();
@@ -169,5 +175,27 @@ describe('AnnouncementHeaderEntry', () => {
     expect(wrapper.classes()).toContain('announcement-header-entry');
     expect(wrapper.find('[data-count]').exists()).toBe(true);
     expect(wrapper.find('button').exists()).toBe(true);
+  });
+
+  it('deduplicates unread-count requests across header entries', async () => {
+    const api = await import('../api/announcement');
+    vi.mocked(api.getAnnouncementUnreadCount).mockClear();
+
+    const first = mount(AnnouncementHeaderEntry, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+    const second = mount(AnnouncementHeaderEntry, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+
+    await flushPromises();
+
+    expect(api.getAnnouncementUnreadCount).toHaveBeenCalledTimes(1);
+    first.unmount();
+    second.unmount();
   });
 });

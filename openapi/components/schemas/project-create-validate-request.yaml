@@ -31,5 +31,9 @@ properties:
     maxLength: 1024
     pattern: '^[^/\\\\][^\\\\]*$'
     description: Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace.
+  reuse_existing_workspace:
+    type: boolean
+    default: false
+    description: Indicates that validation is for an inspected, unregistered managed directory.
   lifecycle_configuration:
     $ref: ./project-lifecycle-configuration-request.yaml

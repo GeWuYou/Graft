@@ -115,6 +115,7 @@
   </server-status-page-shell>
 </template>
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query';
 import { LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
@@ -137,7 +138,6 @@ import { useMonitorRefreshPreferences } from '../../composables/use-monitor-refr
 import type { MonitorRefreshInterval } from '../../contract/refresh';
 import { MONITOR_TREND_RANGE, type MonitorTrendRange } from '../../contract/trend';
 import { formatChartTimeOnly } from '../../shared/time-display';
-import type { RequestPerformanceResponse } from '../../types/request-performance';
 
 echarts.use([GridComponent, TooltipComponent, LineChart, CanvasRenderer]);
 
@@ -160,9 +160,6 @@ const settingStore = useSettingStore();
 const { autoRefreshEnabled, refreshIntervalOptions, selectedRefreshInterval, toggleAutoRefresh } =
   useMonitorRefreshPreferences();
 const selectedRange = ref<MonitorTrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
-const snapshot = ref<RequestPerformanceResponse | null>(null);
-const loading = ref(false);
-const errorMessage = ref('');
 const remainingRefreshSeconds = ref<number | null>(null);
 const chartRefs = ref<Partial<Record<ChartKey, HTMLDivElement | null>>>({});
 const chartInstances = new Map<ChartKey, echarts.ECharts>();
@@ -170,6 +167,23 @@ let refreshTimer: number | null = null;
 let refreshDeadline: number | null = null;
 let pendingDisplayTimer: number | null = null;
 let isMounted = false;
+
+const {
+  data: snapshot,
+  error: snapshotError,
+  isFetching: loading,
+  refetch: refetchSnapshot,
+} = useQuery({
+  queryKey: computed(() => ['monitor', 'request-performance', selectedRange.value]),
+  queryFn: () => getRequestPerformance(selectedRange.value),
+  enabled: false,
+  retry: false,
+});
+const errorMessage = computed(() =>
+  snapshotError.value
+    ? resolveLocalizedErrorMessage(t, snapshotError.value, t('monitor.requestPerformance.loadFailed'))
+    : '',
+);
 
 const rangeOptions = computed<RefreshControlOption[]>(() => [
   { label: t('monitor.serverStatus.trendRange10Minutes'), value: MONITOR_TREND_RANGE.TEN_MINUTES },
@@ -338,26 +352,21 @@ function updateRange(value: number | string) {
 }
 
 async function refresh() {
-  if (loading.value) return;
   const pendingDisplayStartedAt = remainingRefreshSeconds.value === 0 ? Date.now() : null;
-  loading.value = true;
-  errorMessage.value = '';
-  try {
-    snapshot.value = await getRequestPerformance(selectedRange.value);
-    await nextTick();
-    renderCharts();
-  } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('monitor.requestPerformance.loadFailed'));
-  } finally {
-    loading.value = false;
-    if (pendingDisplayStartedAt !== null) {
-      await keepPendingStateVisible(pendingDisplayStartedAt);
-    }
+  await refetchSnapshot();
+  if (pendingDisplayStartedAt !== null) {
+    await keepPendingStateVisible(pendingDisplayStartedAt);
   }
   if (isMounted) {
     scheduleRefresh();
   }
 }
+
+watch(snapshot, async (value) => {
+  if (!value) return;
+  await nextTick();
+  renderCharts();
+});
 
 async function keepPendingStateVisible(startedAt: number) {
   const remainingDelay = MIN_PENDING_REFRESH_DISPLAY_MS - (Date.now() - startedAt);

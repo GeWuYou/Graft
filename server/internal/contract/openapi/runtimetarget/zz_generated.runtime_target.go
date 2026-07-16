@@ -31,6 +31,69 @@ func (e GetRuntimeTargetsParamsLimit) Valid() bool {
 	}
 }
 
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKindUnixSocket GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind = "unix_socket"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKindUnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusHealthy     GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "healthy"
+	GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusUnavailable GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusHealthy:
+		return true
+	case GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProvider.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProviderDocker GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProvider enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProvider) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeType.
+const (
+	GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeTypeContainerRuntime GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeType = "container_runtime"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeType enum.
+func (e GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeType) Valid() bool {
+	switch e {
+	case GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeTypeContainerRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRuntimeTargets401JSONResponseBodySuccess.
 const (
 	GetRuntimeTargets401JSONResponseBodySuccessFalse GetRuntimeTargets401JSONResponseBodySuccess = false
@@ -76,45 +139,78 @@ func (e GetRuntimeTargets500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess.
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataConnectionKind.
 const (
-	PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccessFalse PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess = false
+	GetRuntimeTarget200JSONResponseBodyDataConnectionKindUnixSocket GetRuntimeTarget200JSONResponseBodyDataConnectionKind = "unix_socket"
 )
 
-// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess enum.
-func (e PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataConnectionKind enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataConnectionKind) Valid() bool {
 	switch e {
-	case PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccessFalse:
+	case GetRuntimeTarget200JSONResponseBodyDataConnectionKindUnixSocket:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess.
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataHealthStatus.
 const (
-	PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccessFalse PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess = false
+	GetRuntimeTarget200JSONResponseBodyDataHealthStatusHealthy     GetRuntimeTarget200JSONResponseBodyDataHealthStatus = "healthy"
+	GetRuntimeTarget200JSONResponseBodyDataHealthStatusUnavailable GetRuntimeTarget200JSONResponseBodyDataHealthStatus = "unavailable"
 )
 
-// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess enum.
-func (e PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataHealthStatus enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataHealthStatus) Valid() bool {
 	switch e {
-	case PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccessFalse:
+	case GetRuntimeTarget200JSONResponseBodyDataHealthStatusHealthy:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataHealthStatusUnavailable:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess.
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProvider.
 const (
-	PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccessFalse PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess = false
+	GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProviderDocker GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProvider = "docker"
 )
 
-// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess enum.
-func (e PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProvider enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProvider) Valid() bool {
 	switch e {
-	case PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccessFalse:
+	case GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataRuntimeProvider.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataRuntimeProviderDocker GetRuntimeTarget200JSONResponseBodyDataRuntimeProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataRuntimeProvider enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataRuntimeProvider) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataRuntimeProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataRuntimeType.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataRuntimeTypeContainerRuntime GetRuntimeTarget200JSONResponseBodyDataRuntimeType = "container_runtime"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataRuntimeType enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataRuntimeType) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataRuntimeTypeContainerRuntime:
 		return true
 	default:
 		return false
@@ -166,6 +262,84 @@ func (e GetRuntimeTarget500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind.
+const (
+	UnixSocket PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind = "unix_socket"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind) Valid() bool {
+	switch e {
+	case UnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus.
+const (
+	Healthy     PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "healthy"
+	Unavailable PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus) Valid() bool {
+	switch e {
+	case Healthy:
+		return true
+	case Unavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProviderDocker PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider.
+const (
+	Docker PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider) Valid() bool {
+	switch e {
+	case Docker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeType.
+const (
+	ContainerRuntime PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeType = "container_runtime"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeType enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeType) Valid() bool {
+	switch e {
+	case ContainerRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostRuntimeTargetRefresh401JSONResponseBodySuccess.
 const (
 	PostRuntimeTargetRefresh401JSONResponseBodySuccessFalse PostRuntimeTargetRefresh401JSONResponseBodySuccess = false
@@ -198,13 +372,13 @@ func (e PostRuntimeTargetRefresh403JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostRuntimeTargetRefresh500JSONResponseBodySuccess.
 const (
-	PostRuntimeTargetRefresh500JSONResponseBodySuccessFalse PostRuntimeTargetRefresh500JSONResponseBodySuccess = false
+	False PostRuntimeTargetRefresh500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh500JSONResponseBodySuccess enum.
 func (e PostRuntimeTargetRefresh500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostRuntimeTargetRefresh500JSONResponseBodySuccessFalse:
+	case False:
 		return true
 	default:
 		return false
@@ -233,6 +407,18 @@ type GetRuntimeTargetsParams struct {
 // GetRuntimeTargetsParamsLimit defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParamsLimit int
 
+// GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind string
+
+// GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsHealthStatus string
+
+// GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProvider defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeProvider string
+
+// GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeType defines parameters for GetRuntimeTargets.
+type GetRuntimeTargets200JSONResponseBodyDataItemsRuntimeType string
+
 // GetRuntimeTargets401JSONResponseBodySuccess defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets401JSONResponseBodySuccess bool
 
@@ -241,25 +427,6 @@ type GetRuntimeTargets403JSONResponseBodySuccess bool
 
 // GetRuntimeTargets500JSONResponseBodySuccess defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets500JSONResponseBodySuccess bool
-
-// PostRuntimeTargetsDiscoverLocalParams defines parameters for PostRuntimeTargetsDiscoverLocal.
-type PostRuntimeTargetsDiscoverLocalParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-}
-
-// PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess defines parameters for PostRuntimeTargetsDiscoverLocal.
-type PostRuntimeTargetsDiscoverLocal401JSONResponseBodySuccess bool
-
-// PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess defines parameters for PostRuntimeTargetsDiscoverLocal.
-type PostRuntimeTargetsDiscoverLocal403JSONResponseBodySuccess bool
-
-// PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess defines parameters for PostRuntimeTargetsDiscoverLocal.
-type PostRuntimeTargetsDiscoverLocal500JSONResponseBodySuccess bool
 
 // GetRuntimeTargetParams defines parameters for GetRuntimeTarget.
 type GetRuntimeTargetParams struct {
@@ -270,6 +437,21 @@ type GetRuntimeTargetParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetRuntimeTarget200JSONResponseBodyDataConnectionKind defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataConnectionKind string
+
+// GetRuntimeTarget200JSONResponseBodyDataHealthStatus defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataHealthStatus string
+
+// GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProvider defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataProviderDetailsProvider string
+
+// GetRuntimeTarget200JSONResponseBodyDataRuntimeProvider defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataRuntimeProvider string
+
+// GetRuntimeTarget200JSONResponseBodyDataRuntimeType defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataRuntimeType string
 
 // GetRuntimeTarget401JSONResponseBodySuccess defines parameters for GetRuntimeTarget.
 type GetRuntimeTarget401JSONResponseBodySuccess bool
@@ -289,6 +471,21 @@ type PostRuntimeTargetRefreshParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataHealthStatus string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeType defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeType string
 
 // PostRuntimeTargetRefresh401JSONResponseBodySuccess defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh401JSONResponseBodySuccess bool

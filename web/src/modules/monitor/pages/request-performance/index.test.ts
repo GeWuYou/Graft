@@ -1,3 +1,4 @@
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
@@ -178,6 +179,7 @@ function createResponse() {
 function mountPage() {
   return mount(RequestPerformancePage, {
     global: {
+      plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
       stubs: {
         'info-circle-icon': passthroughStub,
         'monitor-page-feedback': passthroughStub,
@@ -208,7 +210,13 @@ afterEach(() => {
 describe('request performance page', () => {
   it('keeps pending visible at the refresh deadline before starting the next countdown', async () => {
     vi.useFakeTimers();
-    const wrapper = shallowMount(RequestPerformancePage);
+    const wrapper = shallowMount(RequestPerformancePage, {
+      global: {
+        plugins: [
+          [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }],
+        ],
+      },
+    });
     await flushPromises();
     await nextTick();
 

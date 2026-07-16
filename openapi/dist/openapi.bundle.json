@@ -13214,7 +13214,7 @@
             }
           },
           "400": {
-            "description": "Invalid managed create request.",
+            "description": "Invalid managed create input, Compose configuration, managed-root authority, or reusable-workspace safety. The response code identifies the safe failure category and the trace id correlates the server diagnostic log.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13248,6 +13248,80 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/application-name/availability": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Check managed application-name availability",
+        "operationId": "postProjectApplicationNameAvailability",
+        "description": "Resolves whether an application name is already registered, available for a new workspace, or points to an unregistered managed workspace. This endpoint never writes files.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-application-name-availability-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed application-name availability resolved.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-application-name-availability-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid application name or unsafe managed workspace.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -13303,7 +13377,7 @@
             }
           },
           "400": {
-            "description": "Invalid managed create request.",
+            "description": "Invalid managed create input, Compose configuration, managed-root authority, or workspace materialization. The response code identifies the safe failure category and the trace id correlates the server diagnostic log.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -28092,6 +28166,11 @@
             "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$",
             "description": "Workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace."
           },
+          "reuse_existing_workspace": {
+            "type": "boolean",
+            "default": false,
+            "description": "Indicates that validation is for an inspected, unregistered managed directory."
+          },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"
           }
@@ -28175,6 +28254,72 @@
           }
         ]
       },
+      "project-application-name-availability-request": {
+        "type": "object",
+        "required": [
+          "application_name"
+        ],
+        "properties": {
+          "application_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        }
+      },
+      "project-application-name-availability-response": {
+        "type": "object",
+        "required": [
+          "status",
+          "workspace_path",
+          "workspace_non_empty"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "registered",
+              "reusable_workspace"
+            ]
+          },
+          "workspace_path": {
+            "type": "string"
+          },
+          "workspace_non_empty": {
+            "type": "boolean"
+          },
+          "workspace_entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-workspace-entry"
+            }
+          },
+          "compose_file_path": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "enveloped-project-application-name-availability-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-application-name-availability-response"
+              }
+            }
+          }
+        ]
+      },
       "project-create-request": {
         "type": "object",
         "required": [
@@ -28215,6 +28360,11 @@
             "maxLength": 1024,
             "pattern": "^[^/\\\\\\\\][^\\\\\\\\]*$",
             "description": "Explicit workspace-relative primary Compose file reference. The server normalizes the path and rejects paths that escape the workspace."
+          },
+          "reuse_existing_workspace": {
+            "type": "boolean",
+            "default": false,
+            "description": "Explicitly confirms that a previously inspected, unregistered managed directory may receive the submitted workspace changes."
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/project-lifecycle-configuration-request"

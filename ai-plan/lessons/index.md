@@ -10,6 +10,7 @@
 | LESSON-BACKEND-TASK-OWNER-001          | 跨模块 Task owner 必须使用资源公开稳定标识    | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/architecture/任务执行运行时设计.md`                       |
 | LESSON-BACKEND-SAVED-VIEW-001          | 分页保存视图必须分离通用存储与消费页面语义     | backend    |    L2 | active | `ai-plan/lessons/backend.md`    | `ai-plan/design/domains/compose/Compose项目管理设计.md`                  |
 | LESSON-GOVERNANCE-BROWSER-BACKEND-001  | 浏览器验收需要真实后端时不要停在 mock 登录页   | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
+| LESSON-GOVERNANCE-COMMENT-VALUE-001    | 代码注释必须记录无法从实现推导的决策           | governance |    L3 | active | `ai-plan/lessons/governance.md` | `AGENTS.md`, `server/AGENTS.md`, `web/AGENTS.md`                         |
 | LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001 | 动态配置必须消费 schema 与 i18n authority      | governance |    L2 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-WEB-UI-DENSITY-TOKEN-001        | 信息密度切换必须治理 token 消费面              | web-ui     |    L2 | active | `ai-plan/lessons/web-ui.md`     | -                                                                         |
 | LESSON-WEB-UI-EMPTY-STATE-001          | 表格空状态不应做成小灰色卡片                   | web-ui     |    L3 | active | `ai-plan/lessons/web-ui.md`     | `web/AGENTS.md`, `ai-plan/design/graft-design-system/list-form-detail.md` |
@@ -26,6 +27,7 @@
 | ------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------- | -------------------------------------------------------- |
 | Table/list management pages must use `t-empty` or table empty slots instead of custom small gray empty cards. | `web/AGENTS.md` | LESSON-WEB-UI-EMPTY-STATE-001 | `ai-plan/design/graft-design-system/list-form-detail.md` |
 | User-visible time must bind the current app locale and must not use host-default datetime formatting.         | `web/AGENTS.md` | LESSON-WEB-UI-LOCALE-TIME-001 | `ai-plan/design/architecture/前端架构设计.md`            |
+| Handwritten Go, TypeScript, and Vue changes must receive a value-based comment review before closeout.         | `AGENTS.md`, `server/AGENTS.md`, `web/AGENTS.md` | LESSON-GOVERNANCE-COMMENT-VALUE-001 | `ai-plan/design/governance/ai/代码注释与模块文档规范.md` |
 
 ## Deprecated / Superseded
 

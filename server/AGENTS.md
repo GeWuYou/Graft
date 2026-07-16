@@ -48,7 +48,8 @@ authority-first overlay：
 - 改动环境变量、Compose 参数、功能开关、System Config 定义或配置 owner 时，读 `ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
 - 新增、移动、重命名或删除可复用后端 / 跨模块资产时，读 `ai-plan/design/governance/platform/共享资产复用治理规范.md`，并按
   `.agents/skills/graft-shared-asset-reuse/SKILL.md` 执行 Shared Asset Reuse Preflight
-- 改动注释、包文档、模块 README 或 AI 文档行为时，读 `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
+- 任何手写 Go 改动都必须在 closeout 前执行 `.agents/skills/graft-comment-governance/SKILL.md`；若改动注释、包文档、模块 README 或 AI
+  文档行为，还必须读取 `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - 改动数据库表设计、Ent schema、migration、审计字段、软删除、索引、store query 语义或数据库注释时，读
   `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
 - 改动查询形状、分页、Count 策略、原始 SQL、查询超时、大字段读取、批量写入、Explain 证据或 repository 查询成本时，读
@@ -762,6 +763,8 @@ shared hotspot 处理规则如下：
   - 任何没跑的预期验证都要写原因
 - `Shared/governance docs touched`
   - 是否修改了 `AGENTS.md`、`ai-plan/**`、共享治理文档
+- `Comment governance`
+  - 手写 Go 改动时记录 `graft-comment-governance` 回执；无手写 Go 改动时写 `not-applicable`
 
 推荐格式：
 

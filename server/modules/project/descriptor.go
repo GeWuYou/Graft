@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"graft/server/internal/config"
 	"graft/server/internal/module"
 	projectstore "graft/server/modules/project/store"
 )
@@ -25,7 +26,11 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build project repository: %w", err)
 			}
-			service, err := NewService(repository)
+			runtimeConfig, err := module.ResolveService[*config.Config](ctx.Services, (*config.Config)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve runtime config: %w", err)
+			}
+			service, err := NewService(repository, WithDebugConfig(runtimeConfig.Project))
 			if err != nil {
 				return nil, fmt.Errorf("build project service: %w", err)
 			}

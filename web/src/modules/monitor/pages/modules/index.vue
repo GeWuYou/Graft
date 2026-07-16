@@ -316,6 +316,7 @@
   </server-status-page-shell>
 </template>
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query';
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -344,7 +345,6 @@ import type {
   ModuleRuntimeItem,
   ModuleRuntimeMigrationStatus,
   ModuleRuntimeSchemaStatus,
-  ModuleRuntimeSnapshot,
 } from '../../types/module-runtime';
 
 const { t } = useI18n();
@@ -367,11 +367,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
 ];
 const ALWAYS_VISIBLE_COLUMNS = ['module_key', 'health', 'operation'];
 
-const snapshot = ref<ModuleRuntimeSnapshot | null>(null);
-const initialLoading = ref(false);
-const refreshing = ref(false);
-const initialized = ref(false);
-const errorMessage = ref('');
+const detailErrorMessage = ref('');
 const detailVisible = ref(false);
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
@@ -382,6 +378,26 @@ const remainingRefreshSeconds = ref<number | null>(null);
 
 let nextRefreshAt: number | null = null;
 let refreshTickTimer: ReturnType<typeof setInterval> | number | null = null;
+
+const {
+  data: snapshot,
+  error: snapshotError,
+  isFetched,
+  isFetching,
+  refetch: refetchSnapshot,
+} = useQuery({
+  queryKey: ['monitor', 'module-runtime', 'snapshot'],
+  queryFn: getModuleRuntimeSnapshot,
+  enabled: false,
+  retry: false,
+});
+
+const initialLoading = computed(() => isFetching.value && !snapshot.value);
+const refreshing = computed(() => isFetching.value && Boolean(snapshot.value));
+const initialized = computed(() => isFetched.value);
+const errorMessage = computed(() =>
+  snapshotError.value ? t('monitor.moduleRuntime.errorFallback') : detailErrorMessage.value,
+);
 
 const items = computed(() => snapshot.value?.items ?? []);
 const summary = computed(() => snapshot.value?.summary);
@@ -566,27 +582,14 @@ watch(
 
 async function refreshSnapshot() {
   stopRefreshTick();
-  const blockPage = !initialized.value && !snapshot.value;
-  if (blockPage) {
-    initialLoading.value = true;
-  } else {
-    refreshing.value = true;
-  }
-  errorMessage.value = '';
-
-  try {
-    snapshot.value = await getModuleRuntimeSnapshot();
-  } catch (error) {
-    moduleRuntimeLogger.error(error instanceof Error ? error : 'load module runtime snapshot failed', {
+  detailErrorMessage.value = '';
+  const result = await refetchSnapshot();
+  if (result.error) {
+    moduleRuntimeLogger.error(result.error instanceof Error ? result.error : 'load module runtime snapshot failed', {
       operation: 'module_runtime_snapshot',
     });
-    errorMessage.value = t('monitor.moduleRuntime.errorFallback');
-  } finally {
-    initialLoading.value = false;
-    refreshing.value = false;
-    initialized.value = true;
-    scheduleNextRefresh();
   }
+  scheduleNextRefresh();
 }
 
 function handleRefreshIntervalChange(value: number | string) {
@@ -669,7 +672,7 @@ function updateRemainingRefreshSeconds() {
 }
 
 async function openDetail(row: ModuleRuntimeItem) {
-  errorMessage.value = '';
+  detailErrorMessage.value = '';
 
   try {
     selectedModule.value = await getModuleRuntimeDetail(row.module_key);
@@ -679,7 +682,7 @@ async function openDetail(row: ModuleRuntimeItem) {
       moduleKey: row.module_key,
       operation: 'module_runtime_detail',
     });
-    errorMessage.value = t('monitor.moduleRuntime.errorFallback');
+    detailErrorMessage.value = t('monitor.moduleRuntime.errorFallback');
   }
 }
 

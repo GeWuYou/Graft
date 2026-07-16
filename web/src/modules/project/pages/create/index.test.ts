@@ -7,12 +7,14 @@ import ProjectCreateIndex from './index.vue';
 const routeQuery = vi.hoisted(() => ({ runtime_target_id: '7' as string | string[] }));
 const mocks = vi.hoisted(() => ({
   getProjectWorkspaceDefaults: vi.fn(),
+  postProjectApplicationNameAvailability: vi.fn(),
   postProjectCreate: vi.fn(),
   push: vi.fn(),
 }));
 
 vi.mock('../../api/project', () => ({
   getProjectWorkspaceDefaults: mocks.getProjectWorkspaceDefaults,
+  postProjectApplicationNameAvailability: mocks.postProjectApplicationNameAvailability,
   postProjectCreate: mocks.postProjectCreate,
   postProjectDeploy: vi.fn(),
 }));
@@ -125,6 +127,7 @@ function mountPage() {
 
 describe('ProjectCreateIndex', () => {
   beforeEach(() => {
+    mocks.postProjectApplicationNameAvailability.mockClear();
     mocks.postProjectCreate.mockClear();
     mocks.getProjectWorkspaceDefaults.mockResolvedValue({
       compose_file_path: 'compose.yaml',
@@ -136,6 +139,11 @@ describe('ProjectCreateIndex', () => {
       ],
     });
     routeQuery.runtime_target_id = '7';
+    mocks.postProjectApplicationNameAvailability.mockResolvedValue({
+      status: 'available',
+      workspace_path: '/var/lib/graft/applications/demo-project',
+      workspace_non_empty: false,
+    });
     mocks.postProjectCreate.mockResolvedValue({
       application_id: 'app_42',
       display_name: 'demo-project',

@@ -3,6 +3,9 @@
     "project": {
       "error": {
         "invalidArgument": "Invalid project request.",
+        "invalidCompose": "Compose configuration is invalid.",
+        "workspaceUnsafe": "The existing application workspace is not a safe directory.",
+        "workspaceWriteFailed": "The application workspace could not be written.",
         "applicationNameRequired": "Enter an application name.",
         "invalidApplicationName": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
         "applicationNameOccupied": "This application name is already in use. Choose another name.",
@@ -740,6 +743,7 @@
       "validation": {
         "applicationNameRequired": "Application Name Is Required.",
         "applicationNamePattern": "The application name must start with a lowercase ASCII letter or digit and contain only lowercase ASCII letters, digits, and hyphens.",
+        "applicationNameRegistered": "This application name is already registered and cannot be created again.",
         "title": "Authority and Path Preview",
         "rootDirectory": "Managed Root",
         "configKey": "System Config Key",
@@ -845,6 +849,18 @@
         "createFailed": "Managed Project Creation Failed.",
         "deploySuccess": "Project deployed after creation.",
         "deployFailed": "Project was created, but deployment failed."
+      },
+      "reuseDirectory": {
+        "title": "Reuse Existing Folder",
+        "body": "An unregistered, non-empty workspace was found at {path}. Its current files will become the initial workspace after confirmation.",
+        "cancel": "Change Name",
+        "confirm": "Reuse Folder"
+      },
+      "reuseWrite": {
+        "title": "Confirm Writing Reused Folder",
+        "body": "New or edited files from the editor will be written to {path}. Existing files not shown here will not be deleted. Continue to create and register the application?",
+        "cancel": "Keep Editing",
+        "confirm": "Write and Create"
       }
     },
     "creation": {

@@ -592,16 +592,17 @@ func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONReque
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
 }
 
 type managedCreateEntriesHTTPParts struct {
-	displayName      string
-	runtimeTargetID  uint64
-	applicationName  *string
-	workspaceEntries []generated.ProjectWorkspaceEntry
-	composeFilePath  string
-	lifecycle        *generated.ProjectLifecycleConfigurationRequest
+	displayName            string
+	runtimeTargetID        uint64
+	applicationName        *string
+	workspaceEntries       []generated.ProjectWorkspaceEntry
+	composeFilePath        string
+	lifecycle              *generated.ProjectLifecycleConfigurationRequest
+	reuseExistingWorkspace bool
 }
 
 // managedCreateRequestFromEntries builds a managed project creation request from workspace entries and lifecycle configuration.
@@ -631,7 +632,8 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 	}
 	request := ManagedProjectCreateRequest{
 		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, ApplicationName: parts.applicationName,
-		ComposeFileName: filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
+		ReuseExistingWorkspace: parts.reuseExistingWorkspace,
+		ComposeFileName:        filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
 		WorkspaceEntries: entries,
 	}
 	if parts.lifecycle != nil {
@@ -670,7 +672,26 @@ func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONReques
 	if err != nil {
 		return ManagedProjectCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
+}
+
+func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityResult) generated.ProjectApplicationNameAvailabilityResponse {
+	response := generated.ProjectApplicationNameAvailabilityResponse{
+		Status:            generated.ProjectApplicationNameAvailabilityResponseStatus(result.Status),
+		WorkspacePath:     result.WorkspacePath,
+		WorkspaceNonEmpty: result.WorkspaceNonEmpty,
+	}
+	if result.ComposeFilePath != nil {
+		response.ComposeFilePath = result.ComposeFilePath
+	}
+	if len(result.WorkspaceEntries) > 0 {
+		entries := make([]generated.ProjectWorkspaceEntry, 0, len(result.WorkspaceEntries))
+		for _, entry := range result.WorkspaceEntries {
+			entries = append(entries, generated.ProjectWorkspaceEntry{Path: entry.Path, NodeType: generated.ProjectWorkspaceEntryNodeType(entry.NodeType), Content: entry.Content})
+		}
+		response.WorkspaceEntries = &entries
+	}
+	return response
 }
 
 // runtimeTargetIDFromGenerated validates and converts a generated runtime target identifier.

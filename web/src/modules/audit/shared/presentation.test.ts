@@ -34,4 +34,22 @@ describe('audit presentation helpers', () => {
       ),
     ).toBe('Batch Stop Containers');
   });
+
+  it('localizes a security event resource when it repeats the event action', () => {
+    expect(
+      resourceLabel(
+        {
+          action: 'auth.token.invalid',
+          resource_name: 'auth.token.invalid',
+          source: 'SECURITY_EVENT',
+        },
+        (key: string) => {
+          if (key === 'audit.actionLabel.auth.token.invalid') {
+            return 'Invalid Access Token';
+          }
+          return key;
+        },
+      ),
+    ).toBe('Invalid Access Token');
+  });
 });
