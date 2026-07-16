@@ -96,6 +96,7 @@ const TableActionMenuStub = defineComponent({
 
 function appLogRow(): AppLogItem {
   return {
+    category: 'application',
     component: 'internal.dashboard',
     error: '',
     fields: {},

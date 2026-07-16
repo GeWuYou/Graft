@@ -48,7 +48,7 @@
 `logger.Category(base, logger.CategoryDockerStats)` 获得薄 `CategoryLogger`，它只提供 `Enabled`、`Trace`、
 `TraceLazy`、`Debug`、`Info`、`Warn`、`Error` 和 `With`。
 
-注册叶子类别为 `docker.stats`、`docker.events`、`runtime.cache`、`runtime.metrics`、`runtime.stats`、
+注册叶子类别为 `application`、`docker.stats`、`docker.events`、`runtime.cache`、`runtime.metrics`、`runtime.stats`、
 `compose.runtime`、`scheduler.poll` 和 `database.ent`。它们由 typed `logger.LogCategory` constants 和 logger
 registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output diagnostic；不会改变 `AppLogger` persistence
 或 App Log API。
@@ -57,6 +57,11 @@ registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output di
 `category=bool`：格式错误、非法 bool、重复项和未知 registry namespace 都会拒绝启动。最长命名空间前缀规则优先；
 `false` 抑制该类别每个级别，`true` 开启类别 TRACE。过滤在 Zap core 路径完成。`TraceLazy` 只会在 TRACE 已启用时
 构造字段；其它昂贵计算仍必须由调用者先以 `Enabled(level)` 显式保护。
+
+`AppLogger` 默认绑定 `CategoryApplication`，将低频普通应用事件与 `runtime.stats` 高频诊断分开。默认和显式类别都会在
+消息清洗、字段构建、Zap 输出及 durable queue 之前经过同一 category gate。Batch 3 的错误 `runtime.stats` 默认由
+`202607160002_app_log_application_category.sql` 前向修正为 `application`；该有界兼容假设把 Batch 3 写入的值视作旧默认，
+不重分类有独立可验证来源的未来 runtime statistics 记录。
 
 ## AppLogger 采用规则
 

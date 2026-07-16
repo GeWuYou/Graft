@@ -33,7 +33,8 @@ closeout:
   - `batch-1-logger-category-foundation`
   - `batch-2-high-frequency-migration-and-static-governance`
   - `batch-3-app-log-category-contract`
-- current_batch: `archive-readiness-evaluation`
+  - `batch-4-category-authority-repair`
+- current_batch: `batch-4-category-authority-repair`
 - pending_batches:
   - `archive-readiness-evaluation`
 - next_batch: `archive-readiness-evaluation`
@@ -44,7 +45,7 @@ closeout:
 - Categories are typed constants in a logger-owned registry and config accepts no business-code string literals.
 - Disabled Category prevents lazy field creation, encoding, serialization, and durable persistence.
 - High-frequency normal diagnostics use TRACE; periodic failures remain visible and bounded.
-- App Log category persistence, query contract, and web consumer behavior are validated with the final Batch 3 change.
+- App Log category persistence, query contract, default gate semantics, and web consumer behavior are validated with the final Batch 4 change.
 
 ## Current Risks
 
@@ -74,3 +75,19 @@ closeout:
   generated contracts, plus App Log list filter, column, and detail presentation. TRACE remains process-output-only.
 - Focused Go and Vitest coverage, SQL validation, OpenAPI generation/freshness, web i18n/type generation checks, and
   final backend/web completion validation are required before archive readiness is accepted.
+
+## 2026-07-16 Batch 4 Receipt
+
+- Added `CategoryApplication` as the logger Registry default for low-frequency general application logs. Every
+  AppLogger instance binds its effective category before message sanitization, field serialization, Zap output, and
+  durable enqueue; disabling `application` or an explicit selected category suppresses all of those write paths.
+- Added forward-only migration `202607160002_app_log_application_category.sql`, which changes Batch 3's incorrect
+  `runtime.stats` legacy default and rows to `application`. The bounded compatibility assumption is documented: no
+  source metadata can distinguish an explicit historical runtime-stat record from a Batch 3 default row.
+- Removed category inventories from OpenAPI and the App Log web module. The server validates arbitrary category text
+  against its Registry; web preserves category route and saved-view values until that server validation occurs.
+- Extended the production-Go scanner to reject literal `logger.Category`, `logger.WithCategory`, and qualified
+  `logger.LogCategory("...")` forms without widening into unrelated `.Category` APIs.
+- Archive readiness remains the next loop batch after the scoped commit result. Its first gate is the reproducible
+  out-of-scope web failure in `project/pages/configuration-workspace/index.test.ts`; Batch 4's App Log-focused tests,
+  typecheck, generated-contract freshness, and backend completion entrypoint pass.

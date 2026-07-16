@@ -81,8 +81,7 @@ def split_call_arguments(source: str) -> list[str]:
     return arguments
 
 
-def find_category_call(source: str, start: int) -> int | None:
-    marker = "logger.Category"
+def find_qualified_call(source: str, marker: str, start: int) -> int | None:
     index = start
     quote = ""
     escaped = False
@@ -115,11 +114,10 @@ def find_category_call(source: str, start: int) -> int | None:
     return None
 
 
-def scan_source(path: Path, source: str) -> list[Finding]:
+def scan_literal_argument_calls(path: Path, source: str, marker: str, argument_index: int) -> list[Finding]:
     findings: list[Finding] = []
-    marker = "logger.Category"
     start = 0
-    while (marker_index := find_category_call(source, start)) is not None:
+    while (marker_index := find_qualified_call(source, marker, start)) is not None:
         open_index = marker_index + len(marker)
         while open_index < len(source) and source[open_index].isspace():
             open_index += 1
@@ -131,9 +129,16 @@ def scan_source(path: Path, source: str) -> list[Finding]:
             start = open_index + 1
             continue
         arguments = split_call_arguments(source[open_index + 1 : close_index])
-        if len(arguments) >= 2 and arguments[1].lstrip().startswith(('"', '`')):
+        if len(arguments) > argument_index and arguments[argument_index].lstrip().startswith(('"', '`')):
             findings.append(Finding(path, source.count("\n", 0, marker_index) + 1))
         start = close_index + 1
+    return findings
+
+
+def scan_source(path: Path, source: str) -> list[Finding]:
+    findings = scan_literal_argument_calls(path, source, "logger.Category", 1)
+    findings.extend(scan_literal_argument_calls(path, source, "logger.WithCategory", 1))
+    findings.extend(scan_literal_argument_calls(path, source, "logger.LogCategory", 0))
     return findings
 
 
@@ -157,7 +162,7 @@ def main() -> int:
         return 0
     for finding in findings:
         print(
-            f"{finding.path}:{finding.line}: logger.Category requires a logger typed category constant, not a literal",
+            f"{finding.path}:{finding.line}: logger category APIs require a logger typed category constant, not a literal",
             file=sys.stderr,
         )
     return 1

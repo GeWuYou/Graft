@@ -150,6 +150,14 @@ type sanitizingCore struct {
 	zapcore.Core
 }
 
+// CategoryGateEnabled 让 logger 类别规则能穿过清洗 core 被 AppLogger 读取。
+func (c sanitizingCore) CategoryGateEnabled(category string, level zapcore.Level) bool {
+	gate, ok := c.Core.(interface {
+		CategoryGateEnabled(string, zapcore.Level) bool
+	})
+	return !ok || gate.CategoryGateEnabled(category, level)
+}
+
 func (c sanitizingCore) With(fields []zap.Field) zapcore.Core {
 	return sanitizingCore{Core: c.Core.With(SanitizeFields(fields))}
 }

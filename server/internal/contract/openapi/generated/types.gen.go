@@ -78,42 +78,6 @@ func (e AnnouncementStatus) Valid() bool {
 	}
 }
 
-// Defines values for AppLogDetailResponseCategory.
-const (
-	AppLogDetailResponseCategoryComposeRuntime AppLogDetailResponseCategory = "compose.runtime"
-	AppLogDetailResponseCategoryDatabaseEnt    AppLogDetailResponseCategory = "database.ent"
-	AppLogDetailResponseCategoryDockerEvents   AppLogDetailResponseCategory = "docker.events"
-	AppLogDetailResponseCategoryDockerStats    AppLogDetailResponseCategory = "docker.stats"
-	AppLogDetailResponseCategoryRuntimeCache   AppLogDetailResponseCategory = "runtime.cache"
-	AppLogDetailResponseCategoryRuntimeMetrics AppLogDetailResponseCategory = "runtime.metrics"
-	AppLogDetailResponseCategoryRuntimeStats   AppLogDetailResponseCategory = "runtime.stats"
-	AppLogDetailResponseCategorySchedulerPoll  AppLogDetailResponseCategory = "scheduler.poll"
-)
-
-// Valid indicates whether the value is a known member of the AppLogDetailResponseCategory enum.
-func (e AppLogDetailResponseCategory) Valid() bool {
-	switch e {
-	case AppLogDetailResponseCategoryComposeRuntime:
-		return true
-	case AppLogDetailResponseCategoryDatabaseEnt:
-		return true
-	case AppLogDetailResponseCategoryDockerEvents:
-		return true
-	case AppLogDetailResponseCategoryDockerStats:
-		return true
-	case AppLogDetailResponseCategoryRuntimeCache:
-		return true
-	case AppLogDetailResponseCategoryRuntimeMetrics:
-		return true
-	case AppLogDetailResponseCategoryRuntimeStats:
-		return true
-	case AppLogDetailResponseCategorySchedulerPoll:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for AppLogDetailResponseSeverity.
 const (
 	AppLogDetailResponseSeverityDebug AppLogDetailResponseSeverity = "debug"
@@ -4248,42 +4212,6 @@ func (e GetAppLogsParamsSeverity) Valid() bool {
 	}
 }
 
-// Defines values for GetAppLogsParamsCategory.
-const (
-	GetAppLogsParamsCategoryComposeRuntime GetAppLogsParamsCategory = "compose.runtime"
-	GetAppLogsParamsCategoryDatabaseEnt    GetAppLogsParamsCategory = "database.ent"
-	GetAppLogsParamsCategoryDockerEvents   GetAppLogsParamsCategory = "docker.events"
-	GetAppLogsParamsCategoryDockerStats    GetAppLogsParamsCategory = "docker.stats"
-	GetAppLogsParamsCategoryRuntimeCache   GetAppLogsParamsCategory = "runtime.cache"
-	GetAppLogsParamsCategoryRuntimeMetrics GetAppLogsParamsCategory = "runtime.metrics"
-	GetAppLogsParamsCategoryRuntimeStats   GetAppLogsParamsCategory = "runtime.stats"
-	GetAppLogsParamsCategorySchedulerPoll  GetAppLogsParamsCategory = "scheduler.poll"
-)
-
-// Valid indicates whether the value is a known member of the GetAppLogsParamsCategory enum.
-func (e GetAppLogsParamsCategory) Valid() bool {
-	switch e {
-	case GetAppLogsParamsCategoryComposeRuntime:
-		return true
-	case GetAppLogsParamsCategoryDatabaseEnt:
-		return true
-	case GetAppLogsParamsCategoryDockerEvents:
-		return true
-	case GetAppLogsParamsCategoryDockerStats:
-		return true
-	case GetAppLogsParamsCategoryRuntimeCache:
-		return true
-	case GetAppLogsParamsCategoryRuntimeMetrics:
-		return true
-	case GetAppLogsParamsCategoryRuntimeStats:
-		return true
-	case GetAppLogsParamsCategorySchedulerPoll:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for GetAppLogsParamsSort.
 const (
 	ComponentAsc   GetAppLogsParamsSort = "component:asc"
@@ -4912,7 +4840,7 @@ type AppLogBatchDeleteRequest struct {
 
 // AppLogDetailResponse defines model for app-log-detail-response.
 type AppLogDetailResponse struct {
-	Category   AppLogDetailResponseCategory `json:"category"`
+	Category   string                       `json:"category"`
 	Component  string                       `json:"component"`
 	Error      string                       `json:"error"`
 	Fields     map[string]string            `json:"fields"`
@@ -4926,9 +4854,6 @@ type AppLogDetailResponse struct {
 	Severity   AppLogDetailResponseSeverity `json:"severity"`
 	TraceId    string                       `json:"trace_id"`
 }
-
-// AppLogDetailResponseCategory defines model for AppLogDetailResponse.Category.
-type AppLogDetailResponseCategory string
 
 // AppLogDetailResponseSeverity defines model for AppLogDetailResponse.Severity.
 type AppLogDetailResponseSeverity string
@@ -11224,12 +11149,12 @@ type GetAppLogsParams struct {
 	OccurredTo *time.Time                `form:"occurred_to,omitempty" json:"occurred_to,omitempty"`
 	Severity   *GetAppLogsParamsSeverity `form:"severity,omitempty" json:"severity,omitempty"`
 
-	// Category Registered logger category for durable App Log records.
-	Category  *GetAppLogsParamsCategory `form:"category,omitempty" json:"category,omitempty"`
-	Component *string                   `form:"component,omitempty" json:"component,omitempty"`
-	Operation *string                   `form:"operation,omitempty" json:"operation,omitempty"`
-	RequestId *string                   `form:"request_id,omitempty" json:"request_id,omitempty"`
-	TraceId   *string                   `form:"trace_id,omitempty" json:"trace_id,omitempty"`
+	// Category Category text for durable App Log records. The server validates it against the logger Category Registry.
+	Category  *string `form:"category,omitempty" json:"category,omitempty"`
+	Component *string `form:"component,omitempty" json:"component,omitempty"`
+	Operation *string `form:"operation,omitempty" json:"operation,omitempty"`
+	RequestId *string `form:"request_id,omitempty" json:"request_id,omitempty"`
+	TraceId   *string `form:"trace_id,omitempty" json:"trace_id,omitempty"`
 
 	// Keyword Canonical fuzzy match applied to component, operation, message, and error.
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
@@ -11253,9 +11178,6 @@ type GetAppLogsParams struct {
 
 // GetAppLogsParamsSeverity defines parameters for GetAppLogs.
 type GetAppLogsParamsSeverity string
-
-// GetAppLogsParamsCategory defines parameters for GetAppLogs.
-type GetAppLogsParamsCategory string
 
 // GetAppLogsParamsSort defines parameters for GetAppLogs.
 type GetAppLogsParamsSort string

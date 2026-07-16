@@ -42,7 +42,7 @@ const (
 	FieldError = "error"
 )
 
-const defaultAppLogCategory LogCategory = CategoryRuntimeStats
+const defaultAppLogCategory LogCategory = CategoryApplication
 
 const redactedValue = "[REDACTED]"
 const (
@@ -74,12 +74,12 @@ type Field struct {
 }
 
 type appLogger struct {
-	base             *zap.Logger
-	sink             appLogPersistSink
-	now              func() time.Time
-	fields           []Field
-	category         LogCategory
-	categorySelected bool
+	categoryBase *zap.Logger
+	base         *zap.Logger
+	sink         appLogPersistSink
+	now          func() time.Time
+	fields       []Field
+	category     LogCategory
 }
 
 type appLogPersistSink interface {
@@ -116,7 +116,9 @@ func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 	}
 
 	logger := appLogger{
-		base: base,
+		categoryBase: base,
+		base:         base.With(zap.String(categoryFieldKey, string(defaultAppLogCategory))),
+		category:     defaultAppLogCategory,
 		now: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -176,39 +178,41 @@ func (l appLogger) Named(component string) AppLogger {
 		return l
 	}
 
+	categoryBase := l.categoryBase.Named(component).With(zap.String(FieldComponent, component))
 	return appLogger{
-		base:             l.base.Named(component).With(zap.String(FieldComponent, component)),
-		sink:             l.sink,
-		now:              l.now,
-		fields:           appendAppLoggerField(l.fields, StringField(FieldComponent, component)),
-		category:         l.category,
-		categorySelected: l.categorySelected,
+		categoryBase: categoryBase,
+		base:         categoryBase.With(zap.String(categoryFieldKey, string(l.category))),
+		sink:         l.sink,
+		now:          l.now,
+		fields:       appendAppLoggerField(l.fields, StringField(FieldComponent, component)),
+		category:     l.category,
 	}
 }
 
 // Category 为 AppLogger 绑定一个已注册类别，同时保持现有 component 标识不变。
 func (l appLogger) Category(category LogCategory) AppLogger {
 	if !isRegisteredCategory(category) {
-		return appLogger{base: zap.NewNop(), sink: l.sink, now: l.now, fields: l.fields, category: category, categorySelected: true}
+		return appLogger{categoryBase: zap.NewNop(), base: zap.NewNop(), sink: l.sink, now: l.now, fields: l.fields, category: category}
 	}
 	return appLogger{
-		base:             l.base.With(zap.String(categoryFieldKey, string(category))),
-		sink:             l.sink,
-		now:              l.now,
-		fields:           l.fields,
-		category:         category,
-		categorySelected: true,
+		categoryBase: l.categoryBase,
+		base:         l.categoryBase.With(zap.String(categoryFieldKey, string(category))),
+		sink:         l.sink,
+		now:          l.now,
+		fields:       l.fields,
+		category:     category,
 	}
 }
 
 func (l appLogger) With(fields ...Field) AppLogger {
+	categoryBase := l.categoryBase.With(l.zapFields(context.Background(), fields...)...)
 	return appLogger{
-		base:             l.base.With(l.zapFields(context.Background(), fields...)...),
-		sink:             l.sink,
-		now:              l.now,
-		fields:           appendAppLoggerFields(l.fields, fields...),
-		category:         l.category,
-		categorySelected: l.categorySelected,
+		categoryBase: categoryBase,
+		base:         categoryBase.With(zap.String(categoryFieldKey, string(l.category))),
+		sink:         l.sink,
+		now:          l.now,
+		fields:       appendAppLoggerFields(l.fields, fields...),
+		category:     l.category,
 	}
 }
 
@@ -217,7 +221,7 @@ func (l appLogger) Zap() *zap.Logger {
 }
 
 func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) {
-	if l.categorySelected && !l.base.Core().Enabled(zapLevelForAppLogSeverity(severity)) {
+	if !appLogCategoryEnabled(l.base.Core(), l.effectiveCategory(), zapLevelForAppLogSeverity(severity)) {
 		return
 	}
 	sanitizedMessage := sanitizeMessage(message)
@@ -234,6 +238,13 @@ func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message s
 	}
 
 	l.persist(ctx, severity, sanitizedMessage, fields...)
+}
+
+func appLogCategoryEnabled(core zapcore.Core, category LogCategory, level zapcore.Level) bool {
+	gate, ok := core.(interface {
+		CategoryGateEnabled(string, zapcore.Level) bool
+	})
+	return !ok || gate.CategoryGateEnabled(string(category), level)
 }
 
 func zapLevelForAppLogSeverity(severity AppLogSeverity) zapcore.Level {
@@ -328,10 +339,7 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 }
 
 func (l appLogger) effectiveCategory() LogCategory {
-	if l.categorySelected {
-		return l.category
-	}
-	return defaultAppLogCategory
+	return l.category
 }
 
 func applyAppLogRecordField(record *CreateAppLogInput, key string, value string) {

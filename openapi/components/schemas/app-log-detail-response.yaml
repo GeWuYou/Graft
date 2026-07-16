@@ -25,7 +25,6 @@ properties:
     enum: [debug, info, warn, error]
   category:
     type: string
-    enum: [docker.stats, docker.events, runtime.cache, runtime.metrics, runtime.stats, compose.runtime, scheduler.poll, database.ent]
   component:
     type: string
   message:

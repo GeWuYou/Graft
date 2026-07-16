@@ -95,7 +95,7 @@ func TestAppLogRepositoryCreateAndList(t *testing.T) {
 	result, err := repo.ListAppLogs(ctx, AppLogListQuery{
 		Severity:  AppLogSeverityError,
 		Component: " modules.user.route ",
-		Category:  CategoryRuntimeStats,
+		Category:  CategoryApplication,
 		Keyword:   "response",
 		Page:      0,
 		PageSize:  500,
@@ -123,18 +123,18 @@ func TestAppLogRepositoryCreateAndList(t *testing.T) {
 	}
 }
 
-func TestAppLogRepositoryDefaultsLegacyCategory(t *testing.T) {
+func TestAppLogRepositoryDefaultsApplicationCategory(t *testing.T) {
 	repo := newSQLiteAppLogRepository(t)
 	created, err := repo.CreateAppLog(context.Background(), CreateAppLogInput{
 		Severity:  AppLogSeverityInfo,
 		Component: "core.app",
-		Message:   "legacy category default",
+		Message:   "application category default",
 	})
 	if err != nil {
 		t.Fatalf("create legacy app log: %v", err)
 	}
 	if created.Category != defaultAppLogCategory {
-		t.Fatalf("expected legacy default category %q, got %q", defaultAppLogCategory, created.Category)
+		t.Fatalf("expected application default category %q, got %q", defaultAppLogCategory, created.Category)
 	}
 }
 

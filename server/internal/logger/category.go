@@ -14,6 +14,8 @@ import (
 type LogCategory string
 
 const (
+	// CategoryApplication 标识低频通用应用日志，不承载高频运行时统计。
+	CategoryApplication LogCategory = "application"
 	// CategoryDockerStats 标识 Docker 运行时统计轮询诊断。
 	CategoryDockerStats LogCategory = "docker.stats"
 	// CategoryDockerEvents 标识 Docker 事件流诊断。
@@ -38,6 +40,7 @@ const (
 )
 
 var registeredCategories = map[LogCategory]struct{}{
+	CategoryApplication: {},
 	CategoryDockerStats: {}, CategoryDockerEvents: {}, CategoryRuntimeCache: {}, CategoryRuntimeMetrics: {},
 	CategoryRuntimeStats: {}, CategoryComposeRuntime: {}, CategorySchedulerPoll: {}, CategoryDatabaseEnt: {},
 }

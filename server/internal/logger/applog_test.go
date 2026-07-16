@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger/logsafe"
 )
 
 type appLoggerSinkRecorder struct {
@@ -24,6 +25,11 @@ type appLoggerSinkRecorder struct {
 
 func newAppLoggerSinkRecorder() *appLoggerSinkRecorder {
 	return &appLoggerSinkRecorder{seen: make(chan struct{}, 1)}
+}
+
+func newEnabledAppLogTestLogger() *zap.Logger {
+	core, _ := observer.New(zapcore.DebugLevel)
+	return zap.New(core)
 }
 
 func (r *appLoggerSinkRecorder) CreateAppLog(ctx context.Context, input CreateAppLogInput) (AppLogRecord, error) {
@@ -201,7 +207,7 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 		t.Fatalf("expected error severity, got %q", record.Severity)
 	}
 	if record.Category != defaultAppLogCategory {
-		t.Fatalf("expected legacy default category %q, got %q", defaultAppLogCategory, record.Category)
+		t.Fatalf("expected application default category %q, got %q", defaultAppLogCategory, record.Category)
 	}
 	if record.Component != "modules.user.route" {
 		t.Fatalf("expected named component, got %q", record.Component)
@@ -251,6 +257,22 @@ func TestAppLoggerDisabledCategorySkipsPersistence(t *testing.T) {
 	}
 	if len(observed.All()) != 0 {
 		t.Fatalf("expected disabled category to skip zap output, got %d entries", len(observed.All()))
+	}
+}
+
+func TestAppLoggerDefaultCategoryIsGatedBeforeWriting(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	disabledCore := logsafe.WrapCore(wrapCategoryCore(CategoryRules{CategoryApplication: false})(core))
+	sink := newAppLoggerSinkRecorder()
+	logger := NewAppLogger(zap.New(disabledCore), WithAppLogRepository(sink))
+
+	logger.Info(context.Background(), "disabled application event", StringField("expensive", "not serialized"))
+	time.Sleep(25 * time.Millisecond)
+	if sink.recordCount() != 0 {
+		t.Fatalf("expected disabled default category to skip durable persistence, got %d records", sink.recordCount())
+	}
+	if len(observed.All()) != 0 {
+		t.Fatalf("expected disabled default category to skip zap output, got %d entries", len(observed.All()))
 	}
 }
 

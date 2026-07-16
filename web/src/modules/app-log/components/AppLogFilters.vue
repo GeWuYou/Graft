@@ -24,7 +24,7 @@ import {
 } from '@/shared/components/query-list';
 import * as BuilderHelpers from '@/shared/components/query-list';
 
-import type { AppLogCategory, AppLogFilterState, AppLogSeverity, AppLogSortBy } from '../types/app-log';
+import type { AppLogFilterState, AppLogSeverity, AppLogSortBy } from '../types/app-log';
 
 type AppLogPresetKey = 'all' | 'errors' | 'warnings' | 'lastHour';
 type AppTimeRangeKey = 'occurredRange';
@@ -55,20 +55,6 @@ const severityOptions = computed(() =>
     label: value.toUpperCase(),
     value,
   })),
-);
-const categoryOptions = computed(() =>
-  (
-    [
-      'docker.stats',
-      'docker.events',
-      'runtime.cache',
-      'runtime.metrics',
-      'runtime.stats',
-      'compose.runtime',
-      'scheduler.poll',
-      'database.ent',
-    ] satisfies AppLogCategory[]
-  ).map((value) => ({ label: value, value })),
 );
 const sortByOptions = computed(() =>
   [
@@ -103,10 +89,9 @@ const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   },
   {
     key: 'category',
-    kind: 'select',
+    kind: 'text',
     label: t('appLog.builder.fields.category'),
-    placeholder: t('appLog.filters.allCategories'),
-    options: categoryOptions.value,
+    placeholder: t('appLog.filters.category'),
   },
   {
     key: 'component',

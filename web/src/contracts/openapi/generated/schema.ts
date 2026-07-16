@@ -5305,16 +5305,7 @@ export interface components {
       occurred_at: string;
       /** @enum {string} */
       severity: 'debug' | 'info' | 'warn' | 'error';
-      /** @enum {string} */
-      category:
-        | 'docker.stats'
-        | 'docker.events'
-        | 'runtime.cache'
-        | 'runtime.metrics'
-        | 'runtime.stats'
-        | 'compose.runtime'
-        | 'scheduler.poll'
-        | 'database.ent';
+      category: string;
       component: string;
       message: string;
       operation: string;
@@ -11906,16 +11897,8 @@ export interface operations {
         /** @description Inclusive canonical occurrence-time upper bound on `occurred_at`. */
         occurred_to?: string;
         severity?: 'debug' | 'info' | 'warn' | 'error';
-        /** @description Registered logger category for durable App Log records. */
-        category?:
-          | 'docker.stats'
-          | 'docker.events'
-          | 'runtime.cache'
-          | 'runtime.metrics'
-          | 'runtime.stats'
-          | 'compose.runtime'
-          | 'scheduler.poll'
-          | 'database.ent';
+        /** @description Category text for durable App Log records. The server validates it against the logger Category Registry. */
+        category?: string;
         component?: string;
         operation?: string;
         request_id?: string;

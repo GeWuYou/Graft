@@ -10,6 +10,7 @@ import (
 
 func TestRegisteredCategoriesAreStable(t *testing.T) {
 	want := []LogCategory{
+		CategoryApplication,
 		CategoryComposeRuntime,
 		CategoryDatabaseEnt,
 		CategoryDockerEvents,

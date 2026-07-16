@@ -37,6 +37,16 @@ class CategoryCallTests(unittest.TestCase):
         )
         self.assertEqual([(finding.path, finding.line) for finding in findings], [(Path("server/modules/user/service.go"), 1)])
 
+    def test_with_category_and_qualified_conversion_literals_are_rejected(self) -> None:
+        findings = MODULE.scan_source(
+            Path("server/modules/user/service.go"),
+            'first := logger.WithCategory(base, "runtime.cache")\nsecond := logger.Category(base, logger.LogCategory("runtime.metrics"))\n',
+        )
+        self.assertEqual(
+            [(finding.path, finding.line) for finding in findings],
+            [(Path("server/modules/user/service.go"), 1), (Path("server/modules/user/service.go"), 2)],
+        )
+
     def test_typed_category_is_allowed_with_multiline_base_expression(self) -> None:
         findings = MODULE.scan_source(
             Path("server/modules/user/service.go"),

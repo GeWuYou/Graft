@@ -8295,19 +8295,9 @@
           {
             "name": "category",
             "in": "query",
-            "description": "Registered logger category for durable App Log records.",
+            "description": "Category text for durable App Log records. The server validates it against the logger Category Registry.",
             "schema": {
-              "type": "string",
-              "enum": [
-                "docker.stats",
-                "docker.events",
-                "runtime.cache",
-                "runtime.metrics",
-                "runtime.stats",
-                "compose.runtime",
-                "scheduler.poll",
-                "database.ent"
-              ]
+              "type": "string"
             }
           },
           {
@@ -21979,17 +21969,7 @@
             ]
           },
           "category": {
-            "type": "string",
-            "enum": [
-              "docker.stats",
-              "docker.events",
-              "runtime.cache",
-              "runtime.metrics",
-              "runtime.stats",
-              "compose.runtime",
-              "scheduler.poll",
-              "database.ent"
-            ]
+            "type": "string"
           },
           "component": {
             "type": "string"

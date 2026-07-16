@@ -40,3 +40,16 @@
   consume the same server-owned category value.
 - Added migration `202607160001_app_log_category.sql` and its category/time/id Explorer index. Batch completion now
   awaits loop-owner archive-readiness evaluation and the scoped commit result.
+
+## 2026-07-16 Batch 4: category authority repair
+
+- Restored `server/internal/logger` as the only category inventory authority by registering `application` as the
+  default AppLogger category and binding it before all write-side sanitization, serialization, Zap, and persistence
+  work. `application` is intentionally distinct from high-frequency `runtime.stats`.
+- Added the logger-owned forward migration that reclassifies Batch 3's legacy default and updates the column default.
+  This is a bounded compatibility repair: historical rows do not record whether `runtime.stats` was explicit, so the
+  migration treats those Batch 3 values as the incorrect default.
+- Reduced OpenAPI to wire-shape authority and made web category filtering text-based, preserving arbitrary deep links
+  and saved-view values for server Registry validation. No downstream category array/type guard remains.
+- Hardened the bounded Go scanner for the logger APIs named by policy, added bypass regression coverage, and queued
+  archive-readiness as the next loop step after final validation and commit.

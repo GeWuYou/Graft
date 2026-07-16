@@ -10,8 +10,8 @@
   - `server/internal/logger/**`
   - `server/internal/config/**`
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
-- Completed so far: Work Intake, architecture decision, Batch 1 logger foundation, Batch 2 high-frequency migration/static governance, and Batch 3 App Log category contract.
-- Pending: loop-owner archive-readiness evaluation.
+- Completed so far: Work Intake, architecture decision, Batch 1 logger foundation, Batch 2 high-frequency migration/static governance, Batch 3 App Log category contract, and Batch 4 category-authority repair.
+- Pending: loop-owner archive-readiness evaluation after Batch 4 validation and scoped commit review.
 
 ## Recovery Receipt
 
@@ -42,11 +42,12 @@ Out of scope:
 - Batch 1: bootstrap Category constants/registry, TRACE policy, configuration parsing, thin facade, tests, and normative docs.
 - Batch 2: migrated Docker CPU TRACE diagnostics, periodic/watcher/cache warning categories, and Ent TRACE output; added bounded magic-string/static governance coverage.
 - Batch 3: add App Log category persistence/query contract and downstream OpenAPI/web consumer updates when required by the completed runtime baseline.
+- Batch 4: repair the AppLogger default/gate, migrate the incorrect Batch 3 legacy category, remove downstream category inventories, and harden the bounded literal scanner.
 
 ## Current Recovery Point
 
 - Loop mode: `topic-completion-loop`.
-- Current batch: Batch 3 completed.
+- Current batch: Batch 4 completed pending validation and scoped commit.
 - Next step: evaluate archive readiness against the topic acceptance conditions.
 
 ## Work Intake

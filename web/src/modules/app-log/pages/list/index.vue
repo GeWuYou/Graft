@@ -516,7 +516,7 @@ function applyRouteFilters() {
     occurredRange: normalizeRouteRangeForPageState([occurredFrom, occurredTo]),
     severity:
       severity === 'debug' || severity === 'info' || severity === 'warn' || severity === 'error' ? severity : '',
-    category: isAppLogCategory(category) ? category : '',
+    category,
     component,
     operation,
     requestId,
@@ -598,22 +598,6 @@ function normalizeSortOrder(value: string): AppLogSortOrder {
   return value === 'asc' ? 'asc' : 'desc';
 }
 
-function isAppLogCategory(value: unknown): value is NonNullable<AppLogQuery['category']> {
-  return (
-    typeof value === 'string' &&
-    [
-      'docker.stats',
-      'docker.events',
-      'runtime.cache',
-      'runtime.metrics',
-      'runtime.stats',
-      'compose.runtime',
-      'scheduler.poll',
-      'database.ent',
-    ].includes(value)
-  );
-}
-
 function currentAppLogSavedViewQueryState(): AppLogSavedQueryState {
   const { page: _page, page_size: _pageSize, ...query } = buildQuery();
   return query;
@@ -642,7 +626,7 @@ function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {
       state.severity === 'debug' || state.severity === 'info' || state.severity === 'warn' || state.severity === 'error'
         ? state.severity
         : '',
-    category: isAppLogCategory(state.category) ? state.category : '',
+    category: state.category ?? '',
     component: state.component ?? '',
     operation: state.operation ?? '',
     requestId: state.request_id ?? '',

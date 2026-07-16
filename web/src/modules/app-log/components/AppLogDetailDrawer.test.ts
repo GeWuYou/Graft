@@ -113,6 +113,7 @@ const i18n = createI18n({
 
 function appLogRecord(): AppLogItem {
   return {
+    category: 'application',
     component: 'internal.dashboard',
     error: '',
     fields: { widget: 'summary' },
