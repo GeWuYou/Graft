@@ -43,13 +43,14 @@ closeout:
 
 - startup preflight completed; initial read-only inventory sized the candidate source at 1701 files and comment-bearing files at 868.
 - Verified worker configuration: `model=gpt-5.6-luna`, `reasoning_effort=medium`.
-- Next step: complete residual inventory and archive-readiness review after this four-worker parallel batch.
+- Next step: continue from the residual inventory of untouched server modules and web modules; archive readiness is not yet established.
 
 ## Task Checklist
 
 - [x] Complete first-wave read-only audit and classify exemptions, value categories, and disjoint batch boundaries.
 - [x] Execute eight additional backend and frontend comment governance waves with per-batch validation and scoped commits.
-- [ ] Review final implementation, reconcile remaining scope, and prepare archive readiness.
+- [x] Review this residual implementation wave, reconcile its scope, and record archive-readiness blockers.
+- [ ] Continue residual inventory for untouched server modules and web modules, then rerun archive-readiness review.
 
 ## Acceptance Conditions
 
@@ -72,11 +73,19 @@ closeout:
     "current-session four-worker residual module governance"
   ],
   "pending_batches": [
-    "final mixed-commit scope reconciliation and residual acceptance review"
+    "residual inventory for untouched server modules and web modules"
   ],
-  "current_batch": "final residual inventory and archive-readiness review",
-  "next_batch": "main-agent residual acceptance and archive-readiness review",
+  "current_batch": "residual implementation wave and archive-readiness review",
+  "next_batch": "read-only inventory then mutually exclusive server/web residual slices",
   "closeout_status": "handoff-required",
-  "validation_note": "four scoped commits 53335b2f, e4d367d0, 2befdf7b, 479369b0 accepted; backend full validation passes with 0 lint issues; web full check has 222 passing files / 1 existing configuration-workspace failure"
+  "validation_note": "accepted scoped commits 3a55c8a5, c9871355, and 1b3f6957; server full validation passed with 0 lint issues and all Go tests; web bun run check passed with 223 test files / 1410 tests; git diff --check passed; residual heuristic inventory still reports 409 candidate module files, so archive-ready is not claimed"
 }
 ```
+
+## 2026-07-16 residual inventory and archive-readiness review
+
+- Startup preflight was rerun with `cross-boundary` task class, parent-topic recovery, and the verified worker configuration `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false`.
+- Three disjoint module workers completed comment-governance review and scoped commits: `3a55c8a5` for `server/modules/monitor` (12 files), `c9871355` for `web/src/layouts` and `web/src/shared` (4 files), and `1b3f6957` for `server/internal` (32 files).
+- Main-agent acceptance confirmed a clean worktree, disjoint commit scopes, no generated/third-party/migration/build/script changes, and `git diff --check` passing.
+- Main-agent validation passed: `cd server && go run ./cmd/graft validate backend` and `cd web && bun run check`, including 223 test files and 1410 tests plus the release build.
+- Archive readiness remains pending: a residual heuristic scan still reports 409 candidate handwritten module files outside this wave. This is an audit signal for the next read-only classification, not a comment-count acceptance target.

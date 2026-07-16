@@ -1,6 +1,6 @@
 # Handwritten Comment Governance Startup
 
-Continue work inside the same `topic-completion-loop` unless the caller explicitly changes loop mode.
+Continue work inside the same parent topic. Use `$graft-multi-agent-batch` directly for mutually exclusive parallel module slices; do not downgrade this recovery path to `$graft-multi-agent-loop` unless the caller explicitly changes the execution mode.
 
 Round context:
 
@@ -26,7 +26,7 @@ Topic objective:
 Work contract summary:
 
 - `audit / long-running / topic=true / roadmap=false / design=false / adr=false`
-- execution engine: `$graft-multi-agent-loop`
+- execution engine: `$graft-multi-agent-batch` for disjoint module slices; main Agent owns acceptance, validation, tracking/trace updates, and archive readiness.
 - bootstrap: topic skeleton only
 
 Locked decisions:
@@ -47,9 +47,9 @@ Current batch plan:
 2. Parallel backend and frontend module comment governance waves
 3. Review, integration validation, and archive readiness
 
-Loop instructions:
+Batch instructions:
 
-- Default `loop_mode=topic-completion-loop`; use `$graft-multi-agent-batch` directly when write sets are disjoint.
+- Use `$graft-multi-agent-batch` directly when write sets are disjoint; do not use `$graft-multi-agent-loop` for this recovery slice.
 - Prefer multiple non-overlapping worker slices in one batch wave; do not serialize independent modules through loop rounds.
 - Stop when the main Agent judges context insufficient or this session has produced an auditable 20% progress increment.
 - Update topic tracking and trace files with batch transitions.

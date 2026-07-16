@@ -57,6 +57,16 @@
 - `cd web && bun run check` passed formatting, typecheck, OpenAPI, i18n, lint, style, hygiene, and governance stages; Vitest remains at 222 passing files / 1409 passing tests with the existing `configuration-workspace` single-pane diff failure.
 - This session reached the user-defined approximately 20% auditable progress stop condition. Archive readiness remains pending the next main-agent residual inventory and final implementation review.
 
+## 2026-07-16 residual inventory and archive-readiness review
+
+- Reran startup preflight for `cross-boundary` with parent-topic recovery and revalidated the orchestration surface: `model=gpt-5.6-luna`, `reasoning_effort=medium`, `fork_context=false`.
+- Used `$graft-multi-agent-batch` directly with three mutually exclusive module workers: `server/internal`, `server/modules/monitor`, and `web/src/layouts` plus `web/src/shared`.
+- Accepted scoped commits `1b3f6957` (32 server/internal files), `3a55c8a5` (12 monitor files), and `c9871355` (4 web files). Scope review confirmed no overlap and no generated, third-party, migration, build, or script paths.
+- Each worker completed `$graft-comment-governance` review and `$graft-commit`; receipts classified added, updated, and removed decisions across why, constraint, algorithm, lifecycle, and external-behavior categories.
+- Main-agent validation passed: `cd server && go run ./cmd/graft validate backend` with migration/contract/locale gates, `0 issues`, and all Go tests; `cd web && bun run check` with 223 test files and 1410 tests plus release build; `git diff --check` passed.
+- Residual heuristic inventory still reports 409 candidate files in untouched module scopes. This is a read-only audit signal for the next wave, not a comment-count acceptance target; archive readiness remains pending and the topic stays active.
+- The session reached the user-defined approximately 20% auditable progress stop condition. Next turn must rerun the root startup preflight before continuing the residual inventory.
+
 ## Loop Batch State
 
 ```json

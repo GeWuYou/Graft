@@ -13,7 +13,8 @@
   - `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
   - `.agents/skills/graft-comment-governance/SKILL.md`
 - Completed so far: startup preflight, G115 lint repair, mixed-commit reconciliation, and eight parallel comment-governance waves
-- Not started yet: final residual inventory and archive-readiness decision
+- Current status detail: residual inventory wave completed; archive-readiness remains pending because untouched
+  server module and web module scopes still contain audit candidates.
 
 ## Recovery Receipt
 
@@ -50,7 +51,7 @@ Out of scope:
 - 已完成启动收据、权威文档读取、G115 修复提交 `e3806925` 和混合提交范围复核；未改写 `e9fb50d4` / `249280ed` 历史。
 - 本回合已完成八个不重叠波次；每个 worker 均完成 scoped commit，主 Agent 保留编排层模型证据 `gpt-5.6-luna/medium`。
 - backend lint 已通过；web 全量检查仅剩既有 `configuration-workspace` 测试失败。
-- Next step: 做 residual comment inventory、确认没有未知工作树变更，并决定继续波次或 archive-ready。
+- Next step: continue from the residual inventory of untouched server modules and web modules; archive readiness is not yet established.
 
 ## Work Intake
 
@@ -61,7 +62,7 @@ Out of scope:
 ## Pending Batch Direction
 
 - 已完成波次：project workspace/canonical/project boundary、auth、system-config/task、web project、web shared/request、web auth/dashboard/monitor。
-- 后续批次：并行派发互斥模块级切片；停止条件改为主 Agent 判断上下文不足，或治理进度达到本会话约 20% 的可审计增量。
+- 后续批次：对剩余 server module 与 web module 候选继续做只读 inventory 后再冻结互斥写集；本回合已完成约 20% 的可审计增量，停止并交接。
 
 ## Validation Targets
 
@@ -74,4 +75,4 @@ git diff --check
 ## Loop Entry
 
 - Preferred entry: `ai-plan/public/handwritten-comment-governance/startup-prompt.md`
-- Preferred execution mode: `$graft-multi-agent-loop`
+- Preferred execution mode: `$graft-multi-agent-batch` for disjoint module slices; main Agent owns acceptance and archive readiness.
