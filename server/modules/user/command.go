@@ -1,6 +1,6 @@
 package user
 
-// CreateUserCommand is the business-level input for creating a managed user.
+// CreateUserCommand 是创建受管理用户的业务输入；调用方负责在服务边界完成权限校验。
 type CreateUserCommand struct {
 	Username string
 	Display  string
@@ -8,7 +8,7 @@ type CreateUserCommand struct {
 	ActorID  uint64
 }
 
-// UpdateUserCommand is the business-level input for updating a managed user profile.
+// UpdateUserCommand 是更新受管理用户资料的业务输入。
 type UpdateUserCommand struct {
 	ID       uint64
 	Username string
@@ -16,7 +16,7 @@ type UpdateUserCommand struct {
 	ActorID  uint64
 }
 
-// UpdateUserStatusCommand is the business-level input for updating a managed user status.
+// UpdateUserStatusCommand 是更新受管理用户状态的业务输入；状态迁移规则由 user 服务统一执行。
 type UpdateUserStatusCommand struct {
 	ID      uint64
 	Status  string

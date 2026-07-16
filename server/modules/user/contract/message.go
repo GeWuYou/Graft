@@ -1,9 +1,9 @@
 package contract
 
-// MenuMessageKey identifies a stable user module menu title message key.
+// MenuMessageKey 标识 user 模块稳定的菜单标题消息键。
 type MenuMessageKey string
 
-// String returns the canonical menu message key value.
+// String 返回 canonical 菜单消息键值。
 func (k MenuMessageKey) String() string {
 	return string(k)
 }

@@ -17,7 +17,7 @@ const (
 	moduleID = "scheduler"
 )
 
-// Module 是当前 MVP 阶段的最小调度模块。
+// Module 是当前 MVP 阶段的最小调度模块，拥有 cron registry 到运行时调度器的装配和关闭生命周期。
 //
 // 该模块只负责在所有模块完成 Register 后，把 `cron registry` 中已声明的
 // 任务装配到运行时调度器，并在 Boot / Shutdown 阶段统一完成“运行启动、

@@ -1,9 +1,9 @@
 package contract
 
-// MessageKey identifies a stable scheduled task module message key.
+// MessageKey 标识 scheduler 模块稳定的消息键。
 type MessageKey string
 
-// String returns the canonical message key value.
+// String 返回 canonical 消息键值。
 func (k MessageKey) String() string {
 	return string(k)
 }

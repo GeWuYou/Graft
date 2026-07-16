@@ -114,8 +114,7 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	}, nil
 }
 
-// ReadBootstrap exposes only the user-owned bootstrap snapshot. Auth overlays
-// credential state from its own store before serving the stable route payload.
+// ReadBootstrap 只暴露 user 所有的启动快照；auth 在稳定路由响应前从自有仓储叠加凭据状态，避免 user 越界拥有认证事实。
 func (r bootstrapReader) ReadBootstrap(ctx context.Context, request *http.Request) (moduleapi.AuthBootstrapPayload, error) {
 	payload, err := r.Read(ctx, request)
 	if err != nil {
@@ -186,7 +185,6 @@ func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[s
 }
 
 // filterBootstrapMenus 根据授予的权限和系统配置可见性过滤菜单项，去重并排序，同时移除没有可见子项的菜单组。
-// filterBootstrapMenus 根据用户权限和配置开关筛选菜单，去重并移除没有可见子项的菜单组后排序返回。
 // registry 为 nil 时返回空切片。
 func filterBootstrapMenus(
 	ctx context.Context,
@@ -246,7 +244,7 @@ func filterBootstrapMenus(
 	return menus
 }
 
-// pruneEmptyBootstrapGroups removes group menu items that have no visible children.
+// pruneEmptyBootstrapGroups 删除没有可见子项的菜单组，避免空分组泄漏到启动导航快照。
 func pruneEmptyBootstrapGroups(menus []bootstrapMenuResponse) []bootstrapMenuResponse {
 	visible := make(map[string]bootstrapMenuResponse, len(menus))
 	for _, item := range menus {
@@ -276,8 +274,7 @@ func pruneEmptyBootstrapGroups(menus []bootstrapMenuResponse) []bootstrapMenuRes
 	return pruned
 }
 
-// resolveBootstrapSystemConfig resolves the system configuration service from resolver.
-// It returns nil when the resolver is unavailable, resolution fails, or the resolved value has an incompatible type.
+// resolveBootstrapSystemConfig 从服务解析器读取系统配置能力；解析器不可用、解析失败或类型不符时返回 nil，表示不启用额外配置门控。
 func resolveBootstrapSystemConfig(resolver servicecontainer.Resolver) moduleapi.SystemConfigResolver {
 	if resolver == nil {
 		return nil

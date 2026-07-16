@@ -1,4 +1,4 @@
-// Package store defines Task Runtime persistence contracts and SQL implementation.
+// Package store 定义 Task Runtime 的持久化契约和 SQL 实现边界。
 package store
 
 import (
@@ -12,16 +12,15 @@ import (
 )
 
 var (
-	// ErrInvalidInput reports input that cannot represent a persisted Task Runtime fact.
+	// ErrInvalidInput 表示输入无法表达合法的 Task Runtime 持久化事实。
 	ErrInvalidInput = errors.New("invalid task store input")
-	// ErrNotFound reports a requested Task Runtime record that does not exist.
+	// ErrNotFound 表示请求的 Task Runtime 记录不存在。
 	ErrNotFound = errors.New("task runtime record not found")
-	// ErrStateConflict reports a compare-and-swap update whose prior state no longer matches.
+	// ErrStateConflict 表示 compare-and-swap 更新时持久化的前置状态已被其他执行者改变。
 	ErrStateConflict = errors.New("task runtime state conflict")
 )
 
-// Repository persists Task Runtime facts and provides the atomic ownership
-// operations required by the in-process Task Runtime worker.
+// Repository 持久化 Task Runtime 事实，并提供进程内 worker 所需的原子领取、状态迁移和历史追加操作。
 type Repository interface {
 	Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, error)
 	Get(ctx context.Context, taskID uint64) (taskmodel.Task, error)
@@ -43,21 +42,20 @@ type Repository interface {
 	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
 }
 
-// StageClaim is an exclusive worker lease represented by persisted running state.
-// The task runtime does not persist a second lease record: a worker owns the
-// claim only while the Stage remains running under compare-and-swap updates.
+// StageClaim 是由持久化 running 状态表示的独占 worker 领取结果。
+// Task Runtime 不另建租约记录；worker 只有在 compare-and-swap 持续确认 Stage 为 running 时才拥有该领取权。
 type StageClaim struct {
 	Task  taskmodel.Task
 	Stage taskmodel.Stage
 }
 
-// CreateInput freezes a Task and its serial Stage plan in one database transaction.
+// CreateInput 在一个数据库事务中冻结 Task 及其串行 Stage 计划，确保调度器不会观察到半成品计划。
 type CreateInput struct {
 	Task   taskmodel.Task
 	Stages []taskmodel.Stage
 }
 
-// TaskTransitionInput is one compare-and-swap Task state transition.
+// TaskTransitionInput 描述一次 compare-and-swap Task 状态迁移。
 type TaskTransitionInput struct {
 	TaskID          uint64
 	From            moduleapi.TaskStatus
@@ -70,7 +68,7 @@ type TaskTransitionInput struct {
 	DurationMS      *int64
 }
 
-// StageTransitionInput is one compare-and-swap Stage state transition.
+// StageTransitionInput 描述一次 compare-and-swap Stage 状态迁移。
 type StageTransitionInput struct {
 	StageID        uint64
 	From           moduleapi.StageStatus
@@ -85,7 +83,7 @@ type StageTransitionInput struct {
 	DurationMS     *int64
 }
 
-// AppendEventInput records a non-derivable Task history fact.
+// AppendEventInput 描述一条不可由当前状态推导的 Task 历史事实。
 type AppendEventInput struct {
 	TaskID   uint64
 	Sequence int64
@@ -93,7 +91,7 @@ type AppendEventInput struct {
 	Payload  json.RawMessage
 }
 
-// AppendLogInput records one ordered executor output or Task Runtime diagnostic line.
+// AppendLogInput 描述一条有序的执行器输出或 Task Runtime 诊断日志。
 type AppendLogInput struct {
 	TaskID     uint64
 	StageID    *uint64

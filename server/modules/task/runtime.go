@@ -23,8 +23,7 @@ const (
 	errorCodeMissingExec = "stage_executor_unavailable"
 )
 
-// Runtime owns Task submission, serial Stage dispatch, and process-local worker
-// lifecycle. PostgreSQL remains the durable authority for every state change.
+// Runtime 拥有 Task 提交、阶段串行分发和进程内 worker 生命周期；每次状态变化仍以 PostgreSQL 持久化事实为权威。
 type Runtime struct {
 	repository taskstore.Repository
 	workers    int
@@ -62,7 +61,7 @@ func NewRuntime(repository taskstore.Repository) *Runtime {
 	}
 }
 
-// RegisterStageExecutor installs one consumer-owned Stage executor before Boot.
+// RegisterStageExecutor 在 Boot 前注册一个消费模块所有的阶段执行器；启动后注册会被拒绝，避免 worker 看到不完整执行器集合。
 func (r *Runtime) RegisterStageExecutor(executor moduleapi.StageExecutor) error {
 	if r == nil || executor == nil || executor.Type() == "" {
 		return errors.New("task stage executor is required")
@@ -76,7 +75,7 @@ func (r *Runtime) RegisterStageExecutor(executor moduleapi.StageExecutor) error 
 	return nil
 }
 
-// AuthorizeOwner delegates resource authorization to the consumer owning the Task.
+// AuthorizeOwner 将资源授权委托给拥有该 Task 业务资源的消费模块，Task Runtime 不自行推断业务权限。
 func (r *Runtime) AuthorizeOwner(ctx context.Context, actor *moduleapi.CurrentUser, action moduleapi.TaskOwnerAction, owner moduleapi.TaskOwner) error {
 	r.mu.RLock()
 	authorizer := r.authorizers[owner.Type]
@@ -87,7 +86,7 @@ func (r *Runtime) AuthorizeOwner(ctx context.Context, actor *moduleapi.CurrentUs
 	return authorizer.AuthorizeTaskOwner(ctx, actor, action, owner)
 }
 
-// RegisterTaskOwnerAuthorizer registers consumer-owned authorization for generic Task APIs.
+// RegisterTaskOwnerAuthorizer 注册消费模块所有的 Task 资源授权器，供通用任务接口在读取或操作前校验 owner 边界。
 func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
 	if r == nil || authorizer == nil || authorizer.OwnerType() == "" {
 		return errors.New("task owner authorizer is required")
@@ -101,8 +100,7 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 	return nil
 }
 
-// Submit validates consumer-owned executor references before atomically storing
-// the immutable TaskPlan. The dispatcher observes it through PostgreSQL.
+// Submit 在原子保存不可变 TaskPlan 前校验消费模块所有的执行器引用；dispatcher 只从 PostgreSQL 观察提交事实。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
@@ -283,7 +281,7 @@ func cancelStage(ctx context.Context, executor moduleapi.StageExecutor, run modu
 	return executor.Cancel(ctx, run)
 }
 
-// RetryStage records an operator-approved retry for an unknown or failed Stage.
+// RetryStage 记录操作员批准的 unknown 或 failed 阶段重试；只有父 Task 处于可恢复状态时仓储才允许回到 pending。
 func (r *Runtime) RetryStage(ctx context.Context, taskID uint64, stageID uint64) error {
 	if r == nil || r.repository == nil {
 		return errors.New("task runtime repository is unavailable")
@@ -321,7 +319,7 @@ func (r *Runtime) stageNeedsRecoveryResolution(ctx context.Context, taskID uint6
 	return false, taskstore.ErrNotFound
 }
 
-// Start performs crash recovery before starting the bounded worker pool.
+// Start 在启动有界 worker 池前执行崩溃恢复；无法证明外部副作用完成的在途阶段会先进入 unknown。
 func (r *Runtime) Start(ctx context.Context) error {
 	if r == nil || r.repository == nil || ctx == nil {
 		return errors.New("task runtime start dependencies are unavailable")
@@ -346,8 +344,7 @@ func (r *Runtime) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop asks workers and running executors to stop, then waits for their owned
-// goroutines. In-flight external work remains conservatively recoverable as unknown.
+// Stop 请求 worker 和运行中执行器停止，并等待其拥有的 goroutine；无法确认已完成的外部工作保守地留待恢复为 unknown。
 func (r *Runtime) Stop(ctx context.Context) error {
 	if r == nil {
 		return nil

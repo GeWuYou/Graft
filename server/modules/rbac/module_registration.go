@@ -97,9 +97,8 @@ func (p *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
-// resolveUserServices resolves the required user service and the optional user security reader.
-// It returns a nil security reader when that service is not registered, and an error when
-// resolution fails or a resolved service has an unexpected type.
+// resolveUserServices 解析 RBAC 所需的用户服务和可选安全摘要读取器。
+// 安全摘要读取器未注册时保留 nil，使 RBAC 的基础授权能力不依赖仪表盘统计；解析失败或类型不符时返回错误。
 func resolveUserServices(ctx *module.Context) (moduleapi.UserService, moduleapi.UserSecurityReader, error) {
 	resolvedUserService, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
 	if err != nil {
@@ -124,8 +123,8 @@ func resolveUserServices(ctx *module.Context) (moduleapi.UserService, moduleapi.
 	return userService, securityReader, nil
 }
 
-// registerModuleServices registers RBAC access, bootstrap, and authorization services.
-// It registers the security posture service only when a user security reader is available.
+// registerModuleServices 注册 RBAC 访问、bootstrap 与授权服务。
+// 只有用户安全摘要读取器可用时才注册安全态势服务，避免把可选观测能力误当成授权运行时依赖。
 func registerModuleServices(ctx *module.Context, repository rbacstore.Repository, users moduleapi.UserSecurityReader) error {
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
 		return accessService{rbac: repository}, nil

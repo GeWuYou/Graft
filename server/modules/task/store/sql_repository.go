@@ -19,13 +19,13 @@ const (
 	maxPageLimit     = 500
 )
 
-// SQLRepository persists Task Runtime facts in module-owned PostgreSQL tables.
+// SQLRepository 将 Task Runtime 事实持久化到模块自有的 PostgreSQL 表中。
 type SQLRepository struct {
 	db          *sql.DB
 	placeholder placeholderStyle
 }
 
-// NewSQLRepository creates a SQL repository with explicitly selected SQL dialect semantics.
+// NewSQLRepository 创建明确选择 SQL 方言语义的仓储；SQLite 方言仅用于保持单元测试的等价执行路径。
 func NewSQLRepository(db *sql.DB, dialect SQLDialect) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("task repository requires a non-nil sql db")
@@ -37,7 +37,7 @@ func NewSQLRepository(db *sql.DB, dialect SQLDialect) (*SQLRepository, error) {
 	return &SQLRepository{db: db, placeholder: placeholder}, nil
 }
 
-// Create atomically stores a frozen Task, its ordered Stage plan, and the created event.
+// Create 原子保存冻结的 Task、按序 Stage 计划和创建事件，避免提交出不完整的执行计划。
 func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, error) {
 	input, err := normalizeCreateInput(input)
 	if err != nil {
@@ -122,7 +122,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 	return input.Task, stages, nil
 }
 
-// Get returns one Task by stable ID.
+// Get 按稳定 ID 读取一个 Task。
 func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task, error) {
 	if taskID == 0 {
 		return taskmodel.Task{}, ErrInvalidInput
@@ -138,7 +138,7 @@ func (r *SQLRepository) Get(ctx context.Context, taskID uint64) (taskmodel.Task,
 	return item, nil
 }
 
-// List returns an owner-scoped, optionally filtered Task history page and total using the owner index.
+// List 使用 owner 索引返回按资源所有者隔离、可选筛选的 Task 历史分页及总数。
 func (r *SQLRepository) List(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]taskmodel.Task, int64, error) {
 	if strings.TrimSpace(filter.Owner.Type) == "" || strings.TrimSpace(filter.Owner.ID) == "" || offset < 0 {
 		return nil, 0, ErrInvalidInput
@@ -225,7 +225,7 @@ func (r *SQLRepository) ListLogs(ctx context.Context, taskID uint64, afterSequen
 	return scanLogs(rows)
 }
 
-// TransitionTask applies a validated compare-and-swap Task state transition.
+// TransitionTask 应用已校验的 compare-and-swap Task 状态迁移，状态冲突时不修改任何记录。
 func (r *SQLRepository) TransitionTask(ctx context.Context, input TaskTransitionInput) error {
 	if input.TaskID == 0 {
 		return ErrInvalidInput
@@ -255,7 +255,7 @@ func (r *SQLRepository) TransitionTask(ctx context.Context, input TaskTransition
 	return expectOneAffected(result)
 }
 
-// TransitionStage applies a validated compare-and-swap Stage state transition.
+// TransitionStage 应用已校验的 compare-and-swap Stage 状态迁移，状态冲突时不修改任何记录。
 func (r *SQLRepository) TransitionStage(ctx context.Context, input StageTransitionInput) error {
 	if input.StageID == 0 || input.Attempt < 0 {
 		return ErrInvalidInput
@@ -452,8 +452,7 @@ func (r *SQLRepository) transitionClaimedStage(ctx context.Context, tx *sql.Tx, 
 	return claim, true, nil
 }
 
-// RequestCancellation records a cooperative cancellation request. It leaves a
-// running Stage intact so the worker can invoke its consumer-owned Cancel hook.
+// RequestCancellation 记录协作式取消请求；running Stage 保持不变，以便 worker 调用消费模块所有的 Cancel hook。
 func (r *SQLRepository) RequestCancellation(ctx context.Context, taskID uint64, requestedAt time.Time) (taskmodel.Task, error) {
 	if taskID == 0 {
 		return taskmodel.Task{}, ErrInvalidInput
@@ -490,8 +489,8 @@ func (r *SQLRepository) CancelPendingTask(ctx context.Context, taskID uint64, fi
 	return expectOneAffected(result)
 }
 
-// RetryStage returns an operator-approved failed or unknown Stage to pending.
-// The runtime only accepts retries while the parent Task is needs_attention.
+// RetryStage 将操作员批准的 failed 或 unknown Stage 恢复为 pending。
+// 运行时只在父 Task 为 needs_attention 时接受重试，防止绕过父任务生命周期。
 func (r *SQLRepository) RetryStage(ctx context.Context, taskID uint64, stageID uint64, retryAt time.Time) (taskmodel.Stage, error) {
 	if taskID == 0 || stageID == 0 || retryAt.IsZero() {
 		return taskmodel.Stage{}, ErrInvalidInput
@@ -582,9 +581,8 @@ func (r *SQLRepository) nextSequence(ctx context.Context, table string, taskID u
 	return sequence, nil
 }
 
-// RecoverInterruptedStages marks manual-reconcile running Stages unknown because
-// a restarted process cannot prove an external side effect. Explicitly
-// idempotent Stages return to pending for a controlled retry attempt.
+// RecoverInterruptedStages 将需人工核验的 running Stage 标记为 unknown，因为重启进程无法证明外部副作用是否完成。
+// 明确声明幂等的 Stage 才能回到 pending，进入受控重试流程。
 func (r *SQLRepository) RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()

@@ -28,14 +28,14 @@ const (
 	accessControlMenuOrderPermissions = 5
 )
 
-// registerRBACPermissions registers the RBAC permission definitions for a module.
+// registerRBACPermissions 注册 RBAC 模块拥有的权限定义，供路由鉴权和菜单可见性共同消费。
 func registerRBACPermissions(registry *permission.Registry, moduleName string) {
 	for _, item := range rbacPermissionItems(moduleName) {
 		registry.Register(item)
 	}
 }
 
-// registerRBACMenu registers role and permission management entries in the menu registry.
+// registerRBACMenu 注册角色和权限管理菜单；菜单声明只描述可见入口，实际访问仍由对应权限守卫决定。
 func registerRBACMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:            "role.list",

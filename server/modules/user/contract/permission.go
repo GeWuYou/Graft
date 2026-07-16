@@ -1,10 +1,10 @@
 // Package contract defines stable user module contract values.
 package contract
 
-// PermissionCode identifies a stable user module permission contract.
+// PermissionCode 标识 user 模块稳定的权限契约。
 type PermissionCode string
 
-// String returns the wire-format permission code.
+// String 返回权限码的 wire-format 字符串。
 func (c PermissionCode) String() string {
 	return string(c)
 }
