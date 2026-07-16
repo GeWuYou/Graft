@@ -7,9 +7,8 @@ import (
 	projectcompose "graft/server/modules/project/compose"
 )
 
-// validateExplicitCanonicalProjectName trims surrounding whitespace and validates a canonical project name.
-// It accepts names beginning with a lowercase letter or digit and containing only lowercase letters,
-// digits, underscores, and hyphens.
+// validateExplicitCanonicalProjectName 校验显式提供的规范项目名，并返回去除首尾空白后的值。
+// 规范项目名必须以小写字母或数字开头，且仅允许小写字母、数字、下划线和连字符。
 func validateExplicitCanonicalProjectName(value string) (string, error) {
 	normalized := strings.TrimSpace(value)
 	if normalized == "" {
