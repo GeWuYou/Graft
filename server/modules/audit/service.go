@@ -20,9 +20,9 @@ const (
 )
 
 var (
-	// ErrNilAuditRepository indicates the service was built without the module-owned repository.
+	// ErrNilAuditRepository 表示服务构造时缺少模块自有 repository。
 	ErrNilAuditRepository = errors.New("audit repository is required")
-	// ErrAuditServiceUnavailable indicates the service or its repository dependency is unavailable at runtime.
+	// ErrAuditServiceUnavailable 表示服务或其 repository 依赖在运行时不可用。
 	ErrAuditServiceUnavailable = errors.New("audit service is unavailable")
 )
 
@@ -314,7 +314,7 @@ func (s *Service) UpdateVisibilityOverride(
 	return updated, nil
 }
 
-// DeleteVisibilityOverride removes one audit-owned source+action visibility override.
+// DeleteVisibilityOverride 删除一条审计模块拥有的来源加动作可见性覆盖规则。
 func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
 	repo, err := s.repository()
 	if err != nil {

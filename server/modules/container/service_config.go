@@ -79,7 +79,8 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	return options
 }
 
-// applyContainerOrchestratorActionLevelDefault applies a default orchestrator action level from the configuration registry to the target, normalizing the value and silently ignoring missing or invalid values.
+// applyContainerOrchestratorActionLevelDefault 从配置注册表读取编排器操作级别，归一化有效值后写入目标；
+// 配置缺失或无效时保留目标现有值，避免配置读取失败改变运行时默认策略。
 func applyContainerOrchestratorActionLevelDefault(
 	ctx *module.Context,
 	key string,
@@ -190,7 +191,7 @@ func resolveSystemConfigResolver(ctx *module.Context) moduleapi.SystemConfigReso
 	return resolver
 }
 
-// resolveStringConfigValue resolves a string configuration value by key, trimmed of whitespace. If resolution fails or the resolved value is blank, the trimmed fallback is returned.
+// resolveStringConfigValue 按键读取并裁剪字符串配置值；读取失败或结果为空时返回裁剪后的 fallback。
 func (s *service) resolveIntegerConfig(ctx context.Context, key string, fallback int) int {
 	value, ok := resolveSystemConfigPositiveIntValue(ctx, systemConfigResolverOfService(s), key)
 	if !ok {
@@ -199,9 +200,8 @@ func (s *service) resolveIntegerConfig(ctx context.Context, key string, fallback
 	return value
 }
 
-// NormalizeContainerLogTailBounds normalizes log tail bounds, applying package defaults
-// for non-positive values and capping maxTail to a maximum limit.
-// normalizeContainerLogTailBounds ensures default and maximum log tail bounds are positive, capped to system limits, and properly ordered.
+// NormalizeContainerLogTailBounds 归一化日志尾部行数边界：非正值使用包级默认值，最大值受系统上限约束，
+// 且最终保证默认值不超过最大值。
 func normalizeContainerLogTailBounds(defaultTail int, maxTail int) (int, int) {
 	if defaultTail <= 0 {
 		defaultTail = defaultContainerLogsDefaultTail

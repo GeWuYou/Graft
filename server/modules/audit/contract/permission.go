@@ -9,13 +9,13 @@ func (c PermissionCode) String() string {
 }
 
 const (
-	// AuditReadPermission identifies read access to audit-log data.
+	// AuditReadPermission 表示审计日志数据读取权限。
 	AuditReadPermission PermissionCode = "audit.read"
-	// AuditManagePermission identifies access to audit visibility policy management.
+	// AuditManagePermission 表示审计可见性策略管理权限。
 	AuditManagePermission PermissionCode = "audit.manage"
 
-	// AuditRead is the canonical permission used by audit module consumers.
+	// AuditRead 是审计模块消费者使用的规范读取权限。
 	AuditRead PermissionCode = AuditReadPermission
-	// AuditManage is the canonical permission used by audit visibility policy management.
+	// AuditManage 是审计可见性策略管理使用的规范权限。
 	AuditManage PermissionCode = AuditManagePermission
 )

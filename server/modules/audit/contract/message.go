@@ -17,21 +17,21 @@ func (k TargetLabelMessageKey) String() string {
 }
 
 const (
-	// AuditRootMenuTitle identifies the localized title for the audit root menu.
+	// AuditRootMenuTitle 是审计根菜单的本地化标题键。
 	AuditRootMenuTitle MenuMessageKey = "menu.audit.title"
-	// AuditLogMenuTitle identifies the localized title for the audit-log menu.
+	// AuditLogMenuTitle 是审计日志菜单的本地化标题键。
 	AuditLogMenuTitle MenuMessageKey = "menu.audit.logs.title"
 
-	// AuditTargetLabelUser identifies the localized label for built-in user targets.
+	// AuditTargetLabelUser 是内置用户目标的本地化标签键。
 	AuditTargetLabelUser TargetLabelMessageKey = "audit.target.user"
-	// AuditTargetLabelRole identifies the localized label for built-in role targets.
+	// AuditTargetLabelRole 是内置角色目标的本地化标签键。
 	AuditTargetLabelRole TargetLabelMessageKey = "audit.target.role"
-	// AuditTargetLabelPermission identifies the localized label for built-in permission targets.
+	// AuditTargetLabelPermission 是内置权限目标的本地化标签键。
 	AuditTargetLabelPermission TargetLabelMessageKey = "audit.target.permission"
-	// AuditTargetLabelAudit identifies the localized label for built-in audit targets.
+	// AuditTargetLabelAudit 是内置审计目标的本地化标签键。
 	AuditTargetLabelAudit TargetLabelMessageKey = "audit.target.audit"
-	// AuditTargetLabelServerStatus identifies the localized label for built-in server-status targets.
+	// AuditTargetLabelServerStatus 是内置服务状态目标的本地化标签键。
 	AuditTargetLabelServerStatus TargetLabelMessageKey = "audit.target.serverStatus"
-	// AuditTargetLabelAuth identifies the localized label for built-in authentication targets.
+	// AuditTargetLabelAuth 是内置认证目标的本地化标签键。
 	AuditTargetLabelAuth TargetLabelMessageKey = "audit.target.auth"
 )

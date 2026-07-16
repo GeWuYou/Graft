@@ -9,11 +9,11 @@ import (
 )
 
 var (
-	// ErrAuditLogNotFound indicates that the requested audit evidence record does not exist.
+	// ErrAuditLogNotFound 表示请求的审计证据记录不存在。
 	ErrAuditLogNotFound = errors.New("audit log not found")
-	// ErrIncidentNotFound indicates that the requested audit-owned incident seed does not exist.
+	// ErrIncidentNotFound 表示审计模块拥有的事件种子不存在。
 	ErrIncidentNotFound = errors.New("audit incident not found")
-	// ErrAuditValidation indicates audit-owned invalid input at the service boundary.
+	// ErrAuditValidation 表示服务边界收到审计模块判定为无效的输入。
 	ErrAuditValidation = errors.New("audit validation failed")
 )
 
@@ -77,13 +77,13 @@ const (
 type AuditRiskLevel string
 
 const (
-	// AuditRiskLevelLow marks routine low-risk audit activity.
+	// AuditRiskLevelLow 表示例行低风险审计活动。
 	AuditRiskLevelLow AuditRiskLevel = "LOW"
-	// AuditRiskLevelMedium marks elevated audit activity that still needs operator review.
+	// AuditRiskLevelMedium 表示需要操作员复核的升高风险审计活动。
 	AuditRiskLevelMedium AuditRiskLevel = "MEDIUM"
-	// AuditRiskLevelHigh marks high-risk audit activity.
+	// AuditRiskLevelHigh 表示高风险审计活动。
 	AuditRiskLevelHigh AuditRiskLevel = "HIGH"
-	// AuditRiskLevelCritical marks critical audit activity that needs urgent review.
+	// AuditRiskLevelCritical 表示需要紧急复核的关键审计活动。
 	AuditRiskLevelCritical AuditRiskLevel = "CRITICAL"
 )
 
@@ -91,13 +91,13 @@ const (
 type AuditResult string
 
 const (
-	// AuditResultSuccess marks successful audit activity.
+	// AuditResultSuccess 表示审计活动成功。
 	AuditResultSuccess AuditResult = "SUCCESS"
-	// AuditResultFailed marks a failed operation without an explicit deny or system error.
+	// AuditResultFailed 表示操作失败，但不是明确拒绝或系统错误。
 	AuditResultFailed AuditResult = "FAILED"
-	// AuditResultDenied marks operations rejected by authorization.
+	// AuditResultDenied 表示操作被授权检查拒绝。
 	AuditResultDenied AuditResult = "DENIED"
-	// AuditResultError marks operations that failed because of system-level errors.
+	// AuditResultError 表示操作因系统级错误失败。
 	AuditResultError AuditResult = "ERROR"
 )
 
@@ -105,19 +105,19 @@ const (
 type AuditBusinessCategory string
 
 const (
-	// AuditBusinessCategoryFailedOperations represents failed operations in the active window.
+	// AuditBusinessCategoryFailedOperations 表示当前时间窗口内的失败操作。
 	AuditBusinessCategoryFailedOperations AuditBusinessCategory = "failed_operations"
-	// AuditBusinessCategoryHighRiskOperations represents high-risk operations in the active window.
+	// AuditBusinessCategoryHighRiskOperations 表示当前时间窗口内的高风险操作。
 	AuditBusinessCategoryHighRiskOperations AuditBusinessCategory = "high_risk_operations"
-	// AuditBusinessCategorySensitiveOperations represents sensitive operations in the active window.
+	// AuditBusinessCategorySensitiveOperations 表示当前时间窗口内的敏感操作。
 	AuditBusinessCategorySensitiveOperations AuditBusinessCategory = "sensitive_operations"
-	// AuditBusinessCategoryAuthFailures represents authentication failures in the active window.
+	// AuditBusinessCategoryAuthFailures 表示当前时间窗口内的认证失败。
 	AuditBusinessCategoryAuthFailures AuditBusinessCategory = "auth_failures"
-	// AuditBusinessCategoryPermissionDenials represents permission denial activity in the active window.
+	// AuditBusinessCategoryPermissionDenials 表示当前时间窗口内的权限拒绝活动。
 	AuditBusinessCategoryPermissionDenials AuditBusinessCategory = "permission_denials"
-	// AuditBusinessCategoryRBACChanges represents RBAC and permission-configuration changes in the active window.
+	// AuditBusinessCategoryRBACChanges 表示当前时间窗口内的 RBAC 与权限配置变更。
 	AuditBusinessCategoryRBACChanges AuditBusinessCategory = "rbac_changes"
-	// AuditBusinessCategoryCriticalSecurity represents critical security activity in the active window.
+	// AuditBusinessCategoryCriticalSecurity 表示当前时间窗口内的关键安全活动。
 	AuditBusinessCategoryCriticalSecurity AuditBusinessCategory = "critical_security"
 )
 
@@ -464,11 +464,11 @@ type AuditIncidentRequest struct {
 type MonitorContextState string
 
 const (
-	// MonitorContextStateAvailable indicates monitor participation is attached and current.
+	// MonitorContextStateAvailable 表示已附加且最新的 monitor 参与信息。
 	MonitorContextStateAvailable MonitorContextState = "available"
-	// MonitorContextStatePartial indicates monitor participation is only partially available.
+	// MonitorContextStatePartial 表示 monitor 参与信息仅部分可用。
 	MonitorContextStatePartial MonitorContextState = "partial"
-	// MonitorContextStateUnavailable indicates the incident cannot attach monitor participation canonically.
+	// MonitorContextStateUnavailable 表示事件无法按规范附加 monitor 参与信息。
 	MonitorContextStateUnavailable MonitorContextState = "unavailable"
 )
 
@@ -539,11 +539,11 @@ type AuditRepository interface {
 	ReadAuditLog(ctx context.Context, id uint64) (AuditLog, error)
 	ReadAuditOverview(ctx context.Context, preset AuditTimePreset) (AuditOverview, error)
 	ReadIncident(ctx context.Context, eventID uint64) (AuditIncident, error)
-	// ListAuditPolicyRules returns all audit policy rules in runtime evaluation order.
+	// ListAuditPolicyRules 按运行时评估顺序返回全部审计策略规则。
 	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)
-	// GetAuditVisibilityDefault returns the named default audit visibility strategy.
+	// GetAuditVisibilityDefault 返回指定名称的默认审计可见性策略。
 	GetAuditVisibilityDefault(ctx context.Context, key string) (AuditVisibilityDefault, error)
-	// UpsertAuditVisibilityDefault creates or updates one named default audit visibility strategy.
+	// UpsertAuditVisibilityDefault 创建或更新一条指定名称的默认审计可见性策略。
 	UpsertAuditVisibilityDefault(
 		ctx context.Context,
 		key string,
@@ -551,13 +551,13 @@ type AuditRepository interface {
 		userID *uint64,
 		username string,
 	) (AuditVisibilityDefault, error)
-	// ListAuditVisibilityOverrides returns all source+action visibility overrides.
+	// ListAuditVisibilityOverrides 返回全部来源加动作可见性覆盖规则。
 	ListAuditVisibilityOverrides(ctx context.Context) ([]AuditVisibilityOverride, error)
-	// FindAuditVisibilityOverride returns one exact source+action override when it exists.
+	// FindAuditVisibilityOverride 在规则存在时返回精确匹配的来源加动作覆盖规则。
 	FindAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) (AuditVisibilityOverride, bool, error)
-	// UpsertAuditVisibilityOverride creates or updates one source+action visibility override.
+	// UpsertAuditVisibilityOverride 创建或更新一条来源加动作可见性覆盖规则。
 	UpsertAuditVisibilityOverride(ctx context.Context, input UpsertAuditVisibilityOverrideInput) (AuditVisibilityOverride, error)
-	// DeleteAuditVisibilityOverride removes one source+action visibility override.
+	// DeleteAuditVisibilityOverride 删除一条来源加动作可见性覆盖规则。
 	DeleteAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) error
 	DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error)
 }

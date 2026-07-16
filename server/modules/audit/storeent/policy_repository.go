@@ -323,7 +323,7 @@ func (r *repository) UpsertAuditVisibilityOverride(
 	return item, nil
 }
 
-// DeleteAuditVisibilityOverride removes one source+action visibility override.
+// DeleteAuditVisibilityOverride 删除一条来源加动作可见性覆盖规则。
 func (r *repository) DeleteAuditVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("audit repository is unavailable")

@@ -1,40 +1,40 @@
 package contract
 
-// AuditAction identifies a stable container audit action contract.
+// AuditAction 是容器模块的稳定审计动作契约。
 type AuditAction string
 
-// String returns the canonical audit action value.
+// String 返回规范的审计动作值。
 func (a AuditAction) String() string {
 	return string(a)
 }
 
 const (
-	// ContainerAuditActionStart identifies single-item start auditing.
+	// ContainerAuditActionStart 表示单容器启动审计。
 	ContainerAuditActionStart AuditAction = "ops.container.action.start"
-	// ContainerAuditActionStop identifies single-item stop auditing.
+	// ContainerAuditActionStop 表示单容器停止审计。
 	ContainerAuditActionStop AuditAction = "ops.container.action.stop"
-	// ContainerAuditActionRestart identifies single-item restart auditing.
+	// ContainerAuditActionRestart 表示单容器重启审计。
 	ContainerAuditActionRestart AuditAction = "ops.container.action.restart"
-	// ContainerAuditActionRemove identifies single-item remove auditing.
+	// ContainerAuditActionRemove 表示单容器移除审计。
 	ContainerAuditActionRemove AuditAction = "ops.container.action.remove"
-	// ContainerAuditActionBatchStart identifies batch start summary auditing.
+	// ContainerAuditActionBatchStart 表示批量启动汇总审计。
 	ContainerAuditActionBatchStart AuditAction = "ops.container.action.batch.start"
-	// ContainerAuditActionBatchStop identifies batch stop summary auditing.
+	// ContainerAuditActionBatchStop 表示批量停止汇总审计。
 	ContainerAuditActionBatchStop AuditAction = "ops.container.action.batch.stop"
-	// ContainerAuditActionBatchRestart identifies batch restart summary auditing.
+	// ContainerAuditActionBatchRestart 表示批量重启汇总审计。
 	ContainerAuditActionBatchRestart AuditAction = "ops.container.action.batch.restart"
-	// ContainerAuditActionBatchRemove identifies batch remove summary auditing.
+	// ContainerAuditActionBatchRemove 表示批量移除汇总审计。
 	ContainerAuditActionBatchRemove AuditAction = "ops.container.action.batch.remove"
-	// ContainerAuditActionShellSessionRequested identifies shell session request auditing.
+	// ContainerAuditActionShellSessionRequested 表示 Shell 会话请求审计。
 	ContainerAuditActionShellSessionRequested AuditAction = "ops.container.shell.session.requested"
-	// ContainerAuditActionShellTicketIssued identifies shell ticket issue auditing.
+	// ContainerAuditActionShellTicketIssued 表示 Shell 票据签发审计。
 	ContainerAuditActionShellTicketIssued AuditAction = "ops.container.shell.ticket.issued"
-	// ContainerAuditActionShellTicketRejected identifies shell ticket rejection auditing.
+	// ContainerAuditActionShellTicketRejected 表示 Shell 票据拒绝审计。
 	ContainerAuditActionShellTicketRejected AuditAction = "ops.container.shell.ticket.rejected"
-	// ContainerAuditActionShellSessionStarted identifies shell session start auditing.
+	// ContainerAuditActionShellSessionStarted 表示 Shell 会话开始审计。
 	ContainerAuditActionShellSessionStarted AuditAction = "ops.container.shell.session.started"
-	// ContainerAuditActionShellSessionClosed identifies shell session close auditing.
+	// ContainerAuditActionShellSessionClosed 表示 Shell 会话关闭审计。
 	ContainerAuditActionShellSessionClosed AuditAction = "ops.container.shell.session.closed"
-	// ContainerAuditActionShellSessionFailed identifies shell session failure auditing.
+	// ContainerAuditActionShellSessionFailed 表示 Shell 会话失败审计。
 	ContainerAuditActionShellSessionFailed AuditAction = "ops.container.shell.session.failed"
 )

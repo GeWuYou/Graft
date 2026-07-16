@@ -92,7 +92,7 @@ func handleMountUsageEntryInfoError(err error) error {
 	return err
 }
 
-// MapMountUsageScanError translates filesystem and context errors to container runtime errors.
+// mapMountUsageScanError 将文件系统和上下文错误映射为容器运行时错误。
 func mapMountUsageScanError(err error) error {
 	switch {
 	case err == nil:
@@ -120,7 +120,7 @@ type mountUsageCacheEntry struct {
 	expiresAt time.Time
 }
 
-// newMountUsageCache creates a new mount usage cache with the specified TTL, or the default TTL if the provided value is zero or negative.
+// newMountUsageCache 创建挂载使用量缓存；TTL 为零或负数时使用包级默认值。
 func newMountUsageCache(ttl time.Duration) *mountUsageCache {
 	if ttl <= 0 {
 		ttl = containerMountUsageCacheTTL
@@ -164,12 +164,12 @@ func (c *mountUsageCache) set(key string, usage MountUsage) {
 	}
 }
 
-// mountUsageCacheKey produces a cache key for mount usage lookup using the given reference and mount ID.
+// mountUsageCacheKey 使用容器引用和挂载 ID 生成挂载使用量查询键，避免不同容器的同名挂载共享缓存。
 func mountUsageCacheKey(ref Ref, mountID string) string {
 	return strings.TrimSpace(ref.Value) + "\x00" + strings.TrimSpace(mountID)
 }
 
-// formatIECBytes formats a byte count as a human-readable IEC binary string using KiB, MiB, or GiB units as appropriate. Negative sizes are treated as zero.
+// formatIECBytes 将字节数格式化为易读的 IEC 二进制单位；负数按零处理。
 func formatIECBytes(size int64) string {
 	if size < 0 {
 		size = 0
@@ -187,7 +187,7 @@ func formatIECBytes(size int64) string {
 	}
 }
 
-// formatIECValue formats a numeric value to a string, using zero decimal places for integers and one decimal place for non-integers, followed by the provided suffix.
+// formatIECValue 按整数零位、小数一位的规则格式化数值，并追加指定单位后缀。
 func formatIECValue(value float64, suffix string) string {
 	if value == float64(int64(value)) {
 		return fmt.Sprintf("%.0f %s", value, suffix)
