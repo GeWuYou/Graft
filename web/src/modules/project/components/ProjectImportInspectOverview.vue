@@ -111,6 +111,8 @@ defineOptions({
   name: 'ProjectImportInspectOverview',
 });
 
+// 概览只把 inspection 快照转换为可读摘要，不修改服务端检查结果或导入流程状态。
+
 const props = defineProps<{
   canImport: boolean;
   resolvedWorkingDirectory: string;

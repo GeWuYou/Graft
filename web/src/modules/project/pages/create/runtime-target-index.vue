@@ -78,6 +78,7 @@ import { useProjectCreateRouteNavigation } from '../../shared/navigation';
 import type { ProjectComposeRuntimeTarget } from '../../types/project';
 
 defineOptions({ name: 'ProjectCreateRuntimeTargetIndex' });
+// Compose 目标页依赖服务端能力目录；缺少合法部署上下文时必须回到创建入口。
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();

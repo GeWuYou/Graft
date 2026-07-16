@@ -115,6 +115,7 @@ import type {
 } from '../../types/project';
 
 defineOptions({ name: 'ProjectManagedCreateIndex' });
+// 托管创建页拥有表单草稿和校验反馈，工作区编辑器与创建 API 分别维护各自的边界。
 const { router, tabsRouterStore, t } = useProjectPageContext();
 const route = useRoute();
 const formRef = ref<FormInstanceFunctions | null>(null);

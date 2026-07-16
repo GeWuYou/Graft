@@ -134,6 +134,8 @@ import type {
   ProjectImportDirectorySource,
 } from '../types/import';
 
+// 目录来源和目录列表均来自服务端；组件只拥有当前浏览路径、加载状态与确认结果。
+
 const props = defineProps<{
   visible: boolean;
 }>();

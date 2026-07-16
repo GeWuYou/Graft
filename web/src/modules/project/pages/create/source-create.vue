@@ -47,6 +47,7 @@ import { postProjectApplicationNameAvailability, postProjectCreateTemplate } fro
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { navigateToProjectCreateSource, refreshProjectCreatePage } from '../../shared/navigation';
 import type { ProjectTemplateCreateRequest } from '../../types/project';
+// 来源创建页拥有表单和模板草稿，提交前通过服务端校验应用名称与运行时目标。
 defineOptions({ name: 'ProjectSourceCreate' });
 const { t } = useI18n();
 const router = useRouter();

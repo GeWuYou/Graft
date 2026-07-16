@@ -117,6 +117,8 @@ defineOptions({
   name: 'ProjectDiscoveryCandidateIndex',
 });
 
+// 发现页只负责加载服务端候选并把失败转换为页面反馈，不在本地推断候选可用性。
+
 const { t } = useI18n();
 const loading = ref(true);
 const loadError = ref('');

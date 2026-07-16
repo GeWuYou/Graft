@@ -88,6 +88,7 @@ import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { useProjectCreateRouteNavigation } from '../../shared/navigation';
 
 defineOptions({ name: 'ProjectDeploymentTypeIndex' });
+// 创建流程的运行时选择页只负责展示能力目录并保留路由上下文，具体目标由下一页加载。
 
 const { t } = useI18n();
 const router = useRouter();

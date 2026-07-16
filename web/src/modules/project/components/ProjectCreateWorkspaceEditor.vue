@@ -187,6 +187,8 @@ import ProjectWorkspaceEditor, {
 
 defineOptions({ name: 'ProjectCreateWorkspaceEditor' });
 
+// 创建页编辑器拥有草稿、保存队列和校验反馈；服务端默认文件仍由页面调用方负责加载。
+
 type PendingSaveAction = 'all' | 'current' | null;
 type WorkspaceSyntaxMarker = { severity: number };
 type WorkspaceEditorHandle = {

@@ -36,6 +36,8 @@ let modifiedModel: Monaco.editor.ITextModel | null = null;
 let relayoutBridge: projectMonaco.ProjectMonacoRelayoutBridge | null = null;
 const modelCache = new Map<string, Monaco.editor.ITextModel>();
 
+// Diff 编辑器同时拥有原始与修改模型；切换输入或卸载时必须释放两侧缓存，避免污染后续工作区。
+
 type ProjectMonacoLineChange = Monaco.editor.ILineChange;
 
 const { applyTheme } = projectMonaco.useProjectMonacoLifecycle({

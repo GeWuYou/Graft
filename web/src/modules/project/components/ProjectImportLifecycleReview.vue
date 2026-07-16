@@ -29,6 +29,8 @@ import ProjectLifecycleConfigurationReview from './ProjectLifecycleConfiguration
 
 defineOptions({ name: 'ProjectImportLifecycleReview' });
 
+// 生命周期审核区编辑导入草稿并展示命令预览，最终请求参数由父级在提交时生成。
+
 const draft = defineModel<ProjectLifecycleConfigurationDraft>('draft', { required: true });
 defineProps<{ inspectionRefreshLoading?: boolean }>();
 defineEmits<{ (event: 'back'): void; (event: 'confirm'): void; (event: 'refresh'): void }>();

@@ -26,12 +26,7 @@ export function isProjectImportInspectionExpiredError(error: unknown) {
   );
 }
 
-/**
- * 管理项目导入流程的候选 inspect、预览检查和导入提交状态。
- *
- * @param t - 用于生成本地化错误消息的翻译函数
- * @returns 包含导入流程状态、计算结果和操作方法的对象
- */
+/** 导入检查结果属于服务端会话；异步结果只有在仍对应最新请求时才能写入页面状态。 */
 export function useProjectImportFlow(t: Translate) {
   let latestInspectRequestId = 0;
 
@@ -58,9 +53,6 @@ export function useProjectImportFlow(t: Translate) {
 
   const hasPreview = computed(() => Boolean(inspectResult.value));
 
-  /**
-   * 将项目导入流程恢复到初始状态，并使正在进行的检查请求失效。
-   */
   function reset() {
     latestInspectRequestId += 1;
     selectedCandidateKey.value = '';
@@ -76,9 +68,6 @@ export function useProjectImportFlow(t: Translate) {
     lifecycleConfigError.value = '';
   }
 
-  /**
-   * 清除当前项目导入预览及其相关状态。
-   */
   function clearPreview() {
     inspectError.value = '';
     importError.value = '';
@@ -90,12 +79,7 @@ export function useProjectImportFlow(t: Translate) {
     lifecycleConfigError.value = '';
   }
 
-  /**
-   * 检查指定的运行时候选项并更新项目导入预览。
-   *
-   * @param candidateKey - 要检查的运行时候选项标识
-   * @returns `'applied'` 表示检查结果已应用，`'stale'` 表示检查结果已过期
-   */
+  /** 过期请求只能返回状态，不能清除或覆盖较新检查产生的预览与错误。 */
   async function inspectCandidateByKey(candidateKey: string, preserveDraft = false) {
     const requestId = ++latestInspectRequestId;
     selectedCandidateKey.value = candidateKey;
@@ -137,11 +121,6 @@ export function useProjectImportFlow(t: Translate) {
     return inspectCandidateByKey(candidate.candidate_key);
   }
 
-  /**
-   * 刷新当前选中候选运行时的检查结果。
-   *
-   * @returns 当前未选择候选运行时时为 `'idle'`，否则为检查请求的执行状态
-   */
   async function refreshInspect() {
     if (!selectedCandidateKey.value) {
       return 'idle' as const;
@@ -154,18 +133,11 @@ export function useProjectImportFlow(t: Translate) {
     return result;
   }
 
-  /**
-   * 让当前检查快照立刻失去导入资格，直到重新检查成功。
-   */
+  /** 编辑检查结果后立即撤销当前会话资格，避免提交过期快照。 */
   function invalidateInspectionSession() {
     inspectionSessionValid.value = false;
   }
 
-  /**
-   * 根据当前检查结果准备生命周期配置草稿。
-   *
-   * @returns 成功生成配置草稿时为 `true`，否则为 `false`
-   */
   function prepareLifecycleConfiguration() {
     if (lifecycleDraft.value) {
       return true;
@@ -184,12 +156,7 @@ export function useProjectImportFlow(t: Translate) {
     }
   }
 
-  /**
-   * 提交项目导入请求。
-   *
-   * @returns 导入执行请求的结果
-   * @throws 当缺少检查标识或生命周期配置时抛出错误；请求执行失败时重新抛出原始错误
-   */
+  /** 提交时再次要求检查会话和生命周期草稿，失败既保留本地错误又向调用方抛出原始异常。 */
   async function submitImport() {
     if (!inspectResult.value?.inspection_id) {
       throw new Error('missing inspection authority');

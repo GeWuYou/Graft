@@ -112,6 +112,8 @@ defineOptions({
   name: 'ProjectCreateMethodIndex',
 });
 
+// 创建方式页消费服务端能力目录，并通过路由查询参数把选择传给后续创建步骤。
+
 type CreationMethodDefinition = {
   titleKey: string;
   descriptionKey: string;
