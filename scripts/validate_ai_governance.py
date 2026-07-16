@@ -41,6 +41,12 @@ BACKEND_SECURITY_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "backen
 BACKEND_TEST_MAINTAIN_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "backend" / "后端测试与可维护性治理规范.md"
 AI_CODE_REVIEW_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "ai" / "AI代码生成与Review规范.md"
 SERVER_AGENTS = REPO_ROOT / "server" / "AGENTS.md"
+SUBAGENT_DELEGATION_SKILLS = (
+    REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-batch" / "SKILL.md",
+    REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-loop" / "SKILL.md",
+    REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-task" / "SKILL.md",
+    REPO_ROOT / ".agents" / "skills" / "graft-comment-governance" / "SKILL.md",
+)
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
@@ -502,6 +508,76 @@ def validate_agents_skill_list() -> list[Finding]:
     return findings
 
 
+def validate_subagent_model_governance() -> list[Finding]:
+    """Ensure direct subagent delegation entrypoints carry the model-level guardrail."""
+    findings: list[Finding] = []
+
+    if AGENTS.is_file():
+        root_text = read_text(AGENTS)
+        for term in (
+            "Model-level delegation guardrail:",
+            "same level as or lower",
+            "fork_context=true",
+            "fork_context=false",
+            "higher-level worker model",
+            "fail closed",
+            "model names, availability, or reasoning effort",
+        ):
+            if term not in root_text:
+                findings.append(Finding(AGENTS, f"missing subagent model governance term {term!r}"))
+
+    for skill_path in SUBAGENT_DELEGATION_SKILLS:
+        if not skill_path.is_file():
+            findings.append(Finding(skill_path, "direct subagent delegation skill is missing"))
+            continue
+        text = read_text(skill_path)
+        if not ("same level as or lower" in text or "same level or lower" in text):
+            findings.append(Finding(skill_path, "missing subagent model governance term for same-or-lower model relation"))
+        for term in ("model_relation", "comparison evidence"):
+            if term not in text:
+                findings.append(Finding(skill_path, f"missing subagent model governance term {term!r}"))
+        if "availability" not in text:
+            findings.append(Finding(skill_path, "missing subagent model governance term 'availability'"))
+        if "reasoning" not in text:
+            findings.append(Finding(skill_path, "missing subagent model governance term 'reasoning'"))
+        if "model=gpt-" in text or "model: gpt-" in text:
+            findings.append(Finding(skill_path, "direct delegation skill must not hard-code an unconditional worker model"))
+
+    comment_skill = SUBAGENT_DELEGATION_SKILLS[-1]
+    if comment_skill.is_file() and "default worker model is exactly one model level lower" not in read_text(comment_skill):
+        findings.append(Finding(comment_skill, "comment governance must define a one-level-lower default worker model"))
+
+    for path, terms in (
+        (
+            AI_TOOLING_DOC,
+            (
+                "模型等级护栏",
+                "fork_context=true",
+                "fork_context=false",
+                "不得根据模型名称、可用性或 reasoning effort 推断",
+            ),
+        ),
+        (
+            AI_CODE_REVIEW_DOC,
+            (
+                "多 agent 委派的模型约束",
+                "子 agent 模型不得高于直接委派者模型",
+                "parent_model",
+                "model_relation",
+            ),
+        ),
+    ):
+        if not path.is_file():
+            findings.append(Finding(path, "AI model delegation governance document is missing"))
+            continue
+        text = read_text(path)
+        for term in terms:
+            if term not in text:
+                findings.append(Finding(path, f"missing subagent model governance term {term!r}"))
+
+    return findings
+
+
 def validate_push_branch_governance() -> list[Finding]:
     """
     检查推送触发的分支命名与推送治理说明是否齐备。
@@ -768,6 +844,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())
     findings.extend(validate_agents_skill_list())
+    findings.extend(validate_subagent_model_governance())
     findings.extend(validate_push_branch_governance())
     findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())

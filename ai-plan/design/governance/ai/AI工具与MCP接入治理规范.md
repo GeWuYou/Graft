@@ -54,6 +54,12 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
 
 不要只补设计文档却不更新 `AGENTS.md`、校验脚本或 review 口径；否则多人协作和多 agent 场景下这些规则很快会失效。
 
+多 agent 委派还必须遵守模型等级护栏：子 agent 的模型最高只能与直接委派者同级，或低于直接委派者。使用
+`fork_context=true` 时继承父模型与推理强度；使用 `fork_context=false` 时必须显式提供并验证模型、推理强度和
+模型等级关系。更高模型必须暂停委派并向用户申请针对该模型、任务范围和风险理由的明确授权；无法验证等级时
+同样 fail-closed，不得根据模型名称、可用性或 reasoning effort 推断。该规则由根 `AGENTS.md` 统一定义，实际
+委派 skill 只能引用并落实，不得创建第二套模型等级表。
+
 ## 3. MCP 风险等级
 
 接入 MCP 前必须先按能力分级：
@@ -251,3 +257,4 @@ AI tooling evidence:
 - 是否把可机检规则收口进现有 validation script、lint 或测试，而不是只靠人工记忆。
 - 是否避免使用注释覆盖率、文档覆盖率这类 AI 易作弊指标。
 - 是否为多 agent closeout 规定最小证据字段，例如修改范围、影响模块、风险点、验证步骤和回滚方案。
+- 是否验证每个实际委派入口都记录父模型、子模型、模型等级关系和比较证据，并对更高或未知等级 fail-closed。

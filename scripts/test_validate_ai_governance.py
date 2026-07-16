@@ -45,6 +45,27 @@ class SkillMcpGuidanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_skill_mcp_guidance(), [])
 
 
+class SubagentModelGovernanceTests(unittest.TestCase):
+    def test_subagent_model_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_subagent_model_governance(), [])
+
+    def test_subagent_model_governance_rejects_fixed_worker_model(self) -> None:
+        comment_skill = MODULE.SUBAGENT_DELEGATION_SKILLS[-1]
+        current_text = MODULE.read_text(comment_skill)
+        mutated_text = current_text + "\nThe target worker configuration is model=gpt-5.6-luna.\n"
+        original_read_text = MODULE.read_text
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == comment_skill:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_subagent_model_governance()
+
+        self.assertTrue(any("must not hard-code" in finding.message for finding in findings))
+
+
 class WorkIntakeGovernanceTests(unittest.TestCase):
     def test_work_intake_governance_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_work_intake_skill(), [])
