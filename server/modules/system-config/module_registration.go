@@ -56,9 +56,7 @@ func registerSystemConfigPermissions(registry *permission.Registry, moduleName s
 	return nil
 }
 
-// registerSystemConfigMenu 将系统配置菜单项注册到菜单注册表中。
-// registerSystemConfigMenu 注册系统配置菜单项。
-// moduleName 指定菜单项所属模块；当 registry 为 nil 时返回错误，否则返回 nil。
+// registerSystemConfigMenu 将带有读取权限约束的系统配置入口注册到菜单注册表；registry 为空时拒绝装配。
 func registerSystemConfigMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")

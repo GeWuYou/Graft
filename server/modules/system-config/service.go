@@ -64,9 +64,9 @@ type ValueSnapshot struct {
 type ValueStatus string
 
 const (
-	// ValueStatusDefault means no user override exists and the module default is effective.
+	// ValueStatusDefault 表示不存在用户覆盖值，当前生效的是模块默认值。
 	ValueStatusDefault ValueStatus = "default"
-	// ValueStatusModified means a stored user override is effective.
+	// ValueStatusModified 表示已持久化的用户覆盖值当前生效。
 	ValueStatusModified ValueStatus = "modified"
 )
 
@@ -247,7 +247,7 @@ func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) 
 	return s.Get(ctx, definition.Key)
 }
 
-// SnapshotCacheDebugState returns read-only observability for the unified local snapshot path.
+// SnapshotCacheDebugState 返回统一快照读取路径的只读观测信息；观测接口不暴露底层存储访问能力。
 func (s *Service) SnapshotCacheDebugState() SnapshotCacheDebugState {
 	if s == nil {
 		return SnapshotCacheDebugState{}
@@ -552,8 +552,7 @@ func marshalOverrideSnapshotCache(cache *overrideSnapshotCache) ([]byte, error) 
 	return json.Marshal(cache.overrides)
 }
 
-// unmarshalOverrideSnapshotCache 从 JSON 载体重建覆盖快照缓存结构。
-// unmarshalOverrideSnapshotCache 将 JSON 载体反序列化为 override 快照缓存。如果载体为空或 JSON 无效，返回错误；否则解析 override 映射并返回深度克隆后的缓存。
+// unmarshalOverrideSnapshotCache 从 JSON 载体重建覆盖快照缓存；载体为空或无效时返回错误，成功时深拷贝覆盖值，避免缓存共享可变数组。
 func unmarshalOverrideSnapshotCache(payload []byte) (*overrideSnapshotCache, error) {
 	if len(payload) == 0 {
 		return nil, errors.New("system config snapshot cache returned empty payload")

@@ -1,14 +1,14 @@
 package contract
 
 const (
-	// SystemConfigGroup is the API route group for system configuration management.
+	// SystemConfigGroup 是系统配置管理接口的路由组。
 	SystemConfigGroup = "/system-configs"
-	// SystemConfigCollectionRoute is the collection route fragment.
+	// SystemConfigCollectionRoute 是配置集合接口的路径片段。
 	SystemConfigCollectionRoute = ""
-	// SystemConfigDetailRoute is the detail route fragment.
+	// SystemConfigDetailRoute 是配置详情接口的路径片段。
 	SystemConfigDetailRoute = "/:key"
-	// SystemConfigResetRoute is the reset route fragment.
+	// SystemConfigResetRoute 是删除用户覆盖并恢复默认值的路径片段。
 	SystemConfigResetRoute = "/:key/reset"
-	// SystemConfigMenuPath is the web menu path for the system configuration page.
+	// SystemConfigMenuPath 是系统配置管理页面使用的前端菜单路径。
 	SystemConfigMenuPath = "/platform/system-config"
 )

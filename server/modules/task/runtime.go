@@ -139,7 +139,7 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
 }
 
-// GetTask returns one persisted Task read model.
+// GetTask 返回一个已持久化的 Task 读模型；返回值来自仓储事实而不是 worker 内存状态。
 func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskView, error) {
 	task, err := r.repository.Get(ctx, taskID)
 	if err != nil {
@@ -148,7 +148,7 @@ func (r *Runtime) GetTask(ctx context.Context, taskID uint64) (moduleapi.TaskVie
 	return toTaskView(task), nil
 }
 
-// ListTasks returns one filtered Task history page after the caller authorizes its owner.
+// ListTasks 返回经调用方完成 owner 授权后的 Task 历史分页及总数。
 func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter, limit int, offset int) ([]moduleapi.TaskView, int64, error) {
 	if r == nil || r.repository == nil {
 		return nil, 0, taskstore.ErrInvalidInput
@@ -164,7 +164,7 @@ func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter
 	return items, total, nil
 }
 
-// ListTaskLogs returns one persisted Task log replay page.
+// ListTaskLogs 返回按持久化序列游标读取的 Task 日志重放分页。
 func (r *Runtime) ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskLogView, error) {
 	logs, err := r.repository.ListLogs(ctx, taskID, after, limit)
 	if err != nil {
@@ -177,7 +177,7 @@ func (r *Runtime) ListTaskLogs(ctx context.Context, taskID uint64, after int64, 
 	return items, nil
 }
 
-// ListTaskStages returns the persisted, ordered Stage timeline.
+// ListTaskStages 返回按阶段序号排序的持久化 Stage 时间线。
 func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleapi.TaskStageView, error) {
 	stages, err := r.repository.ListStages(ctx, taskID)
 	if err != nil {
@@ -190,7 +190,7 @@ func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleap
 	return items, nil
 }
 
-// ListTaskEvents returns persisted non-derivable Task history facts.
+// ListTaskEvents 返回不能从当前状态推导的持久化 Task 历史事实。
 func (r *Runtime) ListTaskEvents(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskEventView, error) {
 	events, err := r.repository.ListEvents(ctx, taskID, after, limit)
 	if err != nil {
@@ -208,8 +208,7 @@ func toTaskView(task taskmodel.Task) moduleapi.TaskView {
 	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage}
 }
 
-// Cancel persists a cancellation request and forwards a cancellation signal to a
-// currently running consumer executor when one owns the active Stage.
+// Cancel 持久化取消请求；若当前 Stage 正由消费模块执行，则继续转发取消信号，running 状态由执行结果决定。
 func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 	if r == nil || r.repository == nil {
 		return errors.New("task runtime repository is unavailable")
@@ -557,7 +556,7 @@ func normalizedMaxAttempts(value int) int {
 	return value
 }
 
-// hasPendingStages determines whether any stage is pending or running. Returns true if at least one stage has a pending or running status, and false otherwise.
+// hasPendingStages 判断是否仍有 pending 或 running 阶段；该结果用于决定 Task 是否可以进入终态。
 func hasPendingStages(stages []taskmodel.Stage) bool {
 	for _, stage := range stages {
 		if stage.Status == moduleapi.StageStatusPending || stage.Status == moduleapi.StageStatusRunning {
@@ -567,8 +566,7 @@ func hasPendingStages(stages []taskmodel.Stage) bool {
 	return false
 }
 
-// durationSince returns the elapsed time between the start and finish timestamps in milliseconds.
-// It returns nil when the start timestamp is absent and clamps negative durations to zero.
+// durationSince 返回起止时间之间的毫秒数；缺少开始时间时返回 nil，时钟回拨导致的负数会被截为零。
 func durationSince(startedAt *time.Time, finishedAt time.Time) *int64 {
 	if startedAt == nil {
 		return nil

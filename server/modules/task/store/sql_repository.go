@@ -183,7 +183,7 @@ func taskListWhere(filter moduleapi.TaskListFilter) (string, []any) {
 	return strings.Join(clauses, " AND "), arguments
 }
 
-// ListStages returns a Task's immutable serial stage plan in execution order.
+// ListStages 返回 Task 不可变的串行阶段计划，并保持执行顺序。
 func (r *SQLRepository) ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error) {
 	if taskID == 0 {
 		return nil, ErrInvalidInput
@@ -197,7 +197,7 @@ func (r *SQLRepository) ListStages(ctx context.Context, taskID uint64) ([]taskmo
 	return scanStages(rows)
 }
 
-// ListEvents replays non-derivable Task events after a sequence cursor.
+// ListEvents 按序列游标重放不能从当前状态推导的 Task 事件。
 func (r *SQLRepository) ListEvents(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Event, error) {
 	if taskID == 0 || afterSequence < 0 {
 		return nil, ErrInvalidInput
@@ -211,7 +211,7 @@ func (r *SQLRepository) ListEvents(ctx context.Context, taskID uint64, afterSequ
 	return scanEvents(rows)
 }
 
-// ListLogs replays Task logs after a sequence cursor.
+// ListLogs 按序列游标重放 Task 日志。
 func (r *SQLRepository) ListLogs(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Log, error) {
 	if taskID == 0 || afterSequence < 0 {
 		return nil, ErrInvalidInput
@@ -287,7 +287,7 @@ func (r *SQLRepository) TransitionStage(ctx context.Context, input StageTransiti
 	return expectOneAffected(result)
 }
 
-// AppendEvent persists a non-derivable history fact before realtime is introduced.
+// AppendEvent 持久化不能从当前状态推导的历史事实；realtime 通知必须在该事实成功写入后发布。
 func (r *SQLRepository) AppendEvent(ctx context.Context, input AppendEventInput) (taskmodel.Event, error) {
 	if input.TaskID == 0 || input.Sequence <= 0 || !validEventType(input.Type) {
 		return taskmodel.Event{}, ErrInvalidInput
@@ -304,7 +304,7 @@ func (r *SQLRepository) AppendEvent(ctx context.Context, input AppendEventInput)
 	return item, nil
 }
 
-// AppendLog persists one executor output line. Size limits are enforced by the worker batch.
+// AppendLog 持久化一行执行器输出；日志大小限制由 worker 批处理入口统一执行。
 func (r *SQLRepository) AppendLog(ctx context.Context, input AppendLogInput) (taskmodel.Log, error) {
 	if input.TaskID == 0 || input.Sequence <= 0 || !validLogStream(input.Stream) || !validLogLevel(input.Level) || strings.TrimSpace(input.Line) == "" {
 		return taskmodel.Log{}, ErrInvalidInput
@@ -323,9 +323,7 @@ func (r *SQLRepository) AppendLog(ctx context.Context, input AppendLogInput) (ta
 	return item, nil
 }
 
-// ClaimNextStage atomically selects the next serially executable Stage and
-// persists its running state. PostgreSQL SKIP LOCKED keeps concurrent workers
-// from running the same Stage; the SQLite path retains equivalent test semantics.
+// ClaimNextStage 原子领取下一个可串行执行的 Stage 并持久化 running 状态；PostgreSQL 使用 SKIP LOCKED 防止并发 worker 重复执行，SQLite 保持等价测试语义。
 func (r *SQLRepository) ClaimNextStage(ctx context.Context, now time.Time) (StageClaim, bool, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -475,7 +473,7 @@ func (r *SQLRepository) RequestCancellation(ctx context.Context, taskID uint64, 
 	return r.Get(ctx, taskID)
 }
 
-// CancelPendingTask finalizes an unclaimed task without invoking a Stage executor.
+// CancelPendingTask 直接终止尚未领取的 Task，不调用任何 Stage 执行器。
 func (r *SQLRepository) CancelPendingTask(ctx context.Context, taskID uint64, finishedAt time.Time, durationMS *int64) error {
 	if taskID == 0 || finishedAt.IsZero() {
 		return ErrInvalidInput
@@ -544,8 +542,7 @@ func (r *SQLRepository) getStage(ctx context.Context, taskID uint64, stageID uin
 	return taskmodel.Stage{}, ErrNotFound
 }
 
-// RescheduleStage converts a retryable failed attempt into the next pending
-// attempt without rewriting the attempt counter or terminal history details.
+// RescheduleStage 将可重试的 failed 阶段安排为下一次 pending 尝试，不改写尝试计数或终态历史详情。
 func (r *SQLRepository) RescheduleStage(ctx context.Context, stageID uint64, retryAt time.Time) error {
 	if stageID == 0 || retryAt.IsZero() {
 		return ErrInvalidInput
@@ -559,12 +556,12 @@ func (r *SQLRepository) RescheduleStage(ctx context.Context, stageID uint64, ret
 	return expectOneAffected(result)
 }
 
-// NextEventSequence returns the next append-only sequence for one Task.
+// NextEventSequence 返回一个 Task 的下一个只追加事件序列号。
 func (r *SQLRepository) NextEventSequence(ctx context.Context, taskID uint64) (int64, error) {
 	return r.nextSequence(ctx, "task_events", taskID)
 }
 
-// NextLogSequence returns the next append-only log sequence for one Task.
+// NextLogSequence 返回一个 Task 的下一个只追加日志序列号。
 func (r *SQLRepository) NextLogSequence(ctx context.Context, taskID uint64) (int64, error) {
 	return r.nextSequence(ctx, "task_logs", taskID)
 }
@@ -705,9 +702,7 @@ func normalizeCreateInput(input CreateInput) (CreateInput, error) {
 	return input, nil
 }
 
-// normalizeTaskForCreate validates and normalizes a task before creation.
-// It requires a task type, owner, and at least one stage, and permits pending or scheduled tasks.
-// Scheduled tasks must include a scheduled time.
+// normalizeTaskForCreate 在创建前校验并规范化 Task；必须有类型、owner 和至少一个阶段，只允许 pending 或 scheduled，scheduled 必须带计划时间。
 func normalizeTaskForCreate(task *taskmodel.Task, stageCount int) error {
 	if task == nil || strings.TrimSpace(string(task.Type)) == "" || strings.TrimSpace(task.Owner.Type) == "" || strings.TrimSpace(task.Owner.ID) == "" || stageCount == 0 {
 		return ErrInvalidInput
@@ -725,7 +720,7 @@ func normalizeTaskForCreate(task *taskmodel.Task, stageCount int) error {
 	return nil
 }
 
-// normalizeStagesForCreate validates and normalizes the stages in a task's initial execution plan.
+// normalizeStagesForCreate 校验并规范化 Task 初始执行计划中的阶段集合。
 func normalizeStagesForCreate(stages []taskmodel.Stage) error {
 	seenKeys := make(map[string]struct{}, len(stages))
 	for index := range stages {
@@ -751,7 +746,7 @@ func normalizeStageForCreate(stage *taskmodel.Stage, sequence int, seenKeys map[
 	return nil
 }
 
-// validInitialStage reports whether a stage satisfies the constraints for an initial pending stage at the specified sequence.
+// validInitialStage 判断阶段是否满足指定序号的初始 pending 约束。
 func validInitialStage(stage *taskmodel.Stage, sequence int) bool {
 	return stage != nil &&
 		strings.TrimSpace(stage.Key) != "" &&
@@ -785,7 +780,7 @@ func normalizeLimit(limit int) int {
 	return limit
 }
 
-// expectOneAffected verifies that a database operation affected exactly one row.
+// expectOneAffected 要求数据库操作恰好影响一行；影响数不符时返回状态冲突，防止静默覆盖并发更新。
 func expectOneAffected(result sql.Result) error {
 	affected, err := result.RowsAffected()
 	if err != nil {
@@ -807,7 +802,7 @@ func closeRows(rows *sql.Rows) {
 	_ = rows.Close()
 }
 
-// validEventType reports whether the event type is supported by the task repository.
+// validEventType 判断事件类型是否属于任务仓储支持的历史事实集合。
 func validEventType(value taskmodel.EventType) bool {
 	switch value {
 	case taskmodel.EventTypeCreated, taskmodel.EventTypeCancelRequested, taskmodel.EventTypeCancelled, taskmodel.EventTypeRetryRequested, taskmodel.EventTypeRetryScheduled, taskmodel.EventTypeRecoveryRequired, taskmodel.EventTypeRecoveryResolved:
@@ -817,12 +812,12 @@ func validEventType(value taskmodel.EventType) bool {
 	}
 }
 
-// validLogStream reports whether value identifies a supported log stream.
+// validLogStream 判断 value 是否标识受支持的日志流。
 func validLogStream(value string) bool {
 	return value == "stdout" || value == "stderr" || value == "system"
 }
 
-// validLogLevel reports whether value is a supported log level.
+// validLogLevel 判断 value 是否属于受支持的日志级别。
 func validLogLevel(value string) bool {
 	return value == "info" || value == "warn" || value == "error"
 }

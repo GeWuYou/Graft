@@ -1,4 +1,4 @@
-// Package task owns the platform Task Runtime's persisted state-machine facts.
+// Package task 拥有平台 Task Runtime 的持久化状态机事实。
 package task
 
 import (

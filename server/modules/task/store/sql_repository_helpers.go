@@ -19,13 +19,13 @@ const (
 	placeholderGrowthEstimate = 16
 )
 
-// SQLDialect selects the placeholder and value-cast syntax for a repository connection.
+// SQLDialect 选择仓储连接使用的占位符和 JSON/时间值转换语法。
 type SQLDialect string
 
 const (
-	// SQLDialectPostgres uses PostgreSQL positional placeholders and casts.
+	// SQLDialectPostgres 使用 PostgreSQL 位置占位符和类型转换。
 	SQLDialectPostgres SQLDialect = "postgres"
-	// SQLDialectSQLite uses SQLite question-mark placeholders for unit tests.
+	// SQLDialectSQLite 供单元测试使用 SQLite 问号占位符。
 	SQLDialectSQLite SQLDialect = "sqlite"
 )
 
@@ -93,32 +93,31 @@ func taskColumnsFor(alias string) string {
 		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
-// stageColumns returns the comma-separated column names selected from the stage table.
+// stageColumns 返回从 Stage 表选择的逗号分隔列名。
 func stageColumns() string {
 	return `id, task_id, stage_key, sequence, executor_type, status, attempt, max_attempts, retry_backoff_ms,
 		next_retry_at, input_json, recovery_policy, result_json, failure_code, failure_message, started_at,
 		finished_at, duration_ms, created_at, updated_at`
 }
 
-// stageColumnsFor returns a comma-separated list of stage columns qualified with the specified table alias.
+// stageColumnsFor 返回使用指定表别名限定的 Stage 逗号分隔列名。
 func stageColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_id, ` + alias + `.stage_key, ` + alias + `.sequence, ` + alias + `.executor_type, ` + alias + `.status, ` + alias + `.attempt, ` + alias + `.max_attempts, ` + alias + `.retry_backoff_ms,
 		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.started_at,
 		` + alias + `.finished_at, ` + alias + `.duration_ms, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
-// eventColumns returns the comma-separated column names selected from the event table.
+// eventColumns 返回从事件表选择的逗号分隔列名。
 func eventColumns() string {
 	return `id, task_id, sequence, event_type, payload_json, created_at`
 }
 
-// logColumns returns the comma-separated list of log table column names.
+// logColumns 返回日志表的逗号分隔列名。
 func logColumns() string {
 	return `id, task_id, stage_id, sequence, stream, level, line, occurred_at`
 }
 
-// scanTask scans a database row into a taskmodel.Task, normalizing JSON fields and nullable values.
-// It returns the populated task or the scanning error.
+// scanTask 将数据库行扫描为 taskmodel.Task，并规范化 JSON 与可空字段；扫描失败时返回原始错误。
 func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, error) {
 	var item taskmodel.Task
 	var taskType string
@@ -153,8 +152,8 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	return item, nil
 }
 
-// scanStageClaim scans a joined task and stage record into a StageClaim.
-// It returns an empty StageClaim and the scanning error if the record cannot be read.
+// scanStageClaim 将关联查询得到的 Task 与 Stage 记录扫描为 StageClaim。
+// 记录无法读取时返回空 StageClaim 和扫描错误。
 func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, error) {
 	var claim StageClaim
 	var taskType, taskStatus string
@@ -273,8 +272,7 @@ func scanEvents(rows *sql.Rows) ([]taskmodel.Event, error) {
 	return items, nil
 }
 
-// scanLogs reads task log records from rows and converts nullable stage identifiers to pointers.
-// It returns an error if scanning a record or iterating through the rows fails.
+// scanLogs 从查询结果读取任务日志，并将可空阶段标识转换为指针；扫描或迭代失败时返回错误。
 func scanLogs(rows *sql.Rows) ([]taskmodel.Log, error) {
 	items := make([]taskmodel.Log, 0)
 	for rows.Next() {
@@ -292,7 +290,7 @@ func scanLogs(rows *sql.Rows) ([]taskmodel.Log, error) {
 	return items, nil
 }
 
-// nullableString returns a pointer to the string value when it is valid, or nil otherwise.
+// nullableString 在值有效时返回字符串指针，否则返回 nil。
 func nullableString(value sql.NullString) *string {
 	if !value.Valid {
 		return nil
@@ -310,7 +308,7 @@ func nullableUint64(value sql.NullInt64) *uint64 {
 	return &result
 }
 
-// nullableInt64 returns a pointer to the integer value when it is valid, or nil otherwise.
+// nullableInt64 在值有效时返回整数指针，否则返回 nil。
 func nullableInt64(value sql.NullInt64) *int64 {
 	if !value.Valid {
 		return nil
@@ -328,7 +326,7 @@ func nullableTime(value sql.NullTime) *time.Time {
 	return &result
 }
 
-// stringPointer returns a pointer to the provided string value.
+// stringPointer 返回给定字符串的独立指针。
 func stringPointer(value string) *string {
 	return &value
 }

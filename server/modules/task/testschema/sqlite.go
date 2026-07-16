@@ -1,4 +1,4 @@
-// Package testschema provides module-private SQLite schema setup for Task tests.
+// Package testschema 提供 Task 测试使用的模块私有 SQLite schema。
 package testschema
 
 import (
@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// CreateSQLite creates the Task Runtime schema used by SQLite-backed unit tests.
+// CreateSQLite 创建 SQLite 单元测试使用的 Task Runtime schema；该 schema 不是生产迁移来源。
 func CreateSQLite(db *sql.DB) error {
 	for _, statement := range []string{
 		`CREATE TABLE tasks (
