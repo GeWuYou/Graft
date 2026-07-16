@@ -140,7 +140,7 @@ export function formatLogViewerTimestamp(value?: string | null, locale?: string 
  *
  * @param left - 左侧日期
  * @param right - 右侧日期
- * @returns `true` if `left` 和 `right` 在本地时区的年、月、日相同，`false` otherwise.
+ * @returns `left` 和 `right` 在本地时区的年、月、日相同时返回 `true`，否则返回 `false`
  */
 function isSameLocalDay(left: Date, right: Date) {
   return (

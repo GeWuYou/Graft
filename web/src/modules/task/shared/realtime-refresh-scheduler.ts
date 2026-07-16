@@ -6,7 +6,7 @@ type TaskRealtimeRefreshSchedulerOptions = Readonly<{
 }>;
 
 /**
- * Coalesces realtime notifications so a burst never creates concurrent durable reads.
+ * 合并实时通知，在通知突发时避免产生并发的持久化读取。
  */
 export class TaskRealtimeRefreshScheduler {
   readonly #intervalMs: number;

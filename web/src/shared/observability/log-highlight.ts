@@ -11,9 +11,9 @@ const LEVEL_PATTERN = /\blevel=(?:"|')?(fatal|error|err|warn|warning|info|debug|
 const STANDALONE_LEVEL_PATTERN = /\b(fatal|error|err|warn|warning|info|debug|trace)\b/i;
 
 /**
- * Detects the log level in a line of text.
+ * 从文本行中识别日志级别。
  *
- * @returns The detected log level, or `null` if no level was found.
+ * @returns 识别出的日志级别；未识别到时返回 `null`
  */
 export function detectLogLevel(line: string): LogLevel | null {
   const fieldMatch = LEVEL_PATTERN.exec(line);
@@ -22,10 +22,10 @@ export function detectLogLevel(line: string): LogLevel | null {
 }
 
 /**
- * Maps a log level to a visual tone indicating severity.
+ * 将日志级别映射为表示严重程度的视觉色调。
  *
- * @param level - The log level to map
- * @returns The tone string corresponding to the log level: 'danger', 'warning', 'info', 'muted', or 'default'
+ * @param level - 待映射的日志级别
+ * @returns 对应的色调键：`danger`、`warning`、`info`、`muted` 或 `default`
  */
 export function getLogLevelTone(level: LogLevel | null) {
   if (level === 'FATAL' || level === 'ERROR') return 'danger';
@@ -36,11 +36,11 @@ export function getLogLevelTone(level: LogLevel | null) {
 }
 
 /**
- * Breaks a log line into tokens for highlighting and semantic analysis, extracting field pairs and identifying log levels.
+ * 将日志行拆分为用于高亮和语义分析的令牌，同时提取字段对并识别日志级别。
  *
- * @param line - The log line text to tokenize
- * @param keyword - An optional keyword to highlight within the line
- * @returns An array of log tokens; if no tokens are generated, returns a single token containing the entire line
+ * @param line - 待拆分的日志行文本
+ * @param keyword - 可选的行内高亮关键词
+ * @returns 日志令牌数组；未生成令牌时返回包含整行文本的单个令牌
  */
 export function tokenizeLogLine(line: string, keyword = ''): LogToken[] {
   const tokens: LogToken[] = [];
@@ -77,11 +77,11 @@ export function tokenizeLogLine(line: string, keyword = ''): LogToken[] {
 }
 
 /**
- * Normalizes a log level string to a standard LogLevel value.
+ * 将日志级别字符串规范化为标准 `LogLevel` 值。
  *
- * Maps common aliases such as 'err' to 'error' and 'warning' to 'warn'.
+ * 处理 `err` 到 `error`、`warning` 到 `warn` 等常见别名。
  *
- * @returns A standard LogLevel if the input matches a recognized level, or null otherwise.
+ * @returns 输入匹配已知级别时返回标准 `LogLevel`，否则返回 `null`
  */
 export function normalizeLogLevel(value?: string | null): LogLevel | null {
   if (!value) return null;

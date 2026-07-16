@@ -617,6 +617,7 @@
   </t-drawer>
 </template>
 <script setup lang="ts">
+/** 负责将结构化日志渲染为可搜索、筛选、复制和受控滚动的日志视图。 */
 import { BrowseIcon, CopyIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';

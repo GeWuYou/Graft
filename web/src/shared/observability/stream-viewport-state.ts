@@ -79,7 +79,7 @@ export function resolveStreamViewportState(input: StreamViewportStateResolverInp
  * 判断视口状态是否属于忙碌状态。
  *
  * @param state - 要检查的视口状态
- * @returns `true` if `state` 属于忙碌状态，`false` otherwise.
+ * @returns `state` 属于忙碌状态时返回 `true`，否则返回 `false`
  */
 export function isStreamViewportBusyState(state: StreamViewportState) {
   return STREAM_VIEWPORT_BUSY_STATES.has(state);

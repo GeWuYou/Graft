@@ -26,6 +26,7 @@
   </section>
 </template>
 <script setup lang="ts">
+/** 负责展示可折叠的 JSON 详情，并统一处理复制反馈。 */
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref } from 'vue';
 

@@ -20,6 +20,7 @@
   </span>
 </template>
 <script setup lang="ts">
+/** 负责展示可复制的日志标识，并将复制结果反馈给调用方。 */
 import { CopyIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed } from 'vue';

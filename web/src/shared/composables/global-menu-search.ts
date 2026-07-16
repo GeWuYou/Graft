@@ -36,9 +36,9 @@ type GlobalMenuSearchMatchedItem = {
 };
 
 /**
- * Builds a searchable index of global menu items from routes, deduplicating by path and route name.
+ * 从路由构建全局菜单搜索索引，并按路径和路由名称去重。
  *
- * @returns Array of global menu search items
+ * @returns 全局菜单搜索项数组
  */
 export function buildGlobalMenuSearchIndex(routes: MenuRoute[], options: BuildGlobalMenuSearchIndexOptions) {
   const items: GlobalMenuSearchInternalItem[] = [];
@@ -65,10 +65,10 @@ export function buildGlobalMenuSearchIndex(routes: MenuRoute[], options: BuildGl
 }
 
 /**
- * Finds menu items matching a keyword and ranks them by relevance.
+ * 查找匹配关键词的菜单项，并按相关性排序。
  *
- * @param keyword - The search term to match against menu items
- * @returns Matching items, sorted by relevance score (highest first), title length (shortest first), and original item order.
+ * @param keyword - 用于匹配菜单项的搜索词
+ * @returns 匹配项，依次按相关性分数降序、标题长度升序和原始顺序排序
  */
 export function searchGlobalMenuItems(items: GlobalMenuSearchItem[], keyword: string) {
   const normalizedKeyword = normalizeGlobalMenuSearchKeyword(keyword);
@@ -96,9 +96,9 @@ export function searchGlobalMenuItems(items: GlobalMenuSearchItem[], keyword: st
 }
 
 /**
- * Normalizes a keyword by removing whitespace and converting to lowercase.
+ * 去除关键词首尾空白并转换为小写。
  *
- * @returns The normalized keyword
+ * @returns 规范化后的关键词
  */
 export function normalizeGlobalMenuSearchKeyword(keyword: string) {
   return keyword.trim().toLowerCase();
@@ -182,10 +182,10 @@ function collectGlobalMenuSearchItems(
 }
 
 /**
- * Scores a menu item's relevance to a search keyword.
+ * 计算菜单项与搜索关键词的相关性分数。
  *
- * @param order - The item's collection order, used for stable sorting when scores are equal
- * @returns An object with the relevance score and sort metadata if the item matches, `null` otherwise
+ * @param order - 菜单项收集顺序，分数相同时用于保持稳定排序
+ * @returns 匹配时返回相关性分数及排序元数据，否则返回 `null`
  */
 function matchGlobalMenuSearchItem(item: GlobalMenuSearchItem, normalizedKeyword: string, order: number) {
   const title = normalizeGlobalMenuSearchKeyword(item.title);
@@ -247,9 +247,9 @@ function matchGlobalMenuSearchItem(item: GlobalMenuSearchItem, normalizedKeyword
 }
 
 /**
- * Determines whether a route should be treated as a menu leaf node for search indexing.
+ * 判断路由是否应作为菜单叶节点加入搜索索引。
  *
- * @returns `true` if the route is a leaf node for menu indexing, `false` otherwise.
+ * @returns 路由可作为菜单叶节点时返回 `true`，否则返回 `false`
  */
 function isSearchableMenuLeaf(route: MenuRoute, fullPath: string, visibleChildren: MenuRoute[]) {
   if (!fullPath) {
@@ -269,12 +269,12 @@ function isSearchableMenuLeaf(route: MenuRoute, fullPath: string, visibleChildre
 }
 
 /**
- * Resolves the localized title for a route by attempting breadcrumb, page, and fallback sources in priority order.
+ * 按面包屑标题、页面标题和兜底来源的优先级解析路由本地化标题。
  *
- * @param route - The route definition
- * @param meta - The route's metadata containing potential title sources
- * @param locale - The target locale for title rendering
- * @returns The localized route title, or an empty string if no title is available from any source
+ * @param route - 路由定义
+ * @param meta - 可能包含标题来源的路由元数据
+ * @param locale - 用于渲染标题的区域设置
+ * @returns 解析出的本地化路由标题；所有来源均无标题时返回空字符串
  */
 function resolveSearchRouteTitle(route: MenuRoute, meta: SearchableRouteMeta | undefined, locale: SupportedLocale) {
   return (
@@ -286,9 +286,9 @@ function resolveSearchRouteTitle(route: MenuRoute, meta: SearchableRouteMeta | u
 }
 
 /**
- * Collects searchable keywords from a route definition.
+ * 从路由定义收集可搜索关键词。
  *
- * @returns An array of keywords derived from the route name, title key, and any additional keywords in meta.
+ * @returns 从路由名称、标题键和元数据附加关键词中提取的关键词数组
  */
 function extractSearchKeywords(route: MenuRoute, meta: SearchableRouteMeta | undefined) {
   const keywords = new Set<string>();
@@ -312,9 +312,9 @@ function extractSearchKeywords(route: MenuRoute, meta: SearchableRouteMeta | und
 }
 
 /**
- * Derives a module key for a menu item based on its title key, route name, or path.
+ * 根据标题键、路由名称或路径推导菜单项的模块键。
  *
- * @returns A normalized module key string, or an empty string if no key could be derived
+ * @returns 规范化后的模块键；无法推导时返回空字符串
  */
 function inferSearchModuleKey(route: MenuRoute, meta: SearchableRouteMeta | undefined, fullPath: string) {
   const titleKey = meta?.titleKey?.trim();
@@ -346,10 +346,10 @@ function inferSearchModuleKey(route: MenuRoute, meta: SearchableRouteMeta | unde
 }
 
 /**
- * Normalizes a module key to kebab-case format.
+ * 将模块键规范化为 kebab-case 格式。
  *
- * @param value - The module key to normalize
- * @returns The normalized module key in kebab-case
+ * @param value - 待规范化的模块键
+ * @returns kebab-case 格式的模块键
  */
 function normalizeSearchModuleKey(value: string) {
   return value
@@ -401,11 +401,11 @@ function resolveSearchNavigationPath(route: MenuRoute, fullPath: string): string
 }
 
 /**
- * Joins a parent path with a route path, normalizing the result.
+ * 拼接父级路径和路由路径，并规范化结果。
  *
- * @param parentPath - The base path
- * @param routePath - The route path to append
- * @returns The normalized joined path with trailing slashes removed, except the root path remains `/`
+ * @param parentPath - 基础路径
+ * @param routePath - 要追加的路由路径
+ * @returns 去除尾部斜杠后的规范化路径；根路径仍保留为 `/`
  */
 function normalizeJoinedMenuPath(parentPath: string, routePath: string) {
   const trimmedRoutePath = routePath.trim();
@@ -425,9 +425,9 @@ function normalizeJoinedMenuPath(parentPath: string, routePath: string) {
 }
 
 /**
- * Casts a route meta object to the searchable variant.
+ * 将路由元数据转换为可搜索的元数据变体。
  *
- * @returns The meta object cast as `SearchableRouteMeta`, or `undefined` if the input is `null` or `undefined`
+ * @returns 转换为 `SearchableRouteMeta` 的元数据；输入为 `null` 或 `undefined` 时返回 `undefined`
  */
 function toSearchableRouteMeta(meta: MenuRoute['meta']) {
   return (meta ?? undefined) as SearchableRouteMeta | undefined;
