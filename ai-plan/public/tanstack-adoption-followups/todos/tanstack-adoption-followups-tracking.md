@@ -37,9 +37,7 @@ closeout:
 
 ## Pending Batches
 
-1. `resource-detail-query-migration`
-   - Evaluate project/container list and static detail resources; preserve realtime stream authority and editor drafts.
-2. `non-query-go-no-go`
+1. `non-query-go-no-go`
    - Record evidence for Table, Virtual, and Form only when a concrete performance or maintenance problem exists; Router is rejected unless architecture authority changes.
 
 ## Acceptance Conditions
@@ -55,11 +53,12 @@ closeout:
 {
   "completed_batches": [
     "p0-query-foundation-and-high-yield-consumers",
-    "standard-crud-query-migration"
+    "standard-crud-query-migration",
+    "resource-detail-query-migration"
   ],
-  "pending_batches": ["resource-detail-query-migration", "non-query-go-no-go"],
+  "pending_batches": ["non-query-go-no-go"],
   "current_batch": null,
-  "next_batch": "resource-detail-query-migration",
+  "next_batch": "non-query-go-no-go",
   "closeout_status": "active"
 }
 ```

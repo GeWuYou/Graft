@@ -18,3 +18,15 @@
 - Reference: TanStack Query documents direct cache updates from mutation responses and stable query-key ownership at
   https://tanstack.com/query/latest/docs/framework/vue/guides/updates-from-mutation-responses and
   https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys.
+
+## 2026-07-16 P1 Resource Detail Query Migration
+
+- Migrated the standalone container resources page's images, networks, volumes, and system HTTP snapshots to
+  module-owned `containerResourceQueryKeys` and `useDockerResourceQueries`. The active tab remains local UI state,
+  while each static snapshot is fetched only after its tab becomes active and is held solely in the Query cache.
+- Did not migrate project/container list and detail surfaces: they coordinate realtime subscriptions, polling, log
+  streams, command state, and editor drafts. Those concerns require a separate authority and lifecycle design; moving
+  them into Query merely for consistency would duplicate or obscure their existing state boundaries.
+- Reference: TanStack Query requires query keys to identify cached data independently and documents dependent/lazy
+  query enabling at https://tanstack.com/query/latest/docs/framework/vue/guides/query-keys and
+  https://tanstack.com/query/latest/docs/framework/vue/guides/dependent-queries.
